@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -20,6 +20,9 @@ interface SpikeWorkflowWorld {
   productionWorktree?: string;
   preSpikeBase?: string;
   spikeCommit?: string;
+  dirtyValidatedState?: string;
+  initialBranches?: string;
+  initialWorktrees?: string;
   codexPluginDirectory?: string;
   codexSpikeSkill?: string;
   bddScenariosGuidance?: string;
@@ -173,6 +176,71 @@ Then(
     assert.match(
       this.bddPlanningGuidance ?? '',
       /production consequences → implementation tasks and Assessment triggers/i,
+    );
+  },
+);
+
+Given(
+  /^(validated scenarios|ticket state) has uncommitted changes$/,
+  function (this: SpikeWorkflowWorld, state: string) {
+    this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-dirty-'));
+    this.repositoryDirectory = nodePath.join(this.projectDirectory, 'repo');
+    runGit(this.projectDirectory, ['init', 'repo']);
+    runGit(this.repositoryDirectory, ['config', 'user.email', 'spike@example.test']);
+    runGit(this.repositoryDirectory, ['config', 'user.name', 'Spike Test']);
+
+    const scenarioPath = nodePath.join(this.repositoryDirectory, 'features/example.feature');
+    const ticketPath = nodePath.join(this.repositoryDirectory, '.project/tickets/T/ticket.md');
+    mkdirSync(nodePath.dirname(scenarioPath), { recursive: true });
+    mkdirSync(nodePath.dirname(ticketPath), { recursive: true });
+    writeFileSync(scenarioPath, 'Feature: validated behavior\n');
+    writeFileSync(ticketPath, '---\nphase: scenario-gate\n---\n');
+    runGit(this.repositoryDirectory, ['add', '.']);
+    runGit(this.repositoryDirectory, ['commit', '-m', 'validated state']);
+
+    const dirtyPath = state === 'validated scenarios' ? scenarioPath : ticketPath;
+    writeFileSync(dirtyPath, `${readFileSync(dirtyPath, 'utf8')}uncommitted change\n`);
+    this.dirtyValidatedState = state;
+    this.initialBranches = runGit(this.repositoryDirectory, [
+      'branch',
+      '--format=%(refname:short)',
+    ]);
+    this.initialWorktrees = runGit(this.repositoryDirectory, ['worktree', 'list', '--porcelain']);
+    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  },
+);
+
+When('the maintainer prepares PRE_SPIKE_BASE', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.repositoryDirectory && this.spikeSkill);
+});
+
+Then('the workflow does not record PRE_SPIKE_BASE', function (this: SpikeWorkflowWorld) {
+  assert.match(
+    this.spikeSkill ?? '',
+    /uncommitted validated scenarios or ticket state[\s\S]*do not record `PRE_SPIKE_BASE`/i,
+  );
+});
+
+Then('it creates no spike branch or worktree', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.repositoryDirectory);
+  assert.equal(
+    runGit(this.repositoryDirectory, ['branch', '--format=%(refname:short)']),
+    this.initialBranches,
+  );
+  assert.equal(
+    runGit(this.repositoryDirectory, ['worktree', 'list', '--porcelain']),
+    this.initialWorktrees,
+  );
+  assert.match(this.spikeSkill ?? '', /do not create a spike branch or worktree/i);
+});
+
+Then(
+  /^it requires the (validated scenarios|ticket state) changes to be included in a commit$/,
+  function (this: SpikeWorkflowWorld, state: string) {
+    assert.equal(this.dirtyValidatedState, state);
+    assert.match(
+      this.spikeSkill ?? '',
+      /validated scenario and ticket-state changes[\s\S]*included in (?:one|the same) commit/i,
     );
   },
 );
