@@ -72,7 +72,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
 ### Scenario: A generated plugin reference cannot depend on a materialized project framework copy
 
-- [ ] RED
+- [x] RED 8f914bce9
 - [ ] GREEN
 - [ ] REFACTOR
 
