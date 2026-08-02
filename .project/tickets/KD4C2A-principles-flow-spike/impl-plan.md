@@ -1,6 +1,6 @@
 # Impl Plan: Make project knowledge shape and challenge feature delivery
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -103,24 +103,14 @@ Premortem: six months from now this design most likely fails because a new host
 or review stage is added outside the 12-row contract; mitigate by keeping host
 entry points in the canonical catalogue/parity tests rather than another list.
 
-## Arch alignment
+## Design alignment
 
-- `1. Structure enforces; instructions suggest` → heading cardinality,
-  configured paths, and trace integrity become executable checks rather than
-  self-reported compliance → `tests/hooks/impl-plan.test.ts`, the plan/boundary/
-  phase integration suites, CLI health integration tests, and
-  `tests/skills/audit-principle-trace.test.ts`.
-- `2. Fire at boundaries, not every turn` → semantic principle/persona/surface
-  challenge stays in independent phase review while health/audit check facts at
-  setup, scenario, plan, and verify boundaries → scenario/plan review stamps,
-  `verify.md` review records, health results, and E010 fixture output.
-- `3. Add, never replace` → setup preserves authored knowledge, configured
-  overrides suppress defaults, and legacy `Arch alignment` remains readable →
-  `reconcile-namespace-root.test.ts`, configured-path CLI integration, and the
-  canonical/legacy parser-consumer matrix.
-- `5. Clarity before correctness` → one canonical `Design alignment` name, one
-  mapping shape, and no copied per-ticket catalogue → parser tests plus the
-  README/website project-knowledge documentation contract.
+| Principle | Consequence | Proof | Conflict |
+| --- | --- | --- | --- |
+| 1. Structure enforces; instructions suggest | Heading cardinality, configured paths, current review-source resolution, and trace integrity are executable contracts. | packages/cli/tests/hooks/principle-trace.test.ts | |
+| 2. Fire at boundaries, not every turn | Semantic challenge runs at review boundaries; health and audit check only objective facts. | packages/cli/tests/skills/principles-review-documentation.test.ts | |
+| 3. Add, never replace | Setup preserves authored knowledge, overrides suppress defaults, and legacy alignment plans remain readable. | packages/cli/tests/reconcile-namespace-root.test.ts | |
+| 5. Clarity before correctness | New plans use one canonical alignment name and public docs describe one shared knowledge lifecycle. | packages/cli/tests/docs/project-knowledge-config.test.ts | |
 
 Architecture alignment: preserve schema as the managed-file source of truth,
 reconcile as the ownership/mutation engine, standalone hook helpers for deployed
@@ -131,10 +121,9 @@ cross-service decision.
 
 ## Known deviations
 
-- Bootstrap: this plan uses the legacy `## Arch alignment` heading because the
-  currently installed transition gate cannot accept `Design alignment` until
-  slice 1 ships. The plan itself is a required compatibility fixture, not a
-  precedent for new post-migration plans.
+- Compatibility shipped as planned: new plans use `Design alignment`; the
+  parser still reads a single legacy `Arch alignment` heading and rejects a
+  document containing both aliases.
 - The exploratory spike produced some scaffold, guidance, and surface-health
   code before the full BDD contract was frozen. During implement, already-green
   behavior is treated as characterization and must demonstrate mutation/failure
