@@ -497,6 +497,29 @@ async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliRes
   );
 }
 
+async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('review run');
+  const [rawKind, rawTargets] = invocation.operands;
+  const { REVIEW_KINDS } = await import('../review/contract.js');
+  if (typeof rawKind !== 'string' || !REVIEW_KINDS.has(rawKind as never)) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_KIND_INVALID',
+          message: 'Review kind must be quality-review, scenario-gate, or plan-implementation.',
+          retryable: false,
+        },
+      ],
+    });
+  }
+  const targets = Array.isArray(rawTargets)
+    ? rawTargets.filter((target): target is string => typeof target === 'string')
+    : [];
+  const { runReview } = await import('../review/coordinator.js');
+  return runReview({ cwd: invocation.cwd, kind: rawKind as never, targets });
+}
+
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeCodexMigration } = await import('../commands/migrate-codex-plugin.js');
   return observeCodexMigration(invocation.cwd);
@@ -1309,6 +1332,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
+  'review run': reviewRunHandler,
   'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
   'retro reconcile': retroReconcileHandler,
