@@ -87,8 +87,8 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario Outline: Every outcome leads with its independence status
 
 - [x] RED fcf9332b7
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 68d473edc
+- [x] REFACTOR skip: one review-specific renderer helper derives all three leading statements from typed result data
 
 ### Scenario: An opaque technical status is not accepted as the builder-facing result
 
