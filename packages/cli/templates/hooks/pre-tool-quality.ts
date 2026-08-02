@@ -578,7 +578,7 @@ if (isCanonicalTicketEdit) {
       if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
-          `Run the phase's \`safeword review run\` command, then record its author_agent, actual_reviewer, assigned_model, and independence with \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
+          `Run the phase's \`safeword review run\` command, then record its author_agent, actual_reviewer, actual_model, and independence with \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
         );
       }
       // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
@@ -596,7 +596,7 @@ if (isCanonicalTicketEdit) {
         if (realReviews.length > 0 && !hasCrossModelReview) {
           deny(
             `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
-            `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and assigned_model via \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
+            `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and actual_model via \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
           );
         }
       }

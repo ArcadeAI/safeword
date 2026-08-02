@@ -299,7 +299,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
   if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
     hardBlockDone(
-      'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, assigned_model, and independence with `bun .safeword/hooks/write-review-stamp.ts impl-plan`.',
+      'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, actual_model, and independence with `bun .safeword/hooks/write-review-stamp.ts impl-plan`.',
     );
   }
 
@@ -315,7 +315,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
     );
     if (realReviews.length > 0 && !hasCrossModelReview) {
       hardBlockDone(
-        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and assigned_model via `write-review-stamp.ts impl-plan`.',
+        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and actual_model via `write-review-stamp.ts impl-plan`.',
       );
     }
   }

@@ -172,15 +172,15 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 2. **A fresh-context review.** Run `safeword review run plan-implementation <impl-plan.md> <ticket-spec> <feature-file>` so the shared coordinator gives only the bounded design evidence to the preferred opposite headless agent. Its typed result must satisfy the configured policy; a private subagent result cannot satisfy this gate. On a pass, stamp it:
 
    ```bash
-   bun .safeword/hooks/write-review-stamp.ts --author-agent "<author_agent>" --reviewer-agent "<actual_reviewer>" --model "<assigned_model>" --independence "<independence>" impl-plan
+   bun .safeword/hooks/write-review-stamp.ts --author-agent "<author_agent>" --reviewer-agent "<actual_reviewer>" --model "<actual_model>" --independence "<independence>" impl-plan
    ```
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp.
 
-**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. The coordinator's `assigned_model` is the model tag to record; do not substitute an unverified model name:
+**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. The coordinator's `actual_model` is the model tag to record; do not substitute an unverified model name:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --author-agent "<author_agent>" --reviewer-agent "<actual_reviewer>" --model "<assigned_model>" --independence "<independence>" impl-plan
+bun .safeword/hooks/write-review-stamp.ts --author-agent "<author_agent>" --reviewer-agent "<actual_reviewer>" --model "<actual_model>" --independence "<independence>" impl-plan
 ```
 
 The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. When `crossAgentReview` is `require`, degraded evidence and skips also fail closed; restore the opposite reviewer and rerun the coordinator. (This gate is stricter than quality-review's advisory loop, which may accept a labeled same-agent result under the default `prefer` policy.)

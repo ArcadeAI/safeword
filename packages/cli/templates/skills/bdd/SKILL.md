@@ -63,7 +63,7 @@ satisfies the configured policy, record the returned provenance in the stamp
 (substitute the four values from `data` in the coordinator result):
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --author-agent "<author_agent>" --reviewer-agent "<actual_reviewer>" --model "<assigned_model>" --independence "<independence>" --phase <phase you are leaving>
+bun .safeword/hooks/write-review-stamp.ts --author-agent "<author_agent>" --reviewer-agent "<actual_reviewer>" --model "<actual_model>" --independence "<independence>" --phase <phase you are leaving>
 ```
 
 If the reviewer finds blocking issues, fix them and re-review — don't stamp.
