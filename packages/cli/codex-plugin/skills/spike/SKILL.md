@@ -47,8 +47,25 @@ complete.
 
 ## Isolation
 
-Run experimental code on a dedicated branch and worktree, separate from
-production implementation.
+Inspect the repository root, current worktrees, branch, and status. Record the
+current production commit as `PRE_SPIKE_BASE`. Create a uniquely named
+`spike/<question-slug>` branch and sibling worktree from that exact commit;
+never reuse an existing path or branch.
+
+Keep every experimental commit in the spike worktree. Production implementation
+starts later in a fresh worktree from `PRE_SPIKE_BASE`. Do not merge, rebase,
+cherry-pick, or copy spike commits or files into it. The spike branch remains
+unmerged while production work begins.
+
+Keep the spike worktree until its evidence is distilled and the implementation
+plan is reviewed, then remove it through the repository's normal recoverable
+cleanup process.
+
+## Run the proof
+
+Build only enough to execute the charter's proof. If the first attempt exposes
+a setup defect rather than answering the question, spend at most one bounded
+fix round. Stop when the proof answers the question or the budget expires.
 
 ## Evidence distillation
 
@@ -77,3 +94,8 @@ Return a concise report:
 Distill the evidence, shortcuts, decision, and production consequences into the
 feature ticket's existing `impl-plan.md`, updating Approach, Decisions, and
 Assessment triggers as applicable. Experimental code is disposable.
+
+Stop and report instead of widening scope when the budget expires, user-only
+knowledge or external authority is required, the experiment grows beyond one
+kill-risk slice, or the result changes validated behavior. Route those cases to
+`$safeword:elicit` or back to BDD scenario validation as appropriate.

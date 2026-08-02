@@ -213,7 +213,7 @@ Then('the spike branch remains unmerged', function (this: SpikeWorkflowWorld) {
   assert.ok(this.productionWorktree);
   const merged = runGit(this.productionWorktree, ['branch', '--merged', 'HEAD']);
   assert.doesNotMatch(merged, /spike\/experiment/);
-  assert.match(this.spikeSkill ?? '', /spike branch remains unmerged/i);
+  assert.match(this.spikeSkill ?? '', /spike branch remains\s+unmerged/i);
 });
 
 Given('a project without Claude or Cursor spike artifacts', function (this: SpikeWorkflowWorld) {
