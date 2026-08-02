@@ -245,6 +245,11 @@ function runFunctionalCommand(
   const [executable, ...parameters] = arguments_;
   if (executable === undefined) return { status: 0, stdout: '' };
   const result = spawnSync(executable, parameters, {
+    // Bun snapshots the parent environment for child_process unless it is
+    // passed explicitly. The dispatcher sets SAFEWORD_PLUGIN_CLI at runtime,
+    // so aggregate child hooks need the current environment rather than the
+    // startup snapshot.
+    env: process.env,
     input,
     maxBuffer: 10 * 1024 * 1024,
     stdio: ['pipe', captureOutput ? 'pipe' : 'inherit', 'inherit'],

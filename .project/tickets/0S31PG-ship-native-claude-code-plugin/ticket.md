@@ -34,7 +34,7 @@ done_when:
   - The installed cache runs hooks after the marketplace source plugin directory is unavailable, and automated tests distinguish cache execution from marketplace health.
   - Release, schema, catalogue, documentation, and parity checks fail on missing, unexpected, stale-version, or behaviorally unmapped Claude plugin assets.
 created: 2026-08-02T15:35:27.838Z
-last_modified: 2026-08-02T20:40:32Z
+last_modified: 2026-08-02T21:28:13Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1785
 ---
 
@@ -62,3 +62,4 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/1785
 - 2026-08-02T16:59:19Z Plan review: Fresh independent review passed after three corrections; stamped plan-implementation and advanced to implement. Four components and seven stacked slices remain under the split threshold.
 - 2026-08-02T20:40:32Z Implemented: Generated and sealed the native Claude plugin, added install/status/cleanup/recover lifecycle commands, retained per-event legacy authority until proof, shared canonical Cursor skills, and added release/parity contracts across commits ending at efc416145.
 - 2026-08-02T20:40:32Z Verified pre-release: 408 Vitest files (6,156 passed, 5 skipped), 772 BDD scenarios (769 passed, 3 skipped), ESLint, formatting, TypeScript, dependency audit, 157-asset plugin generation, release alignment, and 229 parity pairs/8 contracts all pass. Advanced to verify; interactive live-host and actual release boundaries remain intentionally unexecuted.
+- 2026-08-02T21:28:13Z Live-host verification: Claude Code 2.1.170 loaded the generated plugin session-only as `safeword@inline`, exposed all 18 Safeword skills, ran SessionStart/UserPromptSubmit/five Stop hooks, and wrote identity-bound execution proof. The first run exposed a Bun child-environment defect in aggregate dispatch; fixed it with explicit environment forwarding and added a reproducing integration test. Final headless run had zero hook stderr and returned the exact sentinel; 409 Vitest files (6,157 passed, 5 skipped), release alignment, lint, root TypeScript, and parity all pass. Interactive `/reload-plugins` and release remain intentionally open.
