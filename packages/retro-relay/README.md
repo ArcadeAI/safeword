@@ -71,6 +71,24 @@ operations reads. These in-process limits match the supported
 single-replica topology; a multi-replica deployment must move both storage and
 rate limiting to shared infrastructure.
 
+### Automated deployment
+
+Merges to `main` automatically deploy relevant relay and Docker build inputs
+through [the Retro Relay deployment workflow](../../.github/workflows/deploy-retro-relay.yml).
+The workflow is intentionally independent of Railway's GitHub integration, so
+it is auditable and can also be run manually.
+
+Before enabling it, a repository administrator must configure:
+
+- `RAILWAY_TOKEN` as a GitHub Actions repository secret containing a
+  project-scoped Railway token for the production environment;
+- `RAILWAY_RETRO_RELAY_PROJECT_ID`, `RAILWAY_RETRO_RELAY_ENVIRONMENT`, and
+  `RAILWAY_RETRO_RELAY_SERVICE` as GitHub Actions repository variables.
+
+The workflow validates all four values before invoking Railway and does not
+print the token. Deployment configuration stays out of version control; relay
+runtime secrets continue to live only in Railway.
+
 `RELAY_PAYLOAD_KEY` remains the single-key compatibility form. For rotation,
 set `RELAY_PAYLOAD_KEYRING_BASE64` to strict base64-encoded JSON:
 

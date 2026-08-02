@@ -5,13 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (458)
-## Tickets (457)
-## Tickets (455)
-## Tickets (452)
-## Tickets (453)
-## Tickets (454)
-## Tickets (461)
+## Tickets (465)
 
 ### 001
 
@@ -953,6 +947,10 @@
 - **Pre-commit auto-resync of template/install pairs after formatter pass (168)** (in_progress, epic: —)
   Make the lint-staged formatter step transparent to dogfood parity — if it touches a template, the paired install copy automatically catches up before commit lands.
   → `.project/tickets/168-pre-commit-template-install-resync`
+- **Deploy the retro relay automatically after main changes (1748)** (done, epic: —)
+  Deploy the private Retro Relay to its existing Railway service when a
+  external PRs: https://github.com/ArcadeAI/safeword/pull/1522
+  → `.project/tickets/1748-deploy-retro-relay-automatically`
 - **checkVerifyArtifact: parse PR-scope status, stop substring-matching negated mentions (1F08DD)** (done, epic: —)
   A ✅ PR Scope line that merely mentions 'piggybacked changes' in prose must pass; only a ❌ status or a positive failure claim fails.
   → `.project/tickets/1F08DD-verify-scope-status-parsing`

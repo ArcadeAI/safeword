@@ -1,0 +1,73 @@
+name: Deploy Retro Relay
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/retro-relay/**'
+      - 'packages/cli/package.json'
+      - 'packages/website/package.json'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.json'
+      - '.dockerignore'
+      - 'railway.json'
+      - '.github/workflows/deploy-retro-relay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retro-relay-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Retro Relay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.18.1
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli@5.30.3
+
+      - name: Validate deployment configuration
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_RELAY_SERVICE }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::Missing RAILWAY_TOKEN repository secret. Add a project-scoped Railway token."
+            exit 1
+          fi
+          if [ -z "$RAILWAY_PROJECT_ID" ]; then
+            echo "::error::Missing RAILWAY_RETRO_RELAY_PROJECT_ID repository variable."
+            exit 1
+          fi
+          if [ -z "$RAILWAY_ENVIRONMENT" ]; then
+            echo "::error::Missing RAILWAY_RETRO_RELAY_ENVIRONMENT repository variable."
+            exit 1
+          fi
+          if [ -z "$RAILWAY_SERVICE" ]; then
+            echo "::error::Missing RAILWAY_RETRO_RELAY_SERVICE repository variable."
+            exit 1
+          fi
+
+      - name: Deploy through Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_RELAY_SERVICE }}
+        run: >-
+          railway up --ci
+          --project "$RAILWAY_PROJECT_ID"
+          --environment "$RAILWAY_ENVIRONMENT"
+          --service "$RAILWAY_SERVICE"
