@@ -27,6 +27,11 @@ mutate=$(printenv SAFEWORD_FAKE_MUTATE || true)
 if [ "$mutate" = "1" ]; then
   printf 'reviewer mutation\n' > review-input.md
 fi
+env_log=$(printenv SAFEWORD_REVIEW_ENV_LOG || true)
+if [ -n "$env_log" ]; then
+  if printenv ANTHROPIC_API_KEY >/dev/null 2>&1; then printf 'anthropic=present\n' >> "$env_log"; else printf 'anthropic=absent\n' >> "$env_log"; fi
+  if printenv OPENAI_API_KEY >/dev/null 2>&1; then printf 'openai=present\n' >> "$env_log"; else printf 'openai=absent\n' >> "$env_log"; fi
+fi
 if [ "$identity" = "missing" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
 elif [ "$identity" = "contradictory" ]; then
@@ -253,5 +258,45 @@ describe('cross-agent review public-command wiring', () => {
       errors: [{ code: 'REVIEWER_WRITE_ATTEMPT' }],
       data: { independence: 'none' },
     });
+  });
+
+  it('keeps author-vendor credentials outside the opposite reviewer boundary', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const environmentLog = nodePath.join(directory, 'environment.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex', reviewLog);
+    const authorSecret = `sk-ant-${'a'.repeat(24)}`;
+    const reviewerSecret = `sk-openai-${'b'.repeat(24)}`;
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          ANTHROPIC_API_KEY: authorSecret,
+          OPENAI_API_KEY: reviewerSecret,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_ENV_LOG: environmentLog,
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(environmentLog, 'utf8')).toBe('anthropic=absent\nopenai=present\n');
+    expect(result.stdout).not.toContain(authorSecret);
+    expect(result.stdout).not.toContain(reviewerSecret);
   });
 });
