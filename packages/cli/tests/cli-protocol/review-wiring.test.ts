@@ -607,4 +607,49 @@ describe('cross-agent review public-command wiring', () => {
     });
     expect(() => readFileSync(log, 'utf8')).toThrow();
   });
+
+  it.each([
+    {
+      outcome: 'cross-agent',
+      environment: {},
+      firstLine: 'An independent agent checked the work.',
+    },
+    {
+      outcome: 'degraded',
+      environment: {
+        SAFEWORD_FAKE_FAILURE_CODEX: 'process',
+      },
+      firstLine: 'The check ran, but it was not fully independent.',
+    },
+    {
+      outcome: 'blocked',
+      environment: {
+        SAFEWORD_FAKE_FAILURE_CODEX: 'process',
+        SAFEWORD_FAKE_FAILURE_CLAUDE: 'auth',
+      },
+      firstLine: 'The independent check did not run.',
+    },
+  ])('leads a $outcome human result with its independence status', async testCase => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex', log);
+    installFakeReviewer(directory, 'claude', log);
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          ...testCase.environment,
+        },
+      },
+    );
+
+    expect(result.stdout.split('\n', 1)[0]).toBe(testCase.firstLine);
+  });
 });
