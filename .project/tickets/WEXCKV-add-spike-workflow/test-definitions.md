@@ -90,7 +90,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Spike proof commands retain normal permission prompts
 
-- [ ] RED
+- [x] RED d57bdc2f1
 - [ ] GREEN
 - [ ] REFACTOR
 
