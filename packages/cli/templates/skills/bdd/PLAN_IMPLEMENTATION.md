@@ -1,6 +1,16 @@
 # Plan Implementation: Design Before TDD
 
-**Entry:** Agent enters `plan-implementation` phase. Scenarios passed the scenario-gate; behavior is fixed. If a spike ran at the optional checkpoint, begin by distilling its evidence, shortcuts, decision, and production consequences into the Approach, Decisions, and Assessment triggers below; never reuse its code. This phase produces the implementation design record — `impl-plan.md` — and nothing else ships from it. Application code stays untouched until `implement` (the pre-tool hook enforces this).
+**Entry:** Agent enters `plan-implementation` phase. Scenarios passed the scenario-gate; behavior is fixed. This phase produces the implementation design record — `impl-plan.md` — and nothing else ships from it. Application code stays untouched until `implement` (the pre-tool hook enforces this).
+
+If a spike returned a structured handoff at the optional checkpoint, scaffold
+`impl-plan.md` first, then carry every value into the record immediately:
+
+- evidence → Approach proof, including the proof command/output citation;
+- shortcuts → Approach build order;
+- decision → Decisions; and
+- production consequences → implementation tasks and Assessment triggers.
+
+Never reuse the spike's experimental code.
 
 ## Design the approach — ideal first
 

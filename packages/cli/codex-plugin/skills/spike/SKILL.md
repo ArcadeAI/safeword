@@ -94,9 +94,9 @@ Return a concise report:
 - Production consequences:
 ```
 
-Distill the evidence, shortcuts, decision, and production consequences into the
-feature ticket's existing `impl-plan.md`, updating Approach, Decisions, and
-Assessment triggers as applicable. Experimental code is disposable.
+Return this structured handoff to the BDD orchestrator. Do not assume
+`impl-plan.md` exists yet: `plan-implementation` creates it, maps every handoff
+value to its documented destination, and never reuses experimental code.
 
 Stop and report instead of widening scope when the budget expires, user-only
 knowledge or external authority is required, the experiment grows beyond one
