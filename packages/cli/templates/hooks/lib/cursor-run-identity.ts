@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from './namespace-root.js';
@@ -202,8 +203,12 @@ export function readFreshCloseoutBinding(
 ): CloseoutBinding | undefined {
   const cachePath = cachePathForProject(input.projectDirectory, CLOSEOUT_BINDING_CACHE);
   if (!existsSync(cachePath)) return undefined;
+  const claimPath = `${cachePath}.claim-${randomUUID()}`;
   try {
-    const parsed = JSON.parse(readFileSync(cachePath, 'utf8')) as Partial<CloseoutBindingCache>;
+    // rename(2) is atomic within this directory: concurrent closeout commands
+    // cannot both consume the same short-lived host-session proof.
+    renameSync(cachePath, claimPath);
+    const parsed = JSON.parse(readFileSync(claimPath, 'utf8')) as Partial<CloseoutBindingCache>;
     const id = nonEmptyString(parsed.id);
     if (id === undefined || !['claude', 'codex', 'cursor'].includes(parsed.runtime ?? '')) {
       return undefined;
@@ -223,7 +228,7 @@ export function readFreshCloseoutBinding(
   } catch {
     return undefined;
   } finally {
-    rmSync(cachePath, { force: true });
+    rmSync(claimPath, { force: true });
   }
 }
 

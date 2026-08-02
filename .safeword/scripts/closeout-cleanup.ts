@@ -2,7 +2,7 @@
 
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -100,6 +100,7 @@ function collectRefBlockers(
   pullRequest: PullRequestIdentity,
 ): void {
   const expectedRepository = `${pullRequest.headOwner}/${pullRequest.headRepository}`.toLowerCase();
+  if (observation.defaultBranch.trim() === '') block(plan, 'the default branch is unknown');
   if (pullRequest.headRefName === observation.defaultBranch) {
     block(plan, 'the default branch is never a closeout target');
   }
@@ -381,13 +382,57 @@ function exactCodexTranscript(id: string): string | undefined {
   return matches.length === 1 ? matches[0] : undefined;
 }
 
-function resolveTranscript(binding: CloseoutBinding): string | undefined {
-  if (binding.transcriptPath && existsSync(binding.transcriptPath)) return binding.transcriptPath;
-  return binding.runtime === 'codex' ? exactCodexTranscript(binding.id) : undefined;
+interface TranscriptMetadata {
+  sessionId?: unknown;
+  session_id?: unknown;
+  conversation_id?: unknown;
+  cwd?: unknown;
+  type?: unknown;
+  payload?: { id?: unknown; cwd?: unknown };
+}
+
+function exactString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+export function transcriptMatchesBinding(
+  transcriptPath: string,
+  binding: CloseoutBinding,
+  repositoryRoot: string,
+): boolean {
+  if (!existsSync(transcriptPath)) return false;
+  const expectedRoot = nodePath.resolve(repositoryRoot);
+  try {
+    return readFileSync(transcriptPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .some(line => {
+        const record = JSON.parse(line) as TranscriptMetadata;
+        const codexMetadata = record.type === 'session_meta' ? record.payload : undefined;
+        const sessionId =
+          exactString(record.sessionId) ??
+          exactString(record.session_id) ??
+          exactString(record.conversation_id) ??
+          exactString(codexMetadata?.id);
+        const cwd = exactString(record.cwd) ?? exactString(codexMetadata?.cwd);
+        return (
+          sessionId === binding.id && cwd !== undefined && nodePath.resolve(cwd) === expectedRoot
+        );
+      });
+  } catch {
+    return false;
+  }
+}
+
+function resolveTranscript(binding: CloseoutBinding, root: string): string | undefined {
+  const candidate =
+    binding.transcriptPath ??
+    (binding.runtime === 'codex' ? exactCodexTranscript(binding.id) : undefined);
+  return candidate && transcriptMatchesBinding(candidate, binding, root) ? candidate : undefined;
 }
 
 function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['retro'] {
-  const transcript = resolveTranscript(binding);
+  const transcript = resolveTranscript(binding, root);
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0 };
   const retro = run(
     'safeword',
