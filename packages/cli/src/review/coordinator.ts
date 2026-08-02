@@ -5,17 +5,16 @@ import { buildReviewPacket } from './packet.js';
 import { oppositeReviewer } from './policy.js';
 import { assignedReviewerModel, runHeadlessReviewer } from './runtime.js';
 
-function validatedOutput(
+function provenanceFailure(
   output: ReviewerOutput,
   assignedReviewer: 'claude' | 'codex',
   dispatchId: string,
-): boolean {
-  return (
-    output.schema_version === 1 &&
-    output.reviewer_agent === assignedReviewer &&
-    output.dispatch_id === dispatchId &&
-    (output.verdict === 'approve' || output.verdict === 'request_changes')
-  );
+): 'REVIEWER_PROVENANCE_MISSING' | 'REVIEWER_PROVENANCE_CONTRADICTORY' | undefined {
+  if (output.reviewer_agent === undefined) return 'REVIEWER_PROVENANCE_MISSING';
+  if (output.reviewer_agent !== assignedReviewer || output.dispatch_id !== dispatchId) {
+    return 'REVIEWER_PROVENANCE_CONTRADICTORY';
+  }
+  return undefined;
 }
 
 export async function runReview(input: {
@@ -46,8 +45,31 @@ export async function runReview(input: {
 
   const packet = buildReviewPacket(input.cwd, input.kind, input.targets);
   const output = await runHeadlessReviewer(reviewer, packet);
-  if (!validatedOutput(output, reviewer, packet.dispatch_id)) {
-    throw new Error(`Review output did not match the assigned ${reviewer} dispatch`);
+  const provenanceError = provenanceFailure(output, reviewer, packet.dispatch_id);
+  if (provenanceError !== undefined) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: provenanceError,
+          message:
+            provenanceError === 'REVIEWER_PROVENANCE_MISSING'
+              ? 'The reviewer result did not identify the reviewer.'
+              : `The reviewer result contradicted the assigned ${reviewer} dispatch.`,
+          retryable: false,
+        },
+      ],
+      effects: {
+        network: [{ kind: 'review', target: reviewer, operation: 'request' }],
+      },
+      data: {
+        command: 'review run',
+        status: 'blocked',
+        author_agent: author,
+        assigned_reviewer: reviewer,
+        independence: 'none',
+      },
+    });
   }
 
   return createResult({
