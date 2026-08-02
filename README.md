@@ -296,6 +296,7 @@ it never stages, commits, or opens a PR.
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
 - `/refactor` - Systematic refactoring with small-step discipline
+- `/spike` - Resolve one build-only kill-risk with a bounded disposable experiment
 - `/testing` - Test writing guidance and best practices
 - `/verify` - Verify ticket criteria (tests, build, lint, scenarios, dep drift)
 
