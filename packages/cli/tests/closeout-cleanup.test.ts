@@ -145,6 +145,11 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'the pull request head repository does not map to exactly one git remote',
     ],
     [
+      'unobservable remote branch',
+      { remote: undefined, remoteResolution: 'unknown' },
+      'the remote branch state could not be observed',
+    ],
+    [
       'default branch',
       { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] },
       'the default branch is never a closeout target',

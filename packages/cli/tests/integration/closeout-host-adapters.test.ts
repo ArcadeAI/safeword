@@ -1,12 +1,20 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
-import { repoRoot } from '../helpers.js';
+import {
+  createTemporaryDirectory,
+  createTypeScriptPackageJson,
+  initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
+  removeTemporaryDirectory,
+  repoRoot,
+  setupOrThrow,
+} from '../helpers.js';
 
 function project(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-adapter-'));
@@ -20,6 +28,36 @@ function closeoutCommand(directory: string): string {
 }
 
 describe('closeout production host adapters (93C14D TBU1.R4)', () => {
+  it('installs the shared guard and resolves every local host entry point to it', async () => {
+    const directory = createTemporaryDirectory();
+    try {
+      createTypeScriptPackageJson(directory);
+      initGitRepo(directory);
+      await setupOrThrow(directory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
+
+      const claudeSkill = readFileSync(
+        nodePath.join(directory, '.claude/skills/closeout/SKILL.md'),
+        'utf8',
+      );
+      const cursorCommand = readFileSync(
+        nodePath.join(directory, '.cursor/commands/closeout.md'),
+        'utf8',
+      );
+      const installedGuard = nodePath.join(directory, '.safeword/scripts/closeout-cleanup.ts');
+      const codexSkill = readFileSync(
+        nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/closeout/SKILL.md'),
+        'utf8',
+      );
+
+      expect(claudeSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
+      expect(cursorCommand).toContain('.claude/skills/closeout/SKILL.md');
+      expect(codexSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
+      expect(readFileSync(installedGuard, 'utf8')).toContain('executeCleanupOperation');
+    } finally {
+      removeTemporaryDirectory(directory);
+    }
+  });
+
   it('binds the exact Claude session and transcript through the shipped pre-tool hook', () => {
     const directory = project();
     const transcript = nodePath.join(directory, 'claude.jsonl');

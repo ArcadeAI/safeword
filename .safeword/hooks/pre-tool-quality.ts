@@ -280,7 +280,11 @@ if (tool === 'Bash') {
   if (GIT_COMMIT_COMMAND.test(command)) {
     enforceRefactorCommitGate(input.session_id);
   }
-  if (commandInvokesCloseoutCleanup(command)) {
+  if (
+    commandInvokesCloseoutCleanup(command) &&
+    (process.env.SAFEWORD_AGENT_RUNTIME === undefined ||
+      process.env.SAFEWORD_AGENT_RUNTIME === 'claude')
+  ) {
     rememberCloseoutBinding({
       projectDirectory,
       runtime: 'claude',

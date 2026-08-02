@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from './namespace-root.js';
@@ -64,14 +64,14 @@ export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): bo
       CLOSEOUT_BINDING_CACHE,
     );
     mkdirSync(nodePath.dirname(cachePath), { recursive: true });
-    writeFileSync(
+    appendFileSync(
       cachePath,
-      JSON.stringify({
+      `${JSON.stringify({
         runtime: input.runtime,
         id,
         ...(transcriptPath === undefined ? {} : { transcriptPath }),
         recordedAt: (input.now ?? new Date()).toISOString(),
-      } satisfies CloseoutBindingCache),
+      } satisfies CloseoutBindingCache)}\n`,
       'utf8',
     );
     return true;
@@ -93,16 +93,28 @@ export function readFreshCloseoutBinding(
     // rename(2) is atomic within this directory: concurrent closeout commands
     // cannot both consume the same short-lived host-session proof.
     renameSync(cachePath, claimPath);
-    const parsed = JSON.parse(readFileSync(claimPath, 'utf8')) as Partial<CloseoutBindingCache>;
-    const id = nonEmptyString(parsed.id);
-    if (id === undefined || !['claude', 'codex', 'cursor'].includes(parsed.runtime ?? '')) {
-      return undefined;
-    }
-    const recordedAt = Date.parse(parsed.recordedAt ?? '');
-    if (!Number.isFinite(recordedAt)) return undefined;
-    if ((input.now ?? new Date()).getTime() - recordedAt > (input.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
-      return undefined;
-    }
+    const now = (input.now ?? new Date()).getTime();
+    const candidates = readFileSync(claimPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .flatMap(line => {
+        try {
+          const parsed = JSON.parse(line) as Partial<CloseoutBindingCache>;
+          const id = nonEmptyString(parsed.id);
+          const recordedAt = Date.parse(parsed.recordedAt ?? '');
+          return id !== undefined &&
+            ['claude', 'codex', 'cursor'].includes(parsed.runtime ?? '') &&
+            Number.isFinite(recordedAt) &&
+            now - recordedAt <= (input.maxAgeMs ?? DEFAULT_MAX_AGE_MS)
+            ? [{ parsed, id }]
+            : [];
+        } catch {
+          return [];
+        }
+      });
+    const candidate = candidates.length === 1 ? candidates[0] : undefined;
+    if (!candidate) return undefined;
+    const { parsed, id } = candidate;
     const transcriptPath = nonEmptyString(parsed.transcriptPath);
     return {
       runtime: parsed.runtime as CloseoutBinding['runtime'],

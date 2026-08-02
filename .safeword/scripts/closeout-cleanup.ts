@@ -37,7 +37,7 @@ export interface WorktreeIdentity {
 export interface CloseoutObservation {
   pullRequests: PullRequestIdentity[];
   remote?: RemoteIdentity;
-  remoteResolution: 'matched' | 'absent' | 'ambiguous';
+  remoteResolution: 'matched' | 'absent' | 'ambiguous' | 'unknown';
   localRefOid?: string;
   defaultBranch: string;
   protection: 'protected' | 'unprotected' | 'unknown';
@@ -62,7 +62,9 @@ export interface CleanupPlan {
 
 function normalizedRepository(url: string): string | undefined {
   const normalized = url.trim().replace(/\.git$/u, '');
-  const match = normalized.match(/(?:github\.com[/:])([^/]+)\/([^/]+)$/iu);
+  const match = normalized.match(
+    /^(?:https?:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)([^/]+)\/([^/]+)$/iu,
+  );
   return match ? `${match[1]}/${match[2]}`.toLowerCase() : undefined;
 }
 
@@ -88,6 +90,9 @@ function collectPrerequisiteBlockers(
   if (observation.protection === 'protected') block(plan, 'the topic branch is protected');
   if (observation.remoteResolution === 'ambiguous') {
     block(plan, 'the pull request head repository does not map to exactly one git remote');
+  }
+  if (observation.remoteResolution === 'unknown') {
+    block(plan, 'the remote branch state could not be observed');
   }
 }
 
@@ -339,7 +344,7 @@ export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlan
   return { applied: true, blockers: [], completed, remaining: [] };
 }
 
-interface ProcessResult {
+export interface ProcessResult {
   status: number;
   stdout: string;
   stderr: string;
@@ -362,6 +367,17 @@ function run(
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? result.error?.message ?? '',
   };
+}
+
+type ProcessRunner = (command: string, arguments_: string[], cwd: string) => ProcessResult;
+
+export function executeCleanupOperation(
+  operation: CleanupOperation,
+  runner: ProcessRunner = run,
+): ProcessResult {
+  const [command, ...arguments_] = operationCommand(operation);
+  if (!command) return { status: 1, stdout: '', stderr: 'cleanup command is empty' };
+  return runner(command, arguments_, operation.cwd);
 }
 
 function git(cwd: string, ...arguments_: string[]): ProcessResult {
@@ -602,10 +618,18 @@ function observeRemote(
     match.name,
     `refs/heads/${identity.headRefName}`,
   );
-  const oid = remoteRef.stdout.trim().split(/\s+/u)[0];
-  return oid
-    ? { remote: { ...match, oid }, remoteResolution: 'matched' }
-    : { remoteResolution: 'absent' };
+  const resolved = resolveRemoteRef(remoteRef);
+  return resolved.resolution === 'matched'
+    ? { remote: { ...match, oid: resolved.oid }, remoteResolution: 'matched' }
+    : { remoteResolution: resolved.resolution };
+}
+
+export function resolveRemoteRef(
+  result: ProcessResult,
+): { resolution: 'matched'; oid: string } | { resolution: 'absent' | 'unknown' } {
+  if (result.status !== 0) return { resolution: 'unknown' };
+  const oid = result.stdout.trim().split(/\s+/u)[0];
+  return oid ? { resolution: 'matched', oid } : { resolution: 'absent' };
 }
 
 function parseWorktrees(root: string): WorktreeIdentity[] {
@@ -754,9 +778,7 @@ if (import.meta.main) {
     digest,
     observe: () => reobserveCleanupTargets(survivingRoot, pr, observation),
     execute: operation => {
-      const [command, ...arguments_] = operationCommand(operation);
-      if (!command) throw new Error('cleanup command is empty');
-      const execution = run(command, arguments_, root);
+      const execution = executeCleanupOperation(operation);
       if (execution.status !== 0) throw new Error(execution.stderr || 'cleanup command failed');
     },
   });
