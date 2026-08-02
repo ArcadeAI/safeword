@@ -46,7 +46,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Dirty validated state cannot become the pre-spike base
 
-- [ ] RED
+- [x] RED 8e3a24e61
 - [ ] GREEN
 - [ ] REFACTOR
 
