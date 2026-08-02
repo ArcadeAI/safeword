@@ -9,8 +9,8 @@ Test methodology, TDD workflow, and test type selection.
 | Need                              | Guide                                          |
 | --------------------------------- | ---------------------------------------------- |
 | Choose unit/integration/E2E/eval  | This guide                                     |
-| Choose smoke/live/release cadence | `.safeword/guides/verification-lanes-guide.md` |
-| Design AI output evaluations      | `.safeword/guides/llm-evals-guide.md`          |
+| Choose smoke/live/release cadence | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/verification-lanes-guide.md` |
+| Design AI output evaluations      | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-evals-guide.md`          |
 
 ---
 
@@ -349,7 +349,7 @@ export default defineConfig({
 }
 ```
 
-**Cleanup:** See `.safeword/guides/zombie-process-cleanup.md` for killing zombie servers.
+**Cleanup:** See `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/zombie-process-cleanup.md` for killing zombie servers.
 
 ---
 

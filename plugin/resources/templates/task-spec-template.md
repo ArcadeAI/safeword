@@ -1,7 +1,7 @@
 # Task: [Name]
 
-**Guide**: `.safeword/guides/planning-guide.md`
-**Template**: `.safeword/templates/task-spec-template.md`
+**Guide**: `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/planning-guide.md`
+**Template**: `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`
 
 ---
 
@@ -148,4 +148,4 @@ The spec takes 30 seconds to write and prevents hours of scope creep.
 | **Task Spec (task)**       | Bug, improvement, internal, refactor    | Task spec with inline tests          |
 | **Task Spec (patch)**      | Typo, config, trivial                   | Minimal task spec, existing tests    |
 
-For features, use: `.safeword/templates/feature-spec-template.md`
+For features, use: `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`

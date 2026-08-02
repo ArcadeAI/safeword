@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { generateOwnedPathsModule } from '../owned-paths.js';
+import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
 
 export interface GeneratedClaudePluginAsset {
@@ -15,7 +17,14 @@ interface ClaudePluginCatalogueInput {
   readonly version: string;
 }
 
-const GENERATED_DIRECTORIES = ['agents', 'resources', 'runtime', 'skills'] as const;
+const GENERATED_DIRECTORIES = [
+  'agents',
+  'commands',
+  'hooks',
+  'resources',
+  'runtime',
+  'skills',
+] as const;
 const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
 const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.ts';
@@ -34,11 +43,153 @@ function filesBeneath(directory: string, prefix = ''): string[] {
 
 function adaptWorkflowReference(content: string): string {
   return content
-    .replaceAll('./.safeword/guides/', '${CLAUDE_PLUGIN_ROOT}/resources/guides/')
-    .replaceAll('.safeword/guides/', '${CLAUDE_PLUGIN_ROOT}/resources/guides/')
-    .replaceAll('./.safeword/templates/', '${CLAUDE_PLUGIN_ROOT}/resources/templates/')
-    .replaceAll('.safeword/templates/', '${CLAUDE_PLUGIN_ROOT}/resources/templates/')
-    .replaceAll('./.safeword/scripts/', '${CLAUDE_PLUGIN_ROOT}/resources/scripts/');
+    .replaceAll('"$PROJECT_DIR/.safeword/hooks/', '"${CLAUDE_PLUGIN_ROOT}/runtime/hooks/')
+    .replaceAll('$PROJECT_DIR/.safeword/hooks/', '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/')
+    .replaceAll('./.safeword/hooks/', '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/')
+    .replaceAll('.safeword/hooks/', '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/')
+    .replaceAll('"$PROJECT_DIR/.safeword/guides/', '"${CLAUDE_PLUGIN_ROOT}/resources/guides/')
+    .replaceAll('$PROJECT_DIR/.safeword/guides/', '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/')
+    .replaceAll('./.safeword/guides/', '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/')
+    .replaceAll('.safeword/guides/', '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/')
+    .replaceAll('"$PROJECT_DIR/.safeword/templates/', '"${CLAUDE_PLUGIN_ROOT}/resources/templates/')
+    .replaceAll('$PROJECT_DIR/.safeword/templates/', '"${CLAUDE_PLUGIN_ROOT}"/resources/templates/')
+    .replaceAll('./.safeword/templates/', '"${CLAUDE_PLUGIN_ROOT}"/resources/templates/')
+    .replaceAll('.safeword/templates/', '"${CLAUDE_PLUGIN_ROOT}"/resources/templates/')
+    .replaceAll('"$PROJECT_DIR/.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}/resources/scripts/')
+    .replaceAll('$PROJECT_DIR/.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/')
+    .replaceAll('./.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/')
+    .replaceAll('.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/');
+}
+
+const PROJECT_FRAMEWORK_REFERENCE =
+  /(?:\.\/)?\.safeword\/(?:hooks|guides|scripts|templates)\/[^\s)`'"<>]*/u;
+
+function invocationName(asset: GeneratedClaudePluginAsset): string | undefined {
+  const skillDirectory = /^skills\/([^/]+)\/SKILL\.md$/u.exec(asset.relativePath)?.[1];
+  if (skillDirectory !== undefined) {
+    return /^---\n[\s\S]*?^name:\s*(\S+)\s*$/mu.exec(asset.content)?.[1] ?? skillDirectory;
+  }
+  return /^commands\/([^/]+)\.md$/u.exec(asset.relativePath)?.[1];
+}
+
+function assertUniqueInvocations(assets: readonly GeneratedClaudePluginAsset[]): void {
+  const invocationSources = new Map<string, string>();
+  for (const asset of assets) {
+    const invocation = invocationName(asset);
+    if (invocation === undefined) continue;
+    const existing = invocationSources.get(invocation);
+    if (existing !== undefined) {
+      throw new Error(
+        `Duplicate Claude plugin invocation ${invocation}: ${existing} and ${asset.relativePath}`,
+      );
+    }
+    invocationSources.set(invocation, asset.relativePath);
+  }
+}
+
+function assertNoProjectFrameworkReferences(assets: readonly GeneratedClaudePluginAsset[]): void {
+  for (const asset of assets) {
+    if (!/^(?:agents|commands|resources|skills)\//u.test(asset.relativePath)) continue;
+    const dependency = PROJECT_FRAMEWORK_REFERENCE.exec(asset.content)?.[0];
+    if (dependency === undefined) continue;
+    throw new Error(
+      `Claude plugin asset ${asset.relativePath} depends on project framework path ${dependency}`,
+    );
+  }
+}
+
+export function assertClaudePluginAssetReferences(
+  assets: readonly GeneratedClaudePluginAsset[],
+): void {
+  assertUniqueInvocations(assets);
+  assertNoProjectFrameworkReferences(assets);
+}
+
+const PLUGIN_ROOT_REFERENCE = /\$\{CLAUDE_PLUGIN_ROOT\}(?:\\?"\/|\/)([\w*./-]+)/gu;
+const RELATIVE_MODULE_REFERENCE = /(?:from\s+|import\s*\()['"](\.[^'"]+)['"]/gu;
+
+function referencedPluginPaths(asset: GeneratedClaudePluginAsset): string[] {
+  const references = asset.content
+    .matchAll(PLUGIN_ROOT_REFERENCE)
+    .map(match => match[1])
+    .toArray();
+  for (const match of asset.content.matchAll(RELATIVE_MODULE_REFERENCE)) {
+    const reference = match[1];
+    if (reference === undefined) continue;
+    const referrerDirectory = nodePath.dirname(asset.relativePath);
+    const joinedReference = nodePath.join(referrerDirectory, reference);
+    references.push(nodePath.normalize(joinedReference));
+  }
+  return references.filter((reference): reference is string => reference !== undefined);
+}
+
+function resolveReference(
+  reference: string,
+  candidates: ReadonlyMap<string, GeneratedClaudePluginAsset>,
+): string[] {
+  if (reference.includes('*')) {
+    const [prefix = '', suffix = ''] = reference.split('*', 2);
+    return candidates
+      .keys()
+      .filter(path => path.startsWith(prefix) && path.endsWith(suffix))
+      .toArray();
+  }
+  if (candidates.has(reference)) return [reference];
+  if (reference.endsWith('.js')) {
+    const typescriptPath = `${reference.slice(0, -3)}.ts`;
+    if (candidates.has(typescriptPath)) return [typescriptPath];
+  }
+  if (candidates.has(`${reference}.ts`)) return [`${reference}.ts`];
+  return [];
+}
+
+function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
+  return (
+    /^(?:agents|commands|skills)\//u.test(asset.relativePath) ||
+    asset.relativePath === 'hooks/hooks.json' ||
+    asset.relativePath === 'runtime/dispatch.ts'
+  );
+}
+
+function enqueueReference(
+  reference: string,
+  referrer: string,
+  candidates: ReadonlyMap<string, GeneratedClaudePluginAsset>,
+  selected: Set<string>,
+  queue: string[],
+): void {
+  const resolved = resolveReference(reference, candidates);
+  if (resolved.length === 0) {
+    throw new Error(
+      `Claude plugin asset ${referrer} references missing packaged dependency ${reference}`,
+    );
+  }
+  for (const path of resolved) {
+    if (selected.has(path)) {
+      continue;
+    }
+
+    selected.add(path);
+    queue.push(path);
+  }
+}
+
+function transitiveClaudePluginAssets(
+  candidates: readonly GeneratedClaudePluginAsset[],
+): GeneratedClaudePluginAsset[] {
+  const byPath = new Map(candidates.map(asset => [asset.relativePath, asset]));
+  const selected = new Set(
+    candidates.filter(asset => isCatalogueRoot(asset)).map(asset => asset.relativePath),
+  );
+  const queue = [...selected];
+  for (const referrer of queue) {
+    const asset = byPath.get(referrer);
+    if (asset === undefined) continue;
+    for (const reference of referencedPluginPaths(asset)) {
+      enqueueReference(reference, referrer, byPath, selected, queue);
+    }
+  }
+  return candidates.filter(asset => selected.has(asset.relativePath));
 }
 
 function stripTrailingWhitespace(content: string): string {
@@ -93,8 +244,12 @@ function wrapHookCommands(value: unknown, event: string): unknown {
 
 function pluginHooks(): Record<string, unknown> {
   const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
+  const withSetup = {
+    ...adapted,
+    Setup: [{ matcher: 'init', hooks: [{ type: 'command', command: 'true' }] }],
+  };
   return Object.fromEntries(
-    Object.entries(adapted).map(([event, entries]) => [event, wrapHookCommands(entries, event)]),
+    Object.entries(withSetup).map(([event, entries]) => [event, wrapHookCommands(entries, event)]),
   );
 }
 
@@ -103,12 +258,27 @@ function pluginHookManifest(): string {
   return `${JSON.stringify({ hooks }, undefined, 2)}\n`;
 }
 
-function pluginIdentity(version: string, hookManifest: string): string {
+function pluginInventory(assets: readonly GeneratedClaudePluginAsset[]): string {
+  return `${JSON.stringify(
+    {
+      schema_version: 1,
+      assets: assets.map(asset => ({
+        path: asset.relativePath,
+        sha256: createHash('sha256').update(asset.content).digest('hex'),
+      })),
+    },
+    undefined,
+    2,
+  )}\n`;
+}
+
+function pluginIdentity(version: string, hookManifest: string, inventory: string): string {
   return `${JSON.stringify(
     {
       schema_version: 1,
       plugin_version: version,
       hook_manifest_sha256: createHash('sha256').update(hookManifest).digest('hex'),
+      inventory_sha256: createHash('sha256').update(inventory).digest('hex'),
     },
     undefined,
     2,
@@ -120,20 +290,45 @@ export function generateClaudePluginAssets(
 ): GeneratedClaudePluginAsset[] {
   const { sourceRoot, templatesRoot, version } = input;
   const hookManifest = pluginHookManifest();
-  const assets = [
+  const candidateAssets = [
     ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptWorkflowReference),
     ...directoryAssets(nodePath.join(templatesRoot, 'agents'), 'agents', adaptWorkflowReference),
     ...claudeHookAssets(templatesRoot),
-    ...directoryAssets(nodePath.join(templatesRoot, 'guides'), 'resources/guides'),
-    ...directoryAssets(nodePath.join(templatesRoot, 'scripts'), 'resources/scripts'),
+    {
+      relativePath: nodePath.join('runtime', 'hooks', 'lib', 'owned-paths.ts'),
+      content: generateOwnedPathsModule(SAFEWORD_SCHEMA),
+    },
+    ...directoryAssets(
+      nodePath.join(templatesRoot, 'guides'),
+      'resources/guides',
+      adaptWorkflowReference,
+    ),
+    ...directoryAssets(
+      nodePath.join(templatesRoot, 'scripts'),
+      'resources/scripts',
+      adaptWorkflowReference,
+    ),
     ...directoryAssets(
       nodePath.join(templatesRoot, 'doc-templates'),
       'resources/templates',
-      stripTrailingWhitespace,
+      content => adaptWorkflowReference(stripTrailingWhitespace(content)),
     ),
     ...directoryAssets(nodePath.join(sourceRoot, 'claude-plugin', 'runtime'), 'runtime'),
     { relativePath: nodePath.join('hooks', 'hooks.json'), content: hookManifest },
-    { relativePath: 'identity.json', content: pluginIdentity(version, hookManifest) },
+  ];
+
+  const contentAssets = transitiveClaudePluginAssets(candidateAssets);
+  assertClaudePluginAssetReferences(contentAssets);
+  const inventory = pluginInventory(
+    contentAssets.toSorted((left, right) => left.relativePath.localeCompare(right.relativePath)),
+  );
+  const assets = [
+    ...contentAssets,
+    { relativePath: 'inventory.json', content: inventory },
+    {
+      relativePath: 'identity.json',
+      content: pluginIdentity(version, hookManifest, inventory),
+    },
   ];
 
   const duplicate = assets.find(
@@ -150,12 +345,23 @@ export function assertClaudePluginCatalogue(
   input: ClaudePluginCatalogueInput,
   pluginRoot: string,
 ): void {
-  for (const asset of generateClaudePluginAssets(input)) {
+  const expectedAssets = generateClaudePluginAssets(input);
+  for (const asset of expectedAssets) {
     const path = nodePath.join(pluginRoot, asset.relativePath);
     if (!existsSync(path))
       throw new Error(`Claude plugin is missing expected asset: ${asset.relativePath}`);
     if (readFileSync(path, 'utf8') !== asset.content) {
       throw new Error(`Claude plugin asset differs from canonical source: ${asset.relativePath}`);
+    }
+  }
+  const expectedPaths = new Set(expectedAssets.map(asset => asset.relativePath));
+  for (const directory of GENERATED_DIRECTORIES) {
+    const generatedDirectory = nodePath.join(pluginRoot, directory);
+    const actualPaths = filesBeneath(generatedDirectory, directory);
+    for (const relativePath of actualPaths) {
+      if (!expectedPaths.has(relativePath)) {
+        throw new Error(`Claude plugin has unexpected generated asset: ${relativePath}`);
+      }
     }
   }
 }
@@ -169,7 +375,7 @@ export function writeClaudePluginCatalogue(
     rmSync(nodePath.join(pluginRoot, directory), { recursive: true, force: true });
   }
   rmSync(nodePath.join(pluginRoot, 'identity.json'), { force: true });
-  rmSync(nodePath.join(pluginRoot, 'hooks', 'hooks.json'), { force: true });
+  rmSync(nodePath.join(pluginRoot, 'inventory.json'), { force: true });
 
   for (const asset of assets) {
     const path = nodePath.join(pluginRoot, asset.relativePath);

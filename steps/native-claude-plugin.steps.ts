@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
 import {
+  appendFileSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -16,17 +17,21 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import { generateClaudePluginAssets } from '../packages/cli/src/claude-plugin/catalogue.js';
+import {
+  assertClaudePluginAssetReferences,
+  type GeneratedClaudePluginAsset,
+} from '../packages/cli/src/claude-plugin/catalogue.js';
 
 interface NativeClaudePluginWorld {
   generation?: { status: number; output: string };
-  validation?: { error?: Error; root: string };
+  validation?: { assets: GeneratedClaudePluginAsset[]; error?: Error; root: string };
   cacheFixture?: {
     root: string;
     plugin: string;
     data: string;
     project: string;
     result?: { status: number; output: string };
+    legacySentinel?: string;
   };
 }
 
@@ -116,20 +121,27 @@ Given(
 
 When('a Safeword plugin hook executes', function (this: NativeClaudePluginWorld) {
   assert.ok(this.cacheFixture);
-  const result = spawnSync(
-    'bun',
-    [nodePath.join(this.cacheFixture.plugin, 'runtime', 'dispatch.ts'), 'SessionStart'],
-    {
-      cwd: this.cacheFixture.project,
-      env: {
-        ...process.env,
-        CLAUDE_PLUGIN_DATA: this.cacheFixture.data,
-        CLAUDE_PLUGIN_ROOT: this.cacheFixture.plugin,
-        CLAUDE_PROJECT_DIR: this.cacheFixture.project,
-      },
-      encoding: 'utf8',
+  const manifest = JSON.parse(
+    readFileSync(nodePath.join(this.cacheFixture.plugin, 'hooks', 'hooks.json'), 'utf8'),
+  ) as { hooks?: { UserPromptSubmit?: { hooks?: { command?: string }[] }[] } };
+  const command = manifest.hooks?.UserPromptSubmit?.[0]?.hooks?.[0]?.command;
+  assert.ok(command, 'generated UserPromptSubmit hook command is missing');
+  const result = spawnSync('bash', ['-lc', command], {
+    cwd: this.cacheFixture.project,
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_DATA: this.cacheFixture.data,
+      CLAUDE_PLUGIN_ROOT: this.cacheFixture.plugin,
+      CLAUDE_PROJECT_DIR: this.cacheFixture.project,
     },
-  );
+    encoding: 'utf8',
+    input: `${JSON.stringify({
+      hook_event_name: 'UserPromptSubmit',
+      prompt: 'prove the cached plugin',
+      session_id: 'cache-wiring-test',
+      cwd: this.cacheFixture.project,
+    })}\n`,
+  });
   this.cacheFixture.result = {
     status: result.status ?? 1,
     output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
@@ -140,6 +152,7 @@ Then(
   'every framework import resolves beneath CLAUDE_PLUGIN_ROOT',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.match(this.cacheFixture.result?.output ?? '', /Current time:/u);
     assert.ok(this.cacheFixture);
     const proof = JSON.parse(
       readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
@@ -168,27 +181,23 @@ Given(
   'a canonical workflow reference resolves through a project .safeword hook, guide, script, or template',
   function (this: NativeClaudePluginWorld) {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-reference-'));
-    const sourceRoot = nodePath.join(root, 'src');
-    const templatesRoot = nodePath.join(root, 'templates');
-    const skillRoot = nodePath.join(templatesRoot, 'skills', 'probe');
-    mkdirSync(skillRoot, { recursive: true });
-    mkdirSync(sourceRoot, { recursive: true });
-    writeFileSync(
-      nodePath.join(skillRoot, 'SKILL.md'),
-      '---\nname: probe\ndescription: Probe invalid framework resolution.\n---\n\nRun `bun .safeword/hooks/probe.ts`.\n',
-    );
-    this.validation = { root };
+    this.validation = {
+      root,
+      assets: [
+        {
+          relativePath: 'skills/probe/SKILL.md',
+          content:
+            '---\nname: probe\ndescription: Probe invalid framework resolution.\n---\n\nRun `bun .safeword/hooks/probe.ts`.\n',
+        },
+      ],
+    };
   },
 );
 
 When('the Claude plugin catalogue is validated', function (this: NativeClaudePluginWorld) {
   assert.ok(this.validation);
   try {
-    generateClaudePluginAssets({
-      sourceRoot: nodePath.join(this.validation.root, 'src'),
-      templatesRoot: nodePath.join(this.validation.root, 'templates'),
-      version: '0.71.0-rc.0',
-    });
+    assertClaudePluginAssetReferences(this.validation.assets);
   } catch (error) {
     this.validation.error = error instanceof Error ? error : new Error(String(error));
   }
@@ -206,6 +215,77 @@ Then(
 
 Then('no plugin catalogue is published', function (this: NativeClaudePluginWorld) {
   assert.ok(this.validation?.error);
+});
+
+Given(
+  /^the installed plugin cache has (a mismatched hook manifest|a missing hook entrypoint|a modified hook runtime)$/u,
+  function (this: NativeClaudePluginWorld, damage: string) {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-damaged-cache-'));
+    const plugin = nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0');
+    const data = nodePath.join(root, 'data');
+    const project = nodePath.join(root, 'project');
+    cpSync(PLUGIN_ROOT, plugin, { recursive: true });
+    const legacySentinel = nodePath.join(project, '.safeword', 'hooks', 'legacy.ts');
+    mkdirSync(nodePath.dirname(legacySentinel), { recursive: true });
+    writeFileSync(legacySentinel, 'legacy protection remains authoritative\n');
+    if (damage === 'a mismatched hook manifest') {
+      appendFileSync(nodePath.join(plugin, 'hooks', 'hooks.json'), ' ');
+    } else if (damage === 'a missing hook entrypoint') {
+      rmSync(nodePath.join(plugin, 'runtime', 'hooks', 'prompt-timestamp.ts'));
+    } else {
+      appendFileSync(
+        nodePath.join(plugin, 'runtime', 'hooks', 'prompt-timestamp.ts'),
+        '\n// damaged\n',
+      );
+    }
+    this.cacheFixture = { root, plugin, data, project, legacySentinel };
+  },
+);
+
+When(
+  'its generated UserPromptSubmit entrypoint executes',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.cacheFixture);
+    const manifest = JSON.parse(
+      readFileSync(nodePath.join(this.cacheFixture.plugin, 'hooks', 'hooks.json'), 'utf8'),
+    ) as { hooks?: { UserPromptSubmit?: { hooks?: { command?: string }[] }[] } };
+    const command = manifest.hooks?.UserPromptSubmit?.[0]?.hooks?.[0]?.command;
+    assert.ok(command);
+    const result = spawnSync('bash', ['-lc', command], {
+      cwd: this.cacheFixture.project,
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_DATA: this.cacheFixture.data,
+        CLAUDE_PLUGIN_ROOT: this.cacheFixture.plugin,
+        CLAUDE_PROJECT_DIR: this.cacheFixture.project,
+      },
+      encoding: 'utf8',
+      input: '{"hook_event_name":"UserPromptSubmit","prompt":"damaged cache"}\n',
+    });
+    this.cacheFixture.result = {
+      status: result.status ?? 1,
+      output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+    };
+  },
+);
+
+Then(
+  'the hook rejects the damaged cache and writes no proof',
+  function (this: NativeClaudePluginWorld) {
+    assert.notEqual(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.ok(this.cacheFixture);
+    assert.equal(
+      existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')),
+      false,
+    );
+  },
+);
+
+Then('viable legacy protection remains authoritative', function (this: NativeClaudePluginWorld) {
+  assert.equal(
+    readFileSync(this.cacheFixture?.legacySentinel ?? '', 'utf8'),
+    'legacy protection remains authoritative\n',
+  );
 });
 
 Given(

@@ -16,13 +16,13 @@ Prove a ticket meets its criteria. Works with or without an active ticket.
 
 This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /verify was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing verify.md cannot produce this feature-gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] verify ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"
+bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `verify ✓`**: Feature tickets must fail closed if no real current-session proof can be logged. Do not mark a feature ticket done or hand-write verify.md as a substitute for the feature-gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /verify.
@@ -36,7 +36,7 @@ Task, patch, and no-ticket verify work may continue after recording that session
 ```bash
 # Find in_progress tickets, excluding epics
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
+NS_ROOT="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
 for f in "$NS_ROOT"/tickets/*/ticket.md; do
   [ -f "$f" ] || continue
   grep -q "^status: in_progress" "$f" && ! grep -q "^type: epic" "$f" && echo "$f"
@@ -57,7 +57,7 @@ Run these in sequence, reporting each result:
 1. **Run `/lint`** to auto-fix style issues first
 2. Then run target-project verification checks from project evidence.
 
-**Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. A `package.json` may be safeword lane-host evidence in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
+**Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. A `package.json` may be safeword lane-host evidence in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
 
 Per-language test/build/typecheck/bdd/deps commands all come from `safeword
 test-plan` — one source of truth (the same plan the stop-hook gate runs). Eval its
@@ -276,7 +276,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 
 **PR Scope** is the final "one purpose" guard. It blocks the all-green collapse: if it is ❌, the ticket is not ready to mark done until the unrelated work is reverted, split into another ticket/PR, or explicitly accepted as a scope change and reflected in the ticket artifacts.
 
-**Reconcile** is soft — it never blocks the done gate. If the work introduced a pattern that diverges from existing siblings (see `${CLAUDE_PLUGIN_ROOT}/resources/guides/architecture-guide.md` → Survey & Reconcile), confirm the ticket carries a reconcile record and every deviation has an uplevel follow-up ticket; flag any that don't. Use `N/A` when the work conformed or introduced no new pattern.
+**Reconcile** is soft — it never blocks the done gate. If the work introduced a pattern that diverges from existing siblings (see `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/architecture-guide.md` → Survey & Reconcile), confirm the ticket carries a reconcile record and every deviation has an uplevel follow-up ticket; flag any that don't. Use `N/A` when the work conformed or introduced no new pattern.
 
 **Experience** is soft — it never blocks the done gate (no done-gate evidence pattern; a ⚠️ never hard-blocks `done`). Run it for persona-facing work; use `N/A` for internal/plumbing. You are grading your own work here, so the walk-artifact below is mandatory — a bare `✅` or "feels clean" is exactly the self-rating it exists to defeat. Two lenses:
 

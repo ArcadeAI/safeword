@@ -62,7 +62,7 @@
 
 ### Boundary Enforcement
 
-Boundaries enforced per-language (see `.safeword/guides/architecture-guide.md` → Enforcing Boundaries (Polyglot)); for JS/TS, safeword generates the dependency-cruiser config via `safeword project sync-config`.
+Boundaries enforced per-language (see `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/architecture-guide.md` → Enforcing Boundaries (Polyglot)); for JS/TS, safeword generates the dependency-cruiser config via `safeword project sync-config`.
 
 ---
 

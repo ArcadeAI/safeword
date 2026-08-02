@@ -2,7 +2,7 @@
 
 ## How to Fill Out Design Doc
 
-**Template:** `@.safeword/templates/design-doc-template.md`
+**Template:** `@"${CLAUDE_PLUGIN_ROOT}"/resources/templates/design-doc-template.md`
 
 **When user asks:** "Create design doc for [feature]" or "Design [system/component]"
 
@@ -16,7 +16,7 @@
    - Reference both in the design doc
 
 2. **Read Template**
-   - Read `@.safeword/templates/design-doc-template.md`
+   - Read `@"${CLAUDE_PLUGIN_ROOT}"/resources/templates/design-doc-template.md`
    - Use it as the structure for the design doc
 
 3. **Fill In Sections**
@@ -103,7 +103,7 @@
 - Principles and patterns for the whole project
 - Comprehensive (10+ pages)
 
-**Reference:** `@.safeword/guides/architecture-guide.md` for detailed comparison
+**Reference:** `@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/architecture-guide.md` for detailed comparison
 
 ---
 
@@ -128,8 +128,8 @@
 
 **If prerequisites don't exist:**
 
-1. Feature spec missing → Create it first (guide: `.safeword/guides/planning-guide.md`)
-2. Test definitions missing → Create them after feature spec (guide: `.safeword/guides/planning-guide.md`)
+1. Feature spec missing → Create it first (guide: `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/planning-guide.md`)
+2. Test definitions missing → Create them after feature spec (guide: `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/planning-guide.md`)
 3. Then create design doc referencing both
 
 ---
@@ -159,7 +159,7 @@ Before saving, verify:
 
 **Important:** Design docs are instructions that LLMs read and follow.
 
-**See:** `@.safeword/guides/llm-writing-guide.md` for comprehensive framework on writing clear, actionable documentation that LLMs can reliably follow.
+**See:** `@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-writing-guide.md` for comprehensive framework on writing clear, actionable documentation that LLMs can reliably follow.
 
 ---
 

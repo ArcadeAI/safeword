@@ -60,7 +60,7 @@ model, log a deliberate skip (`--skip "<reason>"`) rather than stamping a
 same-model review. On a pass, record the stamp:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>
+bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase <phase you are leaving>
 ```
 
 If the reviewer finds blocking issues, fix them and re-review — don't stamp.

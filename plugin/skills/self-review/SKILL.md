@@ -26,13 +26,13 @@ content** and appends it to `skill-invocations.log` under the project namespace 
 per-asset gate reads it back. Invoking this skill is what writes the stamp —
 hand-editing the log is the gameable floor this tier deliberately accepts.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/write-review-stamp.ts" spec`
 
 If no `[skill-invocation-log] ... ✓` line appears above, run this fallback before stopping:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec
+CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/write-review-stamp.ts" spec
 ```
 
 The review stamp is content-bound and uses the normalized runtime identity.
@@ -69,7 +69,7 @@ change), log a skip with a reason instead of a review — it clears the same gat
 and records why:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts spec --skip "<why this spec needs no review>"
+bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts spec --skip "<why this spec needs no review>"
 ```
 
 Skip is the explicit `--skip` flag, quoted as one argument — free text after the

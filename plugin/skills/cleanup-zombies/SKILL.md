@@ -16,13 +16,13 @@ Run the cleanup script — it previews what would be killed (nothing dies withou
 explicit consent; the preview-first ritual is script-enforced):
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/resources/scripts/cleanup-zombies.sh
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh
 ```
 
 If the preview looks correct, confirm the kill with `--yes`:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/resources/scripts/cleanup-zombies.sh --yes
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh --yes
 ```
 
 ## What It Does
@@ -38,10 +38,10 @@ If auto-detection fails or you need a specific port:
 
 ```bash
 # Explicit port (preview, then add --yes to kill)
-${CLAUDE_PLUGIN_ROOT}/resources/scripts/cleanup-zombies.sh 5173
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh 5173
 
 # Port + additional pattern
-${CLAUDE_PLUGIN_ROOT}/resources/scripts/cleanup-zombies.sh --yes 5173 "electron"
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh --yes 5173 "electron"
 ```
 
 ## When to Use

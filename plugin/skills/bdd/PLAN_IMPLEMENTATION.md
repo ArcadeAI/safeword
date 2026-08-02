@@ -19,7 +19,7 @@ Component design and data-model design belong in the lanes that already ship: sc
 
 ## Author impl-plan.md
 
-Scaffold from `${CLAUDE_PLUGIN_ROOT}/resources/templates/impl-plan-template.md` (sibling to `ticket.md`), status `planned`. Sections stay **content-or-skip** — every section gets real content or `skip: <non-empty reason>`:
+Scaffold from `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md` (sibling to `ticket.md`), status `planned`. Sections stay **content-or-skip** — every section gets real content or `skip: <non-empty reason>`:
 
 - **Approach** — open with the riskiest assumption and the cheapest scenario that proves it; then the proof plan: for each scenario the primary proof (`unit`, `integration`, `E2E`, or `eval` per `testing/SKILL.md`'s highest practical scope rule), supporting proofs, at least one wiring test per new entry point, and the build order with the load-bearing slice first. Cover each **affected surface** the spec lists — name the proof that covers it or a per-surface `skip: <reason>`.
 - **Decisions** — one row per significant technical choice: choice, alternatives, rejected-because, with the `/figure-it-out` evidence cited.
@@ -31,7 +31,7 @@ Scaffold from `${CLAUDE_PLUGIN_ROOT}/resources/templates/impl-plan-template.md` 
 ## ADR lifecycle
 
 - **Emit only when significant.** Offer an ADR when a decision affects **structure, key quality attributes**, or is **difficult to reverse**. Routine choices live and die in the plan's Decisions table — no ceremony records.
-- **Scaffold from the template into the configured location.** New ADRs scaffold from `${CLAUDE_PLUGIN_ROOT}/resources/templates/adr-template.md` and land at the `paths.architecture` location: a file receives an appended entry; a directory receives one file per ADR with a merge-safe **date-prefixed** filename (`YYYYMMDD-slug.md` — sequential numbers collide across parallel sessions).
+- **Scaffold from the template into the configured location.** New ADRs scaffold from `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/adr-template.md` and land at the `paths.architecture` location: a file receives an appended entry; a directory receives one file per ADR with a merge-safe **date-prefixed** filename (`YYYYMMDD-slug.md` — sequential numbers collide across parallel sessions).
 - **Never into generated docs.** `architecture.generated.md` and its per-package leaves are machine-owned state; never write decision records there — the record (_why_) is the only destination.
 - **Keep records lean** — a page or two each; no mega-ADRs, no design guides in disguise (deep design belongs in the design-doc lane above).
 - **Supersede, never edit.** A changed or contradicted decision gets a new record marked "supersedes", and the old one "superseded by" — linked both directions, nothing deleted. This applies **mid-flight too**: when implementation proves a planned decision wrong during implement, update the plan section then, note the change in Decisions, and supersede the affected ADR before `verify` — implement-exit reconciliation is the backstop, not the excuse to defer.

@@ -21,7 +21,7 @@ Ticket artifacts live in the ticket folder:
 - `ticket.md` - Ticket definition
 - `test-definitions.md` - R/G/R ledger for BDD scenarios
 - `spec.md` - Feature spec (epics only)
-- `impl-plan.md` - Implementation design record for new-flow features — authored during the plan-implementation phase (after scenarios validate, before TDD), scaffolded from `.safeword/templates/impl-plan-template.md`; the plan gate blocks `implement` until it parses valid (see the bdd skill's `PLAN_IMPLEMENTATION.md`)
+- `impl-plan.md` - Implementation design record for new-flow features — authored during the plan-implementation phase (after scenarios validate, before TDD), scaffolded from `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md`; the plan gate blocks `implement` until it parses valid (see the bdd skill's `PLAN_IMPLEMENTATION.md`)
 - `design.md` - Design doc (complex features)
 
 Executable BDD scenarios live at `features/<slug>.feature` (or under the
@@ -36,13 +36,13 @@ the behavior.
 
 | Need                            | Template                                          |
 | ------------------------------- | ------------------------------------------------- |
-| feature spec                    | `.safeword/templates/feature-spec-template.md`    |
-| task/patch spec                 | `.safeword/templates/task-spec-template.md`       |
-| feature Test definitions        | `.safeword/templates/test-definitions-feature.md` |
-| Complex feature design          | `.safeword/templates/design-doc-template.md`      |
-| Architectural decision          | `.safeword/templates/architecture-template.md`    |
-| Context anchor for complex work | `.safeword/templates/ticket-template.md`          |
-| Execution scratch pad           | `.safeword/templates/work-log-template.md`        |
+| feature spec                    | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`    |
+| task/patch spec                 | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`       |
+| feature Test definitions        | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |
+| Complex feature design          | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/design-doc-template.md`      |
+| Architectural decision          | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/architecture-template.md`    |
+| Context anchor for complex work | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/ticket-template.md`          |
+| Execution scratch pad           | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/work-log-template.md`        |
 
 ---
 

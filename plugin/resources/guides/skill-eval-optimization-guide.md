@@ -4,9 +4,9 @@ How to decide whether a change to a **skill's prompt** is actually better — by
 evidence, not taste. A seeded-defect corpus plus a regression gate adjudicate the
 change before it ships. Built and proven on `review-spec` (epic 7ZLTWB).
 
-**See:** `@.safeword/guides/llm-evals-guide.md` for evaluating AI features in
+**See:** `@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-evals-guide.md` for evaluating AI features in
 general; **this** guide is the narrower method for optimizing a skill's _prompt_.
-`@.safeword/guides/llm-writing-guide.md` for prose principles.
+`@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-writing-guide.md` for prose principles.
 
 ---
 

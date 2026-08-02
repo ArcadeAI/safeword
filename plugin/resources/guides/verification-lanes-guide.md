@@ -46,7 +46,7 @@ lane that explains why this run exists now.
 | runs static analysis rather than runtime behavior                                                                        | Static gate      |
 | is too expensive for normal local or per-commit runs                                                                     | Slow/performance |
 
-If none fit, re-evaluate the test type in `.safeword/guides/testing-guide.md`.
+If none fit, re-evaluate the test type in `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/testing-guide.md`.
 
 **Tie-breaker:** if a check fits two lanes, choose the lane that explains why it
 is run at its cadence. Example: a Playwright checkout test that runs in two

@@ -10,10 +10,10 @@ Use the built-in cleanup script:
 
 ```bash
 # Preview what would be killed (the default — nothing dies without --yes)
-./.safeword/scripts/cleanup-zombies.sh
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh
 
 # Kill what the preview showed
-./.safeword/scripts/cleanup-zombies.sh --yes
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh --yes
 ```
 
 The script auto-detects your framework (Vite, Next.js, etc.) and kills only processes belonging to this project.
@@ -68,20 +68,20 @@ that mentions this project does not prove that the process belongs to it.
 
 ## Built-in Cleanup Script
 
-Safeword includes a cleanup script at `.safeword/scripts/cleanup-zombies.sh`:
+Safeword includes a cleanup script at `"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh`:
 
 ```bash
 # Preview (the default — auto-detects framework; nothing dies without --yes)
-./.safeword/scripts/cleanup-zombies.sh
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh
 
 # Kill what the preview showed
-./.safeword/scripts/cleanup-zombies.sh --yes
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh --yes
 
 # Explicit port override (add --yes to kill)
-./.safeword/scripts/cleanup-zombies.sh 5173
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh 5173
 
 # Port + additional pattern
-./.safeword/scripts/cleanup-zombies.sh --yes 5173 "electron"
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh --yes 5173 "electron"
 ```
 
 The script requires `lsof`, `pgrep`, and `ps` to discover processes, verify
@@ -111,31 +111,31 @@ of claiming a successful kill.
 
 ```bash
 # Preview project-owned Next.js processes (auto-detects port 3000)
-./.safeword/scripts/cleanup-zombies.sh
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh
 ```
 
 ### Playwright E2E Tests
 
 ```bash
 # Preview project-owned Playwright browsers and test runners
-./.safeword/scripts/cleanup-zombies.sh
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh
 ```
 
 ### Vite Projects
 
 ```bash
 # Preview project-owned Vite processes (auto-detects port 5173)
-./.safeword/scripts/cleanup-zombies.sh
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh
 ```
 
 ### React Native / Expo
 
 ```bash
 # Preview a project-owned Metro bundler on port 8081
-./.safeword/scripts/cleanup-zombies.sh 8081 "metro"
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh 8081 "metro"
 
 # Preview project-owned Expo tools on a known port
-./.safeword/scripts/cleanup-zombies.sh 19000 "expo"
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh 19000 "expo"
 ```
 
 Port ranges are not supported. To inspect ports `19000` through `19006`, run
@@ -207,8 +207,8 @@ ps aux | grep "/Users/alex/projects/my-project"
 
 | Situation                                | Command                                            |
 | ---------------------------------------- | -------------------------------------------------- |
-| Preview zombies (recommended first step) | `./.safeword/scripts/cleanup-zombies.sh`           |
-| Kill what the preview showed             | `./.safeword/scripts/cleanup-zombies.sh --yes`     |
+| Preview zombies (recommended first step) | `"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh`           |
+| Kill what the preview showed             | `"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh --yes`     |
 | Inspect dev + test servers               | `lsof -i:$DEV_PORT -i:$TEST_PORT`                  |
 | Inspect Playwright processes             | `pgrep -l -f "playwright"`                         |
 | Check what's on port                     | `lsof -i:3000`                                     |
@@ -233,7 +233,7 @@ When zombies keep coming back, find which test is creating them.
 
 ```bash
 # Usage: ./bisect-test-pollution.sh <file_to_check> <test_pattern> [search_dir]
-./.safeword/scripts/bisect-test-pollution.sh '.git' '*.test.ts' src
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/bisect-test-pollution.sh '.git' '*.test.ts' src
 ```
 
 Runs each test individually, checks if `<file_to_check>` appears after.
@@ -242,7 +242,7 @@ Runs each test individually, checks if `<file_to_check>` appears after.
 
 ```bash
 # Usage: ./bisect-zombie-processes.sh <process_pattern> <test_pattern> [search_dir]
-./.safeword/scripts/bisect-zombie-processes.sh 'chromium' '*.test.ts' tests
+"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/bisect-zombie-processes.sh 'chromium' '*.test.ts' tests
 ```
 
 Runs each test individually, checks if `<process_pattern>` is left running.

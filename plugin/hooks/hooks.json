@@ -314,6 +314,17 @@
           }
         ]
       }
+    ],
+    "Setup": [
+      {
+        "matcher": "init",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts Setup -- true"
+          }
+        ]
+      }
     ]
   }
 }

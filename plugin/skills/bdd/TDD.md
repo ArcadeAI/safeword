@@ -172,7 +172,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 2. **A fresh-context review.** Spawn a reviewer with **no conversation history**, handed only `impl-plan.md` and the ticket scope, to try to refute the design against its cited sources. On a pass, stamp it:
 
    ```bash
-   bun .safeword/hooks/write-review-stamp.ts impl-plan
+   bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts impl-plan
    ```
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp.
@@ -180,7 +180,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 **Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. This means an explicit different-model subagent — **not** a `context: fork`, which inherits the author's model. Record the model you assigned:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --model "<reviewer-model-id>" impl-plan
+bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --model "<reviewer-model-id>" impl-plan
 ```
 
 The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If you can't run a different model, log a deliberate skip (`--skip "<reason>"`) rather than stamping a same-model review. (This gate is stricter than quality-review's advisory loop, which accepts a fresh-context pass on your own model — here a genuinely different model, or an explicit `--skip`, is required.)

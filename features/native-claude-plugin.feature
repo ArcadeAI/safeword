@@ -150,6 +150,7 @@ Feature: Ship Safeword as a native Claude Code plugin
   @native-claude-plugin.TBU1.R5 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R5 — Installed, enabled, or updated plugin behavior becomes available in the current Claude task through supported live reload whenever the host permits it
 
+    @live
     Scenario: The next prompt after live plugin reload proves the new plugin before prompt processing
       Given an authenticated Claude task has installed or updated Safeword and supports plugin reload
       When the user submits the first prompt after /reload-plugins
@@ -200,9 +201,10 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then the plugin functional effect occurs exactly once
       And no plugin reload or task restart is required
 
-  @wip @native-claude-plugin.NTB1.R2 @surface.claude-code @surface.safeword-cli
+  @native-claude-plugin.NTB1.R2 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.NTB1.R2 — Missing, disabled, stale, malformed, or unproven plugin state leaves legacy protection intact and reports a safe next action
 
+    @wip
     Scenario Outline: Ready plugin states are classified without mutation
       Given the profile and project represent <state>
       When safeword claude status runs
@@ -215,7 +217,7 @@ Feature: Ship Safeword as a native Claude Code plugin
         | valid proof and wholly recognized removable legacy       | cleanup-ready  | 2    | 1            | safeword claude cleanup   |
         | valid proof, durable plugin-mode marker, and no legacy    | plugin-mode    | 0    | 0            | none                      |
 
-    @rejection
+    @rejection @wip
     Scenario Outline: Non-ready plugin states are classified without weakening legacy protection
       Given the project has viable legacy protection and the profile and project represent <state>
       When safeword claude status runs
@@ -240,11 +242,17 @@ Feature: Ship Safeword as a native Claude Code plugin
         | valid proof with recognized and conflicting legacy content   | coexistence       | 2    | resolve reported legacy conflicts       |
 
     @rejection
-    Scenario: Runtime identity mismatch writes no plugin proof
-      Given the installed plugin identity digest differs from its own hooks manifest
-      When its real hook entrypoint executes
-      Then the hook rejects the identity and writes no proof
+    Scenario Outline: Damaged plugin runtime writes no plugin proof
+      Given the installed plugin cache has <damage>
+      When its generated UserPromptSubmit entrypoint executes
+      Then the hook rejects the damaged cache and writes no proof
       And viable legacy protection remains authoritative
+
+      Examples:
+        | damage                    |
+        | a mismatched hook manifest |
+        | a missing hook entrypoint  |
+        | a modified hook runtime    |
 
   @wip @native-claude-plugin.NTB1.R3 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.NTB1.R3 — Cleanup never installs, upgrades, enables, reloads, or changes trust for the plugin or its marketplace
@@ -372,7 +380,8 @@ Feature: Ship Safeword as a native Claude Code plugin
     Scenario: Installed cache executes after its marketplace source plugin directory is unavailable
       Given an isolated profile retains marketplace metadata and an installed Safeword cache but its source plugin directory is unavailable
       When Claude starts with init-only against that profile
-      Then SessionStart executes from the versioned installed cache and writes exact proof
+      Then Setup executes from the versioned installed cache and writes cache-smoke evidence
+      And no cleanup-authorizing plugin proof is written
       And degraded marketplace source health is reported separately from cache execution
 
     @rejection

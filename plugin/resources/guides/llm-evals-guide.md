@@ -43,7 +43,7 @@ most model-graded, which is also the tie-break order):
 | a normal deterministic test can fully prove the behavior                       | Use unit, integration, E2E, or migration coverage                                                          |
 | a deterministic eval assertion can prove part of the AI output contract        | Add that assertion before any model-graded scorer                                                          |
 | there's a known correct output, label, or fact set                             | Reference-based evals                                                                                      |
-| you're optimizing a skill's _prompt_ and can seed one known defect per fixture | See `@.safeword/guides/skill-eval-optimization-guide.md` — relative recall floor + `⌈2N/3⌉` consensus gate |
+| you're optimizing a skill's _prompt_ and can seed one known defect per fixture | See `@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/skill-eval-optimization-guide.md` — relative recall floor + `⌈2N/3⌉` consensus gate |
 | comparing two outputs is easier than scoring one absolutely                    | Pairwise evals                                                                                             |
 | the desired quality is subjective but describable                              | Rubric-based LLM-as-judge evals                                                                            |
 | the behavior involves multiple steps, tools, retrieval, or agents              | Trace or trajectory evals                                                                                  |

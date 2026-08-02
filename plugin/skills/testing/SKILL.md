@@ -47,7 +47,7 @@ Fallback (lowest scope):
 
 State the test-scope choice and why in one line, unless it's obvious from context.
 
-For the full decision tree, bug detection matrix, and edge cases: `${CLAUDE_PLUGIN_ROOT}/resources/guides/testing-guide.md`
+For the full decision tree, bug detection matrix, and edge cases: `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/testing-guide.md`
 
 ---
 
@@ -306,10 +306,10 @@ it('preserves user input after validation error');
 
 | Need                             | Action                                            |
 | -------------------------------- | ------------------------------------------------- |
-| Full test type selection guide   | `${CLAUDE_PLUGIN_ROOT}/resources/guides/testing-guide.md`               |
-| Smoke/live/release lane guidance | `${CLAUDE_PLUGIN_ROOT}/resources/guides/verification-lanes-guide.md`    |
-| LLM eval design guide            | `${CLAUDE_PLUGIN_ROOT}/resources/guides/llm-evals-guide.md`             |
-| Test definition template (BDD)   | `${CLAUDE_PLUGIN_ROOT}/resources/templates/test-definitions-feature.md` |
+| Full test type selection guide   | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/testing-guide.md`               |
+| Smoke/live/release lane guidance | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/verification-lanes-guide.md`    |
+| LLM eval design guide            | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-evals-guide.md`             |
+| Test definition template (BDD)   | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |
 | Test quality review              | `/audit`                                          |
 | Feature-level TDD with scenarios | `/bdd`                                            |
 | Debugging failing tests          | `/debug`                                          |

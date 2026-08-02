@@ -1,7 +1,7 @@
 # Feature Spec: [Feature Name] (Issue #[number])
 
-**Guide**: `.safeword/guides/planning-guide.md` - Best practices, INVEST criteria, and examples
-**Template**: `.safeword/templates/feature-spec-template.md`
+**Guide**: `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/planning-guide.md` - Best practices, INVEST criteria, and examples
+**Template**: `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`
 
 **Feature**: [Brief description of the feature]
 

@@ -16,13 +16,13 @@ Run a diff-scoped code audit. Execute checks and report results by severity.
 
 This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /audit was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing audit results cannot produce this feature-gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] audit ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
+bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `audit ✓`**: Feature tickets must fail closed if no real current-session proof can be logged. Do not mark a feature ticket done or hand-write audit results as a substitute for the feature-gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /audit.
@@ -66,7 +66,7 @@ commands.
 # same scope contract every executable audit block uses.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 cd "$PROJECT_DIR" || exit 1
-source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR"
 audit_scope_print
 
@@ -556,9 +556,9 @@ Changed project learnings in the resolved namespace root's `learnings/*.md` must
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR"
-NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
+NS_ROOT="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
 
 learning_is_in_audit_scope() {
   [ "$AUDIT_SCOPE_MODE" = "repository" ] && return 0
@@ -645,7 +645,7 @@ Test Quality:
 **ARCHITECTURE.md (the architecture narrative):**
 
 - Resolve the narrative location first: the `paths.architecture` target in `.safeword/config.json` when set — a file is the narrative itself; a directory holds decision records, read them all — else the root `ARCHITECTURE.md`. A configured location wins outright: do not fall back to a root file the host deliberately moved away from. Every check below applies to the resolved narrative.
-- If missing → create from `${CLAUDE_PLUGIN_ROOT}/resources/templates/architecture-template.md` (at the configured location when `paths.architecture` is set, else root `ARCHITECTURE.md`)
+- If missing → create from `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/architecture-template.md` (at the configured location when `paths.architecture` is set, else root `ARCHITECTURE.md`)
 - If exists → check for drift and gaps along TWO axes — dependency drift (what tech) and structural drift (what modules/layers):
   - **Dependency drift:**
     - **Drift (error):** Documented tech contradicts the code's actual dependencies (e.g., doc says "Redux" but `package.json` has "zustand"; doc says "Flask" but `pyproject.toml` has "fastapi")
@@ -685,7 +685,7 @@ below verbatim, as ONE bash invocation.**
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR"
 
 # A branch audit skips unrelated domain-doc corpus drift. Deleted and
@@ -698,7 +698,7 @@ fi
 
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
 # Fall back on directory existence — robust when the resolver hook is absent.
-NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" 2> /dev/null)"
+NS_ROOT="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" 2> /dev/null)"
 [ -d "$NS_ROOT" ] || {
   if [ -d "$PROJECT_DIR/.project" ]; then NS_ROOT="$PROJECT_DIR/.project"; else NS_ROOT="$PROJECT_DIR/.safeword-project"; fi
 }

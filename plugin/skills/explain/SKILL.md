@@ -42,7 +42,7 @@ Gather the durable trail safeword already keeps, then narrate it. Run:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
+NS_ROOT="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
 # What you're on now: the last re-entry line names the current ticket + Next
 tail -3 "$NS_ROOT/re-entry.md" 2> /dev/null
 # Fallback when re-entry is empty: in_progress tickets (not epics)
