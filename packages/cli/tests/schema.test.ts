@@ -460,6 +460,7 @@ describe('Schema - Single Source of Truth', () => {
         'self-review',
         'review-spec',
         'retro',
+        'spike',
       ]);
 
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
@@ -549,6 +550,7 @@ describe('Schema - Single Source of Truth', () => {
         'self-review',
         'review-spec',
         'retro',
+        'spike',
       ];
 
       const cursorCommands = new Set(

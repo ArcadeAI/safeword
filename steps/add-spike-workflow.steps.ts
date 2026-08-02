@@ -91,7 +91,7 @@ Then(
       'utf8',
     );
 
-    for (const contract of ['kill criterion', 'worktree', 'impl-plan.md']) {
+    for (const contract of ['## Charter', '## Isolation', '## Evidence distillation']) {
       assert.ok(claudeSkill.toLowerCase().includes(contract.toLowerCase()), contract);
     }
     assert.ok(cursorCommand.includes('.claude/skills/spike/SKILL.md'), cursorCommand);
