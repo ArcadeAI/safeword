@@ -56,6 +56,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ee670960b
 - [x] REFACTOR skip: one post-creation verification covers commit identity and validated files
 
+### Scenario: Reviewed spike planning reaches production without experimental history
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Spike code never becomes production implementation
 
 - [x] RED 548a33ea1

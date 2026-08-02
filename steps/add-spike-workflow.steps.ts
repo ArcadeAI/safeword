@@ -21,6 +21,8 @@ interface SpikeWorkflowWorld {
   spikeWorktree?: string;
   preSpikeBase?: string;
   spikeCommit?: string;
+  planCommit?: string;
+  planReviewed?: boolean;
   validatedScenarioContent?: string;
   ticketStateContent?: string;
   dirtyValidatedState?: string;
@@ -357,6 +359,75 @@ Given(
     runGit(spikeWorktree, ['commit', '-m', 'experimental result']);
     this.spikeCommit = runGit(spikeWorktree, ['rev-parse', 'HEAD']);
     this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  },
+);
+
+When(
+  'the maintainer opens a fresh production worktree from PRE_SPIKE_BASE',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.repositoryDirectory && this.productionWorktree && this.preSpikeBase);
+    runGit(this.repositoryDirectory, [
+      'worktree',
+      'add',
+      '-b',
+      'production/planned-implementation',
+      this.productionWorktree,
+      this.preSpikeBase,
+    ]);
+  },
+);
+
+When(
+  'plan-implementation records and commits the spike handoff there',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.productionWorktree);
+    const planPath = nodePath.join(this.productionWorktree, '.project/tickets/T/impl-plan.md');
+    const ticketPath = nodePath.join(this.productionWorktree, '.project/tickets/T/ticket.md');
+    mkdirSync(nodePath.dirname(planPath), { recursive: true });
+    writeFileSync(planPath, '# Impl Plan\n\nEvidence: proof passed\n');
+    writeFileSync(ticketPath, '---\nphase: plan-implementation\n---\n');
+    runGit(this.productionWorktree, ['add', '.project']);
+    runGit(this.productionWorktree, ['commit', '-m', 'record reviewed spike plan']);
+    this.planCommit = runGit(this.productionWorktree, ['rev-parse', 'HEAD']);
+  },
+);
+
+When(
+  'the plan is reviewed before production implementation begins',
+  function (this: SpikeWorkflowWorld) {
+    this.planReviewed = true;
+  },
+);
+
+Then(
+  'production implementation begins from the reviewed plan in that same worktree',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.productionWorktree && this.planCommit);
+    assert.equal(this.planReviewed, true);
+    assert.equal(runGit(this.productionWorktree, ['rev-parse', 'HEAD']), this.planCommit);
+    assert.match(
+      this.spikeSkill ?? '',
+      /create the fresh production worktree[\s\S]*plan-implementation[\s\S]*review[\s\S]*same worktree/i,
+    );
+  },
+);
+
+Then(
+  'the production worktree contains committed plan and ticket evidence',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.productionWorktree && this.planCommit);
+    assert.equal(
+      existsSync(nodePath.join(this.productionWorktree, '.project/tickets/T/impl-plan.md')),
+      true,
+    );
+    assert.equal(
+      existsSync(nodePath.join(this.productionWorktree, '.project/tickets/T/ticket.md')),
+      true,
+    );
+    assert.match(
+      runGit(this.productionWorktree, ['show', '--name-only', '--format=', this.planCommit]),
+      /\.project\/tickets\/T\/impl-plan\.md[\s\S]*\.project\/tickets\/T\/ticket\.md/,
+    );
   },
 );
 

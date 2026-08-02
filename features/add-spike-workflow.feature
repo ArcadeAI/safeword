@@ -93,6 +93,15 @@ Feature: Resolve build-only uncertainty with a spike
       Then PRE_SPIKE_BASE identifies that commit
       And the spike worktree contains the exact validated scenario and ticket changes
 
+    Scenario: Reviewed spike planning reaches production without experimental history
+      Given a completed spike branch contains experimental commits and changed files
+      When the maintainer opens a fresh production worktree from PRE_SPIKE_BASE
+      And plan-implementation records and commits the spike handoff there
+      And the plan is reviewed before production implementation begins
+      Then production implementation begins from the reviewed plan in that same worktree
+      And the production worktree contains committed plan and ticket evidence
+      And its branch history contains no merged or cherry-picked spike commits
+
     @rejection
     Scenario: Spike code never becomes production implementation
       Given a completed spike branch contains experimental commits and changed files
