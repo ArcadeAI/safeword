@@ -119,4 +119,41 @@ describe('cross-agent review public-command wiring', () => {
     });
     expect(readFileSync(log, 'utf8')).toBe('claude\n');
   });
+
+  it('retains the existing route for an author outside the Claude and Codex pairing', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: process.env.PATH ?? '',
+          SAFEWORD_AGENT_RUNTIME: 'cursor',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      effects: { network: [] },
+      data: {
+        status: 'existing_route',
+        author_agent: 'cursor',
+        independence: 'none',
+      },
+    });
+  });
 });
