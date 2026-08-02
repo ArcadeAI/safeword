@@ -339,7 +339,7 @@ describe('cross-agent review public-command wiring', () => {
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_FAKE_FAILURE: failure,
             SAFEWORD_REVIEW_LOG: log,
-            SAFEWORD_REVIEW_TIMEOUT_MS: '50',
+            SAFEWORD_REVIEW_TIMEOUT_MS: failure === 'timeout' ? '50' : '1000',
             SAFEWORD_NO_UPDATE_CHECK: '1',
           },
         },
