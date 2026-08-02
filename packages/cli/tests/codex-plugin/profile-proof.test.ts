@@ -25,9 +25,19 @@ const RESTARTED_HOST: CodexHostProcessIdentity = {
   pid: 200,
   started_at: '2026-08-02T09:00:00.000Z',
 };
+const OTHER_OLD_HOST: CodexHostProcessIdentity = {
+  pid: 300,
+  started_at: '2026-08-02T08:15:00.000Z',
+};
 
 describe('Codex profile hook proof', () => {
   const directories: string[] = [];
+
+  function createProfileFixture(): { codexHome: string; environment: { CODEX_HOME: string } } {
+    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
+    directories.push(codexHome);
+    return { codexHome, environment: { CODEX_HOME: codexHome } };
+  }
 
   afterEach(() => {
     for (const directory of directories) rmSync(directory, { recursive: true, force: true });
@@ -35,9 +45,7 @@ describe('Codex profile hook proof', () => {
   });
 
   it('never accepts an interrupted event proof as current', () => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { codexHome, environment } = createProfileFixture();
 
     expect(() =>
       recordCodexHookProof('session-start', environment, new Date('2026-07-28T00:00:00.000Z'), {
@@ -58,9 +66,7 @@ describe('Codex profile hook proof', () => {
     ['proof schema', { schema_version: 2 }, 'malformed'],
     ['missing fields', { recorded_at: undefined }, 'malformed'],
   ])('rejects proof with changed %s', (_case, override, expectedStatus) => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { environment } = createProfileFixture();
     const proofPath = codexProofPath(environment);
     mkdirSync(nodePath.dirname(proofPath), { recursive: true });
     writeFileSync(
@@ -78,9 +84,7 @@ describe('Codex profile hook proof', () => {
   });
 
   it('rejects malformed proof JSON', () => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { environment } = createProfileFixture();
     const proofPath = codexProofPath(environment);
     mkdirSync(nodePath.dirname(proofPath), { recursive: true });
     writeFileSync(proofPath, '{"schema_version":');
@@ -89,9 +93,7 @@ describe('Codex profile hook proof', () => {
   });
 
   it('requires current identity-bound proof from every packaged hook event', () => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { environment } = createProfileFixture();
 
     recordCodexHookProof('session-start', environment);
     const partial = observeCodexHookProof(environment);
@@ -108,9 +110,7 @@ describe('Codex profile hook proof', () => {
   });
 
   it('invalidates proof that predates a new installation', () => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { environment } = createProfileFixture();
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
       recordCodexHookProof(event, environment, new Date('2026-08-02T08:30:00.000Z'));
     }
@@ -125,9 +125,7 @@ describe('Codex profile hook proof', () => {
   });
 
   it('fails closed while a malformed canonical activation marker exists', () => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { codexHome, environment } = createProfileFixture();
     const markerPath = nodePath.join(codexHome, 'safeword/activation-pending-v2.json');
     mkdirSync(nodePath.dirname(markerPath), { recursive: true });
     writeFileSync(markerPath, '{"schema_version":');
@@ -136,9 +134,7 @@ describe('Codex profile hook proof', () => {
   });
 
   it('does not accept a new task from the same Codex app-server as activation', () => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { codexHome, environment } = createProfileFixture();
     writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
       activationId: 'activation-rc2',
       activeHosts: [OLD_HOST],
@@ -152,10 +148,58 @@ describe('Codex profile hook proof', () => {
     expect(observeCodexHookProof(environment).status).toBe('partial');
   });
 
+  it.each([
+    {
+      name: 'a non-SessionStart event',
+      event: 'pre-tool-use' as const,
+      now: new Date('2026-08-02T09:01:00.000Z'),
+      current: RESTARTED_HOST,
+    },
+    {
+      name: 'an unavailable current host',
+      event: 'session-start' as const,
+      now: new Date('2026-08-02T09:01:00.000Z'),
+      current: null,
+    },
+    {
+      name: 'a SessionStart timestamp before installation',
+      event: 'session-start' as const,
+      now: new Date('2026-08-02T08:50:00.000Z'),
+      current: RESTARTED_HOST,
+    },
+  ])('does not activate from $name', ({ event, now, current }) => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-rc2',
+      activeHosts: [OLD_HOST],
+    });
+
+    recordCodexHookProof(event, environment, now, { currentHost: current });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+  });
+
+  it('does not activate while another install-time Codex app-server is still running', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-rc2',
+      activeHosts: [OLD_HOST, OTHER_OLD_HOST],
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      hostObservation: {
+        available: true,
+        current: RESTARTED_HOST,
+        running: [OTHER_OLD_HOST, RESTARTED_HOST],
+      },
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(false);
+  });
+
   it('does not clear activation when the install-time host observation was unavailable', () => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { codexHome, environment } = createProfileFixture();
     writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
       activationId: 'activation-unknown-hosts',
       activeHosts: null,
@@ -173,9 +217,7 @@ describe('Codex profile hook proof', () => {
   });
 
   it('accepts SessionStart only after the Codex app-server has restarted', () => {
-    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
-    directories.push(codexHome);
-    const environment = { CODEX_HOME: codexHome };
+    const { codexHome, environment } = createProfileFixture();
     writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
       activationId: 'activation-rc2',
       activeHosts: [OLD_HOST],

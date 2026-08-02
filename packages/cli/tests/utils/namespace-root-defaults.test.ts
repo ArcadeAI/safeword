@@ -42,6 +42,12 @@ describe('resolveConfiguredPath — defaults derive from the resolved root (TAGW
     );
   });
 
+  it('principles default derives from the resolved project root', () => {
+    expect(resolveConfiguredPath(cwd, 'principles')).toBe(
+      nodePath.join(cwd, '.project', 'principles.md'),
+    );
+  });
+
   it('TB1.AC1.glossary_default_derives_from_root', () => {
     expect(resolveConfiguredPath(cwd, 'glossary')).toBe(
       nodePath.join(cwd, '.project', 'glossary.md'),
@@ -64,6 +70,14 @@ describe('resolveConfiguredPath — defaults derive from the resolved root (TAGW
     writeConfig(cwd, { installedPacks: [], paths: { personas: 'team/people.md' } });
 
     expect(resolveConfiguredPath(cwd, 'personas')).toBe(nodePath.join(cwd, 'team', 'people.md'));
+  });
+
+  it('principles override wins for the project principles file', () => {
+    writeConfig(cwd, { installedPacks: [], paths: { principles: 'docs/engineering-values.md' } });
+
+    expect(resolveConfiguredPath(cwd, 'principles')).toBe(
+      nodePath.join(cwd, 'docs', 'engineering-values.md'),
+    );
   });
 
   it('TB2.AC2.surfaces_override_wins_for_surfaces_file', () => {

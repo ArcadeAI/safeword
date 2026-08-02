@@ -9,12 +9,18 @@ import { SAFEWORD_SCHEMA } from '../schema.js';
 import { writeDurableFile } from './durable-write.js';
 import {
   type CodexHostProcessIdentity,
-  observeCurrentCodexHost,
+  type CodexHostProcessObservation,
+  observeCodexHostProcesses,
   observeRunningCodexHosts,
   sameCodexHost,
 } from './host-process.js';
 
 export type { CodexHostProcessIdentity } from './host-process.js';
+
+export interface CodexPluginIdentity {
+  plugin_version: string;
+  manifest_sha256: string;
+}
 
 export interface CodexHookProofV1 {
   schema_version: 1;
@@ -134,15 +140,22 @@ function packagedHookManifestPath(): string {
   return manifest;
 }
 
-export function currentCodexPluginIdentity(): {
-  plugin_version: string;
-  manifest_sha256: string;
-} {
+export function currentCodexPluginIdentity(): CodexPluginIdentity {
   const manifest = readFileSync(packagedHookManifestPath());
   return {
     plugin_version: SAFEWORD_SCHEMA.version,
     manifest_sha256: createHash('sha256').update(manifest).digest('hex'),
   };
+}
+
+function matchesCodexPluginIdentity(
+  value: { plugin_version?: unknown; manifest_sha256?: unknown },
+  identity: CodexPluginIdentity,
+): boolean {
+  return (
+    value.plugin_version === identity.plugin_version &&
+    value.manifest_sha256 === identity.manifest_sha256
+  );
 }
 
 export function writeCodexActivationMarker(
@@ -180,7 +193,44 @@ export function writeCodexActivationMarker(
   return marker;
 }
 
-// eslint-disable-next-line complexity -- activation transition validates independent durable host and time evidence
+function hostObservationForOverride(
+  current: CodexHostProcessIdentity | null = null,
+): CodexHostProcessObservation {
+  return {
+    available: true,
+    current,
+    running: current === null ? [] : [current],
+  };
+}
+
+function activationReceiptForRestart(
+  marker: CodexActivationMarkerV2,
+  hostObservation: CodexHostProcessObservation,
+  identity: CodexPluginIdentity,
+  now: Date,
+): CodexActivationReceiptV1 | null {
+  const currentHost = hostObservation.current;
+  if (
+    !hostObservation.available ||
+    currentHost === null ||
+    marker.host_observation !== 'observed' ||
+    now.getTime() < Date.parse(marker.installed_at) ||
+    marker.active_hosts.some(installedHost =>
+      hostObservation.running.some(runningHost => sameCodexHost(installedHost, runningHost)),
+    )
+  ) {
+    return null;
+  }
+  return {
+    schema_version: 1,
+    ...identity,
+    activation_id: marker.activation_id,
+    activated_at: now.toISOString(),
+    host: currentHost,
+  };
+}
+
+// eslint-disable-next-line complexity -- coordinates optional host overrides with durable proof writes
 export function recordCodexHookProof(
   event: CodexPluginHookEvent,
   environment: NodeJS.ProcessEnv = process.env,
@@ -188,29 +238,21 @@ export function recordCodexHookProof(
   writeOptions: {
     beforeRename?: () => void;
     currentHost?: CodexHostProcessIdentity | null;
+    hostObservation?: CodexHostProcessObservation;
   } = {},
 ): CodexHookProofV2 {
   const identity = currentCodexPluginIdentity();
   const marker = readActivationMarkerV2(environment, identity);
   let receipt = readActivationReceipt(environment, identity);
   if (event === 'session-start' && marker !== null) {
-    const currentHost =
-      'currentHost' in writeOptions
-        ? (writeOptions.currentHost ?? null)
-        : observeCurrentCodexHost();
-    if (
-      currentHost !== null &&
-      marker.host_observation === 'observed' &&
-      now.getTime() >= Date.parse(marker.installed_at) &&
-      marker.active_hosts.every(host => !sameCodexHost(host, currentHost))
-    ) {
-      receipt = {
-        schema_version: 1,
-        ...identity,
-        activation_id: marker.activation_id,
-        activated_at: now.toISOString(),
-        host: currentHost,
-      };
+    const hostObservation =
+      writeOptions.hostObservation ??
+      ('currentHost' in writeOptions
+        ? hostObservationForOverride(writeOptions.currentHost)
+        : observeCodexHostProcesses());
+    const restartedReceipt = activationReceiptForRestart(marker, hostObservation, identity, now);
+    if (restartedReceipt !== null) {
+      receipt = restartedReceipt;
       writeAtomicJson(codexActivationReceiptPath(environment), receipt);
       rmSync(codexActivationMarkerPath(environment), { force: true });
     }
@@ -237,18 +279,11 @@ function writeAtomicJson(
   });
 }
 
-function legacyActivationMarkerMatches(
-  path: string,
-  identity: { plugin_version: string; manifest_sha256: string },
-): boolean {
+function legacyActivationMarkerMatches(path: string, identity: CodexPluginIdentity): boolean {
   if (!existsSync(path)) return false;
   try {
     const marker = JSON.parse(readFileSync(path, 'utf8')) as Partial<CodexActivationMarkerV1>;
-    return (
-      marker.schema_version === 1 &&
-      marker.plugin_version === identity.plugin_version &&
-      marker.manifest_sha256 === identity.manifest_sha256
-    );
+    return marker.schema_version === 1 && matchesCodexPluginIdentity(marker, identity);
   } catch {
     return false;
   }
@@ -256,35 +291,47 @@ function legacyActivationMarkerMatches(
 
 function readActivationMarkerV2(
   environment: NodeJS.ProcessEnv,
-  identity: { plugin_version: string; manifest_sha256: string },
+  identity: CodexPluginIdentity,
 ): CodexActivationMarkerV2 | null {
-  const path = codexActivationMarkerPath(environment);
+  return readIdentityBoundJson(
+    codexActivationMarkerPath(environment),
+    identity,
+    isActivationMarkerV2,
+  );
+}
+
+function readActivationReceipt(
+  environment: NodeJS.ProcessEnv,
+  identity: CodexPluginIdentity,
+): CodexActivationReceiptV1 | null {
+  return readIdentityBoundJson(
+    codexActivationReceiptPath(environment),
+    identity,
+    isActivationReceiptV1,
+  );
+}
+
+function readIdentityBoundJson<T extends CodexPluginIdentity>(
+  path: string,
+  identity: CodexPluginIdentity,
+  validator: (value: unknown) => value is T,
+): T | null {
   if (!existsSync(path)) return null;
   try {
-    const marker = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-    if (!isActivationMarkerV2(marker)) return null;
-    return marker.plugin_version === identity.plugin_version &&
-      marker.manifest_sha256 === identity.manifest_sha256
-      ? marker
-      : null;
+    const value = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return validator(value) && matchesCodexPluginIdentity(value, identity) ? value : null;
   } catch {
     return null;
   }
 }
 
-function readActivationReceipt(
-  environment: NodeJS.ProcessEnv,
-  identity: { plugin_version: string; manifest_sha256: string },
-): CodexActivationReceiptV1 | null {
-  const path = codexActivationReceiptPath(environment);
-  if (!existsSync(path)) return null;
+function readEventProof(
+  path: string,
+  expectedEvent: CodexPluginHookEvent,
+): CodexHookProofV1 | CodexHookProofV2 | null {
   try {
-    const receipt = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-    if (!isActivationReceiptV1(receipt)) return null;
-    return receipt.plugin_version === identity.plugin_version &&
-      receipt.manifest_sha256 === identity.manifest_sha256
-      ? receipt
-      : null;
+    const proof = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return isCodexHookProof(proof) && proof.event === expectedEvent ? proof : null;
   } catch {
     return null;
   }
@@ -311,28 +358,18 @@ export function observeCodexHookProof(
     };
   }
 
-  const parsed: (CodexHookProofV1 | CodexHookProofV2)[] = [];
-  for (const item of existing) {
-    try {
-      const candidate = JSON.parse(readFileSync(item.path, 'utf8')) as unknown;
-      if (!isCodexHookProof(candidate) || candidate.event !== item.event) {
-        return malformedObservation();
-      }
-      parsed.push(candidate);
-    } catch {
-      return malformedObservation();
-    }
-  }
+  const parsed = existing.map(item => readEventProof(item.path, item.event));
+  if (parsed.includes(null)) return malformedObservation();
+  const validProofs = parsed.filter(proof => proof !== null);
 
   const identity = currentCodexPluginIdentity();
   const activationId =
     readActivationMarkerV2(environment, identity)?.activation_id ??
     readActivationReceipt(environment, identity)?.activation_id ??
     null;
-  const current = parsed.filter(
+  const current = validProofs.filter(
     proof =>
-      proof.plugin_version === identity.plugin_version &&
-      proof.manifest_sha256 === identity.manifest_sha256 &&
+      matchesCodexPluginIdentity(proof, identity) &&
       (activationId === null ||
         (proof.schema_version === 2 && proof.activation_id === activationId)),
   );
@@ -346,8 +383,8 @@ export function observeCodexHookProof(
   else if (current.length > 0) status = 'partial';
   return {
     status,
-    plugin_version: latest?.plugin_version ?? parsed[0]?.plugin_version ?? null,
-    manifest_sha256: latest?.manifest_sha256 ?? parsed[0]?.manifest_sha256 ?? null,
+    plugin_version: latest?.plugin_version ?? validProofs[0]?.plugin_version ?? null,
+    manifest_sha256: latest?.manifest_sha256 ?? validProofs[0]?.manifest_sha256 ?? null,
     recorded_at: latest?.recorded_at ?? null,
     activation_id: activationId,
     events,

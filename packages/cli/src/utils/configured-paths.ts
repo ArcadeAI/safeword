@@ -22,7 +22,8 @@ import { exists, isDirectory, readFileSafe } from './fs.js';
 import { toRepoDirectory } from './repo-path.js';
 
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
-export type ConfiguredPathKey = 'personas' | 'glossary' | 'surfaces' | 'architecture';
+export type ConfiguredPathKey =
+  'principles' | 'personas' | 'glossary' | 'surfaces' | 'architecture';
 
 /**
  * Directory keys under `paths.*` (unlike ConfiguredPathKey, these point at
@@ -230,7 +231,7 @@ export function readConfiguredDocumentationSourceDecision(
 
 /**
  * Resolve the absolute namespace root — the directory holding safeword's
- * project knowledge (tickets, learnings, personas, glossary, surfaces,
+ * project knowledge (tickets, learnings, principles, personas, glossary, surfaces,
  * architecture).
  *
  * Precedence (epic AQJ95G): explicit config `paths.projectRoot` →

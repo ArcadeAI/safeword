@@ -25,6 +25,7 @@ import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, type SafewordSchema } from './sch
 import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
+  type ConfiguredPathKey,
   defaultConfiguredPath,
   readConfiguredDocumentationSources,
   readConfiguredPath,
@@ -81,12 +82,11 @@ function missingClaudeSettingsIssues(cwd: string, schema: SafewordSchema): strin
     : [];
 }
 
-// The persona/glossary find*Issues + find*Advisories pairs below (and the
-// validate*Reference / lookup* pairs in personas.ts / glossary.ts) are
-// intentionally parallel, NOT a missed extraction: the cores diverge (persona
-// matches code/name, glossary matches name/alias; different parse+validate
-// fns and messages), and where they don't, deduping two call sites into a
-// multi-param helper would cost clarity. Assessed in ticket XEP59N — leave as is.
+// Persona and glossary content validation stays separate because their parsers
+// and diagnostics differ. Their configured-path lifecycle is shared with the
+// other user-authored project-knowledge files below. The parallel lookup and
+// validation paths were assessed in ticket XEP59N; combining their different
+// matching and diagnostic rules would cost clarity.
 
 /**
  * Validate personas.md when present, routing through any configured
@@ -100,17 +100,47 @@ function missingClaudeSettingsIssues(cwd: string, schema: SafewordSchema): strin
  *   in; typo would otherwise silently strand persona references). Ticket
  *   K7N2QM.
  */
+type ConfiguredKnowledgeFileKey = Extract<
+  ConfiguredPathKey,
+  'glossary' | 'principles' | 'personas' | 'surfaces'
+>;
+
+const PATH_ONLY_KNOWLEDGE_KEYS = ['principles', 'surfaces'] as const;
+const CONFIGURED_KNOWLEDGE_KEYS: readonly ConfiguredKnowledgeFileKey[] = [
+  'personas',
+  'principles',
+  'surfaces',
+  'glossary',
+];
+
+/** Factual configured-file health shared by user-authored project knowledge. */
+function findConfiguredKnowledgeIssues(cwd: string, key: ConfiguredKnowledgeFileKey): string[] {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined) return [];
+  const configuredPath = resolveConfiguredPath(cwd, key);
+  if (isDirectory(configuredPath)) return [`${key}-path: ${override}: not a file`];
+  if (exists(configuredPath)) return [];
+  return [`${key}-path: ${override}: file not found`];
+}
+
+/** Non-destructively identify a default knowledge file stranded by an override. */
+function findConfiguredKnowledgeAdvisories(cwd: string, key: ConfiguredKnowledgeFileKey): string[] {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined) return [];
+  const defaultPath = defaultConfiguredPath(cwd, key);
+  if (!exists(defaultPath)) return [];
+  return [
+    `${nodePath.relative(cwd, defaultPath)} exists but paths.${key} points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
 function findPersonaIssues(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'personas');
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, 'personas');
+  if (configuredIssues.length > 0) return configuredIssues;
   const filePath = resolveConfiguredPath(cwd, 'personas');
   const content = readFileSafe(filePath);
 
-  if (content === undefined) {
-    if (override !== undefined) {
-      return [`personas-path: ${override}: file not found`];
-    }
-    return [];
-  }
+  if (content === undefined) return [];
 
   const errors = validatePersonas(parsePersonas(content));
   return errors.map(error => `personas.md:${error.line}: ${error.message}`);
@@ -135,24 +165,6 @@ function findNamespaceAdvisories(cwd: string): string[] {
 }
 
 /**
- * Surface non-blocking diagnostics about persona path configuration.
- * When `paths.personas` is set AND the default-location file still exists,
- * emit a zero-exit advisory naming the orphaned file. Safeword reads from
- * the override; the legacy file is dead weight and may confuse readers who
- * think they're editing the live file. Non-destructive (data-loss principle
- * from ticket K7N2QM); user owns cleanup.
- */
-function findPersonaAdvisories(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'personas');
-  if (override === undefined) return [];
-  const defaultPath = defaultConfiguredPath(cwd, 'personas');
-  if (!exists(defaultPath)) return [];
-  return [
-    `${nodePath.relative(cwd, defaultPath)} exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
-  ];
-}
-
-/**
  * Validate glossary.md when present, routing through any configured
  * `paths.glossary` override. Returns one issue string per glossary
  * validation error, formatted as `glossary.md:LINE: MESSAGE`. Same two
@@ -161,35 +173,15 @@ function findPersonaAdvisories(cwd: string): string[] {
  * YR6C49, mirrors K7N2QM).
  */
 function findGlossaryIssues(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'glossary');
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, 'glossary');
+  if (configuredIssues.length > 0) return configuredIssues;
   const filePath = resolveConfiguredPath(cwd, 'glossary');
   const content = readFileSafe(filePath);
 
-  if (content === undefined) {
-    if (override !== undefined) {
-      return [`glossary-path: ${override}: file not found`];
-    }
-    return [];
-  }
+  if (content === undefined) return [];
 
   const errors = validateGlossary(parseGlossary(content));
   return errors.map(error => `glossary.md:${error.line}: ${error.message}`);
-}
-
-/**
- * Surface non-blocking diagnostics about glossary path configuration.
- * When `paths.glossary` is set AND the default-location file still exists,
- * emit a zero-exit advisory naming the orphaned file (mirrors
- * {@link findPersonaAdvisories}; data-loss principle from K7N2QM).
- */
-function findGlossaryAdvisories(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'glossary');
-  if (override === undefined) return [];
-  const defaultPath = defaultConfiguredPath(cwd, 'glossary');
-  if (!exists(defaultPath)) return [];
-  return [
-    `${nodePath.relative(cwd, defaultPath)} exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
-  ];
 }
 
 /**
@@ -277,7 +269,7 @@ function listTicketIds(ticketsRoot: string): string[] {
 /**
  * Surface architecture-claim mismatches as non-blocking advisories (ticket
  * K4BWTQ). Structural only — no prose extraction (YR6C49 ruling): when an
- * in-progress ticket's impl-plan.md Arch alignment section carries content
+ * in-progress ticket's impl-plan.md Design alignment section carries content
  * (not `skip:`) but the resolved `paths.architecture` location does not
  * exist, the claim cannot be honoring anything recorded. Zero-exit.
  */
@@ -296,12 +288,12 @@ function findArchitectureAdvisories(cwd: string): string[] {
     if (implPlan === undefined) return [];
     if (!archAlignmentHasContent(implPlan)) return [];
     return [
-      `${ticketId}: impl-plan.md Arch alignment claims alignment, but no architecture record exists at ${resolved} — record the decision or mark the section skip:`,
+      `${ticketId}: impl-plan.md Design alignment claims alignment, but no architecture record exists at ${resolved} — record the decision or mark the section skip:`,
     ];
   });
 }
 
-/** Whether the impl plan's `## Arch alignment` section carries real content
+/** Whether the impl plan's canonical or legacy alignment section carries real content
  * (non-empty, not a `skip:` annotation). */
 function archAlignmentHasContent(implPlanContent: string): boolean {
   let isInSection = false;
@@ -309,10 +301,13 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
   for (const raw of implPlanContent.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('## ')) {
-      isInSection = line.slice(3).trim().toLowerCase() === 'arch alignment';
+      const heading = line.slice(3).trim().toLowerCase();
+      isInSection = heading === 'design alignment' || heading === 'arch alignment';
       continue;
     }
-    if (isInSection && line !== '') body.push(line);
+    // Principle alignment is the structured Markdown table in this shared
+    // section. Architecture claims are the remaining prose below it.
+    if (isInSection && line !== '' && !line.startsWith('|')) body.push(line);
   }
   if (body.length === 0) return false;
   return !(body.length === 1 && (body[0] ?? '').toLowerCase().startsWith('skip:'));
@@ -748,6 +743,7 @@ export async function checkHealth(
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
     ...findPersonaIssues(cwd),
+    ...PATH_ONLY_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeIssues(cwd, key)),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
     ...missingClaudeSettingsIssues(cwd, healthSchema),
@@ -771,8 +767,7 @@ export async function checkHealth(
         ? []
         : [buildIndexConflictListMessage(ticketIndexConflicts)]),
       ...findNamespaceAdvisories(cwd),
-      ...findPersonaAdvisories(cwd),
-      ...findGlossaryAdvisories(cwd),
+      ...CONFIGURED_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeAdvisories(cwd, key)),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
       ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),

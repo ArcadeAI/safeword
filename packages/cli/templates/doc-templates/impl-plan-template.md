@@ -38,11 +38,21 @@ readers must be able to tell intentional design from accident.
 Complex decisions may add a short paragraph under the table. If the feature
 has no architectural choices, write `skip: <reason>` instead. -->
 
-## Arch alignment
+## Design alignment
 
-<!-- Which existing architecture decisions (ADRs / architecture.md at the
-configured paths.architecture location) this implementation honors, by title.
-If none are recorded yet, write `skip: no ADRs in this project yet`. -->
+<!-- First name only the applicable project principles from the configured
+paths.principles file. For each, record: principle → concrete consequence →
+proof in this exact table shape (the audit checker reads it):
+
+| Principle | Consequence | Proof | Conflict |
+| --- | --- | --- | --- |
+| Exact source heading | Observable design effect | Repo-relative evidence path | blank or explicit-conflict |
+
+When Conflict is `explicit-conflict`, Known deviations must name the same
+principle. Then name the existing architecture decisions (ADRs / architecture.md at
+the configured paths.architecture location) this implementation honors. Do not
+copy either catalogue. If neither applies, write
+`skip: no applicable principles or ADRs`. -->
 
 ## Known deviations
 

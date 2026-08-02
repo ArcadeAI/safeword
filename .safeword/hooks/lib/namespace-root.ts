@@ -44,6 +44,19 @@ export function readConfiguredPathValue(projectDirectory: string, key: string): 
   return raw;
 }
 
+/** Resolve a configured project path or derive its default from the namespace root. */
+export function resolveConfiguredPath(
+  projectDirectory: string,
+  key: string,
+  defaultBasename = `${key}.md`,
+): string {
+  const configured = readConfiguredPathValue(projectDirectory, key);
+  if (configured === undefined) {
+    return nodePath.join(resolveNamespaceRoot(projectDirectory), defaultBasename);
+  }
+  return nodePath.isAbsolute(configured) ? configured : nodePath.join(projectDirectory, configured);
+}
+
 function readConfiguredProjectRoot(projectDirectory: string): string | undefined {
   return readConfiguredPathValue(projectDirectory, 'projectRoot');
 }

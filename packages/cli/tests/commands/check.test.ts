@@ -4,7 +4,7 @@
  * Tests for `safeword check` command.
  */
 
-import { rmSync, unlinkSync } from 'node:fs';
+import { mkdirSync, rmSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -39,6 +39,24 @@ describe('Test Suite 8: Health Check', () => {
       temporaryDirectory,
       `.project/tickets/${folder}/ticket.md`,
       ['---', ...frontmatter, '---', '', `# ${folder}`, ''].join('\n'),
+    );
+  }
+
+  function setConfiguredPath(
+    key: 'glossary' | 'personas' | 'principles' | 'surfaces',
+    configuredPath: string,
+  ): void {
+    const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+      paths?: Record<string, unknown>;
+      [key: string]: unknown;
+    };
+    writeTestFile(
+      temporaryDirectory,
+      '.safeword/config.json',
+      JSON.stringify({
+        ...existing,
+        paths: { ...existing.paths, [key]: configuredPath },
+      }),
     );
   }
 
@@ -320,28 +338,23 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('configurable persona path (ticket K7N2QM)', () => {
-    /**
-     * Add a `paths.personas` override to the project's existing
-     * `.safeword/config.json`. Preserves any other config keys (notably
-     * `installedPacks`) that `createConfiguredProject` wrote during
-     * setup — overwriting them would trigger spurious "missing pack"
-     * reports that short-circuit the issues section.
-     */
-    function setPersonasOverride(personasPath: string): void {
-      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
-        installedPacks?: string[];
-        [key: string]: unknown;
-      };
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({ ...existing, paths: { personas: personasPath } }),
-      );
-    }
+    it.each(['personas', 'principles', 'surfaces', 'glossary'] as const)(
+      'reports a loud failure when configured %s path is a directory',
+      async key => {
+        await createConfiguredProject(temporaryDirectory);
+        mkdirSync(nodePath.join(temporaryDirectory, 'knowledge'));
+        setConfiguredPath(key, 'knowledge');
+
+        const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+        expect(result.exitCode).toBe(2);
+        expect(result.stdout).toContain(`${key}-path: knowledge: not a file`);
+      },
+    );
 
     it('R2.3: reports loud failure when configured path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
-      setPersonasOverride('docs/personas.md'); // file intentionally not created
+      setConfiguredPath('personas', 'docs/personas.md'); // file intentionally not created
       // Remove the scaffolded default so this test isolates the override branch.
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
@@ -360,7 +373,7 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       // Remove default so the legacy advisory does not fire.
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
@@ -377,7 +390,7 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## A', '**Role:** Too short.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
@@ -395,7 +408,7 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       // The default-location file was scaffolded by createConfiguredProject
       // and is intentionally left in place — that is the "legacy" condition.
 
@@ -439,19 +452,67 @@ describe('Test Suite 8: Health Check', () => {
     });
   });
 
-  describe('glossary.md validation (ticket YR6C49)', () => {
-    function setGlossaryOverride(glossaryPath: string): void {
-      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
-        installedPacks?: string[];
-        [key: string]: unknown;
-      };
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({ ...existing, paths: { glossary: glossaryPath } }),
-      );
-    }
+  describe('configurable surface path', () => {
+    it('reports a loud failure when the configured surface path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setConfiguredPath('surfaces', 'docs/surfaces.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'surfaces.md'));
 
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/surfaces-path:.*docs\/surfaces\.md.*file not found/);
+    });
+
+    it('reports an orphan advisory when an override and default surface file coexist', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/surfaces.md', '# Surfaces\n\n## Web\n');
+      setConfiguredPath('surfaces', 'docs/surfaces.md');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/\.project\/surfaces\.md.*orphan/i);
+    });
+  });
+
+  describe('configurable principles path', () => {
+    it('reports a loud failure when the configured principles path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setConfiguredPath('principles', 'docs/principles.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'principles.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/principles-path:.*docs\/principles\.md.*file not found/);
+    });
+
+    it('passes without an orphan advisory when a valid override replaces the default', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/principles.md', '# Principles\n\n## Delight users\n');
+      setConfiguredPath('principles', 'docs/principles.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'principles.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/principles.*orphan/i);
+    });
+
+    it('reports an orphan advisory when an override and default principles file coexist', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/principles.md', '# Principles\n\n## Delight users\n');
+      setConfiguredPath('principles', 'docs/principles.md');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/\.project\/principles\.md.*orphan/i);
+    });
+  });
+
+  describe('glossary.md validation (ticket YR6C49)', () => {
     it('R6.1: reports malformed glossary with line refs and exits non-zero', async () => {
       await createConfiguredProject(temporaryDirectory);
       // Two duplicate term blocks → duplicate-term errors.
@@ -471,7 +532,7 @@ describe('Test Suite 8: Health Check', () => {
 
     it('R6.2: reports loud failure when configured glossary path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
-      setGlossaryOverride('docs/glossary.md'); // file intentionally not created
+      setConfiguredPath('glossary', 'docs/glossary.md'); // file intentionally not created
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -493,7 +554,7 @@ describe('Test Suite 8: Health Check', () => {
         '.project/glossary.md',
         ['## Legacy', '**Definition:** Old location.', ''].join('\n'),
       );
-      setGlossaryOverride('docs/glossary.md');
+      setConfiguredPath('glossary', 'docs/glossary.md');
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -1097,7 +1158,7 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('Architecture-claim advisory (K4BWTQ)', () => {
-    function implPlan(archAlignment: string): string {
+    function implPlan(designAlignment: string, heading = 'Design alignment'): string {
       return [
         '# Impl Plan: t',
         '',
@@ -1111,9 +1172,9 @@ describe('Test Suite 8: Health Check', () => {
         '',
         'skip: none',
         '',
-        '## Arch alignment',
+        `## ${heading}`,
         '',
-        archAlignment,
+        designAlignment,
         '',
         '## Known deviations',
         '',
@@ -1126,32 +1187,35 @@ describe('Test Suite 8: Health Check', () => {
       ].join('\n');
     }
 
-    function writeArchTicket(ticketId: string, archAlignment: string): void {
+    function writeArchTicket(ticketId: string, designAlignment: string, heading?: string): void {
       const base = `.project/tickets/${ticketId}`;
       writeTestFile(
         temporaryDirectory,
         `${base}/ticket.md`,
         ['---', `id: ${ticketId}`, 'type: feature', 'status: in_progress', '---', ''].join('\n'),
       );
-      writeTestFile(temporaryDirectory, `${base}/impl-plan.md`, implPlan(archAlignment));
+      writeTestFile(temporaryDirectory, `${base}/impl-plan.md`, implPlan(designAlignment, heading));
     }
 
-    it('flags Arch alignment content when the architecture location is absent', async () => {
-      await createConfiguredProject(temporaryDirectory);
-      rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
-        force: true,
-      });
-      writeArchTicket('ARC001', 'Honors ADR-001 storage ownership.');
+    it.each(['Design alignment', 'Arch alignment'])(
+      'flags %s content when the architecture location is absent',
+      async heading => {
+        await createConfiguredProject(temporaryDirectory);
+        rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
+          force: true,
+        });
+        writeArchTicket('ARC001', 'Honors ADR-001 storage ownership.', heading);
 
-      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+        const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(/ARC001/);
-      expect(combined).toMatch(/architecture/i);
-    });
+        expect(result.exitCode).toBe(0);
+        const combined = `${result.stdout}\n${result.stderr}`;
+        expect(combined).toMatch(/ARC001/);
+        expect(combined).toMatch(/architecture/i);
+      },
+    );
 
-    it('stays silent when Arch alignment is skip-annotated, even with no architecture location', async () => {
+    it('stays silent when Design alignment is skip-annotated, even with no architecture location', async () => {
       await createConfiguredProject(temporaryDirectory);
       rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
         force: true,
@@ -1164,7 +1228,27 @@ describe('Test Suite 8: Health Check', () => {
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC002/);
     });
 
-    it('stays silent when Arch alignment has content and the architecture location exists', async () => {
+    it('stays silent when Design alignment contains principles but no architecture claim', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
+        force: true,
+      });
+      writeArchTicket(
+        'ARC004',
+        [
+          '| Principle | Consequence | Proof | Conflict |',
+          '| --- | --- | --- | --- |',
+          '| Delight the user | Recovery stays in context | verify.md | |',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC004/);
+    });
+
+    it('stays silent when Design alignment has content and the architecture location exists', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(
         temporaryDirectory,

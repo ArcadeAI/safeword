@@ -7,7 +7,8 @@ import type { ContractDefinition, FileDefinition, ManagedFileDefinition } from '
 
 interface ParitySchema {
   ownedFiles: Record<string, FileDefinition>;
-  // Optional: personas/glossary/surfaces templates are referenced here, not in ownedFiles.
+  // Optional: principles/personas/glossary/surfaces templates are referenced here,
+  // not in ownedFiles.
   // Included so the orphan-template scan doesn't false-flag them.
   managedFiles?: Record<string, ManagedFileDefinition>;
   contracts: Record<string, ContractDefinition>;

@@ -29,6 +29,7 @@ import {
   observeLegacyGlobalGuidance,
 } from '../codex-plugin/legacy-global-guidance.js';
 import {
+  CODEX_RESTART_GUIDANCE,
   codexMigrationExitCode,
   type CodexMigrationResultV2,
   type CodexPluginObservation,
@@ -306,8 +307,7 @@ export function observeCodexMigrationResult(
 
 const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV2['state'], string>>> =
   {
-    plugin_installed_app_restart_required:
-      'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.',
+    plugin_installed_app_restart_required: CODEX_RESTART_GUIDANCE,
     compatibility:
       'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.',
     plugin_enabled_hook_unproven:
