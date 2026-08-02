@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -13,6 +13,7 @@ import {
 function project(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-binding-'));
   mkdirSync(nodePath.join(directory, '.safeword'));
+  writeFileSync(nodePath.join(directory, '.safeword', 'SAFEWORD.md'), '# SafeWord\n');
   return directory;
 }
 

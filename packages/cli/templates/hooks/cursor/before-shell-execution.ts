@@ -11,10 +11,12 @@ import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  commandInvokesCloseoutCleanup,
   commandInvokesWriteReviewStamp,
   parseRecordSkillInvocationCommand,
   rememberCursorReviewStampIdentity,
   rememberCursorRunIdentity,
+  rememberCloseoutBinding,
 } from '../lib/cursor-run-identity.ts';
 import { stashCursorTranscript } from '../lib/cursor-state.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
@@ -71,6 +73,16 @@ function stashReviewStampIdentity(): void {
   });
 }
 
+function stashCloseoutBinding(): void {
+  if (!commandInvokesCloseoutCleanup(command)) return;
+  rememberCloseoutBinding({
+    projectDirectory: process.cwd(),
+    runtime: 'cursor',
+    id: input.conversation_id,
+    transcriptPath: input.transcript_path,
+  });
+}
+
 const proofCommand = parseRecordSkillInvocationCommand(command);
 const needsFailClosedGate = requiresFailClosedShellGate({ command });
 if (!needsFailClosedGate) {
@@ -82,6 +94,7 @@ if (!needsFailClosedGate) {
     });
   }
   stashReviewStampIdentity();
+  stashCloseoutBinding();
   emitAllowAndExit();
 }
 
@@ -113,6 +126,7 @@ if (decision.permission === 'allow') {
     });
   }
   stashReviewStampIdentity();
+  stashCloseoutBinding();
 }
 process.stdout.write(JSON.stringify(decision) + '\n');
 process.exit(0);

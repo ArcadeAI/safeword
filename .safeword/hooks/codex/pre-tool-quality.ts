@@ -16,10 +16,12 @@ import {
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
 import {
+  commandInvokesCloseoutCleanup,
   commandInvokesWriteReviewStamp,
   parseRecordSkillInvocationCommand,
   rememberCodexReviewStampIdentity,
   rememberCodexRunIdentity,
+  rememberCloseoutBinding,
 } from '../lib/cursor-run-identity.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
 
@@ -117,6 +119,14 @@ const failedResult = results.find(result => (result.status ?? 0) !== 0);
 if (failedResult === undefined && commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
   rememberCodexReviewStampIdentity({
     projectDirectory: resolveProjectRoot(),
+    id: input.session_id,
+  });
+}
+
+if (failedResult === undefined && commandInvokesCloseoutCleanup(input.tool_input?.command ?? '')) {
+  rememberCloseoutBinding({
+    projectDirectory: resolveProjectRoot(),
+    runtime: 'codex',
     id: input.session_id,
   });
 }
