@@ -271,6 +271,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Parent Epic:** {id} (siblings: X/Y done) or N/A
 **Reconcile:** ✅ No pattern deviation (or ⚠️ N deviations, M missing uplevel ticket — soft, never blocks)
 **Experience:** ✅ No new friction (or ⚠️ N friction points / dulled peak, or ⏭️ N/A — not persona-facing) — soft, never blocks
+**Surface Evidence:** ✅ N/N affected surfaces have recorded proof (or ⚠️ N unproven/limited, or ⏭️ N/A — no affected surfaces)
 **Evidence limits:** ✅ None (or ⚠️ <local limitation>; affected failures are not product evidence until reproduced outside the limit)
 ```
 
@@ -284,6 +285,13 @@ The Status section uses the existing Verify Checklist format. Format with these 
 - **Peak (only when the ticket or its parent declared a `## Rave Moment` in `spec.md`):** walk that moment as the persona — does it still land, and did this work advance or endanger it? A peak that quietly degraded is a finding even when every test is green.
 
 A ⚠️ Experience finding routes to **Agent's next actions** if you'll fix it now, or to **Decisions needed** if it's a scope/value call for the user. It is never a reason to hold `done` on its own.
+
+**Surface evidence** records what actually ran, not just scenario tags. For each
+affected surface in `spec.md`, add a compact matrix row with **Affected
+surface**, **proof command or manual check**, and **result**. Use the real
+runtime/client/protocol/deployment boundary where available; otherwise record a
+`skip: <reason>` and carry the limitation into Evidence limits. This matrix is
+the input quality review uses to challenge parity.
 
 **Done-gate evidence patterns** (the stop hook validates these literal phrases — do not move or rename):
 

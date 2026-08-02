@@ -2,7 +2,7 @@
 
 The standing operating model for this project. Read at session start; re-scan by topic as situations arise. Project-specific rules live in `./CLAUDE.md`. Triggered playbooks live in `./.safeword/guides/`.
 
-Project knowledge (tickets, learnings, personas, glossary, surfaces) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
+Project knowledge (tickets, learnings, principles, personas, glossary, surfaces) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
 
 ---
 
@@ -42,6 +42,16 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 **Readiness triage.** The five-dimension check the prompt pointer abbreviates: intent (why, and for whom), done (a measurable end-state), constraints (what must not break, reversibility), riskiest assumption (and the cheapest way to test it before building), and request shape (is this the problem, or someone's guess at the fix?). Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics. For one-way-door features, intake offers a deeper **cold-start executability check** at exit (`.safeword/guides/cold-start-check.md`) — a context-free agent attempts to plan the work from the captured spec alone, surfacing what it couldn't reconstruct; runnable on demand too.
 
 **PM-grade intake** is the name for how these fit together, scaled by blast radius: the readiness pointer nudges every turn · the Intake Brief (who asked · cost of inaction · reversibility) is authored for features · the cold-start executability check fires only for one-way-door work — with `/elicit`, `/brainstorm`, and `/figure-it-out` pulled in as the gaps demand (unknown intent · empty option space · options to weigh). One protocol, not three disconnected mechanisms.
+
+**Project principles.** Before choosing scope or design, read the configured
+principles file (`paths.principles`, default `<namespace-root>/principles.md`)
+when it exists. Apply it as a decision lens, not a checklist: a principle pays
+rent only when it changes behavior, design, proof, or a deliberate deviation.
+Features record applicable principles in `impl-plan.md`'s Arch alignment as
+**principle → concrete consequence → proof**. Tasks note a principle only when
+it materially changes the task; patches apply it silently unless they need an
+explicit exception. Never claim an experiential principle is proven by tests
+alone — tests prove observable mechanics; user evidence proves the experience.
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 

@@ -57,7 +57,14 @@ function auditToolStubBody(command: string): string {
   }
   if (command === 'bun') {
     return String.raw`case "$1" in
-  */resolve-namespace-root.ts) printf '%s\n' "$2/.project" ;;
+  */resolve-namespace-root.ts)
+    if [ -n "$3" ]; then
+      if [ -n "$4" ]; then domain_basename="$4"; else domain_basename="$3.md"; fi
+      printf '%s\n' "$2/.project/$domain_basename"
+    else
+      printf '%s\n' "$2/.project"
+    fi
+    ;;
   */packages/cli/src/cli.ts) [ "$2" = "feature-directories" ] && printf '%s\n' "$PWD/features" ;;
   *) echo "[fake-bun] $@" ;;
 esac`;

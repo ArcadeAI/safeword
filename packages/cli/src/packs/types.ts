@@ -166,7 +166,7 @@ export interface ManagedFileDefinition extends FileDefinition {
    *
    * See ticket K7N2QM for the data-loss-prevention rationale.
    */
-  configKey?: 'personas' | 'glossary' | 'surfaces' | 'architecture';
+  configKey?: 'principles' | 'personas' | 'glossary' | 'surfaces' | 'architecture';
 
   /**
    * Opt-in conditional removal on DEFAULT reset (ticket V4MATC): uninstall

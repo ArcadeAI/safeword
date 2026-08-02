@@ -50,6 +50,7 @@ const DEFAULT_LANGUAGES = {
 };
 
 const PERSONAS_DEFAULT_PATH = '.safeword-project/personas.md';
+const PRINCIPLES_DEFAULT_PATH = '.project/principles.md';
 const SURFACES_DEFAULT_PATH = '.project/surfaces.md';
 
 describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
@@ -100,6 +101,25 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
       JSON.stringify({ installedPacks: [], paths: { surfaces: surfacesPath } }, undefined, 2),
     );
   }
+
+  function writePrinciplesOverrideConfig(principlesPath: string): void {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ installedPacks: [], paths: { principles: principlesPath } }, undefined, 2),
+    );
+  }
+
+  it('skips the default principles scaffold when paths.principles is configured', async () => {
+    const { reconcile } = await import('../src/reconcile.js');
+    const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+    writePrinciplesOverrideConfig('PRINCIPLES.md');
+
+    await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
+
+    expect(existsSync(nodePath.join(cwd, PRINCIPLES_DEFAULT_PATH))).toBe(false);
+  });
 
   it('R3.2: skips default scaffold when paths.personas is configured', async () => {
     const { reconcile } = await import('../src/reconcile.js');

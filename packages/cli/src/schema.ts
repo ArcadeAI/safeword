@@ -240,7 +240,8 @@ const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromE
  * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
  * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
  * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
- * siblings (tickets/, learnings/, personas.md, glossary.md, surfaces.md) stay tracked.
+ * siblings (tickets/, learnings/, principles.md, personas.md, glossary.md,
+ * surfaces.md) stay tracked.
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
@@ -1060,6 +1061,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...rustManagedFiles,
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,
+
+    // Project principles — scaffolded once; users author the small, durable set
+    // that guides product and technical decisions. Like personas, a configured
+    // paths.principles override suppresses the default scaffold uniformly.
+    '.safeword-project/principles.md': {
+      template: 'principles-template.md',
+      configKey: 'principles',
+    },
 
     // Project personas — scaffolded once with format header + commented example;
     // user authors real persona blocks thereafter (safeword reads, never overwrites

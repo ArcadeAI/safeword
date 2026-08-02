@@ -145,6 +145,30 @@ function findPersonaAdvisories(cwd: string): string[] {
 }
 
 /**
+ * Validate the configured surfaces path. Surface content stays user-owned and
+ * semantically reviewed; health only fails when an explicit override points to
+ * no file, matching the persona configured-path contract.
+ */
+function findSurfaceIssues(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'surfaces');
+  if (override === undefined) return [];
+  return exists(resolveConfiguredPath(cwd, 'surfaces'))
+    ? []
+    : [`surfaces-path: ${override}: file not found`];
+}
+
+/** Report a default surfaces file stranded by an active override. */
+function findSurfaceAdvisories(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'surfaces');
+  if (override === undefined) return [];
+  const defaultPath = defaultConfiguredPath(cwd, 'surfaces');
+  if (!exists(defaultPath)) return [];
+  return [
+    `${nodePath.relative(cwd, defaultPath)} exists but paths.surfaces points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
+/**
  * Validate glossary.md when present, routing through any configured
  * `paths.glossary` override. Returns one issue string per glossary
  * validation error, formatted as `glossary.md:LINE: MESSAGE`. Same two
@@ -737,6 +761,7 @@ export async function checkHealth(
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
     ...findPersonaIssues(cwd),
+    ...findSurfaceIssues(cwd),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
   ];
@@ -765,6 +790,7 @@ export async function checkHealth(
         : [buildIndexConflictListMessage(ticketIndexConflicts)]),
       ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
+      ...findSurfaceAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
       ...coverageDiagnostics.advisories,

@@ -439,6 +439,45 @@ describe('Test Suite 8: Health Check', () => {
     });
   });
 
+  describe('configurable surface path', () => {
+    function setSurfacesOverride(surfacesPath: string): void {
+      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+        paths?: Record<string, unknown>;
+        [key: string]: unknown;
+      };
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({
+          ...existing,
+          paths: { ...existing.paths, surfaces: surfacesPath },
+        }),
+      );
+    }
+
+    it('reports a loud failure when the configured surface path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setSurfacesOverride('docs/surfaces.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'surfaces.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/surfaces-path:.*docs\/surfaces\.md.*file not found/);
+    });
+
+    it('reports an orphan advisory when an override and default surface file coexist', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/surfaces.md', '# Surfaces\n\n## Web\n');
+      setSurfacesOverride('docs/surfaces.md');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/\.project\/surfaces\.md.*orphan/i);
+    });
+  });
+
   describe('glossary.md validation (ticket YR6C49)', () => {
     function setGlossaryOverride(glossaryPath: string): void {
       const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {

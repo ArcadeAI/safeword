@@ -49,6 +49,25 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
     }
   });
 
+  it('maps applicable project principles to a consequence and proof', () => {
+    for (const { path, text } of planCopies) {
+      expect(text, path).toContain('paths.principles');
+      expect(text, path).toMatch(/applicable project principles/i);
+      expect(text, path).toMatch(/consequence/i);
+      expect(text, path).toMatch(/proof/i);
+      expect(text, path).toMatch(/do not enumerate|not a checklist|only.*applicable/i);
+    }
+  });
+
+  it('gives the independent reviewer the principles source and asks it to challenge the mapping', () => {
+    for (const { path, text } of planCopies) {
+      expect(text, path).toMatch(/reviewer[\s\S]*principles file/i);
+      expect(text, path).toMatch(/challenge[\s\S]*applicab/i);
+      expect(text, path).toMatch(/consequence[\s\S]*proof/i);
+      expect(text, path).toMatch(/deviation/i);
+    }
+  });
+
   it('bounds the ADR offer to significant decisions and routine ones to the table (TB1.R4)', () => {
     for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/structure, key quality attributes/i);

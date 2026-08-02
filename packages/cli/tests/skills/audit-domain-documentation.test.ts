@@ -65,6 +65,18 @@ function runDomainDocumentationCheck(
     const auditScopePath = nodePath.join(projectDirectory, '.safeword/hooks/lib/audit-scope.sh');
     mkdirSync(nodePath.dirname(auditScopePath), { recursive: true });
     writeFileSync(auditScopePath, readSurface('packages/cli/templates/hooks/lib/audit-scope.sh'));
+    const namespaceResolverPath = nodePath.join(
+      projectDirectory,
+      '.safeword/hooks/resolve-namespace-root.ts',
+    );
+    writeFileSync(
+      namespaceResolverPath,
+      readSurface('packages/cli/templates/hooks/resolve-namespace-root.ts'),
+    );
+    writeFileSync(
+      nodePath.join(projectDirectory, '.safeword/hooks/lib/namespace-root.ts'),
+      readSurface('packages/cli/templates/hooks/lib/namespace-root.ts'),
+    );
     const result = spawnSync('bash', ['-c', extractDomainDocumentationBlock()], {
       cwd: projectDirectory,
       env: {
@@ -145,6 +157,16 @@ function tagLineFeature(...tags: string[]): string {
 }
 
 describe('audit domain-documentation surface drift (E008)', () => {
+  it('honors paths.surfaces when resolving the inventory', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.safeword/config.json': JSON.stringify({ paths: { surfaces: 'docs/surfaces.md' } }),
+      'docs/surfaces.md': POPULATED_SURFACES,
+      'features/x.feature': tagLineFeature('@surface.claude-code'),
+    });
+
+    expect(output).not.toContain('[E008]');
+  });
+
   it('reports a surface tag with no matching inventory entry', () => {
     const { output } = runDomainDocumentationCheck({
       '.project/surfaces.md': POPULATED_SURFACES,
@@ -243,6 +265,16 @@ describe('audit domain-documentation surface drift (E008)', () => {
 const PERSONAS_TB = `# Personas\n\n## Technical Builder (TB)\n\n**Role:** Runs the agent.\n`;
 
 describe('audit domain-documentation persona drift (E009)', () => {
+  it('honors paths.personas when resolving the inventory', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.safeword/config.json': JSON.stringify({ paths: { personas: 'docs/personas.md' } }),
+      'docs/personas.md': PERSONAS_TB,
+      '.project/tickets/T1-x/spec.md': `# Spec\n\n**Persona:** Technical Builder (TB)\n`,
+    });
+
+    expect(output).not.toContain('[E009]');
+  });
+
   it('reports a persona code named in a live spec line but undefined', () => {
     const { output } = runDomainDocumentationCheck({
       '.project/personas.md': PERSONAS_TB,
