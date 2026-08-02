@@ -385,6 +385,21 @@ function resolveRepositoryRoot(cwd: string): string | undefined {
   return result.status === 0 ? result.stdout.trim() || undefined : undefined;
 }
 
+export function safewordCliCommand(root: string): [string, ...string[]] {
+  const override = process.env.SAFEWORD_CLI;
+  if (override?.trim()) return ['bun', override];
+  const installed = nodePath.join(root, 'node_modules', 'safeword', 'dist', 'cli.js');
+  if (existsSync(installed)) return ['bun', installed];
+  const dogfood = nodePath.join(root, 'packages', 'cli', 'src', 'cli.ts');
+  if (existsSync(dogfood)) return ['bun', dogfood];
+  return ['bunx', 'safeword'];
+}
+
+function runSafeword(root: string, arguments_: string[]): ProcessResult {
+  const [command, ...prefix] = safewordCliCommand(root);
+  return run(command, [...prefix, ...arguments_], root);
+}
+
 function exactCodexTranscript(id: string): string | undefined {
   const root = nodePath.join(
     process.env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
@@ -457,21 +472,17 @@ function resolveTranscript(binding: CloseoutBinding, root: string): string | und
 function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['retro'] {
   const transcript = resolveTranscript(binding, root);
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0 };
-  const retro = run(
-    'safeword',
-    [
-      'retro',
-      'run',
-      '--format',
-      'json',
-      '--auto-extract',
-      '--transcript',
-      transcript,
-      '--session-id',
-      binding.id,
-    ],
-    root,
-  );
+  const retro = runSafeword(root, [
+    'retro',
+    'run',
+    '--format',
+    'json',
+    '--auto-extract',
+    '--transcript',
+    transcript,
+    '--session-id',
+    binding.id,
+  ]);
   const result = json<{
     state?: string;
     data?: { agent_filing_needed?: boolean };
@@ -502,11 +513,15 @@ function workingStateHash(root: string, headOid: string): string {
 function runVerification(root: string, expectedOid: string): CloseoutObservation['verification'] {
   let passed = true;
   for (const kind of ['verify', 'build', 'typecheck', 'bdd', 'deps']) {
-    const planResult = run(
-      'safeword',
-      ['project', 'test-plan', root, '--kind', kind, '--format', 'json'],
+    const planResult = runSafeword(root, [
+      'project',
+      'test-plan',
       root,
-    );
+      '--kind',
+      kind,
+      '--format',
+      'json',
+    ]);
     const plan = json<TestPlanEntry[]>(planResult);
     if (!plan || plan.some(entry => !entry.available)) {
       passed = false;
