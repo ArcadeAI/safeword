@@ -3,18 +3,18 @@
 Review completed 2026-07-31 against the #1701 report, the current template
 distribution, and the focused real-process contract.
 
-**Currency:** ✓ Shell behavior verified against current GNU Bash documentation  
-**Sources:** ✓ Primary Bash documentation; current repository files  
-**Correct:** ✓ An absent `go.mod` now skips successfully; a present one still
-runs the established Go commands  
-**Elegant:** ✓ `if` expresses optional control flow directly  
-**No-bloat:** ✓ One control-flow substitution plus the required generated copies  
-**Wiring:** ✓ The test extracts and executes every shipped shell block, stubbing
+- **Currency:** ✓ Shell behavior verified against current GNU Bash documentation
+- **Sources:** ✓ Primary Bash documentation; current repository files
+- **Correct:** ✓ An absent `go.mod` now skips successfully; a present one still
+runs the established Go commands
+- **Elegant:** ✓ `if` expresses optional control flow directly
+- **No-bloat:** ✓ One control-flow substitution plus the required generated copies
+- **Wiring:** ✓ The test extracts and executes every shipped shell block, stubbing
 only external process commands
 
 **Verdict:** APPROVE
 
-**Critical issues:** None.  
+- **Critical issues:** None.
 **Suggested improvements:** None.
 
 The old AND list returned the failed manifest check when Go was absent. The
