@@ -22,7 +22,7 @@ fi
 payload=$(cat)
 printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
-failure=$(printenv SAFEWORD_FAKE_FAILURE || true)
+failure=$(printenv SAFEWORD_FAKE_FAILURE_${agent.toUpperCase()} || printenv SAFEWORD_FAKE_FAILURE || true)
 failure_agent=$(printenv SAFEWORD_FAKE_FAILURE_AGENT || true)
 if [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; then
   if [ "$failure" = "auth" ]; then printf 'not logged in\n' >&2; exit 1; fi
@@ -459,6 +459,60 @@ describe('cross-agent review public-command wiring', () => {
         independence: 'degraded',
       },
     });
+    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+  });
+
+  it('blocks with one recovery action after exhausting safe review routes', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex', log);
+    installFakeReviewer(directory, 'claude', log);
+    const startedAt = Date.now();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_FAKE_FAILURE_CODEX: 'process',
+          SAFEWORD_FAKE_FAILURE_CLAUDE: 'auth',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const output = JSON.parse(result.stdout);
+    expect(Date.now() - startedAt).toBeLessThan(2000);
+    expect(result.exitCode).toBe(2);
+    expect(output).toMatchObject({
+      state: 'action_required',
+      recovery: [
+        {
+          command: 'safeword review run quality-review review-input.md',
+          description: 'Retry the independent review.',
+        },
+      ],
+      data: {
+        status: 'blocked',
+        preferred_failure: 'process_failed',
+        fallback_failure: 'not_authenticated',
+        independence: 'none',
+      },
+    });
+    expect(output.data).not.toHaveProperty('reviewer_output');
     expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
   });
 });
