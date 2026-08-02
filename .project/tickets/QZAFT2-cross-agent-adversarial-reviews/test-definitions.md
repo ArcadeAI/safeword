@@ -92,17 +92,17 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario: An opaque technical status is not accepted as the builder-facing result
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the preceding human-output outline introduced the same first-line contract while JSON tests retained technical detail
+- [x] GREEN 68d473edc
+- [x] REFACTOR skip: plain-language presentation and supporting wire data remain separated by the shared renderer
 
 ## Rule: cross-agent-review.NTB1.R2 — A degraded or blocked outcome leads with one recommended recovery action
 
 ### Scenario Outline: The builder receives one actionable recovery step for each failure
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the exhausted-routes walking skeleton already required one recovery entry before the five-cause matrix was expanded
+- [x] GREEN 0e5225ac7
+- [x] REFACTOR skip: one table-driven recoveryDescription helper maps every classified cause to a single action
 
 ## Rule: cross-agent-review.SWM1.R1 — Every class-1 surface uses one coordinator contract
 
