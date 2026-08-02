@@ -14,11 +14,21 @@ interface SpikeWorkflowWorld {
   uncertaintyKind?: string;
   spikeShape?: string;
   spikeResult?: string;
+  repositoryDirectory?: string;
+  productionWorktree?: string;
+  preSpikeBase?: string;
+  spikeCommit?: string;
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI_PATH = nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts');
 const SPIKE_SKILL_PATH = nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/spike/SKILL.md');
+
+function runGit(directory: string, args: string[]): string {
+  const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8' });
+  assert.equal(result.status, 0, `${result.stdout ?? ''}\n${result.stderr ?? ''}`);
+  return (result.stdout ?? '').trim();
+}
 
 After(function (this: SpikeWorkflowWorld) {
   if (this.projectDirectory !== undefined) {
@@ -134,6 +144,76 @@ Then('the workflow identifies the missing {word}', function (this: SpikeWorkflow
 Then('the workflow identifies the missing kill criterion', function (this: SpikeWorkflowWorld) {
   assert.equal(this.missingCharterField, 'kill criterion');
   assert.match(this.spikeSkill ?? '', /name (?:the missing field|it)/i);
+});
+
+Given(
+  'a completed spike branch contains experimental commits and changed files',
+  function (this: SpikeWorkflowWorld) {
+    this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-git-'));
+    this.repositoryDirectory = nodePath.join(this.projectDirectory, 'repo');
+    this.productionWorktree = nodePath.join(this.projectDirectory, 'production');
+    const spikeWorktree = nodePath.join(this.projectDirectory, 'spike');
+    runGit(this.projectDirectory, ['init', 'repo']);
+    runGit(this.repositoryDirectory, ['config', 'user.email', 'spike@example.test']);
+    runGit(this.repositoryDirectory, ['config', 'user.name', 'Spike Test']);
+    writeFileSync(nodePath.join(this.repositoryDirectory, 'proof.txt'), 'production base\n');
+    runGit(this.repositoryDirectory, ['add', 'proof.txt']);
+    runGit(this.repositoryDirectory, ['commit', '-m', 'production base']);
+    this.preSpikeBase = runGit(this.repositoryDirectory, ['rev-parse', 'HEAD']);
+    runGit(this.repositoryDirectory, [
+      'worktree',
+      'add',
+      '-b',
+      'spike/experiment',
+      spikeWorktree,
+      this.preSpikeBase,
+    ]);
+    writeFileSync(nodePath.join(spikeWorktree, 'proof.txt'), 'experimental shortcut\n');
+    runGit(spikeWorktree, ['add', 'proof.txt']);
+    runGit(spikeWorktree, ['commit', '-m', 'experimental result']);
+    this.spikeCommit = runGit(spikeWorktree, ['rev-parse', 'HEAD']);
+    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  },
+);
+
+When('production implementation begins', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.repositoryDirectory && this.productionWorktree && this.preSpikeBase);
+  runGit(this.repositoryDirectory, [
+    'worktree',
+    'add',
+    '-b',
+    'production/implementation',
+    this.productionWorktree,
+    this.preSpikeBase,
+  ]);
+});
+
+Then(
+  'production implementation starts from the pre-spike production base in a fresh worktree',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.productionWorktree && this.preSpikeBase);
+    assert.equal(runGit(this.productionWorktree, ['rev-parse', 'HEAD']), this.preSpikeBase);
+    assert.match(this.spikeSkill ?? '', /PRE_SPIKE_BASE[\s\S]*fresh worktree/i);
+  },
+);
+
+Then(
+  'its branch history contains no merged or cherry-picked spike commits',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.productionWorktree && this.spikeCommit);
+    const ancestry = spawnSync('git', ['merge-base', '--is-ancestor', this.spikeCommit, 'HEAD'], {
+      cwd: this.productionWorktree,
+    });
+    assert.equal(ancestry.status, 1, 'spike commit unexpectedly entered production ancestry');
+    assert.match(this.spikeSkill ?? '', /Do not merge[\s\S]*cherry-pick/i);
+  },
+);
+
+Then('the spike branch remains unmerged', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.productionWorktree);
+  const merged = runGit(this.productionWorktree, ['branch', '--merged', 'HEAD']);
+  assert.doesNotMatch(merged, /spike\/experiment/);
+  assert.match(this.spikeSkill ?? '', /spike branch remains unmerged/i);
 });
 
 Given('a project without Claude or Cursor spike artifacts', function (this: SpikeWorkflowWorld) {
