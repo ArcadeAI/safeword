@@ -12,6 +12,6 @@
 **Experience:** ⏭️ N/A — internal migration plumbing
 **Evidence limits:** ✅ None
 
-## Agent's next actions
+## Closure Evidence
 
-- Wait for GitHub Actions to schedule CI for the current PR head; GitHub has not created a CI check suite for the pushed commits yet.
+- PR #1774 squash-merged as `2ae8b7d9e431ece678187ce9901855727bc5559e` after all required CI checks passed.

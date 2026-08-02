@@ -2,10 +2,12 @@
 id: Q7YCW0
 slug: keep-finalized-codex-dogfood-projects-passing-ci
 type: patch
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-08-02T14:19:21.006Z
-last_modified: 2026-08-02T14:19:21.006Z
+last_modified: 2026-08-02T15:39:19.000Z
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/1774
 ---
 
 # Keep finalized Codex dogfood projects passing CI
@@ -22,6 +24,7 @@ last_modified: 2026-08-02T14:19:21.006Z
 - Implemented: retained Claude/Cursor-owned hooks during future Codex finalization; finalized projects now omit only Codex-exclusive parity pairs; source integration tests execute canonical templates for retired adapters.
 - Verified: local dogfood parity reports 200 pairs and 8 contracts in sync; lint and the full test suite were run.
 - Dogfood state: recovered the original migration transaction to restore shared hooks. A genuine new Codex session must record current plugin proof before this repository can safely finalize again.
+- 2026-08-02T15:39:19.000Z Completed: user-approved closure after PR #1774 merged with CI green (lint, dogfood parity, and both Node test/acceptance lanes).
 
 ## Root Cause
 
