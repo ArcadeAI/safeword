@@ -9,7 +9,7 @@ Feature: Ship Safeword as a native Claude Code plugin
   plugin. Project state remains local, and legacy protection is retired only
   after the exact replacement has executed and cleanup is explicitly approved.
 
-  @wip @native-claude-plugin.TBU1.R1 @surface.claude-code @surface.safeword-cli
+  @native-claude-plugin.TBU1.R1 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R1 — Fresh installation establishes an observable native plugin without requiring legacy assets
 
     Scenario Outline: Install converges supported profile states to the exact enabled user-scoped plugin
@@ -26,6 +26,7 @@ Feature: Ship Safeword as a native Claude Code plugin
         | the exact official Safeword plugin disabled         |
         | an enabled older official Safeword plugin version   |
 
+    @wip
     Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
       Given a project that has never installed Safeword
       When safeword setup runs
@@ -33,7 +34,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       And no Claude-only legacy hooks, skills, commands, or agents are materialized
       And the result recommends safeword claude install without changing the Claude profile
 
-    @rejection
+    @rejection @wip
     Scenario Outline: Install refuses an unsupported Claude host before profile mutation
       Given the Claude executable reports <version>
       When safeword claude install runs
@@ -45,14 +46,14 @@ Feature: Ship Safeword as a native Claude Code plugin
         | 2.1.169            |
         | unparseable output |
 
-    @rejection
+    @rejection @wip
     Scenario: Install refuses a marketplace name that resolves to an unofficial source
       Given the active Claude profile maps the Safeword marketplace name to a different source
       When safeword claude install runs
       Then installation fails without changing the project or the conflicting marketplace
       And the result names the official marketplace identity as the safe next action
 
-    @rejection
+    @rejection @wip
     Scenario Outline: Claude subprocess failure reports partial profile effects without project mutation
       Given a supported Claude profile whose <operation> command fails
       When safeword claude install runs
