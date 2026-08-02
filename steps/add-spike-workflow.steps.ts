@@ -399,6 +399,27 @@ Then(
   },
 );
 
+Given(
+  'behavior is validated and no build-only kill risk remains',
+  function (this: SpikeWorkflowWorld) {
+    this.bddScenariosGuidance = readFileSync(
+      nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/bdd/SCENARIOS.md'),
+      'utf8',
+    );
+  },
+);
+
+When('BDD prepares implementation planning', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.bddScenariosGuidance);
+});
+
+Then('BDD proceeds directly to plan-implementation', function (this: SpikeWorkflowWorld) {
+  assert.match(
+    this.bddScenariosGuidance ?? '',
+    /no eligible risk exists[\s\S]{0,160}without offering `?\/spike`?[\s\S]{0,200}`phase: plan-implementation`/i,
+  );
+});
+
 Given('a project without Claude or Cursor spike artifacts', function (this: SpikeWorkflowWorld) {
   this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-'));
   writeFileSync(
