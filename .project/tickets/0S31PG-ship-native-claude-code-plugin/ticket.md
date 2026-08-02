@@ -2,13 +2,14 @@
 id: 0S31PG
 slug: ship-native-claude-code-plugin
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/0S31PG-ship-native-claude-code-plugin/spec.md'
   - 'scenario-gate: features/native-claude-plugin.feature'
   - 'plan-implementation: .project/tickets/0S31PG-ship-native-claude-code-plugin/impl-plan.md'
   - 'implement: .project/tickets/0S31PG-ship-native-claude-code-plugin/test-definitions.md'
+  - 'verify: .project/tickets/0S31PG-ship-native-claude-code-plugin/verify.md'
 scope:
   - Generate a complete native Claude plugin from canonical Safeword hooks, skills, commands, agents, and their transitive runtime/reference assets.
   - Add user-scoped `safeword claude install`, read-only `status`, explicit project-scoped `cleanup`, and conflict-safe `recover` lifecycle commands with versioned JSON results.
@@ -33,7 +34,7 @@ done_when:
   - The installed cache runs hooks after the marketplace source plugin directory is unavailable, and automated tests distinguish cache execution from marketplace health.
   - Release, schema, catalogue, documentation, and parity checks fail on missing, unexpected, stale-version, or behaviorally unmapped Claude plugin assets.
 created: 2026-08-02T15:35:27.838Z
-last_modified: 2026-08-02T16:59:19Z
+last_modified: 2026-08-02T20:40:32Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1785
 ---
 
@@ -59,3 +60,5 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/1785
 - 2026-08-02T16:48:00Z Planned: Defined the generated bundle, exact profile proof, per-event authority, reusable migration transaction, reconciliation modes, seven green implementation slices, and release/documentation proof in design.md and impl-plan.md.
 - 2026-08-02T16:57:00Z Plan review correction: Real Claude 2.1.170 add/remove leaves changed private profile files, so replaced an infeasible byte-identical install-failure promise with exact partial-effect reporting; pinned installation to the official release tag, made cache/source preconditions explicit, and bound Gherkin automation to each implementation slice.
 - 2026-08-02T16:59:19Z Plan review: Fresh independent review passed after three corrections; stamped plan-implementation and advanced to implement. Four components and seven stacked slices remain under the split threshold.
+- 2026-08-02T20:40:32Z Implemented: Generated and sealed the native Claude plugin, added install/status/cleanup/recover lifecycle commands, retained per-event legacy authority until proof, shared canonical Cursor skills, and added release/parity contracts across commits ending at efc416145.
+- 2026-08-02T20:40:32Z Verified pre-release: 408 Vitest files (6,156 passed, 5 skipped), 772 BDD scenarios (769 passed, 3 skipped), ESLint, formatting, TypeScript, dependency audit, 157-asset plugin generation, release alignment, and 229 parity pairs/8 contracts all pass. Advanced to verify; interactive live-host and actual release boundaries remain intentionally unexecuted.

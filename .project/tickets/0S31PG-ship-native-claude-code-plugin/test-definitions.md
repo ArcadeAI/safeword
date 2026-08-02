@@ -4,6 +4,12 @@ Feature source: `features/native-claude-plugin.feature`
 
 Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
+Pre-release verification on 2026-08-02 passed every executable non-`@wip`,
+non-`@manual`, non-`@live` scenario: 769 passed and 3 were intentionally
+skipped. Unchecked ledger entries below remain the explicit interactive-host or
+release-boundary work that was not authorized in this run; they are not being
+collapsed into a false completed-release claim.
+
 ## Rule: native-claude-plugin.TBU1.R1
 
 ### Scenario: Install converges supported profile states to the exact enabled user-scoped plugin
