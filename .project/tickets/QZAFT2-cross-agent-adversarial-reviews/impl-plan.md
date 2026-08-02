@@ -1,6 +1,6 @@
 # Impl Plan: Catch agent blind spots with cross-agent reviews
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -86,6 +86,8 @@ This feature warrants the new architecture entry **Host-owned cross-agent advers
 
 - Existing retro adapters use first-hit `PATH` lookup and trailing prompt arguments. The review path deliberately does not reuse those details because the spike invalidated them; it reuses only neutral cwd, synchronous waiting, output caps, and vendor isolation concepts.
 - Codex's nested `read-only` label is not treated as sufficient filesystem evidence. Neutral packet containment and post-run hashes remain mandatory because nested sandbox behavior can vary by host.
+- The Claude adapter additionally uses the installed CLI's native `--json-schema` contract and reads `structured_output`. A live quality pass exposed that prose-only JSON prompting could return fenced output; the native schema keeps the planned strict-output boundary deterministic.
+- Review results now distinguish `assigned_model` from `actual_model`. They are identical on the preferred route and intentionally differ when a same-agent fallback runs, keeping stamp provenance aligned with the reviewer that actually judged the work.
 
 ## Doc impact
 
@@ -93,7 +95,7 @@ This feature warrants the new architecture entry **Host-owned cross-agent advers
 - Update `packages/website/src/content/docs/reference/hooks-and-skills.mdx` so class-1 review surfaces describe opposite-agent selection, degraded fallback, and blocked outcomes.
 - Update `README.md` only if its short workflow summary would otherwise make the new automatic behavior materially misleading; otherwise `skip: the README does not currently document review routing or review configuration details`.
 
-These documentation edits are build-order task 7 and receive the same parity/default assertions as the CLI behavior.
+Implemented in the two reference pages. `README.md` remains unchanged because it does not document review routing or review configuration details.
 
 ## Assessment triggers
 

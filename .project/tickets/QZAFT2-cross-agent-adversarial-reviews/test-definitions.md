@@ -156,4 +156,4 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 66ff58fb0
