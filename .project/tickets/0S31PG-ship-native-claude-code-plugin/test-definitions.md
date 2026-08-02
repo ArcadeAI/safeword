@@ -12,6 +12,8 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 - [x] GREEN 9e5a8c440
 - [x] REFACTOR skip: subprocess parsing, marketplace convergence, plugin convergence, and verification are isolated helpers
 
+Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `source: "git"` marketplace shape; GREEN 883d99432 accepts only its exact URL/ref identity.
+
 ### Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
 
 - [ ] RED
@@ -20,21 +22,21 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
 ### Scenario: Install refuses an unsupported Claude host before profile mutation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED cf49c092f
+- [x] GREEN 994eefd9f
+- [x] REFACTOR skip: failure classification and next-action selection share the typed result boundary
 
 ### Scenario: Install refuses a marketplace name that resolves to an unofficial source
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED cf49c092f
+- [x] GREEN 994eefd9f
+- [x] REFACTOR skip: exact source comparison is isolated from profile mutation
 
 ### Scenario: Claude subprocess failure reports partial profile effects without project mutation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED cf49c092f
+- [x] GREEN 994eefd9f
+- [x] REFACTOR skip: the completed-effect journal is passed through every subprocess failure
 
 ## Rule: native-claude-plugin.TBU1.R2
 
