@@ -57,7 +57,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario Outline: Each preferred-route failure keeps its specific cause
 
 - [x] RED 2c3e217d2
-- [ ] GREEN
+- [x] GREEN db85fc1ee
 - [ ] REFACTOR
 
 ## Rule: cross-agent-review.TBU2.R2 — Fallback evidence never overstates independence
