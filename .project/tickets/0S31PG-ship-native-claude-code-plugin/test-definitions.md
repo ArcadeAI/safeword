@@ -8,7 +8,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
 ### Scenario: Install converges supported profile states to the exact enabled user-scoped plugin
 
-- [ ] RED
+- [x] RED 89cb3147b
 - [ ] GREEN
 - [ ] REFACTOR
 
