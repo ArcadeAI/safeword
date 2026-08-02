@@ -264,6 +264,29 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(executed).toEqual(['remove-worktree']);
   });
 
+  it('reports completed and remaining operations after an execution failure', () => {
+    const initial = safeObservation();
+    const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
+    const observations = [initial, initial, afterWorktree];
+    const plan = buildCleanupPlan(initial);
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observations.shift() ?? afterWorktree,
+      execute: operation => {
+        if (operation.kind === 'delete-remote-ref') throw new Error('lease rejected');
+      },
+    });
+
+    expect(result).toMatchObject({
+      applied: false,
+      completed: ['remove-worktree'],
+      remaining: ['delete-remote-ref', 'delete-local-ref'],
+      blockers: ['delete-remote-ref failed: lease rejected'],
+    });
+  });
+
   it('accepts only transcript metadata bound to the exact session and repository', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-transcript-'));
     const transcript = nodePath.join(root, 'transcript.jsonl');
