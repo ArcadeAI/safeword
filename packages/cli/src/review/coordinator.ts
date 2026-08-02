@@ -191,6 +191,25 @@ export async function runReview(input: {
 }): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
+  if (policy === 'off') {
+    return createResult({
+      state: 'healthy',
+      findings: [
+        {
+          code: 'REVIEW_NOT_REQUESTED',
+          message: 'An independent agent check was not requested.',
+          severity: 'info',
+        },
+      ],
+      data: {
+        command: 'review run',
+        status: 'existing_route',
+        author_agent: author,
+        independence: 'none',
+        cross_agent_review: 'not_requested',
+      },
+    });
+  }
   const pair = oppositeReviewPair(author);
   if (pair === undefined) {
     return createResult({
