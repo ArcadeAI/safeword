@@ -127,7 +127,7 @@
     },
     {
       "path": "runtime/dispatch.ts",
-      "sha256": "9cab8db971493b511287445b1548bf2aa1d299a7f4a17aa499ad143e93758d67"
+      "sha256": "66eeefb1545c7b85e361f5469bea41398ea6100ff0359725dc975d1de85cc766"
     },
     {
       "path": "runtime/event-groups.json",

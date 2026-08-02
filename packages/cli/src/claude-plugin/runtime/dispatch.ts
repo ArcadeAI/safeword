@@ -53,6 +53,38 @@ interface FunctionalCommandResult {
   readonly stdout: string;
 }
 
+function legacyHookCommand(value: unknown, projectRoot: string): boolean {
+  if (typeof value === 'string') {
+    const reference = /\.safeword\/hooks\/[^\s"']+/u.exec(value)?.[0];
+    if (reference === undefined) return false;
+    try {
+      return lstatSync(nodePath.join(projectRoot, reference)).isFile();
+    } catch {
+      return false;
+    }
+  }
+  if (Array.isArray(value)) return value.some(child => legacyHookCommand(child, projectRoot));
+  if (typeof value !== 'object' || value === null) return false;
+  return Object.values(value).some(child => legacyHookCommand(child, projectRoot));
+}
+
+function viableLegacyAuthority(event: string): boolean {
+  const projectRoot = process.env.CLAUDE_PROJECT_DIR;
+  if (projectRoot === undefined || projectRoot === '') return false;
+  const settingsPath = nodePath.join(projectRoot, '.claude/settings.json');
+  if (!existsSync(settingsPath)) return false;
+  try {
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+      hooks?: Record<string, unknown>;
+    };
+    return legacyHookCommand(settings.hooks?.[event], projectRoot);
+  } catch {
+    // Malformed legacy configuration is not viable authority. The plugin stays
+    // functional, while status reports the project conflict before cleanup.
+    return false;
+  }
+}
+
 function requiredEnvironment(name: 'CLAUDE_PLUGIN_DATA' | 'CLAUDE_PLUGIN_ROOT'): string {
   const value = process.env[name];
   if (value === undefined || value === '') throw new Error(`${name} is required.`);
@@ -405,10 +437,13 @@ function main(): number {
   const identity = readIdentity(pluginRoot);
   verifyManifest(pluginRoot, identity);
   verifyInventory(pluginRoot, identity);
-  const execution =
-    mode === '--event-group'
-      ? runEventGroup(event, pluginRoot, hookInput, standardInput)
-      : runFunctionalCommand(command, standardInput);
+  let execution: FunctionalCommandResult = { status: 0, stdout: '' };
+  if (!viableLegacyAuthority(event)) {
+    execution =
+      mode === '--event-group'
+        ? runEventGroup(event, pluginRoot, hookInput, standardInput)
+        : runFunctionalCommand(command, standardInput);
+  }
   if (execution.status === 0) {
     if (execution.stdout !== '') process.stdout.write(execution.stdout);
     recordExecutionProof(event, pluginRoot, identity, hookInput);

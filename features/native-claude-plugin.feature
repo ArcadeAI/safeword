@@ -183,7 +183,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then the viable legacy hook supplies the functional effect exactly once
       And no new exact plugin proof authorizes cleanup
 
-  @wip @native-claude-plugin.NTB1.R1 @surface.claude-code @surface.safeword-cli
+  @native-claude-plugin.NTB1.R1 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.NTB1.R1 — Every viable legacy hook remains authoritative until the exact installed plugin version and hook definition have executed
 
     Scenario: Coexisting plugin hooks prove identity but suppress duplicate work per legacy event
