@@ -79,6 +79,24 @@ describe('checkPrincipleTrace', () => {
     );
   });
 
+  it.each(['absolute', 'parent traversal'] as const)(
+    'rejects %s proof paths outside the project',
+    pathKind => {
+      const directory = project();
+      const externalDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-external-proof-'));
+      temporaryDirectories.push(externalDirectory);
+      const externalProof = nodePath.join(externalDirectory, 'proof.md');
+      writeFileSync(externalProof, '# External evidence\n');
+      const proof =
+        pathKind === 'absolute' ? externalProof : nodePath.relative(directory, externalProof);
+      const plan = PLAN.replace('verify.md', () => proof);
+
+      expect(checkPrincipleTrace(directory, plan)).toContain(
+        '[E010] Broken principle trace: dead evidence reference: Delight the user',
+      );
+    },
+  );
+
   it('rejects conflict values outside the plan grammar', () => {
     const plan = PLAN.replace(
       '| Delight the user | Recovery stays in context | verify.md | |',

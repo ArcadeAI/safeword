@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { sectionBody } from './impl-plan.ts';
@@ -106,11 +106,27 @@ function markdownFragmentResolves(path: string, fragment: string): boolean {
 
 function proofResolves(projectDirectory: string, proof: string): boolean {
   const target = proofTarget(proof);
-  if (target.path === '') return false;
-  const resolved = nodePath.isAbsolute(target.path)
-    ? target.path
-    : nodePath.join(projectDirectory, target.path);
+  if (target.path === '' || nodePath.isAbsolute(target.path)) return false;
+  const resolved = nodePath.resolve(projectDirectory, target.path);
+  const relative = nodePath.relative(projectDirectory, resolved);
+  if (
+    relative.startsWith(`..${nodePath.sep}`) ||
+    relative === '..' ||
+    nodePath.isAbsolute(relative)
+  ) {
+    return false;
+  }
   if (!existsSync(resolved) || !statSync(resolved).isFile()) return false;
+  const realProjectDirectory = realpathSync(projectDirectory);
+  const realTarget = realpathSync(resolved);
+  const realRelative = nodePath.relative(realProjectDirectory, realTarget);
+  if (
+    realRelative.startsWith(`..${nodePath.sep}`) ||
+    realRelative === '..' ||
+    nodePath.isAbsolute(realRelative)
+  ) {
+    return false;
+  }
   if (target.fragment === undefined || target.fragment === '') return true;
   if (!/\.mdx?$/iu.test(resolved)) return false;
 
