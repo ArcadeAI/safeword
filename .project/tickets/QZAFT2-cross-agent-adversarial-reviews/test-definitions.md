@@ -79,8 +79,8 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario: No safe review route blocks without hanging or minting evidence
 
 - [x] RED dccb0c6a1
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c1d391969
+- [x] REFACTOR skip: one shared recovery helper covers exhausted and enforced routes without duplicate diagnosis logic
 
 ## Rule: cross-agent-review.NTB1.R1 — The outcome plainly states whether an independent agent checked the work
 
