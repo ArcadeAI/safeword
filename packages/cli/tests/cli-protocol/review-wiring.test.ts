@@ -190,6 +190,48 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
+  it('fails closed for an unsupported author when cross-agent review is required', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReview: 'require' }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: '/usr/bin:/bin',
+          SAFEWORD_AGENT_RUNTIME: 'cursor',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      recovery: [{ description: 'Run this review from Claude or Codex.' }],
+      data: {
+        status: 'blocked',
+        author_agent: 'cursor',
+        independence: 'none',
+      },
+    });
+  });
+
   it.each([
     { identity: 'missing', code: 'REVIEWER_PROVENANCE_MISSING' },
     { identity: 'contradictory', code: 'REVIEWER_PROVENANCE_CONTRADICTORY' },
