@@ -21,6 +21,7 @@ function safeObservation(overrides: Partial<CloseoutObservation> = {}): Closeout
       },
     ],
     remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid: 'a'.repeat(40) },
+    remoteResolution: 'matched',
     localRefOid: 'a'.repeat(40),
     defaultBranch: 'main',
     protection: 'unprotected',
@@ -111,6 +112,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       safeObservation({
         worktrees: [worktree(0)],
         remote: undefined,
+        remoteResolution: 'absent',
         localRefOid: undefined,
       }),
     );

@@ -40,6 +40,7 @@ export interface WorktreeIdentity {
 export interface CloseoutObservation {
   pullRequests: PullRequestIdentity[];
   remote?: RemoteIdentity;
+  remoteResolution: 'matched' | 'absent' | 'ambiguous';
   localRefOid?: string;
   defaultBranch: string;
   protection: 'protected' | 'unprotected' | 'unknown';
@@ -99,6 +100,9 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     block(plan, 'the current session filing spool has pending drafts');
   if (observation.protection === 'unknown') block(plan, 'branch protection state is unknown');
   if (observation.protection === 'protected') block(plan, 'the topic branch is protected');
+  if (observation.remoteResolution === 'ambiguous') {
+    block(plan, 'the pull request head repository does not map to exactly one git remote');
+  }
 
   if (pullRequest) {
     const expectedRepository =
@@ -428,7 +432,10 @@ function observePullRequest(root: string, pr: string): PullRequestIdentity[] {
   return identity ? [identity] : [];
 }
 
-function observeRemote(root: string, identity: PullRequestIdentity): RemoteIdentity | undefined {
+function observeRemote(
+  root: string,
+  identity: PullRequestIdentity,
+): Pick<CloseoutObservation, 'remote' | 'remoteResolution'> {
   const names = git(root, 'remote').stdout.trim().split('\n').filter(Boolean);
   const matching = names.flatMap(name => {
     const url = git(root, 'remote', 'get-url', name).stdout.trim();
@@ -437,7 +444,7 @@ function observeRemote(root: string, identity: PullRequestIdentity): RemoteIdent
       ? [{ name, url }]
       : [];
   });
-  if (matching.length !== 1) return undefined;
+  if (matching.length !== 1) return { remoteResolution: 'ambiguous' };
   const match = matching[0]!;
   const remoteRef = git(
     root,
@@ -447,7 +454,9 @@ function observeRemote(root: string, identity: PullRequestIdentity): RemoteIdent
     `refs/heads/${identity.headRefName}`,
   );
   const oid = remoteRef.stdout.trim().split(/\s+/u)[0];
-  return oid ? { ...match, oid } : undefined;
+  return oid
+    ? { remote: { ...match, oid }, remoteResolution: 'matched' }
+    : { remoteResolution: 'absent' };
 }
 
 function parseWorktrees(root: string): WorktreeIdentity[] {
@@ -509,12 +518,20 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
   const defaultBranch =
     json<{ defaultBranchRef?: { name?: string } }>(defaultBranchResult)?.defaultBranchRef?.name ??
     '';
+  const remoteObservation = identity
+    ? observeRemote(root, identity)
+    : { remoteResolution: 'ambiguous' as const };
   return {
     pullRequests,
-    remote: identity ? observeRemote(root, identity) : undefined,
+    ...remoteObservation,
     localRefOid: localRef?.status === 0 ? localRef.stdout.trim() : undefined,
     defaultBranch,
-    protection: identity ? observeProtection(root, identity) : 'unknown',
+    protection:
+      identity && remoteObservation.remoteResolution === 'absent'
+        ? 'unprotected'
+        : identity
+          ? observeProtection(root, identity)
+          : 'unknown',
     worktrees: parseWorktrees(root),
     verification: runVerification(root, expectedOid),
     retro: runRetro(root, binding),
@@ -550,7 +567,7 @@ if (import.meta.main) {
   const result = applyCleanupPlan({
     plan,
     digest,
-    observe: () => observation,
+    observe: () => observeCloseout(root, pr, binding),
     execute: operation => {
       const [command, ...arguments_] = operationCommand(operation);
       if (!command) throw new Error('cleanup command is empty');

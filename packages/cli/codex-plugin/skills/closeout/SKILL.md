@@ -80,3 +80,45 @@ Failed extraction, failed filing, pending drafts, malformed output, or an
 identity mismatch means no cleanup. Report every failure and its recovery
 action. A request to skip retro does not create a bypass: preserve the worktree
 and branches and explain that the retrospective is required before cleanup.
+
+## 5. Preview, confirm, and apply exact cleanup
+
+Run the guard from the delivery worktree; preview is the default:
+
+```sh
+bun .safeword/scripts/closeout-cleanup.ts --pr PR_NUMBER
+```
+
+The preview reruns the project's verification, build, typecheck, BDD, and
+dependency plans and binds the resulting repository state and exact PR identity
+to `PLAN_DIGEST`. Report the complete operation list and all blockers. Do not
+apply a blocked plan.
+
+With the user's cleanup intent already established by invoking closeout, apply
+only the unchanged preview:
+
+```sh
+bun .safeword/scripts/closeout-cleanup.ts --pr PR_NUMBER --yes --plan PLAN_DIGEST
+```
+
+The guard re-observes identity and executes only this order: worktree, remote
+branch, local branch. It never passes `--force` to `git worktree remove`; remote
+deletion uses an exact `--force-with-lease`, and squash/rebase-safe local deletion
+uses `git update-ref -d` with the recorded old OID. Never use merge-time branch
+deletion. Changed, dirty, locked, stale, protected, default, main, ambiguous, or
+other-worktree targets are preserved and reported with a recovery action.
+
+## 6. Report the durable result
+
+Claim the session complete only after fresh observation proves every state.
+Report:
+
+- verification and the exact verified head;
+- merged state and merge commit;
+- retrospective completion and filing result;
+- remote branch, local branch, and worktree state; and
+- unresolved items (explicitly `none` when empty).
+
+When blocked or partially complete, report every blocker and its recovery action,
+including simultaneous blockers. Never hide a successful remote merge behind a
+later local cleanup failure, and never describe a planned deletion as completed.
