@@ -40,6 +40,10 @@ const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI_PATH = nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts');
 const SPIKE_SKILL_PATH = nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/spike/SKILL.md');
 
+function readSpikeSkill(): string {
+  return readFileSync(SPIKE_SKILL_PATH, 'utf8');
+}
+
 function runGit(directory: string, args: string[]): string {
   const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8' });
   assert.equal(result.status, 0, `${result.stdout ?? ''}\n${result.stderr ?? ''}`);
@@ -79,7 +83,7 @@ After(function (this: SpikeWorkflowWorld) {
 });
 
 Given('a validated feature with a build-only kill risk', function (this: SpikeWorkflowWorld) {
-  this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  this.spikeSkill = readSpikeSkill();
 });
 
 When('the maintainer invokes the spike action', function (this: SpikeWorkflowWorld) {
@@ -98,7 +102,7 @@ Then(
 
 Given(/^the uncertainty is (.+)$/, function (this: SpikeWorkflowWorld, kind: string) {
   this.uncertaintyKind = kind;
-  this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  this.spikeSkill = readSpikeSkill();
 });
 
 When('the maintainer considers a spike', function (this: SpikeWorkflowWorld) {
@@ -123,7 +127,7 @@ Then('no experimental code begins', function (this: SpikeWorkflowWorld) {
 
 Given(/^a proposed spike contains (.+)$/, function (this: SpikeWorkflowWorld, shape: string) {
   this.spikeShape = shape;
-  this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  this.spikeSkill = readSpikeSkill();
 });
 
 When('the workflow bounds the experiment', function (this: SpikeWorkflowWorld) {
@@ -148,7 +152,7 @@ Given(
   /^a bounded spike has reached a (VALIDATED|PARTIAL|INVALIDATED) result$/,
   function (this: SpikeWorkflowWorld, result: string) {
     this.spikeResult = result;
-    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+    this.spikeSkill = readSpikeSkill();
   },
 );
 
@@ -234,7 +238,7 @@ Given(
       '--format=%(refname:short)',
     ]);
     this.initialWorktrees = runGit(this.repositoryDirectory, ['worktree', 'list', '--porcelain']);
-    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+    this.spikeSkill = readSpikeSkill();
   },
 );
 
@@ -301,7 +305,7 @@ Given(
     runGit(this.repositoryDirectory, ['add', '.']);
     runGit(this.repositoryDirectory, ['commit', '-m', 'commit validated behavior and ticket']);
     this.preSpikeBase = runGit(this.repositoryDirectory, ['rev-parse', 'HEAD']);
-    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+    this.spikeSkill = readSpikeSkill();
   },
 );
 
@@ -367,7 +371,7 @@ Given(
     runGit(spikeWorktree, ['add', 'proof.txt']);
     runGit(spikeWorktree, ['commit', '-m', 'experimental result']);
     this.spikeCommit = runGit(spikeWorktree, ['rev-parse', 'HEAD']);
-    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+    this.spikeSkill = readSpikeSkill();
   },
 );
 
@@ -504,7 +508,7 @@ Then(
 Then(
   'it requires the canonical charter, isolation, and evidence-distillation contract',
   function (this: SpikeWorkflowWorld) {
-    const canonical = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+    const canonical = readSpikeSkill();
     assert.ok(this.codexSpikeSkill);
     for (const heading of ['## Charter', '## Isolation', '## Evidence distillation']) {
       assert.ok(canonical.includes(heading));
@@ -529,7 +533,7 @@ Given(
 When(
   'each host evaluates workflows eligible for automatic selection',
   function (this: SpikeWorkflowWorld) {
-    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+    this.spikeSkill = readSpikeSkill();
     this.codexSpikeSkill = readFileSync(
       nodePath.join(REPO_ROOT, 'packages/cli/codex-plugin/skills/spike/SKILL.md'),
       'utf8',
@@ -563,7 +567,7 @@ Then(
 );
 
 Given('the canonical spike action', function (this: SpikeWorkflowWorld) {
-  this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  this.spikeSkill = readSpikeSkill();
 });
 
 When('Claude Code evaluates proof-command permissions', function (this: SpikeWorkflowWorld) {
