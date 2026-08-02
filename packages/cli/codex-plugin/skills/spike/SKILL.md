@@ -62,10 +62,15 @@ sibling worktree from that exact commit; never reuse an existing path or branch.
 Before running the proof, verify the spike worktree is at `PRE_SPIKE_BASE` and
 contains the exact validated scenario and ticket-state files from that commit.
 
-Keep every experimental commit in the spike worktree. Production implementation
-starts later in a fresh worktree from `PRE_SPIKE_BASE`. Do not merge, rebase,
-cherry-pick, or copy spike commits or files into it. The spike branch remains
-unmerged while production work begins.
+Keep every experimental commit in the spike worktree. After classifying the
+result, create the fresh production worktree from `PRE_SPIKE_BASE`. Run
+`plan-implementation` there: create `impl-plan.md`, map the structured handoff,
+commit the plan and ticket state, and review the plan. Only then begin production
+implementation in that same worktree.
+
+Do not merge, rebase, cherry-pick, or copy spike commits or files into the
+production worktree. The spike branch remains unmerged while production work
+begins.
 
 Keep the spike worktree until its evidence is distilled and the implementation
 plan is reviewed, then remove it through the repository's normal recoverable

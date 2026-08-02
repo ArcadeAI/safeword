@@ -10,7 +10,10 @@ If a spike returned a structured handoff at the optional checkpoint, scaffold
 - decision → Decisions; and
 - production consequences → implementation tasks and Assessment triggers.
 
-Never reuse the spike's experimental code.
+Consume the handoff in the fresh production worktree created from
+`PRE_SPIKE_BASE`. Commit this plan and the updated ticket state there, complete
+plan review, and only then begin production implementation in that same
+worktree. Never reuse the spike's experimental code or commits.
 
 ## Design the approach — ideal first
 
