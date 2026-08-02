@@ -243,6 +243,21 @@ interface ApplyCleanupPlanInput {
 export interface ApplyCleanupPlanResult {
   applied: boolean;
   blockers: string[];
+  completed: CleanupOperation['kind'][];
+  remaining: CleanupOperation['kind'][];
+}
+
+function blockedApply(
+  plan: CleanupPlan,
+  blockers: string[],
+  completed: CleanupOperation['kind'][] = [],
+): ApplyCleanupPlanResult {
+  return {
+    applied: false,
+    blockers,
+    completed,
+    remaining: plan.operations.slice(completed.length).map(operation => operation.kind),
+  };
 }
 
 function operationTargetMatches(
@@ -280,20 +295,21 @@ function operationTargetMatches(
 
 export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlanResult {
   if (cleanupPlanDigest(input.plan) !== input.digest) {
-    return { applied: false, blockers: ['cleanup plan digest does not match'] };
+    return blockedApply(input.plan, ['cleanup plan digest does not match']);
   }
   if (input.plan.blockers.length > 0) {
-    return { applied: false, blockers: [...input.plan.blockers] };
+    return blockedApply(input.plan, [...input.plan.blockers]);
   }
 
   const current = buildCleanupPlan(input.observe());
   if (current.stateHash !== input.plan.stateHash) {
-    return { applied: false, blockers: ['repository state changed after preview'] };
+    return blockedApply(input.plan, ['repository state changed after preview']);
   }
   if (cleanupPlanDigest(current) !== input.digest) {
-    return { applied: false, blockers: ['cleanup targets changed after preview'] };
+    return blockedApply(input.plan, ['cleanup targets changed after preview']);
   }
 
+  const completed: CleanupOperation['kind'][] = [];
   for (const operation of input.plan.operations) {
     const observed = input.observe();
     const expected = input.plan.identity;
@@ -305,18 +321,25 @@ export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlan
       actual.headRefName !== expected.headRefName ||
       actual.headRefOid !== expected.headRefOid
     ) {
-      return { applied: false, blockers: ['pull request identity changed during cleanup'] };
+      return blockedApply(input.plan, ['pull request identity changed during cleanup'], completed);
     }
     if (!operationTargetMatches(operation, observed, expected)) {
-      return {
-        applied: false,
-        blockers: [`${operation.kind} target changed during cleanup`],
-      };
+      return blockedApply(
+        input.plan,
+        [`${operation.kind} target changed during cleanup`],
+        completed,
+      );
     }
-    input.execute(operation);
+    try {
+      input.execute(operation);
+      completed.push(operation.kind);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return blockedApply(input.plan, [`${operation.kind} failed: ${message}`], completed);
+    }
   }
 
-  return { applied: true, blockers: [] };
+  return { applied: true, blockers: [], completed, remaining: [] };
 }
 
 interface ProcessResult {
