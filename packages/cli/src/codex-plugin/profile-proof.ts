@@ -203,7 +203,34 @@ function hostObservationForOverride(
   };
 }
 
-// eslint-disable-next-line complexity -- activation transition validates independent durable host and time evidence
+function activationReceiptForRestart(
+  marker: CodexActivationMarkerV2,
+  hostObservation: CodexHostProcessObservation,
+  identity: CodexPluginIdentity,
+  now: Date,
+): CodexActivationReceiptV1 | null {
+  const currentHost = hostObservation.current;
+  if (
+    !hostObservation.available ||
+    currentHost === null ||
+    marker.host_observation !== 'observed' ||
+    now.getTime() < Date.parse(marker.installed_at) ||
+    marker.active_hosts.some(installedHost =>
+      hostObservation.running.some(runningHost => sameCodexHost(installedHost, runningHost)),
+    )
+  ) {
+    return null;
+  }
+  return {
+    schema_version: 1,
+    ...identity,
+    activation_id: marker.activation_id,
+    activated_at: now.toISOString(),
+    host: currentHost,
+  };
+}
+
+// eslint-disable-next-line complexity -- coordinates optional host overrides with durable proof writes
 export function recordCodexHookProof(
   event: CodexPluginHookEvent,
   environment: NodeJS.ProcessEnv = process.env,
@@ -223,23 +250,9 @@ export function recordCodexHookProof(
       ('currentHost' in writeOptions
         ? hostObservationForOverride(writeOptions.currentHost)
         : observeCodexHostProcesses());
-    const currentHost = hostObservation.current;
-    if (
-      hostObservation.available &&
-      currentHost !== null &&
-      marker.host_observation === 'observed' &&
-      now.getTime() >= Date.parse(marker.installed_at) &&
-      marker.active_hosts.every(installedHost =>
-        hostObservation.running.every(runningHost => !sameCodexHost(installedHost, runningHost)),
-      )
-    ) {
-      receipt = {
-        schema_version: 1,
-        ...identity,
-        activation_id: marker.activation_id,
-        activated_at: now.toISOString(),
-        host: currentHost,
-      };
+    const restartedReceipt = activationReceiptForRestart(marker, hostObservation, identity, now);
+    if (restartedReceipt !== null) {
+      receipt = restartedReceipt;
       writeAtomicJson(codexActivationReceiptPath(environment), receipt);
       rmSync(codexActivationMarkerPath(environment), { force: true });
     }
