@@ -71,38 +71,94 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   });
 
   it.each([
-    ['no pull request', { pullRequests: [] }],
+    ['no pull request', { pullRequests: [] }, 'exactly one matching pull request is required'],
     [
       'ambiguous pull request',
       { pullRequests: [...safeObservation().pullRequests, ...safeObservation().pullRequests] },
+      'exactly one matching pull request is required',
     ],
-    ['unmerged pull request', { pullRequests: [{ ...pullRequest(), state: 'OPEN' }] }],
+    [
+      'unmerged pull request',
+      { pullRequests: [{ ...pullRequest(), state: 'OPEN' }] },
+      'the exact pull request is not confirmed merged',
+    ],
     [
       'fork or remote mismatch',
       { remote: { name: 'origin', url: 'git@github.com:other/widget.git', oid: 'a'.repeat(40) } },
+      'the pull request head repository does not match the selected git remote',
     ],
-    ['changed local ref', { localRefOid: 'c'.repeat(40) }],
+    [
+      'changed local ref',
+      { localRefOid: 'c'.repeat(40) },
+      'the local branch no longer matches the pull request head',
+    ],
     [
       'changed remote ref',
       { remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid: 'c'.repeat(40) } },
+      'the remote branch no longer matches the pull request head',
     ],
-    ['default branch', { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] }],
-    ['unknown protection', { protection: 'unknown' }],
-    ['protected branch', { protection: 'protected' }],
-    ['dirty worktree', { worktrees: [{ ...worktree(1), dirty: true }] }],
-    ['locked worktree', { worktrees: [{ ...worktree(1), locked: true }] }],
-    ['stale registration', { worktrees: [{ ...worktree(1), prunable: true }] }],
-    ['ambiguous worktree', { worktrees: [worktree(1), worktree(1)] }],
-    ['stale verification', { verification: { ...safeObservation().verification, current: false } }],
-    ['failed verification', { verification: { ...safeObservation().verification, passed: false } }],
-    ['missing session binding', { retro: { ...safeObservation().retro, bound: false } }],
-    ['incomplete retro', { retro: { ...safeObservation().retro, complete: false } }],
-    ['pending drafts', { retro: { ...safeObservation().retro, pendingDrafts: 2 } }],
-  ] satisfies [string, Partial<CloseoutObservation>][])(
+    [
+      'ambiguous remote mapping',
+      { remote: undefined, remoteResolution: 'ambiguous' },
+      'the pull request head repository does not map to exactly one git remote',
+    ],
+    [
+      'default branch',
+      { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] },
+      'the default branch is never a closeout target',
+    ],
+    ['unknown protection', { protection: 'unknown' }, 'branch protection state is unknown'],
+    ['protected branch', { protection: 'protected' }, 'the topic branch is protected'],
+    [
+      'dirty worktree',
+      { worktrees: [worktree(0), { ...worktree(1), dirty: true }] },
+      'the linked worktree is dirty: /repo-closeout',
+    ],
+    [
+      'locked worktree',
+      { worktrees: [worktree(0), { ...worktree(1), locked: true }] },
+      'the linked worktree is locked: /repo-closeout',
+    ],
+    [
+      'stale registration',
+      { worktrees: [worktree(0), { ...worktree(1), prunable: true }] },
+      'the worktree registration is stale: /repo-closeout',
+    ],
+    [
+      'ambiguous worktree',
+      { worktrees: [worktree(0), worktree(1), worktree(1)] },
+      'the linked topic worktree is ambiguous',
+    ],
+    [
+      'stale verification',
+      { verification: { ...safeObservation().verification, current: false } },
+      'local verification is stale',
+    ],
+    [
+      'failed verification',
+      { verification: { ...safeObservation().verification, passed: false } },
+      'local verification failed',
+    ],
+    [
+      'missing session binding',
+      { retro: { ...safeObservation().retro, bound: false } },
+      'the current host session binding is missing or expired',
+    ],
+    [
+      'incomplete retro',
+      { retro: { ...safeObservation().retro, complete: false } },
+      'the current session retrospective is incomplete',
+    ],
+    [
+      'pending drafts',
+      { retro: { ...safeObservation().retro, pendingDrafts: 2 } },
+      'the current session filing spool has pending drafts',
+    ],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
     '%s blocks every deletion',
-    (_name, overrides) => {
+    (_name, overrides, expectedBlocker) => {
       const plan = buildCleanupPlan(safeObservation(overrides));
-      expect(plan.blockers.length).toBeGreaterThan(0);
+      expect(plan.blockers).toContain(expectedBlocker);
       expect(plan.operations).toEqual([]);
     },
   );
