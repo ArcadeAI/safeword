@@ -91,8 +91,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Spike proof commands retain normal permission prompts
 
 - [x] RED d57bdc2f1
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 3e777e0ae
+- [x] REFACTOR skip: deleting blanket preapproval is the complete minimal change
 
 ## Rule: spike-workflow.TBU1.R2 — BDD offers a spike only at the planning seam
 
