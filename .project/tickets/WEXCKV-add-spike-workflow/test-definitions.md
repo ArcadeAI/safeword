@@ -20,7 +20,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Non-executable uncertainty is routed without a spike
 
-- [ ] RED
+- [x] RED 1da00bdb7
 - [ ] GREEN
 - [ ] REFACTOR
 
