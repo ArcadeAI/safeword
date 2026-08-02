@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 
 import type { ReviewAgent, ReviewerOutput, ReviewPacket } from './contract.js';
+import { reviewerEnvironment } from './environment.js';
 
 const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: [
@@ -31,7 +32,7 @@ export async function runHeadlessReviewer(
   return new Promise((resolve, reject) => {
     const child = spawn(reviewer, ARGUMENTS[reviewer], {
       cwd,
-      env: process.env,
+      env: reviewerEnvironment(reviewer),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '';
