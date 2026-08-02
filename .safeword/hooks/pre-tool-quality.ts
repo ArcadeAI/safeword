@@ -30,6 +30,7 @@ import {
   isReviewGateEnabled,
   modelsMatch,
   parseReviewStamps,
+  readCrossAgentReviewPolicy,
   type ReviewStamp,
   reviewGateForNextAsset,
   reviewScope,
@@ -173,6 +174,13 @@ function isReviewGateOn(): boolean {
 function isCrossModelOn(): boolean {
   const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
   return isCrossModelReviewRequired(
+    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
+  );
+}
+
+function crossAgentReviewPolicy() {
+  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  return readCrossAgentReviewPolicy(
     existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
   );
 }
@@ -419,7 +427,7 @@ if (
         'spec',
         hashArtifact(specContent),
       );
-      if (!reviewGateForNextAsset(priorScope, stamps).ok) {
+      if (!reviewGateForNextAsset(priorScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
           'Run `/self-review` (or log a skip), then create test-definitions.md.',
@@ -567,7 +575,7 @@ if (isCanonicalTicketEdit) {
       const ticketDirectory = nodePath.dirname(editedFile);
       const stamps = readReviewStamps();
       const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
-      if (!gatePhaseAdvance(phaseScope, stamps).ok) {
+      if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
           `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or add \`--skip "<reason>"\` to log a deliberate skip).`,

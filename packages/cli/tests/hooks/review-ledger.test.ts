@@ -13,6 +13,7 @@ import {
   hashArtifact,
   isReviewGateEnabled,
   parseReviewStamps,
+  readCrossAgentReviewPolicy,
   reviewGateForNextAsset,
   reviewScope,
   type ReviewStamp,
@@ -192,6 +193,19 @@ describe('isReviewGateEnabled (default-off rollout guard)', () => {
 
   it('is off on malformed config (fail-safe)', () => {
     expect(isReviewGateEnabled('not json {')).toBe(false);
+  });
+});
+
+describe('readCrossAgentReviewPolicy', () => {
+  it('defaults missing, malformed, and unknown configuration to prefer', () => {
+    expect(readCrossAgentReviewPolicy()).toBe('prefer');
+    expect(readCrossAgentReviewPolicy('{not json')).toBe('prefer');
+    expect(readCrossAgentReviewPolicy('{"crossAgentReview":"future"}')).toBe('prefer');
+  });
+
+  it('reads require and off exactly', () => {
+    expect(readCrossAgentReviewPolicy('{"crossAgentReview":"require"}')).toBe('require');
+    expect(readCrossAgentReviewPolicy('{"crossAgentReview":"off"}')).toBe('off');
   });
 });
 

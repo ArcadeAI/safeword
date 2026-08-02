@@ -25,6 +25,7 @@ import {
   isCrossModelReviewRequired,
   modelsMatch,
   parseReviewStamps,
+  readCrossAgentReviewPolicy,
   reviewGateForNextAsset,
   reviewScope,
 } from './lib/review-ledger.ts';
@@ -296,7 +297,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   const logPath = `${resolveNamespaceRoot(projectDir)}/skill-invocations.log`;
   const stamps = existsSync(logPath) ? parseReviewStamps(readFileSync(logPath, 'utf8')) : [];
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
-  if (!reviewGateForNextAsset(scope, stamps).ok) {
+  if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
     hardBlockDone(
       'Architecture review gate: the impl-plan design has no independent design review at its current content. Spawn a fresh-context reviewer, then run `bun .safeword/hooks/write-review-stamp.ts impl-plan` on pass (or add `--skip "<reason>"` to log a deliberate skip).',
     );
