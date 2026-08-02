@@ -59,6 +59,18 @@ function completedReviewerOutput(output: ReviewerOutput | undefined): ReviewerOu
   return output;
 }
 
+function retryCommand(kind: ReviewKind, targets: readonly string[]): string {
+  return `safeword review run ${kind} ${targets.join(' ')}`;
+}
+
+function recoveryDescription(reviewer: ReviewAgent, failure: ReviewFailure): string {
+  const name = reviewer === 'codex' ? 'Codex' : 'Claude';
+  if (failure === 'not_installed') return `Install ${name}, then retry the independent review.`;
+  if (failure === 'not_authenticated')
+    return `Sign in to ${name}, then retry the independent review.`;
+  return 'Retry the independent review.';
+}
+
 async function runDegradedFallback(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -83,6 +95,13 @@ async function runDegradedFallback(input: {
           code: 'REVIEW_ROUTES_EXHAUSTED',
           message: 'The independent check did not run, and the fallback did not complete safely.',
           severity: 'warning',
+        },
+      ],
+      recovery: [
+        {
+          command: retryCommand(input.kind, input.targets),
+          description: recoveryDescription(input.assignedReviewer, input.preferredFailure),
+          requiresHuman: true,
         },
       ],
       data: {
@@ -117,7 +136,7 @@ async function runDegradedFallback(input: {
       },
       recovery: [
         {
-          command: `safeword review run ${input.kind} ${input.targets.join(' ')}`,
+          command: retryCommand(input.kind, input.targets),
           description: `Restore the ${input.assignedReviewer === 'codex' ? 'Codex' : 'Claude'} reviewer, then retry the independent review.`,
           requiresHuman: true,
         },
