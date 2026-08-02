@@ -154,7 +154,7 @@ required `Scenario:` heading grammar.
 
 ### Scenario: Each local host entry point drives the canonical closeout workflow
 
-- [ ] RED
+- [x] RED 7b60686d2
 - [ ] GREEN
 - [ ] REFACTOR
 
