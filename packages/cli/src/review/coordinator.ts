@@ -1,8 +1,14 @@
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import type { ReviewAgent, ReviewerOutput, ReviewFailure, ReviewKind } from './contract.js';
+import type {
+  ReviewAgent,
+  ReviewerOutput,
+  ReviewFailure,
+  ReviewKind,
+  ReviewPolicy,
+} from './contract.js';
 import { prepareReviewPacket } from './packet.js';
-import { oppositeReviewPair } from './policy.js';
+import { oppositeReviewPair, readReviewPolicy } from './policy.js';
 import { assignedReviewerModel, ReviewRuntimeError, runHeadlessReviewer } from './runtime.js';
 
 function provenanceFailure(
@@ -37,6 +43,22 @@ async function executeReview(
   return { output, failure, changed };
 }
 
+function fallbackFailure(input: {
+  readonly output?: ReviewerOutput;
+  readonly failure?: ReviewFailure;
+  readonly changed: boolean;
+  readonly provenanceError?: string;
+}): string | undefined {
+  if (input.changed) return 'source_changed';
+  if (input.output === undefined && input.failure === undefined) return 'invalid_output';
+  return input.failure ?? input.provenanceError;
+}
+
+function completedReviewerOutput(output: ReviewerOutput | undefined): ReviewerOutput {
+  if (output === undefined) throw new Error('Review completed without output or failure');
+  return output;
+}
+
 async function runDegradedFallback(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -44,6 +66,7 @@ async function runDegradedFallback(input: {
   readonly author: ReviewAgent;
   readonly assignedReviewer: ReviewAgent;
   readonly preferredFailure: ReviewFailure;
+  readonly policy: ReviewPolicy;
 }): Promise<CliResult> {
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
   const { output, failure, changed } = await executeReview(input.author, prepared);
@@ -51,7 +74,8 @@ async function runDegradedFallback(input: {
     output === undefined
       ? undefined
       : provenanceFailure(output, input.author, prepared.packet.dispatch_id);
-  if (changed || failure !== undefined || output === undefined || provenanceError !== undefined) {
+  const failedBecause = fallbackFailure({ output, failure, changed, provenanceError });
+  if (failedBecause !== undefined) {
     return createResult({
       state: 'action_required',
       findings: [
@@ -67,14 +91,53 @@ async function runDegradedFallback(input: {
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         preferred_failure: input.preferredFailure,
-        fallback_failure: changed ? 'source_changed' : (failure ?? provenanceError),
+        fallback_failure: failedBecause,
         independence: 'none',
+      },
+    });
+  }
+  const completedOutput = completedReviewerOutput(output);
+
+  if (input.policy === 'require') {
+    return createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'REVIEW_INDEPENDENCE_REQUIRED',
+          message:
+            'The check ran, but it was not fully independent, so the cross-agent gate remains unsatisfied.',
+          severity: 'warning',
+        },
+      ],
+      effects: {
+        network: [
+          { kind: 'review', target: input.assignedReviewer, operation: 'request' },
+          { kind: 'review', target: input.author, operation: 'request' },
+        ],
+      },
+      recovery: [
+        {
+          command: `safeword review run ${input.kind} ${input.targets.join(' ')}`,
+          description: `Restore the ${input.assignedReviewer === 'codex' ? 'Codex' : 'Claude'} reviewer, then retry the independent review.`,
+          requiresHuman: true,
+        },
+      ],
+      data: {
+        command: 'review run',
+        status: 'blocked',
+        author_agent: input.author,
+        assigned_reviewer: input.assignedReviewer,
+        actual_reviewer: completedOutput.reviewer_agent,
+        assigned_model: assignedReviewerModel(input.author),
+        preferred_failure: input.preferredFailure,
+        independence: 'degraded',
+        reviewer_output: completedOutput,
       },
     });
   }
 
   return createResult({
-    state: output.verdict === 'approve' ? 'healthy' : 'action_required',
+    state: completedOutput.verdict === 'approve' ? 'healthy' : 'action_required',
     findings: [
       {
         code: 'REVIEW_INDEPENDENCE_DEGRADED',
@@ -90,14 +153,14 @@ async function runDegradedFallback(input: {
     },
     data: {
       command: 'review run',
-      status: output.verdict === 'approve' ? 'approved' : 'changes_requested',
+      status: completedOutput.verdict === 'approve' ? 'approved' : 'changes_requested',
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
-      actual_reviewer: output.reviewer_agent,
+      actual_reviewer: completedOutput.reviewer_agent,
       assigned_model: assignedReviewerModel(input.author),
       preferred_failure: input.preferredFailure,
       independence: 'degraded',
-      reviewer_output: output,
+      reviewer_output: completedOutput,
     },
   });
 }
@@ -108,6 +171,7 @@ export async function runReview(input: {
   readonly targets: readonly string[];
 }): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
+  const policy = readReviewPolicy(input.cwd);
   const pair = oppositeReviewPair(author);
   if (pair === undefined) {
     return createResult({
@@ -160,6 +224,7 @@ export async function runReview(input: {
       author: pair.author,
       assignedReviewer: reviewer,
       preferredFailure,
+      policy,
     });
   }
   if (output === undefined) throw new Error('Review completed without output or failure');
