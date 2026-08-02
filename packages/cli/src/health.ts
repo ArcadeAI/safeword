@@ -74,12 +74,9 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
   return issues;
 }
 
-// The persona/glossary find*Issues + find*Advisories pairs below (and the
-// validate*Reference / lookup* pairs in personas.ts / glossary.ts) are
-// intentionally parallel, NOT a missed extraction: the cores diverge (persona
-// matches code/name, glossary matches name/alias; different parse+validate
-// fns and messages), and where they don't, deduping two call sites into a
-// multi-param helper would cost clarity. Assessed in ticket XEP59N — leave as is.
+// Persona and glossary content validation stays separate because their parsers
+// and diagnostics differ. Their configured-path lifecycle is shared with the
+// other user-authored project-knowledge files below.
 
 /**
  * Validate personas.md when present, routing through any configured
@@ -93,17 +90,28 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
  *   in; typo would otherwise silently strand persona references). Ticket
  *   K7N2QM.
  */
-type LocalKnowledgeKey = Extract<ConfiguredPathKey, 'principles' | 'personas' | 'surfaces'>;
+type ConfiguredKnowledgeFileKey = Extract<
+  ConfiguredPathKey,
+  'glossary' | 'principles' | 'personas' | 'surfaces'
+>;
+
+const PATH_ONLY_KNOWLEDGE_KEYS = ['principles', 'surfaces'] as const;
+const CONFIGURED_KNOWLEDGE_KEYS: readonly ConfiguredKnowledgeFileKey[] = [
+  'personas',
+  'principles',
+  'surfaces',
+  'glossary',
+];
 
 /** Factual configured-file health shared by user-authored project knowledge. */
-function findConfiguredKnowledgeIssues(cwd: string, key: LocalKnowledgeKey): string[] {
+function findConfiguredKnowledgeIssues(cwd: string, key: ConfiguredKnowledgeFileKey): string[] {
   const override = readConfiguredPath(cwd, key);
   if (override === undefined || exists(resolveConfiguredPath(cwd, key))) return [];
   return [`${key}-path: ${override}: file not found`];
 }
 
 /** Non-destructively identify a default knowledge file stranded by an override. */
-function findConfiguredKnowledgeAdvisories(cwd: string, key: LocalKnowledgeKey): string[] {
+function findConfiguredKnowledgeAdvisories(cwd: string, key: ConfiguredKnowledgeFileKey): string[] {
   const override = readConfiguredPath(cwd, key);
   if (override === undefined) return [];
   const defaultPath = defaultConfiguredPath(cwd, key);
@@ -114,12 +122,11 @@ function findConfiguredKnowledgeAdvisories(cwd: string, key: LocalKnowledgeKey):
 }
 
 function findPersonaIssues(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'personas');
   const filePath = resolveConfiguredPath(cwd, 'personas');
   const content = readFileSafe(filePath);
 
   if (content === undefined) {
-    return override === undefined ? [] : findConfiguredKnowledgeIssues(cwd, 'personas');
+    return findConfiguredKnowledgeIssues(cwd, 'personas');
   }
 
   const errors = validatePersonas(parsePersonas(content));
@@ -145,41 +152,6 @@ function findNamespaceAdvisories(cwd: string): string[] {
 }
 
 /**
- * Surface non-blocking diagnostics about persona path configuration.
- * When `paths.personas` is set AND the default-location file still exists,
- * emit a zero-exit advisory naming the orphaned file. Safeword reads from
- * the override; the legacy file is dead weight and may confuse readers who
- * think they're editing the live file. Non-destructive (data-loss principle
- * from ticket K7N2QM); user owns cleanup.
- */
-function findPersonaAdvisories(cwd: string): string[] {
-  return findConfiguredKnowledgeAdvisories(cwd, 'personas');
-}
-
-/**
- * Validate the configured surfaces path. Surface content stays user-owned and
- * semantically reviewed; health only fails when an explicit override points to
- * no file, matching the persona configured-path contract.
- */
-function findSurfaceIssues(cwd: string): string[] {
-  return findConfiguredKnowledgeIssues(cwd, 'surfaces');
-}
-
-/** Report a default surfaces file stranded by an active override. */
-function findSurfaceAdvisories(cwd: string): string[] {
-  return findConfiguredKnowledgeAdvisories(cwd, 'surfaces');
-}
-
-/** Principles stay semantically user-reviewed; health validates only their path lifecycle. */
-function findPrincipleIssues(cwd: string): string[] {
-  return findConfiguredKnowledgeIssues(cwd, 'principles');
-}
-
-function findPrincipleAdvisories(cwd: string): string[] {
-  return findConfiguredKnowledgeAdvisories(cwd, 'principles');
-}
-
-/**
  * Validate glossary.md when present, routing through any configured
  * `paths.glossary` override. Returns one issue string per glossary
  * validation error, formatted as `glossary.md:LINE: MESSAGE`. Same two
@@ -188,35 +160,15 @@ function findPrincipleAdvisories(cwd: string): string[] {
  * YR6C49, mirrors K7N2QM).
  */
 function findGlossaryIssues(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'glossary');
   const filePath = resolveConfiguredPath(cwd, 'glossary');
   const content = readFileSafe(filePath);
 
   if (content === undefined) {
-    if (override !== undefined) {
-      return [`glossary-path: ${override}: file not found`];
-    }
-    return [];
+    return findConfiguredKnowledgeIssues(cwd, 'glossary');
   }
 
   const errors = validateGlossary(parseGlossary(content));
   return errors.map(error => `glossary.md:${error.line}: ${error.message}`);
-}
-
-/**
- * Surface non-blocking diagnostics about glossary path configuration.
- * When `paths.glossary` is set AND the default-location file still exists,
- * emit a zero-exit advisory naming the orphaned file (mirrors
- * {@link findPersonaAdvisories}; data-loss principle from K7N2QM).
- */
-function findGlossaryAdvisories(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'glossary');
-  if (override === undefined) return [];
-  const defaultPath = defaultConfiguredPath(cwd, 'glossary');
-  if (!exists(defaultPath)) return [];
-  return [
-    `${nodePath.relative(cwd, defaultPath)} exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
-  ];
 }
 
 /**
@@ -773,8 +725,7 @@ export async function checkHealth(
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
     ...findPersonaIssues(cwd),
-    ...findPrincipleIssues(cwd),
-    ...findSurfaceIssues(cwd),
+    ...PATH_ONLY_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeIssues(cwd, key)),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
   ];
@@ -802,10 +753,7 @@ export async function checkHealth(
         ? []
         : [buildIndexConflictListMessage(ticketIndexConflicts)]),
       ...findNamespaceAdvisories(cwd),
-      ...findPersonaAdvisories(cwd),
-      ...findPrincipleAdvisories(cwd),
-      ...findSurfaceAdvisories(cwd),
-      ...findGlossaryAdvisories(cwd),
+      ...CONFIGURED_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeAdvisories(cwd, key)),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
       ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),
