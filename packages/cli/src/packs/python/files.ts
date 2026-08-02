@@ -125,7 +125,7 @@ function generateRuffBaseConfig(
 # Your project's ruff.toml still extends this file (pre-138 layout). To enable
 # the unified override contract (your rules win in the LLM hook too), remove
 # the line \`extend = ".safeword/ruff.toml"\` from your ruff.toml and re-run
-# \`safeword upgrade\`.
+# \`safeword setup\`.
 
 line-length = 100
 
@@ -139,7 +139,7 @@ ${RUFF_LINT_STANDALONE}
   // This makes the LLM hook consistently honor customer overrides via ruff's native `extend`.
   return `# Safeword Ruff config - adds rules on top of project config
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
-# Re-run \`safeword upgrade\` to regenerate after project config changes.
+# Re-run \`safeword setup\` to regenerate after project config changes.
 #
 # NOTE: Uses extend-select (additive) so your select/ignore are preserved.
 # Known edge case: ruff may drop parent ignore rules when child uses

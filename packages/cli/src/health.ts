@@ -36,6 +36,7 @@ import {
   findFeatureSourcePath,
   hasDefaultExecutableFeatureFiles,
 } from './utils/feature-source.js';
+import { readFrontmatterScalar } from './utils/frontmatter.js';
 import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
 import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
@@ -119,7 +120,7 @@ function findNamespaceAdvisories(cwd: string): string[] {
     isDirectory(nodePath.join(cwd, '.safeword-project'))
   ) {
     return [
-      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword upgrade --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
+      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword setup --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
     ];
   }
   return [];
@@ -211,7 +212,7 @@ function findCucumberHarnessAdvisories(
     return [];
   }
   return [
-    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — codify, lint-gherkin, and check cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
+    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — project codify, project lint-gherkin, and doctor cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
   ];
 }
 
@@ -373,7 +374,7 @@ function phaseAnchorAdvisoryForTicket(
     readFileSafe(nodePath.join(cwd, relpath)),
   );
   if (verdict.kind !== 'unanchored') return undefined;
-  return `${formatCoverageTicketLabel(ticketId)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;
+  return `${formatCoverageTicketLabel(ticketId, content)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an
@@ -405,21 +406,23 @@ function coverageDiagnosticsForTicket(
         ? undefined
         : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
     const lineageIssues =
-      featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource);
-    const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource);
+      featureSource === undefined
+        ? []
+        : formatFeatureLineageIssues(cwd, ticketId, featureSource, ticketContent);
+    const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource, ticketContent);
     return {
       issues: [...lineageIssues, ...ruleTier.issues],
       advisories: [
-        ...formatCoverageReport(ticketId, report),
+        ...formatCoverageReport(ticketId, report, ticketContent),
         ...ruleTier.advisories,
-        ...formatSurfaceCoverageReport(ticketId, surfaceReport),
+        ...formatSurfaceCoverageReport(ticketId, surfaceReport, ticketContent),
       ],
     };
   } catch (parseError: unknown) {
     if (parseError instanceof FeatureParseError && featureSource !== undefined) {
       return {
         issues: [
-          `${formatCoverageTicketLabel(ticketId)}: ${nodePath.relative(cwd, featureSource.path)}: invalid Gherkin feature: ${parseError.message}`,
+          `${formatCoverageTicketLabel(ticketId, ticketContent)}: ${nodePath.relative(cwd, featureSource.path)}: invalid Gherkin feature: ${parseError.message}`,
         ],
         advisories: [],
       };
@@ -434,8 +437,9 @@ function ruleTierDiagnostics(
   ticketId: string,
   specContent: string,
   featureSource: FeatureSource | undefined,
+  ticketContent: string,
 ): CoverageDiagnostics {
-  const label = formatCoverageTicketLabel(ticketId);
+  const label = formatCoverageTicketLabel(ticketId, ticketContent);
   return {
     issues: findMixedCriteriaJtbds(specContent).map(
       jtbd =>
@@ -455,8 +459,9 @@ function formatFeatureLineageIssues(
   cwd: string,
   ticketId: string,
   featureSource: FeatureSource,
+  ticketContent: string,
 ): string[] {
-  const label = formatCoverageTicketLabel(ticketId);
+  const label = formatCoverageTicketLabel(ticketId, ticketContent);
   const relativePath = nodePath.relative(cwd, featureSource.path);
   return findFeatureLineageIssues(featureSource.content).map(
     issue => `${label}: ${relativePath}: ${issue}`,
@@ -489,8 +494,12 @@ function isInProgress(ticketContent: string): boolean {
 }
 
 /** Render a coverage report into one advisory string per finding. */
-function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
-  const ticketLabel = formatCoverageTicketLabel(ticketId);
+function formatCoverageReport(
+  ticketId: string,
+  report: CoverageReport,
+  ticketContent: string,
+): string[] {
+  const ticketLabel = formatCoverageTicketLabel(ticketId, ticketContent);
   return [
     ...report.uncovered.map(id =>
       isRuleId(id)
@@ -513,9 +522,10 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
 function formatSurfaceCoverageReport(
   ticketId: string,
   report: SurfaceCoverageReport | undefined,
+  ticketContent: string,
 ): string[] {
   if (report === undefined) return [];
-  const ticketLabel = formatCoverageTicketLabel(ticketId);
+  const ticketLabel = formatCoverageTicketLabel(ticketId, ticketContent);
   return [
     ...report.missing.map(
       surface =>
@@ -528,7 +538,11 @@ function formatSurfaceCoverageReport(
   ];
 }
 
-function formatCoverageTicketLabel(ticketId: string): string {
+function formatCoverageTicketLabel(ticketId: string, ticketContent?: string): string {
+  const id = readFrontmatterScalar(ticketContent, 'id');
+  const slug = readFrontmatterScalar(ticketContent, 'slug');
+  if (id !== undefined && slug !== undefined) return formatTicketReference(id, slug);
+
   const dashIndex = ticketId.indexOf('-');
   return dashIndex === -1
     ? ticketId
@@ -764,9 +778,9 @@ export async function checkHealth(
 
 export interface ReportHealthOptions {
   /**
-   * Replaces the default `Run \`safeword upgrade\` …` instruction on every
+   * Replaces the default `Run \`safeword setup\` …` instruction on every
    * failure branch. Used by the post-upgrade self-verify (ticket 3293WH
-   * AC5): upgrade telling the user to run `safeword upgrade` as the fix is
+   * AC5): setup telling the user to run `safeword setup` as the fix is
    * a contradiction — an issue the reconcile just ran couldn't fix won't be
    * fixed by running it again.
    */
@@ -788,7 +802,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Missing Language Packs',
       lines: health.missingPacks.map(pack => `${pack} pack not installed`),
       render: listItem,
-      defaultHint: 'Run `safeword upgrade` to install missing packs',
+      defaultHint: 'Run `safeword setup` to install missing packs',
     };
   }
   if (health.missingPackages.length > 0) {
@@ -796,7 +810,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Missing Packages',
       lines: health.missingPackages,
       render: listItem,
-      defaultHint: 'Run `safeword upgrade` to install missing packages',
+      defaultHint: 'Run `safeword setup` to install missing packages',
     };
   }
   if (health.issues.length > 0) {
@@ -804,7 +818,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Issues Found',
       lines: health.issues,
       render: warn,
-      defaultHint: 'Run `safeword upgrade` to repair configuration',
+      defaultHint: 'Run `safeword setup` to repair configuration',
     };
   }
   return undefined;

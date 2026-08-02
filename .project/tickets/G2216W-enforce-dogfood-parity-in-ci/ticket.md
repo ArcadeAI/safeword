@@ -2,10 +2,10 @@
 id: G2216W
 slug: enforce-dogfood-parity-in-ci
 type: patch
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-07-25T15:05:01.091Z
-last_modified: 2026-07-25T15:11:00Z
+last_modified: 2026-07-31T03:25:00.000Z
 ---
 
 # Enforce dogfood parity in CI
@@ -22,3 +22,4 @@ last_modified: 2026-07-25T15:11:00Z
 - 2026-07-25T15:06:02Z Implementing: Added a dedicated `dogfood-parity` CI job; the command is intentionally separate from release tests so it is visible as an independently required PR check.
 - 2026-07-25T15:05:01Z Found: `bun scripts/parity-check.ts --fix` repaired two drifted dogfood mirrors: `.safeword/hooks/lib/lint.ts` and `.safeword/hooks/lib/host-toolchain.ts`.
 - 2026-07-25T15:05:01.091Z Started: Created ticket G2216W
+- 2026-07-31T03:25:00.000Z Completed: Release review re-ran parity, schema registration, and CI-wiring coverage successfully.

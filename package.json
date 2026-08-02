@@ -20,7 +20,7 @@
     "safeword": "bun packages/cli/src/cli.ts",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules\" \"#examples\" \"#dist\"",
     "lint:sh": "if command -v shellcheck >/dev/null 2>&1; then shellcheck **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || true; else echo 'shellcheck not installed; skipping'; fi",
-    "lint:gherkin": "bun packages/cli/src/cli.ts lint-gherkin",
+    "lint:gherkin": "bun packages/cli/src/cli.ts project lint-gherkin",
     "format:sh": "shfmt -w -i 2 -ci **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || echo 'shfmt not installed (brew install shfmt)'",
     "format:check": "prettier --check .",
     "knip": "knip",

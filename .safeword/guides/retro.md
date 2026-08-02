@@ -28,7 +28,7 @@ fresh context** that hasn't lived the session:
 
 1. **Locate the transcript.** Use the path the harness provides (Claude Code: the
    `transcript_path` from the hook payload). **Never guess it** — if you don't
-   have a readable path, say so and stop; `safeword retro` will refuse without
+   have a readable path, say so and stop; `safeword retro run` will refuse without
    `--transcript`.
 
 2. **Extract friction into the schema (fresh context).** Have the fresh reader
@@ -61,7 +61,7 @@ fresh context** that hasn't lived the session:
 3. **File.** Write the array to a temp file and run:
 
    ```bash
-   safeword retro --transcript <path> --findings <findings.json>
+   safeword retro run --transcript <path> --findings <findings.json>
    ```
 
    The command normalizes → drops findings with an unresolvable surface →

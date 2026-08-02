@@ -82,6 +82,6 @@ export function assembleBody(finding: Finding): string {
     '',
     finding.repro,
     '',
-    '<sub>Auto-filed by `safeword retro` from a session transcript; sanitized at egress (no customer data).</sub>',
+    '<sub>Auto-filed by `safeword retro run` from a session transcript; sanitized at egress (no customer data).</sub>',
   ].join('\n');
 }

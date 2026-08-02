@@ -23,7 +23,7 @@ do not improvise another target.
 1. **Get the drafts.** Run:
 
    ```bash
-   safeword self-report --format issue
+   safeword retro signals --format issue
    ```
 
    This prints a JSON array; each element is `{ signature, title, body, labels }`,

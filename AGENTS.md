@@ -8,7 +8,7 @@ A CLI tool that installs AI coding agent configurations into projects. **This re
 
 2. **Reconciliation Over Copy**: The CLI computes diffs between installed and template versions, enabling clean upgrades without clobbering user changes.
 
-3. **IDE Parity**: Claude Code (skills + commands) and Cursor (commands + rules) have feature parity via different mechanisms. Enforced by tests.
+3. **Agent Parity**: Claude Code, Cursor, and Codex expose the same Safe Word workflows through host-native skills, commands/rules, and hooks. Schema, catalogue, and parity tests enforce the shared contract.
 
 4. **Dogfooding**: This repo runs safeword on itself. Template changes are tested in real usage before release.
 
@@ -60,32 +60,32 @@ When gathering context, ask like a good PM—not like a system collecting form f
 
 Claude Code has three mechanisms for controlling agent behavior. Understanding their enforcement levels prevents design mistakes.
 
-| Mechanism     | What It Does                         | Enforcement | Can Chain? |
-| ------------- | ------------------------------------ | ----------- | ---------- |
-| **Skills**    | Guidance documents in same context   | Soft        | No         |
-| **Subagents** | Isolated execution, separate context | Soft        | No nesting |
-| **Hooks**     | Shell commands on lifecycle events   | Hard        | N/A        |
+| Mechanism     | What It Does                         | Enforcement         | Composition                                     |
+| ------------- | ------------------------------------ | ------------------- | ----------------------------------------------- |
+| **Skills**    | Guidance loaded into agent context   | Soft                | Model-mediated; skills may invoke other skills  |
+| **Subagents** | Isolated execution, separate context | Soft                | Nested delegation is depth- and tool-controlled |
+| **Hooks**     | Commands on lifecycle events         | Hard when blockable | Event-specific; may block, annotate, or observe |
 
-**Skills** add knowledge to the current conversation. Claude decides when to apply them based on semantic matching. They cannot invoke other skills or guarantee execution.
+**Skills** add knowledge to the current conversation. Claude decides when to apply them based on semantic matching unless the user invokes one explicitly. Skills can compose through the Skill tool, but that handoff remains model-mediated and does not guarantee execution.
 
-**Subagents** run in isolated context windows with configurable tool access. They're good for task isolation but:
+**Subagents** run in isolated context windows with configurable tools and optional preloaded skills. They're good for task isolation, review, and parallel evidence gathering. Current Claude Code permits nested subagents up to a configurable depth (three layers by default); a definition can remove the Agent tool to keep a worker leaf-only.
 
-- Cannot spawn other subagents (no nesting)
-- Don't inherit skills unless explicitly configured
-- Claude decides when to delegate (soft enforcement)
+- Skills listed in frontmatter are preloaded; other available skills remain discoverable through the Skill tool
+- Tool access, background execution, worktree isolation, and nesting are explicit configuration choices
+- Natural-language delegation remains soft; an explicit agent mention is the reliable user-triggered form
 
-**Hooks** execute shell commands at lifecycle events (PreToolUse, PostToolUse, etc.). They provide hard enforcement:
+**Hooks** execute commands at lifecycle events (PreToolUse, PostToolUse, Stop, and others). They provide deterministic enforcement where the host event is blockable:
 
-- Exit code 2 blocks execution until acknowledged
+- Exit code 2 blocks blockable events such as PreToolUse and Stop; post-event hooks can only report because the action already happened
 - Run at app level, not relying on Claude to decide
-- Perfect for validation, formatting, notifications
+- Use structured output when the host needs a typed allow/deny/context decision
 
 **Design principles:**
 
-1. **Don't rely on skill-to-skill handoffs** — they depend on agent memory
-2. **Don't expect subagents to chain** — no nesting allowed
-3. **Use hooks for guaranteed enforcement** — they always run
-4. **Inline guidance when handoffs fail** — merge skills instead of delegating
+1. **Treat skill composition as soft** — a handoff still depends on the model choosing the next skill
+2. **Bound delegation explicitly** — preload required skills and restrict Agent/tool access when a worker must stay focused
+3. **Use hooks for invariants** — enforce policy at a blockable lifecycle boundary rather than relying on prose
+4. **Keep fallback guidance local** — if a handoff is required for correctness, inline the minimum contract or graduate it into a hook
 
 ## Architecture Decisions
 
@@ -101,7 +101,7 @@ Claude Code has three mechanisms for controlling agent behavior. Understanding t
 
 **Decision**: Source templates in `packages/cli/templates/`, installed configs in `.safeword/`.
 
-**Why**: Clear separation between "what we ship" and "what's installed". Enables `bunx safeword upgrade` to sync changes.
+**Why**: Clear separation between "what we ship" and "what's installed". Enables `bunx safeword setup` to sync changes.
 
 ## Directory Roles
 
@@ -116,9 +116,9 @@ See `ARCHITECTURE.md` for full structure including all packages and templates.
 
 ## Project-Specific Content
 
-**Location**: `<namespace-root>/` (never touched by CLI reset/upgrade)
+**Location**: `<namespace-root>/`
 
-Use for project-specific guides that shouldn't be overwritten by framework updates.
+Use for project-owned tickets, learnings, and supporting product context. Setup and remove preserve authored ticket/learning content; generated indexes and transient Safe Word state may be reconciled by the CLI.
 
 **Read the matching guide when ANY trigger fires:**
 
@@ -129,6 +129,34 @@ Use for project-specific guides that shouldn't be overwritten by framework updat
 | Creating or modifying a command        | `<namespace-root>/guides/command-authoring-guide.md`   |
 | Adding files to CLI templates (schema) | `<namespace-root>/guides/schema-registration-guide.md` |
 | Calling LLMs from code (APIs, caching) | `<namespace-root>/guides/llm-integration-guide.md`     |
+
+## Development and Release
+
+### Version Management
+
+When bumping the CLI version, update all **four release-tracked artifacts**:
+
+1. `packages/cli/package.json` — source of truth for npm
+2. `.claude-plugin/marketplace.json` → `plugins[0].version` — source of truth for Claude Code plugin
+3. `packages/cli/codex-plugin/.codex-plugin/plugin.json` → `version` — source of truth for Codex plugin
+4. `packages/cli/codex-plugin/hooks.json` — all five `bunx` commands pin `safeword@<version>`
+
+Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. Pre-commit and release-contract tests block a mismatch between the CLI, plugin manifests, and Codex hook commands.
+
+### Releasing
+
+Publish is CI-driven via OIDC trusted publishing: tag push → `.github/workflows/release.yml` → npm with provenance. No local `bun publish` for normal releases.
+
+Full procedure (bump → PR → admin-merge → annotated tag → workflow runs → verify on npm) lives in the `versioning` skill. Invoke `/versioning` or trust auto-trigger when cutting a release.
+
+Local `bun publish` is still gated by `packages/cli/scripts/check-bun-publish.js` (refuses without matching `v$VERSION` tag on HEAD) — defense in depth, not the canonical path.
+
+### Test Execution
+
+- **Never run more than one vitest process.** If a test run is backgrounded, wait for the completion notification — do not retry.
+- Prefer targeted runs over the full suite during development.
+- **Where you run matters.** `vitest` is only installed in `packages/cli/node_modules/.bin`, so `npx vitest run …` works **from `packages/cli`**, not the repo root (from root it fails `vitest: not found` — issue #723). From the repo root, run package tests via `bun run test <path>` — both `packages/cli`-relative (`tests/foo.test.ts`) and repo-root-relative (`packages/cli/tests/foo.test.ts`) paths work; the build-lock wrapper rebases the latter (#723) and rebuilds `dist/` first. The wrapper (`packages/cli/scripts/run-vitest-with-build-lock.mjs`, invoked as `node scripts/…` from `packages/cli`) resolves a `vitest` even when PATH lacks one (issue #715).
+- Full suite only for final verification before commit.
 
 ## Ticket Naming
 
@@ -156,7 +184,7 @@ Write ticket names that describe **user value**, not implementation.
 
 ## Common Gotchas
 
-1. **templates/ vs .safeword/**: Edit `packages/cli/templates/` first, then `bunx safeword upgrade` to sync. Never edit `.safeword/` directly for framework changes.
+1. **templates/ vs .safeword/**: Edit `packages/cli/templates/` first, then `bunx safeword setup` to sync. Never edit `.safeword/` directly for framework changes.
 
 2. **Schema registration**: Every file in `packages/cli/templates/` MUST have an entry in `packages/cli/src/schema.ts`. Without it, the file exists but never gets installed. Run `bun run test -- --testNamePattern="should have entry"` to verify.
 

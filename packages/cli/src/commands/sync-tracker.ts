@@ -1,5 +1,5 @@
 /**
- * `safeword sync-tracker` — project the local ticket corpus one-way into the
+ * `safeword tracker sync` — project the local ticket corpus one-way into the
  * configured tracker (JS5K5G). Thin wrapper: read config, resolve the credential,
  * walk the corpus, build the live writer, and hand it all to the pure
  * orchestrator. Network runs only here / in CI, never in the per-turn loop.
@@ -24,8 +24,9 @@ import {
   type TicketBridgeConfig,
 } from '../tracker-sync/index.js';
 import { computePlan } from '../tracker-sync/plan.js';
-import { loadTrackerMap, TrackerMap, trackerMapPath } from '../tracker-sync/tracker-map.js';
+import { loadTrackerMapOrEmpty, trackerMapPath } from '../tracker-sync/tracker-map.js';
 import type { Provider } from '../tracker-sync/types.js';
+import { resolveGhCliToken } from '../utils/gh-cli.js';
 
 export interface SyncTrackerCommandOptions {
   resetTrackerMap?: boolean;
@@ -79,8 +80,8 @@ export function planTrackerSync(cwd: string, config: TicketBridgeConfig): Offlin
     );
   }
   const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMap(sidecarPath);
-  if (!loaded.ok && loaded.reason === 'corrupt') {
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
     return {
       ok: false,
       mode: 'plan',
@@ -88,14 +89,13 @@ export function planTrackerSync(cwd: string, config: TicketBridgeConfig): Offlin
       messages,
     };
   }
-  const map = loaded.ok ? loaded.map : new TrackerMap();
   return {
     ok: true,
     mode: 'plan',
     provider,
     plan: computePlan({
       tickets: readCorpus(cwd, config.target?.repo),
-      map,
+      map: loaded.map,
       bodyMode,
     }),
     messages,
@@ -127,16 +127,15 @@ export function applyTrackerSyncResults(
   if (!parsed.ok) return { ok: false, mode: 'apply', reason: parsed.reason, messages: [] };
 
   const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMap(sidecarPath);
-  if (!loaded.ok && loaded.reason === 'corrupt') {
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
     return { ok: false, mode: 'apply', reason: `${sidecarPath} is corrupt`, messages: [] };
   }
-  const map = loaded.ok ? loaded.map : new TrackerMap();
   const before = existsSync(sidecarPath) ? readFileSync(sidecarPath, 'utf8') : undefined;
   const ticketIds = new Set(readCorpus(cwd, config.target?.repo).map(ticket => ticket.id));
-  const outcome = applyResults(map, parsed.value, { provider, ticketIds });
+  const outcome = applyResults(loaded.map, parsed.value, { provider, ticketIds });
   if (!outcome.ok) return { ok: false, mode: 'apply', reason: outcome.reason, messages: [] };
-  map.save(sidecarPath);
+  loaded.map.save(sidecarPath);
   const after = readFileSync(sidecarPath, 'utf8');
   return { ok: true, mode: 'apply', provider, changed: before !== after, messages: [] };
 }
@@ -188,6 +187,18 @@ function egressVisibility(
   return provider === 'github' && body === 'full' ? resolveRepoVisibility(repo) : undefined;
 }
 
+/**
+ * Resolve the credential GitHub CLI would use after excluding the caller's
+ * `GITHUB_TOKEN`. This may come from `GH_TOKEN` or the OS credential store. The
+ * value is used only for the orchestrator's preflight; live GitHub writes let
+ * `gh` choose from the original environment and stored credentials using its
+ * normal precedence.
+ */
+function ghCliCredential(provider: Provider): string | undefined {
+  if (provider !== 'github') return undefined;
+  return resolveGhCliToken(process.env);
+}
+
 export async function syncTrackerCommand(options: SyncTrackerCommandOptions = {}): Promise<void> {
   // Offline flag paths — no credential, no live writer. Mutually exclusive.
   if (options.plan === true && options.applyResults !== undefined) {
@@ -233,6 +244,7 @@ async function runLiveSync(
         ? ({} as SyncTrackerDependencies['writers'])
         : buildWriterRegistry(provider, config.target),
     env: process.env,
+    keychain: ghCliCredential,
     resetTrackerMap: options.resetTrackerMap,
     nonInteractive: process.env.CI !== undefined,
     arcadeUserId: process.env.ARCADE_USER_ID,

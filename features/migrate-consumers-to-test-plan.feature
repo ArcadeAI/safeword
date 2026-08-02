@@ -1,7 +1,7 @@
 Feature: migrate consumers to test-plan
 
   test-runner.ts and /verify must obtain their per-language test/build commands from
-  `safeword test-plan` — one source of truth — instead of each carrying its own
+  `safeword project test-plan` — one source of truth — instead of each carrying its own
   language logic. The stop-hook done-gate behavior is preserved (and upgraded):
   the eval-able plan runs the right suites and still fails when a suite fails.
 
@@ -65,7 +65,7 @@ Feature: migrate consumers to test-plan
       When I read templates/hooks/lib/test-runner.ts
       Then it contains no hardcoded "cargo test", "go test", "pytest", or "uv run pytest" command
       And it does not define "nativeTestCommand", "getJsTestCommands", or "pythonTestCommand"
-      And it invokes "test-plan" via the safeword CLI
+      And it invokes "project test-plan" via the safeword CLI
 
     @wip @migrate-consumers.TB1.AC1
     Scenario: A JS project still runs its test script and the acceptance lane
@@ -84,6 +84,6 @@ Feature: migrate consumers to test-plan
     @migrate-consumers.SM1.AC2
     Scenario: verify section 2 evals test-plan for both test and build, with no inline language branches
       When I read the verify skill and the verify command
-      Then section 2 of each evaluates "test-plan --format sh"
+      Then section 2 of each evaluates "project test-plan --format sh"
       And section 2 of each contains no inline language test branch ("uv run pytest", "go test", "cargo test")
       And section 2 of each contains no inline language build branch ("go build", "cargo build")

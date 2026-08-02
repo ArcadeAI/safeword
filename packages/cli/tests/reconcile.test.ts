@@ -59,7 +59,7 @@ const DEFAULT_PROJECT_TYPE = {
   scaffoldBddLane: true,
 };
 
-const GHERKIN_LINT_SCRIPT = 'safeword lint-gherkin';
+const GHERKIN_LINT_SCRIPT = 'safeword project lint-gherkin';
 
 describe('Reconcile - Reconciliation Engine', () => {
   let temporaryDirectory: string;

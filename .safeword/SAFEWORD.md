@@ -51,7 +51,7 @@ Exit: user accepts your proposal. For features, intake builds its artifacts in o
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
 - **`done_when`** — observable outcomes.
 
-In define-behavior, each scenario carries its lineage `<jtbd-id>.R<#>.<scenario_name>` (snake_case; `.AC<#>` on the legacy path) so `safeword check` flags coverage gaps — uncovered rules, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
+In define-behavior, each scenario carries its lineage `<jtbd-id>.R<#>.<scenario_name>` (snake_case; `.AC<#>` on the legacy path) so `safeword doctor` flags coverage gaps — uncovered rules, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
 
 If the user is exploring without intent to build, follow their lead — not every conversation produces a ticket.
 
@@ -166,7 +166,7 @@ Read the matching guide when its trigger fires:
 
 **Root moves (Cursor).** After `move_agent_to_root`, `move_agent_to_cloned_root`, or creating a worktree, run `pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD` before evidence gathering or edits. If the path, repo root, branch, or commit is wrong, stop and fix the workspace before touching files.
 
-**Learnings.** Project-specific lessons live in `<namespace-root>/learnings/`. Before non-trivial work, scan `INDEX.md` or grep for your topic. When you solve something non-obvious, add `<slug>.md` with a `Covers:` line; `safeword sync-learnings` regenerates the index.
+**Learnings.** Project-specific lessons live in `<namespace-root>/learnings/`. Before non-trivial work, scan `INDEX.md` or grep for your topic. When you solve something non-obvious, add `<slug>.md` with a `Covers:` line; `safeword project sync-learnings` regenerates the index.
 
 ---
 

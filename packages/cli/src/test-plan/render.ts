@@ -1,6 +1,6 @@
 /**
  * Render a test/build plan as an eval-able shell script for bash consumers
- * (e.g. the /verify skill: `eval "$(safeword test-plan --format sh)"`).
+ * (e.g. the /verify skill: `eval "$(safeword project test-plan --format sh)"`).
  *
  * - `set -e` (only when there's something to run) so the eval exits non-zero on
  *   the first failing suite — preserving the done-gate's block-on-red behavior.

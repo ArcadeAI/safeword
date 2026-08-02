@@ -1,7 +1,7 @@
 /**
  * Scenario-lineage coverage (ticket XT1FFM).
  *
- * Pure helpers behind `safeword check`'s advisory coverage report:
+ * Pure helpers behind `safeword doctor`'s advisory coverage report:
  *   - parseAcIdsByJtbd — a spec.md's Acceptance Criteria ids, grouped by JTBD;
  *   - parseAcReferenceFromTitle — a scenario title's `<jtbd-id>.AC<#>` reference;
  *   - buildCoverageReport — cross-references the two into three buckets:

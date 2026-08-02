@@ -6,7 +6,7 @@
  * probe, so runner selection is unit-testable without real toolchains. Plan-only:
  * each entry carries the command it WOULD run; callers execute.
  *
- * Reaches the consumers (verify/audit/test-runner) via the `safeword test-plan`
+ * Reaches the consumers (verify/audit/test-runner) via the `safeword project test-plan`
  * CLI — shipped hooks cannot import safeword code, so the CLI is the seam.
  *
  * Manifest discovery is a single tree walk (`indexFilesInTree`) shared by every

@@ -9,11 +9,7 @@
 
 import { type GraphEdges, type Intent, PLAN_CONTRACT_VERSION, type SyncPlan } from './contract.js';
 import { buildPayload } from './payload.js';
-import {
-  aliasMap,
-  orderTicketsForProjection,
-  resolveTicketReference,
-} from './ticket-references.js';
+import { aliasMap, orderTicketsForProjection, resolveGraphTicketIds } from './ticket-references.js';
 import { planTicketSync, type TrackerMap } from './tracker-map.js';
 import type { BodyMode, TicketInput } from './types.js';
 
@@ -34,25 +30,7 @@ function buildGraphEdges(
   ticket: TicketInput,
   aliases: Map<string, string>,
 ): GraphEdges | undefined {
-  // Self-edges are dropped on BOTH sides: a ticket whose parent/epic names its own
-  // slug or folder resolves back to its own id, which would tell the executor to make
-  // the issue its own parent. The gh path's buildGraphProjection does not self-exclude,
-  // but a ticket parented to or blocked by itself is degenerate — omitting it is the
-  // more correct behavior, and the intent is expressed once here for both edge kinds.
-  const selfExcluded = (id: string | undefined): id is string =>
-    id !== undefined && id !== ticket.id;
-
-  const parentCandidate =
-    resolveTicketReference(ticket.parent, aliases) ?? resolveTicketReference(ticket.epic, aliases);
-  const parentTicketId = selfExcluded(parentCandidate) ? parentCandidate : undefined;
-  const blockedByTicketIds = [
-    ...new Set(
-      [...(ticket.dependsOn ?? []), ...(ticket.blockedOn ?? [])]
-        // Drop unresolvable (out-of-corpus) edges as well as self-edges.
-        .map(reference => resolveTicketReference(reference, aliases))
-        .filter(id => selfExcluded(id)),
-    ),
-  ];
+  const { parentTicketId, blockedByTicketIds } = resolveGraphTicketIds(ticket, aliases);
 
   const graph: GraphEdges = {};
   if (parentTicketId !== undefined) graph.parentTicketId = parentTicketId;

@@ -61,11 +61,11 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Discovery shorthand** (in chat, presenting to user): Rule + bare scenario checkboxes — fast to read, easy to amend in conversation. This is what turn-1 above looks like.
 
-**Saved source** (`features/<slug>.feature`; under `paths.features` when configured): Gherkin `Feature` / `Rule` / `Scenario`, with lineage carried on the `Rule:` block as a `@<jtbd-id>.R<#>` tag that its scenarios inherit (legacy specs instead tag each scenario `@<jtbd-id>.AC<#>`). Two senses of "rule" meet here: Gherkin's `Rule:` keyword is the grouping block, while the numbered Rule (`.R<#>`) is safeword's lineage id — the block carries it as a tag and repeats it as the first token of its name. This is the executable behavior source that the Cucumber lane runs and `$safeword:review-spec`, `safeword check`, and `codify` read.
+**Saved source** (`features/<slug>.feature`; under `paths.features` when configured): Gherkin `Feature` / `Rule` / `Scenario`, with lineage carried on the `Rule:` block as a `@<jtbd-id>.R<#>` tag that its scenarios inherit (legacy specs instead tag each scenario `@<jtbd-id>.AC<#>`). Two senses of "rule" meet here: Gherkin's `Rule:` keyword is the grouping block, while the numbered Rule (`.R<#>`) is safeword's lineage id — the block carries it as a tag and repeats it as the first token of its name. This is the executable behavior source that the Cucumber lane runs and `$safeword:review-spec`, `safeword doctor`, and `safeword project codify` read.
 
 ### Surface coverage tags
 
-If `spec.md` `## Surfaces` lists `Affected:` entries, each affected surface needs at least one saved scenario tagged `@surface.<slug>` or an explicit `skip: <reason>` on the affected-surface line. Slug = lowercase name with non-alphanumerics collapsed to hyphens (`OpenAI Codex` -> `@surface.openai-codex`). One scenario can carry multiple surface tags when the same behavior proves parity across contexts. `safeword check` reports missing or stale surface tags as advisories.
+If `spec.md` `## Surfaces` lists `Affected:` entries, each affected surface needs at least one saved scenario tagged `@surface.<slug>` or an explicit `skip: <reason>` on the affected-surface line. Slug = lowercase name with non-alphanumerics collapsed to hyphens (`OpenAI Codex` -> `@surface.openai-codex`). One scenario can carry multiple surface tags when the same behavior proves parity across contexts. `safeword doctor` reports missing or stale surface tags as advisories.
 
 **Progress ledger** (`test-definitions.md` on disk): scenario headings plus per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. test-definitions.md is the R/G/R ledger. The prompt hook parses those checkboxes to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Do not duplicate Given/When/Then here when a `.feature` source exists.
 
@@ -146,7 +146,7 @@ Scenario: Change association applies to subsequent auth
 ```
 
 A scenario with no lineage tag is left alone — it simply proves no criterion.
-`safeword check` reads the tags and reports coverage gaps for in-progress tickets
+`safeword doctor` reads the tags and reports coverage gaps for in-progress tickets
 as advisories (never a gate):
 
 - **uncovered** — a Rule (or AC) in `spec.md` that no scenario references.
@@ -160,7 +160,7 @@ Numbered Rules are the recommended criteria kind — testable business
 invariants with stable per-JTBD IDs, stated generally and illustrated by the
 scenarios nested under them. Writing `#### <jtbd-id>.R<n>` headings under a JTBD
 puts it on rule lineage; there is no config flag, and a JTBD carries one criteria
-kind, never both (`safeword check` flags a mixed job as an issue). Legacy specs
+kind, never both (`safeword doctor` flags a mixed job as an issue). Legacy specs
 may still use Acceptance Criteria instead (soft-deprecated).
 
 - **Spec catalog:** `#### <jtbd-id>.R<n> — <invariant>` headings under the JTBD,
@@ -213,7 +213,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 ### Optional: codify the scenarios
 
-After the gate, `safeword codify <ticket>` derives implementation stubs from the `.feature` source — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step. Cucumber acceptance proof still comes from matching step definitions and `test:bdd`. When `.safeword/config.json` sets `bdd.conventions`, read that doc and follow its stub shape, verification lane, and tag rules over these defaults.
+After the gate, `safeword project codify <ticket>` derives implementation stubs from the `.feature` source — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step. Cucumber acceptance proof still comes from matching step definitions and `test:bdd`. When `.safeword/config.json` sets `bdd.conventions`, read that doc and follow its stub shape, verification lane, and tag rules over these defaults.
 
 - Default: a native vitest skeleton — one `describe` per rule, `it.todo` per scenario (`--red` for failing bodies); print to stdout or `--out <path>`.
 - `--format gherkin`: prints the feature source when one exists; on legacy tickets, emits a migration `.feature` from markdown scenarios.

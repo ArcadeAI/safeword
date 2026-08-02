@@ -14,13 +14,13 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./schemas/cli-result-v1.json": "./schemas/cli-result-v1.schema.json",
     "./eslint": {
-      "import": "./dist/presets/typescript/index.js",
-      "types": "./dist/presets/typescript/index.d.ts"
+      "types": "./dist/presets/typescript/index.d.ts",
+      "import": "./dist/presets/typescript/index.js"
     }
   },
   "files": [
@@ -55,7 +55,7 @@
     "test:coverage": "node scripts/run-vitest-with-build-lock.mjs --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests && bun run lint:gherkin && tsc --noEmit",
-    "lint:gherkin": "bun src/cli.ts lint-gherkin",
+    "lint:gherkin": "bun src/cli.ts project lint-gherkin",
     "clean": "rm -rf dist",
     "prepublishOnly": "node scripts/check-bun-publish.js && bun run test:release && bun run build",
     "lint:eslint": "eslint .",
@@ -101,7 +101,7 @@
     "@cucumber/cucumber": "^13.1.1",
     "@types/bun": "^1.3.14",
     "@types/estree": "^1.0.9",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@vitest/coverage-v8": "^4.1.9",
     "ajv": "^8.17.1",
     "eslint": "^10.6.0",

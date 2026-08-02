@@ -459,7 +459,7 @@ export function formatIssueDrafts(records: SelfReportRecord[]): SelfReportIssueD
         ? ['**Stack (safeword-internal frames only):**', '```', ...frames, '```'].join('\n')
         : '_No stack frames captured (CLI-exit signal)._',
       '',
-      '<sub>Auto-drafted by `safeword self-report --format issue`; sanitized at capture (allowlist-only, no customer data).</sub>',
+      '<sub>Auto-drafted by `safeword retro signals --format issue`; sanitized at capture (allowlist-only, no customer data).</sub>',
     ];
 
     return {
@@ -565,7 +565,7 @@ export function formatSelfReportSurfacing(
     : '';
   return (
     `Safeword recorded ${records.length} of its own internal signal(s) this session: ${breakdown}. ` +
-    'These are safeword bugs or rough edges, not your edits; run `safeword self-report` to inspect them.' +
+    'These are safeword bugs or rough edges, not your edits; run `safeword retro signals` to inspect them.' +
     filing
   );
 }

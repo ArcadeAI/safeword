@@ -45,7 +45,7 @@ describe('sync-tracker Linear live-sync guidance', () => {
 
     const output = stderr.join('');
     expect(process.exitCode).toBe(1);
-    expect(output).toContain('safeword sync-tracker --plan');
+    expect(output).toContain('safeword tracker sync --plan');
     expect(output).toContain('--apply-results');
     expect(output).not.toMatch(/credential|token/i);
   });

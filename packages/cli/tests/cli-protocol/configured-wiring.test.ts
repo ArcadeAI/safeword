@@ -16,6 +16,9 @@ function installFakeGitHubCli(directory: string): { bin: string; log: string } {
 set -eu
 printf '%s\n' "$*" >> "$SAFEWORD_GH_LOG"
 case "$*" in
+  "auth token")
+    printf 'keychain-token\n'
+    ;;
   "api user --jq .login")
     if [ "$SAFEWORD_GH_AUTH_FAIL" = "1" ]; then
       exit 1
@@ -281,6 +284,40 @@ describe('configured public-command wiring', () => {
     const calls = readFileSync(github.log, 'utf8');
     expect(calls).toContain('issue create');
     expect(calls).toContain('issue edit 321');
+  });
+
+  it('drives public tracker sync with GitHub CLI authentication and no token environment', async () => {
+    const directory = createTemporaryDirectory();
+    configuredGitHubProject(directory);
+    const github = installFakeGitHubCli(directory);
+    const ticketDirectory = nodePath.join(directory, '.project/tickets/AB12CD-keychain');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      ['---', 'id: AB12CD', 'type: task', 'status: in_progress', 'title: Keychain', '---', ''].join(
+        '\n',
+      ),
+    );
+    writeFileSync(
+      nodePath.join(directory, '.safeword/tracker-map.json'),
+      `${JSON.stringify({ version: 1, issues: {} }, undefined, 2)}\n`,
+    );
+    const environment = githubEnvironment(github);
+    delete environment.GITHUB_TOKEN;
+
+    const result = await runCli(['tracker', 'sync', '--json', '--no-input', '--cwd', directory], {
+      cwd: directory,
+      env: environment,
+    });
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'changed',
+      data: { command: 'tracker sync', provider: 'github' },
+    });
+    const calls = readFileSync(github.log, 'utf8');
+    expect(calls).toContain('auth token');
+    expect(calls).toContain('issue create');
   });
 
   it('drives tracker-backed ticket creation through Commander and the live writer adapter', async () => {

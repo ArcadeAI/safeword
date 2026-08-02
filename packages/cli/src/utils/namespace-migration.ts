@@ -6,7 +6,7 @@
  * performs the move (git mv when the directory is tracked, so history is
  * preserved; filesystem rename otherwise) and rewrites stale per-file
  * `paths.*` overrides that pointed into the legacy root. Consent lives in the
- * caller (`safeword upgrade`) — this module never decides to move.
+ * caller (`safeword setup`) — this module never decides to move.
  */
 
 import { execSync } from 'node:child_process';

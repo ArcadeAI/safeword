@@ -599,7 +599,7 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/merge-conflict markers/i);
-      expect(combined).toMatch(/safeword sync-tickets --quiet/i);
+      expect(combined).toMatch(/safeword project sync-tickets --quiet/i);
     });
   });
 
@@ -801,6 +801,46 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/demo \(COV004\):.*demo\.TB1\.AC2.*uncovered/i);
+    });
+
+    it('keeps a hyphenated tracker id and metadata slug intact in feature coverage', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      const base = '.project/tickets/ENG-45-login-bug';
+      writeTestFile(
+        temporaryDirectory,
+        `${base}/ticket.md`,
+        [
+          '---',
+          'id: ENG-45',
+          'slug: login-bug',
+          'type: feature',
+          'status: in_progress',
+          '---',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(temporaryDirectory, `${base}/spec.md`, SPEC_TWO_ACS);
+      writeTestFile(
+        temporaryDirectory,
+        'features/login-bug.feature',
+        [
+          'Feature: Login bug',
+          '',
+          '  @demo.TB1.AC1',
+          '  Scenario: feature source covers only AC1',
+          '    Given a',
+          '    When b',
+          '    Then c',
+          '',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/login-bug \(ENG-45\):.*demo\.TB1\.AC2.*uncovered/i);
+      expect(combined).not.toMatch(/demo\.TB1\.AC1.*uncovered/i);
     });
 
     it('reports an affected surface with no matching feature-source tag as a zero-exit advisory', async () => {

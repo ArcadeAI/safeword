@@ -4,7 +4,7 @@ AI code quality tool - enforces quality standards through hooks, linting, and gu
 
 ## Do Not Edit
 
-**All files in `.safeword/` are auto-generated and will be overwritten on `safeword upgrade`.**
+**All files in `.safeword/` are auto-generated and will be overwritten on `safeword setup`.**
 
 To customize behavior, add overrides to `CLAUDE.md` or `.cursor/rules/` instead.
 

@@ -197,6 +197,7 @@ async function runTrackerSync(invocation: CommandInvocation): Promise<CliResult>
   const { readCorpus } = await import('../tracker-sync/corpus.js');
   const { supportedProvider, syncTracker } = await import('../tracker-sync/index.js');
   const { trackerMapPath } = await import('../tracker-sync/tracker-map.js');
+  const { resolveGhCliToken } = await import('../utils/gh-cli.js');
 
   const config = readTicketBridgeConfig(invocation.cwd);
   const provider = supportedProvider(config.provider);
@@ -217,6 +218,7 @@ async function runTrackerSync(invocation: CommandInvocation): Promise<CliResult>
     sidecarPath,
     writers,
     env: process.env,
+    keychain: candidate => (candidate === 'github' ? resolveGhCliToken(process.env) : undefined),
     resetTrackerMap: invocation.options.resetTrackerMap === true,
     nonInteractive: invocation.noInput,
     repoVisibility,

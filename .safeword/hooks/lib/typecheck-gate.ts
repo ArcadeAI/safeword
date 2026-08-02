@@ -117,22 +117,46 @@ function isTypeScriptFile(file: string): boolean {
 }
 
 /**
+ * Bounded upward search shared by config and executable discovery. `relative`
+ * establishes real path containment; string-prefix checks mistake a sibling
+ * such as `/repo-copy` for a descendant of `/repo`.
+ */
+function findUpWithin(
+  rootDirectory: string,
+  startDirectory: string,
+  candidateForDirectory: (directory: string) => string,
+): string | null {
+  const root = nodePath.resolve(rootDirectory);
+  let directory = nodePath.resolve(startDirectory);
+  const isWithinRoot = (candidate: string): boolean => {
+    const relative = nodePath.relative(root, candidate);
+    return (
+      relative === '' ||
+      (relative !== '..' &&
+        !relative.startsWith(`..${nodePath.sep}`) &&
+        !nodePath.isAbsolute(relative))
+    );
+  };
+
+  while (isWithinRoot(directory)) {
+    const candidate = candidateForDirectory(directory);
+    if (existsSync(candidate)) return candidate;
+    if (directory === root) break;
+    directory = nodePath.dirname(directory);
+  }
+  return null;
+}
+
+/**
  * Walk up from the changed file's directory toward `projectDirectory`, return the
  * first `tsconfig.json` found at or above. Bounded by `projectDirectory` (won't
  * escape). Null if no tsconfig exists within the project bounds.
  */
 function findTsconfigUp(projectDirectory: string, relativeFile: string): string | null {
   const absoluteFile = nodePath.resolve(projectDirectory, relativeFile);
-  const root = nodePath.resolve(projectDirectory);
-  let directory = nodePath.dirname(absoluteFile);
-  while (directory.startsWith(root)) {
-    const candidate = nodePath.join(directory, 'tsconfig.json');
-    if (existsSync(candidate)) return candidate;
-    const parent = nodePath.dirname(directory);
-    if (parent === directory) break;
-    directory = parent;
-  }
-  return null;
+  return findUpWithin(projectDirectory, nodePath.dirname(absoluteFile), directory =>
+    nodePath.join(directory, 'tsconfig.json'),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -157,16 +181,11 @@ export type TypecheckRunner = (
 
 /** Locate a `tsc` binary by walking up from the tsconfig's dir to projectDirectory. */
 function findTscBin(projectDirectory: string, tsconfigPath: string): string | null {
-  const root = nodePath.resolve(projectDirectory);
-  let directory = nodePath.dirname(nodePath.resolve(tsconfigPath));
-  while (directory.startsWith(root)) {
-    const candidate = nodePath.join(directory, 'node_modules', '.bin', 'tsc');
-    if (existsSync(candidate)) return candidate;
-    const parent = nodePath.dirname(directory);
-    if (parent === directory) break;
-    directory = parent;
-  }
-  return null;
+  return findUpWithin(
+    projectDirectory,
+    nodePath.dirname(nodePath.resolve(tsconfigPath)),
+    directory => nodePath.join(directory, 'node_modules', '.bin', 'tsc'),
+  );
 }
 
 /**

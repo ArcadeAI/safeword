@@ -8,6 +8,8 @@ PR #1652 merged the session-scoped generic Stop-review marker. A stale Stop hook
 
 ## Evidence
 
+**PR Scope:** ✅ PR #1652 delivered and merged the ticket's complete implementation scope.
+
 - Merged PR: https://github.com/ArcadeAI/safeword/pull/1652
 - Merge commit: `039a16a91b6b3c6fd42428a805204fc019913660`
 - GitHub issue #1492 was closed as completed at 2026-07-31T23:23:44Z.

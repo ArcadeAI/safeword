@@ -1,5 +1,5 @@
 /**
- * `safeword lint-gherkin` — parser-backed Gherkin checks without pulling the
+ * `safeword project lint-gherkin` — parser-backed Gherkin checks without pulling the
  * legacy `gherkin-lint` dependency tree into customer repos.
  */
 

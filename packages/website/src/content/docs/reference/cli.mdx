@@ -67,8 +67,9 @@ bunx safeword@latest remove
 `setup` handles first-time installation and upgrades through the same
 idempotent convergence path. `remove` requires both `--yes` and the current
 `--plan <id>` so consent cannot apply to a project that changed after preview.
-Project verification runs automatically after `setup` and `upgrade`; use
-`doctor` directly for CI health gates and debugging.
+Project verification runs automatically after `setup`; use `doctor` directly
+for CI health gates and debugging. The retained `upgrade` alias follows the
+same path during its compatibility window.
 
 ### What gets installed
 
@@ -130,12 +131,12 @@ For `project test-plan` and `retro signals` / `self-report`, the retained
 `--format json` option emits the command's legacy raw shape. Use the global
 `--json` option for the stable result envelope.
 
-## safeword architecture
+## safeword project architecture
 
 Generate or verify Safeword's deterministic architecture state document.
 
 ```bash
-bunx safeword@latest architecture
+bunx safeword@latest project architecture
 ```
 
 | Option     | Description                                                                   |
@@ -164,7 +165,7 @@ lists whose preceding `git add` operations it can model exactly. If another
 command such as lint or status precedes the commit, the hook leaves the index
 unchanged. When that command list would commit an architecture-relevant change,
 the hook prints recovery guidance; run the preceding command separately, then
-commit, or run `safeword architecture --stage` explicitly.
+commit, or run `safeword project architecture --stage` explicitly.
 
 **When to use:** Use the default command for normal worktree generation,
 `--check` in CI, `--stage` in commit-time automation, or `--staged` to rewrite
@@ -249,7 +250,7 @@ Recovery first returns an exact plan and copyable `--yes --plan <plan-id>`
 command. It refuses to overwrite files edited after finalization and names the
 conflicting path. Resolve that edit before retrying.
 
-These commands require Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, recreate project-local Codex hooks, or retire recognized legacy protection. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
+These commands require Bun. Normal `setup` does not install a profile-scoped Codex plugin, create a `.codex` directory, recreate project-local Codex hooks, or retire recognized legacy protection. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
 
 Installing the plugin does not enroll repositories. Project-scoped Codex gates
 and state activate only after `safeword setup` creates
