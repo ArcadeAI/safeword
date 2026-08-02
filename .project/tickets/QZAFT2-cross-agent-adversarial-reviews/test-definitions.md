@@ -30,7 +30,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 - [x] RED 1d281517b
 - [x] GREEN 6c23a4d5f
-- [ ] REFACTOR
+- [x] REFACTOR skip: model assignment remains centralized beside the runtime argument contract
 
 ### Scenario Outline: Reviewer identity faults earn no review evidence
 
