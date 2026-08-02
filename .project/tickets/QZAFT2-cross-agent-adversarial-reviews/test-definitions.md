@@ -140,7 +140,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario: An explicit opt-out cannot satisfy hard cross-agent enforcement
 
-- [ ] RED
+- [x] RED b90d16f26
 - [ ] GREEN
 - [ ] REFACTOR
 
