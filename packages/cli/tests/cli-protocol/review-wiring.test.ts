@@ -19,12 +19,17 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
   printf '${agent} 1.0.0\n'
   exit 0
 fi
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  printf '%s\n' '--output-format --no-session-persistence --disable-slash-commands --tools --json --sandbox --skip-git-repo-check --ephemeral --ignore-rules'
+  exit 0
+fi
 payload=$(cat)
 printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 failure=$(printenv SAFEWORD_FAKE_FAILURE_${agent.toUpperCase()} || printenv SAFEWORD_FAKE_FAILURE || true)
 failure_agent=$(printenv SAFEWORD_FAKE_FAILURE_AGENT || true)
-if [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; then
+failure_path=$(printenv SAFEWORD_FAKE_FAIL_PATH_CONTAINS || true)
+if { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "$failure_path" ] || printf '%s' "$0" | /usr/bin/grep -q "$failure_path"; }; then
   if [ "$failure" = "auth" ]; then printf 'not logged in\n' >&2; exit 1; fi
   if [ "$failure" = "process" ]; then printf 'review crashed\n' >&2; exit 7; fi
   if [ "$failure" = "timeout" ]; then /bin/sleep 1; fi
@@ -514,5 +519,45 @@ describe('cross-agent review public-command wiring', () => {
     });
     expect(output.data).not.toHaveProperty('reviewer_output');
     expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+  });
+
+  it('skips a stale reviewer candidate and runs the next compatible installation', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const staleBin = installFakeReviewer(nodePath.join(directory, 'stale'), 'codex', log);
+    const currentBin = installFakeReviewer(nodePath.join(directory, 'current'), 'codex', log);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${staleBin}:${currentBin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_FAKE_FAILURE: 'process',
+          SAFEWORD_FAKE_FAIL_PATH_CONTAINS: '/stale/',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout).data).toMatchObject({
+      assigned_reviewer: 'codex',
+      actual_reviewer: 'codex',
+      independence: 'cross-agent',
+    });
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\n');
   });
 });
