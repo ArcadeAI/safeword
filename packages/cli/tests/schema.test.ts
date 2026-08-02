@@ -40,6 +40,10 @@ interface CodexHookEntry {
   hooks?: { command?: string }[];
 }
 
+// Version identity is asserted separately against package.json below; this parser
+// only identifies a version-pinned hook command, including SemVer prereleases.
+const CODEX_PLUGIN_HOOK_COMMAND = /safeword@[0-9A-Za-z.+-]+ hook codex ([a-z-]+)/u;
+
 function commandMatcherByCodexEventFromPlugin(): Map<string, string | undefined> {
   const hooksPath = nodePath.join(import.meta.dirname, '../codex-plugin/hooks.json');
   const parsed = JSON.parse(readFileSync(hooksPath, 'utf8')) as {
@@ -52,7 +56,7 @@ function commandMatcherByCodexEventFromPlugin(): Map<string, string | undefined>
     for (const entry of eventEntries) {
       const hookCommands = entry.hooks ?? [];
       for (const hook of hookCommands) {
-        const match = /safeword@[\d.]+ hook codex ([a-z-]+)/u.exec(hook.command ?? '');
+        const match = CODEX_PLUGIN_HOOK_COMMAND.exec(hook.command ?? '');
         if (match?.[1]) entries.set(`${eventName}:${match[1]}`, entry.matcher);
       }
     }
