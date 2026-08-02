@@ -13,6 +13,7 @@ interface SpikeWorkflowWorld {
   missingCharterField?: string;
   uncertaintyKind?: string;
   spikeShape?: string;
+  spikeResult?: string;
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -87,6 +88,30 @@ Then(/^it (.+)$/, function (this: SpikeWorkflowWorld, outcome: string) {
   };
   assert.match(this.spikeSkill ?? '', expected[outcome] ?? /this-pattern-must-not-match/);
 });
+
+Given(
+  /^a bounded spike has reached a (VALIDATED|PARTIAL|INVALIDATED) result$/,
+  function (this: SpikeWorkflowWorld, result: string) {
+    this.spikeResult = result;
+    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  },
+);
+
+When('the maintainer distills the experiment', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.spikeResult);
+});
+
+Then(
+  'impl-plan.md records its evidence, shortcuts, decisions, and production consequences',
+  function (this: SpikeWorkflowWorld) {
+    const skill = this.spikeSkill ?? '';
+    assert.match(skill, /VALIDATED[\s\S]*PARTIAL[\s\S]*INVALIDATED/);
+    for (const field of ['Evidence', 'Useful shortcuts', 'Decision', 'Production consequences']) {
+      assert.match(skill, new RegExp(`- ${field}:`));
+    }
+    assert.match(skill, /Distill[\s\S]*`impl-plan\.md`/i);
+  },
+);
 
 Given('its experiment charter is missing the {word}', function (this: SpikeWorkflowWorld, field) {
   this.missingCharterField = field;
