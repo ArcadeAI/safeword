@@ -31,20 +31,20 @@ required `Scenario:` heading grammar.
 ### Scenario: A completed retro permits cleanup
 
 - [x] RED 0170c9663
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 4e7238eff
+- [x] REFACTOR skip: the shared prerequisite states both accepted outcomes without duplication
 
 ### Scenario: Incomplete retro blocks cleanup
 
 - [x] RED 0170c9663
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 4e7238eff
+- [x] REFACTOR skip: failure states share one fail-closed boundary and recovery contract
 
 ### Scenario: A request to skip retro does not create a bypass
 
 - [x] RED 0170c9663
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 4e7238eff
+- [x] REFACTOR skip: the no-bypass clause is already minimal and explicit
 
 ## Rule: close-completed-sessions-safely.NTB1.R3 — An interrupted closeout resumes from observed state and reports every unresolved item
 
