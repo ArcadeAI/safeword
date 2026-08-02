@@ -45,6 +45,20 @@ describe('closeout merge authority (93C14D TBU1.R1)', () => {
   });
 });
 
+describe('closeout observed resumption (93C14D NTB1.R3)', () => {
+  it('re-observes merge truth and continues only the unfinished suffix', () => {
+    const skill = canonicalSkill();
+
+    expect(skill).toContain('state,mergedAt,mergeCommit,headRefName,headRefOid');
+    expect(skill).toContain('state` is exactly `MERGED`');
+    expect(skill).toMatch(/success or error[\s\S]*re-observe/i);
+    expect(skill).toContain('remote merge succeeded');
+    expect(skill).toContain('unknown');
+    expect(skill).toContain('unfinished suffix');
+    expect(skill).toContain('already closed');
+  });
+});
+
 describe('closeout host entry points (93C14D TBU1.R4)', () => {
   it('derives Claude, Cursor, and Codex entry points from production catalogues', () => {
     const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
