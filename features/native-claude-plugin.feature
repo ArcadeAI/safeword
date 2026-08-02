@@ -54,6 +54,13 @@ Feature: Ship Safeword as a native Claude Code plugin
       And the result names the official marketplace identity as the safe next action
 
     @rejection
+    Scenario: Install rejects current metadata backed by a legacy cached payload
+      Given the exact enabled plugin metadata points to a cache without native identity
+      When safeword claude install runs
+      Then installation fails as unverified without changing the project
+      And no reload action is reported for the legacy cached payload
+
+    @rejection
     Scenario Outline: Claude subprocess failure reports partial profile effects without project mutation
       Given a supported Claude profile whose <operation> command fails
       When safeword claude install runs

@@ -486,6 +486,32 @@ Given(
 );
 
 Given(
+  'the exact enabled plugin metadata points to a cache without native identity',
+  function (this: NativeClaudePluginWorld) {
+    const installPath = nodePath.join(tmpdir(), 'safeword-legacy-plugin-payload');
+    createLifecycleFixture(this, {
+      marketplaces: [
+        {
+          name: 'safeword',
+          source: 'git',
+          url: 'https://github.com/ArcadeAI/safeword.git',
+          ref: 'v0.71.0-rc.0',
+        },
+      ],
+      plugins: [
+        {
+          id: 'safeword@safeword',
+          version: '0.71.0-rc.0',
+          enabled: true,
+          scope: 'user',
+          installPath,
+        },
+      ],
+    });
+  },
+);
+
+Given(
   /^a supported Claude profile whose (plugin install|plugin list) command fails$/u,
   function (this: NativeClaudePluginWorld, operation: string) {
     createLifecycleFixture(this, { failOperation: operation });
@@ -684,6 +710,32 @@ Then(
         requires_human: true,
       },
     ]);
+  },
+);
+
+Then(
+  'installation fails as unverified without changing the project',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 1);
+    assert.ok(this.lifecycle);
+    assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
+    const result = JSON.parse(this.lifecycle.result?.output ?? '') as {
+      errors?: { code?: string }[];
+    };
+    assert.equal(result.errors?.[0]?.code, 'CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED');
+  },
+);
+
+Then(
+  'no reload action is reported for the legacy cached payload',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.equal(
+      result.next_actions?.some(action => action.command === '/reload-plugins'),
+      false,
+    );
   },
 );
 
