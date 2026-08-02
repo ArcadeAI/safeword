@@ -78,7 +78,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario: No safe review route blocks without hanging or minting evidence
 
-- [ ] RED
+- [x] RED dccb0c6a1
 - [ ] GREEN
 - [ ] REFACTOR
 
