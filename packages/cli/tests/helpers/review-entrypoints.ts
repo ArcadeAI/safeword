@@ -108,3 +108,12 @@ export function reviewEntrypoint(host: ReviewHost, review: ReviewStage): ReviewE
     `missing ${host} ${review} review entrypoint`,
   );
 }
+
+export function reviewArtifactPaths(review: ReviewStage): readonly string[] {
+  const canonical = reviewEntrypoint('claude', review);
+  return [
+    `packages/cli/templates/${canonical.stage}`,
+    canonical.path,
+    `packages/cli/codex-plugin/${reviewEntrypoint('codex', review).path}`,
+  ];
+}

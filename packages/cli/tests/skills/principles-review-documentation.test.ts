@@ -3,16 +3,12 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { REVIEW_ENTRYPOINTS, reviewArtifactPaths } from '../helpers/review-entrypoints.js';
+
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 
 const read = (relativePath: string): string =>
   readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
-
-const QUALITY_REVIEW_SURFACES = [
-  'packages/cli/templates/skills/quality-review/SKILL.md',
-  '.claude/skills/quality-review/SKILL.md',
-  'packages/cli/codex-plugin/skills/quality-review/SKILL.md',
-];
 
 const AUDIT_SURFACES = [
   'packages/cli/templates/skills/audit/SKILL.md',
@@ -20,12 +16,9 @@ const AUDIT_SURFACES = [
   'packages/cli/codex-plugin/skills/audit/SKILL.md',
 ];
 
-const REVIEW_STAGE_SOURCES = [
-  'packages/cli/templates/skills/self-review/SKILL.md',
-  'packages/cli/templates/skills/review-spec/SKILL.md',
-  'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md',
-  'packages/cli/templates/skills/quality-review/SKILL.md',
-];
+const REVIEW_STAGE_SOURCES = REVIEW_ENTRYPOINTS.filter(row => row.host === 'claude').map(
+  row => `packages/cli/templates/${row.stage}`,
+);
 
 describe('principles in independent review', () => {
   it.each(REVIEW_STAGE_SOURCES)('%s resolves current project knowledge at review time', path => {
@@ -37,7 +30,7 @@ describe('principles in independent review', () => {
     expect(content).toMatch(/surfaces/i);
   });
 
-  it.each(QUALITY_REVIEW_SURFACES)(
+  it.each(reviewArtifactPaths('quality'))(
     '%s reconciles declared principles against shipped proof',
     path => {
       const content = read(path);
