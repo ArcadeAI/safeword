@@ -83,7 +83,7 @@ required `Scenario:` heading grammar.
 ### Scenario: Explicit authority bounds the merge action
 
 - [x] RED 2fde0446f
-- [ ] GREEN
+- [x] GREEN 28489255c
 - [ ] REFACTOR
 
 ### Scenario: Normal authority never escalates to an administrative merge
