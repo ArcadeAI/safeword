@@ -416,6 +416,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         main: true,
       };
       const baseline = safeObservation({
+        deliveryWorktreePath: topic,
         pullRequests: [{ ...pullRequest(), headRefOid: oid }],
         remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid },
         localRefOid: oid,

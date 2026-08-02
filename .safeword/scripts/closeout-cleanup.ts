@@ -41,9 +41,15 @@ export interface CloseoutObservation {
   localRefOid?: string;
   defaultBranch: string;
   protection: 'protected' | 'unprotected' | 'unknown';
+  deliveryWorktreePath: string;
   worktrees: WorktreeIdentity[];
   verification: { current: boolean; passed: boolean; headOid: string; stateHash: string };
-  retro: { bound: boolean; complete: boolean; pendingDrafts: number };
+  retro: {
+    bound: boolean;
+    complete: boolean;
+    pendingDrafts: number;
+    failure?: 'extraction' | 'filing' | 'unknown';
+  };
 }
 
 export type CleanupOperation =
@@ -83,7 +89,13 @@ function collectPrerequisiteBlockers(
   if (!observation.verification.passed) block(plan, 'local verification failed');
   if (!observation.retro.bound)
     block(plan, 'the current host session binding is missing or expired');
-  if (!observation.retro.complete) block(plan, 'the current session retrospective is incomplete');
+  if (observation.retro.failure === 'extraction') {
+    block(plan, 'retrospective extraction failed; resolve the extraction failure');
+  } else if (observation.retro.failure === 'filing') {
+    block(plan, 'retrospective filing failed; resolve the filing failure');
+  } else if (!observation.retro.complete) {
+    block(plan, 'the current session retrospective is incomplete');
+  }
   if (observation.retro.pendingDrafts > 0)
     block(plan, 'the current session filing spool has pending drafts');
   if (observation.protection === 'unknown') block(plan, 'branch protection state is unknown');
@@ -127,10 +139,14 @@ function collectWorktreeBlockers(
   pullRequest: PullRequestIdentity,
   topicWorktrees: WorktreeIdentity[],
   mainWorktrees: WorktreeIdentity[],
+  deliveryWorktreePath: string,
 ): void {
   if (mainWorktrees.length !== 1) block(plan, 'exactly one surviving main worktree is required');
   if (topicWorktrees.length > 1) block(plan, 'the linked topic worktree is ambiguous');
   const worktree = topicWorktrees[0];
+  if (worktree && nodePath.resolve(worktree.path) !== nodePath.resolve(deliveryWorktreePath)) {
+    block(plan, `the topic branch is used by a different worktree: ${worktree.path}`);
+  }
   if (worktree?.main) block(plan, 'the main worktree is never a closeout target');
   if (worktree?.dirty) block(plan, `the linked worktree is dirty: ${worktree.path}`);
   if (worktree?.locked) block(plan, `the linked worktree is locked: ${worktree.path}`);
@@ -203,7 +219,13 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     worktree => worktree.branch === pullRequest.headRefName,
   );
   const mainWorktrees = observation.worktrees.filter(worktree => worktree.main);
-  collectWorktreeBlockers(plan, pullRequest, topicWorktrees, mainWorktrees);
+  collectWorktreeBlockers(
+    plan,
+    pullRequest,
+    topicWorktrees,
+    mainWorktrees,
+    observation.deliveryWorktreePath,
+  );
   const mainWorktree = mainWorktrees[0];
   if (plan.blockers.length === 0 && mainWorktree) {
     assembleOperations(plan, observation, pullRequest, topicWorktrees[0], mainWorktree);
@@ -499,16 +521,27 @@ function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['
   const result = json<{
     state?: string;
     data?: { agent_filing_needed?: boolean };
+    errors?: { message?: string }[];
   }>(retro);
   const pendingDrafts = readSpooledDrafts(root, binding.id).length;
+  const complete =
+    retro.status === 0 &&
+    (result?.state === 'healthy' || result?.state === 'changed') &&
+    result.data?.agent_filing_needed === false &&
+    pendingDrafts === 0;
+  const errorText = result?.errors?.map(error => error.message ?? '').join('\n') ?? '';
+  const failure = complete
+    ? undefined
+    : /extract/iu.test(errorText)
+      ? 'extraction'
+      : result?.data?.agent_filing_needed === true || pendingDrafts > 0
+        ? 'filing'
+        : 'unknown';
   return {
     bound: true,
-    complete:
-      retro.status === 0 &&
-      (result?.state === 'healthy' || result?.state === 'changed') &&
-      result.data?.agent_filing_needed === false &&
-      pendingDrafts === 0,
+    complete,
     pendingDrafts,
+    failure,
   };
 }
 
@@ -717,6 +750,7 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
         : identity
           ? observeProtection(root, identity)
           : 'unknown',
+    deliveryWorktreePath: nodePath.resolve(root),
     worktrees: parseWorktrees(root),
     verification: runVerification(root, expectedOid),
     retro: runRetro(root, binding),
