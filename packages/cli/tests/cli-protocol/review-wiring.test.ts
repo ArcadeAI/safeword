@@ -23,6 +23,10 @@ payload=$(cat)
 printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 identity=$(printenv SAFEWORD_FAKE_IDENTITY || true)
+mutate=$(printenv SAFEWORD_FAKE_MUTATE || true)
+if [ "$mutate" = "1" ]; then
+  printf 'reviewer mutation\n' > review-input.md
+fi
 if [ "$identity" = "missing" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
 elif [ "$identity" = "contradictory" ]; then
@@ -210,4 +214,44 @@ describe('cross-agent review public-command wiring', () => {
       });
     },
   );
+
+  it('confines reviewer writes to a disposable snapshot and denies passing evidence', async () => {
+    const directory = createTemporaryDirectory();
+    const target = nodePath.join(directory, 'review-input.md');
+    const log = nodePath.join(directory, 'review.log');
+    const original = 'bounded review input\n';
+    writeFileSync(target, original);
+    const bin = installFakeReviewer(directory, 'codex', log);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_FAKE_MUTATE: '1',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(readFileSync(target, 'utf8')).toBe(original);
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEWER_WRITE_ATTEMPT' }],
+      data: { independence: 'none' },
+    });
+  });
 });
