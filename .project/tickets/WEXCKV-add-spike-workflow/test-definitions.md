@@ -59,8 +59,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Reviewed spike planning reaches production without experimental history
 
 - [x] RED 4cb548f48
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 2d13591e6
+- [x] REFACTOR skip: one integrated real-Git scenario is the smallest proof of the complete evidence chain
 
 ### Scenario: Spike code never becomes production implementation
 
