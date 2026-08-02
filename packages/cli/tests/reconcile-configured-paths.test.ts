@@ -86,27 +86,14 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     };
   }
 
-  function writeOverrideConfig(personasPath: string): void {
+  function writePathOverrideConfig(
+    key: 'personas' | 'principles' | 'surfaces',
+    path: string,
+  ): void {
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(cwd, '.safeword', 'config.json'),
-      JSON.stringify({ installedPacks: [], paths: { personas: personasPath } }, undefined, 2),
-    );
-  }
-
-  function writeSurfacesOverrideConfig(surfacesPath: string): void {
-    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
-    writeFileSync(
-      nodePath.join(cwd, '.safeword', 'config.json'),
-      JSON.stringify({ installedPacks: [], paths: { surfaces: surfacesPath } }, undefined, 2),
-    );
-  }
-
-  function writePrinciplesOverrideConfig(principlesPath: string): void {
-    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
-    writeFileSync(
-      nodePath.join(cwd, '.safeword', 'config.json'),
-      JSON.stringify({ installedPacks: [], paths: { principles: principlesPath } }, undefined, 2),
+      JSON.stringify({ installedPacks: [], paths: { [key]: path } }, undefined, 2),
     );
   }
 
@@ -114,7 +101,7 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     const { reconcile } = await import('../src/reconcile.js');
     const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
-    writePrinciplesOverrideConfig('PRINCIPLES.md');
+    writePathOverrideConfig('principles', 'PRINCIPLES.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
@@ -125,7 +112,7 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     const { reconcile } = await import('../src/reconcile.js');
     const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
-    writeOverrideConfig('docs/personas.md');
+    writePathOverrideConfig('personas', 'docs/personas.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
@@ -140,7 +127,7 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     const userContent = '## My Persona (MP)\n**Role:** Owns the world.\n';
     mkdirSync(nodePath.join(cwd, '.safeword-project'), { recursive: true });
     writeFileSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH), userContent);
-    writeOverrideConfig('docs/personas.md');
+    writePathOverrideConfig('personas', 'docs/personas.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
@@ -155,7 +142,7 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     const userContent = '## My Persona (MP)\n**Role:** Owns the world.\n';
     mkdirSync(nodePath.join(cwd, 'docs'), { recursive: true });
     writeFileSync(nodePath.join(cwd, 'docs/personas.md'), userContent);
-    writeOverrideConfig('docs/personas.md');
+    writePathOverrideConfig('personas', 'docs/personas.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'uninstall', makeContext());
 
@@ -170,7 +157,7 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     const userContent = '## Legacy Persona (LP)\n**Role:** Predates the override.\n';
     mkdirSync(nodePath.join(cwd, '.safeword-project'), { recursive: true });
     writeFileSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH), userContent);
-    writeOverrideConfig('docs/personas.md');
+    writePathOverrideConfig('personas', 'docs/personas.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', makeContext());
 
@@ -184,7 +171,7 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     const { reconcile } = await import('../src/reconcile.js');
     const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
-    writeSurfacesOverrideConfig('docs/surfaces.md');
+    writePathOverrideConfig('surfaces', 'docs/surfaces.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
@@ -198,7 +185,7 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     const userContent = '# Surfaces\n\n## Setup CLI\n\n**Kind:** CLI\n';
     mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
     writeFileSync(nodePath.join(cwd, SURFACES_DEFAULT_PATH), userContent);
-    writeSurfacesOverrideConfig('docs/surfaces.md');
+    writePathOverrideConfig('surfaces', 'docs/surfaces.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
@@ -213,7 +200,7 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
       '# Surfaces\n\n## Generated customer install\n\n**Kind:** Generated config\n';
     mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
     writeFileSync(nodePath.join(cwd, SURFACES_DEFAULT_PATH), userContent);
-    writeSurfacesOverrideConfig('docs/surfaces.md');
+    writePathOverrideConfig('surfaces', 'docs/surfaces.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', makeContext());
 
