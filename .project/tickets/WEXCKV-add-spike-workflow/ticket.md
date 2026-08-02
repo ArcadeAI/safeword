@@ -2,17 +2,19 @@
 id: WEXCKV
 slug: add-spike-workflow
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 phase_skips:
   - intake: User confirmed the bounded spike scope before the first ticket snapshot was committed.
   - define-behavior: The spec and behavior review were completed before the first ticket snapshot was committed.
   - scenario-gate: The executable scenarios and independent scenario review were completed before the first ticket snapshot was committed.
   - plan-implementation: The implementation plan and independent plan review were completed before the first ticket snapshot was committed.
+  - verify: Full verification and audit completed before the done-state evidence was committed in the same snapshot.
 phase_anchors:
   - define-behavior: .project/tickets/WEXCKV-add-spike-workflow/spec.md
   - scenario-gate: features/add-spike-workflow.feature
   - plan-implementation: .project/tickets/WEXCKV-add-spike-workflow/impl-plan.md
+  - done: .project/tickets/WEXCKV-add-spike-workflow/verify.md
 scope:
   - ship a manual spike action skill for bounded build-only uncertainty
   - integrate the spike checkpoint after BDD scenario validation and before implementation planning
@@ -26,7 +28,7 @@ done_when:
   - BDD routes eligible technical uncertainty through the checkpoint without changing phase order
   - generated host artifacts and parity tests include the new action skill
 created: 2026-08-02T14:48:51.806Z
-last_modified: 2026-08-02T14:55:00.000Z
+last_modified: 2026-08-02T16:25:39.000Z
 ---
 
 # add-spike-workflow
@@ -50,3 +52,4 @@ last_modified: 2026-08-02T14:55:00.000Z
 - 2026-08-02T16:00:00.000Z Whole-ticket quality review returned implementation to scenario-gate: plan creation must consume a structured handoff, and dirty validated state must not become PRE_SPIKE_BASE.
 - 2026-08-02T16:08:00.000Z Lifecycle scenario and plan re-review passed: explicit handoff mapping, dirty-state rejection, and exact committed-base proof added; implementation resumed.
 - 2026-08-02T16:20:00.000Z Whole-ticket re-review passed the implementation and both lifecycle fixes; reconciled the plan's evidence/base decisions and closed cross-scenario refactoring with no additional abstraction.
+- 2026-08-02T16:25:39.000Z Phase: implement → done with an explicit verify provenance skip; verify and diff-scoped audit passed before this evidence snapshot with 6,120 tests, 713 acceptance scenarios, all 46 ledger entries complete, and no evidence limits.
