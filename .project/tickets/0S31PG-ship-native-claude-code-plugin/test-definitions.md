@@ -67,7 +67,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 ### Scenario: A cached plugin resolves framework code internally and writes state to the documented boundaries
 
 - [x] RED 83f018986
-- [ ] GREEN
+- [x] GREEN 4bd92e656
 - [ ] REFACTOR
 
 ### Scenario: A generated plugin reference cannot depend on a materialized project framework copy
