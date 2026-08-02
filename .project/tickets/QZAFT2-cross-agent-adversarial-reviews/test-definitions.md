@@ -28,7 +28,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario: A validated opposite-agent result earns complete provenance
 
-- [ ] RED
+- [x] RED 1d281517b
 - [ ] GREEN
 - [ ] REFACTOR
 
