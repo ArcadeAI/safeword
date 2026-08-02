@@ -39,7 +39,7 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 **Update phase when:**
 
 - Completing a BDD phase → set next phase
-- Scenario-gate complete → set `plan-implementation` (impl-plan authoring, proof plan + sequencing live there)
+- Scenario-gate complete → offer the optional `$safeword:spike` checkpoint only for an eligible build-only kill-risk, then set `plan-implementation` (impl-plan authoring, proof plan + sequencing live there)
 - Plan reviewed (impl-plan.md valid, status planned) → set `implement`
 - All scenarios pass → set `verify`
 - $safeword:verify + $safeword:audit complete (verify.md exists) → set `done`

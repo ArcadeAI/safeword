@@ -302,7 +302,13 @@ function deny(reason: string): void {
 
 function readPackagedSafewordInstructions(): string | undefined {
   const instructionsPath = findPackagedTemplate('SAFEWORD.md');
-  return instructionsPath ? readFileSync(instructionsPath, 'utf8') : undefined;
+  if (!instructionsPath) return undefined;
+  return [
+    'Current Safe Word authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
+    'These current paths supersede retired Safe Word instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
+    '',
+    readFileSync(instructionsPath, 'utf8'),
+  ].join('\n');
 }
 
 function findPackagedTemplate(relativePath: string): string | undefined {

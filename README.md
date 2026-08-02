@@ -32,17 +32,17 @@ bunx safeword@latest doctor
 bunx safeword@latest codex install
 ```
 
-The current task keeps the Safe Word version it already loaded. Start a new
-Codex task to use the installed plugin, then review it in `/hooks`; you do not
-need to restart Codex. If this project has old Safe Word Codex hooks, use the
-resumable migration below; do not delete the working legacy protection by hand.
+The running Codex app may keep the Safe Word catalogue it already loaded.
+Restart Codex after installation, start a new task, then review the installed
+plugin in `/hooks`. If this project has old Safe Word Codex hooks, use the
+resumable migration below; do not delete working legacy protection by hand.
 
 For an existing repository, use the resumable migration instead:
 
 ```bash
 bunx safeword@latest codex status
 bunx safeword@latest codex migrate
-# Start a new Codex task, review /hooks, then check status again. No app restart.
+# Restart Codex, start a new task, review /hooks, then check status again.
 bunx safeword@latest codex migrate --finalize
 ```
 
@@ -265,7 +265,12 @@ implicitly enroll repositories: until `safeword setup` creates
 `.project/` or other project state. Codex visibly skips
 unreviewed or changed plugin hooks and directs the builder to `/hooks`. Use
 `safeword codex status` to see which implementation currently protects the
-repository and one safe next action. After the running plugin records current
+repository and one safe next action. It also reports active profile-level
+`AGENTS.md` guidance that matches or resembles retired Safe Word instructions.
+For an exact registered historical revision, preview
+`safeword codex clean-guidance`, then apply its exact `--yes --plan <plan-id>`
+action to move the file to a recoverable backup. Edited variants are warning-only
+and remain untouched. After the running plugin records current
 proof, preview `safeword codex migrate --finalize`, then run its exact
 `--yes --plan <plan-id>` action to back up and retire only
 Safe Word-owned legacy assets. The deprecated `--remove-legacy-hooks` alias
@@ -296,6 +301,7 @@ it never stages, commits, or opens a PR.
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
 - `/refactor` - Systematic refactoring with small-step discipline
+- `/spike` - Resolve one build-only kill-risk with a bounded disposable experiment
 - `/testing` - Test writing guidance and best practices
 - `/verify` - Verify ticket criteria (tests, build, lint, scenarios, dep drift)
 

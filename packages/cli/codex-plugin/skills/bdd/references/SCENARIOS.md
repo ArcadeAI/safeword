@@ -208,8 +208,20 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)
-3. **Update frontmatter:** `phase: plan-implementation` — implementation design (the impl-plan, proof plan, build order, ADR work) happens there; see `PLAN_IMPLEMENTATION.md`.
-4. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
+3. **Check for one build-only kill-risk.** Run this checkpoint only here, after
+   items 1–2 pass — never during intake, define-behavior, or while scenario
+   validation is incomplete. While items 1–2 are incomplete, remain in
+   `scenario-gate`. An eligible risk is one that documentation and
+   repository code cannot settle, whose failure would materially change the
+   plan, and that a bounded executable proof can answer. If one exists, offer
+   `$safeword:spike` as the next action. Remain in `scenario-gate`; do not set or advance
+   to `plan-implementation`, and do not invoke the spike automatically. Wait for
+   the user's explicit choice. If invoked, continue only after its evidence is
+   ready to distill. If the user declines, proceed directly to the next item.
+   If no eligible risk exists, continue without offering `$safeword:spike` and update
+   frontmatter directly to `phase: plan-implementation` in the next item.
+4. **Update frontmatter:** `phase: plan-implementation` — implementation design (the impl-plan, proof plan, build order, ADR work) happens there; see `PLAN_IMPLEMENTATION.md`.
+5. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
 
 ### Optional: codify the scenarios
 

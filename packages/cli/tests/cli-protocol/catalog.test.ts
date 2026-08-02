@@ -50,6 +50,7 @@ describe('CLI command catalog', () => {
       'codex migrate',
       'codex install',
       'codex status',
+      'codex clean-guidance',
       'codex recover',
       'ticket list',
       'ticket new',

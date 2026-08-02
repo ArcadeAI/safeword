@@ -1,4 +1,4 @@
-# Spec: Update Safeword without restarting Codex
+# Spec: Activate Safeword upgrades coherently in Codex
 
 <!--
 Product-framing spec for a feature ticket. The engineering contract
@@ -10,9 +10,8 @@ guidance comments.
 
 ## Intent
 
-Make Codex plugin upgrades feel like an ordinary in-app update: install the new
-Safeword release now, finish the current task safely on its loaded version, and
-use the new release in the next task without quitting Codex.
+Install the new Safeword release immediately, but report activation only after
+Codex restarts and loads one coherent skills-and-hooks catalogue.
 
 ## Intake Brief
 
@@ -23,7 +22,7 @@ If cost-of-inaction is low and reversibility is high, ask whether this is a
 feature at all, or a leaner task. -->
 
 - **Requested by:** Safeword maintainer preparing the post-v0.70 Codex upgrade path.
-- **Cost of inaction:** Users are told to restart Codex even though Codex supports installation in a running app and next-task activation, adding avoidable disruption and obscuring the real trust boundary.
+- **Cost of inaction:** A new task can combine stale skills with current hooks while Safeword incorrectly reports activation, undermining release verification and hook trust.
 - **Reversibility:** Two-way door. User-facing language and installer orchestration can be reverted; the legacy marker remains readable during the transition.
 
 ## References
@@ -66,7 +65,7 @@ Unaffected:
 ## Vocabulary
 
 - **Current task:** The already-running Codex task whose plugin inventory and hooks were loaded when the task began.
-- **Next-task activation:** The installed plugin becomes the task's bundled skill and hook version when a new Codex task starts; the Codex application process remains running.
+- **Restart-bound activation:** The installed plugin is active only after a restarted Codex app loads it.
 
 ## Jobs To Be Done
 
@@ -104,21 +103,21 @@ one criteria kind per JTBD, never both.
 #### oauth-flow.PLO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
 -->
 
-### codex-plugin-next-task-upgrades.TBU1 — Upgrade without interrupting Codex
+### codex-plugin-next-task-upgrades.TBU1 — Upgrade without mixing plugin snapshots
 
 **Persona:** Technical Builder (TBU)
 
 > When a new Safeword plugin version is released while Codex is running, I want
 > to install it immediately and know exactly when it takes effect, so I can keep
-> working without rebooting Codex or mixing trusted hook versions.
+> working without mixing stale skills and current hooks.
 
 #### codex-plugin-next-task-upgrades.TBU1.R1 — Installation refreshes an existing Git marketplace before selecting the released plugin
 
-#### codex-plugin-next-task-upgrades.TBU1.R2 — The current task keeps its loaded plugin while a new task activates the installed version without an application restart
+#### codex-plugin-next-task-upgrades.TBU1.R2 — Installation status requires a Codex restart and never treats a same-app task as activated
 
-#### codex-plugin-next-task-upgrades.TBU1.R3 — Hook activation remains bound to the installed version and exact manifest until a new task supplies current proof
+#### codex-plugin-next-task-upgrades.TBU1.R3 — Activation proof belongs to the exact installed release and a restarted Codex app
 
-#### codex-plugin-next-task-upgrades.TBU1.R4 — Profiles carrying the former restart marker converge to the next-task activation contract without losing proof state
+#### codex-plugin-next-task-upgrades.TBU1.R4 — Invalid legacy markers never manufacture activation proof
 
 ## Rave Moment
 
@@ -137,17 +136,17 @@ repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
 - **They'd say:** "<the one repeatable, status-conferring sentence>"
 -->
 
-### codex-plugin-next-task-upgrades — Upgrade, keep working
+### codex-plugin-next-task-upgrades — Upgrade with proof
 
-- **Moment:** The installer confirms the new version is ready for the next task while the current work continues untouched.
-- **Beats:** Quitting and relaunching the entire Codex app just to load an updated workflow plugin.
-- **They'd say:** "Safeword updated inside Codex; I just opened my next task and kept going."
+- **Moment:** After restart, status proves the new app instance loaded the exact installation rather than trusting a timestamp.
+- **Beats:** A green status that hides stale skills behind current hooks.
+- **They'd say:** "Safeword can prove the app actually reloaded the plugin I installed."
 
 ## Outcomes
 
 - Fresh installations and upgrades both converge through documented Codex CLI operations.
-- Upgrade output distinguishes installation from activation and never asks users to restart Codex.
-- Existing tasks remain version-stable; new tasks load the newly installed, trusted bundle.
+- Upgrade output distinguishes installation from activation and requires a Codex restart.
+- Same-app tasks remain pending; tasks after restart load the newly installed, trusted bundle.
 - Profiles with v0.70-era restart markers transition without manual cleanup.
 
 ## Open Questions

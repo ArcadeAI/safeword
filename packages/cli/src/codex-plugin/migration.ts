@@ -8,7 +8,7 @@ type CodexMigrationState =
   | 'plugin_disabled'
   | 'plugin_update_required'
   | 'legacy'
-  | 'plugin_installed_new_session_required'
+  | 'plugin_installed_app_restart_required'
   | 'plugin_enabled_hook_unproven'
   | 'compatibility'
   | 'plugin'
@@ -91,10 +91,10 @@ export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMig
             {
               command: nextCommand,
               mutates:
-                state !== 'plugin_installed_new_session_required' &&
+                state !== 'plugin_installed_app_restart_required' &&
                 state !== 'plugin_enabled_hook_unproven',
               // Even the read-only status actions have a human prerequisite:
-              // start a new task and review /hooks before checking proof again.
+              // restart Codex and review /hooks before checking proof again.
               requires_human: true,
             },
           ],
@@ -120,7 +120,7 @@ const MIGRATION_STATE_RULES: readonly {
       facts.plugin.enabled === true && !codexPluginVersionMatchesPackage(facts.plugin),
   },
   {
-    state: 'plugin_installed_new_session_required',
+    state: 'plugin_installed_app_restart_required',
     matches: facts => facts.activationPending && facts.plugin.enabled === true,
   },
   {
@@ -157,7 +157,7 @@ const NEXT_ACTIONS = {
   recovery_required: 'safeword codex recover',
   compatibility: 'safeword codex migrate --finalize',
   plugin: undefined,
-  plugin_installed_new_session_required: 'safeword codex status',
+  plugin_installed_app_restart_required: 'safeword codex status',
   plugin_enabled_hook_unproven: 'safeword codex status',
   plugin_setup_required: 'safeword codex migrate',
   plugin_disabled: 'safeword codex migrate',
@@ -175,11 +175,11 @@ export function renderCodexMigrationHuman(result: CodexMigrationResultV2): strin
   if (result.state === 'plugin_setup_required') {
     lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
   } else if (
-    result.state === 'plugin_installed_new_session_required' ||
+    result.state === 'plugin_installed_app_restart_required' ||
     result.state === 'plugin_enabled_hook_unproven'
   ) {
     lines.push(
-      'This task keeps its loaded Safe Word version. Start a new Codex task to use the installed plugin, then review its hooks with /hooks. No Codex restart is required.',
+      'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.',
     );
   }
   const next = result.next_actions[0];

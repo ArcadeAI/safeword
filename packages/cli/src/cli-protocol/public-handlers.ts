@@ -1,6 +1,11 @@
 import { existsSync, lstatSync, readFileSync, readlinkSync, type Stats } from 'node:fs';
 import nodePath from 'node:path';
 
+import type {
+  LegacyGlobalGuidanceCleanupResult,
+  LegacyGlobalGuidanceDiagnostic,
+  LegacyGlobalGuidanceObservation,
+} from '../codex-plugin/legacy-global-guidance.js';
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
@@ -503,6 +508,135 @@ async function codexStatusHandler(invocation: CommandInvocation): Promise<CliRes
   return observeCodexMigration(invocation.cwd);
 }
 
+function cleanGuidanceUnavailable(
+  diagnostic: LegacyGlobalGuidanceDiagnostic,
+  observation: LegacyGlobalGuidanceObservation,
+): CliResult {
+  return createResult({
+    state: diagnostic.finding === undefined ? 'healthy' : 'action_required',
+    findings: diagnostic.finding === undefined ? [] : [diagnostic.finding],
+    data: { command: 'codex clean-guidance', global_guidance: observation },
+  });
+}
+
+function cleanGuidanceConfirmation(
+  diagnostic: LegacyGlobalGuidanceDiagnostic,
+  observation: LegacyGlobalGuidanceObservation,
+  plan: CliPlan,
+): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [
+      ...(diagnostic.finding === undefined ? [] : [diagnostic.finding]),
+      {
+        code: 'CODEX_GUIDANCE_CLEANUP_CONFIRMATION_REQUIRED',
+        message: 'Review and confirm the exact legacy profile-guidance cleanup.',
+        severity: 'warning',
+      },
+    ],
+    nextActions: [
+      {
+        command: `safeword codex clean-guidance --yes --plan ${plan.id}`,
+        mutates: true,
+        requiresHuman: true,
+      },
+    ],
+    data: {
+      command: 'codex clean-guidance',
+      global_guidance: observation,
+      plan: toWirePlan(plan),
+    },
+  });
+}
+
+function cleanGuidanceRefusal(cleanup: LegacyGlobalGuidanceCleanupResult): CliResult {
+  const messages = {
+    PLAN_STALE: 'The active profile guidance changed. Review a fresh cleanup plan.',
+    UNSAFE_GUIDANCE: 'The active profile guidance is not an exact registered revision.',
+    BACKUP_OCCUPIED: `Cleanup refused because ${cleanup.backupPath} already exists.`,
+    SOURCE_CHANGED_DURING_MOVE:
+      'The guidance changed during cleanup. Safe Word preserved the moved artifact and refused cleanup.',
+  } as const;
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: cleanup.code ?? 'CODEX_GUIDANCE_CLEANUP_REFUSED',
+        message:
+          cleanup.code === undefined
+            ? 'Safe Word could not safely clean the profile guidance.'
+            : messages[cleanup.code],
+        severity: 'warning',
+      },
+    ],
+    nextActions:
+      cleanup.code === 'PLAN_STALE'
+        ? [
+            {
+              command: 'safeword codex clean-guidance',
+              mutates: false,
+              requiresHuman: true,
+            },
+          ]
+        : [],
+    data: { command: 'codex clean-guidance', cleanup },
+  });
+}
+
+function shellQuote(value: string | undefined): string {
+  const escaped = (value ?? '').replaceAll("'", "'\"'\"'");
+  return `'${escaped}'`;
+}
+
+function cleanGuidanceSuccess(cleanup: LegacyGlobalGuidanceCleanupResult): CliResult {
+  return createResult({
+    state: 'changed',
+    changed: true,
+    findings: [
+      {
+        code: 'CODEX_LEGACY_GLOBAL_GUIDANCE_BACKED_UP',
+        message: `Moved the exact historical guidance to ${cleanup.backupPath}.`,
+        severity: 'info',
+      },
+    ],
+    effects: {
+      files: [
+        { kind: 'move', target: cleanup.sourcePath ?? '', operation: 'deactivate' },
+        { kind: 'create', target: cleanup.backupPath ?? '', operation: 'backup' },
+      ],
+    },
+    recovery: [
+      {
+        command: `mv -- ${shellQuote(cleanup.backupPath)} ${shellQuote(cleanup.sourcePath)}`,
+        description: 'Restore the backed-up profile guidance if it is still wanted.',
+        requiresHuman: true,
+      },
+    ],
+    data: { command: 'codex clean-guidance', cleanup },
+  });
+}
+
+async function codexCleanGuidanceHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const suppliedPlan = stringOption(invocation.options, 'plan');
+  if (suppliedPlan !== undefined && !isPlanIdentity(suppliedPlan)) {
+    return malformedPlanIdentity('codex clean-guidance');
+  }
+  const guidance = await import('../codex-plugin/legacy-global-guidance.js');
+  if (invocation.options.yes === true && suppliedPlan !== undefined) {
+    const cleanup = guidance.applyLegacyGlobalGuidanceCleanup({ planId: suppliedPlan });
+    return cleanup.ok ? cleanGuidanceSuccess(cleanup) : cleanGuidanceRefusal(cleanup);
+  }
+  const observation = guidance.observeLegacyGlobalGuidance();
+  const diagnostic = guidance.legacyGlobalGuidanceDiagnostic(observation);
+  const preview = guidance.planLegacyGlobalGuidanceCleanup(observation);
+
+  if (!preview.ok || preview.plan === undefined) {
+    return cleanGuidanceUnavailable(diagnostic, observation);
+  }
+
+  return cleanGuidanceConfirmation(diagnostic, observation, preview.plan);
+}
+
 function codexConfirmation(plan: CliPlan, exactConfigBlocks: readonly string[]): CliResult {
   const command = `${plan.command} --yes --plan ${plan.id}`;
   return createResult({
@@ -536,7 +670,7 @@ function codexFinalizationPlan(
   if (observation.proof.status !== 'current') {
     throw new CodexMigrationError(
       'FINALIZATION_PROOF_REQUIRED',
-      'Finalization requires current plugin hook proof. Start a new Codex task, review /hooks, then retry. No Codex restart is required.',
+      'Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.',
     );
   }
   // Profile verification is an external boundary. Re-snapshot afterward so
@@ -865,7 +999,7 @@ function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
       {
         code: 'PLUGIN_UPDATE_REQUIRED',
         message:
-          'Finalization requires the packaged Safe Word plugin version. Run safeword codex install, start a new Codex task, and review /hooks. No Codex restart is required.',
+          'Finalization requires the packaged Safe Word plugin version. Run safeword codex install, restart Codex, start a new task, and review /hooks.',
         retryable: true,
       },
     ],
@@ -1178,6 +1312,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex install': invocation => codexMutationHandler('codex install', invocation),
   'codex status': codexStatusHandler,
   'claude install': claudeInstallHandler,
+  'codex clean-guidance': codexCleanGuidanceHandler,
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,

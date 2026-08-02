@@ -25,6 +25,10 @@ import {
   regularCodexConfigMetadata,
 } from '../codex-plugin/legacy-config.js';
 import {
+  legacyGlobalGuidanceDiagnostic,
+  observeLegacyGlobalGuidance,
+} from '../codex-plugin/legacy-global-guidance.js';
+import {
   codexMigrationExitCode,
   type CodexMigrationResultV2,
   type CodexPluginObservation,
@@ -226,7 +230,7 @@ function pathExistsIncludingDanglingSymlink(path: string): boolean {
 }
 
 function observeLegacyAssets(cwd: string): string[] {
-  return SAFEWORD_SCHEMA.codexMigration.legacyFiles.filter(path =>
+  return SAFEWORD_SCHEMA.codexMigration.cleanupFiles.filter(path =>
     pathExistsIncludingDanglingSymlink(nodePath.join(cwd, path)),
   );
 }
@@ -302,12 +306,12 @@ export function observeCodexMigrationResult(
 
 const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV2['state'], string>>> =
   {
-    plugin_installed_new_session_required:
-      'This task keeps its loaded Safe Word version. Start a new Codex task to use the installed plugin, then review its hooks with /hooks. No Codex restart is required.',
+    plugin_installed_app_restart_required:
+      'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.',
     compatibility:
       'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.',
     plugin_enabled_hook_unproven:
-      'Codex migration state: plugin_enabled_hook_unproven. Start a new Codex task and review /hooks; when protection is confirmed, run safeword codex migrate --finalize. No Codex restart is required.',
+      'Codex migration state: plugin_enabled_hook_unproven. Review /hooks in the restarted Codex app; when protection is confirmed, run safeword codex migrate --finalize.',
     recovery_required:
       'Codex migration state: recovery_required. Recovery is required before migration can continue.',
   };
@@ -317,7 +321,7 @@ function codexMigrationMessage(
   proof?: CodexHookProofObservation,
 ): string {
   if (state === 'plugin_enabled_hook_unproven' && proof !== undefined) {
-    return `Codex migration state: plugin_enabled_hook_unproven. Start a new Codex task, review /hooks, and exercise these missing hooks: ${proof.missing_events.join(', ')}. Then run safeword codex migrate --finalize. No Codex restart is required.`;
+    return `Codex migration state: plugin_enabled_hook_unproven. In the restarted Codex app, review /hooks and exercise these missing hooks: ${proof.missing_events.join(', ')}. Then run safeword codex migrate --finalize.`;
   }
   return CODEX_MIGRATION_MESSAGES[state] ?? `Codex migration state: ${state}.`;
 }
@@ -325,7 +329,7 @@ function codexMigrationMessage(
 function legacyCodexMigrationState(
   state: CodexMigrationResultV2['state'],
 ): CodexMigrationResultV2['state'] | 'plugin_installed_restart_required' {
-  return state === 'plugin_installed_new_session_required'
+  return state === 'plugin_installed_app_restart_required'
     ? 'plugin_installed_restart_required'
     : state;
 }
@@ -336,9 +340,10 @@ export function observeCodexMigration(
 ): CliResult {
   const result = observeCodexMigrationResult(cwd, environment);
   const legacyState = legacyCodexMigrationState(result.state);
+  const globalGuidance = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
   let state: CliResult['state'] = 'action_required';
   if (result.errors.length > 0) state = 'failed';
-  else if (result.ok) state = 'healthy';
+  else if (result.ok && globalGuidance.finding === undefined) state = 'healthy';
   return createResult({
     state,
     findings:
@@ -354,13 +359,17 @@ export function observeCodexMigration(
                 migration_state: result.state,
               },
             },
+            ...(globalGuidance.finding === undefined ? [] : [globalGuidance.finding]),
           ],
     errors: result.errors,
-    nextActions: result.next_actions.map(action => ({
-      command: action.command,
-      mutates: action.mutates,
-      requiresHuman: action.requires_human,
-    })),
+    nextActions: [
+      ...result.next_actions.map(action => ({
+        command: action.command,
+        mutates: action.mutates,
+        requiresHuman: action.requires_human,
+      })),
+      ...(globalGuidance.nextAction === undefined ? [] : [globalGuidance.nextAction]),
+    ],
     data: {
       command: 'codex status',
       // Compatibility field for schema-1 public-envelope consumers. New code
@@ -374,6 +383,7 @@ export function observeCodexMigration(
       plugin: result.plugin,
       proof: result.proof,
       legacy: result.legacy,
+      global_guidance: globalGuidance.observation,
     },
   });
 }
@@ -422,7 +432,7 @@ export function installCodexPlugin(
   if (options.json !== true) {
     success('Safe Word Codex plugin is enabled for this profile.');
     info(
-      'This task keeps its loaded Safe Word version. Start a new Codex task to use the installed plugin skills and hooks, then review them with /hooks. No Codex restart is required. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
+      'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
     );
   }
   if (options.reportMigrationState === true) {
@@ -473,7 +483,7 @@ function buildCodexFinalizationMutations(
     {
       path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
       content:
-        '---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. This task keeps its loaded version; start a new Codex task so the installed plugin loads, then review its hooks with `/hooks`. No Codex restart is required. Run `safeword codex status` to verify this project is protected.\n',
+        '---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n',
     },
   );
   return mutations;
@@ -652,7 +662,7 @@ export async function removeLegacyCodexHooks(
   if (observeCodexHookProof(options.environment).status !== 'current') {
     throw new CodexMigrationError(
       'FINALIZATION_PROOF_REQUIRED',
-      'Finalization requires current plugin hook proof. Start a new Codex task, review /hooks, then retry. No Codex restart is required.',
+      'Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.',
     );
   }
   if (codexFinalizationIsComplete(cwd)) {

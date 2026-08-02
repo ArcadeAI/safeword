@@ -2,6 +2,19 @@
 
 **Entry:** Agent enters `plan-implementation` phase. Scenarios passed the scenario-gate; behavior is fixed. This phase produces the implementation design record — `impl-plan.md` — and nothing else ships from it. Application code stays untouched until `implement` (the pre-tool hook enforces this).
 
+If a spike returned a structured handoff at the optional checkpoint, scaffold
+`impl-plan.md` first, then carry every value into the record immediately:
+
+- evidence → Approach proof, including the proof command/output citation;
+- shortcuts → Approach build order;
+- decision → Decisions; and
+- production consequences → implementation tasks and Assessment triggers.
+
+Consume the handoff in the fresh production worktree created from
+`PRE_SPIKE_BASE`. Commit this plan and the updated ticket state there, complete
+plan review, and only then begin production implementation in that same
+worktree. Never reuse the spike's experimental code or commits.
+
 ## Design the approach — ideal first
 
 1. **Sketch the ideal design** for the validated scenarios as if the codebase didn't exist. Run `$safeword:figure-it-out` for each **load-bearing** choice — slicing, data model, storage, interfaces, test layers — and record the evidence in the Decisions table. Non-obvious choices get researched, not recalled.

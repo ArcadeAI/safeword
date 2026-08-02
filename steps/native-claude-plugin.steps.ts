@@ -23,6 +23,7 @@ import {
   assertClaudePluginAssetReferences,
   type GeneratedClaudePluginAsset,
 } from '../packages/cli/src/claude-plugin/catalogue.js';
+import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
 
 interface NativeClaudePluginWorld {
   generation?: { status: number; output: string };
@@ -48,6 +49,12 @@ interface NativeClaudePluginWorld {
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
+const EXPECTED_VERSION = SAFEWORD_SCHEMA.version;
+const OFFICIAL_MARKETPLACE_SOURCE = `https://github.com/ArcadeAI/safeword.git#v${EXPECTED_VERSION}`;
+
+function pluginCachePath(root: string): string {
+  return nodePath.join(root, 'cache', 'safeword', EXPECTED_VERSION);
+}
 
 After(function (this: NativeClaudePluginWorld) {
   if (this.cacheFixture !== undefined) {
@@ -124,7 +131,7 @@ Given(
   'the installed plugin cache is available without its source checkout or package registry',
   function (this: NativeClaudePluginWorld) {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-cache-'));
-    const plugin = nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0');
+    const plugin = pluginCachePath(root);
     const data = nodePath.join(root, 'data');
     const project = nodePath.join(root, 'project');
     cpSync(PLUGIN_ROOT, plugin, { recursive: true });
@@ -237,7 +244,7 @@ Given(
   'an intact cached UserPromptSubmit event whose final sibling hook fails',
   function (this: NativeClaudePluginWorld) {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-event-failure-'));
-    const plugin = nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0');
+    const plugin = pluginCachePath(root);
     const data = nodePath.join(root, 'data');
     const project = nodePath.join(root, 'project');
     cpSync(PLUGIN_ROOT, plugin, { recursive: true });
@@ -331,7 +338,7 @@ Given(
   /^the installed plugin cache has (a mismatched hook manifest|a missing hook entrypoint|a modified hook runtime)$/u,
   function (this: NativeClaudePluginWorld, damage: string) {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-damaged-cache-'));
-    const plugin = nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0');
+    const plugin = pluginCachePath(root);
     const data = nodePath.join(root, 'data');
     const project = nodePath.join(root, 'project');
     cpSync(PLUGIN_ROOT, plugin, { recursive: true });
@@ -421,7 +428,7 @@ if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
 }
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
 if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
-  state.plugins = [{ id: 'safeword@safeword', version: '0.71.0-rc.0', enabled: true, scope: 'user', installPath: state.installPath }];
+  state.plugins = [{ id: 'safeword@safeword', version: '${EXPECTED_VERSION}', enabled: true, scope: 'user', installPath: state.installPath }];
   write(state); process.exit(0);
 }
 console.error('unexpected fake claude command: ' + operation); process.exit(64);
@@ -453,7 +460,7 @@ function createLifecycleFixture(
     unrelated: { theme: 'dark', custom: ['preserve', 7] },
     marketplaces: [] as unknown[],
     plugins: [] as unknown[],
-    installPath: nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0'),
+    installPath: pluginCachePath(root),
     ...overrides,
   };
   cpSync(PLUGIN_ROOT, state.installPath, { recursive: true });
@@ -498,13 +505,13 @@ Given(
           name: 'safeword',
           source: 'git',
           url: 'https://github.com/ArcadeAI/safeword.git',
-          ref: 'v0.71.0-rc.0',
+          ref: `v${EXPECTED_VERSION}`,
         },
       ],
       plugins: [
         {
           id: 'safeword@safeword',
-          version: '0.71.0-rc.0',
+          version: EXPECTED_VERSION,
           enabled: true,
           scope: 'user',
           installPath,
@@ -531,11 +538,11 @@ Given(
     mkdirSync(project, { recursive: true });
     mkdirSync(fakeBin, { recursive: true });
     writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
-    const officialSource = 'https://github.com/ArcadeAI/safeword.git#v0.71.0-rc.0';
+    const officialSource = OFFICIAL_MARKETPLACE_SOURCE;
     const state = {
       hostVersion: '2.1.170 (Claude Code)',
       failOperation: null,
-      installPath: nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0'),
+      installPath: pluginCachePath(root),
       unrelated: { theme: 'dark', custom: ['preserve', 7] },
       marketplaces:
         initialState === 'no Safeword marketplace or plugin'
@@ -557,10 +564,10 @@ Given(
                 version:
                   initialState === 'an enabled older official Safeword plugin version'
                     ? '0.70.0'
-                    : '0.71.0-rc.0',
+                    : EXPECTED_VERSION,
                 enabled: initialState !== 'the exact official Safeword plugin disabled',
                 scope: 'user',
-                installPath: nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0'),
+                installPath: pluginCachePath(root),
               },
             ],
     };
@@ -628,16 +635,16 @@ Then(
         name: 'safeword',
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
-        ref: 'v0.71.0-rc.0',
+        ref: `v${EXPECTED_VERSION}`,
       },
     ]);
     assert.deepEqual(state.plugins, [
       {
         id: 'safeword@safeword',
-        version: '0.71.0-rc.0',
+        version: EXPECTED_VERSION,
         enabled: true,
         scope: 'user',
-        installPath: nodePath.join(this.lifecycle.root, 'cache', 'safeword', '0.71.0-rc.0'),
+        installPath: pluginCachePath(this.lifecycle.root),
       },
     ]);
   },
@@ -717,8 +724,7 @@ Then(
     };
     assert.deepEqual(result.next_actions, [
       {
-        command:
-          'claude plugin marketplace add https://github.com/ArcadeAI/safeword.git#v0.71.0-rc.0 --scope user',
+        command: `claude plugin marketplace add ${OFFICIAL_MARKETPLACE_SOURCE} --scope user`,
         mutates: true,
         requires_human: true,
       },
@@ -847,7 +853,7 @@ Then(
       canonical_plugin_root?: string;
     };
     assert.equal(proof.event, 'UserPromptSubmit');
-    assert.equal(proof.plugin_version, '0.71.0-rc.0');
+    assert.equal(proof.plugin_version, EXPECTED_VERSION);
     assert.match(proof.hook_manifest_sha256 ?? '', /^[\da-f]{64}$/u);
     assert.equal(proof.canonical_plugin_root, realpathSync(this.cacheFixture.plugin));
     const manifest = readFileSync(

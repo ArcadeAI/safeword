@@ -222,6 +222,22 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('claude install', 'Install the Claude profile plugin', 'mutate', {
     networkPolicy: 'declared',
   }),
+  command(
+    'codex clean-guidance',
+    'Back up exact legacy Safe Word profile guidance',
+    'destructive',
+    {
+      promptPolicy: 'confirm',
+      commandOptions: [
+        { flags: '--yes', description: 'Confirm cleanup of the observed exact revision' },
+        {
+          flags: '--plan <id>',
+          description: 'Identity of the exact profile-guidance cleanup plan',
+          valueKind: 'plan-identity',
+        },
+      ],
+    },
+  ),
   command('codex recover', 'Restore backed-up legacy Codex project state', 'destructive', {
     promptPolicy: 'confirm',
     commandOptions: [

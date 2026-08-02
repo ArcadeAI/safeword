@@ -1,12 +1,20 @@
-/* eslint-disable unicorn/no-null -- schema-1 JSON uses explicit null for unavailable values */
+/* eslint-disable unicorn/no-null -- versioned JSON uses explicit null for unavailable values */
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { writeDurableFile } from './durable-write.js';
+import {
+  type CodexHostProcessIdentity,
+  observeCurrentCodexHost,
+  observeRunningCodexHosts,
+  sameCodexHost,
+} from './host-process.js';
+
+export type { CodexHostProcessIdentity } from './host-process.js';
 
 export interface CodexHookProofV1 {
   schema_version: 1;
@@ -16,10 +24,38 @@ export interface CodexHookProofV1 {
   recorded_at: string;
 }
 
+export interface CodexHookProofV2 {
+  schema_version: 2;
+  event: CodexPluginHookEvent;
+  plugin_version: string;
+  manifest_sha256: string;
+  activation_id: string | null;
+  recorded_at: string;
+}
+
 export interface CodexActivationMarkerV1 {
   schema_version: 1;
   plugin_version: string;
   manifest_sha256: string;
+}
+
+export interface CodexActivationMarkerV2 {
+  schema_version: 2;
+  plugin_version: string;
+  manifest_sha256: string;
+  activation_id: string;
+  installed_at: string;
+  host_observation: 'observed' | 'unavailable';
+  active_hosts: CodexHostProcessIdentity[];
+}
+
+interface CodexActivationReceiptV1 {
+  schema_version: 1;
+  plugin_version: string;
+  manifest_sha256: string;
+  activation_id: string;
+  activated_at: string;
+  host: CodexHostProcessIdentity;
 }
 
 export const CODEX_PLUGIN_HOOK_EVENTS = [
@@ -38,6 +74,7 @@ export interface CodexHookProofObservation {
   plugin_version: string | null;
   manifest_sha256: string | null;
   recorded_at: string | null;
+  activation_id: string | null;
   events: readonly CodexPluginHookEvent[];
   missing_events: readonly CodexPluginHookEvent[];
 }
@@ -52,13 +89,21 @@ export function codexProofPath(
 ): string {
   return nodePath.join(
     codexProfileDirectory(environment),
-    'safeword/hook-proof-v1',
+    'safeword/hook-proof-v2',
     `${event}.json`,
   );
 }
 
-function codexActivationMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
+function legacyCodexActivationMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
   return nodePath.join(codexProfileDirectory(environment), 'safeword/activation-pending-v1.json');
+}
+
+function codexActivationMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
+  return nodePath.join(codexProfileDirectory(environment), 'safeword/activation-pending-v2.json');
+}
+
+function codexActivationReceiptPath(environment: NodeJS.ProcessEnv = process.env): string {
+  return nodePath.join(codexProfileDirectory(environment), 'safeword/activation-current-v1.json');
 }
 
 function legacyCodexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
@@ -67,8 +112,13 @@ function legacyCodexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.e
 
 export function codexActivationIsPending(environment: NodeJS.ProcessEnv = process.env): boolean {
   const identity = currentCodexPluginIdentity();
-  return [codexActivationMarkerPath(environment), legacyCodexRestartMarkerPath(environment)].some(
-    path => activationMarkerMatches(path, identity),
+  return (
+    // The canonical marker is written atomically. If it exists but cannot be
+    // parsed or matched, fail closed instead of accepting unbound hook proof.
+    existsSync(codexActivationMarkerPath(environment)) ||
+    [legacyCodexActivationMarkerPath(environment), legacyCodexRestartMarkerPath(environment)].some(
+      path => legacyActivationMarkerMatches(path, identity),
+    )
   );
 }
 
@@ -97,43 +147,82 @@ export function currentCodexPluginIdentity(): {
 
 export function writeCodexActivationMarker(
   environment: NodeJS.ProcessEnv = process.env,
-): CodexActivationMarkerV1 {
+  now = new Date(),
+  options: {
+    activationId?: string;
+    activeHosts?: CodexHostProcessIdentity[] | null;
+  } = {},
+): CodexActivationMarkerV2 {
   const path = codexActivationMarkerPath(environment);
-  const marker: CodexActivationMarkerV1 = {
-    schema_version: 1,
+  const activeHosts =
+    options.activeHosts === undefined ? observeRunningCodexHosts() : options.activeHosts;
+  const marker: CodexActivationMarkerV2 = {
+    schema_version: 2,
     ...currentCodexPluginIdentity(),
+    activation_id: options.activationId ?? randomUUID(),
+    installed_at: now.toISOString(),
+    host_observation: activeHosts === null ? 'unavailable' : 'observed',
+    active_hosts: activeHosts ?? [],
   };
   writeAtomicJson(path, marker);
-  // A successful canonical write supersedes every v0.70 pending marker. The
-  // new marker retains the exact current identity even when the legacy input
-  // was malformed or bound to the previously installed release.
+  // A new installation invalidates every earlier execution proof. The v2
+  // marker is the only authority until SessionStart proves a different Codex
+  // app-server loaded the installed plugin catalogue.
+  for (const event of CODEX_PLUGIN_HOOK_EVENTS)
+    rmSync(codexProofPath(environment, event), { force: true });
+  rmSync(nodePath.join(codexProfileDirectory(environment), 'safeword/hook-proof-v1'), {
+    recursive: true,
+    force: true,
+  });
+  rmSync(codexActivationReceiptPath(environment), { force: true });
+  rmSync(legacyCodexActivationMarkerPath(environment), { force: true });
   rmSync(legacyCodexRestartMarkerPath(environment), { force: true });
   return marker;
 }
 
+// eslint-disable-next-line complexity -- activation transition validates independent durable host and time evidence
 export function recordCodexHookProof(
   event: CodexPluginHookEvent,
   environment: NodeJS.ProcessEnv = process.env,
   now = new Date(),
-  writeOptions: { beforeRename?: () => void } = {},
-): CodexHookProofV1 {
+  writeOptions: {
+    beforeRename?: () => void;
+    currentHost?: CodexHostProcessIdentity | null;
+  } = {},
+): CodexHookProofV2 {
   const identity = currentCodexPluginIdentity();
-  const proof: CodexHookProofV1 = {
-    schema_version: 1,
+  const marker = readActivationMarkerV2(environment, identity);
+  let receipt = readActivationReceipt(environment, identity);
+  if (event === 'session-start' && marker !== null) {
+    const currentHost =
+      'currentHost' in writeOptions
+        ? (writeOptions.currentHost ?? null)
+        : observeCurrentCodexHost();
+    if (
+      currentHost !== null &&
+      marker.host_observation === 'observed' &&
+      now.getTime() >= Date.parse(marker.installed_at) &&
+      marker.active_hosts.every(host => !sameCodexHost(host, currentHost))
+    ) {
+      receipt = {
+        schema_version: 1,
+        ...identity,
+        activation_id: marker.activation_id,
+        activated_at: now.toISOString(),
+        host: currentHost,
+      };
+      writeAtomicJson(codexActivationReceiptPath(environment), receipt);
+      rmSync(codexActivationMarkerPath(environment), { force: true });
+    }
+  }
+  const proof: CodexHookProofV2 = {
+    schema_version: 2,
     event,
     ...identity,
+    activation_id: receipt?.activation_id ?? marker?.activation_id ?? null,
     recorded_at: now.toISOString(),
   };
   writeAtomicJson(codexProofPath(environment, event), proof, writeOptions);
-
-  if (event === 'session-start') {
-    for (const markerPath of [
-      codexActivationMarkerPath(environment),
-      legacyCodexRestartMarkerPath(environment),
-    ]) {
-      if (activationMarkerMatches(markerPath, identity)) rmSync(markerPath, { force: true });
-    }
-  }
   return proof;
 }
 
@@ -148,7 +237,7 @@ function writeAtomicJson(
   });
 }
 
-function activationMarkerMatches(
+function legacyActivationMarkerMatches(
   path: string,
   identity: { plugin_version: string; manifest_sha256: string },
 ): boolean {
@@ -162,6 +251,42 @@ function activationMarkerMatches(
     );
   } catch {
     return false;
+  }
+}
+
+function readActivationMarkerV2(
+  environment: NodeJS.ProcessEnv,
+  identity: { plugin_version: string; manifest_sha256: string },
+): CodexActivationMarkerV2 | null {
+  const path = codexActivationMarkerPath(environment);
+  if (!existsSync(path)) return null;
+  try {
+    const marker = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    if (!isActivationMarkerV2(marker)) return null;
+    return marker.plugin_version === identity.plugin_version &&
+      marker.manifest_sha256 === identity.manifest_sha256
+      ? marker
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function readActivationReceipt(
+  environment: NodeJS.ProcessEnv,
+  identity: { plugin_version: string; manifest_sha256: string },
+): CodexActivationReceiptV1 | null {
+  const path = codexActivationReceiptPath(environment);
+  if (!existsSync(path)) return null;
+  try {
+    const receipt = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    if (!isActivationReceiptV1(receipt)) return null;
+    return receipt.plugin_version === identity.plugin_version &&
+      receipt.manifest_sha256 === identity.manifest_sha256
+      ? receipt
+      : null;
+  } catch {
+    return null;
   }
 }
 
@@ -180,12 +305,13 @@ export function observeCodexHookProof(
       plugin_version: null,
       manifest_sha256: null,
       recorded_at: null,
+      activation_id: null,
       events: [],
       missing_events: CODEX_PLUGIN_HOOK_EVENTS,
     };
   }
 
-  const parsed: CodexHookProofV1[] = [];
+  const parsed: (CodexHookProofV1 | CodexHookProofV2)[] = [];
   for (const item of existing) {
     try {
       const candidate = JSON.parse(readFileSync(item.path, 'utf8')) as unknown;
@@ -199,10 +325,16 @@ export function observeCodexHookProof(
   }
 
   const identity = currentCodexPluginIdentity();
+  const activationId =
+    readActivationMarkerV2(environment, identity)?.activation_id ??
+    readActivationReceipt(environment, identity)?.activation_id ??
+    null;
   const current = parsed.filter(
     proof =>
       proof.plugin_version === identity.plugin_version &&
-      proof.manifest_sha256 === identity.manifest_sha256,
+      proof.manifest_sha256 === identity.manifest_sha256 &&
+      (activationId === null ||
+        (proof.schema_version === 2 && proof.activation_id === activationId)),
   );
   const events = current.map(proof => proof.event);
   const missingEvents = CODEX_PLUGIN_HOOK_EVENTS.filter(event => !events.includes(event));
@@ -217,6 +349,7 @@ export function observeCodexHookProof(
     plugin_version: latest?.plugin_version ?? parsed[0]?.plugin_version ?? null,
     manifest_sha256: latest?.manifest_sha256 ?? parsed[0]?.manifest_sha256 ?? null,
     recorded_at: latest?.recorded_at ?? null,
+    activation_id: activationId,
     events,
     missing_events: missingEvents,
   };
@@ -228,6 +361,7 @@ function malformedObservation(): CodexHookProofObservation {
     plugin_version: null,
     manifest_sha256: null,
     recorded_at: null,
+    activation_id: null,
     events: [],
     missing_events: CODEX_PLUGIN_HOOK_EVENTS,
   };
@@ -239,17 +373,65 @@ function malformedObservation(): CodexHookProofObservation {
   hook processes racing on a shared read-modify-write document.
 */
 
-function isCodexHookProof(value: unknown): value is CodexHookProofV1 {
+// eslint-disable-next-line complexity -- validates every field of two persisted proof schema versions
+function isCodexHookProof(value: unknown): value is CodexHookProofV1 | CodexHookProofV2 {
   if (typeof value !== 'object' || value === null) return false;
   const proof = value as Partial<CodexHookProofV1>;
   return (
-    proof.schema_version === 1 &&
+    (proof.schema_version === 1 || proof.schema_version === 2) &&
     isCodexPluginHookEvent(proof.event) &&
     typeof proof.plugin_version === 'string' &&
     typeof proof.manifest_sha256 === 'string' &&
     /^[\da-f]{64}$/u.test(proof.manifest_sha256) &&
+    (proof.schema_version === 1 ||
+      ('activation_id' in proof &&
+        (typeof proof.activation_id === 'string' || proof.activation_id === null))) &&
     typeof proof.recorded_at === 'string' &&
     !Number.isNaN(Date.parse(proof.recorded_at))
+  );
+}
+
+// eslint-disable-next-line complexity -- validates each untrusted persisted marker field
+function isActivationMarkerV2(value: unknown): value is CodexActivationMarkerV2 {
+  if (typeof value !== 'object' || value === null) return false;
+  const marker = value as Partial<CodexActivationMarkerV2>;
+  return (
+    marker.schema_version === 2 &&
+    typeof marker.plugin_version === 'string' &&
+    typeof marker.manifest_sha256 === 'string' &&
+    /^[\da-f]{64}$/u.test(marker.manifest_sha256) &&
+    typeof marker.activation_id === 'string' &&
+    typeof marker.installed_at === 'string' &&
+    !Number.isNaN(Date.parse(marker.installed_at)) &&
+    (marker.host_observation === 'observed' || marker.host_observation === 'unavailable') &&
+    Array.isArray(marker.active_hosts) &&
+    marker.active_hosts.every(isCodexHostProcessIdentity)
+  );
+}
+
+function isActivationReceiptV1(value: unknown): value is CodexActivationReceiptV1 {
+  if (typeof value !== 'object' || value === null) return false;
+  const receipt = value as Partial<CodexActivationReceiptV1>;
+  return (
+    receipt.schema_version === 1 &&
+    typeof receipt.plugin_version === 'string' &&
+    typeof receipt.manifest_sha256 === 'string' &&
+    /^[\da-f]{64}$/u.test(receipt.manifest_sha256) &&
+    typeof receipt.activation_id === 'string' &&
+    typeof receipt.activated_at === 'string' &&
+    !Number.isNaN(Date.parse(receipt.activated_at)) &&
+    isCodexHostProcessIdentity(receipt.host)
+  );
+}
+
+function isCodexHostProcessIdentity(value: unknown): value is CodexHostProcessIdentity {
+  if (typeof value !== 'object' || value === null) return false;
+  const host = value as Partial<CodexHostProcessIdentity>;
+  return (
+    Number.isSafeInteger(host.pid) &&
+    (host.pid ?? 0) > 0 &&
+    typeof host.started_at === 'string' &&
+    !Number.isNaN(Date.parse(host.started_at))
   );
 }
 

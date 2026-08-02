@@ -41,6 +41,10 @@ import {
 const IS_RUFF_AVAILABLE = isRuffInstalled();
 const VERIFIED_AT = '2026-04-15T18:00:00Z';
 const PR_SCOPE_OK_LINE = '**PR Scope:** ✅ Diff matches ticket scope';
+const TEMPLATE_CODEX_SESSION_START = nodePath.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/session-codex-start.ts',
+);
 
 // Single setup for all hook tests - sharing avoids 3 separate bun installs
 // Tests must be idempotent or restore state after modification (see try/finally blocks)
@@ -1510,7 +1514,7 @@ describe('session-safeword-context.ts', () => {
 
 describe('session-codex-start.ts', () => {
   it('runs the Codex SessionStart dispatcher and emits SAFEWORD.md context', () => {
-    const result = spawnSync('bun', ['.safeword/hooks/session-codex-start.ts'], {
+    const result = spawnSync('bun', [TEMPLATE_CODEX_SESSION_START], {
       cwd: shared.projectDirectory,
       env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
       input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: shared.projectDirectory }),

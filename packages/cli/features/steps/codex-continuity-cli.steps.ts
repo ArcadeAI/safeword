@@ -23,11 +23,24 @@ import {
   applyCodexFinalization,
   type CodexFinalizationMutation,
 } from '../../src/codex-plugin/finalization.ts';
-import { currentCodexPluginIdentity } from '../../src/codex-plugin/profile-proof.ts';
+import {
+  type CodexHostProcessIdentity,
+  type CodexPluginHookEvent,
+  currentCodexPluginIdentity,
+  recordCodexHookProof,
+} from '../../src/codex-plugin/profile-proof.ts';
 import { SAFEWORD_SCHEMA } from '../../src/schema.ts';
 import type { CliResult, SafewordWorld } from './world.js';
 
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+const INSTALLING_HOST: CodexHostProcessIdentity = {
+  pid: 100,
+  started_at: '2026-08-02T08:00:00.000Z',
+};
+const RESTARTED_HOST: CodexHostProcessIdentity = {
+  pid: 200,
+  started_at: '2026-08-02T09:00:00.000Z',
+};
 const LEGACY_CONFIG = `[[hooks.PreToolUse]]
 matcher = "^(apply_patch)$"
 
@@ -308,11 +321,11 @@ function assertRepoUnchanged(world: ContinuityCliWorld): void {
 }
 
 function proofPath(world: ContinuityCliWorld): string {
-  return nodePath.join(requireProfile(world), 'safeword/hook-proof-v1/session-start.json');
+  return nodePath.join(requireProfile(world), 'safeword/hook-proof-v2/session-start.json');
 }
 
 function activationMarkerPath(world: ContinuityCliWorld): string {
-  return nodePath.join(requireProfile(world), 'safeword/activation-pending-v1.json');
+  return nodePath.join(requireProfile(world), 'safeword/activation-pending-v2.json');
 }
 
 function legacyRestartMarkerPath(world: ContinuityCliWorld): string {
@@ -335,17 +348,39 @@ function writePendingMarker(
   mkdirSync(nodePath.dirname(path), { recursive: true });
   writeFileSync(
     path,
-    `${JSON.stringify({
-      schema_version: 1,
-      plugin_version: options.version ?? identity.plugin_version,
-      manifest_sha256: options.manifest ?? identity.manifest_sha256,
-    })}\n`,
+    `${JSON.stringify(
+      options.legacy === true
+        ? {
+            schema_version: 1,
+            plugin_version: options.version ?? identity.plugin_version,
+            manifest_sha256: options.manifest ?? identity.manifest_sha256,
+          }
+        : {
+            schema_version: 2,
+            plugin_version: options.version ?? identity.plugin_version,
+            manifest_sha256: options.manifest ?? identity.manifest_sha256,
+            activation_id: 'acceptance-activation',
+            installed_at: '2026-08-02T08:30:00.000Z',
+            host_observation: 'observed',
+            active_hosts: [INSTALLING_HOST],
+          },
+    )}\n`,
   );
   world.pendingMarkerPath = path;
   return path;
 }
 
-function recordEventProof(world: ContinuityCliWorld, event: string): void {
+function recordEventProof(
+  world: ContinuityCliWorld,
+  event: CodexPluginHookEvent,
+  currentHost?: CodexHostProcessIdentity,
+): void {
+  if (currentHost !== undefined) {
+    recordCodexHookProof(event, world.continuityEnvironment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost,
+    });
+    return;
+  }
   const result = run(world, ['hook', 'codex', event, '--plugin-hook'], {}, '{}\n');
   assert.equal(result.exitCode, 0, `${result.stdout}\n${result.stderr}`);
 }
@@ -357,7 +392,7 @@ function recordCurrentProof(world: ContinuityCliWorld): void {
     'post-tool-use',
     'user-prompt-submit',
     'stop',
-  ]) {
+  ] as const) {
     recordEventProof(world, event);
   }
 }
@@ -542,10 +577,10 @@ Then(
 );
 
 Then(
-  'migration reports plugin_installed_new_session_required and changes no repository file',
+  'migration reports plugin_installed_app_restart_required and changes no repository file',
   function (this: ContinuityCliWorld) {
     assert.equal(this.result.exitCode, 2);
-    assert.equal(observeMigrationState(this), 'plugin_installed_new_session_required');
+    assert.equal(observeMigrationState(this), 'plugin_installed_app_restart_required');
     assertRepoUnchanged(this);
   },
 );
@@ -558,7 +593,7 @@ Then(
       plugin_version: string;
       manifest_sha256: string;
     };
-    assert.equal(marker.schema_version, 1);
+    assert.equal(marker.schema_version, 2);
     assert.ok(marker.plugin_version.length > 0);
     assert.match(marker.manifest_sha256, /^[\da-f]{64}$/u);
   },
@@ -590,17 +625,18 @@ When('Codex invokes it with the plugin-hook marker', function (this: ContinuityC
 });
 
 Then(
-  'current proof replaces the activation marker and status no longer reports plugin_installed_new_session_required',
+  'same-host proof preserves the activation marker and status still requires an app restart',
   function (this: ContinuityCliWorld) {
     assert.equal(existsSync(proofPath(this)), true);
-    assert.equal(existsSync(activationMarkerPath(this)), false);
+    assert.equal(existsSync(activationMarkerPath(this)), true);
+    assert.equal(observeMigrationState(this), 'plugin_installed_app_restart_required');
     const status = run(this, ['codex', 'status']);
-    assert.doesNotMatch(status.stdout, /plugin_installed_new_session_required/u);
+    assert.match(status.stdout, /Restart Codex/u);
   },
 );
 
 Then(
-  'the profile contains schema 1 proof with the running version, exact manifest digest, and a parseable UTC timestamp',
+  'the profile contains schema 2 proof with the running version, exact manifest digest, and a parseable UTC timestamp',
   function (this: ContinuityCliWorld) {
     const proof = JSON.parse(readFileSync(proofPath(this), 'utf8')) as {
       schema_version: number;
@@ -608,7 +644,7 @@ Then(
       manifest_sha256: string;
       recorded_at: string;
     };
-    assert.equal(proof.schema_version, 1);
+    assert.equal(proof.schema_version, 2);
     assert.ok(proof.plugin_version.length > 0);
     assert.match(proof.manifest_sha256, /^[\da-f]{64}$/u);
     assert.ok(!Number.isNaN(Date.parse(proof.recorded_at)));
@@ -645,7 +681,7 @@ Given(
     const proof = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
     if (difference === 'package version') proof.plugin_version = '0.0.0';
     if (difference === 'hook manifest digest') proof.manifest_sha256 = '0'.repeat(64);
-    if (difference === 'proof schema') proof.schema_version = 2;
+    if (difference === 'proof schema') proof.schema_version = 3;
     if (difference === 'missing fields') delete proof.manifest_sha256;
     writeFileSync(path, JSON.stringify(proof));
   },
@@ -933,7 +969,7 @@ Then('the command succeeds without changing repository files', function (this: C
 });
 
 Given(
-  /^the repository and active profile derive the (legacy|plugin_disabled|plugin_setup_required|plugin_installed_new_session_required|plugin_enabled_hook_unproven|compatibility|not_configured) state$/u,
+  /^the repository and active profile derive the (legacy|plugin_disabled|plugin_setup_required|plugin_installed_app_restart_required|plugin_enabled_hook_unproven|compatibility|not_configured) state$/u,
   function (this: ContinuityCliWorld, state: string) {
     this.expectedState = state;
     switch (state) {
@@ -952,7 +988,7 @@ Given(
         writeFileSync(nodePath.join(requireProfile(this), 'plugin-state'), 'absent');
         break;
       }
-      case 'plugin_installed_new_session_required': {
+      case 'plugin_installed_app_restart_required': {
         initialize(this, { pluginState: 'absent' });
         const installed = run(this, ['codex', 'migrate']);
         assert.equal(installed.exitCode, 2);
@@ -1299,12 +1335,12 @@ When('the teammate reads the repository bootstrap skill', function (this: Contin
 });
 
 Then(
-  'it explains install, next-task activation, hook review, and status without embedding workflow policy',
+  'it explains install, app restart, hook review, and status without embedding workflow policy',
   function (this: ContinuityCliWorld) {
     const content = this.bootstrapContent ?? '';
     assert.match(content, /codex migrate/u);
+    assert.match(content, /Restart Codex/iu);
     assert.match(content, /new Codex task/iu);
-    assert.match(content, /No Codex restart is required/iu);
     assert.match(content, /\/hooks/u);
     assert.match(content, /codex status/u);
     assert.doesNotMatch(content, /BDD|TDD|quality review/u);
@@ -1352,7 +1388,7 @@ Given('a Codex task is running with an older Safeword plugin', function (this: C
 });
 
 Given(
-  'the released Safeword plugin is installed but no new Codex task has supplied proof',
+  'the released Safeword plugin is installed but Codex has not restarted',
   function (this: ContinuityCliWorld) {
     initialize(this, { pluginState: 'enabled' });
     writePendingMarker(this);
@@ -1408,12 +1444,12 @@ Then(
 );
 
 Then(
-  'the result says the current task keeps its loaded version and a new task uses the installed version without restarting Codex',
+  'the result says the Codex app may keep its loaded catalogue and must restart before a new task verifies the installed version',
   function (this: ContinuityCliWorld) {
     const output = `${this.result.stdout}\n${this.result.stderr}`;
-    assert.match(output, /This task keeps its loaded Safe Word version/u);
-    assert.match(output, /Start a new Codex task/u);
-    assert.match(output, /No Codex restart is required/u);
+    assert.match(output, /Codex app may keep its loaded Safe Word catalogue/u);
+    assert.match(output, /Restart Codex/u);
+    assert.match(output, /start a new task/u);
   },
 );
 
@@ -1422,22 +1458,22 @@ When('the builder checks the Codex plugin activation status', function (this: Co
 });
 
 Then(
-  'status reports plugin_installed_new_session_required and directs the builder to start a new task and review hooks',
+  'status reports plugin_installed_app_restart_required and directs the builder to restart before reviewing hooks',
   function (this: ContinuityCliWorld) {
     const status = JSON.parse(this.result.stdout) as {
       data?: { migration?: { schema_version?: string; state?: string } };
     };
     assert.deepEqual(status.data?.migration, {
       schema_version: '2',
-      state: 'plugin_installed_new_session_required',
+      state: 'plugin_installed_app_restart_required',
     });
     const human = run(this, ['codex', 'status']);
-    assert.match(human.stdout, /Start a new Codex task.+review.+hooks/isu);
+    assert.match(human.stdout, /Restart Codex.+new task.+review.+hooks/isu);
   },
 );
 
 Given(
-  'a profile with next-task activation pending for the installed plugin identity',
+  'a profile with app-restart activation pending for the installed plugin identity',
   function (this: ContinuityCliWorld) {
     initialize(this, { pluginState: 'enabled' });
     writePendingMarker(this);
@@ -1457,18 +1493,34 @@ Given(
 );
 
 When(
-  'a new Codex task invokes the installed profile-plugin SessionStart dispatcher',
+  'a new task in the same Codex app invokes the installed profile-plugin SessionStart dispatcher',
   function (this: ContinuityCliWorld) {
-    recordEventProof(this, 'session-start');
+    recordEventProof(this, 'session-start', INSTALLING_HOST);
   },
 );
 
 Then(
-  'current proof replaces the pending marker and status no longer requires a new task',
+  'same-host proof does not replace the pending marker or satisfy the restart requirement',
+  function (this: ContinuityCliWorld) {
+    assert.equal(existsSync(activationMarkerPath(this)), true);
+    assert.equal(existsSync(proofPath(this)), true);
+    assert.equal(observeMigrationState(this), 'plugin_installed_app_restart_required');
+  },
+);
+
+When(
+  'a restarted Codex app invokes the installed profile-plugin SessionStart dispatcher',
+  function (this: ContinuityCliWorld) {
+    recordEventProof(this, 'session-start', RESTARTED_HOST);
+  },
+);
+
+Then(
+  'restart-bound proof replaces the pending marker and status no longer requires an app restart',
   function (this: ContinuityCliWorld) {
     assert.equal(existsSync(activationMarkerPath(this)), false);
     assert.equal(existsSync(proofPath(this)), true);
-    assert.notEqual(observeMigrationState(this), 'plugin_installed_new_session_required');
+    assert.notEqual(observeMigrationState(this), 'plugin_installed_app_restart_required');
   },
 );
 
@@ -1495,7 +1547,7 @@ When('a later Codex task starts', function (this: ContinuityCliWorld) {
 });
 
 Then(
-  'exact current proof remains valid and status does not reintroduce a next-task requirement',
+  'exact current proof remains valid and status does not reintroduce an app-restart requirement',
   function (this: ContinuityCliWorld) {
     assert.equal(observeMigrationState(this), 'plugin');
     assert.equal(existsSync(activationMarkerPath(this)), false);
@@ -1554,12 +1606,12 @@ Given(
 );
 
 Then(
-  'status does not report next-task activation pending or synthesize current proof from that marker',
+  'status does not report app-restart activation pending or synthesize current proof from that marker',
   function (this: ContinuityCliWorld) {
     const status = JSON.parse(this.result.stdout) as {
       data?: { migration?: { state?: string } };
     };
-    assert.notEqual(status.data?.migration?.state, 'plugin_installed_new_session_required');
+    assert.notEqual(status.data?.migration?.state, 'plugin_installed_app_restart_required');
     assert.equal(existsSync(proofPath(this)), false);
   },
 );

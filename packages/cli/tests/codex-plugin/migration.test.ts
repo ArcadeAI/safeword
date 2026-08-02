@@ -15,6 +15,7 @@ const missingProof: CodexMigrationFacts['proof'] = {
   plugin_version: null,
   manifest_sha256: null,
   recorded_at: null,
+  activation_id: null,
   events: [],
   missing_events: ['session-start', 'pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
 };
@@ -24,6 +25,7 @@ const currentProof: CodexMigrationFacts['proof'] = {
   plugin_version: SAFEWORD_SCHEMA.version,
   manifest_sha256: 'digest',
   recorded_at: '2026-07-28T00:00:00.000Z',
+  activation_id: null,
   events: ['session-start', 'pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
   missing_events: [],
 };
@@ -138,7 +140,7 @@ describe('Codex migration result', () => {
       next: 'safeword codex migrate',
     },
     {
-      name: 'next-task activation pending with complete legacy',
+      name: 'app restart pending with complete legacy',
       input: facts({
         plugin: {
           installed: true,
@@ -150,7 +152,7 @@ describe('Codex migration result', () => {
         viableLegacyEvents: ['PreToolUse'],
         activationPending: true,
       }),
-      state: 'plugin_installed_new_session_required',
+      state: 'plugin_installed_app_restart_required',
       protection: 'protected',
       next: 'safeword codex status',
     },
@@ -168,6 +170,7 @@ describe('Codex migration result', () => {
           plugin_version: SAFEWORD_SCHEMA.version,
           manifest_sha256: 'digest',
           recorded_at: '2026-07-28T00:00:00.000Z',
+          activation_id: null,
           events: ['session-start', 'pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
           missing_events: [],
         },
@@ -198,11 +201,11 @@ describe('Codex migration result', () => {
     if (state === 'plugin_setup_required') {
       lines.push('Setup: .agents/skills/safeword-plugin-setup/SKILL.md');
     } else if (
-      state === 'plugin_installed_new_session_required' ||
+      state === 'plugin_installed_app_restart_required' ||
       state === 'plugin_enabled_hook_unproven'
     ) {
       lines.push(
-        'This task keeps its loaded Safe Word version. Start a new Codex task to use the installed plugin, then review its hooks with /hooks. No Codex restart is required.',
+        'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.',
       );
     }
     lines.push(`Next: ${next}`, '');
@@ -222,7 +225,7 @@ describe('Codex migration result', () => {
       2,
     ],
     [
-      'plugin_installed_new_session_required',
+      'plugin_installed_app_restart_required',
       facts({ plugin: enabledPlugin, activationPending: true }),
       2,
     ],
@@ -308,12 +311,12 @@ describe('Codex migration result', () => {
 
   it.each([
     [
-      'plugin_installed_new_session_required',
+      'plugin_installed_app_restart_required',
       facts({ plugin: enabledPlugin, activationPending: true }),
     ],
     ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin })],
   ] as const)(
-    'marks the status action as human-gated by its new-task and review prerequisite for %s',
+    'marks the status action as human-gated by its restart and review prerequisite for %s',
     (_state, input) => {
       expect(deriveCodexMigrationResult(input).next_actions).toEqual([
         {

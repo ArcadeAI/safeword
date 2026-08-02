@@ -82,10 +82,13 @@ export interface ContractDefinition {
 
 interface CodexMigrationDefinition {
   legacyFiles: string[];
+  cleanupFiles: string[];
   legacyDirs: string[];
   hookEvents: string[];
   hookEventNames: Record<string, string>;
   hookScripts: string[];
+  sharedRuntimePaths: readonly string[];
+  cleanupRuntimePaths: string[];
   hookScriptEvents: Record<string, string>;
   hookScriptPrefix: string;
   packageRunner: 'npx';
@@ -977,6 +980,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'skills/cleanup-zombies/SKILL.md',
     },
     '.claude/skills/retro/SKILL.md': { template: 'skills/retro/SKILL.md' },
+    '.claude/skills/spike/SKILL.md': { template: 'skills/spike/SKILL.md' },
     '.claude/skills/retro-filer/SKILL.md': {
       template: 'skills/retro-filer/SKILL.md',
     },

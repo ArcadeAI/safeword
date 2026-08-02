@@ -26,6 +26,10 @@ import { SETTINGS_HOOKS } from '../src/templates/config.js';
 // Type guard for filtering out undefined values
 const isDefined = <T>(x: T | undefined): x is T => x !== undefined;
 
+const CURSOR_ACTION_SKILLS = new Set(
+  SKILL_CURSOR_PAIRS.filter(pair => pair.cursorRules === undefined).map(pair => pair.skill),
+);
+
 /**
  * Mirrors `getClaudeParentDirectoryForCleanup` in reconcile.ts: any `.claude/*`
  * path deeper than `.claude`, `.claude/skills`, `.claude/commands` gets
@@ -450,17 +454,8 @@ describe('Schema - Single Source of Truth', () => {
     it('should have matching skills for Claude and Cursor rules (excluding core, BDD split, and action skills)', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
-      // Action skills have disable-model-invocation and use Cursor commands instead of rules
-      const ACTION_SKILLS = new Set([
-        'lint',
-        'verify',
-        'audit',
-        'explain',
-        'cleanup-zombies',
-        'self-review',
-        'review-spec',
-        'retro',
-      ]);
+      // Claude action skills use manual-only metadata, Cursor exposes commands,
+      // and generated Codex guidance carries the explicit-invocation contract.
 
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
       const claudeSkills = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
@@ -468,7 +463,7 @@ describe('Schema - Single Source of Truth', () => {
         .map(path => path.split('/', 3)[2])
         .filter(isDefined)
         // Exclude BDD (split into multiple Cursor rules) and action skills (Cursor commands, not rules)
-        .filter(name => name !== 'bdd' && !ACTION_SKILLS.has(name))
+        .filter(name => name !== 'bdd' && !CURSOR_ACTION_SKILLS.has(name))
         .toSorted((a, b) => a.localeCompare(b));
 
       // Cursor rules still use safeword- prefix, extract the suffix
@@ -537,19 +532,8 @@ describe('Schema - Single Source of Truth', () => {
     it('should have a Cursor command for every action skill (DC6276)', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
-      // Action skills are disable-model-invocation on Claude/Codex; on Cursor
-      // (no skills) they must each ship as an explicit command — otherwise the
-      // capability is silently absent there (e.g. /explain was missing).
-      const ACTION_SKILLS = [
-        'lint',
-        'verify',
-        'audit',
-        'explain',
-        'cleanup-zombies',
-        'self-review',
-        'review-spec',
-        'retro',
-      ];
+      // Claude action skills use manual-only metadata; Cursor must ship each as
+      // an explicit command, while generated Codex guidance guards invocation.
 
       const cursorCommands = new Set(
         Object.keys(SAFEWORD_SCHEMA.ownedFiles)
@@ -558,7 +542,7 @@ describe('Schema - Single Source of Truth', () => {
           .filter(isDefined),
       );
 
-      for (const skill of ACTION_SKILLS) {
+      for (const skill of CURSOR_ACTION_SKILLS) {
         expect(cursorCommands, `Cursor missing command for action skill: ${skill}`).toContain(
           skill,
         );
@@ -741,6 +725,10 @@ describe('Schema - Single Source of Truth', () => {
         // (CDRJTW) — gitignored transient state, present on any machine that
         // has committed in this repo.
         'boundary-audit.jsonl',
+        // A completed Codex plugin finalization is recoverable project state,
+        // not an installed template. Its marker and backup are maintained by
+        // the migration transaction rather than setup reconciliation.
+        'codex-plugin.json',
       ]);
 
       const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
@@ -775,6 +763,7 @@ describe('Schema - Single Source of Truth', () => {
         if (ownedPaths.has(file)) continue;
         if (managedPaths.has(file)) continue;
         if (deprecatedPaths.has(file)) continue;
+        if (file.startsWith('.safeword/codex-migration-backup/')) continue;
         if (preservedDirectories.some(dir => file === dir || file.startsWith(`${dir}/`))) continue;
         untracked.push(file);
       }

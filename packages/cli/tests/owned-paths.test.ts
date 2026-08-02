@@ -345,10 +345,13 @@ function stubSchema(buckets: {
     contracts: {},
     codexMigration: {
       legacyFiles: [],
+      cleanupFiles: [],
       legacyDirs: [],
       hookEvents: [],
       hookEventNames: {},
       hookScripts: [],
+      sharedRuntimePaths: [],
+      cleanupRuntimePaths: [],
       hookScriptEvents: {},
       hookScriptPrefix: '',
       packageRunner: 'npx',

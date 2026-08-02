@@ -40,10 +40,13 @@ function minimalSchema(patch: TextPatchDefinition): SafewordSchema {
     contracts: {},
     codexMigration: {
       legacyFiles: [],
+      cleanupFiles: [],
       legacyDirs: [],
       hookEvents: [],
       hookEventNames: {},
       hookScripts: [],
+      sharedRuntimePaths: [],
+      cleanupRuntimePaths: [],
       hookScriptEvents: {},
       hookScriptPrefix: '',
       packageRunner: 'npx',

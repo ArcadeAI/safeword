@@ -11,7 +11,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "69b52c15d9e61305304844f264f6db99f6129700e614b2f1177840a0bee9e500"
+      "sha256": "1e0de5bea02611ad4716183a9930026f925d31a6f1ff254f15dcc99f55146867"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -22,8 +22,20 @@
       "sha256": "d03211425d967504004ec94b3d59abb84b5fbf9d5759cf049513a55e6f69e4ec"
     },
     {
+      "path": "resources/guides/context-files-guide.md",
+      "sha256": "33bafdccd942b223950651c5d1787ca55f96eaf1ff1b514edbd6185f15edd17c"
+    },
+    {
+      "path": "resources/guides/data-architecture-guide.md",
+      "sha256": "6fb55e20f2c32fb0608317dc31986a54d79390d310dbf7c126cc30079e7a8b09"
+    },
+    {
       "path": "resources/guides/design-doc-guide.md",
       "sha256": "351c1243b029b80178796c6ea96dba110a1eebd88691a094a660f7a38780055a"
+    },
+    {
+      "path": "resources/guides/learning-extraction.md",
+      "sha256": "b6608ece8abcd30fcb93a37db49aa82bba6ccf8dec4dc9df8f7ec7da5f89df0c"
     },
     {
       "path": "resources/guides/llm-evals-guide.md",
@@ -111,7 +123,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5976d9c401321401e585852155d84332a0f309f6eadd124105ac1edf3c65eca9"
+      "sha256": "e66479923a201fd3c42e515c0438f882c92e64eb5edeab418b8f6a8fd824e864"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -311,7 +323,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "9765e30919a1557c36468fb701e4f231f7ea2334133d6a04da7aef6a8daf0c7e"
+      "sha256": "fc5f667a9b40fded95fb9d256b5800adccbc89f189e8b6b7a24da141b74061ed"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -447,7 +459,7 @@
     },
     {
       "path": "runtime/hooks/session-codex-start.ts",
-      "sha256": "41c1b4eb83299f9849438db9328e8d977bd8d1aa71182fbe97464db5d92c5481"
+      "sha256": "16d41f71b90fa89501b6e0856b3da19e676159281f42b8f1a760341ff1feddb3"
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",
@@ -515,15 +527,15 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "239c02eafcc5167f4b35c4782c3dc611073ac31c18fd085af61ea3f848b8d572"
+      "sha256": "6378a3ed910ab471d2f8bbb9a2de30019db0b492b6b440665207c5d8b336a6ce"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "379cb1f3ba62bfdb98c1f5383d7f460ac730371a34030b8879ab999b6e548585"
+      "sha256": "1600df799059ea9d399f6a7bdd16c0f03be2cdd1f1f743595c350600a5d9ce5b"
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "007f378c9f87ad3aa8aa221945b910708e7a474547e06b153a8f08254d34d0da"
+      "sha256": "bfa958a56bee366b92a362c25798f24841b6615cbe7ecc72d455b9a31fca8a7d"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -588,6 +600,10 @@
     {
       "path": "skills/self-review/SKILL.md",
       "sha256": "cd5c7af968bd7194149bc9313070346a1c9a13133190398122a551c68caf65d8"
+    },
+    {
+      "path": "skills/spike/SKILL.md",
+      "sha256": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37"
     },
     {
       "path": "skills/tdd-review/SKILL.md",
