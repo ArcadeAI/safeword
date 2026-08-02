@@ -60,7 +60,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Host contracts keep spike behind explicit invocation
 
-- [ ] RED
+- [x] RED c67cb2386
 - [ ] GREEN
 - [ ] REFACTOR
 
