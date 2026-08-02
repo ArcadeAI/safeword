@@ -9,14 +9,18 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { generateClaudePluginAssets } from '../packages/cli/src/claude-plugin/catalogue.js';
+
 interface NativeClaudePluginWorld {
   generation?: { status: number; output: string };
+  validation?: { error?: Error; root: string };
   cacheFixture?: {
     root: string;
     plugin: string;
@@ -32,6 +36,9 @@ const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
 After(function (this: NativeClaudePluginWorld) {
   if (this.cacheFixture !== undefined) {
     rmSync(this.cacheFixture.root, { recursive: true, force: true });
+  }
+  if (this.validation !== undefined) {
+    rmSync(this.validation.root, { recursive: true, force: true });
   }
 });
 
@@ -156,6 +163,50 @@ Then(
     assert.equal(existsSync(nodePath.join(this.cacheFixture.plugin, '.safeword')), false);
   },
 );
+
+Given(
+  'a canonical workflow reference resolves through a project .safeword hook, guide, script, or template',
+  function (this: NativeClaudePluginWorld) {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-reference-'));
+    const sourceRoot = nodePath.join(root, 'src');
+    const templatesRoot = nodePath.join(root, 'templates');
+    const skillRoot = nodePath.join(templatesRoot, 'skills', 'probe');
+    mkdirSync(skillRoot, { recursive: true });
+    mkdirSync(sourceRoot, { recursive: true });
+    writeFileSync(
+      nodePath.join(skillRoot, 'SKILL.md'),
+      '---\nname: probe\ndescription: Probe invalid framework resolution.\n---\n\nRun `bun .safeword/hooks/probe.ts`.\n',
+    );
+    this.validation = { root };
+  },
+);
+
+When('the Claude plugin catalogue is validated', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.validation);
+  try {
+    generateClaudePluginAssets({
+      sourceRoot: nodePath.join(this.validation.root, 'src'),
+      templatesRoot: nodePath.join(this.validation.root, 'templates'),
+      version: '0.71.0-rc.0',
+    });
+  } catch (error) {
+    this.validation.error = error instanceof Error ? error : new Error(String(error));
+  }
+});
+
+Then(
+  'validation fails naming the project-relative dependency',
+  function (this: NativeClaudePluginWorld) {
+    assert.match(
+      this.validation?.error?.message ?? '',
+      /skills\/probe\/SKILL\.md.*\.safeword\/hooks\/probe\.ts/u,
+    );
+  },
+);
+
+Then('no plugin catalogue is published', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.validation?.error);
+});
 
 Given(
   'an authenticated Claude task has installed or updated Safeword and supports plugin reload',

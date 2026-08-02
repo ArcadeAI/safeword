@@ -111,7 +111,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       And execution proof is written beneath CLAUDE_PLUGIN_DATA
       And ticket, configuration, and runtime project state remain beneath the project root
 
-    @rejection @wip
+    @rejection
     Scenario: A generated plugin reference cannot depend on a materialized project framework copy
       Given a canonical workflow reference resolves through a project .safeword hook, guide, script, or template
       When the Claude plugin catalogue is validated
