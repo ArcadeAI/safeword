@@ -76,7 +76,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 3aa99b8e7
 - [x] GREEN 6de669e9f
-- [ ] REFACTOR
+- [x] REFACTOR skip: phase-specific assertions keep the order contract readable
 
 ### Scenario: Routine features proceed without a spike
 
