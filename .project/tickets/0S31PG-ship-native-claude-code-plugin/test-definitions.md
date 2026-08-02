@@ -73,7 +73,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 ### Scenario: A generated plugin reference cannot depend on a materialized project framework copy
 
 - [x] RED 8f914bce9
-- [ ] GREEN
+- [x] GREEN 1233abd8f
 - [ ] REFACTOR
 
 ## Rule: native-claude-plugin.TBU1.R4
@@ -101,8 +101,11 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 ### Scenario: The next prompt after live plugin reload proves the new plugin before prompt processing
 
 - [x] RED 906691fa7
-- [x] GREEN caaf3c8ed
-- [x] REFACTOR skip: one dispatcher now owns both launch and reload proof paths without duplication
+- [ ] GREEN
+- [ ] REFACTOR
+
+`caaf3c8ed` proved dispatcher wiring only; interactive `/reload-plugins` and the
+following real prompt remain explicit `@live` acceptance.
 
 ### Scenario: Refused live reload leaves legacy authority intact
 
@@ -150,7 +153,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Runtime identity mismatch writes no plugin proof
+### Scenario: Damaged plugin runtime writes no plugin proof
 
 - [ ] RED
 - [ ] GREEN
@@ -203,6 +206,9 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 - [x] RED cd1d3272f
 - [x] GREEN ad8b306e0
 - [x] REFACTOR 28b21363a
+
+Catalogue completeness and real-manifest runtime integrity were strengthened in
+`1233abd8f` after quality review.
 
 ### Scenario: Generation fails on a missing transitive runtime dependency
 
