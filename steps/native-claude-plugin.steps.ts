@@ -161,6 +161,48 @@ When('a Safeword plugin hook executes', function (this: NativeClaudePluginWorld)
   };
 });
 
+When('its generated SessionStart entrypoint executes', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.cacheFixture);
+  const manifest = JSON.parse(
+    readFileSync(nodePath.join(this.cacheFixture.plugin, 'hooks', 'hooks.json'), 'utf8'),
+  ) as { hooks?: { SessionStart?: { hooks?: { command?: string }[] }[] } };
+  const command = manifest.hooks?.SessionStart?.[0]?.hooks?.[0]?.command;
+  assert.ok(command, 'generated SessionStart hook command is missing');
+  const result = spawnSync('bash', ['-lc', command], {
+    cwd: REPO_ROOT,
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_DATA: this.cacheFixture.data,
+      CLAUDE_PLUGIN_ROOT: this.cacheFixture.plugin,
+      CLAUDE_PROJECT_DIR: REPO_ROOT,
+    },
+    encoding: 'utf8',
+    input: `${JSON.stringify({
+      hook_event_name: 'SessionStart',
+      source: 'startup',
+      session_id: 'aggregate-response-test',
+      cwd: this.cacheFixture.project,
+    })}\n`,
+  });
+  this.cacheFixture.result = {
+    status: result.status ?? 1,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
+});
+
+Then(
+  'Claude receives one valid SessionStart response containing every sibling context',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    const response = JSON.parse(this.cacheFixture?.result?.output ?? '') as {
+      hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
+    };
+    assert.equal(response.hookSpecificOutput?.hookEventName, 'SessionStart');
+    assert.match(response.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD\.md/u);
+    assert.match(response.hookSpecificOutput?.additionalContext ?? '', /SAFE WORD Claude Config/u);
+  },
+);
+
 Then(
   'every framework import resolves beneath CLAUDE_PLUGIN_ROOT',
   function (this: NativeClaudePluginWorld) {
@@ -524,7 +566,7 @@ When(
       'bun',
       [nodePath.join(this.cacheFixture.plugin, 'runtime', 'dispatch.ts'), 'UserPromptSubmit'],
       {
-        cwd: this.cacheFixture.project,
+        cwd: REPO_ROOT,
         env: {
           ...process.env,
           CLAUDE_PLUGIN_DATA: this.cacheFixture.data,

@@ -112,6 +112,11 @@ Feature: Ship Safeword as a native Claude Code plugin
       And execution proof is written beneath CLAUDE_PLUGIN_DATA
       And ticket, configuration, and runtime project state remain beneath the project root
 
+    Scenario: An aggregate event returns one valid host response
+      Given the installed plugin cache is available without its source checkout or package registry
+      When its generated SessionStart entrypoint executes
+      Then Claude receives one valid SessionStart response containing every sibling context
+
     @rejection
     Scenario: A failed sibling hook prevents event-level plugin proof
       Given an intact cached UserPromptSubmit event whose final sibling hook fails
