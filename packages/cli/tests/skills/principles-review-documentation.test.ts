@@ -20,7 +20,23 @@ const AUDIT_SURFACES = [
   'packages/cli/codex-plugin/skills/audit/SKILL.md',
 ];
 
+const REVIEW_STAGE_SOURCES = [
+  'packages/cli/templates/skills/self-review/SKILL.md',
+  'packages/cli/templates/skills/review-spec/SKILL.md',
+  'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md',
+  'packages/cli/templates/skills/quality-review/SKILL.md',
+];
+
 describe('principles in independent review', () => {
+  it.each(REVIEW_STAGE_SOURCES)('%s resolves current project knowledge at review time', path => {
+    const content = read(path);
+
+    expect(content).toContain('.safeword/hooks/resolve-project-knowledge.ts');
+    expect(content).toMatch(/principles/i);
+    expect(content).toMatch(/personas/i);
+    expect(content).toMatch(/surfaces/i);
+  });
+
   it.each(QUALITY_REVIEW_SURFACES)(
     '%s reconciles declared principles against shipped proof',
     path => {
