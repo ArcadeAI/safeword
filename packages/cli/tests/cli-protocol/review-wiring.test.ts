@@ -105,6 +105,7 @@ describe('cross-agent review public-command wiring', () => {
           assigned_reviewer: reviewer,
           actual_reviewer: reviewer,
           assigned_model: model,
+          actual_model: model,
           independence: 'cross-agent',
           reviewer_output: {
             dispatch_id: expect.stringMatching(/^[0-9a-f-]{36}$/u),
@@ -508,6 +509,8 @@ describe('cross-agent review public-command wiring', () => {
         author_agent: 'claude',
         assigned_reviewer: 'codex',
         actual_reviewer: 'claude',
+        assigned_model: 'codex-default',
+        actual_model: 'claude-default',
         preferred_failure: 'process_failed',
         independence: 'degraded',
       },
