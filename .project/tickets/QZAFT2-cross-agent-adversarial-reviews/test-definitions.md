@@ -70,7 +70,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario: A degraded fallback cannot satisfy hard cross-agent enforcement
 
-- [ ] RED
+- [x] RED f70dc8a4f
 - [ ] GREEN
 - [ ] REFACTOR
 
