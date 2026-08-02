@@ -156,7 +156,7 @@ required `Scenario:` heading grammar.
 
 - [x] RED 7b60686d2
 - [x] GREEN 33066145e
-- [ ] REFACTOR
+- [x] REFACTOR skip: production catalogues already centralize host generation
 
 ### Scenario: Synchronized closeout artifacts pass host parity
 
