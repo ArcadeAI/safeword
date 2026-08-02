@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 4280854f8
 - [x] GREEN cc6786238
-- [ ] REFACTOR
+- [x] REFACTOR skip: one guard clause expresses the whole rejection boundary
 
 ### Scenario Outline: Non-executable uncertainty is routed without a spike
 
