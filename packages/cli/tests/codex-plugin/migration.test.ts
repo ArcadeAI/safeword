@@ -90,6 +90,21 @@ describe('Codex migration result', () => {
     });
   });
 
+  it('does not report pending same-host proof as active plugin protection', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        plugin: enabledPlugin,
+        proof: { ...currentProof, activation_id: 'activation-rc2' },
+        activationPending: true,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'plugin_installed_app_restart_required',
+      protected: 'unprotected',
+    });
+  });
+
   it('falls back to manifest-bound proof when an older Codex omits plugin version metadata', () => {
     const result = deriveCodexMigrationResult(
       facts({

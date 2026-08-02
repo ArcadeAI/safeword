@@ -56,6 +56,7 @@ export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation)
 
 function pluginProtectionIsCurrent(facts: CodexMigrationFacts): boolean {
   return (
+    !facts.activationPending &&
     facts.plugin.enabled === true &&
     codexPluginVersionMatchesPackage(facts.plugin) &&
     facts.proof.status === 'current' &&
