@@ -1,0 +1,84 @@
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { createTemporaryDirectory, runCli } from '../helpers.js';
+
+type ReviewAgent = 'claude' | 'codex';
+
+function installFakeReviewer(directory: string, agent: ReviewAgent, log: string): string {
+  const bin = nodePath.join(directory, 'bin');
+  mkdirSync(bin, { recursive: true });
+  const executable = nodePath.join(bin, agent);
+  writeFileSync(
+    executable,
+    String.raw`#!/bin/sh
+set -eu
+if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
+  printf '${agent} 1.0.0\n'
+  exit 0
+fi
+payload=$(cat)
+printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
+dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
+`,
+    { mode: 0o755 },
+  );
+  chmodSync(executable, 0o755);
+  return bin;
+}
+
+describe('cross-agent review public-command wiring', () => {
+  it.each([
+    { author: 'claude', reviewer: 'codex' },
+    { author: 'codex', reviewer: 'claude' },
+  ] as const)(
+    'routes $author-authored work to headless $reviewer',
+    async ({ author, reviewer }) => {
+      const directory = createTemporaryDirectory();
+      const target = nodePath.join(directory, 'review-input.md');
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(target, 'bounded review input\n');
+      const bin = installFakeReviewer(directory, reviewer, log);
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            SAFEWORD_AGENT_RUNTIME: author,
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'healthy',
+        data: {
+          command: 'review run',
+          status: 'approved',
+          author_agent: author,
+          assigned_reviewer: reviewer,
+          actual_reviewer: reviewer,
+          independence: 'cross-agent',
+        },
+      });
+      expect(readFileSync(log, 'utf8')).toBe(`${reviewer}\n`);
+    },
+  );
+});
