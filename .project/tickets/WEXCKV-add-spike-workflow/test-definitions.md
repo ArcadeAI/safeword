@@ -88,6 +88,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN c3b18bed9
 - [x] REFACTOR skip: host-specific assertions make the soft and hard boundaries explicit
 
+### Scenario: Spike proof commands retain normal permission prompts
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: spike-workflow.TBU1.R2 — BDD offers a spike only at the planning seam
 
 ### Scenario: Build-only kill risk is surfaced at the planning seam

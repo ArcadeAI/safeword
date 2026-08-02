@@ -133,6 +133,11 @@ Feature: Resolve build-only uncertainty with a spike
       And the generated Codex description and body instruct the agent to run spike only after an explicit user request
       And Cursor exposes spike as a command without an automatic rule
 
+    Scenario: Spike proof commands retain normal permission prompts
+      Given the canonical spike action
+      When Claude Code evaluates proof-command permissions
+      Then the action does not blanket-preapprove tools
+
   @spike-workflow.TBU1.R2
   Rule: spike-workflow.TBU1.R2 — BDD offers a spike only at the planning seam
 

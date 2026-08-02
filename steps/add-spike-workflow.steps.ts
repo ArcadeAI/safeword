@@ -562,6 +562,18 @@ Then(
   },
 );
 
+Given('the canonical spike action', function (this: SpikeWorkflowWorld) {
+  this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+});
+
+When('Claude Code evaluates proof-command permissions', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.spikeSkill);
+});
+
+Then('the action does not blanket-preapprove tools', function (this: SpikeWorkflowWorld) {
+  assert.doesNotMatch(this.spikeSkill ?? '', /^allowed-tools:/m);
+});
+
 Given('scenario validation has completed', function (this: SpikeWorkflowWorld) {
   this.bddScenariosGuidance = readFileSync(
     nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/bdd/SCENARIOS.md'),
