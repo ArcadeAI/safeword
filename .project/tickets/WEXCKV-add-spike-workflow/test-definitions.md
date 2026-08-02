@@ -26,7 +26,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Spike execution stays question-sized
 
-- [ ] RED
+- [x] RED 8be3791d8
 - [ ] GREEN
 - [ ] REFACTOR
 
