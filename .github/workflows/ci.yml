@@ -160,6 +160,14 @@ jobs:
             exit 1
           }
 
+      - name: Claude plugin catalogue freshness
+        run: |
+          bun run --cwd packages/cli generate:claude-plugin
+          git diff --exit-code -- plugin || {
+            echo "::error::Generated Claude plugin drifted from canonical sources. Run 'bun run --cwd packages/cli generate:claude-plugin' and commit plugin/."
+            exit 1
+          }
+
       - name: Lint
         run: bun run lint
 

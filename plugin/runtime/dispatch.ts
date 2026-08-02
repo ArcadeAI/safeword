@@ -46,6 +46,13 @@ interface EventGroupsV1 {
   readonly groups: Readonly<Record<string, readonly EventGroupEntryV1[]>>;
 }
 
+type HookResponse = Record<string, unknown>;
+
+interface FunctionalCommandResult {
+  readonly status: number;
+  readonly stdout: string;
+}
+
 function requiredEnvironment(name: 'CLAUDE_PLUGIN_DATA' | 'CLAUDE_PLUGIN_ROOT'): string {
   const value = process.env[name];
   if (value === undefined || value === '') throw new Error(`${name} is required.`);
@@ -197,15 +204,23 @@ function recordCacheSmoke(
   });
 }
 
-function runFunctionalCommand(arguments_: string[], input: Buffer): number {
-  if (arguments_.length === 0) return 0;
+function runFunctionalCommand(
+  arguments_: string[],
+  input: Buffer,
+  captureOutput = false,
+): FunctionalCommandResult {
+  if (arguments_.length === 0) return { status: 0, stdout: '' };
   const [executable, ...parameters] = arguments_;
-  if (executable === undefined) return 0;
+  if (executable === undefined) return { status: 0, stdout: '' };
   const result = spawnSync(executable, parameters, {
     input,
-    stdio: ['pipe', 'inherit', 'inherit'],
+    maxBuffer: 10 * 1024 * 1024,
+    stdio: ['pipe', captureOutput ? 'pipe' : 'inherit', 'inherit'],
   });
-  return result.status ?? 1;
+  return {
+    status: result.status ?? 1,
+    stdout: captureOutput ? (result.stdout?.toString('utf8') ?? '') : '',
+  };
 }
 
 function eventEntryMatches(entry: EventGroupEntryV1, input: HookInput): boolean {
@@ -227,17 +242,127 @@ function readEventEntries(event: string, pluginRoot: string): readonly EventGrou
   return entries;
 }
 
+function appendUniqueText(current: unknown, next: string): string {
+  if (typeof current !== 'string' || current === '') return next;
+  if (current === next || current.split('\n').includes(next)) return current;
+  return `${current}\n${next}`;
+}
+
+function mergeBooleanResponse(
+  target: HookResponse,
+  key: string,
+  current: unknown,
+  value: unknown,
+): boolean {
+  if (typeof current !== 'boolean' || typeof value !== 'boolean') return false;
+  if (key === 'continue') target[key] = current && value;
+  else if (key === 'suppressOutput') target[key] = current || value;
+  else return false;
+  return true;
+}
+
+function mergeTextResponse(
+  target: HookResponse,
+  key: string,
+  current: unknown,
+  value: unknown,
+): boolean {
+  if (
+    !['reason', 'stopReason', 'systemMessage'].includes(key) ||
+    typeof current !== 'string' ||
+    typeof value !== 'string'
+  ) {
+    return false;
+  }
+  target[key] = appendUniqueText(current, value);
+  return true;
+}
+
+function mergeScalarResponse(target: HookResponse, key: string, value: unknown): void {
+  const current = target[key];
+  if (current === undefined || JSON.stringify(current) === JSON.stringify(value)) {
+    target[key] = value;
+    return;
+  }
+  if (mergeBooleanResponse(target, key, current, value)) return;
+  if (mergeTextResponse(target, key, current, value)) return;
+  if (key === 'decision' && (current === 'block' || value === 'block')) {
+    target[key] = 'block';
+    return;
+  }
+  throw new Error(`Safeword Claude plugin sibling hooks returned conflicting ${key} values.`);
+}
+
+function specificOutput(target: HookResponse, event: string): HookResponse {
+  const current = target.hookSpecificOutput;
+  if (current !== undefined) return current as HookResponse;
+  const created = { hookEventName: event };
+  target.hookSpecificOutput = created;
+  return created;
+}
+
+function parseHookOutput(
+  event: string,
+  target: HookResponse,
+  trimmed: string,
+): HookResponse | undefined {
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new TypeError('Hook JSON response must be an object.');
+    }
+    return parsed as HookResponse;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    const output = specificOutput(target, event);
+    output.additionalContext = appendUniqueText(output.additionalContext, trimmed);
+    return undefined;
+  }
+}
+
+function mergeSpecificOutput(event: string, target: HookResponse, value: unknown): void {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new TypeError('Safeword Claude plugin hookSpecificOutput must be an object.');
+  }
+  const source = value as HookResponse;
+  if (source.hookEventName !== event) {
+    throw new Error(`Safeword Claude plugin sibling returned the wrong hook event for ${event}.`);
+  }
+  const destination = specificOutput(target, event);
+  for (const [key, next] of Object.entries(source)) {
+    if (key === 'hookEventName') continue;
+    if (key === 'additionalContext' && typeof next === 'string') {
+      destination.additionalContext = appendUniqueText(destination.additionalContext, next);
+    } else {
+      mergeScalarResponse(destination, key, next);
+    }
+  }
+}
+
+function mergeHookOutput(event: string, target: HookResponse, output: string): void {
+  const trimmed = output.trim();
+  if (trimmed === '') return;
+  const response = parseHookOutput(event, target, trimmed);
+  if (response === undefined) return;
+  for (const [key, value] of Object.entries(response)) {
+    if (key === 'hookSpecificOutput') mergeSpecificOutput(event, target, value);
+    else mergeScalarResponse(target, key, value);
+  }
+}
+
 function runEventHooks(
   event: string,
   hooks: readonly { readonly type?: string; readonly command?: string }[],
   standardInput: Buffer,
+  response: HookResponse,
 ): number {
   for (const hook of hooks) {
     if (hook.type !== 'command' || typeof hook.command !== 'string') {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
-    const status = runFunctionalCommand(['bash', '-lc', hook.command], standardInput);
-    if (status !== 0) return status;
+    const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
+    if (result.status !== 0) return result.status;
+    mergeHookOutput(event, response, result.stdout);
   }
   return 0;
 }
@@ -247,15 +372,19 @@ function runEventGroup(
   pluginRoot: string,
   hookInput: HookInput,
   standardInput: Buffer,
-): number {
+): FunctionalCommandResult {
   const entries = readEventEntries(event, pluginRoot);
+  const response: HookResponse = {};
   for (const entry of entries) {
     if (!eventEntryMatches(entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
-    const status = runEventHooks(event, hooks, standardInput);
-    if (status !== 0) return status;
+    const status = runEventHooks(event, hooks, standardInput, response);
+    if (status !== 0) return { status, stdout: '' };
   }
-  return 0;
+  return {
+    status: 0,
+    stdout: Object.keys(response).length === 0 ? '' : `${JSON.stringify(response)}\n`,
+  };
 }
 
 function main(): number {
@@ -276,15 +405,16 @@ function main(): number {
   const identity = readIdentity(pluginRoot);
   verifyManifest(pluginRoot, identity);
   verifyInventory(pluginRoot, identity);
-  const status =
+  const execution =
     mode === '--event-group'
       ? runEventGroup(event, pluginRoot, hookInput, standardInput)
       : runFunctionalCommand(command, standardInput);
-  if (status === 0) {
+  if (execution.status === 0) {
+    if (execution.stdout !== '') process.stdout.write(execution.stdout);
     recordExecutionProof(event, pluginRoot, identity, hookInput);
     recordCacheSmoke(event, pluginRoot, identity, hookInput);
   }
-  return status;
+  return execution.status;
 }
 
 process.exitCode = main();
