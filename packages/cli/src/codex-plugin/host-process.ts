@@ -94,7 +94,7 @@ export function codexHostsFromProcessTable(
   return { available: true, running, current: null };
 }
 
-function observeProcessTable(): CodexHostProcessObservation {
+export function observeCodexHostProcesses(): CodexHostProcessObservation {
   if (process.platform === 'win32') {
     const result = spawnSync(
       'powershell.exe',
@@ -113,12 +113,12 @@ function observeProcessTable(): CodexHostProcessObservation {
 }
 
 export function observeRunningCodexHosts(): CodexHostProcessIdentity[] | null {
-  const observation = observeProcessTable();
+  const observation = observeCodexHostProcesses();
   return observation.available ? observation.running : null;
 }
 
 export function observeCurrentCodexHost(): CodexHostProcessIdentity | null {
-  return observeProcessTable().current;
+  return observeCodexHostProcesses().current;
 }
 
 export function sameCodexHost(

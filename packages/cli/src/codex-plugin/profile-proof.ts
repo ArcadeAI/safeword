@@ -9,7 +9,8 @@ import { SAFEWORD_SCHEMA } from '../schema.js';
 import { writeDurableFile } from './durable-write.js';
 import {
   type CodexHostProcessIdentity,
-  observeCurrentCodexHost,
+  type CodexHostProcessObservation,
+  observeCodexHostProcesses,
   observeRunningCodexHosts,
   sameCodexHost,
 } from './host-process.js';
@@ -180,6 +181,16 @@ export function writeCodexActivationMarker(
   return marker;
 }
 
+function hostObservationForOverride(
+  current: CodexHostProcessIdentity | null = null,
+): CodexHostProcessObservation {
+  return {
+    available: true,
+    current,
+    running: current === null ? [] : [current],
+  };
+}
+
 // eslint-disable-next-line complexity -- activation transition validates independent durable host and time evidence
 export function recordCodexHookProof(
   event: CodexPluginHookEvent,
@@ -188,21 +199,27 @@ export function recordCodexHookProof(
   writeOptions: {
     beforeRename?: () => void;
     currentHost?: CodexHostProcessIdentity | null;
+    hostObservation?: CodexHostProcessObservation;
   } = {},
 ): CodexHookProofV2 {
   const identity = currentCodexPluginIdentity();
   const marker = readActivationMarkerV2(environment, identity);
   let receipt = readActivationReceipt(environment, identity);
   if (event === 'session-start' && marker !== null) {
-    const currentHost =
-      'currentHost' in writeOptions
-        ? (writeOptions.currentHost ?? null)
-        : observeCurrentCodexHost();
+    const hostObservation =
+      writeOptions.hostObservation ??
+      ('currentHost' in writeOptions
+        ? hostObservationForOverride(writeOptions.currentHost)
+        : observeCodexHostProcesses());
+    const currentHost = hostObservation.current;
     if (
+      hostObservation.available &&
       currentHost !== null &&
       marker.host_observation === 'observed' &&
       now.getTime() >= Date.parse(marker.installed_at) &&
-      marker.active_hosts.every(host => !sameCodexHost(host, currentHost))
+      marker.active_hosts.every(installedHost =>
+        hostObservation.running.every(runningHost => !sameCodexHost(installedHost, runningHost)),
+      )
     ) {
       receipt = {
         schema_version: 1,

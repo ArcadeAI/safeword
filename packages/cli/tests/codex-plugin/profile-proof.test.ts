@@ -25,6 +25,10 @@ const RESTARTED_HOST: CodexHostProcessIdentity = {
   pid: 200,
   started_at: '2026-08-02T09:00:00.000Z',
 };
+const OTHER_OLD_HOST: CodexHostProcessIdentity = {
+  pid: 300,
+  started_at: '2026-08-02T08:15:00.000Z',
+};
 
 describe('Codex profile hook proof', () => {
   const directories: string[] = [];
@@ -142,6 +146,25 @@ describe('Codex profile hook proof', () => {
 
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
     expect(observeCodexHookProof(environment).status).toBe('partial');
+  });
+
+  it('does not activate while another install-time Codex app-server is still running', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-rc2',
+      activeHosts: [OLD_HOST, OTHER_OLD_HOST],
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      hostObservation: {
+        available: true,
+        current: RESTARTED_HOST,
+        running: [OTHER_OLD_HOST, RESTARTED_HOST],
+      },
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(false);
   });
 
   it('does not clear activation when the install-time host observation was unavailable', () => {
