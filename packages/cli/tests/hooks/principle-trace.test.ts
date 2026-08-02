@@ -68,6 +68,27 @@ describe('checkPrincipleTrace', () => {
     );
   });
 
+  it('rejects a directory because it is not an evidence artifact', () => {
+    const directory = project();
+    mkdirSync(nodePath.join(directory, 'evidence-directory'));
+    const plan = PLAN.replace('verify.md', 'evidence-directory');
+
+    expect(checkPrincipleTrace(directory, plan)).toContain(
+      '[E010] Broken principle trace: dead evidence reference: Delight the user',
+    );
+  });
+
+  it('rejects conflict values outside the plan grammar', () => {
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      '| Delight the user | Recovery stays in context | verify.md | conflict |',
+    );
+
+    expect(checkPrincipleTrace(project(), plan)).toContain(
+      '[E010] Broken principle trace: unsupported conflict marker: Delight the user',
+    );
+  });
+
   it('does not treat supporting sections as source principles', () => {
     const directory = project();
     writeFileSync(

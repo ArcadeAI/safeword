@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { sectionBody } from './impl-plan.ts';
@@ -95,7 +95,7 @@ function proofResolves(projectDirectory: string, proof: string): boolean {
   const resolved = nodePath.isAbsolute(target.path)
     ? target.path
     : nodePath.join(projectDirectory, target.path);
-  if (!existsSync(resolved)) return false;
+  if (!existsSync(resolved) || !statSync(resolved).isFile()) return false;
   if (target.fragment === undefined || target.fragment === '') return true;
   if (!/\.mdx?$/iu.test(resolved)) return false;
 
@@ -127,8 +127,11 @@ export function checkPrincipleTrace(projectDirectory: string, implPlan: string):
     } else if (!proofResolves(projectDirectory, trace.proof)) {
       findings.push(finding('dead evidence reference', trace.principle));
     }
-    if (
-      trace.conflict.toLowerCase() === 'explicit-conflict' &&
+    const conflict = trace.conflict.toLowerCase();
+    if (conflict !== '' && conflict !== 'explicit-conflict') {
+      findings.push(finding('unsupported conflict marker', trace.principle));
+    } else if (
+      conflict === 'explicit-conflict' &&
       !deviations.includes(trace.principle.toLowerCase())
     ) {
       findings.push(finding('unrecorded conflict', trace.principle));
