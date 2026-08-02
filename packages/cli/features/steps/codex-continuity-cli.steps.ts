@@ -370,17 +370,17 @@ function writePendingMarker(
   return path;
 }
 
-function recordEventProof(
+function recordEventProofForHost(
   world: ContinuityCliWorld,
   event: CodexPluginHookEvent,
-  currentHost?: CodexHostProcessIdentity,
+  currentHost: CodexHostProcessIdentity,
 ): void {
-  if (currentHost !== undefined) {
-    recordCodexHookProof(event, world.continuityEnvironment, new Date('2026-08-02T09:01:00.000Z'), {
-      currentHost,
-    });
-    return;
-  }
+  recordCodexHookProof(event, world.continuityEnvironment, new Date('2026-08-02T09:01:00.000Z'), {
+    currentHost,
+  });
+}
+
+function recordEventProofThroughCli(world: ContinuityCliWorld, event: CodexPluginHookEvent): void {
   const result = run(world, ['hook', 'codex', event, '--plugin-hook'], {}, '{}\n');
   assert.equal(result.exitCode, 0, `${result.stdout}\n${result.stderr}`);
 }
@@ -393,7 +393,7 @@ function recordCurrentProof(world: ContinuityCliWorld): void {
     'user-prompt-submit',
     'stop',
   ] as const) {
-    recordEventProof(world, event);
+    recordEventProofThroughCli(world, event);
   }
 }
 
@@ -616,12 +616,12 @@ Given(
 When(
   'Codex invokes the marked profile-plugin SessionStart dispatcher',
   function (this: ContinuityCliWorld) {
-    recordEventProof(this, 'session-start');
+    recordEventProofThroughCli(this, 'session-start');
   },
 );
 
 When('Codex invokes it with the plugin-hook marker', function (this: ContinuityCliWorld) {
-  recordEventProof(this, 'session-start');
+  recordEventProofThroughCli(this, 'session-start');
 });
 
 Then(
@@ -1495,7 +1495,7 @@ Given(
 When(
   'a new task in the same Codex app invokes the installed profile-plugin SessionStart dispatcher',
   function (this: ContinuityCliWorld) {
-    recordEventProof(this, 'session-start', INSTALLING_HOST);
+    recordEventProofForHost(this, 'session-start', INSTALLING_HOST);
   },
 );
 
@@ -1511,7 +1511,7 @@ Then(
 When(
   'a restarted Codex app invokes the installed profile-plugin SessionStart dispatcher',
   function (this: ContinuityCliWorld) {
-    recordEventProof(this, 'session-start', RESTARTED_HOST);
+    recordEventProofForHost(this, 'session-start', RESTARTED_HOST);
   },
 );
 
@@ -1543,7 +1543,7 @@ Given(
 );
 
 When('a later Codex task starts', function (this: ContinuityCliWorld) {
-  recordEventProof(this, 'session-start');
+  recordEventProofThroughCli(this, 'session-start');
 });
 
 Then(
@@ -1566,7 +1566,7 @@ Given(
   'current SessionStart proof for the installed plugin identity and a valid v0.70 restart-pending marker',
   function (this: ContinuityCliWorld) {
     initialize(this, { pluginState: 'enabled' });
-    recordEventProof(this, 'session-start');
+    recordEventProofThroughCli(this, 'session-start');
     writePendingMarker(this, { legacy: true });
   },
 );
