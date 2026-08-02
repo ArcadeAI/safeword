@@ -27,6 +27,7 @@ temporary directories.
 | Planning consumes the handoff | BDD planning guidance with absent-plan fixture | planning creates `impl-plan.md`, then maps every handoff value to a named plan destination | `steps/add-spike-workflow.steps.ts` |
 | Dirty base is rejected | Real temporary git repository with uncommitted scenario and ticket-state partitions | no base, branch, or worktree is created until every validated change is included in a commit | `steps/add-spike-workflow.steps.ts` |
 | Committed base is shared | Real temporary git repository with sentinel scenario and ticket values committed together | `PRE_SPIKE_BASE` equals that commit and the spike worktree contains both exact values | `steps/add-spike-workflow.steps.ts` |
+| Reviewed plan reaches production | Real temporary git repository with spike and fresh production worktrees | production starts from a committed, reviewed plan and ticket update in the production worktree while spike commits remain outside its ancestry | `steps/add-spike-workflow.steps.ts` |
 | Experimental code stays disposable | Real temporary git repository, spike branch, and worktrees | production branch starts at pre-spike base, has no spike commits, spike remains unmerged | `steps/add-spike-workflow.steps.ts` |
 | Project-host distribution | Real setup in a temporary project | installed Claude/Cursor actions share charter, isolation, and distillation clauses | `steps/add-spike-workflow.steps.ts`; schema/parity Vitest |
 | Codex distribution | Real catalogue generator against a temporary output root | generated Codex action carries canonical charter, isolation, and distillation clauses | `steps/add-spike-workflow.steps.ts`; generator/parity Vitest |
@@ -42,7 +43,9 @@ Build order:
 2. Make the charter, incomplete-charter, routing, and question-sized scenarios
    executable, then complete the skill's eligibility and bounding contract.
 3. Make the outcome-distillation and disposable-code scenarios executable,
-   then complete the skill's result report and branch/worktree lifecycle.
+   then complete the skill's result report and branch/worktree lifecycle. Open
+   the fresh production worktree from the shared base, commit and review the
+   distilled plan there, then begin production coding in that same worktree.
 4. Make the planning-seam, pre-validation, and routine-feature scenarios
    executable, then add the optional checkpoint to BDD scenario-gate and make
    implementation planning consume spike evidence without adding a phase.
@@ -65,11 +68,11 @@ Surface proof:
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
-| Workflow shape | Claude uses `disable-model-invocation: true`; Cursor ships `/spike` as a command and no spike rule; Codex receives an explicit-invocation guard in generated guidance [1] | Automatic skill/rule; canonical BDD phase; new enforcement hook | A spike spends an explicit experiment budget; Codex has no equivalent preserved metadata, and a new hook would add disproportionate machinery to an optional checkpoint. |
+| Workflow shape | Claude uses `disable-model-invocation: true` without blanket tool preapproval; Cursor ships `/spike` as a command and no spike rule; Codex receives an explicit-invocation guard in generated guidance [1] | Automatic skill/rule; canonical BDD phase; new enforcement hook; `allowed-tools: '*'` | A spike spends an explicit experiment budget; Codex has no equivalent preserved metadata, a new hook would add disproportionate machinery, and arbitrary proof commands should retain normal permission prompts. |
 | Placement | Offer after scenario validation and before `plan-implementation`; do not invoke automatically [2] | Intake; define-behavior; inside implementation | Earlier phases have not fixed behavior; implementation is too late for evidence meant to shape its plan. |
 | Delivery | Canonical template plus schema-owned Cursor command and generated profile-scoped Codex plugin [3] | Project-local Codex setup artifact; hand-maintained per-host copies | Codex delivery is profile-scoped, while existing generators and parity contracts prevent content drift. |
-| Evidence lifecycle | Return a structured handoff; after `plan-implementation` creates `impl-plan.md`, immediately map every value into its documented destination. Significant choices may become ADRs. | Permanent spike-specific plan/decision artifacts | Existing planning and ADR lanes already own durable production decisions; another artifact kind would duplicate them. |
-| Code lifecycle | Require committed validated scenario and ticket state, create the isolated branch/worktree from that exact base, retain it unmerged until evidence is distilled, and start production from the same pre-spike base | Merge, cherry-pick, or copy spike code; use a dirty `HEAD` as the base | The experiment optimizes for learning speed, not production quality, and both spike and production must see the exact validated state. |
+| Evidence lifecycle | Return a structured handoff; create a fresh production worktree from `PRE_SPIKE_BASE`, create and commit `impl-plan.md` plus ticket state there, review the plan, then begin production coding in that same worktree. Significant choices may become ADRs. | Permanent spike-specific plan/decision artifacts; create the plan outside the production worktree | Existing planning and ADR lanes already own durable production decisions, and one real branch must carry the reviewed plan into implementation without importing experiment history. |
+| Code lifecycle | Require committed validated scenario and ticket state, create the isolated spike and production worktrees from that exact base, retain spike unmerged, and add only reviewed planning commits to production before coding | Merge, cherry-pick, or copy spike code; use a dirty `HEAD` as the base; recreate production after plan review | The experiment optimizes for learning speed, not production quality, while the production branch must contain both the validated base and its reviewed implementation plan. |
 
 [1]: `.project/guides/skill-authoring-guide.md` action-skill contract.
 [2]: `packages/cli/templates/skills/bdd/SCENARIOS.md` and
