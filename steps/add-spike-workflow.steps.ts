@@ -265,6 +265,55 @@ Then(
   },
 );
 
+Given(
+  "the spike action is available through each host's supported delivery surface",
+  function (this: SpikeWorkflowWorld) {
+    for (const path of [
+      '.claude/skills/spike/SKILL.md',
+      '.cursor/commands/spike.md',
+      'packages/cli/codex-plugin/skills/spike/SKILL.md',
+    ]) {
+      assert.equal(existsSync(nodePath.join(REPO_ROOT, path)), true, path);
+    }
+  },
+);
+
+When(
+  'each host evaluates workflows eligible for automatic selection',
+  function (this: SpikeWorkflowWorld) {
+    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+    this.codexSpikeSkill = readFileSync(
+      nodePath.join(REPO_ROOT, 'packages/cli/codex-plugin/skills/spike/SKILL.md'),
+      'utf8',
+    );
+  },
+);
+
+Then(
+  'Claude Code excludes spike through manual-only skill metadata',
+  function (this: SpikeWorkflowWorld) {
+    assert.match(this.spikeSkill ?? '', /disable-model-invocation: true/);
+  },
+);
+
+Then(
+  'the generated Codex description and body instruct the agent to run spike only after an explicit user request',
+  function (this: SpikeWorkflowWorld) {
+    const codex = this.codexSpikeSkill ?? '';
+    const body = codex.replace(/^---[\s\S]*?---\s*/u, '');
+    assert.match(codex, /description:[\s\S]*only when explicitly\s+invoked/i);
+    assert.match(body, /only after an explicit user request/i);
+  },
+);
+
+Then(
+  'Cursor exposes spike as a command without an automatic rule',
+  function (this: SpikeWorkflowWorld) {
+    assert.equal(existsSync(nodePath.join(REPO_ROOT, '.cursor/commands/spike.md')), true);
+    assert.equal(existsSync(nodePath.join(REPO_ROOT, '.cursor/rules/safeword-spike.mdc')), false);
+  },
+);
+
 Given('a project without Claude or Cursor spike artifacts', function (this: SpikeWorkflowWorld) {
   this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-'));
   writeFileSync(
