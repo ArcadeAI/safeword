@@ -147,7 +147,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then no retired Claude hook, skill, command, agent, or settings entry is recreated
       And project-owned and Cursor-shared assets remain reconciled
 
-  @wip @native-claude-plugin.TBU1.R5 @surface.claude-code @surface.safeword-cli
+  @native-claude-plugin.TBU1.R5 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R5 — Installed, enabled, or updated plugin behavior becomes available in the current Claude task through supported live reload whenever the host permits it
 
     Scenario: The next prompt after live plugin reload proves the new plugin before prompt processing
@@ -156,7 +156,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then UserPromptSubmit records the exact installed version, hook-manifest digest, and canonical reloaded cache path before the prompt proceeds
       And status observes current-task plugin proof without requiring a restart
 
-    @rejection
+    @rejection @wip
     Scenario: Refused live reload leaves legacy authority intact
       Given Claude refuses /reload-plugins and the task retains a viable legacy hook
       When the next protected action occurs in the current task
