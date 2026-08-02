@@ -75,7 +75,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: BDD does not offer a spike before behavior is validated
 
 - [x] RED 3aa99b8e7
-- [ ] GREEN
+- [x] GREEN 6de669e9f
 - [ ] REFACTOR
 
 ### Scenario: Routine features proceed without a spike
