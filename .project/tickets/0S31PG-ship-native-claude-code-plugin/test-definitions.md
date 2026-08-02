@@ -128,7 +128,7 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 ### Scenario: The next prompt after live plugin reload proves the new plugin before prompt processing
 
 - [x] RED 906691fa7
-- [x] GREEN cd66cc7ac + live session 5d6daf03-bc80-4c7c-99b8-eb03c1c6c04b
+- [x] GREEN cd66cc7ac
 - [x] REFACTOR skip: live host acceptance exercised the shipped dispatcher without code changes
 
 Claude Code 2.1.170 started without Safeword, then installed the generated
