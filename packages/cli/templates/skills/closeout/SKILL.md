@@ -1,10 +1,10 @@
 ---
 name: closeout
-description: Close a completed local delivery safely by verifying it, merging only
-  with explicit authority, running the mandatory retrospective, and cleaning the
-  exact merged branch and worktree. Use when the user asks to wrap up, merge and
-  clean up, or close a finished coding session. Do NOT use for cloud-agent tasks,
-  unmerged work, or cleanup without a pull request.
+description: Close a completed local delivery safely. Use when wrapping up a
+  finished coding session by verifying it, merging only with explicit authority,
+  running the mandatory retrospective, and cleaning the exact merged branch and
+  worktree. Do NOT use for cloud-agent tasks, unmerged work, or cleanup without a
+  pull request.
 allowed-tools: '*'
 ---
 

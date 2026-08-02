@@ -27,6 +27,7 @@ interface FrontmatterField {
 const CURSOR_ACTION_SKILLS = [
   'lint',
   'verify',
+  'closeout',
   'audit',
   'explain',
   'cleanup-zombies',
@@ -65,6 +66,12 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
     name: 'audit',
     description: 'Run comprehensive code audit for architecture, dead code, and test quality',
     skillPath: 'audit/SKILL.md',
+  },
+  {
+    name: 'closeout',
+    description:
+      'Close a completed local delivery safely after verification. Use when wrapping up a finished coding session, merging with explicit authority, running retro, and cleaning the exact merged branch and worktree.',
+    skillPath: 'closeout/SKILL.md',
   },
   {
     name: 'refactor',

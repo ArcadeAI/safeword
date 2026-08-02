@@ -3,9 +3,8 @@ name: closeout
 description: Close a completed local delivery safely. Use when wrapping up a
   finished coding session by verifying it, merging only with explicit authority,
   running the mandatory retrospective, and cleaning the exact merged branch and
-  worktree. Do NOT use for cloud-agent tasks, unmerged work, or cleanup without a
-  pull request.
-allowed-tools: '*'
+  worktree. Do NOT use for cloud-agent tasks, unmerged work, or cleanup without
+  a pull request.
 ---
 
 # Closeout
@@ -15,7 +14,7 @@ workflow into “merge succeeded, so we are done.”
 
 ## 1. Prove delivery readiness
 
-Run `/verify` for the current pull request head. Then observe the pull request
+Run `$safeword:verify` for the current pull request head. Then observe the pull request
 directly with structured `gh pr view --json` output. Require all of these before
 any merge:
 
