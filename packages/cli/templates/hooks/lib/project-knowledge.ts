@@ -1,3 +1,7 @@
+import { existsSync, readFileSync } from 'node:fs';
+
+import { readConfiguredPathValue, resolveConfiguredPath } from './namespace-root.ts';
+
 export type ReviewKnowledgeKey = 'principles' | 'personas' | 'surfaces';
 
 export interface ReviewKnowledgeSource {
@@ -12,15 +16,9 @@ const REVIEW_KNOWLEDGE_KEYS: ReviewKnowledgeKey[] = ['principles', 'personas', '
 
 /** Resolve project knowledge immediately before an independent review. */
 export function resolveReviewKnowledgeSources(projectDirectory: string): ReviewKnowledgeSource[] {
-  const namespaceRoot = resolveNamespaceRoot(projectDirectory);
   return REVIEW_KNOWLEDGE_KEYS.map(key => {
     const configuredPath = readConfiguredPathValue(projectDirectory, key);
-    const path =
-      configuredPath === undefined
-        ? nodePath.join(namespaceRoot, `${key}.md`)
-        : nodePath.isAbsolute(configuredPath)
-          ? configuredPath
-          : nodePath.join(projectDirectory, configuredPath);
+    const path = resolveConfiguredPath(projectDirectory, key);
     const exists = existsSync(path);
     return {
       key,
@@ -31,7 +29,3 @@ export function resolveReviewKnowledgeSources(projectDirectory: string): ReviewK
     };
   });
 }
-import { existsSync, readFileSync } from 'node:fs';
-import nodePath from 'node:path';
-
-import { readConfiguredPathValue, resolveNamespaceRoot } from './namespace-root.ts';
