@@ -32,7 +32,7 @@ interface HookInput {
 /**
  * The command that runs the extraction CLI. A `SAFEWORD_RETRO_EXTRACT_CMD`
  * override short-circuits resolution (test/advanced seam). Otherwise prefer the
- * dogfood local CLI, else `bunx safeword@latest`.
+ * dogfood local CLI, else the bundled plugin CLI.
  */
 function resolveExtractCommand(
   projectDirectory: string,
@@ -41,10 +41,12 @@ function resolveExtractCommand(
   const override = process.env[RETRO_EXTRACT_CMD_ENV];
   if (override && override.length > 0) return [override, []];
   const retroArgs = retroChildArgs(decision);
+  const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
+  if (pluginCli !== undefined) return ['bun', [pluginCli, ...retroArgs]];
   const localCli = nodePath.join(projectDirectory, 'packages/cli/src/cli.ts');
   return existsSync(localCli)
     ? ['bun', [localCli, ...retroArgs]]
-    : ['bunx', ['safeword@latest', ...retroArgs]];
+    : ['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli, ...retroArgs]];
 }
 
 async function main(): Promise<void> {

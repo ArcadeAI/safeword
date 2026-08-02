@@ -6,9 +6,9 @@ Test methodology, TDD workflow, and test type selection.
 
 ## Related Guides
 
-| Need                              | Guide                                          |
-| --------------------------------- | ---------------------------------------------- |
-| Choose unit/integration/E2E/eval  | This guide                                     |
+| Need                              | Guide                                                                  |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| Choose unit/integration/E2E/eval  | This guide                                                             |
 | Choose smoke/live/release cadence | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/verification-lanes-guide.md` |
 | Design AI output evaluations      | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-evals-guide.md`          |
 

@@ -271,8 +271,8 @@ if (tool === 'Bash') {
   const processKill = detectBroadProcessKill(command);
   if (processKill) {
     deny(
-      `Broad process kill blocked: \`${processKill.command} ${processKill.target}\` matches by name across the whole machine, killing every project's ${processKill.target} processes (dev servers, test runners, other sessions), not just this project's. Use the project-scoped \`./.safeword/scripts/cleanup-zombies.sh\` instead.`,
-      `Project-scoped alternatives: \`./.safeword/scripts/cleanup-zombies.sh\` (auto-detects this project's processes; previews by default, --yes to kill), \`lsof -ti:<port> | xargs kill -9\` (port-scoped), or \`pkill -f "<pattern>.*$(pwd)"\` (path-scoped). See .safeword/guides/zombie-process-cleanup.md.`,
+      `Broad process kill blocked: \`${processKill.command} ${processKill.target}\` matches by name across the whole machine, killing every project's ${processKill.target} processes (dev servers, test runners, other sessions), not just this project's. Use the project-scoped \`"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh\` instead.`,
+      `Project-scoped alternatives: \`"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh\` (auto-detects this project's processes; previews by default, --yes to kill), \`lsof -ti:<port> | xargs kill -9\` (port-scoped), or \`pkill -f "<pattern>.*$(pwd)"\` (path-scoped). See "${CLAUDE_PLUGIN_ROOT}"/resources/guides/zombie-process-cleanup.md.`,
     );
   }
   if (GIT_COMMIT_COMMAND.test(command)) {
@@ -570,7 +570,7 @@ if (isCanonicalTicketEdit) {
       if (!gatePhaseAdvance(phaseScope, stamps).ok) {
         deny(
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
-          `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or add \`--skip "<reason>"\` to log a deliberate skip).`,
+          `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or add \`--skip "<reason>"\` to log a deliberate skip).`,
         );
       }
       // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
@@ -588,7 +588,7 @@ if (isCanonicalTicketEdit) {
         if (realReviews.length > 0 && !hasCrossModelReview) {
           deny(
             `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
-            `Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), then record it via \`bun .safeword/hooks/write-review-stamp.ts --model <id> --phase ${exitedPhase}\`.`,
+            `Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), then record it via \`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --model <id> --phase ${exitedPhase}\`.`,
           );
         }
       }
@@ -673,7 +673,7 @@ if (state.activeTicket) {
     recordFailure(projectDirectory, input.session_id, 'plan-implementation-code-freeze');
     deny(
       'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
-      'Author impl-plan.md next to ticket.md (scaffold from .safeword/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
+      'Author impl-plan.md next to ticket.md (scaffold from "${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
     );
   }
 

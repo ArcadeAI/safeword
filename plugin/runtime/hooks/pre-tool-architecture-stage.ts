@@ -508,9 +508,13 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
     // Prefer local source in dev/dogfood, fall back to the published CLI. The CLI
     // owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
     const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-    const [command, args] = existsSync(localCli)
-      ? ['bun', [localCli, 'architecture', '--stage']]
-      : ['bunx', ['safeword@latest', 'architecture', '--stage']];
+    const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
+    const [command, args] =
+      pluginCli === undefined
+        ? existsSync(localCli)
+          ? ['bun', [localCli, 'architecture', '--stage']]
+          : ['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli, 'architecture', '--stage']]
+        : ['bun', [pluginCli, 'architecture', '--stage']];
 
     spawnSync(command as string, args as string[], {
       cwd: projectDir,

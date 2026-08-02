@@ -205,16 +205,16 @@ ps aux | grep "/Users/alex/projects/my-project"
 
 ## Quick Reference
 
-| Situation                                | Command                                            |
-| ---------------------------------------- | -------------------------------------------------- |
-| Preview zombies (recommended first step) | `"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh`           |
-| Kill what the preview showed             | `"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh --yes`     |
-| Inspect dev + test servers               | `lsof -i:$DEV_PORT -i:$TEST_PORT`                  |
-| Inspect Playwright processes             | `pgrep -l -f "playwright"`                         |
-| Check what's on port                     | `lsof -i:3000`                                     |
-| Find zombie processes                    | `ps aux \| grep -E "(node\|playwright\|chromium)"` |
-| Preview what `pkill -f` would kill       | `pgrep -f "pattern"` (verify before running pkill) |
-| Kill by process ID                       | `kill -9 <PID>`                                    |
+| Situation                                | Command                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| Preview zombies (recommended first step) | `"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh`       |
+| Kill what the preview showed             | `"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh --yes` |
+| Inspect dev + test servers               | `lsof -i:$DEV_PORT -i:$TEST_PORT`                                    |
+| Inspect Playwright processes             | `pgrep -l -f "playwright"`                                           |
+| Check what's on port                     | `lsof -i:3000`                                                       |
+| Find zombie processes                    | `ps aux \| grep -E "(node\|playwright\|chromium)"`                   |
+| Preview what `pkill -f` would kill       | `pgrep -f "pattern"` (verify before running pkill)                   |
+| Kill by process ID                       | `kill -9 <PID>`                                                      |
 
 ---
 

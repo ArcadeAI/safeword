@@ -34,8 +34,8 @@ the behavior.
 
 ## Templates
 
-| Need                            | Template                                          |
-| ------------------------------- | ------------------------------------------------- |
+| Need                            | Template                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------- |
 | feature spec                    | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`    |
 | task/patch spec                 | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`       |
 | feature Test definitions        | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |

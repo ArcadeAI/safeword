@@ -158,8 +158,8 @@ single-action task.
 
 **Use the matching template when ANY trigger fires:**
 
-| Trigger                                                    | Template                                            |
-| ---------------------------------------------------------- | --------------------------------------------------- |
+| Trigger                                                    | Template                                                                  |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- |
 | Planning new feature scope OR creating feature spec        | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`    |
 | Bug, improvement, refactor, or internal task               | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`       |
 | Need test definitions for a feature OR acceptance criteria | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |

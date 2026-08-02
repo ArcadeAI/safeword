@@ -112,6 +112,13 @@ Feature: Ship Safeword as a native Claude Code plugin
       And ticket, configuration, and runtime project state remain beneath the project root
 
     @rejection
+    Scenario: A failed sibling hook prevents event-level plugin proof
+      Given an intact cached UserPromptSubmit event whose final sibling hook fails
+      When a Safeword plugin hook executes
+      Then the aggregate event fails without writing execution proof
+      And viable legacy protection remains authoritative
+
+    @rejection
     Scenario: A generated plugin reference cannot depend on a materialized project framework copy
       Given a canonical workflow reference resolves through a project .safeword hook, guide, script, or template
       When the Claude plugin catalogue is validated

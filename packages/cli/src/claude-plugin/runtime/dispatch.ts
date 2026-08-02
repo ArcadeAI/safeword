@@ -33,6 +33,17 @@ interface PluginInventoryV1 {
 
 interface HookInput {
   readonly session_id?: string;
+  readonly source?: string;
+}
+
+interface EventGroupEntryV1 {
+  readonly matcher?: string;
+  readonly hooks?: readonly { readonly type?: string; readonly command?: string }[];
+}
+
+interface EventGroupsV1 {
+  readonly schema_version: 1;
+  readonly groups: Readonly<Record<string, readonly EventGroupEntryV1[]>>;
 }
 
 function requiredEnvironment(name: 'CLAUDE_PLUGIN_DATA' | 'CLAUDE_PLUGIN_ROOT'): string {
@@ -197,12 +208,64 @@ function runFunctionalCommand(arguments_: string[], input: Buffer): number {
   return result.status ?? 1;
 }
 
+function eventEntryMatches(entry: EventGroupEntryV1, input: HookInput): boolean {
+  if (entry.matcher === undefined || entry.matcher === '') return true;
+  return entry.matcher.split('|').includes(input.source ?? '');
+}
+
+function readEventEntries(event: string, pluginRoot: string): readonly EventGroupEntryV1[] {
+  const value = JSON.parse(
+    readFileSync(nodePath.join(pluginRoot, 'runtime', 'event-groups.json'), 'utf8'),
+  ) as Partial<EventGroupsV1>;
+  if (value.schema_version !== 1 || typeof value.groups !== 'object' || value.groups === null) {
+    throw new TypeError('Safeword Claude plugin event groups are malformed.');
+  }
+  const entries = value.groups[event];
+  if (!Array.isArray(entries)) {
+    throw new TypeError(`Safeword Claude plugin event group is missing: ${event}`);
+  }
+  return entries;
+}
+
+function runEventHooks(
+  event: string,
+  hooks: readonly { readonly type?: string; readonly command?: string }[],
+  standardInput: Buffer,
+): number {
+  for (const hook of hooks) {
+    if (hook.type !== 'command' || typeof hook.command !== 'string') {
+      throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
+    }
+    const status = runFunctionalCommand(['bash', '-lc', hook.command], standardInput);
+    if (status !== 0) return status;
+  }
+  return 0;
+}
+
+function runEventGroup(
+  event: string,
+  pluginRoot: string,
+  hookInput: HookInput,
+  standardInput: Buffer,
+): number {
+  const entries = readEventEntries(event, pluginRoot);
+  for (const entry of entries) {
+    if (!eventEntryMatches(entry, hookInput)) continue;
+    const hooks = entry.hooks ?? [];
+    const status = runEventHooks(event, hooks, standardInput);
+    if (status !== 0) return status;
+  }
+  return 0;
+}
+
 function main(): number {
-  const [event, separator, ...command] = process.argv.slice(2);
+  const [event, mode, ...command] = process.argv.slice(2);
   if (event === undefined) throw new Error('Claude hook event is required.');
-  if (separator !== undefined && separator !== '--')
-    throw new Error('Expected -- before hook command.');
+  if (mode !== undefined && mode !== '--' && mode !== '--event-group') {
+    throw new Error('Expected -- or --event-group after the hook event.');
+  }
   const pluginRoot = realpathSync(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
+  process.env.SAFEWORD_PLUGIN_CLI = nodePath.join(pluginRoot, 'runtime', 'cli.js');
   const standardInput = readFileSync(0);
   let hookInput: HookInput = {};
   try {
@@ -213,7 +276,10 @@ function main(): number {
   const identity = readIdentity(pluginRoot);
   verifyManifest(pluginRoot, identity);
   verifyInventory(pluginRoot, identity);
-  const status = runFunctionalCommand(command, standardInput);
+  const status =
+    mode === '--event-group'
+      ? runEventGroup(event, pluginRoot, hookInput, standardInput)
+      : runFunctionalCommand(command, standardInput);
   if (status === 0) {
     recordExecutionProof(event, pluginRoot, identity, hookInput);
     recordCacheSmoke(event, pluginRoot, identity, hookInput);

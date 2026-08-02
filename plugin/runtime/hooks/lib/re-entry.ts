@@ -1,7 +1,7 @@
 /**
  * Shared pure functions for the re-entry brief (ticket 645W8H).
  *
- * Both `.safeword/hooks/session-start-reentry.ts` (Slice 2) and
+ * Both `"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/session-start-reentry.ts` (Slice 2) and
  * `.safeword/statusline/reentry.ts` (Slice 3) parse the same canonical
  * log line and detect the same kind of dirty-file conflict between
  * concurrent Claude sessions. The functions here are pure (no stdin

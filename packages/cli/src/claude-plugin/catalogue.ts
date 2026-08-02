@@ -12,6 +12,7 @@ export interface GeneratedClaudePluginAsset {
 }
 
 interface ClaudePluginCatalogueInput {
+  readonly cliBundle: string;
   readonly sourceRoot: string;
   readonly templatesRoot: string;
   readonly version: string;
@@ -61,6 +62,15 @@ function adaptWorkflowReference(content: string): string {
     .replaceAll('.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/');
 }
 
+function adaptPluginRuntime(content: string): string {
+  return adaptWorkflowReference(content)
+    .replaceAll(
+      "['bunx', ['safeword@latest',",
+      "['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli,",
+    )
+    .replaceAll('`bunx safeword@latest`', 'the bundled plugin CLI');
+}
+
 const PROJECT_FRAMEWORK_REFERENCE =
   /(?:\.\/)?\.safeword\/(?:hooks|guides|scripts|templates)\/[^\s)`'"<>]*/u;
 
@@ -89,7 +99,12 @@ function assertUniqueInvocations(assets: readonly GeneratedClaudePluginAsset[]):
 
 function assertNoProjectFrameworkReferences(assets: readonly GeneratedClaudePluginAsset[]): void {
   for (const asset of assets) {
-    if (!/^(?:agents|commands|resources|skills)\//u.test(asset.relativePath)) continue;
+    if (
+      asset.relativePath === 'runtime/cli.js' ||
+      asset.relativePath === 'runtime/hooks/lib/cursor-run-identity.ts'
+    )
+      continue;
+    if (!/^(?:agents|commands|resources|runtime|skills)\//u.test(asset.relativePath)) continue;
     const dependency = PROJECT_FRAMEWORK_REFERENCE.exec(asset.content)?.[0];
     if (dependency === undefined) continue;
     throw new Error(
@@ -108,10 +123,18 @@ export function assertClaudePluginAssetReferences(
 const PLUGIN_ROOT_REFERENCE = /\$\{CLAUDE_PLUGIN_ROOT\}(?:\\?"\/|\/)([\w*./-]+)/gu;
 const RELATIVE_MODULE_REFERENCE = /(?:from\s+|import\s*\()['"](\.[^'"]+)['"]/gu;
 
+function stripReferencePunctuation(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  let end = value.length;
+  while (end > 0 && '.,;:'.includes(value[end - 1] ?? '')) end -= 1;
+  return value.slice(0, end);
+}
+
 function referencedPluginPaths(asset: GeneratedClaudePluginAsset): string[] {
+  if (asset.relativePath === 'runtime/cli.js') return [];
   const references = asset.content
     .matchAll(PLUGIN_ROOT_REFERENCE)
-    .map(match => match[1])
+    .map(match => stripReferencePunctuation(match[1]))
     .toArray();
   for (const match of asset.content.matchAll(RELATIVE_MODULE_REFERENCE)) {
     const reference = match[1];
@@ -127,6 +150,12 @@ function resolveReference(
   reference: string,
   candidates: ReadonlyMap<string, GeneratedClaudePluginAsset>,
 ): string[] {
+  if (reference.endsWith('/')) {
+    return candidates
+      .keys()
+      .filter(path => path.startsWith(reference))
+      .toArray();
+  }
   if (reference.includes('*')) {
     const [prefix = '', suffix = ''] = reference.split('*', 2);
     return candidates
@@ -147,7 +176,10 @@ function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
   return (
     /^(?:agents|commands|skills)\//u.test(asset.relativePath) ||
     asset.relativePath === 'hooks/hooks.json' ||
-    asset.relativePath === 'runtime/dispatch.ts'
+    asset.relativePath === 'runtime/dispatch.ts' ||
+    asset.relativePath === 'runtime/event-groups.json' ||
+    asset.relativePath === 'runtime/cli.js' ||
+    asset.relativePath === 'package.json'
   );
 }
 
@@ -211,11 +243,18 @@ function directoryAssets(
 }
 
 function claudeHookAssets(templatesRoot: string): GeneratedClaudePluginAsset[] {
-  return directoryAssets(nodePath.join(templatesRoot, 'hooks'), 'runtime/hooks').filter(asset => {
-    const relativeHookPath = nodePath.relative('runtime/hooks', asset.relativePath);
-    const hostDirectory = relativeHookPath.split(nodePath.sep, 1)[0];
-    return hostDirectory !== 'codex' && hostDirectory !== 'cursor';
-  });
+  return directoryAssets(nodePath.join(templatesRoot, 'hooks'), 'runtime/hooks')
+    .filter(asset => {
+      const relativeHookPath = nodePath.relative('runtime/hooks', asset.relativePath);
+      const hostDirectory = relativeHookPath.split(nodePath.sep, 1)[0];
+      return hostDirectory !== 'codex' && hostDirectory !== 'cursor';
+    })
+    .map(asset => ({
+      ...asset,
+      content: asset.relativePath.endsWith('lib/cursor-run-identity.ts')
+        ? asset.content
+        : adaptPluginRuntime(asset.content),
+    }));
 }
 
 function adaptHookValue(value: unknown): unknown {
@@ -249,8 +288,38 @@ function pluginHooks(): Record<string, unknown> {
     Setup: [{ matcher: 'init', hooks: [{ type: 'command', command: 'true' }] }],
   };
   return Object.fromEntries(
-    Object.entries(withSetup).map(([event, entries]) => [event, wrapHookCommands(entries, event)]),
+    Object.entries(withSetup).map(([event, entries]) => [
+      event,
+      event === 'SessionStart' || event === 'UserPromptSubmit'
+        ? [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: `${PLUGIN_DISPATCH} ${event} --event-group`,
+                },
+              ],
+            },
+          ]
+        : wrapHookCommands(entries, event),
+    ]),
   );
+}
+
+function pluginEventGroups(): string {
+  const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
+  const sessionStart = Array.isArray(adapted.SessionStart)
+    ? adapted.SessionStart.filter(
+        entry => !JSON.stringify(entry).includes('session-auto-upgrade.ts'),
+      )
+    : [];
+  const groups = Object.fromEntries(
+    ['SessionStart', 'UserPromptSubmit'].map(event => [
+      event,
+      event === 'SessionStart' ? sessionStart : (adapted[event] ?? []),
+    ]),
+  );
+  return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
 }
 
 function pluginHookManifest(): string {
@@ -288,9 +357,14 @@ function pluginIdentity(version: string, hookManifest: string, inventory: string
 export function generateClaudePluginAssets(
   input: ClaudePluginCatalogueInput,
 ): GeneratedClaudePluginAsset[] {
-  const { sourceRoot, templatesRoot, version } = input;
+  const { cliBundle, sourceRoot, templatesRoot, version } = input;
   const hookManifest = pluginHookManifest();
+  const eventGroups = pluginEventGroups();
   const candidateAssets = [
+    {
+      relativePath: 'package.json',
+      content: `${JSON.stringify({ name: 'safeword', version, type: 'module' }, undefined, 2)}\n`,
+    },
     ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptWorkflowReference),
     ...directoryAssets(nodePath.join(templatesRoot, 'agents'), 'agents', adaptWorkflowReference),
     ...claudeHookAssets(templatesRoot),
@@ -314,6 +388,8 @@ export function generateClaudePluginAssets(
       content => adaptWorkflowReference(stripTrailingWhitespace(content)),
     ),
     ...directoryAssets(nodePath.join(sourceRoot, 'claude-plugin', 'runtime'), 'runtime'),
+    { relativePath: nodePath.join('runtime', 'cli.js'), content: cliBundle },
+    { relativePath: nodePath.join('runtime', 'event-groups.json'), content: eventGroups },
     { relativePath: nodePath.join('hooks', 'hooks.json'), content: hookManifest },
   ];
 
@@ -376,6 +452,7 @@ export function writeClaudePluginCatalogue(
   }
   rmSync(nodePath.join(pluginRoot, 'identity.json'), { force: true });
   rmSync(nodePath.join(pluginRoot, 'inventory.json'), { force: true });
+  rmSync(nodePath.join(pluginRoot, 'package.json'), { force: true });
 
   for (const asset of assets) {
     const path = nodePath.join(pluginRoot, asset.relativePath);
@@ -383,4 +460,24 @@ export function writeClaudePluginCatalogue(
     writeFileSync(path, asset.content);
   }
   return assets;
+}
+
+export function sealClaudePluginCatalogue(pluginRoot: string, version: string): void {
+  const paths = [
+    'package.json',
+    ...GENERATED_DIRECTORIES.flatMap(directory =>
+      filesBeneath(nodePath.join(pluginRoot, directory), directory),
+    ),
+  ].toSorted((left, right) => left.localeCompare(right));
+  const assets = paths.map(relativePath => ({
+    relativePath,
+    content: readFileSync(nodePath.join(pluginRoot, relativePath), 'utf8'),
+  }));
+  const inventory = pluginInventory(assets);
+  const hookManifest = readFileSync(nodePath.join(pluginRoot, 'hooks', 'hooks.json'), 'utf8');
+  writeFileSync(nodePath.join(pluginRoot, 'inventory.json'), inventory);
+  writeFileSync(
+    nodePath.join(pluginRoot, 'identity.json'),
+    pluginIdentity(version, hookManifest, inventory),
+  );
 }

@@ -7,7 +7,11 @@
     },
     {
       "path": "hooks/hooks.json",
-      "sha256": "deb2460ac4451eb42db7879e4561560da69af190dc9d37388778dd804a280298"
+      "sha256": "79728d2f2251659a458208ac8d5ea45fe7aebe54e9204e4aaa108de491e39503"
+    },
+    {
+      "path": "package.json",
+      "sha256": "69b52c15d9e61305304844f264f6db99f6129700e614b2f1177840a0bee9e500"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -23,7 +27,7 @@
     },
     {
       "path": "resources/guides/llm-evals-guide.md",
-      "sha256": "7dfbaf1740ca897d4f6dc6f1b422c9d0537cd3ee718e60dfecf2b1f7cb72da50"
+      "sha256": "deab002e6cb9ddb9adea1040f16b56fdcf8b8ec3a9520acb5d91e7523162719c"
     },
     {
       "path": "resources/guides/llm-writing-guide.md",
@@ -31,7 +35,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "abd8e258eaf498aae86558930f8043ea567155bf879a34af64190915f1d5a8c8"
+      "sha256": "65149d50afd7145abb79c77ba5d77caba6b8020d6084bfe940676d3cc958ef20"
     },
     {
       "path": "resources/guides/retro.md",
@@ -47,7 +51,7 @@
     },
     {
       "path": "resources/guides/testing-guide.md",
-      "sha256": "fdb7a3365bb2698981600b9d7f51d915c489d0fda6b560e9ee6ab6a13ebbfe20"
+      "sha256": "7ece641cdb1a4fa00a2851ce08870954a81d5aa9f8315b264354bad3a3c08985"
     },
     {
       "path": "resources/guides/verification-lanes-guide.md",
@@ -55,7 +59,7 @@
     },
     {
       "path": "resources/guides/zombie-process-cleanup.md",
-      "sha256": "7432f777cc95446627650503a1254e0b67179a372309db11598b91b97633c985"
+      "sha256": "289edc9540b5ee9d8234a7f239594842f79b584c48a827a095aa78138d54c725"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -106,8 +110,16 @@
       "sha256": "1b72b85cb2c0311f57bc87ebd2634d4d5072740878b42d397d03ab953f330f00"
     },
     {
+      "path": "runtime/cli.js",
+      "sha256": "a278d406812b965770ac32331dc4ebdeb5dad7c51aec22b3e0e52c1a5dc99450"
+    },
+    {
       "path": "runtime/dispatch.ts",
-      "sha256": "1e9db604fad1ea9388de9c0c21b2fea201da848667aca84447410173df600042"
+      "sha256": "391475d40c58beee1741b1bdc1fcb84806d8972fa46525dbad4dca023234abc0"
+    },
+    {
+      "path": "runtime/event-groups.json",
+      "sha256": "4ed2fdbb7b7ac150a397040464494fc0eb034cc1c67e5331697fdc42d664177c"
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
@@ -183,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
-      "sha256": "af3ec6fd8262cf71add7031eb79e96dced51b04afa26cdfa905d1620098160ed"
+      "sha256": "873d132c64961f8ea486ec68502cee016ceee514912d5a6dd6ffcbf5aa34141a"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -191,7 +203,7 @@
     },
     {
       "path": "runtime/hooks/lib/jtbd.ts",
-      "sha256": "70c370e51f155ba7c5e7bd4e508e63b5570fc7e4e94576923a144386a70e4fd6"
+      "sha256": "c97d501bd052206b630ba56321834a4bc62ecc2664b00e5bdc033138d59ee030"
     },
     {
       "path": "runtime/hooks/lib/learning-verification-stamps.ts",
@@ -211,7 +223,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "f63826cbf8406c4c1110e1450d00de0975da422a75bb6bcf7d557240896b4c01"
+      "sha256": "5150936bbc783a951eaaf1587038f67f6469d6b642baa090a4403d5569188489"
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
@@ -227,11 +239,11 @@
     },
     {
       "path": "runtime/hooks/lib/phase-provenance.ts",
-      "sha256": "bfee6e8d71dfcba0b90ba116aaaa0c16676afcfdbbac867b96ab14c6f99a9f45"
+      "sha256": "0848a8b508b79d40fad26fcfc6437f3c7aa9cd584377e5bbf44d7aa1c3e207d6"
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "e62447124d8fad808bc4aaf115e6c25bf777a8c1de5c431aaedcdfa415cc1a27"
+      "sha256": "610b4ce6f0086d79d458307252c1cbfa3d504a8744bf16e05676e739a48d06b8"
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
@@ -247,7 +259,7 @@
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
-      "sha256": "c498b438365a3d00468f2b47e51c672f104b062d53104762fd4a699586d3704f"
+      "sha256": "6ff4e23213b788c6998b85eb4812ff5557a38e068922847f59b7291e211841e6"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -279,11 +291,11 @@
     },
     {
       "path": "runtime/hooks/lib/retro-nudge.ts",
-      "sha256": "7c89a5ae1b9978905c37aab664d4d94ad57a1978ac423b5dcf25767615f9f4f8"
+      "sha256": "75329fab0d03e0d4303b1ccceff6051c7190c3d99dd7360b94d01913cc96d6d1"
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
-      "sha256": "5a983a5b340ac6a568c56073714daac0b5c652864d3a9106d95f03a3abb37131"
+      "sha256": "16e2a0ffbc7d148c79d891a17a567ff6460a6c823e0044774b7a16153f120490"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -307,7 +319,7 @@
     },
     {
       "path": "runtime/hooks/lib/self-report.ts",
-      "sha256": "3bac058f5a59232dcaf361c5c6ab5eee0e1b7cd48455ceb7901572a5d44e85e5"
+      "sha256": "7310f0e6fc32e38b211bbb03d5a17a81953c7461bbf74594b0e6e940ab136470"
     },
     {
       "path": "runtime/hooks/lib/shell-segments.ts",
@@ -319,7 +331,7 @@
     },
     {
       "path": "runtime/hooks/lib/skill-nudge.ts",
-      "sha256": "b2d0d95cde0d3441586f305d0f623b67ff7169b5b797903787870f128143a13f"
+      "sha256": "438aa341aa2acbdf0183ae4bfd90ff2fef90dd6d7c5d30f4540b0122ac257e90"
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
@@ -327,7 +339,7 @@
     },
     {
       "path": "runtime/hooks/lib/typecheck-gate.ts",
-      "sha256": "d8c4f565e545f8c465b98fdf0498804c56dd5b78c2d03de39a6c2ebaf057eafc"
+      "sha256": "5f4a394fc01596bd6bba2863763091f95b829d9b35b9fe6d1cc923472e154987"
     },
     {
       "path": "runtime/hooks/lib/update-cache.ts",
@@ -363,7 +375,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-sync-learnings.ts",
-      "sha256": "9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa"
+      "sha256": "663b528c621f0bdeb4c096eac8a35791c8d136cab73733008300808085244c79"
     },
     {
       "path": "runtime/hooks/post-tool-work-log.ts",
@@ -371,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "6a9db8288c41ec3e66c0fc8281cd752ffb61ed017d44f952416384a0c8d339ae"
+      "sha256": "29d6d9e22a9966cad5463de751b8e5cea848ba711285b0ee6e52d5ed4dfb1d10"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
@@ -387,7 +399,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "0a6cc9568d795b1da37a06416061be0fe2bdc4724f578b3e6a94bd999edded7e"
+      "sha256": "73dfdbac0efaafecb27e9821b04d6a428b2bfa410fef6676f2aaf2fbda0ddde8"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -395,7 +407,7 @@
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
-      "sha256": "57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6"
+      "sha256": "541b24d7678e1ac7c907ceb4f205e117bdb1b5a9e199ddddf58d5b7395a85a4a"
     },
     {
       "path": "runtime/hooks/prompt-retro-nudge.ts",
@@ -415,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
-      "sha256": "351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5"
+      "sha256": "198c54f56d7a2cb995e018e58f8089203cf46f3484cd282a9f075141141c4c37"
     },
     {
       "path": "runtime/hooks/session-author-model.ts",
@@ -423,7 +435,7 @@
     },
     {
       "path": "runtime/hooks/session-auto-upgrade.ts",
-      "sha256": "65ddec922bb677b58b82e96567624aabb15f2deba77ce3ce8af5ca73ef6c928a"
+      "sha256": "51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0"
     },
     {
       "path": "runtime/hooks/session-bun-check.sh",
@@ -467,7 +479,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "0b30324e00532f095ded4f711d06f3dd4c25737beea29f4432690e91fed8c9b9"
+      "sha256": "5f8c8d2e32721e627b21c221c52aa4bc5aacc003c9725255ab3a9e543311ea63"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -479,7 +491,7 @@
     },
     {
       "path": "runtime/hooks/stop-retro.ts",
-      "sha256": "7f8d11fe57ba4ea86c71eb3c6b7e44912501076e32eaf63aff8c802aaa1850bf"
+      "sha256": "507b4f283e27bbf7ad76749627206b93e1c34c557146b02cc7aa84d41c331962"
     },
     {
       "path": "runtime/hooks/stop-self-report.ts",
@@ -583,11 +595,11 @@
     },
     {
       "path": "skills/testing/SKILL.md",
-      "sha256": "403e166293196e4df2a96e62dc9fdfa5fda284d0f4691e6714c223499021b5a4"
+      "sha256": "a7538a0aa5726cce382209e26f0c7a63cb92884950af24d2aba8e0c2ed9ced8b"
     },
     {
       "path": "skills/ticket-system/SKILL.md",
-      "sha256": "ecad553fc2c431d2c9afaf6fca9c927675e3de7f3a0dd24eeaae5c4a33256771"
+      "sha256": "c4da67bd4fb86b576ec4d3310c2f5d89fc5648e5210ad079a6f20ba3d6c3fc7c"
     },
     {
       "path": "skills/verify/SKILL.md",

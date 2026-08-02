@@ -2,7 +2,7 @@
 //
 // Pure helpers (no I/O) so the pre-tool hook can validate ticket.md writes
 // without importing the CLI dist (same cross-runtime-copy rationale as
-// jtbd.ts — deployed hooks run standalone from .safeword/hooks/).
+// jtbd.ts — deployed hooks run standalone from "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/).
 //
 // The guarantee: a feature ticket's `phase:` is earned, not declared. Feature
 // tickets are born at intake and advance one canonical step at a time; any

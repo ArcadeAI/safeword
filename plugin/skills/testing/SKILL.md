@@ -304,12 +304,12 @@ it('preserves user input after validation error');
 
 ## Quick Reference
 
-| Need                             | Action                                            |
-| -------------------------------- | ------------------------------------------------- |
+| Need                             | Action                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------- |
 | Full test type selection guide   | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/testing-guide.md`               |
 | Smoke/live/release lane guidance | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/verification-lanes-guide.md`    |
 | LLM eval design guide            | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-evals-guide.md`             |
 | Test definition template (BDD)   | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |
-| Test quality review              | `/audit`                                          |
-| Feature-level TDD with scenarios | `/bdd`                                            |
-| Debugging failing tests          | `/debug`                                          |
+| Test quality review              | `/audit`                                                                  |
+| Feature-level TDD with scenarios | `/bdd`                                                                    |
+| Debugging failing tests          | `/debug`                                                                  |

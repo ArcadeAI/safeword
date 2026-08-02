@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   appendFileSync,
   cpSync,
@@ -178,6 +179,60 @@ Then(
 );
 
 Given(
+  'an intact cached UserPromptSubmit event whose final sibling hook fails',
+  function (this: NativeClaudePluginWorld) {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-event-failure-'));
+    const plugin = nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0');
+    const data = nodePath.join(root, 'data');
+    const project = nodePath.join(root, 'project');
+    cpSync(PLUGIN_ROOT, plugin, { recursive: true });
+    const legacySentinel = nodePath.join(project, '.safeword', 'hooks', 'legacy.ts');
+    mkdirSync(nodePath.dirname(legacySentinel), { recursive: true });
+    writeFileSync(legacySentinel, 'legacy protection remains authoritative\n');
+
+    const eventGroupsPath = nodePath.join(plugin, 'runtime', 'event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: { UserPromptSubmit: { hooks: { type: string; command: string }[] }[] };
+    };
+    eventGroups.groups.UserPromptSubmit.push({ hooks: [{ type: 'command', command: 'false' }] });
+    const eventGroupsContent = `${JSON.stringify(eventGroups, undefined, 2)}\n`;
+    writeFileSync(eventGroupsPath, eventGroupsContent);
+
+    const inventoryPath = nodePath.join(plugin, 'inventory.json');
+    const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8')) as {
+      assets: { path: string; sha256: string }[];
+    };
+    const eventGroupsAsset = inventory.assets.find(
+      asset => asset.path === 'runtime/event-groups.json',
+    );
+    assert.ok(eventGroupsAsset);
+    eventGroupsAsset.sha256 = createHash('sha256').update(eventGroupsContent).digest('hex');
+    const inventoryContent = `${JSON.stringify(inventory, undefined, 2)}\n`;
+    writeFileSync(inventoryPath, inventoryContent);
+
+    const identityPath = nodePath.join(plugin, 'identity.json');
+    const identity = JSON.parse(readFileSync(identityPath, 'utf8')) as {
+      inventory_sha256: string;
+    };
+    identity.inventory_sha256 = createHash('sha256').update(inventoryContent).digest('hex');
+    writeFileSync(identityPath, `${JSON.stringify(identity, undefined, 2)}\n`);
+    this.cacheFixture = { root, plugin, data, project, legacySentinel };
+  },
+);
+
+Then(
+  'the aggregate event fails without writing execution proof',
+  function (this: NativeClaudePluginWorld) {
+    assert.notEqual(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.ok(this.cacheFixture);
+    assert.equal(
+      existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')),
+      false,
+    );
+  },
+);
+
+Given(
   'a canonical workflow reference resolves through a project .safeword hook, guide, script, or template',
   function (this: NativeClaudePluginWorld) {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-reference-'));
@@ -290,14 +345,11 @@ Then('viable legacy protection remains authoritative', function (this: NativeCla
 
 Given(
   'an authenticated Claude task has installed or updated Safeword and supports plugin reload',
-  function (this: NativeClaudePluginWorld) {
-    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-reload-'));
-    const plugin = nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0');
-    const data = nodePath.join(root, 'data');
-    const project = nodePath.join(root, 'project');
-    cpSync(PLUGIN_ROOT, plugin, { recursive: true });
-    mkdirSync(project, { recursive: true });
-    this.cacheFixture = { root, plugin, data, project };
+  function () {
+    // A direct dispatcher invocation cannot establish this precondition. Keep
+    // the live lane visibly pending until an authenticated harness actually
+    // installs, reloads, and submits a prompt through Claude.
+    return 'pending';
   },
 );
 

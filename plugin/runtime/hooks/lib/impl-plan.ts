@@ -2,7 +2,7 @@
 //
 // Pure helpers (no I/O) so the stop-quality hook can validate a ticket's
 // impl-plan.md without importing the CLI dist (same cross-runtime-copy
-// rationale as jtbd.ts — deployed hooks run standalone from .safeword/hooks/).
+// rationale as jtbd.ts — deployed hooks run standalone from "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/).
 
 export type ImplPlanStatus = 'planned' | 'implemented';
 

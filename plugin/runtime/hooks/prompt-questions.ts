@@ -109,7 +109,7 @@ if (existsSync(stateFile)) {
           'scenario-gate':
             'Phase: scenario-gate. AODI validation + adversarial pass. If new scenarios found, loop back to define-behavior; else advance to plan-implementation.',
           'plan-implementation':
-            'Phase: plan-implementation. Author impl-plan.md (scaffold from .safeword/templates/impl-plan-template.md); map installed language/component skills to the scenarios; independent review before advancing to implement.',
+            'Phase: plan-implementation. Author impl-plan.md (scaffold from "${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md); map installed language/component skills to the scenarios; independent review before advancing to implement.',
           implement: tddStep
             ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
             : 'Phase: implement.',

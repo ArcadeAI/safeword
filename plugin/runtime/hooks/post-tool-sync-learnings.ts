@@ -40,9 +40,13 @@ if (!resolvedFile.endsWith('.md')) process.exit(0);
 // Prefer local source in dev/dogfood, fall back to published CLI.
 // Best-effort: never block an edit.
 const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-const [command, args] = existsSync(localCli)
-  ? ['bun', [localCli, 'sync-learnings', '--quiet']]
-  : ['bunx', ['safeword@latest', 'sync-learnings', '--quiet']];
+const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
+const [command, args] =
+  pluginCli === undefined
+    ? existsSync(localCli)
+      ? ['bun', [localCli, 'sync-learnings', '--quiet']]
+      : ['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli, 'sync-learnings', '--quiet']]
+    : ['bun', [pluginCli, 'sync-learnings', '--quiet']];
 spawnSync(command as string, args as string[], {
   cwd: projectDir,
   stdio: 'inherit',

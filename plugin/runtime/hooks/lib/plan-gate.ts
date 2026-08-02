@@ -2,7 +2,7 @@
 // present — same grandfathering marker as the M6D315 stop gate) may only enter
 // the implement phase once impl-plan.md parses valid with status `planned`.
 // Pure-ish helper (reads only the ticket folder) so the pre-tool hook can call
-// it standalone from .safeword/hooks/, mirroring the #404 readiness gate.
+// it standalone from "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/, mirroring the #404 readiness gate.
 
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -22,9 +22,9 @@ export function evaluateImplementEntry(ticketDirectory: string): PlanGateVerdict
     return {
       ok: false,
       reason:
-        'This feature has no impl-plan.md yet — the implementation plan is authored during the plan-implementation phase, before any test or code is written. Next: scaffold impl-plan.md from .safeword/templates/impl-plan-template.md.',
+        'This feature has no impl-plan.md yet — the implementation plan is authored during the plan-implementation phase, before any test or code is written. Next: scaffold impl-plan.md from "${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md.',
       remediation:
-        'Create impl-plan.md next to ticket.md (scaffold from .safeword/templates/impl-plan-template.md), fill each section with content or `skip: <reason>`, keep **Status:** planned, then retry the move to implement.',
+        'Create impl-plan.md next to ticket.md (scaffold from "${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), fill each section with content or `skip: <reason>`, keep **Status:** planned, then retry the move to implement.',
     };
   }
 
