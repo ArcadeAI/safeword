@@ -2,15 +2,15 @@
 id: KD4C2A
 slug: principles-flow-spike
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_skips:
   - intake: Completed before the first feature checkpoint; the scoped spec and intake work log are committed with this ticket.
   - define-behavior: Completed before the first feature checkpoint; the dimensions and scenario ledger are committed with this ticket.
   - scenario-gate: Completed before the first feature checkpoint; the approved feature and review work log are committed with this ticket.
   - plan-implementation: Completed before the first feature checkpoint; the reviewed implementation plan and phase anchor are committed with this ticket.
 created: 2026-08-02T14:08:58.443Z
-last_modified: 2026-08-02T18:10:00Z
+last_modified: 2026-08-02T18:15:55Z
 scope:
   - scaffold principles as configurable user-owned project knowledge with health parity
   - make Design alignment canonical while accepting legacy Arch alignment plans
@@ -76,17 +76,17 @@ phase_anchors:
 
 ## Done When
 
-- [ ] Setup and check cover default, configured, missing, and orphaned principle
+- [x] Setup and check cover default, configured, missing, and orphaned principle
       paths without overwriting user content.
-- [ ] New plans use `Design alignment`; new and legacy headings both parse and
+- [x] New plans use `Design alignment`; new and legacy headings both parse and
       gate, while missing or simultaneous aliases fail with remediation.
-- [ ] Spec, scenario, plan, and quality reviewers receive the relevant project
+- [x] Spec, scenario, plan, and quality reviewers receive the relevant project
       knowledge and challenge type-specific behavior and proof.
-- [ ] Verification records persona experience and proof per affected surface;
+- [x] Verification records persona experience and proof per affected surface;
       audit checks only objective references, traces, and evidence links.
-- [ ] Public docs explain principles, personas, and surfaces configuration,
+- [x] Public docs explain principles, personas, and surfaces configuration,
       ownership, health, and preservation behavior.
-- [ ] Canonical, dogfood, Cursor, and Codex contracts plus the full suite pass.
+- [x] Canonical, dogfood, Cursor, and Codex contracts plus the full suite pass.
 
 ## Spike Evidence Already Established
 
@@ -153,19 +153,23 @@ user-owned thereafter, namespace-root aware, and redirectable through
     persona/surface overrides were covered while reading only default files;
     the resolver and doctor now honor those overrides directly.
 
-### Remaining production work
+### Production work completed
 
-- Document `paths.principles` in the public config reference.
-- Add doctor advisories for a missing configured file and an orphaned default,
+- [x] Document `paths.principles` in the public config reference.
+- [x] Add doctor advisories for a missing configured file and an orphaned default,
   parallel to personas; do not add compliance scoring.
-- Decide and migrate the plan heading with a backward-compatible parser alias.
-- Generate and verify every packaged Codex/Cursor surface before release.
+- [x] Migrate the plan heading with a backward-compatible parser alias.
+- [x] Generate and verify every packaged Codex/Cursor surface before release.
 
 ## Work Log
 
-- 2026-08-02T18:10:00Z Verification: Executed all 72 feature examples, fixed
-  the stale legacy-heading acceptance contract, passed the complete 746-scenario
-  lane, and passed all 410 Vitest files under a two-worker contention limit.
+- 2026-08-02T18:15:55Z Done: Corrected the executable-versus-judgment evidence
+  boundary, recorded the independent semantic verdict, passed the final
+  728-scenario BDD lane and lint/typecheck, and received a fresh quality-review
+  PASS with no blocking findings.
+- 2026-08-02T18:10:00Z Verification: Covered all 72 feature examples, fixed the
+  stale legacy-heading acceptance contract, passed the complete pre-boundary
+  BDD lane, and passed all 410 Vitest files under a two-worker contention limit.
 - 2026-08-02T17:28:00Z Verify entry: Whole-diff quality review exposed and
   resolved two evidence gaps: E010 now validates Markdown fragments and ignores
   supporting principle sections, and a real setup-installed 12-row host-stage
