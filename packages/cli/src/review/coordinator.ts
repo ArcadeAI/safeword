@@ -1,7 +1,7 @@
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import type { ReviewerOutput, ReviewKind } from './contract.js';
-import { buildReviewPacket } from './packet.js';
+import { prepareReviewPacket } from './packet.js';
 import { oppositeReviewer } from './policy.js';
 import { assignedReviewerModel, runHeadlessReviewer } from './runtime.js';
 
@@ -43,9 +43,39 @@ export async function runReview(input: {
     });
   }
 
-  const packet = buildReviewPacket(input.cwd, input.kind, input.targets);
-  const output = await runHeadlessReviewer(reviewer, packet);
-  const provenanceError = provenanceFailure(output, reviewer, packet.dispatch_id);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  let output: ReviewerOutput;
+  let changed: boolean;
+  try {
+    output = await runHeadlessReviewer(reviewer, prepared.packet, prepared.workspace);
+    changed = prepared.changed();
+  } finally {
+    prepared.cleanup();
+  }
+  if (changed) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEWER_WRITE_ATTEMPT',
+          message:
+            'The reviewer changed its disposable work packet; no passing evidence was recorded.',
+          retryable: false,
+        },
+      ],
+      effects: {
+        network: [{ kind: 'review', target: reviewer, operation: 'request' }],
+      },
+      data: {
+        command: 'review run',
+        status: 'blocked',
+        author_agent: author,
+        assigned_reviewer: reviewer,
+        independence: 'none',
+      },
+    });
+  }
+  const provenanceError = provenanceFailure(output, reviewer, prepared.packet.dispatch_id);
   if (provenanceError !== undefined) {
     return createResult({
       state: 'failed',

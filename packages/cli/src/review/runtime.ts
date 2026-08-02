@@ -26,9 +26,11 @@ export function assignedReviewerModel(reviewer: ReviewAgent): string {
 export async function runHeadlessReviewer(
   reviewer: ReviewAgent,
   packet: ReviewPacket,
+  cwd: string,
 ): Promise<ReviewerOutput> {
   return new Promise((resolve, reject) => {
     const child = spawn(reviewer, ARGUMENTS[reviewer], {
+      cwd,
       env: process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
