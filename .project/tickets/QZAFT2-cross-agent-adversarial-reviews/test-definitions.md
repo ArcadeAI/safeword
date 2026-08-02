@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 - [x] RED 6d3720066
 - [x] GREEN fa48814c7
-- [ ] REFACTOR
+- [x] REFACTOR skip: vendor environment filtering is isolated in one table-driven helper
 
 ## Rule: cross-agent-review.TBU2.R1 — Preferred-route failures are classified before fallback
 
