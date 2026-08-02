@@ -314,14 +314,34 @@ describe('cross-agent review public-command wiring', () => {
   });
 
   it.each([
-    { failure: 'not-installed', classification: 'not_installed' },
-    { failure: 'auth', classification: 'not_authenticated' },
-    { failure: 'process', classification: 'process_failed' },
-    { failure: 'timeout', classification: 'timed_out' },
-    { failure: 'invalid', classification: 'invalid_output' },
+    {
+      failure: 'not-installed',
+      classification: 'not_installed',
+      action: 'Install Codex, then retry the independent review.',
+    },
+    {
+      failure: 'auth',
+      classification: 'not_authenticated',
+      action: 'Sign in to Codex, then retry the independent review.',
+    },
+    {
+      failure: 'process',
+      classification: 'process_failed',
+      action: 'Retry the independent review.',
+    },
+    {
+      failure: 'timeout',
+      classification: 'timed_out',
+      action: 'Retry the independent review.',
+    },
+    {
+      failure: 'invalid',
+      classification: 'invalid_output',
+      action: 'Retry the independent review.',
+    },
   ])(
     'preserves the $classification preferred-route failure',
-    async ({ failure, classification }) => {
+    async ({ failure, classification, action }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -356,12 +376,14 @@ describe('cross-agent review public-command wiring', () => {
       expect(result.exitCode).toBe(2);
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'action_required',
+        recovery: [{ description: action }],
         data: {
           status: 'blocked',
           preferred_failure: classification,
           independence: 'none',
         },
       });
+      expect(JSON.parse(result.stdout).recovery).toHaveLength(1);
     },
   );
 
