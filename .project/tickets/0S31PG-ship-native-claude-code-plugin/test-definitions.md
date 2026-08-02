@@ -70,6 +70,12 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 - [x] GREEN 4bd92e656
 - [x] REFACTOR skip: proof writer and identity validation are already isolated at one cache-local entrypoint
 
+### Scenario: An aggregate event returns one valid host response
+
+- [x] RED 2fd8b7f78
+- [x] GREEN 3e9cc76d0
+- [x] REFACTOR skip: response parsing and field aggregation are split into narrow helpers
+
 ### Scenario: A generated plugin reference cannot depend on a materialized project framework copy
 
 - [x] RED 8f914bce9
