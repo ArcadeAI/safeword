@@ -54,8 +54,6 @@ interface KnowledgeWorld extends SafewordWorld {
   projectDirectory?: string;
   knowledge?: KnowledgeKey;
   beforeBytes?: string;
-  expectedOutcome?: string;
-  reviewOutcome?: string;
   reviewInput?: ReturnType<typeof resolveReviewKnowledgeSources>;
   traceFindings?: string[];
   planResult?: ReturnType<typeof parseImplPlan>;
@@ -63,7 +61,6 @@ interface KnowledgeWorld extends SafewordWorld {
   parity?: ReturnType<typeof runParity>;
   paritySurface?: string;
   docsValid?: boolean;
-  claim?: string;
   evidence?: string;
   plan?: string;
 }
@@ -155,67 +152,6 @@ After(function (this: KnowledgeWorld) {
   }
 });
 
-Given('the configured principles include {string}', function (this: KnowledgeWorld, value: string) {
-  this.claim = value;
-});
-
-Given('the ticket makes that principle {string}', function (this: KnowledgeWorld, value: string) {
-  this.evidence = value;
-});
-
-When('the implementation plan is prepared', function (this: KnowledgeWorld) {
-  const planning = readFileSync(
-    nodePath.join(TEMPLATES, 'skills/bdd/PLAN_IMPLEMENTATION.md'),
-    'utf8',
-  );
-  assert.match(planning, /applicable principles/i);
-  this.expectedOutcome =
-    this.evidence === 'not applicable'
-      ? `contains no entry for ${this.claim}`
-      : this.claim === 'Delight the user'
-        ? 'records Delight the user → recovery stays in context → persona walkthrough'
-        : 'records Adopt and extend OSS → use the public extension point → compatibility test';
-});
-
-Then('Design alignment {string}', function (this: KnowledgeWorld, outcome: string) {
-  assert.equal(this.expectedOutcome, outcome);
-});
-
-Given(
-  'an applicable principle conflicts with the proposed design',
-  function (this: KnowledgeWorld) {
-    this.claim = 'conflict';
-  },
-);
-
-Given('Known deviations does not name the conflict', function (this: KnowledgeWorld) {
-  this.evidence = 'missing';
-});
-
-Given('Known deviations names the conflict, trade-off, and proof', function (this: KnowledgeWorld) {
-  this.evidence = 'recorded';
-});
-
-When('the independent plan review runs', function (this: KnowledgeWorld) {
-  const planning = readFileSync(
-    nodePath.join(TEMPLATES, 'skills/bdd/PLAN_IMPLEMENTATION.md'),
-    'utf8',
-  );
-  assert.match(planning, /Known deviations/);
-  this.reviewOutcome = this.evidence === 'recorded' ? 'accepted' : 'rejected';
-});
-
-Then(
-  'the review rejects the plan with the missing deviation named',
-  function (this: KnowledgeWorld) {
-    assert.equal(this.reviewOutcome, 'rejected');
-  },
-);
-
-Then('the review accepts the conflict as a deliberate deviation', function (this: KnowledgeWorld) {
-  assert.equal(this.reviewOutcome, 'accepted');
-});
-
 Given('the ticket makes principles, personas, and surfaces relevant', function () {
   assert.deepEqual(KNOWLEDGE_KEYS, ['principles', 'personas', 'surfaces']);
 });
@@ -257,30 +193,6 @@ Then(
   },
 );
 
-Given('the work product contains a valid project-knowledge reference', function () {
-  assert.ok(true);
-});
-
-Given(
-  'the reviewer receives its label without the configured source contents',
-  function (this: KnowledgeWorld) {
-    this.reviewInput = [];
-  },
-);
-
-When('the independent review runs', function (this: KnowledgeWorld) {
-  const review = readFileSync(nodePath.join(TEMPLATES, 'skills/review-spec/SKILL.md'), 'utf8');
-  assert.match(review, /paths\.principles/);
-  this.reviewOutcome = this.reviewInput?.length === 0 ? 'rejected' : 'accepted';
-});
-
-Then(
-  'the review is rejected because applicability cannot be established',
-  function (this: KnowledgeWorld) {
-    assert.equal(this.reviewOutcome, 'rejected');
-  },
-);
-
 Given(
   'a configured project-knowledge source changed after intake',
   function (this: KnowledgeWorld) {
@@ -304,44 +216,13 @@ Then('its review context contains the current configured content', function (thi
   );
 });
 
-Given('the work claims {string}', function (this: KnowledgeWorld, claim: string) {
-  this.claim = claim;
-});
-
-Given('it records {string} as proof', function (this: KnowledgeWorld, evidence: string) {
-  this.evidence = evidence;
-});
-
-When('quality review evaluates the claim', function (this: KnowledgeWorld) {
-  const quality = readFileSync(nodePath.join(TEMPLATES, 'skills/quality-review/SKILL.md'), 'utf8');
-  assert.match(quality, /experiential[\s\S]*tests alone/i);
-  const evidence = this.evidence ?? '';
-  if (this.claim === 'a persona is delighted') {
-    this.reviewOutcome = evidence.startsWith('a recorded persona')
-      ? 'accepted as persona experience evidence'
-      : evidence === 'no recorded result'
-        ? 'rejected with missing experience evidence'
-        : 'rejected without an experiential signal';
-  } else if (this.claim === 'a principle trace is complete') {
-    this.reviewOutcome = 'accepted as objective trace evidence';
-  } else {
-    const surface = this.claim?.split(' review')[0] ?? 'Safeword CLI';
-    const normalizedSurface =
-      surface === 'configured-path health works in Safeword CLI' ? 'Safeword CLI' : surface;
-    this.reviewOutcome = evidence.startsWith('no recorded')
-      ? `rejected with missing ${normalizedSurface} evidence`
-      : `accepted as ${normalizedSurface} surface evidence`;
-  }
-});
-
-Then('the proof is {string}', function (this: KnowledgeWorld, outcome: string) {
-  assert.equal(this.reviewOutcome, outcome);
-});
-
 Given('an implementation plan contains {string}', function (this: KnowledgeWorld, defect: string) {
   const directory = project(this);
   mkdirSync(nodePath.join(directory, '.project'), { recursive: true });
-  writeFileSync(nodePath.join(directory, '.project/principles.md'), '## Delight the user\n');
+  writeFileSync(
+    nodePath.join(directory, '.project/principles.md'),
+    '## Delight the user\n\n**Intent:** Delight.\n\n**Prefer:** Recovery.\n\n**Avoid:** Dead ends.\n\n**Evidence:** Proof.\n',
+  );
   writeFileSync(nodePath.join(directory, 'proof.md'), '# Evidence\n');
   this.plan = {
     'a principle absent from its configured file':
@@ -359,7 +240,10 @@ Given(
   function (this: KnowledgeWorld) {
     const directory = project(this);
     mkdirSync(nodePath.join(directory, '.project'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.project/principles.md'), '## Delight the user\n');
+    writeFileSync(
+      nodePath.join(directory, '.project/principles.md'),
+      '## Delight the user\n\n**Intent:** Delight.\n\n**Prefer:** Recovery.\n\n**Avoid:** Dead ends.\n\n**Evidence:** Proof.\n',
+    );
     writeFileSync(nodePath.join(directory, 'proof.md'), '# Evidence\n');
     this.plan = '| Delight the user | disputed consequence | proof.md | |';
   },

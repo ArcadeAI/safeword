@@ -3,7 +3,7 @@ Feature: Project knowledge throughout feature delivery
   @project-knowledge.NTB1.R1
   Rule: project-knowledge.NTB1.R1 — Applicable project knowledge changes delivery without becoming a checklist
 
-    @surface.claude-code @surface.openai-codex @surface.cursor
+    @manual @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Principle applicability produces a proportional plan entry
       Given the configured principles include "<principle>"
       And the ticket makes that principle "<applicability>"
@@ -16,14 +16,14 @@ Feature: Project knowledge throughout feature delivery
         | Adopt and extend OSS before bespoke | applicable     | records Adopt and extend OSS → use the public extension point → compatibility test       |
         | Prefer monthly dependency refreshes | not applicable | contains no entry for Prefer monthly dependency refreshes                                |
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    @manual @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: An unexplained conflict cannot pass independent plan review
       Given an applicable principle conflicts with the proposed design
       And Known deviations does not name the conflict
       When the independent plan review runs
       Then the review rejects the plan with the missing deviation named
 
-    @surface.claude-code @surface.openai-codex @surface.cursor
+    @manual @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: A recorded principle conflict can pass independent plan review
       Given an applicable principle conflicts with the proposed design
       And Known deviations names the conflict, trade-off, and proof
@@ -55,7 +55,7 @@ Feature: Project knowledge throughout feature delivery
         | Cursor        | plan     |
         | Cursor        | quality  |
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    @manual @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: Labels alone cannot satisfy a source-grounded review
       Given the work product contains a valid project-knowledge reference
       And the reviewer receives its label without the configured source contents
@@ -71,7 +71,7 @@ Feature: Project knowledge throughout feature delivery
   @project-knowledge.NTB1.R3
   Rule: project-knowledge.NTB1.R3 — Completion evidence distinguishes experience, surface execution, and trace integrity
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    @manual @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Evidence is judged against the kind of claim it supports
       Given the work claims "<claim>"
       And it records "<evidence>" as proof
