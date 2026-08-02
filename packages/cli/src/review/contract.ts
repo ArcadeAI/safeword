@@ -35,7 +35,7 @@ export interface ReviewPacket {
   }[];
 }
 
-export const REVIEW_KINDS = new Set<ReviewKind>([
+const REVIEW_KINDS = new Set<ReviewKind>([
   'quality-review',
   'scenario-gate',
   'plan-implementation',
