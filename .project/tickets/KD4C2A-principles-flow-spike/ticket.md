@@ -34,6 +34,7 @@ phase_anchors:
   - scenario-gate: features/principles-flow-spike.feature
   - implement: .project/tickets/KD4C2A-principles-flow-spike/impl-plan.md
   - verify: .project/tickets/KD4C2A-principles-flow-spike/verify.md
+  - done: .project/tickets/KD4C2A-principles-flow-spike/verify.md
 ---
 
 # Make project knowledge shape and challenge feature delivery
