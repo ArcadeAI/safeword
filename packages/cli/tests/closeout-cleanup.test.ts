@@ -11,7 +11,9 @@ import {
   cleanupPlanDigest,
   type CloseoutObservation,
   defaultBranchArguments,
+  executeCleanupOperation,
   operationCommand,
+  resolveRemoteRef as resolveRemoteReference,
   safewordCliCommand,
   transcriptMatchesBinding,
 } from '../templates/scripts/closeout-cleanup.ts';
@@ -114,6 +116,17 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     [
       'fork or remote mismatch',
       { remote: { name: 'origin', url: 'git@github.com:other/widget.git', oid: 'a'.repeat(40) } },
+      'the pull request head repository does not match the selected git remote',
+    ],
+    [
+      'lookalike remote host',
+      {
+        remote: {
+          name: 'origin',
+          url: 'https://evil.example/github.com/acme/widget.git',
+          oid: 'a'.repeat(40),
+        },
+      },
       'the pull request head repository does not match the selected git remote',
     ],
     [
@@ -309,6 +322,39 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       remaining: ['delete-remote-ref', 'delete-local-ref'],
       blockers: ['delete-remote-ref failed: lease rejected'],
     });
+  });
+
+  it('runs each cleanup process from the operation surviving worktree', () => {
+    const operation = buildCleanupPlan(safeObservation()).operations[1];
+    if (!operation) throw new Error('fixture operation missing');
+    const calls: { command: string; arguments_: string[]; cwd: string }[] = [];
+
+    const result = executeCleanupOperation(operation, (command, arguments_, cwd) => {
+      calls.push({ command, arguments_, cwd });
+      return { status: 0, stdout: '', stderr: '' };
+    });
+
+    expect(result.status).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.cwd).toBe('/repo');
+  });
+
+  it('distinguishes an absent remote ref from an unobservable remote', () => {
+    expect(resolveRemoteReference({ status: 0, stdout: '', stderr: '' })).toEqual({
+      resolution: 'absent',
+    });
+    expect(
+      resolveRemoteReference({ status: 1, stdout: '', stderr: 'authentication failed' }),
+    ).toEqual({
+      resolution: 'unknown',
+    });
+    expect(
+      resolveRemoteReference({
+        status: 0,
+        stdout: `${'a'.repeat(40)}\trefs/heads/topic\n`,
+        stderr: '',
+      }),
+    ).toEqual({ resolution: 'matched', oid: 'a'.repeat(40) });
   });
 
   it('executes the exact cleanup commands against a real linked git worktree and remote', () => {

@@ -92,4 +92,13 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(existsSync(bindingPath)).toBe(false);
     expect(readFreshCloseoutBinding({ projectDirectory, now })).toBeUndefined();
   });
+
+  it('fails closed instead of adopting either of two concurrent session bindings', () => {
+    const projectDirectory = project();
+    const now = new Date('2026-08-02T12:00:00.000Z');
+    rememberCloseoutBinding({ projectDirectory, runtime: 'codex', id: 'thread-a', now });
+    rememberCloseoutBinding({ projectDirectory, runtime: 'codex', id: 'thread-b', now });
+
+    expect(readFreshCloseoutBinding({ projectDirectory, now })).toBeUndefined();
+  });
 });
