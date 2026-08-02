@@ -23,6 +23,8 @@ interface SpikeWorkflowWorld {
   codexPluginDirectory?: string;
   codexSpikeSkill?: string;
   bddScenariosGuidance?: string;
+  bddDiscoveryGuidance?: string;
+  bddPhase?: string;
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -343,6 +345,59 @@ Then('plan-implementation has not begun', function (this: SpikeWorkflowWorld) {
     /remain in `scenario-gate`[\s\S]*do not set or advance\s+to `plan-implementation`/i,
   );
 });
+
+Given('BDD is in {word}', function (this: SpikeWorkflowWorld, phase: string) {
+  this.bddPhase = phase;
+  this.bddDiscoveryGuidance = readFileSync(
+    nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/bdd/DISCOVERY.md'),
+    'utf8',
+  );
+  this.bddScenariosGuidance = readFileSync(
+    nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/bdd/SCENARIOS.md'),
+    'utf8',
+  );
+});
+
+Given('scenario validation has not completed', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.bddPhase);
+});
+
+When('BDD selects the next workflow action', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.bddPhase);
+});
+
+Then('the spike checkpoint is not offered', function (this: SpikeWorkflowWorld) {
+  const guidance = this.bddScenariosGuidance ?? '';
+  assert.match(
+    guidance,
+    /never during intake, define-behavior, or while scenario\s+validation is incomplete/i,
+  );
+});
+
+Then(
+  /^BDD (advances to define-behavior|advances to scenario-gate|remains in scenario-gate until validation passes)$/,
+  function (this: SpikeWorkflowWorld, transition: string) {
+    if (transition === 'advances to define-behavior') {
+      assert.match(
+        this.bddDiscoveryGuidance ?? '',
+        /Update frontmatter:[^\n]*`phase: define-behavior`/i,
+      );
+      return;
+    }
+    if (transition === 'advances to scenario-gate') {
+      assert.match(
+        this.bddScenariosGuidance ?? '',
+        /Update frontmatter:[^\n]*`phase: scenario-gate`/i,
+      );
+      return;
+    }
+    assert.equal(transition, 'remains in scenario-gate until validation passes');
+    assert.match(
+      this.bddScenariosGuidance ?? '',
+      /while (?:items 1.?2|scenario validation) (?:are )?incomplete[^.]*remain in `scenario-gate`/i,
+    );
+  },
+);
 
 Given('a project without Claude or Cursor spike artifacts', function (this: SpikeWorkflowWorld) {
   this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-'));
