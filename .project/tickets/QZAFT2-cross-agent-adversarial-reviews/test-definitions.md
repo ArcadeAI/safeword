@@ -122,15 +122,15 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario Outline: Existing desktop or cloud authentication can run the opposite reviewer
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: symmetric public-command and credential-boundary walking-skeleton tests already covered the four environment rows before the managed-credential matrix was completed
+- [x] GREEN 65626eb94
+- [x] REFACTOR skip: desktop profiles and managed cloud credentials share the same vendor-scoped child environment
 
 ### Scenario: A cloud session never invents or exposes a missing reviewer credential
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the preferred-route authentication matrix already failed closed as not_authenticated without reading a secret value
+- [x] GREEN 0e5225ac7
+- [x] REFACTOR skip: the sign-in recovery action names no package, environment variable, credential format, or secret
 
 ### Scenario: An explicit opt-out retains the existing route without cross-agent evidence
 
