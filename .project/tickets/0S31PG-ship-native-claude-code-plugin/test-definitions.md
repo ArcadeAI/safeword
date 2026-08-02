@@ -102,7 +102,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
 - [x] RED 906691fa7
 - [x] GREEN caaf3c8ed
-- [ ] REFACTOR
+- [x] REFACTOR skip: one dispatcher now owns both launch and reload proof paths without duplication
 
 ### Scenario: Refused live reload leaves legacy authority intact
 
