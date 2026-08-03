@@ -56,3 +56,25 @@ profile comparison, and idempotent rerun result.
 Stable publication is blocked until every check above passes. If Claude changes
 same-name replacement semantics, stop and change the installer rather than
 removing or weakening this gate.
+
+## Dual-scope host matrix
+
+Before status or cleanup changes ship, use isolated `CLAUDE_CONFIG_DIR` values
+and temporary repositories to prove all four directions with the candidate
+payload:
+
+1. Upgrade an older user installation while preserving an exact project
+   installation.
+2. Upgrade an older project installation while preserving an exact user
+   installation.
+3. Uninstall project scope and invoke a generated hook through the remaining
+   user installation.
+4. Reinstall project scope, uninstall user scope, and invoke a generated hook
+   through the remaining project installation.
+
+For each direction, compare both scoped settings files and `plugin list --json`,
+require the remaining entry to retain its scope and project identity, and verify
+the exact candidate identity/inventory at its reported cache root. Use a local
+candidate marketplace only for the pre-status implementation gate. The final
+release gate still requires a public release-candidate tag because a local
+directory cannot prove tagged Git checkout and same-name marketplace replacement.

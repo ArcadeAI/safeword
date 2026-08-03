@@ -82,7 +82,7 @@ recoverable backup; if status reports `recovery_required`, run
 - `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
 - `.safeword/skills/` - Canonical project-local skill references retained for Cursor
 - `.safeword/hooks/` - Auto-linting, quality review hooks
-- Safe Word Claude plugin - User-scoped native workflows and hooks; install it with `safeword claude install`
+- Safe Word Claude plugin - Project-scoped native workflows and hooks by default; use `safeword claude install --scope user` for profile-wide activation
 - Safe Word Codex plugin - Profile-scoped skills and hooks; install it with `safeword codex install`
 - `.cursor/hooks.json` - Hook configuration for Cursor
 - `.cursor/rules/` - Behavior rules for Cursor
