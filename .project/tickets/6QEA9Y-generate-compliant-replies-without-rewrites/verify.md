@@ -43,6 +43,7 @@ ends once, while a bad response receives one bounded correction rather than a lo
 - Full Vitest: 427 files; 6,489 passed and 5 skipped.
 - Full Cucumber: 913 scenarios; 910 passed and 3 skipped; 34,443 executed steps passed and 4 skipped.
 - Focused ticket acceptance: 87/87 scenarios and 3,299/3,299 steps passed.
+- Post-v0.72.0 integration check: 209/209 focused unit/integration tests and 142/142 relevant Claude plugin and reply-contract scenarios passed after regenerating the merged plugin identity.
 - Build and declaration generation succeeded.
 - ESLint, Gherkin lint, formatting, and `tsc --noEmit` passed.
 - `bun audit` found no vulnerabilities.
