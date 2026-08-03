@@ -27,6 +27,21 @@ export interface ClaudeProfileObservation {
   readonly nextAction?: string;
 }
 
+export interface ClaudeScopedInstallationObservation {
+  readonly scope: ClaudePluginScope;
+  readonly health: ClaudeProfileHealth;
+  readonly plugin: JsonObject;
+  readonly message?: string;
+  readonly nextAction?: string;
+}
+
+export interface ClaudeApplicablePluginsObservation {
+  readonly status: 'observed' | 'unsupported-host' | 'errored';
+  readonly installations: readonly ClaudeScopedInstallationObservation[];
+  readonly message?: string;
+  readonly nextAction?: string;
+}
+
 class ClaudeProfileError extends Error {
   constructor(
     readonly code: string,
@@ -481,13 +496,14 @@ function validateNativePayload(plugin: JsonObject): void {
 }
 
 /** Read-only profile observation used by `safeword claude status`. */
-export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
+export function observeApplicableClaudePlugins(cwd: string): ClaudeApplicablePluginsObservation {
   let projectRoot: string;
   try {
     projectRoot = canonicalProjectRoot(cwd);
   } catch (error) {
     return {
-      health: 'errored',
+      status: 'errored',
+      installations: [],
       message: error instanceof Error ? error.message : String(error),
       nextAction: 'repair the reported Claude project path',
     };
@@ -497,7 +513,8 @@ export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
-      health: 'unsupported-host',
+      status: 'unsupported-host',
+      installations: [],
       message,
       nextAction: message.startsWith('Could not parse')
         ? 'reinstall Claude Code'
@@ -505,17 +522,41 @@ export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
     };
   }
 
-  let plugin: JsonObject | undefined;
+  let plugins: JsonObject[];
   try {
-    plugin = pluginEntries(projectRoot, []).find(entry => entry.id === PLUGIN_ID);
+    plugins = applicableSafewordPlugins(pluginEntries(projectRoot, []), projectRoot);
   } catch (error) {
     return {
-      health: 'errored',
+      status: 'errored',
+      installations: [],
       message: error instanceof Error ? error.message : String(error),
       nextAction: 'repair the reported Claude plugin error',
     };
   }
-  return observeInstalledPlugin(plugin);
+  return {
+    status: 'observed',
+    installations: plugins.map(plugin => ({
+      scope: plugin.scope as ClaudePluginScope,
+      plugin,
+      ...observeInstalledPlugin(plugin),
+    })),
+  };
+}
+
+/** Backward-compatible single-installation view used by the legacy status flow. */
+export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
+  const observation = observeApplicableClaudePlugins(cwd);
+  if (observation.status !== 'observed') {
+    return {
+      health: observation.status,
+      message: observation.message,
+      nextAction: observation.nextAction,
+    };
+  }
+  const installation =
+    observation.installations.find(candidate => candidate.scope === 'project') ??
+    observation.installations.find(candidate => candidate.scope === 'user');
+  return installation ?? { health: 'missing' };
 }
 
 function observeInstalledPlugin(plugin: JsonObject | undefined): ClaudeProfileObservation {

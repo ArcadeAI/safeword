@@ -7,7 +7,11 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
-import { type JsonObject, observeClaudeProfile } from './profile.js';
+import {
+  type ClaudePluginScope,
+  type JsonObject,
+  observeApplicableClaudePlugins,
+} from './profile.js';
 
 type ClaudeStatusClassification =
   | 'recovery-required'
@@ -112,7 +116,12 @@ const ACTIONS: Readonly<Record<ClaudeStatusClassification, string | undefined>> 
 
 function statusResult(
   classification: ClaudeStatusClassification,
-  options: { nextAction?: string; message?: string; legacy?: LegacyObservation } = {},
+  options: {
+    nextAction?: string;
+    message?: string;
+    legacy?: LegacyObservation;
+    applicableScope?: ClaudePluginScope;
+  } = {},
 ): CliResult {
   const nextAction = options.nextAction ?? ACTIONS[classification];
   const failed = classification === 'errored';
@@ -138,6 +147,9 @@ function statusResult(
     data: {
       command: 'claude status',
       classification,
+      ...(options.applicableScope !== undefined && {
+        applicable_scope: options.applicableScope,
+      }),
       ...(options.legacy !== undefined && { legacy: options.legacy }),
     },
   });
@@ -147,20 +159,35 @@ export function observeClaudeStatus(cwd: string): CliResult {
   if (existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
     return statusResult('recovery-required');
   }
-  const profile = observeClaudeProfile(cwd);
-  if (profile.health !== 'current') {
-    return statusResult(profile.health, {
+  const profile = observeApplicableClaudePlugins(cwd);
+  if (profile.status !== 'observed') {
+    return statusResult(profile.status, {
       nextAction: profile.nextAction,
       message: profile.message,
     });
   }
-  if (!proofIsCurrent(profile.plugin ?? {})) return statusResult('unproven');
+  const installation = profile.installations[0];
+  if (installation === undefined) return statusResult('missing');
+  if (installation.health !== 'current') {
+    return statusResult(installation.health, {
+      nextAction: installation.nextAction,
+      message: installation.message,
+      applicableScope: installation.scope,
+    });
+  }
+  if (!proofIsCurrent(installation.plugin)) {
+    return statusResult('unproven', { applicableScope: installation.scope });
+  }
 
   const legacy = legacyObservation(cwd);
-  if (legacy.conflicts.length > 0) return statusResult('coexistence', { legacy });
-  if (legacy.recognized.length > 0) return statusResult('cleanup-ready', { legacy });
-  if (existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker))) {
-    return statusResult('plugin-mode', { legacy });
+  if (legacy.conflicts.length > 0) {
+    return statusResult('coexistence', { legacy, applicableScope: installation.scope });
   }
-  return statusResult('coexistence', { legacy });
+  if (legacy.recognized.length > 0) {
+    return statusResult('cleanup-ready', { legacy, applicableScope: installation.scope });
+  }
+  if (existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker))) {
+    return statusResult('plugin-mode', { legacy, applicableScope: installation.scope });
+  }
+  return statusResult('coexistence', { legacy, applicableScope: installation.scope });
 }
