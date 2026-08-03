@@ -119,7 +119,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Proof that does not establish current-project execution cannot authorize cleanup
 
 - [x] RED d07d9305e
-- [ ] GREEN
+- [x] GREEN 4c0f104b4
 - [ ] REFACTOR
 
 ### Scenario: Overlapping scopes cannot authorize legacy cleanup
