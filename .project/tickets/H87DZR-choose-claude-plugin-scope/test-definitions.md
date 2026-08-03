@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Fresh installation uses only the requested activation boundary
 
-- [ ] RED
+- [x] RED 13e6b0acb
 - [ ] GREEN
 - [ ] REFACTOR
 
