@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
@@ -94,6 +95,60 @@ function assertSupportedHost(cwd: string): void {
 
 function officialMarketplaceSource(): string {
   return `${MARKETPLACE_BASE}#v${SAFEWORD_SCHEMA.version}`;
+}
+
+function claudeConfigDirectory(): string {
+  return process.env.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
+}
+
+function scopedSettingsPath(cwd: string, scope: ClaudePluginScope): string {
+  return scope === 'project'
+    ? nodePath.join(cwd, '.claude/settings.json')
+    : nodePath.join(claudeConfigDirectory(), 'settings.json');
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function invalidScopeSettings(scope: ClaudePluginScope, message: string): never {
+  throw new ClaudeProfileError('CLAUDE_SCOPE_SETTINGS_INVALID', `Claude ${scope}-scope ${message}`);
+}
+
+function readScopedSettings(cwd: string, scope: ClaudePluginScope): JsonObject | undefined {
+  const path = scopedSettingsPath(cwd, scope);
+  if (!existsSync(path)) return undefined;
+  let settings: unknown;
+  try {
+    settings = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+  } catch (error) {
+    invalidScopeSettings(
+      scope,
+      `settings are not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!isJsonObject(settings)) invalidScopeSettings(scope, 'settings must be a JSON object.');
+  return settings;
+}
+
+function scopedMarketplaceDeclaration(
+  cwd: string,
+  scope: ClaudePluginScope,
+): JsonObject | undefined {
+  const marketplaces = readScopedSettings(cwd, scope)?.extraKnownMarketplaces;
+  if (marketplaces === undefined) return undefined;
+  if (!isJsonObject(marketplaces)) {
+    invalidScopeSettings(scope, 'marketplace declarations are malformed.');
+  }
+  const declaration = marketplaces[MARKETPLACE_NAME];
+  if (declaration === undefined) return undefined;
+  if (!isJsonObject(declaration)) {
+    throw new ClaudeProfileError(
+      'CLAUDE_MARKETPLACE_CONFLICT',
+      `Claude ${scope}-scope marketplace ${MARKETPLACE_NAME} has malformed metadata.`,
+    );
+  }
+  return declaration;
 }
 
 type MarketplaceSourceStatus = 'current' | 'stale' | 'conflict';
@@ -200,28 +255,62 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
   });
 }
 
-function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
-  let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
-  const sourceStatus = marketplace === undefined ? undefined : marketplaceSourceStatus(marketplace);
-  if (sourceStatus === 'conflict') {
+interface MarketplaceObservation {
+  readonly declaration?: JsonObject;
+  readonly declarationStatus?: MarketplaceSourceStatus;
+  readonly shared?: JsonObject;
+  readonly sharedStatus?: MarketplaceSourceStatus;
+}
+
+function observeMarketplace(
+  cwd: string,
+  scope: ClaudePluginScope,
+  effects: readonly Effect[],
+): MarketplaceObservation {
+  const declaration = scopedMarketplaceDeclaration(cwd, scope);
+  const shared = safewordMarketplace(marketplaceEntries(cwd, effects));
+  return {
+    declaration,
+    declarationStatus: declaration === undefined ? undefined : marketplaceSourceStatus(declaration),
+    shared,
+    sharedStatus: shared === undefined ? undefined : marketplaceSourceStatus(shared),
+  };
+}
+
+function assertTrustedMarketplace(observation: MarketplaceObservation): void {
+  if (observation.declarationStatus === 'conflict' || observation.sharedStatus === 'conflict') {
     throw new ClaudeProfileError(
       'CLAUDE_MARKETPLACE_CONFLICT',
       `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.`,
     );
   }
-  if (sourceStatus === 'current') return;
+}
+
+function marketplaceIsCurrent(observation: MarketplaceObservation): boolean {
+  return observation.declarationStatus === 'current' && observation.sharedStatus === 'current';
+}
+
+function marketplaceEffectKind(observation: MarketplaceObservation): 'add' | 'update' {
+  return observation.declarationStatus === 'stale' || observation.sharedStatus === 'stale'
+    ? 'update'
+    : 'add';
+}
+
+function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
+  const before = observeMarketplace(cwd, scope, effects);
+  assertTrustedMarketplace(before);
+  if (marketplaceIsCurrent(before)) return;
   runClaude(
     cwd,
     ['plugin', 'marketplace', 'add', officialMarketplaceSource(), '--scope', scope],
     effects,
   );
   effects.push({
-    kind: sourceStatus === 'stale' ? 'update' : 'add',
+    kind: marketplaceEffectKind(before),
     target: MARKETPLACE_NAME,
     operation: scope,
   });
-  marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
-  if (marketplace === undefined || marketplaceSourceStatus(marketplace) !== 'current') {
+  if (!marketplaceIsCurrent(observeMarketplace(cwd, scope, effects))) {
     throw new ClaudeProfileError(
       'CLAUDE_MARKETPLACE_UNVERIFIED',
       'Claude did not report the exact official Safeword marketplace after adding it.',

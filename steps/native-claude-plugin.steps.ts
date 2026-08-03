@@ -42,6 +42,7 @@ interface NativeClaudePluginWorld {
     terminalClassification?: string;
     completedOperation?: string;
     otherScopeSnapshot?: string;
+    selectedScope?: 'project' | 'user';
     unrelatedProfile: unknown;
     result?: { status: number; output: string };
   };
@@ -507,12 +508,23 @@ function writeFakeClaude(fakeBin: string): void {
     fakeClaude,
     `#!/usr/bin/env node
 const fs = require('node:fs');
+const path = require('node:path');
 const statePath = process.env.FAKE_CLAUDE_STATE;
 const args = process.argv.slice(2);
 const read = () => JSON.parse(fs.readFileSync(statePath, 'utf8'));
 const write = value => fs.writeFileSync(statePath, JSON.stringify(value, null, 2) + '\\n');
 const state = read();
 const operation = args.join(' ');
+const settingsPath = scope => scope === 'project'
+  ? path.join(state.projectPath, '.claude', 'settings.json')
+  : path.join(process.env.CLAUDE_CONFIG_DIR, 'settings.json');
+const updateSettings = (scope, update) => {
+  const target = settingsPath(scope);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const settings = fs.existsSync(target) ? JSON.parse(fs.readFileSync(target, 'utf8')) : {};
+  update(settings);
+  fs.writeFileSync(target, JSON.stringify(settings, null, 2) + '\\n');
+};
 if (args[0] === '--version') { console.log(state.hostVersion); process.exit(0); }
 if (state.failOperation && operation.startsWith(state.failOperation)) {
   console.error('simulated Claude failure: ' + state.failOperation); process.exit(70);
@@ -527,7 +539,12 @@ if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
       (scope === 'project' && entry.projectPath !== projectPath));
   state.marketplaceDeclarations.push({ name: 'safeword', source: 'git', url, ref, scope, ...(projectPath && { projectPath }) });
   state.marketplaces = state.marketplaces.filter(entry => entry.name !== 'safeword');
-  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref }); write(state); process.exit(0);
+  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref });
+  updateSettings(scope, settings => {
+    settings.extraKnownMarketplaces = settings.extraKnownMarketplaces || {};
+    settings.extraKnownMarketplaces.safeword = { source: { source: 'git', url, ref } };
+  });
+  write(state); process.exit(0);
 }
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
 if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
@@ -537,12 +554,56 @@ if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
     entry.id !== 'safeword@safeword' || (entry.scope || 'user') !== scope ||
       (scope === 'project' && entry.projectPath !== projectPath));
   state.plugins.push({ id: 'safeword@safeword', version: '${EXPECTED_VERSION}', enabled: true, scope, installPath: state.installPath, ...(projectPath && { projectPath }) });
+  updateSettings(scope, settings => {
+    settings.enabledPlugins = settings.enabledPlugins || {};
+    settings.enabledPlugins['safeword@safeword'] = true;
+  });
   write(state); process.exit(0);
 }
 console.error('unexpected fake claude command: ' + operation); process.exit(64);
 `,
   );
   chmodSync(fakeClaude, 0o755);
+}
+
+function materializeScopedSettings(
+  project: string,
+  configRoot: string,
+  marketplaceDeclarations: readonly unknown[],
+  plugins: readonly unknown[],
+): void {
+  for (const scope of ['project', 'user'] as const) {
+    const scopedMarketplaces = (marketplaceDeclarations as Record<string, unknown>[]).filter(
+      entry => entry.scope === scope,
+    );
+    const scopedPlugins = (plugins as Record<string, unknown>[]).filter(
+      entry => entry.scope === scope,
+    );
+    if (scopedMarketplaces.length === 0 && scopedPlugins.length === 0) continue;
+    const settings: Record<string, unknown> = {};
+    const marketplace = scopedMarketplaces.find(entry => entry.name === 'safeword');
+    if (marketplace !== undefined) {
+      settings.extraKnownMarketplaces = {
+        safeword: {
+          source: {
+            source: marketplace.source,
+            url: marketplace.url,
+            ref: marketplace.ref,
+          },
+        },
+      };
+    }
+    const plugin = scopedPlugins.find(entry => entry.id === 'safeword@safeword');
+    if (plugin !== undefined) {
+      settings.enabledPlugins = { 'safeword@safeword': plugin.enabled };
+    }
+    const target =
+      scope === 'project'
+        ? nodePath.join(project, '.claude/settings.json')
+        : nodePath.join(configRoot, 'settings.json');
+    mkdirSync(nodePath.dirname(target), { recursive: true });
+    writeFileSync(target, `${JSON.stringify(settings, undefined, 2)}\n`);
+  }
 }
 
 function createLifecycleFixture(
@@ -559,9 +620,11 @@ function createLifecycleFixture(
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-lifecycle-'));
   const project = nodePath.join(root, 'project');
   const fakeBin = nodePath.join(root, 'bin');
+  const configRoot = nodePath.join(root, 'claude-config');
   const statePath = nodePath.join(root, 'claude-state.json');
   mkdirSync(project, { recursive: true });
   mkdirSync(fakeBin, { recursive: true });
+  mkdirSync(configRoot, { recursive: true });
   writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
   const state = {
     hostVersion: '2.1.170 (Claude Code)',
@@ -577,10 +640,12 @@ function createLifecycleFixture(
   cpSync(PLUGIN_ROOT, state.installPath, { recursive: true });
   const profileSnapshot = `${JSON.stringify(state, undefined, 2)}\n`;
   writeFileSync(statePath, profileSnapshot);
+  materializeScopedSettings(project, configRoot, state.marketplaceDeclarations, state.plugins);
   writeFakeClaude(fakeBin);
   world.lifecycle = {
     root,
     project,
+    configRoot,
     statePath,
     projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
     profileSnapshot,
@@ -1704,15 +1769,19 @@ Given(
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-install-'));
     const project = nodePath.join(root, 'project');
     const fakeBin = nodePath.join(root, 'bin');
+    const configRoot = nodePath.join(root, 'claude-config');
     const statePath = nodePath.join(root, 'claude-state.json');
     mkdirSync(project, { recursive: true });
     mkdirSync(fakeBin, { recursive: true });
+    mkdirSync(configRoot, { recursive: true });
     writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
     const officialSource = OFFICIAL_MARKETPLACE_SOURCE;
     const state = {
       hostVersion: '2.1.170 (Claude Code)',
       failOperation: null,
       installPath: pluginCachePath(root),
+      projectPath: project,
+      marketplaceDeclarations: [],
       unrelated: { theme: 'dark', custom: ['preserve', 7] },
       marketplaces:
         initialState === 'no Safeword marketplace or plugin'
@@ -1751,6 +1820,7 @@ Given(
     this.lifecycle = {
       root,
       project,
+      configRoot,
       statePath,
       projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
       profileSnapshot,
@@ -1816,6 +1886,7 @@ Given(
       ],
     });
     assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = selectedScope as 'project' | 'user';
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
       installPath: string;
       marketplaceDeclarations: Record<string, unknown>[];
@@ -1841,7 +1912,7 @@ Given(
       marketplaceDeclarations: Record<string, unknown>[];
       plugins: Record<string, unknown>[];
     };
-    const selectedScope = state.plugins.find(plugin => plugin.version === '0.70.0')?.scope;
+    const selectedScope = this.lifecycle.selectedScope;
     const otherScope = selectedScope === 'project' ? 'user' : 'project';
     this.lifecycle.otherScopeSnapshot = JSON.stringify({
       marketplaces: state.marketplaceDeclarations.filter(entry => entry.scope === otherScope),
@@ -1898,6 +1969,7 @@ When('safeword claude install runs', function (this: NativeClaudePluginWorld) {
       cwd: REPO_ROOT,
       env: {
         ...process.env,
+        CLAUDE_CONFIG_DIR: this.lifecycle.configRoot,
         FAKE_CLAUDE_STATE: this.lifecycle.statePath,
         PATH: `${nodePath.join(this.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
       },
@@ -1947,7 +2019,7 @@ Then("the other scope's declaration is byte-identical", function (this: NativeCl
     marketplaceDeclarations: Record<string, unknown>[];
     plugins: Record<string, unknown>[];
   };
-  const selectedScope = state.plugins.find(plugin => plugin.version === EXPECTED_VERSION)?.scope;
+  const selectedScope = this.lifecycle.selectedScope;
   const otherScope = selectedScope === 'project' ? 'user' : 'project';
   assert.equal(
     JSON.stringify({
