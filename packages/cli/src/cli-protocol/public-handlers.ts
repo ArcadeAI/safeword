@@ -91,9 +91,22 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
 
 async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline) return onlineRequired('claude install');
+  const requestedScope = invocation.options.scope ?? 'project';
+  if (requestedScope !== 'project' && requestedScope !== 'user') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: 'Claude plugin scope must be either project or user.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'claude install' },
+    });
+  }
   const { installClaudePlugin } = await import('../claude-plugin/profile.js');
-  const scope = invocation.options.scope;
-  return installClaudePlugin(invocation.cwd, scope === 'user' ? 'user' : 'project');
+  return installClaudePlugin(invocation.cwd, requestedScope);
 }
 
 async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliResult> {

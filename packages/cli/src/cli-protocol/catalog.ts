@@ -31,7 +31,7 @@ export interface CommandDefinition {
       readonly flags: string;
       readonly description: string;
       readonly defaultValue?: string;
-      readonly valueKind?: 'plan-identity';
+      readonly valueKind?: 'claude-plugin-scope' | 'plan-identity';
     }[];
   };
   readonly aliasFor?: string;
@@ -226,6 +226,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         flags: '--scope <scope>',
         description: 'Install for this project or the current user profile',
         defaultValue: 'project',
+        valueKind: 'claude-plugin-scope',
       },
     ],
   }),
