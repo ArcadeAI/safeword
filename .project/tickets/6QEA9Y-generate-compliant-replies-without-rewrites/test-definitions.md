@@ -47,7 +47,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A correction attempt cannot trigger another format rewrite
 
 - [x] RED skip: the pre-existing Stop loop guard already allowed the correction iteration; this scenario locks in its precedence
-- [ ] GREEN
+- [x] GREEN cc97e0d0e
 - [ ] REFACTOR
 
 ## Rule: generate-compliant-replies-without-rewrites.TBU1.R1 — The exact phase-neutral contract is available before the first response and restored after compaction
