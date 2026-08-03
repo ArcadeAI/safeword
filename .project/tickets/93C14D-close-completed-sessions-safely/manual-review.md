@@ -1,22 +1,24 @@
 # Manual Review
 
-Fresh review is bound to the final advisory-remediated manifest. Independent
-recomputation found 39/39 matching input hashes and 58/58 ordered scenario
-titles. Compared with the approved prior packet, the only new dependency change
-is fast-uri 3.1.4 to 3.1.5 in the override and lockfile resolution/checksum; the
-reviewed advisory confirms 3.1.5 as the patched 3.x release.
+Fresh review is bound to the post-merge manifest. The author-side orchestrator
+recomputed 39/39 input hashes and 58/58 ordered scenario titles; the independent
+reviewer read every bound input and evaluated every scenario without relying on
+the prior review verdict.
 
-Fresh audit, typecheck, dependency-graph, diff, and 239-pair/8-contract parity
-checks pass. The repeated full Vitest and Gherkin runs remain applicable to this
-bounded package-only patch. All 58 rows pass.
+The reviewer confirmed the regenerated Claude plugin contains both main's
+closeout behavior and PR #1835's SessionStart reply contract through the same
+deterministic generator. Closeout cleanup, host adapters, parity enforcement,
+and all 58 scenario rows remain supported. The reviewer had no shell tool to
+recompute the manifest digest; the deterministic author-side test owns that
+check and rejects any mismatch.
 
 ```json
 {
   "reviewer": {
-    "identity": "claude-headless:971692a4-ff5d-4e45-84fd-a6ad3d47e331",
-    "model": "Claude (headless SafeWord coordinator; Claude Code 2.1.170)"
+    "identity": "claude-headless:ec6efe37-35d9-4dcb-9774-2118ef47d1e7",
+    "model": "claude-sonnet-5 (headless Claude Code 2.1.220)"
   },
-  "manifest_sha256": "a3ed2b184ee4581974fd29d50452af51f91aa63ba3caa1aa5fc41f5d4612326a",
+  "manifest_sha256": "e945fcb6eca6f238d154da6f96199517aa578e89b15a619ee6ef8ff533443d61",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },

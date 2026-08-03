@@ -1,7 +1,7 @@
 {
   "version": 1,
   "ticket": "93C14D",
-  "created_at": "2026-08-03T20:00:52Z",
+  "created_at": "2026-08-03T22:42:11Z",
   "inputs": [
     {
       "path": ".project/tickets/93C14D-close-completed-sessions-safely/impl-plan.md",
@@ -93,7 +93,7 @@
     },
     {
       "path": "plugin/runtime/cli.js",
-      "sha256": "fdca9d85852a018b49e64a0e3a998afe377487f0cb34bd4dca8ec7902a47dc05"
+      "sha256": "199147462ab7a94473497ae3bb38daecf5ca8b9a1cf5212bb27d133e539ff2f2"
     },
     {
       "path": "plugin/runtime/hooks/lib/closeout-binding.ts",
@@ -105,11 +105,11 @@
     },
     {
       "path": "plugin/identity.json",
-      "sha256": "d65bf67cc1049f554e30ee51b69ba6f8c4d82ad32cd05ee2b5a522f018be0291"
+      "sha256": "7676ee1f028e7af127a8a4a4333ca9694acd27f7147d7a34e19827bd2735c6f8"
     },
     {
       "path": "plugin/inventory.json",
-      "sha256": "223a941d19bd991fc5ffd761bd663de0c16e31ab4f5965cecc4013de9e83a10c"
+      "sha256": "77bcc3f808b9caf85f1661f6ae3f07ee0e31c541c0e17dd5b75008b076ed3f12"
     },
     {
       "path": "packages/cli/tests/closeout-skill.test.ts",
@@ -153,7 +153,7 @@
     },
     {
       "path": "packages/cli/src/claude-plugin/catalogue.ts",
-      "sha256": "e490209e2b0ec35a44a27623876b8d59051fc9a4187a21213e341a35cfd5628a"
+      "sha256": "7124a0076b9aa3ec51d7ff611b7d279c50516ff6397ce57806f406b5ba43d83d"
     },
     {
       "path": ".project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json",

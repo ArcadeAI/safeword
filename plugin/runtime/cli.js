@@ -12288,12 +12288,12 @@ var init_config2 = __esm(() => {
       hook(`bun ${HOOKS_DIR}/session-dependency-readiness.ts`),
       asyncRewakeHook(`bun ${HOOKS_DIR}/session-auto-upgrade.ts`),
       hook(`bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
+      hook(`bun ${HOOKS_DIR}/session-reply-format.ts --agent=claude`),
       hook(`bun ${HOOKS_DIR}/session-version.ts`),
       hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
       hook(`bun ${HOOKS_DIR}/session-architecture-heal.ts`),
       hook(`bun ${HOOKS_DIR}/session-author-model.ts`),
       hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
-      matchedHook("compact", `bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
       matchedHook("compact", `bun ${HOOKS_DIR}/session-compact-context.ts`)
     ],
     UserPromptSubmit: [
@@ -13460,6 +13460,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/session-safeword-context.ts": {
         template: "hooks/session-safeword-context.ts"
       },
+      ".safeword/hooks/session-reply-format.ts": {
+        template: "hooks/session-reply-format.ts"
+      },
       ".safeword/hooks/session-codex-start.ts": {
         template: "hooks/session-codex-start.ts"
       },
@@ -13904,10 +13907,9 @@ ${managedPrettierPaths(ctx).join(`
           "REPLY_FORMAT_LEAD_RULE",
           "REPLY_FORMAT_LEAD",
           "REPLY_FORMAT_REMINDER",
-          "CONFIDENT",
-          "BLOCKED",
-          "Tried:",
-          "Need:"
+          "DECISION_BRIEF_GRAMMAR",
+          "renderDecisionBriefContract",
+          "evaluateDecisionBriefCompliance"
         ]
       },
       "packages/cli/templates/doc-templates/test-definitions-feature.md": {
