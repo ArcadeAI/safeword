@@ -2366,6 +2366,38 @@ Given(
 );
 
 Given(
+  /^the current project has one exact applicable Safeword installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, applicableScope: string) {
+    createExactScopedFixture(this, applicableScope as 'project' | 'user');
+  },
+);
+
+Given(
+  /^that installation has (proof recorded in another project|no plugin execution proof|stale plugin execution proof)$/u,
+  function (this: NativeClaudePluginWorld, proofState: string) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+    };
+    if (proofState === 'proof recorded in another project') {
+      const otherProject = nodePath.join(this.lifecycle.root, 'proof-for-other-project');
+      mkdirSync(otherProject, { recursive: true });
+      writeStatusProofV2(this.lifecycle.configRoot ?? '', otherProject, state.installPath);
+    } else if (proofState === 'stale plugin execution proof') {
+      writeStatusProofV2(
+        this.lifecycle.configRoot ?? '',
+        this.lifecycle.project,
+        state.installPath,
+        {
+          plugin_version: '0.70.0',
+        },
+      );
+    }
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
   'the project has wholly recognized removable legacy protection',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
@@ -3007,6 +3039,22 @@ Then('only the recognized legacy protection is removed', function (this: NativeC
     false,
   );
 });
+
+Then(
+  'cleanup reports unproven without removing legacy protection',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { classification?: string };
+    };
+    assert.equal(result.data?.classification, 'unproven');
+    assert.ok(this.lifecycle);
+    assert.equal(
+      existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
+      true,
+    );
+  },
+);
 
 Then(
   /^the (project|user) installation and unrelated state remain byte-identical$/u,

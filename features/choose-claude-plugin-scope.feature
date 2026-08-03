@@ -202,7 +202,7 @@ Feature: Choose where Safeword runs in Claude
         | project          |
         | user             |
 
-    @wip @rejection
+    @rejection
     Scenario Outline: Proof that does not establish current-project execution cannot authorize cleanup
       Given the current project has one exact applicable Safeword installation at <applicable-scope>
       And that installation has <proof-state>
