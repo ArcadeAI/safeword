@@ -87,7 +87,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "8ea714970b489576c5b1aff2ba8e85af988b0865b507d522c05d3f4080a454a8"
+      "sha256": "c04aa3390330a1b070f1939426a56291b985205da2790c6ef3d593991e732526"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -583,7 +583,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "355eac814de2e886e219d9cb167b4a3fdb908c2ddbb335d38977b42392f831a3"
+      "sha256": "c14dd3c006e4e4593c111456dec7b8b72c41734213914a601251518635760377"
     },
     {
       "path": "skills/debug/SKILL.md",

@@ -5,15 +5,15 @@ then assessed every expanded feature example against the bound artifacts. The
 review specifically rechecked the previously failing retro-recovery,
 other-worktree, newline-path, four parity-drift, native-plugin dependency-closure,
 Cursor shared-skill, bundled-plugin-CLI, and generated-TypeScript formatting
-examples after their fixes.
+examples after their fixes, plus the dogfood-discovered retro JSON invocation.
 
 ```json
 {
   "reviewer": {
-    "identity": "/root/ci_format_quality_review",
+    "identity": "/root/retro_json_fix_review",
     "model": "gpt-5.6-sol (inherited parent model)"
   },
-  "manifest_sha256": "ae07003d5cb31ad48d01541ecf657997c7cda46bb22a8ce092598e81eda14f5d",
+  "manifest_sha256": "dcc121fbb74f25d5dceb8a61545902a5d03c12a71d704358e34997d86a1bd753",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },

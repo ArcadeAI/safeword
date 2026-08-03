@@ -533,8 +533,7 @@ function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['
   const retro = runSafeword(root, [
     'retro',
     'run',
-    '--format',
-    'json',
+    '--json',
     '--auto-extract',
     '--transcript',
     transcript,
