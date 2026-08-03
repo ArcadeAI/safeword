@@ -1,5 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from './namespace-root.js';
@@ -12,6 +20,7 @@ const CLOSEOUT_RUNTIMES = ['claude', 'codex', 'cursor'] as const;
 export interface CloseoutBinding {
   runtime: 'claude' | 'codex' | 'cursor';
   id: string;
+  projectRoot: string;
   transcriptPath?: string;
 }
 
@@ -59,10 +68,13 @@ function parseFreshBindingRecord(
     ) {
       return undefined;
     }
+    const projectRoot = nonEmptyString(parsed.projectRoot);
+    if (projectRoot === undefined) return undefined;
     const transcriptPath = nonEmptyString(parsed.transcriptPath);
     return {
       runtime: parsed.runtime,
       id,
+      projectRoot,
       ...(transcriptPath === undefined ? {} : { transcriptPath }),
     };
   } catch {
@@ -70,20 +82,30 @@ function parseFreshBindingRecord(
   }
 }
 
-function isCloseoutCleanupPath(token: string | undefined): boolean {
+function isCloseoutCleanupPath(token: string | undefined, pluginRoot?: string): boolean {
   if (token === undefined) return false;
-  const normalized = token.replaceAll('\\', '/');
+  const normalized = token.replaceAll('"', '').replaceAll('\\', '/');
+  const pluginPath = pluginRoot
+    ? nodePath.join(pluginRoot, 'resources/scripts/closeout-cleanup.ts').replaceAll('\\', '/')
+    : undefined;
   return (
     normalized === '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts' ||
-    normalized.endsWith('/"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts')
+    normalized.endsWith('/"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts') ||
+    normalized === '${CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts' ||
+    normalized === pluginPath
   );
 }
 
 /** True only when an executable shell segment runs the installed closeout guard. */
-export function commandInvokesCloseoutCleanup(command: string): boolean {
+export function commandInvokesCloseoutCleanup(
+  command: string,
+  pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
+): boolean {
   return splitShellSegments(command).some(segment => {
     const words = commandWords(segment);
-    return nodePath.basename(words[0] ?? '') === 'bun' && isCloseoutCleanupPath(words[1]);
+    return (
+      nodePath.basename(words[0] ?? '') === 'bun' && isCloseoutCleanupPath(words[1], pluginRoot)
+    );
   });
 }
 
@@ -102,6 +124,7 @@ export function rememberCloseoutBinding(input: RememberCloseoutBindingInput): bo
       `${JSON.stringify({
         runtime: input.runtime,
         id,
+        projectRoot: realpathSync(input.projectDirectory),
         ...(transcriptPath === undefined ? {} : { transcriptPath }),
         recordedAt: (input.now ?? new Date()).toISOString(),
       } satisfies CloseoutBindingCache)}\n`,

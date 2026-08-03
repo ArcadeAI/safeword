@@ -36386,7 +36386,9 @@ var init_retro_debug = __esm(() => {
 var exports_retro_extract = {};
 __export(exports_retro_extract, {
   windowFor: () => windowFor,
+  runHeadlessExtractionChecked: () => runHeadlessExtractionChecked,
   runHeadlessExtraction: () => runHeadlessExtraction,
+  runCursorHeadlessExtractionChecked: () => runCursorHeadlessExtractionChecked,
   runCodexHeadlessExtractionChecked: () => runCodexHeadlessExtractionChecked,
   runCodexHeadlessExtraction: () => runCodexHeadlessExtraction,
   retroChildArgs: () => retroChildArgs,
@@ -36394,6 +36396,7 @@ __export(exports_retro_extract, {
   isRetroChild: () => isRetroChild,
   buildExtractArgv: () => buildExtractArgv,
   buildDigest: () => buildDigest,
+  buildCursorExtractArgv: () => buildCursorExtractArgv,
   buildCodexExtractArgv: () => buildCodexExtractArgv,
   RETRO_EXTRACT_CMD_ENV: () => RETRO_EXTRACT_CMD_ENV,
   RETRO_CHILD_ENV: () => RETRO_CHILD_ENV,
@@ -36401,6 +36404,7 @@ __export(exports_retro_extract, {
   EXTRACT_SYSTEM_PROMPT: () => EXTRACT_SYSTEM_PROMPT,
   DIGEST_CAP: () => DIGEST_CAP,
   DEFAULT_RETRO_MODEL: () => DEFAULT_RETRO_MODEL,
+  DEFAULT_CURSOR_RETRO_MODEL: () => DEFAULT_CURSOR_RETRO_MODEL,
   DEFAULT_CODEX_RETRO_MODEL: () => DEFAULT_CODEX_RETRO_MODEL,
   DEFAULT_CLAUDE_RETRO_MODEL: () => DEFAULT_CLAUDE_RETRO_MODEL,
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
@@ -36408,7 +36412,11 @@ __export(exports_retro_extract, {
 import { readFileSync as readFileSync48, writeFileSync as writeFileSync18 } from "fs";
 import nodePath76 from "path";
 function defaultRetroModel(agent) {
-  return agent === "codex" ? DEFAULT_CODEX_RETRO_MODEL : DEFAULT_CLAUDE_RETRO_MODEL;
+  if (agent === "codex")
+    return DEFAULT_CODEX_RETRO_MODEL;
+  if (agent === "cursor")
+    return DEFAULT_CURSOR_RETRO_MODEL;
+  return DEFAULT_CLAUDE_RETRO_MODEL;
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
@@ -36476,6 +36484,18 @@ function buildCodexExtractArgv(options) {
     options.prompt
   ];
 }
+function buildCursorExtractArgv(options) {
+  return [
+    "-p",
+    "--output-format",
+    "json",
+    "--sandbox",
+    "enabled",
+    "--model",
+    options.model,
+    options.prompt
+  ];
+}
 function buildExtractPrompt(digestPath) {
   return `Read the file ${digestPath} and extract SAFEWORD's own friction as the JSON array described. Output only the JSON array.`;
 }
@@ -36487,37 +36507,53 @@ function buildCodexExtractPrompt(digest2) {
 ` + `Transcript digest:
 ${digest2}`;
 }
-function parseFindings(stdout) {
+function isFinding(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const finding = value;
+  const keys = Object.keys(finding).toSorted();
+  if (JSON.stringify(keys) !== JSON.stringify([...FINDING_KEYS].toSorted()))
+    return false;
+  if (typeof finding.category !== "string" || !["bug", "rough-edge", "gap"].includes(finding.category))
+    return false;
+  return FINDING_KEYS.slice(1).every((key) => typeof finding[key] === "string" && finding[key].trim().length > 0);
+}
+function validFindings(value) {
+  return Array.isArray(value) && value.every(isFinding) ? value : undefined;
+}
+function parseFindingsChecked(stdout) {
   let envelopeResult;
   try {
     const parsed2 = JSON.parse(stdout);
-    if (typeof parsed2.result !== "string")
-      return [];
+    if (parsed2.is_error === true || typeof parsed2.result !== "string")
+      return;
     envelopeResult = parsed2.result;
   } catch {
-    return [];
+    return;
   }
-  const match = envelopeResult.match(/\[[\S\s]*\]/);
+  const match = envelopeResult.match(/\[[\S\s]*\]/u);
   if (!match)
-    return [];
+    return;
   try {
-    const findings = JSON.parse(match[0]);
-    return Array.isArray(findings) ? findings : [];
+    return validFindings(JSON.parse(match[0]));
   } catch {
-    return [];
+    return;
   }
 }
 function parseCodexFindingsOutput(rawOutput) {
   try {
     const parsed2 = JSON.parse(rawOutput);
-    return Array.isArray(parsed2.findings) ? parsed2.findings : undefined;
+    return validFindings(parsed2.findings);
   } catch {
     return;
   }
 }
-async function runHeadlessExtraction(transcript, dependencies) {
+async function runHeadlessExtractionChecked(transcript, dependencies) {
   try {
-    const digestPath = dependencies.writeDigest(buildDigest(transcript));
+    const digest2 = buildDigest(transcript);
+    if (digest2.trim() === "")
+      return { ok: false, failureReason: "empty_digest", findings: [] };
+    const digestPath = dependencies.writeDigest(digest2);
     const argv = buildExtractArgv({
       model: dependencies.model ?? DEFAULT_RETRO_MODEL,
       systemPrompt: EXTRACT_SYSTEM_PROMPT,
@@ -36527,15 +36563,23 @@ async function runHeadlessExtraction(transcript, dependencies) {
       cwd: dependencies.cwd,
       env: { ...dependencies.env, [RETRO_CHILD_ENV]: "1" }
     });
-    if (code !== 0)
-      return [];
-    return parseFindings(stdout);
+    if (code !== 0) {
+      return { ok: false, failureReason: "spawn_nonzero", exitCode: code, findings: [] };
+    }
+    const findings = parseFindingsChecked(stdout);
+    return findings === undefined ? { ok: false, failureReason: "invalid_output", findings: [] } : { ok: true, findings };
   } catch {
-    return [];
+    return { ok: false, failureReason: "spawn_or_io_error", findings: [] };
   }
+}
+async function runHeadlessExtraction(transcript, dependencies) {
+  return (await runHeadlessExtractionChecked(transcript, dependencies)).findings;
 }
 async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
   try {
+    const digest2 = buildDigest(transcript);
+    if (digest2.trim() === "")
+      return { ok: false, failureReason: "empty_digest", findings: [] };
     const schemaPath = dependencies.schemaPath ?? nodePath76.join(dependencies.cwd, "schema.json");
     const outputPath = dependencies.outputPath ?? nodePath76.join(dependencies.cwd, "output.json");
     const writeFile2 = dependencies.writeFile ?? writeFileSync18;
@@ -36545,7 +36589,7 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
       schemaPath,
       outputPath,
-      prompt: buildCodexExtractPrompt(buildDigest(transcript))
+      prompt: buildCodexExtractPrompt(digest2)
     });
     const { code } = await dependencies.spawn(argv, {
       cwd: dependencies.cwd,
@@ -36570,6 +36614,33 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
 async function runCodexHeadlessExtraction(transcript, dependencies) {
   return (await runCodexHeadlessExtractionChecked(transcript, dependencies)).findings;
 }
+async function runCursorHeadlessExtractionChecked(transcript, dependencies) {
+  try {
+    const digest2 = buildDigest(transcript);
+    if (digest2.trim() === "")
+      return { ok: false, failureReason: "empty_digest", findings: [] };
+    const argv = buildCursorExtractArgv({
+      model: dependencies.model ?? DEFAULT_CURSOR_RETRO_MODEL,
+      prompt: `${EXTRACT_SYSTEM_PROMPT}
+
+` + `Use an empty JSON array when there is no safeword friction. Do not use tools or modify files.
+
+` + `Transcript digest:
+${digest2}`
+    });
+    const { code, stdout } = await dependencies.spawn(argv, {
+      cwd: dependencies.cwd,
+      env: { ...dependencies.env, [RETRO_CHILD_ENV]: "1" }
+    });
+    if (code !== 0) {
+      return { ok: false, failureReason: "spawn_nonzero", exitCode: code, findings: [] };
+    }
+    const findings = parseFindingsChecked(stdout);
+    return findings === undefined ? { ok: false, failureReason: "invalid_output", findings: [] } : { ok: true, findings };
+  } catch {
+    return { ok: false, failureReason: "spawn_or_io_error", findings: [] };
+  }
+}
 function lineFor(item, role) {
   if (item.type === "text" && item.text)
     return `[${role}] ${item.text}`;
@@ -36586,13 +36657,32 @@ function buildDigest(rawTranscript, cap = DIGEST_CAP) {
   const out = [];
   for (const raw of iterateJsonlEntries(rawTranscript)) {
     const entry2 = raw;
+    if (entry2.type === "response_item" && (entry2.payload?.type === "function_call" || entry2.payload?.type === "custom_tool_call")) {
+      out.push(`[tool_use] ${entry2.payload.name ?? entry2.payload.type}: ${JSON.stringify(entry2.payload.arguments ?? entry2.payload.input ?? "").slice(0, TOOL_USE_INPUT_CAP)}`);
+      continue;
+    }
+    if (entry2.type === "response_item" && (entry2.payload?.type === "function_call_output" || entry2.payload?.type === "custom_tool_call_output")) {
+      const rendered = lineFor({ type: "tool_result", content: entry2.payload.output }, "tool");
+      if (rendered !== undefined)
+        out.push(rendered);
+      continue;
+    }
+    const codexMessage = entry2.type === "response_item" && entry2.payload?.type === "message" ? {
+      role: entry2.payload.role,
+      content: entry2.payload.content?.map((item) => ({
+        type: item.type === "input_text" || item.type === "output_text" ? "text" : item.type,
+        text: item.text
+      }))
+    } : undefined;
     const role = entry2.message?.role ?? entry2.type ?? "entry";
-    const content = entry2.message?.content;
+    const message = codexMessage ?? entry2.message;
+    const resolvedRole = message?.role ?? role;
+    const content = message?.content;
     if (typeof content === "string") {
-      out.push(`[${role}] ${content}`);
+      out.push(`[${resolvedRole}] ${content}`);
     } else if (Array.isArray(content)) {
       for (const item of content) {
-        const rendered = lineFor(item, role);
+        const rendered = lineFor(item, resolvedRole);
         if (rendered !== undefined)
           out.push(rendered);
       }
@@ -36602,7 +36692,7 @@ function buildDigest(rawTranscript, cap = DIGEST_CAP) {
 `);
   return digest2.length > cap ? digest2.slice(0, cap) : digest2;
 }
-var DIGEST_CAP = 180000, DEFAULT_CLAUDE_RETRO_MODEL = "sonnet", DEFAULT_CODEX_RETRO_MODEL = "gpt-5.5", DEFAULT_RETRO_MODEL, OVERLAP_CHARS = 2048, READ_ONLY_TOOLS = "Read", RETRO_CHILD_ENV = "SAFEWORD_RETRO_CHILD", RETRO_EXTRACT_CMD_ENV = "SAFEWORD_RETRO_EXTRACT_CMD", EXTRACT_SYSTEM_PROMPT, CODEX_RETRO_OUTPUT_SCHEMA, SHORT_RESULT = 600, TOOL_USE_INPUT_CAP = 300, FRICTION;
+var DIGEST_CAP = 180000, DEFAULT_CLAUDE_RETRO_MODEL = "sonnet", DEFAULT_CODEX_RETRO_MODEL = "gpt-5.5", DEFAULT_CURSOR_RETRO_MODEL = "auto", DEFAULT_RETRO_MODEL, OVERLAP_CHARS = 2048, READ_ONLY_TOOLS = "Read", RETRO_CHILD_ENV = "SAFEWORD_RETRO_CHILD", RETRO_EXTRACT_CMD_ENV = "SAFEWORD_RETRO_EXTRACT_CMD", EXTRACT_SYSTEM_PROMPT, CODEX_RETRO_OUTPUT_SCHEMA, FINDING_KEYS, SHORT_RESULT = 600, TOOL_USE_INPUT_CAP = 300, FRICTION;
 var init_retro_extract = __esm(() => {
   init_jsonl_spool();
   DEFAULT_RETRO_MODEL = DEFAULT_CLAUDE_RETRO_MODEL;
@@ -36640,6 +36730,14 @@ var init_retro_extract = __esm(() => {
     },
     required: ["findings"]
   };
+  FINDING_KEYS = [
+    "category",
+    "title",
+    "safeword_surface",
+    "what_happened",
+    "why_friction",
+    "repro"
+  ];
   FRICTION = /error|fail|block|denied|stale|drift|guard|FAILED/i;
 });
 
@@ -42933,7 +43031,7 @@ __export(exports_retro, {
   buildAutoExtractor: () => buildAutoExtractor
 });
 import { spawnSync as spawnSync7 } from "child_process";
-import { mkdtempSync as mkdtempSync5, readFileSync as readFileSync49, writeFileSync as writeFileSync19 } from "fs";
+import { mkdirSync as mkdirSync12, mkdtempSync as mkdtempSync5, readFileSync as readFileSync49, writeFileSync as writeFileSync19 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
 import nodePath77 from "path";
 import process14 from "process";
@@ -43021,12 +43119,44 @@ function spawnCodexExtractor(argv, spawnOptions) {
   });
   return Promise.resolve({ code: result.status, stdout: "" });
 }
+function spawnCursorExtractor(argv, spawnOptions) {
+  const result = spawnSync7("cursor-agent", argv, {
+    cwd: spawnOptions.cwd,
+    env: spawnOptions.env,
+    encoding: "utf8",
+    timeout: 600000,
+    maxBuffer: 64 * 1024 * 1024
+  });
+  return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
+}
+function prepareCursorExtractionDirectory(directory) {
+  const gitInit = spawnSync7("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
+  if (gitInit.status !== 0)
+    throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
+  const cursorDirectory = nodePath77.join(directory, ".cursor");
+  mkdirSync12(cursorDirectory, { recursive: true });
+  writeFileSync19(nodePath77.join(cursorDirectory, "cli.json"), JSON.stringify({
+    permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
+    approvalMode: "allowlist"
+  }));
+  writeFileSync19(nodePath77.join(cursorDirectory, "sandbox.json"), JSON.stringify({
+    type: "workspace_readwrite",
+    disableTmpWrite: true,
+    networkPolicy: { default: "deny", allow: [] }
+  }));
+}
 async function buildAutoExtractor(projectDirectory, dependencies = {}) {
-  const { runCodexHeadlessExtractionChecked: runCodexHeadlessExtractionChecked2, runHeadlessExtraction: runHeadlessExtraction2, resolveRetroModel: resolveRetroModel2 } = await Promise.resolve().then(() => (init_retro_extract(), exports_retro_extract));
+  const {
+    runCodexHeadlessExtractionChecked: runCodexHeadlessExtractionChecked2,
+    runCursorHeadlessExtractionChecked: runCursorHeadlessExtractionChecked2,
+    runHeadlessExtractionChecked: runHeadlessExtractionChecked2,
+    resolveRetroModel: resolveRetroModel2
+  } = await Promise.resolve().then(() => (init_retro_extract(), exports_retro_extract));
   const agent = dependencies.agent ?? "claude";
   const model = dependencies.model ?? resolveRetroModel2(projectDirectory, agent);
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
+  const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
   const workDirectory = mkdtempSync5(nodePath77.join(tmpdir3(), "safeword-retro-"));
   if (agent === "codex") {
     return async (transcript) => {
@@ -43054,20 +43184,57 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
       return result.findings;
     };
   }
-  return (transcript) => runHeadlessExtraction2(transcript, {
-    spawn: spawnClaude,
-    writeDigest: (digest3) => {
-      const path5 = nodePath77.join(workDirectory, "digest.txt");
-      writeFileSync19(path5, digest3);
-      return path5;
-    },
-    env: process14.env,
-    cwd: workDirectory,
-    model
-  });
+  if (agent === "cursor") {
+    prepareCursorExtractionDirectory(workDirectory);
+    return async (transcript) => {
+      const result = await runCursorHeadlessExtractionChecked2(transcript, {
+        spawn: spawnCursor,
+        env: process14.env,
+        cwd: workDirectory,
+        model
+      });
+      recordRetroDebugEvent({
+        event: "retro_cli_extraction",
+        agent: "cursor",
+        ok: result.ok,
+        findingsCount: result.findings.length,
+        failureReason: result.failureReason,
+        exitCode: result.exitCode
+      });
+      dependencies.onExtractionResult?.(result);
+      return result.findings;
+    };
+  }
+  return async (transcript) => {
+    const result = await runHeadlessExtractionChecked2(transcript, {
+      spawn: spawnClaude,
+      writeDigest: (digest3) => {
+        const path5 = nodePath77.join(workDirectory, "digest.txt");
+        writeFileSync19(path5, digest3);
+        return path5;
+      },
+      env: process14.env,
+      cwd: workDirectory,
+      model
+    });
+    recordRetroDebugEvent({
+      event: "retro_cli_extraction",
+      agent: "claude",
+      ok: result.ok,
+      findingsCount: result.findings.length,
+      failureReason: result.failureReason,
+      exitCode: result.exitCode
+    });
+    dependencies.onExtractionResult?.(result);
+    return result.findings;
+  };
 }
 function resolveAutoExtractAgent(env2) {
-  return env2.SAFEWORD_RETRO_AGENT === "codex" ? "codex" : "claude";
+  if (env2.SAFEWORD_RETRO_AGENT === "codex")
+    return "codex";
+  if (env2.SAFEWORD_RETRO_AGENT === "cursor")
+    return "cursor";
+  return "claude";
 }
 async function buildRetroExtractor(options, projectDirectory, agent, onExtractionResult) {
   if (options.autoExtract)
@@ -43076,7 +43243,7 @@ async function buildRetroExtractor(options, projectDirectory, agent, onExtractio
   return () => Promise.resolve(findingsPath ? readFindings(findingsPath) : []);
 }
 function resolveRetroHarness(agent, detectAgent2) {
-  return agent === "codex" ? "codex" : detectAgent2();
+  return agent === "claude" ? detectAgent2() : agent;
 }
 function unavailableTransportFailure() {
   return Promise.reject(new Error("GitHub transport unavailable"));
@@ -43109,7 +43276,7 @@ function reportRetroCommandOutcome(outcome, options) {
     return;
   }
   if (!options.extractionSucceeded) {
-    error2("retro: Codex auto-extraction did not produce schema-valid output.");
+    error2("retro: auto-extraction did not produce schema-valid output.");
     process14.exitCode = 1;
     return;
   }
@@ -43200,6 +43367,7 @@ async function retroReconcileCommand(dependencies = {}) {
   info2(`reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.deferred.length} deferred to a later run, ${result.failed.length} failed`);
   success2("reconcile complete");
 }
+var CURSOR_RETRO_DENY_RULES;
 var init_retro = __esm(() => {
   init_dogfood();
   init_retro_debug();
@@ -43210,6 +43378,14 @@ var init_retro = __esm(() => {
   init_reconcile2();
   init_triage();
   init_version();
+  CURSOR_RETRO_DENY_RULES = [
+    "Shell(**)",
+    "Read(**)",
+    "Write(**)",
+    "Mcp(**)",
+    "WebFetch(**)",
+    "WebSearch(**)"
+  ];
 });
 
 // templates/hooks/lib/ledger-git.ts
@@ -43683,7 +43859,7 @@ __export(exports_boundary, {
   boundary: () => boundary
 });
 import { execFileSync as execFileSync8 } from "child_process";
-import { appendFileSync as appendFileSync3, existsSync as existsSync39, mkdirSync as mkdirSync12 } from "fs";
+import { appendFileSync as appendFileSync3, existsSync as existsSync39, mkdirSync as mkdirSync13 } from "fs";
 import nodePath81 from "path";
 import process18 from "process";
 function tryGit(cwd, args) {
@@ -43785,7 +43961,7 @@ function legalityStepsFor(cwd, path5, priorReference) {
 }
 function appendAudit(cwd, entry2) {
   const auditPath = nodePath81.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync12(nodePath81.dirname(auditPath), { recursive: true });
+  mkdirSync13(nodePath81.dirname(auditPath), { recursive: true });
   appendFileSync3(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -43858,7 +44034,7 @@ import { execFileSync as execFileSync9, spawnSync as spawnSync8 } from "child_pr
 import {
   cpSync,
   existsSync as existsSync40,
-  mkdirSync as mkdirSync13,
+  mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync6,
   readFileSync as readFileSync51,
   rmSync as rmSync8,
@@ -43953,7 +44129,7 @@ function writeCodexIdentityCache(input) {
     return;
   try {
     const cachePath = nodePath82.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync13(nodePath82.dirname(cachePath), { recursive: true });
+    mkdirSync14(nodePath82.dirname(cachePath), { recursive: true });
     writeFileSync20(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
