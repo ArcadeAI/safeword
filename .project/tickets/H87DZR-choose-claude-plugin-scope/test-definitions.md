@@ -34,7 +34,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A disabled exact installation is enabled only in the selected scope
 
-- [ ] RED
+- [x] RED skip: selected-scope enablement was already delivered by the fresh scoped-install walking skeleton; the newly executable scenario passed immediately with both scopes
 - [ ] GREEN
 - [ ] REFACTOR
 
