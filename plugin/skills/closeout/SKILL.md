@@ -72,7 +72,7 @@ session (and Cursor transcript). A missing or expired binding fails closed;
 there is no newest-session fallback and callers cannot nominate another receipt,
 session, transcript, or spool.
 
-The guard runs `safeword retro run --format json` itself and accepts only a
+The guard runs `safeword retro run --json` itself and accepts only a
 successful result whose `data.agent_filing_needed` is `false` and whose derived
 current session has an empty filing spool. Zero substantial findings and every
 finding successfully filed are both complete outcomes.

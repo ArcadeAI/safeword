@@ -75,8 +75,13 @@ describe('closeout observed resumption (93C14D NTB1.R3)', () => {
 describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
   it('makes the exact current-session retrospective a fail-closed cleanup prerequisite', () => {
     const skill = canonicalSkill();
+    const guard = readFileSync(
+      nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts'),
+      'utf8',
+    );
 
-    expect(skill).toContain('safeword retro run --format json');
+    expect(skill).toContain('safeword retro run --json');
+    expect(guard).toMatch(/'retro',\s*'run',\s*'--json',\s*'--auto-extract'/u);
     expect(skill).toContain('agent_filing_needed');
     expect(skill).toContain('empty filing spool');
     expect(skill).toMatch(/skip.*retro.*does not/i);

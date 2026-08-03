@@ -35,7 +35,7 @@ phase_anchors:
   - verify: .project/tickets/93C14D-close-completed-sessions-safely/test-definitions.md
   - done: .project/tickets/93C14D-close-completed-sessions-safely/verify.md
 created: 2026-08-02T20:41:09.906Z
-last_modified: 2026-08-03T02:21:10.000Z
+last_modified: 2026-08-03T02:52:30.000Z
 ---
 
 # Close completed sessions safely
@@ -128,3 +128,8 @@ last_modified: 2026-08-03T02:21:10.000Z
   obtained a fresh 16-input independent review approving all 55 examples. The
   deterministic review, host-adapter, release-contract, formatting, lint, and
   typecheck gates passed before republishing.
+- 2026-08-03T02:52:30.000Z Done: Post-merge dogfooding exposed that the cleanup
+  guard passed the unsupported `--format json` spelling to `retro run`. Added a
+  failing contract for the real `--json` CLI, corrected every generated host
+  artifact, refreshed the sealed catalogues, and obtained a fresh 16-input
+  independent review approving all 55 examples with no findings.
