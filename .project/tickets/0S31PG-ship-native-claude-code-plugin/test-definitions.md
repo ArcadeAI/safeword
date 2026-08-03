@@ -23,9 +23,9 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 
 ### Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Install refuses an unsupported Claude host before profile mutation
 
@@ -55,27 +55,27 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 
 ### Scenario: Cleanup removes recognized Safeword entries from mixed Claude configuration
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Declining cleanup confirmation leaves profile and project state unchanged
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Cleanup preserves and reports unknown content at a managed legacy path
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Ordinary setup preserves an existing legacy project and its Claude profile
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.TBU1.R3
 
@@ -107,21 +107,21 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 
 ### Scenario: Repeating a completed lifecycle operation is a no-op
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: A lifecycle mutation refuses to run over a pending cleanup recovery
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Setup in plugin mode never recreates retired Claude legacy assets
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.TBU1.R5
 
@@ -142,49 +142,49 @@ hooks, proving workflow availability in the live task as well as hook activation
 
 ### Scenario: Refused live reload leaves legacy authority intact
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.NTB1.R1
 
 ### Scenario: Coexisting plugin hooks prove identity but suppress duplicate work per legacy event
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Plugin hooks remain functional for events without viable legacy authority
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Invalid plugin proof cannot authorize legacy cleanup
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: The loaded plugin becomes authoritative in the same task after cleanup
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.NTB1.R2
 
 ### Scenario: Ready plugin states are classified without mutation
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Non-ready plugin states are classified without weakening legacy protection
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Damaged plugin runtime writes no plugin proof
 
@@ -196,41 +196,41 @@ hooks, proving workflow availability in the live task as well as hook activation
 
 ### Scenario: Successful cleanup makes no Claude lifecycle mutation
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Rejected cleanup performs no compensating Claude lifecycle mutation
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Cleanup with no recognized legacy assets reports no contraction
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.NTB1.R4
 
 ### Scenario: Recovery applies the exact disposition recorded by the durable transaction
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Concurrent edits stop cleanup without overwriting the edited target
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Cleanup refuses symlinked or escaping legacy targets before mutation
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.SWM1.R1
 
@@ -245,69 +245,69 @@ Catalogue completeness and real-manifest runtime integrity were strengthened in
 
 ### Scenario: Generation fails on a missing transitive runtime dependency
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Generation rejects a duplicate invocation name across skills and commands
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.SWM1.R2
 
 ### Scenario: An aligned release contract passes without modifying generated assets
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Each Claude delivery drift fails with the offending surface
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.SWM1.R3
 
 ### Scenario: Equivalent host workflows and lifecycle events share canonical parity identities
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: An equivalent workflow missing from one supported host fails parity
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ## Rule: native-claude-plugin.SWM1.R4
 
 ### Scenario: Installed cache executes after its marketplace source plugin directory is unavailable
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Damaged installed cache fails as cache integrity rather than marketplace health
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Missing marketplace metadata cannot be mistaken for successful cache execution
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ### Scenario: Interactive host boundaries are recorded rather than silently skipped
 
-- [x] RED cd1d3272f (feature contract)
-- [x] GREEN efc416145 (complete executable acceptance lane)
-- [x] REFACTOR efc416145 (cross-scenario delivery reconciliation)
+- [x] RED cd1d3272f
+- [x] GREEN efc416145
+- [x] REFACTOR efc416145
 
 ---
 
