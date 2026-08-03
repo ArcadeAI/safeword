@@ -795,37 +795,6 @@ function writeCanonicalLegacy(project: string): string {
   return target;
 }
 
-function writeStatusProof(
-  configRoot: string,
-  installPath: string,
-  overrides: Record<string, unknown> = {},
-): void {
-  const identity = JSON.parse(
-    readFileSync(nodePath.join(installPath, 'identity.json'), 'utf8'),
-  ) as { hook_manifest_sha256: string };
-  const proofPath = nodePath.join(
-    configRoot,
-    'plugins/data/safeword-safeword/execution-proof-v1.json',
-  );
-  mkdirSync(nodePath.dirname(proofPath), { recursive: true });
-  writeFileSync(
-    proofPath,
-    `${JSON.stringify(
-      {
-        schema_version: 1,
-        event: 'UserPromptSubmit',
-        plugin_version: EXPECTED_VERSION,
-        hook_manifest_sha256: identity.hook_manifest_sha256,
-        canonical_plugin_root: realpathSync(installPath),
-        recorded_at: new Date(0).toISOString(),
-        ...overrides,
-      },
-      undefined,
-      2,
-    )}\n`,
-  );
-}
-
 function writeStatusProofV2(
   configRoot: string,
   project: string,
@@ -939,7 +908,7 @@ function createStatusFixture(
     if (stateDescription.includes('different canonical')) {
       overrides.canonical_plugin_root = nodePath.join(fixture.root, 'other-cache');
     }
-    writeStatusProof(configRoot, state.installPath, overrides);
+    writeStatusProofV2(configRoot, fixture.project, state.installPath, overrides);
   }
 
   if (stateDescription.includes('durable plugin-mode marker')) {
@@ -3041,7 +3010,7 @@ Then('only the recognized legacy protection is removed', function (this: NativeC
 
 Then(
   /^the (project|user) installation and unrelated state remain byte-identical$/u,
-  function (this: NativeClaudePluginWorld) {
+  function (this: NativeClaudePluginWorld, _scope: string) {
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
     assert.equal(

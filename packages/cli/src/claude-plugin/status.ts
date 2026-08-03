@@ -8,6 +8,7 @@ import { SAFEWORD_SCHEMA } from '../schema.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import {
+  canonicalClaudeProjectRoot,
   type ClaudePluginScope,
   type JsonObject,
   observeApplicableClaudePlugins,
@@ -54,26 +55,53 @@ function jsonObject(path: string): JsonObject | undefined {
   }
 }
 
-function proofIsCurrent(plugin: JsonObject): boolean {
+function timestampIsCanonical(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.toISOString() === value;
+}
+
+function proofMatches(
+  proof: JsonObject,
+  identity: JsonObject,
+  plugin: JsonObject,
+  canonicalProjectRoot: string,
+  canonicalPluginRoot: string,
+): boolean {
+  return [
+    proof.schema_version === 2,
+    proof.project_root === canonicalProjectRoot,
+    proof.plugin_version === SAFEWORD_SCHEMA.version,
+    proof.plugin_version === plugin.version,
+    proof.hook_manifest_sha256 === identity.hook_manifest_sha256,
+    proof.canonical_plugin_root === canonicalPluginRoot,
+    proof.event === 'SessionStart' || proof.event === 'UserPromptSubmit',
+    typeof proof.session_id === 'string' && proof.session_id !== '',
+    timestampIsCanonical(proof.recorded_at),
+  ].every(Boolean);
+}
+
+function proofIsCurrent(plugin: JsonObject, cwd: string): boolean {
   if (typeof plugin.installPath !== 'string') return false;
   const identity = jsonObject(nodePath.join(plugin.installPath, 'identity.json'));
-  const proof = jsonObject(
-    nodePath.join(claudeConfigDirectory(), CLAUDE_MIGRATION_SCHEMA.paths.proof),
-  );
-  if (identity === undefined || proof === undefined) return false;
   let canonicalRoot: string;
+  let canonicalProjectRoot: string;
   try {
     canonicalRoot = realpathSync(plugin.installPath);
+    canonicalProjectRoot = canonicalClaudeProjectRoot(cwd);
   } catch {
     return false;
   }
-  return (
-    proof.schema_version === 1 &&
-    proof.plugin_version === SAFEWORD_SCHEMA.version &&
-    proof.hook_manifest_sha256 === identity.hook_manifest_sha256 &&
-    proof.canonical_plugin_root === canonicalRoot &&
-    (proof.event === 'SessionStart' || proof.event === 'UserPromptSubmit')
+  const projectDigest = createHash('sha256').update(canonicalProjectRoot).digest('hex');
+  const proof = jsonObject(
+    nodePath.join(
+      claudeConfigDirectory(),
+      CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory,
+      `${projectDigest}.json`,
+    ),
   );
+  if (identity === undefined || proof === undefined) return false;
+  return proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalRoot);
 }
 
 function legacyObservation(cwd: string): LegacyObservation {
@@ -210,7 +238,7 @@ export function observeClaudeStatus(cwd: string): CliResult {
       applicableScope: installation.scope,
     });
   }
-  if (!proofIsCurrent(installation.plugin)) {
+  if (!proofIsCurrent(installation.plugin, cwd)) {
     return statusResult('unproven', { applicableScope: installation.scope });
   }
 

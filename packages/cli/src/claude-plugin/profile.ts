@@ -126,7 +126,7 @@ function canonicalDirectory(path: unknown): string | undefined {
   }
 }
 
-function canonicalProjectRoot(cwd: string): string {
+export function canonicalClaudeProjectRoot(cwd: string): string {
   const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
   const environmentRoot = configuredRoot === undefined ? undefined : configuredRoot.trim();
   let candidate = environmentRoot === '' ? undefined : environmentRoot;
@@ -499,7 +499,7 @@ function validateNativePayload(plugin: JsonObject): void {
 export function observeApplicableClaudePlugins(cwd: string): ClaudeApplicablePluginsObservation {
   let projectRoot: string;
   try {
-    projectRoot = canonicalProjectRoot(cwd);
+    projectRoot = canonicalClaudeProjectRoot(cwd);
   } catch (error) {
     return {
       status: 'errored',
@@ -622,7 +622,7 @@ function verifyPlugin(
 export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'project'): CliResult {
   const effects: Effect[] = [];
   try {
-    const projectRoot = canonicalProjectRoot(cwd);
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
     assertSupportedHost(projectRoot);
     ensureMarketplace(projectRoot, scope, effects);
     convergePlugin(projectRoot, scope, effects);
