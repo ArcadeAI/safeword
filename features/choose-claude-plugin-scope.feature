@@ -29,7 +29,7 @@ Feature: Choose where Safeword runs in Claude
         | --scope invalid |
         | --scope with no value |
 
-  @wip @choose-claude-plugin-scope.TBU1.R2 @surface.claude-code @surface.safeword-cli
+  @choose-claude-plugin-scope.TBU1.R2 @surface.claude-code @surface.safeword-cli
   Rule: choose-claude-plugin-scope.TBU1.R2 — Installation and upgrade mutate only the selected scope and preserve unrelated state
 
     Scenario Outline: An older official installation upgrades only in the selected scope
@@ -44,6 +44,7 @@ Feature: Choose where Safeword runs in Claude
         | project        |
         | user           |
 
+    @wip
     Scenario Outline: First installation in one scope preserves an existing installation in the other
       Given Safeword has no installation at <selected-scope>
       And Safeword has an exact installation at <other-scope>
@@ -57,6 +58,7 @@ Feature: Choose where Safeword runs in Claude
         | project        | user        |
         | user           | project     |
 
+    @wip
     Scenario Outline: A disabled exact installation is enabled only in the selected scope
       Given Safeword has a disabled exact installation at <selected-scope>
       And the other Claude scope has independent plugin state
@@ -69,7 +71,7 @@ Feature: Choose where Safeword runs in Claude
         | project        |
         | user           |
 
-    @rejection
+    @wip @rejection
     Scenario Outline: Unsafe selected-scope metadata is refused without an implicit downgrade
       Given Safeword has <selected-state> at <selected-scope>
       And the other Claude scope has independent plugin state
@@ -82,6 +84,7 @@ Feature: Choose where Safeword runs in Claude
         | malformed plugin metadata              | user           | unverified metadata  |
         | a newer official plugin version        | project        | downgrade refused    |
 
+    @wip
     Scenario: Project installation preserves unrelated repository settings
       Given the current project has user-authored and third-party Claude settings
       When safeword claude install runs with --scope project
@@ -89,13 +92,14 @@ Feature: Choose where Safeword runs in Claude
       And every unrelated project setting value is preserved
       And every project file outside Claude settings is byte-identical
 
+    @wip
     Scenario: User installation leaves the repository unchanged
       Given the current project and Claude profile have no Safeword plugin declaration
       When safeword claude install runs with --scope user
       Then the exact official Safeword plugin is enabled at user scope for the current project
       And every project file is byte-identical
 
-    @rejection
+    @wip @rejection
     Scenario Outline: Selected-scope operation failure is reported without touching the other scope
       Given Safeword has independent declarations at project and user scope
       And the selected <selected-scope> installation is prepared so <completed-effects> complete before <failing-operation> fails
@@ -109,7 +113,7 @@ Feature: Choose where Safeword runs in Claude
         | project        | no mutation              | marketplace add   |
         | user           | marketplace registration | plugin update     |
 
-    @rejection
+    @wip @rejection
     Scenario: Postcondition verification failure reports completed selected-scope work
       Given the project-scope marketplace and plugin mutations will complete
       And observing the final project-scope installation will fail
