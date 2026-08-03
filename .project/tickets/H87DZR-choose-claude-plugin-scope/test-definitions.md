@@ -126,7 +126,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: status already prioritizes applicable scope overlap before proof and cleanup planning; the newly executable cleanup scenario passed immediately
 - [x] GREEN 8bfdecefb
-- [ ] REFACTOR
+- [x] REFACTOR skip: cleanup consumes the same scope-overlap status result and explicit actions, so no second ambiguity policy exists
 
 ## Feature-level cross-scenario refactor
 
