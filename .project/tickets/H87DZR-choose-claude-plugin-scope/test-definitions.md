@@ -80,7 +80,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: exact metadata already reached native payload verification before declaring a no-op; both damaged-cache scope examples passed immediately
 - [x] GREEN 3404790c0
-- [ ] REFACTOR
+- [x] REFACTOR 3404790c0
 
 ## Rule: choose-claude-plugin-scope.NTB1.R1 — Status identifies the applicable scope and reports overlap without silently removing protection
 
