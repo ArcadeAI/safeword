@@ -118,7 +118,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Proof that does not establish current-project execution cannot authorize cleanup
 
-- [ ] RED
+- [x] RED d07d9305e
 - [ ] GREEN
 - [ ] REFACTOR
 
