@@ -2,38 +2,55 @@ import { describe, expect, it } from 'vitest';
 
 import { SETTINGS_HOOKS } from '../../src/templates/config.js';
 import {
+  DECISION_BRIEF_GRAMMAR,
+  DECISION_BRIEF_MAX_WORK_FACTOR,
   DECISION_BRIEF_CONTRACT,
   evaluateDecisionBriefCompliance,
+  renderDecisionBriefContract,
 } from '../../templates/hooks/lib/quality.js';
-import { appendDecisionBriefContract } from '../../templates/hooks/session-safeword-context.js';
+import { createDecisionBriefContextResponse } from '../../templates/hooks/session-reply-format.js';
 
 describe('proactive decision-brief contract', () => {
   it.each(['startup', 'resume', 'clear', 'compact', 'fork'])(
     'adds the exact contract once for a Claude %s SessionStart',
     source => {
-      const standingContext = 'SAFEWORD standing instructions';
-      const context = appendDecisionBriefContract('claude', standingContext);
+      const response = createDecisionBriefContextResponse('claude');
+      const context = JSON.parse(response ?? '{}').hookSpecificOutput.additionalContext as string;
 
       expect(source).toBeTruthy();
-      expect(context).toContain(standingContext);
-      expect(context).toContain(DECISION_BRIEF_CONTRACT);
-      expect(context.split(DECISION_BRIEF_CONTRACT)).toHaveLength(2);
+      expect(context).toBe(DECISION_BRIEF_CONTRACT);
+      expect(context.length).toBeLessThan(10_000);
       expect(context).not.toContain('Phase: implement. CONFIDENT cites');
     },
   );
 
   it('leaves non-Claude standing context unchanged', () => {
-    expect(appendDecisionBriefContract('cursor', 'standing')).toBe('standing');
-    expect(appendDecisionBriefContract('codex', 'standing')).toBe('standing');
+    expect(createDecisionBriefContextResponse('cursor')).toBeUndefined();
+    expect(createDecisionBriefContextResponse('codex')).toBeUndefined();
   });
 
   it('configures one phase-neutral context command for every SessionStart source', () => {
-    const contextEntries = SETTINGS_HOOKS.SessionStart.filter(entry =>
+    const replyEntries = SETTINGS_HOOKS.SessionStart.filter(entry =>
+      entry.hooks.some(hook => hook.command.includes('session-reply-format.ts')),
+    );
+    const standingEntries = SETTINGS_HOOKS.SessionStart.filter(entry =>
       entry.hooks.some(hook => hook.command.includes('session-safeword-context.ts')),
     );
 
-    expect(contextEntries).toHaveLength(1);
-    expect(contextEntries[0]).not.toHaveProperty('matcher');
+    expect(replyEntries).toHaveLength(1);
+    expect(replyEntries[0]).not.toHaveProperty('matcher');
+    expect(standingEntries).toHaveLength(1);
+  });
+
+  it('derives rendered wording and validation from one grammar fixture', () => {
+    const changed = structuredClone(DECISION_BRIEF_GRAMMAR);
+    changed.variants.CONFIDENT.paragraphs[1].label = 'Risks';
+    const changedReply = brief([CONFIDENT[0], CONFIDENT[1], '**Risks:** none.', CONFIDENT[3]]);
+
+    expect(renderDecisionBriefContract(changed)).toContain('**Risks:**');
+    expect(renderDecisionBriefContract(changed)).not.toContain('**Open:**');
+    expect(evaluateDecisionBriefCompliance(changedReply, changed).compliant).toBe(true);
+    expect(evaluateDecisionBriefCompliance(brief(CONFIDENT), changed).compliant).toBe(false);
   });
 });
 
@@ -78,6 +95,17 @@ describe('terminal decision-brief parser', () => {
     ['indented code', brief(CONFIDENT.map(paragraph => `    ${paragraph}`))],
     ['HTML comment', `<!--\n${brief(CONFIDENT)}\n-->`],
     ['HTML block', `<div>\n${brief(CONFIDENT)}\n</div>`],
+    [
+      'nested bullet continuation',
+      `- example\n\n${brief(CONFIDENT.map(paragraph => '  ' + paragraph))}`,
+    ],
+    [
+      'ordered-list continuation',
+      `1. example\n\n${brief(CONFIDENT.map(paragraph => '   ' + paragraph))}`,
+    ],
+    ['HTML declaration', `<!DOCTYPE html\n${brief(CONFIDENT)}\n>`],
+    ['HTML processing instruction', `<?example\n${brief(CONFIDENT)}\n?>`],
+    ['HTML CDATA block', `<![CDATA[\n${brief(CONFIDENT)}\n]]>`],
   ] as const;
 
   it.each([
@@ -138,7 +166,10 @@ describe('terminal decision-brief parser', () => {
       const reply = `${'x'.repeat(size)}\n\n${fenced}`;
       const result = evaluateDecisionBriefCompliance(reply);
       expect(result.compliant).toBe(false);
-      expect(result.examinedCharacters).toBeLessThanOrEqual(reply.length * 4);
+      expect(result.examinedCharacters).toBeGreaterThan(reply.length);
+      expect(result.examinedCharacters).toBeLessThanOrEqual(
+        reply.length * DECISION_BRIEF_MAX_WORK_FACTOR,
+      );
     }
   });
 });
