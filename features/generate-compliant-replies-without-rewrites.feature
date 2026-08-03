@@ -211,6 +211,9 @@ Feature: Generate compliant replies without correction loops
         | a complete template only inside an HTML declaration |
         | a complete template only inside an HTML processing instruction |
         | a complete template only inside an HTML CDATA block |
+        | a complete template only inside a multiline script block |
+        | a complete template only inside a multiline generic HTML block |
+        | a complete template only inside a lowercase HTML declaration |
         | a verdict label mentioned only in prose         |
         | required labels outside the terminal block      |
         | required paragraphs in the wrong order          |
@@ -247,6 +250,10 @@ Feature: Generate compliant replies without correction loops
         | an HTML declaration |
         | an HTML processing instruction |
         | an HTML CDATA block |
+        | a multiline script block |
+        | a multiline generic HTML block |
+        | a lowercase HTML declaration |
+        | an unrelated bold label |
         | ordinary prose  |
 
     @rejection

@@ -148,7 +148,7 @@ export const DECISION_BRIEF_MAX_WORK_FACTOR = 8;
 const BLOCK_QUOTE_OR_CODE = /^(?: {0,3}>| {4}|\t)/u;
 const LIST_MARKER = /^( {0,3})(?:[-+*]|\d+[.)])([ \t]+)/u;
 const FENCE = /^ {0,3}(`{3,}|~{3,})/u;
-const HTML_OPEN = /^ {0,3}<([A-Za-z][\w-]*)\b[^>]*>/u;
+const HTML_OPEN = /^ {0,3}<([A-Za-z][\w-]*)(?:[ \t]*$|[ \t]+|\/?>)/u;
 const VERDICT = /^\*\*([^*\n]+)\*\*\s+—\s+\S[^\n]*$/u;
 const LABEL = /^\*\*([^*\n]+):\*\*\s+\S[^\n]*(?:\n[^\n]+)*$/u;
 
@@ -208,7 +208,7 @@ function scanTopLevelParagraphs(reply: string): ParagraphScan {
     } else if (trimmed.startsWith('<?')) {
       ignored = true;
       if (!trimmed.includes('?>')) htmlEnd = '?>';
-    } else if (/^<![A-Z]/u.test(trimmed)) {
+    } else if (/^<![A-Z]/iu.test(trimmed)) {
       ignored = true;
       if (!trimmed.includes('>')) htmlEnd = '>';
     }
@@ -272,9 +272,15 @@ export function evaluateDecisionBriefCompliance(
   const verdictEntry = verdicts[0];
   if (!verdictEntry) return result(false);
   const { index: verdictIndex, verdict } = verdictEntry;
+  const grammarLabels = new Set(
+    Object.values(grammar.variants).flatMap(variant =>
+      variant.paragraphs.map(paragraph => paragraph.label),
+    ),
+  );
   const labelsBeforeVerdict = paragraphs.slice(0, verdictIndex).some(paragraph => {
     examinedCharacters += paragraph.text.length;
-    return LABEL.test(paragraph.text);
+    const label = LABEL.exec(paragraph.text)?.[1];
+    return label !== undefined && grammarLabels.has(label);
   });
   if (labelsBeforeVerdict) return result(false);
 

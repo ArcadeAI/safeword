@@ -7,7 +7,7 @@
     },
     {
       "path": "hooks/hooks.json",
-      "sha256": "79728d2f2251659a458208ac8d5ea45fe7aebe54e9204e4aaa108de491e39503"
+      "sha256": "e2919a15d4ab1838c26d5679dd0167a119960a74752b1dd1a3f404d6e500fef0"
     },
     {
       "path": "package.json",
@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "ac9789893080887b3cc9fc8acc6977fc17564b33f83ec0a600c59c4cdeee0c9c"
+      "sha256": "e70eed9fdae0cda61cb2e9356394e7aae333368aa15dfc8b4242e668a692942a"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",

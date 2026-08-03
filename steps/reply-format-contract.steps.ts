@@ -59,6 +59,10 @@ const ignoredBriefs: Record<string, string> = {
   'an HTML declaration': `<!DOCTYPE html\n${brief(CONFIDENT)}\n>`,
   'an HTML processing instruction': `<?example\n${brief(CONFIDENT)}\n?>`,
   'an HTML CDATA block': `<![CDATA[\n${brief(CONFIDENT)}\n]]>`,
+  'a multiline script block': `<script\n${brief(CONFIDENT)}\n</script>`,
+  'a multiline generic HTML block': `<div\n${brief(CONFIDENT)}\n</div>`,
+  'a lowercase HTML declaration': `<!doctype\n${brief(CONFIDENT)}\n>`,
+  'an unrelated bold label': '**Tests:** 89 passed.',
   'ordinary prose': 'An earlier paragraph says CONFIDENT and **Next:** informally.',
 };
 
@@ -67,6 +71,7 @@ interface ContractState {
   boundary?: string;
   context?: string;
   sessionContexts?: string[];
+  contractOutputs?: string[];
   reply?: string;
   evaluations?: ReturnType<typeof evaluateDecisionBriefCompliance>[];
   replies?: string[];
@@ -281,7 +286,12 @@ function extractAdditionalContext(stdout: string): string {
   }
 }
 
-function runLegacySessionGroup(boundary: string): string {
+interface SessionGroupResult {
+  combined: string;
+  emitted: string[];
+}
+
+function runLegacySessionGroup(boundary: string): SessionGroupResult {
   const settings = JSON.parse(
     readFileSync(nodePath.join(REPO_ROOT, '.claude/settings.json'), 'utf8'),
   ) as {
@@ -314,10 +324,10 @@ function runLegacySessionGroup(boundary: string): string {
       if (context) contexts.push(context);
     }
   }
-  return contexts.join('\n\n');
+  return { combined: contexts.join('\n\n'), emitted: contexts };
 }
 
-function runPluginSessionGroup(boundary: string): { context: string; directory: string } {
+function runPluginSessionGroup(boundary: string): SessionGroupResult & { directory: string } {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plugin-session-'));
   const dataDirectory = nodePath.join(directory, 'plugin-data');
   mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -326,33 +336,52 @@ function runPluginSessionGroup(boundary: string): { context: string; directory: 
     readFileSync(nodePath.join(REPO_ROOT, '.safeword/SAFEWORD.md')),
   );
   const source = boundary === 'compaction' ? 'compact' : boundary;
-  const result = spawnSync(
-    'bun',
-    [nodePath.join(REPO_ROOT, 'plugin/runtime/dispatch.ts'), 'SessionStart', '--event-group'],
-    {
-      cwd: directory,
-      env: {
-        ...process.env,
-        CLAUDE_PLUGIN_DATA: dataDirectory,
-        CLAUDE_PLUGIN_ROOT: nodePath.join(REPO_ROOT, 'plugin'),
-        CLAUDE_PROJECT_DIR: directory,
-        SAFEWORD_NO_AUTO_UPGRADE: '1',
-      },
-      input: JSON.stringify({ hook_event_name: 'SessionStart', source, cwd: directory }),
-      encoding: 'utf8',
-      timeout: 60_000,
-    },
-  );
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  return { context: extractAdditionalContext(result.stdout), directory };
+  const manifest = JSON.parse(
+    readFileSync(nodePath.join(REPO_ROOT, 'plugin/hooks/hooks.json'), 'utf8'),
+  ) as {
+    hooks: {
+      SessionStart: Array<{
+        matcher?: string;
+        hooks: Array<{ command: string }>;
+      }>;
+    };
+  };
+  const input = JSON.stringify({ hook_event_name: 'SessionStart', source, cwd: directory });
+  const contexts: string[] = [];
+  for (const entry of manifest.hooks.SessionStart) {
+    if (entry.matcher && entry.matcher !== source) continue;
+    for (const hook of entry.hooks) {
+      const result = spawnSync('bash', ['-lc', hook.command], {
+        cwd: directory,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_DATA: dataDirectory,
+          CLAUDE_PLUGIN_ROOT: nodePath.join(REPO_ROOT, 'plugin'),
+          CLAUDE_PROJECT_DIR: directory,
+          SAFEWORD_NO_AUTO_UPGRADE: '1',
+        },
+        input,
+        encoding: 'utf8',
+        timeout: 60_000,
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const context = extractAdditionalContext(result.stdout);
+      if (context) contexts.push(context);
+    }
+  }
+  return { combined: contexts.join('\n\n'), emitted: contexts, directory };
 }
 
 function runSessionContext(world: SafewordWorld): void {
   const state = stateFor(world);
   const boundary = state.boundary ?? 'startup';
   const plugin = runPluginSessionGroup(boundary);
+  const legacy = runLegacySessionGroup(boundary);
   state.projectDirectory = plugin.directory;
-  state.sessionContexts = [runLegacySessionGroup(boundary), plugin.context];
+  state.sessionContexts = [legacy.combined, plugin.combined];
+  state.contractOutputs = [...legacy.emitted, ...plugin.emitted].filter(context =>
+    context.includes(DECISION_BRIEF_CONTRACT),
+  );
   state.context = state.sessionContexts.join('\n\n');
 }
 
@@ -378,6 +407,11 @@ Then('the contract appears exactly once', function (this: SafewordWorld) {
   assert.ok(
     stateFor(this).sessionContexts?.every(
       context => context.split(DECISION_BRIEF_CONTRACT).length === 2,
+    ),
+  );
+  assert.ok(
+    stateFor(this).contractOutputs?.every(
+      output => output.length < 10_000 && output.split(DECISION_BRIEF_CONTRACT).length === 2,
     ),
   );
 });
@@ -769,6 +803,12 @@ Given(/^the final reply has (.+)$/u, function (this: SafewordWorld, defect: stri
     'a complete template only inside an HTML processing instruction':
       ignoredBriefs['an HTML processing instruction'],
     'a complete template only inside an HTML CDATA block': ignoredBriefs['an HTML CDATA block'],
+    'a complete template only inside a multiline script block':
+      ignoredBriefs['a multiline script block'],
+    'a complete template only inside a multiline generic HTML block':
+      ignoredBriefs['a multiline generic HTML block'],
+    'a complete template only inside a lowercase HTML declaration':
+      ignoredBriefs['a lowercase HTML declaration'],
     'a verdict label mentioned only in prose': `The result is **CONFIDENT** in prose.\n\n${brief(CONFIDENT.slice(1))}`,
     'required labels outside the terminal block': `**Open:** none.\n\n${brief(CONFIDENT)}`,
     'required paragraphs in the wrong order': brief([
