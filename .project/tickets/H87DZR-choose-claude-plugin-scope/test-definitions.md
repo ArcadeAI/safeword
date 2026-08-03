@@ -78,7 +78,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A filesystem alias does not create a duplicate project installation
 
-- [ ] RED
+- [x] RED c21a5bbf1
 - [ ] GREEN
 - [ ] REFACTOR
 
