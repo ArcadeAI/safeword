@@ -2,7 +2,7 @@
 id: 93C14D
 slug: close-completed-sessions-safely
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_skips:
   - intake: Completed before the first feature checkpoint; the scoped spec and intake work log are committed with this ticket.
@@ -30,8 +30,11 @@ done_when:
 phase_anchors:
   - define-behavior: .project/tickets/93C14D-close-completed-sessions-safely/spec.md
   - scenario-gate: features/close-completed-sessions-safely.feature
+  - plan-implementation: features/close-completed-sessions-safely.feature
+  - implement: .project/tickets/93C14D-close-completed-sessions-safely/impl-plan.md
+  - verify: .project/tickets/93C14D-close-completed-sessions-safely/test-definitions.md
 created: 2026-08-02T20:41:09.906Z
-last_modified: 2026-08-02T20:41:09.906Z
+last_modified: 2026-08-03T00:49:44.000Z
 ---
 
 # Close completed sessions safely
@@ -94,3 +97,8 @@ last_modified: 2026-08-02T20:41:09.906Z
   proof claim. Switched to NUL-delimited Git porcelain with a real adversarial
   worktree, narrowed the claim to the exercised evidence, and completed the
   leaf-first refactor ledger with every remaining entry resolved or justified.
+- 2026-08-03T00:49:44.000Z Transition: Full verification passed with 6342
+  tests, 768 acceptance scenarios, 26695 acceptance steps, clean lint,
+  successful build and typecheck, no dependency vulnerabilities, complete
+  scenario annotations, and 3/3 affected surfaces proven; advanced from
+  implement to verify with the completed R/G/R ledger as the phase anchor.
