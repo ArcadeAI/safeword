@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6313/6313 tests pass (5 skipped across 418 files)
-**Gherkin:** ✅ Acceptance lane passes
+**Test Suite:** ✓ 6319/6319 tests pass (5 skipped across 420 files)
+**Gherkin:** ✅ 826 scenarios (823 passed, 3 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 21 scenarios marked complete
@@ -29,4 +29,4 @@ Walked an NTB through an automatic class-1 review from dispatch to the final res
 | --- | --- | --- |
 | Claude desktop/cloud | Public `review run` live smoke from Claude to Codex plus managed-credential integration matrix | Passed with validated Codex provenance; cloud credential boundary passed without real secrets |
 | Codex desktop/cloud | Public `review run` live smoke from Codex to Claude plus managed-credential integration matrix | Passed with validated Claude provenance; cloud credential boundary passed without real secrets |
-| Safeword CLI | Full Vitest suite, 771-scenario Cucumber lane, typecheck, build, and dependency audit | Passed |
+| Safeword CLI | Full Vitest suite, 826-scenario Cucumber lane, typecheck, build, and dependency audit | Passed |

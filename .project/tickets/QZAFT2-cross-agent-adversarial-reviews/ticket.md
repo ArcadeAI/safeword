@@ -5,7 +5,7 @@ type: feature
 phase: done
 status: done
 created: 2026-08-02T17:01:05.002Z
-last_modified: 2026-08-03T01:51:12.000Z
+last_modified: 2026-08-03T02:15:02.000Z
 scope:
   - opposite-agent headless execution for class-1 quality, phase, and architecture reviews
   - bounded read-only review packets with vendor-scoped credentials
@@ -77,3 +77,4 @@ phase_skips:
 - 2026-08-03T01:40:00.000Z Repository audit: Ran every repository-scope audit block. Dependency-cruiser reported 0 boundary violations across 750 modules and 2469 dependencies. Knip/jscpd reported only existing repository debt (generated template/dogfood parity duplication, unrelated unused exports/types, and optional Python tooling unavailable); package-outdated checks listed normal upgrade candidates, and no feature blocker was found.
 - 2026-08-03T01:45:00.000Z Final quality review: Multiple real hard-policy Claude passes found and drove fixes for Windows environment normalization, cross-drive executable containment, capability-probe deadline accounting, credential scoping, executable trust, packet TOCTOU/UTF-8/BOM handling, EPIPE handling, output bounds, and provenance honesty. The final post-fix Claude review approved with validated cross-agent provenance, dispatch `d4a7b497-0675-4204-b645-0132f5857a18`.
 - 2026-08-03T01:51:12.000Z Final verification: Focused coordinator coverage passed (6 files, 103 tests); the live public-command smoke passed both Claude→Codex and Codex→Claude routes (3/3); canonical verification passed 418 Vitest files (6313 passed, 5 skipped), 771 Cucumber scenarios (768 passed, 3 skipped), typecheck, build, root formatting, full ESLint, generated parity, and dependency audit with no vulnerabilities.
+- 2026-08-03T02:15:02.000Z Post-main reconciliation: Merged `origin/main` at `a17366269`, regenerated the newly landed native Claude plugin plus Codex assets, and synchronized dogfood workflows. Canonical verification on the merged tree passed 420 Vitest files (6319 passed, 5 skipped), 826 Cucumber scenarios (823 passed, 3 skipped), typecheck, root formatting, full ESLint, generated parity, and dependency audit with no vulnerabilities.

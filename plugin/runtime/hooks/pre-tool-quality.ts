@@ -30,6 +30,7 @@ import {
   isReviewGateEnabled,
   modelsMatch,
   parseReviewStamps,
+  readCrossAgentReviewPolicy,
   type ReviewStamp,
   reviewGateForNextAsset,
   reviewScope,
@@ -173,6 +174,13 @@ function isReviewGateOn(): boolean {
 function isCrossModelOn(): boolean {
   const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
   return isCrossModelReviewRequired(
+    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
+  );
+}
+
+function crossAgentReviewPolicy() {
+  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  return readCrossAgentReviewPolicy(
     existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
   );
 }
@@ -419,7 +427,7 @@ if (
         'spec',
         hashArtifact(specContent),
       );
-      if (!reviewGateForNextAsset(priorScope, stamps).ok) {
+      if (!reviewGateForNextAsset(priorScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
           'Run `/self-review` (or log a skip), then create test-definitions.md.',
@@ -553,9 +561,9 @@ if (isCanonicalTicketEdit) {
 
 // Review gate (NMSD94, Tier 2) — DEFAULT-OFF, same flag as Tier 1. On a
 // ticket.md edit that changes `phase:`, block leaving the phase until an
-// independent phase-exit review stamp exists for it. The stamp is produced by a
-// fresh (context:fork) reviewer and logged via `write-review-stamp.ts --phase`,
-// so the author can't grade their own phase. Inert until reviewGate is enabled.
+// independent phase-exit review stamp exists for it. The stamp is produced from
+// the shared coordinator's validated result and logged via
+// `write-review-stamp.ts --phase`. Inert until reviewGate is enabled.
 if (isCanonicalTicketEdit) {
   if (isReviewGateOn()) {
     const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
@@ -567,10 +575,10 @@ if (isCanonicalTicketEdit) {
       const ticketDirectory = nodePath.dirname(editedFile);
       const stamps = readReviewStamps();
       const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
-      if (!gatePhaseAdvance(phaseScope, stamps).ok) {
+      if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
-          `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or add \`--skip "<reason>"\` to log a deliberate skip).`,
+          `Run the phase's \`safeword review run\` command, then record its author_agent, actual_reviewer, and independence with \`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`; add a model only when independently verified.`,
         );
       }
       // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
@@ -588,7 +596,7 @@ if (isCanonicalTicketEdit) {
         if (realReviews.length > 0 && !hasCrossModelReview) {
           deny(
             `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
-            `Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), then record it via \`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --model <id> --phase ${exitedPhase}\`.`,
+            `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and actual_model via \`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
           );
         }
       }
