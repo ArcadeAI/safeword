@@ -44,7 +44,6 @@ Feature: Choose where Safeword runs in Claude
         | project        |
         | user           |
 
-    @wip
     Scenario Outline: First installation in one scope preserves an existing installation in the other
       Given Safeword has no installation at <selected-scope>
       And Safeword has an exact installation at <other-scope>
