@@ -80,7 +80,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED c21a5bbf1
 - [x] GREEN 595dcb3e2
-- [ ] REFACTOR
+- [x] REFACTOR skip: one canonical-directory helper now owns alias resolution for project roots, scoped entries, and overlap detection
 
 ### Scenario: Damaged selected-scope cache is not mistaken for an idempotent installation
 
