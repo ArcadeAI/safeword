@@ -85,7 +85,7 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     );
   });
 
-  it('atomically claims the cache before reading it', () => {
+  it('consumes a claimed cache exactly once', () => {
     const projectDirectory = project();
     const now = new Date('2026-08-02T12:00:00.000Z');
     rememberCloseoutBinding({ projectDirectory, runtime: 'codex', id: 'thread-42', now });
@@ -101,7 +101,7 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(readFreshCloseoutBinding({ projectDirectory, now })).toBeUndefined();
   });
 
-  it('fails closed instead of adopting either of two concurrent session bindings', () => {
+  it('fails closed instead of adopting either of two pending session bindings', () => {
     const projectDirectory = project();
     const now = new Date('2026-08-02T12:00:00.000Z');
     rememberCloseoutBinding({ projectDirectory, runtime: 'codex', id: 'thread-a', now });
