@@ -133,7 +133,7 @@ Feature: Choose where Safeword runs in Claude
         | project        |
         | user           |
 
-    @wip @rejection
+    @rejection
     Scenario Outline: Damaged selected-scope cache is not mistaken for an idempotent installation
       Given the selected <selected-scope> installation reports the exact version from a damaged cache
       When safeword claude install runs with --scope <selected-scope>
