@@ -78,7 +78,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Damaged selected-scope cache is not mistaken for an idempotent installation
 
-- [ ] RED
+- [x] RED skip: exact metadata already reached native payload verification before declaring a no-op; both damaged-cache scope examples passed immediately
 - [ ] GREEN
 - [ ] REFACTOR
 
