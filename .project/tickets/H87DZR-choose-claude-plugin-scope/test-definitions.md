@@ -114,7 +114,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b2c04b51e
 - [x] GREEN 15d0d886d
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof parsing, predicate checks, canonical identity, and durable writing each have one focused helper after the green change
 
 ### Scenario: Proof that does not establish current-project execution cannot authorize cleanup
 
