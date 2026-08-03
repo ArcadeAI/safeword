@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 13e6b0acb
 - [x] GREEN 72a958ca4
-- [ ] REFACTOR
+- [x] REFACTOR skip: first slice is already a single typed scope path; validation and canonical identity belong to their pending rejection and reconciliation scenarios
 
 ### Scenario: Unsupported scope is rejected before mutation
 
