@@ -148,6 +148,21 @@ Frontier models already write most core-language idioms unaided, so treat this a
 
 Skills are structured workflows that activate based on what you're asking for. Claude Code and Codex use their Safe Word plugins' scoped skills; Cursor uses project rules and commands. When you say "debug this test failure" or "refactor this function", your agent follows the relevant methodology instead of jumping straight to code changes.
 
+### Closing a completed local delivery
+
+Use `/closeout` in Claude Code or Cursor, or `$safeword:closeout` in Codex, after
+a pull request is ready to finish. Closeout verifies the current PR head,
+observes hosted checks and reviews, and merges only when the current request
+explicitly grants normal or administrative merge authority. Invoking the skill
+by itself grants no merge authority.
+
+After GitHub confirms the exact PR head is merged, closeout runs the current
+session's retrospective. Cleanup cannot skip retro or borrow another session's
+receipt. The cleanup guard previews a digest-bound plan before applying it and
+removes only the exact linked worktree, remote branch, and local branch—in that
+order. Dirty, locked, protected, changed, default, main, ambiguous, or otherwise
+unverifiable targets are preserved and reported with recovery actions.
+
 | Skill             | Triggers on                                                                                                         |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
 | BDD Orchestration | "add", "implement", "build", "feature", "iteration", "story", "phase", "resume", "continue" (includes TDD workflow) |

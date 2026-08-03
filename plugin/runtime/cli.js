@@ -12684,6 +12684,7 @@ var init_cursor_wrappers = __esm(() => {
   CURSOR_ACTION_SKILLS = [
     "lint",
     "verify",
+    "closeout",
     "audit",
     "explain",
     "cleanup-zombies",
@@ -12712,6 +12713,11 @@ var init_cursor_wrappers = __esm(() => {
       name: "audit",
       description: "Run comprehensive code audit for architecture, dead code, and test quality",
       skillPath: "audit/SKILL.md"
+    },
+    {
+      name: "closeout",
+      description: "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session, merging with explicit authority, running retro, and cleaning the exact merged branch and worktree.",
+      skillPath: "closeout/SKILL.md"
     },
     {
       name: "refactor",
@@ -13138,6 +13144,7 @@ var init_schema = __esm(() => {
     "bdd/VERIFY.md",
     "brainstorm/SKILL.md",
     "cleanup-zombies/SKILL.md",
+    "closeout/SKILL.md",
     "debug/SKILL.md",
     "elicit/SKILL.md",
     "explain/SKILL.md",
@@ -13374,6 +13381,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".safeword/hooks/lib/branch-staleness.ts": { template: "hooks/lib/branch-staleness.ts" },
       ".safeword/hooks/lib/blocked-on-gate.ts": { template: "hooks/lib/blocked-on-gate.ts" },
+      ".safeword/hooks/lib/closeout-binding.ts": { template: "hooks/lib/closeout-binding.ts" },
       ".safeword/hooks/lib/cursor-run-identity.ts": {
         template: "hooks/lib/cursor-run-identity.ts"
       },
@@ -13632,6 +13640,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/scripts/cleanup-zombies.sh": {
         template: "scripts/cleanup-zombies.sh"
       },
+      ".safeword/scripts/closeout-cleanup.ts": {
+        template: "scripts/closeout-cleanup.ts"
+      },
       ...CURSOR_SHARED_SKILL_OWNED_FILES,
       ".claude/skills/debug/SKILL.md": {
         template: "skills/debug/SKILL.md"
@@ -13674,6 +13685,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".claude/skills/lint/SKILL.md": { template: "skills/lint/SKILL.md" },
       ".claude/skills/verify/SKILL.md": { template: "skills/verify/SKILL.md" },
+      ".claude/skills/closeout/SKILL.md": { template: "skills/closeout/SKILL.md" },
       ".claude/skills/audit/SKILL.md": { template: "skills/audit/SKILL.md" },
       ".claude/skills/explain/SKILL.md": { template: "skills/explain/SKILL.md" },
       ".claude/skills/self-review/SKILL.md": { template: "skills/self-review/SKILL.md" },

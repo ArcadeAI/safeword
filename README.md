@@ -310,7 +310,7 @@ and evidence remediation. When a Codex session is bound to an in-progress
 done-phase ticket and shared evidence passes, Stop also marks that ticket done;
 it never stages, commits, or opens a PR.
 
-**Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, and ticket management. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace.
+**Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace.
 
 **Codex plugin skills**: Codex gets Safe Word workflow skills from the Safe Word Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safe Word-owned workflow aliases into `.agents/skills/`.
 
@@ -325,6 +325,7 @@ it never stages, commits, or opens a PR.
 - `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
+- `/closeout` - Verify, explicitly authorized merge, mandatory retro, and preview-first exact branch/worktree cleanup
 - `/refactor` - Systematic refactoring with small-step discipline
 - `/spike` - Resolve one build-only kill-risk with a bounded disposable experiment
 - `/testing` - Test writing guidance and best practices
