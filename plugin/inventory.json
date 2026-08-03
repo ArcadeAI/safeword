@@ -3,7 +3,7 @@
   "assets": [
     {
       "path": "agents/safeword-retro-filer.md",
-      "sha256": "562f68cdec41156ec1ea1a74a4041ddef225b34d66f29b87e34363c6952cffe9"
+      "sha256": "2d5f4474bac8c752e4eeeaec615b6b90723fe45842b0b997a38dd726dce6bbc3"
     },
     {
       "path": "hooks/hooks.json",
@@ -11,7 +11,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "45a45ac44b6c8047e66a19b065373448db7293e3f1084e2f206dcded4f31166c"
+      "sha256": "75baa03967c3ecc256ba31943308557d4458af4246951884036245f191daf4c4"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -55,7 +55,7 @@
     },
     {
       "path": "resources/guides/self-report-filing.md",
-      "sha256": "8f43077e93a0817adfce58954eaf7cef73d22118638baa4b64c044b3b583ddcb"
+      "sha256": "f506f55a24869ed2dee54b855440dcabc771c6ff8329ae4df2c484eb60e4a7e0"
     },
     {
       "path": "resources/guides/skill-eval-optimization-guide.md",
@@ -127,7 +127,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "352af726b752880750c6faaaa7ac85309f2e0a2a3e085142a9398a21999a4499"
+      "sha256": "b9b5f9cd2b497fb46975d9f82c8498a8ff09646f5deb14a3309b16bc69abbd76"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -204,6 +204,10 @@
     {
       "path": "runtime/hooks/lib/done-gate.ts",
       "sha256": "ec20a296e371793841d24f0b2d89150391d13ad40fa4faeab28c5d8193b44546"
+    },
+    {
+      "path": "runtime/hooks/lib/drain-retro-spool.ts",
+      "sha256": "4cf68e893669ffd335db24816d8b7d92d2e08df76b010bb7210616d6ede73b5e"
     },
     {
       "path": "runtime/hooks/lib/git-operation.ts",
@@ -311,7 +315,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "f44a4f581f16c993a29485c2496189e6167d604b94a5b70d1dbfb63c745086f0"
+      "sha256": "07c60b19333e7df750635a6e558b198f53818ba5b94ce82ffd827c25c3bf991d"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
@@ -323,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-nudge.ts",
-      "sha256": "75329fab0d03e0d4303b1ccceff6051c7190c3d99dd7360b94d01913cc96d6d1"
+      "sha256": "b0205d7b3aca177a7d2f6b3694bf3519aa4127bd9875f0d265fc5226b5980a34"
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
@@ -619,7 +623,7 @@
     },
     {
       "path": "skills/retro-filer/SKILL.md",
-      "sha256": "69784daf36495f00611e0057b6cc52a0ce0a0be4744c96d5ee37f784251cfb52"
+      "sha256": "ab8ee614de58b92cb47a648e63fcc612b9b4d53ec984b8bbdf6ec0ac6efb61a0"
     },
     {
       "path": "skills/retro/SKILL.md",

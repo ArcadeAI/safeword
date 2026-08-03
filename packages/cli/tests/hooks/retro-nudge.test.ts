@@ -54,6 +54,8 @@ describe('formatRetroNudge (BNGK9W — a statement, never an imperative)', () =>
     const line = formatRetroNudge(2, '/proj/.safeword/retro-drafts/sess-1.jsonl');
     expect(line).toContain('2'); // the count
     expect(line).toContain('.safeword/retro-drafts/sess-1.jsonl'); // where they are
+    expect(line).toContain('observed them queued'); // time-bounded to this filesystem read
+    expect(line).not.toContain('remain queued'); // does not promise later state
     // None of the banned imperative markers, as whole words (so "unfiled"/"filing" are fine).
     for (const marker of [/\brun\b/i, /\bfile\b/i, /\bplease\b/i, /\byou must\b/i, /\bshould\b/i]) {
       expect(marker.test(line)).toBe(false);
