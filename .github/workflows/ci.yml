@@ -136,9 +136,18 @@ jobs:
       - name: Ticket closure rides ready PR
         if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
         run: |
-          gh pr diff "$PR_NUMBER" --name-only > /tmp/safeword-pr-changed-files.txt
+          changed_files_path=/tmp/safeword-pr-changed-files.txt
+          gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
+            --jq '.[].filename' > "$changed_files_path"
+          expected_changed_files="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.changed_files')"
+          actual_changed_files="$(wc -l < "$changed_files_path")"
+          if (( actual_changed_files != expected_changed_files )); then
+            echo "::error::GitHub returned $actual_changed_files of $expected_changed_files changed files."
+            exit 1
+          fi
           unset GH_TOKEN
-          bun scripts/check-pr-ticket-done.ts --changed-files /tmp/safeword-pr-changed-files.txt
+          bun scripts/check-pr-ticket-done.ts --changed-files "$changed_files_path"
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
