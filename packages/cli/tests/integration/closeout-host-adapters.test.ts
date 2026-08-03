@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { generateClaudePluginAssets } from '../../src/claude-plugin/catalogue.js';
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
 import {
@@ -36,6 +37,28 @@ function closeoutCommand(directory: string): string {
 }
 
 describe('closeout production host adapters (93C14D TBU1.R4)', () => {
+  it('packages the closeout workflow and its runtime dependencies in the native Claude plugin', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'export {};\n',
+      sourceRoot: nodePath.join(repoRoot, 'packages/cli/src'),
+      templatesRoot: nodePath.join(repoRoot, 'packages/cli/templates'),
+      version: '0.0.0',
+    });
+    const byPath = new Map(assets.map(asset => [asset.relativePath, asset.content]));
+
+    expect(byPath.get('skills/closeout/SKILL.md')).toContain(
+      '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts',
+    );
+    expect(byPath.get('resources/scripts/closeout-cleanup.ts')).toContain(
+      "from '../../runtime/hooks/lib/closeout-binding.ts'",
+    );
+    expect(byPath.get('resources/scripts/closeout-cleanup.ts')).toContain(
+      "from '../../runtime/hooks/lib/retro-draft-spool.ts'",
+    );
+    expect(byPath.has('runtime/hooks/lib/closeout-binding.ts')).toBe(true);
+    expect(byPath.has('runtime/hooks/lib/retro-draft-spool.ts')).toBe(true);
+  });
+
   it('installs the shared guard and resolves every local host entry point to it', async () => {
     const directory = createTemporaryDirectory();
     try {
