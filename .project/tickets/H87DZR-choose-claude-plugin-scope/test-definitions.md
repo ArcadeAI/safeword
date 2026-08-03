@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 549663d9f
 - [x] GREEN e3f6dcc33
-- [ ] REFACTOR
+- [x] REFACTOR skip: one catalog value kind and one defensive handler guard are the smallest clear validation boundary
 
 ## Rule: choose-claude-plugin-scope.TBU1.R2 — Installation and upgrade mutate only the selected scope and preserve unrelated state
 
