@@ -13127,6 +13127,7 @@ var init_schema = __esm(() => {
     "bdd/VERIFY.md",
     "brainstorm/SKILL.md",
     "cleanup-zombies/SKILL.md",
+    "closeout/SKILL.md",
     "debug/SKILL.md",
     "elicit/SKILL.md",
     "explain/SKILL.md",

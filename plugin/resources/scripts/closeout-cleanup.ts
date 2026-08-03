@@ -421,8 +421,12 @@ function resolveRepositoryRoot(cwd: string): string | undefined {
 }
 
 export function safewordCliCommand(root: string): [string, ...string[]] {
-  const override = process.env.SAFEWORD_CLI;
-  if (override?.trim()) return ['bun', override];
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
+  const bundledPluginCli =
+    process.env.SAFEWORD_PLUGIN_CLI?.trim() ||
+    (pluginRoot ? nodePath.join(pluginRoot, 'runtime', 'cli.js') : undefined);
+  const override = process.env.SAFEWORD_CLI?.trim() || bundledPluginCli;
+  if (override) return ['bun', override];
   const installed = nodePath.join(root, 'node_modules', 'safeword', 'dist', 'cli.js');
   if (existsSync(installed)) return ['bun', installed];
   const dogfood = nodePath.join(root, 'packages', 'cli', 'src', 'cli.ts');
