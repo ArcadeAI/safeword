@@ -1,6 +1,6 @@
 # Verify — N7E96T (headless Codex activation release check)
 
-Verified 2026-08-03 against `origin/main` at merge base `a17366269705ac5b73c602cb4b6cdc0c57ec1a3a`.
+Verified 2026-08-03 against `origin/main` at merge base `e2b5d199590e39f9b4d476634f5f065c5c65105f`.
 
 ## Verify Checklist
 
@@ -29,4 +29,3 @@ Audit passed — 0 errors, 0 warnings in the diff-scoped audit. Dependency-cruis
 ## Quality Review
 
 APPROVE. No critical issues remain. The independent reviewer confirmed current `gpt-5.6-terra` model guidance, inclusive proof/receipt timestamp bounds, complexity compliance, structured JSONL failures, and real-collaborator wiring.
-
