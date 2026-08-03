@@ -2,10 +2,11 @@
 
 ## Live Claude walkthrough
 
-- Runtime: Claude Code 2.1.170, local print-mode session in a fresh project installed from this worktree.
-- Attempted task: create `proof.txt`, then report the completed edit.
-- Result: runtime limitation. Claude initialized the managed session, but the API rejected the configured `claude-opus-4-20250514` model with HTTP 404. Explicit `sonnet` and `fable` aliases were also rejected before any tool call or builder-visible completion.
-- Evidence boundary: this is recorded as unavailable live-runtime proof. Passing hook subprocess tests are not represented as builder-visible evidence.
+- Runtime: explicit `/Users/alex/.local/share/fnm/node-versions/v22.22.3/installation/bin/claude`, Claude Code 2.1.220, local print-mode session against this configured worktree.
+- Attempted task: report that PR #1835 is ready, all CI checks pass, and no implementation work remains while following project reply instructions.
+- Result: pass. Claude returned one structurally compliant CONFIDENT decision brief in one turn (`num_turns: 1`), with Decided, Open, and terminal Next paragraphs. No format-correction rewrite appeared.
+- Earlier failure diagnosis: an unqualified login-shell invocation selected `/usr/local/bin/claude` 1.0.43. That obsolete installation maps `sonnet` to removed model `claude-sonnet-4-20250514` and reproduced the exact HTTP 404 independently of Safeword. Absolute-path probes through Claude Code 2.1.170 and 2.1.220 succeeded.
+- Evidence boundary: this proves the local Claude Code surface. It does not prove an Anthropic-managed Claude Code Cloud session, which this environment cannot launch.
 
 ## Parser reference benchmark
 

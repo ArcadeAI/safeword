@@ -2,6 +2,7 @@
 id: 6QEA9Y
 slug: generate-compliant-replies-without-rewrites
 type: feature
+subtype: bug-investigated
 phase: done
 status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1753
@@ -39,7 +40,7 @@ done_when:
   - Configured SessionStart and Stop subprocesses prove both behaviors follow one changed canonical contract
   - Setup reconciliation restores installed-hook drift, plugin generation plus the worktree-diff gate rejects a stale committed plugin, and template parity rejects dogfood pair drift
 created: 2026-08-03T04:24:36.367Z
-last_modified: 2026-08-03T08:18:13.000Z
+last_modified: 2026-08-03T14:20:06.000Z
 ---
 
 # Generate compliant replies without correction loops
@@ -57,3 +58,35 @@ last_modified: 2026-08-03T08:18:13.000Z
 - 2026-08-03T06:36:00.000Z Implementation plan complete: parse-valid plan independently approved with no must-fix findings; review stamp recorded and advanced to implement.
 - 2026-08-03T07:58:00.000Z Implementation complete: 70/70 acceptance scenarios pass, the generated Claude plugin and dogfood mirrors are current, the reference benchmark passed, and the live Claude limitation is recorded; advanced to verify.
 - 2026-08-03T08:18:13.000Z Verification complete: independent quality review approved the remediated implementation; 6,489 runnable unit/integration tests and 910 runnable repository acceptance scenarios pass; build, lint, typecheck, dependency, parity, and audit gates pass; the unavailable live Claude runtime is recorded without overstating subprocess evidence; marked done.
+- 2026-08-03T14:20:06.000Z Live-proof diagnosis complete: the earlier HTTP 404 came from obsolete Claude Code 1.0.43 winning login-shell PATH resolution, not from Safeword or account access. Explicit Claude Code 2.1.220 completed the configured Safeword flow in one turn; verification evidence corrected.
+
+## Root Cause
+
+The failed live walkthrough selected `/usr/local/bin/claude` 1.0.43 from a
+login shell even though maintained Claude Code installations also exist. The
+login PATH places `/usr/local/bin` before both `~/.bun/bin` and the active FNM
+bin directory. Version 1.0.43 resolves `sonnet` to the removed
+`claude-sonnet-4-20250514` model and returns HTTP 404; it also predates the
+current `--tools` option.
+
+Confirmed by running each absolute executable in the same authenticated
+environment: 1.0.43 reproduced the exact model 404, while 2.1.170 and 2.1.220
+both completed default and explicit-model probes. Claude Code 2.1.220 then ran
+the configured project SessionStart and Stop hooks and returned one compliant
+decision brief in one turn.
+
+Ruled out:
+
+- Authentication or subscription failure: `claude auth status` reports a
+  first-party Claude.ai Max session, and both maintained binaries completed API
+  requests.
+- Current model availability: `sonnet`, `fable`, the default selection, and the
+  formerly reported exact model all completed through 2.1.170 during diagnosis;
+  2.1.220 completed the current `sonnet` probe.
+- Safeword hook failure: the obsolete binary reproduced the 404 in an empty
+  temporary directory, while 2.1.220 completed the real configured Safeword
+  project flow.
+
+Machine cleanup remains separate from this product fix: remove the obsolete
+global installation or place the maintained binary earlier in login-shell PATH
+before relying on unqualified `claude` commands.

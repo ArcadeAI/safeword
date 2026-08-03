@@ -1,6 +1,6 @@
 # Verification: Generate compliant replies without correction loops
 
-Verified: 2026-08-03T08:18:13Z
+Verified: 2026-08-03T14:20:06Z
 
 ## Verify Checklist
 
@@ -13,9 +13,9 @@ Verified: 2026-08-03T08:18:13Z
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ⚠️ 1 historical commit-order deviation, 0 missing uplevel tickets — intake and review artifacts exist with timestamps, review stamps, and invocation proof, but their first Git commit occurred after the ticket had advanced to implement; no runtime or sibling implementation pattern diverges
-**Experience:** ✅ No new friction — deterministic persona walk recorded below
+**Experience:** ✅ No new friction — live local persona walk completed in one turn
 **Surface Evidence:** ⚠️ 2/3 affected surfaces have recorded executable proof; Claude Code Cloud is unavailable in this environment
-**Evidence limits:** ⚠️ A live Claude completion could not be observed because Claude Code's API rejected the configured and available model aliases with HTTP 404; hook subprocess proof is not represented as builder-visible runtime proof
+**Evidence limits:** ⚠️ This environment cannot launch an Anthropic-managed Claude Code Cloud session; the successful local Claude Code walkthrough is not represented as managed-cloud evidence
 
 Audit passed — the diff-scoped code-quality, learning, principle-trace,
 domain-documentation, configuration, and test-quality checks reported no errors or warnings.
@@ -24,18 +24,18 @@ the audit's diff-scoped plan.
 
 ## Experience walk
 
-Walked the Non-Technical Builder through a compliant first completion using the configured
-SessionStart and Stop boundaries; worst step = the fallback correction when an agent still
-returns malformed output; new visible steps vs before = -1 on the compliant path and 0 on
-the fallback path. The ticket's table-stakes outcome is preserved: the common compliant path
-ends once, while a bad response receives one bounded correction rather than a loop.
+Walked the Non-Technical Builder through a compliant first completion using Claude Code
+2.1.220 and the configured SessionStart and Stop boundaries; worst step = explicitly
+selecting the maintained binary because an obsolete 1.0.43 installation precedes it in the
+login PATH; new visible response steps vs before = -1. The result was one compliant decision
+brief in one turn, with no format-correction rewrite.
 
 ## Surface evidence
 
 | Affected surface | Proof command or manual check | Result |
 | --- | --- | --- |
-| Claude Code | Full Vitest suite plus the focused 87-scenario ticket lane execute the real `.claude/settings.json` SessionStart and Stop commands for startup, resume, clear, compact, fork, pass-through, correction, and loop-guard states | Pass — exact contract delivery, standing-context preservation, host output boundaries, and terminal validation are executable; builder-visible live proof remains limited below |
-| Claude Code Cloud | Attempted local Claude Code 2.1.170 print-mode session with the configured model and the available `sonnet` and `fable` aliases | Limited — the API returned HTTP 404 before any tool call or assistant completion, so no managed-cloud runtime claim is made |
+| Claude Code | Claude Code 2.1.220 local print-mode walkthrough plus full Vitest and the focused 87-scenario ticket lane against the real `.claude/settings.json` commands | Pass — one compliant decision brief in one turn, plus executable startup, resume, clear, compact, fork, pass-through, correction, and loop-guard proof |
+| Claude Code Cloud | Managed-cloud launch | Limited — this environment cannot launch an Anthropic-managed cloud session, so no managed-cloud runtime claim is made |
 | Safeword CLI | Full Vitest, schema/reconciliation integration, native Claude plugin generation and worktree-diff gate, plus template/dogfood parity | Pass — setup restores drift and every distributed consumer remains derived from the canonical templates |
 
 ## Commands and results
@@ -51,3 +51,4 @@ ends once, while a bad response receives one bounded correction rather than a lo
 - Parser benchmark: 4,194,454 bytes, 16,777,661 examined characters, 1.582 ms median and 1.741 ms maximum against a 500 ms budget.
 - Safeword audit passed with zero errors and zero warnings.
 - Push schema-drift gate passed 753/753 tests; its history replay reported the commit-order provenance limitation recorded in Reconcile above.
+- Live Claude Code 2.1.220 walkthrough passed in one turn. Diagnosis reproduced the earlier HTTP 404 only through obsolete `/usr/local/bin/claude` 1.0.43; maintained 2.1.170 and 2.1.220 binaries successfully reached the API.
