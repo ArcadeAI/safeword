@@ -740,35 +740,48 @@ export function defaultBranchArguments(identity: PullRequestIdentity): string[] 
   ];
 }
 
-function observeCloseout(root: string, pr: string, binding: CloseoutBinding): CloseoutObservation {
+type MutableCleanupTargets = Pick<
+  CloseoutObservation,
+  'pullRequests' | 'remote' | 'remoteResolution' | 'localRefOid' | 'worktrees'
+>;
+
+function observeMutableCleanupTargets(root: string, pr: string): MutableCleanupTargets {
   const pullRequests = observePullRequest(root, pr);
   const identity = pullRequests[0];
-  const expectedOid = identity?.headRefOid ?? '';
-  const localRef = identity
+  const localReference = identity
     ? git(root, 'show-ref', '--verify', '--hash', `refs/heads/${identity.headRefName}`)
     : undefined;
-  const defaultBranchResult = identity
-    ? run('gh', defaultBranchArguments(identity), root)
-    : { status: 1, stdout: '', stderr: 'pull request identity is unavailable' };
-  const defaultBranch =
-    json<{ defaultBranchRef?: { name?: string } }>(defaultBranchResult)?.defaultBranchRef?.name ??
-    '';
   const remoteObservation = identity
     ? observeRemote(root, identity)
     : { remoteResolution: 'ambiguous' as const };
   return {
     pullRequests,
     ...remoteObservation,
-    localRefOid: localRef?.status === 0 ? localRef.stdout.trim() : undefined,
+    localRefOid: localReference?.status === 0 ? localReference.stdout.trim() : undefined,
+    worktrees: parseWorktrees(root),
+  };
+}
+
+function observeCloseout(root: string, pr: string, binding: CloseoutBinding): CloseoutObservation {
+  const mutableTargets = observeMutableCleanupTargets(root, pr);
+  const identity = mutableTargets.pullRequests[0];
+  const expectedOid = identity?.headRefOid ?? '';
+  const defaultBranchResult = identity
+    ? run('gh', defaultBranchArguments(identity), root)
+    : { status: 1, stdout: '', stderr: 'pull request identity is unavailable' };
+  const defaultBranch =
+    json<{ defaultBranchRef?: { name?: string } }>(defaultBranchResult)?.defaultBranchRef?.name ??
+    '';
+  return {
+    ...mutableTargets,
     defaultBranch,
     protection:
-      identity && remoteObservation.remoteResolution === 'absent'
+      identity && mutableTargets.remoteResolution === 'absent'
         ? 'unprotected'
         : identity
           ? observeProtection(root, identity)
           : 'unknown',
     deliveryWorktreePath: nodePath.resolve(root),
-    worktrees: parseWorktrees(root),
     verification: runVerification(root, expectedOid),
     retro: runRetro(root, binding),
   };
@@ -779,20 +792,9 @@ function reobserveCleanupTargets(
   pr: string,
   baseline: CloseoutObservation,
 ): CloseoutObservation {
-  const pullRequests = observePullRequest(root, pr);
-  const identity = pullRequests[0];
-  const localReference = identity
-    ? git(root, 'show-ref', '--verify', '--hash', `refs/heads/${identity.headRefName}`)
-    : undefined;
-  const remoteObservation = identity
-    ? observeRemote(root, identity)
-    : { remoteResolution: 'ambiguous' as const };
   return {
     ...baseline,
-    ...remoteObservation,
-    pullRequests,
-    localRefOid: localReference?.status === 0 ? localReference.stdout.trim() : undefined,
-    worktrees: parseWorktrees(root),
+    ...observeMutableCleanupTargets(root, pr),
   };
 }
 
