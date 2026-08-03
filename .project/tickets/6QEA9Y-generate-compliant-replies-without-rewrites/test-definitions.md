@@ -26,15 +26,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A builder sees one completion in a live Claude session
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c8a976988
+- [x] GREEN skip: local Claude API rejected all available models before the edit; see manual-acceptance.md
+- [x] REFACTOR skip: unavailable external runtime produced no implementation structure to improve
 
 ### Scenario: An unavailable live runtime is recorded as a verification limitation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c8a976988
+- [x] GREEN 4c709d939
+- [x] REFACTOR skip: the evidence boundary is already explicit and minimal
 
 ## Rule: generate-compliant-replies-without-rewrites.NTB1.R2 — A non-compliant completion receives one actionable correction rather than an unbounded rewrite loop
 
@@ -60,98 +60,98 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Startup context excludes phase-specific completion evidence
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 435f1a55e
+- [x] GREEN 5a7dbe71d
+- [x] REFACTOR skip: the phase-neutral contract is composed only at the Claude session boundary
 
 ## Rule: generate-compliant-replies-without-rewrites.TBU1.R2 — Quiet TDD turns retain the lead-only cue instead of the full decision-brief demand
 
 ### Scenario: Every active TDD step rejects the full decision-brief demand
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: lead-only TDD behavior already existed; the new acceptance outline characterized all three steps
+- [x] GREEN f38d58283
+- [x] REFACTOR skip: the existing shared TDD-step derivation remains the smallest implementation
 
 ### Scenario: An ordinary work update retains the compact decision-brief reminder
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0691b36f
+- [x] GREEN ee2d9f183
+- [x] REFACTOR skip: one compact shared reminder serves the ordinary prompt boundary
 
 ## Rule: generate-compliant-replies-without-rewrites.TBU1.R3 — Format compliance never bypasses dependency, test, architecture, or done gates
 
 ### Scenario: A hard gate wins on every Stop iteration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: hard-gate precedence predated this feature; the real-hook matrix characterizes both iterations
+- [x] GREEN f38d58283
+- [x] REFACTOR skip: the format check remains after every hard gate without moving existing branches
 
 ### Scenario: Typecheck advice precedes format pass-through on the first Stop
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: existing typecheck precedence was preserved and characterized with a real failing TypeScript project
+- [x] GREEN f38d58283
+- [x] REFACTOR skip: source order already expresses the intended advisory precedence
 
 ### Scenario: The correction loop guard runs after hard gates
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the pre-existing loop guard already occupied the required boundary
+- [x] GREEN f38d58283
+- [x] REFACTOR skip: no production restructuring was needed
 
 ### Scenario: A compliant first Stop emits no redundant format correction
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c8a976988
+- [x] GREEN 6ee8a7689
+- [x] REFACTOR skip: compliant pass-through is a single terminal predicate
 
 ## Rule: generate-compliant-replies-without-rewrites.SWM1.R1 — One phase-neutral definition supplies both proactive context and terminal-format validation
 
 ### Scenario: Configured hooks follow one changed canonical contract
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 435f1a55e
+- [x] GREEN f38d58283
+- [x] REFACTOR skip: proactive delivery and Stop validation import the same canonical module
 
 ### Scenario: Every distribution boundary handles contract drift
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c8a976988
+- [x] GREEN f38d58283
+- [x] REFACTOR skip: existing setup, generator, diff, and parity validators required no new abstraction
 
 ## Rule: generate-compliant-replies-without-rewrites.SWM1.R2 — CONFIDENT and BLOCKED compliance is deterministic and matches the canonical paragraph grammar
 
 ### Scenario: Accepted boundary shapes remain deterministic
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aea6768be
+- [x] GREEN a1ee17f5f
+- [x] REFACTOR skip: one ordered grammar table covers both verdict variants
 
 ### Scenario: Adversarial terminal shapes are rejected deterministically
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aea6768be
+- [x] GREEN a1ee17f5f
+- [x] REFACTOR skip: the top-level paragraph scanner centralizes all rejection boundaries
 
 ### Scenario: Ignored Markdown content does not poison a valid terminal brief
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aea6768be
+- [x] GREEN a1ee17f5f
+- [x] REFACTOR skip: container classification is shared by rejection and non-poisoning cases
 
 ### Scenario: Adversarial parser work remains linear
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aea6768be
+- [x] GREEN a1ee17f5f
+- [x] REFACTOR skip: a single forward scanner plus bounded grammar pass already provides the fixed linear bound
 
 ### Scenario: The parser stays within the hook budget on the reference runner
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c8a976988
+- [x] GREEN 4c709d939
+- [x] REFACTOR skip: the benchmark found no performance smell requiring code changes
 
 ---
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario f38d58283
