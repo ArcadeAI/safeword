@@ -39,7 +39,7 @@ export const REPLY_FORMAT_LEAD = `Reply format: ${REPLY_FORMAT_LEAD_RULE}.`;
 /** Full pre-response pointer, used outside intentionally quiet TDD steps. */
 export const REPLY_FORMAT_REMINDER = `${REPLY_FORMAT_LEAD} For substantive work updates, use one **CONFIDENT**/**BLOCKED** decision brief and end with **Next:**.`;
 
-const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight, end with **Next:**.
+export const DECISION_BRIEF_CONTRACT = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight, end with **Next:**.
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the CONFIDENT/BLOCKED line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
@@ -62,6 +62,30 @@ Implementation choices are yours. BLOCKED is for spec/scope/value decisions that
 **Need:** <unblock>. (Optional: propose one parallel action if non-blocker work exists.)
 
 `;
+
+const CONFIDENT_REQUIRED_LABELS = ['Decided', 'Open', 'Next'] as const;
+
+/** Whether a reply already ends in the canonical phase-neutral decision brief. */
+export function isDecisionBriefCompliant(reply: string): boolean {
+  const paragraphs = reply
+    .replaceAll('\r\n', '\n')
+    .trim()
+    .split(/\n\s*\n/u)
+    .map(paragraph => paragraph.trim());
+  const verdictIndex = paragraphs.findLastIndex(paragraph => paragraph.startsWith('**CONFIDENT**'));
+  if (verdictIndex === -1) return false;
+
+  const brief = paragraphs.slice(verdictIndex);
+  const labels = brief.slice(1).map(paragraph => /^\*\*([^*]+):\*\*\s+\S/u.exec(paragraph)?.[1]);
+  const withoutRejected = [...CONFIDENT_REQUIRED_LABELS];
+  const withRejected = ['Decided', 'Rejected', 'Open', 'Next'];
+  return (
+    (labels.length === withoutRejected.length &&
+      labels.every((label, index) => label === withoutRejected[index])) ||
+    (labels.length === withRejected.length &&
+      labels.every((label, index) => label === withRejected[index]))
+  );
+}
 
 /** Per-phase evidence templates appended to the universal header. */
 const PHASE_EVIDENCE: Record<BddPhase, string> = {
@@ -93,7 +117,7 @@ const TDD_STEP_EVIDENCE: Record<string, string> = {
  * The default quality review prompt (backwards compatible export).
  * Used when no phase is detected. Cursor's stop hook consumes this directly.
  */
-export const QUALITY_REVIEW_MESSAGE = UNIVERSAL_HEADER + PHASE_EVIDENCE.implement;
+export const QUALITY_REVIEW_MESSAGE = DECISION_BRIEF_CONTRACT + PHASE_EVIDENCE.implement;
 
 /**
  * Get phase-appropriate quality review message.
@@ -102,10 +126,10 @@ export const QUALITY_REVIEW_MESSAGE = UNIVERSAL_HEADER + PHASE_EVIDENCE.implemen
  */
 export function getQualityMessage(phase?: BddPhase | string, tddStep?: string | null): string {
   if (phase === 'implement' && tddStep && tddStep in TDD_STEP_EVIDENCE) {
-    return UNIVERSAL_HEADER + TDD_STEP_EVIDENCE[tddStep];
+    return DECISION_BRIEF_CONTRACT + TDD_STEP_EVIDENCE[tddStep];
   }
   if (phase && phase in PHASE_EVIDENCE) {
-    return UNIVERSAL_HEADER + PHASE_EVIDENCE[phase as BddPhase];
+    return DECISION_BRIEF_CONTRACT + PHASE_EVIDENCE[phase as BddPhase];
   }
   return QUALITY_REVIEW_MESSAGE;
 }
