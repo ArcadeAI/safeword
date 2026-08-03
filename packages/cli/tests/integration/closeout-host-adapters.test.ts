@@ -57,6 +57,37 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
     );
     expect(byPath.has('runtime/hooks/lib/closeout-binding.ts')).toBe(true);
     expect(byPath.has('runtime/hooks/lib/retro-draft-spool.ts')).toBe(true);
+
+    const pluginRoot = createTemporaryDirectory();
+    try {
+      for (const asset of assets) {
+        const target = nodePath.join(pluginRoot, asset.relativePath);
+        mkdirSync(nodePath.dirname(target), { recursive: true });
+        writeFileSync(target, asset.content);
+      }
+      const projectRoot = createTemporaryDirectory();
+      temporaryProjects.push(projectRoot);
+      const execution = spawnSync(
+        'bun',
+        [
+          '-e',
+          `import { safewordCliCommand } from './resources/scripts/closeout-cleanup.ts'; console.log(JSON.stringify(safewordCliCommand(${JSON.stringify(projectRoot)})));`,
+        ],
+        {
+          cwd: pluginRoot,
+          env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot },
+          encoding: 'utf8',
+        },
+      );
+
+      expect(execution.status, execution.stderr).toBe(0);
+      expect(JSON.parse(execution.stdout)).toEqual([
+        'bun',
+        nodePath.join(pluginRoot, 'runtime/cli.js'),
+      ]);
+    } finally {
+      removeTemporaryDirectory(pluginRoot);
+    }
   });
 
   it('installs the shared guard and resolves project-host entry points to it', async () => {
