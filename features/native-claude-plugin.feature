@@ -26,6 +26,19 @@ Feature: Ship Safeword as a native Claude Code plugin
         | the exact official Safeword plugin disabled         |
         | an enabled older official Safeword plugin version   |
 
+    Scenario Outline: Install converges supported official source shapes and older release tags
+      Given a supported Claude profile uses the official marketplace in <source-shape> form at <marketplace-tag> with plugin <plugin-version>
+      When safeword claude install runs
+      Then the official marketplace and exact enabled Safeword version exist at user scope
+      And every project file is byte-identical
+      And unrelated profile state is byte-identical
+
+      Examples:
+        | source-shape     | marketplace-tag | plugin-version |
+        | flattened fields | v0.70.0         | 0.70.0        |
+        | packed string    | v0.70.0         | 0.70.0        |
+        | flattened fields | v0.71.0-rc.1    | 0.71.0-rc.1   |
+
     Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
       Given a project that has never installed Safeword
       When safeword setup runs for native Claude delivery
@@ -52,17 +65,18 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then installation fails without changing the project or the conflicting marketplace
       And the result names the official marketplace identity as the safe next action
 
-    Scenario: Install refuses to silently downgrade a newer official marketplace version
-      Given the active Claude profile maps the Safeword marketplace name to a newer official version
+    Scenario Outline: Install refuses malformed, noncanonical, or newer official marketplace tags
+      Given the active Claude profile maps the official marketplace in <source-shape> form to <marketplace-tag>
       When safeword claude install runs
       Then installation fails without changing the project or the conflicting marketplace
       And the result names the official marketplace identity as the safe next action
 
-    Scenario: Install refuses a same-precedence but noncanonical official marketplace tag
-      Given the active Claude profile maps the Safeword marketplace name to a noncanonical same-precedence tag
-      When safeword claude install runs
-      Then installation fails without changing the project or the conflicting marketplace
-      And the result names the official marketplace identity as the safe next action
+      Examples:
+        | source-shape     | marketplace-tag  |
+        | flattened fields | v999.0.0          |
+        | packed string    | v0.71.0+shadow    |
+        | flattened fields | release-0.70.0    |
+        | packed string    | v0.72.0-rc.1      |
 
     @rejection
     Scenario: Install rejects current metadata backed by a legacy cached payload

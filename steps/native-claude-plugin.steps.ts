@@ -1595,31 +1595,55 @@ Given(
 );
 
 Given(
-  'the active Claude profile maps the Safeword marketplace name to a newer official version',
-  function (this: NativeClaudePluginWorld) {
+  /^the active Claude profile maps the official marketplace in (flattened fields|packed string) form to (\S+)$/u,
+  function (this: NativeClaudePluginWorld, sourceShape: string, marketplaceTag: string) {
+    const marketplace =
+      sourceShape === 'packed string'
+        ? {
+            name: 'safeword',
+            source: `${OFFICIAL_MARKETPLACE_SOURCE.split('#')[0]}#${marketplaceTag}`,
+          }
+        : {
+            name: 'safeword',
+            source: 'git',
+            url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+            ref: marketplaceTag,
+          };
     createLifecycleFixture(this, {
-      marketplaces: [
-        {
-          name: 'safeword',
-          source: 'git',
-          url: 'https://github.com/ArcadeAI/safeword.git',
-          ref: 'v999.0.0',
-        },
-      ],
+      marketplaces: [marketplace],
     });
   },
 );
 
 Given(
-  'the active Claude profile maps the Safeword marketplace name to a noncanonical same-precedence tag',
-  function (this: NativeClaudePluginWorld) {
+  /^a supported Claude profile uses the official marketplace in (flattened fields|packed string) form at (\S+) with plugin (\S+)$/u,
+  function (
+    this: NativeClaudePluginWorld,
+    sourceShape: string,
+    marketplaceTag: string,
+    pluginVersion: string,
+  ) {
+    const marketplace =
+      sourceShape === 'packed string'
+        ? {
+            name: 'safeword',
+            source: `${OFFICIAL_MARKETPLACE_SOURCE.split('#')[0]}#${marketplaceTag}`,
+          }
+        : {
+            name: 'safeword',
+            source: 'git',
+            url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+            ref: marketplaceTag,
+          };
     createLifecycleFixture(this, {
-      marketplaces: [
+      marketplaces: [marketplace],
+      plugins: [
         {
-          name: 'safeword',
-          source: 'git',
-          url: 'https://github.com/ArcadeAI/safeword.git',
-          ref: `v${EXPECTED_VERSION}+shadow`,
+          id: 'safeword@safeword',
+          version: pluginVersion,
+          enabled: true,
+          scope: 'user',
+          installPath: '/unused/stale-safeword-cache',
         },
       ],
     });

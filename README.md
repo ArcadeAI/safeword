@@ -374,6 +374,12 @@ tests without publish credentials, then publishes the packed artifact through
 npm OIDC with provenance. See the `versioning` skill for the complete procedure;
 local `bun publish` is defense-in-depth recovery tooling, not the release path.
 
+When a release changes the native Claude plugin or its profile installer, stable
+publication also requires the previous-stable-to-candidate upgrade in the
+[Claude plugin manual acceptance runbook](packages/cli/tests/smoke/claude-plugin-manual-acceptance.md).
+This real-host gate verifies Claude's currently undocumented same-name
+marketplace replacement behavior before users depend on it.
+
 **Auto-detection**: Detects project type from `package.json` and enables relevant ESLint plugins only when the framework is installed:
 
 - TypeScript, React, Next.js, Astro
