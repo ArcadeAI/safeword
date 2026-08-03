@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: rejection was already established by the first parser slice; this characterization passed on its first run
 - [x] GREEN 348a7c14b
-- [ ] REFACTOR
+- [x] REFACTOR skip: the characterization reuses the existing real-hook fixture without adding production structure
 
 ### Scenario: A builder sees one completion in a live Claude session
 
