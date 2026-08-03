@@ -28262,12 +28262,37 @@ function assertSupportedHost(cwd) {
 function officialMarketplaceSource() {
   return `${MARKETPLACE_BASE}#v${SAFEWORD_SCHEMA.version}`;
 }
-function sourceIsOfficial(entry) {
-  if (entry.source === officialMarketplaceSource())
-    return true;
+function marketplaceSource(entry) {
   const source = typeof entry.source === "object" && entry.source !== null ? entry.source : entry;
-  const sourceKind = source.source;
-  return source.url === MARKETPLACE_BASE && source.ref === `v${SAFEWORD_SCHEMA.version}` && (sourceKind === undefined || typeof sourceKind === "string" && ["url", "git"].includes(sourceKind));
+  let url = source.url;
+  let ref = source.ref;
+  let kind = source.source;
+  if (typeof entry.source === "string" && url === undefined && ref === undefined) {
+    const separator = entry.source.lastIndexOf("#");
+    if (separator !== -1) {
+      url = entry.source.slice(0, separator);
+      ref = entry.source.slice(separator + 1);
+      kind = undefined;
+    }
+  }
+  return { url, ref, kind };
+}
+function marketplaceSourceStatus(entry) {
+  const { url, ref, kind } = marketplaceSource(entry);
+  if (url !== MARKETPLACE_BASE)
+    return "conflict";
+  if (typeof ref !== "string" || !ref.startsWith("v"))
+    return "conflict";
+  const version2 = ref.slice(1);
+  if (!isSafePackageVersion(version2))
+    return "conflict";
+  if (kind !== undefined && (typeof kind !== "string" || !["url", "git"].includes(kind))) {
+    return "conflict";
+  }
+  const comparison = compareVersions(version2, SAFEWORD_SCHEMA.version);
+  if (comparison === 0)
+    return "current";
+  return comparison < 0 ? "stale" : "conflict";
 }
 function marketplaceEntries(cwd, effects) {
   return parseJsonArray(runClaude(cwd, ["plugin", "marketplace", "list", "--json"], effects), "plugin marketplace list --json", effects);
@@ -28315,15 +28340,20 @@ function failedResult(error2) {
 }
 function ensureMarketplace(cwd, effects) {
   let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
-  if (marketplace !== undefined && !sourceIsOfficial(marketplace)) {
-    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude marketplace ${MARKETPLACE_NAME} is configured from an unofficial source; expected ${officialMarketplaceSource()}.`);
+  const sourceStatus = marketplace === undefined ? undefined : marketplaceSourceStatus(marketplace);
+  if (sourceStatus === "conflict") {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.`);
   }
-  if (marketplace !== undefined)
+  if (sourceStatus === "current")
     return;
   runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", "user"], effects);
-  effects.push({ kind: "add", target: MARKETPLACE_NAME, operation: "user" });
+  effects.push({
+    kind: sourceStatus === "stale" ? "update" : "add",
+    target: MARKETPLACE_NAME,
+    operation: "user"
+  });
   marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
-  if (marketplace === undefined || !sourceIsOfficial(marketplace)) {
+  if (marketplace === undefined || marketplaceSourceStatus(marketplace) !== "current") {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
   }
 }
@@ -34347,8 +34377,8 @@ function runCodexMarketplace(arguments_, failureContext) {
     throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `${failureContext}; plugin installation did not run: ${String(error2)}`, { cause: error2 });
   }
 }
-function refreshOrAddCodexMarketplace(marketplaceSource) {
-  if (marketplaceSource === undefined) {
+function refreshOrAddCodexMarketplace(marketplaceSource2) {
+  if (marketplaceSource2 === undefined) {
     const output = runCodexMarketplace(["list", "--json"], "Could not inspect configured Codex marketplaces");
     const marketplace = marketplaceListFromOutput(output).marketplaces.find((candidate) => candidate.name === "safeword");
     if (marketplace?.marketplaceSource?.sourceType === "git") {
@@ -34361,7 +34391,7 @@ function refreshOrAddCodexMarketplace(marketplaceSource) {
   }
   runCodexMarketplace([
     "add",
-    marketplaceSource ?? MARKETPLACE_SOURCE,
+    marketplaceSource2 ?? MARKETPLACE_SOURCE,
     "--sparse",
     ".agents/plugins",
     "--sparse",
@@ -34369,8 +34399,8 @@ function refreshOrAddCodexMarketplace(marketplaceSource) {
     "--json"
   ], "Could not add the Safeword Codex marketplace");
 }
-function addCodexPluginToProfile(marketplaceSource) {
-  refreshOrAddCodexMarketplace(marketplaceSource);
+function addCodexPluginToProfile(marketplaceSource2) {
+  refreshOrAddCodexMarketplace(marketplaceSource2);
   run("codex", ["plugin", "add", PLUGIN_ID2, "--json"]);
 }
 function verifyCodexPluginIsEnabled(options = {}) {

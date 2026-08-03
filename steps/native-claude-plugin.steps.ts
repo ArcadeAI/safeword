@@ -519,6 +519,7 @@ if (state.failOperation && operation.startsWith(state.failOperation)) {
 if (operation === 'plugin marketplace list --json') { console.log(JSON.stringify(state.marketplaces)); process.exit(0); }
 if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
   const [url, ref] = args[3].split('#');
+  state.marketplaces = state.marketplaces.filter(entry => entry.name !== 'safeword');
   state.marketplaces.push({ name: 'safeword', source: 'git', url, ref }); write(state); process.exit(0);
 }
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
@@ -1594,6 +1595,22 @@ Given(
 );
 
 Given(
+  'the active Claude profile maps the Safeword marketplace name to a newer official version',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {
+      marketplaces: [
+        {
+          name: 'safeword',
+          source: 'git',
+          url: 'https://github.com/ArcadeAI/safeword.git',
+          ref: 'v999.0.0',
+        },
+      ],
+    });
+  },
+);
+
+Given(
   'the exact enabled plugin metadata points to a cache without native identity',
   function (this: NativeClaudePluginWorld) {
     const installPath = nodePath.join(tmpdir(), 'safeword-legacy-plugin-payload');
@@ -1650,7 +1667,10 @@ Given(
                 name: 'safeword',
                 source: 'git',
                 url: officialSource.split('#')[0],
-                ref: officialSource.split('#')[1],
+                ref:
+                  initialState === 'an enabled older official Safeword plugin version'
+                    ? 'v0.70.0'
+                    : officialSource.split('#')[1],
               },
             ],
       plugins:

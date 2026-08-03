@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 
 import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 
 const MINIMUM_CLAUDE_VERSION = [2, 1, 170] as const;
 const MARKETPLACE_NAME = 'safeword';
@@ -93,19 +94,43 @@ function officialMarketplaceSource(): string {
   return `${MARKETPLACE_BASE}#v${SAFEWORD_SCHEMA.version}`;
 }
 
-function sourceIsOfficial(entry: JsonObject): boolean {
-  if (entry.source === officialMarketplaceSource()) return true;
+type MarketplaceSourceStatus = 'current' | 'stale' | 'conflict';
+
+function marketplaceSource(entry: JsonObject): {
+  readonly url: unknown;
+  readonly ref: unknown;
+  readonly kind: unknown;
+} {
   const source =
     typeof entry.source === 'object' && entry.source !== null
       ? (entry.source as JsonObject)
       : entry;
-  const sourceKind = source.source;
-  return (
-    source.url === MARKETPLACE_BASE &&
-    source.ref === `v${SAFEWORD_SCHEMA.version}` &&
-    (sourceKind === undefined ||
-      (typeof sourceKind === 'string' && ['url', 'git'].includes(sourceKind)))
-  );
+  let url = source.url;
+  let ref = source.ref;
+  let kind = source.source;
+  if (typeof entry.source === 'string' && url === undefined && ref === undefined) {
+    const separator = entry.source.lastIndexOf('#');
+    if (separator !== -1) {
+      url = entry.source.slice(0, separator);
+      ref = entry.source.slice(separator + 1);
+      kind = undefined;
+    }
+  }
+  return { url, ref, kind };
+}
+
+function marketplaceSourceStatus(entry: JsonObject): MarketplaceSourceStatus {
+  const { url, ref, kind } = marketplaceSource(entry);
+  if (url !== MARKETPLACE_BASE) return 'conflict';
+  if (typeof ref !== 'string' || !ref.startsWith('v')) return 'conflict';
+  const version = ref.slice(1);
+  if (!isSafePackageVersion(version)) return 'conflict';
+  if (kind !== undefined && (typeof kind !== 'string' || !['url', 'git'].includes(kind))) {
+    return 'conflict';
+  }
+  const comparison = compareVersions(version, SAFEWORD_SCHEMA.version);
+  if (comparison === 0) return 'current';
+  return comparison < 0 ? 'stale' : 'conflict';
 }
 
 function marketplaceEntries(cwd: string, effects: readonly Effect[]): JsonObject[] {
@@ -166,21 +191,26 @@ function failedResult(error: unknown): CliResult {
 
 function ensureMarketplace(cwd: string, effects: Effect[]): void {
   let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
-  if (marketplace !== undefined && !sourceIsOfficial(marketplace)) {
+  const sourceStatus = marketplace === undefined ? undefined : marketplaceSourceStatus(marketplace);
+  if (sourceStatus === 'conflict') {
     throw new ClaudeProfileError(
       'CLAUDE_MARKETPLACE_CONFLICT',
-      `Claude marketplace ${MARKETPLACE_NAME} is configured from an unofficial source; expected ${officialMarketplaceSource()}.`,
+      `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.`,
     );
   }
-  if (marketplace !== undefined) return;
+  if (sourceStatus === 'current') return;
   runClaude(
     cwd,
     ['plugin', 'marketplace', 'add', officialMarketplaceSource(), '--scope', 'user'],
     effects,
   );
-  effects.push({ kind: 'add', target: MARKETPLACE_NAME, operation: 'user' });
+  effects.push({
+    kind: sourceStatus === 'stale' ? 'update' : 'add',
+    target: MARKETPLACE_NAME,
+    operation: 'user',
+  });
   marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
-  if (marketplace === undefined || !sourceIsOfficial(marketplace)) {
+  if (marketplace === undefined || marketplaceSourceStatus(marketplace) !== 'current') {
     throw new ClaudeProfileError(
       'CLAUDE_MARKETPLACE_UNVERIFIED',
       'Claude did not report the exact official Safeword marketplace after adding it.',

@@ -52,6 +52,12 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then installation fails without changing the project or the conflicting marketplace
       And the result names the official marketplace identity as the safe next action
 
+    Scenario: Install refuses to silently downgrade a newer official marketplace version
+      Given the active Claude profile maps the Safeword marketplace name to a newer official version
+      When safeword claude install runs
+      Then installation fails without changing the project or the conflicting marketplace
+      And the result names the official marketplace identity as the safe next action
+
     @rejection
     Scenario: Install rejects current metadata backed by a legacy cached payload
       Given the exact enabled plugin metadata points to a cache without native identity
