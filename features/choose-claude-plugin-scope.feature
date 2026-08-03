@@ -1,6 +1,6 @@
 Feature: Choose where Safeword runs in Claude
 
-  @wip @choose-claude-plugin-scope.TBU1.R1 @surface.claude-code @surface.safeword-cli
+  @choose-claude-plugin-scope.TBU1.R1 @surface.claude-code @surface.safeword-cli
   Rule: choose-claude-plugin-scope.TBU1.R1 — Project scope is the predictable default while user scope remains an explicit supported choice
 
     Scenario Outline: Fresh installation uses only the requested activation boundary
@@ -16,7 +16,7 @@ Feature: Choose where Safeword runs in Claude
         | --scope project | project        | user             |
         | --scope user    | user           | project          |
 
-    @rejection
+    @wip @rejection
     Scenario Outline: Unsupported scope is rejected before mutation
       Given arbitrary project and Claude profile state
       When safeword claude install runs with <scope-option>

@@ -519,12 +519,21 @@ if (state.failOperation && operation.startsWith(state.failOperation)) {
 if (operation === 'plugin marketplace list --json') { console.log(JSON.stringify(state.marketplaces)); process.exit(0); }
 if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
   const [url, ref] = args[3].split('#');
-  state.marketplaces = state.marketplaces.filter(entry => entry.name !== 'safeword');
-  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref }); write(state); process.exit(0);
+  const scope = args[args.indexOf('--scope') + 1];
+  const projectPath = scope === 'project' ? process.cwd() : undefined;
+  state.marketplaces = state.marketplaces.filter(entry =>
+    entry.name !== 'safeword' || (entry.scope || 'user') !== scope ||
+      (scope === 'project' && entry.projectPath !== projectPath));
+  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref, scope, ...(projectPath && { projectPath }) }); write(state); process.exit(0);
 }
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
 if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
-  state.plugins = [{ id: 'safeword@safeword', version: '${EXPECTED_VERSION}', enabled: true, scope: 'user', installPath: state.installPath }];
+  const scope = args[args.indexOf('--scope') + 1];
+  const projectPath = scope === 'project' ? process.cwd() : undefined;
+  state.plugins = state.plugins.filter(entry =>
+    entry.id !== 'safeword@safeword' || (entry.scope || 'user') !== scope ||
+      (scope === 'project' && entry.projectPath !== projectPath));
+  state.plugins.push({ id: 'safeword@safeword', version: '${EXPECTED_VERSION}', enabled: true, scope, installPath: state.installPath, ...(projectPath && { projectPath }) });
   write(state); process.exit(0);
 }
 console.error('unexpected fake claude command: ' + operation); process.exit(64);
@@ -1744,6 +1753,23 @@ Given(
   },
 );
 
+Given(
+  'the current project and Claude profile have no Safeword plugin declaration',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+  },
+);
+
+When(
+  /^safeword claude install runs with (no scope option|--scope project|--scope user)$/u,
+  function (this: NativeClaudePluginWorld, scopeOption: string) {
+    assert.ok(this.lifecycle);
+    const scopeArguments =
+      scopeOption === 'no scope option' ? [] : ['--scope', scopeOption.split(' ').at(-1) ?? ''];
+    this.lifecycle.result = runLifecycleCommand(this, ['claude', 'install', ...scopeArguments]);
+  },
+);
+
 When('safeword claude install runs', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
   const result = spawnSync(
@@ -1772,6 +1798,53 @@ When('safeword claude install runs', function (this: NativeClaudePluginWorld) {
     output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
   };
 });
+
+Then(
+  /^the exact official Safeword plugin is enabled at (project|user) for the current project$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      plugins: Record<string, unknown>[];
+    };
+    assert.ok(
+      state.plugins.some(
+        plugin =>
+          plugin.id === 'safeword@safeword' &&
+          plugin.version === EXPECTED_VERSION &&
+          plugin.enabled === true &&
+          plugin.scope === scope &&
+          (scope !== 'project' || plugin.projectPath === this.lifecycle?.project),
+      ),
+    );
+  },
+);
+
+Then(
+  /^the (project|user) plugin and marketplace declarations remain absent$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    const appliesToScope = (entry: Record<string, unknown>): boolean =>
+      (entry.scope ?? 'user') === scope &&
+      (scope !== 'project' || entry.projectPath === this.lifecycle?.project);
+    assert.equal(state.marketplaces.some(appliesToScope), false);
+    assert.equal(state.plugins.some(appliesToScope), false);
+  },
+);
+
+Then(
+  /^the result reports (project|user) as the selected scope$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { scope?: string };
+    };
+    assert.equal(result.data?.scope, scope);
+  },
+);
 
 Then(
   'the official marketplace and exact enabled Safeword version exist at user scope',
