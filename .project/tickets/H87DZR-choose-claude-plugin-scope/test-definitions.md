@@ -100,7 +100,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the collected observer already returned an empty applicable set and status mapped it to missing; the newly executable scenario passed immediately
 - [x] GREEN a508a6f90
-- [ ] REFACTOR
+- [x] REFACTOR skip: missing is the empty-set branch of the same collected observer and requires no separate state model
 
 ### Scenario: Status reports overlapping applicable installations without changing either
 
