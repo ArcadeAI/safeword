@@ -11,7 +11,9 @@ fingerprint: 1e55c179bf16515fa833d76481d8121076cb04113e232c3a3165128268346a5b
 
 <!-- reconciled: 1e55c179bf16515fa833d76481d8121076cb04113e232c3a3165128268346a5b -->
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: ece096435a9867218532194b0bd1e4af334269f6d03138f56da46ac2799824a8 -->
+
+Private relay that durably files Safeword retrospective findings to GitHub
 
 ### @safeword/website
 

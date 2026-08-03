@@ -1063,7 +1063,6 @@ async function executeRetroCliCommand(
 ): Promise<RetroCommandExecution> {
   const { detectAgent } = await import('../../templates/hooks/lib/self-report.js');
   const { createRestTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
-  const { error, info, success } = await import('../utils/output.js');
 
   const projectDirectory = cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const autoExtractAgent = resolveAutoExtractAgent(process.env);
@@ -1083,7 +1082,14 @@ async function executeRetroCliCommand(
     extract,
     extractionSucceeded: () => extractionSucceeded,
     harness: resolveRetroHarness(autoExtractAgent, detectAgent),
-    output: { error, info, success },
+    // The catalog handler owns the public CLI result (including JSON output).
+    // Keep this legacy wrapper side-effect-free so a machine response is never
+    // prefixed with human progress lines.
+    output: {
+      error: () => process.exitCode,
+      info: () => process.exitCode,
+      success: () => process.exitCode,
+    },
     projectDirectory,
     // Prefer the session id the hook resolved and forwarded (cloud sets
     // CLAUDE_CODE_REMOTE_SESSION_ID, not CLAUDE_SESSION_ID, so the env fallback

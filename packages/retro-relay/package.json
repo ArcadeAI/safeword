@@ -1,6 +1,7 @@
 {
   "name": "@safeword/retro-relay",
   "version": "0.1.0",
+  "description": "Private relay that durably files Safeword retrospective findings to GitHub",
   "private": true,
   "type": "module",
   "engines": {
