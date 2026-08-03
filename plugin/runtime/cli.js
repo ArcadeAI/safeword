@@ -13402,6 +13402,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/done-gate.ts": { template: "hooks/lib/done-gate.ts" },
       ".safeword/hooks/lib/jsonl-spool.ts": { template: "hooks/lib/jsonl-spool.ts" },
       ".safeword/hooks/lib/namespace-root.ts": { template: "hooks/lib/namespace-root.ts" },
+      ".safeword/hooks/lib/drain-retro-spool.ts": { template: "hooks/lib/drain-retro-spool.ts" },
       ".safeword/hooks/lib/retro-draft-spool.ts": { template: "hooks/lib/retro-draft-spool.ts" },
       ".safeword/hooks/lib/retro-debug.ts": { template: "hooks/lib/retro-debug.ts" },
       ".safeword/hooks/lib/retro-extract.ts": { template: "hooks/lib/retro-extract.ts" },
@@ -36177,10 +36178,12 @@ var exports_retro_draft_spool = {};
 __export(exports_retro_draft_spool, {
   verifyDraftBody: () => verifyDraftBody,
   spoolDrafts: () => spoolDrafts,
+  recordFiledAck: () => recordFiledAck,
   readSpooledDrafts: () => readSpooledDrafts,
   readAcks: () => readAcks,
   markDraftsFiled: () => markDraftsFiled,
   fileSpooledDrafts: () => fileSpooledDrafts,
+  drainAcknowledgedDrafts: () => drainAcknowledgedDrafts,
   draftSpoolPath: () => draftSpoolPath,
   canonicalSignatureForDraft: () => canonicalSignatureForDraft,
   ackFilePath: () => ackFilePath
@@ -36258,21 +36261,35 @@ function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
 function ackFilePath(projectDirectory, sessionId) {
   return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, ".acks.jsonl");
 }
-function toAck(value) {
+function isFiledAck(value) {
   if (typeof value !== "object" || value === null)
-    return;
+    return false;
   const { signature, issue: issue2 } = value;
   if (typeof signature !== "string" || signature.length === 0)
-    return;
-  if (typeof issue2 !== "number" && typeof issue2 !== "string")
-    return;
-  return { signature, issue: issue2 };
+    return false;
+  if (typeof issue2 === "number")
+    return Number.isSafeInteger(issue2) && issue2 > 0;
+  return typeof issue2 === "string" && issue2.trim().length > 0;
+}
+function toAck(value) {
+  return isFiledAck(value) ? value : undefined;
 }
 function readAcks(projectDirectory, sessionId) {
   return readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
 }
+function recordFiledAck(projectDirectory, sessionId, ack) {
+  if (!isFiledAck(ack))
+    return false;
+  const appended = tryAppendJsonlRecords(ackFilePath(projectDirectory, sessionId), [JSON.stringify(ack)], Number.POSITIVE_INFINITY);
+  if (!appended)
+    return false;
+  return readAcks(projectDirectory, sessionId).some((recorded) => recorded.signature === ack.signature && recorded.issue === ack.issue);
+}
+function drainAcknowledgedDrafts(projectDirectory, sessionId) {
+  markDraftsFiled(projectDirectory, sessionId, readAcks(projectDirectory, sessionId).map((ack) => ack.signature));
+}
 async function fileSpooledDrafts(projectDirectory, sessionId, post) {
-  const filed = [];
+  let posted = 0;
   let failed = 0;
   let rejected = 0;
   for (const draft of readSpooledDrafts(projectDirectory, sessionId)) {
@@ -36282,14 +36299,17 @@ async function fileSpooledDrafts(projectDirectory, sessionId, post) {
     }
     try {
       const { issue: issue2 } = await post(draftForPosting(draft));
-      appendJsonlRecords(ackFilePath(projectDirectory, sessionId), [JSON.stringify({ signature: draft.signature, issue: issue2 })], Number.POSITIVE_INFINITY);
-      filed.push(draft.signature);
+      if (!recordFiledAck(projectDirectory, sessionId, { signature: draft.signature, issue: issue2 })) {
+        failed += 1;
+        continue;
+      }
+      posted += 1;
     } catch {
       failed += 1;
     }
   }
-  markDraftsFiled(projectDirectory, sessionId, filed);
-  return { posted: filed.length, failed, rejected };
+  drainAcknowledgedDrafts(projectDirectory, sessionId);
+  return { posted, failed, rejected };
 }
 function spoolDrafts(projectDirectory, sessionId, drafts) {
   appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), drafts.map((draft) => draftLine(draft)), MAX_DRAFTS_PER_SESSION);
@@ -42618,6 +42638,10 @@ var init_reconcile2 = __esm(() => {
 });
 
 // src/retro/triage.ts
+function recordFiledDestination(result, signature, issue2) {
+  result.filedSignatures.push(signature);
+  result.filedDestinations.push({ signature, issue: issue2 });
+}
 async function triage(transport, encounters, ctx) {
   const result = {
     created: [],
@@ -42625,7 +42649,8 @@ async function triage(transport, encounters, ctx) {
     commented: [],
     deferred: [],
     failed: [],
-    filedSignatures: []
+    filedSignatures: [],
+    filedDestinations: []
   };
   const maxNew = ctx.maxNewIssues ?? DEFAULT_MAX_NEW_ISSUES;
   const boundContext = {
@@ -42640,7 +42665,7 @@ async function triage(transport, encounters, ctx) {
       const [existing] = matches;
       if (existing) {
         await recordOnKnownIssue(transport, existing, encounter, boundContext, result);
-        result.filedSignatures.push(encounter.draft.signature);
+        recordFiledDestination(result, encounter.draft.signature, existing.number);
       } else if (newCount >= maxNew) {
         result.deferred.push(encounter.draft.title);
       } else {
@@ -42651,7 +42676,7 @@ async function triage(transport, encounters, ctx) {
         });
         newCount += 1;
         result.created.push(encounter.draft.title);
-        result.filedSignatures.push(encounter.draft.signature);
+        recordFiledDestination(result, encounter.draft.signature, issue2.number);
         await transport.createComment(issue2.number, renderLedger(seedState(encounter, boundContext)));
       }
     } catch {
@@ -42963,13 +42988,15 @@ async function runRetro(options, dependencies) {
   });
   if (projectDirectory === undefined)
     return { ok: true, result, drops };
-  markDraftsFiled(projectDirectory, sessionId, result.filedSignatures);
+  const acknowledgedCount = result.filedDestinations.filter((destination) => recordFiledAck(projectDirectory, sessionId, destination)).length;
+  drainAcknowledgedDrafts(projectDirectory, sessionId);
   const remainingDrafts = readSpooledDrafts(projectDirectory, sessionId).length;
   const agentFilingNeeded = remainingDrafts > 0;
   recordRetroDebugEvent({
     event: "retro_cli_filing",
     sessionId,
     filedCount: result.filedSignatures.length,
+    acknowledgedCount,
     remainingDrafts,
     agentFilingNeeded
   });

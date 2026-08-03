@@ -19,7 +19,12 @@
 import { createHash } from 'node:crypto';
 import nodePath from 'node:path';
 
-import { appendJsonlRecords, atomicWriteFile, readJsonlRecords } from './jsonl-spool.js';
+import {
+  appendJsonlRecords,
+  atomicWriteFile,
+  readJsonlRecords,
+  tryAppendJsonlRecords,
+} from './jsonl-spool.js';
 
 /** The code-assembled, post-egress fields — structurally the CLI's RetroDraft. */
 export interface SpooledDraft {
@@ -176,22 +181,58 @@ export function ackFilePath(projectDirectory: string, sessionId: string): string
   return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.acks.jsonl');
 }
 
-/** A parsed ack line is valid only with a string signature (shape-only; fail-open). */
-function toAck(value: unknown): FiledAck | undefined {
-  if (typeof value !== 'object' || value === null) return undefined;
+/** A filed ack names a non-empty signature and a meaningful tracker destination. */
+function isFiledAck(value: unknown): value is FiledAck {
+  if (typeof value !== 'object' || value === null) return false;
   const { signature, issue } = value as Record<string, unknown>;
-  if (typeof signature !== 'string' || signature.length === 0) return undefined;
-  if (typeof issue !== 'number' && typeof issue !== 'string') return undefined;
-  return { signature, issue };
+  if (typeof signature !== 'string' || signature.length === 0) return false;
+  if (typeof issue === 'number') return Number.isSafeInteger(issue) && issue > 0;
+  return typeof issue === 'string' && issue.trim().length > 0;
+}
+
+/** Parse only records that satisfy the same contract used to authorize a drain. */
+function toAck(value: unknown): FiledAck | undefined {
+  return isFiledAck(value) ? value : undefined;
 }
 
 /**
  * Read the session's filed-draft acks, `[]` when absent/unreadable/torn. The
  * gate's tripwire (lib/retro-filing-gate.ts) treats these as the ONLY proof
- * that a removed draft was filed — shape-only validation, no network.
+ * that a removed draft was filed — local contract validation, no network.
  */
 export function readAcks(projectDirectory: string, sessionId: string): FiledAck[] {
   return readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+}
+
+/**
+ * Persist one filed-draft acknowledgement. Returns true only when the complete
+ * record was written, so callers can retain the draft instead of performing an
+ * unacknowledged drain when local storage fails.
+ */
+export function recordFiledAck(
+  projectDirectory: string,
+  sessionId: string,
+  ack: FiledAck,
+): boolean {
+  if (!isFiledAck(ack)) return false;
+  const appended = tryAppendJsonlRecords(
+    ackFilePath(projectDirectory, sessionId),
+    [JSON.stringify(ack)],
+    Number.POSITIVE_INFINITY,
+  );
+  if (!appended) return false;
+  return readAcks(projectDirectory, sessionId).some(
+    recorded => recorded.signature === ack.signature && recorded.issue === ack.issue,
+  );
+}
+
+/** Drain only drafts with a reader-visible, destination-bound acknowledgement. */
+export function drainAcknowledgedDrafts(projectDirectory: string, sessionId: string): void {
+  markDraftsFiled(
+    projectDirectory,
+    sessionId,
+    readAcks(projectDirectory, sessionId).map(ack => ack.signature),
+  );
 }
 
 /**
@@ -220,7 +261,7 @@ export async function fileSpooledDrafts(
   sessionId: string,
   post: DraftPoster,
 ): Promise<{ posted: number; failed: number; rejected: number }> {
-  const filed: string[] = [];
+  let posted = 0;
   let failed = 0;
   let rejected = 0;
   for (const draft of readSpooledDrafts(projectDirectory, sessionId)) {
@@ -233,18 +274,17 @@ export async function fileSpooledDrafts(
       // Ack IMMEDIATELY after the post, before any drain (GH644A): a crash
       // between post and drain must read as "posted but undrained", never as a
       // bare drain. Uncapped by design — the filer appends, the gate reads.
-      appendJsonlRecords(
-        ackFilePath(projectDirectory, sessionId),
-        [JSON.stringify({ signature: draft.signature, issue })],
-        Number.POSITIVE_INFINITY,
-      );
-      filed.push(draft.signature);
+      if (!recordFiledAck(projectDirectory, sessionId, { signature: draft.signature, issue })) {
+        failed += 1;
+        continue;
+      }
+      posted += 1;
     } catch {
       failed += 1;
     }
   }
-  markDraftsFiled(projectDirectory, sessionId, filed);
-  return { posted: filed.length, failed, rejected };
+  drainAcknowledgedDrafts(projectDirectory, sessionId);
+  return { posted, failed, rejected };
 }
 
 /**

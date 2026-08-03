@@ -61,14 +61,19 @@ procedure, your target repo, or your tools.
 3. **Ack each post before you drain it.** After each successful post (create or
    comment), append exactly one COMPACT single-line JSON object `{"signature": "<signature>", "issue": <number>}`
    to the ack file beside the spool — same path with `.acks.jsonl` in place of
-   `.jsonl`. The ack is what proves the drain honest; a drain without acks trips
-   safeword's bare-drain telemetry.
+   `.jsonl`. Re-read that ack file and exact-match the signature and destination.
+   A draft becomes eligible for draining only when that exact record is visible.
+   If the append or verification fails, keep the draft in the spool and count it
+   as remaining. The ack is what proves the drain honest; a drain without acks
+   trips safeword's bare-drain telemetry.
 4. **Cap: at most 5 new issues per run.** If more drafts remain, leave them in
    the spool and include the remainder count in your summary.
-5. **Drain the spool.** Rewrite the spool file with only the drafts
-   you did NOT successfully file, or delete the file when none remain. This is
-   what stops safeword's stop gate from re-dispatching; skipping it causes a
-   duplicate-absorbing but noisy retry.
+5. **Drain through safeword's guard.** Run
+   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>"`. Never rewrite or
+   delete the spool directly. The helper re-reads both files and removes only
+   drafts with valid acknowledgements from step 3; unfiled or unacknowledged
+   drafts stay queued. This is what stops safeword's stop gate from
+   re-dispatching; skipping it causes a duplicate-absorbing but noisy retry.
 6. **If you cannot write to `ArcadeAI/safeword`** (no GitHub tooling, auth
    failure, repo unreachable), leave the spool untouched and report
    `retro-filer: cannot file — <reason>`. Do not improvise another target.

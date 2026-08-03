@@ -61,8 +61,9 @@ export function formatRetroNudge(count: number, spoolPath: string): string {
   const plural = count === 1 ? '' : 's';
   return (
     `Safeword's retro spooled ${count} unfiled finding${plural} from this session at ${spoolPath}; ` +
-    `its GitHub REST transport could not authenticate them into the tracker, so they remain ` +
-    `queued for the safeword-retro-filer subagent (or the live agent's GitHub access). ` +
+    `its GitHub REST transport could not authenticate them into the tracker. This boundary ` +
+    `observed them queued for the safeword-retro-filer subagent (or the live agent's GitHub access); ` +
+    `the filing path re-reads the spool before reporting what remains. ` +
     `The filing procedure is in "${CLAUDE_PLUGIN_ROOT}"/resources/guides/self-report-filing.md.`
   );
 }

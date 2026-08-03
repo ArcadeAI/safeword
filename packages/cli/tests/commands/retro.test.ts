@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -19,7 +19,9 @@ import type {
   IssueTracker,
 } from '../../src/retro/triage.js';
 import {
+  ackFilePath,
   draftSpoolPath,
+  readAcks,
   readSpooledDrafts,
   verifyDraftBody,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
@@ -430,8 +432,44 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
     );
     expect(outcome.ok).toBe(true);
     expect(transport.calls.createIssue).toBe(2);
+    expect(readAcks(projectDirectory, 'sess-a')).toEqual([
+      { signature: expect.any(String), issue: 1 },
+      { signature: expect.any(String), issue: 2 },
+    ]);
     expect(readSpooledDrafts(projectDirectory, 'sess-a')).toEqual([]); // fully drained
     expect(outcome.agentFilingNeeded).toBe(false);
+  });
+
+  it('retains tracker-filed drafts when their acknowledgement cannot be persisted', async () => {
+    mkdirSync(ackFilePath(projectDirectory, 'sess-a'), { recursive: true });
+
+    const transport = new FakeGitHub();
+    const outcome = await runRetro(
+      { transcript: '/t.jsonl' },
+      dependencies({ transport, projectDirectory, extract: () => Promise.resolve(twoFindings) }),
+    );
+
+    expect(transport.calls.createIssue).toBe(2);
+    expect(readSpooledDrafts(projectDirectory, 'sess-a')).toHaveLength(2);
+    expect(outcome.agentFilingNeeded).toBe(true);
+  });
+
+  it('retains tracker-filed drafts when acknowledgement writes cannot be read back', async () => {
+    const path = ackFilePath(projectDirectory, 'sess-a');
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(path, '');
+    chmodSync(path, 0o200);
+
+    const transport = new FakeGitHub();
+    const outcome = await runRetro(
+      { transcript: '/t.jsonl' },
+      dependencies({ transport, projectDirectory, extract: () => Promise.resolve(twoFindings) }),
+    );
+
+    expect(transport.calls.createIssue).toBe(2);
+    expect(readAcks(projectDirectory, 'sess-a')).toEqual([]);
+    expect(readSpooledDrafts(projectDirectory, 'sess-a')).toHaveLength(2);
+    expect(outcome.agentFilingNeeded).toBe(true);
   });
 
   it('a REST auth failure leaves every draft spooled and signals agent filing', async () => {

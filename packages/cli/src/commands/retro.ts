@@ -24,8 +24,9 @@ import { isDogfoodRepo } from '../../templates/hooks/lib/dogfood.js';
 import { recordRetroDebugEvent } from '../../templates/hooks/lib/retro-debug.js';
 import {
   draftSpoolPath,
-  markDraftsFiled,
+  drainAcknowledgedDrafts,
   readSpooledDrafts,
+  recordFiledAck,
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
@@ -162,15 +163,21 @@ export async function runRetro(
 
   if (projectDirectory === undefined) return { ok: true, result, drops };
 
-  // Drain the drafts that reached the tracker; failed/deferred stay spooled for the
-  // agent path. agentFilingNeeded = anything still spooled after the drain.
-  markDraftsFiled(projectDirectory, sessionId, result.filedSignatures);
+  // A tracker result alone cannot authorize a drain: persist a destination-bound
+  // ack first, then drain only those signatures whose ack write succeeded. If the
+  // local write fails after a successful post, retaining the draft may cause a
+  // deduped retry, but it cannot silently destroy the finding (#1805).
+  const acknowledgedCount = result.filedDestinations.filter(destination =>
+    recordFiledAck(projectDirectory, sessionId, destination),
+  ).length;
+  drainAcknowledgedDrafts(projectDirectory, sessionId);
   const remainingDrafts = readSpooledDrafts(projectDirectory, sessionId).length;
   const agentFilingNeeded = remainingDrafts > 0;
   recordRetroDebugEvent({
     event: 'retro_cli_filing',
     sessionId,
     filedCount: result.filedSignatures.length,
+    acknowledgedCount,
     remainingDrafts,
     agentFilingNeeded,
   });
