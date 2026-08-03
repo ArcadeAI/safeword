@@ -66,7 +66,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED c1a38d442
 - [x] GREEN 8d4800aff
-- [ ] REFACTOR
+- [x] REFACTOR skip: final-read translation is confined to the postcondition boundary and reuses the central failure presenter
 
 ## Rule: choose-claude-plugin-scope.TBU1.R3 — Repeating installation in either scope is idempotent
 
