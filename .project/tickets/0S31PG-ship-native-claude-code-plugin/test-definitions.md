@@ -25,7 +25,7 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Install refuses an unsupported Claude host before profile mutation
 
@@ -57,25 +57,25 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Declining cleanup confirmation leaves profile and project state unchanged
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Cleanup preserves and reports unknown content at a managed legacy path
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Ordinary setup preserves an existing legacy project and its Claude profile
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.TBU1.R3
 
@@ -109,19 +109,19 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: A lifecycle mutation refuses to run over a pending cleanup recovery
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Setup in plugin mode never recreates retired Claude legacy assets
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.TBU1.R5
 
@@ -144,7 +144,7 @@ hooks, proving workflow availability in the live task as well as hook activation
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.NTB1.R1
 
@@ -152,25 +152,25 @@ hooks, proving workflow availability in the live task as well as hook activation
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Plugin hooks remain functional for events without viable legacy authority
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Invalid plugin proof cannot authorize legacy cleanup
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: The loaded plugin becomes authoritative in the same task after cleanup
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.NTB1.R2
 
@@ -178,13 +178,13 @@ hooks, proving workflow availability in the live task as well as hook activation
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Non-ready plugin states are classified without weakening legacy protection
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Damaged plugin runtime writes no plugin proof
 
@@ -198,19 +198,19 @@ hooks, proving workflow availability in the live task as well as hook activation
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Rejected cleanup performs no compensating Claude lifecycle mutation
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Cleanup with no recognized legacy assets reports no contraction
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.NTB1.R4
 
@@ -218,19 +218,19 @@ hooks, proving workflow availability in the live task as well as hook activation
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Concurrent edits stop cleanup without overwriting the edited target
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Cleanup refuses symlinked or escaping legacy targets before mutation
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.SWM1.R1
 
@@ -247,13 +247,13 @@ Catalogue completeness and real-manifest runtime integrity were strengthened in
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Generation rejects a duplicate invocation name across skills and commands
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.SWM1.R2
 
@@ -261,13 +261,13 @@ Catalogue completeness and real-manifest runtime integrity were strengthened in
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Each Claude delivery drift fails with the offending surface
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.SWM1.R3
 
@@ -275,13 +275,13 @@ Catalogue completeness and real-manifest runtime integrity were strengthened in
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: An equivalent workflow missing from one supported host fails parity
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ## Rule: native-claude-plugin.SWM1.R4
 
@@ -289,25 +289,25 @@ Catalogue completeness and real-manifest runtime integrity were strengthened in
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Damaged installed cache fails as cache integrity rather than marketplace health
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Missing marketplace metadata cannot be mistaken for successful cache execution
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ### Scenario: Interactive host boundaries are recorded rather than silently skipped
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145
-- [x] REFACTOR efc416145
+- [x] REFACTOR skip: covered by feature-level cross-scenario reconciliation; no separate scenario-local refactor was required
 
 ---
 
