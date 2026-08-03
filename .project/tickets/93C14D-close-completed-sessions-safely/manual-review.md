@@ -1,18 +1,19 @@
 # Independent closeout review
 
-The reviewer independently recomputed the manifest and all fifteen input hashes,
+The reviewer independently recomputed the manifest and all sixteen input hashes,
 then assessed every expanded feature example against the bound artifacts. The
 review specifically rechecked the previously failing retro-recovery,
 other-worktree, newline-path, four parity-drift, native-plugin dependency-closure,
-Cursor shared-skill, and bundled-plugin-CLI examples after their fixes.
+Cursor shared-skill, bundled-plugin-CLI, and generated-TypeScript formatting
+examples after their fixes.
 
 ```json
 {
   "reviewer": {
-    "identity": "/root/final_quality_pass",
+    "identity": "/root/ci_format_quality_review",
     "model": "gpt-5.6-sol (inherited parent model)"
   },
-  "manifest_sha256": "aac95c16f4e01c7151e71268d61b79ca65c3129b16eb272618e8534f551ceda5",
+  "manifest_sha256": "ae07003d5cb31ad48d01541ecf657997c7cda46bb22a8ce092598e81eda14f5d",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },

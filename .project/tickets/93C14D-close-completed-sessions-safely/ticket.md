@@ -35,7 +35,7 @@ phase_anchors:
   - verify: .project/tickets/93C14D-close-completed-sessions-safely/test-definitions.md
   - done: .project/tickets/93C14D-close-completed-sessions-safely/verify.md
 created: 2026-08-02T20:41:09.906Z
-last_modified: 2026-08-03T02:07:40.000Z
+last_modified: 2026-08-03T02:21:10.000Z
 ---
 
 # Close completed sessions safely
@@ -122,3 +122,9 @@ last_modified: 2026-08-03T02:07:40.000Z
 - 2026-08-03T02:07:40.000Z Transition: All closeout behavior, host parity,
   independent review, audit, and verification gates are green; advanced from
   verify to done with verify.md as the final phase anchor.
+- 2026-08-03T02:21:10.000Z Done: Hosted CI exposed an unformatted native-plugin
+  TypeScript asset after path adaptation. Extended the existing generator
+  formatting pass to generated TypeScript, refreshed the sealed catalogue, and
+  obtained a fresh 16-input independent review approving all 55 examples. The
+  deterministic review, host-adapter, release-contract, formatting, lint, and
+  typecheck gates passed before republishing.

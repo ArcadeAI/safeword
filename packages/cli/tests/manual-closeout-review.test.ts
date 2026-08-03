@@ -76,6 +76,7 @@ describe('hash-bound independent closeout review (93C14D)', () => {
       'features/close-completed-sessions-safely.feature',
       'packages/cli/codex-plugin/skills/closeout/SKILL.md',
       'plugin/skills/closeout/SKILL.md',
+      'packages/cli/scripts/generate-claude-plugin.ts',
       'plugin/resources/scripts/closeout-cleanup.ts',
       'packages/cli/tests/closeout-skill.test.ts',
       'packages/cli/tests/integration/closeout-host-adapters.test.ts',
