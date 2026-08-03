@@ -147,10 +147,12 @@ function collectWorktreeBlockers(
   plan: CleanupPlan,
   pullRequest: PullRequestIdentity,
   topicWorktrees: WorktreeIdentity[],
-  mainWorktrees: WorktreeIdentity[],
+  defaultBranchWorktrees: WorktreeIdentity[],
   deliveryWorktreePath: string,
 ): void {
-  if (mainWorktrees.length !== 1) block(plan, 'exactly one surviving main worktree is required');
+  if (defaultBranchWorktrees.length !== 1) {
+    block(plan, 'exactly one surviving default-branch worktree is required');
+  }
   if (topicWorktrees.length > 1) block(plan, 'the linked topic worktree is ambiguous');
   const worktree = topicWorktrees[0];
   if (worktree && nodePath.resolve(worktree.path) !== nodePath.resolve(deliveryWorktreePath)) {
@@ -170,12 +172,12 @@ function assembleOperations(
   observation: CloseoutObservation,
   pullRequest: PullRequestIdentity,
   worktree: WorktreeIdentity | undefined,
-  mainWorktree: WorktreeIdentity,
+  survivingWorktree: WorktreeIdentity,
 ): void {
   if (worktree) {
     plan.operations.push({
       kind: 'remove-worktree',
-      cwd: mainWorktree.path,
+      cwd: survivingWorktree.path,
       path: worktree.path,
       oid: pullRequest.headRefOid,
     });
@@ -185,7 +187,7 @@ function assembleOperations(
   if (observation.remote) {
     plan.operations.push({
       kind: 'delete-remote-ref',
-      cwd: mainWorktree.path,
+      cwd: survivingWorktree.path,
       remote: observation.remote.name,
       ref: `refs/heads/${pullRequest.headRefName}`,
       oid: pullRequest.headRefOid,
@@ -196,7 +198,7 @@ function assembleOperations(
   if (observation.localRefOid) {
     plan.operations.push({
       kind: 'delete-local-ref',
-      cwd: mainWorktree.path,
+      cwd: survivingWorktree.path,
       ref: `refs/heads/${pullRequest.headRefName}`,
       oid: pullRequest.headRefOid,
     });
@@ -227,17 +229,19 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
   const topicWorktrees = observation.worktrees.filter(
     worktree => worktree.branch === pullRequest.headRefName,
   );
-  const mainWorktrees = observation.worktrees.filter(worktree => worktree.main);
+  const defaultBranchWorktrees = observation.worktrees.filter(
+    worktree => worktree.branch === observation.defaultBranch,
+  );
   collectWorktreeBlockers(
     plan,
     pullRequest,
     topicWorktrees,
-    mainWorktrees,
+    defaultBranchWorktrees,
     observation.deliveryWorktreePath,
   );
-  const mainWorktree = mainWorktrees[0];
-  if (plan.blockers.length === 0 && mainWorktree) {
-    assembleOperations(plan, observation, pullRequest, topicWorktrees[0], mainWorktree);
+  const survivingWorktree = defaultBranchWorktrees[0];
+  if (plan.blockers.length === 0 && survivingWorktree) {
+    assembleOperations(plan, observation, pullRequest, topicWorktrees[0], survivingWorktree);
   }
 
   return plan;
@@ -486,9 +490,8 @@ interface TranscriptMetadata {
   sessionId?: unknown;
   session_id?: unknown;
   conversation_id?: unknown;
-  cwd?: unknown;
   type?: unknown;
-  payload?: { id?: unknown; cwd?: unknown };
+  payload?: { id?: unknown };
 }
 
 function exactString(value: unknown): string | undefined {
@@ -529,12 +532,7 @@ export function transcriptMatchesBinding(
           exactString(record.session_id) ??
           exactString(record.conversation_id) ??
           exactString(codexMetadata?.id);
-        const cwd = exactString(record.cwd) ?? exactString(codexMetadata?.cwd);
-        if (sessionId !== binding.id || cwd === undefined) return false;
-        const resolvedCwd = realpathSync(cwd);
-        if (resolvedCwd === expectedRoot) return true;
-        const root = git(resolvedCwd, 'rev-parse', '--show-toplevel');
-        return root.status === 0 && nodePath.resolve(root.stdout.trim()) === expectedRoot;
+        return sessionId === binding.id;
       });
   } catch {
     return false;
@@ -766,7 +764,7 @@ interface GhPullRequest {
   headRepository?: { name?: string; nameWithOwner?: string };
 }
 
-function pullRequestIdentity(value: GhPullRequest): PullRequestIdentity | undefined {
+export function pullRequestIdentity(value: GhPullRequest): PullRequestIdentity | undefined {
   const owner =
     value.headRepositoryOwner?.login ?? value.headRepository?.nameWithOwner?.split('/')[0];
   const repository =
@@ -878,11 +876,15 @@ function observeProtection(
     root,
   );
   const parsed = json<{ protected?: boolean }>(result);
-  return parsed?.protected === true
-    ? 'protected'
-    : parsed?.protected === false
-      ? 'unprotected'
-      : 'unknown';
+  return resolveProtection('matched', parsed?.protected);
+}
+
+export function resolveProtection(
+  remoteResolution: CloseoutObservation['remoteResolution'],
+  observed?: boolean,
+): CloseoutObservation['protection'] {
+  if (remoteResolution === 'absent') return 'unprotected';
+  return observed === true ? 'protected' : observed === false ? 'unprotected' : 'unknown';
 }
 
 export function defaultBranchArguments(identity: PullRequestIdentity): string[] {
@@ -932,7 +934,7 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
     defaultBranch,
     protection:
       identity && mutableTargets.remoteResolution === 'absent'
-        ? 'unprotected'
+        ? resolveProtection(mutableTargets.remoteResolution)
         : identity
           ? observeProtection(root, identity)
           : 'unknown',
