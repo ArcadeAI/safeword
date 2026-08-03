@@ -74,7 +74,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: exact scoped declarations and a verified shared payload already short-circuited every mutation; both newly executable scope examples passed immediately
 - [x] GREEN 132bbabf2
-- [ ] REFACTOR
+- [x] REFACTOR skip: the no-op proof reuses the same exact-install observer and asserts the public effect contract directly
 
 ### Scenario: Damaged selected-scope cache is not mistaken for an idempotent installation
 
