@@ -130,4 +130,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: install, status, proof, and cleanup now share canonical project identity plus one collected scoped observer; remaining helpers are boundary-specific
