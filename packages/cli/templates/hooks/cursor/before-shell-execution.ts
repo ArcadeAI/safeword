@@ -83,8 +83,7 @@ function stashCloseoutBinding(): void {
 }
 
 const proofCommand = parseRecordSkillInvocationCommand(command);
-const needsFailClosedGate = requiresFailClosedShellGate({ command });
-if (!needsFailClosedGate) {
+function stashAllowedCommandIdentities(): void {
   if (proofCommand !== undefined) {
     rememberCursorRunIdentity({
       projectDirectory: process.cwd(),
@@ -94,6 +93,11 @@ if (!needsFailClosedGate) {
   }
   stashReviewStampIdentity();
   stashCloseoutBinding();
+}
+
+const needsFailClosedGate = requiresFailClosedShellGate({ command });
+if (!needsFailClosedGate) {
+  stashAllowedCommandIdentities();
   emitAllowAndExit();
 }
 
@@ -117,15 +121,7 @@ const decision = decideFromGate(
   }),
 );
 if (decision.permission === 'allow') {
-  if (proofCommand !== undefined) {
-    rememberCursorRunIdentity({
-      projectDirectory: process.cwd(),
-      conversationId: input.conversation_id,
-      skillName: proofCommand.skillName,
-    });
-  }
-  stashReviewStampIdentity();
-  stashCloseoutBinding();
+  stashAllowedCommandIdentities();
 }
 process.stdout.write(JSON.stringify(decision) + '\n');
 process.exit(0);
