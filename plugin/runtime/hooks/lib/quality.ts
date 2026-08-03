@@ -37,9 +37,9 @@ export const REPLY_FORMAT_LEAD_RULE = 'lead with the answer';
 export const REPLY_FORMAT_LEAD = `Reply format: ${REPLY_FORMAT_LEAD_RULE}.`;
 
 /** Full pre-response pointer, used outside intentionally quiet TDD steps. */
-export const REPLY_FORMAT_REMINDER = `${REPLY_FORMAT_LEAD} For substantive work updates, use one **CONFIDENT**/**BLOCKED** decision brief and end with **Next:**.`;
+export const REPLY_FORMAT_REMINDER = `${REPLY_FORMAT_LEAD} For substantive work updates, use one decision brief: **CONFIDENT** ends with **Next:**; **BLOCKED** ends with **Need:**.`;
 
-const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight, end with **Next:**.
+export const DECISION_BRIEF_CONTRACT = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with **Next:** for CONFIDENT or **Need:** for BLOCKED.
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the CONFIDENT/BLOCKED line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
@@ -62,6 +62,127 @@ Implementation choices are yours. BLOCKED is for spec/scope/value decisions that
 **Need:** <unblock>. (Optional: propose one parallel action if non-blocker work exists.)
 
 `;
+
+const DECISION_BRIEF_LABELS = {
+  CONFIDENT: [
+    ['Decided', 'Open', 'Next'],
+    ['Decided', 'Rejected', 'Open', 'Next'],
+  ],
+  BLOCKED: [['Tried', 'Need']],
+} as const;
+
+export interface DecisionBriefCompliance {
+  compliant: boolean;
+  /** Deterministic work counter used to assert the scanner's fixed linear bound. */
+  examinedCharacters: number;
+}
+
+interface MarkdownParagraph {
+  text: string;
+  ignored: boolean;
+}
+
+const CONTAINER_PREFIX = /^(?: {0,3}>| {0,3}(?:[-+*]|\d+[.)])\s| {4}|\t)/u;
+const FENCE = /^ {0,3}(`{3,}|~{3,})/u;
+const HTML_OPEN = /^ {0,3}<([A-Za-z][\w-]*)\b[^>]*>/u;
+const VERDICT = /^\*\*(CONFIDENT|BLOCKED)\*\*\s+—\s+\S[^\n]*$/u;
+const LABEL = /^\*\*(Decided|Rejected|Open|Next|Tried|Need):\*\*\s+\S[^\n]*(?:\n[^\n]+)*$/u;
+
+/**
+ * Extract rendered top-level paragraphs while ignoring Markdown containers that
+ * can contain example templates. The scanner advances once through the input;
+ * later grammar checks advance once through the retained paragraphs.
+ */
+function scanTopLevelParagraphs(reply: string): MarkdownParagraph[] {
+  const paragraphs: MarkdownParagraph[] = [];
+  let lines: string[] = [];
+  let ignored = false;
+  let fenceMarker: string | null = null;
+  let inHtmlComment = false;
+  let htmlTag: string | null = null;
+
+  const flush = () => {
+    if (lines.length > 0) paragraphs.push({ text: lines.join('\n').trim(), ignored });
+    lines = [];
+    ignored = false;
+  };
+
+  for (const line of reply.replaceAll('\r\n', '\n').split('\n')) {
+    const trimmed = line.trim();
+    const fence = FENCE.exec(line)?.[1];
+
+    if (fenceMarker) {
+      ignored = true;
+      if (fence && fence[0] === fenceMarker[0] && fence.length >= fenceMarker.length) {
+        fenceMarker = null;
+      }
+    } else if (fence) {
+      ignored = true;
+      fenceMarker = fence;
+    }
+
+    if (inHtmlComment || trimmed.startsWith('<!--')) {
+      ignored = true;
+      inHtmlComment = !trimmed.includes('-->');
+    }
+
+    if (htmlTag) {
+      ignored = true;
+      if (trimmed.toLowerCase().includes(`</${htmlTag}>`)) htmlTag = null;
+    } else if (!inHtmlComment) {
+      const openingTag = HTML_OPEN.exec(line)?.[1]?.toLowerCase();
+      if (openingTag) {
+        ignored = true;
+        if (!trimmed.includes(`</${openingTag}>`) && !trimmed.endsWith('/>')) htmlTag = openingTag;
+      }
+    }
+
+    if (lines.length === 0 && CONTAINER_PREFIX.test(line)) ignored = true;
+
+    if (trimmed === '') {
+      flush();
+    } else {
+      lines.push(line);
+    }
+  }
+  flush();
+  return paragraphs.filter(paragraph => !paragraph.ignored);
+}
+
+/** Evaluate the canonical terminal brief with deterministic linear instrumentation. */
+export function evaluateDecisionBriefCompliance(reply: string): DecisionBriefCompliance {
+  const result = (compliant: boolean): DecisionBriefCompliance => ({
+    compliant,
+    examinedCharacters: reply.length,
+  });
+  const paragraphs = scanTopLevelParagraphs(reply);
+  const verdicts = paragraphs.flatMap((paragraph, index) => {
+    const match = VERDICT.exec(paragraph.text);
+    return match ? [{ index, verdict: match[1] as keyof typeof DECISION_BRIEF_LABELS }] : [];
+  });
+  if (verdicts.length !== 1) return result(false);
+
+  const [{ index: verdictIndex, verdict }] = verdicts;
+  const labelsBeforeVerdict = paragraphs
+    .slice(0, verdictIndex)
+    .some(paragraph => LABEL.test(paragraph.text));
+  if (labelsBeforeVerdict) return result(false);
+
+  const labels = paragraphs
+    .slice(verdictIndex + 1)
+    .map(paragraph => LABEL.exec(paragraph.text)?.[1]);
+  const compliant = DECISION_BRIEF_LABELS[verdict].some(
+    sequence =>
+      labels.length === sequence.length &&
+      labels.every((label, index) => label === sequence[index]),
+  );
+  return result(compliant);
+}
+
+/** Whether a reply already ends in the canonical phase-neutral decision brief. */
+export function isDecisionBriefCompliant(reply: string): boolean {
+  return evaluateDecisionBriefCompliance(reply).compliant;
+}
 
 /** Per-phase evidence templates appended to the universal header. */
 const PHASE_EVIDENCE: Record<BddPhase, string> = {
@@ -93,7 +214,7 @@ const TDD_STEP_EVIDENCE: Record<string, string> = {
  * The default quality review prompt (backwards compatible export).
  * Used when no phase is detected. Cursor's stop hook consumes this directly.
  */
-export const QUALITY_REVIEW_MESSAGE = UNIVERSAL_HEADER + PHASE_EVIDENCE.implement;
+export const QUALITY_REVIEW_MESSAGE = DECISION_BRIEF_CONTRACT + PHASE_EVIDENCE.implement;
 
 /**
  * Get phase-appropriate quality review message.
@@ -102,10 +223,10 @@ export const QUALITY_REVIEW_MESSAGE = UNIVERSAL_HEADER + PHASE_EVIDENCE.implemen
  */
 export function getQualityMessage(phase?: BddPhase | string, tddStep?: string | null): string {
   if (phase === 'implement' && tddStep && tddStep in TDD_STEP_EVIDENCE) {
-    return UNIVERSAL_HEADER + TDD_STEP_EVIDENCE[tddStep];
+    return DECISION_BRIEF_CONTRACT + TDD_STEP_EVIDENCE[tddStep];
   }
   if (phase && phase in PHASE_EVIDENCE) {
-    return UNIVERSAL_HEADER + PHASE_EVIDENCE[phase as BddPhase];
+    return DECISION_BRIEF_CONTRACT + PHASE_EVIDENCE[phase as BddPhase];
   }
   return QUALITY_REVIEW_MESSAGE;
 }

@@ -127,7 +127,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "eff279a0d07ef6e04e3fb272f027779fcf426178cd744238bd3362998664d7e5"
+      "sha256": "43d5ef5bcef8e7ca6afe553ee133107c1de4bd4346b4f4e70a3d014fcd34a574"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -135,7 +135,7 @@
     },
     {
       "path": "runtime/event-groups.json",
-      "sha256": "4ed2fdbb7b7ac150a397040464494fc0eb034cc1c67e5331697fdc42d664177c"
+      "sha256": "b90980225821c495325887a4ffb2c3ae2cb4e1c9188af15280667c28eef1dbbf"
     },
     {
       "path": "runtime/hooks/audit-principle-trace.ts",
@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "5357c7466670414953e05ec2306c6b20eaaed0197c43aae029e3ff1b6c792e04"
+      "sha256": "48073cc2f3ff0c00afae646f1430672f64c30c0e85503a96563e1b19c9a34776"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -503,7 +503,7 @@
     },
     {
       "path": "runtime/hooks/session-safeword-context.ts",
-      "sha256": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5"
+      "sha256": "0d1b58822debaa191d847e437c7c3e1491c0c414e417c1be08c727c7772b0525"
     },
     {
       "path": "runtime/hooks/session-start-reentry.ts",
@@ -515,7 +515,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "109d9a3f43f41323fcb603d3cda3b61e405fa082b5bf791f68b24842129fd5ab"
+      "sha256": "dba14a854a5cd730efc16c74f10b498f2e7caa753a5ee089dfd9b0f17b64873a"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",

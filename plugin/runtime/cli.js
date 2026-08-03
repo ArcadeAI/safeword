@@ -12293,7 +12293,6 @@ var init_config2 = __esm(() => {
       hook(`bun ${HOOKS_DIR}/session-architecture-heal.ts`),
       hook(`bun ${HOOKS_DIR}/session-author-model.ts`),
       hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
-      matchedHook("compact", `bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
       matchedHook("compact", `bun ${HOOKS_DIR}/session-compact-context.ts`)
     ],
     UserPromptSubmit: [
