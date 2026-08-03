@@ -2292,6 +2292,16 @@ Given(
 );
 
 Given(
+  'neither the current project nor the Claude profile contains an applicable Safeword installation',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
   'the other Claude scope has independent plugin state',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
@@ -2862,6 +2872,18 @@ Then(
       data?: { applicable_scope?: string };
     };
     assert.equal(result.data?.applicable_scope, scope);
+  },
+);
+
+Then(
+  'status reports that Safeword is not installed for the current project',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { applicable_scope?: string; classification?: string };
+    };
+    assert.equal(result.data?.classification, 'missing');
+    assert.equal(result.data?.applicable_scope, undefined);
   },
 );
 

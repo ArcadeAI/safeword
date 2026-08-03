@@ -167,7 +167,6 @@ Feature: Choose where Safeword runs in Claude
         | an exact user installation and no current-project entry                        | user    |
         | an exact user installation and another project's entry                         | user    |
 
-    @wip
     Scenario: Status reports no applicable installation for the current project
       Given neither the current project nor the Claude profile contains an applicable Safeword installation
       When safeword claude status runs
