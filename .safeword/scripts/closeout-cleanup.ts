@@ -1,8 +1,17 @@
 #!/usr/bin/env bun
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -376,13 +385,13 @@ function run(
   command: string,
   arguments_: string[],
   cwd: string,
-  options: { shell?: boolean } = {},
+  options: { shell?: boolean; env?: Record<string, string | undefined> } = {},
 ): ProcessResult {
   const result = spawnSync(command, arguments_, {
     cwd,
     encoding: 'utf8',
     shell: options.shell ?? false,
-    env: process.env,
+    env: { ...process.env, ...options.env },
   });
   return {
     status: result.status ?? 1,
@@ -434,9 +443,23 @@ export function safewordCliCommand(root: string): [string, ...string[]] {
   return ['bunx', 'safeword'];
 }
 
-function runSafeword(root: string, arguments_: string[]): ProcessResult {
+function runSafeword(
+  root: string,
+  arguments_: string[],
+  env?: Record<string, string | undefined>,
+): ProcessResult {
   const [command, ...prefix] = safewordCliCommand(root);
-  return run(command, [...prefix, ...arguments_], root);
+  return run(command, [...prefix, ...arguments_], root, { env });
+}
+
+type SafewordRunner = (
+  root: string,
+  arguments_: string[],
+  env?: Record<string, string | undefined>,
+) => ProcessResult;
+
+export function retroAgentForRuntime(runtime: CloseoutBinding['runtime']): string {
+  return runtime;
 }
 
 function exactCodexTranscript(id: string): string | undefined {
@@ -477,8 +500,23 @@ export function transcriptMatchesBinding(
   binding: CloseoutBinding,
   repositoryRoot: string,
 ): boolean {
-  if (!existsSync(transcriptPath)) return false;
-  const expectedRoot = nodePath.resolve(repositoryRoot);
+  if (
+    !existsSync(transcriptPath) ||
+    !existsSync(repositoryRoot) ||
+    !existsSync(binding.projectRoot)
+  )
+    return false;
+  const expectedRoot = realpathSync(repositoryRoot);
+  if (realpathSync(binding.projectRoot) !== expectedRoot) return false;
+  if (binding.runtime === 'cursor') {
+    const resolvedTranscript = realpathSync(transcriptPath);
+    return (
+      nodePath.basename(resolvedTranscript) === `${binding.id}.jsonl` &&
+      nodePath.basename(nodePath.dirname(resolvedTranscript)) === binding.id &&
+      nodePath.basename(nodePath.dirname(nodePath.dirname(resolvedTranscript))) ===
+        'agent-transcripts'
+    );
+  }
   try {
     return readFileSync(transcriptPath, 'utf8')
       .split('\n')
@@ -492,9 +530,11 @@ export function transcriptMatchesBinding(
           exactString(record.conversation_id) ??
           exactString(codexMetadata?.id);
         const cwd = exactString(record.cwd) ?? exactString(codexMetadata?.cwd);
-        return (
-          sessionId === binding.id && cwd !== undefined && nodePath.resolve(cwd) === expectedRoot
-        );
+        if (sessionId !== binding.id || cwd === undefined) return false;
+        const resolvedCwd = realpathSync(cwd);
+        if (resolvedCwd === expectedRoot) return true;
+        const root = git(resolvedCwd, 'rev-parse', '--show-toplevel');
+        return root.status === 0 && nodePath.resolve(root.stdout.trim()) === expectedRoot;
       });
   } catch {
     return false;
@@ -524,19 +564,27 @@ export function classifyRetroFailure(
   return 'unknown';
 }
 
-function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['retro'] {
+export function runBoundRetro(
+  root: string,
+  binding: CloseoutBinding,
+  runner: SafewordRunner = runSafeword,
+): CloseoutObservation['retro'] {
   const transcript = resolveTranscript(binding, root);
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0 };
-  const retro = runSafeword(root, [
-    'retro',
-    'run',
-    '--json',
-    '--auto-extract',
-    '--transcript',
-    transcript,
-    '--session-id',
-    binding.id,
-  ]);
+  const retro = runner(
+    root,
+    [
+      'retro',
+      'run',
+      '--json',
+      '--auto-extract',
+      '--transcript',
+      transcript,
+      '--session-id',
+      binding.id,
+    ],
+    { SAFEWORD_RETRO_AGENT: retroAgentForRuntime(binding.runtime) },
+  );
   const result = json<{
     state?: string;
     data?: { agent_filing_needed?: boolean };
@@ -569,13 +617,107 @@ interface TestPlanEntry {
   available: boolean;
 }
 
+interface VerificationReceipt {
+  version: 1;
+  headOid: string;
+  stateHash: string;
+  recordedAt: string;
+}
+
+const VERIFICATION_RECEIPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function cleanWorkingStateHash(headOid: string): string {
+  return createHash('sha256').update(`${headOid}\0`).digest('hex');
+}
+
+function verificationReceiptPath(root: string): string | undefined {
+  const commonDirectory = git(root, 'rev-parse', '--git-common-dir');
+  const path = commonDirectory.stdout.trim();
+  return commonDirectory.status === 0 && path !== ''
+    ? nodePath.join(nodePath.resolve(root, path), 'safeword', 'closeout-verification.json')
+    : undefined;
+}
+
+function readVerificationReceipt(
+  root: string,
+  expectedOid: string,
+  now = new Date(),
+): VerificationReceipt | undefined {
+  const path = verificationReceiptPath(root);
+  if (!path || !existsSync(path)) return undefined;
+  try {
+    const receipt = JSON.parse(readFileSync(path, 'utf8')) as Partial<VerificationReceipt>;
+    const recordedAt =
+      typeof receipt.recordedAt === 'string' ? Date.parse(receipt.recordedAt) : NaN;
+    return receipt.version === 1 &&
+      receipt.headOid === expectedOid &&
+      receipt.stateHash === cleanWorkingStateHash(expectedOid) &&
+      Number.isFinite(recordedAt) &&
+      recordedAt <= now.getTime() &&
+      now.getTime() - recordedAt <= VERIFICATION_RECEIPT_MAX_AGE_MS
+      ? (receipt as VerificationReceipt)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function invalidateVerificationReceipt(root: string): boolean {
+  const path = verificationReceiptPath(root);
+  if (!path || !existsSync(path)) return true;
+  try {
+    unlinkSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeVerificationReceipt(
+  root: string,
+  receipt: Omit<VerificationReceipt, 'version'>,
+): boolean {
+  const path = verificationReceiptPath(root);
+  if (!path) return false;
+  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(temporaryPath, `${JSON.stringify({ version: 1, ...receipt })}\n`, {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    renameSync(temporaryPath, path);
+    return true;
+  } catch {
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    return false;
+  }
+}
+
 function workingStateHash(root: string, headOid: string): string {
   const status = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
   return createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex');
 }
 
 function runVerification(root: string, expectedOid: string): CloseoutObservation['verification'] {
-  let passed = true;
+  const observedHead = git(root, 'rev-parse', 'HEAD').stdout.trim();
+  if (observedHead !== expectedOid) {
+    const receipt = readVerificationReceipt(root, expectedOid);
+    return receipt
+      ? {
+          current: true,
+          passed: true,
+          headOid: receipt.headOid,
+          stateHash: receipt.stateHash,
+        }
+      : {
+          current: false,
+          passed: false,
+          headOid: observedHead,
+          stateHash: workingStateHash(root, observedHead),
+        };
+  }
+  let passed = invalidateVerificationReceipt(root);
   for (const kind of ['verify', 'build', 'typecheck', 'bdd', 'deps']) {
     const planResult = runSafeword(root, [
       'project',
@@ -597,12 +739,22 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
     }
   }
   const headOid = git(root, 'rev-parse', 'HEAD').stdout.trim();
-  return {
+  const status = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
+  const clean = status.status === 0 && status.stdout === '';
+  const verification = {
     current: headOid === expectedOid,
-    passed,
+    passed: passed && clean,
     headOid,
-    stateHash: workingStateHash(root, headOid),
+    stateHash: createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex'),
   };
+  if (verification.current && verification.passed) {
+    verification.passed = writeVerificationReceipt(root, {
+      headOid,
+      stateHash: verification.stateHash,
+      recordedAt: new Date().toISOString(),
+    });
+  }
+  return verification;
 }
 
 interface GhPullRequest {
@@ -786,7 +938,7 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
           : 'unknown',
     deliveryWorktreePath: nodePath.resolve(root),
     verification: runVerification(root, expectedOid),
-    retro: runRetro(root, binding),
+    retro: runBoundRetro(root, binding),
   };
 }
 

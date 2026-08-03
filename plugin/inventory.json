@@ -87,7 +87,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "c04aa3390330a1b070f1939426a56291b985205da2790c6ef3d593991e732526"
+      "sha256": "b2b6ed4428c784e2086fc2f7e9e6f95dbc2890c881f198a3ebf122026fed3962"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -127,7 +127,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b9b5f9cd2b497fb46975d9f82c8498a8ff09646f5deb14a3309b16bc69abbd76"
+      "sha256": "199147462ab7a94473497ae3bb38daecf5ca8b9a1cf5212bb27d133e539ff2f2"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -183,7 +183,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "4d2508635bdccb42feeb30d58fc0584991535bf72d40f0a7b5d04df88d898dc2"
+      "sha256": "4d89818ea62ee89d894a56a1947e05d1ee9edbf8eff45882a2c3adc2a589164e"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -319,7 +319,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
-      "sha256": "8b6267faf4f97a3e1833eec72eb40cb46655e6e4bb517e6ca9445a12c28592d2"
+      "sha256": "390086ac3d80bbce4787aae788f6fb788adbbd383f2134964bc5bb13b877d45e"
     },
     {
       "path": "runtime/hooks/lib/retro-filing-gate.ts",
@@ -591,7 +591,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "c14dd3c006e4e4593c111456dec7b8b72c41734213914a601251518635760377"
+      "sha256": "6837f21a58aa88b759c300a9c17822a7a7bc703707c825a6407e60fad7b11513"
     },
     {
       "path": "skills/debug/SKILL.md",
