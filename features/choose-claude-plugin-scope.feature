@@ -82,7 +82,6 @@ Feature: Choose where Safeword runs in Claude
         | malformed plugin metadata              | user           | unverified metadata  |
         | a newer official plugin version        | project        | downgrade refused    |
 
-    @wip
     Scenario: Project installation preserves unrelated repository settings
       Given the current project has user-authored and third-party Claude settings
       When safeword claude install runs with --scope project

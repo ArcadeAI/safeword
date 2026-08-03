@@ -43,6 +43,8 @@ interface NativeClaudePluginWorld {
     completedOperation?: string;
     otherScopeSnapshot?: string;
     selectedScope?: 'project' | 'user';
+    projectFilesOutsideSettingsSnapshot?: string;
+    projectSettingsSnapshot?: Record<string, unknown>;
     unrelatedProfile: unknown;
     result?: { status: number; output: string };
   };
@@ -95,6 +97,15 @@ function snapshotDirectory(directory: string): string {
       path,
       readFileSync(nodePath.join(directory, path)).toString('base64'),
     ]),
+  );
+}
+
+function snapshotDirectoryExcept(directory: string, excludedPath: string): string {
+  if (!existsSync(directory)) return '[]';
+  return JSON.stringify(
+    filesBeneath(directory)
+      .filter(path => path !== excludedPath)
+      .map(path => [path, readFileSync(nodePath.join(directory, path)).toString('base64')]),
   );
 }
 
@@ -2117,6 +2128,41 @@ Given('arbitrary project and Claude profile state', function (this: NativeClaude
   this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
 });
 
+Given(
+  'the current project has user-authored and third-party Claude settings',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    const settings = {
+      env: { TEAM_MODE: 'careful' },
+      permissions: { allow: ['Read(./docs/**)'] },
+      extraKnownMarketplaces: {
+        community: {
+          source: {
+            source: 'git',
+            url: 'https://example.com/community.git',
+            ref: 'main',
+          },
+        },
+      },
+      enabledPlugins: { 'third-party@community': false },
+    };
+    const settingsPath = nodePath.join(this.lifecycle.project, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settingsPath), { recursive: true });
+    writeFileSync(settingsPath, `${JSON.stringify(settings, undefined, 2)}\n`);
+    writeFileSync(
+      nodePath.join(this.lifecycle.project, '.claude/README.md'),
+      'user-authored Claude documentation\n',
+    );
+    this.lifecycle.selectedScope = 'project';
+    this.lifecycle.projectSettingsSnapshot = settings;
+    this.lifecycle.projectFilesOutsideSettingsSnapshot = snapshotDirectoryExcept(
+      this.lifecycle.project,
+      '.claude/settings.json',
+    );
+  },
+);
+
 When(
   /^safeword claude install runs with (no scope option|--scope project|--scope user)$/u,
   function (this: NativeClaudePluginWorld, scopeOption: string) {
@@ -2254,6 +2300,53 @@ Then(
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
   },
 );
+
+Then(
+  'only the official marketplace and Safeword plugin declarations are added at project scope',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.ok(this.lifecycle);
+    const settings = JSON.parse(
+      readFileSync(nodePath.join(this.lifecycle.project, '.claude/settings.json'), 'utf8'),
+    ) as {
+      enabledPlugins?: Record<string, unknown>;
+      extraKnownMarketplaces?: Record<string, unknown>;
+    };
+    assert.deepEqual(settings.extraKnownMarketplaces?.safeword, {
+      source: {
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+      },
+    });
+    assert.equal(settings.enabledPlugins?.['safeword@safeword'], true);
+  },
+);
+
+Then(
+  'every unrelated project setting value is preserved',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const settings = JSON.parse(
+      readFileSync(nodePath.join(this.lifecycle.project, '.claude/settings.json'), 'utf8'),
+    ) as Record<string, unknown> & {
+      enabledPlugins?: Record<string, unknown>;
+      extraKnownMarketplaces?: Record<string, unknown>;
+    };
+    delete settings.extraKnownMarketplaces?.safeword;
+    delete settings.enabledPlugins?.['safeword@safeword'];
+    assert.deepEqual(settings, this.lifecycle.projectSettingsSnapshot);
+  },
+);
+
+Then('every project file outside Claude settings is byte-identical', function () {
+  const world = this as NativeClaudePluginWorld;
+  assert.ok(world.lifecycle);
+  assert.equal(
+    snapshotDirectoryExcept(world.lifecycle.project, '.claude/settings.json'),
+    world.lifecycle.projectFilesOutsideSettingsSnapshot,
+  );
+});
 
 Then(
   "the other scope's declaration and unrelated state are byte-identical",
