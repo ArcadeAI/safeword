@@ -264,6 +264,12 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
       nextActionMutates = false;
       break;
     }
+    case 'CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED': {
+      classification = 'postcondition-verification-failed';
+      nextAction = 'claude plugin list --json';
+      nextActionMutates = false;
+      break;
+    }
   }
   return createResult({
     state: 'failed',
@@ -504,7 +510,16 @@ function verifyPlugin(
   scope: ClaudePluginScope,
   effects: readonly Effect[],
 ): JsonObject[] {
-  const entries = pluginEntries(cwd, effects);
+  let entries: JsonObject[];
+  try {
+    entries = pluginEntries(cwd, effects);
+  } catch (error) {
+    throw new ClaudeProfileError(
+      'CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED',
+      `Claude completed the selected-scope mutations, but the final plugin state could not be observed: ${error instanceof Error ? error.message : String(error)}`,
+      effects,
+    );
+  }
   const plugin = safewordPlugin(entries, scope, cwd);
   if (
     plugin?.version === SAFEWORD_SCHEMA.version &&
