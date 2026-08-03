@@ -68,6 +68,11 @@ fi
 for event in session-start user-prompt-submit pre-tool-use post-tool-use stop; do
   printf '%s\n' '{}' | "$SAFEWORD_BUN" "$SAFEWORD_CLI_PATH" hook codex "$event" --plugin-hook >/dev/null
 done
+if [ "$(printenv SAFEWORD_FAKE_FUTURE_PROOF 2>/dev/null || true)" = "1" ]; then
+  for proof in "$CODEX_HOME"/safeword/hook-proof-v2/*.json; do
+    "$SAFEWORD_BUN" -e 'const fs=require("node:fs");const p=process.argv[1];const v=JSON.parse(fs.readFileSync(p,"utf8"));v.recorded_at="2999-01-01T00:00:00.000Z";fs.writeFileSync(p,JSON.stringify(v));' "$proof"
+  done
+fi
 printf '%s\n' '{"type":"thread.started","thread_id":"fixture-thread"}'
 printf '%s\n' '{"type":"turn.completed","usage":{}}'
 printf '%s\n' 'fixture marketplace warning' >&2
@@ -202,5 +207,39 @@ describe('headless Codex activation check', () => {
       `Codex model "${model}" is unsupported by codex-cli 0.144.5`,
     );
     expect((thrown as Error).message).toContain('SAFEWORD_CODEX_SMOKE_MODEL=<model>');
+  });
+
+  it('rejects future-dated hook evidence', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-codex-'));
+    directories.push(directory);
+    const projectRoot = nodePath.join(directory, 'project');
+    const codexHome = nodePath.join(directory, 'profile');
+    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(projectRoot, '.safeword/config.json'), '{}\n');
+    const fakeCodex = installFakeCodex(directory);
+    const environment = {
+      CODEX_HOME: codexHome,
+      PATH: `${fakeCodex.bin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_BUN: process.execPath,
+      SAFEWORD_CLI_PATH: CLI_PATH,
+      SAFEWORD_CODEX_LOG: fakeCodex.log,
+      SAFEWORD_FAKE_FUTURE_PROOF: '1',
+      SAFEWORD_FAKE_HOST_PID: String(OLD_HOST.pid),
+      TZ: 'UTC',
+    };
+    const activationId = 'activation-future-proof';
+    writeCodexActivationMarker(environment, new Date('2026-08-03T00:01:00.000Z'), {
+      activationId,
+      activeHosts: [OLD_HOST],
+    });
+
+    expect(() =>
+      runHeadlessCodexActivationCheck({
+        cwd: projectRoot,
+        environment,
+        expectedActivation: 'pending',
+        expectedActivationId: activationId,
+      }),
+    ).toThrow(/did not write a current .* timestamp/u);
   });
 });

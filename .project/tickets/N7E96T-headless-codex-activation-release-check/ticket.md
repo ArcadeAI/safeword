@@ -19,7 +19,7 @@ done_when:
   - "A structured unsupported-model event fails with the selected model, Codex CLI version, and retry action while unrelated stderr warnings remain separately inspectable."
   - "The opt-in live smoke uses an explicit model and the same structured proof assertions, and the release procedure names both commands without equating headless proof with Desktop restart."
 created: 2026-08-03T01:32:26.403Z
-last_modified: 2026-08-03T01:36:00.000Z
+last_modified: 2026-08-03T02:05:30.000Z
 ---
 
 # Make headless Codex activation release checks reliable
@@ -33,7 +33,7 @@ last_modified: 2026-08-03T01:36:00.000Z
 - [x] Integration RED/GREEN: a fake headless Codex process runs the real five packaged hook commands under a still-running install-time host; current identity-bound proof is complete and activation remains pending.
 - [x] Integration RED/GREEN: the same process boundary presents a fresh app-server identity; the marker becomes a receipt with the same activation ID and all five proofs bind to it.
 - [x] Integration RED/GREEN: a structured Codex model incompatibility event produces an actionable model/CLI diagnostic and keeps unrelated stderr warnings separate.
-- [ ] Opt-in live smoke: a real authenticated `codex exec` receives an explicit model and passes the shared exact proof/timestamp assertions without claiming Desktop activation.
+- [x] Opt-in live smoke: a real authenticated `codex exec` receives an explicit model and passes the shared exact proof/timestamp assertions without claiming Desktop activation.
 
 ## Work Log
 
@@ -43,3 +43,5 @@ last_modified: 2026-08-03T01:36:00.000Z
 - 2026-08-03T01:38:50.000Z RED/GREEN: Added the headless activation-check integration test, observed the missing harness import fail, then implemented explicit-model Codex JSONL execution plus exact five-event identity, activation-ID, timestamp, and pending-state validation. Focused test passes.
 - 2026-08-03T01:42:51.000Z RED/GREEN: Fresh-host coverage first failed because the harness returned no receipt host, then passed after validating and returning the exact app-server identity from the activation receipt. Both activation cases pass.
 - 2026-08-03T01:49:00.000Z RED/GREEN: Unsupported-model coverage first failed on the missing structured error type, then passed with a stable `CODEX_MODEL_UNSUPPORTED` code, selected model and CLI version, retry guidance, and separately retained stderr warnings.
+- 2026-08-03T01:56:32.000Z Wired: Replaced the live smoke's one-hook conversational probe with the shared explicit-model validator, asserted all five cached hook commands, and documented deterministic plus authenticated release commands. Tightened marker and receipt identity/timestamp checks during self-review. The live suite compiles and skips locally because installed `codex-cli 0.141.0` is below its 0.144.5 minimum.
+- 2026-08-03T02:05:30.000Z Quality review: First pass requested lower complexity and upper timestamp bounds. Split marker/receipt predicates, observed a future-proof regression fail, then bounded proof and receipt timestamps to the task interval. Four focused integrations, ESLint, and TypeScript pass; fresh re-review started.

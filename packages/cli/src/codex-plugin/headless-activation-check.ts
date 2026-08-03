@@ -72,6 +72,14 @@ interface ActivationReceiptFile {
   host: CodexHostProcessIdentity;
 }
 
+interface ActivationMarkerFile {
+  schema_version: 2;
+  plugin_version: string;
+  manifest_sha256: string;
+  activation_id: string;
+  installed_at: string;
+}
+
 const HEADLESS_CHECK_PROMPT =
   'Run the shell command `pwd` exactly once, then reply with exactly SAFEWORD_CODEX_ACTIVATION_CHECK. Do not use any other tools.';
 
@@ -106,6 +114,59 @@ function isActivationReceiptFile(value: unknown): value is ActivationReceiptFile
     isRecord(value.host) &&
     Number.isSafeInteger(value.host.pid) &&
     typeof value.host.started_at === 'string'
+  );
+}
+
+function isActivationMarkerFile(value: unknown): value is ActivationMarkerFile {
+  return (
+    isRecord(value) &&
+    value.schema_version === 2 &&
+    typeof value.plugin_version === 'string' &&
+    typeof value.manifest_sha256 === 'string' &&
+    typeof value.activation_id === 'string' &&
+    typeof value.installed_at === 'string'
+  );
+}
+
+function isTimestampWithin(value: string, startedAt: Date, finishedAt: Date): boolean {
+  const timestamp = Date.parse(value);
+  return (
+    Number.isFinite(timestamp) &&
+    timestamp >= startedAt.getTime() &&
+    timestamp <= finishedAt.getTime()
+  );
+}
+
+function isExpectedActivationMarker(input: {
+  value: unknown;
+  identity: ReturnType<typeof currentCodexPluginIdentity>;
+  expectedActivationId: string;
+  startedAt: Date;
+}): boolean {
+  if (!isActivationMarkerFile(input.value)) return false;
+  const installedAt = Date.parse(input.value.installed_at);
+  return (
+    input.value.plugin_version === input.identity.plugin_version &&
+    input.value.manifest_sha256 === input.identity.manifest_sha256 &&
+    input.value.activation_id === input.expectedActivationId &&
+    Number.isFinite(installedAt) &&
+    installedAt <= input.startedAt.getTime()
+  );
+}
+
+function isExpectedActivationReceipt(input: {
+  value: unknown;
+  identity: ReturnType<typeof currentCodexPluginIdentity>;
+  expectedActivationId: string;
+  finishedAt: Date;
+  startedAt: Date;
+}): input is typeof input & { value: ActivationReceiptFile } {
+  if (!isActivationReceiptFile(input.value)) return false;
+  return (
+    input.value.plugin_version === input.identity.plugin_version &&
+    input.value.manifest_sha256 === input.identity.manifest_sha256 &&
+    input.value.activation_id === input.expectedActivationId &&
+    isTimestampWithin(input.value.activated_at, input.startedAt, input.finishedAt)
   );
 }
 
@@ -209,6 +270,7 @@ function assertCodexRunSucceeded(input: {
 function assertHookProofs(input: {
   codexHome: string;
   expectedActivationId: string;
+  finishedAt: Date;
   startedAt: Date;
 }): void {
   const identity = currentCodexPluginIdentity();
@@ -228,8 +290,7 @@ function assertHookProofs(input: {
     if (proof.activation_id !== input.expectedActivationId) {
       throw new Error(`Headless Codex task wrote ${event} proof for another activation ID.`);
     }
-    const recordedAt = Date.parse(proof.recorded_at);
-    if (!Number.isFinite(recordedAt) || recordedAt < input.startedAt.getTime()) {
+    if (!isTimestampWithin(proof.recorded_at, input.startedAt, input.finishedAt)) {
       throw new Error(`Headless Codex task did not write a current ${event} timestamp.`);
     }
   }
@@ -239,12 +300,19 @@ function assertActivationState(input: {
   activation: ExpectedActivation;
   codexHome: string;
   expectedActivationId: string;
+  finishedAt: Date;
+  startedAt: Date;
 }): CodexHostProcessIdentity | undefined {
   const pendingPath = nodePath.join(input.codexHome, 'safeword/activation-pending-v2.json');
   const receiptPath = nodePath.join(input.codexHome, 'safeword/activation-current-v1.json');
+  const identity = currentCodexPluginIdentity();
   if (input.activation === 'pending') {
     if (!existsSync(pendingPath) || existsSync(receiptPath)) {
       throw new Error('Headless Codex task incorrectly changed pending activation state.');
+    }
+    const marker = parseJsonFile(pendingPath);
+    if (!isExpectedActivationMarker({ value: marker, identity, ...input })) {
+      throw new Error('Headless Codex task left an invalid pending activation marker.');
     }
     return undefined;
   }
@@ -252,16 +320,11 @@ function assertActivationState(input: {
     throw new Error('Fresh Codex host did not complete activation.');
   }
   const receipt = parseJsonFile(receiptPath);
-  const identity = currentCodexPluginIdentity();
-  if (
-    !isActivationReceiptFile(receipt) ||
-    receipt.plugin_version !== identity.plugin_version ||
-    receipt.manifest_sha256 !== identity.manifest_sha256 ||
-    receipt.activation_id !== input.expectedActivationId
-  ) {
+  const receiptCheck = { value: receipt, identity, ...input };
+  if (!isExpectedActivationReceipt(receiptCheck)) {
     throw new Error('Fresh Codex host wrote an invalid activation receipt.');
   }
-  return receipt.host;
+  return receiptCheck.value.host;
 }
 
 export function runHeadlessCodexActivationCheck(
@@ -300,6 +363,7 @@ export function runHeadlessCodexActivationCheck(
   if (result.error !== undefined) {
     throw new Error(`Could not run the headless Codex activation task.`, { cause: result.error });
   }
+  const finishedAt = new Date();
   const events = parseCodexJsonLines(result.stdout);
   const warnings = splitWarnings(result.stderr);
   assertCodexRunSucceeded({
@@ -312,12 +376,15 @@ export function runHeadlessCodexActivationCheck(
   assertHookProofs({
     codexHome,
     expectedActivationId: options.expectedActivationId,
+    finishedAt,
     startedAt,
   });
   const activatedHost = assertActivationState({
     activation: options.expectedActivation,
     codexHome,
     expectedActivationId: options.expectedActivationId,
+    finishedAt,
+    startedAt,
   });
   const proof = observeCodexHookProof(environment);
   if (proof.status !== 'current') {

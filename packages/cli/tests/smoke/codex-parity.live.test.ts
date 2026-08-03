@@ -8,7 +8,7 @@
  *
  * Run with:
  *
- *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 bun run --cwd packages/cli test:smoke:live
+ *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_CODEX_SMOKE_MODEL=gpt-5.4 bun run --cwd packages/cli test:smoke:live
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_RUN_CODEX_MIGRATION_SMOKE=1 bun run --cwd packages/cli test:smoke:live
  */
 
@@ -30,6 +30,14 @@ import process from 'node:process';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  DEFAULT_CODEX_ACTIVATION_CHECK_MODEL,
+  runHeadlessCodexActivationCheck,
+} from '../../src/codex-plugin/headless-activation-check.js';
+import {
+  CODEX_PLUGIN_HOOK_EVENTS,
+  writeCodexActivationMarker,
+} from '../../src/codex-plugin/profile-proof.js';
 import { migrateCodexPlugin } from '../../src/commands/migrate-codex-plugin.js';
 import {
   assertCachedCodexPlugin,
@@ -290,28 +298,6 @@ function runCachedSkillProbe(
   return `${result.stdout}\n${result.stderr}`;
 }
 
-function runCacheDispatchWithTrustBypass(
-  codex: string,
-  projectRoot: string,
-  environment: NodeJS.ProcessEnv,
-): string {
-  const result = run(
-    codex,
-    [
-      'exec',
-      '--json',
-      '--dangerously-bypass-hook-trust',
-      '--dangerously-bypass-approvals-and-sandbox',
-      '-C',
-      projectRoot,
-      'Reply with exactly OK. Do not use tools.',
-    ],
-    { cwd: projectRoot, env: environment, timeout: 180_000 },
-  );
-  assertSuccess(result, 'codex exec cache dispatch with trust bypass');
-  return `${result.stdout}\n${result.stderr}`;
-}
-
 const CODEX = resolveCodex();
 const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== undefined;
 const CAN_RUN_MIGRATION = CAN_RUN && process.env.SAFEWORD_RUN_CODEX_MIGRATION_SMOKE === '1';
@@ -390,12 +376,23 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     expect(skillOutput).toContain('SAFEWORD_CACHE_SKILL_READY');
     expect(existsSync(shimLog)).toBe(false);
 
-    // The bypass proves cache dispatch only. Interactive /hooks trust remains manual acceptance.
-    const liveOutput = runCacheDispatchWithTrustBypass(CODEX, projectRoot, environment);
-    expect(
-      readFileSync(shimLog, 'utf8'),
-      `Codex did not invoke cached plugin SessionStart.\n${liveOutput}`,
-    ).toContain(`--bun safeword@${packageVersion()} hook codex session-start`);
+    // A headless process proves cache dispatch and all hook evidence, but it is
+    // not a restarted Desktop app-server and therefore must leave activation pending.
+    const marker = writeCodexActivationMarker(environment, new Date(), { activeHosts: [] });
+    const model = process.env.SAFEWORD_CODEX_SMOKE_MODEL ?? DEFAULT_CODEX_ACTIVATION_CHECK_MODEL;
+    const activation = runHeadlessCodexActivationCheck({
+      codexBinary: CODEX,
+      cwd: projectRoot,
+      environment,
+      expectedActivation: 'pending',
+      expectedActivationId: marker.activation_id,
+      model,
+    });
+    expect(activation).toMatchObject({ activation: 'pending', model });
+    const shimOutput = readFileSync(shimLog, 'utf8');
+    for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      expect(shimOutput).toContain(`--bun safeword@${packageVersion()} hook codex ${event}`);
+    }
     assertNoProjectWorkflowTree(projectRoot);
   });
 });
