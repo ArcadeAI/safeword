@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { SETTINGS_HOOKS } from '../../src/templates/config.js';
@@ -40,6 +43,24 @@ describe('proactive decision-brief contract', () => {
     expect(replyEntries).toHaveLength(1);
     expect(replyEntries[0]).not.toHaveProperty('matcher');
     expect(standingEntries).toHaveLength(1);
+  });
+
+  it('keeps generated plugin SessionStart outputs at separate host boundaries', () => {
+    const manifest = JSON.parse(
+      readFileSync(
+        nodePath.resolve(import.meta.dirname, '../../../../plugin/hooks/hooks.json'),
+        'utf8',
+      ),
+    ) as {
+      hooks: { SessionStart: { hooks: { command: string }[] }[] };
+    };
+    const commands = manifest.hooks.SessionStart.flatMap(entry =>
+      entry.hooks.map(hook => hook.command),
+    );
+
+    expect(commands).toHaveLength(10);
+    expect(commands).not.toContain(expect.stringContaining('--event-group'));
+    expect(commands.filter(command => command.includes('session-reply-format.ts'))).toHaveLength(1);
   });
 
   it('derives rendered wording and validation from one grammar fixture', () => {
@@ -104,6 +125,9 @@ describe('terminal decision-brief parser', () => {
     ['HTML declaration', `<!DOCTYPE html\n${brief(CONFIDENT)}\n>`],
     ['HTML processing instruction', `<?example\n${brief(CONFIDENT)}\n?>`],
     ['HTML CDATA block', `<![CDATA[\n${brief(CONFIDENT)}\n]]>`],
+    ['multiline script block', `<script\n${brief(CONFIDENT)}\n</script>`],
+    ['multiline generic HTML block', `<div\n${brief(CONFIDENT)}\n</div>`],
+    ['lowercase HTML declaration', `<!doctype\n${brief(CONFIDENT)}\n>`],
   ];
 
   const rejectedCases: readonly (readonly [string, string])[] = [
@@ -162,6 +186,15 @@ describe('terminal decision-brief parser', () => {
       true,
     );
   });
+
+  it.each(['**Tests:** 89 passed.', '**Summary:** Implemented it.'])(
+    'allows an unrelated labelled paragraph before the terminal brief: %s',
+    paragraph => {
+      expect(evaluateDecisionBriefCompliance(`${paragraph}\n\n${brief(CONFIDENT)}`).compliant).toBe(
+        true,
+      );
+    },
+  );
 
   it('reports a fixed linear examined-character bound', () => {
     for (const size of [1024, 2048, 4096]) {
