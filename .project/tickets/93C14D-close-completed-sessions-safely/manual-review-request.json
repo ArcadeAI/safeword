@@ -17,7 +17,7 @@
     { "path": "packages/cli/tests/integration/closeout-host-adapters.test.ts", "sha256": "c1691e28426933e52153a8f7d305525f043b548c1b91705224e1ce0bd4f26509" },
     { "path": "packages/cli/src/parity.ts", "sha256": "7260f5937ce32fc5999545a1a79b63e0780fdfcc536f3f175a5553373002039e" },
     { "path": "packages/cli/src/codex-plugin/catalogue.ts", "sha256": "d3055def60c9930bb9b0e771884dffa2e5114ad1433a5c9821d1bda23e7fcc0c" },
-    { "path": "packages/cli/src/claude-plugin/catalogue.ts", "sha256": "e490209e2b0ec35a44a27623876b8d59051fc9a4187a21213e341a35cfd5628a" },
+    { "path": "packages/cli/src/claude-plugin/catalogue.ts", "sha256": "22359b4955427d4529470ddc9c58a3e86d365fa332e715b314d9f8147172ddfb" },
     { "path": ".project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json", "sha256": "4da7ef05718ff238eafa8184275f4ce6aa9fdea1249d379e4a5532f734299740" }
   ],
   "expected_scenarios": [

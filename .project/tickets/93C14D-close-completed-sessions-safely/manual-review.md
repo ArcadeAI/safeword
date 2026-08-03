@@ -10,10 +10,10 @@ examples after their fixes.
 ```json
 {
   "reviewer": {
-    "identity": "/root/ci_format_quality_review",
+    "identity": "/root/dual_scope_quality_review",
     "model": "gpt-5.6-sol (inherited parent model)"
   },
-  "manifest_sha256": "ae07003d5cb31ad48d01541ecf657997c7cda46bb22a8ce092598e81eda14f5d",
+  "manifest_sha256": "0e35547fe8d45eabd3e8931419fb373e835a0fa06c3c2225d255121ed9a35ff7",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },
