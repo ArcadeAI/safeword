@@ -59,5 +59,13 @@ export async function parseRetroCommandArguments(
   const program = new Command();
   program.exitOverride();
   registerRetroCommand(program, execute);
-  await program.parseAsync(['node', 'safeword', ...arguments_]);
+  // Installed instructions use the canonical catalog spelling (`retro run`),
+  // while this small parser is retained solely as an injected test seam for the
+  // historical direct command. Normalize that spelling at the seam instead of
+  // registering a second production Commander command.
+  const normalized =
+    arguments_[0] === 'retro' && arguments_[1] === 'run'
+      ? [arguments_[0], ...arguments_.slice(2)]
+      : arguments_;
+  await program.parseAsync(['node', 'safeword', ...normalized]);
 }

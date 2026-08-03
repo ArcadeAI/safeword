@@ -160,6 +160,10 @@ export function registerPublicCommandCatalog(program: Command): void {
   const families = registerFamilies(program);
   for (const definition of commandCatalog) {
     if (!definition.public) continue;
+    // A retained alias cannot share a name with a command family: attaching its
+    // action to the family makes Commander treat every subcommand as an excess
+    // argument. The family remains the public entry point for its children.
+    if (definition.aliasFor !== undefined && families.has(definition.name)) continue;
     addDefinitionAction(definitionCommand(program, families, definition), definition);
   }
 

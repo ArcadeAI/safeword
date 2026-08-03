@@ -369,6 +369,7 @@ export interface RetroCliOptions {
   sessionId?: string;
 }
 
+/** Result consumed by the catalog-based CLI handler. */
 export interface RetroCommandExecution {
   readonly outcome: RetroOutcome;
   readonly extractionSucceeded: boolean;
@@ -778,7 +779,7 @@ async function resolveRetroRelayRoute(input: {
   };
 }
 
-export async function executeRetroCommand(
+async function executeRetroWithDependencies(
   options: RetroCliOptions,
   dependencies: {
     environment: NodeJS.ProcessEnv;
@@ -1056,12 +1057,13 @@ export async function retryRelayDeadLetterCommand(
  * findings JSON, then invokes this), and the transport is a REST client. Both
  * are intentionally thin and live outside the tested deterministic core.
  */
-export async function executeRetroCommand(
+async function executeRetroCliCommand(
   options: RetroCliOptions,
   cwd?: string,
 ): Promise<RetroCommandExecution> {
   const { detectAgent } = await import('../../templates/hooks/lib/self-report.js');
   const { createRestTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
+  const { error, info, success } = await import('../utils/output.js');
 
   const projectDirectory = cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const autoExtractAgent = resolveAutoExtractAgent(process.env);
@@ -1076,7 +1078,7 @@ export async function executeRetroCommand(
   const restTransport = createRestTransport(resolveGitHubToken());
   const transport = restTransport ?? unavailableTransport();
 
-  await executeRetroCommand(options, {
+  const outcome = await executeRetroWithDependencies(options, {
     environment: process.env,
     extract,
     extractionSucceeded: () => extractionSucceeded,
@@ -1104,6 +1106,33 @@ export async function executeRetroCommand(
     restTransportAvailable: restTransport !== undefined,
     transport,
   });
+  return {
+    outcome,
+    extractionSucceeded,
+    restTransportAvailable: restTransport !== undefined,
+  };
+}
+
+export function executeRetroCommand(
+  options: RetroCliOptions,
+  dependencies: Parameters<typeof executeRetroWithDependencies>[1],
+): Promise<RetroOutcome>;
+export function executeRetroCommand(
+  options: RetroCliOptions,
+  cwd?: string,
+): Promise<RetroCommandExecution>;
+export function executeRetroCommand(
+  options: RetroCliOptions,
+  target?: Parameters<typeof executeRetroWithDependencies>[1] | string,
+): Promise<RetroOutcome | RetroCommandExecution> {
+  return typeof target === 'object' && target !== null
+    ? executeRetroWithDependencies(options, target)
+    : executeRetroCliCommand(options, target);
+}
+
+/** Compatibility entry point used by the standalone Commander registration tests. */
+export async function retroCommand(options: RetroCliOptions): Promise<void> {
+  await executeRetroCommand(options);
 }
 
 function readFindings(path: string): unknown[] {

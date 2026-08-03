@@ -1,19 +1,6 @@
 name: Deploy Retro Relay
 
-on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/retro-relay/**'
-      - 'packages/cli/package.json'
-      - 'packages/website/package.json'
-      - 'package.json'
-      - 'bun.lock'
-      - 'tsconfig.json'
-      - '.dockerignore'
-      - 'railway.json'
-      - '.github/workflows/deploy-retro-relay.yml'
-  workflow_dispatch:
+on: workflow_dispatch
 
 permissions:
   contents: read
@@ -45,7 +32,7 @@ jobs:
           RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_RELAY_SERVICE }}
         run: |
           if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "::error::Missing RAILWAY_TOKEN repository secret. Add a project-scoped Railway token."
+            echo "::error::Missing RAILWAY_TOKEN environment secret. Add a project-scoped Railway token."
             exit 1
           fi
           if [ -z "$RAILWAY_PROJECT_ID" ]; then
