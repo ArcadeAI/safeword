@@ -79,7 +79,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A filesystem alias does not create a duplicate project installation
 
 - [x] RED c21a5bbf1
-- [ ] GREEN
+- [x] GREEN 595dcb3e2
 - [ ] REFACTOR
 
 ### Scenario: Damaged selected-scope cache is not mistaken for an idempotent installation
