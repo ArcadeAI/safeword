@@ -11,7 +11,7 @@ import type { SafewordWorld } from './world.js';
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const STOP_QUALITY = nodePath.join(REPO_ROOT, '.safeword/hooks/stop-quality.ts');
 
-interface ReplyFormatState {
+export interface ReplyFormatState {
   projectDirectory: string;
   reply: string;
   stopHookActive: boolean;
@@ -19,7 +19,29 @@ interface ReplyFormatState {
 
 const states = new WeakMap<SafewordWorld, ReplyFormatState>();
 
-function buildStopProject(): string {
+export function setReplyFormatState(world: SafewordWorld, state: ReplyFormatState): void {
+  states.set(world, state);
+}
+
+export function getReplyFormatState(world: SafewordWorld): ReplyFormatState {
+  const state = states.get(world);
+  assert.ok(state, 'reply-format fixture was not created');
+  return state;
+}
+
+export function ensureReplyFormatState(world: SafewordWorld): ReplyFormatState {
+  const existing = states.get(world);
+  if (existing) return existing;
+  const state = {
+    projectDirectory: buildReplyFormatProject(),
+    reply: '',
+    stopHookActive: false,
+  };
+  states.set(world, state);
+  return state;
+}
+
+export function buildReplyFormatProject(): string {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-reply-format-'));
   mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
   mkdirSync(nodePath.join(projectDirectory, '.project/tickets/099-reply-format'), {
@@ -51,12 +73,16 @@ function buildStopProject(): string {
   return projectDirectory;
 }
 
-function runStop(world: SafewordWorld): void {
+export function runReplyFormatStop(world: SafewordWorld): void {
   const state = states.get(world);
   assert.ok(state, 'reply-format fixture was not created');
   const result = spawnSync('bun', [STOP_QUALITY], {
     cwd: state.projectDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: state.projectDirectory },
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: state.projectDirectory,
+      SAFEWORD_CLI: nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+    },
     input: JSON.stringify({
       session_id: 'reply-format',
       transcript_path: nodePath.join(state.projectDirectory, 'transcript.jsonl'),
@@ -92,7 +118,11 @@ After(function (this: SafewordWorld) {
 });
 
 Given('Claude has edited work to report', function (this: SafewordWorld) {
-  states.set(this, { projectDirectory: buildStopProject(), reply: '', stopHookActive: false });
+  states.set(this, {
+    projectDirectory: buildReplyFormatProject(),
+    reply: '',
+    stopHookActive: false,
+  });
 });
 
 Given(
@@ -173,11 +203,11 @@ Given(
 );
 
 When('the reply reaches the Stop hook', function (this: SafewordWorld) {
-  runStop(this);
+  runReplyFormatStop(this);
 });
 
 When('the correction reply reaches the Stop hook', function (this: SafewordWorld) {
-  runStop(this);
+  runReplyFormatStop(this);
 });
 
 Then('no format-correction continuation is emitted', function (this: SafewordWorld) {
