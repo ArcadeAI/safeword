@@ -86,7 +86,10 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
   transport: new FakeGitHub(),
   sessionId: 'sess-a',
   harness: 'claude',
-  readFile: () => 'transcript content',
+  readFile: () =>
+    JSON.stringify({
+      message: { role: 'user', content: [{ type: 'text', text: 'transcript content' }] },
+    }),
   ...over,
 });
 
@@ -592,7 +595,7 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
 
   async function modelFromRunner(
     directory: string,
-    agent: 'claude' | 'codex' = 'claude',
+    agent: 'claude' | 'codex' | 'cursor' = 'claude',
   ): Promise<{ argv: string[]; model: string | undefined }> {
     let argvSeen: string[] = [];
     const extract = await buildAutoExtractor(directory, {
@@ -602,7 +605,11 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
         return Promise.resolve({ code: 0, stdout: '' });
       },
     });
-    await extract('transcript');
+    await extract(
+      JSON.stringify({
+        message: { role: 'user', content: [{ type: 'text', text: 'retro transcript' }] },
+      }),
+    );
     const modelFlag = agent === 'codex' ? '-m' : '--model';
     return { argv: argvSeen, model: argvSeen[argvSeen.indexOf(modelFlag) + 1] };
   }
@@ -618,6 +625,76 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     expect(result.model).toBe('gpt-5.5');
   });
 
+  it('builds the Cursor extractor with auto when no retro.model is configured', async () => {
+    const result = await modelFromRunner(projectDirectory, 'cursor');
+    expect(result.argv[0]).toBe('-p');
+    expect(result.model).toBe('auto');
+  });
+
+  it('installs deny-all Cursor tool and network policy before the extractor spawns', async () => {
+    let policy:
+      | {
+          permissions: { allow: string[]; deny: string[] };
+          approvalMode: string;
+          sandbox: {
+            type: string;
+            disableTmpWrite: boolean;
+            networkPolicy: { default: string; allow: string[] };
+          };
+        }
+      | undefined;
+    const extract = await buildAutoExtractor(projectDirectory, {
+      agent: 'cursor',
+      spawn: (_argv, options) => {
+        policy = JSON.parse(
+          readFileSync(nodePath.join(options.cwd, '.cursor/cli.json'), 'utf8'),
+        ) as typeof policy;
+        if (policy) {
+          policy.sandbox = JSON.parse(
+            readFileSync(nodePath.join(options.cwd, '.cursor/sandbox.json'), 'utf8'),
+          ) as NonNullable<typeof policy>['sandbox'];
+        }
+        return Promise.resolve({
+          code: 0,
+          stdout: JSON.stringify({ type: 'result', is_error: false, result: '[]' }),
+        });
+      },
+    });
+    await extract(
+      JSON.stringify({
+        message: { role: 'user', content: [{ type: 'text', text: 'retro transcript' }] },
+      }),
+    );
+
+    const observed = policy as {
+      permissions: { allow: string[]; deny: string[] };
+      approvalMode: string;
+      sandbox: {
+        type: string;
+        disableTmpWrite: boolean;
+        networkPolicy: { default: string; allow: string[] };
+      };
+    };
+
+    expect(observed.permissions.allow).toEqual([]);
+    expect(observed.permissions.deny).toEqual(
+      expect.arrayContaining([
+        'Shell(**)',
+        'Read(**)',
+        'Write(**)',
+        'Mcp(**)',
+        'WebFetch(**)',
+        'WebSearch(**)',
+      ]),
+    );
+    expect(observed.approvalMode).toBe('allowlist');
+    expect(observed.sandbox).toEqual({
+      type: 'workspace_readwrite',
+      disableTmpWrite: true,
+      networkPolicy: { default: 'deny', allow: [] },
+    });
+  });
+
   it('uses the configured retro.model override', async () => {
     mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
     writeFileSync(
@@ -626,8 +703,10 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     );
     const claude = await modelFromRunner(projectDirectory);
     const codex = await modelFromRunner(projectDirectory, 'codex');
+    const cursor = await modelFromRunner(projectDirectory, 'cursor');
     expect(claude.model).toBe('haiku');
     expect(codex.model).toBe('haiku');
+    expect(cursor.model).toBe('haiku');
   });
 });
 

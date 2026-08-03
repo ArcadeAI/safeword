@@ -16,6 +16,8 @@ import {
   operationCommand,
   parseWorktrees,
   resolveRemoteRef as resolveRemoteReference,
+  retroAgentForRuntime,
+  runBoundRetro,
   safewordCliCommand,
   transcriptMatchesBinding,
 } from '../templates/scripts/closeout-cleanup.ts';
@@ -72,6 +74,57 @@ function runGit(...arguments_: string[]): string {
 }
 
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
+  it('selects the mandatory retro extractor from the bound host runtime', () => {
+    expect(retroAgentForRuntime('claude')).toBe('claude');
+    expect(retroAgentForRuntime('codex')).toBe('codex');
+    expect(retroAgentForRuntime('cursor')).toBe('cursor');
+  });
+
+  it.each(['claude', 'codex', 'cursor'] as const)(
+    'passes the bound %s runtime to the real retro command boundary',
+    runtime => {
+      const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-agent-'));
+      const transcript =
+        runtime === 'cursor'
+          ? nodePath.join(root, 'agent-transcripts', `${runtime}-42`, `${runtime}-42.jsonl`)
+          : nodePath.join(root, 'transcript.jsonl');
+      mkdirSync(nodePath.dirname(transcript), { recursive: true });
+      writeFileSync(
+        transcript,
+        `${JSON.stringify(
+          runtime === 'cursor'
+            ? { role: 'user', message: { content: [{ type: 'text', text: 'hello' }] } }
+            : { session_id: `${runtime}-42`, cwd: root },
+        )}\n`,
+      );
+      let observedEnvironment: Record<string, string | undefined> | undefined;
+      let observedArguments: string[] = [];
+      try {
+        const result = runBoundRetro(
+          root,
+          { runtime, id: `${runtime}-42`, projectRoot: root, transcriptPath: transcript },
+          (_cwd, arguments_, env) => {
+            observedArguments = arguments_;
+            observedEnvironment = env;
+            return {
+              status: 0,
+              stdout: JSON.stringify({
+                state: 'healthy',
+                data: { agent_filing_needed: false },
+              }),
+              stderr: '',
+            };
+          },
+        );
+
+        expect(result.complete).toBe(true);
+        expect(observedArguments).toContain('--auto-extract');
+        expect(observedEnvironment?.SAFEWORD_RETRO_AGENT).toBe(runtime);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
   it.each([
     [true, '', false, 0, undefined],
     [false, 'Retro extraction failed.', false, 0, 'extraction'],
@@ -523,19 +576,65 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     );
 
     expect(
-      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, root),
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'claude', id: 'session-42', projectRoot: root },
+        root,
+      ),
     ).toBe(true);
     expect(
-      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'other-session' }, root),
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'claude', id: 'other-session', projectRoot: root },
+        root,
+      ),
     ).toBe(false);
     expect(
-      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, '/other/repo'),
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'claude', id: 'session-42', projectRoot: root },
+        '/other/repo',
+      ),
     ).toBe(false);
 
     const spoofedText = ['session-42', root].join(' ');
     writeFileSync(transcript, `${JSON.stringify({ type: 'message', text: spoofedText })}\n`);
     expect(
-      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, root),
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'claude', id: 'session-42', projectRoot: root },
+        root,
+      ),
+    ).toBe(false);
+  });
+
+  it('accepts a real Cursor transcript only when its canonical path matches the bound id', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-cursor-transcript-'));
+    const id = 'c2f6d84a-473f-47a3-824d-1107b75f23ce';
+    const directory = nodePath.join(root, 'agent-transcripts', id);
+    const transcript = nodePath.join(directory, `${id}.jsonl`);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      transcript,
+      `${JSON.stringify({ role: 'user', message: { content: [{ type: 'text', text: 'hello' }] } })}\n`,
+    );
+
+    expect(
+      transcriptMatchesBinding(transcript, { runtime: 'cursor', id, projectRoot: root }, root),
+    ).toBe(true);
+    expect(
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'cursor', id: 'different-id', projectRoot: root },
+        root,
+      ),
+    ).toBe(false);
+    expect(
+      transcriptMatchesBinding(
+        nodePath.join(directory, 'subagents', `${id}.jsonl`),
+        { runtime: 'cursor', id, projectRoot: root },
+        root,
+      ),
     ).toBe(false);
   });
 });

@@ -331,6 +331,12 @@ it never stages, commits, or opens a PR.
 - `/testing` - Test writing guidance and best practices
 - `/verify` - Verify ticket criteria (tests, build, lint, scenarios, dep drift)
 
+Closeout can resume after its topic worktree has already been removed. The
+guard stores a private 24-hour receipt in Git's shared common directory only
+after every verification lane passes on the clean exact pull-request head; a
+missing, stale, malformed, dirty-state, or wrong-head receipt blocks the
+remaining branch cleanup.
+
 **MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
 
 - **context7** - Up-to-date library documentation lookup

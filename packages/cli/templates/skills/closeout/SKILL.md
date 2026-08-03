@@ -64,6 +64,12 @@ complete only after proving it was the exact planned target. If the pull request
 is merged, its retrospective is complete, and its exact branch and worktree are
 already absent, report that the session is already closed.
 
+The guard records a private, atomic verification receipt in Git's shared common
+directory only after every verification lane passes on a clean exact PR head.
+For 24 hours, that receipt can prove the immutable head when an interrupted
+cleanup must resume from a surviving worktree after the topic worktree is gone.
+A missing, stale, malformed, dirty-state, or wrong-head receipt blocks cleanup.
+
 ## 4. Complete the current session's retrospective
 
 After merge is independently confirmed, invoke the cleanup guard in preview
@@ -90,10 +96,11 @@ Run the guard from the delivery worktree; preview is the default:
 bun .safeword/scripts/closeout-cleanup.ts --pr PR_NUMBER
 ```
 
-The preview reruns the project's verification, build, typecheck, BDD, and
-dependency plans and binds the resulting repository state and exact PR identity
-to `PLAN_DIGEST`. Report the complete operation list and all blockers. Do not
-apply a blocked plan.
+At the exact delivery head, preview reruns the project's verification, build,
+typecheck, BDD, and dependency plans. After that worktree is gone, preview
+requires its fresh clean-head receipt instead. It binds the resulting repository
+state and exact PR identity to `PLAN_DIGEST`. Report the complete operation list
+and all blockers. Do not apply a blocked plan.
 
 With the user's cleanup intent already established by invoking closeout, apply
 only the unchanged preview:

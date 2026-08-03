@@ -6,17 +6,21 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   buildCodexExtractArgv,
+  buildCursorExtractArgv,
   buildDigest,
   buildExtractArgv,
   DEFAULT_CLAUDE_RETRO_MODEL,
   DEFAULT_CODEX_RETRO_MODEL,
+  DEFAULT_CURSOR_RETRO_MODEL,
   isRetroChild,
   resolveRetroModel,
   RETRO_CHILD_ENV,
   retroChildArgs as retroChildArguments,
   runCodexHeadlessExtraction,
   runCodexHeadlessExtractionChecked,
+  runCursorHeadlessExtractionChecked,
   runHeadlessExtraction,
+  runHeadlessExtractionChecked,
 } from '../../templates/hooks/lib/retro-extract.js';
 
 // A success envelope as `claude -p --output-format json` emits it: the model's
@@ -34,6 +38,10 @@ const validFindings = JSON.stringify([
     repro: 'z',
   },
 ]);
+
+const validTranscript = JSON.stringify({
+  message: { role: 'user', content: [{ type: 'text', text: 'retro transcript' }] },
+});
 
 function fakeDependencies(over: Record<string, unknown> = {}) {
   const calls: {
@@ -111,6 +119,41 @@ describe('buildDigest', () => {
     const digest = buildDigest(transcript, 10_000);
     expect(digest).toContain('BLOCKED');
   });
+
+  it('digests native Codex response_item messages and function calls', () => {
+    const transcript = [
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'CODEX_USER_FRICTION' }],
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'CODEX_ASSISTANT_FRICTION' }],
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: { type: 'function_call', name: 'exec_command', arguments: '{"cmd":"test"}' },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        payload: { type: 'function_call_output', output: 'gate BLOCKED: stale' },
+      }),
+    ].join('\n');
+
+    const digest = buildDigest(transcript);
+    expect(digest).toContain('CODEX_USER_FRICTION');
+    expect(digest).toContain('CODEX_ASSISTANT_FRICTION');
+    expect(digest).toContain('[tool_use] exec_command');
+    expect(digest).toContain('BLOCKED');
+  });
 });
 
 describe('buildExtractArgv', () => {
@@ -181,6 +224,24 @@ describe('buildCodexExtractArgv', () => {
   });
 });
 
+describe('buildCursorExtractArgv', () => {
+  it('builds a non-interactive JSON cursor-agent invocation without write approval', () => {
+    const argv = buildCursorExtractArgv({ model: 'auto', prompt: 'INLINE DIGEST' });
+
+    expect(argv).toEqual([
+      '-p',
+      '--output-format',
+      'json',
+      '--sandbox',
+      'enabled',
+      '--model',
+      'auto',
+      'INLINE DIGEST',
+    ]);
+    expect(argv).not.toContain('--force');
+  });
+});
+
 describe('isRetroChild', () => {
   // invisible-retro-claude.NTB1.AC2 (read half) — the recursion guard. The
   // headless child runs WITH hooks (no `--bare`), so without this it would
@@ -212,23 +273,27 @@ describe('resolveRetroModel (SM1.AC2 — config-overridable per-agent defaults)'
     writeFileSync(nodePath.join(safewordDirectory, 'config.json'), JSON.stringify(config));
   }
 
-  it('defaults to sonnet for Claude and gpt-5.5 for Codex when no retro.model is present', () => {
+  it('defaults per extraction host when no retro.model is present', () => {
     expect(DEFAULT_CLAUDE_RETRO_MODEL).toBe('sonnet');
     expect(DEFAULT_CODEX_RETRO_MODEL).toBe('gpt-5.5');
+    expect(DEFAULT_CURSOR_RETRO_MODEL).toBe('auto');
 
     expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
     expect(resolveRetroModel(projectDirectory, 'claude')).toBe('sonnet');
     expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-5.5');
+    expect(resolveRetroModel(projectDirectory, 'cursor')).toBe('auto');
 
     writeRetroConfig({ selfReport: { surface: true } }); // config present, no retro.model
     expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
     expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-5.5');
+    expect(resolveRetroModel(projectDirectory, 'cursor')).toBe('auto');
   });
 
   it('honors a configured retro.model override for both agents', () => {
     writeRetroConfig({ retro: { model: 'haiku' } });
     expect(resolveRetroModel(projectDirectory)).toBe('haiku');
     expect(resolveRetroModel(projectDirectory, 'codex')).toBe('haiku');
+    expect(resolveRetroModel(projectDirectory, 'cursor')).toBe('haiku');
   });
 });
 
@@ -254,7 +319,7 @@ describe('runHeadlessExtraction', () => {
   // env carries the recursion sentinel.
   it('invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess', async () => {
     const { calls, deps } = fakeDependencies();
-    await runHeadlessExtraction('some transcript', deps);
+    await runHeadlessExtraction(validTranscript, deps);
 
     expect(calls).toHaveLength(1);
     const call = calls[0];
@@ -274,7 +339,7 @@ describe('runHeadlessExtraction', () => {
   // returns its parsed result (it did not return early / detach).
   it('invisible-retro-claude.TB2.AC2.extraction_runs_synchronously', async () => {
     const { deps } = fakeDependencies();
-    const findings = await runHeadlessExtraction('t', deps);
+    const findings = await runHeadlessExtraction(validTranscript, deps);
     expect(findings).toHaveLength(1);
     expect((findings[0] as { title: string }).title).toBe('Gate message omits the file');
   });
@@ -283,7 +348,7 @@ describe('runHeadlessExtraction', () => {
   // sonnet (haiku proved too weak: 1–3 weak findings vs sonnet's 9). ZFGWS1.
   it('retro-recall.SM1.AC2.headless_extraction_defaults_to_sonnet', async () => {
     const { calls, deps } = fakeDependencies({ model: undefined });
-    await runHeadlessExtraction('t', deps);
+    await runHeadlessExtraction(validTranscript, deps);
     const argv = calls[0]?.argv ?? [];
     const modelAt = argv.indexOf('--model');
     expect(argv[modelAt + 1]).toBe('sonnet');
@@ -295,17 +360,44 @@ describe('runHeadlessExtraction', () => {
     const nonZero = fakeDependencies({
       spawn: () => Promise.resolve({ code: 1, stdout: 'Authentication error' }),
     });
-    await expect(runHeadlessExtraction('t', nonZero.deps)).resolves.toEqual([]);
+    await expect(runHeadlessExtraction(validTranscript, nonZero.deps)).resolves.toEqual([]);
 
     const badJson = fakeDependencies({
       spawn: () => Promise.resolve({ code: 0, stdout: envelope('not json at all') }),
     });
-    await expect(runHeadlessExtraction('t', badJson.deps)).resolves.toEqual([]);
+    await expect(runHeadlessExtraction(validTranscript, badJson.deps)).resolves.toEqual([]);
 
     const threw = fakeDependencies({
       spawn: () => Promise.reject(new Error('spawn failed')),
     });
-    await expect(runHeadlessExtraction('t', threw.deps)).resolves.toEqual([]);
+    await expect(runHeadlessExtraction(validTranscript, threw.deps)).resolves.toEqual([]);
+  });
+
+  it('distinguishes malformed finding shapes from a valid empty extraction', async () => {
+    const empty = fakeDependencies({
+      spawn: () => Promise.resolve({ code: 0, stdout: envelope('[]') }),
+    });
+    const malformed = fakeDependencies({
+      spawn: () => Promise.resolve({ code: 0, stdout: envelope('[{"foo":"bar"}]') }),
+    });
+
+    await expect(runHeadlessExtractionChecked(validTranscript, empty.deps)).resolves.toEqual({
+      ok: true,
+      findings: [],
+    });
+    await expect(runHeadlessExtractionChecked(validTranscript, malformed.deps)).resolves.toEqual({
+      ok: false,
+      failureReason: 'invalid_output',
+      findings: [],
+    });
+  });
+
+  it('fails checked extraction before spawn when the host transcript yields no digest', async () => {
+    const emptyDigest = fakeDependencies();
+    await expect(
+      runHeadlessExtractionChecked(JSON.stringify({ type: 'unknown' }), emptyDigest.deps),
+    ).resolves.toEqual({ ok: false, failureReason: 'empty_digest', findings: [] });
+    expect(emptyDigest.calls).toHaveLength(0);
   });
 });
 
@@ -375,13 +467,15 @@ describe('runCodexHeadlessExtraction', () => {
     const nonZero = codexDependencies({
       spawn: () => Promise.resolve({ code: 1, stdout: '' }),
     });
-    await expect(runCodexHeadlessExtraction('t', nonZero.deps)).resolves.toEqual([]);
-    await expect(runCodexHeadlessExtractionChecked('t', nonZero.deps)).resolves.toEqual({
-      ok: false,
-      failureReason: 'spawn_nonzero',
-      exitCode: 1,
-      findings: [],
-    });
+    await expect(runCodexHeadlessExtraction(validTranscript, nonZero.deps)).resolves.toEqual([]);
+    await expect(runCodexHeadlessExtractionChecked(validTranscript, nonZero.deps)).resolves.toEqual(
+      {
+        ok: false,
+        failureReason: 'spawn_nonzero',
+        exitCode: 1,
+        findings: [],
+      },
+    );
 
     const invalid = codexDependencies({
       spawn: (
@@ -392,12 +486,14 @@ describe('runCodexHeadlessExtraction', () => {
         return Promise.resolve({ code: 0, stdout: '' });
       },
     });
-    await expect(runCodexHeadlessExtraction('t', invalid.deps)).resolves.toEqual([]);
-    await expect(runCodexHeadlessExtractionChecked('t', invalid.deps)).resolves.toEqual({
-      ok: false,
-      failureReason: 'invalid_output',
-      findings: [],
-    });
+    await expect(runCodexHeadlessExtraction(validTranscript, invalid.deps)).resolves.toEqual([]);
+    await expect(runCodexHeadlessExtractionChecked(validTranscript, invalid.deps)).resolves.toEqual(
+      {
+        ok: false,
+        failureReason: 'invalid_output',
+        findings: [],
+      },
+    );
   });
 
   it('treats schema-valid empty Codex findings as a successful extraction', async () => {
@@ -411,7 +507,7 @@ describe('runCodexHeadlessExtraction', () => {
       },
     });
 
-    await expect(runCodexHeadlessExtractionChecked('t', empty.deps)).resolves.toEqual({
+    await expect(runCodexHeadlessExtractionChecked(validTranscript, empty.deps)).resolves.toEqual({
       ok: true,
       findings: [],
     });
@@ -422,9 +518,83 @@ describe('runCodexHeadlessExtraction', () => {
       spawn: () => Promise.resolve({ code: 0, stdout: '' }),
     });
 
-    await expect(runCodexHeadlessExtractionChecked('t', missing.deps)).resolves.toEqual({
+    await expect(runCodexHeadlessExtractionChecked(validTranscript, missing.deps)).resolves.toEqual(
+      {
+        ok: false,
+        failureReason: 'missing_output',
+        findings: [],
+      },
+    );
+  });
+});
+
+describe('runCursorHeadlessExtraction', () => {
+  it('accepts schema-valid findings from the Cursor JSON envelope', async () => {
+    const calls: unknown[] = [];
+    const result = await runCursorHeadlessExtractionChecked(validTranscript, {
+      spawn: (argv, options) => {
+        calls.push({ argv, options });
+        return Promise.resolve({
+          code: 0,
+          stdout: JSON.stringify({
+            type: 'result',
+            subtype: 'success',
+            is_error: false,
+            result: validFindings,
+          }),
+        });
+      },
+      cwd: '/tmp/neutral',
+      env: {},
+      model: 'auto',
+    });
+
+    expect(result).toEqual({ ok: true, findings: JSON.parse(validFindings) });
+    expect(calls).toHaveLength(1);
+    expect(JSON.stringify(calls[0])).toContain(RETRO_CHILD_ENV);
+  });
+
+  it('distinguishes invalid output from a valid empty result', async () => {
+    const run = (stdout: string) =>
+      runCursorHeadlessExtractionChecked(validTranscript, {
+        spawn: () => Promise.resolve({ code: 0, stdout }),
+        cwd: '/tmp/neutral',
+        env: {},
+      });
+
+    await expect(
+      run(JSON.stringify({ type: 'result', is_error: false, result: '[]' })),
+    ).resolves.toEqual({ ok: true, findings: [] });
+    await expect(run('{not json')).resolves.toEqual({
       ok: false,
-      failureReason: 'missing_output',
+      failureReason: 'invalid_output',
+      findings: [],
+    });
+    await expect(
+      run(JSON.stringify({ type: 'result', is_error: false, result: '[{"foo":"bar"}]' })),
+    ).resolves.toEqual({
+      ok: false,
+      failureReason: 'invalid_output',
+      findings: [],
+    });
+    const whitespaceFinding = [
+      {
+        category: 'bug',
+        title: ' '.repeat(3),
+        safeword_surface: 'hooks/stop-quality.ts',
+        what_happened: 'x',
+        why_friction: 'y',
+        repro: 'z',
+      },
+    ];
+    const whitespaceEnvelope = JSON.stringify({
+      type: 'result',
+      is_error: false,
+      result: JSON.stringify(whitespaceFinding),
+    });
+    await expect(run(whitespaceEnvelope)).resolves.toEqual({
+      ok: false,
+      failureReason: 'invalid_output',
       findings: [],
     });
   });

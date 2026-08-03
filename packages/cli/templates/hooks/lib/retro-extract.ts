@@ -30,13 +30,18 @@ export const DEFAULT_CLAUDE_RETRO_MODEL = 'sonnet';
 /** Default Codex extraction model. Stock Codex can only call OpenAI models. */
 export const DEFAULT_CODEX_RETRO_MODEL = 'gpt-5.5';
 
+/** Default Cursor extraction model. `auto` delegates to the user's Cursor configuration. */
+export const DEFAULT_CURSOR_RETRO_MODEL = 'auto';
+
 /** Backward-compatible alias for existing Claude call sites/tests. */
 export const DEFAULT_RETRO_MODEL = DEFAULT_CLAUDE_RETRO_MODEL;
 
-export type RetroAgent = 'claude' | 'codex';
+export type RetroAgent = 'claude' | 'codex' | 'cursor';
 
 function defaultRetroModel(agent: RetroAgent): string {
-  return agent === 'codex' ? DEFAULT_CODEX_RETRO_MODEL : DEFAULT_CLAUDE_RETRO_MODEL;
+  if (agent === 'codex') return DEFAULT_CODEX_RETRO_MODEL;
+  if (agent === 'cursor') return DEFAULT_CURSOR_RETRO_MODEL;
+  return DEFAULT_CLAUDE_RETRO_MODEL;
 }
 
 /**
@@ -209,6 +214,31 @@ export function buildCodexExtractArgv(options: CodexExtractArgvOptions): string[
   ];
 }
 
+export interface CursorExtractArgvOptions {
+  /** Cursor model name, or `auto` to use Cursor's configured automatic selection. */
+  model: string;
+  /** Inline digest + extraction instructions. */
+  prompt: string;
+}
+
+/**
+ * Build a non-interactive Cursor Agent invocation. Omitting `--force` is
+ * load-bearing: tool calls are not force-approved. The runner also uses a
+ * neutral temporary cwd that contains no project files.
+ */
+export function buildCursorExtractArgv(options: CursorExtractArgvOptions): string[] {
+  return [
+    '-p',
+    '--output-format',
+    'json',
+    '--sandbox',
+    'enabled',
+    '--model',
+    options.model,
+    options.prompt,
+  ];
+}
+
 // The extraction rules, mirrored from templates/guides/retro.md: SAFEWORD's own
 // friction only, the constrained snake_case schema, no invention. The egress
 // guard sanitizes downstream, so the child writes plainly. Exported for the
@@ -275,31 +305,56 @@ function buildCodexExtractPrompt(digest: string): string {
   );
 }
 
-/** Parse a findings array out of a `claude -p --output-format json` envelope. */
-function parseFindings(stdout: string): unknown[] {
+const FINDING_KEYS = [
+  'category',
+  'title',
+  'safeword_surface',
+  'what_happened',
+  'why_friction',
+  'repro',
+] as const;
+
+function isFinding(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const finding = value as Record<string, unknown>;
+  const keys = Object.keys(finding).toSorted();
+  if (JSON.stringify(keys) !== JSON.stringify([...FINDING_KEYS].toSorted())) return false;
+  if (
+    typeof finding.category !== 'string' ||
+    !['bug', 'rough-edge', 'gap'].includes(finding.category)
+  )
+    return false;
+  return FINDING_KEYS.slice(1).every(
+    key => typeof finding[key] === 'string' && finding[key].trim().length > 0,
+  );
+}
+
+function validFindings(value: unknown): unknown[] | undefined {
+  return Array.isArray(value) && value.every(isFinding) ? value : undefined;
+}
+
+function parseFindingsChecked(stdout: string): unknown[] | undefined {
   let envelopeResult: string;
   try {
-    const parsed = JSON.parse(stdout) as { result?: unknown };
-    if (typeof parsed.result !== 'string') return [];
+    const parsed = JSON.parse(stdout) as { is_error?: unknown; result?: unknown };
+    if (parsed.is_error === true || typeof parsed.result !== 'string') return undefined;
     envelopeResult = parsed.result;
   } catch {
-    return [];
+    return undefined;
   }
-  // The model's text may be fenced (```json … ```); pull the first array literal.
-  const match = envelopeResult.match(/\[[\S\s]*\]/);
-  if (!match) return [];
+  const match = envelopeResult.match(/\[[\S\s]*\]/u);
+  if (!match) return undefined;
   try {
-    const findings = JSON.parse(match[0]) as unknown;
-    return Array.isArray(findings) ? findings : [];
+    return validFindings(JSON.parse(match[0]) as unknown);
   } catch {
-    return [];
+    return undefined;
   }
 }
 
 function parseCodexFindingsOutput(rawOutput: string): unknown[] | undefined {
   try {
     const parsed = JSON.parse(rawOutput) as { findings?: unknown };
-    return Array.isArray(parsed.findings) ? parsed.findings : undefined;
+    return validFindings(parsed.findings);
   } catch {
     return undefined;
   }
@@ -353,31 +408,45 @@ export interface RunCodexExtractionDeps {
   outputPath?: string;
 }
 
-export interface CodexExtractionResult {
+export interface CheckedExtractionResult {
   /** True only when the child exited successfully and wrote schema-valid JSON. */
   ok: boolean;
   findings: unknown[];
   /** Present only on extraction failure; lets callers distinguish empty success from failure. */
-  failureReason?: 'spawn_nonzero' | 'missing_output' | 'invalid_output' | 'spawn_or_io_error';
+  failureReason?:
+    'empty_digest' | 'spawn_nonzero' | 'missing_output' | 'invalid_output' | 'spawn_or_io_error';
   /** Child exit code when a process ran and exited non-zero. */
   exitCode?: number | null;
 }
 
+export type CodexExtractionResult = CheckedExtractionResult;
+
+/** Cursor uses the same checked success/failure contract as Codex extraction. */
+export type CursorExtractionResult = CodexExtractionResult;
+
+export interface RunCursorExtractionDeps {
+  spawn: (
+    argv: string[],
+    options: { cwd: string; env: Record<string, string | undefined> },
+  ) => Promise<SpawnResult>;
+  env: Record<string, string | undefined>;
+  cwd: string;
+  model?: string;
+}
+
 /**
- * Run the retro extraction in a separate, isolated headless `claude -p` session
- * and return the raw findings array. Synchronous (awaits the spawn) and
- * fail-OPEN: any error — non-zero exit, unparseable output, a spawn throw —
- * yields `[]` and never throws, so the Stop hook that wraps this stays silent and
- * never blocks. Spawn contract: the digest is the input (referenced in the
- * prompt), the child runs from the neutral cwd, and the child env carries
- * `SAFEWORD_RETRO_CHILD=1` (recursion guard).
+ * Run retro extraction in a separate, isolated headless `claude -p` session and
+ * preserve the distinction between schema-valid empty output and failure. The
+ * backward-compatible wrapper below converts failures to `[]` for Stop hooks.
  */
-export async function runHeadlessExtraction(
+export async function runHeadlessExtractionChecked(
   transcript: string,
   dependencies: RunExtractionDeps,
-): Promise<unknown[]> {
+): Promise<CheckedExtractionResult> {
   try {
-    const digestPath = dependencies.writeDigest(buildDigest(transcript));
+    const digest = buildDigest(transcript);
+    if (digest.trim() === '') return { ok: false, failureReason: 'empty_digest', findings: [] };
+    const digestPath = dependencies.writeDigest(digest);
     const argv = buildExtractArgv({
       model: dependencies.model ?? DEFAULT_RETRO_MODEL,
       systemPrompt: EXTRACT_SYSTEM_PROMPT,
@@ -387,11 +456,24 @@ export async function runHeadlessExtraction(
       cwd: dependencies.cwd,
       env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
     });
-    if (code !== 0) return []; // fail-open on a failed extraction
-    return parseFindings(stdout);
+    if (code !== 0) {
+      return { ok: false, failureReason: 'spawn_nonzero', exitCode: code, findings: [] };
+    }
+    const findings = parseFindingsChecked(stdout);
+    return findings === undefined
+      ? { ok: false, failureReason: 'invalid_output', findings: [] }
+      : { ok: true, findings };
   } catch {
-    return []; // fail-open on any spawn/IO error
+    return { ok: false, failureReason: 'spawn_or_io_error', findings: [] };
   }
+}
+
+/** Backward-compatible fail-open wrapper for Stop-hook call sites. */
+export async function runHeadlessExtraction(
+  transcript: string,
+  dependencies: RunExtractionDeps,
+): Promise<unknown[]> {
+  return (await runHeadlessExtractionChecked(transcript, dependencies)).findings;
 }
 
 /**
@@ -405,6 +487,8 @@ export async function runCodexHeadlessExtractionChecked(
   dependencies: RunCodexExtractionDeps,
 ): Promise<CodexExtractionResult> {
   try {
+    const digest = buildDigest(transcript);
+    if (digest.trim() === '') return { ok: false, failureReason: 'empty_digest', findings: [] };
     const schemaPath = dependencies.schemaPath ?? nodePath.join(dependencies.cwd, 'schema.json');
     const outputPath = dependencies.outputPath ?? nodePath.join(dependencies.cwd, 'output.json');
     const writeFile = dependencies.writeFile ?? writeFileSync;
@@ -415,7 +499,7 @@ export async function runCodexHeadlessExtractionChecked(
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
       schemaPath,
       outputPath,
-      prompt: buildCodexExtractPrompt(buildDigest(transcript)),
+      prompt: buildCodexExtractPrompt(digest),
     });
     const { code } = await dependencies.spawn(argv, {
       cwd: dependencies.cwd,
@@ -450,6 +534,40 @@ export async function runCodexHeadlessExtraction(
   return (await runCodexHeadlessExtractionChecked(transcript, dependencies)).findings;
 }
 
+/**
+ * Run Cursor Agent from a neutral cwd and require a valid JSON result envelope.
+ * As with Codex, an empty array is success while malformed output is a failure.
+ */
+export async function runCursorHeadlessExtractionChecked(
+  transcript: string,
+  dependencies: RunCursorExtractionDeps,
+): Promise<CursorExtractionResult> {
+  try {
+    const digest = buildDigest(transcript);
+    if (digest.trim() === '') return { ok: false, failureReason: 'empty_digest', findings: [] };
+    const argv = buildCursorExtractArgv({
+      model: dependencies.model ?? DEFAULT_CURSOR_RETRO_MODEL,
+      prompt:
+        `${EXTRACT_SYSTEM_PROMPT}\n\n` +
+        'Use an empty JSON array when there is no safeword friction. Do not use tools or modify files.\n\n' +
+        `Transcript digest:\n${digest}`,
+    });
+    const { code, stdout } = await dependencies.spawn(argv, {
+      cwd: dependencies.cwd,
+      env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
+    });
+    if (code !== 0) {
+      return { ok: false, failureReason: 'spawn_nonzero', exitCode: code, findings: [] };
+    }
+    const findings = parseFindingsChecked(stdout);
+    return findings === undefined
+      ? { ok: false, failureReason: 'invalid_output', findings: [] }
+      : { ok: true, findings };
+  } catch {
+    return { ok: false, failureReason: 'spawn_or_io_error', findings: [] };
+  }
+}
+
 // A tool-result body is kept whole only when it's short OR carries a friction
 // signal (errors/failures/gate blocks are exactly what retro mines); larger
 // non-signal bodies are dropped so they can't crowd out text + tool-use names.
@@ -469,6 +587,15 @@ interface ContentItem {
 interface TranscriptEntry {
   type?: string;
   message?: { role?: string; content?: ContentItem[] | string };
+  payload?: {
+    type?: string;
+    role?: string;
+    content?: Array<{ type?: string; text?: string }>;
+    name?: string;
+    arguments?: string;
+    input?: unknown;
+    output?: unknown;
+  };
 }
 
 function lineFor(item: ContentItem, role: string): string | undefined {
@@ -496,13 +623,45 @@ export function buildDigest(rawTranscript: string, cap: number = DIGEST_CAP): st
   const out: string[] = [];
   for (const raw of iterateJsonlEntries(rawTranscript)) {
     const entry = raw as TranscriptEntry;
+    if (
+      entry.type === 'response_item' &&
+      (entry.payload?.type === 'function_call' || entry.payload?.type === 'custom_tool_call')
+    ) {
+      out.push(
+        `[tool_use] ${entry.payload.name ?? entry.payload.type}: ${JSON.stringify(
+          entry.payload.arguments ?? entry.payload.input ?? '',
+        ).slice(0, TOOL_USE_INPUT_CAP)}`,
+      );
+      continue;
+    }
+    if (
+      entry.type === 'response_item' &&
+      (entry.payload?.type === 'function_call_output' ||
+        entry.payload?.type === 'custom_tool_call_output')
+    ) {
+      const rendered = lineFor({ type: 'tool_result', content: entry.payload.output }, 'tool');
+      if (rendered !== undefined) out.push(rendered);
+      continue;
+    }
+    const codexMessage =
+      entry.type === 'response_item' && entry.payload?.type === 'message'
+        ? {
+            role: entry.payload.role,
+            content: entry.payload.content?.map(item => ({
+              type: item.type === 'input_text' || item.type === 'output_text' ? 'text' : item.type,
+              text: item.text,
+            })),
+          }
+        : undefined;
     const role = entry.message?.role ?? entry.type ?? 'entry';
-    const content = entry.message?.content;
+    const message = codexMessage ?? entry.message;
+    const resolvedRole = message?.role ?? role;
+    const content = message?.content;
     if (typeof content === 'string') {
-      out.push(`[${role}] ${content}`);
+      out.push(`[${resolvedRole}] ${content}`);
     } else if (Array.isArray(content)) {
       for (const item of content) {
-        const rendered = lineFor(item, role);
+        const rendered = lineFor(item, resolvedRole);
         if (rendered !== undefined) out.push(rendered);
       }
     }
