@@ -2,8 +2,8 @@
 id: 0S31PG
 slug: ship-native-claude-code-plugin
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/0S31PG-ship-native-claude-code-plugin/spec.md'
   - 'scenario-gate: features/native-claude-plugin.feature'
@@ -34,7 +34,7 @@ done_when:
   - The installed cache runs hooks after the marketplace source plugin directory is unavailable, and automated tests distinguish cache execution from marketplace health.
   - Release, schema, catalogue, documentation, and parity checks fail on missing, unexpected, stale-version, or behaviorally unmapped Claude plugin assets.
 created: 2026-08-02T15:35:27.838Z
-last_modified: 2026-08-02T21:46:10Z
+last_modified: 2026-08-03T00:22:01Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1785
 ---
 
@@ -65,3 +65,4 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/1785
 - 2026-08-02T21:28:13Z Live-host verification: Claude Code 2.1.170 loaded the generated plugin session-only as `safeword@inline`, exposed all 18 Safeword skills, ran SessionStart/UserPromptSubmit/five Stop hooks, and wrote identity-bound execution proof. The first run exposed a Bun child-environment defect in aggregate dispatch; fixed it with explicit environment forwarding and added a reproducing integration test. Final headless run had zero hook stderr and returned the exact sentinel; 409 Vitest files (6,157 passed, 5 skipped), release alignment, lint, root TypeScript, and parity all pass. Interactive `/reload-plugins` and release remain intentionally open.
 - 2026-08-02T21:42:45Z Interactive acceptance: Started authenticated Claude Code 2.1.170 without Safeword in a temporary profile, installed the local generated 0.71.0-rc.2 plugin while the task stayed open, and ran `/reload-plugins`. Claude reported one plugin and 24 hooks; the next prompt returned `SAFEWORD_INTERACTIVE_RELOAD_OK` and wrote a same-session UserPromptSubmit proof bound to the expected version and hook digest. The local-directory marketplace runs from its source root, so exact copied-cache proof remains correctly unproven and reserved for the tagged release smoke lane. No real profile or release mutation was performed.
 - 2026-08-02T21:46:10Z Interactive workflow confirmation: Repeated the isolated install/reload boundary and invoked `/safeword:explain` immediately afterward. Claude identified and processed the Safeword skill without restart and ran all five Stop hooks, proving live workflow availability despite the host reload summary's `0 skills` counter.
+- 2026-08-03T00:22:01Z Verified done: Merged current main, aligned the sealed plugin at 0.71.0, completed all 43 scenario ledgers, refreshed website guidance for native Claude delivery, and fixed large-PR ticket validation with paginated authoritative filenames. Final evidence: 6,249 Vitest tests passed with 5 skips; 823 BDD scenarios passed with 3 skips; package and root TypeScript, lint, website build, plugin release contract, parity, and dependency audit passed. Release actions remain explicitly separate and unexecuted.
