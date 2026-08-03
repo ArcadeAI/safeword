@@ -118,7 +118,7 @@ Feature: Choose where Safeword runs in Claude
       And it reports the marketplace and plugin mutations as completed
       And the user-scope declaration and unrelated state are byte-identical
 
-  @wip @choose-claude-plugin-scope.TBU1.R3 @surface.claude-code @surface.safeword-cli
+  @choose-claude-plugin-scope.TBU1.R3 @surface.claude-code @surface.safeword-cli
   Rule: choose-claude-plugin-scope.TBU1.R3 — Repeating installation in either scope is idempotent
 
     Scenario Outline: Repeating an exact scoped installation is a no-op
@@ -133,7 +133,7 @@ Feature: Choose where Safeword runs in Claude
         | project        |
         | user           |
 
-    @rejection
+    @wip @rejection
     Scenario Outline: Damaged selected-scope cache is not mistaken for an idempotent installation
       Given the selected <selected-scope> installation reports the exact version from a damaged cache
       When safeword claude install runs with --scope <selected-scope>
