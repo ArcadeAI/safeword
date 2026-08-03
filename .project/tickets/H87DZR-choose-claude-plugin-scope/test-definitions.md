@@ -105,7 +105,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Status reports overlapping applicable installations without changing either
 
 - [x] RED d6195b88a
-- [ ] GREEN
+- [x] GREEN 9bae7a7f4
 - [ ] REFACTOR
 
 ## Rule: choose-claude-plugin-scope.NTB1.R2 — Legacy cleanup proceeds only from one unambiguous applicable and proven installation
