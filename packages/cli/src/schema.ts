@@ -778,6 +778,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-safeword-context.ts': {
       template: 'hooks/session-safeword-context.ts',
     },
+    '.safeword/hooks/session-reply-format.ts': {
+      template: 'hooks/session-reply-format.ts',
+    },
     '.safeword/hooks/session-codex-start.ts': {
       template: 'hooks/session-codex-start.ts',
     },
@@ -1372,11 +1375,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       requires: SHARED_FILING_INVARIANTS,
     },
     'packages/cli/templates/hooks/lib/quality.ts': {
-      // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The export must exist
-      // or Cursor users get a broken hook. The four marker strings (CONFIDENT,
-      // BLOCKED, Tried:, Need:) define the binary-terminal shape from ticket 143.
-      // Removing any of them would silently regress the prompt back to legacy
-      // free-form review.
+      // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The grammar, renderer,
+      // and evaluator exports keep proactive wording and Stop validation coupled;
+      // requiring individual labels here would create a second grammar source.
       requires: [
         'QUALITY_REVIEW_MESSAGE',
         // prompt-questions.ts imports all three pre-response pointers; the Stop
@@ -1385,10 +1386,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         'REPLY_FORMAT_LEAD_RULE',
         'REPLY_FORMAT_LEAD',
         'REPLY_FORMAT_REMINDER',
-        'CONFIDENT',
-        'BLOCKED',
-        'Tried:',
-        'Need:',
+        'DECISION_BRIEF_GRAMMAR',
+        'renderDecisionBriefContract',
+        'evaluateDecisionBriefCompliance',
       ],
     },
     'packages/cli/templates/doc-templates/test-definitions-feature.md': {

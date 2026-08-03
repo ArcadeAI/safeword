@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { SETTINGS_HOOKS } from '../../src/templates/config.js';
 import {
+  DECISION_BRIEF_CONTRACT,
   DECISION_BRIEF_GRAMMAR,
   DECISION_BRIEF_MAX_WORK_FACTOR,
-  DECISION_BRIEF_CONTRACT,
   evaluateDecisionBriefCompliance,
   renderDecisionBriefContract,
 } from '../../templates/hooks/lib/quality.js';
@@ -44,7 +44,7 @@ describe('proactive decision-brief contract', () => {
 
   it('derives rendered wording and validation from one grammar fixture', () => {
     const changed = structuredClone(DECISION_BRIEF_GRAMMAR);
-    changed.variants.CONFIDENT.paragraphs[1].label = 'Risks';
+    changed.variants.CONFIDENT.paragraphs[2].label = 'Risks';
     const changedReply = brief([CONFIDENT[0], CONFIDENT[1], '**Risks:** none.', CONFIDENT[3]]);
 
     expect(renderDecisionBriefContract(changed)).toContain('**Risks:**');
@@ -88,6 +88,8 @@ describe('terminal decision-brief parser', () => {
   });
 
   const fenced = ['```md', ...CONFIDENT, '```'].join('\n\n');
+  const nestedBulletBrief = brief(CONFIDENT.map(paragraph => `  ${paragraph}`));
+  const orderedListBrief = brief(CONFIDENT.map(paragraph => ' '.repeat(3) + paragraph));
   const ignoredOnly = [
     ['blockquote', brief(CONFIDENT.map(paragraph => `> ${paragraph}`))],
     ['list item', brief(CONFIDENT.map(paragraph => `- ${paragraph}`))],
@@ -95,14 +97,8 @@ describe('terminal decision-brief parser', () => {
     ['indented code', brief(CONFIDENT.map(paragraph => `    ${paragraph}`))],
     ['HTML comment', `<!--\n${brief(CONFIDENT)}\n-->`],
     ['HTML block', `<div>\n${brief(CONFIDENT)}\n</div>`],
-    [
-      'nested bullet continuation',
-      `- example\n\n${brief(CONFIDENT.map(paragraph => '  ' + paragraph))}`,
-    ],
-    [
-      'ordered-list continuation',
-      `1. example\n\n${brief(CONFIDENT.map(paragraph => '   ' + paragraph))}`,
-    ],
+    ['nested bullet continuation', `- example\n\n${nestedBulletBrief}`],
+    ['ordered-list continuation', `1. example\n\n${orderedListBrief}`],
     ['HTML declaration', `<!DOCTYPE html\n${brief(CONFIDENT)}\n>`],
     ['HTML processing instruction', `<?example\n${brief(CONFIDENT)}\n?>`],
     ['HTML CDATA block', `<![CDATA[\n${brief(CONFIDENT)}\n]]>`],
