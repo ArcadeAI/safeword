@@ -37,9 +37,9 @@ export const REPLY_FORMAT_LEAD_RULE = 'lead with the answer';
 export const REPLY_FORMAT_LEAD = `Reply format: ${REPLY_FORMAT_LEAD_RULE}.`;
 
 /** Full pre-response pointer, used outside intentionally quiet TDD steps. */
-export const REPLY_FORMAT_REMINDER = `${REPLY_FORMAT_LEAD} For substantive work updates, use one **CONFIDENT**/**BLOCKED** decision brief and end with **Next:**.`;
+export const REPLY_FORMAT_REMINDER = `${REPLY_FORMAT_LEAD} For substantive work updates, use one decision brief: **CONFIDENT** ends with **Next:**; **BLOCKED** ends with **Need:**.`;
 
-export const DECISION_BRIEF_CONTRACT = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight, end with **Next:**.
+export const DECISION_BRIEF_CONTRACT = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with **Next:** for CONFIDENT or **Need:** for BLOCKED.
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the CONFIDENT/BLOCKED line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
@@ -63,7 +63,13 @@ Implementation choices are yours. BLOCKED is for spec/scope/value decisions that
 
 `;
 
-const CONFIDENT_REQUIRED_LABELS = ['Decided', 'Open', 'Next'] as const;
+const DECISION_BRIEF_LABELS = {
+  CONFIDENT: [
+    ['Decided', 'Open', 'Next'],
+    ['Decided', 'Rejected', 'Open', 'Next'],
+  ],
+  BLOCKED: [['Tried', 'Need']],
+} as const;
 
 /** Whether a reply already ends in the canonical phase-neutral decision brief. */
 export function isDecisionBriefCompliant(reply: string): boolean {
@@ -72,18 +78,18 @@ export function isDecisionBriefCompliant(reply: string): boolean {
     .trim()
     .split(/\n\s*\n/u)
     .map(paragraph => paragraph.trim());
-  const verdictIndex = paragraphs.findLastIndex(paragraph => paragraph.startsWith('**CONFIDENT**'));
+  const verdictIndex = paragraphs.findLastIndex(
+    paragraph => paragraph.startsWith('**CONFIDENT**') || paragraph.startsWith('**BLOCKED**'),
+  );
   if (verdictIndex === -1) return false;
 
   const brief = paragraphs.slice(verdictIndex);
+  const verdict = brief[0]?.startsWith('**CONFIDENT**') ? 'CONFIDENT' : 'BLOCKED';
   const labels = brief.slice(1).map(paragraph => /^\*\*([^*]+):\*\*\s+\S/u.exec(paragraph)?.[1]);
-  const withoutRejected = [...CONFIDENT_REQUIRED_LABELS];
-  const withRejected = ['Decided', 'Rejected', 'Open', 'Next'];
-  return (
-    (labels.length === withoutRejected.length &&
-      labels.every((label, index) => label === withoutRejected[index])) ||
-    (labels.length === withRejected.length &&
-      labels.every((label, index) => label === withRejected[index]))
+  return DECISION_BRIEF_LABELS[verdict].some(
+    sequence =>
+      labels.length === sequence.length &&
+      labels.every((label, index) => label === sequence[index]),
   );
 }
 
