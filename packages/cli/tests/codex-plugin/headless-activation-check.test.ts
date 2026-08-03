@@ -81,6 +81,38 @@ printf '%s\n' 'fixture marketplace warning' >&2
   return { bin, log };
 }
 
+function createActivationFixture(
+  directories: string[],
+  environmentOverrides: NodeJS.ProcessEnv,
+): {
+  codexHome: string;
+  environment: NodeJS.ProcessEnv;
+  fakeCodex: ReturnType<typeof installFakeCodex>;
+  projectRoot: string;
+} {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-codex-'));
+  directories.push(directory);
+  const projectRoot = nodePath.join(directory, 'project');
+  const codexHome = nodePath.join(directory, 'profile');
+  mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(projectRoot, '.safeword/config.json'), '{}\n');
+  const fakeCodex = installFakeCodex(directory);
+  return {
+    codexHome,
+    environment: {
+      CODEX_HOME: codexHome,
+      PATH: `${fakeCodex.bin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_BUN: process.execPath,
+      SAFEWORD_CLI_PATH: CLI_PATH,
+      SAFEWORD_CODEX_LOG: fakeCodex.log,
+      TZ: 'UTC',
+      ...environmentOverrides,
+    },
+    fakeCodex,
+    projectRoot,
+  };
+}
+
 describe('headless Codex activation check', () => {
   const directories: string[] = [];
 
@@ -90,22 +122,12 @@ describe('headless Codex activation check', () => {
   });
 
   it('proves all hooks without clearing activation for a running install-time host', () => {
-    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-codex-'));
-    directories.push(directory);
-    const projectRoot = nodePath.join(directory, 'project');
-    const codexHome = nodePath.join(directory, 'profile');
-    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(projectRoot, '.safeword/config.json'), '{}\n');
-    const fakeCodex = installFakeCodex(directory);
-    const environment = {
-      CODEX_HOME: codexHome,
-      PATH: `${fakeCodex.bin}:${process.env.PATH ?? ''}`,
-      SAFEWORD_BUN: process.execPath,
-      SAFEWORD_CLI_PATH: CLI_PATH,
-      SAFEWORD_CODEX_LOG: fakeCodex.log,
-      SAFEWORD_FAKE_HOST_PID: String(OLD_HOST.pid),
-      TZ: 'UTC',
-    };
+    const { projectRoot, codexHome, fakeCodex, environment } = createActivationFixture(
+      directories,
+      {
+        SAFEWORD_FAKE_HOST_PID: String(OLD_HOST.pid),
+      },
+    );
     const activationId = 'activation-stale-host';
     writeCodexActivationMarker(environment, new Date('2026-08-03T00:01:00.000Z'), {
       activationId,
@@ -134,22 +156,9 @@ describe('headless Codex activation check', () => {
   });
 
   it('binds successful activation to a fresh app-server identity', () => {
-    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-codex-'));
-    directories.push(directory);
-    const projectRoot = nodePath.join(directory, 'project');
-    const codexHome = nodePath.join(directory, 'profile');
-    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(projectRoot, '.safeword/config.json'), '{}\n');
-    const fakeCodex = installFakeCodex(directory);
-    const environment = {
-      CODEX_HOME: codexHome,
-      PATH: `${fakeCodex.bin}:${process.env.PATH ?? ''}`,
-      SAFEWORD_BUN: process.execPath,
-      SAFEWORD_CLI_PATH: CLI_PATH,
-      SAFEWORD_CODEX_LOG: fakeCodex.log,
+    const { projectRoot, codexHome, environment } = createActivationFixture(directories, {
       SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
-      TZ: 'UTC',
-    };
+    });
     const activationId = 'activation-fresh-host';
     writeCodexActivationMarker(environment, new Date('2026-08-03T00:01:00.000Z'), {
       activationId,
@@ -171,25 +180,17 @@ describe('headless Codex activation check', () => {
   });
 
   it('separates unsupported models from unrelated host warnings', () => {
-    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-codex-'));
-    directories.push(directory);
-    const projectRoot = nodePath.join(directory, 'project');
-    const codexHome = nodePath.join(directory, 'profile');
-    mkdirSync(projectRoot, { recursive: true });
-    const fakeCodex = installFakeCodex(directory);
+    const { projectRoot, environment } = createActivationFixture(directories, {
+      SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
+      SAFEWORD_FAKE_UNSUPPORTED_MODEL: '1',
+    });
     const model = 'gpt-future';
 
     let thrown: unknown;
     try {
       runHeadlessCodexActivationCheck({
         cwd: projectRoot,
-        environment: {
-          CODEX_HOME: codexHome,
-          PATH: `${fakeCodex.bin}:${process.env.PATH ?? ''}`,
-          SAFEWORD_CODEX_LOG: fakeCodex.log,
-          SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
-          SAFEWORD_FAKE_UNSUPPORTED_MODEL: '1',
-        },
+        environment,
         expectedActivation: 'pending',
         expectedActivationId: 'unused-activation',
         model,
@@ -210,23 +211,10 @@ describe('headless Codex activation check', () => {
   });
 
   it('rejects future-dated hook evidence', () => {
-    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-codex-'));
-    directories.push(directory);
-    const projectRoot = nodePath.join(directory, 'project');
-    const codexHome = nodePath.join(directory, 'profile');
-    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(projectRoot, '.safeword/config.json'), '{}\n');
-    const fakeCodex = installFakeCodex(directory);
-    const environment = {
-      CODEX_HOME: codexHome,
-      PATH: `${fakeCodex.bin}:${process.env.PATH ?? ''}`,
-      SAFEWORD_BUN: process.execPath,
-      SAFEWORD_CLI_PATH: CLI_PATH,
-      SAFEWORD_CODEX_LOG: fakeCodex.log,
+    const { projectRoot, environment } = createActivationFixture(directories, {
       SAFEWORD_FAKE_FUTURE_PROOF: '1',
       SAFEWORD_FAKE_HOST_PID: String(OLD_HOST.pid),
-      TZ: 'UTC',
-    };
+    });
     const activationId = 'activation-future-proof';
     writeCodexActivationMarker(environment, new Date('2026-08-03T00:01:00.000Z'), {
       activationId,
