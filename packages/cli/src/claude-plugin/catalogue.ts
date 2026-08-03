@@ -340,6 +340,10 @@ function pluginHookManifest(): string {
   return `${JSON.stringify({ hooks }, undefined, 2)}\n`;
 }
 
+export function currentClaudePluginHookManifestSha256(): string {
+  return createHash('sha256').update(pluginHookManifest()).digest('hex');
+}
+
 function pluginInventory(assets: readonly GeneratedClaudePluginAsset[]): string {
   return `${JSON.stringify(
     {

@@ -28700,6 +28700,63 @@ var init_profile = __esm(() => {
   };
 });
 
+// src/claude-plugin/catalogue.ts
+import { createHash as createHash6 } from "crypto";
+function adaptHookValue(value) {
+  if (typeof value === "string") {
+    return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
+  }
+  if (Array.isArray(value))
+    return value.map((child) => adaptHookValue(child));
+  if (typeof value !== "object" || value === null)
+    return value;
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, adaptHookValue(child)]));
+}
+function wrapHookCommands(value, event) {
+  if (Array.isArray(value))
+    return value.map((child) => wrapHookCommands(child, event));
+  if (typeof value !== "object" || value === null)
+    return value;
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+    key,
+    key === "command" && typeof child === "string" ? `${PLUGIN_DISPATCH} ${event} -- ${child}` : wrapHookCommands(child, event)
+  ]));
+}
+function pluginHooks() {
+  const adapted = adaptHookValue(SETTINGS_HOOKS);
+  const withSetup = {
+    ...adapted,
+    Setup: [{ matcher: "init", hooks: [{ type: "command", command: "true" }] }]
+  };
+  return Object.fromEntries(Object.entries(withSetup).map(([event, entries]) => [
+    event,
+    event === "SessionStart" || event === "UserPromptSubmit" ? [
+      {
+        hooks: [
+          {
+            type: "command",
+            command: `${PLUGIN_DISPATCH} ${event} --event-group`
+          }
+        ]
+      }
+    ] : wrapHookCommands(entries, event)
+  ]));
+}
+function pluginHookManifest() {
+  const hooks = pluginHooks();
+  return `${JSON.stringify({ hooks }, undefined, 2)}
+`;
+}
+function currentClaudePluginHookManifestSha256() {
+  return createHash6("sha256").update(pluginHookManifest()).digest("hex");
+}
+var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.ts';
+var init_catalogue = __esm(() => {
+  init_owned_paths();
+  init_schema();
+  init_config2();
+});
+
 // src/claude-plugin/inventory.ts
 var CLAUDE_MIGRATION_SCHEMA;
 var init_inventory2 = __esm(() => {
@@ -28718,7 +28775,7 @@ var exports_status2 = {};
 __export(exports_status2, {
   observeClaudeStatus: () => observeClaudeStatus
 });
-import { createHash as createHash6 } from "crypto";
+import { createHash as createHash7 } from "crypto";
 import { existsSync as existsSync27, lstatSync as lstatSync5, readFileSync as readFileSync28, realpathSync as realpathSync2 } from "fs";
 import { homedir as homedir3 } from "os";
 import nodePath49 from "path";
@@ -28753,6 +28810,7 @@ function proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalPl
     proof.plugin_version === SAFEWORD_SCHEMA.version,
     proof.plugin_version === plugin.version,
     proof.hook_manifest_sha256 === identity.hook_manifest_sha256,
+    proof.hook_manifest_sha256 === currentClaudePluginHookManifestSha256(),
     proof.canonical_plugin_root === canonicalPluginRoot,
     proof.event === "SessionStart" || proof.event === "UserPromptSubmit",
     typeof proof.session_id === "string" && proof.session_id !== "",
@@ -28771,7 +28829,7 @@ function proofIsCurrent(plugin, cwd) {
   } catch {
     return false;
   }
-  const projectDigest = createHash6("sha256").update(canonicalProjectRoot).digest("hex");
+  const projectDigest = createHash7("sha256").update(canonicalProjectRoot).digest("hex");
   const proof = jsonObject(nodePath49.join(claudeConfigDirectory2(), CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory, `${projectDigest}.json`));
   if (identity === undefined || proof === undefined)
     return false;
@@ -28792,7 +28850,7 @@ function legacyObservation(cwd) {
       continue;
     }
     const canonical = nodePath49.join(templates, definition.template);
-    if (isRegularFile(canonical) && createHash6("sha256").update(readFileSync28(installed)).digest("hex") === createHash6("sha256").update(readFileSync28(canonical)).digest("hex")) {
+    if (isRegularFile(canonical) && createHash7("sha256").update(readFileSync28(installed)).digest("hex") === createHash7("sha256").update(readFileSync28(canonical)).digest("hex")) {
       recognized.push(relative);
     } else {
       conflicts.push(relative);
@@ -28819,6 +28877,30 @@ function statusData(classification, options) {
   }
   return data;
 }
+function statusMessage(options) {
+  if (options.message !== undefined)
+    return options.message;
+  if (options.applicableScope === undefined)
+    return;
+  return `Safeword is active at ${options.applicableScope} scope for this repository.`;
+}
+function statusFindings(classification, options, failed) {
+  const message = statusMessage(options);
+  if (message === undefined)
+    return [];
+  let severity = "warning";
+  if (failed)
+    severity = "error";
+  else if (classification === "plugin-mode")
+    severity = "info";
+  return [
+    {
+      code: `CLAUDE_${classification.replaceAll("-", "_").toUpperCase()}`,
+      message,
+      severity
+    }
+  ];
+}
 function statusResult(classification, options = {}) {
   const nextAction = options.nextAction ?? ACTIONS[classification];
   const nextActions = options.nextActions ?? (nextAction === undefined ? [] : [nextAction]);
@@ -28830,13 +28912,7 @@ function statusResult(classification, options = {}) {
     state = "failed";
   return createResult({
     state,
-    findings: options.message === undefined ? [] : [
-      {
-        code: `CLAUDE_${classification.replaceAll("-", "_").toUpperCase()}`,
-        message: options.message,
-        severity: failed ? "error" : "warning"
-      }
-    ],
+    findings: statusFindings(classification, options, failed),
     nextActions: nextActions.map((command) => ({
       command,
       mutates: !command.startsWith("/"),
@@ -28845,29 +28921,20 @@ function statusResult(classification, options = {}) {
     data: statusData(classification, options)
   });
 }
-function observeClaudeStatus(cwd) {
-  if (existsSync27(nodePath49.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
-    return statusResult("recovery-required");
-  }
-  const profile = observeApplicableClaudePlugins(cwd);
-  if (profile.status !== "observed") {
-    return statusResult(profile.status, {
-      nextAction: profile.nextAction,
-      message: profile.message
-    });
-  }
-  if (new Set(profile.installations.map((installation2) => installation2.scope)).size > 1) {
-    return statusResult("scope-overlap", {
-      installations: profile.installations,
-      nextActions: [
-        "claude plugin uninstall safeword@safeword --scope project",
-        "claude plugin uninstall safeword@safeword --scope user"
-      ]
-    });
-  }
-  const installation = profile.installations[0];
-  if (installation === undefined)
-    return statusResult("missing");
+function scopeOverlapResult(installations) {
+  if (new Set(installations.map((installation) => installation.scope)).size <= 1)
+    return;
+  const summary = installations.map((installation) => `${installation.scope} (${installation.health})`).join(" and ");
+  return statusResult("scope-overlap", {
+    installations,
+    message: `Safeword is active in overlapping Claude scopes for this repository: ${summary}. Keep one by running either \`claude plugin uninstall safeword@safeword --scope project\` or \`claude plugin uninstall safeword@safeword --scope user\`.`,
+    nextActions: [
+      "claude plugin uninstall safeword@safeword --scope project",
+      "claude plugin uninstall safeword@safeword --scope user"
+    ]
+  });
+}
+function statusForInstallation(installation, projectRoot) {
   if (installation.health !== "current") {
     return statusResult(installation.health, {
       nextAction: installation.nextAction,
@@ -28875,26 +28942,53 @@ function observeClaudeStatus(cwd) {
       applicableScope: installation.scope
     });
   }
-  if (!proofIsCurrent(installation.plugin, cwd)) {
+  if (!proofIsCurrent(installation.plugin, projectRoot)) {
     return statusResult("unproven", { applicableScope: installation.scope });
   }
-  const legacy = legacyObservation(cwd);
+  const legacy = legacyObservation(projectRoot);
   if (legacy.conflicts.length > 0) {
     return statusResult("coexistence", { legacy, applicableScope: installation.scope });
   }
   if (legacy.recognized.length > 0) {
     return statusResult("cleanup-ready", { legacy, applicableScope: installation.scope });
   }
-  if (existsSync27(nodePath49.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker))) {
-    return statusResult("plugin-mode", { legacy, applicableScope: installation.scope });
+  const classification = existsSync27(nodePath49.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker)) ? "plugin-mode" : "coexistence";
+  return statusResult(classification, { legacy, applicableScope: installation.scope });
+}
+function observeClaudeStatus(cwd) {
+  let projectRoot;
+  try {
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+  } catch (error2) {
+    return statusResult("errored", {
+      message: error2 instanceof Error ? error2.message : String(error2),
+      nextAction: "repair the reported Claude project path"
+    });
   }
-  return statusResult("coexistence", { legacy, applicableScope: installation.scope });
+  if (existsSync27(nodePath49.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
+    return statusResult("recovery-required");
+  }
+  const profile = observeApplicableClaudePlugins(projectRoot);
+  if (profile.status !== "observed") {
+    return statusResult(profile.status, {
+      nextAction: profile.nextAction,
+      message: profile.message
+    });
+  }
+  const overlap = scopeOverlapResult(profile.installations);
+  if (overlap !== undefined)
+    return overlap;
+  const installation = profile.installations[0];
+  if (installation === undefined)
+    return statusResult("missing");
+  return statusForInstallation(installation, projectRoot);
 }
 var ACTIONS;
 var init_status2 = __esm(() => {
   init_result();
   init_schema();
   init_fs();
+  init_catalogue();
   init_inventory2();
   init_profile();
   ACTIONS = {
@@ -28919,11 +29013,11 @@ __export(exports_cleanup, {
   observeClaudeCleanupPlan: () => observeClaudeCleanupPlan,
   cleanupClaudeLegacy: () => cleanupClaudeLegacy
 });
-import { createHash as createHash7, randomUUID as randomUUID2 } from "crypto";
+import { createHash as createHash8, randomUUID as randomUUID2 } from "crypto";
 import { chmodSync as chmodSync2, existsSync as existsSync28, lstatSync as lstatSync6, mkdirSync as mkdirSync5, readFileSync as readFileSync29, rmSync as rmSync3 } from "fs";
 import nodePath50 from "path";
 function sha2562(content) {
-  return createHash7("sha256").update(content).digest("hex");
+  return createHash8("sha256").update(content).digest("hex");
 }
 function containedPath(cwd, relative) {
   if (relative === "" || nodePath50.isAbsolute(relative) || relative.split(/[\\/]/u).includes("..")) {
@@ -29004,10 +29098,11 @@ function preconditionDigest3(cwd, mutations) {
   })));
 }
 function observeClaudeCleanupPlan(cwd) {
-  const status = observeClaudeStatus(cwd);
+  const projectRoot = canonicalClaudeProjectRoot(cwd);
+  const status = observeClaudeStatus(projectRoot);
   const classification = statusClassification(status);
-  const mutations = classification === "cleanup-ready" ? cleanupMutations(cwd, status) : [];
-  const digest = preconditionDigest3(cwd, mutations);
+  const mutations = classification === "cleanup-ready" ? cleanupMutations(projectRoot, status) : [];
+  const digest = preconditionDigest3(projectRoot, mutations);
   return {
     status,
     plan: createPlan({
@@ -29084,7 +29179,8 @@ function cleanupFailure(error2, classification = "coexistence") {
 }
 function cleanupClaudeLegacy(cwd, options) {
   try {
-    const observed = observeClaudeCleanupPlan(cwd);
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    const observed = observeClaudeCleanupPlan(projectRoot);
     const classification = statusClassification(observed.status);
     if (classification !== "cleanup-ready")
       return observed.status;
@@ -29108,20 +29204,20 @@ function cleanupClaudeLegacy(cwd, options) {
         data: { command: "claude cleanup", classification, plan: toWirePlan(observed.plan) }
       });
     }
-    const mutations = cleanupMutations(cwd, observed.status);
+    const mutations = cleanupMutations(projectRoot, observed.status);
     const transaction = {
       schema_version: 1,
       transaction_id: randomUUID2(),
       disposition: "complete-forward",
-      entries: mutations.map((mutation) => entryFor(cwd, mutation))
+      entries: mutations.map((mutation) => entryFor(projectRoot, mutation))
     };
-    writeTransaction(cwd, transaction);
-    applyEntries(cwd, transaction.entries);
-    const marker = containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
+    writeTransaction(projectRoot, transaction);
+    applyEntries(projectRoot, transaction.entries);
+    const marker = containedPath(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
     mkdirSync5(nodePath50.dirname(marker), { recursive: true });
     writeDurableFile(marker, `${JSON.stringify({ schema_version: 1, mode: "plugin", transaction_id: transaction.transaction_id })}
 `, { mode: 384 });
-    rmSync3(transactionPath(cwd), { force: true });
+    rmSync3(transactionPath(projectRoot), { force: true });
     return createResult({
       state: "changed",
       effects: {
@@ -29143,29 +29239,35 @@ function parseTransaction(cwd) {
   return value;
 }
 function recoverClaudeCleanup(cwd) {
-  if (!existsSync28(transactionPath(cwd))) {
+  let projectRoot;
+  try {
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+  } catch (error2) {
+    return cleanupFailure(error2, "recovery-required");
+  }
+  if (!existsSync28(transactionPath(projectRoot))) {
     return createResult({
       state: "healthy",
       data: { command: "claude recover", classification: "plugin-mode" }
     });
   }
   try {
-    const transaction = parseTransaction(cwd);
+    const transaction = parseTransaction(projectRoot);
     for (const entry of transaction.entries) {
-      const path4 = assertSafeTarget(cwd, entry.path);
+      const path4 = assertSafeTarget(projectRoot, entry.path);
       const current = observedSha(path4);
       const expectedCurrent = transaction.disposition === "complete-forward" ? entry.before_sha256 : entry.after_sha256;
       if (current !== expectedCurrent)
         throw new Error(`Claude recovery conflict at ${entry.path}`);
     }
     for (const entry of transaction.entries) {
-      const path4 = containedPath(cwd, entry.path);
+      const path4 = containedPath(projectRoot, entry.path);
       if (transaction.disposition === "complete-forward")
         writeImage(path4, entry.after_base64, entry.after_mode);
       else
         writeImage(path4, entry.before_base64, entry.before_mode);
     }
-    rmSync3(transactionPath(cwd), { force: true });
+    rmSync3(transactionPath(projectRoot), { force: true });
     return createResult({
       state: "changed",
       data: {
@@ -29189,6 +29291,7 @@ var init_cleanup = __esm(() => {
   init_result();
   init_durable_write();
   init_inventory2();
+  init_profile();
   init_status2();
 });
 
@@ -30030,7 +30133,7 @@ function distributionName(specifier) {
 var init_pyproject_manifest = () => {};
 
 // src/utils/architecture-fingerprint.ts
-import { createHash as createHash8 } from "crypto";
+import { createHash as createHash9 } from "crypto";
 import { readdirSync as readdirSync21, readFileSync as readFileSync31 } from "fs";
 import nodePath54 from "path";
 function collectShapeInputs(projectDirectory, skeleton) {
@@ -30043,7 +30146,7 @@ function collectShapeInputs(projectDirectory, skeleton) {
 }
 function shapeFingerprintOf(projectDirectory, skeleton) {
   const inputs = collectShapeInputs(projectDirectory, skeleton);
-  return createHash8("sha256").update(JSON.stringify(inputs)).digest("hex");
+  return createHash9("sha256").update(JSON.stringify(inputs)).digest("hex");
 }
 function readDependencyNames(projectDirectory) {
   const names = new Set(readPackageJsonDependencyNames(projectDirectory));
@@ -30155,7 +30258,7 @@ __export(exports_architecture_monorepo, {
   discoverWorkspaces: () => discoverWorkspaces,
   discoverUnreadableWorkspaces: () => discoverUnreadableWorkspaces
 });
-import { createHash as createHash9 } from "crypto";
+import { createHash as createHash10 } from "crypto";
 import { globSync } from "fs";
 import nodePath55 from "path";
 function discoverWorkspaces(projectDirectory) {
@@ -30292,7 +30395,7 @@ function monorepoFingerprintOf(projectDirectory, model) {
       unreadable: model.unreadableWorkspaces.map((entry) => `${entry.manager}:${entry.config}`)
     }
   };
-  return createHash9("sha256").update(JSON.stringify(inputs)).digest("hex");
+  return createHash10("sha256").update(JSON.stringify(inputs)).digest("hex");
 }
 function readManifest(packageDirectory) {
   const manifest = readJson(nodePath55.join(packageDirectory, "package.json"));
@@ -30476,7 +30579,7 @@ __export(exports_architecture_document, {
   isWouldChangeAction: () => isWouldChangeAction,
   isSafewordOwned: () => isSafewordOwned
 });
-import { createHash as createHash10 } from "crypto";
+import { createHash as createHash11 } from "crypto";
 import { mkdirSync as mkdirSync6, readFileSync as readFileSync32, writeFileSync as writeFileSync12 } from "fs";
 import nodePath56 from "path";
 function isWouldChangeAction(action) {
@@ -30639,7 +30742,7 @@ function seededPurposeMarker(purpose) {
   return `${SEEDED_PURPOSE_PREFIX}${purposeDigest(purpose)} -->`;
 }
 function purposeDigest(purpose) {
-  return createHash10("sha256").update(purpose).digest("hex");
+  return createHash11("sha256").update(purpose).digest("hex");
 }
 function parseSeededPurposeDigest(line) {
   if (!line.startsWith(SEEDED_PURPOSE_PREFIX) || !line.endsWith(" -->"))
@@ -32266,7 +32369,7 @@ __export(exports_finalization, {
   codexFinalizationIsComplete: () => codexFinalizationIsComplete,
   applyCodexFinalization: () => applyCodexFinalization
 });
-import { createHash as createHash11, randomUUID as randomUUID3 } from "crypto";
+import { createHash as createHash12, randomUUID as randomUUID3 } from "crypto";
 import {
   chmodSync as chmodSync3,
   existsSync as existsSync34,
@@ -32313,7 +32416,7 @@ function codexRecoveryIsRequired(cwd) {
   return pathEntryExists(containedPath2(cwd, BACKUP_PATH)) && !codexFinalizationIsComplete(cwd);
 }
 function sha2563(content) {
-  return createHash11("sha256").update(content).digest("hex");
+  return createHash12("sha256").update(content).digest("hex");
 }
 function containedPath2(cwd, relativePath) {
   if (relativePath === "" || nodePath63.isAbsolute(relativePath) || relativePath.split(/[\\/]/u).includes("..")) {
@@ -34311,7 +34414,7 @@ var WINDOWS_PROCESS_COMMAND = 'Get-CimInstance Win32_Process | ForEach-Object { 
 var init_host_process = () => {};
 
 // src/codex-plugin/profile-proof.ts
-import { createHash as createHash12, randomUUID as randomUUID4 } from "crypto";
+import { createHash as createHash13, randomUUID as randomUUID4 } from "crypto";
 import { existsSync as existsSync35, readFileSync as readFileSync41, rmSync as rmSync6 } from "fs";
 import { homedir as homedir4 } from "os";
 import nodePath66 from "path";
@@ -34352,7 +34455,7 @@ function currentCodexPluginIdentity() {
   const manifest = readFileSync41(packagedHookManifestPath());
   return {
     plugin_version: SAFEWORD_SCHEMA.version,
-    manifest_sha256: createHash12("sha256").update(manifest).digest("hex")
+    manifest_sha256: createHash13("sha256").update(manifest).digest("hex")
   };
 }
 function matchesCodexPluginIdentity(value, identity) {
@@ -34572,7 +34675,7 @@ __export(exports_migrate_codex_plugin, {
   installCodexPlugin: () => installCodexPlugin
 });
 import { spawnSync as spawnSync5 } from "child_process";
-import { createHash as createHash13 } from "crypto";
+import { createHash as createHash14 } from "crypto";
 import { lstatSync as lstatSync11, readFileSync as readFileSync42 } from "fs";
 import nodePath67 from "path";
 function run(command, arguments_) {
@@ -34918,7 +35021,7 @@ function observeCodexFinalizationPlan(cwd) {
   const mutations = buildCodexFinalizationMutations(cwd, prepared);
   const effects = finalizationEffects(cwd, mutations);
   const inputs = snapshotCodexFinalizationInputs(cwd, mutations);
-  const preconditionDigest4 = createHash13("sha256").update(JSON.stringify({ mutations, effects, inputs })).digest("hex");
+  const preconditionDigest4 = createHash14("sha256").update(JSON.stringify({ mutations, effects, inputs })).digest("hex");
   return {
     effects,
     exactConfigBlocks: prepared?.removedBlocks ?? [],
@@ -35402,7 +35505,7 @@ __export(exports_retro_draft_spool, {
   canonicalSignatureForDraft: () => canonicalSignatureForDraft,
   ackFilePath: () => ackFilePath
 });
-import { createHash as createHash14 } from "crypto";
+import { createHash as createHash15 } from "crypto";
 import nodePath70 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}.jsonl`;
@@ -35460,7 +35563,7 @@ function draftForPosting(draft) {
 function verifyDraftBody(draft) {
   if (draft.bodyDigest === undefined)
     return true;
-  return createHash14("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
+  return createHash15("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
 function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   try {
@@ -41646,9 +41749,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash15 } from "crypto";
+import { createHash as createHash16 } from "crypto";
 function shortHash(material) {
-  return createHash15("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash16("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -47157,7 +47260,7 @@ var CANONICAL_COMMANDS = [
     networkPolicy: "declared"
   }),
   command("codex status", "Report Codex plugin and migration state", "observe"),
-  command("claude install", "Install the Claude profile plugin", "mutate", {
+  command("claude install", "Install the Claude plugin for a project or user", "mutate", {
     networkPolicy: "declared",
     commandOptions: [
       {

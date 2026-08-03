@@ -159,6 +159,7 @@ Feature: Choose where Safeword runs in Claude
       Given the profile contains <installation-state>
       When safeword claude status runs
       Then status reports <applicable-scope> as the applicable Safeword scope
+      And human status names <applicable-scope> as the active scope
       And project and profile state remain byte-identical
 
       Examples:
@@ -173,12 +174,20 @@ Feature: Choose where Safeword runs in Claude
       Then status reports that Safeword is not installed for the current project
       And project and profile state remain byte-identical
 
+    Scenario: Status uses the repository root from a nested working directory
+      Given the current project has one exact proven Safeword installation at project
+      And the command runs from a nested project directory
+      When safeword claude status runs
+      Then status reports project as the applicable Safeword scope
+      And project and profile state remain byte-identical
+
     @rejection
     Scenario Outline: Status reports overlapping applicable installations without changing either
       Given the current project has applicable project and user installations with <overlap-state>
       When safeword claude status runs
       Then status reports scope-overlap and the identity and health of both installations
       And it names explicit project-scope and user-scope resolution actions
+      And human status explains both overlapping scopes and both resolution choices
       And project and profile state remain byte-identical
 
       Examples:
@@ -216,6 +225,7 @@ Feature: Choose where Safeword runs in Claude
         | user             | proof recorded in another project |
         | project          | no plugin execution proof          |
         | user             | stale plugin execution proof       |
+        | project          | self-consistently altered installed hook manifest |
 
     @rejection
     Scenario: Overlapping scopes cannot authorize legacy cleanup

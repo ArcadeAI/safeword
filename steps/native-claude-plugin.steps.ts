@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   appendFileSync,
@@ -33,6 +33,7 @@ interface NativeClaudePluginWorld {
   lifecycle?: {
     root: string;
     project: string;
+    commandCwd?: string;
     configRoot?: string;
     statePath: string;
     projectSnapshot: string;
@@ -956,7 +957,7 @@ When('safeword claude status runs', function (this: NativeClaudePluginWorld) {
       '--json',
       '--no-input',
       '--cwd',
-      this.lifecycle.project,
+      this.lifecycle.commandCwd ?? this.lifecycle.project,
     ],
     {
       cwd: REPO_ROOT,
@@ -1042,6 +1043,7 @@ Then(
 function runLifecycleCommand(
   world: NativeClaudePluginWorld,
   command: string[],
+  json = true,
 ): { status: number; output: string } {
   assert.ok(world.lifecycle);
   const result = spawnSync(
@@ -1049,10 +1051,10 @@ function runLifecycleCommand(
     [
       nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
       ...command,
-      '--json',
+      ...(json ? ['--json'] : []),
       '--no-input',
       '--cwd',
-      world.lifecycle.project,
+      world.lifecycle.commandCwd ?? world.lifecycle.project,
     ],
     {
       cwd: REPO_ROOT,
@@ -2428,8 +2430,16 @@ Given(
   },
 );
 
+Given('the command runs from a nested project directory', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  execFileSync('git', ['init', '--quiet', this.lifecycle.project]);
+  this.lifecycle.commandCwd = nodePath.join(this.lifecycle.project, 'packages/example');
+  mkdirSync(this.lifecycle.commandCwd, { recursive: true });
+  this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+});
+
 Given(
-  /^that installation has (proof recorded in another project|no plugin execution proof|stale plugin execution proof)$/u,
+  /^that installation has (proof recorded in another project|no plugin execution proof|stale plugin execution proof|self-consistently altered installed hook manifest)$/u,
   function (this: NativeClaudePluginWorld, proofState: string) {
     assert.ok(this.lifecycle);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
@@ -2447,6 +2457,32 @@ Given(
         {
           plugin_version: '0.70.0',
         },
+      );
+    } else if (proofState === 'self-consistently altered installed hook manifest') {
+      const manifestPath = nodePath.join(state.installPath, 'hooks/hooks.json');
+      const inventoryPath = nodePath.join(state.installPath, 'inventory.json');
+      const identityPath = nodePath.join(state.installPath, 'identity.json');
+      const manifest = `${JSON.stringify({ hooks: {}, altered: true }, undefined, 2)}\n`;
+      writeFileSync(manifestPath, manifest);
+      const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8')) as {
+        assets: { path: string; sha256: string }[];
+      };
+      const asset = inventory.assets.find(candidate => candidate.path === 'hooks/hooks.json');
+      assert.ok(asset);
+      asset.sha256 = createHash('sha256').update(manifest).digest('hex');
+      const inventoryContent = `${JSON.stringify(inventory, undefined, 2)}\n`;
+      writeFileSync(inventoryPath, inventoryContent);
+      const identity = JSON.parse(readFileSync(identityPath, 'utf8')) as {
+        hook_manifest_sha256: string;
+        inventory_sha256: string;
+      };
+      identity.hook_manifest_sha256 = asset.sha256;
+      identity.inventory_sha256 = createHash('sha256').update(inventoryContent).digest('hex');
+      writeFileSync(identityPath, `${JSON.stringify(identity, undefined, 2)}\n`);
+      writeStatusProofV2(
+        this.lifecycle.configRoot ?? '',
+        this.lifecycle.project,
+        state.installPath,
       );
     }
     this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
@@ -3037,6 +3073,14 @@ Then(
 );
 
 Then(
+  /^human status names (project|user) as the active scope$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    const result = runLifecycleCommand(this, ['claude', 'status'], false);
+    assert.match(result.output, new RegExp(`active at ${scope} scope`, 'u'));
+  },
+);
+
+Then(
   'status reports that Safeword is not installed for the current project',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
@@ -3084,6 +3128,17 @@ Then(
         'claude plugin uninstall safeword@safeword --scope user',
       ],
     );
+  },
+);
+
+Then(
+  'human status explains both overlapping scopes and both resolution choices',
+  function (this: NativeClaudePluginWorld) {
+    const result = runLifecycleCommand(this, ['claude', 'status'], false);
+    assert.match(result.output, /overlapping Claude scopes/u);
+    assert.match(result.output, /project \(.+\).+user \(.+\)/u);
+    assert.match(result.output, /--scope project/u);
+    assert.match(result.output, /--scope user/u);
   },
 );
 

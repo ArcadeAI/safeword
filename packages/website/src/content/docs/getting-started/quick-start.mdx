@@ -23,7 +23,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
 <Tabs>
   <TabItem label="Claude Code">
-    **Install the native plugin once per user.** Run `safeword claude install`, then `/reload-plugins` inside Claude Code. The workflows and hooks become available in the current task without a restart.
+    **Install the native plugin for this project.** Run `safeword claude install`, then `/reload-plugins` inside Claude Code. Project scope is the default and records activation in `.claude/settings.json`; use `safeword claude install --scope user` when you intentionally want Safeword active across every project in your Claude profile.
 
     **Your agent gets namespaced Safeword workflows.** Native skills use names such as `/safeword:bdd`, `/safeword:verify`, and `/safeword:explain` instead of project-local Safeword skill files.
 
@@ -95,17 +95,17 @@ Open your project and ask your agent to build something real:
 
 Safeword added a few folders to your project:
 
-| Folder / surface        | What's in it                                             |
-| ----------------------- | -------------------------------------------------------- |
-| `.safeword/hooks/`      | Project runtime used by supported project-local surfaces |
-| Safe Word Claude plugin | User-scoped native Claude Code workflow skills and hooks |
-| Safe Word Codex plugin  | Profile-scoped Codex workflow skills and hooks           |
-| `.cursor/hooks.json`    | Hook configuration for Cursor                            |
-| `.cursor/rules/`        | Rules for Cursor                                         |
-| `.cursor/commands/`     | Slash commands for Cursor                                |
-| `.safeword/`            | Project configuration, guides, and templates             |
+| Folder / surface        | What's in it                                                    |
+| ----------------------- | --------------------------------------------------------------- |
+| `.safeword/hooks/`      | Project runtime used by supported project-local surfaces        |
+| Safe Word Claude plugin | Project-scoped by default; user-scoped when explicitly selected |
+| Safe Word Codex plugin  | Profile-scoped Codex workflow skills and hooks                  |
+| `.cursor/hooks.json`    | Hook configuration for Cursor                                   |
+| `.cursor/rules/`        | Rules for Cursor                                                |
+| `.cursor/commands/`     | Slash commands for Cursor                                       |
+| `.safeword/`            | Project configuration, guides, and templates                    |
 
-Project files commit to your repo; profile plugins do not. Each Claude Code user runs `safeword claude install` and `/reload-plugins`. Existing project-local Claude protection remains authoritative until the current plugin records exact execution proof and someone explicitly runs the reviewed `safeword claude cleanup` plan. Each Codex user separately installs and reviews the Codex plugin. Each repository is enrolled with `safeword setup`, which creates the project namespace before plugin hooks write project state.
+Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache. Each Claude Code user runs `safeword claude install` and `/reload-plugins`. Existing project-local Claude protection remains authoritative until the current plugin records exact execution proof and someone explicitly runs the reviewed `safeword claude cleanup` plan. Each Codex user separately installs and reviews the Codex plugin. Each repository is enrolled with `safeword setup`, which creates the project namespace before plugin hooks write project state.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 

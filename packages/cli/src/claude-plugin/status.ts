@@ -6,9 +6,11 @@ import nodePath from 'node:path';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
+import { currentClaudePluginHookManifestSha256 } from './catalogue.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import {
   canonicalClaudeProjectRoot,
+  type ClaudeApplicablePluginsObservation,
   type ClaudePluginScope,
   type JsonObject,
   observeApplicableClaudePlugins,
@@ -74,6 +76,7 @@ function proofMatches(
     proof.plugin_version === SAFEWORD_SCHEMA.version,
     proof.plugin_version === plugin.version,
     proof.hook_manifest_sha256 === identity.hook_manifest_sha256,
+    proof.hook_manifest_sha256 === currentClaudePluginHookManifestSha256(),
     proof.canonical_plugin_root === canonicalPluginRoot,
     proof.event === 'SessionStart' || proof.event === 'UserPromptSubmit',
     typeof proof.session_id === 'string' && proof.session_id !== '',
@@ -178,6 +181,31 @@ function statusData(
   return data;
 }
 
+function statusMessage(options: StatusOptions): string | undefined {
+  if (options.message !== undefined) return options.message;
+  if (options.applicableScope === undefined) return undefined;
+  return `Safeword is active at ${options.applicableScope} scope for this repository.`;
+}
+
+function statusFindings(
+  classification: ClaudeStatusClassification,
+  options: StatusOptions,
+  failed: boolean,
+): CliResult['findings'] {
+  const message = statusMessage(options);
+  if (message === undefined) return [];
+  let severity: 'error' | 'info' | 'warning' = 'warning';
+  if (failed) severity = 'error';
+  else if (classification === 'plugin-mode') severity = 'info';
+  return [
+    {
+      code: `CLAUDE_${classification.replaceAll('-', '_').toUpperCase()}`,
+      message,
+      severity,
+    },
+  ];
+}
+
 function statusResult(
   classification: ClaudeStatusClassification,
   options: StatusOptions = {},
@@ -190,16 +218,7 @@ function statusResult(
   else if (failed) state = 'failed';
   return createResult({
     state,
-    findings:
-      options.message === undefined
-        ? []
-        : [
-            {
-              code: `CLAUDE_${classification.replaceAll('-', '_').toUpperCase()}`,
-              message: options.message,
-              severity: failed ? 'error' : 'warning',
-            },
-          ],
+    findings: statusFindings(classification, options, failed),
     nextActions: nextActions.map(command => ({
       command,
       mutates: !command.startsWith('/'),
@@ -209,28 +228,27 @@ function statusResult(
   });
 }
 
-export function observeClaudeStatus(cwd: string): CliResult {
-  if (existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
-    return statusResult('recovery-required');
-  }
-  const profile = observeApplicableClaudePlugins(cwd);
-  if (profile.status !== 'observed') {
-    return statusResult(profile.status, {
-      nextAction: profile.nextAction,
-      message: profile.message,
-    });
-  }
-  if (new Set(profile.installations.map(installation => installation.scope)).size > 1) {
-    return statusResult('scope-overlap', {
-      installations: profile.installations,
-      nextActions: [
-        'claude plugin uninstall safeword@safeword --scope project',
-        'claude plugin uninstall safeword@safeword --scope user',
-      ],
-    });
-  }
-  const installation = profile.installations[0];
-  if (installation === undefined) return statusResult('missing');
+function scopeOverlapResult(
+  installations: ClaudeApplicablePluginsObservation['installations'],
+): CliResult | undefined {
+  if (new Set(installations.map(installation => installation.scope)).size <= 1) return undefined;
+  const summary = installations
+    .map(installation => `${installation.scope} (${installation.health})`)
+    .join(' and ');
+  return statusResult('scope-overlap', {
+    installations,
+    message: `Safeword is active in overlapping Claude scopes for this repository: ${summary}. Keep one by running either \`claude plugin uninstall safeword@safeword --scope project\` or \`claude plugin uninstall safeword@safeword --scope user\`.`,
+    nextActions: [
+      'claude plugin uninstall safeword@safeword --scope project',
+      'claude plugin uninstall safeword@safeword --scope user',
+    ],
+  });
+}
+
+function statusForInstallation(
+  installation: ClaudeApplicablePluginsObservation['installations'][number],
+  projectRoot: string,
+): CliResult {
   if (installation.health !== 'current') {
     return statusResult(installation.health, {
       nextAction: installation.nextAction,
@@ -238,19 +256,47 @@ export function observeClaudeStatus(cwd: string): CliResult {
       applicableScope: installation.scope,
     });
   }
-  if (!proofIsCurrent(installation.plugin, cwd)) {
+  if (!proofIsCurrent(installation.plugin, projectRoot)) {
     return statusResult('unproven', { applicableScope: installation.scope });
   }
-
-  const legacy = legacyObservation(cwd);
+  const legacy = legacyObservation(projectRoot);
   if (legacy.conflicts.length > 0) {
     return statusResult('coexistence', { legacy, applicableScope: installation.scope });
   }
   if (legacy.recognized.length > 0) {
     return statusResult('cleanup-ready', { legacy, applicableScope: installation.scope });
   }
-  if (existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker))) {
-    return statusResult('plugin-mode', { legacy, applicableScope: installation.scope });
+  const classification = existsSync(
+    nodePath.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker),
+  )
+    ? 'plugin-mode'
+    : 'coexistence';
+  return statusResult(classification, { legacy, applicableScope: installation.scope });
+}
+
+export function observeClaudeStatus(cwd: string): CliResult {
+  let projectRoot: string;
+  try {
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+  } catch (error) {
+    return statusResult('errored', {
+      message: error instanceof Error ? error.message : String(error),
+      nextAction: 'repair the reported Claude project path',
+    });
   }
-  return statusResult('coexistence', { legacy, applicableScope: installation.scope });
+  if (existsSync(nodePath.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
+    return statusResult('recovery-required');
+  }
+  const profile = observeApplicableClaudePlugins(projectRoot);
+  if (profile.status !== 'observed') {
+    return statusResult(profile.status, {
+      nextAction: profile.nextAction,
+      message: profile.message,
+    });
+  }
+  const overlap = scopeOverlapResult(profile.installations);
+  if (overlap !== undefined) return overlap;
+  const installation = profile.installations[0];
+  if (installation === undefined) return statusResult('missing');
+  return statusForInstallation(installation, projectRoot);
 }

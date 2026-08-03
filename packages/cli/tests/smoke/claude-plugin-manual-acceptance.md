@@ -26,7 +26,7 @@ reload boundaries.
 ## Upgrade through the candidate CLI
 
 1. In an authenticated Claude task using the isolated profile, run the
-   candidate CLI's `safeword claude install` command.
+   candidate CLI's `safeword claude install --scope user` command.
 2. Confirm command observation and mutation occurred in this order:
    previous stable marketplace -> re-add the exact candidate tag under the same
    marketplace name -> re-observe that exact source and ref -> update the
