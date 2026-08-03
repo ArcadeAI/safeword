@@ -173,7 +173,7 @@ Feature: Choose where Safeword runs in Claude
       Then status reports that Safeword is not installed for the current project
       And project and profile state remain byte-identical
 
-    @wip @rejection
+    @rejection
     Scenario Outline: Status reports overlapping applicable installations without changing either
       Given the current project has applicable project and user installations with <overlap-state>
       When safeword claude status runs

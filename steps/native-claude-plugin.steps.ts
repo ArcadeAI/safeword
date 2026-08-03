@@ -45,6 +45,7 @@ interface NativeClaudePluginWorld {
     otherScopeSnapshot?: string;
     otherScopeSettingsSnapshot?: string;
     selectedScope?: 'project' | 'user';
+    overlapHealthSnapshot?: Record<string, string>;
     selectedScopeUnrelatedSettingsSnapshot?: Record<string, unknown>;
     profileFilesOutsideSettingsSnapshot?: string;
     projectFilesOutsideSettingsSnapshot?: string;
@@ -2302,6 +2303,50 @@ Given(
 );
 
 Given(
+  /^the current project has applicable project and user installations with (the same exact version|different official versions|one disabled installation)$/u,
+  function (this: NativeClaudePluginWorld, overlapState: string) {
+    createExactScopedFixture(this, 'project');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    state.marketplaceDeclarations.push({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: `v${EXPECTED_VERSION}`,
+      scope: 'user',
+    });
+    const userHealth =
+      overlapState === 'different official versions'
+        ? 'wrong-version'
+        : overlapState === 'one disabled installation'
+          ? 'disabled'
+          : 'current';
+    state.plugins.push({
+      id: 'safeword@safeword',
+      version: userHealth === 'wrong-version' ? '0.70.0' : EXPECTED_VERSION,
+      enabled: userHealth !== 'disabled',
+      installPath: state.installPath,
+      scope: 'user',
+    });
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    this.lifecycle.overlapHealthSnapshot = { project: 'current', user: userHealth };
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
   'the other Claude scope has independent plugin state',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
@@ -2884,6 +2929,45 @@ Then(
     };
     assert.equal(result.data?.classification, 'missing');
     assert.equal(result.data?.applicable_scope, undefined);
+  },
+);
+
+Then(
+  'status reports scope-overlap and the identity and health of both installations',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: {
+        classification?: string;
+        installations?: { health?: string; scope?: string }[];
+      };
+    };
+    assert.equal(result.data?.classification, 'scope-overlap');
+    assert.deepEqual(
+      Object.fromEntries(
+        (result.data?.installations ?? []).map(installation => [
+          installation.scope,
+          installation.health,
+        ]),
+      ),
+      this.lifecycle?.overlapHealthSnapshot,
+    );
+  },
+);
+
+Then(
+  'it names explicit project-scope and user-scope resolution actions',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.deepEqual(
+      result.next_actions?.map(action => action.command),
+      [
+        'claude plugin uninstall safeword@safeword --scope project',
+        'claude plugin uninstall safeword@safeword --scope user',
+      ],
+    );
   },
 );
 
