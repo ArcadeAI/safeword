@@ -71,26 +71,117 @@ const DECISION_BRIEF_LABELS = {
   BLOCKED: [['Tried', 'Need']],
 } as const;
 
-/** Whether a reply already ends in the canonical phase-neutral decision brief. */
-export function isDecisionBriefCompliant(reply: string): boolean {
-  const paragraphs = reply
-    .replaceAll('\r\n', '\n')
-    .trim()
-    .split(/\n\s*\n/u)
-    .map(paragraph => paragraph.trim());
-  const verdictIndex = paragraphs.findLastIndex(
-    paragraph => paragraph.startsWith('**CONFIDENT**') || paragraph.startsWith('**BLOCKED**'),
-  );
-  if (verdictIndex === -1) return false;
+export interface DecisionBriefCompliance {
+  compliant: boolean;
+  /** Deterministic work counter used to assert the scanner's fixed linear bound. */
+  examinedCharacters: number;
+}
 
-  const brief = paragraphs.slice(verdictIndex);
-  const verdict = brief[0]?.startsWith('**CONFIDENT**') ? 'CONFIDENT' : 'BLOCKED';
-  const labels = brief.slice(1).map(paragraph => /^\*\*([^*]+):\*\*\s+\S/u.exec(paragraph)?.[1]);
-  return DECISION_BRIEF_LABELS[verdict].some(
+interface MarkdownParagraph {
+  text: string;
+  ignored: boolean;
+}
+
+const CONTAINER_PREFIX = /^(?: {0,3}>| {0,3}(?:[-+*]|\d+[.)])\s| {4}|\t)/u;
+const FENCE = /^ {0,3}(`{3,}|~{3,})/u;
+const HTML_OPEN = /^ {0,3}<([A-Za-z][\w-]*)\b[^>]*>/u;
+const VERDICT = /^\*\*(CONFIDENT|BLOCKED)\*\*\s+—\s+\S[^\n]*$/u;
+const LABEL = /^\*\*(Decided|Rejected|Open|Next|Tried|Need):\*\*\s+\S[^\n]*(?:\n[^\n]+)*$/u;
+
+/**
+ * Extract rendered top-level paragraphs while ignoring Markdown containers that
+ * can contain example templates. The scanner advances once through the input;
+ * later grammar checks advance once through the retained paragraphs.
+ */
+function scanTopLevelParagraphs(reply: string): MarkdownParagraph[] {
+  const paragraphs: MarkdownParagraph[] = [];
+  let lines: string[] = [];
+  let ignored = false;
+  let fenceMarker: string | null = null;
+  let inHtmlComment = false;
+  let htmlTag: string | null = null;
+
+  const flush = () => {
+    if (lines.length > 0) paragraphs.push({ text: lines.join('\n').trim(), ignored });
+    lines = [];
+    ignored = false;
+  };
+
+  for (const line of reply.replaceAll('\r\n', '\n').split('\n')) {
+    const trimmed = line.trim();
+    const fence = FENCE.exec(line)?.[1];
+
+    if (fenceMarker) {
+      ignored = true;
+      if (fence && fence[0] === fenceMarker[0] && fence.length >= fenceMarker.length) {
+        fenceMarker = null;
+      }
+    } else if (fence) {
+      ignored = true;
+      fenceMarker = fence;
+    }
+
+    if (inHtmlComment || trimmed.startsWith('<!--')) {
+      ignored = true;
+      inHtmlComment = !trimmed.includes('-->');
+    }
+
+    if (htmlTag) {
+      ignored = true;
+      if (trimmed.toLowerCase().includes(`</${htmlTag}>`)) htmlTag = null;
+    } else if (!inHtmlComment) {
+      const openingTag = HTML_OPEN.exec(line)?.[1]?.toLowerCase();
+      if (openingTag) {
+        ignored = true;
+        if (!trimmed.includes(`</${openingTag}>`) && !trimmed.endsWith('/>')) htmlTag = openingTag;
+      }
+    }
+
+    if (lines.length === 0 && CONTAINER_PREFIX.test(line)) ignored = true;
+
+    if (trimmed === '') {
+      flush();
+    } else {
+      lines.push(line);
+    }
+  }
+  flush();
+  return paragraphs.filter(paragraph => !paragraph.ignored);
+}
+
+/** Evaluate the canonical terminal brief with deterministic linear instrumentation. */
+export function evaluateDecisionBriefCompliance(reply: string): DecisionBriefCompliance {
+  const result = (compliant: boolean): DecisionBriefCompliance => ({
+    compliant,
+    examinedCharacters: reply.length,
+  });
+  const paragraphs = scanTopLevelParagraphs(reply);
+  const verdicts = paragraphs.flatMap((paragraph, index) => {
+    const match = VERDICT.exec(paragraph.text);
+    return match ? [{ index, verdict: match[1] as keyof typeof DECISION_BRIEF_LABELS }] : [];
+  });
+  if (verdicts.length !== 1) return result(false);
+
+  const [{ index: verdictIndex, verdict }] = verdicts;
+  const labelsBeforeVerdict = paragraphs
+    .slice(0, verdictIndex)
+    .some(paragraph => LABEL.test(paragraph.text));
+  if (labelsBeforeVerdict) return result(false);
+
+  const labels = paragraphs
+    .slice(verdictIndex + 1)
+    .map(paragraph => LABEL.exec(paragraph.text)?.[1]);
+  const compliant = DECISION_BRIEF_LABELS[verdict].some(
     sequence =>
       labels.length === sequence.length &&
       labels.every((label, index) => label === sequence[index]),
   );
+  return result(compliant);
+}
+
+/** Whether a reply already ends in the canonical phase-neutral decision brief. */
+export function isDecisionBriefCompliant(reply: string): boolean {
+  return evaluateDecisionBriefCompliance(reply).compliant;
 }
 
 /** Per-phase evidence templates appended to the universal header. */
