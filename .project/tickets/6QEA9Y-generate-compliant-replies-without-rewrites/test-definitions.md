@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A complete CONFIDENT brief finishes on the first Stop
 
-- [ ] RED
+- [x] RED c8a976988
 - [ ] GREEN
 - [ ] REFACTOR
 
