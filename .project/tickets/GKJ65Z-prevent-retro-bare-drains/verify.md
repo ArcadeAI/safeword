@@ -38,4 +38,4 @@ Audit passed with no diff-scoped findings.
 - Lint workflow: ESLint, Prettier, and TypeScript completed without changes or errors.
 - Dependency drift: runtime architectural dependencies are documented in `ARCHITECTURE.md`; no dependency manifests changed in this PR.
 - PR scope: all branch-only files implement, test, document, or verify GitHub issue #1805.
-- CI diagnosis: the original run merged the branch with a newer native-plugin contract and exposed omitted generated mirrors. The branch now includes the canonical dogfood skill and regenerated Claude plugin artifacts; CI rerun is required after push.
+- CI: replacement run `30783115580` passed dogfood parity, lint, Node 24, and Node 22.22.3 after the branch incorporated the newer native-plugin contract and regenerated its mirrors.
