@@ -80,6 +80,14 @@ interface ActivationMarkerFile {
   installed_at: string;
 }
 
+interface CodexTaskExecution {
+  events: CodexJsonEvent[];
+  finishedAt: Date;
+  startedAt: Date;
+  status: number | null;
+  warnings: string[];
+}
+
 const HEADLESS_CHECK_PROMPT =
   'Run the shell command `pwd` exactly once, then reply with exactly SAFEWORD_CODEX_ACTIVATION_CHECK. Do not use any other tools.';
 
@@ -240,6 +248,47 @@ function runCodexVersion(codexBinary: string, environment: NodeJS.ProcessEnv): s
   return version;
 }
 
+function runCodexTask(input: {
+  codexBinary: string;
+  cwd: string;
+  environment: NodeJS.ProcessEnv;
+  model: string;
+  timeoutMilliseconds: number;
+}): CodexTaskExecution {
+  const startedAt = new Date();
+  const result = spawnSync(
+    input.codexBinary,
+    [
+      'exec',
+      '--json',
+      '--ephemeral',
+      '--dangerously-bypass-hook-trust',
+      '--dangerously-bypass-approvals-and-sandbox',
+      '-m',
+      input.model,
+      '-C',
+      input.cwd,
+      HEADLESS_CHECK_PROMPT,
+    ],
+    {
+      cwd: input.cwd,
+      encoding: 'utf8',
+      env: input.environment,
+      timeout: input.timeoutMilliseconds,
+    },
+  );
+  if (result.error !== undefined) {
+    throw new Error(`Could not run the headless Codex activation task.`, { cause: result.error });
+  }
+  return {
+    events: parseCodexJsonLines(result.stdout),
+    finishedAt: new Date(),
+    startedAt,
+    status: result.status,
+    warnings: splitWarnings(result.stderr),
+  };
+}
+
 function assertCodexRunSucceeded(input: {
   status: number | null;
   events: CodexJsonEvent[];
@@ -338,36 +387,15 @@ export function runHeadlessCodexActivationCheck(
     throw new Error('CODEX_HOME is required for an isolated headless activation check.');
   }
   const codexVersion = runCodexVersion(codexBinary, environment);
-  const startedAt = new Date();
-  const result = spawnSync(
+  const { events, finishedAt, startedAt, status, warnings } = runCodexTask({
     codexBinary,
-    [
-      'exec',
-      '--json',
-      '--ephemeral',
-      '--dangerously-bypass-hook-trust',
-      '--dangerously-bypass-approvals-and-sandbox',
-      '-m',
-      model,
-      '-C',
-      options.cwd,
-      HEADLESS_CHECK_PROMPT,
-    ],
-    {
-      cwd: options.cwd,
-      encoding: 'utf8',
-      env: environment,
-      timeout: options.timeoutMilliseconds ?? 180_000,
-    },
-  );
-  if (result.error !== undefined) {
-    throw new Error(`Could not run the headless Codex activation task.`, { cause: result.error });
-  }
-  const finishedAt = new Date();
-  const events = parseCodexJsonLines(result.stdout);
-  const warnings = splitWarnings(result.stderr);
+    cwd: options.cwd,
+    environment,
+    model,
+    timeoutMilliseconds: options.timeoutMilliseconds ?? 180_000,
+  });
   assertCodexRunSucceeded({
-    status: result.status,
+    status,
     events,
     model,
     codexVersion,
