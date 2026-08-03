@@ -206,6 +206,11 @@ Feature: Generate compliant replies without correction loops
         | a complete template only inside indented code   |
         | a complete template only inside an HTML comment |
         | a complete template only inside an HTML block   |
+        | a complete template only inside a nested bullet continuation |
+        | a complete template only inside an ordered-list continuation |
+        | a complete template only inside an HTML declaration |
+        | a complete template only inside an HTML processing instruction |
+        | a complete template only inside an HTML CDATA block |
         | a verdict label mentioned only in prose         |
         | required labels outside the terminal block      |
         | required paragraphs in the wrong order          |
@@ -237,6 +242,11 @@ Feature: Generate compliant replies without correction loops
         | indented code   |
         | an HTML comment |
         | an HTML block   |
+        | a nested bullet continuation |
+        | an ordered-list continuation |
+        | an HTML declaration |
+        | an HTML processing instruction |
+        | an HTML CDATA block |
         | ordinary prose  |
 
     @rejection

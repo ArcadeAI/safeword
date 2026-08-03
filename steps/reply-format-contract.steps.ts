@@ -1,6 +1,14 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -8,6 +16,7 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import {
   DECISION_BRIEF_CONTRACT,
+  DECISION_BRIEF_MAX_WORK_FACTOR,
   evaluateDecisionBriefCompliance,
 } from '../packages/cli/templates/hooks/lib/quality.js';
 import {
@@ -20,7 +29,6 @@ import {
 import type { SafewordWorld } from './world.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
-const SESSION_CONTEXT = nodePath.join(REPO_ROOT, '.safeword/hooks/session-safeword-context.ts');
 const PROMPT_QUESTIONS = nodePath.join(REPO_ROOT, '.safeword/hooks/prompt-questions.ts');
 const SAFEWORD_CLI = nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts');
 const QUALITY_TEMPLATE = nodePath.join(REPO_ROOT, 'packages/cli/templates/hooks/lib/quality.ts');
@@ -37,6 +45,8 @@ const BLOCKED = [
   '**Need:** Choose the intended release target.',
 ];
 const brief = (paragraphs: string[], separator = '\n\n') => paragraphs.join(separator);
+const nestedBulletBrief = brief(CONFIDENT.map(paragraph => '  ' + paragraph));
+const orderedListBrief = brief(CONFIDENT.map(paragraph => '   ' + paragraph));
 const ignoredBriefs: Record<string, string> = {
   'a blockquote': brief(CONFIDENT.map(paragraph => `> ${paragraph}`)),
   'a list item': brief(CONFIDENT.map(paragraph => `- ${paragraph}`)),
@@ -44,6 +54,11 @@ const ignoredBriefs: Record<string, string> = {
   'indented code': brief(CONFIDENT.map(paragraph => `    ${paragraph}`)),
   'an HTML comment': `<!--\n${brief(CONFIDENT)}\n-->`,
   'an HTML block': `<div>\n${brief(CONFIDENT)}\n</div>`,
+  'a nested bullet continuation': `- example\n\n${nestedBulletBrief}`,
+  'an ordered-list continuation': `1. example\n\n${orderedListBrief}`,
+  'an HTML declaration': `<!DOCTYPE html\n${brief(CONFIDENT)}\n>`,
+  'an HTML processing instruction': `<?example\n${brief(CONFIDENT)}\n?>`,
+  'an HTML CDATA block': `<![CDATA[\n${brief(CONFIDENT)}\n]]>`,
   'ordinary prose': 'An earlier paragraph says CONFIDENT and **Next:** informally.',
 };
 
@@ -51,6 +66,7 @@ interface ContractState {
   projectDirectory?: string;
   boundary?: string;
   context?: string;
+  sessionContexts?: string[];
   reply?: string;
   evaluations?: ReturnType<typeof evaluateDecisionBriefCompliance>[];
   replies?: string[];
@@ -252,20 +268,92 @@ Given('a Safeword-managed Claude session is starting', function (this: SafewordW
   stateFor(this).boundary = 'startup';
 });
 
+function extractAdditionalContext(stdout: string): string {
+  const trimmed = stdout.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      hookSpecificOutput?: { additionalContext?: string };
+    };
+    return parsed.hookSpecificOutput?.additionalContext ?? trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
+function runLegacySessionGroup(boundary: string): string {
+  const settings = JSON.parse(
+    readFileSync(nodePath.join(REPO_ROOT, '.claude/settings.json'), 'utf8'),
+  ) as {
+    hooks: {
+      SessionStart: Array<{
+        matcher?: string;
+        hooks: Array<{ command: string }>;
+      }>;
+    };
+  };
+  const source = boundary === 'compaction' ? 'compact' : boundary;
+  const input = JSON.stringify({ hook_event_name: 'SessionStart', source, cwd: REPO_ROOT });
+  const contexts: string[] = [];
+  for (const entry of settings.hooks.SessionStart) {
+    if (entry.matcher && entry.matcher !== source) continue;
+    for (const hook of entry.hooks) {
+      const result = spawnSync('bash', ['-lc', hook.command], {
+        cwd: REPO_ROOT,
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: REPO_ROOT,
+          SAFEWORD_NO_AUTO_UPGRADE: '1',
+        },
+        input,
+        encoding: 'utf8',
+        timeout: 60_000,
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const context = extractAdditionalContext(result.stdout);
+      if (context) contexts.push(context);
+    }
+  }
+  return contexts.join('\n\n');
+}
+
+function runPluginSessionGroup(boundary: string): { context: string; directory: string } {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plugin-session-'));
+  const dataDirectory = nodePath.join(directory, 'plugin-data');
+  mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+  writeFileSync(
+    nodePath.join(directory, '.safeword/SAFEWORD.md'),
+    readFileSync(nodePath.join(REPO_ROOT, '.safeword/SAFEWORD.md')),
+  );
+  const source = boundary === 'compaction' ? 'compact' : boundary;
+  const result = spawnSync(
+    'bun',
+    [nodePath.join(REPO_ROOT, 'plugin/runtime/dispatch.ts'), 'SessionStart', '--event-group'],
+    {
+      cwd: directory,
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_DATA: dataDirectory,
+        CLAUDE_PLUGIN_ROOT: nodePath.join(REPO_ROOT, 'plugin'),
+        CLAUDE_PROJECT_DIR: directory,
+        SAFEWORD_NO_AUTO_UPGRADE: '1',
+      },
+      input: JSON.stringify({ hook_event_name: 'SessionStart', source, cwd: directory }),
+      encoding: 'utf8',
+      timeout: 60_000,
+    },
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return { context: extractAdditionalContext(result.stdout), directory };
+}
+
 function runSessionContext(world: SafewordWorld): void {
   const state = stateFor(world);
-  const result = spawnSync('bun', [SESSION_CONTEXT, '--agent=claude'], {
-    cwd: REPO_ROOT,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: REPO_ROOT },
-    input: JSON.stringify({
-      hook_event_name: 'SessionStart',
-      source: state.boundary,
-      cwd: REPO_ROOT,
-    }),
-    encoding: 'utf8',
-  });
-  assert.equal(result.status, 0, result.stderr);
-  state.context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext as string;
+  const boundary = state.boundary ?? 'startup';
+  const plugin = runPluginSessionGroup(boundary);
+  state.projectDirectory = plugin.directory;
+  state.sessionContexts = [runLegacySessionGroup(boundary), plugin.context];
+  state.context = state.sessionContexts.join('\n\n');
 }
 
 When('the configured SessionStart hook group runs', function (this: SafewordWorld) {
@@ -280,15 +368,24 @@ Then(
   'the context contains the exact phase-neutral decision-brief contract',
   function (this: SafewordWorld) {
     assert.ok(stateFor(this).context?.includes(DECISION_BRIEF_CONTRACT));
+    assert.ok(
+      stateFor(this).sessionContexts?.every(context => context.includes(DECISION_BRIEF_CONTRACT)),
+    );
   },
 );
 
 Then('the contract appears exactly once', function (this: SafewordWorld) {
-  assert.equal(stateFor(this).context?.split(DECISION_BRIEF_CONTRACT).length, 2);
+  assert.ok(
+    stateFor(this).sessionContexts?.every(
+      context => context.split(DECISION_BRIEF_CONTRACT).length === 2,
+    ),
+  );
 });
 
 Then('existing SAFEWORD standing instructions remain intact', function (this: SafewordWorld) {
-  assert.match(stateFor(this).context ?? '', /SAFEWORD Agent Instructions/u);
+  assert.ok(
+    stateFor(this).sessionContexts?.every(context => /SAFEWORD Agent Instructions/u.test(context)),
+  );
 });
 
 Then(
@@ -437,47 +534,99 @@ Given(
   'the canonical contract changes from distinct shape A to distinct shape B before installation',
   function (this: SafewordWorld) {
     const state = stateFor(this);
-    state.formerReply = brief([CONFIDENT[0], CONFIDENT[1], CONFIDENT[3]]);
-    state.reply = brief(CONFIDENT);
+    const projectDirectory = buildReplyFormatProject();
+    const setup = spawnSync(
+      'bun',
+      [SAFEWORD_CLI, 'setup', '--yes', '--no-modify', '--cwd', projectDirectory],
+      { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60_000 },
+    );
+    assert.equal(setup.status, 0, setup.stderr || setup.stdout);
+    const installedGrammar = nodePath.join(projectDirectory, '.safeword/hooks/lib/quality.ts');
+    const formerSource = readFileSync(installedGrammar, 'utf8');
+    const changedSource = formerSource.replace("label: 'Open',", "label: 'Risks',");
+    assert.notEqual(changedSource, formerSource, 'grammar fixture did not change');
+    writeFileSync(installedGrammar, changedSource);
+
+    state.projectDirectory = projectDirectory;
+    state.formerReply = brief(CONFIDENT);
+    state.reply = brief([CONFIDENT[0], CONFIDENT[1], '**Risks:** none.', CONFIDENT[3]]);
     setReplyFormatState(this, {
-      projectDirectory: buildReplyFormatProject(),
+      projectDirectory,
       reply: state.formerReply,
       stopHookActive: false,
     });
   },
 );
 
-Given('Safeword is installed from its managed templates', function () {
-  const template = readFileSync(
-    nodePath.join(REPO_ROOT, 'packages/cli/templates/hooks/lib/quality.ts'),
-    'utf8',
-  );
+Given('Safeword is installed from its managed templates', function (this: SafewordWorld) {
+  const projectDirectory = stateFor(this).projectDirectory;
+  assert.ok(projectDirectory);
   const installed = readFileSync(
-    nodePath.join(REPO_ROOT, '.safeword/hooks/lib/quality.ts'),
+    nodePath.join(projectDirectory, '.safeword/hooks/lib/quality.ts'),
     'utf8',
   );
-  assert.equal(installed, template);
+  assert.match(installed, /label: 'Risks'/u);
+  assert.ok(existsSync(nodePath.join(projectDirectory, '.safeword/hooks/session-reply-format.ts')));
 });
 
 When(
   'the configured SessionStart and Stop commands are executed as subprocesses',
   function (this: SafewordWorld) {
-    runSessionContext(this);
     const contractState = stateFor(this);
+    assert.ok(contractState.projectDirectory);
+    const session = spawnSync(
+      'bun',
+      [
+        nodePath.join(contractState.projectDirectory, '.safeword/hooks/session-reply-format.ts'),
+        '--agent=claude',
+      ],
+      {
+        cwd: contractState.projectDirectory,
+        input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup' }),
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(session.status, 0, session.stderr || session.stdout);
+    contractState.context = extractAdditionalContext(session.stdout);
+
     const replyState = getReplyFormatState(this);
-    runReplyFormatStop(this);
-    contractState.formerStopOutput = this.result.stdout;
+    const runInstalledStop = () => {
+      const result = spawnSync(
+        'bun',
+        [nodePath.join(replyState.projectDirectory, '.safeword/hooks/stop-quality.ts')],
+        {
+          cwd: replyState.projectDirectory,
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: replyState.projectDirectory,
+            SAFEWORD_CLI,
+          },
+          input: JSON.stringify({
+            session_id: 'reply-format',
+            transcript_path: nodePath.join(replyState.projectDirectory, 'transcript.jsonl'),
+            last_assistant_message: replyState.reply,
+            stop_hook_active: false,
+          }),
+          encoding: 'utf8',
+          timeout: 60_000,
+        },
+      );
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      return result.stdout;
+    };
+    contractState.formerStopOutput = runInstalledStop();
     rmSync(nodePath.join(replyState.projectDirectory, '.project/quality-state-reply-format.json'), {
       force: true,
     });
     replyState.reply = contractState.reply ?? '';
-    runReplyFormatStop(this);
-    contractState.currentStopOutput = this.result.stdout;
+    contractState.currentStopOutput = runInstalledStop();
   },
 );
 
 Then('SessionStart emits shape B', function (this: SafewordWorld) {
-  assert.ok(stateFor(this).context?.includes(DECISION_BRIEF_CONTRACT));
+  const context = stateFor(this).context ?? '';
+  assert.match(context, /\*\*Risks:\*\*/u);
+  assert.doesNotMatch(context, /\*\*Open:\*\*/u);
 });
 
 Then('Stop accepts shape B and rejects the former shape A', function (this: SafewordWorld) {
@@ -612,6 +761,14 @@ Given(/^the final reply has (.+)$/u, function (this: SafewordWorld, defect: stri
     'a complete template only inside indented code': ignoredBriefs['indented code'],
     'a complete template only inside an HTML comment': ignoredBriefs['an HTML comment'],
     'a complete template only inside an HTML block': ignoredBriefs['an HTML block'],
+    'a complete template only inside a nested bullet continuation':
+      ignoredBriefs['a nested bullet continuation'],
+    'a complete template only inside an ordered-list continuation':
+      ignoredBriefs['an ordered-list continuation'],
+    'a complete template only inside an HTML declaration': ignoredBriefs['an HTML declaration'],
+    'a complete template only inside an HTML processing instruction':
+      ignoredBriefs['an HTML processing instruction'],
+    'a complete template only inside an HTML CDATA block': ignoredBriefs['an HTML CDATA block'],
     'a verdict label mentioned only in prose': `The result is **CONFIDENT** in prose.\n\n${brief(CONFIDENT.slice(1))}`,
     'required labels outside the terminal block': `**Open:** none.\n\n${brief(CONFIDENT)}`,
     'required paragraphs in the wrong order': brief([
@@ -727,7 +884,10 @@ Then(
     const state = stateFor(this);
     assert.ok(state.replies && state.evaluations);
     state.evaluations.forEach((result, index) => {
-      assert.ok(result.examinedCharacters <= (state.replies?.[index].length ?? 0) * 4);
+      assert.ok(
+        result.examinedCharacters <=
+          (state.replies?.[index].length ?? 0) * DECISION_BRIEF_MAX_WORK_FACTOR,
+      );
     });
   },
 );

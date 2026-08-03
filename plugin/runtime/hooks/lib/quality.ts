@@ -36,40 +36,97 @@ export const REPLY_FORMAT_LEAD_RULE = 'lead with the answer';
 /** Lead-only pre-response pointer: the sole cue during intentionally quiet TDD steps. */
 export const REPLY_FORMAT_LEAD = `Reply format: ${REPLY_FORMAT_LEAD_RULE}.`;
 
+export interface DecisionBriefParagraphGrammar {
+  label: string;
+  placeholder: string;
+  optional?: boolean;
+}
+
+export interface DecisionBriefVariantGrammar {
+  claim: string;
+  terminalLabel: string;
+  paragraphs: DecisionBriefParagraphGrammar[];
+}
+
+export interface DecisionBriefGrammar {
+  variants: Record<string, DecisionBriefVariantGrammar>;
+}
+
+/** One grammar drives the proactive wording, compact reminder, and Stop validation. */
+export const DECISION_BRIEF_GRAMMAR: DecisionBriefGrammar = {
+  variants: {
+    CONFIDENT: {
+      claim: '<one-line plain-English claim>.',
+      terminalLabel: 'Next',
+      paragraphs: [
+        {
+          label: 'Decided',
+          placeholder: '<1-2 sentences naming the actual choice and what changes>.',
+        },
+        {
+          label: 'Rejected',
+          placeholder:
+            '<alt — one-line reason>; <alt — one-line reason>. (Omit this paragraph entirely if no real alternatives were considered.)',
+          optional: true,
+        },
+        {
+          label: 'Open',
+          placeholder: '<resolved this turn | deferred to <ticket-or-follow-up> | none>.',
+        },
+        {
+          label: 'Next',
+          placeholder: "<one concrete imperative — what you'll do or recommend>.",
+        },
+      ],
+    },
+    BLOCKED: {
+      claim: '<one specific unknown (a question with a falsifiable answer)>.',
+      terminalLabel: 'Need',
+      paragraphs: [
+        { label: 'Tried', placeholder: '<concrete verb + object>.' },
+        {
+          label: 'Need',
+          placeholder:
+            '<unblock>. (Optional: propose one parallel action if non-blocker work exists.)',
+        },
+      ],
+    },
+  },
+};
+
+export function renderReplyFormatReminder(grammar = DECISION_BRIEF_GRAMMAR): string {
+  const endings = Object.entries(grammar.variants)
+    .map(([verdict, variant]) => `**${verdict}** ends with **${variant.terminalLabel}:**`)
+    .join('; ');
+  return `${REPLY_FORMAT_LEAD} For substantive work updates, use one decision brief: ${endings}.`;
+}
+
 /** Full pre-response pointer, used outside intentionally quiet TDD steps. */
-export const REPLY_FORMAT_REMINDER = `${REPLY_FORMAT_LEAD} For substantive work updates, use one decision brief: **CONFIDENT** ends with **Next:**; **BLOCKED** ends with **Need:**.`;
+export const REPLY_FORMAT_REMINDER = renderReplyFormatReminder();
 
-export const DECISION_BRIEF_CONTRACT = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with **Next:** for CONFIDENT or **Need:** for BLOCKED.
+export function renderDecisionBriefContract(grammar = DECISION_BRIEF_GRAMMAR): string {
+  const endings = Object.entries(grammar.variants)
+    .map(([verdict, variant]) => `**${variant.terminalLabel}:** for ${verdict}`)
+    .join(' or ');
+  const shapes = Object.entries(grammar.variants)
+    .flatMap(([verdict, variant]) => [
+      `**${verdict}** — ${variant.claim}`,
+      ...variant.paragraphs.map(paragraph => `**${paragraph.label}:** ${paragraph.placeholder}`),
+    ])
+    .join('\n\n');
 
-End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the CONFIDENT/BLOCKED line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
+  return `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with ${endings}.
+
+End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the verdict line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
 Implementation choices are yours. BLOCKED is for spec/scope/value decisions that need human input. Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
-**CONFIDENT** — <one-line plain-English claim>.
-
-**Decided:** <1-2 sentences naming the actual choice and what changes>.
-
-**Rejected:** <alt — one-line reason>; <alt — one-line reason>. (Omit this paragraph entirely if no real alternatives were considered.)
-
-**Open:** <resolved this turn | deferred to <ticket-or-follow-up> | none>.
-
-**Next:** <one concrete imperative — what you'll do or recommend>.
-
-**BLOCKED** — <one specific unknown (a question with a falsifiable answer)>.
-
-**Tried:** <concrete verb + object>.
-
-**Need:** <unblock>. (Optional: propose one parallel action if non-blocker work exists.)
+${shapes}
 
 `;
+}
 
-const DECISION_BRIEF_LABELS = {
-  CONFIDENT: [
-    ['Decided', 'Open', 'Next'],
-    ['Decided', 'Rejected', 'Open', 'Next'],
-  ],
-  BLOCKED: [['Tried', 'Need']],
-} as const;
+export const DECISION_BRIEF_CONTRACT = renderDecisionBriefContract();
 
 export interface DecisionBriefCompliance {
   compliant: boolean;
@@ -82,24 +139,38 @@ interface MarkdownParagraph {
   ignored: boolean;
 }
 
-const CONTAINER_PREFIX = /^(?: {0,3}>| {0,3}(?:[-+*]|\d+[.)])\s| {4}|\t)/u;
+/** Public test contract: all explicitly counted passes remain below this fixed factor. */
+export const DECISION_BRIEF_MAX_WORK_FACTOR = 8;
+
+const BLOCK_QUOTE_OR_CODE = /^(?: {0,3}>| {4}|\t)/u;
+const LIST_MARKER = /^( {0,3})(?:[-+*]|\d+[.)])([ \t]+)/u;
 const FENCE = /^ {0,3}(`{3,}|~{3,})/u;
 const HTML_OPEN = /^ {0,3}<([A-Za-z][\w-]*)\b[^>]*>/u;
-const VERDICT = /^\*\*(CONFIDENT|BLOCKED)\*\*\s+—\s+\S[^\n]*$/u;
-const LABEL = /^\*\*(Decided|Rejected|Open|Next|Tried|Need):\*\*\s+\S[^\n]*(?:\n[^\n]+)*$/u;
+const VERDICT = /^\*\*([^*\n]+)\*\*\s+—\s+\S[^\n]*$/u;
+const LABEL = /^\*\*([^*\n]+):\*\*\s+\S[^\n]*(?:\n[^\n]+)*$/u;
+
+interface ParagraphScan {
+  paragraphs: MarkdownParagraph[];
+  examinedCharacters: number;
+}
 
 /**
  * Extract rendered top-level paragraphs while ignoring Markdown containers that
  * can contain example templates. The scanner advances once through the input;
  * later grammar checks advance once through the retained paragraphs.
  */
-function scanTopLevelParagraphs(reply: string): MarkdownParagraph[] {
+function scanTopLevelParagraphs(reply: string): ParagraphScan {
+  const normalized = reply.replaceAll('\r\n', '\n');
+  // Count every whole-input and per-line pass. Parser changes must increment this
+  // counter where work occurs so the public bound can detect accidental rescans.
+  let examinedCharacters = reply.length + normalized.length;
   const paragraphs: MarkdownParagraph[] = [];
   let lines: string[] = [];
   let ignored = false;
   let fenceMarker: string | null = null;
-  let inHtmlComment = false;
+  let htmlEnd: string | null = null;
   let htmlTag: string | null = null;
+  let listContentIndent: number | null = null;
 
   const flush = () => {
     if (lines.length > 0) paragraphs.push({ text: lines.join('\n').trim(), ignored });
@@ -107,7 +178,8 @@ function scanTopLevelParagraphs(reply: string): MarkdownParagraph[] {
     ignored = false;
   };
 
-  for (const line of reply.replaceAll('\r\n', '\n').split('\n')) {
+  for (const line of normalized.split('\n')) {
+    examinedCharacters += line.length + 1;
     const trimmed = line.trim();
     const fence = FENCE.exec(line)?.[1];
 
@@ -121,15 +193,27 @@ function scanTopLevelParagraphs(reply: string): MarkdownParagraph[] {
       fenceMarker = fence;
     }
 
-    if (inHtmlComment || trimmed.startsWith('<!--')) {
+    if (htmlEnd) {
       ignored = true;
-      inHtmlComment = !trimmed.includes('-->');
+      if (trimmed.includes(htmlEnd)) htmlEnd = null;
+    } else if (trimmed.startsWith('<!--')) {
+      ignored = true;
+      if (!trimmed.includes('-->')) htmlEnd = '-->';
+    } else if (trimmed.startsWith('<![CDATA[')) {
+      ignored = true;
+      if (!trimmed.includes(']]>')) htmlEnd = ']]>';
+    } else if (trimmed.startsWith('<?')) {
+      ignored = true;
+      if (!trimmed.includes('?>')) htmlEnd = '?>';
+    } else if (/^<![A-Z]/u.test(trimmed)) {
+      ignored = true;
+      if (!trimmed.includes('>')) htmlEnd = '>';
     }
 
     if (htmlTag) {
       ignored = true;
       if (trimmed.toLowerCase().includes(`</${htmlTag}>`)) htmlTag = null;
-    } else if (!inHtmlComment) {
+    } else if (!htmlEnd) {
       const openingTag = HTML_OPEN.exec(line)?.[1]?.toLowerCase();
       if (openingTag) {
         ignored = true;
@@ -137,7 +221,17 @@ function scanTopLevelParagraphs(reply: string): MarkdownParagraph[] {
       }
     }
 
-    if (lines.length === 0 && CONTAINER_PREFIX.test(line)) ignored = true;
+    const listMarker = LIST_MARKER.exec(line);
+    const indentation = line.match(/^ */u)?.[0].length ?? 0;
+    if (listContentIndent !== null && trimmed !== '') {
+      if (indentation >= listContentIndent) ignored = true;
+      else listContentIndent = null;
+    }
+    if (listMarker) {
+      ignored = true;
+      listContentIndent = listMarker[1].length + listMarker[0].length - listMarker[1].length;
+    }
+    if (lines.length === 0 && BLOCK_QUOTE_OR_CODE.test(line)) ignored = true;
 
     if (trimmed === '') {
       flush();
@@ -146,35 +240,52 @@ function scanTopLevelParagraphs(reply: string): MarkdownParagraph[] {
     }
   }
   flush();
-  return paragraphs.filter(paragraph => !paragraph.ignored);
+  return {
+    paragraphs: paragraphs.filter(paragraph => !paragraph.ignored),
+    examinedCharacters,
+  };
 }
 
 /** Evaluate the canonical terminal brief with deterministic linear instrumentation. */
-export function evaluateDecisionBriefCompliance(reply: string): DecisionBriefCompliance {
+export function evaluateDecisionBriefCompliance(
+  reply: string,
+  grammar = DECISION_BRIEF_GRAMMAR,
+): DecisionBriefCompliance {
+  const scan = scanTopLevelParagraphs(reply);
+  let examinedCharacters = scan.examinedCharacters;
   const result = (compliant: boolean): DecisionBriefCompliance => ({
     compliant,
-    examinedCharacters: reply.length,
+    examinedCharacters,
   });
-  const paragraphs = scanTopLevelParagraphs(reply);
+  const paragraphs = scan.paragraphs;
   const verdicts = paragraphs.flatMap((paragraph, index) => {
+    examinedCharacters += paragraph.text.length;
     const match = VERDICT.exec(paragraph.text);
-    return match ? [{ index, verdict: match[1] as keyof typeof DECISION_BRIEF_LABELS }] : [];
+    return match && match[1] in grammar.variants ? [{ index, verdict: match[1] }] : [];
   });
   if (verdicts.length !== 1) return result(false);
 
   const [{ index: verdictIndex, verdict }] = verdicts;
-  const labelsBeforeVerdict = paragraphs
-    .slice(0, verdictIndex)
-    .some(paragraph => LABEL.test(paragraph.text));
+  const labelsBeforeVerdict = paragraphs.slice(0, verdictIndex).some(paragraph => {
+    examinedCharacters += paragraph.text.length;
+    return LABEL.test(paragraph.text);
+  });
   if (labelsBeforeVerdict) return result(false);
 
-  const labels = paragraphs
-    .slice(verdictIndex + 1)
-    .map(paragraph => LABEL.exec(paragraph.text)?.[1]);
-  const compliant = DECISION_BRIEF_LABELS[verdict].some(
+  const labels = paragraphs.slice(verdictIndex + 1).map(paragraph => {
+    examinedCharacters += paragraph.text.length;
+    return LABEL.exec(paragraph.text)?.[1];
+  });
+  const sequences = grammar.variants[verdict].paragraphs.reduce<string[][]>(
+    (variants, paragraph) => [
+      ...variants.map(sequence => [...sequence, paragraph.label]),
+      ...(paragraph.optional ? variants : []),
+    ],
+    [[]],
+  );
+  const compliant = sequences.some(
     sequence =>
-      labels.length === sequence.length &&
-      labels.every((label, index) => label === sequence[index]),
+      labels.length === sequence.length && labels.every((label, i) => label === sequence[i]),
   );
   return result(compliant);
 }
