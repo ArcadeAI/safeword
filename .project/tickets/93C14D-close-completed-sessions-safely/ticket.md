@@ -2,8 +2,8 @@
 id: 93C14D
 slug: close-completed-sessions-safely
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_skips:
   - intake: Completed before the first feature checkpoint; the scoped spec and intake work log are committed with this ticket.
   - define-behavior: Completed before the first feature checkpoint; the dimensions and scenario ledger are committed with this ticket.
@@ -33,8 +33,9 @@ phase_anchors:
   - plan-implementation: features/close-completed-sessions-safely.feature
   - implement: .project/tickets/93C14D-close-completed-sessions-safely/impl-plan.md
   - verify: .project/tickets/93C14D-close-completed-sessions-safely/test-definitions.md
+  - done: .project/tickets/93C14D-close-completed-sessions-safely/verify.md
 created: 2026-08-02T20:41:09.906Z
-last_modified: 2026-08-03T00:49:44.000Z
+last_modified: 2026-08-03T02:07:40.000Z
 ---
 
 # Close completed sessions safely
@@ -112,3 +113,12 @@ last_modified: 2026-08-03T00:49:44.000Z
   project CLI. Added a generated-runtime test that reproduced `bunx safeword`,
   resolved plugin closeout through the sealed bundled CLI, and returned the
   focused runtime and cleanup suite to 48/48 passing before re-review.
+- 2026-08-03T02:07:40.000Z Verify: The caught-up acceptance lane passed 823
+  scenarios and 29492 steps. The first full Vitest run observed one transient
+  boundary-fixture absence while another suite rebuilt `dist/cli.js`; the
+  boundary suite passed 12/12 in isolation and the complete unchanged suite
+  then passed 6349/6349 with 5 skips, alongside clean lint, build, typecheck,
+  and dependency audit evidence.
+- 2026-08-03T02:07:40.000Z Transition: All closeout behavior, host parity,
+  independent review, audit, and verification gates are green; advanced from
+  verify to done with verify.md as the final phase anchor.

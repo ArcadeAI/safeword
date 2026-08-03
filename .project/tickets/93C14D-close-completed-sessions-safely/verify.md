@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6342/6342 tests pass (5 skipped)
-**Gherkin:** ✅ Acceptance lane passes (768 scenarios passed, 3 skipped; 26695 steps passed, 4 skipped)
+**Test Suite:** ✓ 6349/6349 tests pass (5 skipped)
+**Gherkin:** ✅ Acceptance lane passes (823 scenarios passed, 3 skipped; 29492 steps passed, 4 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 76 scenarios marked complete
@@ -36,7 +36,7 @@ than hiding or broadening authority.
 
 | Affected surface | Proof command or manual check | Result |
 | --- | --- | --- |
-| Claude Code | Full Vitest suite, including `closeout-skill.test.ts`, `closeout-session-binding.test.ts`, and `closeout-host-adapters.test.ts`; hash-bound independent review | Pass — canonical installed skill, production hook binding, and all 55 expanded manual examples approved |
+| Claude Code | Full Vitest suite, including `closeout-skill.test.ts`, `closeout-session-binding.test.ts`, and `closeout-host-adapters.test.ts`; native-plugin generator, executed bundled-CLI resolution, and sealed release-contract check; hash-bound independent review | Pass — project-installed and native-plugin skills, production hook binding, offline-safe plugin dependency closure, and all 55 expanded manual examples approved |
 | OpenAI Codex | Full Vitest suite against the generated Codex profile and Codex hook adapter; hash-bound independent review | Pass — generated skill, exact-session binding, and all 55 expanded manual examples approved |
 | Cursor | Full Vitest suite against the installed command pointer and shell hook adapter; hash-bound independent review | Pass — command wiring, guarded allow bookkeeping, and all 55 expanded manual examples approved |
 
@@ -50,10 +50,14 @@ reconciliation patterns documented by the repository.
 ## Commands run
 
 - `$safeword:lint`: ESLint, formatting, and TypeScript checks passed.
-- `$safeword:verify` generated plan: 418 Vitest files passed; 6342 tests passed and 5 skipped.
-- Acceptance lane: 768 scenarios passed and 3 skipped; 26695 steps passed and 4 skipped.
+- `$safeword:verify` generated plan: 420 Vitest files passed; 6349 tests passed and 5 skipped.
+- Acceptance lane: 823 scenarios passed and 3 skipped; 29492 steps passed and 4 skipped.
 - Build and declaration generation succeeded.
 - TypeScript typecheck succeeded.
 - `bun audit` found no vulnerabilities.
+- Native Claude plugin generation and sealed release-contract validation succeeded.
 - `$safeword:audit`: passed with the diff-scoped limitations recorded above.
 
+The first caught-up full run observed one transient missing `dist/cli.js` in the boundary
+fixture while another suite was rebuilding it. The boundary suite then passed 12/12 in
+isolation, and the complete unchanged Vitest suite passed 6349/6349 on rerun.
