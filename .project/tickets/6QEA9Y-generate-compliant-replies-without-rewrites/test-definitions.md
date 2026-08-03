@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a0691b36f
 - [x] GREEN ee2d9f183
-- [ ] REFACTOR
+- [x] REFACTOR skip: shared variant table is already the smallest clear structure
 
 ### Scenario: A near-complete first reply cannot silently pass
 
