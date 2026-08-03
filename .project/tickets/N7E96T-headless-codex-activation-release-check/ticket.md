@@ -2,8 +2,8 @@
 id: N7E96T
 slug: headless-codex-activation-release-check
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1798
 scope:
   - "Add a shared headless Codex activation-check harness that selects an explicit model, runs one minimal tool-using task, and validates exact current hook proof from structured profile files."
@@ -19,7 +19,7 @@ done_when:
   - "A structured unsupported-model event fails with the selected model, Codex CLI version, and retry action while unrelated stderr warnings remain separately inspectable."
   - "The opt-in live smoke uses an explicit model and the same structured proof assertions, and the release procedure names both commands without equating headless proof with Desktop restart."
 created: 2026-08-03T01:32:26.403Z
-last_modified: 2026-08-03T02:18:00.000Z
+last_modified: 2026-08-03T02:45:36.000Z
 ---
 
 # Make headless Codex activation release checks reliable
@@ -46,3 +46,4 @@ last_modified: 2026-08-03T02:18:00.000Z
 - 2026-08-03T01:56:32.000Z Wired: Replaced the live smoke's one-hook conversational probe with the shared explicit-model validator, asserted all five cached hook commands, and documented deterministic plus authenticated release commands. Tightened marker and receipt identity/timestamp checks during self-review. The live suite compiles and skips locally because installed `codex-cli 0.141.0` is below its 0.144.5 minimum.
 - 2026-08-03T02:05:30.000Z Quality review: First pass requested lower complexity and upper timestamp bounds. Split marker/receipt predicates, observed a future-proof regression fail, then bounded proof and receipt timestamps to the task interval. Four focused integrations, ESLint, and TypeScript pass; fresh re-review started.
 - 2026-08-03T02:18:00.000Z Quality re-review: Current OpenAI model guidance requires ChatGPT-authenticated saved `codex exec` uses to move from retiring `gpt-5.4` to `gpt-5.6-terra`. Updated the deterministic default and release command; retained the 0.144.5 smoke floor because explicit GPT-5.6 selection is supported there and the floor also protects plugin-hook behavior.
+- 2026-08-03T02:45:36.000Z Verified: Final quality review approved with no critical issues. Focused activation coverage passes 4/4; the full suite passed 6,247 tests with 6 unrelated timeout failures that all passed in a 100-test isolated rerun; Gherkin passed 823 runnable scenarios; build, lint, typecheck, dependency audit, and diff audit are clean. Wrote `verify.md` with the local live-smoke limitation.
