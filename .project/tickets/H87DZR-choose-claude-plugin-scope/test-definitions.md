@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: whole-ticket quality review found the repository-root mismatch by tracing status and cleanup from a nested working directory; the added regression passed after the corrective patch
 - [x] GREEN b644033fe
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonical project identity now enters status once and is passed through focused status and cleanup helpers; no second repository-root policy remains
 
 ### Scenario: Status reports overlapping applicable installations without changing either
 
