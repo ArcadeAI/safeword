@@ -12,6 +12,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -2231,6 +2232,33 @@ Given(
       installPath: string;
     };
     appendFileSync(nodePath.join(state.installPath, 'hooks/hooks.json'), ' ');
+  },
+);
+
+Given(
+  'an exact project installation is recorded at the canonical project root',
+  function (this: NativeClaudePluginWorld) {
+    createExactScopedFixture(this, 'project');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    state.projectPath = realpathSync(this.lifecycle.project);
+    for (const plugin of state.plugins) plugin.projectPath = state.projectPath;
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+  },
+);
+
+Given(
+  'the project is accessed through a filesystem alias',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const alias = nodePath.join(this.lifecycle.root, 'project-alias');
+    symlinkSync(this.lifecycle.project, alias, 'dir');
+    this.lifecycle.project = alias;
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(alias);
   },
 );
 

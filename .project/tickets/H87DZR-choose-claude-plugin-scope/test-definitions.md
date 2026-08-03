@@ -76,6 +76,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 132bbabf2
 - [x] REFACTOR skip: the no-op proof reuses the same exact-install observer and asserts the public effect contract directly
 
+### Scenario: A filesystem alias does not create a duplicate project installation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Damaged selected-scope cache is not mistaken for an idempotent installation
 
 - [x] RED skip: exact metadata already reached native payload verification before declaring a no-op; both damaged-cache scope examples passed immediately

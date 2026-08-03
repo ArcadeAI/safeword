@@ -133,6 +133,13 @@ Feature: Choose where Safeword runs in Claude
         | project        |
         | user           |
 
+    Scenario: A filesystem alias does not create a duplicate project installation
+      Given an exact project installation is recorded at the canonical project root
+      And the project is accessed through a filesystem alias
+      When safeword claude install runs with --scope project
+      Then selected-scope plugin and marketplace state are byte-identical
+      And the result reports no completed mutation
+
     @rejection
     Scenario Outline: Damaged selected-scope cache is not mistaken for an idempotent installation
       Given the selected <selected-scope> installation reports the exact version from a damaged cache
