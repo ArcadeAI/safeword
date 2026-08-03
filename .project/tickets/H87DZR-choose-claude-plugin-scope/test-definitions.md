@@ -52,7 +52,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: User installation leaves the repository unchanged
 
-- [ ] RED
+- [x] RED 62f5edff2
 - [ ] GREEN
 - [ ] REFACTOR
 
