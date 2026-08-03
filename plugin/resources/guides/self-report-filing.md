@@ -78,8 +78,8 @@ sanitized drafts to disk instead of losing them
 
 **Prefer the subagent.** When the `safeword-retro-filer` agent is available,
 dispatch it (foreground) with the spool path and do nothing else: it owns the
-dedup/verbatim/cap procedure, **drains the spool afterward** (that is the ack that
-stops re-dispatch), and keeps all filing work out of the conversation. Do not
+dedup/verbatim/cap procedure, **writes and verifies an acknowledgement, then drains**
+(which stops re-dispatch), and keeps all filing work out of the conversation. Do not
 narrate or summarize the filing in that or later responses — the subagent's
 one-line summary is the entire visible trace.
 
@@ -119,15 +119,25 @@ with two differences:
    to that issue permanently while discarding the draft. Only a confirmed marker
    joins a draft to an existing issue.
 
-3. **Write the ack record, then drain.** After each successful post, append one
+3. **Write the ack record, then use the guarded drain.** After each successful post, append one
    `{"signature": ..., "issue": ...}` ack line to the spool's sibling ack file
-   (`.acks.jsonl` in place of `.jsonl`), then rewrite the spool with only the
-   drafts you did not file (delete it when none remain). The acks are what
+   (`.acks.jsonl` in place of `.jsonl`), then re-read the ack file and exact-match
+   the signature and destination. Only a draft with that write-confirmed record
+   may be removed. If append or verification fails, retain it. Then run
+   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>"`; never rewrite or
+   delete the spool directly. The helper re-reads both files and removes only
+   acknowledged drafts. The acks are what
    prove the drain honest — a drain without them trips safeword's bare-drain
    telemetry. Post the bodies exactly as spooled — the signature marker in
    each body is what dedup depends on, and each body is sealed by its
    `bodyDigest` (code-owned filing paths refuse a modified body —
    `hooks/lib/retro-draft-spool.ts` `verifyDraftBody`).
+
+The guarded helper makes the supported drain path structurally refuse missing
+acks. An agent with unrestricted filesystem authority could still bypass it by
+editing the spool directly; the Stop tripwire detects that violation after the
+fact but cannot restore the finding. That is an explicit enforcement limit, not
+a guarantee supplied by prompt text.
 
 ## Config
 

@@ -2,30 +2,40 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6245/6245 tests pass (5 skipped)
-**Gherkin:** ✅ Acceptance lane passes (768 runnable root scenarios; 3 skipped; 278/278 package scenarios)
-**Build:** ✅ Success
+**Test Suite:** ✓ 6258/6258 tests pass (5 skipped)
+**Gherkin:** ✅ Acceptance lane passes (768/768 runnable scenarios; 3 skipped)
+**Build:** ⏭️ Skipped — no build step
 **Lint:** ✅ Clean
 **Scenarios:** All 0 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
-**Experience:** ⚠️ Nudge wording is pinned and exercised through the real Bun hook boundary; no live NTB/TBU walkthrough was run
-**Surface Evidence:** ✅ 3/3 affected code-owned surfaces have recorded proof
-**Evidence limits:** ⚠️ Claude/Cursor/Codex prompt compliance is not exercised by a live agent run. The shipped guarded drain is structural, but an agent with unrestricted filesystem authority can still bypass it; the Stop tripwire detects that after the fact.
+**Experience:** ✅ No new friction — Walked the Non-Technical Builder through the queued-finding nudge and guarded filing flow; worst step = understanding why an unacknowledged finding remains queued for a deduplicated retry; new steps vs before = 0
+**Surface Evidence:** ⚠️ 3 unproven/limited (live Claude, Cursor, and Codex compliance); 3/3 code-owned surfaces have recorded proof
+**Evidence limits:** ⚠️ Claude/Cursor/Codex prompt compliance is not exercised by a live agent run. The guarded drain is structural for supported callers, but an agent with unrestricted filesystem authority can still bypass it; the Stop tripwire detects that after the fact.
+
+Audit passed with no diff-scoped findings.
 
 ## Surface Evidence
 
-| Affected surface | Proof | Result |
+| Affected surface | Proof command or manual check | Result |
 | --- | --- | --- |
-| CLI retro triage → spool drain | `packages/cli/tests/commands/retro.test.ts` and `packages/cli/src/retro/triage.test.ts` | Destination issues are acknowledged; failed ack writes retain drafts |
+| Safeword CLI retro triage → spool drain | `packages/cli/tests/commands/retro.test.ts` and `packages/cli/src/retro/triage.test.ts` | Destination issues are acknowledged; failed acknowledgement writes retain drafts |
 | Guarded agent drain helper | `packages/cli/tests/hooks/retro-filing.test.ts` | Real Bun subprocess removes only drafts with reader-visible destination acknowledgements |
 | UserPromptSubmit nudge | `packages/cli/tests/integration/prompt-retro-nudge.test.ts` | Real Bun subprocess emits time-bounded observed state through the hook adapter |
+| Claude Code filer | `packages/cli/tests/hooks/retro-filer-agent-defs.test.ts`; no live-agent run | Installed agent and skill invoke the guarded helper; runtime compliance remains limited |
+| Cursor filer | `packages/cli/tests/hooks/retro-filer-agent-defs.test.ts`; no live-agent run | Installed agent invokes the guarded helper; runtime compliance remains limited |
+| OpenAI Codex filer | `packages/cli/tests/hooks/retro-filer-agent-defs.test.ts`; no live-agent run | Shipped skill invokes the guarded helper; runtime compliance remains limited |
 
-Dependency audit passed with no vulnerabilities.
+## Current-run evidence
 
-Post-review hardening: 132/132 focused tests pass across CLI filing, guarded
-agent draining, shipped filer definitions, nudge behavior, real Bun subprocess
-boundaries, and schema registration. Full package lint (ESLint, Gherkin lint,
-and TypeScript) passes after the final changes.
+- `$safeword:verify` invocation proof: recorded for the current run.
+- Generated verify plan: 413 test files passed; 6,258 tests passed; 5 skipped.
+- Gherkin lane: 768 runnable scenarios passed; 3 skipped; 26,695 steps passed; 4 skipped.
+- Typecheck: `tsc --noEmit` passed.
+- Dependency audit: no vulnerabilities found.
+- Lint workflow: ESLint, Prettier, and TypeScript completed without changes or errors.
+- Dependency drift: runtime architectural dependencies are documented in `ARCHITECTURE.md`; no dependency manifests changed in this PR.
+- PR scope: all branch-only files implement, test, document, or verify GitHub issue #1805.
+- CI diagnosis: the original run merged the branch with a newer native-plugin contract and exposed omitted generated mirrors. The branch now includes the canonical dogfood skill and regenerated Claude plugin artifacts; CI rerun is required after push.
