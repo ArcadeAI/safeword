@@ -2,11 +2,12 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6349/6349 tests pass (5 skipped)
+**Test Suite:** ✓ 6465/6465 tests pass (5 skipped)
 **Gherkin:** ✅ Acceptance lane passes (823 scenarios passed, 3 skipped; 29492 steps passed, 4 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 76 scenarios marked complete
+**Live headless extraction:** ✅ Real authenticated Claude Sonnet and Codex gpt-5.5 production adapters returned schema-valid findings
+**Scenarios:** All 79 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -36,9 +37,9 @@ than hiding or broadening authority.
 
 | Affected surface | Proof command or manual check | Result |
 | --- | --- | --- |
-| Claude Code | Full Vitest suite, including `closeout-skill.test.ts`, `closeout-session-binding.test.ts`, and `closeout-host-adapters.test.ts`; native-plugin generator, executed bundled-CLI resolution, and sealed release-contract check; hash-bound independent review | Pass — project-installed and native-plugin skills, production hook binding, offline-safe plugin dependency closure, and all 55 expanded manual examples approved |
-| OpenAI Codex | Full Vitest suite against the generated Codex profile and Codex hook adapter; hash-bound independent review | Pass — generated skill, exact-session binding, and all 55 expanded manual examples approved |
-| Cursor | Full Vitest suite against the installed command pointer and shell hook adapter; hash-bound independent review | Pass — command wiring, guarded allow bookkeeping, and all 55 expanded manual examples approved |
+| Claude Code | Full Vitest suite, including `closeout-skill.test.ts`, `closeout-session-binding.test.ts`, and `closeout-host-adapters.test.ts`; native-plugin generator, executed bundled-CLI resolution, private Git-common-dir verification-receipt resume workflows, and sealed release-contract check; hash-bound independent review | Pass — project-installed and native-plugin skills, production hook binding, offline-safe plugin dependency closure, fail-closed partial-resume cleanup, and all 58 expanded manual examples approved |
+| OpenAI Codex | Full Vitest suite against the generated Codex profile and Codex hook adapter, including exact-head receipt publication and partial-resume coverage; hash-bound independent review | Pass — generated skill, exact-session binding, fail-closed resumed cleanup, and all 58 expanded manual examples approved |
+| Cursor | Full Vitest suite against the installed command pointer and shell hook adapter, including exact-head receipt publication and partial-resume coverage; hash-bound independent review | Pass — command wiring, guarded allow bookkeeping, fail-closed resumed cleanup, and all 58 expanded manual examples approved |
 
 ## Scope and architecture
 
@@ -50,14 +51,24 @@ reconciliation patterns documented by the repository.
 ## Commands run
 
 - `$safeword:lint`: ESLint, formatting, and TypeScript checks passed.
-- `$safeword:verify` generated plan: 420 Vitest files passed; 6349 tests passed and 5 skipped.
+- `$safeword:verify` generated plan: 426 Vitest files passed; 6465 tests passed and 5 skipped.
 - Acceptance lane: 823 scenarios passed and 3 skipped; 29492 steps passed and 4 skipped.
 - Build and declaration generation succeeded.
 - TypeScript typecheck succeeded.
-- `bun audit` found no vulnerabilities.
+- `bun audit` found no vulnerabilities after updating the pinned transitive
+  releases for `brace-expansion`, `fast-uri`, and PostCSS to the exact patched
+  versions published during verification.
+- Live-fire Claude: the production `buildAutoExtractor` invoked real `claude -p`
+  with the shipped Sonnet default and returned one schema-valid `bug` finding on
+  the supplied SafeWord surface in 9.9 seconds.
+- Live-fire Codex: the production `buildAutoExtractor` invoked real `codex exec`
+  with the shipped gpt-5.5 default, output schema, ignored user config, disabled
+  hooks/MCP, closed stdio, and read-only sandbox; it returned one schema-valid
+  `bug` finding on the supplied SafeWord surface in 11.2 seconds.
+- Both live-fire fixtures were isolated under the system temporary directory and
+  removed after the run; no GitHub, branch, worktree, or customer workspace state
+  was mutated.
 - Native Claude plugin generation and sealed release-contract validation succeeded.
 - `$safeword:audit`: passed with the diff-scoped limitations recorded above.
 
-The first caught-up full run observed one transient missing `dist/cli.js` in the boundary
-fixture while another suite was rebuilding it. The boundary suite then passed 12/12 in
-isolation, and the complete unchanged Vitest suite passed 6349/6349 on rerun.
+The final caught-up verification run completed without failures or local evidence limits.

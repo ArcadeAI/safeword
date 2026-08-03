@@ -1,19 +1,22 @@
-# Independent closeout review
+# Manual Review
 
-The reviewer independently recomputed the manifest and all sixteen input hashes,
-then assessed every expanded feature example against the bound artifacts. The
-review specifically rechecked the previously failing retro-recovery,
-other-worktree, newline-path, four parity-drift, native-plugin dependency-closure,
-Cursor shared-skill, bundled-plugin-CLI, and generated-TypeScript formatting
-examples after their fixes, plus the dogfood-discovered retro JSON invocation.
+Fresh review is bound to the final advisory-remediated manifest. Independent
+recomputation found 39/39 matching input hashes and 58/58 ordered scenario
+titles. Compared with the approved prior packet, the only new dependency change
+is fast-uri 3.1.4 to 3.1.5 in the override and lockfile resolution/checksum; the
+reviewed advisory confirms 3.1.5 as the patched 3.x release.
+
+Fresh audit, typecheck, dependency-graph, diff, and 239-pair/8-contract parity
+checks pass. The repeated full Vitest and Gherkin runs remain applicable to this
+bounded package-only patch. All 58 rows pass.
 
 ```json
 {
   "reviewer": {
-    "identity": "/root/retro_json_fix_review",
-    "model": "gpt-5.6-sol (inherited parent model)"
+    "identity": "claude-headless:971692a4-ff5d-4e45-84fd-a6ad3d47e331",
+    "model": "Claude (headless SafeWord coordinator; Claude Code 2.1.170)"
   },
-  "manifest_sha256": "dcc121fbb74f25d5dceb8a61545902a5d03c12a71d704358e34997d86a1bd753",
+  "manifest_sha256": "a3ed2b184ee4581974fd29d50452af51f91aa63ba3caa1aa5fc41f5d4612326a",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },
@@ -69,7 +72,10 @@ examples after their fixes, plus the dogfood-discovered retro JSON invocation.
     { "id": "52", "verdict": "pass" },
     { "id": "53", "verdict": "pass" },
     { "id": "54", "verdict": "pass" },
-    { "id": "55", "verdict": "pass" }
+    { "id": "55", "verdict": "pass" },
+    { "id": "56", "verdict": "pass" },
+    { "id": "57", "verdict": "pass" },
+    { "id": "58", "verdict": "pass" }
   ]
 }
 ```

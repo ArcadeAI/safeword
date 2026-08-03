@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -43,6 +43,26 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     );
   });
 
+  it('matches the generated native-plugin guard command without matching arbitrary resources', () => {
+    expect(
+      commandInvokesCloseoutCleanup(
+        'bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts --pr 42',
+      ),
+    ).toBe(true);
+    expect(
+      commandInvokesCloseoutCleanup(
+        'bun /plugins/safeword/resources/scripts/closeout-cleanup.ts --pr 42',
+        '/plugins/safeword',
+      ),
+    ).toBe(true);
+    expect(
+      commandInvokesCloseoutCleanup(
+        'bun /other/resources/scripts/closeout-cleanup.ts --pr 42',
+        '/plugins/safeword',
+      ),
+    ).toBe(false);
+  });
+
   it('binds one runtime session and optional exact transcript for one fresh consumer', () => {
     const projectDirectory = project();
     const now = new Date('2026-08-02T12:00:00.000Z');
@@ -59,6 +79,7 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(readFreshCloseoutBinding({ projectDirectory, now })).toEqual({
       runtime: 'cursor',
       id: 'conversation-42',
+      projectRoot: realpathSync(projectDirectory),
       transcriptPath: '/exact/conversation-42.jsonl',
     });
     expect(readFreshCloseoutBinding({ projectDirectory, now })).toBeUndefined();

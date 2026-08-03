@@ -41,6 +41,18 @@ Feature: Close completed sessions safely
   Rule: close-completed-sessions-safely.NTB1.R2 — Retrospective capture is a mandatory prerequisite to destructive cleanup
 
     @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario Outline: Retro extraction runs in the bound host runtime
+      Given the closeout command is bound to a "<host>" session and its exact transcript
+      When closeout runs the mandatory retrospective
+      Then it selects the "<extractor>" headless extractor
+
+      Examples:
+        | host          | extractor    |
+        | Claude Code   | Claude Code  |
+        | OpenAI Codex  | OpenAI Codex |
+        | Cursor        | Cursor Agent |
+
+    @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: A completed retro permits cleanup
       Given the pull request is confirmed merged
       And retro completed with "<result>"
