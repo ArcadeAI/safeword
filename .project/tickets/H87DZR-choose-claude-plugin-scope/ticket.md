@@ -2,7 +2,7 @@
 id: H87DZR
 slug: choose-claude-plugin-scope
 type: feature
-phase: plan-implementation
+phase: implement
 status: in_progress
 scope:
   - make project-scoped Claude plugin installation the default
@@ -27,7 +27,7 @@ phase_anchors:
   - scenario-gate: features/choose-claude-plugin-scope.feature
   - plan-implementation: .project/tickets/H87DZR-choose-claude-plugin-scope/impl-plan.md
 created: 2026-08-03T03:21:19.035Z
-last_modified: 2026-08-03T03:48:44.000Z
+last_modified: 2026-08-03T03:55:55.000Z
 ---
 
 # Choose where Safeword runs in Claude
@@ -46,3 +46,4 @@ last_modified: 2026-08-03T03:48:44.000Z
 - 2026-08-03T03:40:00.000Z Host evidence: An isolated Claude 2.1.170 profile proved that project installation records the marketplace and enabled plugin in `.claude/settings.json`, user and project declarations can coexist, `plugin list --json` reports both entries against one shared cache path, and project entries include `projectPath`. Another repository's project entry remains visible in the profile-wide list, so applicability must filter by canonical current-project identity rather than selecting the first plugin entry.
 - 2026-08-03T03:43:00.000Z Design convergence: Chose one `--scope project|user` interface with project as the default. Separate commands would duplicate the lifecycle, while automatic cross-scope migration would exceed authority and could disrupt other repositories. The implementation will model scoped declarations separately from Claude's shared cache, report overlap, and require an explicit native scope-removal action.
 - 2026-08-03T03:48:44.000Z Plan gate: Independent review challenged architecture sequencing, live-host proof, scoped marketplace observation, canonical project identity, and cleanup-proof authority. The revised eight-slice plan resolves each concern with an architecture-first boundary, pre-status four-direction host gate, separate declaration/cache algorithms, one shared realpath identity contract, and per-project atomic proof v2. Final re-review returned PASS.
+- 2026-08-03T03:55:55.000Z Phase: plan-implementation → implement. The user approved the reviewed single-ticket direction; its eight ordered slices remain coupled through one scoped declaration observer and cleanup-authority model, so implementation proceeds without splitting.
