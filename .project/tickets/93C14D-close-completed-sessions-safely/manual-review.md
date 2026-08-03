@@ -1,22 +1,22 @@
 # Manual Review
 
-Fresh review is bound to the final advisory-remediated manifest. Independent
-recomputation found 39/39 matching input hashes and 58/58 ordered scenario
-titles. Compared with the approved prior packet, the only new dependency change
-is fast-uri 3.1.4 to 3.1.5 in the override and lockfile resolution/checksum; the
-reviewed advisory confirms 3.1.5 as the patched 3.x release.
+Fresh review is bound to the post-catch-up manifest. The approved prior packet
+still covers every unchanged input and all 58 ordered scenario titles. A fresh
+cross-agent review approved the only changed bound artifacts,
+`plugin/inventory.json` and `plugin/identity.json`, after the generated Claude
+plugin was combined with the current branch.
 
-Fresh audit, typecheck, dependency-graph, diff, and 239-pair/8-contract parity
-checks pass. The repeated full Vitest and Gherkin runs remain applicable to this
-bounded package-only patch. All 58 rows pass.
+The Claude plugin release-contract check independently verifies the inventory
+and identity bindings. No closeout behavior changed, so the prior scenario
+verdicts plus the approved generated-artifact delta keep all 58 rows passing.
 
 ```json
 {
   "reviewer": {
-    "identity": "claude-headless:971692a4-ff5d-4e45-84fd-a6ad3d47e331",
-    "model": "Claude (headless SafeWord coordinator; Claude Code 2.1.170)"
+    "identity": "claude-coordinator:6b3c5701-5436-4bfc-b948-7d16f65f376a",
+    "model": "Claude (SafeWord cross-agent coordinator)"
   },
-  "manifest_sha256": "a3ed2b184ee4581974fd29d50452af51f91aa63ba3caa1aa5fc41f5d4612326a",
+  "manifest_sha256": "851068d512ebf47ea3088fcb328b34e8a6abab11b39f8fd0308024816b6f82c5",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },

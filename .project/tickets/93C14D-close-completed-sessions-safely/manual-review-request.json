@@ -1,7 +1,7 @@
 {
   "version": 1,
   "ticket": "93C14D",
-  "created_at": "2026-08-03T20:00:52Z",
+  "created_at": "2026-08-03T23:20:45Z",
   "inputs": [
     {
       "path": ".project/tickets/93C14D-close-completed-sessions-safely/impl-plan.md",
@@ -105,11 +105,11 @@
     },
     {
       "path": "plugin/identity.json",
-      "sha256": "d65bf67cc1049f554e30ee51b69ba6f8c4d82ad32cd05ee2b5a522f018be0291"
+      "sha256": "58518d4337ea13ccf5303e75efae09eb6577cde75c822749d7f88cdacdcac364"
     },
     {
       "path": "plugin/inventory.json",
-      "sha256": "223a941d19bd991fc5ffd761bd663de0c16e31ab4f5965cecc4013de9e83a10c"
+      "sha256": "6d61fa3a9e1b2b9c1f0195c7c2798a97fc9350709658be5ce33955fef5a9bec7"
     },
     {
       "path": "packages/cli/tests/closeout-skill.test.ts",
