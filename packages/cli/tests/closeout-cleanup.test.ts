@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyCleanupPlan,
   buildCleanupPlan,
+  classifyRetroFailure,
   cleanupPlanDigest,
   type CloseoutObservation,
   defaultBranchArguments,
@@ -71,6 +72,21 @@ function runGit(...arguments_: string[]): string {
 }
 
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
+  it.each([
+    [true, '', false, 0, undefined],
+    [false, 'Retro extraction failed.', false, 0, 'extraction'],
+    [false, '', true, 0, 'filing'],
+    [false, '', false, 1, 'filing'],
+    [false, 'malformed output', false, 0, 'unknown'],
+  ] as const)(
+    'classifies the current retro outcome (%s, %s, %s, %s)',
+    (complete, errorText, agentFilingNeeded, pendingDrafts, expected) => {
+      expect(classifyRetroFailure({ complete, errorText, agentFilingNeeded, pendingDrafts })).toBe(
+        expected,
+      );
+    },
+  );
+
   it('resolves the project-local SafeWord CLI before the package runner fallback', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-cli-'));
     try {
