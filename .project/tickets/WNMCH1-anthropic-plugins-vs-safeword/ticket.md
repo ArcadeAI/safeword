@@ -2,10 +2,10 @@
 id: WNMCH1
 slug: anthropic-plugins-vs-safeword
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-07-19T16:06:08.779Z
-last_modified: 2026-07-19T16:06:08.779Z
+last_modified: 2026-07-31T03:25:00.000Z
 external_issue: 1166
 ---
 
@@ -60,3 +60,4 @@ PRs: #1160 (§1–§7, merged) · #1290 (§8 follow-up).
 - 2026-07-19T16:19Z Added §7 action candidates to comparison.md (gaps to borrow + overlap to sharpen) and summarized recommended first moves here.
 - 2026-07-19T17:03Z Filed epic #1166 + 11 sub-issues (#1167–#1177) on ArcadeAI/safeword; linked external_issue: 1166. Structure decided via /figure-it-out (epic + all 11, tiered).
 - 2026-07-21T03:48Z PR #1160 merged. Restarted branch from origin/main and added §8 (product-management + design role plugins from anthropics/knowledge-work-plugins) as follow-up; added borrow candidates G7 (connector-agnostic `~~category` pattern) and S6 (write-spec PM rigor → spec/self-review).
+- 2026-07-31T03:25:00.000Z Completed: Release reconciliation confirmed the comparison deliverable and its GitHub follow-up decomposition are complete; epic #1166 remains open for the broader implementation backlog.

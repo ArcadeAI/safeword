@@ -89,7 +89,7 @@ export interface RetroChildInvocation {
 }
 
 /**
- * Build the `safeword retro` argv the Stop hook spawns out-of-band. Forwards the
+ * Build the `safeword retro run` argv the Stop hook spawns out-of-band. Forwards the
  * delta window offset and the resolved session id (ZFGWS1) so the child digests
  * only the new window and attributes findings to the real session — not the
  * 'unknown' fallback its own env resolves to in cloud.
@@ -97,6 +97,7 @@ export interface RetroChildInvocation {
 export function retroChildArgs(invocation: RetroChildInvocation): string[] {
   return [
     'retro',
+    'run',
     '--auto-extract',
     '--transcript',
     invocation.transcriptPath,
@@ -131,7 +132,7 @@ export function isRetroChild(env: Record<string, string | undefined>): boolean {
 
 /**
  * Override for the command the Stop hook spawns to run the extraction CLI. When
- * set, the hook spawns this command verbatim instead of resolving `safeword retro
+ * set, the hook spawns this command verbatim instead of resolving `safeword retro run
  * --auto-extract`. A test/advanced seam so the hook's invisibility can be proven
  * without launching a real headless `claude -p`.
  */

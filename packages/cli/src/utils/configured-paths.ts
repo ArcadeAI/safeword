@@ -18,11 +18,12 @@
 
 import nodePath from 'node:path';
 
-import { isDirectory, readFileSafe } from './fs.js';
+import { exists, isDirectory, readFileSafe } from './fs.js';
 import { toRepoDirectory } from './repo-path.js';
 
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
-export type ConfiguredPathKey = 'personas' | 'glossary' | 'surfaces' | 'architecture';
+export type ConfiguredPathKey =
+  'principles' | 'personas' | 'glossary' | 'surfaces' | 'architecture';
 
 /**
  * Directory keys under `paths.*` (unlike ConfiguredPathKey, these point at
@@ -55,12 +56,18 @@ interface SafewordConfigShape {
 }
 
 const CONFIG_SUBPATH = ['.safeword', 'config.json'];
+const SAFEWORD_PROJECT_MARKER_SUBPATH = ['.safeword', 'SAFEWORD.md'];
 
 /** Default namespace root for fresh contexts (epic AQJ95G). */
 const NAMESPACE_ROOT_DEFAULT = '.project';
 
 /** Legacy namespace root, honored where it already exists (pre-AQJ95G installs). */
 export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
+
+/** True after explicit Safeword setup has enrolled this repository. */
+export function hasSafewordProjectMarker(cwd: string): boolean {
+  return exists(nodePath.join(cwd, ...SAFEWORD_PROJECT_MARKER_SUBPATH));
+}
 
 function readSafewordConfig(cwd: string): SafewordConfigShape | undefined {
   const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);
@@ -114,7 +121,7 @@ function parseGitDocumentationSource(
  * empty, non-string, or the config file is missing/unparseable.
  *
  * Exported for callers that need to know "is this overridden?" without
- * resolving the path (e.g., reconcile's `configKey` gate, `safeword check`
+ * resolving the path (e.g., reconcile's `configKey` gate, `safeword doctor`
  * advisory messaging).
  */
 export function readConfiguredPath(
@@ -173,7 +180,7 @@ export function readBddConventionsPath(cwd: string): string | undefined {
  * design: an unparseable config never silently disables enforcement.
  *
  * Read by both enforcement surfaces — the commit-time stage hook and the CI
- * `safeword architecture --check` backstop.
+ * `safeword project architecture --check` backstop.
  */
 export function isArchitectureDocumentEnforcementEnabled(cwd: string): boolean {
   const parsed = readSafewordConfig(cwd);
@@ -224,7 +231,7 @@ export function readConfiguredDocumentationSourceDecision(
 
 /**
  * Resolve the absolute namespace root — the directory holding safeword's
- * project knowledge (tickets, learnings, personas, glossary, surfaces,
+ * project knowledge (tickets, learnings, principles, personas, glossary, surfaces,
  * architecture).
  *
  * Precedence (epic AQJ95G): explicit config `paths.projectRoot` →

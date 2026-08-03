@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 import YAML from 'yaml';
 
 import { exists } from '../../utils/fs.js';
+import { warn } from '../../utils/output.js';
 import type { FileDefinition, ManagedFileDefinition } from '../types.js';
 
 // ============================================================================
@@ -146,7 +147,7 @@ function generateSafewordGolangciConfig(existingConfig: string | undefined, cwd:
       projectConfig.version === '2' ? getSafewordGolangciMergedV2 : getSafewordGolangciMergedV1;
     return merge(projectConfig);
   } catch {
-    console.warn(`Safeword: Could not parse ${existingConfig}, using standalone config`);
+    warn(`Safeword: Could not parse ${existingConfig}, using standalone config`);
     return getSafewordGolangciStandalone();
   }
 }
@@ -207,7 +208,7 @@ function getSafewordGolangciMergedV2(projectConfig: Record<string, unknown>): st
 
   const header = `# Safeword golangci-lint config - merged with project config
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
-# Re-run \`safeword upgrade\` to regenerate after project config changes.
+# Re-run \`safeword setup\` to regenerate after project config changes.
 #
 # NOTE: Safeword adds linters via 'enable' without changing your 'default'.
 # Your disable list and exclusion presets are preserved (union, not replaced).
@@ -241,7 +242,7 @@ function getSafewordGolangciMergedV1(projectConfig: Record<string, unknown>): st
   const header = `# Safeword golangci-lint config - merged with project config (v1 format)
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
 # NOTE: Consider migrating to golangci-lint v2 format.
-# Re-run \`safeword upgrade\` to regenerate after project config changes.
+# Re-run \`safeword setup\` to regenerate after project config changes.
 
 `;
 

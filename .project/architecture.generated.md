@@ -17,7 +17,9 @@ No description yet — awaiting prose.
 
 <!-- reconciled: 1e55c179bf16515fa833d76481d8121076cb04113e232c3a3165128268346a5b -->
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: bb96649c1856da48404d2947f629c655acaf288614d4a62c50458349e8c7c062 -->
+
+Documentation site for Safeword installation, workflows, and CLI reference
 
 ### safeword
 

@@ -467,6 +467,20 @@ export async function runCliWithoutInstall(
   });
 }
 
+/** Preview and then apply the exact destructive plan required by remove/reset. */
+export async function runConfirmedRemoval(
+  cwd: string,
+  options: { full?: boolean; command?: 'remove' | 'reset' } = {},
+): Promise<CliResult> {
+  const command = options.command ?? 'reset';
+  const fullArguments = options.full ? ['--full'] : [];
+  const preview = await runCli([command, ...fullArguments, '--json', '--no-input'], { cwd });
+  const envelope = JSON.parse(preview.stdout) as { data?: { plan?: { id?: string } } };
+  const planId = envelope.data?.plan?.id;
+  if (typeof planId !== 'string') return preview;
+  return runCli([command, ...fullArguments, '--yes', '--plan', planId], { cwd });
+}
+
 /**
  * Runs the CLI synchronously (for simple tests)
  * @param args

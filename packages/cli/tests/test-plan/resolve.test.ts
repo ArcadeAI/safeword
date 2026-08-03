@@ -373,15 +373,60 @@ describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => 
     expect(entryFor(plan, 'rust')?.runner).toBe('cargo-deny');
   });
 
-  it('is Rust-only — never emits JS/Python/Go entries', () => {
+  it('emits ecosystem-native supply-chain checks for every detected language', () => {
     const root = makeRepo({
       'pyproject.toml': '[project]\nname="x"\n',
       'go.mod': 'module x\n',
       'Cargo.toml': '[package]\nname="x"\n',
       'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'bun.lock': '',
     });
     const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
-    expect(languages(plan)).toEqual(['rust']);
+    expect(languages(plan)).toEqual(['javascript', 'python', 'go', 'rust']);
+    expect(entryFor(plan, 'javascript')?.command).toBe('bun audit');
+    expect(entryFor(plan, 'python')?.command).toBe('pip-audit .');
+    expect(entryFor(plan, 'go')?.command).toBe(
+      'go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...',
+    );
+  });
+
+  it('uses uv audit for uv-locked Python projects', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'uv.lock': 'version = 1\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('uv audit');
+    expect(entryFor(plan, 'python')?.runner).toBe('uv');
+  });
+
+  it('audits requirements files directly instead of the active environment', () => {
+    const root = makeRepo({ 'requirements.txt': 'requests==2.32.0\n' });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('pip-audit -r requirements.txt');
+  });
+
+  it('routes JavaScript audits through the detected package manager', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'yarn.lock': '',
+    });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')?.command).toBe('yarn npm audit');
+  });
+
+  it('keeps each missing supply-chain scanner visible', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: {} }),
+      'pyproject.toml': '[project]\nname="x"\n',
+      'go.mod': 'module x\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: () => false });
+    expect(plan.map(({ language, available }) => [language, available])).toEqual([
+      ['javascript', false],
+      ['python', false],
+      ['go', false],
+    ]);
   });
 
   it('keeps the Rust entry visible but unavailable when cargo-deny is missing', () => {

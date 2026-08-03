@@ -14,7 +14,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 const repoRoot = nodePath.join(process.cwd(), '..', '..');
 const claudeHook = nodePath.join(repoRoot, '.safeword/hooks/post-tool-skill-nudge.ts');
 const cursorHook = nodePath.join(repoRoot, '.safeword/hooks/cursor/post-tool-skill-nudge.ts');
-const codexHook = nodePath.join(repoRoot, '.safeword/hooks/codex/post-tool-skill-nudge.ts');
 const templateCodexHook = nodePath.join(
   repoRoot,
   'packages/cli/templates/hooks/codex/post-tool-skill-nudge.ts',
@@ -97,7 +96,7 @@ describe('skill nudge fires across all three agents on a .go edit (single-skill 
   });
 
   it('Codex — forwards it as hookSpecificOutput.additionalContext', () => {
-    const out = run(codexHook, {
+    const out = run(templateCodexHook, {
       tool_name: 'Edit',
       tool_input: { file_path: goFile('c.go') },
       session_id: 'codex-1',

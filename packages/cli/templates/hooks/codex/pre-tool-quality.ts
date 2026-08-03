@@ -21,6 +21,7 @@ import {
   rememberCodexReviewStampIdentity,
   rememberCodexRunIdentity,
 } from '../lib/cursor-run-identity.ts';
+import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
 
 installCrashCapture('codex-pre-tool-quality', undefined, 'codex');
@@ -117,6 +118,14 @@ const failedResult = results.find(result => (result.status ?? 0) !== 0);
 if (failedResult === undefined && commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
   rememberCodexReviewStampIdentity({
     projectDirectory: resolveProjectRoot(),
+    id: input.session_id,
+  });
+}
+
+if (failedResult === undefined && commandInvokesCloseoutCleanup(input.tool_input?.command ?? '')) {
+  rememberCloseoutBinding({
+    projectDirectory: resolveProjectRoot(),
+    runtime: 'codex',
     id: input.session_id,
   });
 }

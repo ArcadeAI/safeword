@@ -120,16 +120,6 @@ export function installLanguageSkills(langId: string, cwd: string): SkillInstall
 }
 
 /**
- * Setup path: install skills for every detected language that ships them. Called
- * once after pack reconciliation.
- */
-export function installDetectedLanguageSkills(cwd: string): void {
-  // installLanguageSkills no-ops (returns undefined, no message) for a detected
-  // language with no skill manifest, so no membership guard is needed here.
-  for (const langId of detectLanguages(cwd)) installLanguageSkills(langId, cwd);
-}
-
-/**
  * Upgrade path: install skills only for detected languages that don't already
  * have them. Reaches projects set up before a language's skills existed; the
  * on-disk presence check keeps repeat upgrades network-free. Refreshing installed

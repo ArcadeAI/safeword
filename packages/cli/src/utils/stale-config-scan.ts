@@ -1,7 +1,7 @@
 /**
  * Stale tooling-config scanner (ticket JYWZG1, epic AQJ95G follow-up).
  *
- * After `safeword upgrade --migrate-namespace` moves a repo from the legacy
+ * After `safeword setup --migrate-namespace` moves a repo from the legacy
  * `.safeword-project/` namespace to `.project/`, a customer's hand-authored
  * tooling config (eslint, prettier, tsconfig, CI, …) that referenced the old
  * path silently goes stale. This scanner NAMES those files so the migration

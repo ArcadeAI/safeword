@@ -2,7 +2,7 @@
 
 The standing operating model for this project. Read at session start; re-scan by topic as situations arise. Project-specific rules live in `./CLAUDE.md`. Triggered playbooks live in `./.safeword/guides/`.
 
-Project knowledge (tickets, learnings, personas, glossary, surfaces) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
+Project knowledge (tickets, learnings, principles, personas, glossary, surfaces) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
 
 ---
 
@@ -43,6 +43,16 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 
 **PM-grade intake** is the name for how these fit together, scaled by blast radius: the readiness pointer nudges every turn · the Intake Brief (who asked · cost of inaction · reversibility) is authored for features · the cold-start executability check fires only for one-way-door work — with `/elicit`, `/brainstorm`, and `/figure-it-out` pulled in as the gaps demand (unknown intent · empty option space · options to weigh). One protocol, not three disconnected mechanisms.
 
+**Project principles.** Before choosing scope or design, read the configured
+principles file (`paths.principles`, default `<namespace-root>/principles.md`)
+when it exists. Apply it as a decision lens, not a checklist: a principle pays
+rent only when it changes behavior, design, proof, or a deliberate deviation.
+Features record applicable principles in `impl-plan.md`'s Design alignment as
+**principle → concrete consequence → proof**. Tasks note a principle only when
+it materially changes the task; patches apply it silently unless they need an
+explicit exception. Never claim an experiential principle is proven by tests
+alone — tests prove observable mechanics; user evidence proves the experience.
+
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
 Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next: load personas, glossary, and surfaces from the configured project-knowledge files; open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the decide-to-build framing that also triages whether this is a feature or a leaner task; then author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into numbered Rules — one testable invariant per `#### <jtbd-id>.R<n>`, the rung define-behavior scenarios later prove (Acceptance Criteria — `#### <jtbd-id>.AC<n>` — are the soft-deprecated legacy alternative, still accepted; one criteria kind per job, never both); then jobs-and-rules anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
@@ -51,7 +61,7 @@ Exit: user accepts your proposal. For features, intake builds its artifacts in o
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
 - **`done_when`** — observable outcomes.
 
-In define-behavior, each scenario carries its lineage `<jtbd-id>.R<#>.<scenario_name>` (snake_case; `.AC<#>` on the legacy path) so `safeword check` flags coverage gaps — uncovered rules, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
+In define-behavior, each scenario carries its lineage `<jtbd-id>.R<#>.<scenario_name>` (snake_case; `.AC<#>` on the legacy path) so `safeword doctor` flags coverage gaps — uncovered rules, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
 
 If the user is exploring without intent to build, follow their lead — not every conversation produces a ticket.
 
@@ -166,7 +176,7 @@ Read the matching guide when its trigger fires:
 
 **Root moves (Cursor).** After `move_agent_to_root`, `move_agent_to_cloned_root`, or creating a worktree, run `pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD` before evidence gathering or edits. If the path, repo root, branch, or commit is wrong, stop and fix the workspace before touching files.
 
-**Learnings.** Project-specific lessons live in `<namespace-root>/learnings/`. Before non-trivial work, scan `INDEX.md` or grep for your topic. When you solve something non-obvious, add `<slug>.md` with a `Covers:` line; `safeword sync-learnings` regenerates the index.
+**Learnings.** Project-specific lessons live in `<namespace-root>/learnings/`. Before non-trivial work, scan `INDEX.md` or grep for your topic. When you solve something non-obvious, add `<slug>.md` with a `Covers:` line; `safeword project sync-learnings` regenerates the index.
 
 ---
 

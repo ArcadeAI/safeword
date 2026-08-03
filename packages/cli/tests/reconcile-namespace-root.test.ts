@@ -76,6 +76,9 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(readFileSync(nodePath.join(cwd, '.project', 'personas.md'), 'utf8')).toContain(
       '# Personas',
     );
+    expect(readFileSync(nodePath.join(cwd, '.project', 'principles.md'), 'utf8')).toContain(
+      '# Principles',
+    );
     expect(readFileSync(nodePath.join(cwd, '.project', 'glossary.md'), 'utf8')).toContain(
       '# Glossary',
     );
@@ -105,6 +108,17 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     }
   });
 
+  it('existing principles survive setup byte-identical', async () => {
+    const principles =
+      '# Principles\n\n## Delight the user\n\nMake the important path feel effortless.\n';
+    mkdirSync(nodePath.join(cwd, '.project'));
+    writeFileSync(nodePath.join(cwd, '.project', 'principles.md'), principles);
+
+    await runInstall();
+
+    expect(readFileSync(nodePath.join(cwd, '.project', 'principles.md'), 'utf8')).toBe(principles);
+  });
+
   it('TB1.AC2.existing_surfaces_survive_setup_byte_identical', async () => {
     const surfaces = '# Surfaces\n\n## Setup CLI\n\n**Kind:** CLI\n';
     mkdirSync(nodePath.join(cwd, '.project'));
@@ -123,7 +137,14 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
 
     await runInstall();
 
-    for (const piece of ['tickets/completed', 'learnings', 'tmp', 'glossary.md', 'surfaces.md']) {
+    for (const piece of [
+      'tickets/completed',
+      'learnings',
+      'tmp',
+      'principles.md',
+      'glossary.md',
+      'surfaces.md',
+    ]) {
       expect(existsSync(nodePath.join(cwd, '.project', piece)), piece).toBe(true);
     }
     expect(readFileSync(nodePath.join(cwd, '.project', 'personas.md'), 'utf8')).toBe(

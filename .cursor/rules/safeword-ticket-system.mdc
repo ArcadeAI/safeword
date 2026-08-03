@@ -7,4 +7,4 @@ globs:
   - .safeword/logs/**
 ---
 
-@.claude/skills/ticket-system/SKILL.md
+@.safeword/skills/ticket-system/SKILL.md

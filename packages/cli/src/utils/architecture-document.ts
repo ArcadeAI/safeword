@@ -14,11 +14,10 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { shapeFingerprint } from './architecture-fingerprint.js';
+import { shapeFingerprintOf } from './architecture-fingerprint.js';
 import {
-  discoverLeafDirectories,
-  discoverUnreadableWorkspaces,
-  extractMonorepoModel,
+  extractMonorepoArchitectureSnapshot,
+  type MonorepoArchitectureSnapshot,
   monorepoFingerprintOf,
   type MonorepoModel,
   type PackageNode,
@@ -28,6 +27,7 @@ import { reconcileSections, type SectionStatus } from './architecture-reconcile.
 import {
   extractSkeleton,
   PURPOSE_PLACEHOLDER,
+  type Skeleton,
   type SkeletonNode,
 } from './architecture-skeleton.js';
 import {
@@ -74,7 +74,7 @@ function frontmatterBody(content: string): string | undefined {
  * Exact-line match so a different generator (e.g. `safeword-architecture-v2`)
  * is not mistaken for this one.
  */
-function isSafewordOwned(content: string): boolean {
+export function isSafewordOwned(content: string): boolean {
   return (
     frontmatterBody(content)?.split(/\r?\n/).includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ??
     false
@@ -111,7 +111,13 @@ interface HealTarget {
   render: (priorStamps: Map<string, string>, priorProse: Map<string, PriorPurpose>) => string;
 }
 
-function healTarget(target: HealTarget): SelfHealResult {
+interface HealOptions {
+  priorProseContent?: string;
+  renderUnchanged?: boolean;
+  preservePriorStructure?: boolean;
+}
+
+function healTarget(target: HealTarget, options: HealOptions = {}): SelfHealResult {
   const existing = readExisting(target.path);
   const action = decideAction(
     existing,
@@ -120,15 +126,34 @@ function healTarget(target: HealTarget): SelfHealResult {
     target.matchesExisting,
   );
 
-  if (isWouldChangeAction(action)) {
+  if (isWouldChangeAction(action) || (options.renderUnchanged === true && action === 'unchanged')) {
     mkdirSync(nodePath.dirname(target.path), { recursive: true });
-    const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
-    const priorProse =
-      existing === undefined ? new Map() : (target.parseProse ?? parseSectionProse)(existing);
+    const { priorStamps, priorProse } = priorSectionHistory(
+      existing,
+      options.priorProseContent,
+      options.preservePriorStructure ?? false,
+      target.parseProse ?? parseSectionProse,
+    );
     writeFileSync(target.path, target.render(priorStamps, priorProse));
   }
 
   return { action, path: target.path };
+}
+
+function priorSectionHistory(
+  existing: string | undefined,
+  priorContent: string | undefined,
+  preservePriorStructure: boolean,
+  parseProse: (content: string) => Map<string, PriorPurpose>,
+): { priorStamps: Map<string, string>; priorProse: Map<string, PriorPurpose> } {
+  const ownedPrior =
+    priorContent !== undefined && isSafewordOwned(priorContent) ? priorContent : undefined;
+  const stampSource = preservePriorStructure ? (ownedPrior ?? existing) : existing;
+  const proseSource = ownedPrior ?? existing;
+  return {
+    priorStamps: stampSource === undefined ? new Map() : parseSectionStamps(stampSource),
+    priorProse: proseSource === undefined ? new Map() : parseProse(proseSource),
+  };
 }
 
 /** Dry-run of {@link healTarget}: the action it would take, writing nothing. */
@@ -142,9 +167,9 @@ function planTarget(target: HealTarget): SelfHealAction {
 }
 
 /** A `src/`-skeleton doc: the skeleton of `directory`, rendered to `path`. */
-function skeletonTarget(directory: string, path: string): HealTarget {
-  const fingerprint = shapeFingerprint(directory);
-  const nodes = extractSkeleton(directory).nodes;
+function skeletonTarget(directory: string, path: string, skeleton: Skeleton): HealTarget {
+  const fingerprint = shapeFingerprintOf(directory, skeleton);
+  const nodes = skeleton.nodes;
   return {
     path,
     fingerprint,
@@ -156,21 +181,25 @@ function skeletonTarget(directory: string, path: string): HealTarget {
 }
 
 /** The single-repo doc: the project's `src/` skeleton at the namespace-root path. */
-function singleRepoTarget(projectDirectory: string): HealTarget {
-  return skeletonTarget(projectDirectory, resolveGeneratedArchitecturePath(projectDirectory));
+function singleRepoTarget(projectDirectory: string, workspaceRoot = false): HealTarget {
+  return skeletonTarget(
+    projectDirectory,
+    resolveGeneratedArchitecturePath(projectDirectory),
+    extractSkeleton(projectDirectory, { workspaceRoot }),
+  );
 }
 
 /** A colocated leaf: the package's own skeleton at `packages/<pkg>/architecture.generated.md`. */
-function leafTarget(packageDirectory: string): HealTarget {
+function leafTarget(packageDirectory: string, skeleton: Skeleton): HealTarget {
   return skeletonTarget(
     packageDirectory,
     nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
+    skeleton,
   );
 }
 
 /** The derived root index: the package graph at the namespace-root path. */
-function rootIndexTarget(projectDirectory: string): HealTarget {
-  const model = extractMonorepoModel(projectDirectory);
+function rootIndexTarget(projectDirectory: string, model: MonorepoModel): HealTarget {
   const fingerprint = monorepoFingerprintOf(projectDirectory, model);
   return {
     path: resolveGeneratedArchitecturePath(projectDirectory),
@@ -186,16 +215,22 @@ function rootIndexTarget(projectDirectory: string): HealTarget {
 }
 
 /** The targets a project heals: single-repo → one; monorepo → root index + per-leaf. */
-function projectTargets(projectDirectory: string): HealTarget[] {
-  const leaves = discoverLeafDirectories(projectDirectory);
+function projectTargets(
+  projectDirectory: string,
+  snapshot: MonorepoArchitectureSnapshot = extractMonorepoArchitectureSnapshot(projectDirectory),
+): HealTarget[] {
+  const { model, leaves, workspaceRoot } = snapshot;
   // A repo whose ONLY workspace signal is an unparseable manager (zero discovered leaves)
   // is still a monorepo we must not mistake for a single-repo: render the root index so the
   // "config unreadable" advisory has a home, rather than silently emitting a single-repo doc
   // that omits the whole declared-but-unreadable workspace (UWP4XK).
-  if (leaves.length === 0 && discoverUnreadableWorkspaces(projectDirectory).length === 0) {
-    return [singleRepoTarget(projectDirectory)];
+  if (model.packages.length === 0 && model.unreadableWorkspaces.length === 0) {
+    return [singleRepoTarget(projectDirectory, workspaceRoot)];
   }
-  return [rootIndexTarget(projectDirectory), ...leaves.map(leaf => leafTarget(leaf))];
+  return [
+    rootIndexTarget(projectDirectory, model),
+    ...leaves.map(leaf => leafTarget(leaf.dir, leaf.skeleton)),
+  ];
 }
 
 export function selfHeal(projectDirectory: string): SelfHealResult {
@@ -216,15 +251,57 @@ export function planSelfHeal(projectDirectory: string): SelfHealAction {
  * heals one doc (byte-identical to {@link selfHeal}); a monorepo heals the
  * derived root index plus one colocated leaf per package with a `src/` tree
  * (empty-skeleton packages noop). Each node is fingerprinted independently, so
- * an unchanged node returns `unchanged` and is left untouched.
+ * an unchanged node returns `unchanged` and is left untouched. A caller that
+ * already owns an operation-scoped snapshot may pass it to avoid rediscovery.
  */
-export function selfHealProject(projectDirectory: string): SelfHealResult[] {
-  return projectTargets(projectDirectory).map(target => healTarget(target));
+export function selfHealProject(
+  projectDirectory: string,
+  snapshot?: MonorepoArchitectureSnapshot,
+): SelfHealResult[] {
+  return projectTargets(projectDirectory, snapshot).map(target => healTarget(target));
 }
 
-/** Dry-run of {@link selfHealProject}: the action per node, writing nothing. */
-export function planSelfHealProject(projectDirectory: string): SelfHealAction[] {
-  return projectTargets(projectDirectory).map(target => planTarget(target));
+/**
+ * Heal from `projectDirectory`'s structural shape while preserving human prose
+ * from the corresponding document under `proseProjectDirectory`.
+ *
+ * Commit-oriented staged-tree generation needs these as deliberately separate
+ * inputs: Git's index owns reproducible structure and fingerprints, while the
+ * worktree document owns prose a person may not have staged yet. Only prose is
+ * borrowed; section membership, paths, stamps, and fingerprints still come from
+ * the staged-tree target.
+ *
+ * `renderUnchanged` lets explicit `--staged` generation restore the staged
+ * fingerprint over worktree-only structural drift. `preservePriorStructure`
+ * retains worktree-only sections as orphans so their prose is not destroyed;
+ * commit-time `--stage` leaves it off to avoid leaking unrelated WIP.
+ */
+export function selfHealProjectPreservingProse(
+  projectDirectory: string,
+  proseProjectDirectory: string,
+  options: { renderUnchanged?: boolean; preservePriorStructure?: boolean } = {},
+  snapshot?: MonorepoArchitectureSnapshot,
+): SelfHealResult[] {
+  return projectTargets(projectDirectory, snapshot).map(target => {
+    const relativePath = nodePath.relative(projectDirectory, target.path);
+    const priorProseContent = readExisting(nodePath.join(proseProjectDirectory, relativePath));
+    return healTarget(target, {
+      priorProseContent,
+      renderUnchanged: options.renderUnchanged,
+      preservePriorStructure: options.preservePriorStructure,
+    });
+  });
+}
+
+/**
+ * Dry-run of {@link selfHealProject}: the action per node, writing nothing.
+ * Accepts the same operation-scoped snapshot reuse boundary as the mutating path.
+ */
+export function planSelfHealProject(
+  projectDirectory: string,
+  snapshot?: MonorepoArchitectureSnapshot,
+): SelfHealAction[] {
+  return projectTargets(projectDirectory, snapshot).map(target => planTarget(target));
 }
 
 function readExisting(path: string): string | undefined {
@@ -238,13 +315,13 @@ function readExisting(path: string): string | undefined {
 function decideAction(
   existing: string | undefined,
   fingerprint: string,
-  hasModules: boolean,
+  hasContent: boolean,
   matchesExisting?: (existing: string) => boolean,
 ): SelfHealAction {
   // Don't birth an empty doc: a contentless "## Modules" implies "no modules",
   // which is false for a monorepo the single-repo extractor can't read yet.
   // An existing doc still heals toward empty (orphan markers show real removals).
-  if (existing === undefined) return hasModules ? 'created' : 'noop';
+  if (existing === undefined) return hasContent ? 'created' : 'noop';
 
   // Never touch a document safeword does not own — a hand-written architecture
   // doc has no generator marker and must be left exactly as-is.
@@ -409,7 +486,10 @@ function parseSectionProse(content: string): Map<string, PriorPurpose> {
  * prose. Returns the next `inProse` state.
  */
 function accumulateProseLine(line: string, inProse: boolean, buffer: string[]): boolean {
-  if (isPurposeMetadataLine(line)) return inProse;
+  if (line.startsWith(RECONCILED_PREFIX)) return inProse;
+  if (line.startsWith(SEEDED_PURPOSE_PREFIX)) return inProse;
+  if (line.startsWith('> ⚠ orphaned:')) return true;
+  if (line.startsWith('> ⚠ stale:')) return inProse;
   if (!inProse) return /^`[^`]*`\s*$/.test(line);
   buffer.push(line);
   return true;
@@ -488,11 +568,11 @@ function renderDocument(
   const sections = verdicts
     .map(verdict => {
       const node = nodeByName.get(verdict.node);
-      if (node === undefined) return renderOrphanSection(verdict.node);
       // A section the heal has seen before keeps its prior stamp; a brand-new
       // node is stamped current (a placeholder awaiting prose, not stale).
       const stamp = priorStamps.get(verdict.node) ?? fingerprint;
       const prior = priorProse.get(verdict.node);
+      if (node === undefined) return renderOrphanSection(verdict.node, stamp, prior?.text ?? '');
       const { purpose, seeded } = resolveModulePurpose(node, prior);
       return renderSection(node, stamp, verdict.status, purpose, seeded);
     })
@@ -506,10 +586,9 @@ function resolveModulePurpose(
   node: SkeletonNode,
   prior: PriorPurpose | undefined,
 ): { purpose: string; seeded: boolean } {
-  const generatedPrior = prior?.generated === true;
-  const seeded = node.seededPurpose === true && (prior === undefined || generatedPrior);
+  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
   return {
-    purpose: seeded || generatedPrior ? node.purpose : (prior?.text ?? node.purpose),
+    purpose: useGeneratedPurpose ? node.purpose : (prior?.text ?? node.purpose),
     seeded,
   };
 }
@@ -530,8 +609,9 @@ function renderSection(
   return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n\`${node.path}\`\n${seed}\n${prose}\n${marker}`;
 }
 
-function renderOrphanSection(name: string): string {
-  return `### ${name}\n\n> ⚠ orphaned: this section describes a module that no longer exists.\n`;
+function renderOrphanSection(name: string, stamp: string, prose: string): string {
+  const preservedProse = prose.length > 0 ? `\n${prose}\n` : '';
+  return `### ${name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n> ⚠ orphaned: this section describes a module that no longer exists.\n${preservedProse}`;
 }
 
 /**
@@ -572,7 +652,7 @@ function renderRootIndex(
 function renderCoverageGaps(unreadable: UnreadableWorkspace[]): string {
   if (unreadable.length === 0) return '';
   const items = unreadable.map(entry => `> - \`${entry.config}\` (${entry.manager})`).join('\n');
-  return `## Coverage gaps\n\n> ⚠ not introspected — workspace config unreadable. A present workspace manager's member list could not be parsed, so its packages may be missing above. Fix the config and re-run \`safeword architecture\`:\n${items}\n`;
+  return `## Coverage gaps\n\n> ⚠ not introspected — workspace config unreadable. A present workspace manager's member list could not be parsed, so its packages may be missing above. Fix the config and re-run \`safeword project architecture\`:\n${items}\n`;
 }
 
 function renderPackageSection(
@@ -597,11 +677,23 @@ function resolvePackagePurpose(
   node: PackageNode,
   prior: PriorPurpose | undefined,
 ): { purpose: string | undefined; seeded: boolean } {
-  const generatedPrior = prior?.generated === true;
-  const seeded = node.seededPurpose === true && (prior === undefined || generatedPrior);
+  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
   return {
-    purpose: seeded || generatedPrior ? node.purpose : prior?.text,
+    purpose: useGeneratedPurpose ? node.purpose : prior?.text,
     seeded,
+  };
+}
+
+/** Choose whether generator-owned purpose text may replace the prior section prose. */
+function generatedPurposeChoice(
+  hasSeededPurpose: boolean | undefined,
+  prior: PriorPurpose | undefined,
+): { seeded: boolean; useGeneratedPurpose: boolean } {
+  const generatedPrior = prior?.generated === true;
+  const seeded = hasSeededPurpose === true && (prior === undefined || generatedPrior);
+  return {
+    seeded,
+    useGeneratedPurpose: seeded || generatedPrior,
   };
 }
 

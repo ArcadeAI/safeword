@@ -62,7 +62,7 @@ describe('setup scaffolds the lane in a TS project (AC1)', () => {
     expect(packageJson.devDependencies?.['@cucumber/cucumber']).toBeDefined();
     expect(packageJson.devDependencies?.['gherkin-lint']).toBeUndefined();
     expect(packageJson.devDependencies?.tsx).toBeDefined();
-    expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword lint-gherkin');
+    expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword project lint-gherkin');
     expect(packageJson.scripts?.['test:bdd']).toContain('cucumber-js');
   });
 });

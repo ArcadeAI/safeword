@@ -1,7 +1,7 @@
 /**
- * Test Suite 5: Setup Blocks on Existing
+ * Test Suite 5: Setup Converges Existing Projects
  *
- * Tests for setup error when already configured.
+ * Tests for convergent setup when already configured.
  */
 
 import { mkdirSync } from 'node:fs';
@@ -19,7 +19,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-describe('Test Suite 5: Setup Blocks on Existing', () => {
+describe('Test Suite 5: Setup Converges Existing Projects', () => {
   let temporaryDirectory: string;
 
   beforeEach(() => {
@@ -30,8 +30,8 @@ describe('Test Suite 5: Setup Blocks on Existing', () => {
     removeTemporaryDirectory(temporaryDirectory);
   });
 
-  describe('Test 5.1: Error when .safeword exists', () => {
-    it('should error with exit 1 when .safeword/ already exists', async () => {
+  describe('Test 5.1: Reconcile when .safeword exists', () => {
+    it('should converge successfully when .safeword/ already exists', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
 
       // Create existing .safeword directory
@@ -39,14 +39,12 @@ describe('Test Suite 5: Setup Blocks on Existing', () => {
 
       const result = await runCli(['setup'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr.toLowerCase()).toContain('already configured');
-      expect(result.stderr.toLowerCase()).toContain('upgrade');
+      expect(result.exitCode).toBe(0);
     });
   });
 
-  describe('Test 5.2: No files modified on error', () => {
-    it('should not modify files when erroring', async () => {
+  describe('Test 5.2: User files survive convergence', () => {
+    it('should preserve unrelated user files while converging', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
 
       // Create existing .safeword directory
@@ -58,16 +56,16 @@ describe('Test Suite 5: Setup Blocks on Existing', () => {
 
       const result = await runCli(['setup'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(0);
 
       // AGENTS.md should be unchanged
       const content = readTestFile(temporaryDirectory, 'AGENTS.md');
       expect(content).toBe(originalContent);
 
-      // No new files should be created
+      expect(fileExists(temporaryDirectory, '.safeword/skills')).toBe(true);
       expect(fileExists(temporaryDirectory, '.claude')).toBe(false);
-      expect(fileExists(temporaryDirectory, 'eslint.config.mjs')).toBe(false);
-      expect(fileExists(temporaryDirectory, '.prettierrc')).toBe(false);
+      expect(fileExists(temporaryDirectory, 'eslint.config.mjs')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.prettierrc')).toBe(true);
     });
   });
 });

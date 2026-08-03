@@ -2,7 +2,8 @@
   "installedPacks": ["typescript"],
   "selfReport": { "capture": true, "surface": true, "file": true },
   "paths": {
-    "architecture": "ARCHITECTURE.md"
+    "architecture": "ARCHITECTURE.md",
+    "principles": "PRINCIPLES.md"
   },
   "docs": {
     "sources": [

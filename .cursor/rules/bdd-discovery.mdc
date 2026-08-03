@@ -3,4 +3,4 @@ description: USE WHEN in BDD intake phase OR ticket has phase:intake. Guides dis
 alwaysApply: false
 ---
 
-@.claude/skills/bdd/DISCOVERY.md
+@.safeword/skills/bdd/DISCOVERY.md

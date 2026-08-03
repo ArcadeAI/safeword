@@ -758,7 +758,7 @@ Then('it directs authoring impl-plan.md with the five design sections', function
     for (const section of [
       'Approach',
       'Decisions',
-      'Arch alignment',
+      'Design alignment',
       'Known deviations',
       'Assessment triggers',
     ]) {

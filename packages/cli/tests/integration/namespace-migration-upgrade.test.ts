@@ -119,7 +119,7 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
 
       const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(`${result.stdout}${result.stderr}`).toMatch(
         /\.project.*(exists|blocked|not a directory)/i,
       );
@@ -140,7 +140,7 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
 
       const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(`${result.stdout}${result.stderr}`).toMatch(/\.project.*already exists/i);
       expect(listTree(nodePath.join(cwd, '.safeword-project'))).toEqual(
         expect.arrayContaining(legacyBefore),
@@ -227,7 +227,7 @@ describe('check both-dirs advisory (9MMWS7)', () => {
 describe('upgrade stale tooling-config warning (JYWZG1)', () => {
   // Distinctive phrase from the stale-config warning — avoids false matches on
   // other upgrade output (e.g. the vendored-ignores auto-patch names eslint).
-  const WARNING_PHRASE = 'still reference the old namespace';
+  const WARNING_PHRASE = 'still references the old namespace';
   let cwd: string;
 
   beforeEach(async () => {
@@ -247,7 +247,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
     async () => {
       const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       const out = `${result.stdout}${result.stderr}`;
       expect(out).toContain(WARNING_PHRASE);
       expect(out).toContain('tsconfig.json');
@@ -263,7 +263,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
 
       const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(readFileSync(nodePath.join(cwd, 'tsconfig.json'), 'utf8')).toBe(before);
     },
     TIMEOUT_BUN_INSTALL,
@@ -274,7 +274,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
     async () => {
       const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(existsSync(nodePath.join(cwd, '.project'))).toBe(true);
       expect(`${result.stdout}${result.stderr}`).toContain(WARNING_PHRASE);
     },
@@ -299,7 +299,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
 
       const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(`${result.stdout}${result.stderr}`).not.toContain(WARNING_PHRASE);
     },
     TIMEOUT_BUN_INSTALL,

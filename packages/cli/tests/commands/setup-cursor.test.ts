@@ -14,6 +14,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCliWithoutInstall,
+  runConfirmedRemoval,
   writeTestFile,
 } from '../helpers';
 
@@ -131,6 +132,7 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       expect(hooksConfig.hooks.sessionStart[0].command).toBe(
         'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor',
       );
+      expect(hooksConfig.hooks.sessionStart).toHaveLength(2);
       expect(hooksConfig.hooks.sessionStart[1].command).toBe(
         'bun ./.safeword/hooks/session-cursor-auto-upgrade.ts',
       );
@@ -256,7 +258,7 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       );
 
       await runCliWithoutInstall(['setup', '--yes'], { cwd: temporaryDirectory });
-      await runCliWithoutInstall(['reset', '--yes'], { cwd: temporaryDirectory });
+      await runConfirmedRemoval(temporaryDirectory);
 
       const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
       expect(hooksConfig).toEqual({
@@ -282,7 +284,6 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       // Observational hooks stay fail-open (default) — a crashing lint/state/nudge
       // hook must never block legitimate work.
       expect(hooksConfig.hooks.sessionStart[0].failClosed).toBeUndefined();
-      expect(hooksConfig.hooks.sessionStart[1].failClosed).toBeUndefined();
       expect(hooksConfig.hooks.afterFileEdit[0].failClosed).toBeUndefined();
       expect(hooksConfig.hooks.postToolUse[0].failClosed).toBeUndefined();
       expect(hooksConfig.hooks.stop[0].failClosed).toBeUndefined();
@@ -314,7 +315,7 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       await runCliWithoutInstall(['setup', '--yes'], { cwd: temporaryDirectory });
       expect(fileExists(temporaryDirectory, '.cursor')).toBe(true);
 
-      await runCliWithoutInstall(['reset', '--yes'], { cwd: temporaryDirectory });
+      await runConfirmedRemoval(temporaryDirectory);
       expect(fileExists(temporaryDirectory, '.cursor')).toBe(false);
     });
 
@@ -325,7 +326,7 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       await runCliWithoutInstall(['setup', '--yes'], { cwd: temporaryDirectory });
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor')).toBe(true);
 
-      await runCliWithoutInstall(['reset', '--yes'], { cwd: temporaryDirectory });
+      await runConfirmedRemoval(temporaryDirectory);
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor')).toBe(false);
     });
   });

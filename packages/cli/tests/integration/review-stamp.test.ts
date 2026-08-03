@@ -161,6 +161,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     writeFileSync(nodePath.join(projectRoot, '.safeword-project', 'personas.md'), PERSONAS);
     // Enable the gate so the deny→stamp→allow loop is observable.
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(projectRoot, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
     writeFileSync(
       nodePath.join(projectRoot, '.safeword', 'config.json'),
       JSON.stringify({ reviewGate: true }),

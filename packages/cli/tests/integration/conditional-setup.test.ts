@@ -271,6 +271,14 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
                     },
                   ],
                 },
+                {
+                  hooks: [
+                    {
+                      type: 'command',
+                      command: 'bun .safeword/hooks/session-version.ts',
+                    },
+                  ],
+                },
               ],
             },
           },

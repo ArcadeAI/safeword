@@ -84,7 +84,7 @@ ${generateClippyThresholds()}
 
     return `# Safeword clippy config - merged with project config
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
-# Re-run \`safeword upgrade\` to regenerate after project config changes.
+# Re-run \`safeword setup\` to regenerate after project config changes.
 #
 # NOTE: Your thresholds are preserved. Safeword only fills gaps.
 
@@ -198,7 +198,7 @@ export function resolveRustEdition(cwd: string): string {
 
 /**
  * Generate a lenient, forward-compatible `deny.toml` for the `cargo deny check`
- * supply-chain gate (`safeword test-plan --kind deps`, run at the /verify gate).
+ * supply-chain gate (`safeword project test-plan --kind deps`, run at the /verify gate).
  *
  * Design choices, driven by cargo-deny's schema churn and the cost of a false
  * red on a customer's done-gate:

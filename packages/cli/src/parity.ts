@@ -1,11 +1,14 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { codexFinalizationIsComplete } from './codex-plugin/finalization.js';
+import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
 import type { ContractDefinition, FileDefinition, ManagedFileDefinition } from './schema.js';
 
 interface ParitySchema {
   ownedFiles: Record<string, FileDefinition>;
-  // Optional: personas/glossary/surfaces templates are referenced here, not in ownedFiles.
+  // Optional: principles/personas/glossary/surfaces templates are referenced here,
+  // not in ownedFiles.
   // Included so the orphan-template scan doesn't false-flag them.
   managedFiles?: Record<string, ManagedFileDefinition>;
   contracts: Record<string, ContractDefinition>;
@@ -29,13 +32,16 @@ export interface ParityInput {
 }
 
 /** Files that must stay byte-identical between templates and dogfood. */
-function parityPairs(schema: ParitySchema): [string, FileDefinition][] {
+function parityPairs(schema: ParitySchema, rootDirectory: string): [string, FileDefinition][] {
+  const finalizedCodexCleanupPaths = codexFinalizationIsComplete(rootDirectory)
+    ? new Set(CODEX_MIGRATION_SCHEMA.cleanupFiles)
+    : new Set<string>();
   return [
     ...Object.entries(schema.ownedFiles),
     ...Object.entries(schema.managedFiles ?? {}).filter(
       ([, definition]) => definition.dogfoodParity,
     ),
-  ];
+  ].filter(([path]) => !finalizedCodexCleanupPaths.has(path));
 }
 
 function checkPair(
@@ -151,7 +157,7 @@ export function runParity(input: ParityInput): ParityResult {
   let passedCount = 0;
 
   if (input.mode === 'all') {
-    for (const [destinationPath, definition] of parityPairs(input.schema)) {
+    for (const [destinationPath, definition] of parityPairs(input.schema, input.rootDirectory)) {
       if (!definition.template) continue;
       const failure = checkPair(
         destinationPath,
@@ -202,7 +208,7 @@ export function syncParityPairs(input: ParityInput): ParitySyncResult {
   const synced: string[] = [];
   const unfixable: ParityFailure[] = [];
 
-  for (const [destinationPath, definition] of parityPairs(input.schema)) {
+  for (const [destinationPath, definition] of parityPairs(input.schema, input.rootDirectory)) {
     if (!definition.template) continue;
     const templateFile = nodePath.join(input.templatesDirectory, definition.template);
 

@@ -5,11 +5,11 @@
  * separately —
  *
  *   spec.md scaffold → JTBD/AC intake-exit gates → numbered Phase-3 scenarios
- *   → `safeword check` coverage report.
+ *   → `safeword doctor` coverage report.
  *
  * Two halves:
  *  1. Composition — drives the REAL pre-tool-quality hook and the REAL
- *     `safeword check` CLI over a single ticket, proving the gates and the
+ *     `safeword doctor` CLI over a single ticket, proving the gates and the
  *     coverage advisory chain together (not just per-layer, as the per-child
  *     suites prove). Mirrors jtbd-gate.test.ts (hook spawn) + check.test.ts
  *     Test 8.7 (coverage advisory).
@@ -49,7 +49,7 @@ const PERSONAS = ['## Platform Operator (PO)', '', '**Role:** Owns the fleet ser
 );
 
 // Feature ticket sitting at the intake→define-behavior boundary: the JTBD/AC
-// gate fires here (phase + scope frontmatter), and `safeword check` reads it as
+// gate fires here (phase + scope frontmatter), and `safeword doctor` reads it as
 // an in-progress feature for the coverage advisory.
 const TICKET = [
   '---',
@@ -176,7 +176,7 @@ describe('Phase 0 end-to-end walkthrough (E1K5ZW): oauth-flow composes across al
     expectHookAllow(attemptDefineBehavior());
   });
 
-  it('safeword check reports an AC that no numbered scenario covers, then clears once covered', async () => {
+  it('safeword doctor reports an AC that no numbered scenario covers, then clears once covered', async () => {
     writeTestFile(
       projectRoot,
       `${TICKET_RELATIVE}/spec.md`,
@@ -190,7 +190,7 @@ describe('Phase 0 end-to-end walkthrough (E1K5ZW): oauth-flow composes across al
       testDefinitionsCovering(AC1_SCENARIO),
     );
 
-    const partial = await runCli(['check', '--offline'], { cwd: projectRoot });
+    const partial = await runCli(['doctor', '--offline'], { cwd: projectRoot });
     expect(partial.exitCode).toBe(0); // coverage gaps are advisories, never a gate
     const partialOutput = `${partial.stdout}\n${partial.stderr}`;
     expect(partialOutput).toMatch(/E2E001:.*oauth-flow\.PO1\.AC2.*uncovered/i);
@@ -202,7 +202,7 @@ describe('Phase 0 end-to-end walkthrough (E1K5ZW): oauth-flow composes across al
       testDefinitionsCovering(AC1_SCENARIO, AC2_SCENARIO),
     );
 
-    const full = await runCli(['check', '--offline'], { cwd: projectRoot });
+    const full = await runCli(['doctor', '--offline'], { cwd: projectRoot });
     expect(full.exitCode).toBe(0);
     expect(`${full.stdout}\n${full.stderr}`).not.toMatch(/oauth-flow\.PO1\.AC2.*uncovered/i);
   });
@@ -247,7 +247,7 @@ describe.each([
 
   it('shows the numbered define-behavior scenario lineage and the coverage report', () => {
     expect(section).toMatch(/oauth-flow\.PLO1\.R1\.[a-z_]+/);
-    expect(section).toMatch(/safeword check/);
+    expect(section).toMatch(/safeword doctor/);
     expect(section).toMatch(/uncovered/);
   });
 

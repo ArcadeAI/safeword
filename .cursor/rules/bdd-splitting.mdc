@@ -3,4 +3,4 @@ description: USE WHEN BDD thresholds exceeded (2+ stories, >15 scenarios, >20 ta
 alwaysApply: false
 ---
 
-@.claude/skills/bdd/SPLITTING.md
+@.safeword/skills/bdd/SPLITTING.md

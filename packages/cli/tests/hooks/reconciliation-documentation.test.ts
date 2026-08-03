@@ -24,9 +24,10 @@ describe('reconciliation docs (Rule 3)', () => {
       const content = readFileSync(tddPath, 'utf8');
       expect(
         content,
-        'reconciliation walk (Decisions / Arch alignment / Assessment triggers)',
+        'reconciliation walk (Decisions / Design alignment / Assessment triggers)',
       ).toMatch(/reconcile/i);
       expect(content, 'walks the Decisions section').toContain('Decisions');
+      expect(content, 'rechecks applicable project principles').toMatch(/principles/i);
       expect(content, 'moves drift to Known deviations').toContain('Known deviations');
       expect(content, 'status flip').toContain('**Status:** implemented');
       expect(content, 'worked example with a changed decision').toMatch(

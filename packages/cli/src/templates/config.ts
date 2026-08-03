@@ -219,7 +219,7 @@ function getSafewordEslintConfigExtending(
 
   return `// Safeword ESLint config - extends project config with stricter rules
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
-// Re-run \`safeword upgrade\` to regenerate after project config changes.
+// Re-run \`safeword setup\` to regenerate after project config changes.
 import { existsSync } from "node:fs";
 ${safewordImport}${prettier.import}
 
@@ -320,7 +320,6 @@ ${prettier.configEntry}
 // lint/state/nudge hook must never block legitimate work.
 export const CURSOR_HOOKS = {
   // Observational: injects standing context and checks for auto-upgrades.
-  // Fail-open — neither hook may block the session from starting.
   sessionStart: [
     { command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' },
     { command: 'bun ./.safeword/hooks/session-cursor-auto-upgrade.ts' },
@@ -391,16 +390,6 @@ function hook(command: string) {
   return { hooks: [{ type: 'command', command }] };
 }
 
-/**
- * Create a background hook that does not block session start but can still
- * surface a message: with `asyncRewake`, Claude Code runs the hook detached and
- * — only when the hook exits with code 2 — delivers its stderr to Claude as a
- * system reminder (https://code.claude.com/docs/en/hooks). Used by the
- * auto-upgrade hook so a pending upgrade never stalls session start, yet
- * "upgraded" / "major available" / "blocked" messages still reach the user.
- * Degrades safely: a Claude Code build that doesn't know the flag treats the
- * entry as an ordinary (synchronous) hook — i.e. today's blocking behavior.
- */
 function asyncRewakeHook(command: string) {
   return { hooks: [{ type: 'command', command, asyncRewake: true }] };
 }

@@ -145,6 +145,8 @@ function hasConfig(path: string): boolean {
 }
 
 function safewordCliCommand(): string[] {
+  const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
+  if (pluginCli !== undefined) return ['bun', pluginCli];
   const installedCli = `${projectDir}/node_modules/safeword/dist/cli.js`;
   if (existsSync(installedCli)) return ['bun', installedCli];
   const sourceCli = `${projectDir}/packages/cli/src/cli.ts`;
@@ -231,7 +233,7 @@ function warnMissingSafewordConfig(
   toolWarnings.add(warningKey);
   warnings.push(
     `${packName} Safeword config is missing — linting with ${tool} defaults, not Safeword rules. ` +
-      'Run `safeword setup` or `safeword upgrade` to install it.',
+      'Run `safeword setup` to install it.',
   );
 }
 

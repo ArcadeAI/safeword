@@ -7,6 +7,7 @@
 
 import { execSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -221,6 +222,20 @@ describe('shouldRunTypecheck (Rule 1 — run-gate)', () => {
 
     expect(result.run).toBe(false);
   });
+
+  it('does not escape into a sibling directory whose path shares the root prefix', () => {
+    const projectDirectory = makeProject();
+    const siblingDirectory = `${projectDirectory}-sibling`;
+    touch(nodePath.join(siblingDirectory, 'tsconfig.json'));
+
+    const result = shouldRunTypecheck({
+      projectDirectory,
+      changedFiles: [`../${nodePath.basename(siblingDirectory)}/src/foo.ts`],
+      phase: 'implement',
+    });
+
+    expect(result.run).toBe(false);
+  });
 });
 
 describe('evaluateImplementStopTypecheck (Rules 2 + 4 — surface as advice)', () => {
@@ -285,6 +300,25 @@ describe('evaluateImplementStopTypecheck (Rules 2 + 4 — surface as advice)', (
     });
 
     expect(evaluateImplementStopTypecheck(gatePassingInput(), runner).advice).toBeNull();
+  });
+});
+
+describe('runIncrementalTypecheck — bounded binary discovery', () => {
+  it('does not use tsc from a sibling directory whose path shares the root prefix', () => {
+    const projectDirectory = makeProject();
+    const siblingDirectory = `${projectDirectory}-sibling`;
+    const tsconfigPath = nodePath.join(siblingDirectory, 'tsconfig.json');
+    const tscPath = nodePath.join(siblingDirectory, 'node_modules/.bin/tsc');
+    touch(tsconfigPath);
+    mkdirSync(nodePath.dirname(tscPath), { recursive: true });
+    writeFileSync(tscPath, '#!/bin/sh\nexit 0\n');
+    chmodSync(tscPath, 0o755);
+
+    expect(runIncrementalTypecheck(projectDirectory, tsconfigPath)).toEqual({
+      available: false,
+      ok: false,
+      output: '',
+    });
   });
 });
 

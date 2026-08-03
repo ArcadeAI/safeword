@@ -41,6 +41,10 @@ import {
 const IS_RUFF_AVAILABLE = isRuffInstalled();
 const VERIFIED_AT = '2026-04-15T18:00:00Z';
 const PR_SCOPE_OK_LINE = '**PR Scope:** ✅ Diff matches ticket scope';
+const TEMPLATE_CODEX_SESSION_START = nodePath.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/session-codex-start.ts',
+);
 
 // Single setup for all hook tests - sharing avoids 3 separate bun installs
 // Tests must be idempotent or restore state after modification (see try/finally blocks)
@@ -534,6 +538,79 @@ describe('E2E: UserPromptSubmit Hooks', () => {
         rmSync(`${shared.projectDirectory}/.project/quality-state-test-session.json`, {
           force: true,
         });
+      }
+    });
+
+    it('clears the idle Stop-review marker for the submitted session (1492)', () => {
+      const sessionId = 'awaiting-user-prompt';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      writeTestFile(
+        shared.projectDirectory,
+        statePath,
+        JSON.stringify({
+          recentFailures: [],
+          stopQualityReviewAwaitingUserPrompt: true,
+        }),
+      );
+
+      try {
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Contribute before asking');
+        expect(JSON.parse(readTestFile(shared.projectDirectory, statePath))).toMatchObject({
+          stopQualityReviewAwaitingUserPrompt: false,
+        });
+      } finally {
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
+      }
+    });
+
+    it('persists the idle Stop-review marker clear when reminder derivation throws (1492)', () => {
+      const sessionId = 'marker-clear-after-reminder-error';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: 'MALFORMED',
+          type: 'task',
+          phase: 'implement',
+          status: 'in_progress',
+          lastModified: VERIFIED_AT,
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        statePath,
+        JSON.stringify({
+          activeTicket: 'MALFORMED',
+          stopQualityReviewAwaitingUserPrompt: true,
+          // A valid JSON state with an invalid cached failure shape makes the
+          // reminder path throw after the marker has been cleared in memory.
+          // The pending nudge is downstream of that failure. Its absence below
+          // pins the error precondition, so a future defensive normalization of
+          // recentFailures cannot turn this recovery test into a vacuous pass.
+          learningsNudgesPending: ['research.md'],
+          recentFailures: { length: 1 },
+        }),
+      );
+
+      try {
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).not.toContain('Novel claim detected');
+        expect(JSON.parse(readTestFile(shared.projectDirectory, statePath))).toMatchObject({
+          stopQualityReviewAwaitingUserPrompt: false,
+        });
+      } finally {
+        clearIssuesDirectory(shared.projectDirectory);
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
       }
     });
 
@@ -1437,7 +1514,7 @@ describe('session-safeword-context.ts', () => {
 
 describe('session-codex-start.ts', () => {
   it('runs the Codex SessionStart dispatcher and emits SAFEWORD.md context', () => {
-    const result = spawnSync('bun', ['.safeword/hooks/session-codex-start.ts'], {
+    const result = spawnSync('bun', [TEMPLATE_CODEX_SESSION_START], {
       cwd: shared.projectDirectory,
       env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
       input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: shared.projectDirectory }),

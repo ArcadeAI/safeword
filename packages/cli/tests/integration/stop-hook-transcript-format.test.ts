@@ -19,18 +19,21 @@
  * packages/cli/tests/fixtures/stop-hook-transcript.jsonl.
  */
 
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
+import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
+import {
+  createEditTranscript,
+  createStopHookTicket,
+  runStopHook,
+  writeSessionState,
+} from '../helpers/stop-hook';
 
 // Run the hook directly from the safeword source tree — no runCli(['setup']) needed.
 // This matches the pattern used in quality-gates.test.ts.
-const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
 const FIXTURE_PATH = nodePath.join(import.meta.dirname, '../fixtures/stop-hook-transcript.jsonl');
 const REAL_ENVELOPE = {
   isSidechain: false,
@@ -44,97 +47,14 @@ const REAL_ENVELOPE = {
 // Module-scope helpers — pure (no closure over describe-local state).
 
 function runStopHookDonePhase(directory: string, lastAssistantMessage: string) {
-  const transcriptLine = JSON.stringify({
-    type: 'assistant',
-    message: {
-      role: 'assistant',
-      content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
-    },
+  const transcriptPath = createEditTranscript(directory);
+  createStopHookTicket(directory, {
+    id: '099',
+    slug: 'done-task',
+    phase: 'done',
+    status: 'in_progress',
   });
-  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
-  writeFileSync(transcriptPath, transcriptLine);
-
-  const ticketFolder = nodePath.join(directory, '.safeword-project', 'tickets', '099-done-task');
-  mkdirSync(ticketFolder, { recursive: true });
-  writeFileSync(
-    nodePath.join(ticketFolder, 'ticket.md'),
-    ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: done', '---'].join('\n'),
-  );
-
-  return spawnSync('bun', [STOP_QUALITY], {
-    input: JSON.stringify({
-      transcript_path: transcriptPath,
-      last_assistant_message: lastAssistantMessage,
-    }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
-  });
-}
-
-function createTranscript(directory: string): string {
-  const transcriptLine = JSON.stringify({
-    type: 'assistant',
-    message: {
-      role: 'assistant',
-      content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
-    },
-  });
-  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
-  writeFileSync(transcriptPath, transcriptLine);
-  return transcriptPath;
-}
-
-function createTicket(
-  directory: string,
-  id: string,
-  slug: string,
-  options: { phase: string; status: string; type?: string },
-): void {
-  const ticketFolder = nodePath.join(directory, '.safeword-project', 'tickets', `${id}-${slug}`);
-  mkdirSync(ticketFolder, { recursive: true });
-  writeFileSync(
-    nodePath.join(ticketFolder, 'ticket.md'),
-    [
-      '---',
-      `id: ${id}`,
-      `status: ${options.status}`,
-      `type: ${options.type ?? 'task'}`,
-      `phase: ${options.phase}`,
-      `last_modified: ${new Date().toISOString()}`,
-      '---',
-    ].join('\n'),
-  );
-}
-
-function writeSessionState(
-  directory: string,
-  sessionId: string,
-  state: Record<string, unknown>,
-): void {
-  const statePath = nodePath.join(
-    directory,
-    '.safeword-project',
-    `quality-state-${sessionId}.json`,
-  );
-  mkdirSync(nodePath.join(directory, '.safeword-project'), { recursive: true });
-  // eslint-disable-next-line unicorn/no-null -- JSON.stringify replacer parameter
-  writeFileSync(statePath, JSON.stringify(state, null, 2));
-}
-
-function runStopHook(directory: string, transcriptPath: string, sessionId?: string) {
-  return spawnSync('bun', [STOP_QUALITY], {
-    input: JSON.stringify({
-      session_id: sessionId,
-      transcript_path: transcriptPath,
-      last_assistant_message: 'Here is what I changed.',
-    }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
-  });
+  return runStopHook(directory, transcriptPath, undefined, lastAssistantMessage);
 }
 
 const state: { projectDirectory: string } = { projectDirectory: '' };
@@ -182,7 +102,9 @@ describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => 
 
   it('evaluates the done-gate on a no-edit transcript (blocks on missing verify.md)', () => {
     const transcriptPath = writeNoEditTranscript(state.projectDirectory);
-    createTicket(state.projectDirectory, '099', 'done-task', {
+    createStopHookTicket(state.projectDirectory, {
+      id: '099',
+      slug: 'done-task',
       phase: 'done',
       status: 'in_progress',
       type: 'task',
@@ -198,7 +120,9 @@ describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => 
 
   it('still exits silently on a no-edit transcript at a non-done phase (review path unchanged)', () => {
     const transcriptPath = writeNoEditTranscript(state.projectDirectory);
-    createTicket(state.projectDirectory, '098', 'impl-task', {
+    createStopHookTicket(state.projectDirectory, {
+      id: '098',
+      slug: 'impl-task',
       phase: 'implement',
       status: 'in_progress',
       type: 'task',
@@ -213,18 +137,14 @@ describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => 
 
 describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
   it('detects edits and triggers quality review from real-format transcript', () => {
-    const result = spawnSync('bun', [STOP_QUALITY], {
-      input: JSON.stringify({
-        transcript_path: FIXTURE_PATH,
-        // Simulate hook runtime providing last_assistant_message directly.
-        // combinedText now reads from this field instead of the transcript.
-        last_assistant_message: 'Here is what I did: updated the file.',
-      }),
-      cwd: state.projectDirectory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: state.projectDirectory },
-      encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-    });
+    // Simulate hook runtime providing last_assistant_message directly.
+    // combinedText reads from this field instead of the transcript.
+    const result = runStopHook(
+      state.projectDirectory,
+      FIXTURE_PATH,
+      undefined,
+      'Here is what I did: updated the file.',
+    );
 
     // Hook should soft-block (exit 0 with JSON decision) because:
     // Transcript has an Edit tool_use block → editToolsUsed = true
@@ -433,11 +353,13 @@ describe('Stop Hook: Ticket Resolution Context', () => {
   });
 
   it('shows quality review when active ticket at implement phase', () => {
-    createTicket(state.projectDirectory, '099', 'test', {
+    createStopHookTicket(state.projectDirectory, {
+      id: '099',
+      slug: 'test',
       phase: 'implement',
       status: 'in_progress',
     });
-    const transcriptPath = createTranscript(state.projectDirectory);
+    const transcriptPath = createEditTranscript(state.projectDirectory);
     const result = runStopHook(state.projectDirectory, transcriptPath);
 
     expect(result.status).toBe(0);
@@ -449,7 +371,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
 
   it('shows generic quality review when no ticket exists', () => {
     // No ticket created — just .safeword/ dir (from beforeEach)
-    const transcriptPath = createTranscript(state.projectDirectory);
+    const transcriptPath = createEditTranscript(state.projectDirectory);
     const result = runStopHook(state.projectDirectory, transcriptPath);
 
     expect(result.status).toBe(0);
@@ -460,11 +382,13 @@ describe('Stop Hook: Ticket Resolution Context', () => {
   });
 
   it('shows done-phase hard block when active ticket at done phase', () => {
-    createTicket(state.projectDirectory, '099', 'test', {
+    createStopHookTicket(state.projectDirectory, {
+      id: '099',
+      slug: 'test',
       phase: 'done',
       status: 'in_progress',
     });
-    const transcriptPath = createTranscript(state.projectDirectory);
+    const transcriptPath = createEditTranscript(state.projectDirectory);
     const result = runStopHook(state.projectDirectory, transcriptPath);
 
     expect(result.status).toBe(0);
@@ -476,11 +400,15 @@ describe('Stop Hook: Ticket Resolution Context', () => {
 
   it('uses session binding when session_id and state file exist', () => {
     // Create two tickets — session is bound to 099
-    createTicket(state.projectDirectory, '099', 'session-ticket', {
+    createStopHookTicket(state.projectDirectory, {
+      id: '099',
+      slug: 'session-ticket',
       phase: 'implement',
       status: 'in_progress',
     });
-    createTicket(state.projectDirectory, '100', 'other-ticket', {
+    createStopHookTicket(state.projectDirectory, {
+      id: '100',
+      slug: 'other-ticket',
       phase: 'done',
       status: 'in_progress',
     });
@@ -495,7 +423,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
       locAtLastReview: 0,
     });
 
-    const transcriptPath = createTranscript(state.projectDirectory);
+    const transcriptPath = createEditTranscript(state.projectDirectory);
     const result = runStopHook(state.projectDirectory, transcriptPath, 'test-session');
 
     expect(result.status).toBe(0);
@@ -508,7 +436,9 @@ describe('Stop Hook: Ticket Resolution Context', () => {
   });
 
   it('shows no ticket context when session ticket is done status', () => {
-    createTicket(state.projectDirectory, '099', 'done-ticket', {
+    createStopHookTicket(state.projectDirectory, {
+      id: '099',
+      slug: 'done-ticket',
       phase: 'done',
       status: 'done',
     });
@@ -523,7 +453,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
       locAtLastReview: 0,
     });
 
-    const transcriptPath = createTranscript(state.projectDirectory);
+    const transcriptPath = createEditTranscript(state.projectDirectory);
     const result = runStopHook(state.projectDirectory, transcriptPath, 'test-session');
 
     expect(result.status).toBe(0);

@@ -28,7 +28,7 @@ const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
 const CODEX_PRE_TOOL_QUALITY = nodePath.join(
   SAFEWORD_ROOT,
-  '.safeword/hooks/codex/pre-tool-quality.ts',
+  'packages/cli/templates/hooks/codex/pre-tool-quality.ts',
 );
 
 /** Invoke pre-tool-quality with a Bash payload. */

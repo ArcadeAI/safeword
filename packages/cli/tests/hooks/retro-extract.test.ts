@@ -239,6 +239,7 @@ describe('retroChildArgs (SM2.AC2 — forward session id + window to the child)'
       windowStart: 4096,
       sessionId: 'cloud-9',
     });
+    expect(args.slice(0, 2)).toEqual(['retro', 'run']);
     expect(args).toContain('--auto-extract');
     expect(args[args.indexOf('--transcript') + 1]).toBe('/t/sess.jsonl');
     expect(args[args.indexOf('--window-start') + 1]).toBe('4096');

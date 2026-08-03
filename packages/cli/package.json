@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.69.0",
+  "version": "0.71.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -14,17 +14,19 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
+    "./schemas/cli-result-v1.json": "./schemas/cli-result-v1.schema.json",
     "./eslint": {
-      "import": "./dist/presets/typescript/index.js",
-      "types": "./dist/presets/typescript/index.d.ts"
+      "types": "./dist/presets/typescript/index.d.ts",
+      "import": "./dist/presets/typescript/index.js"
     }
   },
   "files": [
     "codex-plugin",
     "dist",
+    "schemas",
     "templates"
   ],
   "engines": {
@@ -35,8 +37,8 @@
     "dev": "tsup --watch",
     "test": "node scripts/run-vitest-with-build-lock.mjs",
     "pretest:bdd": "tsup",
-    "test:bdd": "cucumber-js --tags 'not @wip and not @manual and not @live'",
-    "test:bdd:live": "cucumber-js --tags '@live and not @manual'",
+    "test:bdd": "NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @manual and not @live'",
+    "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --tags '@live and not @manual'",
     "test:done": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts",
     "test:integration": "node scripts/run-vitest-with-build-lock.mjs tests/integration/",
     "test:smoke:fast": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts",
@@ -46,6 +48,8 @@
     "test:slow": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts",
     "test:slow:install-proof": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts tests/integration/non-git-install-proof.slow.test.ts",
     "generate:codex-plugin": "bun scripts/generate-codex-plugin.ts",
+    "generate:claude-plugin": "bun scripts/generate-claude-plugin.ts",
+    "check:claude-plugin": "bun scripts/check-claude-plugin-release.ts",
     "generate:cursor-wrappers": "bun scripts/generate-cursor-wrappers.ts",
     "measure:relay-drain": "bun scripts/measure-relay-drain-throughput.ts",
     "parity:fix": "bun ../../scripts/parity-check.ts --fix",
@@ -54,7 +58,7 @@
     "test:coverage": "node scripts/run-vitest-with-build-lock.mjs --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests && bun run lint:gherkin && tsc --noEmit",
-    "lint:gherkin": "bun src/cli.ts lint-gherkin",
+    "lint:gherkin": "bun src/cli.ts project lint-gherkin",
     "clean": "rm -rf dist",
     "prepublishOnly": "node scripts/check-bun-publish.js && bun run test:release && bun run build",
     "lint:eslint": "eslint .",
@@ -81,18 +85,18 @@
     "eslint-plugin-astro": "~3.0.1",
     "eslint-plugin-better-tailwindcss": "4.7.0",
     "eslint-plugin-import-x": "^4.17.1",
-    "eslint-plugin-jsdoc": "^63.2.2",
-    "eslint-plugin-playwright": "2.10.5",
+    "eslint-plugin-jsdoc": "^63.3.2",
+    "eslint-plugin-playwright": "2.11.0",
     "eslint-plugin-promise": "^7.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-regexp": "3.1.1",
     "eslint-plugin-security": "4.0.1",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "eslint-plugin-sonarjs": "4.2.0",
-    "eslint-plugin-storybook": "10.5.4",
+    "eslint-plugin-storybook": "10.5.5",
     "eslint-plugin-turbo": "2.10.7",
     "eslint-plugin-unicorn": "72.0.0",
-    "smol-toml": "1.7.0",
+    "smol-toml": "1.7.1",
     "typescript-eslint": "8.65.0",
     "yaml": "^2.9.0"
   },
@@ -102,9 +106,10 @@
     "@types/estree": "^1.0.9",
     "@types/node": "^26.1.2",
     "@vitest/coverage-v8": "^4.1.9",
+    "ajv": "^8.17.1",
     "eslint": "^10.6.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
-    "knip": "6.27.0",
+    "knip": "6.29.0",
     "prettier": "^3.9.5",
     "publint": "^0.3.22",
     "tsup": "^8.5.1",

@@ -2,7 +2,7 @@
  * Test runner utilities for the stop hook.
  *
  * The per-language test command is resolved by the single source of truth —
- * `safeword test-plan --kind test --json` — not duplicated here. This hook only
+ * `safeword project test-plan --kind test --json` — not duplicated here. This hook only
  * EXECUTES the resolved commands (timeout-safe, no zombies) and appends the JS
  * acceptance lane (`test:bdd`), which the resolver does not emit.
  *
@@ -25,13 +25,20 @@ type TestCommand = {
   cwd: string;
 };
 
-/** One entry of `safeword test-plan --json` output. */
+/** One entry of the schema-1 `safeword project test-plan --json` result envelope. */
 interface PlanEntry {
   language: string;
   cwd: string;
   command: string;
   runner: string;
   available: boolean;
+}
+
+interface TestPlanEnvelope {
+  schema_version: 1;
+  data?: {
+    plan?: PlanEntry[];
+  };
 }
 
 export interface TestResult {
@@ -109,19 +116,20 @@ function safewordCliCommand(cwd: string): [string, ...string[]] {
 }
 
 /**
- * Ask `safeword test-plan` for the project's test commands and keep the runnable
+ * Ask `safeword project test-plan` for the project's test commands and keep the runnable
  * (available) ones. Returns [] on any failure so the caller skips, never blocks.
  */
 function resolvePlanCommands(cwd: string): TestCommand[] {
   const cli = safewordCliCommand(cwd);
   const result = spawnSync(
     cli[0],
-    [...cli.slice(1), 'test-plan', '--kind', 'test', '--json', cwd],
+    [...cli.slice(1), 'project', 'test-plan', '--kind', 'test', '--json', cwd],
     { encoding: 'utf8', timeout: TEST_TIMEOUT_MS },
   );
   if (result.status !== 0 || !result.stdout) return [];
   try {
-    const entries = JSON.parse(result.stdout) as PlanEntry[];
+    const envelope = JSON.parse(result.stdout) as TestPlanEnvelope;
+    const entries = envelope.data?.plan ?? [];
     return entries
       .filter(entry => entry.available)
       .map(entry => ({ script: entry.runner, command: entry.command, cwd: entry.cwd }));
@@ -236,7 +244,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
 /**
  * Run the project's test suite and return the result.
  *
- * - Resolves commands from `safeword test-plan` (single source of truth) + the
+ * - Resolves commands from `safeword project test-plan` (single source of truth) + the
  *   `test:bdd` acceptance lane.
  * - Uses execSync for synchronous, timeout-safe execution (no zombie processes).
  * - Returns skipped=true if no runnable command was found (caller should not block).

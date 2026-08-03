@@ -88,6 +88,35 @@ function sectionsWithout(omitted: string): string {
 }
 
 describe('parseImplPlan section validation (Rule 2)', () => {
+  it.each(['Design alignment', 'Arch alignment'])(
+    'accepts %s as the single alignment heading and normalizes its section key',
+    heading => {
+      const result = parseImplPlan(
+        plan(
+          'planned',
+          FIVE_SECTIONS.replace('## Arch alignment', () => `## ${heading}`),
+        ),
+      );
+
+      expect(result.errors).toEqual([]);
+      expect(Object.keys(result.sections)).toContain('Design alignment');
+      expect(Object.keys(result.sections)).not.toContain('Arch alignment');
+    },
+  );
+
+  it('rejects a plan containing both alignment aliases', () => {
+    const withBoth = FIVE_SECTIONS.replace(
+      '## Arch alignment',
+      '## Design alignment\n\nCanonical mapping.\n\n## Arch alignment',
+    );
+
+    const result = parseImplPlan(plan('planned', withBoth));
+
+    expect(result.errors).toContain(
+      'Both `## Design alignment` and legacy `## Arch alignment` are present — keep exactly one.',
+    );
+  });
+
   it('reports a populated section as satisfied', () => {
     const result = parseImplPlan(plan('planned'));
     expect(result.sections.Decisions?.satisfied).toBe(true);
@@ -98,8 +127,8 @@ describe('parseImplPlan section validation (Rule 2)', () => {
     const result = parseImplPlan(
       plan('planned', sectionsWith({ 'Arch alignment': 'skip: no ADRs in this project yet' })),
     );
-    expect(result.sections['Arch alignment']?.satisfied).toBe(true);
-    expect(result.sections['Arch alignment']?.skip).toBe('no ADRs in this project yet');
+    expect(result.sections['Design alignment']?.satisfied).toBe(true);
+    expect(result.sections['Design alignment']?.skip).toBe('no ADRs in this project yet');
     expect(result.errors).toEqual([]);
   });
 

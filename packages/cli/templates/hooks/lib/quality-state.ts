@@ -107,6 +107,13 @@ export interface QualityState {
    */
   lastReviewedPhase?: string;
   /**
+   * The generic Stop quality review has already been surfaced for this session.
+   * A later idle Stop callback must stay silent until UserPromptSubmit clears
+   * this flag, preventing a stale review continuation from manufacturing an
+   * assistant reply (issue #1492).
+   */
+  stopQualityReviewAwaitingUserPrompt?: boolean;
+  /**
    * HEAD sha at which the replan-on-resume heads-up last fired (ticket 153).
    * Suppresses re-firing every turn while HEAD is unchanged; a new session has
    * no marker and re-evaluates from the ticket's `last_modified`. Stored here —

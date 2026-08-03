@@ -14,7 +14,6 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { maybeMigrateNamespace, promptYesDefault } from '../../src/commands/upgrade.js';
 import {
   executeNamespaceMigration,
   planNamespaceMigration,
@@ -143,77 +142,5 @@ describe('executeNamespaceMigration (9MMWS7)', () => {
       readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8'),
     ) as { paths: { personas: string } };
     expect(config.paths.personas).toBe('.project/personas.md');
-  });
-});
-
-describe('migration prompt seam (9MMWS7)', () => {
-  let cwd: string;
-
-  beforeEach(() => {
-    cwd = createTemporaryDirectory();
-  });
-
-  afterEach(() => {
-    removeTemporaryDirectory(cwd);
-  });
-
-  it('TB1.AC1.prompt_accept_migrates — default answer moves the namespace', async () => {
-    seedLegacy(cwd);
-
-    await maybeMigrateNamespace(cwd, { confirmMigration: () => Promise.resolve(true) });
-
-    expect(existsSync(nodePath.join(cwd, '.project', 'personas.md'))).toBe(true);
-    expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
-  });
-
-  it('TB1.AC2.prompt_decline_leaves_legacy_untouched', async () => {
-    seedLegacy(cwd);
-    const personasBefore = readFileSync(
-      nodePath.join(cwd, '.safeword-project', 'personas.md'),
-      'utf8',
-    );
-
-    await maybeMigrateNamespace(cwd, { confirmMigration: () => Promise.resolve(false) });
-
-    expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
-    expect(readFileSync(nodePath.join(cwd, '.safeword-project', 'personas.md'), 'utf8')).toBe(
-      personasBefore,
-    );
-  });
-});
-
-describe('promptYesDefault (AV3PYY) — EOF-safe [Y/n], default yes', () => {
-  async function answerWith(chunks: string[], end = true): Promise<boolean> {
-    const { PassThrough } = await import('node:stream');
-    const input = new PassThrough();
-    const output = new PassThrough();
-    const pending = promptYesDefault('move? [Y/n] ', input, output);
-    for (const chunk of chunks) input.write(chunk);
-    if (end) input.end();
-    return pending;
-  }
-
-  it('Enter accepts (default yes)', async () => {
-    await expect(answerWith(['\n'])).resolves.toBe(true);
-  });
-
-  it('y accepts', async () => {
-    await expect(answerWith(['y\n'])).resolves.toBe(true);
-  });
-
-  it('Y accepts (case-insensitive)', async () => {
-    await expect(answerWith(['Y\n'])).resolves.toBe(true);
-  });
-
-  it('n declines', async () => {
-    await expect(answerWith(['n\n'])).resolves.toBe(false);
-  });
-
-  it('N declines (case-insensitive)', async () => {
-    await expect(answerWith(['N\n'])).resolves.toBe(false);
-  });
-
-  it('stdin EOF with no answer declines (a dead stream never auto-migrates; nodejs#53497)', async () => {
-    await expect(answerWith([])).resolves.toBe(false);
   });
 });

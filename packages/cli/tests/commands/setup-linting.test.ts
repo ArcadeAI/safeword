@@ -93,7 +93,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
 
       const packageJson = JSON.parse(readTestFile(temporaryDirectory, 'package.json'));
       expect(packageJson.scripts?.lint).toBe('eslint . && bun run lint:gherkin');
-      expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword lint-gherkin');
+      expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword project lint-gherkin');
     });
 
     it('should not overwrite existing lint script', async () => {
@@ -109,7 +109,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
       const packageJson = JSON.parse(readTestFile(temporaryDirectory, 'package.json'));
       // Original script should be preserved
       expect(packageJson.scripts?.lint).toBe('eslint src/');
-      expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword lint-gherkin');
+      expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword project lint-gherkin');
     });
   });
 

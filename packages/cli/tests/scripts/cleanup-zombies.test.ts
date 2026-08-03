@@ -283,6 +283,17 @@ fi
 
       expect(output).toContain('Port: 5173');
     });
+
+    it('uses one framework precedence for both port and process pattern', () => {
+      createFile('vite.config.ts');
+      createFile('next.config.js');
+
+      const output = runScript();
+
+      expect(output).toContain('Port: 5173');
+      expect(output).toContain('Pattern: vite');
+      expect(output).not.toContain('Pattern: next');
+    });
   });
 
   describe('monorepo detection (packages/*/, apps/*/)', () => {
