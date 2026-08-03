@@ -24,7 +24,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 710fb11f4
 - [x] GREEN a167ccfa7
-- [ ] REFACTOR
+- [x] REFACTOR skip: pre-commit complexity enforcement already separated settings observation, trust checks, and convergence before GREEN; no further cleanup is warranted
 
 ### Scenario: First installation in one scope preserves an existing installation in the other
 
