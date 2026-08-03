@@ -48,7 +48,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the pre-existing Stop loop guard already allowed the correction iteration; this scenario locks in its precedence
 - [x] GREEN cc97e0d0e
-- [ ] REFACTOR
+- [x] REFACTOR skip: no new production path was needed beyond the existing early loop guard
 
 ## Rule: generate-compliant-replies-without-rewrites.TBU1.R1 — The exact phase-neutral contract is available before the first response and restored after compaction
 
