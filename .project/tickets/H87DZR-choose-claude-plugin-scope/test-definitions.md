@@ -53,7 +53,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: User installation leaves the repository unchanged
 
 - [x] RED 62f5edff2
-- [ ] GREEN
+- [x] GREEN 6c6f315cb
 - [ ] REFACTOR
 
 ### Scenario: Selected-scope operation failure is reported without touching the other scope
