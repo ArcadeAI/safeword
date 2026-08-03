@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An older official installation upgrades only in the selected scope
 
-- [ ] RED
+- [x] RED 710fb11f4
 - [ ] GREEN
 - [ ] REFACTOR
 
