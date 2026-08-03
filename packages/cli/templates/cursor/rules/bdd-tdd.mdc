@@ -3,4 +3,4 @@ description: USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor
 alwaysApply: false
 ---
 
-@.claude/skills/bdd/TDD.md
+@.safeword/skills/bdd/TDD.md

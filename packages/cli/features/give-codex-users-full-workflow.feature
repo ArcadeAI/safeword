@@ -26,7 +26,7 @@ Feature: Give Codex users the full Safe Word workflow
       Given an empty project has no Safe Word workflow material
       When the builder sets up Safe Word for Codex
       Then Safe Word directs the builder to the explicit Codex plugin install command
-      And the project contains no Safe Word workflow tree in .agents, .codex, or .safeword
+      And no Codex-owned workflow tree is written to .agents or .codex while shared Cursor skills remain available
 
     @rejection
     Scenario: Project-local workflow output rejects the integration

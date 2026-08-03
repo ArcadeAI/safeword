@@ -3,4 +3,4 @@ description: USE WHEN in BDD define-behavior or scenario-gate phase. Guides Give
 alwaysApply: false
 ---
 
-@.claude/skills/bdd/SCENARIOS.md
+@.safeword/skills/bdd/SCENARIOS.md

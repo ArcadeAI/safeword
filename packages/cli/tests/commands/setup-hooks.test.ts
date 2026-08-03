@@ -45,6 +45,11 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
 
   beforeEach(() => {
     temporaryDirectory = createTemporaryDirectory();
+    writeTestFile(
+      temporaryDirectory,
+      '.claude/settings.json',
+      '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+    );
   });
 
   afterEach(() => {
@@ -124,6 +129,14 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
             {
               command: 'echo "My custom hook"',
               description: 'Custom SessionStart hook',
+            },
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'bun .safeword/hooks/session-version.ts',
+                },
+              ],
             },
           ],
         },
@@ -241,7 +254,11 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
         initGitRepo(temporaryDirectory);
 
         // Create .claude directory with read-only settings.json
-        writeTestFile(temporaryDirectory, '.claude/settings.json', '{}');
+        writeTestFile(
+          temporaryDirectory,
+          '.claude/settings.json',
+          '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+        );
         chmodSync(nodePath.join(temporaryDirectory, '.claude/settings.json'), 0o444);
 
         const result = await runCliWithoutInstall(['setup'], {

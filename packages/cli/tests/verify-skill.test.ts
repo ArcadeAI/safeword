@@ -46,7 +46,7 @@ describe('verify command pointer (7PG694)', () => {
     ['dogfood cursor command', dogfoodCursorCommandContent],
   ])('%s is a thin pointer to the canonical skill', (_name, content) => {
     expect(content).toContain('Read and follow the instructions in');
-    expect(content).toContain('.claude/skills/verify/SKILL.md');
+    expect(content).toContain('.safeword/skills/verify/SKILL.md');
     expect(content.split('\n').length).toBeLessThan(10);
   });
 });

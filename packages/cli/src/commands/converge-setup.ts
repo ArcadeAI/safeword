@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
 import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
@@ -24,7 +25,6 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
-import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
@@ -596,17 +596,27 @@ function setupResult(input: SetupResultInput): CliResult {
     ...pythonFindings(pythonSetup),
   ];
   const actionRequired = findings.some(finding => finding.severity !== 'info');
+  const resultFindings = actionRequired
+    ? findings
+    : [
+        ...findings,
+        {
+          code: 'SETUP_CODEX_PLUGIN_HANDOFF',
+          message: 'Codex plugin: safeword codex install',
+          severity: 'info' as const,
+        },
+      ];
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
-  const nextCommand = actionRequired
-    ? (installation.command ?? 'safeword setup')
-    : 'safeword codex install';
+  const nextCommands = actionRequired
+    ? [installation.command ?? 'safeword setup']
+    : ['safeword claude install', 'safeword codex install'];
   return createResult({
     state,
     changed,
     effects: { files, packages, network },
-    findings,
-    nextActions: [{ command: nextCommand, mutates: true, requiresHuman: true }],
+    findings: resultFindings,
+    nextActions: nextCommands.map(command => ({ command, mutates: true, requiresHuman: true })),
     data: { configured: true, dependency_install: installation },
   });
 }
@@ -668,7 +678,8 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   } = input;
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
-  const result = await reconcile(SAFEWORD_SCHEMA, operation, context);
+  const setupSchema = schemaForClaudeDelivery(cwd);
+  const result = await reconcile(setupSchema, operation, context);
   const completedEffects: CompletedSetupEffects = {
     files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],
     packages: [],
@@ -744,6 +755,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+      schema: setupSchema,
     });
     return verifiedSetupResult(applied, health, configured);
   } catch (setupError) {

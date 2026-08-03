@@ -637,7 +637,7 @@ describe('Schema - Single Source of Truth', () => {
       const mismatches = CURSOR_RULE_WRAPPERS.filter(
         wrapper =>
           wrapper.skill !== undefined &&
-          !wrapper.referencePath.startsWith(`.claude/skills/${wrapper.skill}/`),
+          !wrapper.referencePath.startsWith(`.safeword/skills/${wrapper.skill}/`),
       ).map(
         wrapper =>
           `${wrapper.name}: skill=${wrapper.skill ?? '<none>'}, reference=${wrapper.referencePath}`,

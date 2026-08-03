@@ -73,7 +73,7 @@ const CURSOR_REVIEW_ENTRYPOINTS: ReviewEntrypoint[] = CLAUDE_REVIEW_ENTRYPOINTS.
     return (
       path.startsWith('.cursor/') &&
       template !== undefined &&
-      templateContent(template).includes(claude.path)
+      templateContent(template).includes(claude.stage)
     );
   });
   if (matches.length !== 1) {

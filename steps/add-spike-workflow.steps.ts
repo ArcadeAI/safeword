@@ -727,7 +727,7 @@ Then(
       `${this.setupResult?.stdout ?? ''}\n${this.setupResult?.stderr ?? ''}`,
     );
     assert.equal(
-      existsSync(nodePath.join(this.projectDirectory, '.claude/skills/spike/SKILL.md')),
+      existsSync(nodePath.join(this.projectDirectory, '.safeword/skills/spike/SKILL.md')),
       true,
       'Claude Code spike skill was not installed',
     );
@@ -744,7 +744,7 @@ Then(
   function (this: SpikeWorkflowWorld) {
     assert.ok(this.projectDirectory);
     const claudeSkill = readFileSync(
-      nodePath.join(this.projectDirectory, '.claude/skills/spike/SKILL.md'),
+      nodePath.join(this.projectDirectory, '.safeword/skills/spike/SKILL.md'),
       'utf8',
     );
     const cursorCommand = readFileSync(
@@ -755,6 +755,6 @@ Then(
     for (const contract of ['## Charter', '## Isolation', '## Evidence distillation']) {
       assert.ok(claudeSkill.toLowerCase().includes(contract.toLowerCase()), contract);
     }
-    assert.ok(cursorCommand.includes('.claude/skills/spike/SKILL.md'), cursorCommand);
+    assert.ok(cursorCommand.includes('.safeword/skills/spike/SKILL.md'), cursorCommand);
   },
 );

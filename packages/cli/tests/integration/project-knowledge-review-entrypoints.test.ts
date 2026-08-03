@@ -48,7 +48,7 @@ function readEntrypoint(root: string, path: string): string {
   const entrypoint = readFileSync(absolutePath, 'utf8');
   if (entrypoint.includes(RESOLVER_COMMAND)) return entrypoint;
 
-  const reference = /@?(\.claude\/skills\/[\w./-]+)/u.exec(entrypoint)?.[1];
+  const reference = /@?((?:\.claude|\.safeword)\/skills\/[\w./-]+)/u.exec(entrypoint)?.[1];
   expect(reference, `entry point ${path} must reference its installed procedure`).toBeDefined();
   return readFileSync(nodePath.join(root, reference ?? ''), 'utf8');
 }
