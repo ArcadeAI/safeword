@@ -7,6 +7,7 @@ import { commandWords, splitShellSegments } from './shell-segments.js';
 
 const CLOSEOUT_BINDING_CACHE = 'closeout-session-binding.json';
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
+const CLOSEOUT_RUNTIMES = ['claude', 'codex', 'cursor'] as const;
 
 export interface CloseoutBinding {
   runtime: 'claude' | 'codex' | 'cursor';
@@ -35,6 +36,38 @@ interface ReadFreshCloseoutBindingInput {
 function nonEmptyString(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function isCloseoutRuntime(value: unknown): value is CloseoutBinding['runtime'] {
+  return CLOSEOUT_RUNTIMES.some(runtime => runtime === value);
+}
+
+function parseFreshBindingRecord(
+  line: string,
+  now: number,
+  maxAgeMs: number,
+): CloseoutBinding | undefined {
+  try {
+    const parsed = JSON.parse(line) as Partial<CloseoutBindingCache>;
+    const id = nonEmptyString(parsed.id);
+    const recordedAt = Date.parse(parsed.recordedAt ?? '');
+    if (
+      id === undefined ||
+      !isCloseoutRuntime(parsed.runtime) ||
+      !Number.isFinite(recordedAt) ||
+      now - recordedAt > maxAgeMs
+    ) {
+      return undefined;
+    }
+    const transcriptPath = nonEmptyString(parsed.transcriptPath);
+    return {
+      runtime: parsed.runtime,
+      id,
+      ...(transcriptPath === undefined ? {} : { transcriptPath }),
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 function isCloseoutCleanupPath(token: string | undefined): boolean {
@@ -94,33 +127,16 @@ export function readFreshCloseoutBinding(
     // cannot both consume the same short-lived host-session proof.
     renameSync(cachePath, claimPath);
     const now = (input.now ?? new Date()).getTime();
+    const maxAgeMs = input.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
     const candidates = readFileSync(claimPath, 'utf8')
       .split('\n')
       .filter(Boolean)
       .flatMap(line => {
-        try {
-          const parsed = JSON.parse(line) as Partial<CloseoutBindingCache>;
-          const id = nonEmptyString(parsed.id);
-          const recordedAt = Date.parse(parsed.recordedAt ?? '');
-          return id !== undefined &&
-            ['claude', 'codex', 'cursor'].includes(parsed.runtime ?? '') &&
-            Number.isFinite(recordedAt) &&
-            now - recordedAt <= (input.maxAgeMs ?? DEFAULT_MAX_AGE_MS)
-            ? [{ parsed, id }]
-            : [];
-        } catch {
-          return [];
-        }
+        const candidate = parseFreshBindingRecord(line, now, maxAgeMs);
+        return candidate === undefined ? [] : [candidate];
       });
     const candidate = candidates.length === 1 ? candidates[0] : undefined;
-    if (!candidate) return undefined;
-    const { parsed, id } = candidate;
-    const transcriptPath = nonEmptyString(parsed.transcriptPath);
-    return {
-      runtime: parsed.runtime as CloseoutBinding['runtime'],
-      id,
-      ...(transcriptPath === undefined ? {} : { transcriptPath }),
-    };
+    return candidate;
   } catch {
     return undefined;
   } finally {
