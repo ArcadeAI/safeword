@@ -19,7 +19,7 @@ done_when:
   - "A structured unsupported-model event fails with the selected model, Codex CLI version, and retry action while unrelated stderr warnings remain separately inspectable."
   - "The opt-in live smoke uses an explicit model and the same structured proof assertions, and the release procedure names both commands without equating headless proof with Desktop restart."
 created: 2026-08-03T01:32:26.403Z
-last_modified: 2026-08-03T02:45:36.000Z
+last_modified: 2026-08-03T03:57:32.000Z
 ---
 
 # Make headless Codex activation release checks reliable
@@ -45,5 +45,8 @@ last_modified: 2026-08-03T02:45:36.000Z
 - 2026-08-03T01:49:00.000Z RED/GREEN: Unsupported-model coverage first failed on the missing structured error type, then passed with a stable `CODEX_MODEL_UNSUPPORTED` code, selected model and CLI version, retry guidance, and separately retained stderr warnings.
 - 2026-08-03T01:56:32.000Z Wired: Replaced the live smoke's one-hook conversational probe with the shared explicit-model validator, asserted all five cached hook commands, and documented deterministic plus authenticated release commands. Tightened marker and receipt identity/timestamp checks during self-review. The live suite compiles and skips locally because installed `codex-cli 0.141.0` is below its 0.144.5 minimum.
 - 2026-08-03T02:05:30.000Z Quality review: First pass requested lower complexity and upper timestamp bounds. Split marker/receipt predicates, observed a future-proof regression fail, then bounded proof and receipt timestamps to the task interval. Four focused integrations, ESLint, and TypeScript pass; fresh re-review started.
-- 2026-08-03T02:18:00.000Z Quality re-review: Current OpenAI model guidance directs ChatGPT-authenticated saved `codex exec` uses to migrate from `gpt-5.4` to `gpt-5.6-terra`. Updated the deterministic default and release command; retained the 0.144.5 smoke floor because explicit GPT-5.6 selection is supported there and the floor also protects plugin-hook behavior.
+- 2026-08-03T02:18:00.000Z Quality re-review: Current OpenAI model guidance recommends `gpt-5.6-terra` when balancing capability and cost and describes migration from GPT-5.4. Updated the deterministic default and release command; retained the 0.144.5 smoke floor because explicit GPT-5.6 selection is supported there and the floor also protects plugin-hook behavior.
 - 2026-08-03T02:45:36.000Z Verified: Final quality review approved with no critical issues. Focused activation coverage passes 4/4; the full suite passed 6,247 tests with 6 unrelated timeout failures that all passed in a 100-test isolated rerun; Gherkin passed 823 runnable scenarios; build, lint, typecheck, dependency audit, and diff audit are clean. Wrote `verify.md` with the local live-smoke limitation.
+- 2026-08-03T03:51:08.000Z Refactored: Ran the dedicated refactor workflow leaf-first. Centralized repeated activation fixtures, extracted the Codex subprocess boundary, added the suggested future-dated activation-receipt regression, and added dated official model provenance while preserving the verified 0.144.5 live-smoke floor.
+- 2026-08-03T03:51:08.000Z Re-verified: Post-refactor full Vitest passes 6,353/6,353 runnable tests with 5 skips; focused activation coverage passes 5/5; Gherkin passes 823 scenarios with 3 skips; lint, typecheck, build, dependency audit, and diff-scoped audit are clean.
+- 2026-08-03T03:57:32.000Z Quality re-review: Fresh independent review approved with no critical issues. Reconciled its two evidence-only suggestions by narrowing the historical model claim to the official guidance and aligning the verification checklist with the 5/5 deterministic suite.
