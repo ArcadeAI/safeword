@@ -13,6 +13,7 @@ import {
   defaultBranchArguments,
   executeCleanupOperation,
   operationCommand,
+  parseWorktrees,
   resolveRemoteRef as resolveRemoteReference,
   safewordCliCommand,
   transcriptMatchesBinding,
@@ -61,6 +62,12 @@ function worktree(index: number) {
   const value = safeObservation().worktrees[index];
   if (!value) throw new Error(`fixture worktree ${index} missing`);
   return value;
+}
+
+function runGit(...arguments_: string[]): string {
+  const result = spawnSync('git', arguments_, { encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(result.stderr);
+  return result.stdout.trim();
 }
 
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
@@ -387,32 +394,26 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     const main = nodePath.join(sandbox, 'main');
     const topic = nodePath.join(sandbox, 'topic');
     const remote = nodePath.join(sandbox, 'remote.git');
-    const git = (...arguments_: string[]) => {
-      const result = spawnSync('git', arguments_, { encoding: 'utf8' });
-      if (result.status !== 0) throw new Error(result.stderr);
-      return result.stdout.trim();
-    };
-
     try {
-      git('init', '--bare', remote);
-      git('init', '--initial-branch=main', main);
-      git('-C', main, 'config', 'user.email', 'closeout@example.test');
-      git('-C', main, 'config', 'user.name', 'Closeout Test');
+      runGit('init', '--bare', remote);
+      runGit('init', '--initial-branch=main', main);
+      runGit('-C', main, 'config', 'user.email', 'closeout@example.test');
+      runGit('-C', main, 'config', 'user.name', 'Closeout Test');
       writeFileSync(nodePath.join(main, 'README.md'), 'main\n');
-      git('-C', main, 'add', 'README.md');
-      git('-C', main, 'commit', '-m', 'main');
-      git('-C', main, 'remote', 'add', 'origin', remote);
-      git('-C', main, 'push', '-u', 'origin', 'main');
-      git('-C', main, 'worktree', 'add', '-b', 'feature/closeout', topic);
+      runGit('-C', main, 'add', 'README.md');
+      runGit('-C', main, 'commit', '-m', 'main');
+      runGit('-C', main, 'remote', 'add', 'origin', remote);
+      runGit('-C', main, 'push', '-u', 'origin', 'main');
+      runGit('-C', main, 'worktree', 'add', '-b', 'feature/closeout', topic);
       writeFileSync(nodePath.join(topic, 'feature.txt'), 'topic\n');
-      git('-C', topic, 'add', 'feature.txt');
-      git('-C', topic, 'commit', '-m', 'topic');
-      git('-C', topic, 'push', '-u', 'origin', 'feature/closeout');
-      const oid = git('-C', topic, 'rev-parse', 'HEAD');
+      runGit('-C', topic, 'add', 'feature.txt');
+      runGit('-C', topic, 'commit', '-m', 'topic');
+      runGit('-C', topic, 'push', '-u', 'origin', 'feature/closeout');
+      const oid = runGit('-C', topic, 'rev-parse', 'HEAD');
       const mainWorktree = {
         path: main,
         branch: 'main',
-        oid: git('-C', main, 'rev-parse', 'HEAD'),
+        oid: runGit('-C', main, 'rev-parse', 'HEAD'),
         main: true,
       };
       const baseline = safeObservation({
@@ -445,11 +446,45 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
       expect(result.applied).toBe(true);
       expect(existsSync(topic)).toBe(false);
-      expect(git('-C', main, 'ls-remote', '--heads', 'origin', 'feature/closeout')).toBe('');
+      expect(runGit('-C', main, 'ls-remote', '--heads', 'origin', 'feature/closeout')).toBe('');
       expect(
         spawnSync('git', ['-C', main, 'show-ref', '--verify', 'refs/heads/feature/closeout'])
           .status,
       ).not.toBe(0);
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves a live topic worktree whose path contains blank lines', () => {
+    const sandbox = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-newline-'));
+    const main = nodePath.join(sandbox, 'main');
+    const topic = nodePath.join(sandbox, 'topic\n\nwith-blank-line');
+    try {
+      runGit('init', '--initial-branch=main', main);
+      runGit('-C', main, 'config', 'user.email', 'closeout@example.test');
+      runGit('-C', main, 'config', 'user.name', 'Closeout Test');
+      writeFileSync(nodePath.join(main, 'README.md'), 'main\n');
+      runGit('-C', main, 'add', 'README.md');
+      runGit('-C', main, 'commit', '-m', 'main');
+      runGit('-C', main, 'worktree', 'add', '-b', 'feature/closeout', topic);
+
+      const worktrees = parseWorktrees(main);
+      expect(worktrees.map(candidate => candidate.path)).toContain(topic);
+      const oid = runGit('-C', topic, 'rev-parse', 'HEAD');
+      const plan = buildCleanupPlan(
+        safeObservation({
+          deliveryWorktreePath: main,
+          pullRequests: [{ ...pullRequest(), headRefOid: oid }],
+          localRefOid: oid,
+          remote: undefined,
+          remoteResolution: 'absent',
+          worktrees,
+          verification: { current: true, passed: true, headOid: oid, stateHash: 'newline' },
+        }),
+      );
+      expect(plan.blockers).toContain(`the topic branch is used by a different worktree: ${topic}`);
+      expect(plan.operations).toEqual([]);
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
     }
