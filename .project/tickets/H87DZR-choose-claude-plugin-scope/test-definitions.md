@@ -98,7 +98,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Status reports no applicable installation for the current project
 
-- [ ] RED
+- [x] RED skip: the collected observer already returned an empty applicable set and status mapped it to missing; the newly executable scenario passed immediately
 - [ ] GREEN
 - [ ] REFACTOR
 
