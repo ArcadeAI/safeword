@@ -1,18 +1,18 @@
 {
   "version": 1,
   "ticket": "93C14D",
-  "created_at": "2026-08-02T23:50:30Z",
+  "created_at": "2026-08-03T00:18:30Z",
   "inputs": [
     { "path": "packages/cli/templates/skills/closeout/SKILL.md", "sha256": "7300e4168f52be57482022a748646280cdeda097c800720f06a6b2d6dfc95f8b" },
     { "path": ".claude/skills/closeout/SKILL.md", "sha256": "7300e4168f52be57482022a748646280cdeda097c800720f06a6b2d6dfc95f8b" },
     { "path": ".cursor/commands/closeout.md", "sha256": "54c80372dd69ea491563744d8d2b08f7684a73f31d1faa10c0de6270176aca55" },
-    { "path": ".safeword/scripts/closeout-cleanup.ts", "sha256": "756ca1d13647e075298c984a6927c508a088fa631f0b23e4a3666f06c7d61b19" },
+    { "path": ".safeword/scripts/closeout-cleanup.ts", "sha256": "6e43cd683183082972264f0daddede22de28bdf6f1a41296de96ad1f4b81c1c0" },
     { "path": "features/close-completed-sessions-safely.feature", "sha256": "cd97feabb9e4b2330946a331120fb141fb490659f82757601029fd3bb1da64ac" },
     { "path": "packages/cli/codex-plugin/skills/closeout/SKILL.md", "sha256": "968e7ff1718b80f11dbe7f580f647cbe66ebe56e895e472ca8825e5f989c7d3e" },
     { "path": "packages/cli/tests/closeout-skill.test.ts", "sha256": "369eee327206c639a40bccbae44af65e8bd24cb763f3e92e4bba395da4a68a9c" },
     { "path": "packages/cli/src/parity.ts", "sha256": "7260f5937ce32fc5999545a1a79b63e0780fdfcc536f3f175a5553373002039e" },
     { "path": "packages/cli/src/codex-plugin/catalogue.ts", "sha256": "d3055def60c9930bb9b0e771884dffa2e5114ad1433a5c9821d1bda23e7fcc0c" },
-    { "path": ".project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json", "sha256": "57fa6cd2869dce742df937a1b25892d90397c1925d902f6e6fe64315187cc177" }
+    { "path": ".project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json", "sha256": "170ad0b0d8b383f64e880afc42ba1be6fee7e16dfe83df7e955ee4e3f06e50a4" }
   ],
   "expected_scenarios": [
     { "id": "01", "title": "Current delivery evidence makes an authorized merge eligible" },

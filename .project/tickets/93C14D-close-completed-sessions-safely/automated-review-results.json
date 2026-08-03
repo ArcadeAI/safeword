@@ -1,12 +1,12 @@
 {
   "ticket": "93C14D",
   "recorded_at": "2026-08-02T23:35:30Z",
-  "head": "7c73f9916e11c11a0e7efae6c84f72a54100b73e",
+  "head": "73fa66dd19e7d75b51eec706e06e1a906f18a18e",
   "results": [
     {
-      "command": "bun run test tests/closeout-cleanup.test.ts tests/closeout-skill.test.ts tests/hooks/closeout-session-binding.test.ts tests/integration/closeout-host-adapters.test.ts tests/schema.test.ts",
+      "command": "bun run test tests/closeout-cleanup.test.ts tests/closeout-skill.test.ts tests/hooks/closeout-session-binding.test.ts tests/integration/closeout-host-adapters.test.ts tests/cursor-shell-gate.test.ts tests/schema.test.ts",
       "outcome": "pass",
-      "detail": "93 tests passed, including exact retro recovery, other-worktree preservation, and canonical/dogfood/Codex/Cursor drift mutations through production parity implementations"
+      "detail": "117 tests passed, including NUL-delimited newline worktree preservation, exact retro recovery, other-worktree preservation, host binding, and canonical/dogfood/Codex/Cursor drift mutations through production parity implementations"
     },
     {
       "command": "bun run test tests/integration/closeout-host-adapters.test.ts",

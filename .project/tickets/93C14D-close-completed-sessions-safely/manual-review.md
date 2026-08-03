@@ -3,7 +3,7 @@
 The reviewer independently recomputed the manifest and all ten input hashes,
 then assessed every expanded feature example against the bound artifacts. The
 review specifically rechecked the previously failing retro-recovery,
-other-worktree, and four parity-drift examples after their fixes.
+other-worktree, newline-path, and four parity-drift examples after their fixes.
 
 ```json
 {
@@ -11,7 +11,7 @@ other-worktree, and four parity-drift examples after their fixes.
     "identity": "/root/final_quality_pass",
     "model": "gpt-5.6-sol (inherited parent model)"
   },
-  "manifest_sha256": "4f9b3dca594abd9e161427c1aabc15cae5c05b80312df2cdb7c972775034d7d8",
+  "manifest_sha256": "28854aaf537da3b9c6ea499e62ebf7bde8c42291d4becdcb49d89f941e8d7626",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },
