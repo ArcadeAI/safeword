@@ -12,7 +12,7 @@
     { "path": "packages/cli/tests/closeout-skill.test.ts", "sha256": "369eee327206c639a40bccbae44af65e8bd24cb763f3e92e4bba395da4a68a9c" },
     { "path": "packages/cli/src/parity.ts", "sha256": "7260f5937ce32fc5999545a1a79b63e0780fdfcc536f3f175a5553373002039e" },
     { "path": "packages/cli/src/codex-plugin/catalogue.ts", "sha256": "d3055def60c9930bb9b0e771884dffa2e5114ad1433a5c9821d1bda23e7fcc0c" },
-    { "path": ".project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json", "sha256": "170ad0b0d8b383f64e880afc42ba1be6fee7e16dfe83df7e955ee4e3f06e50a4" }
+    { "path": ".project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json", "sha256": "b256d0f708a29570e21f44ae870d071fd46fc222ab5b1f6e05078fe41d42e21d" }
   ],
   "expected_scenarios": [
     { "id": "01", "title": "Current delivery evidence makes an authorized merge eligible" },

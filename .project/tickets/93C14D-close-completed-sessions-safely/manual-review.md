@@ -11,7 +11,7 @@ other-worktree, newline-path, and four parity-drift examples after their fixes.
     "identity": "/root/final_quality_pass",
     "model": "gpt-5.6-sol (inherited parent model)"
   },
-  "manifest_sha256": "28854aaf537da3b9c6ea499e62ebf7bde8c42291d4becdcb49d89f941e8d7626",
+  "manifest_sha256": "73aacd6795c429a35f4f6475105fc8187558c13637cde26309ef1a33461f5a78",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },
