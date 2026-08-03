@@ -101,7 +101,11 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
    ```
 
    When authenticated Codex credentials are available, also run the opt-in
-   cache smoke with an explicit compatible model:
+   cache smoke with an explicit compatible model. The example below was checked
+   on 2026-08-03 against [OpenAI's model guidance](https://developers.openai.com/api/docs/guides/latest-model),
+   which recommends `gpt-5.6-terra` when balancing capability and cost. Model
+   availability is account- and CLI-dependent, so re-check that guidance and
+   select a currently supported model before each release:
 
    ```bash
    SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_CODEX_SMOKE_MODEL=gpt-5.6-terra bun run --cwd packages/cli test:smoke:live
