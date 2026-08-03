@@ -71,12 +71,17 @@ describe('hash-bound independent closeout review (93C14D)', () => {
       'packages/cli/templates/skills/closeout/SKILL.md',
       '.claude/skills/closeout/SKILL.md',
       '.cursor/commands/closeout.md',
+      '.safeword/skills/closeout/SKILL.md',
       '.safeword/scripts/closeout-cleanup.ts',
       'features/close-completed-sessions-safely.feature',
       'packages/cli/codex-plugin/skills/closeout/SKILL.md',
+      'plugin/skills/closeout/SKILL.md',
+      'plugin/resources/scripts/closeout-cleanup.ts',
       'packages/cli/tests/closeout-skill.test.ts',
+      'packages/cli/tests/integration/closeout-host-adapters.test.ts',
       'packages/cli/src/parity.ts',
       'packages/cli/src/codex-plugin/catalogue.ts',
+      'packages/cli/src/claude-plugin/catalogue.ts',
       '.project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json',
     ]);
     for (const input of manifest.inputs) {

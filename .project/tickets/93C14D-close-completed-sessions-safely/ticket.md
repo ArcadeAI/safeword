@@ -102,3 +102,13 @@ last_modified: 2026-08-03T00:49:44.000Z
   successful build and typecheck, no dependency vulnerabilities, complete
   scenario annotations, and 3/3 affected surfaces proven; advanced from
   implement to verify with the completed R/G/R ledger as the phase anchor.
+- 2026-08-03T01:02:00.000Z Verify: Merged current main without rewriting the
+  hash-bound review history. Main's new native Claude plugin generator exposed
+  an unresolved project-relative script import; added a failing host-adapter
+  contract, adapted plugin-only script imports to packaged runtime hooks, and
+  regenerated a sealed catalogue containing closeout and its dependencies.
+- 2026-08-03T01:08:00.000Z Verify: Independent catch-up review rejected the
+  native Claude path because the packaged guard could fall back to a network or
+  project CLI. Added a generated-runtime test that reproduced `bunx safeword`,
+  resolved plugin closeout through the sealed bundled CLI, and returned the
+  focused runtime and cleanup suite to 48/48 passing before re-review.

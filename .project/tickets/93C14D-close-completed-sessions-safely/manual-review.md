@@ -1,9 +1,10 @@
 # Independent closeout review
 
-The reviewer independently recomputed the manifest and all ten input hashes,
+The reviewer independently recomputed the manifest and all fifteen input hashes,
 then assessed every expanded feature example against the bound artifacts. The
 review specifically rechecked the previously failing retro-recovery,
-other-worktree, newline-path, and four parity-drift examples after their fixes.
+other-worktree, newline-path, four parity-drift, native-plugin dependency-closure,
+Cursor shared-skill, and bundled-plugin-CLI examples after their fixes.
 
 ```json
 {
@@ -11,7 +12,7 @@ other-worktree, newline-path, and four parity-drift examples after their fixes.
     "identity": "/root/final_quality_pass",
     "model": "gpt-5.6-sol (inherited parent model)"
   },
-  "manifest_sha256": "73aacd6795c429a35f4f6475105fc8187558c13637cde26309ef1a33461f5a78",
+  "manifest_sha256": "aac95c16f4e01c7151e71268d61b79ca65c3129b16eb272618e8534f551ceda5",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },

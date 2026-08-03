@@ -1,7 +1,7 @@
 {
   "ticket": "93C14D",
-  "recorded_at": "2026-08-03T00:18:00Z",
-  "head": "73fa66dd19e7d75b51eec706e06e1a906f18a18e",
+  "recorded_at": "2026-08-03T01:07:46Z",
+  "head": "c53636b744c2815f602648f8435f4ac2a388feb9",
   "results": [
     {
       "command": "bun run test tests/closeout-cleanup.test.ts tests/closeout-skill.test.ts tests/hooks/closeout-session-binding.test.ts tests/integration/closeout-host-adapters.test.ts tests/cursor-shell-gate.test.ts tests/schema.test.ts",
@@ -11,7 +11,17 @@
     {
       "command": "bun run test tests/integration/closeout-host-adapters.test.ts",
       "outcome": "pass",
-      "detail": "4 tests passed after installed-profile coverage was added"
+      "detail": "5 tests passed after native Claude plugin dependency closure, bundled-CLI runtime resolution, and Cursor shared-skill installation were added"
+    },
+    {
+      "command": "bun run test packages/cli/tests/integration/closeout-host-adapters.test.ts packages/cli/tests/closeout-cleanup.test.ts",
+      "outcome": "pass",
+      "detail": "48 caught-up mainline compatibility and plugin-runtime tests passed"
+    },
+    {
+      "command": "bun run generate:claude-plugin && bun run check:claude-plugin",
+      "outcome": "pass",
+      "detail": "Generated 164 assets and validated the sealed 0.71.0 native Claude plugin release contract"
     },
     {
       "command": "bun run typecheck",
