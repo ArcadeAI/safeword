@@ -89,3 +89,8 @@ last_modified: 2026-08-02T20:41:09.906Z
   bound parity evidence. Added typed recovery causes, delivery-worktree identity,
   and production parity mutations; corrected one stale evidence SHA. Fresh review
   recomputed all ten hashes and approved all 55 expanded examples.
+- 2026-08-03T00:17:00.000Z Implement: Final quality review reproduced a
+  destructive newline-path worktree omission and rejected an over-strong host
+  proof claim. Switched to NUL-delimited Git porcelain with a real adversarial
+  worktree, narrowed the claim to the exercised evidence, and completed the
+  leaf-first refactor ledger with every remaining entry resolved or justified.

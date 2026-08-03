@@ -138,14 +138,16 @@ No ADR is warranted: this is a reversible use of established extension points.
   binding and cleanup-planning concerns without changing the staged contract.
 - Installed-host proof is derived from production schema/catalogues. Claude and
   Cursor are installed into a fixture, Codex is generated into its real profile
-  layout, and all three resolve the same installed guard contract. The guard's
-  destructive boundary is exercised once through that shared installed path
-  against real temporary Git state while `gh` alone is mocked; model selection
-  remains inside the declared manual evidence boundary.
-- Runtime adversarial review found and repaired four gaps before verification:
+  layout, and all three resolve the same installed guard contract. The installed
+  guard is process-exercised through its fail-closed binding boundary; separate
+  real-Git tests exercise its destructive path, and production hook-adapter tests
+  exercise host binding. Model interpretation of each prose entry point remains
+  inside the declared hash-bound manual evidence boundary.
+- Runtime adversarial review found and repaired destructive and provenance gaps before verification:
   subprocesses now survive worktree removal, remote-observation errors are
   unknown rather than absent, lookalike GitHub URLs are rejected, and concurrent
-  bindings cannot overwrite or adopt another session.
+  bindings cannot overwrite or adopt another session. NUL-delimited worktree
+  observation also preserves paths containing newlines or blank lines.
 - The independent semantic gate is hash-bound to the final Claude, Cursor,
   Codex, guard, feature, and automated-result artifacts. Its deterministic test
   rejects stale inputs, unknown reviewers, missing or non-binary rows, and any
@@ -162,6 +164,37 @@ suffix is deterministic, admin is never inferred, and the final report exposes
 the exact action. Hard transcript-to-authority enforcement would require the
 excluded lifecycle state machine; reassess after the first observed authority
 misclassification or before automating closeout without an interactive user.
+
+The planned installed-host test does not run three real model sessions through
+their prose entry points against one mocked GitHub process. A deterministic test
+cannot make the hosts interpret prose without replacing the model with a second
+implementation. Instead, production-derived installation/profile resolution,
+real hook binding, real-Git guard execution, and hash-bound per-host semantic
+review triangulate that boundary. Reassess if the hosts expose a deterministic
+skill-invocation harness suitable for CI.
+
+### Final refactor ledger
+
+- Resolved independently and test-by-test: extracted retrospective failure
+  classification; extracted fresh binding-record parsing and one runtime guard;
+  shared mutable cleanup-target observation; centralized Cursor allow-path
+  identity bookkeeping; cleaned temporary project/root fixtures; and renamed
+  binding tests to the behavior they actually prove.
+- Retained `pullRequests` cardinality and the two `completed` result meanings:
+  multiple-match rejection is an explicit feature example, while renaming plan
+  and apply result fields changes the serialized digest/output contract rather
+  than preserving behavior.
+- Deferred plan-level operation context and verification-lane centralization:
+  both change the installed guard contract, and the standalone deployed script
+  cannot import package-private protocol state without a new shipped dependency.
+- Deferred extraction of the CLI main block and larger real-Git/scripted-observer
+  test helpers. Current helpers are directly characterized; these extra layers
+  would primarily move code and risk hiding the destructive operation order.
+- Deferred a stricter typed parser for the manual Markdown evidence. Malformed
+  shapes already fail closed in the release test; moving machine evidence to a
+  new file format is an evidence-contract change, not a behavior-preserving
+  refactor. Small fixture constants were retained where their repetition keeps
+  adversarial cases locally legible.
 
 ## Doc impact
 
