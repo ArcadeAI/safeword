@@ -72,7 +72,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Repeating an exact scoped installation is a no-op
 
-- [ ] RED
+- [x] RED skip: exact scoped declarations and a verified shared payload already short-circuited every mutation; both newly executable scope examples passed immediately
 - [ ] GREEN
 - [ ] REFACTOR
 
