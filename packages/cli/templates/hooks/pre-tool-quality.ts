@@ -14,6 +14,7 @@ import {
   parseTddStep,
 } from './lib/active-ticket.ts';
 import { detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
@@ -52,6 +53,7 @@ const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
 interface HookInput {
   session_id?: string;
+  transcript_path?: string;
   tool_name?: string;
   tool_input?: {
     file_path?: string;
@@ -277,6 +279,18 @@ if (tool === 'Bash') {
   }
   if (GIT_COMMIT_COMMAND.test(command)) {
     enforceRefactorCommitGate(input.session_id);
+  }
+  if (
+    commandInvokesCloseoutCleanup(command) &&
+    (process.env.SAFEWORD_AGENT_RUNTIME === undefined ||
+      process.env.SAFEWORD_AGENT_RUNTIME === 'claude')
+  ) {
+    rememberCloseoutBinding({
+      projectDirectory,
+      runtime: 'claude',
+      id: input.session_id,
+      transcriptPath: input.transcript_path,
+    });
   }
   process.exit(0);
 }

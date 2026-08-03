@@ -218,6 +218,7 @@ const CURSOR_SHARED_SKILL_FILES = [
   'bdd/VERIFY.md',
   'brainstorm/SKILL.md',
   'cleanup-zombies/SKILL.md',
+  'closeout/SKILL.md',
   'debug/SKILL.md',
   'elicit/SKILL.md',
   'explain/SKILL.md',
@@ -693,6 +694,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/branch-staleness.ts': { template: 'hooks/lib/branch-staleness.ts' },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
+    '.safeword/hooks/lib/closeout-binding.ts': { template: 'hooks/lib/closeout-binding.ts' },
     '.safeword/hooks/lib/cursor-run-identity.ts': {
       template: 'hooks/lib/cursor-run-identity.ts',
     },
@@ -977,6 +979,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/scripts/cleanup-zombies.sh': {
       template: 'scripts/cleanup-zombies.sh',
     },
+    '.safeword/scripts/closeout-cleanup.ts': {
+      template: 'scripts/closeout-cleanup.ts',
+    },
 
     // Host-neutral skill materialization retained for Cursor's thin wrappers.
     // Claude loads the same canonical sources from its native plugin cache.
@@ -1026,6 +1031,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Skills auto-create /slash-commands, so separate commands are unnecessary
     '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
+    '.claude/skills/closeout/SKILL.md': { template: 'skills/closeout/SKILL.md' },
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
     '.claude/skills/explain/SKILL.md': { template: 'skills/explain/SKILL.md' },
     '.claude/skills/self-review/SKILL.md': { template: 'skills/self-review/SKILL.md' },

@@ -62,6 +62,13 @@ function adaptWorkflowReference(content: string): string {
     .replaceAll('.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/');
 }
 
+function adaptPluginScriptReference(content: string): string {
+  return adaptWorkflowReference(content).replaceAll(
+    "from '../hooks/",
+    "from '../../runtime/hooks/",
+  );
+}
+
 function adaptPluginRuntime(content: string): string {
   return adaptWorkflowReference(content)
     .replaceAll(
@@ -386,7 +393,7 @@ export function generateClaudePluginAssets(
     ...directoryAssets(
       nodePath.join(templatesRoot, 'scripts'),
       'resources/scripts',
-      adaptWorkflowReference,
+      adaptPluginScriptReference,
     ),
     ...directoryAssets(
       nodePath.join(templatesRoot, 'doc-templates'),
