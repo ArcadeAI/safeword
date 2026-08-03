@@ -221,6 +221,13 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
   command('claude install', 'Install the Claude profile plugin', 'mutate', {
     networkPolicy: 'declared',
+    commandOptions: [
+      {
+        flags: '--scope <scope>',
+        description: 'Install for this project or the current user profile',
+        defaultValue: 'project',
+      },
+    ],
   }),
   command('claude status', 'Report Claude plugin and migration state', 'observe'),
   command('claude cleanup', 'Remove verified legacy Claude project assets', 'destructive', {

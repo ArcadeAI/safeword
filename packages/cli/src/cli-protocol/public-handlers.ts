@@ -92,7 +92,8 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
 async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline) return onlineRequired('claude install');
   const { installClaudePlugin } = await import('../claude-plugin/profile.js');
-  return installClaudePlugin(invocation.cwd);
+  const scope = invocation.options.scope;
+  return installClaudePlugin(invocation.cwd, scope === 'user' ? 'user' : 'project');
 }
 
 async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliResult> {

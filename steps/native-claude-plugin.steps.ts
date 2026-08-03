@@ -520,7 +520,7 @@ if (operation === 'plugin marketplace list --json') { console.log(JSON.stringify
 if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
   const [url, ref] = args[3].split('#');
   const scope = args[args.indexOf('--scope') + 1];
-  const projectPath = scope === 'project' ? process.cwd() : undefined;
+  const projectPath = scope === 'project' ? state.projectPath : undefined;
   state.marketplaces = state.marketplaces.filter(entry =>
     entry.name !== 'safeword' || (entry.scope || 'user') !== scope ||
       (scope === 'project' && entry.projectPath !== projectPath));
@@ -529,7 +529,7 @@ if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
 if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
   const scope = args[args.indexOf('--scope') + 1];
-  const projectPath = scope === 'project' ? process.cwd() : undefined;
+  const projectPath = scope === 'project' ? state.projectPath : undefined;
   state.plugins = state.plugins.filter(entry =>
     entry.id !== 'safeword@safeword' || (entry.scope || 'user') !== scope ||
       (scope === 'project' && entry.projectPath !== projectPath));
@@ -563,6 +563,7 @@ function createLifecycleFixture(
     hostVersion: '2.1.170 (Claude Code)',
     failOperation: null as string | null,
     unrelated: { theme: 'dark', custom: ['preserve', 7] },
+    projectPath: project,
     marketplaces: [] as unknown[],
     plugins: [] as unknown[],
     installPath: pluginCachePath(root),
@@ -1867,6 +1868,7 @@ Then(
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
         ref: `v${EXPECTED_VERSION}`,
+        scope: 'user',
       },
     ]);
     assert.deepEqual(state.plugins, [
