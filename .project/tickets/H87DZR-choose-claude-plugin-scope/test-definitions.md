@@ -120,7 +120,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d07d9305e
 - [x] GREEN 4c0f104b4
-- [ ] REFACTOR
+- [x] REFACTOR skip: all three refusal partitions exercise the same project-bound proof predicate and preservation oracle
 
 ### Scenario: Overlapping scopes cannot authorize legacy cleanup
 
