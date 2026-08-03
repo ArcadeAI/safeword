@@ -74,6 +74,11 @@ function pluginCachePath(root: string): string {
   return nodePath.join(root, 'cache', 'safeword', EXPECTED_VERSION);
 }
 
+function executionProofV2Path(pluginData: string, project: string): string {
+  const digest = createHash('sha256').update(realpathSync(project)).digest('hex');
+  return nodePath.join(pluginData, 'execution-proofs-v2', `${digest}.json`);
+}
+
 After(function (this: NativeClaudePluginWorld) {
   if (this.cacheFixture !== undefined) {
     rmSync(this.cacheFixture.root, { recursive: true, force: true });
@@ -318,7 +323,7 @@ Then(
     assert.match(this.cacheFixture.result?.output ?? '', /Current time:/u);
     assert.ok(this.cacheFixture);
     const proof = JSON.parse(
-      readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
+      readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
     ) as { canonical_plugin_root?: string };
     assert.equal(proof.canonical_plugin_root, realpathSync(this.cacheFixture.plugin));
   },
@@ -328,7 +333,7 @@ Then(
   'execution proof is written beneath CLAUDE_PLUGIN_DATA',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.cacheFixture);
-    assert.ok(existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')));
+    assert.ok(existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)));
   },
 );
 
@@ -388,7 +393,7 @@ Then(
     assert.notEqual(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.ok(this.cacheFixture);
     assert.equal(
-      existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')),
+      existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)),
       false,
     );
   },
@@ -564,7 +569,7 @@ Then(
     assert.notEqual(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.ok(this.cacheFixture);
     assert.equal(
-      existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')),
+      existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)),
       false,
     );
   },
@@ -1465,14 +1470,18 @@ Given(
     ) as { hook_manifest_sha256: string };
     mkdirSync(this.cacheFixture.data, { recursive: true });
     const proof = `${JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
+      project_root: realpathSync(this.cacheFixture.project),
       plugin_version: EXPECTED_VERSION,
       hook_manifest_sha256: identity.hook_manifest_sha256,
       canonical_plugin_root: realpathSync(this.cacheFixture.plugin),
       event: 'SessionStart',
+      session_id: 'prior-cleanup-proof',
       recorded_at: new Date(0).toISOString(),
     })}\n`;
-    writeFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), proof);
+    const proofPath = executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project);
+    mkdirSync(nodePath.dirname(proofPath), { recursive: true });
+    writeFileSync(proofPath, proof);
     this.cacheFixture.priorProof = proof;
   },
 );
@@ -1504,7 +1513,7 @@ Then(
     assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.ok(this.cacheFixture);
     assert.equal(
-      readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
+      readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
       this.cacheFixture.priorProof,
     );
   },
@@ -1531,7 +1540,7 @@ Then(
     assert.equal(readFileSync(this.cacheFixture?.effectLog ?? '', 'utf8'), 'plugin\n');
     assert.ok(this.cacheFixture);
     const proof = JSON.parse(
-      readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
+      readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
     ) as { event?: string; plugin_version?: string };
     assert.deepEqual([proof.event, proof.plugin_version], ['SessionStart', EXPECTED_VERSION]);
   },
@@ -3377,7 +3386,7 @@ Then(
     assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.ok(this.cacheFixture);
     const proof = JSON.parse(
-      readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
+      readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
     ) as {
       event?: string;
       plugin_version?: string;
@@ -3400,6 +3409,6 @@ Then(
   'status observes current-task plugin proof without requiring a restart',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.cacheFixture);
-    assert.ok(existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')));
+    assert.ok(existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)));
   },
 );
