@@ -15,7 +15,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Unsupported scope is rejected before mutation
 
 - [x] RED 549663d9f
-- [ ] GREEN
+- [x] GREEN e3f6dcc33
 - [ ] REFACTOR
 
 ## Rule: choose-claude-plugin-scope.TBU1.R2 — Installation and upgrade mutate only the selected scope and preserve unrelated state
