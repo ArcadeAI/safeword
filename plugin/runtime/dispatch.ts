@@ -10,6 +10,7 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -206,8 +207,18 @@ function recordExecutionProof(
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
   const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
   if (event === 'SessionStart' && setupRanForSession(pluginData, input.session_id)) return;
-  writeDurableRecord(pluginData, 'execution-proof-v1.json', {
-    schema_version: 1,
+  const projectRootValue = process.env.CLAUDE_PROJECT_DIR;
+  if (projectRootValue === undefined || projectRootValue.trim() === '') {
+    throw new Error('CLAUDE_PROJECT_DIR is required for execution proof.');
+  }
+  if (!statSync(projectRootValue).isDirectory()) {
+    throw new Error('CLAUDE_PROJECT_DIR must identify a directory.');
+  }
+  const projectRoot = realpathSync(projectRootValue);
+  const projectDigest = createHash('sha256').update(projectRoot).digest('hex');
+  writeDurableRecord(nodePath.join(pluginData, 'execution-proofs-v2'), `${projectDigest}.json`, {
+    schema_version: 2,
+    project_root: projectRoot,
     plugin_version: identity.plugin_version,
     hook_manifest_sha256: identity.hook_manifest_sha256,
     canonical_plugin_root: pluginRoot,

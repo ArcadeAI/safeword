@@ -28226,11 +28226,13 @@ var init_converge_setup = __esm(() => {
 var exports_profile = {};
 __export(exports_profile, {
   observeClaudeProfile: () => observeClaudeProfile,
-  installClaudePlugin: () => installClaudePlugin
+  observeApplicableClaudePlugins: () => observeApplicableClaudePlugins,
+  installClaudePlugin: () => installClaudePlugin,
+  canonicalClaudeProjectRoot: () => canonicalClaudeProjectRoot
 });
 import { spawnSync as spawnSync2 } from "child_process";
 import { createHash as createHash5 } from "crypto";
-import { existsSync as existsSync26, lstatSync as lstatSync4, readFileSync as readFileSync27 } from "fs";
+import { existsSync as existsSync26, lstatSync as lstatSync4, readFileSync as readFileSync27, realpathSync, statSync as statSync3 } from "fs";
 import { homedir as homedir2 } from "os";
 import nodePath48 from "path";
 function runClaude(cwd, arguments_, effects) {
@@ -28277,6 +28279,34 @@ function officialMarketplaceSource() {
 }
 function claudeConfigDirectory() {
   return process.env.CLAUDE_CONFIG_DIR ?? nodePath48.join(homedir2(), ".claude");
+}
+function canonicalDirectory(path4) {
+  if (typeof path4 !== "string" || path4.trim() === "")
+    return;
+  try {
+    if (!statSync3(path4).isDirectory())
+      return;
+    return nodePath48.normalize(realpathSync(path4));
+  } catch {
+    return;
+  }
+}
+function canonicalClaudeProjectRoot(cwd) {
+  const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
+  const environmentRoot = configuredRoot === undefined ? undefined : configuredRoot.trim();
+  let candidate = environmentRoot === "" ? undefined : environmentRoot;
+  if (candidate === undefined) {
+    const result = spawnSync2("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8"
+    });
+    const gitRoot = result.status === 0 ? result.stdout?.trim() : undefined;
+    candidate = gitRoot === "" || gitRoot === undefined ? cwd : gitRoot;
+  }
+  const canonical = canonicalDirectory(candidate);
+  if (canonical === undefined) {
+    throw new ClaudeProfileError("CLAUDE_PROJECT_IDENTITY_INVALID", `Claude project root is missing, not a directory, or cannot be resolved: ${candidate}`);
+  }
+  return canonical;
 }
 function scopedSettingsPath(cwd, scope) {
   return scope === "project" ? nodePath48.join(cwd, ".claude/settings.json") : nodePath48.join(claudeConfigDirectory(), "settings.json");
@@ -28357,13 +28387,16 @@ function pluginEntries(cwd, effects) {
 function entryMatchesScope(entry, scope, cwd) {
   if ((entry.scope ?? "user") !== scope)
     return false;
-  return scope === "user" || entry.projectPath === cwd;
+  return scope === "user" || canonicalDirectory(entry.projectPath) === cwd;
 }
 function safewordMarketplace(entries) {
   return entries.find((entry) => entry.name === MARKETPLACE_NAME);
 }
 function safewordPlugin(entries, scope, cwd) {
   return entries.find((entry) => entry.id === PLUGIN_ID && entryMatchesScope(entry, scope, cwd));
+}
+function applicableSafewordPlugins(entries, cwd) {
+  return entries.filter((entry) => entry.id === PLUGIN_ID && (entry.scope === "user" || entry.scope === "project" && canonicalDirectory(entry.projectPath) === cwd));
 }
 function failedResult(error2, scope) {
   let failure;
@@ -28375,12 +28408,36 @@ function failedResult(error2, scope) {
   }
   let classification = "errored";
   let nextAction = "safeword claude install";
-  if (failure.code === "CLAUDE_VERSION_UNSUPPORTED") {
-    classification = "unsupported-host";
-    nextAction = "claude update";
-  } else if (failure.code === "CLAUDE_MARKETPLACE_CONFLICT") {
-    classification = "marketplace-conflict";
-    nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+  let nextActionMutates = true;
+  switch (failure.code) {
+    case "CLAUDE_VERSION_UNSUPPORTED": {
+      classification = "unsupported-host";
+      nextAction = "claude update";
+      break;
+    }
+    case "CLAUDE_MARKETPLACE_CONFLICT": {
+      classification = "marketplace-conflict";
+      nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+      break;
+    }
+    case "CLAUDE_PLUGIN_METADATA_UNVERIFIED": {
+      classification = "unverified-metadata";
+      nextAction = "claude plugin list --json";
+      nextActionMutates = false;
+      break;
+    }
+    case "CLAUDE_PLUGIN_DOWNGRADE_REFUSED": {
+      classification = "downgrade-refused";
+      nextAction = "claude plugin list --json";
+      nextActionMutates = false;
+      break;
+    }
+    case "CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED": {
+      classification = "postcondition-verification-failed";
+      nextAction = "claude plugin list --json";
+      nextActionMutates = false;
+      break;
+    }
   }
   return createResult({
     state: "failed",
@@ -28390,7 +28447,7 @@ function failedResult(error2, scope) {
     nextActions: [
       {
         command: nextAction,
-        mutates: true,
+        mutates: nextActionMutates,
         requiresHuman: true
       }
     ],
@@ -28433,17 +28490,28 @@ function ensureMarketplace(cwd, scope, effects) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
   }
 }
+function assertConvergeablePluginVersion(plugin) {
+  if (typeof plugin.version !== "string" || !isSafePackageVersion(plugin.version)) {
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_METADATA_UNVERIFIED", `Claude reported malformed ${PLUGIN_ID} version metadata in the selected scope.`);
+  }
+  if (compareVersions(plugin.version, SAFEWORD_SCHEMA.version) > 0) {
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_DOWNGRADE_REFUSED", `Claude reported ${PLUGIN_ID} ${plugin.version}, which is newer than ${SAFEWORD_SCHEMA.version}; refusing an implicit downgrade.`);
+  }
+}
 function convergePlugin(cwd, scope, effects) {
   const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
   if (plugin === undefined) {
     runClaude(cwd, ["plugin", "install", PLUGIN_ID, "--scope", scope], effects);
     effects.push({ kind: "install", target: PLUGIN_ID, operation: scope });
-  } else if (plugin.version !== SAFEWORD_SCHEMA.version) {
-    runClaude(cwd, ["plugin", "update", PLUGIN_ID, "--scope", scope], effects);
-    effects.push({ kind: "update", target: PLUGIN_ID, operation: scope });
-  } else if (plugin.enabled !== true) {
-    runClaude(cwd, ["plugin", "enable", PLUGIN_ID, "--scope", scope], effects);
-    effects.push({ kind: "enable", target: PLUGIN_ID, operation: scope });
+  } else {
+    assertConvergeablePluginVersion(plugin);
+    if (plugin.version !== SAFEWORD_SCHEMA.version) {
+      runClaude(cwd, ["plugin", "update", PLUGIN_ID, "--scope", scope], effects);
+      effects.push({ kind: "update", target: PLUGIN_ID, operation: scope });
+    } else if (plugin.enabled !== true) {
+      runClaude(cwd, ["plugin", "enable", PLUGIN_ID, "--scope", scope], effects);
+      effects.push({ kind: "enable", target: PLUGIN_ID, operation: scope });
+    }
   }
 }
 function fileSha256(path4) {
@@ -28493,28 +28561,60 @@ function validateNativePayload(plugin) {
     throw new TypeError("installed hook manifest does not match its identity");
   }
 }
-function observeClaudeProfile(cwd) {
+function observeApplicableClaudePlugins(cwd) {
+  let projectRoot;
   try {
-    assertSupportedHost(cwd);
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+  } catch (error2) {
+    return {
+      status: "errored",
+      installations: [],
+      message: error2 instanceof Error ? error2.message : String(error2),
+      nextAction: "repair the reported Claude project path"
+    };
+  }
+  try {
+    assertSupportedHost(projectRoot);
   } catch (error2) {
     const message = error2 instanceof Error ? error2.message : String(error2);
     return {
-      health: "unsupported-host",
+      status: "unsupported-host",
+      installations: [],
       message,
       nextAction: message.startsWith("Could not parse") ? "reinstall Claude Code" : "update Claude Code"
     };
   }
-  let plugin;
+  let plugins;
   try {
-    plugin = pluginEntries(cwd, []).find((entry) => entry.id === PLUGIN_ID);
+    plugins = applicableSafewordPlugins(pluginEntries(projectRoot, []), projectRoot);
   } catch (error2) {
     return {
-      health: "errored",
+      status: "errored",
+      installations: [],
       message: error2 instanceof Error ? error2.message : String(error2),
       nextAction: "repair the reported Claude plugin error"
     };
   }
-  return observeInstalledPlugin(plugin);
+  return {
+    status: "observed",
+    installations: plugins.map((plugin) => ({
+      scope: plugin.scope,
+      plugin,
+      ...observeInstalledPlugin(plugin)
+    }))
+  };
+}
+function observeClaudeProfile(cwd) {
+  const observation = observeApplicableClaudePlugins(cwd);
+  if (observation.status !== "observed") {
+    return {
+      health: observation.status,
+      message: observation.message,
+      nextAction: observation.nextAction
+    };
+  }
+  const installation = observation.installations.find((candidate) => candidate.scope === "project") ?? observation.installations.find((candidate) => candidate.scope === "user");
+  return installation ?? { health: "missing" };
 }
 function observeInstalledPlugin(plugin) {
   if (plugin === undefined)
@@ -28543,20 +28643,28 @@ function assertNativePayload(plugin, effects) {
   }
 }
 function verifyPlugin(cwd, scope, effects) {
-  const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
+  let entries;
+  try {
+    entries = pluginEntries(cwd, effects);
+  } catch (error2) {
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED", `Claude completed the selected-scope mutations, but the final plugin state could not be observed: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
+  }
+  const plugin = safewordPlugin(entries, scope, cwd);
   if (plugin?.version === SAFEWORD_SCHEMA.version && plugin.enabled === true && plugin.scope === scope) {
     assertNativePayload(plugin, effects);
-    return;
+    return entries;
   }
   throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at ${scope} scope.`, effects);
 }
 function installClaudePlugin(cwd, scope = "project") {
   const effects = [];
   try {
-    assertSupportedHost(cwd);
-    ensureMarketplace(cwd, scope, effects);
-    convergePlugin(cwd, scope, effects);
-    verifyPlugin(cwd, scope, effects);
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    assertSupportedHost(projectRoot);
+    ensureMarketplace(projectRoot, scope, effects);
+    convergePlugin(projectRoot, scope, effects);
+    const plugins = verifyPlugin(projectRoot, scope, effects);
+    const overlap = applicableSafewordPlugins(plugins, projectRoot).length > 1;
     return createResult({
       state: effects.length === 0 ? "healthy" : "changed",
       effects: {
@@ -28568,7 +28676,8 @@ function installClaudePlugin(cwd, scope = "project") {
         command: "claude install",
         plugin: PLUGIN_ID,
         version: SAFEWORD_SCHEMA.version,
-        scope
+        scope,
+        ...overlap && { classification: "scope-overlap" }
       }
     });
   } catch (error2) {
@@ -28597,6 +28706,7 @@ var init_inventory2 = __esm(() => {
   CLAUDE_MIGRATION_SCHEMA = {
     paths: {
       proof: "plugins/data/safeword-safeword/execution-proof-v1.json",
+      proofDirectory: "plugins/data/safeword-safeword/execution-proofs-v2",
       pluginMarker: ".safeword/claude-plugin/plugin-mode-v1.json",
       transaction: ".safeword/claude-plugin/cleanup-transaction-v1.json"
     }
@@ -28609,7 +28719,7 @@ __export(exports_status2, {
   observeClaudeStatus: () => observeClaudeStatus
 });
 import { createHash as createHash6 } from "crypto";
-import { existsSync as existsSync27, lstatSync as lstatSync5, readFileSync as readFileSync28, realpathSync } from "fs";
+import { existsSync as existsSync27, lstatSync as lstatSync5, readFileSync as readFileSync28, realpathSync as realpathSync2 } from "fs";
 import { homedir as homedir3 } from "os";
 import nodePath49 from "path";
 function claudeConfigDirectory2(environment = process.env) {
@@ -28630,20 +28740,42 @@ function jsonObject(path4) {
     return;
   }
 }
-function proofIsCurrent(plugin) {
+function timestampIsCanonical(value) {
+  if (typeof value !== "string")
+    return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.toISOString() === value;
+}
+function proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalPluginRoot) {
+  return [
+    proof.schema_version === 2,
+    proof.project_root === canonicalProjectRoot,
+    proof.plugin_version === SAFEWORD_SCHEMA.version,
+    proof.plugin_version === plugin.version,
+    proof.hook_manifest_sha256 === identity.hook_manifest_sha256,
+    proof.canonical_plugin_root === canonicalPluginRoot,
+    proof.event === "SessionStart" || proof.event === "UserPromptSubmit",
+    typeof proof.session_id === "string" && proof.session_id !== "",
+    timestampIsCanonical(proof.recorded_at)
+  ].every(Boolean);
+}
+function proofIsCurrent(plugin, cwd) {
   if (typeof plugin.installPath !== "string")
     return false;
   const identity = jsonObject(nodePath49.join(plugin.installPath, "identity.json"));
-  const proof = jsonObject(nodePath49.join(claudeConfigDirectory2(), CLAUDE_MIGRATION_SCHEMA.paths.proof));
-  if (identity === undefined || proof === undefined)
-    return false;
   let canonicalRoot;
+  let canonicalProjectRoot;
   try {
-    canonicalRoot = realpathSync(plugin.installPath);
+    canonicalRoot = realpathSync2(plugin.installPath);
+    canonicalProjectRoot = canonicalClaudeProjectRoot(cwd);
   } catch {
     return false;
   }
-  return proof.schema_version === 1 && proof.plugin_version === SAFEWORD_SCHEMA.version && proof.hook_manifest_sha256 === identity.hook_manifest_sha256 && proof.canonical_plugin_root === canonicalRoot && (proof.event === "SessionStart" || proof.event === "UserPromptSubmit");
+  const projectDigest = createHash6("sha256").update(canonicalProjectRoot).digest("hex");
+  const proof = jsonObject(nodePath49.join(claudeConfigDirectory2(), CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory, `${projectDigest}.json`));
+  if (identity === undefined || proof === undefined)
+    return false;
+  return proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalRoot);
 }
 function legacyObservation(cwd) {
   const recognized = [];
@@ -28668,8 +28800,28 @@ function legacyObservation(cwd) {
   }
   return { recognized, conflicts };
 }
+function statusData(classification, options) {
+  const data = { command: "claude status", classification };
+  if (options.applicableScope !== undefined)
+    data.applicable_scope = options.applicableScope;
+  if (options.legacy !== undefined)
+    data.legacy = options.legacy;
+  if (options.installations !== undefined) {
+    data.installations = options.installations.map(({ scope, health, plugin }) => ({
+      scope,
+      health,
+      id: plugin.id,
+      version: plugin.version,
+      enabled: plugin.enabled,
+      install_path: plugin.installPath,
+      ...scope === "project" && { project_path: plugin.projectPath }
+    }));
+  }
+  return data;
+}
 function statusResult(classification, options = {}) {
   const nextAction = options.nextAction ?? ACTIONS[classification];
+  const nextActions = options.nextActions ?? (nextAction === undefined ? [] : [nextAction]);
   const failed = classification === "errored";
   let state = "action_required";
   if (classification === "plugin-mode")
@@ -28685,36 +28837,58 @@ function statusResult(classification, options = {}) {
         severity: failed ? "error" : "warning"
       }
     ],
-    nextActions: nextAction === undefined ? [] : [{ command: nextAction, mutates: !nextAction.startsWith("/"), requiresHuman: true }],
-    data: {
-      command: "claude status",
-      classification,
-      ...options.legacy !== undefined && { legacy: options.legacy }
-    }
+    nextActions: nextActions.map((command) => ({
+      command,
+      mutates: !command.startsWith("/"),
+      requiresHuman: true
+    })),
+    data: statusData(classification, options)
   });
 }
 function observeClaudeStatus(cwd) {
   if (existsSync27(nodePath49.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
     return statusResult("recovery-required");
   }
-  const profile = observeClaudeProfile(cwd);
-  if (profile.health !== "current") {
-    return statusResult(profile.health, {
+  const profile = observeApplicableClaudePlugins(cwd);
+  if (profile.status !== "observed") {
+    return statusResult(profile.status, {
       nextAction: profile.nextAction,
       message: profile.message
     });
   }
-  if (!proofIsCurrent(profile.plugin ?? {}))
-    return statusResult("unproven");
-  const legacy = legacyObservation(cwd);
-  if (legacy.conflicts.length > 0)
-    return statusResult("coexistence", { legacy });
-  if (legacy.recognized.length > 0)
-    return statusResult("cleanup-ready", { legacy });
-  if (existsSync27(nodePath49.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker))) {
-    return statusResult("plugin-mode", { legacy });
+  if (new Set(profile.installations.map((installation2) => installation2.scope)).size > 1) {
+    return statusResult("scope-overlap", {
+      installations: profile.installations,
+      nextActions: [
+        "claude plugin uninstall safeword@safeword --scope project",
+        "claude plugin uninstall safeword@safeword --scope user"
+      ]
+    });
   }
-  return statusResult("coexistence", { legacy });
+  const installation = profile.installations[0];
+  if (installation === undefined)
+    return statusResult("missing");
+  if (installation.health !== "current") {
+    return statusResult(installation.health, {
+      nextAction: installation.nextAction,
+      message: installation.message,
+      applicableScope: installation.scope
+    });
+  }
+  if (!proofIsCurrent(installation.plugin, cwd)) {
+    return statusResult("unproven", { applicableScope: installation.scope });
+  }
+  const legacy = legacyObservation(cwd);
+  if (legacy.conflicts.length > 0) {
+    return statusResult("coexistence", { legacy, applicableScope: installation.scope });
+  }
+  if (legacy.recognized.length > 0) {
+    return statusResult("cleanup-ready", { legacy, applicableScope: installation.scope });
+  }
+  if (existsSync27(nodePath49.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker))) {
+    return statusResult("plugin-mode", { legacy, applicableScope: installation.scope });
+  }
+  return statusResult("coexistence", { legacy, applicableScope: installation.scope });
 }
 var ACTIONS;
 var init_status2 = __esm(() => {
@@ -28731,6 +28905,7 @@ var init_status2 = __esm(() => {
     "wrong-version": "safeword claude install",
     errored: "repair the reported Claude plugin error",
     unproven: "/reload-plugins",
+    "scope-overlap": undefined,
     coexistence: "resolve reported legacy conflicts",
     "cleanup-ready": "safeword claude cleanup",
     "plugin-mode": undefined
@@ -30707,7 +30882,7 @@ import {
   mkdirSync as mkdirSync7,
   mkdtempSync as mkdtempSync2,
   readFileSync as readFileSync33,
-  realpathSync as realpathSync2,
+  realpathSync as realpathSync3,
   renameSync as renameSync5,
   rmSync as rmSync4,
   writeFileSync as writeFileSync13
@@ -30949,8 +31124,8 @@ function resolveGitContext(cwd) {
   }
   if (rootDirectory.length === 0)
     return;
-  const canonicalRoot = realpathSync2(rootDirectory);
-  const canonicalProject = realpathSync2(cwd);
+  const canonicalRoot = realpathSync3(rootDirectory);
+  const canonicalProject = realpathSync3(cwd);
   const projectRelativeDirectory = nodePath57.relative(canonicalRoot, canonicalProject);
   if (nodePath57.isAbsolute(projectRelativeDirectory) || projectRelativeDirectory === ".." || projectRelativeDirectory.startsWith(`..${nodePath57.sep}`)) {
     throw new Error("The architecture project directory is outside the Git worktree.");
@@ -31004,8 +31179,8 @@ function assertPhysicalContainment(rootDirectory, candidatePath) {
       existingAncestor = parent;
     }
   }
-  const canonicalRoot = realpathSync2(rootDirectory);
-  const canonicalAncestor = realpathSync2(existingAncestor);
+  const canonicalRoot = realpathSync3(rootDirectory);
+  const canonicalAncestor = realpathSync3(existingAncestor);
   if (toRepoDirectory(canonicalRoot, canonicalAncestor) === undefined) {
     throw new Error("The architecture path physically escapes its allowed root.");
   }
