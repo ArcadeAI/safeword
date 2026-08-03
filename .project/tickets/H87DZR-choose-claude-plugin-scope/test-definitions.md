@@ -105,7 +105,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Status uses the repository root from a nested working directory
 
 - [x] RED skip: whole-ticket quality review found the repository-root mismatch by tracing status and cleanup from a nested working directory; the added regression passed after the corrective patch
-- [ ] GREEN
+- [x] GREEN b644033fe
 - [ ] REFACTOR
 
 ### Scenario: Status reports overlapping applicable installations without changing either
