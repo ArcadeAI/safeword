@@ -1,6 +1,6 @@
 # Impl Plan: Choose where Safeword runs in Claude
 
-**Status:** planned
+**Status:** implemented; public release-candidate host gate pending
 
 ## Approach
 

@@ -2,7 +2,7 @@
 id: H87DZR
 slug: choose-claude-plugin-scope
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - make project-scoped Claude plugin installation the default
@@ -50,3 +50,4 @@ last_modified: 2026-08-03T03:55:55.000Z
 - 2026-08-03T03:55:55.000Z Phase: plan-implementation → implement. The user approved the reviewed single-ticket direction; its eight ordered slices remain coupled through one scoped declaration observer and cleanup-authority model, so implementation proceeds without splitting.
 - 2026-08-03T06:04:10.000Z Implementation checkpoint: Project is now the typed default scope, user remains explicit, scoped marketplace/plugin reconciliation preserves the other scope, unsafe metadata and implicit downgrades are refused, canonical project aliases converge, and status reports applicable scope or overlap. An isolated Claude 2.1.170 matrix passed both upgrade and both uninstall directions with the local candidate payload. Public 0.71.0 predates the native identity files, so tagged candidate cache verification remains correctly deferred to the pre-release gate rather than weakening payload checks.
 - 2026-08-03T06:04:10.000Z Proof and cleanup checkpoint: Successful SessionStart/UserPromptSubmit execution now writes one atomic schema-v2 proof per canonical project. Status and cleanup require that project-bound proof for one exact applicable scope, reject missing/stale/other-project proof, and refuse cleanup when project and user scopes overlap.
+- 2026-08-03T07:08:00.000Z Phase: implement → verify. Whole-ticket quality review passed after fixing canonical subdirectory handling, human scope wording, generated-manifest proof anchoring, and customer documentation. The resolved verification plan passed 6,350 tests, 872 BDD scenarios, build, typecheck, dependency audit, generated-plugin contracts, and a diff-scoped architecture audit. The public release-candidate host gate remains intentionally pending because this task stops before release.
