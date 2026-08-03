@@ -28,7 +28,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: First installation in one scope preserves an existing installation in the other
 
-- [ ] RED
+- [x] RED 08e405de3
 - [ ] GREEN
 - [ ] REFACTOR
 
