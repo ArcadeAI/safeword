@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A complete BLOCKED brief finishes with Need as its terminal action
 
-- [ ] RED
+- [x] RED a0691b36f
 - [ ] GREEN
 - [ ] REFACTOR
 
