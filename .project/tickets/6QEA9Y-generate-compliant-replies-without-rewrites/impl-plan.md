@@ -131,11 +131,11 @@ catastrophic backtracking risk for overlapping repeated regexes in
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Compliant work produces one plain-language completion, while TDD retains its lead-only quiet path and technical gate evidence remains available. | `features/generate-compliant-replies-without-rewrites.feature`; live walkthrough evidence in `verify.md` | |
-| 1. Structure enforces; instructions suggest | SessionStart guidance is backed by deterministic Stop validation and real subprocess observation rather than trusted alone. | `steps/reply-format-contract.steps.ts`; `packages/cli/tests/hooks/reply-format-contract.test.ts` | |
+| Optimize for the NTB without constraining the TBU | Compliant work produces one plain-language completion, while TDD retains its lead-only quiet path and technical gate evidence remains available. | `features/generate-compliant-replies-without-rewrites.feature` | |
+| 1. Structure enforces; instructions suggest | SessionStart guidance is backed by deterministic Stop validation and real subprocess observation rather than trusted alone. | `packages/cli/tests/hooks/reply-format-contract.test.ts` | |
 | 2. Fire at boundaries, not every turn | The full contract is delivered at SessionStart boundaries; UserPromptSubmit stays compact and active TDD stays lead-only. | `steps/reply-format-contract.steps.ts` | |
-| 3. Add, never replace | SessionStart appends the decision contract while preserving the complete existing SAFEWORD standing context. | Configured hook-group preservation assertions in `steps/reply-format-contract.steps.ts` | |
-| 5. Clarity before correctness | One named vocabulary module drives both consumers, proven by a changed-contract wiring test; table-driven scanner tests keep every classification rule legible. | `steps/reply-format-contract.steps.ts`; `packages/cli/tests/hooks/reply-format-contract.test.ts` | |
+| 3. Add, never replace | SessionStart appends the decision contract while preserving the complete existing SAFEWORD standing context. | `steps/reply-format-contract.steps.ts` | |
+| 5. Clarity before correctness | One named vocabulary module drives both consumers, proven by a changed-contract wiring test; table-driven scanner tests keep every classification rule legible. | `packages/cli/tests/hooks/reply-format-contract.test.ts` | |
 
 Architecture decisions honored:
 

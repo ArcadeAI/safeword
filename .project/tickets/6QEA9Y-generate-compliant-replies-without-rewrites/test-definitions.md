@@ -54,9 +54,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Session boundaries deliver the same exact terminal contract
 
-- [x] RED 96617e769
-- [x] GREEN 19bf51160
-- [x] REFACTOR 67a5de93b
+- [x] RED 8242be8e6
+- [x] GREEN 3ada5ece9
+- [x] REFACTOR 98b034592
 
 ### Scenario: Startup context excludes phase-specific completion evidence
 
@@ -108,9 +108,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Configured hooks follow one changed canonical contract
 
-- [x] RED 96617e769
-- [x] GREEN 19bf51160
-- [x] REFACTOR 67a5de93b
+- [x] RED 8242be8e6
+- [x] GREEN 3ada5ece9
+- [x] REFACTOR 98b034592
 
 ### Scenario: Every distribution boundary handles contract drift
 
@@ -134,9 +134,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Ignored Markdown content does not poison a valid terminal brief
 
-- [x] RED 96617e769
-- [x] GREEN 19bf51160
-- [x] REFACTOR 5710456b7
+- [x] RED 8242be8e6
+- [x] GREEN 3ada5ece9
+- [x] REFACTOR skip: the existing explicit block-state scanner accepted the added CommonMark partitions without another production abstraction
 
 ### Scenario: Adversarial parser work remains linear
 
@@ -154,4 +154,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario 67a5de93b
+- [x] cross-scenario 98b034592
