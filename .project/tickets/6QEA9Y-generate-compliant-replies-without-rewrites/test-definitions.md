@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED c8a976988
 - [x] GREEN 6ee8a7689
-- [ ] REFACTOR
+- [x] REFACTOR skip: minimal first slice is clear; grammar expansion belongs to later scenarios
 
 ### Scenario: A complete BLOCKED brief finishes with Need as its terminal action
 
