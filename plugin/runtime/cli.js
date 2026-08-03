@@ -28289,9 +28289,9 @@ function marketplaceSourceStatus(entry) {
   if (kind !== undefined && (typeof kind !== "string" || !["url", "git"].includes(kind))) {
     return "conflict";
   }
-  const comparison = compareVersions(version2, SAFEWORD_SCHEMA.version);
-  if (comparison === 0)
+  if (version2 === SAFEWORD_SCHEMA.version)
     return "current";
+  const comparison = compareVersions(version2, SAFEWORD_SCHEMA.version);
   return comparison < 0 ? "stale" : "conflict";
 }
 function marketplaceEntries(cwd, effects) {

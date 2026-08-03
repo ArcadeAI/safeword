@@ -128,8 +128,8 @@ function marketplaceSourceStatus(entry: JsonObject): MarketplaceSourceStatus {
   if (kind !== undefined && (typeof kind !== 'string' || !['url', 'git'].includes(kind))) {
     return 'conflict';
   }
+  if (version === SAFEWORD_SCHEMA.version) return 'current';
   const comparison = compareVersions(version, SAFEWORD_SCHEMA.version);
-  if (comparison === 0) return 'current';
   return comparison < 0 ? 'stale' : 'conflict';
 }
 

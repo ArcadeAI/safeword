@@ -1611,6 +1611,22 @@ Given(
 );
 
 Given(
+  'the active Claude profile maps the Safeword marketplace name to a noncanonical same-precedence tag',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {
+      marketplaces: [
+        {
+          name: 'safeword',
+          source: 'git',
+          url: 'https://github.com/ArcadeAI/safeword.git',
+          ref: `v${EXPECTED_VERSION}+shadow`,
+        },
+      ],
+    });
+  },
+);
+
+Given(
   'the exact enabled plugin metadata points to a cache without native identity',
   function (this: NativeClaudePluginWorld) {
     const installPath = nodePath.join(tmpdir(), 'safeword-legacy-plugin-payload');
