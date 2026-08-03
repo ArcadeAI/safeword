@@ -77,6 +77,27 @@ Given(
   },
 );
 
+Given(
+  'its final reply contains one BLOCKED verdict with Tried and Need paragraphs',
+  function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state, 'reply-format fixture was not created');
+    state.reply = [
+      '**BLOCKED** — Which release target should I use?',
+      '',
+      '**Tried:** Checked the ticket and release configuration.',
+      '',
+      '**Need:** Choose the intended release target.',
+    ].join('\n');
+  },
+);
+
+Given('the reply has no separate Next paragraph', function (this: SafewordWorld) {
+  const state = states.get(this);
+  assert.ok(state, 'reply-format fixture was not created');
+  assert.ok(!state.reply.includes('**Next:**'));
+});
+
 When('the reply reaches the Stop hook', function (this: SafewordWorld) {
   const state = states.get(this);
   assert.ok(state, 'reply-format fixture was not created');
