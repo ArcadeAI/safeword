@@ -2,11 +2,11 @@
 id: GKJ65Z
 slug: prevent-retro-bare-drains
 type: patch
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1805
 created: 2026-08-03T00:41:21.124Z
-last_modified: 2026-08-03T00:41:21.124Z
+last_modified: 2026-08-03T04:36:42Z
 ---
 
 # Prevent retro findings from draining without acknowledgements
@@ -26,3 +26,4 @@ last_modified: 2026-08-03T00:41:21.124Z
 - 2026-08-03T01:42:00Z Hardened: Every shipped filer surface now re-reads and exact-checks acknowledgements before removal; invalid destinations are rejected; the nudge describes only the state observed at its boundary and directs filing to re-read current state.
 - 2026-08-03T02:20:00Z Deep review: Reproduced an append-success/read-failure permission state that still authorized a drain and found the agent path relied on prose for the irreversible rewrite.
 - 2026-08-03T02:30:00Z Hardened: Ack success now requires an exact post-write read; both code-owned filing paths retain drafts when readback fails. Shipped agents drain only through a code-owned helper that removes reader-visible acknowledged drafts, and the remaining unrestricted-filesystem limitation is explicit.
+- 2026-08-03T04:36:42Z Complete: Full verification, audit, quality review, refactor review, exact-head CI, dogfood parity, and Node 22/24 release gates passed; PR #1827 is ready for admin merge and closes issue #1805.
