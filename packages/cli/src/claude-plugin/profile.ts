@@ -152,7 +152,7 @@ function pluginEntries(cwd: string, effects: readonly Effect[]): JsonObject[] {
 }
 
 function entryMatchesScope(entry: JsonObject, scope: ClaudePluginScope, cwd: string): boolean {
-  if (entry.scope !== scope) return false;
+  if ((entry.scope ?? 'user') !== scope) return false;
   return scope === 'user' || entry.projectPath === cwd;
 }
 
