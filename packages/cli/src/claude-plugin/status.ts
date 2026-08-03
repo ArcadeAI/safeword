@@ -21,6 +21,7 @@ type ClaudeStatusClassification =
   | 'wrong-version'
   | 'errored'
   | 'unproven'
+  | 'scope-overlap'
   | 'coexistence'
   | 'cleanup-ready'
   | 'plugin-mode';
@@ -109,21 +110,52 @@ const ACTIONS: Readonly<Record<ClaudeStatusClassification, string | undefined>> 
   'wrong-version': 'safeword claude install',
   errored: 'repair the reported Claude plugin error',
   unproven: '/reload-plugins',
+  'scope-overlap': undefined,
   coexistence: 'resolve reported legacy conflicts',
   'cleanup-ready': 'safeword claude cleanup',
   'plugin-mode': undefined,
 };
 
+interface StatusOptions {
+  readonly nextAction?: string;
+  readonly message?: string;
+  readonly legacy?: LegacyObservation;
+  readonly applicableScope?: ClaudePluginScope;
+  readonly installations?: readonly {
+    scope: ClaudePluginScope;
+    health: string;
+    plugin: JsonObject;
+  }[];
+  readonly nextActions?: readonly string[];
+}
+
+function statusData(
+  classification: ClaudeStatusClassification,
+  options: StatusOptions,
+): Record<string, unknown> {
+  const data: Record<string, unknown> = { command: 'claude status', classification };
+  if (options.applicableScope !== undefined) data.applicable_scope = options.applicableScope;
+  if (options.legacy !== undefined) data.legacy = options.legacy;
+  if (options.installations !== undefined) {
+    data.installations = options.installations.map(({ scope, health, plugin }) => ({
+      scope,
+      health,
+      id: plugin.id,
+      version: plugin.version,
+      enabled: plugin.enabled,
+      install_path: plugin.installPath,
+      ...(scope === 'project' && { project_path: plugin.projectPath }),
+    }));
+  }
+  return data;
+}
+
 function statusResult(
   classification: ClaudeStatusClassification,
-  options: {
-    nextAction?: string;
-    message?: string;
-    legacy?: LegacyObservation;
-    applicableScope?: ClaudePluginScope;
-  } = {},
+  options: StatusOptions = {},
 ): CliResult {
   const nextAction = options.nextAction ?? ACTIONS[classification];
+  const nextActions = options.nextActions ?? (nextAction === undefined ? [] : [nextAction]);
   const failed = classification === 'errored';
   let state: CliResult['state'] = 'action_required';
   if (classification === 'plugin-mode') state = 'healthy';
@@ -140,18 +172,12 @@ function statusResult(
               severity: failed ? 'error' : 'warning',
             },
           ],
-    nextActions:
-      nextAction === undefined
-        ? []
-        : [{ command: nextAction, mutates: !nextAction.startsWith('/'), requiresHuman: true }],
-    data: {
-      command: 'claude status',
-      classification,
-      ...(options.applicableScope !== undefined && {
-        applicable_scope: options.applicableScope,
-      }),
-      ...(options.legacy !== undefined && { legacy: options.legacy }),
-    },
+    nextActions: nextActions.map(command => ({
+      command,
+      mutates: !command.startsWith('/'),
+      requiresHuman: true,
+    })),
+    data: statusData(classification, options),
   });
 }
 
@@ -164,6 +190,15 @@ export function observeClaudeStatus(cwd: string): CliResult {
     return statusResult(profile.status, {
       nextAction: profile.nextAction,
       message: profile.message,
+    });
+  }
+  if (new Set(profile.installations.map(installation => installation.scope)).size > 1) {
+    return statusResult('scope-overlap', {
+      installations: profile.installations,
+      nextActions: [
+        'claude plugin uninstall safeword@safeword --scope project',
+        'claude plugin uninstall safeword@safeword --scope user',
+      ],
     });
   }
   const installation = profile.installations[0];
