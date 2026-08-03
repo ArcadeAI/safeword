@@ -50,6 +50,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Historical manual-review seals hash the reviewed ancestor blobs.
+          # A depth-1 PR checkout contains only the synthetic merge commit and
+          # cannot prove that immutable snapshot.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
