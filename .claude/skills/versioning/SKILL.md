@@ -104,7 +104,7 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
    cache smoke with an explicit compatible model:
 
    ```bash
-   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_CODEX_SMOKE_MODEL=gpt-5.4 bun run --cwd packages/cli test:smoke:live
+   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_CODEX_SMOKE_MODEL=gpt-5.6-terra bun run --cwd packages/cli test:smoke:live
    ```
 
    The live command proves all five hooks from structured profile evidence.

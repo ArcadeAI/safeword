@@ -11,7 +11,7 @@ import {
   observeCodexHookProof,
 } from './profile-proof.js';
 
-export const DEFAULT_CODEX_ACTIVATION_CHECK_MODEL = 'gpt-5.4';
+export const DEFAULT_CODEX_ACTIVATION_CHECK_MODEL = 'gpt-5.6-terra';
 
 type ExpectedActivation = 'activated' | 'pending';
 

@@ -8,7 +8,7 @@
  *
  * Run with:
  *
- *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_CODEX_SMOKE_MODEL=gpt-5.4 bun run --cwd packages/cli test:smoke:live
+ *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_CODEX_SMOKE_MODEL=gpt-5.6-terra bun run --cwd packages/cli test:smoke:live
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_RUN_CODEX_MIGRATION_SMOKE=1 bun run --cwd packages/cli test:smoke:live
  */
 
