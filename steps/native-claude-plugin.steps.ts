@@ -1764,12 +1764,33 @@ Given(
   },
 );
 
+Given('arbitrary project and Claude profile state', function (this: NativeClaudePluginWorld) {
+  createLifecycleFixture(this, {
+    marketplaces: [{ name: 'third-party', source: 'directory', path: '/preserve' }],
+    plugins: [{ id: 'third-party@example', version: '1.2.3', enabled: false, scope: 'user' }],
+  });
+  assert.ok(this.lifecycle);
+  this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+});
+
 When(
   /^safeword claude install runs with (no scope option|--scope project|--scope user)$/u,
   function (this: NativeClaudePluginWorld, scopeOption: string) {
     assert.ok(this.lifecycle);
     const scopeArguments =
       scopeOption === 'no scope option' ? [] : ['--scope', scopeOption.split(' ').at(-1) ?? ''];
+    this.lifecycle.result = runLifecycleCommand(this, ['claude', 'install', ...scopeArguments]);
+  },
+);
+
+When(
+  /^safeword claude install runs with (--scope local|--scope invalid|--scope with no value)$/u,
+  function (this: NativeClaudePluginWorld, scopeOption: string) {
+    assert.ok(this.lifecycle);
+    const scopeArguments =
+      scopeOption === '--scope with no value'
+        ? ['--scope']
+        : ['--scope', scopeOption.split(' ').at(-1) ?? ''];
     this.lifecycle.result = runLifecycleCommand(this, ['claude', 'install', ...scopeArguments]);
   },
 );
@@ -1849,6 +1870,22 @@ Then(
     assert.equal(result.data?.scope, scope);
   },
 );
+
+Then('installation rejects the unsupported scope', function (this: NativeClaudePluginWorld) {
+  assert.equal(this.lifecycle?.result?.status, 1, this.lifecycle?.result?.output);
+  const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+    state?: string;
+    errors?: unknown[];
+  };
+  assert.equal(result.state, 'failed');
+  assert.ok((result.errors?.length ?? 0) > 0);
+});
+
+Then('project and profile state remain byte-identical', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+});
 
 Then(
   'the official marketplace and exact enabled Safeword version exist at user scope',

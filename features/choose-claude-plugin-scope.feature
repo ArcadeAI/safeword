@@ -16,7 +16,7 @@ Feature: Choose where Safeword runs in Claude
         | --scope project | project        | user             |
         | --scope user    | user           | project          |
 
-    @wip @rejection
+    @rejection
     Scenario Outline: Unsupported scope is rejected before mutation
       Given arbitrary project and Claude profile state
       When safeword claude install runs with <scope-option>
