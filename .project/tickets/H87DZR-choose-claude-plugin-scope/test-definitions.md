@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Fresh installation uses only the requested activation boundary
 
 - [x] RED 13e6b0acb
-- [ ] GREEN
+- [x] GREEN 72a958ca4
 - [ ] REFACTOR
 
 ### Scenario: Unsupported scope is rejected before mutation
