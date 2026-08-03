@@ -102,6 +102,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN a508a6f90
 - [x] REFACTOR skip: missing is the empty-set branch of the same collected observer and requires no separate state model
 
+### Scenario: Status uses the repository root from a nested working directory
+
+- [x] RED skip: whole-ticket quality review found the repository-root mismatch by tracing status and cleanup from a nested working directory; the added regression passed after the corrective patch
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Status reports overlapping applicable installations without changing either
 
 - [x] RED d6195b88a
