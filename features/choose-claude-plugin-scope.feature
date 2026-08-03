@@ -69,7 +69,7 @@ Feature: Choose where Safeword runs in Claude
         | project        |
         | user           |
 
-    @wip @rejection
+    @rejection
     Scenario Outline: Unsafe selected-scope metadata is refused without an implicit downgrade
       Given Safeword has <selected-state> at <selected-scope>
       And the other Claude scope has independent plugin state

@@ -1974,6 +1974,68 @@ Given(
 );
 
 Given(
+  /^Safeword has (malformed plugin metadata|a newer official plugin version) at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, selectedState: string, selectedScope: string) {
+    const otherScope = selectedScope === 'project' ? 'user' : 'project';
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = selectedScope as 'project' | 'user';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    const scoped = (scope: string): Record<string, unknown> => ({
+      scope,
+      ...(scope === 'project' && { projectPath: state.projectPath }),
+    });
+    state.marketplaces = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+      },
+    ];
+    state.marketplaceDeclarations = [selectedScope, otherScope].map(scope => ({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: `v${EXPECTED_VERSION}`,
+      ...scoped(scope),
+    }));
+    state.plugins = [
+      {
+        id: 'safeword@safeword',
+        version: selectedState === 'malformed plugin metadata' ? { invalid: true } : '999.0.0',
+        enabled: true,
+        installPath: state.installPath,
+        ...scoped(selectedScope),
+      },
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        installPath: state.installPath,
+        ...scoped(otherScope),
+      },
+    ];
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
   /^Safeword has an exact installation at (project|user)$/u,
   function (this: NativeClaudePluginWorld, otherScope: string) {
     assert.ok(this.lifecycle);
@@ -2179,6 +2241,31 @@ Then('the result reports scope-overlap', function (this: NativeClaudePluginWorld
   };
   assert.equal(result.data?.classification, 'scope-overlap');
 });
+
+Then(
+  /^installation reports (unverified metadata|downgrade refused) without changing the selected installation$/u,
+  function (this: NativeClaudePluginWorld, classification: string) {
+    assert.equal(this.lifecycle?.result?.status, 1, this.lifecycle?.result?.output);
+    assert.ok(this.lifecycle);
+    const result = JSON.parse(this.lifecycle.result?.output ?? '') as {
+      data?: { classification?: string };
+    };
+    assert.equal(result.data?.classification, classification.replaceAll(' ', '-'));
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
+
+Then(
+  "the other scope's declaration and unrelated state are byte-identical",
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+    assert.equal(
+      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      this.lifecycle.configTreeSnapshot,
+    );
+  },
+);
 
 Then(
   /^the (project|user) plugin and marketplace declarations remain absent$/u,
