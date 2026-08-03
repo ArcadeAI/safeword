@@ -48,7 +48,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: supported Claude commands already merge their owned declarations; the newly executable mixed-settings scenario passed immediately
 - [x] GREEN 7de793545
-- [ ] REFACTOR
+- [x] REFACTOR skip: preservation is expressed by one reusable exclusion snapshot and direct ownership assertions; no production refactor was needed
 
 ### Scenario: User installation leaves the repository unchanged
 
