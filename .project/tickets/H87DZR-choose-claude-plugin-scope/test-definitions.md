@@ -94,7 +94,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 04bcd25fc
 - [x] GREEN 2ce1ce655
-- [ ] REFACTOR
+- [x] REFACTOR skip: one collected observer now owns applicability and the compatibility view delegates to it; no duplicate selection path remains
 
 ### Scenario: Status reports no applicable installation for the current project
 
