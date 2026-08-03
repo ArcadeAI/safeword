@@ -30,7 +30,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 08e405de3
 - [x] GREEN 9a0235409
-- [ ] REFACTOR
+- [x] REFACTOR skip: overlap is a single derived count over the already-observed applicable entries; no new state or abstraction is needed
 
 ### Scenario: A disabled exact installation is enabled only in the selected scope
 
