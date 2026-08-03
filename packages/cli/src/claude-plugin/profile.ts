@@ -156,14 +156,8 @@ function entryMatchesScope(entry: JsonObject, scope: ClaudePluginScope, cwd: str
   return scope === 'user' || entry.projectPath === cwd;
 }
 
-function safewordMarketplace(
-  entries: readonly JsonObject[],
-  scope: ClaudePluginScope,
-  cwd: string,
-): JsonObject | undefined {
-  return entries.find(
-    entry => entry.name === MARKETPLACE_NAME && entryMatchesScope(entry, scope, cwd),
-  );
+function safewordMarketplace(entries: readonly JsonObject[]): JsonObject | undefined {
+  return entries.find(entry => entry.name === MARKETPLACE_NAME);
 }
 
 function safewordPlugin(
@@ -207,7 +201,7 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
 }
 
 function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
-  let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects), scope, cwd);
+  let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
   const sourceStatus = marketplace === undefined ? undefined : marketplaceSourceStatus(marketplace);
   if (sourceStatus === 'conflict') {
     throw new ClaudeProfileError(
@@ -226,7 +220,7 @@ function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effec
     target: MARKETPLACE_NAME,
     operation: scope,
   });
-  marketplace = safewordMarketplace(marketplaceEntries(cwd, effects), scope, cwd);
+  marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
   if (marketplace === undefined || marketplaceSourceStatus(marketplace) !== 'current') {
     throw new ClaudeProfileError(
       'CLAUDE_MARKETPLACE_UNVERIFIED',

@@ -521,10 +521,12 @@ if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
   const [url, ref] = args[3].split('#');
   const scope = args[args.indexOf('--scope') + 1];
   const projectPath = scope === 'project' ? state.projectPath : undefined;
-  state.marketplaces = state.marketplaces.filter(entry =>
+  state.marketplaceDeclarations = (state.marketplaceDeclarations || []).filter(entry =>
     entry.name !== 'safeword' || (entry.scope || 'user') !== scope ||
       (scope === 'project' && entry.projectPath !== projectPath));
-  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref, scope, ...(projectPath && { projectPath }) }); write(state); process.exit(0);
+  state.marketplaceDeclarations.push({ name: 'safeword', source: 'git', url, ref, scope, ...(projectPath && { projectPath }) });
+  state.marketplaces = state.marketplaces.filter(entry => entry.name !== 'safeword');
+  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref }); write(state); process.exit(0);
 }
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
 if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
@@ -564,6 +566,7 @@ function createLifecycleFixture(
     failOperation: null as string | null,
     unrelated: { theme: 'dark', custom: ['preserve', 7] },
     projectPath: project,
+    marketplaceDeclarations: [] as unknown[],
     marketplaces: [] as unknown[],
     plugins: [] as unknown[],
     installPath: pluginCachePath(root),
@@ -1826,13 +1829,13 @@ Then(
   function (this: NativeClaudePluginWorld, scope: string) {
     assert.ok(this.lifecycle);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
-      marketplaces: Record<string, unknown>[];
+      marketplaceDeclarations: Record<string, unknown>[];
       plugins: Record<string, unknown>[];
     };
     const appliesToScope = (entry: Record<string, unknown>): boolean =>
       (entry.scope ?? 'user') === scope &&
       (scope !== 'project' || entry.projectPath === this.lifecycle?.project);
-    assert.equal(state.marketplaces.some(appliesToScope), false);
+    assert.equal(state.marketplaceDeclarations.some(appliesToScope), false);
     assert.equal(state.plugins.some(appliesToScope), false);
   },
 );
@@ -1868,7 +1871,6 @@ Then(
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
         ref: `v${EXPECTED_VERSION}`,
-        scope: 'user',
       },
     ]);
     assert.deepEqual(state.plugins, [
