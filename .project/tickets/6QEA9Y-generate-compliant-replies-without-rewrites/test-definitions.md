@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A complete CONFIDENT brief finishes on the first Stop
 
 - [x] RED c8a976988
-- [ ] GREEN
+- [x] GREEN 6ee8a7689
 - [ ] REFACTOR
 
 ### Scenario: A complete BLOCKED brief finishes with Need as its terminal action
