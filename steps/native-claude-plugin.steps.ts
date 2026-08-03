@@ -2231,9 +2231,6 @@ Given(
       installPath: string;
     };
     appendFileSync(nodePath.join(state.installPath, 'hooks/hooks.json'), ' ');
-    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
-    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
-    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
   },
 );
 
