@@ -95,7 +95,7 @@ Feature: Choose where Safeword runs in Claude
       Then the exact official Safeword plugin is enabled at user scope for the current project
       And every project file is byte-identical
 
-    @wip @rejection
+    @rejection
     Scenario Outline: Selected-scope operation failure is reported without touching the other scope
       Given Safeword has independent declarations at project and user scope
       And the selected <selected-scope> installation is prepared so <completed-effects> complete before <failing-operation> fails
