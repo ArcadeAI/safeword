@@ -12,7 +12,7 @@ Verified: 2026-08-03T08:18:13Z
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
-**Reconcile:** ✅ No pattern deviation
+**Reconcile:** ⚠️ 1 historical commit-order deviation, 0 missing uplevel tickets — intake and review artifacts exist with timestamps, review stamps, and invocation proof, but their first Git commit occurred after the ticket had advanced to implement; no runtime or sibling implementation pattern diverges
 **Experience:** ✅ No new friction — deterministic persona walk recorded below
 **Surface Evidence:** ⚠️ 2/3 affected surfaces have recorded executable proof; Claude Code Cloud is unavailable in this environment
 **Evidence limits:** ⚠️ A live Claude completion could not be observed because Claude Code's API rejected the configured and available model aliases with HTTP 404; hook subprocess proof is not represented as builder-visible runtime proof
@@ -50,3 +50,4 @@ ends once, while a bad response receives one bounded correction rather than a lo
 - Native plugin generation and template/dogfood parity are clean.
 - Parser benchmark: 4,194,454 bytes, 16,777,661 examined characters, 1.582 ms median and 1.741 ms maximum against a 500 ms budget.
 - Safeword audit passed with zero errors and zero warnings.
+- Push schema-drift gate passed 753/753 tests; its history replay reported the commit-order provenance limitation recorded in Reconcile above.
