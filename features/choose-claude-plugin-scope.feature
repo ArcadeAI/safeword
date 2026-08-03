@@ -109,7 +109,7 @@ Feature: Choose where Safeword runs in Claude
         | project        | no mutation              | marketplace add   |
         | user           | marketplace registration | plugin update     |
 
-    @wip @rejection
+    @rejection
     Scenario: Postcondition verification failure reports completed selected-scope work
       Given the project-scope marketplace and plugin mutations will complete
       And observing the final project-scope installation will fail

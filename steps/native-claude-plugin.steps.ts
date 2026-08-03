@@ -600,7 +600,12 @@ const updateSettings = (scope, update) => {
 };
 if (args[0] === '--version') { console.log(state.hostVersion); process.exit(0); }
 if (state.failOperation && operation.startsWith(state.failOperation)) {
+  if ((state.failOperationAfter || 0) > 0) {
+    state.failOperationAfter -= 1;
+    write(state);
+  } else {
   console.error('simulated Claude failure: ' + state.failOperation); process.exit(70);
+  }
 }
 if (operation === 'plugin marketplace list --json') { console.log(JSON.stringify(state.marketplaces)); process.exit(0); }
 if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
@@ -684,6 +689,7 @@ function createLifecycleFixture(
   overrides: Partial<{
     hostVersion: string;
     failOperation: string | null;
+    failOperationAfter: number;
     marketplaces: unknown[];
     marketplaceDeclarations: unknown[];
     plugins: unknown[];
@@ -702,6 +708,7 @@ function createLifecycleFixture(
   const state = {
     hostVersion: '2.1.170 (Claude Code)',
     failOperation: null as string | null,
+    failOperationAfter: 0,
     unrelated: { theme: 'dark', custom: ['preserve', 7] },
     projectPath: project,
     marketplaceDeclarations: [] as unknown[],
@@ -2273,6 +2280,70 @@ Given(
 );
 
 Given(
+  'the project-scope marketplace and plugin mutations will complete',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = 'project';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    state.marketplaces = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+      },
+    ];
+    state.marketplaceDeclarations = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+        scope: 'user',
+      },
+    ];
+    state.plugins = [
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        installPath: state.installPath,
+        scope: 'user',
+      },
+    ];
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+  },
+);
+
+Given(
+  'observing the final project-scope installation will fail',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      failOperation: string | null;
+      failOperationAfter: number;
+    };
+    state.failOperation = 'plugin list';
+    state.failOperationAfter = 1;
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    captureScopedPreservation(this);
+  },
+);
+
+Given(
   /^the selected (project|user) installation is prepared so (no mutation|marketplace registration) complete before (marketplace add|plugin update) fails$/u,
   function (
     this: NativeClaudePluginWorld,
@@ -2496,7 +2567,7 @@ Then('every project file outside Claude settings is byte-identical', function ()
 });
 
 Then(
-  "the other scope's declaration and unrelated state are byte-identical",
+  /^(?:the other scope's|the user-scope) declaration and unrelated state are byte-identical$/u,
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
     assert.ok(this.lifecycle.selectedScope);
@@ -2530,6 +2601,32 @@ Then(
       snapshotDirectoryExcept(this.lifecycle.configRoot ?? '', 'settings.json'),
       this.lifecycle.profileFilesOutsideSettingsSnapshot,
     );
+  },
+);
+
+Then(
+  'installation reports postcondition verification failure',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 1, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { classification?: string };
+      errors?: { code?: string }[];
+    };
+    assert.equal(result.data?.classification, 'postcondition-verification-failed');
+    assert.equal(result.errors?.[0]?.code, 'CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED');
+  },
+);
+
+Then(
+  'it reports the marketplace and plugin mutations as completed',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      effects?: { configuration?: unknown[] };
+    };
+    assert.deepEqual(result.effects?.configuration, [
+      { kind: 'add', target: 'safeword', operation: 'project' },
+      { kind: 'install', target: 'safeword@safeword', operation: 'project' },
+    ]);
   },
 );
 
