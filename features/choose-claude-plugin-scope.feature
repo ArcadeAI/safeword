@@ -57,7 +57,6 @@ Feature: Choose where Safeword runs in Claude
         | project        | user        |
         | user           | project     |
 
-    @wip
     Scenario Outline: A disabled exact installation is enabled only in the selected scope
       Given Safeword has a disabled exact installation at <selected-scope>
       And the other Claude scope has independent plugin state

@@ -1914,6 +1914,66 @@ Given(
 );
 
 Given(
+  /^Safeword has a disabled exact installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, selectedScope: string) {
+    const otherScope = selectedScope === 'project' ? 'user' : 'project';
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = selectedScope as 'project' | 'user';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    const scoped = (scope: string): Record<string, unknown> => ({
+      scope,
+      ...(scope === 'project' && { projectPath: state.projectPath }),
+    });
+    state.marketplaces = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+      },
+    ];
+    state.marketplaceDeclarations = [selectedScope, otherScope].map(scope => ({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: `v${EXPECTED_VERSION}`,
+      ...scoped(scope),
+    }));
+    state.plugins = [
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: false,
+        installPath: state.installPath,
+        ...scoped(selectedScope),
+      },
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        installPath: state.installPath,
+        ...scoped(otherScope),
+      },
+    ];
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+  },
+);
+
+Given(
   /^Safeword has an exact installation at (project|user)$/u,
   function (this: NativeClaudePluginWorld, otherScope: string) {
     assert.ok(this.lifecycle);
