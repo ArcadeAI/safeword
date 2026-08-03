@@ -59,7 +59,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Selected-scope operation failure is reported without touching the other scope
 
 - [x] RED skip: the existing effect accumulator and scoped command boundary already reported both failure partitions exactly; the new scenarios passed immediately
-- [ ] GREEN
+- [x] GREEN 79d9a2c8b
 - [ ] REFACTOR
 
 ### Scenario: Postcondition verification failure reports completed selected-scope work
