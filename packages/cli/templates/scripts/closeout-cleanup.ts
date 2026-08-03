@@ -504,6 +504,22 @@ function resolveTranscript(binding: CloseoutBinding, root: string): string | und
   return candidate && transcriptMatchesBinding(candidate, binding, root) ? candidate : undefined;
 }
 
+interface RetroFailureInput {
+  complete: boolean;
+  errorText: string;
+  agentFilingNeeded: boolean | undefined;
+  pendingDrafts: number;
+}
+
+export function classifyRetroFailure(
+  input: RetroFailureInput,
+): CloseoutObservation['retro']['failure'] {
+  if (input.complete) return undefined;
+  if (/extract/iu.test(input.errorText)) return 'extraction';
+  if (input.agentFilingNeeded === true || input.pendingDrafts > 0) return 'filing';
+  return 'unknown';
+}
+
 function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['retro'] {
   const transcript = resolveTranscript(binding, root);
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0 };
@@ -530,13 +546,12 @@ function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['
     result.data?.agent_filing_needed === false &&
     pendingDrafts === 0;
   const errorText = result?.errors?.map(error => error.message ?? '').join('\n') ?? '';
-  const failure = complete
-    ? undefined
-    : /extract/iu.test(errorText)
-      ? 'extraction'
-      : result?.data?.agent_filing_needed === true || pendingDrafts > 0
-        ? 'filing'
-        : 'unknown';
+  const failure = classifyRetroFailure({
+    complete,
+    errorText,
+    agentFilingNeeded: result?.data?.agent_filing_needed,
+    pendingDrafts,
+  });
   return {
     bound: true,
     complete,
