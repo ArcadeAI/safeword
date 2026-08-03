@@ -2398,7 +2398,7 @@ Given(
 );
 
 Given(
-  'the project has wholly recognized removable legacy protection',
+  /^the (?:current )?project has wholly recognized removable legacy protection$/u,
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
     writeCanonicalLegacy(this.lifecycle.project);
