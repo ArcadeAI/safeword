@@ -124,15 +124,12 @@ describe('Check Command - Reconcile Integration', () => {
       expect(result.applied).toBe(false);
 
       // Write actions for owned files should be empty or only version update
-      const ownedFileWrites = result.actions.filter(
-        a => a.type === 'write' && !a.path.includes('version'),
+      const ownedFileWritePaths = result.actions.flatMap(action =>
+        action.type === 'write' && !action.path.includes('version') ? [action.path] : [],
       );
 
       // Most files should match (no write actions needed)
-      expect(
-        ownedFileWrites.length,
-        ownedFileWrites.map(action => action.path).join('\n'),
-      ).toBeLessThan(5);
+      expect(ownedFileWritePaths.length, ownedFileWritePaths.join('\n')).toBeLessThan(5);
     });
 
     it('should preserve customer AGENTS.md without adding safeword text', async () => {
