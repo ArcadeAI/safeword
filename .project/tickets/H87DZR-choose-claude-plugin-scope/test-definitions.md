@@ -65,7 +65,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Postcondition verification failure reports completed selected-scope work
 
 - [x] RED c1a38d442
-- [ ] GREEN
+- [x] GREEN 8d4800aff
 - [ ] REFACTOR
 
 ## Rule: choose-claude-plugin-scope.TBU1.R3 — Repeating installation in either scope is idempotent
