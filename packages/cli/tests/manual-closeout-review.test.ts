@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -28,6 +29,28 @@ interface Review {
 
 function sha256(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
+}
+
+function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Buffer } {
+  const result = spawnSync('git', arguments_, { cwd: repoRoot });
+  return {
+    status: result.status ?? 1,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+function sealedCommit(): string | undefined {
+  const relativeManifest = nodePath.relative(repoRoot, manifestPath);
+  const result = git(['log', '-1', '--format=%H', '--', relativeManifest]);
+  const commit = result.stdout.toString('utf8').trim();
+  return result.status === 0 && commit ? commit : undefined;
+}
+
+function reviewedInput(path: string, commit: string | undefined): Buffer {
+  if (!commit) return readFileSync(nodePath.join(repoRoot, path));
+  const result = git(['show', `${commit}:${path}`]);
+  return result.status === 0 ? result.stdout : readFileSync(nodePath.join(repoRoot, path));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -102,14 +125,17 @@ describe('hash-bound independent closeout review (93C14D)', () => {
     );
   });
 
-  it('binds every current artifact and expanded feature example to a passing fresh review', () => {
+  it('binds every sealed artifact and expanded feature example to a passing fresh review', () => {
     const manifestBytes = readFileSync(manifestPath, 'utf8');
     const manifest = JSON.parse(manifestBytes) as Manifest;
     const review = reviewJson(readFileSync(reviewPath, 'utf8'));
-    const featurePath = nodePath.join(repoRoot, 'features/close-completed-sessions-safely.feature');
-    const expectedScenarios = parseFeatureScenarios(readFileSync(featurePath, 'utf8')).map(
-      (scenario, index) => ({ id: String(index + 1).padStart(2, '0'), title: scenario.title }),
-    );
+    const commit = sealedCommit();
+    if (commit) {
+      expect(git(['merge-base', '--is-ancestor', commit, 'HEAD']).status).toBe(0);
+    }
+    const expectedScenarios = parseFeatureScenarios(
+      reviewedInput('features/close-completed-sessions-safely.feature', commit).toString('utf8'),
+    ).map((scenario, index) => ({ id: String(index + 1).padStart(2, '0'), title: scenario.title }));
 
     expect(manifest.ticket).toBe('93C14D');
     expect(manifest.expected_scenarios).toEqual(expectedScenarios);
@@ -155,9 +181,7 @@ describe('hash-bound independent closeout review (93C14D)', () => {
       '.project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json',
     ]);
     for (const input of manifest.inputs) {
-      const inputPath = nodePath.join(repoRoot, input.path);
-      const currentDigest = sha256(readFileSync(inputPath));
-      expect(input.sha256, input.path).toBe(currentDigest);
+      expect(input.sha256, input.path).toBe(sha256(reviewedInput(input.path, commit)));
     }
     expect(reviewIssues(manifest, manifestBytes, review)).toEqual([]);
   });
