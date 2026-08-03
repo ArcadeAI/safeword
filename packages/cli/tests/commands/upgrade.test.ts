@@ -238,6 +238,11 @@ if (args.includes(\`safeword@\${version}\`)) {
 
   describe('Test 9.3: Preserves non-safeword hooks', () => {
     it('should preserve custom hooks', async () => {
+      writeTestFile(
+        temporaryDirectory,
+        '.claude/settings.json',
+        '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+      );
       await createConfiguredProject(temporaryDirectory);
 
       // Add a custom hook

@@ -16,11 +16,12 @@ import {
   detectUnanchoredPhaseState,
   type PhaseAnchorScope,
 } from '../templates/hooks/lib/phase-provenance.js';
+import { schemaForClaudeDelivery } from './claude-plugin/delivery-schema.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.js';
+import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, type SafewordSchema } from './schema.js';
 import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
@@ -74,9 +75,18 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
   return issues;
 }
 
+function missingClaudeSettingsIssues(cwd: string, schema: SafewordSchema): string[] {
+  const required = '.claude/settings.json' in schema.jsonMerges;
+  return required && !exists(nodePath.join(cwd, '.claude', 'settings.json'))
+    ? ['Missing: .claude/settings.json']
+    : [];
+}
+
 // Persona and glossary content validation stays separate because their parsers
 // and diagnostics differ. Their configured-path lifecycle is shared with the
-// other user-authored project-knowledge files below.
+// other user-authored project-knowledge files below. The parallel lookup and
+// validation paths were assessed in ticket XEP59N; combining their different
+// matching and diagnostic rules would cost clarity.
 
 /**
  * Validate personas.md when present, routing through any configured
@@ -683,6 +693,8 @@ export interface CheckHealthOptions {
    * Standalone `check` leaves this false so the diagnostic reports the truth.
    */
   skipPackageChecks?: boolean;
+  /** Schema view used by the mutating command whose postcondition is being checked. */
+  schema?: SafewordSchema;
 }
 
 export async function checkHealth(
@@ -712,7 +724,8 @@ export async function checkHealth(
 
   // Use reconcile with dryRun to detect issues
   const ctx = createProjectContext(cwd);
-  const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
+  const healthSchema = options.schema ?? schemaForClaudeDelivery(cwd);
+  const result = await reconcile(healthSchema, 'upgrade', ctx, {
     dryRun: true,
   });
 
@@ -733,12 +746,8 @@ export async function checkHealth(
     ...PATH_ONLY_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeIssues(cwd, key)),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
+    ...missingClaudeSettingsIssues(cwd, healthSchema),
   ];
-
-  // Check for missing .claude/settings.json
-  if (!exists(nodePath.join(cwd, '.claude', 'settings.json'))) {
-    issues.push('Missing: .claude/settings.json');
-  }
 
   // Check for missing language packs (unless install was deliberately skipped)
   const missingPacks = options.skipPackageChecks ? [] : getMissingPacks(cwd);

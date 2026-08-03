@@ -120,7 +120,7 @@ Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
 
 ## Hook Configuration
 
-Hooks are configured in `.claude/settings.json` (Claude Code) and `.cursor/hooks.json` (Cursor). Codex uses the profile-scoped Safe Word plugin; install it with `safeword codex install`. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
+Claude Code hooks run from the user-scoped Safe Word plugin installed with `safeword claude install`; Cursor hooks are configured in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Fresh setup does not create Safe Word-owned Claude hook settings. Existing legacy Claude settings remain authoritative until current plugin execution is proven and an explicit `safeword claude cleanup` plan removes only recognized Safeword entries. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
 
 To disable a specific hook, remove the safeword hook entry from that agent's config.
 
@@ -164,7 +164,6 @@ Safeword has two types of files:
 **Overwritten on upgrade** (you shouldn't edit these directly):
 
 - `.safeword/hooks/*`, `.safeword/guides/*`, `.safeword/templates/*`
-- `.claude/skills/*`
 - `.cursor/rules/*`, `.cursor/commands/*`
 
 **Never overwritten** (safe to customize):
@@ -180,7 +179,6 @@ Safeword has two types of files:
 **Partially updated** (your customizations preserved, safeword keys re-merged):
 
 - `AGENTS.md`, `CLAUDE.md` — safeword link block re-ensured, your content preserved
-- `.claude/settings.json` — safeword hooks updated, your custom hooks preserved
 - `.cursor/hooks.json` — safeword hooks updated, your custom hooks preserved
 - `package.json` — lint/format/`test:bdd` scripts and devDependencies merged (every project; created minimal + private if missing)
 - `.mcp.json`, `.cursor/mcp.json` — MCP server config merged
@@ -189,7 +187,7 @@ Safeword has two types of files:
 **To customize something that gets overwritten:**
 
 1. Copy it to your namespace root (e.g., `.project/my-hook.ts` — see [Project Namespace Root](#project-namespace-root))
-2. Update `.claude/settings.json` to point to your copy
+2. Point the project-local surface that owns the customization at your copy
 3. Your version won't be touched by upgrades
 
 ## Project Namespace Root

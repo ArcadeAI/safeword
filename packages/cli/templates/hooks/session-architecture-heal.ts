@@ -19,9 +19,13 @@ if (!existsSync(nodePath.join(projectDir, '.safeword'))) {
 
 // Prefer local source in dev/dogfood, fall back to the published CLI.
 const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-const [command, args] = existsSync(localCli)
-  ? ['bun', [localCli, 'architecture']]
-  : ['bunx', ['safeword@latest', 'architecture']];
+const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
+const [command, args] =
+  pluginCli === undefined
+    ? existsSync(localCli)
+      ? ['bun', [localCli, 'architecture']]
+      : ['bunx', ['safeword@latest', 'architecture']]
+    : ['bun', [pluginCli, 'architecture']];
 
 spawnSync(command as string, args as string[], {
   cwd: projectDir,

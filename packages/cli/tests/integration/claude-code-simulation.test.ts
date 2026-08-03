@@ -21,6 +21,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   setupOrThrow,
+  writeTestFile,
 } from '../helpers';
 
 describe('E2E: Claude Code Hook Path Resolution', () => {
@@ -31,6 +32,11 @@ describe('E2E: Claude Code Hook Path Resolution', () => {
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
+    writeTestFile(
+      projectDirectory,
+      '.claude/settings.json',
+      '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+    );
     await setupOrThrow(projectDirectory, ['setup']);
     differentDirectory = createTemporaryDirectory();
   });

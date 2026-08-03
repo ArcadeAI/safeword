@@ -62,6 +62,14 @@ function readInstalledWiring(projectDirectory: string): SafewordMdWorld['wiring'
   };
 }
 
+function declareLegacyClaudeDelivery(projectDirectory: string): void {
+  mkdirSync(nodePath.join(projectDirectory, '.claude'), { recursive: true });
+  writeFileSync(
+    nodePath.join(projectDirectory, '.claude/settings.json'),
+    '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+  );
+}
+
 After(function (this: SafewordMdWorld) {
   if (this.projectDirectory === undefined) return;
   rmSync(this.projectDirectory, { recursive: true, force: true });
@@ -120,6 +128,7 @@ Given('each file also contains customer-authored instructions', function (this: 
 
 Given("safeword's generated Claude settings and Cursor hooks", function (this: SafewordMdWorld) {
   this.projectDirectory = createProjectDirectory();
+  declareLegacyClaudeDelivery(this.projectDirectory);
   runSafeword(this.projectDirectory, 'setup');
 });
 
@@ -134,6 +143,7 @@ Given(
 
 Given("safeword's generated Claude settings", function (this: SafewordMdWorld) {
   this.projectDirectory = createProjectDirectory();
+  declareLegacyClaudeDelivery(this.projectDirectory);
   runSafeword(this.projectDirectory, 'setup');
 });
 
@@ -195,9 +205,10 @@ Then(
   'safeword-owned hook configuration still includes startup SAFEWORD context loading',
   function (this: SafewordMdWorld) {
     assert.ok(this.projectDirectory, 'project directory was not created');
-    const wiring = readInstalledWiring(this.projectDirectory);
-    assert.match(wiring.claudeSettings, /session-safeword-context\.ts/);
-    assert.match(wiring.cursorHooks, /session-safeword-context\.ts/);
+    const cursorHooks = readProjectFile(this.projectDirectory, '.cursor/hooks.json');
+    const pluginHooks = readProjectFile(PROJECT_ROOT, 'plugin/hooks/hooks.json');
+    assert.match(pluginHooks, /dispatch\.ts SessionStart --event-group/);
+    assert.match(cursorHooks, /session-safeword-context\.ts/);
   },
 );
 

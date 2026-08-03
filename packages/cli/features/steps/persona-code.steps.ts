@@ -90,7 +90,7 @@ function installAndReadAssets(current: PersonaCodeState): void {
   const bddGuidanceRoot =
     current.surface === 'OpenAI Codex'
       ? nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/bdd/references')
-      : nodePath.join(current.projectRoot, '.claude/skills/bdd');
+      : nodePath.join(current.projectRoot, '.safeword/skills/bdd');
   current.personaGuidance = readFileSync(
     nodePath.join(current.projectRoot, '.project/personas.md'),
     'utf8',

@@ -21,6 +21,7 @@ hidden compatibility aliases through the 0.71 release line.
 | `remove`       | Destructive | Remove the exact reviewed Safeword plan      |
 | `project …`    | Mixed       | Maintain project config, tests, and indexes  |
 | `tracker …`    | Mutating    | Connect and synchronize an external tracker  |
+| `claude …`     | Mixed       | Install and migrate the native Claude plugin |
 | `codex …`      | Mixed       | Install and migrate the profile Codex plugin |
 | `ticket …`     | Mixed       | List and create project tickets              |
 | `retro …`      | Mixed       | Extract, inspect, and reconcile findings     |
@@ -73,32 +74,47 @@ same path during its compatibility window.
 
 ### What gets installed
 
-| What                    | Action                                             | Purpose                                               |
-| ----------------------- | -------------------------------------------------- | ----------------------------------------------------- |
-| `.safeword/`            | Creates directory                                  | Hooks, guides, templates                              |
-| `.claude/settings.json` | Creates or merges                                  | Hook configuration                                    |
-| `.claude/skills/`       | Creates directory                                  | Workflow skills                                       |
-| `.cursor/hooks.json`    | Creates or merges                                  | Hook configuration                                    |
-| `.cursor/rules/`        | Creates directory                                  | Behavior rules                                        |
-| `.cursor/commands/`     | Creates directory                                  | Slash commands                                        |
-| `eslint.config.mjs`     | Creates file                                       | Linting config (JS/TS)                                |
-| `package.json`          | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
-| `cucumber.mjs`          | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
-| `features/`             | Creates starter                                    | Gherkin `.feature` files — yours after creation       |
-| `steps/`                | Creates starter                                    | TypeScript step definitions — yours after creation    |
-| `.golangci.yml`         | Creates file                                       | Linting config (Go)                                   |
-| `ruff.toml`             | Creates file                                       | Linting config (Python)                               |
-| `mypy.ini`              | Creates file                                       | Type checking (Python)                                |
-| `.importlinter`         | Creates when layout is unambiguous                 | Circular-import guard (Python) — yours after creation |
-| `clippy.toml`           | Creates file                                       | Linting config (Rust)                                 |
-| `rustfmt.toml`          | Creates file                                       | Formatting config (Rust)                              |
-| `Cargo.toml`            | Adds lints section                                 | clippy lints (Rust)                                   |
-| `.sqlfluff`             | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
-| `AGENTS.md`             | Creates or prepends                                | Links to SAFEWORD.md                                  |
-| `.mcp.json`             | Creates or merges                                  | MCP server config                                     |
-| `.cursor/mcp.json`      | Creates or merges                                  | MCP server config (Cursor)                            |
+| What                 | Action                                             | Purpose                                               |
+| -------------------- | -------------------------------------------------- | ----------------------------------------------------- |
+| `.safeword/`         | Creates directory                                  | Hooks, guides, templates                              |
+| `.cursor/hooks.json` | Creates or merges                                  | Hook configuration                                    |
+| `.cursor/rules/`     | Creates directory                                  | Behavior rules                                        |
+| `.cursor/commands/`  | Creates directory                                  | Slash commands                                        |
+| `eslint.config.mjs`  | Creates file                                       | Linting config (JS/TS)                                |
+| `package.json`       | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
+| `cucumber.mjs`       | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
+| `features/`          | Creates starter                                    | Gherkin `.feature` files — yours after creation       |
+| `steps/`             | Creates starter                                    | TypeScript step definitions — yours after creation    |
+| `.golangci.yml`      | Creates file                                       | Linting config (Go)                                   |
+| `ruff.toml`          | Creates file                                       | Linting config (Python)                               |
+| `mypy.ini`           | Creates file                                       | Type checking (Python)                                |
+| `.importlinter`      | Creates when layout is unambiguous                 | Circular-import guard (Python) — yours after creation |
+| `clippy.toml`        | Creates file                                       | Linting config (Rust)                                 |
+| `rustfmt.toml`       | Creates file                                       | Formatting config (Rust)                              |
+| `Cargo.toml`         | Adds lints section                                 | clippy lints (Rust)                                   |
+| `.sqlfluff`          | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
+| `AGENTS.md`          | Creates or prepends                                | Links to SAFEWORD.md                                  |
+| `.mcp.json`          | Creates or merges                                  | MCP server config                                     |
+| `.cursor/mcp.json`   | Creates or merges                                  | MCP server config (Cursor)                            |
 
 Setup auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
+
+Claude Code delivery is user-scoped and separate from project setup. Fresh setup does not create Safe Word-owned `.claude/settings.json` hooks or `.claude/skills/`; existing legacy Claude assets remain protected until the native plugin is proven and their reviewed cleanup is explicitly confirmed.
+
+## Claude Code plugin
+
+```bash
+safeword claude install
+# In the current Claude Code task:
+/reload-plugins
+safeword claude status
+
+# Legacy projects only: preview, then run the exact --yes --plan command returned
+safeword claude cleanup
+safeword claude recover # only when status reports recovery-required
+```
+
+`claude install` pins and verifies the official user-scoped plugin without changing project files. After install or update, `/reload-plugins` activates it in the current task; the next prompt records proof bound to the installed version and bundled hook manifest. `claude status` is read-only. Cleanup never installs, updates, enables, reloads, or trusts a plugin: it removes only recognized legacy Safeword project assets after exact plugin proof and explicit plan confirmation, preserving custom and third-party content.
 
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
