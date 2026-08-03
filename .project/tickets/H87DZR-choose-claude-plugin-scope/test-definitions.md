@@ -125,7 +125,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Overlapping scopes cannot authorize legacy cleanup
 
 - [x] RED skip: status already prioritizes applicable scope overlap before proof and cleanup planning; the newly executable cleanup scenario passed immediately
-- [ ] GREEN
+- [x] GREEN 8bfdecefb
 - [ ] REFACTOR
 
 ## Feature-level cross-scenario refactor
