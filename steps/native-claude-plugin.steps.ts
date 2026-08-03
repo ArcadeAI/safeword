@@ -3073,10 +3073,10 @@ Then(
 );
 
 Then(
-  /^human status names (project|user) as the active scope$/u,
+  /^human status names (project|user) as the configured scope$/u,
   function (this: NativeClaudePluginWorld, scope: string) {
     const result = runLifecycleCommand(this, ['claude', 'status'], false);
-    assert.match(result.output, new RegExp(`active at ${scope} scope`, 'u'));
+    assert.match(result.output, new RegExp(`configured at ${scope} scope`, 'u'));
   },
 );
 
@@ -3132,10 +3132,10 @@ Then(
 );
 
 Then(
-  'human status explains both overlapping scopes and both resolution choices',
+  'human status explains both overlapping installations and both resolution choices',
   function (this: NativeClaudePluginWorld) {
     const result = runLifecycleCommand(this, ['claude', 'status'], false);
-    assert.match(result.output, /overlapping Claude scopes/u);
+    assert.match(result.output, /overlapping Claude installations/u);
     assert.match(result.output, /project \(.+\).+user \(.+\)/u);
     assert.match(result.output, /--scope project/u);
     assert.match(result.output, /--scope user/u);

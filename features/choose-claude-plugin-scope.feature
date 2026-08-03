@@ -159,7 +159,7 @@ Feature: Choose where Safeword runs in Claude
       Given the profile contains <installation-state>
       When safeword claude status runs
       Then status reports <applicable-scope> as the applicable Safeword scope
-      And human status names <applicable-scope> as the active scope
+      And human status names <applicable-scope> as the configured scope
       And project and profile state remain byte-identical
 
       Examples:
@@ -187,7 +187,7 @@ Feature: Choose where Safeword runs in Claude
       When safeword claude status runs
       Then status reports scope-overlap and the identity and health of both installations
       And it names explicit project-scope and user-scope resolution actions
-      And human status explains both overlapping scopes and both resolution choices
+      And human status explains both overlapping installations and both resolution choices
       And project and profile state remain byte-identical
 
       Examples:

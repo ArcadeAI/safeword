@@ -184,7 +184,7 @@ function statusData(
 function statusMessage(options: StatusOptions): string | undefined {
   if (options.message !== undefined) return options.message;
   if (options.applicableScope === undefined) return undefined;
-  return `Safeword is active at ${options.applicableScope} scope for this repository.`;
+  return `Safeword's applicable Claude installation is configured at ${options.applicableScope} scope for this repository.`;
 }
 
 function statusFindings(
@@ -237,7 +237,7 @@ function scopeOverlapResult(
     .join(' and ');
   return statusResult('scope-overlap', {
     installations,
-    message: `Safeword is active in overlapping Claude scopes for this repository: ${summary}. Keep one by running either \`claude plugin uninstall safeword@safeword --scope project\` or \`claude plugin uninstall safeword@safeword --scope user\`.`,
+    message: `Safeword has overlapping Claude installations for this repository: ${summary}. Keep one by running either \`claude plugin uninstall safeword@safeword --scope project\` or \`claude plugin uninstall safeword@safeword --scope user\`.`,
     nextActions: [
       'claude plugin uninstall safeword@safeword --scope project',
       'claude plugin uninstall safeword@safeword --scope user',
