@@ -112,7 +112,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: One proven applicable scope can authorize legacy cleanup
 
-- [ ] RED
+- [x] RED b2c04b51e
 - [ ] GREEN
 - [ ] REFACTOR
 
