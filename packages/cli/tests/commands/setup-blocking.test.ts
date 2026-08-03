@@ -62,7 +62,8 @@ describe('Test Suite 5: Setup Converges Existing Projects', () => {
       const content = readTestFile(temporaryDirectory, 'AGENTS.md');
       expect(content).toBe(originalContent);
 
-      expect(fileExists(temporaryDirectory, '.claude')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.safeword/skills')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.claude')).toBe(false);
       expect(fileExists(temporaryDirectory, 'eslint.config.mjs')).toBe(true);
       expect(fileExists(temporaryDirectory, '.prettierrc')).toBe(true);
     });

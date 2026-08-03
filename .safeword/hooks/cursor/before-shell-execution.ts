@@ -16,6 +16,7 @@ import {
   rememberCursorReviewStampIdentity,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
+import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
 import { stashCursorTranscript } from '../lib/cursor-state.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {
@@ -71,9 +72,18 @@ function stashReviewStampIdentity(): void {
   });
 }
 
+function stashCloseoutBinding(): void {
+  if (!commandInvokesCloseoutCleanup(command)) return;
+  rememberCloseoutBinding({
+    projectDirectory: process.cwd(),
+    runtime: 'cursor',
+    id: input.conversation_id,
+    transcriptPath: input.transcript_path,
+  });
+}
+
 const proofCommand = parseRecordSkillInvocationCommand(command);
-const needsFailClosedGate = requiresFailClosedShellGate({ command });
-if (!needsFailClosedGate) {
+function stashAllowedCommandIdentities(): void {
   if (proofCommand !== undefined) {
     rememberCursorRunIdentity({
       projectDirectory: process.cwd(),
@@ -82,6 +92,12 @@ if (!needsFailClosedGate) {
     });
   }
   stashReviewStampIdentity();
+  stashCloseoutBinding();
+}
+
+const needsFailClosedGate = requiresFailClosedShellGate({ command });
+if (!needsFailClosedGate) {
+  stashAllowedCommandIdentities();
   emitAllowAndExit();
 }
 
@@ -105,14 +121,7 @@ const decision = decideFromGate(
   }),
 );
 if (decision.permission === 'allow') {
-  if (proofCommand !== undefined) {
-    rememberCursorRunIdentity({
-      projectDirectory: process.cwd(),
-      conversationId: input.conversation_id,
-      skillName: proofCommand.skillName,
-    });
-  }
-  stashReviewStampIdentity();
+  stashAllowedCommandIdentities();
 }
 process.stdout.write(JSON.stringify(decision) + '\n');
 process.exit(0);

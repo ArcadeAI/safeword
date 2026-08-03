@@ -123,7 +123,9 @@ describe('Setup Command - Reconcile Integration', () => {
         existsSync(nodePath.join(temporaryDirectory, '.safeword/guides/testing-guide.md')),
       ).toBe(true);
 
-      // Check claude skills (commands moved to skills)
+      // Fresh native-Claude delivery shares canonical skills with Cursor without
+      // replacing the full-schema reconciliation contract exercised here.
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/skills'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude/skills'))).toBe(true);
     });
 

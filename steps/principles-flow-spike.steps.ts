@@ -142,7 +142,7 @@ function instructionsFor(directory: string, path: string): string {
   const absolute = nodePath.isAbsolute(path) ? path : nodePath.join(directory, path);
   const content = readFileSync(absolute, 'utf8');
   if (content.includes(RESOLVER)) return content;
-  const reference = content.match(/@?(\.claude\/skills\/[\w./-]+)/u)?.[1];
+  const reference = content.match(/@?((?:\.claude|\.safeword)\/skills\/[\w./-]+)/u)?.[1];
   assert.ok(reference, `${path} does not reference a review procedure`);
   return readFileSync(nodePath.join(directory, reference), 'utf8');
 }

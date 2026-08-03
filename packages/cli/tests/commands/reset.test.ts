@@ -85,6 +85,11 @@ describe('Test Suite 11: Reset', () => {
 
   describe('Test 11.5: Removes hooks from settings.json', () => {
     it('should remove safeword hooks but preserve custom hooks', async () => {
+      writeTestFile(
+        temporaryDirectory,
+        '.claude/settings.json',
+        '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+      );
       await createConfiguredProject(temporaryDirectory);
 
       // Add a custom hook
@@ -215,6 +220,11 @@ describe('Test Suite 11: Reset', () => {
 
   describe('Test 11.11: Removes safeword slash commands', () => {
     it('should remove safeword commands but preserve custom ones', async () => {
+      writeTestFile(
+        temporaryDirectory,
+        '.claude/settings.json',
+        '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+      );
       await createConfiguredProject(temporaryDirectory);
 
       // Verify commands directory exists after setup

@@ -89,6 +89,30 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
   });
 }
 
+async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('claude install');
+  const { installClaudePlugin } = await import('../claude-plugin/profile.js');
+  return installClaudePlugin(invocation.cwd);
+}
+
+async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeClaudeStatus } = await import('../claude-plugin/status.js');
+  return observeClaudeStatus(invocation.cwd);
+}
+
+async function claudeCleanupHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { cleanupClaudeLegacy } = await import('../claude-plugin/cleanup.js');
+  return cleanupClaudeLegacy(invocation.cwd, {
+    assumeYes: invocation.options.yes === true,
+    plan: stringOption(invocation.options, 'plan'),
+  });
+}
+
+async function claudeRecoverHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { recoverClaudeCleanup } = await import('../claude-plugin/cleanup.js');
+  return recoverClaudeCleanup(invocation.cwd);
+}
+
 async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observePlan } = await import('../commands/plan.js');
   return observePlan(invocation.cwd);
@@ -495,6 +519,29 @@ async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliRes
     invocation.cwd,
     (invocation.operands[0] as readonly string[] | undefined) ?? [],
   );
+}
+
+async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('review run');
+  const [rawKind, rawTargets] = invocation.operands;
+  const { isReviewKind } = await import('../review/contract.js');
+  if (!isReviewKind(rawKind)) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_KIND_INVALID',
+          message: 'Review kind must be quality-review, scenario-gate, or plan-implementation.',
+          retryable: false,
+        },
+      ],
+    });
+  }
+  const targets = Array.isArray(rawTargets)
+    ? rawTargets.filter((target): target is string => typeof target === 'string')
+    : [];
+  const { runReview } = await import('../review/coordinator.js');
+  return runReview({ cwd: invocation.cwd, kind: rawKind, targets });
 }
 
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -1305,10 +1352,15 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex migrate': invocation => codexMutationHandler('codex migrate', invocation),
   'codex install': invocation => codexMutationHandler('codex install', invocation),
   'codex status': codexStatusHandler,
+  'claude install': claudeInstallHandler,
+  'claude status': claudeStatusHandler,
+  'claude cleanup': claudeCleanupHandler,
+  'claude recover': claudeRecoverHandler,
   'codex clean-guidance': codexCleanGuidanceHandler,
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
+  'review run': reviewRunHandler,
   'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
   'retro reconcile': retroReconcileHandler,

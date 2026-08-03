@@ -1,0 +1,301 @@
+/**
+ * Shared quality gate types and constants.
+ * Used by both post-tool-quality.ts (observer) and pre-tool-quality.ts (enforcer).
+ */
+
+import { readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+import { getTicketInfo, type TicketDetails } from './active-ticket.js';
+import { resolveNamespaceRoot } from './namespace-root.js';
+import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
+import { captureGateEscalation } from './self-report.js';
+
+export const LOC_THRESHOLD = 400;
+/** Counter threshold for CLAUDE.md escalation suggestions. */
+export const ESCALATION_THRESHOLD = 3;
+
+/**
+ * Closing line appended to every hard-block gate message (phase / LOC / done
+ * and the artifact prerequisite gates). Gate messages are the densest jargon
+ * in the system; `/explain` (a manual-only action skill) translates a blocked
+ * gate into plain English, so the pointer rides along with the block itself
+ * (ticket ZCYD5P). Plain, no branding.
+ */
+export const EXPLAIN_HINT = 'Run `/explain` for a plain-English version of this block.';
+
+/**
+ * Tooling/meta paths that are not application code.
+ * Used by pre-tool (skip blocking) and post-tool (skip LOC counting).
+ *
+ * Must stay the trailing-slash mirror of `SAFEWORD_IGNORE_DIRS` (src/owned-paths.ts) —
+ * the same "safeword owns this directory, it is never the customer's work product"
+ * set, enforced by a drift test. The hooks can't import from `src/`, so the list is
+ * restated here rather than shared.
+ *
+ * `.agents/` and `.codex/` were missing until issue #1163: session-auto-upgrade
+ * relocating skills out of `.agents/` counted ~3800 deletions of safeword's own
+ * churn against the 400-line gate, hard-blocking the agent's next edit over work
+ * neither it nor the user authored.
+ *
+ * Files safeword only MERGES INTO (package.json, eslint.config.mjs, …) are
+ * deliberately absent: those are shared with the customer, and excluding them
+ * would blind the gate to real work.
+ */
+export const META_PATHS = [
+  '.safeword/',
+  '.claude/',
+  '.cursor/',
+  '.codex/',
+  '.agents/',
+  '.project/',
+  '.safeword-project/',
+];
+
+/**
+ * Is `filePath` a safeword-owned meta path *within this project*?
+ *
+ * Match the path RELATIVE to the project root, never a substring of the absolute
+ * path. A bare `absolutePath.includes('.claude/')` also matches every file in a
+ * checkout that merely LIVES under a directory of that name — safeword's own
+ * worktrees sit in `<repo>/.claude/worktrees/<name>/`, which silently disabled
+ * EVERY pre-tool gate (phase freeze, test-definitions, LOC) for every file in
+ * them. Found reviewing #1163, which widened the blast radius by adding
+ * `.codex/` and `.agents/` to the list.
+ *
+ * A path outside the project resolves to a `..` escape and stays exempt — the
+ * gates below reason about project code, and an out-of-tree edit was never
+ * theirs to block.
+ */
+export function isMetaPath(filePath: string, projectDirectory: string): boolean {
+  if (filePath.length === 0) return false;
+  const relative = nodePath.isAbsolute(filePath)
+    ? nodePath.relative(projectDirectory, filePath)
+    : filePath;
+  if (relative.startsWith('..')) return true; // outside the project — not ours to gate
+  const normalized = relative.split(nodePath.sep).join('/');
+  return META_PATHS.some(meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1));
+}
+
+export interface FailureEntry {
+  pattern: string;
+  timestamp: string;
+}
+
+export interface QualityState {
+  locSinceCommit: number;
+  lastCommitHash: string;
+  activeTicket: string | null;
+  gate: string | null;
+  recentFailures: FailureEntry[];
+  incrementedPatterns: string[];
+  /**
+   * Files under `<namespace-root>/learnings/*.md` edited this session whose
+   * "novel claim — verify with /quality-review" nudge has not yet been shown.
+   * Append-only per-fingerprint; cleared atomically by prompt-questions when
+   * the nudge fires (entries move to `learningsNudgesAcknowledged`).
+   */
+  learningsNudgesPending?: string[];
+  /**
+   * Files whose nudge has already been shown this session. Append-only.
+   * Used by the setter to skip re-arming a file that was already nudged.
+   */
+  learningsNudgesAcknowledged?: string[];
+  /**
+   * The BDD phase last surfaced for review. Dedups the per-phase review across
+   * the PostToolUse trigger (autonomous-safe) and the Stop backstop, so each
+   * phase boundary is reviewed once (ticket SXSCJQ).
+   */
+  lastReviewedPhase?: string;
+  /**
+   * The generic Stop quality review has already been surfaced for this session.
+   * A later idle Stop callback must stay silent until UserPromptSubmit clears
+   * this flag, preventing a stale review continuation from manufacturing an
+   * assistant reply (issue #1492).
+   */
+  stopQualityReviewAwaitingUserPrompt?: boolean;
+  /**
+   * HEAD sha at which the replan-on-resume heads-up last fired (ticket 153).
+   * Suppresses re-firing every turn while HEAD is unchanged; a new session has
+   * no marker and re-evaluates from the ticket's `last_modified`. Stored here —
+   * never by bumping `last_modified`, which is also the active-ticket mtime.
+   */
+  replanPromptedHead?: string;
+}
+
+/**
+ * Get the per-session state file path.
+ */
+export function getStateFilePath(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+): string {
+  return nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    `quality-state-${stateStorageKey(sessionId)}.json`,
+  );
+}
+
+function isRunIdentity(value: string | RunIdentity | undefined): value is RunIdentity {
+  return typeof value === 'object' && value !== null && 'runtime' in value && 'sessionKey' in value;
+}
+
+function stateStorageKey(sessionId: string | RunIdentity | undefined): string {
+  if (isRunIdentity(sessionId)) {
+    return getRunStorageKey(sessionId) ?? 'undefined';
+  }
+
+  if (sessionId === undefined || sessionId.trim().length === 0) return 'undefined';
+
+  const runtime = process.env.SAFEWORD_AGENT_RUNTIME;
+  if (runtime === 'codex' || runtime === 'cursor') {
+    const identityInput =
+      runtime === 'cursor' ? { conversation_id: sessionId } : { session_id: sessionId };
+    const identity = resolveRunIdentity(identityInput, { runtime });
+    const scopedKey = getRunStorageKey(identity);
+    if (scopedKey !== null) return scopedKey;
+  }
+
+  // Raw string callers are legacy Claude-shaped hooks. Preserve their write
+  // path unless an adapter explicitly set SAFEWORD_AGENT_RUNTIME.
+  return sessionId;
+}
+
+function legacyStateFilePath(projectDirectory: string, sessionId: string): string {
+  return nodePath.join(resolveNamespaceRoot(projectDirectory), `quality-state-${sessionId}.json`);
+}
+
+function readableStateFilePaths(
+  projectDirectory: string,
+  sessionId: string | RunIdentity,
+): string[] {
+  const primary = getStateFilePath(projectDirectory, sessionId);
+  if (isRunIdentity(sessionId)) {
+    if (sessionId.runtime === 'claude' && sessionId.sessionKey) {
+      return [primary, legacyStateFilePath(projectDirectory, sessionId.sessionKey)];
+    }
+    return [primary];
+  }
+  if (process.env.SAFEWORD_AGENT_RUNTIME && process.env.SAFEWORD_AGENT_RUNTIME !== 'claude') {
+    return [primary];
+  }
+  return [primary];
+}
+
+/**
+ * Read and parse the per-session quality-state file, or `null` when it is absent
+ * or unreadable/unparseable. Centralizes the read+parse+tolerate-failure idiom the
+ * quality hooks share; read-only callers use this directly, while read-modify-write
+ * callers (post-tool, prompt-questions, the stop-quality writer) still own their
+ * own read+write so the write half stays explicit.
+ */
+export function readSessionState(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+): QualityState | null {
+  if (!sessionId || (typeof sessionId === 'string' && sessionId.trim().length === 0)) return null;
+  for (const filePath of readableStateFilePaths(projectDirectory, sessionId)) {
+    try {
+      return JSON.parse(readFileSync(filePath, 'utf8')) as QualityState;
+    } catch {
+      // Try the next compatible path.
+    }
+  }
+  return null;
+}
+
+export function readSessionActiveTicket(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+): TicketDetails | null {
+  const state = readSessionState(projectDirectory, sessionId);
+  const activeTicket = state?.activeTicket;
+  return activeTicket ? getTicketInfo(projectDirectory, activeTicket) : null;
+}
+
+/** Counter file for cross-session failure pattern tracking. */
+export function getCounterFilePath(projectDirectory: string): string {
+  return nodePath.join(resolveNamespaceRoot(projectDirectory), 'failure-counts.json');
+}
+
+export interface CounterEntry {
+  count: number;
+  lastSeen: string;
+  countAtLastSuggestion: number | null;
+}
+
+/** Read the counter file. Returns empty object if missing or corrupted. */
+export function readCounters(projectDirectory: string): Record<string, CounterEntry> {
+  const filePath = getCounterFilePath(projectDirectory);
+  try {
+    return JSON.parse(readFileSync(filePath, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+/** Write the counter file. */
+export function writeCounters(
+  projectDirectory: string,
+  counters: Record<string, CounterEntry>,
+): void {
+  writeFileSync(getCounterFilePath(projectDirectory), JSON.stringify(counters, null, 2));
+}
+
+/**
+ * Record a structural failure: append to session state + increment counter.
+ * Per-session dedup: each pattern increments the counter at most once per session.
+ */
+export function recordFailure(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+  pattern: string,
+): void {
+  // Write to session state (recentFailures)
+  if (sessionId && (typeof sessionId !== 'string' || sessionId.trim().length > 0)) {
+    const stateFile = getStateFilePath(projectDirectory, sessionId);
+    try {
+      const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+      const failures: FailureEntry[] = state.recentFailures ?? [];
+      // Per-pattern dedup: keep entries for other patterns, then append this
+      // one with a fresh timestamp. Bounds the array by distinct pattern
+      // count instead of letting it grow with repeats, and keeps the array
+      // ordered by last-occurrence so `failures[last]` is the most-recent
+      // pattern (prompt-questions relies on this). Ticket 8CMXNG.
+      const updated = failures.filter(f => f.pattern !== pattern);
+      updated.push({ pattern, timestamp: new Date().toISOString() });
+      state.recentFailures = updated;
+
+      // Per-session dedup for counter increment
+      const incremented: string[] = state.incrementedPatterns ?? [];
+      if (!incremented.includes(pattern)) {
+        incremented.push(pattern);
+
+        // Increment persistent counter
+        const counters = readCounters(projectDirectory);
+        const entry = counters[pattern] ?? { count: 0, lastSeen: '', countAtLastSuggestion: null };
+        entry.count += 1;
+        entry.lastSeen = new Date().toISOString().slice(0, 10);
+        counters[pattern] = entry;
+        writeCounters(projectDirectory, counters);
+
+        // Self-observation (#344): a gate that escalates is worth a maintainer's
+        // look — it may be a too-aggressive gate OR a correct gate firing on a
+        // recurring problem (e.g. tests-failed). The record is a candidate for
+        // review, not an asserted false-positive. Emit once at the crossing; the
+        // bound is one signal per counter-file lifetime (a counter reset re-arms
+        // it). Best-effort — never affects this function's callers.
+        if (entry.count === ESCALATION_THRESHOLD) {
+          const escalationKey = isRunIdentity(sessionId)
+            ? (getRunStorageKey(sessionId) ?? undefined)
+            : sessionId;
+          captureGateEscalation(projectDirectory, escalationKey, pattern);
+        }
+      }
+      state.incrementedPatterns = incremented;
+
+      writeFileSync(stateFile, JSON.stringify(state, null, 2));
+    } catch {
+      // Best effort — don't crash hooks on state write failure
+    }
+  }
+}

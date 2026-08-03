@@ -1,0 +1,135 @@
+---
+id: 93C14D
+slug: close-completed-sessions-safely
+type: feature
+phase: done
+status: done
+phase_skips:
+  - intake: Completed before the first feature checkpoint; the scoped spec and intake work log are committed with this ticket.
+  - define-behavior: Completed before the first feature checkpoint; the dimensions and scenario ledger are committed with this ticket.
+  - scenario-gate: Completed before the first feature checkpoint; the approved feature and review work log are committed with this ticket.
+  - plan-implementation: Completed before the first feature checkpoint; the reviewed implementation plan and phase anchor are committed with this ticket.
+scope:
+  - add one canonical closeout skill that orchestrates verification, GitHub merge state, mandatory retro, exact cleanup, and final reporting
+  - ship generated Claude Code, OpenAI Codex, and Cursor entry points from the canonical contract
+  - register every shipped artifact in the schema and production wrapper catalogues
+  - prove authority boundaries, merge queues and partial success, fail-closed retro, safe cleanup, idempotence, and host parity
+out_of_scope:
+  - a new safeword closeout CLI command or state machine
+  - non-GitHub pull-request providers
+  - cloud-agent session cleanup semantics
+  - force-removing dirty or locked worktrees
+  - inferring administrative merge authority or offering a retro bypass
+done_when:
+  - one closeout request drives the documented workflow without requiring the user to remember its steps
+  - cleanup cannot begin until verification is current, the pull request independently reports merged, and retro completed
+  - normal and administrative merges occur only under their explicitly documented authority conditions
+  - rerunning after any partial success safely continues without repeating completed destructive effects
+  - unsafe or ambiguous cleanup targets remain untouched and appear in the final unresolved-items report
+  - canonical, dogfood, Cursor, and Codex artifacts are synchronized and covered by real-collaborator parity tests
+phase_anchors:
+  - define-behavior: .project/tickets/93C14D-close-completed-sessions-safely/spec.md
+  - scenario-gate: features/close-completed-sessions-safely.feature
+  - plan-implementation: features/close-completed-sessions-safely.feature
+  - implement: .project/tickets/93C14D-close-completed-sessions-safely/impl-plan.md
+  - verify: .project/tickets/93C14D-close-completed-sessions-safely/test-definitions.md
+  - done: .project/tickets/93C14D-close-completed-sessions-safely/verify.md
+created: 2026-08-02T20:41:09.906Z
+last_modified: 2026-08-03T02:52:30.000Z
+---
+
+# Close completed sessions safely
+
+**Goal:** Turn a green delivery into a confirmed merge and a verified clean session with retro and branch/worktree cleanup.
+
+**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Work Log
+
+- 2026-08-02T20:41:09.906Z Started: Created ticket 93C14D
+- 2026-08-02T22:35:00.000Z Intake: Confirmed the NTB and TBU jobs after a
+  source-grounded quality review; carried applicable principles into seven
+  observable closeout invariants.
+- 2026-08-02T22:42:00.000Z Intake: Confirmed all seven Rules and narrowed the
+  implementation to a canonical skill plus generated host adapters; kept a new
+  CLI state machine, cloud lifecycle semantics, force cleanup, and bypasses out
+  of scope.
+- 2026-08-02T22:48:00.000Z Transition: Engineering scope confirmed; advanced
+  from intake to define-behavior with spec.md as the phase anchor.
+- 2026-08-02T23:05:00.000Z Define behavior: Derived ten state dimensions and
+  authored 21 scenario declarations across all seven Rules, including merge
+  queues, partial success, mandatory retro, exact cleanup, and host parity.
+- 2026-08-02T23:12:00.000Z Transition: User confirmed the scenario set covers
+  intended behavior and important boundaries; advanced to scenario-gate.
+- 2026-08-02T23:25:00.000Z Scenario gate: Independent review found four
+  must-fix and three strengthening gaps; applied all seven, adding explicit PR
+  identity rejection, branch-only cleanup, and real installed-host wiring.
+- 2026-08-02T23:36:00.000Z Scenario gate: Fresh re-review found one remaining
+  gap in the every-unresolved-item invariant; added a simultaneous-blockers
+  scenario and returned to define-behavior for confirmation.
+- 2026-08-02T23:41:00.000Z Transition: User confirmed the expanded 25-scenario
+  set; re-entered scenario-gate for the clean pass.
+- 2026-08-02T23:48:00.000Z Scenario gate: Final review caught the exit-zero
+  counterexample; expanded the unconfirmed-result scenario to prove that both
+  successful and failed merge commands require independent merged-state
+  observation, then returned to define-behavior.
+- 2026-08-02T23:52:00.000Z Define behavior: User confirmed the exit-zero case
+  and declined the >15-scenario split suggestion; keeping one feature because
+  all behavior forms one ordered closeout contract implemented by one skill.
+- 2026-08-02T21:41:11.000Z Scenario gate: Fresh independent review approved
+  all 25 scenario declarations with zero must-fix findings and no build-only
+  kill-risk; advanced to implementation planning without a spike.
+- 2026-08-02T22:05:42.000Z Plan implementation: Independent challenge drove
+  destructive cleanup into a digest-bound guard with current verification,
+  hook-bound retro identity, exact PR/repository/ref checks, and hash-bound
+  semantic review evidence. Fresh final review approved with zero must-fix
+  findings; seven build tasks, four components, no ADR, split still declined.
+- 2026-08-02T23:35:30.000Z Implement: Shipped the canonical closeout contract,
+  deterministic guard, exact-session bindings, generated host adapters,
+  schema/catalogue registration, documentation, real-Git and installed-profile
+  integration coverage, and a hash-bound independent manual-review gate.
+- 2026-08-02T23:50:30.000Z Implement: Hash-bound review failed closed on
+  generic retro recovery, an unbound outside-worktree case, and insufficiently
+  bound parity evidence. Added typed recovery causes, delivery-worktree identity,
+  and production parity mutations; corrected one stale evidence SHA. Fresh review
+  recomputed all ten hashes and approved all 55 expanded examples.
+- 2026-08-03T00:17:00.000Z Implement: Final quality review reproduced a
+  destructive newline-path worktree omission and rejected an over-strong host
+  proof claim. Switched to NUL-delimited Git porcelain with a real adversarial
+  worktree, narrowed the claim to the exercised evidence, and completed the
+  leaf-first refactor ledger with every remaining entry resolved or justified.
+- 2026-08-03T00:49:44.000Z Transition: Full verification passed with 6342
+  tests, 768 acceptance scenarios, 26695 acceptance steps, clean lint,
+  successful build and typecheck, no dependency vulnerabilities, complete
+  scenario annotations, and 3/3 affected surfaces proven; advanced from
+  implement to verify with the completed R/G/R ledger as the phase anchor.
+- 2026-08-03T01:02:00.000Z Verify: Merged current main without rewriting the
+  hash-bound review history. Main's new native Claude plugin generator exposed
+  an unresolved project-relative script import; added a failing host-adapter
+  contract, adapted plugin-only script imports to packaged runtime hooks, and
+  regenerated a sealed catalogue containing closeout and its dependencies.
+- 2026-08-03T01:08:00.000Z Verify: Independent catch-up review rejected the
+  native Claude path because the packaged guard could fall back to a network or
+  project CLI. Added a generated-runtime test that reproduced `bunx safeword`,
+  resolved plugin closeout through the sealed bundled CLI, and returned the
+  focused runtime and cleanup suite to 48/48 passing before re-review.
+- 2026-08-03T02:07:40.000Z Verify: The caught-up acceptance lane passed 823
+  scenarios and 29492 steps. The first full Vitest run observed one transient
+  boundary-fixture absence while another suite rebuilt `dist/cli.js`; the
+  boundary suite passed 12/12 in isolation and the complete unchanged suite
+  then passed 6349/6349 with 5 skips, alongside clean lint, build, typecheck,
+  and dependency audit evidence.
+- 2026-08-03T02:07:40.000Z Transition: All closeout behavior, host parity,
+  independent review, audit, and verification gates are green; advanced from
+  verify to done with verify.md as the final phase anchor.
+- 2026-08-03T02:21:10.000Z Done: Hosted CI exposed an unformatted native-plugin
+  TypeScript asset after path adaptation. Extended the existing generator
+  formatting pass to generated TypeScript, refreshed the sealed catalogue, and
+  obtained a fresh 16-input independent review approving all 55 examples. The
+  deterministic review, host-adapter, release-contract, formatting, lint, and
+  typecheck gates passed before republishing.
+- 2026-08-03T02:52:30.000Z Done: Post-merge dogfooding exposed that the cleanup
+  guard passed the unsupported `--format json` spelling to `retro run`. Added a
+  failing contract for the real `--json` CLI, corrected every generated host
+  artifact, refreshed the sealed catalogues, and obtained a fresh 16-input
+  independent review approving all 55 examples with no findings.

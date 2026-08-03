@@ -25,6 +25,19 @@ defects on different scenarios, and finding one never lowers the bar for the
 rest; report EACH. (This does not replace `self-review`'s `spec.md` framing
 gate.)
 
+Run the adversarial judgment through the shared coordinator, passing the
+feature, ticket scope, and any legacy scenario source as bounded targets:
+
+```bash
+safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions]
+```
+
+The coordinator's assigned/actual reviewer, failure classification, and
+independence level are authoritative. If it blocks, follow its one recovery
+action; never substitute a surface-private reviewer or hand-written passing
+evidence. Use the checks below as the scenario-gate rubric and to triage the
+returned findings.
+
 ## Vacuous-pass test
 
 Run this **first** — a scenario that would pass without the feature invalidates every check below it. Mentally delete the implementation and ask: _could this scenario still pass?_ If yes, it is vacuous: flag it and propose a stronger `Then`. (A good test is _behavioral_ — if the behavior changed, the result should change; a scenario that survives a deleted feature tests nothing.)

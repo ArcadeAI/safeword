@@ -138,7 +138,7 @@ describe('canonical spool dedupe contract (#1031)', () => {
         alwaysApply: false,
         description:
           "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
-        referencePath: '.claude/skills/retro-filer/SKILL.md',
+        referencePath: '.safeword/skills/retro-filer/SKILL.md',
         skill: 'retro-filer',
       },
     });
@@ -148,7 +148,7 @@ describe('canonical spool dedupe contract (#1031)', () => {
       alwaysApply: false,
       description:
         "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
-      referencePath: '.claude/skills/retro-filer/SKILL.md',
+      referencePath: '.safeword/skills/retro-filer/SKILL.md',
       skill: 'retro-filer',
     });
     expect(readFileSync(nodePath.join(CURSOR_RULES_DIR, 'safeword-retro-filer.mdc'), 'utf8')).toBe(

@@ -219,6 +219,22 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
   }),
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
+  command('claude install', 'Install the Claude profile plugin', 'mutate', {
+    networkPolicy: 'declared',
+  }),
+  command('claude status', 'Report Claude plugin and migration state', 'observe'),
+  command('claude cleanup', 'Remove verified legacy Claude project assets', 'destructive', {
+    promptPolicy: 'confirm',
+    commandOptions: [
+      { flags: '--yes', description: 'Confirm cleanup of the observed exact revision' },
+      {
+        flags: '--plan <id>',
+        description: 'Identity of the exact cleanup plan',
+        valueKind: 'plan-identity',
+      },
+    ],
+  }),
+  command('claude recover', 'Recover an interrupted Claude cleanup', 'mutate'),
   command(
     'codex clean-guidance',
     'Back up exact legacy Safe Word profile guidance',
@@ -268,6 +284,14 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         ...MACHINE_ENVIRONMENT,
         SAFEWORD_TICKET_ID_OVERRIDE: 'N80D28',
       },
+    },
+  }),
+  command('review run', 'Run an independent adversarial review', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'run <kind> <targets...>',
+    fixture: {
+      argv: ['review', 'run', 'quality-review', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
     },
   }),
   command('retro run', 'Extract and file session findings', 'mutate', {
