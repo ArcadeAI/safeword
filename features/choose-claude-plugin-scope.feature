@@ -89,7 +89,6 @@ Feature: Choose where Safeword runs in Claude
       And every unrelated project setting value is preserved
       And every project file outside Claude settings is byte-identical
 
-    @wip
     Scenario: User installation leaves the repository unchanged
       Given the current project and Claude profile have no Safeword plugin declaration
       When safeword claude install runs with --scope user
