@@ -223,6 +223,14 @@ function safewordPlugin(
   return entries.find(entry => entry.id === PLUGIN_ID && entryMatchesScope(entry, scope, cwd));
 }
 
+function applicableSafewordPlugins(entries: readonly JsonObject[], cwd: string): JsonObject[] {
+  return entries.filter(
+    entry =>
+      entry.id === PLUGIN_ID &&
+      (entry.scope === 'user' || (entry.scope === 'project' && entry.projectPath === cwd)),
+  );
+}
+
 function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
   let failure: ClaudeProfileError;
   if (error instanceof ClaudeProfileError) failure = error;
@@ -455,15 +463,20 @@ function assertNativePayload(plugin: JsonObject, effects: readonly Effect[]): vo
   }
 }
 
-function verifyPlugin(cwd: string, scope: ClaudePluginScope, effects: readonly Effect[]): void {
-  const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
+function verifyPlugin(
+  cwd: string,
+  scope: ClaudePluginScope,
+  effects: readonly Effect[],
+): JsonObject[] {
+  const entries = pluginEntries(cwd, effects);
+  const plugin = safewordPlugin(entries, scope, cwd);
   if (
     plugin?.version === SAFEWORD_SCHEMA.version &&
     plugin.enabled === true &&
     plugin.scope === scope
   ) {
     assertNativePayload(plugin, effects);
-    return;
+    return entries;
   }
   throw new ClaudeProfileError(
     'CLAUDE_PLUGIN_UNVERIFIED',
@@ -478,7 +491,8 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
     assertSupportedHost(cwd);
     ensureMarketplace(cwd, scope, effects);
     convergePlugin(cwd, scope, effects);
-    verifyPlugin(cwd, scope, effects);
+    const plugins = verifyPlugin(cwd, scope, effects);
+    const overlap = applicableSafewordPlugins(plugins, cwd).length > 1;
 
     return createResult({
       state: effects.length === 0 ? 'healthy' : 'changed',
@@ -492,6 +506,7 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
         plugin: PLUGIN_ID,
         version: SAFEWORD_SCHEMA.version,
         scope,
+        ...(overlap && { classification: 'scope-overlap' }),
       },
     });
   } catch (error) {
