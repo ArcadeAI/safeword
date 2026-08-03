@@ -1,6 +1,6 @@
 # Impl Plan: Generate compliant replies without correction loops
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -10,7 +10,7 @@ Markdown. The cheapest behavioral proof is `Ignored Markdown content does not
 poison a valid terminal brief`; the one/two/four-megabyte scenario then proves
 the same classifier remains bounded under adversarial input.
 
-Create one structured, phase-neutral decision-brief specification in
+Create one phase-neutral decision-brief vocabulary module in
 `packages/cli/templates/hooks/lib/quality.ts`. It owns verdict names, ordered
 required/optional paragraph labels, terminal labels, and the prose used to
 render the proactive contract. The same object feeds:
@@ -130,10 +130,10 @@ catastrophic backtracking risk for overlapping repeated regexes in
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
 | Optimize for the NTB without constraining the TBU | Compliant work produces one plain-language completion, while TDD retains its lead-only quiet path and technical gate evidence remains available. | `features/generate-compliant-replies-without-rewrites.feature`; live walkthrough evidence in `verify.md` | |
-| 1. Structure enforces; instructions suggest | SessionStart guidance is backed by deterministic Stop validation and real subprocess observation rather than trusted alone. | `packages/cli/tests/integration/reply-format-hooks.test.ts` | |
-| 2. Fire at boundaries, not every turn | The full contract is delivered at SessionStart boundaries; UserPromptSubmit stays compact and active TDD stays lead-only. | `packages/cli/tests/integration/reply-format-hooks.test.ts` | |
-| 3. Add, never replace | SessionStart appends the decision contract while preserving the complete existing SAFEWORD standing context. | Configured hook-group preservation assertions in `packages/cli/tests/integration/reply-format-hooks.test.ts` | |
-| 5. Clarity before correctness | One named grammar object drives both consumers, proven by a changed-contract wiring test; table-driven scanner tests keep every classification rule legible. | `packages/cli/tests/integration/reply-format-hooks.test.ts`; `packages/cli/tests/hooks/decision-brief.test.ts` | |
+| 1. Structure enforces; instructions suggest | SessionStart guidance is backed by deterministic Stop validation and real subprocess observation rather than trusted alone. | `steps/reply-format-contract.steps.ts`; `packages/cli/tests/hooks/reply-format-contract.test.ts` | |
+| 2. Fire at boundaries, not every turn | The full contract is delivered at SessionStart boundaries; UserPromptSubmit stays compact and active TDD stays lead-only. | `steps/reply-format-contract.steps.ts` | |
+| 3. Add, never replace | SessionStart appends the decision contract while preserving the complete existing SAFEWORD standing context. | Configured hook-group preservation assertions in `steps/reply-format-contract.steps.ts` | |
+| 5. Clarity before correctness | One named vocabulary module drives both consumers, proven by a changed-contract wiring test; table-driven scanner tests keep every classification rule legible. | `steps/reply-format-contract.steps.ts`; `packages/cli/tests/hooks/reply-format-contract.test.ts` | |
 
 Architecture decisions honored:
 
@@ -152,9 +152,10 @@ template architecture, not a new structural boundary or data ownership choice.
 
 ## Known deviations
 
-skip: no design deviations planned. Claude Code Cloud's unavailable live proof
-is an evidence limitation already named per surface, not an architecture
-deviation.
+skip: no design deviations. The local Claude executable initialized, but its
+API rejected the configured and explicit model aliases before any edit; this
+is recorded in `manual-acceptance.md` as an evidence limitation, not an
+architecture deviation.
 
 ## Doc impact
 

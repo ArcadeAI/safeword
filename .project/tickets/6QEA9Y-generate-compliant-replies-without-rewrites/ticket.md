@@ -2,14 +2,14 @@
 id: 6QEA9Y
 slug: generate-compliant-replies-without-rewrites
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1753
 phase_anchors:
   - "define-behavior: .project/tickets/6QEA9Y-generate-compliant-replies-without-rewrites/spec.md"
   - "scenario-gate: features/generate-compliant-replies-without-rewrites.feature"
   - "plan-implementation: .project/tickets/6QEA9Y-generate-compliant-replies-without-rewrites/impl-plan.md"
-  - "implement: .project/tickets/6QEA9Y-generate-compliant-replies-without-rewrites/test-definitions.md"
+  - "implement: .project/tickets/6QEA9Y-generate-compliant-replies-without-rewrites/impl-plan.md"
 scope:
   - Export one phase-neutral decision-brief contract from the existing quality vocabulary
   - Deliver the exact contract through every current Claude SessionStart source — startup, resume, clear, compact, and fork — while retaining the compact per-prompt and lead-only TDD cues
@@ -53,3 +53,4 @@ last_modified: 2026-08-03T04:24:36.367Z
 - 2026-08-03T05:42:00.000Z Define behavior complete: user accepted 19 scenario groups across seven Rules after the quality-review loop; advanced to scenario-gate.
 - 2026-08-03T06:04:00.000Z Scenario gate complete: independent review-spec passed with zero findings after revisions; review stamp recorded and advanced to plan-implementation.
 - 2026-08-03T06:36:00.000Z Implementation plan complete: parse-valid plan independently approved with no must-fix findings; review stamp recorded and advanced to implement.
+- 2026-08-03T07:58:00.000Z Implementation complete: 70/70 acceptance scenarios pass, the generated Claude plugin and dogfood mirrors are current, the reference benchmark passed, and the live Claude limitation is recorded; advanced to verify.
