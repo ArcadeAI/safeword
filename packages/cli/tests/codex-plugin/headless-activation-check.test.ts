@@ -68,6 +68,10 @@ fi
 for event in session-start user-prompt-submit pre-tool-use post-tool-use stop; do
   printf '%s\n' '{}' | "$SAFEWORD_BUN" "$SAFEWORD_CLI_PATH" hook codex "$event" --plugin-hook >/dev/null
 done
+if [ "$(printenv SAFEWORD_FAKE_FUTURE_RECEIPT 2>/dev/null || true)" = "1" ]; then
+  receipt="$CODEX_HOME/safeword/activation-current-v1.json"
+  "$SAFEWORD_BUN" -e 'const fs=require("node:fs");const p=process.argv[1];const v=JSON.parse(fs.readFileSync(p,"utf8"));v.activated_at="2999-01-01T00:00:00.000Z";fs.writeFileSync(p,JSON.stringify(v));' "$receipt"
+fi
 if [ "$(printenv SAFEWORD_FAKE_FUTURE_PROOF 2>/dev/null || true)" = "1" ]; then
   for proof in "$CODEX_HOME"/safeword/hook-proof-v2/*.json; do
     "$SAFEWORD_BUN" -e 'const fs=require("node:fs");const p=process.argv[1];const v=JSON.parse(fs.readFileSync(p,"utf8"));v.recorded_at="2999-01-01T00:00:00.000Z";fs.writeFileSync(p,JSON.stringify(v));' "$proof"
@@ -229,5 +233,26 @@ describe('headless Codex activation check', () => {
         expectedActivationId: activationId,
       }),
     ).toThrow(/did not write a current .* timestamp/u);
+  });
+
+  it('rejects future-dated activation receipts', () => {
+    const { projectRoot, environment } = createActivationFixture(directories, {
+      SAFEWORD_FAKE_FUTURE_RECEIPT: '1',
+      SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
+    });
+    const activationId = 'activation-future-receipt';
+    writeCodexActivationMarker(environment, new Date('2026-08-03T00:01:00.000Z'), {
+      activationId,
+      activeHosts: [OLD_HOST],
+    });
+
+    expect(() =>
+      runHeadlessCodexActivationCheck({
+        cwd: projectRoot,
+        environment,
+        expectedActivation: 'activated',
+        expectedActivationId: activationId,
+      }),
+    ).toThrow('Fresh Codex host wrote an invalid activation receipt.');
   });
 });
