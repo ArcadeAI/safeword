@@ -56,7 +56,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 435f1a55e
 - [x] GREEN 5a7dbe71d
-- [ ] REFACTOR
+- [x] REFACTOR skip: a single append helper and one configured hook entry are the minimal shared design
 
 ### Scenario: Startup context excludes phase-specific completion evidence
 
