@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d6195b88a
 - [x] GREEN 9bae7a7f4
-- [ ] REFACTOR
+- [x] REFACTOR skip: overlap presentation shares the central status-data builder and collected installation health model; no parallel formatter remains
 
 ## Rule: choose-claude-plugin-scope.NTB1.R2 — Legacy cleanup proceeds only from one unambiguous applicable and proven installation
 
