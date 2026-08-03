@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -15,12 +23,25 @@ import {
   executeCleanupOperation,
   operationCommand,
   parseWorktrees,
+  pullRequestIdentity,
+  resolveProtection,
   resolveRemoteRef as resolveRemoteReference,
   retroAgentForRuntime,
   runBoundRetro,
   safewordCliCommand,
   transcriptMatchesBinding,
 } from '../templates/scripts/closeout-cleanup.ts';
+
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+
+function normalizedCloseoutScript(path: string): string {
+  return readFileSync(path, 'utf8')
+    .replace(
+      /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
+      "import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';",
+    )
+    .replace('../../runtime/hooks/lib/retro-draft-spool.ts', '../hooks/lib/retro-draft-spool.ts');
+}
 
 function safeObservation(overrides: Partial<CloseoutObservation> = {}): CloseoutObservation {
   return {
@@ -165,6 +186,59 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     ]);
   });
 
+  it('maps current GitHub pull request shapes without trusting incomplete identities', () => {
+    const expected = pullRequest();
+    expect(
+      pullRequestIdentity({
+        url: expected.url,
+        state: expected.state,
+        headRefName: expected.headRefName,
+        headRefOid: expected.headRefOid,
+        headRepositoryOwner: { login: expected.headOwner },
+        headRepository: { name: expected.headRepository },
+      }),
+    ).toEqual(expected);
+    expect(
+      pullRequestIdentity({
+        url: expected.url,
+        state: expected.state,
+        headRefName: expected.headRefName,
+        headRefOid: expected.headRefOid,
+        headRepository: { nameWithOwner: `${expected.headOwner}/${expected.headRepository}` },
+      }),
+    ).toEqual(expected);
+    expect(
+      pullRequestIdentity({
+        url: expected.url,
+        state: expected.state,
+        headRefName: expected.headRefName,
+        headRefOid: expected.headRefOid,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('derives branch protection conservatively while allowing a proven-absent remote ref', () => {
+    expect(resolveProtection('absent')).toBe('unprotected');
+    expect(resolveProtection('matched', true)).toBe('protected');
+    expect(resolveProtection('matched', false)).toBe('unprotected');
+    expect(resolveProtection('matched')).toBe('unknown');
+    expect(resolveProtection('unknown', false)).toBe('unprotected');
+  });
+
+  it('keeps installed and native-plugin closeout guards in canonical parity', () => {
+    const template = normalizedCloseoutScript(
+      nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts'),
+    );
+    expect(
+      normalizedCloseoutScript(nodePath.join(repoRoot, '.safeword/scripts/closeout-cleanup.ts')),
+    ).toBe(template);
+    expect(
+      normalizedCloseoutScript(
+        nodePath.join(repoRoot, 'plugin/resources/scripts/closeout-cleanup.ts'),
+      ),
+    ).toBe(template);
+  });
+
   it('previews exact cleanup in worktree, remote, local order with a stable digest', () => {
     const observation = safeObservation();
     const plan = buildCleanupPlan(observation);
@@ -180,6 +254,35 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(plan.operations[2]).toMatchObject({ ref: 'refs/heads/feature/closeout' });
     expect(cleanupPlanDigest(plan)).toMatch(/^[a-f0-9]{64}$/);
     expect(cleanupPlanDigest(plan)).toBe(cleanupPlanDigest(buildCleanupPlan(observation)));
+  });
+
+  it('uses the unique default-branch worktree when the primary worktree is detached', () => {
+    const observation = safeObservation({
+      worktrees: [
+        { path: '/repo-main', branch: 'main', oid: 'b'.repeat(40), main: false },
+        worktree(1),
+      ],
+    });
+
+    const plan = buildCleanupPlan(observation);
+
+    expect(plan.blockers).toEqual([]);
+    expect(plan.operations).toHaveLength(3);
+    expect(plan.operations.every(operation => operation.cwd === '/repo-main')).toBe(true);
+  });
+
+  it('never removes the primary worktree even when another worktree holds the default branch', () => {
+    const plan = buildCleanupPlan(
+      safeObservation({
+        worktrees: [
+          { path: '/repo-main', branch: 'main', oid: 'b'.repeat(40), main: false },
+          { ...worktree(1), main: true },
+        ],
+      }),
+    );
+
+    expect(plan.blockers).toContain('the main worktree is never a closeout target');
+    expect(plan.operations).toEqual([]);
   });
 
   it.each([
@@ -257,6 +360,22 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'ambiguous worktree',
       { worktrees: [worktree(0), worktree(1), worktree(1)] },
       'the linked topic worktree is ambiguous',
+    ],
+    [
+      'missing default-branch worktree',
+      { worktrees: [worktree(1)] },
+      'exactly one surviving default-branch worktree is required',
+    ],
+    [
+      'ambiguous default-branch worktree',
+      {
+        worktrees: [
+          worktree(0),
+          { ...worktree(0), path: '/another-main', main: false },
+          worktree(1),
+        ],
+      },
+      'exactly one surviving default-branch worktree is required',
     ],
     [
       'stale verification',
@@ -566,14 +685,73 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
-  it('accepts only transcript metadata bound to the exact session and repository', () => {
+  it('discovers a linked default-branch survivor after the primary worktree is detached', () => {
+    const sandbox = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-detached-main-'));
+    const primary = nodePath.join(sandbox, 'primary');
+    const surviving = nodePath.join(sandbox, 'surviving-main');
+    const topic = nodePath.join(sandbox, 'topic');
+    try {
+      runGit('init', '--initial-branch=main', primary);
+      runGit('-C', primary, 'config', 'user.email', 'closeout@example.test');
+      runGit('-C', primary, 'config', 'user.name', 'Closeout Test');
+      writeFileSync(nodePath.join(primary, 'README.md'), 'main\n');
+      runGit('-C', primary, 'add', 'README.md');
+      runGit('-C', primary, 'commit', '-m', 'main');
+      runGit('-C', primary, 'checkout', '--detach');
+      runGit('-C', primary, 'worktree', 'add', surviving, 'main');
+      runGit('-C', primary, 'worktree', 'add', '-b', 'feature/closeout', topic);
+
+      const worktrees = parseWorktrees(primary);
+      const survivingWorktree = {
+        path: realpathSync(surviving),
+        branch: 'main',
+        main: false,
+      };
+      const topicWorktree = {
+        path: realpathSync(topic),
+        branch: 'feature/closeout',
+        main: false,
+      };
+      expect(worktrees).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining(survivingWorktree),
+          expect.objectContaining(topicWorktree),
+        ]),
+      );
+
+      const oid = runGit('-C', topic, 'rev-parse', 'HEAD');
+      const plan = buildCleanupPlan(
+        safeObservation({
+          deliveryWorktreePath: realpathSync(topic),
+          pullRequests: [{ ...pullRequest(), headRefOid: oid }],
+          localRefOid: oid,
+          remote: undefined,
+          remoteResolution: 'absent',
+          worktrees,
+          verification: { current: true, passed: true, headOid: oid, stateHash: 'detached-main' },
+        }),
+      );
+
+      expect(plan.blockers).toEqual([]);
+      expect(plan.operations.every(operation => operation.cwd === realpathSync(surviving))).toBe(
+        true,
+      );
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts an exact bound session after its original worktree is removed', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-transcript-'));
+    const otherRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-other-'));
+    const originalWorktree = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-original-'));
     const transcript = nodePath.join(root, 'transcript.jsonl');
     mkdirSync(nodePath.join(root, '.project'));
     writeFileSync(
       transcript,
-      `${JSON.stringify({ type: 'user', sessionId: 'session-42', cwd: root })}\n`,
+      `${JSON.stringify({ type: 'user', sessionId: 'session-42', cwd: originalWorktree })}\n`,
     );
+    rmSync(originalWorktree, { recursive: true, force: true });
 
     expect(
       transcriptMatchesBinding(
@@ -593,7 +771,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       transcriptMatchesBinding(
         transcript,
         { runtime: 'claude', id: 'session-42', projectRoot: root },
-        '/other/repo',
+        otherRoot,
       ),
     ).toBe(false);
 
