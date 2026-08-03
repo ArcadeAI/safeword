@@ -32,7 +32,7 @@ last_modified: 2026-08-03T01:36:00.000Z
 
 - [x] Integration RED/GREEN: a fake headless Codex process runs the real five packaged hook commands under a still-running install-time host; current identity-bound proof is complete and activation remains pending.
 - [x] Integration RED/GREEN: the same process boundary presents a fresh app-server identity; the marker becomes a receipt with the same activation ID and all five proofs bind to it.
-- [ ] Integration RED/GREEN: a structured Codex model incompatibility event produces an actionable model/CLI diagnostic and keeps unrelated stderr warnings separate.
+- [x] Integration RED/GREEN: a structured Codex model incompatibility event produces an actionable model/CLI diagnostic and keeps unrelated stderr warnings separate.
 - [ ] Opt-in live smoke: a real authenticated `codex exec` receives an explicit model and passes the shared exact proof/timestamp assertions without claiming Desktop activation.
 
 ## Work Log
@@ -42,3 +42,4 @@ last_modified: 2026-08-03T01:36:00.000Z
 - 2026-08-03T01:36:00.000Z Phase: intake → implement. Classified as an internal release-validation task with three inline TDD contracts.
 - 2026-08-03T01:38:50.000Z RED/GREEN: Added the headless activation-check integration test, observed the missing harness import fail, then implemented explicit-model Codex JSONL execution plus exact five-event identity, activation-ID, timestamp, and pending-state validation. Focused test passes.
 - 2026-08-03T01:42:51.000Z RED/GREEN: Fresh-host coverage first failed because the harness returned no receipt host, then passed after validating and returning the exact app-server identity from the activation receipt. Both activation cases pass.
+- 2026-08-03T01:49:00.000Z RED/GREEN: Unsupported-model coverage first failed on the missing structured error type, then passed with a stable `CODEX_MODEL_UNSUPPORTED` code, selected model and CLI version, retry guidance, and separately retained stderr warnings.

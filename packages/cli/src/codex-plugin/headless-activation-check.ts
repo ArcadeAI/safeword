@@ -15,6 +15,20 @@ export const DEFAULT_CODEX_ACTIVATION_CHECK_MODEL = 'gpt-5.4';
 
 type ExpectedActivation = 'activated' | 'pending';
 
+export type HeadlessCodexActivationCheckErrorCode = 'CODEX_MODEL_UNSUPPORTED' | 'CODEX_TASK_FAILED';
+
+export class HeadlessCodexActivationCheckError extends Error {
+  readonly code: HeadlessCodexActivationCheckErrorCode;
+  readonly warnings: string[];
+
+  constructor(code: HeadlessCodexActivationCheckErrorCode, message: string, warnings: string[]) {
+    super(message);
+    this.name = 'HeadlessCodexActivationCheckError';
+    this.code = code;
+    this.warnings = [...warnings];
+  }
+}
+
 export interface HeadlessCodexActivationCheckOptions {
   cwd: string;
   environment?: NodeJS.ProcessEnv;
@@ -176,15 +190,19 @@ function assertCodexRunSucceeded(input: {
   if (input.status === 0 && failures.length === 0) return;
   const detail = failures.join('; ');
   if (/\b(?:unsupported|not supported|requires? (?:a |an )?upgrade)\b/iu.test(detail)) {
-    throw new Error(
+    throw new HeadlessCodexActivationCheckError(
+      'CODEX_MODEL_UNSUPPORTED',
       `Codex model "${input.model}" is unsupported by ${input.codexVersion}. Choose a model supported by this Codex CLI and retry with SAFEWORD_CODEX_SMOKE_MODEL=<model>.`,
+      input.warnings,
     );
   }
   const warningDetail =
     input.warnings.length === 0 ? '' : ` Host warnings: ${input.warnings.join('; ')}`;
   const failureDetail = detail || `exit ${String(input.status)}`;
-  throw new Error(
+  throw new HeadlessCodexActivationCheckError(
+    'CODEX_TASK_FAILED',
     `Headless Codex activation task failed under ${input.codexVersion}: ${failureDetail}.${warningDetail}`,
+    input.warnings,
   );
 }
 

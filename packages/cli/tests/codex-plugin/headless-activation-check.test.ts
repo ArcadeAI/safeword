@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_CODEX_ACTIVATION_CHECK_MODEL,
+  HeadlessCodexActivationCheckError,
   runHeadlessCodexActivationCheck,
 } from '../../src/codex-plugin/headless-activation-check.js';
 import {
@@ -59,6 +60,11 @@ if [ "$*" = "--version" ]; then
   exit 0
 fi
 export SAFEWORD_FAKE_CODEX_PID=$$
+if [ "$(printenv SAFEWORD_FAKE_UNSUPPORTED_MODEL 2>/dev/null || true)" = "1" ]; then
+  printf '%s\n' '{"type":"turn.failed","error":{"message":"model gpt-future is not supported; upgrade the CLI"}}'
+  printf '%s\n' 'fixture marketplace warning' >&2
+  exit 7
+fi
 for event in session-start user-prompt-submit pre-tool-use post-tool-use stop; do
   printf '%s\n' '{}' | "$SAFEWORD_BUN" "$SAFEWORD_CLI_PATH" hook codex "$event" --plugin-hook >/dev/null
 done
@@ -157,5 +163,44 @@ describe('headless Codex activation check', () => {
     expect(result.proof.activation_id).toBe(activationId);
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(false);
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(true);
+  });
+
+  it('separates unsupported models from unrelated host warnings', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-codex-'));
+    directories.push(directory);
+    const projectRoot = nodePath.join(directory, 'project');
+    const codexHome = nodePath.join(directory, 'profile');
+    mkdirSync(projectRoot, { recursive: true });
+    const fakeCodex = installFakeCodex(directory);
+    const model = 'gpt-future';
+
+    let thrown: unknown;
+    try {
+      runHeadlessCodexActivationCheck({
+        cwd: projectRoot,
+        environment: {
+          CODEX_HOME: codexHome,
+          PATH: `${fakeCodex.bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_CODEX_LOG: fakeCodex.log,
+          SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
+          SAFEWORD_FAKE_UNSUPPORTED_MODEL: '1',
+        },
+        expectedActivation: 'pending',
+        expectedActivationId: 'unused-activation',
+        model,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(HeadlessCodexActivationCheckError);
+    expect(thrown).toMatchObject({
+      code: 'CODEX_MODEL_UNSUPPORTED',
+      warnings: ['fixture marketplace warning'],
+    });
+    expect((thrown as Error).message).toContain(
+      `Codex model "${model}" is unsupported by codex-cli 0.144.5`,
+    );
+    expect((thrown as Error).message).toContain('SAFEWORD_CODEX_SMOKE_MODEL=<model>');
   });
 });
