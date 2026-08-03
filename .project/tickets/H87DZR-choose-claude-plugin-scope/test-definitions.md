@@ -64,7 +64,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Postcondition verification failure reports completed selected-scope work
 
-- [ ] RED
+- [x] RED c1a38d442
 - [ ] GREEN
 - [ ] REFACTOR
 
