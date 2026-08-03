@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the earlier Stop slice already emitted the canonical correction; this scenario characterizes that fallback
 - [x] GREEN cc97e0d0e
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared real-hook runner already expresses the correction boundary clearly
 
 ### Scenario: A correction attempt cannot trigger another format rewrite
 
