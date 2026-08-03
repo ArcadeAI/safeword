@@ -46,7 +46,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A correction attempt cannot trigger another format rewrite
 
-- [ ] RED
+- [x] RED skip: the pre-existing Stop loop guard already allowed the correction iteration; this scenario locks in its precedence
 - [ ] GREEN
 - [ ] REFACTOR
 
