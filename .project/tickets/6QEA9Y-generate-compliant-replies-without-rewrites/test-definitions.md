@@ -21,7 +21,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A near-complete first reply cannot silently pass
 
 - [x] RED skip: rejection was already established by the first parser slice; this characterization passed on its first run
-- [ ] GREEN
+- [x] GREEN 348a7c14b
 - [ ] REFACTOR
 
 ### Scenario: A builder sees one completion in a live Claude session
