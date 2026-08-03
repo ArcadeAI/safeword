@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A first non-compliant reply receives the canonical correction
 
-- [ ] RED
+- [x] RED skip: the earlier Stop slice already emitted the canonical correction; this scenario characterizes that fallback
 - [ ] GREEN
 - [ ] REFACTOR
 
