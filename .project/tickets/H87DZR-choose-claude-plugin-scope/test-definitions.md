@@ -46,7 +46,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Project installation preserves unrelated repository settings
 
-- [ ] RED
+- [x] RED skip: supported Claude commands already merge their owned declarations; the newly executable mixed-settings scenario passed immediately
 - [ ] GREEN
 - [ ] REFACTOR
 
