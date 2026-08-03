@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 2a21214f7
 - [x] GREEN c7a1c1aff
-- [ ] REFACTOR
+- [x] REFACTOR skip: version safety is isolated in one classifier and failure presentation is centralized; no post-green duplication remains
 
 ### Scenario: Project installation preserves unrelated repository settings
 
