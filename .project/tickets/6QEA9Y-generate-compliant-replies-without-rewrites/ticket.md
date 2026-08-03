@@ -11,6 +11,7 @@ phase_anchors:
   - "plan-implementation: .project/tickets/6QEA9Y-generate-compliant-replies-without-rewrites/impl-plan.md"
   - "implement: .project/tickets/6QEA9Y-generate-compliant-replies-without-rewrites/impl-plan.md"
   - "verify: .project/tickets/6QEA9Y-generate-compliant-replies-without-rewrites/verify.md"
+  - "done: .project/tickets/6QEA9Y-generate-compliant-replies-without-rewrites/verify.md"
 scope:
   - Export one phase-neutral decision-brief contract from the existing quality vocabulary
   - Deliver the exact contract through every current Claude SessionStart source — startup, resume, clear, compact, and fork — while retaining the compact per-prompt and lead-only TDD cues
