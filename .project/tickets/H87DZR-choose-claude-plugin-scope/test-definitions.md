@@ -60,7 +60,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the existing effect accumulator and scoped command boundary already reported both failure partitions exactly; the new scenarios passed immediately
 - [x] GREEN 79d9a2c8b
-- [ ] REFACTOR
+- [x] REFACTOR skip: one shared preservation oracle now covers both failure partitions and the earlier refusal scenario; phase-specific fixture setup remains explicit
 
 ### Scenario: Postcondition verification failure reports completed selected-scope work
 
