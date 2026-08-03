@@ -26,6 +26,7 @@ phase_anchors:
   - define-behavior: .project/tickets/H87DZR-choose-claude-plugin-scope/spec.md
   - scenario-gate: features/choose-claude-plugin-scope.feature
   - plan-implementation: .project/tickets/H87DZR-choose-claude-plugin-scope/impl-plan.md
+  - implement: .project/tickets/H87DZR-choose-claude-plugin-scope/impl-plan.md
 created: 2026-08-03T03:21:19.035Z
 last_modified: 2026-08-03T03:55:55.000Z
 ---
