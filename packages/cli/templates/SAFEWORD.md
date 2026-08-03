@@ -174,7 +174,7 @@ Read the matching guide when its trigger fires:
 
 **Commit frequently.** After each GREEN phase, before and after refactors, when switching tasks. The LOC gate fires near 400 lines — commit to reset it.
 
-**Root moves (Cursor).** After `move_agent_to_root`, `move_agent_to_cloned_root`, or creating a worktree, run `pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD` before evidence gathering or edits. If the path, repo root, branch, or commit is wrong, stop and fix the workspace before touching files.
+**Worktree entry (all hosts).** At session start and after moving roots or creating a worktree, run `pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD` before evidence gathering or edits. Do not guess a package directory or probe a speculative path. Work from the reported repository root; use `<namespace-root>/architecture.generated.md` to find monorepo packages when present, otherwise inspect the root once. If the path, repo root, branch, or commit is wrong, stop and fix the workspace before touching files.
 
 **Learnings.** Project-specific lessons live in `<namespace-root>/learnings/`. Before non-trivial work, scan `INDEX.md` or grep for your topic. When you solve something non-obvious, add `<slug>.md` with a `Covers:` line; `safeword project sync-learnings` regenerates the index.
 
