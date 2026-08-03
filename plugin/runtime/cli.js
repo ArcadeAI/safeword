@@ -45391,7 +45391,11 @@ async function executeRetroCliCommand(options, cwd) {
     extract,
     extractionSucceeded: () => extractionSucceeded,
     harness: resolveRetroHarness(autoExtractAgent, detectAgent2),
-    output: { error: () => {}, info: () => {}, success: () => {} },
+    output: {
+      error: () => process14.exitCode,
+      info: () => process14.exitCode,
+      success: () => process14.exitCode
+    },
     projectDirectory,
     sessionId: options.sessionId ?? process14.env.CLAUDE_SESSION_ID ?? options.transcript ?? "unknown",
     resolveProvenance: buildProvenanceResolver({
