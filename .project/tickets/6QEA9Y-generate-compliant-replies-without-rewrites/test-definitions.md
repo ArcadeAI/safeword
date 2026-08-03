@@ -55,7 +55,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Session boundaries deliver the same exact terminal contract
 
 - [x] RED 435f1a55e
-- [ ] GREEN
+- [x] GREEN 5a7dbe71d
 - [ ] REFACTOR
 
 ### Scenario: Startup context excludes phase-specific completion evidence
