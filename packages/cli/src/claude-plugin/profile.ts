@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -99,6 +99,37 @@ function officialMarketplaceSource(): string {
 
 function claudeConfigDirectory(): string {
   return process.env.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
+}
+
+function canonicalDirectory(path: unknown): string | undefined {
+  if (typeof path !== 'string' || path.trim() === '') return undefined;
+  try {
+    if (!statSync(path).isDirectory()) return undefined;
+    return nodePath.normalize(realpathSync(path));
+  } catch {
+    return undefined;
+  }
+}
+
+function canonicalProjectRoot(cwd: string): string {
+  const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
+  const environmentRoot = configuredRoot === undefined ? undefined : configuredRoot.trim();
+  let candidate = environmentRoot === '' ? undefined : environmentRoot;
+  if (candidate === undefined) {
+    const result = spawnSync('git', ['-C', cwd, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+    });
+    const gitRoot = result.status === 0 ? result.stdout?.trim() : undefined;
+    candidate = gitRoot === '' || gitRoot === undefined ? cwd : gitRoot;
+  }
+  const canonical = canonicalDirectory(candidate);
+  if (canonical === undefined) {
+    throw new ClaudeProfileError(
+      'CLAUDE_PROJECT_IDENTITY_INVALID',
+      `Claude project root is missing, not a directory, or cannot be resolved: ${candidate}`,
+    );
+  }
+  return canonical;
 }
 
 function scopedSettingsPath(cwd: string, scope: ClaudePluginScope): string {
@@ -208,7 +239,7 @@ function pluginEntries(cwd: string, effects: readonly Effect[]): JsonObject[] {
 
 function entryMatchesScope(entry: JsonObject, scope: ClaudePluginScope, cwd: string): boolean {
   if ((entry.scope ?? 'user') !== scope) return false;
-  return scope === 'user' || entry.projectPath === cwd;
+  return scope === 'user' || canonicalDirectory(entry.projectPath) === cwd;
 }
 
 function safewordMarketplace(entries: readonly JsonObject[]): JsonObject | undefined {
@@ -227,7 +258,8 @@ function applicableSafewordPlugins(entries: readonly JsonObject[], cwd: string):
   return entries.filter(
     entry =>
       entry.id === PLUGIN_ID &&
-      (entry.scope === 'user' || (entry.scope === 'project' && entry.projectPath === cwd)),
+      (entry.scope === 'user' ||
+        (entry.scope === 'project' && canonicalDirectory(entry.projectPath) === cwd)),
   );
 }
 
@@ -450,8 +482,18 @@ function validateNativePayload(plugin: JsonObject): void {
 
 /** Read-only profile observation used by `safeword claude status`. */
 export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
+  let projectRoot: string;
   try {
-    assertSupportedHost(cwd);
+    projectRoot = canonicalProjectRoot(cwd);
+  } catch (error) {
+    return {
+      health: 'errored',
+      message: error instanceof Error ? error.message : String(error),
+      nextAction: 'repair the reported Claude project path',
+    };
+  }
+  try {
+    assertSupportedHost(projectRoot);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -465,7 +507,7 @@ export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
 
   let plugin: JsonObject | undefined;
   try {
-    plugin = pluginEntries(cwd, []).find(entry => entry.id === PLUGIN_ID);
+    plugin = pluginEntries(projectRoot, []).find(entry => entry.id === PLUGIN_ID);
   } catch (error) {
     return {
       health: 'errored',
@@ -539,11 +581,12 @@ function verifyPlugin(
 export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'project'): CliResult {
   const effects: Effect[] = [];
   try {
-    assertSupportedHost(cwd);
-    ensureMarketplace(cwd, scope, effects);
-    convergePlugin(cwd, scope, effects);
-    const plugins = verifyPlugin(cwd, scope, effects);
-    const overlap = applicableSafewordPlugins(plugins, cwd).length > 1;
+    const projectRoot = canonicalProjectRoot(cwd);
+    assertSupportedHost(projectRoot);
+    ensureMarketplace(projectRoot, scope, effects);
+    convergePlugin(projectRoot, scope, effects);
+    const plugins = verifyPlugin(projectRoot, scope, effects);
+    const overlap = applicableSafewordPlugins(plugins, projectRoot).length > 1;
 
     return createResult({
       state: effects.length === 0 ? 'healthy' : 'changed',
