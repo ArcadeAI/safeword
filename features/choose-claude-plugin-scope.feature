@@ -217,7 +217,7 @@ Feature: Choose where Safeword runs in Claude
         | project          | no plugin execution proof          |
         | user             | stale plugin execution proof       |
 
-    @wip @rejection
+    @rejection
     Scenario: Overlapping scopes cannot authorize legacy cleanup
       Given the current project has applicable project and user installations
       And exact plugin execution proof exists

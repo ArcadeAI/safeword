@@ -2353,6 +2353,53 @@ Given(
 );
 
 Given(
+  'the current project has applicable project and user installations',
+  function (this: NativeClaudePluginWorld) {
+    createExactScopedFixture(this, 'project');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    state.marketplaceDeclarations.push({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: `v${EXPECTED_VERSION}`,
+      scope: 'user',
+    });
+    state.plugins.push({
+      id: 'safeword@safeword',
+      version: EXPECTED_VERSION,
+      enabled: true,
+      scope: 'user',
+      installPath: state.installPath,
+    });
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    writeCanonicalLegacy(this.lifecycle.project);
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given('exact plugin execution proof exists', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+    installPath: string;
+  };
+  writeStatusProofV2(this.lifecycle.configRoot ?? '', this.lifecycle.project, state.installPath);
+  this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+});
+
+Given(
   /^the current project has one exact proven Safeword installation at (project|user)$/u,
   function (this: NativeClaudePluginWorld, applicableScope: string) {
     createExactScopedFixture(this, applicableScope as 'project' | 'user');
@@ -3048,6 +3095,22 @@ Then(
       data?: { classification?: string };
     };
     assert.equal(result.data?.classification, 'unproven');
+    assert.ok(this.lifecycle);
+    assert.equal(
+      existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
+      true,
+    );
+  },
+);
+
+Then(
+  'cleanup reports scope-overlap without removing legacy protection',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { classification?: string };
+    };
+    assert.equal(result.data?.classification, 'scope-overlap');
     assert.ok(this.lifecycle);
     assert.equal(
       existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
