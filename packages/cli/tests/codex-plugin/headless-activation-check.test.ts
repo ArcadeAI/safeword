@@ -27,6 +27,10 @@ const OLD_HOST: CodexHostProcessIdentity = {
   pid: 9001,
   started_at: '2026-08-03T00:00:00.000Z',
 };
+const RESTARTED_HOST: CodexHostProcessIdentity = {
+  pid: 9002,
+  started_at: '2026-08-03T00:00:00.000Z',
+};
 
 function writeExecutable(path: string, content: string): void {
   writeFileSync(path, content);
@@ -116,5 +120,42 @@ describe('headless Codex activation check', () => {
     );
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(false);
+  });
+
+  it('binds successful activation to a fresh app-server identity', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-headless-codex-'));
+    directories.push(directory);
+    const projectRoot = nodePath.join(directory, 'project');
+    const codexHome = nodePath.join(directory, 'profile');
+    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(projectRoot, '.safeword/config.json'), '{}\n');
+    const fakeCodex = installFakeCodex(directory);
+    const environment = {
+      CODEX_HOME: codexHome,
+      PATH: `${fakeCodex.bin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_BUN: process.execPath,
+      SAFEWORD_CLI_PATH: CLI_PATH,
+      SAFEWORD_CODEX_LOG: fakeCodex.log,
+      SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
+      TZ: 'UTC',
+    };
+    const activationId = 'activation-fresh-host';
+    writeCodexActivationMarker(environment, new Date('2026-08-03T00:01:00.000Z'), {
+      activationId,
+      activeHosts: [OLD_HOST],
+    });
+
+    const result = runHeadlessCodexActivationCheck({
+      cwd: projectRoot,
+      environment,
+      expectedActivation: 'activated',
+      expectedActivationId: activationId,
+    });
+
+    expect(result.activation).toBe('activated');
+    expect(result.activatedHost).toEqual(RESTARTED_HOST);
+    expect(result.proof.activation_id).toBe(activationId);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(false);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(true);
   });
 });

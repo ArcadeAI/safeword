@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
   type CodexHookProofObservation,
+  type CodexHostProcessIdentity,
   type CodexPluginHookEvent,
   currentCodexPluginIdentity,
   observeCodexHookProof,
@@ -26,6 +27,7 @@ export interface HeadlessCodexActivationCheckOptions {
 
 export interface HeadlessCodexActivationCheckResult {
   activation: ExpectedActivation;
+  activatedHost: CodexHostProcessIdentity | undefined;
   codexVersion: string;
   model: string;
   proof: CodexHookProofObservation;
@@ -52,6 +54,8 @@ interface ActivationReceiptFile {
   plugin_version: string;
   manifest_sha256: string;
   activation_id: string;
+  activated_at: string;
+  host: CodexHostProcessIdentity;
 }
 
 const HEADLESS_CHECK_PROMPT =
@@ -83,7 +87,11 @@ function isActivationReceiptFile(value: unknown): value is ActivationReceiptFile
     value.schema_version === 1 &&
     typeof value.plugin_version === 'string' &&
     typeof value.manifest_sha256 === 'string' &&
-    typeof value.activation_id === 'string'
+    typeof value.activation_id === 'string' &&
+    typeof value.activated_at === 'string' &&
+    isRecord(value.host) &&
+    Number.isSafeInteger(value.host.pid) &&
+    typeof value.host.started_at === 'string'
   );
 }
 
@@ -213,14 +221,14 @@ function assertActivationState(input: {
   activation: ExpectedActivation;
   codexHome: string;
   expectedActivationId: string;
-}): void {
+}): CodexHostProcessIdentity | undefined {
   const pendingPath = nodePath.join(input.codexHome, 'safeword/activation-pending-v2.json');
   const receiptPath = nodePath.join(input.codexHome, 'safeword/activation-current-v1.json');
   if (input.activation === 'pending') {
     if (!existsSync(pendingPath) || existsSync(receiptPath)) {
       throw new Error('Headless Codex task incorrectly changed pending activation state.');
     }
-    return;
+    return undefined;
   }
   if (existsSync(pendingPath) || !existsSync(receiptPath)) {
     throw new Error('Fresh Codex host did not complete activation.');
@@ -235,6 +243,7 @@ function assertActivationState(input: {
   ) {
     throw new Error('Fresh Codex host wrote an invalid activation receipt.');
   }
+  return receipt.host;
 }
 
 export function runHeadlessCodexActivationCheck(
@@ -287,7 +296,7 @@ export function runHeadlessCodexActivationCheck(
     expectedActivationId: options.expectedActivationId,
     startedAt,
   });
-  assertActivationState({
+  const activatedHost = assertActivationState({
     activation: options.expectedActivation,
     codexHome,
     expectedActivationId: options.expectedActivationId,
@@ -298,6 +307,7 @@ export function runHeadlessCodexActivationCheck(
   }
   return {
     activation: options.expectedActivation,
+    activatedHost,
     codexVersion,
     model,
     proof,
