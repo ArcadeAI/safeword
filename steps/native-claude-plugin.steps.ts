@@ -2216,7 +2216,7 @@ When('safeword claude install runs', function (this: NativeClaudePluginWorld) {
 });
 
 Then(
-  /^the exact official Safeword plugin is enabled at (project|user) for the current project$/u,
+  /^the exact official Safeword plugin is enabled at (project|user)(?: scope)? for the current project$/u,
   function (this: NativeClaudePluginWorld, scope: string) {
     assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
     assert.ok(this.lifecycle);
