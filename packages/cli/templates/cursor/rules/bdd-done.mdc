@@ -3,4 +3,4 @@ description: USE WHEN in BDD done phase (verify.md exists). Close the ticket —
 alwaysApply: false
 ---
 
-@.claude/skills/bdd/DONE.md
+@.safeword/skills/bdd/DONE.md

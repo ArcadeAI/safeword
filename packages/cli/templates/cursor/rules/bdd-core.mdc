@@ -3,4 +3,4 @@ description: USE WHEN starting feature work, running /bdd, resuming a BDD ticket
 alwaysApply: false
 ---
 
-@.claude/skills/bdd/SKILL.md
+@.safeword/skills/bdd/SKILL.md

@@ -23,6 +23,10 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
 <Tabs>
   <TabItem label="Claude Code">
+    **Install the native plugin once per user.** Run `safeword claude install`, then `/reload-plugins` inside Claude Code. The workflows and hooks become available in the current task without a restart.
+
+    **Your agent gets namespaced Safeword workflows.** Native skills use names such as `/safeword:bdd`, `/safeword:verify`, and `/safeword:explain` instead of project-local Safeword skill files.
+
     **Every edit gets linted automatically.** After your agent writes or modifies a file, Safeword runs your linter. If there are issues, your agent sees them immediately and fixes them—before you even notice.
 
     **Every session ends with a quality check.** When you're done working, Safeword prompts your agent to review what it built. Catches things like missing error handling, security issues, or code that doesn't match the codebase style.
@@ -56,10 +60,11 @@ Open your project and ask your agent to build something real:
   <TabItem label="Claude Code">
     Watch what happens:
 
-    1. Your agent writes the endpoint
-    2. Lint runs automatically on the new code, auto-fixing what it can
-    3. If there are issues, your agent fixes them before you even see the code
-    4. When you stop the session, a quality review runs automatically
+    1. Run `safeword claude install`, then `/reload-plugins` in Claude Code
+    2. Your agent follows namespaced workflows such as `/safeword:bdd`
+    3. Lint runs automatically on new code, auto-fixing what it can
+    4. If there are issues, your agent fixes them before you even see the code
+    5. When you stop the session, a quality review runs automatically
 
   </TabItem>
   <TabItem label="Cursor">
@@ -90,18 +95,17 @@ Open your project and ask your agent to build something real:
 
 Safeword added a few folders to your project:
 
-| Folder                  | What's in it                                             |
+| Folder / surface        | What's in it                                             |
 | ----------------------- | -------------------------------------------------------- |
-| `.safeword/hooks/`      | Scripts that run automatically (lint, quality checks)    |
-| `.claude/skills/`       | Structured workflows for debugging, BDD/TDD, refactoring |
-| `.claude/settings.json` | Hook configuration for Claude Code                       |
+| `.safeword/hooks/`      | Project runtime used by supported project-local surfaces |
+| Safe Word Claude plugin | User-scoped native Claude Code workflow skills and hooks |
 | Safe Word Codex plugin  | Profile-scoped Codex workflow skills and hooks           |
 | `.cursor/hooks.json`    | Hook configuration for Cursor                            |
 | `.cursor/rules/`        | Rules for Cursor                                         |
 | `.cursor/commands/`     | Slash commands for Cursor                                |
-| `.safeword/`            | Config files, guides, and templates                      |
+| `.safeword/`            | Project configuration, guides, and templates             |
 
-These project files commit to your repo. The Safe Word Codex plugin is profile-scoped: each Codex user runs `safeword codex migrate`, restarts Codex, starts a new task, and reviews it in `/hooks`. The app that installs an upgrade keeps its already-loaded version until that restart. Existing Safe Word Codex hooks remain authoritative until a restarted app's running plugin records current proof and someone explicitly finalizes the repository migration. Finalization backs up the old state, removes only known Safe Word assets, and leaves a small setup bootstrap for future teammates. Each repository is enrolled separately by `safeword setup`, which creates the complete `.project/` namespace before plugin hooks can write project state.
+Project files commit to your repo; profile plugins do not. Each Claude Code user runs `safeword claude install` and `/reload-plugins`. Existing project-local Claude protection remains authoritative until the current plugin records exact execution proof and someone explicitly runs the reviewed `safeword claude cleanup` plan. Each Codex user separately installs and reviews the Codex plugin. Each repository is enrolled with `safeword setup`, which creates the project namespace before plugin hooks write project state.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 

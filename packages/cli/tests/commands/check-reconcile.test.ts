@@ -62,7 +62,8 @@ describe('Check Command - Reconcile Integration', () => {
   describe('checkHealth using reconcile dryRun', () => {
     it('should detect missing files via reconcile dryRun', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { schemaForClaudeDelivery } =
+        await import('../../src/claude-plugin/delivery-schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
 
       createConfiguredProject();
@@ -71,7 +72,7 @@ describe('Check Command - Reconcile Integration', () => {
       unlinkSync(nodePath.join(temporaryDirectory, '.safeword/SAFEWORD.md'));
 
       const ctx = createProjectContext(temporaryDirectory);
-      const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
+      const result = await reconcile(schemaForClaudeDelivery(temporaryDirectory), 'upgrade', ctx, {
         dryRun: true,
       });
 
@@ -88,7 +89,8 @@ describe('Check Command - Reconcile Integration', () => {
 
     it('should report healthy when no changes needed', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { schemaForClaudeDelivery } =
+        await import('../../src/claude-plugin/delivery-schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
 
       // Full setup to create complete configuration
@@ -101,18 +103,19 @@ describe('Check Command - Reconcile Integration', () => {
 
       // Run actual setup (this is an integration test)
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        execSync(`bunx tsx ${cliPath} setup`, {
-          cwd: temporaryDirectory,
-          stdio: 'pipe',
-          timeout: 60_000,
-        });
-      } catch {
-        // May fail due to bun install timeout, but files should be created
-      }
+      execSync(`bun ${cliPath} setup`, {
+        cwd: temporaryDirectory,
+        env: {
+          ...process.env,
+          SAFEWORD_SKIP_INSTALL: '1',
+          SAFEWORD_TEST_DISABLE_AUTO_UPGRADE: '1',
+        },
+        stdio: 'pipe',
+        timeout: 60_000,
+      });
 
       const ctx = createProjectContext(temporaryDirectory);
-      const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
+      const result = await reconcile(schemaForClaudeDelivery(temporaryDirectory), 'upgrade', ctx, {
         dryRun: true,
       });
 
@@ -121,12 +124,12 @@ describe('Check Command - Reconcile Integration', () => {
       expect(result.applied).toBe(false);
 
       // Write actions for owned files should be empty or only version update
-      const ownedFileWrites = result.actions.filter(
-        a => a.type === 'write' && !a.path.includes('version'),
+      const ownedFileWritePaths = result.actions.flatMap(action =>
+        action.type === 'write' && !action.path.includes('version') ? [action.path] : [],
       );
 
       // Most files should match (no write actions needed)
-      expect(ownedFileWrites.length).toBeLessThan(5);
+      expect(ownedFileWritePaths.length, ownedFileWritePaths.join('\n')).toBeLessThan(5);
     });
 
     it('should preserve customer AGENTS.md without adding safeword text', async () => {

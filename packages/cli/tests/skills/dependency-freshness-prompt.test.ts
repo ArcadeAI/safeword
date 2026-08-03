@@ -62,7 +62,7 @@ describe('dependency freshness instructions', () => {
     // Migrated to the @reference pattern (ticket 151): the rule is a thin pointer,
     // so the prompt-timestamp instruction lives in the quality-review skill it
     // references (asserted above), not duplicated in the rule.
-    expect(content).toContain('@.claude/skills/quality-review/SKILL.md');
+    expect(content).toContain('@.safeword/skills/quality-review/SKILL.md');
   });
 
   it('the Codex plugin wires packaged UserPromptSubmit context through Bunx', () => {

@@ -3,4 +3,4 @@ description: USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run
 alwaysApply: false
 ---
 
-@.claude/skills/bdd/PLAN_IMPLEMENTATION.md
+@.safeword/skills/bdd/PLAN_IMPLEMENTATION.md

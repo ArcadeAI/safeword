@@ -7,7 +7,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Slash Commands
 
-Quick actions you type in Claude Code or Cursor. Just type the command and hit enter. Codex uses plugin-scoped skills such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`.
+Quick actions you type in your agent. Cursor keeps the short command names below. Claude Code uses native namespaced forms such as `/safeword:bdd` and `/safeword:verify`; Codex uses plugin-scoped skills such as `safeword:bdd` and `safeword:verify`.
 
 | Command            | What it does                              |
 | ------------------ | ----------------------------------------- |
@@ -29,6 +29,8 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
 <Tabs syncKey="editor">
   <TabItem label="Claude Code">
+    Safeword's Claude Code support is plugin-backed. Run `safeword claude install`, then `/reload-plugins` to activate the installed version in the current task. Project setup does not install the profile plugin.
+
     | When                    | What happens                                        |
     | ----------------------- | --------------------------------------------------- |
     | Session starts          | Verifies AGENTS.md link, shows version, checks lint |
@@ -37,16 +39,9 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | Agent edits Go/Python/TS/Rust | Points it at that language's coding-skill (first edit per scenario) |
     | You stop the session    | Prompts for quality review                          |
 
-    ### Customizing hooks
+    ### Plugin lifecycle
 
-    Default hooks get overwritten on `safeword setup`. To customize:
-
-    1. Copy the hook to your project namespace root (`.project/` by default — see [Configuration](/reference/configuration#project-namespace-root))
-    2. Update `.claude/settings.json` to point to your copy
-    3. Your custom hook stays safe from upgrades
-
-    Hook config: `.claude/settings.json`
-    Hook files: `.safeword/hooks/`
+    The native workflow and hook files are versioned inside Claude's installed plugin cache; do not edit that cache. After an update, run `/reload-plugins`. Use `safeword claude status` to inspect the exact installed version and migration state. Legacy project hooks remain active until current plugin execution is proven and you explicitly approve the `safeword claude cleanup` plan; custom and third-party Claude settings are preserved.
 
   </TabItem>
   <TabItem label="Cursor">
@@ -151,7 +146,7 @@ Frontier models already write most core-language idioms unaided, so treat this a
 
 ## Skills
 
-Skills are structured workflows that activate based on what you're asking for. Claude Code uses `.claude/skills/`; Codex uses the Safe Word Codex plugin's scoped skills. When you say "debug this test failure" or "refactor this function", your agent follows the relevant methodology instead of jumping straight to code changes.
+Skills are structured workflows that activate based on what you're asking for. Claude Code and Codex use their Safe Word plugins' scoped skills; Cursor uses project rules and commands. When you say "debug this test failure" or "refactor this function", your agent follows the relevant methodology instead of jumping straight to code changes.
 
 | Skill             | Triggers on                                                                                                         |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------- |

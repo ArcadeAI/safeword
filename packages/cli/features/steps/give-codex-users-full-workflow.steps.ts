@@ -41,7 +41,7 @@ const CLI_ROOT = nodePath.resolve(import.meta.dirname, '../..');
 const CLI_PATH = nodePath.join(CLI_ROOT, 'dist/cli.js');
 const CANONICAL_SKILLS = nodePath.join(CLI_ROOT, 'templates/skills');
 const PLUGIN_ROOT = nodePath.join(CLI_ROOT, 'codex-plugin');
-const WORKFLOW_TREES = ['.agents/skills', '.codex/skills', '.safeword/skills'] as const;
+const CODEX_WORKFLOW_TREES = ['.agents/skills', '.codex/skills'] as const;
 
 type Contract = () => void;
 
@@ -78,7 +78,7 @@ function assertContractRejected(world: WorkflowWorld, detail?: string): void {
 }
 
 function assertNoProjectWorkflowTree(projectRoot: string): void {
-  for (const directory of WORKFLOW_TREES) {
+  for (const directory of CODEX_WORKFLOW_TREES) {
     assert.equal(
       existsSync(nodePath.join(projectRoot, directory)),
       false,
@@ -185,10 +185,11 @@ Then(
 );
 
 Then(
-  'the project contains no Safe Word workflow tree in .agents, .codex, or .safeword',
+  'no Codex-owned workflow tree is written to .agents or .codex while shared Cursor skills remain available',
   function (this: WorkflowWorld) {
     assert.ok(this.projectDirectory !== undefined, 'project fixture was not initialized');
     assertNoProjectWorkflowTree(this.projectDirectory);
+    assert.equal(existsSync(nodePath.join(this.projectDirectory, '.safeword/skills')), true);
   },
 );
 

@@ -9,6 +9,9 @@
 .safeword-project/tickets/INDEX-completed.md
 .safeword-project/learnings/INDEX.md
 
+# Deterministic Bun build output; formatted canonical sources are bundled into it.
+plugin/runtime/cli.js
+
 # Safeword - managed prettier exclusions (owned dirs)
 .husky/_
 .safeword/
