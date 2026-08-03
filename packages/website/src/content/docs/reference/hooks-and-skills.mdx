@@ -196,6 +196,8 @@ Deep review that checks your code against latest research using web search.
 
 Your agent will check against official library docs, look for known security issues, and verify you're using current versions.
 
+Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. It snapshots only the named files, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records whether the result was fully `cross-agent`, a permitted `degraded` fallback, or `none`. The default `crossAgentReview: "prefer"` policy keeps work moving with a labeled fallback; `"require"` blocks until the opposite reviewer works; `"off"` retains the existing route. See [Configuration](/reference/configuration#review-gates).
+
 ### Refactoring
 
 Small, safe changes with test verification after each step: **One change** → **Test** → **Commit**.

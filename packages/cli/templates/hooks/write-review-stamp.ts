@@ -100,6 +100,9 @@ interface ParsedArguments {
   positional: string[];
   explicitTicket: string | undefined;
   reviewerModel: string | undefined;
+  authorAgent: 'claude' | 'codex' | undefined;
+  reviewerAgent: 'claude' | 'codex' | undefined;
+  independence: 'cross-agent' | 'degraded' | 'none' | undefined;
   skipReason: string | undefined;
 }
 
@@ -110,12 +113,22 @@ interface ParsedArguments {
 // from subagents, ticket MR5M3A). `--skip` is the ONLY way to record a skip:
 // pass vs skip is declared intent, never inferred from stray text (issue #629).
 // Flags that consume the next argv token as their value.
-const VALUE_FLAGS = new Set(['--ticket', '--model', '--skip']);
+const VALUE_FLAGS = new Set([
+  '--ticket',
+  '--model',
+  '--author-agent',
+  '--reviewer-agent',
+  '--independence',
+  '--skip',
+]);
 
 function parseArguments(argv: string[]): ParsedArguments {
   const positional: string[] = [];
   let explicitTicket: string | undefined;
   let reviewerModel: string | undefined;
+  let authorAgent: 'claude' | 'codex' | undefined;
+  let reviewerAgent: 'claude' | 'codex' | undefined;
+  let independence: 'cross-agent' | 'degraded' | 'none' | undefined;
   let skipReason: string | undefined;
   const seen = new Set<string>();
 
@@ -144,17 +157,42 @@ function parseArguments(argv: string[]): ParsedArguments {
       const reason = singleLine(value);
       if (reason === '') fail('--skip reason must not be blank — a real reason is the audit trail');
       skipReason = reason;
-    } else {
+    } else if (flag === '--model') {
       if (/\s/.test(value)) fail('--model id must not contain whitespace');
       reviewerModel = value;
+    } else if (flag === '--independence') {
+      if (!['cross-agent', 'degraded', 'none'].includes(value)) {
+        fail('--independence must be cross-agent, degraded, or none');
+      }
+      independence = value as 'cross-agent' | 'degraded' | 'none';
+    } else {
+      if (value !== 'claude' && value !== 'codex') fail(`${flag} must be claude or codex`);
+      if (flag === '--author-agent') authorAgent = value;
+      else reviewerAgent = value;
     }
     index += 1;
   }
 
-  return { positional, explicitTicket, reviewerModel, skipReason };
+  return {
+    positional,
+    explicitTicket,
+    reviewerModel,
+    authorAgent,
+    reviewerAgent,
+    independence,
+    skipReason,
+  };
 }
 
-const { positional, explicitTicket, reviewerModel, skipReason } = parseArguments(process.argv);
+const {
+  positional,
+  explicitTicket,
+  reviewerModel,
+  authorAgent,
+  reviewerAgent,
+  independence,
+  skipReason,
+} = parseArguments(process.argv);
 
 function formatTicketList(folders: string[]): string {
   const shown = folders.slice(0, 12).join(', ');
@@ -237,7 +275,7 @@ const logFile = nodePath.join(logDirectory, 'skill-invocations.log');
 mkdirSync(logDirectory, { recursive: true });
 appendFileSync(
   logFile,
-  `${new Date().toISOString()} ${sessionId} ${formatReviewStamp(scope, skipReason, reviewerModel)}\n`,
+  `${new Date().toISOString()} ${sessionId} ${formatReviewStamp(scope, skipReason, reviewerModel, authorAgent, reviewerAgent, independence)}\n`,
 );
 
 const kind = skipReason === undefined ? 'review' : `skip (${skipReason})`;
