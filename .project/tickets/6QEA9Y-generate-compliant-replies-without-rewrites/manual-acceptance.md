@@ -10,7 +10,8 @@
 ## Parser reference benchmark
 
 - Runner: local Apple host, Bun 1.3.14.
-- Workload: 4,194,393-byte adversarial reply containing a large prose prefix and an ignored HTML-block decision-brief lookalike.
+- Workload: 4,194,454-byte adversarial reply containing a large prose prefix and an ignored HTML-block decision-brief lookalike.
 - Method: in-process parser; 10 warm-up evaluations followed by 20 measured repetitions; every evaluation rejected the workload.
-- Timing: minimum 1.615 ms; median 1.680 ms; p95 1.835 ms; maximum 1.930 ms.
+- Instrumentation: 16,777,661 examined characters, within the declared eight-times fixed linear bound.
+- Timing after quality-review remediation: minimum 1.542 ms; median 1.582 ms; p95 1.698 ms; maximum 1.741 ms.
 - Budget result: pass. Every measured evaluation completed below the 500 ms ceiling.

@@ -54,9 +54,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Session boundaries deliver the same exact terminal contract
 
-- [x] RED 435f1a55e
-- [x] GREEN 5a7dbe71d
-- [x] REFACTOR skip: a single append helper and one configured hook entry are the minimal shared design
+- [x] RED 96617e769
+- [x] GREEN 19bf51160
+- [x] REFACTOR 67a5de93b
 
 ### Scenario: Startup context excludes phase-specific completion evidence
 
@@ -108,9 +108,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Configured hooks follow one changed canonical contract
 
-- [x] RED 435f1a55e
-- [x] GREEN f38d58283
-- [x] REFACTOR skip: proactive delivery and Stop validation import the same canonical module
+- [x] RED 96617e769
+- [x] GREEN 19bf51160
+- [x] REFACTOR 67a5de93b
 
 ### Scenario: Every distribution boundary handles contract drift
 
@@ -128,21 +128,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Adversarial terminal shapes are rejected deterministically
 
-- [x] RED aea6768be
-- [x] GREEN a1ee17f5f
-- [x] REFACTOR skip: the top-level paragraph scanner centralizes all rejection boundaries
+- [x] RED 96617e769
+- [x] GREEN 19bf51160
+- [x] REFACTOR 5710456b7
 
 ### Scenario: Ignored Markdown content does not poison a valid terminal brief
 
-- [x] RED aea6768be
-- [x] GREEN a1ee17f5f
-- [x] REFACTOR skip: container classification is shared by rejection and non-poisoning cases
+- [x] RED 96617e769
+- [x] GREEN 19bf51160
+- [x] REFACTOR 5710456b7
 
 ### Scenario: Adversarial parser work remains linear
 
-- [x] RED aea6768be
-- [x] GREEN a1ee17f5f
-- [x] REFACTOR skip: a single forward scanner plus bounded grammar pass already provides the fixed linear bound
+- [x] RED 96617e769
+- [x] GREEN 19bf51160
+- [x] REFACTOR 5710456b7
 
 ### Scenario: The parser stays within the hook budget on the reference runner
 
@@ -154,4 +154,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario f38d58283
+- [x] cross-scenario 67a5de93b

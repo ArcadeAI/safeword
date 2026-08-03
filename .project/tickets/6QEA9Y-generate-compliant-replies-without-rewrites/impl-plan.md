@@ -15,7 +15,7 @@ Create one phase-neutral decision-brief vocabulary module in
 required/optional paragraph labels, terminal labels, and the prose used to
 render the proactive contract. The same object feeds:
 
-1. a renderer used by the existing Claude `session-safeword-context.ts` hook;
+1. a renderer used by the dedicated Claude `session-reply-format.ts` hook;
 2. a bounded line scanner used by `stop-quality.ts`; and
 3. the existing compact `UserPromptSubmit` reminder.
 
@@ -26,13 +26,15 @@ poison a later valid terminal brief. Its result includes the compliance
 decision and examined-character count so the linear-work invariant is directly
 measurable without wall-clock inference.
 
-`session-safeword-context.ts` appends the rendered contract only for
-`--agent=claude`. Remove its redundant compact-matched registration and retain
-the unmatched SessionStart registration, which covers startup, resume, clear,
-compact, and fork. Config and generated-plugin tests execute the configured
-event group—not merely the script—to prove the contract and existing SAFEWORD
-standing context each appear exactly once. No new hook or schema entry is
-needed. Cursor and Codex keep their current behavior.
+`session-reply-format.ts` emits the rendered contract only for
+`--agent=claude`, in a dedicated `additionalContext` value below Claude's
+10,000-character per-hook limit. The existing `session-safeword-context.ts`
+continues to own standing instructions independently. Both use unmatched
+SessionStart registrations, which cover startup, resume, clear, compact, and
+fork. Config and generated-plugin tests execute the configured legacy group
+and plugin dispatcher—not merely one script—to prove each delivery surface
+contains the contract and existing SAFEWORD standing context exactly once.
+The new hook is schema-registered; Cursor and Codex keep their current behavior.
 
 In `stop-quality.ts`, retain the existing order: hard gates on every Stop,
 `stop_hook_active` loop guard, first-Stop typecheck advice, then the existing
@@ -113,7 +115,7 @@ scenario-by-scenario R/G/R sequence.
 | --- | --- | --- | --- |
 | Canonical contract ownership | One structured grammar object in `hooks/lib/quality.ts`, rendered and validated by exported functions | Separate prompt string and parser constants; copy the exact prose into each hook | Separate representations can drift and fail the maintainer JTBD. |
 | Markdown recognition | Dependency-free forward block scanner over exact paragraph labels | Nested/large regex; full `markdown-it`/CommonMark AST dependency | Regex risks adversarial backtracking; installed hooks run in customer projects where repository-only dependencies are unavailable; the exact grammar does not require a full renderer. |
-| Proactive delivery | Append through the existing Claude `session-safeword-context.ts`, remove its redundant compact-specific registration, and test configured event groups | Keep both registrations; add a new SessionStart hook; put the full contract on every UserPromptSubmit | Two registrations make exact-once plugin delivery ambiguous; a new hook duplicates lifecycle wiring; per-prompt delivery adds high-frequency context noise. |
+| Proactive delivery | Emit a separate under-cap value through `session-reply-format.ts`, retain independent standing context, and test both configured event groups | Append to the large standing-context value; put the full contract on every UserPromptSubmit | Claude replaces an individual value above 10,000 characters with a preview/path, so an appended tail is not guaranteed to arrive; per-prompt delivery adds high-frequency context noise. |
 | Stop integration | Validate only where the existing phase review would emit, after hard gates, loop guard, and typecheck advice | Validate before hard gates; validate every Stop; remove Stop enforcement | Earlier placement can bypass stronger gates, every-Stop validation violates boundary cadence, and removing the fallback makes the proactive instruction the only control. |
 | Runtime proof | Pure scanner tests plus real hook/setup/plugin subprocess tests; mock only the live/cloud process boundary | Fully mocked hook tests; live Claude for every parser case | Internal mocks miss install/import wiring; live runs are too slow and nondeterministic for dense parser partitions. |
 
