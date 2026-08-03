@@ -665,13 +665,15 @@ export function resolveRemoteRef(
   return oid ? { resolution: 'matched', oid } : { resolution: 'absent' };
 }
 
-function parseWorktrees(root: string): WorktreeIdentity[] {
-  const records = git(root, 'worktree', 'list', '--porcelain').stdout.trim().split(/\n\n+/u);
+export function parseWorktrees(root: string): WorktreeIdentity[] {
+  const records = git(root, 'worktree', 'list', '--porcelain', '-z')
+    .stdout.split('\0\0')
+    .filter(record => record !== '');
   return records.flatMap((record, index) => {
     const fields = new Map(
-      record.split('\n').map(line => {
-        const split = line.indexOf(' ');
-        return split < 0 ? [line, ''] : [line.slice(0, split), line.slice(split + 1)];
+      record.split('\0').map(field => {
+        const split = field.indexOf(' ');
+        return split < 0 ? [field, ''] : [field.slice(0, split), field.slice(split + 1)];
       }),
     );
     const path = fields.get('worktree');

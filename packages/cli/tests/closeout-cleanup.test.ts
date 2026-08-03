@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -470,7 +470,8 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       runGit('-C', main, 'worktree', 'add', '-b', 'feature/closeout', topic);
 
       const worktrees = parseWorktrees(main);
-      expect(worktrees.map(candidate => candidate.path)).toContain(topic);
+      const canonicalTopic = realpathSync(topic);
+      expect(worktrees.map(candidate => candidate.path)).toContain(canonicalTopic);
       const oid = runGit('-C', topic, 'rev-parse', 'HEAD');
       const plan = buildCleanupPlan(
         safeObservation({
@@ -483,7 +484,9 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
           verification: { current: true, passed: true, headOid: oid, stateHash: 'newline' },
         }),
       );
-      expect(plan.blockers).toContain(`the topic branch is used by a different worktree: ${topic}`);
+      expect(plan.blockers).toContain(
+        `the topic branch is used by a different worktree: ${canonicalTopic}`,
+      );
       expect(plan.operations).toEqual([]);
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
