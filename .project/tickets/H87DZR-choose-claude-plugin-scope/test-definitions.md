@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Unsafe selected-scope metadata is refused without an implicit downgrade
 
-- [ ] RED
+- [x] RED 2a21214f7
 - [ ] GREEN
 - [ ] REFACTOR
 
