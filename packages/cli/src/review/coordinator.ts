@@ -7,65 +7,94 @@ import type {
   ReviewFailure,
   ReviewKind,
   ReviewPolicy,
+  UnverifiedReviewerOutput,
 } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
 import { oppositeReviewPair, readReviewPolicy } from './policy.js';
-import { assignedReviewerModel, ReviewRuntimeError, runHeadlessReviewer } from './runtime.js';
+import { ReviewRuntimeError, runHeadlessReviewer } from './runtime.js';
 
-function provenanceFailure(
-  output: ReviewerOutput,
-  assignedReviewer: 'claude' | 'codex',
+function verifyProvenance(
+  output: UnverifiedReviewerOutput,
+  assignedReviewer: ReviewAgent,
   dispatchId: string,
-): 'REVIEWER_PROVENANCE_MISSING' | 'REVIEWER_PROVENANCE_CONTRADICTORY' | undefined {
-  if (output.reviewer_agent === undefined) return 'REVIEWER_PROVENANCE_MISSING';
-  if (output.reviewer_agent !== assignedReviewer || output.dispatch_id !== dispatchId) {
-    return 'REVIEWER_PROVENANCE_CONTRADICTORY';
+):
+  | { readonly kind: 'verified'; readonly output: ReviewerOutput }
+  | {
+      readonly kind: 'failed';
+      readonly code: 'REVIEWER_PROVENANCE_MISSING' | 'REVIEWER_PROVENANCE_CONTRADICTORY';
+    } {
+  if (typeof output.reviewer_agent !== 'string' || output.reviewer_agent === '') {
+    return { kind: 'failed', code: 'REVIEWER_PROVENANCE_MISSING' };
   }
-  return undefined;
+  if (output.reviewer_agent !== assignedReviewer || output.dispatch_id !== dispatchId) {
+    return { kind: 'failed', code: 'REVIEWER_PROVENANCE_CONTRADICTORY' };
+  }
+  return { kind: 'verified', output: output as ReviewerOutput };
 }
 
 async function executeReview(
   reviewer: 'claude' | 'codex',
   prepared: ReturnType<typeof prepareReviewPacket>,
 ): Promise<{
-  output?: ReviewerOutput;
-  failure?: ReviewFailure;
+  outcome:
+    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
+    | { readonly kind: 'failed'; readonly failure: ReviewFailure };
   sourceChanged: boolean;
   snapshotChanged: boolean;
 }> {
-  let output: ReviewerOutput | undefined;
-  let failure: ReviewFailure | undefined;
+  let outcome:
+    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
+    | { readonly kind: 'failed'; readonly failure: ReviewFailure };
   try {
-    output = await runHeadlessReviewer(reviewer, prepared.packet, prepared.workspace);
+    const output = await runHeadlessReviewer(
+      reviewer,
+      prepared.packet,
+      prepared.workspace,
+      prepared.sourceRoot,
+    );
+    outcome = { kind: 'completed', output };
   } catch (error) {
     if (!(error instanceof ReviewRuntimeError)) {
       prepared.cleanup();
       throw error;
     }
-    failure = error.failure;
+    outcome = { kind: 'failed', failure: error.failure };
   }
-  const sourceChanged = prepared.sourceChanged();
-  const snapshotChanged = prepared.snapshotChanged();
-  prepared.cleanup();
-  return { output, failure, sourceChanged, snapshotChanged };
+  try {
+    return {
+      outcome,
+      sourceChanged: prepared.sourceChanged(),
+      snapshotChanged: prepared.snapshotChanged(),
+    };
+  } finally {
+    prepared.cleanup();
+  }
 }
 
-function fallbackFailure(input: {
-  readonly output?: ReviewerOutput;
-  readonly failure?: ReviewFailure;
-  readonly provenanceError?: string;
-}): string | undefined {
-  if (input.output === undefined && input.failure === undefined) return 'invalid_output';
-  return input.failure ?? input.provenanceError;
+function assessFallback(
+  outcome:
+    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
+    | { readonly kind: 'failed'; readonly failure: ReviewFailure },
+  reviewer: ReviewAgent,
+  dispatchId: string,
+):
+  | { readonly kind: 'completed'; readonly output: ReviewerOutput }
+  | { readonly kind: 'failed'; readonly failure: string } {
+  if (outcome.kind === 'failed') return outcome;
+  const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
+  return provenance.kind === 'failed'
+    ? { kind: 'failed', failure: provenance.code }
+    : { kind: 'completed', output: provenance.output };
 }
 
-function completedReviewerOutput(output: ReviewerOutput | undefined): ReviewerOutput {
-  if (output === undefined) throw new Error('Review completed without output or failure');
-  return output;
+function shellQuote(value: string): string {
+  if (/^[\w./-]+$/u.test(value)) return value;
+  const escaped = value.replaceAll("'", `'"'"'`);
+  return `'${escaped}'`;
 }
 
 function retryCommand(kind: ReviewKind, targets: readonly string[]): string {
-  return `safeword review run ${kind} ${targets.join(' ')}`;
+  return `safeword review run ${kind} ${targets.map(target => shellQuote(target)).join(' ')}`;
 }
 
 function recoveryDescription(reviewer: ReviewAgent, failure: ReviewFailure): string {
@@ -196,10 +225,7 @@ async function runDegradedFallback(input: {
   readonly policy: ReviewPolicy;
 }): Promise<CliResult> {
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  const { output, failure, sourceChanged, snapshotChanged } = await executeReview(
-    input.author,
-    prepared,
-  );
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared);
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.author,
@@ -209,16 +235,8 @@ async function runDegradedFallback(input: {
     snapshotChanged,
   });
   if (changedResult !== undefined) return changedResult;
-  const provenanceError =
-    output === undefined
-      ? undefined
-      : provenanceFailure(output, input.author, prepared.packet.dispatch_id);
-  const failedBecause = fallbackFailure({
-    output,
-    failure,
-    provenanceError,
-  });
-  if (failedBecause !== undefined) {
+  const assessment = assessFallback(outcome, input.author, prepared.packet.dispatch_id);
+  if (assessment.kind === 'failed') {
     return createResult({
       state: 'action_required',
       findings: [
@@ -241,12 +259,12 @@ async function runDegradedFallback(input: {
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         preferred_failure: input.preferredFailure,
-        fallback_failure: failedBecause,
+        fallback_failure: assessment.failure,
         independence: 'none',
       },
     });
   }
-  const completedOutput = completedReviewerOutput(output);
+  const completedOutput = assessment.output;
 
   if (input.policy === 'require') {
     return createResult({
@@ -278,8 +296,6 @@ async function runDegradedFallback(input: {
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         actual_reviewer: completedOutput.reviewer_agent,
-        assigned_model: assignedReviewerModel(input.assignedReviewer),
-        actual_model: assignedReviewerModel(input.author),
         preferred_failure: input.preferredFailure,
         independence: 'degraded',
         reviewer_output: completedOutput,
@@ -308,8 +324,6 @@ async function runDegradedFallback(input: {
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
       actual_reviewer: completedOutput.reviewer_agent,
-      assigned_model: assignedReviewerModel(input.assignedReviewer),
-      actual_model: assignedReviewerModel(input.author),
       preferred_failure: input.preferredFailure,
       independence: 'degraded',
       reviewer_output: completedOutput,
@@ -350,12 +364,7 @@ export async function runReview(input: {
   const { reviewer } = pair;
 
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  const {
-    output,
-    failure: preferredFailure,
-    sourceChanged,
-    snapshotChanged,
-  } = await executeReview(reviewer, prepared);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared);
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -365,18 +374,18 @@ export async function runReview(input: {
     snapshotChanged,
   });
   if (changedResult !== undefined) return changedResult;
-  if (preferredFailure !== undefined) {
+  if (outcome.kind === 'failed') {
     return runDegradedFallback({
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredFailure,
+      preferredFailure: outcome.failure,
       policy,
     });
   }
-  if (output === undefined) throw new Error('Review completed without output or failure');
-  const provenanceError = provenanceFailure(output, reviewer, prepared.packet.dispatch_id);
-  if (provenanceError !== undefined) {
+  const provenance = verifyProvenance(outcome.output, reviewer, prepared.packet.dispatch_id);
+  if (provenance.kind === 'failed') {
+    const provenanceError = provenance.code;
     return createResult({
       state: 'failed',
       errors: [
@@ -401,6 +410,7 @@ export async function runReview(input: {
       },
     });
   }
+  const output = provenance.output;
 
   return createResult({
     state: output.verdict === 'approve' ? 'healthy' : 'action_required',
@@ -420,8 +430,6 @@ export async function runReview(input: {
       author_agent: author,
       assigned_reviewer: reviewer,
       actual_reviewer: output.reviewer_agent,
-      assigned_model: assignedReviewerModel(reviewer),
-      actual_model: assignedReviewerModel(output.reviewer_agent),
       independence: 'cross-agent',
       reviewer_output: output,
     },

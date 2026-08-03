@@ -299,7 +299,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
   if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
     hardBlockDone(
-      'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, actual_model, and independence with `bun .safeword/hooks/write-review-stamp.ts impl-plan`.',
+      'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun .safeword/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
     );
   }
 

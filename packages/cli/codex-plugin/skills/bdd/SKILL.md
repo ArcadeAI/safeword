@@ -52,7 +52,7 @@ author.) Invoke the shared host-owned coordinator with only the phase artifacts
 and ticket scope; its typed verdict decides:
 
 ```bash
-safeword review run scenario-gate <feature-file> <ticket-spec> [legacy-test-definitions]
+safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions]
 ```
 
 The coordinator prefers the opposite headless agent, labels a permitted
@@ -62,7 +62,7 @@ satisfies the configured policy, record the returned provenance in the stamp
 (substitute the four values from `data` in the coordinator result):
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --author-agent "<author_agent>" --reviewer-agent "<actual_reviewer>" --model "<actual_model>" --independence "<independence>" --phase <phase you are leaving>
+bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --phase phase-name
 ```
 
 If the reviewer finds blocking issues, fix them and re-review — don't stamp.

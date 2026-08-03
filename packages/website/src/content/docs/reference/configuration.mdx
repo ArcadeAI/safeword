@@ -143,7 +143,7 @@ Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 - `require` — the opposite-agent route must complete. Missing installation, sign-in, timeout, process failure, invalid output, or changed source blocks the gate with one concrete recovery action; degraded results and skips cannot satisfy it.
 - `off` — retain the existing review route and do not create cross-agent evidence.
 
-Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs to keep the default route fully independent. Review results report the author, assigned and actual reviewer, assigned and actual model, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy.
+Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs to keep the default route fully independent. Review results report the author, assigned and actual reviewer, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy. A model is recorded only when the executed reviewer supplies a verifiable identifier; Safe Word never invents a default model name.
 
 ### Design approval gate
 

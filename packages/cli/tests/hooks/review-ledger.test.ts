@@ -94,6 +94,32 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
 
     expect(gatePhaseAdvance('scenario-gate', independent, 'require')).toEqual({ ok: true });
   });
+
+  it('hard cross-agent enforcement rejects a same-agent stamp that claims independence', () => {
+    const contradictory: ReviewStamp[] = [
+      {
+        scope: 'scenario-gate',
+        author: 'claude',
+        reviewer: 'claude',
+        independence: 'cross-agent',
+      },
+    ];
+
+    expect(gatePhaseAdvance('scenario-gate', contradictory, 'require').ok).toBe(false);
+  });
+
+  it.each([
+    { author: 'claude', independence: 'cross-agent' as const },
+    { author: 'claude', reviewer: 'codex', independence: 'none' as const },
+    { skipReason: 'review unavailable' },
+  ] as const)(
+    'hard cross-agent enforcement rejects incomplete or opted-out evidence: %j',
+    stamp => {
+      expect(
+        gatePhaseAdvance('scenario-gate', [{ scope: 'scenario-gate', ...stamp }], 'require').ok,
+      ).toBe(false);
+    },
+  );
 });
 
 describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => {

@@ -35,6 +35,15 @@ describe('headless reviewer output adapters', () => {
     const codexOutput = { ...output, reviewer_agent: 'codex' as const };
     const stdout = [
       JSON.stringify({ type: 'thread.started', thread_id: 'thread-1' }),
+      'non-json diagnostic noise',
+      JSON.stringify({
+        type: 'item.completed',
+        item: {
+          id: 'item-0',
+          type: 'agent_message',
+          text: JSON.stringify({ ...codexOutput, summary: 'superseded' }),
+        },
+      }),
       JSON.stringify({
         type: 'item.completed',
         item: { id: 'item-1', type: 'agent_message', text: JSON.stringify(codexOutput) },
@@ -55,6 +64,11 @@ describe('headless reviewer output adapters', () => {
     ['missing summary', { ...output, summary: undefined }],
     ['non-array findings', { ...output, findings: 'none' }],
     ['malformed finding', { ...output, findings: [{ severity: 'critical', message: 'bad' }] }],
+    ['extra output property', { ...output, unexpected: true }],
+    [
+      'extra finding property',
+      { ...output, findings: [{ severity: 'info', message: 'noted', unexpected: true }] },
+    ],
   ])('rejects structurally invalid output: %s', (_label, invalidOutput) => {
     expect(() => parseReviewerOutput('claude', JSON.stringify(invalidOutput))).toThrow(
       'invalid reviewer output',

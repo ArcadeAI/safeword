@@ -65,4 +65,54 @@ describe('review packet containment and change accounting', () => {
     expect(prepared.sourceChanged()).toBe(false);
     prepared.cleanup();
   });
+
+  it('rejects an individual target that is too large for a bounded review', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'large.md'), 'x'.repeat(256 * 1024 + 1));
+
+    expect(() => prepareReviewPacket(project, 'quality-review', ['large.md'])).toThrow(
+      '262144-byte limit',
+    );
+  });
+
+  it('rejects more files than a bounded review can safely carry', () => {
+    const project = temporaryDirectory();
+    const targets = Array.from({ length: 65 }, (_, index) => `input-${index}.md`);
+
+    expect(() => prepareReviewPacket(project, 'quality-review', targets)).toThrow('64-file limit');
+  });
+
+  it('rejects a packet whose individually valid files exceed the aggregate limit', () => {
+    const project = temporaryDirectory();
+    const targets = Array.from({ length: 5 }, (_, index) => `input-${index}.md`);
+    for (const target of targets) {
+      writeFileSync(nodePath.join(project, target), 'x'.repeat(220 * 1024));
+    }
+
+    expect(() => prepareReviewPacket(project, 'quality-review', targets)).toThrow(
+      '1048576-byte limit',
+    );
+  });
+
+  it('rejects malformed UTF-8 instead of reviewing replacement characters', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'invalid.md'), Buffer.from([0xc3, 0x28]));
+
+    expect(() => prepareReviewPacket(project, 'quality-review', ['invalid.md'])).toThrow(
+      'not valid UTF-8 text',
+    );
+  });
+
+  it('preserves a UTF-8 BOM without reporting a reviewer mutation', () => {
+    const project = temporaryDirectory();
+    writeFileSync(
+      nodePath.join(project, 'bom.md'),
+      Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('review me\n')]),
+    );
+    const prepared = prepareReviewPacket(project, 'quality-review', ['bom.md']);
+
+    expect(prepared.snapshotChanged()).toBe(false);
+    expect(prepared.sourceChanged()).toBe(false);
+    prepared.cleanup();
+  });
 });

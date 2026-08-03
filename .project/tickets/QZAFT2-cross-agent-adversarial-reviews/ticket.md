@@ -5,7 +5,7 @@ type: feature
 phase: done
 status: done
 created: 2026-08-02T17:01:05.002Z
-last_modified: 2026-08-02T21:20:00.000Z
+last_modified: 2026-08-03T01:51:12.000Z
 scope:
   - opposite-agent headless execution for class-1 quality, phase, and architecture reviews
   - bounded read-only review packets with vendor-scoped credentials
@@ -73,3 +73,7 @@ phase_skips:
 - 2026-08-02T23:00:00.000Z Final quality gate: Live public-command smoke passed in both directions using existing desktop authentication. The final Codex-authored delta reached headless Claude under `require` policy and returned `approve` with dispatch `6ed64e69-aade-41e6-a2ba-87b37c0edb19`, validated Claude provenance, and no blocking findings.
 - 2026-08-02T23:10:00.000Z Mainline reconciliation: Rebased onto `origin/main` at `e22a2f96b`, preserved the new project-principles review contract alongside cross-agent coordinator routing and actual-model provenance, regenerated Codex plugin assets, and confirmed architecture state is current.
 - 2026-08-02T23:18:20.000Z Verification: 417 Vitest files passed (6296 tests, 5 skipped), all 771 Cucumber scenarios passed or were intentionally skipped (768 passed, 3 skipped), TypeScript/build/lint/dependency checks passed, 64/64 BDD ledger rows are complete, and the diff-scoped audit passed. Marked the feature done.
+- 2026-08-03T01:35:00.000Z Refactor review: Three independent read-only scouts reviewed the runtime boundary, tests, and reuse opportunities. Applied the warranted ledger: canonical policy parsing, a discriminated execution outcome, one provenance validator, removal of a dead exported type, bounded raw-byte packets, trusted executable selection, and focused environment/runtime helpers. Deferred only speculative test-helper extraction that would add risk without changing behavior.
+- 2026-08-03T01:40:00.000Z Repository audit: Ran every repository-scope audit block. Dependency-cruiser reported 0 boundary violations across 750 modules and 2469 dependencies. Knip/jscpd reported only existing repository debt (generated template/dogfood parity duplication, unrelated unused exports/types, and optional Python tooling unavailable); package-outdated checks listed normal upgrade candidates, and no feature blocker was found.
+- 2026-08-03T01:45:00.000Z Final quality review: Multiple real hard-policy Claude passes found and drove fixes for Windows environment normalization, cross-drive executable containment, capability-probe deadline accounting, credential scoping, executable trust, packet TOCTOU/UTF-8/BOM handling, EPIPE handling, output bounds, and provenance honesty. The final post-fix Claude review approved with validated cross-agent provenance, dispatch `d4a7b497-0675-4204-b645-0132f5857a18`.
+- 2026-08-03T01:51:12.000Z Final verification: Focused coordinator coverage passed (6 files, 103 tests); the live public-command smoke passed both Claude→Codex and Codex→Claude routes (3/3); canonical verification passed 418 Vitest files (6313 passed, 5 skipped), 771 Cucumber scenarios (768 passed, 3 skipped), typecheck, build, root formatting, full ESLint, generated parity, and dependency audit with no vulnerabilities.
