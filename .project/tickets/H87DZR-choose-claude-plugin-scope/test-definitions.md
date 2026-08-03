@@ -54,7 +54,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 62f5edff2
 - [x] GREEN 6c6f315cb
-- [ ] REFACTOR
+- [x] REFACTOR skip: the approved wording now shares the existing scoped-install assertion; no duplicate step or production path was introduced
 
 ### Scenario: Selected-scope operation failure is reported without touching the other scope
 
