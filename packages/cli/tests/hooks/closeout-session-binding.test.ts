@@ -1,21 +1,29 @@
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   commandInvokesCloseoutCleanup,
   readFreshCloseoutBinding,
   rememberCloseoutBinding,
 } from '../../templates/hooks/lib/closeout-binding.ts';
+import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+
+const temporaryProjects: string[] = [];
 
 function project(): string {
-  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-binding-'));
+  const directory = createTemporaryDirectory();
+  temporaryProjects.push(directory);
   mkdirSync(nodePath.join(directory, '.safeword'));
   writeFileSync(nodePath.join(directory, '.safeword', 'SAFEWORD.md'), '# SafeWord\n');
   return directory;
 }
+
+afterEach(() => {
+  for (const directory of temporaryProjects) removeTemporaryDirectory(directory);
+  temporaryProjects.length = 0;
+});
 
 describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
   it('matches only an executable closeout guard command', () => {

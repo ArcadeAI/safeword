@@ -1,9 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
@@ -17,12 +16,20 @@ import {
   setupOrThrow,
 } from '../helpers.js';
 
+const temporaryProjects: string[] = [];
+
 function project(): string {
-  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-adapter-'));
+  const directory = createTemporaryDirectory();
+  temporaryProjects.push(directory);
   mkdirSync(nodePath.join(directory, '.safeword'));
   writeFileSync(nodePath.join(directory, '.safeword', 'SAFEWORD.md'), '# SafeWord\n');
   return directory;
 }
+
+afterEach(() => {
+  for (const directory of temporaryProjects) removeTemporaryDirectory(directory);
+  temporaryProjects.length = 0;
+});
 
 function closeoutCommand(directory: string): string {
   return `bun "${directory}/.safeword/scripts/closeout-cleanup.ts" --pr 42`;
