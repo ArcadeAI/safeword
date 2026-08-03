@@ -36,7 +36,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: selected-scope enablement was already delivered by the fresh scoped-install walking skeleton; the newly executable scenario passed immediately with both scopes
 - [x] GREEN 58381070b
-- [ ] REFACTOR
+- [x] REFACTOR skip: the fixture reuses the established scoped-state model and no production change introduced duplication to remove
 
 ### Scenario: Unsafe selected-scope metadata is refused without an implicit downgrade
 
