@@ -240,12 +240,30 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
   }
   let classification = 'errored';
   let nextAction = 'safeword claude install';
-  if (failure.code === 'CLAUDE_VERSION_UNSUPPORTED') {
-    classification = 'unsupported-host';
-    nextAction = 'claude update';
-  } else if (failure.code === 'CLAUDE_MARKETPLACE_CONFLICT') {
-    classification = 'marketplace-conflict';
-    nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+  let nextActionMutates = true;
+  switch (failure.code) {
+    case 'CLAUDE_VERSION_UNSUPPORTED': {
+      classification = 'unsupported-host';
+      nextAction = 'claude update';
+      break;
+    }
+    case 'CLAUDE_MARKETPLACE_CONFLICT': {
+      classification = 'marketplace-conflict';
+      nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+      break;
+    }
+    case 'CLAUDE_PLUGIN_METADATA_UNVERIFIED': {
+      classification = 'unverified-metadata';
+      nextAction = 'claude plugin list --json';
+      nextActionMutates = false;
+      break;
+    }
+    case 'CLAUDE_PLUGIN_DOWNGRADE_REFUSED': {
+      classification = 'downgrade-refused';
+      nextAction = 'claude plugin list --json';
+      nextActionMutates = false;
+      break;
+    }
   }
   return createResult({
     state: 'failed',
@@ -255,7 +273,7 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
     nextActions: [
       {
         command: nextAction,
-        mutates: true,
+        mutates: nextActionMutates,
         requiresHuman: true,
       },
     ],
@@ -327,17 +345,35 @@ function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effec
   }
 }
 
+function assertConvergeablePluginVersion(plugin: JsonObject): void {
+  if (typeof plugin.version !== 'string' || !isSafePackageVersion(plugin.version)) {
+    throw new ClaudeProfileError(
+      'CLAUDE_PLUGIN_METADATA_UNVERIFIED',
+      `Claude reported malformed ${PLUGIN_ID} version metadata in the selected scope.`,
+    );
+  }
+  if (compareVersions(plugin.version, SAFEWORD_SCHEMA.version) > 0) {
+    throw new ClaudeProfileError(
+      'CLAUDE_PLUGIN_DOWNGRADE_REFUSED',
+      `Claude reported ${PLUGIN_ID} ${plugin.version}, which is newer than ${SAFEWORD_SCHEMA.version}; refusing an implicit downgrade.`,
+    );
+  }
+}
+
 function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
   const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
   if (plugin === undefined) {
     runClaude(cwd, ['plugin', 'install', PLUGIN_ID, '--scope', scope], effects);
     effects.push({ kind: 'install', target: PLUGIN_ID, operation: scope });
-  } else if (plugin.version !== SAFEWORD_SCHEMA.version) {
-    runClaude(cwd, ['plugin', 'update', PLUGIN_ID, '--scope', scope], effects);
-    effects.push({ kind: 'update', target: PLUGIN_ID, operation: scope });
-  } else if (plugin.enabled !== true) {
-    runClaude(cwd, ['plugin', 'enable', PLUGIN_ID, '--scope', scope], effects);
-    effects.push({ kind: 'enable', target: PLUGIN_ID, operation: scope });
+  } else {
+    assertConvergeablePluginVersion(plugin);
+    if (plugin.version !== SAFEWORD_SCHEMA.version) {
+      runClaude(cwd, ['plugin', 'update', PLUGIN_ID, '--scope', scope], effects);
+      effects.push({ kind: 'update', target: PLUGIN_ID, operation: scope });
+    } else if (plugin.enabled !== true) {
+      runClaude(cwd, ['plugin', 'enable', PLUGIN_ID, '--scope', scope], effects);
+      effects.push({ kind: 'enable', target: PLUGIN_ID, operation: scope });
+    }
   }
 }
 
