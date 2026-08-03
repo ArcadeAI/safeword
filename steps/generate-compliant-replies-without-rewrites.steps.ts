@@ -98,6 +98,21 @@ Given('the reply has no separate Next paragraph', function (this: SafewordWorld)
   assert.ok(!state.reply.includes('**Next:**'));
 });
 
+Given(
+  'its final reply declares CONFIDENT without an Open paragraph',
+  function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state, 'reply-format fixture was not created');
+    state.reply = [
+      '**CONFIDENT** — The change is complete.',
+      '',
+      '**Decided:** Keep the implementation focused.',
+      '',
+      '**Next:** Review the result.',
+    ].join('\n');
+  },
+);
+
 When('the reply reaches the Stop hook', function (this: SafewordWorld) {
   const state = states.get(this);
   assert.ok(state, 'reply-format fixture was not created');
@@ -123,4 +138,11 @@ When('the reply reaches the Stop hook', function (this: SafewordWorld) {
 Then('no format-correction continuation is emitted', function (this: SafewordWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr);
   assert.equal(this.result.stdout.trim(), '');
+});
+
+Then('the canonical format correction is emitted', function (this: SafewordWorld) {
+  assert.equal(this.result.exitCode, 0, this.result.stderr);
+  const output = JSON.parse(this.result.stdout) as { decision?: string; reason?: string };
+  assert.equal(output.decision, 'block');
+  assert.match(output.reason ?? '', /\*\*CONFIDENT\*\*[\s\S]*\*\*BLOCKED\*\*/u);
 });
