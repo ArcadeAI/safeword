@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Unsupported scope is rejected before mutation
 
-- [ ] RED
+- [x] RED 549663d9f
 - [ ] GREEN
 - [ ] REFACTOR
 
