@@ -59,19 +59,19 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
     expect(byPath.has('runtime/hooks/lib/retro-draft-spool.ts')).toBe(true);
   });
 
-  it('installs the shared guard and resolves every local host entry point to it', async () => {
+  it('installs the shared guard and resolves project-host entry points to it', async () => {
     const directory = createTemporaryDirectory();
     try {
       createTypeScriptPackageJson(directory);
       initGitRepo(directory);
       await setupOrThrow(directory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
 
-      const claudeSkill = readFileSync(
-        nodePath.join(directory, '.claude/skills/closeout/SKILL.md'),
-        'utf8',
-      );
       const cursorCommand = readFileSync(
         nodePath.join(directory, '.cursor/commands/closeout.md'),
+        'utf8',
+      );
+      const cursorSharedSkill = readFileSync(
+        nodePath.join(directory, '.safeword/skills/closeout/SKILL.md'),
         'utf8',
       );
       const installedGuard = nodePath.join(directory, '.safeword/scripts/closeout-cleanup.ts');
@@ -87,8 +87,8 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
         'utf8',
       );
 
-      expect(claudeSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
-      expect(cursorCommand).toContain('.claude/skills/closeout/SKILL.md');
+      expect(cursorCommand).toContain('.safeword/skills/closeout/SKILL.md');
+      expect(cursorSharedSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
       expect(codexSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
       expect(readFileSync(installedGuard, 'utf8')).toContain('executeCleanupOperation');
       const execution = spawnSync('bun', [installedGuard], {
