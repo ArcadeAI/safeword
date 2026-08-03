@@ -1,22 +1,24 @@
 # Manual Review
 
-Fresh review is bound to the post-catch-up manifest. The approved prior packet
-still covers every unchanged input and all 58 ordered scenario titles. A fresh
-cross-agent review approved the only changed bound artifacts,
-`plugin/inventory.json` and `plugin/identity.json`, after the generated Claude
-plugin was combined with the current branch.
+Fresh review is bound to the post-merge manifest. The author-side orchestrator
+recomputed 39/39 input hashes and 58/58 ordered scenario titles; the independent
+reviewer read every bound input and evaluated every scenario without relying on
+the prior review verdict.
 
-The Claude plugin release-contract check independently verifies the inventory
-and identity bindings. No closeout behavior changed, so the prior scenario
-verdicts plus the approved generated-artifact delta keep all 58 rows passing.
+The reviewer confirmed the regenerated Claude plugin contains both main's
+closeout behavior and PR #1835's SessionStart reply contract through the same
+deterministic generator. Closeout cleanup, host adapters, parity enforcement,
+and all 58 scenario rows remain supported. The reviewer had no shell tool to
+recompute the manifest digest; the deterministic author-side test owns that
+check and rejects any mismatch.
 
 ```json
 {
   "reviewer": {
-    "identity": "claude-coordinator:6b3c5701-5436-4bfc-b948-7d16f65f376a",
-    "model": "Claude (SafeWord cross-agent coordinator)"
+    "identity": "claude-headless:ec6efe37-35d9-4dcb-9774-2118ef47d1e7",
+    "model": "claude-sonnet-5 (headless Claude Code 2.1.220)"
   },
-  "manifest_sha256": "851068d512ebf47ea3088fcb328b34e8a6abab11b39f8fd0308024816b6f82c5",
+  "manifest_sha256": "e945fcb6eca6f238d154da6f96199517aa578e89b15a619ee6ef8ff533443d61",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },
