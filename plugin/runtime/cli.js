@@ -28312,13 +28312,18 @@ function marketplaceEntries(cwd, effects) {
 function pluginEntries(cwd, effects) {
   return parseJsonArray(runClaude(cwd, ["plugin", "list", "--json"], effects), "plugin list --json", effects);
 }
-function safewordMarketplace(entries) {
-  return entries.find((entry) => entry.name === MARKETPLACE_NAME);
+function entryMatchesScope(entry, scope, cwd) {
+  if ((entry.scope ?? "user") !== scope)
+    return false;
+  return scope === "user" || entry.projectPath === cwd;
 }
-function safewordPlugin(entries) {
-  return entries.find((entry) => entry.id === PLUGIN_ID);
+function safewordMarketplace(entries, scope, cwd) {
+  return entries.find((entry) => entry.name === MARKETPLACE_NAME && entryMatchesScope(entry, scope, cwd));
 }
-function failedResult(error2) {
+function safewordPlugin(entries, scope, cwd) {
+  return entries.find((entry) => entry.id === PLUGIN_ID && entryMatchesScope(entry, scope, cwd));
+}
+function failedResult(error2, scope) {
   let failure;
   if (error2 instanceof ClaudeProfileError)
     failure = error2;
@@ -28333,7 +28338,7 @@ function failedResult(error2) {
     nextAction = "claude update";
   } else if (failure.code === "CLAUDE_MARKETPLACE_CONFLICT") {
     classification = "marketplace-conflict";
-    nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope user`;
+    nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
   }
   return createResult({
     state: "failed",
@@ -28350,36 +28355,36 @@ function failedResult(error2) {
     data: { command: "claude install", classification }
   });
 }
-function ensureMarketplace(cwd, effects) {
-  let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
+function ensureMarketplace(cwd, scope, effects) {
+  let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects), scope, cwd);
   const sourceStatus = marketplace === undefined ? undefined : marketplaceSourceStatus(marketplace);
   if (sourceStatus === "conflict") {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.`);
   }
   if (sourceStatus === "current")
     return;
-  runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", "user"], effects);
+  runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", scope], effects);
   effects.push({
     kind: sourceStatus === "stale" ? "update" : "add",
     target: MARKETPLACE_NAME,
-    operation: "user"
+    operation: scope
   });
-  marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
+  marketplace = safewordMarketplace(marketplaceEntries(cwd, effects), scope, cwd);
   if (marketplace === undefined || marketplaceSourceStatus(marketplace) !== "current") {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
   }
 }
-function convergePlugin(cwd, effects) {
-  const plugin = safewordPlugin(pluginEntries(cwd, effects));
+function convergePlugin(cwd, scope, effects) {
+  const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
   if (plugin === undefined) {
-    runClaude(cwd, ["plugin", "install", PLUGIN_ID, "--scope", "user"], effects);
-    effects.push({ kind: "install", target: PLUGIN_ID, operation: "user" });
+    runClaude(cwd, ["plugin", "install", PLUGIN_ID, "--scope", scope], effects);
+    effects.push({ kind: "install", target: PLUGIN_ID, operation: scope });
   } else if (plugin.version !== SAFEWORD_SCHEMA.version) {
-    runClaude(cwd, ["plugin", "update", PLUGIN_ID, "--scope", "user"], effects);
-    effects.push({ kind: "update", target: PLUGIN_ID, operation: "user" });
+    runClaude(cwd, ["plugin", "update", PLUGIN_ID, "--scope", scope], effects);
+    effects.push({ kind: "update", target: PLUGIN_ID, operation: scope });
   } else if (plugin.enabled !== true) {
-    runClaude(cwd, ["plugin", "enable", PLUGIN_ID, "--scope", "user"], effects);
-    effects.push({ kind: "enable", target: PLUGIN_ID, operation: "user" });
+    runClaude(cwd, ["plugin", "enable", PLUGIN_ID, "--scope", scope], effects);
+    effects.push({ kind: "enable", target: PLUGIN_ID, operation: scope });
   }
 }
 function fileSha256(path4) {
@@ -28442,7 +28447,7 @@ function observeClaudeProfile(cwd) {
   }
   let plugin;
   try {
-    plugin = safewordPlugin(pluginEntries(cwd, []));
+    plugin = pluginEntries(cwd, []).find((entry) => entry.id === PLUGIN_ID);
   } catch (error2) {
     return {
       health: "errored",
@@ -28478,21 +28483,21 @@ function assertNativePayload(plugin, effects) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED", `Claude installed plugin metadata, but its native payload could not be verified: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
   }
 }
-function verifyPlugin(cwd, effects) {
-  const plugin = safewordPlugin(pluginEntries(cwd, effects));
-  if (plugin?.version === SAFEWORD_SCHEMA.version && plugin.enabled === true && plugin.scope === "user") {
+function verifyPlugin(cwd, scope, effects) {
+  const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
+  if (plugin?.version === SAFEWORD_SCHEMA.version && plugin.enabled === true && plugin.scope === scope) {
     assertNativePayload(plugin, effects);
     return;
   }
-  throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at user scope.`, effects);
+  throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at ${scope} scope.`, effects);
 }
-function installClaudePlugin(cwd) {
+function installClaudePlugin(cwd, scope = "project") {
   const effects = [];
   try {
     assertSupportedHost(cwd);
-    ensureMarketplace(cwd, effects);
-    convergePlugin(cwd, effects);
-    verifyPlugin(cwd, effects);
+    ensureMarketplace(cwd, scope, effects);
+    convergePlugin(cwd, scope, effects);
+    verifyPlugin(cwd, scope, effects);
     return createResult({
       state: effects.length === 0 ? "healthy" : "changed",
       effects: {
@@ -28504,11 +28509,11 @@ function installClaudePlugin(cwd) {
         command: "claude install",
         plugin: PLUGIN_ID,
         version: SAFEWORD_SCHEMA.version,
-        scope: "user"
+        scope
       }
     });
   } catch (error2) {
-    return failedResult(error2);
+    return failedResult(error2, scope);
   }
 }
 var MINIMUM_CLAUDE_VERSION, MARKETPLACE_NAME = "safeword", PLUGIN_ID = "safeword@safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", ClaudeProfileError;
@@ -45713,7 +45718,8 @@ async function claudeInstallHandler(invocation) {
   if (invocation.offline)
     return onlineRequired("claude install");
   const { installClaudePlugin: installClaudePlugin2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
-  return installClaudePlugin2(invocation.cwd);
+  const scope = invocation.options.scope;
+  return installClaudePlugin2(invocation.cwd, scope === "user" ? "user" : "project");
 }
 async function claudeStatusHandler(invocation) {
   const { observeClaudeStatus: observeClaudeStatus2 } = await Promise.resolve().then(() => (init_status2(), exports_status2));
@@ -46905,7 +46911,14 @@ var CANONICAL_COMMANDS = [
   }),
   command("codex status", "Report Codex plugin and migration state", "observe"),
   command("claude install", "Install the Claude profile plugin", "mutate", {
-    networkPolicy: "declared"
+    networkPolicy: "declared",
+    commandOptions: [
+      {
+        flags: "--scope <scope>",
+        description: "Install for this project or the current user profile",
+        defaultValue: "project"
+      }
+    ]
   }),
   command("claude status", "Report Claude plugin and migration state", "observe"),
   command("claude cleanup", "Remove verified legacy Claude project assets", "destructive", {
