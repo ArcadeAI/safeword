@@ -40,7 +40,7 @@ done_when:
   - Configured SessionStart and Stop subprocesses prove both behaviors follow one changed canonical contract
   - Setup reconciliation restores installed-hook drift, plugin generation plus the worktree-diff gate rejects a stale committed plugin, and template parity rejects dogfood pair drift
 created: 2026-08-03T04:24:36.367Z
-last_modified: 2026-08-03T14:20:06.000Z
+last_modified: 2026-08-03T18:41:29.000Z
 ---
 
 # Generate compliant replies without correction loops
@@ -59,6 +59,7 @@ last_modified: 2026-08-03T14:20:06.000Z
 - 2026-08-03T07:58:00.000Z Implementation complete: 70/70 acceptance scenarios pass, the generated Claude plugin and dogfood mirrors are current, the reference benchmark passed, and the live Claude limitation is recorded; advanced to verify.
 - 2026-08-03T08:18:13.000Z Verification complete: independent quality review approved the remediated implementation; 6,489 runnable unit/integration tests and 910 runnable repository acceptance scenarios pass; build, lint, typecheck, dependency, parity, and audit gates pass; the unavailable live Claude runtime is recorded without overstating subprocess evidence; marked done.
 - 2026-08-03T14:20:06.000Z Live-proof diagnosis complete: the earlier HTTP 404 came from obsolete Claude Code 1.0.43 winning login-shell PATH resolution, not from Safeword or account access. Explicit Claude Code 2.1.220 completed the configured Safeword flow in one turn; verification evidence corrected.
+- 2026-08-03T18:41:29.000Z Managed-cloud proof complete: Claude Code 2.1.220 `--remote` created Anthropic-managed session `session_014SQCNKRNgwUQRcKc8Ck92h`; its single visible assistant response ended in the canonical CONFIDENT brief and stopped without a visible format-correction continuation. Verification now covers all three affected surfaces.
 
 ## Root Cause
 
