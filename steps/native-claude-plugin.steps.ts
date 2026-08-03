@@ -2263,6 +2263,35 @@ Given(
 );
 
 Given(
+  /^the profile contains (an exact project installation for the current project and no user installation|an exact user installation and no current-project entry|an exact user installation and another project's entry)$/u,
+  function (this: NativeClaudePluginWorld, installationState: string) {
+    const applicableScope = installationState.startsWith('an exact project') ? 'project' : 'user';
+    createExactScopedFixture(this, applicableScope);
+    assert.ok(this.lifecycle);
+    if (installationState.includes("another project's entry")) {
+      const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+        installPath: string;
+        plugins: Record<string, unknown>[];
+      };
+      const otherProject = nodePath.join(this.lifecycle.root, 'other-project');
+      mkdirSync(otherProject, { recursive: true });
+      state.plugins.push({
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        scope: 'project',
+        projectPath: otherProject,
+        installPath: state.installPath,
+      });
+      writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+      this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+      this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+      this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+    }
+  },
+);
+
+Given(
   'the other Claude scope has independent plugin state',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
@@ -2822,6 +2851,17 @@ Then(
       data?: { scope?: string };
     };
     assert.equal(result.data?.scope, scope);
+  },
+);
+
+Then(
+  /^status reports (project|user) as the applicable Safeword scope$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { applicable_scope?: string };
+    };
+    assert.equal(result.data?.applicable_scope, scope);
   },
 );
 

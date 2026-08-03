@@ -152,7 +152,7 @@ Feature: Choose where Safeword runs in Claude
         | project        |
         | user           |
 
-  @wip @choose-claude-plugin-scope.NTB1.R1 @surface.claude-code @surface.safeword-cli
+  @choose-claude-plugin-scope.NTB1.R1 @surface.claude-code @surface.safeword-cli
   Rule: choose-claude-plugin-scope.NTB1.R1 — Status identifies the applicable scope and reports overlap without silently removing protection
 
     Scenario Outline: Status identifies one applicable installation for the current project
@@ -167,13 +167,14 @@ Feature: Choose where Safeword runs in Claude
         | an exact user installation and no current-project entry                        | user    |
         | an exact user installation and another project's entry                         | user    |
 
+    @wip
     Scenario: Status reports no applicable installation for the current project
       Given neither the current project nor the Claude profile contains an applicable Safeword installation
       When safeword claude status runs
       Then status reports that Safeword is not installed for the current project
       And project and profile state remain byte-identical
 
-    @rejection
+    @wip @rejection
     Scenario Outline: Status reports overlapping applicable installations without changing either
       Given the current project has applicable project and user installations with <overlap-state>
       When safeword claude status runs
