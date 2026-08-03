@@ -92,7 +92,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Status identifies one applicable installation for the current project
 
-- [ ] RED
+- [x] RED 04bcd25fc
 - [ ] GREEN
 - [ ] REFACTOR
 
