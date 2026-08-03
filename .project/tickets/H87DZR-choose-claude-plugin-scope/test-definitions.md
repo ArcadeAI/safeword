@@ -104,7 +104,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Status reports overlapping applicable installations without changing either
 
-- [ ] RED
+- [x] RED d6195b88a
 - [ ] GREEN
 - [ ] REFACTOR
 
