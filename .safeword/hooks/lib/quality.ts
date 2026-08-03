@@ -49,7 +49,10 @@ export interface DecisionBriefVariantGrammar {
 }
 
 export interface DecisionBriefGrammar {
-  variants: Record<string, DecisionBriefVariantGrammar>;
+  variants: {
+    CONFIDENT: DecisionBriefVariantGrammar;
+    BLOCKED: DecisionBriefVariantGrammar;
+  };
 }
 
 /** One grammar drives the proactive wording, compact reminder, and Stop validation. */
@@ -229,7 +232,7 @@ function scanTopLevelParagraphs(reply: string): ParagraphScan {
     }
     if (listMarker) {
       ignored = true;
-      listContentIndent = listMarker[1].length + listMarker[0].length - listMarker[1].length;
+      listContentIndent = listMarker[0].length;
     }
     if (lines.length === 0 && BLOCK_QUOTE_OR_CODE.test(line)) ignored = true;
 
@@ -261,11 +264,14 @@ export function evaluateDecisionBriefCompliance(
   const verdicts = paragraphs.flatMap((paragraph, index) => {
     examinedCharacters += paragraph.text.length;
     const match = VERDICT.exec(paragraph.text);
-    return match && match[1] in grammar.variants ? [{ index, verdict: match[1] }] : [];
+    const verdict = match?.[1];
+    return verdict && verdict in grammar.variants ? [{ index, verdict }] : [];
   });
   if (verdicts.length !== 1) return result(false);
 
-  const [{ index: verdictIndex, verdict }] = verdicts;
+  const verdictEntry = verdicts[0];
+  if (!verdictEntry) return result(false);
+  const { index: verdictIndex, verdict } = verdictEntry;
   const labelsBeforeVerdict = paragraphs.slice(0, verdictIndex).some(paragraph => {
     examinedCharacters += paragraph.text.length;
     return LABEL.test(paragraph.text);
@@ -276,7 +282,9 @@ export function evaluateDecisionBriefCompliance(
     examinedCharacters += paragraph.text.length;
     return LABEL.exec(paragraph.text)?.[1];
   });
-  const sequences = grammar.variants[verdict].paragraphs.reduce<string[][]>(
+  const variant = grammar.variants[verdict as keyof DecisionBriefGrammar['variants']];
+  if (!variant) return result(false);
+  const sequences = variant.paragraphs.reduce<string[][]>(
     (variants, paragraph) => [
       ...variants.map(sequence => [...sequence, paragraph.label]),
       ...(paragraph.optional ? variants : []),

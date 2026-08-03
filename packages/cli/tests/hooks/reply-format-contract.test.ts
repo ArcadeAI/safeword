@@ -44,7 +44,9 @@ describe('proactive decision-brief contract', () => {
 
   it('derives rendered wording and validation from one grammar fixture', () => {
     const changed = structuredClone(DECISION_BRIEF_GRAMMAR);
-    changed.variants.CONFIDENT.paragraphs[2].label = 'Risks';
+    const openParagraph = changed.variants.CONFIDENT.paragraphs[2];
+    if (!openParagraph) throw new Error('CONFIDENT grammar fixture is incomplete');
+    openParagraph.label = 'Risks';
     const changedReply = brief([CONFIDENT[0], CONFIDENT[1], '**Risks:** none.', CONFIDENT[3]]);
 
     expect(renderDecisionBriefContract(changed)).toContain('**Risks:**');
@@ -59,13 +61,13 @@ const CONFIDENT = [
   '**Decided:** Keep the implementation focused.',
   '**Open:** none.',
   '**Next:** Review the result.',
-];
+] as const;
 const BLOCKED = [
   '**BLOCKED** — A release target is required.',
   '**Tried:** Checked the ticket and release configuration.',
   '**Need:** Choose the intended release target.',
-];
-const brief = (paragraphs: string[], separator = '\n\n') => paragraphs.join(separator);
+] as const;
+const brief = (paragraphs: readonly string[], separator = '\n\n') => paragraphs.join(separator);
 
 describe('terminal decision-brief parser', () => {
   it.each([
@@ -90,7 +92,7 @@ describe('terminal decision-brief parser', () => {
   const fenced = ['```md', ...CONFIDENT, '```'].join('\n\n');
   const nestedBulletBrief = brief(CONFIDENT.map(paragraph => `  ${paragraph}`));
   const orderedListBrief = brief(CONFIDENT.map(paragraph => ' '.repeat(3) + paragraph));
-  const ignoredOnly = [
+  const ignoredOnly: readonly (readonly [string, string])[] = [
     ['blockquote', brief(CONFIDENT.map(paragraph => `> ${paragraph}`))],
     ['list item', brief(CONFIDENT.map(paragraph => `- ${paragraph}`))],
     ['fenced block', fenced],
@@ -102,9 +104,9 @@ describe('terminal decision-brief parser', () => {
     ['HTML declaration', `<!DOCTYPE html\n${brief(CONFIDENT)}\n>`],
     ['HTML processing instruction', `<?example\n${brief(CONFIDENT)}\n?>`],
     ['HTML CDATA block', `<![CDATA[\n${brief(CONFIDENT)}\n]]>`],
-  ] as const;
+  ];
 
-  it.each([
+  const rejectedCases: readonly (readonly [string, string])[] = [
     ['no verdict', 'Implemented and tested.'],
     ['both verdicts', `${brief(CONFIDENT)}\n\n${brief(BLOCKED)}`],
     ['two identical verdicts', `${brief(CONFIDENT)}\n\n${brief(CONFIDENT)}`],
@@ -143,15 +145,19 @@ describe('terminal decision-brief parser', () => {
     ['BLOCKED with Next', brief([...BLOCKED, CONFIDENT[3]])],
     ['trailing prose', `${brief(CONFIDENT)}\n\nOne more thing.`],
     ['empty body', brief([CONFIDENT[0], CONFIDENT[1], '**Open:**   ', CONFIDENT[3]])],
-  ])('rejects %s deterministically', (_name, reply) => {
+  ];
+
+  it.each(rejectedCases)('rejects %s deterministically', (_name, reply) => {
     expect(evaluateDecisionBriefCompliance(reply).compliant).toBe(false);
     expect(evaluateDecisionBriefCompliance(reply)).toEqual(evaluateDecisionBriefCompliance(reply));
   });
 
-  it.each([
+  const ignoredBeforeValid: readonly (readonly [string, string])[] = [
     ...ignoredOnly,
     ['ordinary prose', 'An earlier paragraph says CONFIDENT and **Next:** informally.'],
-  ])('ignores %s before a valid top-level brief', (_name, ignored) => {
+  ];
+
+  it.each(ignoredBeforeValid)('ignores %s before a valid top-level brief', (_name, ignored) => {
     expect(evaluateDecisionBriefCompliance(`${ignored}\n\n${brief(CONFIDENT)}`).compliant).toBe(
       true,
     );
