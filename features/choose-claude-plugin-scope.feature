@@ -187,7 +187,7 @@ Feature: Choose where Safeword runs in Claude
         | different official versions |
         | one disabled installation  |
 
-  @wip @choose-claude-plugin-scope.NTB1.R2 @surface.claude-code @surface.safeword-cli
+  @choose-claude-plugin-scope.NTB1.R2 @surface.claude-code @surface.safeword-cli
   Rule: choose-claude-plugin-scope.NTB1.R2 — Legacy cleanup proceeds only from one unambiguous applicable and proven installation
 
     Scenario Outline: One proven applicable scope can authorize legacy cleanup
@@ -202,7 +202,7 @@ Feature: Choose where Safeword runs in Claude
         | project          |
         | user             |
 
-    @rejection
+    @wip @rejection
     Scenario Outline: Proof that does not establish current-project execution cannot authorize cleanup
       Given the current project has one exact applicable Safeword installation at <applicable-scope>
       And that installation has <proof-state>
@@ -217,7 +217,7 @@ Feature: Choose where Safeword runs in Claude
         | project          | no plugin execution proof          |
         | user             | stale plugin execution proof       |
 
-    @rejection
+    @wip @rejection
     Scenario: Overlapping scopes cannot authorize legacy cleanup
       Given the current project has applicable project and user installations
       And exact plugin execution proof exists

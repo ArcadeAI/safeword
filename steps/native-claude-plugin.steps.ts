@@ -826,6 +826,43 @@ function writeStatusProof(
   );
 }
 
+function writeStatusProofV2(
+  configRoot: string,
+  project: string,
+  installPath: string,
+  overrides: Record<string, unknown> = {},
+): void {
+  const identity = JSON.parse(
+    readFileSync(nodePath.join(installPath, 'identity.json'), 'utf8'),
+  ) as { hook_manifest_sha256: string };
+  const canonicalProjectRoot = realpathSync(project);
+  const projectDigest = createHash('sha256').update(canonicalProjectRoot).digest('hex');
+  const proofPath = nodePath.join(
+    configRoot,
+    'plugins/data/safeword-safeword/execution-proofs-v2',
+    `${projectDigest}.json`,
+  );
+  mkdirSync(nodePath.dirname(proofPath), { recursive: true });
+  writeFileSync(
+    proofPath,
+    `${JSON.stringify(
+      {
+        schema_version: 2,
+        project_root: canonicalProjectRoot,
+        plugin_version: EXPECTED_VERSION,
+        hook_manifest_sha256: identity.hook_manifest_sha256,
+        canonical_plugin_root: realpathSync(installPath),
+        event: 'UserPromptSubmit',
+        session_id: 'current-project-proof',
+        recorded_at: new Date(0).toISOString(),
+        ...overrides,
+      },
+      undefined,
+      2,
+    )}\n`,
+  );
+}
+
 function createStatusFixture(
   world: NativeClaudePluginWorld,
   stateDescription: string,
@@ -2347,6 +2384,28 @@ Given(
 );
 
 Given(
+  /^the current project has one exact proven Safeword installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, applicableScope: string) {
+    createExactScopedFixture(this, applicableScope as 'project' | 'user');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+    };
+    writeStatusProofV2(this.lifecycle.configRoot ?? '', this.lifecycle.project, state.installPath);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
+  'the project has wholly recognized removable legacy protection',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    writeCanonicalLegacy(this.lifecycle.project);
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+  },
+);
+
+Given(
   'the other Claude scope has independent plugin state',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
@@ -2967,6 +3026,27 @@ Then(
         'claude plugin uninstall safeword@safeword --scope project',
         'claude plugin uninstall safeword@safeword --scope user',
       ],
+    );
+  },
+);
+
+Then('only the recognized legacy protection is removed', function (this: NativeClaudePluginWorld) {
+  assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+  assert.ok(this.lifecycle);
+  assert.equal(
+    existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
+    false,
+  );
+});
+
+Then(
+  /^the (project|user) installation and unrelated state remain byte-identical$/u,
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assert.equal(
+      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      this.lifecycle.configTreeSnapshot,
     );
   },
 );
