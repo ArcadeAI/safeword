@@ -73,13 +73,17 @@ function runGit(...arguments_: string[]): string {
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   it('resolves the project-local SafeWord CLI before the package runner fallback', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-cli-'));
-    const installed = nodePath.join(root, 'node_modules', 'safeword', 'dist');
-    mkdirSync(installed, { recursive: true });
-    writeFileSync(nodePath.join(installed, 'cli.js'), '');
+    try {
+      const installed = nodePath.join(root, 'node_modules', 'safeword', 'dist');
+      mkdirSync(installed, { recursive: true });
+      writeFileSync(nodePath.join(installed, 'cli.js'), '');
 
-    expect(safewordCliCommand(root)).toEqual(['bun', nodePath.join(installed, 'cli.js')]);
-    rmSync(nodePath.join(root, 'node_modules'), { recursive: true, force: true });
-    expect(safewordCliCommand(root)).toEqual(['bunx', 'safeword']);
+      expect(safewordCliCommand(root)).toEqual(['bun', nodePath.join(installed, 'cli.js')]);
+      rmSync(nodePath.join(root, 'node_modules'), { recursive: true, force: true });
+      expect(safewordCliCommand(root)).toEqual(['bunx', 'safeword']);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('looks up the default branch in the pull request head repository', () => {
