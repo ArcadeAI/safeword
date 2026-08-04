@@ -149,6 +149,8 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route that has not answered yet, while an answer already complete when the bound fires still counts
 
+#### reliable-reviews-for-real-packets.TBU3.R6 — The public review command carries all of this end to end, and the required-review policy decides on what it reports
+
 ### reliable-reviews-for-real-packets.NTB1 — Understand why no independent check happened
 
 **Persona:** Non-Technical Builder (NTB)
@@ -184,6 +186,19 @@ promised; finishing a review that used to time out is relief, not awe.
 - An exhausted-route message names both causes — for example, "the preferred
   reviewer ran out of time" and "the fallback reviewer's answer wasn't in the
   required format" — and exposes nothing else.
+
+## Constraints carried into implementation
+
+Raised by the independent scenario review as test-design requirements rather
+than behaviours. They bind the proofs, not the spec, so they are recorded here
+and honoured in plan-implementation:
+
+- Every timing boundary (attempt budget, probe, cleanup, run bound) is proved on
+  a controlled clock, never on real elapsed wall-clock time.
+- Process-liveness assertions use stable process-group handles, not raw PIDs,
+  so PID reuse cannot make a leak look clean.
+- The size fixture asserts exact byte counts against the same serialized packet
+  the reviewer is sent, not a separately computed size.
 
 ## Open Questions
 

@@ -12,13 +12,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A packet's size is the size of what the reviewer is actually sent
+### Scenario: A packet's size is measured from the very bytes the reviewer is sent
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: The attempt budget follows packet size predictably
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A packet over the accepted maximum is refused rather than budgeted
 
 - [ ] RED
 - [ ] GREEN
@@ -322,7 +328,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A route considers at most eight candidate executables
+### Scenario: A route considers at most the first eight candidate executables
 
 - [ ] RED
 - [ ] GREEN
@@ -346,7 +352,33 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An answer landing on the run bound is still checked before it counts
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A run is stopped at the run bound when no answer has landed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: reliable-reviews-for-real-packets.TBU3.R6 — The public review command carries all of this end to end, and the required-review policy decides on what it reports
+
+### Scenario: The public review command completes through the alternate-model route
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A required review accepts an alternate-model cross-agent result
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A required review refuses an author-runtime result
 
 - [ ] RED
 - [ ] GREEN

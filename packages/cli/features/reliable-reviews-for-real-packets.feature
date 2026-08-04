@@ -13,11 +13,11 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the review returns the reviewer's verdict
 
-    Scenario: A packet's size is the size of what the reviewer is actually sent
-      Given a review packet of two files whose contents include multibyte characters
-      When the packet's size is measured
-      Then it is the byte length of the whole packet as the reviewer receives it
-      And it counts each file's path as well as its content
+    Scenario: A packet's size is measured from the very bytes the reviewer is sent
+      Given a review packet of two files whose paths and contents include multibyte characters
+      When the packet is prepared for a reviewer
+      Then the bytes measured for the budget are the same bytes sent to the reviewer
+      And their count includes the packet's own structure, not only file contents
 
     Scenario Outline: The attempt budget follows packet size predictably
       Given a review packet of <size>
@@ -33,7 +33,14 @@ Feature: Keep independent reviews reliable for real ticket packets
         | 57739 bytes                              | 233.217 seconds |
         | 79999 bytes                              | 299.997 seconds |
         | 80000 bytes                              | 300 seconds |
-        | the largest size the coordinator accepts | 300 seconds |
+        | 1 MiB, the largest packet accepted       | 300 seconds |
+
+    @rejection
+    Scenario: A packet over the accepted maximum is refused rather than budgeted
+      Given a review packet one byte over 1 MiB
+      When the independent review runs
+      Then the packet is refused
+      And no reviewer is asked to review it
 
     Scenario Outline: The attempt deadline is decided on a controlled clock
       Given a reviewer whose answer arrives <timing> its attempt budget
@@ -370,13 +377,15 @@ Feature: Keep independent reviews reliable for real ticket packets
     Scenario: Safe Word's own result reports routing in named fields
       Given the reviewer agent's alternate model completed the review
       When the review result is reported
-      Then Safe Word's own result carries exactly these routing facts:
+      Then Safe Word's own result adds exactly these routing facts:
         | fact                | value                                     |
         | assigned_reviewer   | the reviewer agent that was asked         |
         | actual_reviewer     | the agent that produced the verdict       |
         | reviewer_model      | the model Safe Word asked it to use       |
         | independence        | cross-agent                               |
-      And the reviewer's own answer is reported unchanged alongside them
+      And every routing fact the result already reported is still present
+      And the reviewer's own answer is reported unchanged in its own place
+      And nothing from the reviewer's answer can overwrite a routing fact
 
     @rejection
     Scenario: Naming the model never widens what a reviewer may answer
@@ -494,10 +503,11 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the author's own runtime is never attempted
       And the review reports that no route completed
 
-    Scenario: A route considers at most eight candidate executables
-      Given twelve installed reviewer executables for one route
+    Scenario: A route considers at most the first eight candidate executables
+      Given twelve installed reviewer executables for one route, in a fixed order
       When the independent review runs
-      Then at most eight of them are tried
+      Then only the first eight are asked what they support or asked to review
+      And the last four never run and never affect how the route is reported
 
     Scenario: Every route is tried, in order, before the run gives up
       Given a configured alternate model for the reviewer agent
@@ -540,12 +550,48 @@ Feature: Keep independent reviews reliable for real ticket packets
         | run bound |
 
     @rejection
+    Scenario: An answer landing on the run bound is still checked before it counts
+      Given an answer that does not follow the result contract and the 20-minute run bound fall on the same instant
+      When the run bound is reached
+      Then the answer is refused
+      And the review reports that no route completed
+
+    @rejection
     Scenario: A run is stopped at the run bound when no answer has landed
       Given a configured alternate model for the reviewer agent
       And the run has reached exactly 20 minutes with a route still working
       When the run bound is reached
       Then the run stops
       And the review reports that no route completed
+
+  @reliable-reviews-for-real-packets.TBU3.R6 @surface.claude-code @surface.openai-codex
+  Rule: reliable-reviews-for-real-packets.TBU3.R6 — The public review command carries all of this end to end, and the required-review policy decides on what it reports
+
+    Scenario Outline: The public review command completes through the alternate-model route
+      Given a <author>-authored change and a configured alternate model for the reviewer agent
+      And the reviewer agent's default model never answers
+      When a builder runs the public review command
+      Then the command reports a full cross-agent check by <reviewer>
+      And it names the alternate model it used
+
+      Examples:
+        | author | reviewer |
+        | Claude | Codex    |
+        | Codex  | Claude   |
+
+    Scenario: A required review accepts an alternate-model cross-agent result
+      Given a required cross-agent review policy
+      And the reviewer agent's alternate model completed the review
+      When a builder runs the public review command
+      Then the command reports the required check as satisfied
+
+    @rejection
+    Scenario: A required review refuses an author-runtime result
+      Given a required cross-agent review policy
+      And only the author's own runtime completed the review
+      When a builder runs the public review command
+      Then the command reports the required check as unsatisfied
+      And it explains why the reviewer agent could not be used
 
   @reliable-reviews-for-real-packets.NTB1.R1 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure
