@@ -65,4 +65,13 @@ describe('formatRetroNudge (BNGK9W — a statement, never an imperative)', () =>
   it('is a single line', () => {
     expect(formatRetroNudge(1, '/proj/.safeword/retro-drafts/sess-1.jsonl')).not.toContain('\n');
   });
+
+  // #1900: this line lands in the transcript retro's own extractor mines, so
+  // diagnosing the spool as a broken transport made it auto-file a bug against a
+  // working subsystem. Same contract the Stop dispatch carries.
+  it('does not diagnose the spool as a broken or unauthenticated transport', () => {
+    const line = formatRetroNudge(2, '/proj/.safeword/retro-drafts/sess-1.jsonl');
+    expect(/could not authenticate|cannot authenticate|broken transport/i.test(line)).toBe(false);
+    expect(line).toContain('not a defect');
+  });
 });

@@ -1,6 +1,7 @@
 // Retro cloud-filing nudge decision (ticket BNGK9W, issue #568).
 //
-// PATH B: in a cloud container the retro's REST transport 401s, so the sanitized
+// PATH B: in an agent session the CLI process holds no GitHub credential of its own
+// (the agent holds one via its host), so the sanitized
 // drafts stay SPOOLED (lib/retro-draft-spool.ts) and the live agent must file them
 // via its inherited GitHub MCP. The async Stop hook that spools them is backgrounded
 // and surfaces nothing (ZFGWS1), so a SEPARATE surfacing-capable boundary hook
@@ -56,12 +57,18 @@ function writeNudgeMarker(projectDirectory: string, sessionId: string, key: stri
  * The factual, single-line nudge: names how many unfiled drafts there are and
  * where they sit, and points at the filing procedure — with NO imperative marker
  * (run / file / please / you must / should) so the model treats it as context.
+ *
+ * Like the Stop dispatch, it must NOT diagnose the spool as a transport failure
+ * (#1900): retro's extractor mines the transcript this line lands in, so the old
+ * "REST transport could not authenticate" clause came back as an auto-filed bug
+ * against a subsystem working as designed.
  */
 export function formatRetroNudge(count: number, spoolPath: string): string {
   const plural = count === 1 ? '' : 's';
   return (
     `Safeword's retro spooled ${count} unfiled finding${plural} from this session at ${spoolPath}; ` +
-    `its GitHub REST transport could not authenticate them into the tracker. This boundary ` +
+    `the CLI process has no GitHub credential of its own, which is safeword's normal filing lane ` +
+    `in agent sessions, not a defect. This boundary ` +
     `observed them queued for the safeword-retro-filer subagent (or the live agent's GitHub access); ` +
     `the filing path re-reads the spool before reporting what remains. ` +
     `The filing procedure is in .safeword/guides/self-report-filing.md.`
