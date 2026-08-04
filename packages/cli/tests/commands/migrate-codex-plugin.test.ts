@@ -805,7 +805,7 @@ command = 'echo "keep this user hook"'
     expect(existsSync(nodePath.join(directory, '.codex'))).toBe(false);
     const calls = readFileSync(nodePath.join(directory, 'codex.log'), 'utf8');
     expect(calls).toContain(
-      'plugin marketplace add ArcadeAI/safeword --sparse .agents/plugins --sparse packages/cli/codex-plugin --json',
+      'plugin marketplace add ArcadeAI/safeword --ref stable --sparse .agents/plugins --sparse packages/cli/codex-plugin --json',
     );
     expect(calls).toContain('plugin add safeword@safeword --json');
     expect(calls).toContain('plugin list --json');
