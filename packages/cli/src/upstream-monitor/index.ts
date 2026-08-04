@@ -60,6 +60,15 @@ export interface MonitorDependencies {
 
 const SNAPSHOT_DIRECTORY = '.github/changelog-snapshots';
 
+/** Triage prompts for a changelog-drift source, used when one defines no checklist. */
+const CHANGELOG_RELEVANCE_CHECKLIST: readonly string[] = [
+  '- [ ] Touches hooks lifecycle?',
+  '- [ ] Touches skills/commands?',
+  '- [ ] Touches settings/config schema?',
+  '- [ ] Creates or closes a gate-bypass risk?',
+  '- [ ] Needs Breaks / Adopt / Watch triage?',
+];
+
 const MONITOR_SOURCES: readonly MonitorSource[] = [
   {
     key: 'claude-code',
@@ -226,13 +235,7 @@ export function buildIssuePayload(change: Omit<SourceChange, 'changed' | 'hash'>
       '',
       '## Relevance Checklist',
       '',
-      ...(change.source.checklist ?? [
-        '- [ ] Touches hooks lifecycle?',
-        '- [ ] Touches skills/commands?',
-        '- [ ] Touches settings/config schema?',
-        '- [ ] Creates or closes a gate-bypass risk?',
-        '- [ ] Needs Breaks / Adopt / Watch triage?',
-      ]),
+      ...(change.source.checklist ?? CHANGELOG_RELEVANCE_CHECKLIST),
       '',
       '## Diff',
       '',
