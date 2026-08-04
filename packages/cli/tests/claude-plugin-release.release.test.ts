@@ -31,4 +31,18 @@ describe('Claude plugin release contract', () => {
     expect(runbook).toContain('canonical candidate cache root');
     expect(runbook).toContain('Stable publication is blocked');
   });
+
+  it('promotes one monotonic stable channel only after stable publication', () => {
+    const workflow = readFileSync(
+      nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
+      'utf8',
+    );
+
+    expect(workflow).toContain('group: safeword-stable-release');
+    expect(workflow).toContain('needs: publish');
+    expect(workflow).toContain("if: ${{ !contains(github.ref_name, '-') }}");
+    expect(workflow).toContain('npm view "safeword@$TAG_VERSION" version');
+    expect(workflow).toContain('git push origin "$GITHUB_SHA:refs/heads/stable"');
+    expect(workflow).not.toMatch(/git push[^\n]*(?:--force|-f\b)/u);
+  });
 });
