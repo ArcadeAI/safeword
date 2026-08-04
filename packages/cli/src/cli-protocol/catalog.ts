@@ -218,6 +218,9 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('codex install', 'Install the Codex profile plugin', 'mutate', {
     networkPolicy: 'declared',
   }),
+  command('codex bootstrap', 'Keep the project Codex plugin available', 'mutate', {
+    networkPolicy: 'declared',
+  }),
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
   command('claude install', 'Install the Claude plugin for a project or user', 'mutate', {
     networkPolicy: 'declared',

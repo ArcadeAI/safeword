@@ -903,6 +903,17 @@ function runCodexInstall(
   };
 }
 
+async function codexBootstrapHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { bootstrapCodexPlugin } = await import('../commands/codex-bootstrap.js');
+  let rawInput = '';
+  try {
+    rawInput = readFileSync(0, 'utf8');
+  } catch {
+    // A missing hook payload is reported as unverified, never as a blocker.
+  }
+  return bootstrapCodexPlugin(invocation.cwd, rawInput, { offline: invocation.offline });
+}
+
 function codexFailureCode(
   error: unknown,
   message: string,
@@ -1342,6 +1353,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'tracker connect': invocation => trackerHandler('tracker connect', invocation),
   'codex migrate': invocation => codexMutationHandler('codex migrate', invocation),
   'codex install': invocation => codexMutationHandler('codex install', invocation),
+  'codex bootstrap': codexBootstrapHandler,
   'codex status': codexStatusHandler,
   'claude install': claudeInstallHandler,
   'claude status': claudeStatusHandler,
