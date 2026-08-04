@@ -201,8 +201,8 @@ safeword review-pr --repository owner/repo --pull 123
 
 **When to use:** Almost never by hand — the installed `.github/workflows/pr-review.yml`
 invokes it, taking the repository and pull number from the workflow context.
-Reach for it directly only to debug why a review did or didn't fire; it prints
-the trigger decision and which source answered "what is required here".
+Reach for it directly only to debug why a review did or didn't fire; it reports
+the command outcome, including why no review was posted.
 
 Exits 0 whether or not it reviews. Declining to review — not enabled, still a
 draft, CI not green, nothing material since the last pass — is a normal outcome

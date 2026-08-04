@@ -165,7 +165,6 @@ jobs:
       actions: read # REQUIRED to download an artifact from the stage-1 run
       pull-requests: write # post inline comments (see the three-layer note above)
       checks: write # write the non-required `safeword/pr-review` receipt
-      id-token: write # exchange for a short-lived vendor token (WIF/OIDC)
 
     steps:
       - name: Check out the base repository
@@ -181,8 +180,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # SHA-pinned like the artifact actions, and for a stronger reason: this is
-      # third-party code executing in the job that holds pull-requests: write,
-      # checks: write and id-token: write.
+      # third-party code executing in the job that holds pull-requests: write
+      # and checks: write.
       - name: Set up Bun
         uses: oven-sh/setup-bun@735837bfcbde5b8c9d1a80d02bcf4f9a2ffb1660 # v2.2.0
 
@@ -193,5 +192,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SAFEWORD_PR_NUMBER="$(cat .safeword-pr-review/pull-number)" \
-            bunx --bun safeword@0.68.0 review-pr
+          SAFEWORD_PR_NUMBER="${{ github.event.workflow_run.pull_requests[0].number }}" \
+            bunx --bun safeword@0.72.0 review-pr

@@ -213,11 +213,19 @@ Two behaviours that surprise people:
 
 ### Current status
 
-The runner is complete through trigger gating, verdict recording, and posting,
-but **the headless vendor invocation is not wired yet**. Enabling it today
-produces a green job that logs `no vendor configured` and posts nothing. It is
-safe to turn on early to watch the trigger behave; it will not review until that
-slice lands.
+The runner is complete through trigger gating, a headless-vendor adapter,
+verdict recording, and posting, but the product is **not ready to enable in a
+customer repository**:
+
+- the reviewed PR prompt is not distributed yet; without it the job skips and
+  posts nothing;
+- the ephemeral GitHub runner does not yet bootstrap or authenticate the
+  configured `codex` or `claude` executable; and
+- the latest retrospective falsification did not establish that the candidate
+  reviewer outperforms the basic reviewer.
+
+Keep `prReview.enabled` false until those gates are closed. Default-off remains
+the safe upgrade behavior.
 
 ## Customizing Without Losing Upgrades
 

@@ -80,7 +80,7 @@ describe('the shipped workflow keeps its fork-safety shape (36EEMY, SM1.R3)', ()
     const review = jobBlock('review');
     expect(review).toContain('pull-requests: write'); // inline comments
     expect(review).toContain('checks: write'); // the receipt
-    expect(review).toContain('id-token: write'); // WIF, so no standing secret
+    expect(review).not.toContain('id-token: write'); // no token exchange is implemented yet
   });
 
   it('defaults the whole workflow to no permissions', () => {
@@ -92,8 +92,8 @@ describe('the shipped workflow keeps its fork-safety shape (36EEMY, SM1.R3)', ()
   it('SHA-pins every action that is not first-party GitHub', () => {
     // This workflow ships into other people's repositories, so a movable tag on
     // third-party code is a supply-chain foothold — and setup-bun is the sharpest
-    // case, because it executes in the job holding pull-requests, checks and
-    // id-token write. Asserts the CLASS (a 40-char SHA) rather than specific
+    // case, because it executes in the job holding pull-requests and checks
+    // write. Asserts the CLASS (a 40-char SHA) rather than specific
     // SHAs, so routine bumps do not churn the test while a regression to a
     // floating tag still fails.
     for (const action of [
@@ -131,7 +131,7 @@ describe('the shipped workflow keeps its fork-safety shape (36EEMY, SM1.R3)', ()
 
   it('pins the CLI to THIS release, like the Codex hook manifest', async () => {
     // `bunx safeword` unpinned resolves to whatever is latest AT RUN TIME, in a
-    // job holding pull-requests/checks/id-token write, in every customer repo.
+    // job holding pull-requests/checks write, in every customer repo.
     // An npm compromise would become a fleet-wide write primitive. Pinned in the
     // template because FileDefinition has no content-transform hook, so this
     // test is what keeps the pin from going stale across a version bump.
@@ -190,6 +190,12 @@ describe('the bundle handoff can actually carry files (36EEMY)', () => {
     // download-artifact takes the Actions API path whenever github-token is set,
     // even same-repo. Without this the download 403s.
     expect(jobBlock('review')).toContain('actions: read');
+  });
+
+  it('binds the privileged review to GitHub metadata, not the untrusted artifact', () => {
+    const review = jobBlock('review');
+    expect(review).toContain('github.event.workflow_run.pull_requests[0].number');
+    expect(review).not.toContain('cat .safeword-pr-review/pull-number');
   });
 
   it('does not re-trigger itself on its own completion', () => {

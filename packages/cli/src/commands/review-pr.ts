@@ -23,7 +23,7 @@ import { buildReviewInput, createVendorReview, type VendorRunner } from '../pr-r
 import { createReviewPoster } from '../pr-review/poster.js';
 import { resolveReviewPrompt } from '../pr-review/prompt.js';
 import { runPrReview } from '../pr-review/run.js';
-import { createVendorRunner } from '../pr-review/spawn.js';
+import { createVendorRunner, type RawSpawn } from '../pr-review/spawn.js';
 import { computeCiState, resolveRequiredChecks } from '../pr-review/trigger.js';
 import { selectReviewVendor } from '../pr-review/vendor.js';
 import type { Review } from '../pr-review/verdict.js';
@@ -42,6 +42,8 @@ export interface ReviewPrOptions {
   promptPath?: string;
   /** The headless vendor. Absent means no review can run — a skip, not a fault. */
   vendorRunner?: VendorRunner;
+  /** Raw child-process seam for an end-to-end test of the production adapter. */
+  spawn?: RawSpawn;
 }
 
 /** Where the shipped workflow downloads the stage-1 artifact. */
@@ -58,6 +60,21 @@ interface Invocation {
   repo: string;
   pull: number;
   credential: string;
+}
+
+/** Credentials used by the parent GitHub transport must never reach the model child. */
+function vendorEnvironment(
+  environment: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const blocked = new Set([
+    'GITHUB_TOKEN',
+    'GH_TOKEN',
+    'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
+    'ACTIONS_RUNTIME_TOKEN',
+  ]);
+  return Object.fromEntries(
+    Object.entries(environment).filter(([name]) => !blocked.has(name.toUpperCase())),
+  );
 }
 
 /**
@@ -122,12 +139,15 @@ function assembleVendorReview(
     createVendorRunner({
       vendor: config.vendor ?? selectReviewVendor(undefined),
       cwd: projectDirectory,
-      // Credentials live in the environment, never in argv.
-      env: process.env,
+      // Vendor credentials live in the environment, never in argv. GitHub's
+      // write credential stays in this parent process and is withheld from the
+      // model child, whose input includes attacker-controlled pull-request text.
+      env: vendorEnvironment(process.env),
       // A fork is read-only. This is the one place the tier is decided.
       executionTier: resolveExecutionTier({ isFork: facts.isFork }),
       mcpServers: config.arcadeMcpServers,
       model: config.model,
+      spawn: options.spawn,
     });
 
   return createVendorReview({
