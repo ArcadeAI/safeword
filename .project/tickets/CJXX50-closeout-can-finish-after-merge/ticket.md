@@ -2,10 +2,10 @@
 id: CJXX50
 slug: closeout-can-finish-after-merge
 type: patch
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-08-04T00:12:56.287Z
-last_modified: 2026-08-04T01:15:46.000Z
+last_modified: 2026-08-04T01:28:00.000Z
 ---
 
 # Let authenticated closeout finish after merge
@@ -42,3 +42,4 @@ last_modified: 2026-08-04T01:15:46.000Z
 - 2026-08-04T00:18:00.000Z Revalidated: #1856 still fails on current main; PR #1833 remains stranded by a newly failing dependency audit on its immutable merged head. Filed #1857 for the policy deadlock.
 - 2026-08-04T00:19:00.000Z Decided: Reuse SafeWord's existing Codex Desktop `CODEX_THREAD_ID` identity fallback with hook precedence. Preserve dependency audit as a pre-merge `/verify` gate and rerun only deterministic code-state lanes after merge.
 - 2026-08-04T01:15:46.000Z Verified: Full unit, Gherkin, build, typecheck, lint, dependency, parity, and architecture lanes pass. A real PR #1855 closeout preview authenticated through Codex Desktop and produced a safe exact-OID cleanup plan without rerunning dependency audit.
+- 2026-08-04T01:28:00.000Z Done: The implementation, regression coverage, generated parity, documentation, audit, and verification evidence are complete. Independent quality-review routes exhausted without a verdict; `audit.md` records that evidence limitation without inferring approval.
