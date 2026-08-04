@@ -42,6 +42,33 @@ describe('upstream monitor source adapters', () => {
     );
   });
 
+  it('reads Atom titles wrapped in CDATA without leaking the markers', () => {
+    const normalized = normalizeReleaseAtom(`
+      <feed>
+        <entry>
+          <title type="html"><![CDATA[v0.150.0]]></title>
+          <updated>2026-08-01T00:00:00Z</updated>
+          <link href="https://example.test/v0.150.0" />
+        </entry>
+      </feed>
+    `);
+
+    // A leaked "<![CDATA[" would sit in the snapshot forever and diff against
+    // every non-CDATA release, firing the monitor on markup, not on news.
+    expect(normalized).toContain('v0.150.0');
+    expect(normalized).not.toContain('CDATA');
+  });
+
+  it('does not spill attribute text into content when an attribute value contains ">"', () => {
+    // Third-party markup this repo does not control. A naive tag scanner exits
+    // tag mode at the ">" inside the quoted href and emits the rest as prose.
+    const normalized = normalizeCursorHtml(
+      '<main><p><a href="/c?a=1>2">Shipped hooks</a></p></main>',
+    );
+
+    expect(normalized).toBe('Shipped hooks');
+  });
+
   it('normalizes Cursor HTML without reacting to cosmetic markup differences', () => {
     const first = normalizeCursorHtml(`
       <main>

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import nodePath from 'node:path';
 
@@ -27,7 +26,6 @@ export interface SourceChangeInput {
 export interface SourceChange {
   changed: boolean;
   current: string;
-  hash: string;
   previous: string;
   source: MonitorSource;
 }
@@ -59,6 +57,14 @@ export interface MonitorDependencies {
 }
 
 const SNAPSHOT_DIRECTORY = '.github/changelog-snapshots';
+
+/** Per-request ceiling, so one stalled connection cannot consume the whole run. */
+const REQUEST_TIMEOUT_MS = 30_000;
+
+const ISSUE_LOOKUP_PAGE_SIZE = 100;
+
+/** Bounds the open-issue scan. Exceeding it is reported, never assumed empty. */
+const ISSUE_LOOKUP_MAX_PAGES = 10;
 
 /** Triage prompts for a changelog-drift source, used when one defines no checklist. */
 const CHANGELOG_RELEVANCE_CHECKLIST: readonly string[] = [
@@ -216,13 +222,12 @@ export function detectSourceChange(input: SourceChangeInput): SourceChange {
   return {
     changed: current !== previous,
     current,
-    hash: hashText(current),
     previous,
     source: input.source,
   };
 }
 
-export function buildIssuePayload(change: Omit<SourceChange, 'changed' | 'hash'>): IssuePayload {
+export function buildIssuePayload(change: Omit<SourceChange, 'changed'>): IssuePayload {
   const diff = createBoundedDiff(change.previous, change.current);
   return {
     title: `[upstream-changelog] ${change.source.label} changed`,
@@ -336,6 +341,7 @@ export function createGitHubIssueClient(options: {
   owner: string;
   repo: string;
   token: string;
+  log?(message: string): void;
 }): GitHubIssueClient {
   const baseUrl = 'https://api.github.com';
   const headers = {
@@ -353,6 +359,9 @@ export function createGitHubIssueClient(options: {
     const response = await options.fetch(`${baseUrl}${path}`, {
       ...init,
       headers,
+      // Without this a hung connection blocks until the workflow's own
+      // timeout, turning one stalled request into a whole missed run.
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) {
       throw new Error(`GitHub API ${init.method ?? 'GET'} ${path} failed: ${response.status}`);
@@ -362,13 +371,37 @@ export function createGitHubIssueClient(options: {
 
   return {
     async findOpenIssueByTitle(title) {
-      const query = new URLSearchParams({
-        q: `repo:${options.owner}/${options.repo} is:issue is:open in:title ${JSON.stringify(title)}`,
-      });
-      const result = await request<{ items: { number: number; title: string }[] }>(
-        `/search/issues?${query}`,
-      );
-      return result.items.find(issue => issue.title === title)?.number;
+      // Lists open issues rather than using the search API. Search is
+      // eventually consistent: a manual re-run shortly after a scheduled one
+      // would not see the just-created issue and would file a duplicate. The
+      // list endpoint is read-after-write consistent.
+      let found: number | undefined;
+      let lastPageReached = false;
+
+      for (let page = 1; page <= ISSUE_LOOKUP_MAX_PAGES && !found && !lastPageReached; page += 1) {
+        const query = new URLSearchParams({
+          state: 'open',
+          per_page: String(ISSUE_LOOKUP_PAGE_SIZE),
+          page: String(page),
+        });
+        const issues = await request<{ number: number; title: string; pull_request?: unknown }[]>(
+          `/repos/${options.owner}/${options.repo}/issues?${query}`,
+        );
+
+        // This endpoint returns pull requests alongside issues.
+        found = issues.find(issue => !issue.pull_request && issue.title === title)?.number;
+        lastPageReached = issues.length < ISSUE_LOOKUP_PAGE_SIZE;
+      }
+
+      // Hitting the cap is not the same as "no such issue" — treating it that
+      // way files a fresh duplicate every run. Say so rather than guess.
+      if (!found && !lastPageReached) {
+        options.log?.(
+          `issue lookup hit the ${ISSUE_LOOKUP_MAX_PAGES}-page cap without finding "${title}"; a duplicate may be filed`,
+        );
+      }
+
+      return found;
     },
     async createIssue(payload) {
       const issue = await request<{ number: number }>(
@@ -396,6 +429,7 @@ export async function fetchText(url: string, token?: string): Promise<string> {
   // Authorization header; sending the workflow token off-origin would leak it.
   const isGitHubApi = new URL(url).hostname === 'api.github.com';
   const response = await fetch(url, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     headers: {
       'User-Agent': 'safeword-upstream-changelog-monitor',
       ...(isGitHubApi && {
@@ -472,29 +506,53 @@ function linkHref(raw: string): string {
   return /<link\b[^>]*\shref=["']([^"']+)["'][^>]*>/i.exec(raw)?.[1] ?? '';
 }
 
+/**
+ * Index just past the ">" closing the tag that opens at `start`.
+ *
+ * A ">" inside a quoted attribute value does not close the tag. Third-party
+ * markup routinely carries one in a URL or inline style, and mistaking it for
+ * the tag's end spills the rest of the attribute into the page text —
+ * corrupting the snapshot so the monitor diffs on markup rather than content.
+ */
+function tagEndIndex(raw: string, start: number): number {
+  let quote: string | undefined;
+  for (let index = start + 1; index < raw.length; index += 1) {
+    const character = raw[index];
+    if (quote) {
+      if (character === quote) quote = undefined;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === '>') return index + 1;
+  }
+  return raw.length;
+}
+
 function stripTags(raw: string): string {
   let output = '';
-  let insideTag = false;
-  for (const character of raw) {
-    if (character === '<') {
-      insideTag = true;
-      output += ' ';
-      continue;
-    }
-    if (character === '>') {
-      insideTag = false;
-      output += ' ';
-      continue;
-    }
-    if (!insideTag) {
-      output += character;
-    }
+  let cursor = 0;
+  for (;;) {
+    const open = raw.indexOf('<', cursor);
+    if (open === -1) return output + raw.slice(cursor);
+    // Two spaces stand in for the removed "<" and ">"; normalizeWhitespace
+    // collapses them, and they keep adjacent words from fusing.
+    output += `${raw.slice(cursor, open)}  `;
+    cursor = tagEndIndex(raw, open);
   }
-  return output;
+}
+
+function unwrapCdata(text: string): string {
+  return text.replaceAll(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
 }
 
 function decodeXml(text: string): string {
-  return text
+  // Atom feeds may wrap a title or link in CDATA. Leaving the markers in place
+  // would bake them into the snapshot, so every later non-CDATA release diffs
+  // against them and the monitor reports markup as news.
+  return unwrapCdata(text)
     .replaceAll('&amp;', '&')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
@@ -511,10 +569,6 @@ function decodeHtml(text: string): string {
     .replaceAll(/&#(\d+);/g, (_match, codePoint: string) =>
       String.fromCodePoint(Number(codePoint)),
     );
-}
-
-function hashText(text: string): string {
-  return createHash('sha256').update(text).digest('hex');
 }
 
 function createBoundedDiff(previous: string, current: string): string {
