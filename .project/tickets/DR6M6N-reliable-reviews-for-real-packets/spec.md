@@ -71,10 +71,13 @@ Unaffected:
 - **Cleanup budget** — the time allowed to stop a reviewer and its descendants
   after an attempt ends: **5 seconds**, after which the run continues regardless.
   Reviewers are launched in their own process group so descendants are included.
-- **Run bound** — the total wall-clock time a whole review run may take across
-  every route it tries: **20 minutes**. That is three 5-minute attempts plus 5
-  minutes reserved for launching, stopping, and checking reviewers, so an
-  exhausted run cannot overrun the bound just by doing its own bookkeeping.
+- **Run bound** — **20 minutes**: the point after which no reviewer work is
+  started or allowed to continue. That is three 5-minute attempts plus 5 minutes
+  reserved for launching, probing and stopping reviewers, so an exhausted run
+  cannot reach the bound through its own bookkeeping alone. An answer already
+  complete at the bound is still checked, and the command then finishes within
+  the cleanup budget — so the command itself returns within 20 minutes and 5
+  seconds, even when a reviewer refuses to die.
 - **Route** — one independent way of getting a review: the reviewer agent on its
   default model, the reviewer agent on its configured alternate model, and last
   the author's own runtime. Each route gets its own attempt budget.

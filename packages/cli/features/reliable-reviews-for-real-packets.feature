@@ -37,10 +37,11 @@ Feature: Keep independent reviews reliable for real ticket packets
 
     @rejection
     Scenario: A packet over the accepted maximum is refused rather than budgeted
-      Given a review packet one byte over 1 MiB
+      Given a packet whose serialized bytes total one byte over 1 MiB
       When the independent review runs
       Then the packet is refused
-      And no reviewer is asked to review it
+      And no candidate is asked what it supports
+      And no reviewer process is started at all
 
     Scenario Outline: The attempt deadline is decided on a controlled clock
       Given a reviewer whose answer arrives <timing> its attempt budget
@@ -73,11 +74,13 @@ Feature: Keep independent reviews reliable for real ticket packets
   Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside the attempt maximum and reported as a timeout
 
     @rejection
-    Scenario: A reviewer that never answers is stopped and reported as a timeout
+    Scenario: A reviewer that never answers is stopped when its budget expires
       Given an assigned reviewer that never produces an answer
       And no later route can complete either
       When the independent review runs
-      Then the assigned reviewer route is reported as timed out
+      Then that reviewer is asked to stop the moment its attempt budget expires
+      And it is no longer running once the cleanup budget has passed
+      And the assigned reviewer route is reported as timed out
 
     Scenario: An explicitly configured budget replaces the size-derived one
       Given an explicitly configured attempt budget of 2 minutes
@@ -139,11 +142,12 @@ Feature: Keep independent reviews reliable for real ticket packets
     Scenario: Each candidate's share is recalculated from what is left
       Given a route with a 300-second attempt budget
       And three installed reviewer executables that all accept the review contract
+      And every capability question is answered instantly
       And the first executable never answers
-      And the second executable fails immediately
+      And the second executable fails the instant it is asked to review
       When the independent review runs
-      Then each candidate is given this much time:
-        | candidate | share       |
+      Then each candidate is given this deadline for its own review attempt:
+        | candidate | deadline after its own start |
         | first     | 100 seconds |
         | second    | 100 seconds |
         | third     | 200 seconds |
@@ -174,7 +178,7 @@ Feature: Keep independent reviews reliable for real ticket packets
   Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and its own process group, never waits on what the system will not kill, never claims to have stopped what escaped its reach, and never uses a late answer
 
     Scenario Outline: A reviewer stopped for any reason leaves nothing running
-      Given a reviewer that starts a child process of its own
+      Given a reviewer that starts a child process inside its own process group
       And that reviewer <ending>
       When the independent review runs
       Then neither the reviewer nor its child process is still running afterwards
@@ -555,6 +559,12 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the run bound is reached
       Then the answer is refused
       And the review reports that no route completed
+
+    Scenario: The command still returns promptly when a reviewer refuses to die
+      Given a configured alternate model for the reviewer agent
+      And the run has reached the 20-minute bound with a reviewer that cannot be stopped
+      When the run bound is reached
+      Then the command returns within a further 5 seconds
 
     @rejection
     Scenario: A run is stopped at the run bound when no answer has landed

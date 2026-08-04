@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside the attempt maximum and reported as a timeout
 
-### Scenario: A reviewer that never answers is stopped and reported as a timeout
+### Scenario: A reviewer that never answers is stopped when its budget expires
 
 - [ ] RED
 - [ ] GREEN
@@ -353,6 +353,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: An answer landing on the run bound is still checked before it counts
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The command still returns promptly when a reviewer refuses to die
 
 - [ ] RED
 - [ ] GREEN
