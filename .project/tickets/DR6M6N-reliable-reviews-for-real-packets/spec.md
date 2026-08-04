@@ -110,7 +110,7 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU1.R3 — A route's budget is split across its untried candidates, so one slow or stale executable cannot consume every other candidate's opportunity
 
-#### reliable-reviews-for-real-packets.TBU1.R4 — Safe Word stops a finished reviewer and its descendants, never waits on one the system will not kill, and never uses anything it says afterwards
+#### reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and its own process group, never waits on what the system will not kill, never claims to have stopped what escaped its reach, and never uses a late answer
 
 ### reliable-reviews-for-real-packets.TBU2 — Trust the fallback reviewer to return a usable result
 
@@ -143,7 +143,7 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
 
-#### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order and the whole run still finishes inside the run bound
+#### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order unless the run bound is reached first, which always wins
 
 ### reliable-reviews-for-real-packets.NTB1 — Understand why no independent check happened
 

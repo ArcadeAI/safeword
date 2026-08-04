@@ -120,6 +120,18 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the review returns the last executable's verdict
 
+    Scenario: Each candidate's share is recalculated from what is left
+      Given a route with a 300-second attempt budget
+      And three installed reviewer executables that all accept the review contract
+      And the first executable never answers
+      And the second executable fails immediately
+      When the independent review runs
+      Then each candidate is given this much time:
+        | candidate | share       |
+        | first     | 100 seconds |
+        | second    | 100 seconds |
+        | third     | 200 seconds |
+
     Scenario Outline: A first reviewer executable failing any way still leaves the next one a chance
       Given two installed reviewer executables that both accept the review contract
       And the first executable <failure>
@@ -142,7 +154,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review is reported as timed out
 
   @reliable-reviews-for-real-packets.TBU1.R4 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R4 — Safe Word stops a finished reviewer and its descendants, never waits on one the system will not kill, and never uses anything it says afterwards
+  Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and its own process group, never waits on what the system will not kill, never claims to have stopped what escaped its reach, and never uses a late answer
 
     Scenario Outline: A reviewer stopped for any reason leaves nothing running
       Given a reviewer that starts a child process of its own
@@ -152,15 +164,24 @@ Feature: Keep independent reviews reliable for real ticket packets
       And nothing is left running when the next candidate starts
 
       Examples:
-        | ending                          |
-        | never answers                   |
-        | crashes before answering        |
-        | answers outside the contract    |
+        | ending                                     |
+        | answers well within its budget             |
+        | answers while a child holds its output open|
+        | never answers                              |
+        | crashes before answering                   |
+        | answers outside the contract               |
 
-    Scenario: Cleanup covers descendants the reviewer detached
-      Given a reviewer that never answers and leaves a detached grandchild process
+    Scenario: Cleanup reaches every descendant in the reviewer's own process group
+      Given a reviewer that never answers and leaves a grandchild in its process group
       When the independent review runs
       Then no process from that reviewer's group is still running afterwards
+
+    @rejection
+    Scenario: A descendant that escapes into its own session is not claimed to be stopped
+      Given a reviewer that never answers and leaves a descendant in a new session
+      When the independent review runs
+      Then the reviewer's own process group is stopped
+      And the review does not claim that descendant was stopped
 
     @rejection
     Scenario: A reviewer the system will not kill is abandoned, not waited on
@@ -415,6 +436,13 @@ Feature: Keep independent reviews reliable for real ticket packets
         | "o3_mini.v2"                 |
         | a 200-character value        |
 
+    Scenario: The accepted model grammar is exactly the stated one
+      Given a configured alternate model for the reviewer agent
+      When the value is judged against the grammar
+      Then it is accepted only if it is 1 to 200 characters long
+      And every character is an ASCII letter, digit, dot, underscore, colon, slash or hyphen
+      And it does not begin with a hyphen
+
     Scenario: A configured model reaches the reviewer as one literal value
       Given a configured alternate model for the reviewer agent
       And the reviewer agent's default model never answers
@@ -446,7 +474,20 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the alternate model still receives a full attempt budget
 
   @reliable-reviews-for-real-packets.TBU3.R5 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order and the whole run still finishes inside the run bound
+  Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order unless the run bound is reached first, which always wins
+
+    @rejection
+    Scenario: The run bound wins over trying the remaining routes
+      Given a configured alternate model for the reviewer agent
+      And the run bound is reached while the second route is still working
+      When the independent review runs
+      Then the author's own runtime is never attempted
+      And the review reports that no route completed
+
+    Scenario: A route considers at most eight candidate executables
+      Given twelve installed reviewer executables for one route
+      When the independent review runs
+      Then at most eight of them are tried
 
     Scenario: Every route is tried, in order, before the run gives up
       Given a configured alternate model for the reviewer agent

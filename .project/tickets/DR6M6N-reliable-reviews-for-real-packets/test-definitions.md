@@ -82,6 +82,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Each candidate's share is recalculated from what is left
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A first reviewer executable failing any way still leaves the next one a chance
 
 - [ ] RED
@@ -94,7 +100,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU1.R4 — Safe Word stops a finished reviewer and its descendants, never waits on one the system will not kill, and never uses anything it says afterwards
+## Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and its own process group, never waits on what the system will not kill, never claims to have stopped what escaped its reach, and never uses a late answer
 
 ### Scenario: A reviewer stopped for any reason leaves nothing running
 
@@ -102,7 +108,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Cleanup covers descendants the reviewer detached
+### Scenario: Cleanup reaches every descendant in the reviewer's own process group
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A descendant that escapes into its own session is not claimed to be stopped
 
 - [ ] RED
 - [ ] GREEN
@@ -270,6 +282,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The accepted model grammar is exactly the stated one
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A configured model reaches the reviewer as one literal value
 
 - [ ] RED
@@ -290,7 +308,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order and the whole run still finishes inside the run bound
+## Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order unless the run bound is reached first, which always wins
+
+### Scenario: The run bound wins over trying the remaining routes
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A route considers at most eight candidate executables
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Every route is tried, in order, before the run gives up
 
