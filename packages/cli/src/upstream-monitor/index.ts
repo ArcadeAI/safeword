@@ -262,6 +262,33 @@ export async function reportSourceChange(
   return { action: 'created', issueNumber };
 }
 
+/**
+ * Check one source. Returns the filed/updated issue, or undefined when the
+ * source has not changed. Throws on fetch, read, or parse failure — the caller
+ * owns isolation so one source cannot cancel the rest.
+ */
+async function checkSource(
+  source: MonitorSource,
+  dependencies: MonitorDependencies,
+): Promise<ReportResult | undefined> {
+  const raw = await dependencies.fetchText(source.url);
+  const liveContent = source.normalize(raw);
+  const snapshotPath = nodePath.join(dependencies.rootDirectory, source.snapshotPath);
+  const snapshotContent = await dependencies.readText(snapshotPath);
+  const change = detectSourceChange({ liveContent, snapshotContent, source });
+
+  if (!change.changed) return undefined;
+
+  return await reportSourceChange(
+    dependencies.issueClient,
+    buildIssuePayload({
+      current: change.current,
+      previous: change.previous,
+      source,
+    }),
+  );
+}
+
 export interface MonitorRunResult {
   reported: number;
   failed: number;
@@ -281,25 +308,13 @@ export async function runUpstreamMonitor(
     // — including the workaround tripwires, whose whole value is firing on the
     // week upstream moves — would go silently unchecked.
     try {
-      const raw = await dependencies.fetchText(source.url);
-      const liveContent = source.normalize(raw);
-      const snapshotPath = nodePath.join(dependencies.rootDirectory, source.snapshotPath);
-      const snapshotContent = await dependencies.readText(snapshotPath);
-      const change = detectSourceChange({ liveContent, snapshotContent, source });
+      const result = await checkSource(source, dependencies);
 
-      if (!change.changed) {
+      if (!result) {
         dependencies.log?.(`${source.key}: no change`);
         continue;
       }
 
-      const result = await reportSourceChange(
-        dependencies.issueClient,
-        buildIssuePayload({
-          current: change.current,
-          previous: change.previous,
-          source,
-        }),
-      );
       reported += 1;
       dependencies.log?.(`${source.key}: ${result.action} issue #${result.issueNumber}`);
     } catch (error) {
