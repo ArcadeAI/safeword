@@ -35,6 +35,8 @@ const PROMPT_TURN = 'prompt hook, fires on user turn — not assertable in a too
 const EXEMPT_HOOKS: Record<string, string> = {
   // Session/startup hooks fire at session start, not on tool calls.
   'session-safeword-context.ts': SESSION_STARTUP,
+  'session-reply-format.ts':
+    'session hook, fires at startup — covered deterministically by tests/hooks/reply-format-contract.test.ts and its configured-group acceptance',
   'session-codex-start.ts': SESSION_STARTUP,
   'session-cursor-auto-upgrade.ts': SESSION_STARTUP,
   'session-version.ts': SESSION_STARTUP,
@@ -63,6 +65,10 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'fires on PostToolUse Write of skill-invocations.log specifically; covered by tests/integration/review-stamp.test.ts',
   'resolve-namespace-root.ts':
     'manual helper for skill/command snippets; covered by tests/hooks/record-skill-invocation.test.ts',
+  'resolve-project-knowledge.ts':
+    'manual review helper; covered through its real Bun entry point by tests/hooks/project-knowledge.test.ts',
+  'audit-principle-trace.ts':
+    'manual audit helper; covered through its real Bun entry point by tests/hooks/principle-trace.test.ts',
   'record-skill-invocation.ts':
     'manual helper for skill/command invocation proof; covered by tests/hooks/record-skill-invocation.test.ts',
   'stop-reentry.ts': 'stop hook, fires at session end — not assertable in a tool-based live run',

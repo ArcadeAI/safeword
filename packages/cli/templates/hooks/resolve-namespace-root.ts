@@ -2,8 +2,14 @@
 
 import process from 'node:process';
 
-import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { resolveConfiguredPath, resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 const projectDirectory = process.argv[2] ?? process.cwd();
+const configuredKey = process.argv[3];
+const defaultBasename = process.argv[4];
 
-process.stdout.write(resolveNamespaceRoot(projectDirectory));
+if (configuredKey === undefined) {
+  process.stdout.write(resolveNamespaceRoot(projectDirectory));
+} else {
+  process.stdout.write(resolveConfiguredPath(projectDirectory, configuredKey, defaultBasename));
+}

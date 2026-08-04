@@ -194,4 +194,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SAFEWORD_PR_NUMBER="$(cat .safeword-pr-review/pull-number)" \
-            bunx --bun safeword@0.68.0 review-pr
+            bunx --bun safeword@0.72.0 review-pr

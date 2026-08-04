@@ -12,7 +12,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { TicketBridgeConfig } from '../tracker-sync/index.js';
-import { loadTrackerMap, TrackerMap, trackerMapPath } from '../tracker-sync/tracker-map.js';
+import { loadTrackerMapOrEmpty, trackerMapPath } from '../tracker-sync/tracker-map.js';
 import type { IssuePayload, Provider, TrackerReference } from '../tracker-sync/types.js';
 import type { TrackerWriter } from '../tracker-sync/writers.js';
 import type { IdMinter } from '../utils/id-minter.js';
@@ -46,11 +46,33 @@ export interface TicketCreationDependencies {
   minter: IdMinter;
 }
 
+export interface TicketCreationMutation {
+  surface: 'file' | 'network';
+  kind: string;
+  target: string;
+  operation: string;
+}
+
+export type RoutedTicketResult = NewTicketResult & {
+  ref?: TrackerReference;
+  mutations: readonly TicketCreationMutation[];
+};
+
+export class RoutedTicketCreationError extends Error {
+  readonly mutations: readonly TicketCreationMutation[];
+
+  constructor(cause: unknown, mutations: readonly TicketCreationMutation[]) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = 'RoutedTicketCreationError';
+    this.mutations = mutations;
+  }
+}
+
 export async function createTicketRouted(
   cwd: string,
   options: RoutedTicketOptions,
   dependencies: TicketCreationDependencies,
-): Promise<NewTicketResult> {
+): Promise<RoutedTicketResult> {
   const mode = resolveCreationMode(dependencies.config, {
     issue: options.issue,
     type: options.type,
@@ -65,7 +87,7 @@ export async function createTicketRouted(
   };
 
   if (mode.mode === 'local') {
-    return createTicket(cwd, dependencies.minter, ticketOptions);
+    return { ...createTicket(cwd, dependencies.minter, ticketOptions), mutations: [] };
   }
 
   // Refuse to proceed against a corrupt sidecar BEFORE minting an issue — silently
@@ -75,26 +97,72 @@ export async function createTicketRouted(
 
   const provider = dependencies.config.provider as Provider;
   const writer = dependencies.buildWriter(provider, dependencies.config.target);
-  const identity = buildIdentitySource(mode, writer, buildMinimalPayload(options));
+  const mutations: TicketCreationMutation[] = [];
+  const identitySource = buildIdentitySource(mode, writer, buildMinimalPayload(options));
+  const identity = async () => {
+    const minted = await identitySource();
+    if (mode.mode === 'create') {
+      mutations.push({
+        surface: 'network',
+        kind: 'issue-create',
+        target: provider,
+        operation: 'write',
+      });
+    }
+    return minted;
+  };
   // For `create`, persist a `pending` ref before the folder is written, then promote
   // to `recorded` after — a folder on disk always has a map entry, so a later sync
   // reconciles instead of double-creating. `adopt` writes nothing before the folder:
   // the issue pre-exists (no create to be crash-unsafe about), and an early pending
   // write would downgrade an existing `recorded` entry on an adopt-collision.
-  const result = await createIssueFirstTicket(cwd, ticketOptions, identity, minted => {
-    if (mode.mode === 'create' && minted.ref !== undefined) {
+  try {
+    const result = await createIssueFirstTicket(cwd, ticketOptions, identity, minted => {
+      if (mode.mode !== 'create' || minted.ref === undefined) return;
+      const sidecarExisted = existsSync(trackerMapPath(cwd));
       writeReference(cwd, minted.id, minted.ref, 'pending');
+      mutations.push({
+        surface: 'file',
+        kind: sidecarExisted ? 'update' : 'create',
+        target: '.safeword/tracker-map.json',
+        operation: 'write',
+      });
+    });
+    mutations.push(
+      {
+        surface: 'file',
+        kind: 'create',
+        target: nodePath.relative(cwd, result.folderPath),
+        operation: 'mkdir',
+      },
+      {
+        surface: 'file',
+        kind: 'create',
+        target: nodePath.relative(cwd, result.ticketPath),
+        operation: 'write',
+      },
+    );
+    if (result.ref !== undefined) {
+      writeReference(cwd, result.id, result.ref, 'recorded');
+      mutations.push({
+        surface: 'file',
+        kind: 'update',
+        target: '.safeword/tracker-map.json',
+        operation: 'write',
+      });
     }
-  });
-  if (result.ref !== undefined) writeReference(cwd, result.id, result.ref, 'recorded');
-  return result;
+    return { ...result, mutations };
+  } catch (creationError) {
+    if (mutations.length === 0) throw creationError;
+    throw new RoutedTicketCreationError(creationError, mutations);
+  }
 }
 
 /** Refuse on a corrupt sidecar (a missing one is fine — the first tracker-backed ticket). */
 function assertSidecarUsable(cwd: string): void {
   const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMap(sidecarPath);
-  if (!loaded.ok && loaded.reason === 'corrupt') {
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
     throw new Error(
       `${sidecarPath} is corrupt; refusing to overwrite it. Resolve or remove it before creating a tracker-backed ticket.`,
     );
@@ -127,9 +195,11 @@ function writeReference(
   const safewordDirectory = nodePath.join(cwd, '.safeword');
   if (!existsSync(safewordDirectory)) mkdirSync(safewordDirectory, { recursive: true });
   const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMap(sidecarPath);
-  const map = loaded.ok ? loaded.map : new TrackerMap();
-  if (status === 'pending') map.markPending(id, ref);
-  else map.record(id, ref);
-  map.save(sidecarPath);
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
+    throw new Error(`${sidecarPath} became corrupt while creating ticket ${id}.`);
+  }
+  if (status === 'pending') loaded.map.markPending(id, ref);
+  else loaded.map.record(id, ref);
+  loaded.map.save(sidecarPath);
 }

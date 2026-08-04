@@ -16,10 +16,12 @@ const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI_PATH = nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts');
 const DEFAULT_SURFACES_PATH = nodePath.join('.project', 'surfaces.md');
 const CONFIGURED_NAMESPACE_ROOT = 'team-ns';
+// The Codex surface is the generated plugin catalogue; `.agents/skills/` was
+// retired in V5V4YP (the schema deletes those paths on upgrade).
 const BDD_GUIDANCE_PATHS = [
   'packages/cli/templates/skills/bdd/DISCOVERY.md',
   '.claude/skills/bdd/DISCOVERY.md',
-  '.agents/skills/bdd/DISCOVERY.md',
+  'packages/cli/codex-plugin/skills/bdd/references/DISCOVERY.md',
 ];
 const FEATURE_SPEC_TEMPLATE_PATHS = [
   'packages/cli/templates/spec-template.md',

@@ -9,6 +9,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+export const SAFEWORD_PRIMARY_LINT_SCRIPT = 'eslint . && bun run lint:gherkin';
+
 /**
  * Read workspace glob patterns from a package.json. Inlined here (rather than
  * importing from `utils/workspaces.ts`) so the presets package stays

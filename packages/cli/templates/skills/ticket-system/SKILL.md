@@ -22,16 +22,16 @@ elif [ -f packages/cli/src/cli.ts ]; then
   SW="bun packages/cli/src/cli.ts"
 else SW="bunx safeword"; fi
 
-$SW ticket new <slug> # --type=patch|task|feature|epic, --title="...", --goal="...", --why="..."
+$SW ticket new <slug> # --type=patch|task|feature|epic, --title="...", --goal="...", --why="...", --issue="<existing-key>"
 ```
 
 `--goal` fills the Goal field for any type; `--why` fills the rationale for task/patch/epic (features keep motivation in spec.md, so `--why` is rejected there). `--type=epic` scaffolds a container ticket with an empty `children:` list.
 
-The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and writes a starter ticket.md. **Do not scan the tickets directory and pick the next ID yourself** — that races between parallel sessions and silently collides across git branches. If the resolver cannot run, stop and report that the CLI is unresolvable; do not hand-mint a fallback ID.
+With `ticketBridge.provider: none`, the CLI mints a 6-char Crockford Base32 ID. With GitHub or Linear connected, a non-epic ticket creates its tracker issue first and uses the tracker key as its ID; `--issue="<existing-key>"` adopts that issue without creating one. Epics always remain local Crockford-ID containers. Every route creates the folder atomically and writes a starter ticket.md. **Do not scan the tickets directory and pick the next ID yourself** — that races between parallel sessions and silently collides across git branches. If the resolver cannot run, stop and report that the CLI is unresolvable; do not hand-mint a fallback ID.
 
 **`ticket new` pre-populates ticket.md (and spec.md for features) with placeholder content.** Pass real values with `--goal`/`--title`/`--why` at creation, or **Edit** the scaffolded fields — do not blind-**Write** the whole file, which fails because the freshly-created file hasn't been Read yet.
 
-**Location:** `<namespace-root>/tickets/{ID}-{slug}/` for tickets created by the resolved `ticket new` command above (6-char Crockford ID plus normalized slug). Lookup remains backward-compatible with older `{ID}/` Crockford folders and legacy `{numeric-id}-{slug}/` folders — all formats remain reachable by ID.
+**Location:** `<namespace-root>/tickets/{ID}-{slug}/` for tickets created by the resolved `ticket new` command above. `{ID}` is a 6-char Crockford value for local tickets and epics, a GitHub issue number for GitHub-connected tickets, or a tracker key such as `ENG-45` for Linear. The slug is always normalized. Lookup remains backward-compatible with older `{ID}/` Crockford folders and legacy `{numeric-id}-{slug}/` folders — all formats remain reachable by their frontmatter ID.
 
 **Folder structure:**
 
@@ -43,6 +43,8 @@ The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and w
 │   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
 │   │   ├── spec.md             # Product spec (features only; auto-created)
 │   │   └── design.md           # Design doc for complex features (optional)
+│   ├── ENG-45-login-bug/       # Connected/adopted tracker key + normalized slug
+│   │   └── ticket.md
 │   ├── 7K9M3P/                 # Historical Crockford ID-only format, still readable
 │   │   └── ticket.md
 │   ├── 080-ticket-id-collision/  # Legacy numeric format, still readable

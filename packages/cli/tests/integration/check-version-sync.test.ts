@@ -37,7 +37,13 @@ function writeReleaseFixture(
 
   for (const event of CODEX_EVENTS) {
     hooks[event] = [
-      { hooks: [{ command: `bunx --bun safeword@${hookVersion} hook codex ${event}` }] },
+      {
+        hooks: [
+          {
+            command: `bunx --bun safeword@${hookVersion} hook codex ${event} --plugin-hook`,
+          },
+        ],
+      },
     ];
   }
 

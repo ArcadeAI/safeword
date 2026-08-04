@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -129,10 +129,13 @@ describe('sync-tracker command wiring (real syncTrackerCommand)', () => {
   it('fails loudly when a provider is configured but no credential resolves (AC2)', async () => {
     seedProject('github');
     const previous = process.env.GITHUB_TOKEN;
+    const previousPath = process.env.PATH;
     delete process.env.GITHUB_TOKEN;
+    process.env.PATH = nodePath.join(cwd, 'no-executables');
     try {
       await syncTrackerCommand();
     } finally {
+      process.env.PATH = previousPath;
       if (previous !== undefined) process.env.GITHUB_TOKEN = previous;
     }
     expect(`${logs.join('\n')}${errs.join('\n')}`).toMatch(/credential/i);
@@ -141,13 +144,97 @@ describe('sync-tracker command wiring (real syncTrackerCommand)', () => {
 
   it('refuses on a missing sidecar instead of blind-recreating (AC9)', async () => {
     seedProject('github');
+    const previousToken = process.env.GITHUB_TOKEN;
     process.env.GITHUB_TOKEN = 'token';
     try {
       await syncTrackerCommand();
     } finally {
-      delete process.env.GITHUB_TOKEN;
+      if (previousToken === undefined) delete process.env.GITHUB_TOKEN;
+      else process.env.GITHUB_TOKEN = previousToken;
     }
     expect(logs.join('\n')).toMatch(/--reset-tracker-map/);
     expect(process.exitCode).not.toBe(0);
+  });
+
+  it('projects a real ticket using the GitHub CLI keychain credential', async () => {
+    seedProject('github');
+    const ticketDirectory = nodePath.join(cwd, '.project', 'tickets', 'TEST01-keychain');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      [
+        '---',
+        'id: TEST01',
+        'slug: keychain',
+        'type: task',
+        'status: in_progress',
+        '---',
+        '',
+        '# Project through keychain auth',
+        '',
+      ].join('\n'),
+    );
+    const sidecarPath = nodePath.join(cwd, '.safeword', 'tracker-map.json');
+    new TrackerMap().save(sidecarPath);
+    const binDirectory = nodePath.join(cwd, 'bin');
+    const callLog = nodePath.join(cwd, 'gh-call.txt');
+    mkdirSync(binDirectory);
+    const fakeGh = nodePath.join(binDirectory, 'gh');
+    writeFileSync(
+      fakeGh,
+      [
+        '#!/bin/sh',
+        String.raw`printf '%s\n' "$*" >> ${JSON.stringify(callLog)}`,
+        'if [ "$1 $2" = \'auth token\' ]; then',
+        String.raw`  printf '%s\n' 'keychain-token'`,
+        '  exit 0',
+        'fi',
+        'if [ "$1 $2" = \'repo view\' ]; then',
+        String.raw`  printf '%s\n' 'private'`,
+        '  exit 0',
+        'fi',
+        'if [ "$1 $2" = \'issue create\' ]; then',
+        String.raw`  printf '%s\n' 'https://github.com/acme/demo/issues/321'`,
+        '  exit 0',
+        'fi',
+        'if [ "$1 $2" = \'issue edit\' ]; then',
+        '  exit 0',
+        'fi',
+        'exit 2',
+        '',
+      ].join('\n'),
+    );
+    chmodSync(fakeGh, 0o755);
+    const previousPath = process.env.PATH;
+    const previousToken = process.env.GITHUB_TOKEN;
+    const previousGhToken = process.env.GH_TOKEN;
+    process.env.PATH = `${binDirectory}${nodePath.delimiter}${previousPath ?? ''}`;
+    delete process.env.GITHUB_TOKEN;
+    delete process.env.GH_TOKEN;
+    try {
+      await syncTrackerCommand();
+    } finally {
+      process.env.PATH = previousPath;
+      if (previousToken === undefined) delete process.env.GITHUB_TOKEN;
+      else process.env.GITHUB_TOKEN = previousToken;
+      if (previousGhToken === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previousGhToken;
+    }
+
+    const ghCalls = readFileSync(callLog, 'utf8').trim().split('\n');
+    expect(ghCalls).toContain('auth token');
+    expect(ghCalls.some(call => call.startsWith('issue create '))).toBe(true);
+    const reloaded = loadTrackerMap(sidecarPath);
+    expect(reloaded.ok && reloaded.map.lookup('TEST01')).toEqual({
+      status: 'recorded',
+      ref: {
+        provider: 'github',
+        id: '321',
+        url: 'https://github.com/acme/demo/issues/321',
+      },
+    });
+    expect(process.exitCode).toBe(0);
+    expect(errs).toEqual([]);
+    expect(logs.join('\n')).not.toMatch(/No github credential/);
   });
 });

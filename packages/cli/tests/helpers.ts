@@ -72,10 +72,15 @@ export const SKIP_INSTALL_ENV = {
   SAFEWORD_SKIP_INSTALL: '1',
 };
 
+/** Explicit opt-in for fixtures that execute generated package tooling. */
+export const INSTALL_DEPENDENCIES_ENV = {
+  SAFEWORD_SKIP_INSTALL: '',
+};
+
 /**
- * Skip ONLY the skills pull (`npx skills add`) while still installing JS/Python
- * dependencies. Use for Go setup tests that need real deps (e.g. eslint) but must
- * not make the slow/flaky skills network call.
+ * Skip ONLY the skills pull (`npx skills add`) while still allowing JS/Python
+ * dependency installation. Use only for install-backed language fixtures that
+ * must avoid the slow/flaky skills network call; no-install fixtures do not need it.
  */
 export const SKIP_SKILLS_ENV = {
   SAFEWORD_SKIP_SKILLS: '1',
@@ -436,6 +441,47 @@ export async function runCli(
 }
 
 /**
+ * Run the CLI while explicitly disabling dependency installation.
+ *
+ * Use this for fixture tests that assert generated configuration, scripts, or
+ * package metadata rather than the physical contents of node_modules. Tests
+ * whose purpose is to prove installation must use runCli directly in the slow
+ * lane. Unlike setupOrThrow, this helper returns non-zero results so callers can
+ * assert expected CLI failures without duplicating the skip-install boundary.
+ */
+export async function runCliWithoutInstall(
+  args: string[],
+  options: {
+    cwd?: string;
+    env?: Record<string, string>;
+    timeout?: number;
+  } = {},
+  runner: typeof runCli = runCli,
+): Promise<CliResult> {
+  return runner(args, {
+    ...options,
+    env: {
+      ...options.env,
+      ...SKIP_INSTALL_ENV,
+    },
+  });
+}
+
+/** Preview and then apply the exact destructive plan required by remove/reset. */
+export async function runConfirmedRemoval(
+  cwd: string,
+  options: { full?: boolean; command?: 'remove' | 'reset' } = {},
+): Promise<CliResult> {
+  const command = options.command ?? 'reset';
+  const fullArguments = options.full ? ['--full'] : [];
+  const preview = await runCli([command, ...fullArguments, '--json', '--no-input'], { cwd });
+  const envelope = JSON.parse(preview.stdout) as { data?: { plan?: { id?: string } } };
+  const planId = envelope.data?.plan?.id;
+  if (typeof planId !== 'string') return preview;
+  return runCli([command, ...fullArguments, '--yes', '--plan', planId], { cwd });
+}
+
+/**
  * Runs the CLI synchronously (for simple tests)
  * @param args
  * @param options
@@ -625,6 +671,28 @@ function buildSetupFailureError(
 }
 
 /**
+ * Run a fixture upgrade with package and skill installation disabled.
+ *
+ * Fixtures that link repository tooling into `node_modules` must never invoke
+ * an install-capable upgrade: a package manager could otherwise write through
+ * the link into the developer checkout. Keep that invariant in this helper
+ * instead of repeating environment options at call sites.
+ */
+export async function runFixtureUpgradeWithoutInstall(
+  cwd: string,
+  runner: typeof runCli = runCli,
+): Promise<CliResult> {
+  const result = await runner(['upgrade'], { cwd, env: SKIP_INSTALL_ENV });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Fixture upgrade failed (exit ${result.exitCode}) in ${cwd}.\n` +
+        `stderr: ${result.stderr || '(empty)'}`,
+    );
+  }
+  return result;
+}
+
+/**
  * Run `safeword setup` (or variant) in a fixture and throw a loud, actionable
  * error if it fails. Use this in `beforeAll`/`beforeEach` blocks where a silent
  * setup failure would cascade into misleading test failures across the file.
@@ -658,7 +726,11 @@ export async function setupOrThrow(
   let lastResult: CliResult | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const result = await runner(setupArguments, { cwd: projectDirectory, ...cliOptions });
+    const result = await runner(setupArguments, {
+      cwd: projectDirectory,
+      ...cliOptions,
+      env: { ...SKIP_INSTALL_ENV, ...cliOptions.env },
+    });
     if (result.exitCode === 0) {
       return result;
     }
@@ -983,6 +1055,29 @@ export function runLintHook(
     timeout: 30_000,
     killSignal: 'SIGKILL',
   });
+}
+
+/**
+ * Return hook output only when the hook and its language tool both ran.
+ *
+ * The hook intentionally exits successfully after reporting some tool crashes,
+ * so process status alone cannot prove that the target file was linted.
+ * Keep the tool names below aligned with the `${command[0]} failed:` warning
+ * emitted by the hook when this suite adds another language.
+ */
+export function assertLintHookSucceeded(result: SpawnSyncReturns<string>): string {
+  if (result.error) {
+    throw new Error(`Lint hook failed to start: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`Lint hook exited with status ${String(result.status)}`);
+  }
+
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  if (/\b(?:bunx|ruff) failed:/iu.test(output)) {
+    throw new Error(`Lint hook reported an infrastructure failure:\n${output}`);
+  }
+  return output;
 }
 
 // ============================================================================

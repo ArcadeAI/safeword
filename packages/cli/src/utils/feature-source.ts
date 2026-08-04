@@ -1,11 +1,21 @@
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { resolveConfiguredLaneDirectory } from './configured-paths.js';
+import type { PhaseAnchorScope } from '../../templates/hooks/lib/phase-provenance.js';
+import { resolveConfiguredLaneDirectory, resolveTicketsDirectory } from './configured-paths.js';
+import { readFrontmatterScalar } from './frontmatter.js';
+import { readFileSafe } from './fs.js';
+import { toRepoDirectory, toRepoPath } from './repo-path.js';
 import { WORKSPACE_ROOTS } from './workspaces.js';
 
-/** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
-function slugFromTicketFolder(ticketFolder: string): string {
+/** Read the authoritative ticket slug, falling back for legacy folders. */
+function slugForTicket(cwd: string, ticketFolder: string): string {
+  const content = readFileSafe(
+    nodePath.join(resolveTicketsDirectory(cwd), ticketFolder, 'ticket.md'),
+  );
+  const slug = readFrontmatterScalar(content, 'slug');
+  if (slug !== undefined && slug !== '') return slug;
+
   const dashIndex = ticketFolder.indexOf('-');
   return dashIndex === -1 ? ticketFolder : ticketFolder.slice(dashIndex + 1);
 }
@@ -16,8 +26,35 @@ function slugFromTicketFolder(ticketFolder: string): string {
  * direct workspace package's `features/` directory in stable order.
  */
 export function findFeatureSourcePath(cwd: string, ticketFolder: string): string | undefined {
-  const fileName = `${slugFromTicketFolder(ticketFolder)}.feature`;
+  const fileName = `${slugForTicket(cwd, ticketFolder)}.feature`;
   return collectExecutableFeatureFiles(cwd, fileName)[0];
+}
+
+/** Build the ticket-invariant feature ownership policy once per tree/config. */
+export function createPhaseAnchorEnvironment(
+  cwd: string,
+  configuredFeatures?: string,
+): Omit<PhaseAnchorScope, 'ticketPath'> {
+  const featureRoots = ['features'];
+  if (configuredFeatures !== undefined) {
+    const configuredRoot = toRepoDirectory(cwd, configuredFeatures);
+    if (configuredRoot !== undefined && !featureRoots.includes(configuredRoot)) {
+      featureRoots.push(configuredRoot);
+    }
+  }
+  return { featureRoots, workspaceRoots: [...WORKSPACE_ROOTS] };
+}
+
+/** Build feature ownership policy without consulting feature-file existence. */
+export function createPhaseAnchorScope(
+  cwd: string,
+  ticketPath: string,
+  configuredFeatures?: string,
+): PhaseAnchorScope {
+  return {
+    ticketPath: toRepoPath(ticketPath),
+    ...createPhaseAnchorEnvironment(cwd, configuredFeatures),
+  };
 }
 
 export function collectExecutableFeatureFiles(cwd: string, fileName?: string): string[] {

@@ -353,7 +353,7 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(line).toContain('Safeword recorded 2');
       expect(line).toContain('TypeError@post-tool-quality (×1)');
       expect(line).toContain('exit1@check (×1)');
-      expect(line).toContain('safeword self-report');
+      expect(line).toContain('safeword retro signals');
       // Factual framing — no imperative "you must / file an issue" command.
       expect(line?.toLowerCase()).not.toContain('you must');
       expect(line?.toLowerCase()).not.toContain('file an issue');

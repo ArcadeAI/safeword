@@ -23,11 +23,13 @@ import {
   AUTO_UPGRADE_LOCK_MESSAGE,
   releaseAutoUpgradeLock,
 } from '../../templates/hooks/lib/auto-upgrade-lock.js';
+import { REPLY_FORMAT_REMINDER } from '../../templates/hooks/lib/quality.js';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   fileExists,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   isRuffInstalled,
   readTestFile,
   removeTemporaryDirectory,
@@ -39,6 +41,10 @@ import {
 const IS_RUFF_AVAILABLE = isRuffInstalled();
 const VERIFIED_AT = '2026-04-15T18:00:00Z';
 const PR_SCOPE_OK_LINE = '**PR Scope:** ✅ Diff matches ticket scope';
+const TEMPLATE_CODEX_SESSION_START = nodePath.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/session-codex-start.ts',
+);
 
 // Single setup for all hook tests - sharing avoids 3 separate bun installs
 // Tests must be idempotent or restore state after modification (see try/finally blocks)
@@ -48,7 +54,9 @@ beforeAll(async () => {
   shared.projectDirectory = createTemporaryDirectory();
   createTypeScriptPackageJson(shared.projectDirectory);
   initGitRepo(shared.projectDirectory);
-  await setupOrThrow(shared.projectDirectory);
+  await setupOrThrow(shared.projectDirectory, ['setup', '--yes'], {
+    env: INSTALL_DEPENDENCIES_ENV,
+  });
 });
 
 afterAll(() => {
@@ -164,6 +172,28 @@ function runStopHook(
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
     exitCode: result.status ?? 0,
+  };
+}
+
+/** Run the installed UserPromptSubmit question hook. */
+function runPromptQuestionsHook(
+  targetDirectory: string,
+  input: string,
+  claudeProjectDirectory = targetDirectory,
+): { stdout: string; stderr: string; exitCode: number } {
+  const result = spawnSync('bun', ['.safeword/hooks/prompt-questions.ts'], {
+    input,
+    cwd: targetDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: claudeProjectDirectory },
+    encoding: 'utf8',
+  });
+  if (result.error) {
+    throw result.error;
+  }
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    exitCode: result.status ?? 1,
   };
 }
 
@@ -435,32 +465,168 @@ describe('E2E: UserPromptSubmit Hooks', () => {
 
   describe('prompt-questions.ts', () => {
     it('outputs question guidance for prompts', () => {
-      const output = execSync(
-        'echo "Help me implement a new feature for user authentication" | bun .safeword/hooks/prompt-questions.ts',
-        {
-          cwd: shared.projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
-          encoding: 'utf8',
-        },
+      const result = runPromptQuestionsHook(
+        shared.projectDirectory,
+        'Help me implement a new feature for user authentication',
       );
 
-      expect(output).toContain('Contribute before asking');
-      expect(output.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Contribute before asking');
+      expect(result.stdout.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
+    });
+
+    it('leads with the two anchor bullets in a stable order', () => {
+      const result = runPromptQuestionsHook(shared.projectDirectory, 'Ship the auth fix');
+
+      // Position, not just presence: the anchors are assembled separately from the
+      // situational lines precisely so no later push can displace them.
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim().split('\n').slice(0, 2)).toEqual([
+        '- Contribute before asking. Embed open questions in your contribution.',
+        `- ${REPLY_FORMAT_REMINDER}`,
+      ]);
+    });
+
+    it('proactively reminds Claude how to format substantive work updates', () => {
+      const result = runPromptQuestionsHook(
+        shared.projectDirectory,
+        'Summarize the completed work',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('- Reply format: lead with the answer.');
+      expect(result.stdout).toContain('substantive work update');
+      expect(result.stdout).toContain('**CONFIDENT**');
+      expect(result.stdout).toContain('**BLOCKED**');
+      expect(result.stdout).toContain('**Next:**');
+      expect(result.stdout).toContain('**Need:**');
+    });
+
+    it('keeps active implement/TDD prompts free of the decision-brief demand', () => {
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: 'TDD123',
+          type: 'feature',
+          phase: 'implement',
+          status: 'in_progress',
+          lastModified: VERIFIED_AT,
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/tickets/TDD123/test-definitions.md',
+        ['## Scenario: implement work', '- [x] RED', '- [ ] GREEN', '- [ ] REFACTOR', ''].join(
+          '\n',
+        ),
+      );
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/quality-state-test-session.json',
+        JSON.stringify({ activeTicket: 'TDD123' }),
+      );
+
+      try {
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: 'test-session', prompt: 'Continue implementation' }),
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('- Reply format: lead with the answer.');
+        expect(result.stdout).not.toContain('**CONFIDENT**/**BLOCKED**');
+        expect(result.stdout).not.toContain(REPLY_FORMAT_REMINDER);
+      } finally {
+        clearIssuesDirectory(shared.projectDirectory);
+        rmSync(`${shared.projectDirectory}/.project/quality-state-test-session.json`, {
+          force: true,
+        });
+      }
+    });
+
+    it('clears the idle Stop-review marker for the submitted session (1492)', () => {
+      const sessionId = 'awaiting-user-prompt';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      writeTestFile(
+        shared.projectDirectory,
+        statePath,
+        JSON.stringify({
+          recentFailures: [],
+          stopQualityReviewAwaitingUserPrompt: true,
+        }),
+      );
+
+      try {
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Contribute before asking');
+        expect(JSON.parse(readTestFile(shared.projectDirectory, statePath))).toMatchObject({
+          stopQualityReviewAwaitingUserPrompt: false,
+        });
+      } finally {
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
+      }
+    });
+
+    it('persists the idle Stop-review marker clear when reminder derivation throws (1492)', () => {
+      const sessionId = 'marker-clear-after-reminder-error';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: 'MALFORMED',
+          type: 'task',
+          phase: 'implement',
+          status: 'in_progress',
+          lastModified: VERIFIED_AT,
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        statePath,
+        JSON.stringify({
+          activeTicket: 'MALFORMED',
+          stopQualityReviewAwaitingUserPrompt: true,
+          // A valid JSON state with an invalid cached failure shape makes the
+          // reminder path throw after the marker has been cleared in memory.
+          // The pending nudge is downstream of that failure. Its absence below
+          // pins the error precondition, so a future defensive normalization of
+          // recentFailures cannot turn this recovery test into a vacuous pass.
+          learningsNudgesPending: ['research.md'],
+          recentFailures: { length: 1 },
+        }),
+      );
+
+      try {
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).not.toContain('Novel claim detected');
+        expect(JSON.parse(readTestFile(shared.projectDirectory, statePath))).toMatchObject({
+          stopQualityReviewAwaitingUserPrompt: false,
+        });
+      } finally {
+        clearIssuesDirectory(shared.projectDirectory);
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
+      }
     });
 
     it('exits silently for non-safeword project', () => {
       const nonSafewordDirectory = createTemporaryDirectory();
       try {
-        const output = execSync(
-          'echo "Help me implement a new feature for user authentication" | bun .safeword/hooks/prompt-questions.ts',
-          {
-            cwd: shared.projectDirectory,
-            env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
-            encoding: 'utf8',
-          },
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          'Help me implement a new feature for user authentication',
+          nonSafewordDirectory,
         );
 
-        expect(output.trim()).toBe('');
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout.trim()).toBe('');
       } finally {
         removeTemporaryDirectory(nonSafewordDirectory);
       }
@@ -1350,7 +1516,7 @@ describe('session-safeword-context.ts', () => {
 
 describe('session-codex-start.ts', () => {
   it('runs the Codex SessionStart dispatcher and emits SAFEWORD.md context', () => {
-    const result = spawnSync('bun', ['.safeword/hooks/session-codex-start.ts'], {
+    const result = spawnSync('bun', [TEMPLATE_CODEX_SESSION_START], {
       cwd: shared.projectDirectory,
       env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
       input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: shared.projectDirectory }),

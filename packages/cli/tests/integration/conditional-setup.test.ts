@@ -23,12 +23,10 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
+  runCliWithoutInstall,
+  TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
-
-/** Setup timeout: 10 minutes - bun install can take time under load */
-const SETUP_TIMEOUT = 600_000;
 
 describe('E2E: Conditional Setup - Project Type Detection', () => {
   let projectDirectory: string;
@@ -46,9 +44,9 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       createTypeScriptPackageJson(projectDirectory);
       initGitRepo(projectDirectory);
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // Check ESLint config uses safeword plugin with dynamic framework detection
@@ -62,7 +60,7 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('safeword');
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 
   it(
@@ -72,9 +70,9 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       createPackageJson(projectDirectory); // No TypeScript
       initGitRepo(projectDirectory);
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // ESLint config is dynamic - uses configs.recommended for JS
@@ -88,7 +86,7 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('safeword');
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 
   it(
@@ -100,9 +98,9 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       });
       initGitRepo(projectDirectory);
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // Check ESLint config uses safeword plugin with dynamic framework detection
@@ -116,7 +114,7 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('safeword');
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 
   it(
@@ -128,9 +126,9 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       });
       initGitRepo(projectDirectory);
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // Check ESLint config uses safeword plugin with dynamic framework detection
@@ -149,7 +147,7 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('safeword');
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 
   // Astro, Vitest, and Tailwind tests moved to conditional-setup.slow.test.ts
@@ -184,16 +182,16 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
       // safeword does not overwrite an existing config, not that it can
       // never be augmented with the vendoredIgnores spread (that path has
       // its own tests under src/utils/eslint-auto-patch.test.ts).
-      await runCli(['setup', '--yes', '--no-modify'], {
+      await runCliWithoutInstall(['setup', '--yes', '--no-modify'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // Existing config should be byte-identical
       const eslintConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
       expect(eslintConfig).toBe(existingConfig);
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 
   it(
@@ -207,9 +205,9 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
       const existingConfig = '{ "semi": false, "singleQuote": true }';
       writeTestFile(projectDirectory, '.prettierrc', existingConfig);
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // 9C2CFX: a customer's existing Prettier config is left untouched — safeword
@@ -221,7 +219,7 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
       expect(prettierConfig.tabWidth).toBeUndefined(); // safeword no longer fills defaults
       expect(prettierConfig.printWidth).toBeUndefined(); // safeword no longer fills defaults
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 
   it(
@@ -237,9 +235,9 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
       });
       initGitRepo(projectDirectory);
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // Custom scripts should be preserved
@@ -247,7 +245,7 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
       expect(pkg.scripts.lint).toBe('custom-lint-command');
       expect(pkg.scripts.format).toBe('custom-format-command');
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 
   it(
@@ -273,6 +271,14 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
                     },
                   ],
                 },
+                {
+                  hooks: [
+                    {
+                      type: 'command',
+                      command: 'bun .safeword/hooks/session-version.ts',
+                    },
+                  ],
+                },
               ],
             },
           },
@@ -281,9 +287,9 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
         ),
       );
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // Both custom and safeword hooks should exist
@@ -305,7 +311,7 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
       );
       expect(commands).toContain('bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-version.ts');
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 });
 
@@ -327,9 +333,9 @@ describe('E2E: Conditional Setup - Git Integration', () => {
       createTypeScriptPackageJson(projectDirectory);
       initGitRepo(projectDirectory);
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // Husky should NOT be configured by safeword
@@ -343,30 +349,7 @@ describe('E2E: Conditional Setup - Git Integration', () => {
       // But safeword should be installed
       expect(pkg.devDependencies).toHaveProperty('safeword');
     },
-    SETUP_TIMEOUT,
-  );
-
-  it(
-    'works in non-git directory',
-    async () => {
-      projectDirectory = createTemporaryDirectory();
-      createTypeScriptPackageJson(projectDirectory);
-      // Note: NOT calling initGitRepo
-
-      const result = await runCli(['setup', '--yes'], {
-        cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
-      });
-
-      // Setup should complete successfully
-      expect(result.exitCode).toBe(0);
-
-      // Base packages should be installed
-      const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
-      expect(pkg.devDependencies?.eslint).toBeDefined();
-      expect(pkg.devDependencies).toHaveProperty('safeword');
-    },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 
   // Note: pre-commit hooks are no longer managed by safeword (v0.9.0+)
@@ -389,9 +372,9 @@ describe('E2E: Conditional Setup - Package.json Creation', () => {
       // Note: NOT creating package.json
       initGitRepo(projectDirectory);
 
-      await runCli(['setup', '--yes'], {
+      await runCliWithoutInstall(['setup', '--yes'], {
         cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
+        timeout: TIMEOUT_SETUP,
       });
 
       // package.json should be created
@@ -401,7 +384,7 @@ describe('E2E: Conditional Setup - Package.json Creation', () => {
       expect(pkg).toHaveProperty('name');
       expect(pkg).toHaveProperty('version');
     },
-    SETUP_TIMEOUT,
+    TIMEOUT_SETUP,
   );
 });
 

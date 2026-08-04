@@ -30,13 +30,18 @@ export const DEFAULT_CLAUDE_RETRO_MODEL = 'sonnet';
 /** Default Codex extraction model. Stock Codex can only call OpenAI models. */
 export const DEFAULT_CODEX_RETRO_MODEL = 'gpt-5.5';
 
+/** Default Cursor extraction model. `auto` delegates to the user's Cursor configuration. */
+export const DEFAULT_CURSOR_RETRO_MODEL = 'auto';
+
 /** Backward-compatible alias for existing Claude call sites/tests. */
 export const DEFAULT_RETRO_MODEL = DEFAULT_CLAUDE_RETRO_MODEL;
 
-export type RetroAgent = 'claude' | 'codex';
+export type RetroAgent = 'claude' | 'codex' | 'cursor';
 
 function defaultRetroModel(agent: RetroAgent): string {
-  return agent === 'codex' ? DEFAULT_CODEX_RETRO_MODEL : DEFAULT_CLAUDE_RETRO_MODEL;
+  if (agent === 'codex') return DEFAULT_CODEX_RETRO_MODEL;
+  if (agent === 'cursor') return DEFAULT_CURSOR_RETRO_MODEL;
+  return DEFAULT_CLAUDE_RETRO_MODEL;
 }
 
 /**
@@ -89,7 +94,7 @@ export interface RetroChildInvocation {
 }
 
 /**
- * Build the `safeword retro` argv the Stop hook spawns out-of-band. Forwards the
+ * Build the `safeword retro run` argv the Stop hook spawns out-of-band. Forwards the
  * delta window offset and the resolved session id (ZFGWS1) so the child digests
  * only the new window and attributes findings to the real session — not the
  * 'unknown' fallback its own env resolves to in cloud.
@@ -97,6 +102,7 @@ export interface RetroChildInvocation {
 export function retroChildArgs(invocation: RetroChildInvocation): string[] {
   return [
     'retro',
+    'run',
     '--auto-extract',
     '--transcript',
     invocation.transcriptPath,
@@ -131,7 +137,7 @@ export function isRetroChild(env: Record<string, string | undefined>): boolean {
 
 /**
  * Override for the command the Stop hook spawns to run the extraction CLI. When
- * set, the hook spawns this command verbatim instead of resolving `safeword retro
+ * set, the hook spawns this command verbatim instead of resolving `safeword retro run
  * --auto-extract`. A test/advanced seam so the hook's invisibility can be proven
  * without launching a real headless `claude -p`.
  */
@@ -144,18 +150,9 @@ export interface ExtractArgvOptions {
   systemPrompt: string;
   /** The task prompt (trailing positional) — instructs reading the digest. */
   prompt: string;
-  /**
-   * `--allowed-tools` value. Defaults to read-only, which is retro's posture and
-   * the only safe one for untrusted input. A job that must EXECUTE the tree it
-   * reads — the PR reviewer running the project's own suite on a trusted, same-
-   * repo change — passes a broader set here. It stays read-only on a fork.
-   */
+  /** Override the read-only grant for a trusted job that must execute checks. */
   allowedTools?: string;
-  /**
-   * Path to an MCP server config file for `--mcp-config`. A PATH, never inline
-   * JSON: the config carries a bearer token, and inline would put it in argv
-   * (the process listing). Omitted → no `--mcp-config` flag. Retro sets neither.
-   */
+  /** Path to an MCP config file. Secrets stay in the file, never argv. */
   mcpConfigPath?: string;
 }
 
@@ -191,22 +188,11 @@ export interface CodexExtractArgvOptions {
   outputPath: string;
   /** Inline digest + task prompt. No Read/MCP tools are available. */
   prompt: string;
-  /**
-   * `-c mcp_servers=<value>`. Defaults to `{}` (retro disables MCP entirely).
-   * A job that needs a broker — e.g. the PR reviewer reaching a tracker — passes
-   * its own server map here (ticket 36EEMY).
-   */
+  /** MCP server map; retro defaults to none. */
   mcpServers?: string;
-  /**
-   * `--sandbox` tier. Defaults to `read-only`, which is the only safe tier for
-   * untrusted input. A job may raise it only where executing the tree is both
-   * intended and trusted.
-   */
+  /** Sandbox tier; retro defaults to read-only. */
   sandbox?: string;
-  /**
-   * Pass `--skip-git-repo-check` (default true — retro runs from a neutral temp
-   * cwd). A job already running inside a checkout sets this false.
-   */
+  /** False when the job intentionally runs inside a checkout. */
   skipGitRepoCheck?: boolean;
 }
 
@@ -239,46 +225,42 @@ export function buildCodexExtractArgv(options: CodexExtractArgvOptions): string[
   ];
 }
 
-/**
- * A headless job: what the model is asked to do, and how its answer is read.
- *
- * The spawn seams below are vendor plumbing (argv, sandboxing, the recursion
- * sentinel, fail-open) and are job-agnostic. Everything job-specific — the
- * system prompt, the output schema, how raw input is reduced, and how the
- * vendor's answer is parsed — lives here, so a second job can reuse the seams
- * without forking them (ticket 36EEMY, the PR-review runner).
- */
-export interface HeadlessJob<T = unknown[]> {
-  /** `claude --append-system-prompt`. */
+/** Job-specific behavior layered on the shared headless vendor plumbing. */
+export interface HeadlessJob<T> {
   systemPrompt: string;
-  /** JSON schema handed to `codex exec --output-schema`. */
   schema: unknown;
-  /** Reduce raw input to the bounded text the model sees. */
   prepareInput: (raw: string) => string;
-  /**
-   * The full inline Codex prompt. Codex gets no tools, so the instructions AND
-   * the input travel in the prompt itself.
-   */
   buildCodexPrompt: (preparedInput: string) => string;
-  /**
-   * The Claude task prompt. Claude reads its input from a file, so this points
-   * at the written path rather than embedding the content.
-   */
   buildClaudeTaskPrompt: (inputPath: string) => string;
-  /**
-   * Parse Codex's `-o` file. Return `undefined` for unusable output — the caller
-   * distinguishes that from a genuine empty result, which is the whole point of
-   * the `ok` bit.
-   */
   parseCodexOutput: (raw: string) => T | undefined;
-  /** Parse the text inside Claude's `--output-format json` envelope. */
-  parseClaudeResult: (resultText: string) => T | undefined;
-  /** Value the fail-open runner returns when extraction fails. */
-  fallback?: T;
+  parseClaudeResult: (raw: string) => T | undefined;
+  fallback: T;
 }
 
-// `RETRO_JOB` itself is defined below `CODEX_RETRO_OUTPUT_SCHEMA`, since it
-// captures that schema and `EXTRACT_SYSTEM_PROMPT` by value at module init.
+export interface CursorExtractArgvOptions {
+  /** Cursor model name, or `auto` to use Cursor's configured automatic selection. */
+  model: string;
+  /** Inline digest + extraction instructions. */
+  prompt: string;
+}
+
+/**
+ * Build a non-interactive Cursor Agent invocation. Omitting `--force` is
+ * load-bearing: tool calls are not force-approved. The runner also uses a
+ * neutral temporary cwd that contains no project files.
+ */
+export function buildCursorExtractArgv(options: CursorExtractArgvOptions): string[] {
+  return [
+    '-p',
+    '--output-format',
+    'json',
+    '--sandbox',
+    'enabled',
+    '--model',
+    options.model,
+    options.prompt,
+  ];
+}
 
 // The extraction rules, mirrored from templates/guides/retro.md: SAFEWORD's own
 // friction only, the constrained snake_case schema, no invention. The egress
@@ -332,69 +314,70 @@ export const CODEX_RETRO_OUTPUT_SCHEMA = {
   required: ['findings'],
 };
 
-/**
- * The retro extraction job — the default, so every existing call site keeps its
- * behavior. Its parser accepts both vendor shapes because retro runs on both:
- * Codex returns `{"findings":[…]}` via `--output-schema`, while Claude returns
- * the array as text that may be fenced.
- */
-export const RETRO_JOB: HeadlessJob<unknown[]> = {
-  systemPrompt: EXTRACT_SYSTEM_PROMPT,
-  schema: CODEX_RETRO_OUTPUT_SCHEMA,
-  prepareInput: (raw: string) => buildDigest(raw),
+/** The task prompt: point the read-only child at the digest file. */
+function buildExtractPrompt(digestPath: string): string {
+  return `Read the file ${digestPath} and extract SAFEWORD's own friction as the JSON array described. Output only the JSON array.`;
+}
 
-  // Wording preserved verbatim from before the job refactor. The empty-array
-  // sentence is load-bearing, not decoration: without it a frictionless session
-  // tends to answer with prose instead of `{"findings":[]}`, which the strict
-  // parser below then reports as a FAILED extraction rather than a clean silent
-  // run. Pinned by a test, since nothing pinned it when it was first dropped.
-  buildCodexPrompt: (preparedInput: string) =>
+function buildCodexExtractPrompt(digest: string): string {
+  return (
     `${EXTRACT_SYSTEM_PROMPT}\n\n` +
     'Return only JSON matching the provided output schema: {"findings":[...]}. ' +
     'Use an empty findings array when there is no safeword friction.\n\n' +
-    `Transcript digest:\n${preparedInput}`,
+    `Transcript digest:\n${digest}`
+  );
+}
 
-  buildClaudeTaskPrompt: (inputPath: string) =>
-    `Read the file ${inputPath} and extract SAFEWORD's own friction as the JSON array described. Output only the JSON array.`,
+const FINDING_KEYS = [
+  'category',
+  'title',
+  'safeword_surface',
+  'what_happened',
+  'why_friction',
+  'repro',
+] as const;
 
-  // Strict on purpose: only the schema's own shape counts. Accepting a bare
-  // array or scraping one out of prose would blur "the model answered empty"
-  // into "the model ignored the schema", and `ok` is exactly the bit that
-  // separates a genuine empty result from a vendor failure.
-  parseCodexOutput: (raw: string) => {
-    try {
-      const findings = (JSON.parse(raw) as { findings?: unknown }).findings;
-      return Array.isArray(findings) ? findings : undefined;
-    } catch {
-      return undefined;
-    }
-  },
+function isFinding(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const finding = value as Record<string, unknown>;
+  const keys = Object.keys(finding).toSorted();
+  if (JSON.stringify(keys) !== JSON.stringify([...FINDING_KEYS].toSorted())) return false;
+  if (
+    typeof finding.category !== 'string' ||
+    !['bug', 'rough-edge', 'gap'].includes(finding.category)
+  )
+    return false;
+  return FINDING_KEYS.slice(1).every(
+    key => typeof finding[key] === 'string' && finding[key].trim().length > 0,
+  );
+}
 
-  // Claude returns the array as text that may be fenced (```json … ```), so the
-  // first array literal is pulled out.
-  parseClaudeResult: (resultText: string) => {
-    const match = resultText.match(/\[[\S\s]*\]/);
-    if (!match) return undefined;
-    try {
-      const findings = JSON.parse(match[0]) as unknown;
-      return Array.isArray(findings) ? findings : undefined;
-    } catch {
-      return undefined;
-    }
-  },
+function validFindings(value: unknown): unknown[] | undefined {
+  return Array.isArray(value) && value.every(isFinding) ? value : undefined;
+}
 
-  fallback: [],
-};
-
-/**
- * Strip the `claude -p --output-format json` envelope and hand the model's own
- * text to the job's parser. The envelope is vendor plumbing; what is inside it
- * is the job's business.
- */
-function unwrapClaudeEnvelope<T>(stdout: string, job: HeadlessJob<T>): T | undefined {
+function parseFindingsChecked(stdout: string): unknown[] | undefined {
+  let envelopeResult: string;
   try {
-    const parsed = JSON.parse(stdout) as { result?: unknown };
-    return typeof parsed.result === 'string' ? job.parseClaudeResult(parsed.result) : undefined;
+    const parsed = JSON.parse(stdout) as { is_error?: unknown; result?: unknown };
+    if (parsed.is_error === true || typeof parsed.result !== 'string') return undefined;
+    envelopeResult = parsed.result;
+  } catch {
+    return undefined;
+  }
+  const match = envelopeResult.match(/\[[\S\s]*\]/u);
+  if (!match) return undefined;
+  try {
+    return validFindings(JSON.parse(match[0]) as unknown);
+  } catch {
+    return undefined;
+  }
+}
+
+function parseCodexFindingsOutput(rawOutput: string): unknown[] | undefined {
+  try {
+    const parsed = JSON.parse(rawOutput) as { findings?: unknown };
+    return validFindings(parsed.findings);
   } catch {
     return undefined;
   }
@@ -421,9 +404,7 @@ export interface RunExtractionDeps {
   cwd: string;
   /** Extraction model (cheap by default). */
   model?: string;
-  /** `--allowed-tools` for the child. Omitted → read-only (retro's default). */
   allowedTools?: string;
-  /** Path to an MCP config file for `--mcp-config` (a path, never inline). */
   mcpConfigPath?: string;
 }
 
@@ -450,61 +431,86 @@ export interface RunCodexExtractionDeps {
   /** Test seam for deterministic schema/output paths. */
   schemaPath?: string;
   outputPath?: string;
-  /** Codex gating overrides — see `CodexExtractArgvOptions`. Retro leaves these unset. */
   mcpServers?: string;
   sandbox?: string;
   skipGitRepoCheck?: boolean;
 }
 
-export interface CodexExtractionResult<T = unknown[]> {
+export interface HeadlessJobResult<T> {
+  ok: boolean;
+  output?: T;
+  findings: unknown[];
+  failureReason?:
+    'empty_digest' | 'spawn_nonzero' | 'missing_output' | 'invalid_output' | 'spawn_or_io_error';
+  exitCode?: number | null;
+}
+
+export interface CheckedExtractionResult {
   /** True only when the child exited successfully and wrote schema-valid JSON. */
   ok: boolean;
-  /** The job's parsed answer. For the retro job this is the findings array. */
-  output?: T;
-  /**
-   * Findings convenience view, preserved for retro's call sites: the parsed
-   * output when it is an array, `[]` otherwise.
-   */
   findings: unknown[];
   /** Present only on extraction failure; lets callers distinguish empty success from failure. */
-  failureReason?: 'spawn_nonzero' | 'missing_output' | 'invalid_output' | 'spawn_or_io_error';
+  failureReason?:
+    'empty_digest' | 'spawn_nonzero' | 'missing_output' | 'invalid_output' | 'spawn_or_io_error';
   /** Child exit code when a process ran and exited non-zero. */
   exitCode?: number | null;
 }
 
+export type CodexExtractionResult = CheckedExtractionResult;
+
+/** Cursor uses the same checked success/failure contract as Codex extraction. */
+export type CursorExtractionResult = CodexExtractionResult;
+
+export interface RunCursorExtractionDeps {
+  spawn: (
+    argv: string[],
+    options: { cwd: string; env: Record<string, string | undefined> },
+  ) => Promise<SpawnResult>;
+  env: Record<string, string | undefined>;
+  cwd: string;
+  model?: string;
+}
+
 /**
- * Run the retro extraction in a separate, isolated headless `claude -p` session
- * and return the raw findings array. Synchronous (awaits the spawn) and
- * fail-OPEN: any error — non-zero exit, unparseable output, a spawn throw —
- * yields `[]` and never throws, so the Stop hook that wraps this stays silent and
- * never blocks. Spawn contract: the digest is the input (referenced in the
- * prompt), the child runs from the neutral cwd, and the child env carries
- * `SAFEWORD_RETRO_CHILD=1` (recursion guard).
+ * Run retro extraction in a separate, isolated headless `claude -p` session and
+ * preserve the distinction between schema-valid empty output and failure. The
+ * backward-compatible wrapper below converts failures to `[]` for Stop hooks.
  */
-export async function runHeadlessExtraction<T = unknown[]>(
-  input: string,
+export async function runHeadlessExtractionChecked(
+  transcript: string,
   dependencies: RunExtractionDeps,
-  job: HeadlessJob<T> = RETRO_JOB as unknown as HeadlessJob<T>,
-): Promise<T> {
-  const fallback = job.fallback as T;
+): Promise<CheckedExtractionResult> {
   try {
-    const digestPath = dependencies.writeDigest(job.prepareInput(input));
+    const digest = buildDigest(transcript);
+    if (digest.trim() === '') return { ok: false, failureReason: 'empty_digest', findings: [] };
+    const digestPath = dependencies.writeDigest(digest);
     const argv = buildExtractArgv({
       model: dependencies.model ?? DEFAULT_RETRO_MODEL,
-      systemPrompt: job.systemPrompt,
-      prompt: job.buildClaudeTaskPrompt(digestPath),
-      allowedTools: dependencies.allowedTools,
-      mcpConfigPath: dependencies.mcpConfigPath,
+      systemPrompt: EXTRACT_SYSTEM_PROMPT,
+      prompt: buildExtractPrompt(digestPath),
     });
     const { code, stdout } = await dependencies.spawn(argv, {
       cwd: dependencies.cwd,
       env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
     });
-    if (code !== 0) return fallback; // fail-open on a failed extraction
-    return unwrapClaudeEnvelope(stdout, job) ?? fallback;
+    if (code !== 0) {
+      return { ok: false, failureReason: 'spawn_nonzero', exitCode: code, findings: [] };
+    }
+    const findings = parseFindingsChecked(stdout);
+    return findings === undefined
+      ? { ok: false, failureReason: 'invalid_output', findings: [] }
+      : { ok: true, findings };
   } catch {
-    return fallback; // fail-open on any spawn/IO error
+    return { ok: false, failureReason: 'spawn_or_io_error', findings: [] };
   }
+}
+
+/** Backward-compatible fail-open wrapper for Stop-hook call sites. */
+export async function runHeadlessExtraction(
+  transcript: string,
+  dependencies: RunExtractionDeps,
+): Promise<unknown[]> {
+  return (await runHeadlessExtractionChecked(transcript, dependencies)).findings;
 }
 
 /**
@@ -513,12 +519,107 @@ export async function runHeadlessExtraction<T = unknown[]>(
  * fail-OPEN: any non-zero exit, missing output, malformed JSON, or
  * spawn/read/write error yields `{ ok:false, findings:[] }`.
  */
-export async function runCodexHeadlessExtractionChecked<T = unknown[]>(
+export async function runCodexHeadlessExtractionChecked(
+  transcript: string,
+  dependencies: RunCodexExtractionDeps,
+): Promise<CodexExtractionResult> {
+  try {
+    const digest = buildDigest(transcript);
+    if (digest.trim() === '') return { ok: false, failureReason: 'empty_digest', findings: [] };
+    const schemaPath = dependencies.schemaPath ?? nodePath.join(dependencies.cwd, 'schema.json');
+    const outputPath = dependencies.outputPath ?? nodePath.join(dependencies.cwd, 'output.json');
+    const writeFile = dependencies.writeFile ?? writeFileSync;
+    const readFile = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
+
+    writeFile(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
+    const argv = buildCodexExtractArgv({
+      model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
+      schemaPath,
+      outputPath,
+      prompt: buildCodexExtractPrompt(digest),
+    });
+    const { code } = await dependencies.spawn(argv, {
+      cwd: dependencies.cwd,
+      env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
+      stdio: 'ignore',
+    });
+    if (code !== 0) {
+      return { ok: false, failureReason: 'spawn_nonzero', exitCode: code, findings: [] };
+    }
+    let rawOutput: string;
+    try {
+      rawOutput = readFile(outputPath);
+    } catch {
+      return { ok: false, failureReason: 'missing_output', findings: [] };
+    }
+    const findings = parseCodexFindingsOutput(rawOutput);
+    return findings === undefined
+      ? { ok: false, failureReason: 'invalid_output', findings: [] }
+      : { ok: true, findings };
+  } catch {
+    return { ok: false, failureReason: 'spawn_or_io_error', findings: [] };
+  }
+}
+
+/**
+ * Backward-compatible fail-open wrapper for call sites that only need findings.
+ */
+export async function runCodexHeadlessExtraction(
+  transcript: string,
+  dependencies: RunCodexExtractionDeps,
+): Promise<unknown[]> {
+  return (await runCodexHeadlessExtractionChecked(transcript, dependencies)).findings;
+}
+
+function unwrapClaudeJobOutput<T>(stdout: string, job: HeadlessJob<T>): T | undefined {
+  try {
+    const parsed = JSON.parse(stdout) as { is_error?: unknown; result?: unknown };
+    if (parsed.is_error === true || typeof parsed.result !== 'string') return undefined;
+    return job.parseClaudeResult(parsed.result);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Run a non-retro Claude job through the same contained process boundary. */
+export async function runHeadlessJob<T>(
+  input: string,
+  dependencies: RunExtractionDeps,
+  job: HeadlessJob<T>,
+): Promise<T> {
+  try {
+    const prepared = job.prepareInput(input);
+    if (prepared.trim() === '') return job.fallback;
+    const inputPath = dependencies.writeDigest(prepared);
+    const argv = buildExtractArgv({
+      model: dependencies.model ?? DEFAULT_RETRO_MODEL,
+      systemPrompt: job.systemPrompt,
+      prompt: job.buildClaudeTaskPrompt(inputPath),
+      allowedTools: dependencies.allowedTools,
+      mcpConfigPath: dependencies.mcpConfigPath,
+    });
+    const { code, stdout } = await dependencies.spawn(argv, {
+      cwd: dependencies.cwd,
+      env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
+    });
+    if (code !== 0) return job.fallback;
+    return unwrapClaudeJobOutput(stdout, job) ?? job.fallback;
+  } catch {
+    return job.fallback;
+  }
+}
+
+/** Run a non-retro Codex job while retaining its typed structured output. */
+export async function runCodexHeadlessJobChecked<T>(
   input: string,
   dependencies: RunCodexExtractionDeps,
-  job: HeadlessJob<T> = RETRO_JOB as unknown as HeadlessJob<T>,
-): Promise<CodexExtractionResult<T>> {
+  job: HeadlessJob<T>,
+): Promise<HeadlessJobResult<T>> {
   try {
+    const prepared = job.prepareInput(input);
+    if (prepared.trim() === '') {
+      return { ok: false, failureReason: 'empty_digest', findings: [] };
+    }
     const schemaPath = dependencies.schemaPath ?? nodePath.join(dependencies.cwd, 'schema.json');
     const outputPath = dependencies.outputPath ?? nodePath.join(dependencies.cwd, 'output.json');
     const writeFile = dependencies.writeFile ?? writeFileSync;
@@ -529,7 +630,7 @@ export async function runCodexHeadlessExtractionChecked<T = unknown[]>(
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
       schemaPath,
       outputPath,
-      prompt: job.buildCodexPrompt(job.prepareInput(input)),
+      prompt: job.buildCodexPrompt(prepared),
       mcpServers: dependencies.mcpServers,
       sandbox: dependencies.sandbox,
       skipGitRepoCheck: dependencies.skipGitRepoCheck,
@@ -558,13 +659,37 @@ export async function runCodexHeadlessExtractionChecked<T = unknown[]>(
 }
 
 /**
- * Backward-compatible fail-open wrapper for call sites that only need findings.
+ * Run Cursor Agent from a neutral cwd and require a valid JSON result envelope.
+ * As with Codex, an empty array is success while malformed output is a failure.
  */
-export async function runCodexHeadlessExtraction(
+export async function runCursorHeadlessExtractionChecked(
   transcript: string,
-  dependencies: RunCodexExtractionDeps,
-): Promise<unknown[]> {
-  return (await runCodexHeadlessExtractionChecked(transcript, dependencies)).findings;
+  dependencies: RunCursorExtractionDeps,
+): Promise<CursorExtractionResult> {
+  try {
+    const digest = buildDigest(transcript);
+    if (digest.trim() === '') return { ok: false, failureReason: 'empty_digest', findings: [] };
+    const argv = buildCursorExtractArgv({
+      model: dependencies.model ?? DEFAULT_CURSOR_RETRO_MODEL,
+      prompt:
+        `${EXTRACT_SYSTEM_PROMPT}\n\n` +
+        'Use an empty JSON array when there is no safeword friction. Do not use tools or modify files.\n\n' +
+        `Transcript digest:\n${digest}`,
+    });
+    const { code, stdout } = await dependencies.spawn(argv, {
+      cwd: dependencies.cwd,
+      env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
+    });
+    if (code !== 0) {
+      return { ok: false, failureReason: 'spawn_nonzero', exitCode: code, findings: [] };
+    }
+    const findings = parseFindingsChecked(stdout);
+    return findings === undefined
+      ? { ok: false, failureReason: 'invalid_output', findings: [] }
+      : { ok: true, findings };
+  } catch {
+    return { ok: false, failureReason: 'spawn_or_io_error', findings: [] };
+  }
 }
 
 // A tool-result body is kept whole only when it's short OR carries a friction
@@ -586,6 +711,15 @@ interface ContentItem {
 interface TranscriptEntry {
   type?: string;
   message?: { role?: string; content?: ContentItem[] | string };
+  payload?: {
+    type?: string;
+    role?: string;
+    content?: Array<{ type?: string; text?: string }>;
+    name?: string;
+    arguments?: string;
+    input?: unknown;
+    output?: unknown;
+  };
 }
 
 function lineFor(item: ContentItem, role: string): string | undefined {
@@ -613,13 +747,45 @@ export function buildDigest(rawTranscript: string, cap: number = DIGEST_CAP): st
   const out: string[] = [];
   for (const raw of iterateJsonlEntries(rawTranscript)) {
     const entry = raw as TranscriptEntry;
+    if (
+      entry.type === 'response_item' &&
+      (entry.payload?.type === 'function_call' || entry.payload?.type === 'custom_tool_call')
+    ) {
+      out.push(
+        `[tool_use] ${entry.payload.name ?? entry.payload.type}: ${JSON.stringify(
+          entry.payload.arguments ?? entry.payload.input ?? '',
+        ).slice(0, TOOL_USE_INPUT_CAP)}`,
+      );
+      continue;
+    }
+    if (
+      entry.type === 'response_item' &&
+      (entry.payload?.type === 'function_call_output' ||
+        entry.payload?.type === 'custom_tool_call_output')
+    ) {
+      const rendered = lineFor({ type: 'tool_result', content: entry.payload.output }, 'tool');
+      if (rendered !== undefined) out.push(rendered);
+      continue;
+    }
+    const codexMessage =
+      entry.type === 'response_item' && entry.payload?.type === 'message'
+        ? {
+            role: entry.payload.role,
+            content: entry.payload.content?.map(item => ({
+              type: item.type === 'input_text' || item.type === 'output_text' ? 'text' : item.type,
+              text: item.text,
+            })),
+          }
+        : undefined;
     const role = entry.message?.role ?? entry.type ?? 'entry';
-    const content = entry.message?.content;
+    const message = codexMessage ?? entry.message;
+    const resolvedRole = message?.role ?? role;
+    const content = message?.content;
     if (typeof content === 'string') {
-      out.push(`[${role}] ${content}`);
+      out.push(`[${resolvedRole}] ${content}`);
     } else if (Array.isArray(content)) {
       for (const item of content) {
-        const rendered = lineFor(item, role);
+        const rendered = lineFor(item, resolvedRole);
         if (rendered !== undefined) out.push(rendered);
       }
     }

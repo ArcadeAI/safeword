@@ -39,7 +39,7 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 **Update phase when:**
 
 - Completing a BDD phase → set next phase
-- Scenario-gate complete → set `plan-implementation` (impl-plan authoring, proof plan + sequencing live there)
+- Scenario-gate complete → offer the optional `$safeword:spike` checkpoint only for an eligible build-only kill-risk, then set `plan-implementation` (impl-plan authoring, proof plan + sequencing live there)
 - Plan reviewed (impl-plan.md valid, status planned) → set `implement`
 - All scenarios pass → set `verify`
 - $safeword:verify + $safeword:audit complete (verify.md exists) → set `done`
@@ -48,18 +48,21 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 
 The **scenario-gate exit requires** an independent review of the scenarios — not
 your own pass. (Your own inline pass is Tier 1: `$safeword:self-review`, per asset, as you
-author.) Run it as a _fresh reviewer with no conversation history_ so the author
-can't grade their own work: a forked subagent — a skill with `context: fork`, or
-an explicit subagent — handed only the phase's artifacts and the ticket's scope,
-applying the `$safeword:review-spec` procedure; **its** verdict decides. When
-`crossModelReview` is on, that reviewer must be a **different model than the
-author** — a same-model reviewer shares the author's blind spots. Prefer one of
-comparable-or-better capability; never weaker. If you can't run a different
-model, log a deliberate skip (`--skip "<reason>"`) rather than stamping a
-same-model review. On a pass, record the stamp:
+author.) Invoke the shared host-owned coordinator with only the phase artifacts
+and ticket scope; its typed verdict decides:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>
+safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions]
+```
+
+The coordinator prefers the opposite headless agent, labels a permitted
+same-agent fallback as degraded, and blocks with one recovery action when no
+safe route remains. Do not bypass it with a private subagent. On a result that
+satisfies the configured policy, record the returned provenance in the stamp
+(substitute the four values from `data` in the coordinator result):
+
+```bash
+bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --phase phase-name
 ```
 
 If the reviewer finds blocking issues, fix them and re-review — don't stamp.

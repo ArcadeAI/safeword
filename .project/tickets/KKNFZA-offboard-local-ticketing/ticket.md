@@ -3,7 +3,7 @@ id: KKNFZA
 slug: offboard-local-ticketing
 type: feature
 phase: intake
-status: in_progress
+status: superseded
 scope:
   - Tracker is system of record for IDENTITY (issue-first; key = ticket id), provider-neutral GitHub/Linear
   - status/phase stay locally canonical in tracked ticket.md; gates read them as today (offline)
@@ -29,7 +29,7 @@ done_when:
   - Cursor done-gate and CI check-pr-ticket-done still fire (status/phase remain in ticket.md)
   - existing tickets and provider:none installs are unaffected
 created: 2026-06-27T21:35:47.369Z
-last_modified: 2026-06-28T05:04:00.000Z
+last_modified: 2026-07-31T03:25:00.000Z
 ---
 
 # Off-board local ticketing: tracker canonical for identity + status mirror; status/phase stay tracked
@@ -108,3 +108,4 @@ offline and every consumer keeps firing.
   Decision via /figure-it-out: off-board coordination plane to tracker, demote execution plane to
   ephemeral cache. Decomposition (5 child tickets) in spec.md.
 - 2026-06-27T21:35:47.369Z Started: Created ticket KKNFZA
+- 2026-07-31T03:25:00.000Z Superseded: The shipped tracker bridge delivered issue-first identity, one-way status projection, offline local authority, provider:none compatibility, graph projection, and tracker-key joins through smaller implementation tickets. Residual orphan/coherence detection remains explicitly owned by 01EAKC, so this original umbrella no longer represents one closable unit.

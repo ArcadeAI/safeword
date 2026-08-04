@@ -12,9 +12,11 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
+import { recordCodexHookProof } from '../codex-plugin/profile-proof.js';
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
-import { resolveNamespaceRoot } from '../utils/configured-paths.js';
+import { hasSafewordProjectMarker, resolveNamespaceRoot } from '../utils/configured-paths.js';
 
 type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit';
 type SupportedCodexHookEvent =
@@ -186,6 +188,7 @@ function writeCodexIdentityCache(input: {
   sessionId: string | undefined;
   skillName: string | undefined;
 }): void {
+  if (!hasSafewordProjectMarker(input.projectDirectory)) return;
   const sessionId = input.sessionId?.trim();
   const skillName = input.skillName?.trim();
   if (!sessionId || !skillName) return;
@@ -299,7 +302,13 @@ function deny(reason: string): void {
 
 function readPackagedSafewordInstructions(): string | undefined {
   const instructionsPath = findPackagedTemplate('SAFEWORD.md');
-  return instructionsPath ? readFileSync(instructionsPath, 'utf8') : undefined;
+  if (!instructionsPath) return undefined;
+  return [
+    'Current Safe Word authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
+    'These current paths supersede retired Safe Word instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
+    '',
+    readFileSync(instructionsPath, 'utf8'),
+  ].join('\n');
 }
 
 function findPackagedTemplate(relativePath: string): string | undefined {
@@ -366,8 +375,8 @@ function runPackagedHook(
         ...process.env,
         CLAUDE_PROJECT_DIR: projectDirectory,
         SAFEWORD_AGENT_RUNTIME: 'codex',
-        // The copied dispatcher keeps its auto-upgrade behavior, but the plugin
-        // must inject package-owned instructions rather than project-local text.
+        // The copied dispatcher is observation-only and injects package-owned
+        // instructions rather than project-local text.
         SAFEWORD_PACKAGED_CONTEXT_PATH:
           relativePath === 'session-codex-start.ts'
             ? (findPackagedTemplate('SAFEWORD.md') ?? '')
@@ -473,9 +482,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
   return true;
 }
 
-async function runPreToolUse(): Promise<void> {
-  const rawInput = await readStdin();
-  const projectDirectory = resolveProjectDirectory();
+function runEnrolledPreToolUse(rawInput: string, projectDirectory: string): void {
   const qualityResult = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
   if (emitPackagedPreToolResult(qualityResult)) return;
 
@@ -498,6 +505,13 @@ async function runPreToolUse(): Promise<void> {
   for (const targetPath of extractTargetPaths(input)) {
     if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;
   }
+}
+
+async function runPreToolUse(): Promise<void> {
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  if (!hasSafewordProjectMarker(projectDirectory)) return;
+  runEnrolledPreToolUse(rawInput, projectDirectory);
 }
 
 async function runSessionStart(): Promise<void> {
@@ -523,32 +537,59 @@ async function runSessionStart(): Promise<void> {
   });
 }
 
+function postToolLintInputs(
+  input: CodexHookInput | undefined,
+  rawInput: string,
+  projectDirectory: string,
+): string[] {
+  if (input?.tool_name !== 'apply_patch') return [rawInput];
+
+  return extractTargetPaths(input).map(filePath =>
+    JSON.stringify({
+      tool_input: { file_path: nodePath.resolve(projectDirectory, filePath) },
+    }),
+  );
+}
+
+function collectPostToolLintContexts(lintInputs: string[], projectDirectory: string): string[] {
+  const contexts: string[] = [];
+  for (const lintInput of lintInputs) {
+    const lintResult = runPackagedHook('post-tool-lint.ts', lintInput, projectDirectory);
+    const context = packagedAdditionalContext(lintResult, 'PostToolUse');
+    const output = lintResult.stdout.trim();
+    if (context) contexts.push(context);
+    else if (output) contexts.push(output);
+  }
+  return contexts;
+}
+
 async function runPostToolUse(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
+  if (!hasSafewordProjectMarker(projectDirectory)) return;
+  const input = parseCodexHookInput(rawInput);
+  const lintInputs = postToolLintInputs(input, rawInput, projectDirectory);
+  const contexts = collectPostToolLintContexts(lintInputs, projectDirectory);
   const qualityResult = runPackagedHook('codex/post-tool-quality.ts', rawInput, projectDirectory);
-  if (qualityResult.stdout.trim() !== '') {
-    process.stdout.write(qualityResult.stdout);
-    return;
-  }
+  const qualityContext = packagedAdditionalContext(qualityResult, 'PostToolUse');
+  if (qualityContext) contexts.push(qualityContext);
 
   const skillNudgeResult = runPackagedHook(
     'codex/post-tool-skill-nudge.ts',
     rawInput,
     projectDirectory,
   );
-  if (skillNudgeResult.stdout.trim() !== '') {
-    process.stdout.write(skillNudgeResult.stdout);
-    return;
-  }
+  const skillContext = packagedAdditionalContext(skillNudgeResult, 'PostToolUse');
+  if (skillContext) contexts.push(skillContext);
 
   const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
-  if (!additionalContext) return;
+  if (additionalContext) contexts.push(additionalContext);
+  if (contexts.length === 0) return;
 
   emitAdditionalContext({
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
-      additionalContext,
+      additionalContext: contexts.join('\n\n'),
     },
   });
 }
@@ -557,11 +598,13 @@ async function runUserPromptSubmit(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
   const contexts = [currentTimestampContext()];
-  const retroNudge = packagedAdditionalContext(
-    runPackagedHook('prompt-retro-nudge.ts', rawInput, projectDirectory),
-    'UserPromptSubmit',
-  );
-  if (retroNudge) contexts.push(retroNudge);
+  if (hasSafewordProjectMarker(projectDirectory)) {
+    const retroNudge = packagedAdditionalContext(
+      runPackagedHook('prompt-retro-nudge.ts', rawInput, projectDirectory),
+      'UserPromptSubmit',
+    );
+    if (retroNudge) contexts.push(retroNudge);
+  }
 
   const queuedContext = readProjectTextFile(projectDirectory, PROMPT_CONTEXT_PATH)?.trim();
   if (queuedContext) contexts.push(queuedContext);
@@ -577,6 +620,10 @@ async function runUserPromptSubmit(): Promise<void> {
 async function runStop(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
+  if (!hasSafewordProjectMarker(projectDirectory)) {
+    emitStopNoop();
+    return;
+  }
   const packagedResult = runPackagedHook('codex/stop.ts', rawInput, projectDirectory);
   const trimmedPackagedOutput = packagedResult.stdout.trim();
   if (trimmedPackagedOutput !== '' && trimmedPackagedOutput !== '{}') {
@@ -607,11 +654,23 @@ const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> =
   'user-prompt-submit': runUserPromptSubmit,
 };
 
-export async function codexHook(event: string): Promise<void> {
+export async function codexHook(
+  event: string,
+  options: { pluginHook?: boolean } = {},
+): Promise<void> {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) {
     process.stderr.write(`Safe Word ignored unknown Codex hook event: ${event}\n`);
     return;
+  }
+  if (options.pluginHook === true) {
+    try {
+      recordCodexHookProof(normalized, process.env);
+    } catch {
+      // Proof is advisory state. A read-only or malformed CODEX_HOME must never
+      // prevent the packaged hook itself from protecting the project.
+    }
+    if (legacyCodexEventIsViable(resolveProjectDirectory(), normalized)) return;
   }
   await CODEX_HOOK_RUNNERS[normalized]();
 }

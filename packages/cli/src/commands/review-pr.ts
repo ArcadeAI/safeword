@@ -66,7 +66,7 @@ interface Invocation {
  * argument-validation thicket.
  */
 function parseSlug(slug: string): { owner: string; repo: string } {
-  const [owner, repo] = slug.split('/');
+  const [owner, repo] = slug.split('/', 2);
   if (!owner || !repo) {
     throw new Error('pr-review: GITHUB_REPOSITORY is missing or not in owner/repo form');
   }
@@ -177,11 +177,7 @@ export async function reviewPrCommand(options: ReviewPrOptions = {}): Promise<Re
       ? undefined
       : await fetchChangedPathsBetween(request, context, reviewedSha, facts.headSha);
 
-  process.stdout.write(
-    `pr-review: required-check set resolved from ${required.tier} (${required.checks?.join(', ') ?? 'all checks'})\n`,
-  );
-
-  const outcome = await runPrReview({
+  return runPrReview({
     config,
     trigger: {
       isDraft: facts.isDraft,
@@ -193,7 +189,4 @@ export async function reviewPrCommand(options: ReviewPrOptions = {}): Promise<Re
     poster: createReviewPoster(request, { ...context, headSha: facts.headSha }),
     review: options.review ?? assembleVendorReview(projectDirectory, options, facts, config),
   });
-
-  process.stdout.write(`pr-review: ${outcome.reason}\n`);
-  return outcome;
 }

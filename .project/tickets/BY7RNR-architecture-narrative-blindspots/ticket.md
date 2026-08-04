@@ -7,7 +7,6 @@ status: done
 scope:
   - hook-side narrative resolution in architecture-document-nudge.ts — configured paths.architecture (file or ADR directory) with root ARCHITECTURE.md fallback; nudge message names the resolved narrative
   - CLI counterpart resolver (resolveArchitectureNarrativePath in configured-paths.ts) pinned to the hook copy by a differential parity test (P58R22 pattern)
-  - narrative-drift advisory in `safeword architecture` (default/--check/--stage, beside warnUnreadableWorkspaces) listing generated `## Packages` entries absent from the narrative — word-boundary case-insensitive match on full name or scoped tail, capped list, exit codes untouched
   - prose surfaces — templates/prompts/architecture.md and audit SKILL.md structural-drift section resolve the narrative via paths.architecture; dogfood mirrors synced via parity:fix
 out_of_scope:
   - one-time/setup-time advisory state (no once-marker mechanism exists; continuous advisory chosen — see spec Design notes)
@@ -17,15 +16,19 @@ out_of_scope:
   - changing resolveConfiguredPath's <namespace>/architecture.md default for K4BWTQ record listing
 done_when:
   - with paths.architecture configured to a non-root file, a fingerprint-moving ticket emits the done-gate nudge naming that narrative; without config, root ARCHITECTURE.md behavior is byte-identical to today
-  - "`safeword architecture` prints a drift advisory naming generated packages absent from the narrative; silent when reconciled or no narrative; exit codes unchanged in all modes"
   - architecture prompt + audit skill reference the configured narrative; hook/CLI resolver parity test and templates↔dogfood parity check pass
 created: 2026-07-05T19:25:59.867Z
-last_modified: 2026-07-05T19:25:59.867Z
+last_modified: 2026-07-28T00:00:00.000Z
 ---
 
-# Architecture narrative reconciliation: honor paths.architecture + surface pre-existing drift
+# Architecture narrative reconciliation: honor paths.architecture
 
-**Goal:** Done-gate nudge and architecture prompts resolve the narrative via paths.architecture (root ARCHITECTURE.md fallback); safeword architecture emits a non-blocking advisory listing generated packages absent from the narrative
+**Goal:** Done-gate nudge and architecture prompts resolve the narrative via paths.architecture (root ARCHITECTURE.md fallback).
+
+> **Supersession (2026-07-28):** GitHub #1609 retired this ticket's former TB2
+> package-mention advisory. `architecture.generated.md` owns structural package
+> inventory; the hand-curated narrative records meaningful decisions. The TB2
+> material below remains delivery history, not current behavior.
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
@@ -37,27 +40,11 @@ last_modified: 2026-07-05T19:25:59.867Z
   (`<namespace>/architecture.md`) would silently kill the nudge for every existing
   root-`ARCHITECTURE.md` host — the same silent-no-op bug class inverted.
   `resolveConfiguredPath`'s default stays untouched for K4BWTQ record listing.
-- **Advisory surface:** stateless, every-run, in `safeword architecture` (all
-  modes), beside `warnUnreadableWorkspaces` — the session-start heal hook shells
-  out to this command, so the advisory reaches every agent session and self-clears
-  on reconcile. Setup-time one-time advisory rejected: setup doesn't generate
-  docs, no once-only state mechanism exists, and the incident host configured
-  `paths.architecture` *after* setup — a setup-only check would have missed the
-  incident anyway. Continuous drift surfacing is the industry norm (HashiCorp
-  well-architected guidance).
-- **Deviation from AXRC4D's "no deterministic drift module" ruling** (recorded per
-  architecture-guide): that ruling rejected a *source-analyzing* detector and
-  blessed "deterministic-by-reading". The new check reads two documents (generated
-  `### <name>` headings under `## Packages` vs narrative text) and computes
-  nothing from source. Named defect the deviation fixes: agent-judgment-only
-  reconciliation (`/audit`) never runs unprompted — #848 is the proof. Pre-mortem:
-  a crude mention check nags hosts whose narratives name packages by prose
-  description; mitigated by the generous "mentioned" rule (spec Vocabulary), a
-  capped list, and `/audit` staying the authoritative pass. Call-site count: one
-  (the architecture command); no uplevel ticket needed.
-- **Scope guard:** monorepo `## Packages` only. Single-repo `## Modules` names
-  (`utils`, `commands`, …) are prose-collision-prone; they stay `/audit`'s
-  judgment call.
+- **Advisory reversal (GitHub #1609, 2026-07-28):** retired the every-run
+  package-mention check and its AXRC4D deviation. A package absent from a
+  decision record is normally valid; generated architecture state remains the
+  structural inventory. The original #848 incident and TB2 evidence remain
+  historically accurate, but no longer prescribe product behavior.
 
 ## Work Log
 
@@ -68,3 +55,4 @@ last_modified: 2026-07-05T19:25:59.867Z
 - 2026-07-05T19:41:00Z Complete: scenario-gate - Independent fork review (review-spec procedure): first pass BLOCK (ADR-directory drift uncovered + 5 strengtheners), all applied (+5 scenarios → 22 total), re-review PASS, stamped. impl-plan.md written (proof plan + build order in Approach). Phase → implement.
 - 2026-07-05T20:45:00Z Complete: implement — reconciled impl plan; 2 decisions added (matcher boundaries, advisory timing), 2 deviations recorded (steps-file naming, empty-ADR-dir divergence). All 25 scenarios R/G/R'd across 6 slices. Whole-ticket /quality-review: pass 1 REQUEST CHANGES (sentence-period matcher bug — real, fixed RED-first in 5902103/a3b5b0f + dead-field cleanup), pass 2 APPROVE (16-case repro verified). Cross-scenario row a3b5b0f. Evidence: vitest full suite green, 77/77 across touched suites, cucumber 255/255. Phase → verify.
 - 2026-07-05T21:05:00Z Complete: verify — /verify evidence block green (4695 tests, 255 cucumber scenarios, build/typecheck/lint clean), /audit passed with 1 warning (website docs don't cover `safeword architecture` — pre-existing gap, follow-up candidate). verify.md written. Phase → done.
+- 2026-07-28T00:00:00Z Superseded: GitHub #1609 retired TB2's every-run package-mention advisory. Removed its runtime, acceptance steps, and scenarios; retained the TB1 configured-narrative contract and documented the reversal above.

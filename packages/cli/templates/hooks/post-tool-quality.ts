@@ -21,6 +21,7 @@ import {
   NAMESPACE_ROOT_DEFAULT,
   NAMESPACE_ROOT_LEGACY,
 } from './lib/namespace-root.ts';
+import { resolveRunIdentity } from './lib/run-identity.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('post-tool-quality');
@@ -48,7 +49,17 @@ try {
   process.exit(0);
 }
 
-const stateFile = getStateFilePath(projectDirectory, input.session_id);
+// Codex's adapter marks its child process with the runtime, so resolve its
+// durable identity here rather than writing an unscoped `undefined` state when
+// Desktop omits session_id. Stop uses the same resolution, including the
+// CODEX_THREAD_ID fallback, so both hooks address one binding. Other adapters
+// retain their existing translated raw-id storage behavior.
+const stateFile = getStateFilePath(
+  projectDirectory,
+  process.env.SAFEWORD_AGENT_RUNTIME === 'codex'
+    ? resolveRunIdentity(input, { runtime: 'codex' })
+    : input.session_id,
+);
 const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 
 // Load or create state
@@ -102,7 +113,7 @@ function countLoc(): number {
     });
     const insMatch = diffStat.match(/(\d+) insertions?\(\+\)/);
     const delMatch = diffStat.match(/(\d+) deletions?\(-\)/);
-    return (insMatch ? parseInt(insMatch[1]) : 0) + (delMatch ? parseInt(delMatch[1]) : 0);
+    return parseInt(insMatch?.[1] ?? '0') + parseInt(delMatch?.[1] ?? '0');
   } catch {
     return 0;
   }

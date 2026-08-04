@@ -4,24 +4,39 @@
 
 ## Sub-phase gates
 
-Intake advances through sub-phases (load personas/glossary/surfaces → JTBD → Rules → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
+Intake advances through sub-phases (load principles/personas/glossary/surfaces → JTBD → Rules → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
 
 1. **Present** the captured artifact verbatim — the JTBD list, the Rules list grouped by JTBD, or the Scope / Out of Scope / Done When block.
 2. **Ask** the sub-phase's closing question (below).
 3. **Wait** for confirmation. Any forward-moving reply advances — an explicit "looks good" / "proceed", or an amendment you fold in and re-present. A new concern loops back; you don't advance until it's resolved.
 
-| Sub-phase                      | Closing question                                                                                                                                                                             |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Personas / glossary / surfaces | _"`<file>` is empty — add entries now, or proceed without?"_ (only when missing/empty)                                                                                                       |
-| Jobs To Be Done                | _"Here's who asked, the cost of not doing it, and how reversible it is — plus the jobs it serves. Given that, is this a feature, or a task? And do the jobs cover who this serves and why?"_ |
-| Rules                          | _"Does each job's criteria capture what 'done' means for the persona? Any to split, add, or drop?"_                                                                                          |
-| Engineering scope              | _"Here's the scope / out-of-scope / done-when — ready to proceed?"_                                                                                                                          |
+| Sub-phase                                   | Closing question                                                                                                                                                                             |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Principles / personas / glossary / surfaces | _"`<file>` is empty — add entries now, or proceed without?"_ (only when missing/empty)                                                                                                       |
+| Jobs To Be Done                             | _"Here's who asked, the cost of not doing it, and how reversible it is — plus the jobs it serves. Given that, is this a feature, or a task? And do the jobs cover who this serves and why?"_ |
+| Rules                                       | _"Does each job's criteria capture what 'done' means for the persona? Any to split, add, or drop?"_                                                                                          |
+| Engineering scope                           | _"Here's the scope / out-of-scope / done-when — ready to proceed?"_                                                                                                                          |
 
 **On resume** (picked up mid-sub-phase across sessions): re-present the captured artifact for re-confirmation rather than assuming the prior signoff still stands — context may have shifted.
 
 **Under YOLO mode** (G2E72G): gates auto-confirm and the auto-decision is recorded in the work log, so the audit trail shows what was waved through.
 
 These gates are conversational discipline the agent runs — not a hook block. (Hook-enforced sub-phase tracking is future work, coordinated with phase-step-enforcement epic 172.)
+
+## Load project principles
+
+At intake start, read the configured principles file (`paths.principles`,
+default `<namespace-root>/principles.md`). This is the project's source of truth
+for durable decision policy. Do not copy the catalogue into the ticket and do
+not force every principle to apply.
+
+- **Missing or empty:** ask whether to add principles now or proceed without.
+- **Applicable:** carry the principle forward only when it changes a Rule,
+  design choice, proof, or deliberate deviation.
+- **Experiential:** translate it into observable Rules and, when appropriate, a
+  Rave Moment; tests prove the mechanics, not the emotion itself.
+- **Technical:** keep product Rules technology-neutral and carry the principle
+  into plan-implementation, where alternatives and evidence belong.
 
 ## Load project personas
 
@@ -35,7 +50,7 @@ At intake start, read the configured personas file (`paths.personas`, default `<
 
 - **If a persona reference comes up during intake that isn't in the file** — flag it, don't invent. Ask whether it's a new persona to add, or a typo for an existing one. Use `validatePersonaReference` semantics (case-sensitive match; offer the suggestion when only casing differs).
 
-Short codes auto-derive as 3–4 letter identifiers on the next `safeword check` (e.g., `Platform Operator` → `PLO`). Explicit `## Name (CODE)` overrides may use 2–4 letters (for example, `## Platform Operator (PO)`). Preserve existing 5–6 character codes as legacy compatibility. Never edit derived codes manually except via the override path — `safeword check` will rewrite them.
+Short codes auto-derive as 3–4 letter identifiers on the next `safeword doctor` (e.g., `Platform Operator` → `PLO`). Explicit `## Name (CODE)` overrides may use 2–4 letters (for example, `## Platform Operator (PO)`). Preserve existing 5–6 character codes as legacy compatibility. Never edit derived codes manually except via the override path — `safeword doctor` will rewrite them.
 
 ## Load project glossary
 
@@ -204,7 +219,7 @@ done_when:
 ### Scenario: oauth-flow.PLO1.R1.previous_key_authenticates_within_grace_window
 ```
 
-`safeword check` reads these titles and reports coverage gaps as advisories — a Rule no scenario references (R2, until you write one) is **uncovered**; a scenario naming a renumbered or missing Rule is a **stale ref** or **orphan**. The full scheme lives in the bdd skill's SCENARIOS.md.
+`safeword doctor` reads these titles and reports coverage gaps as advisories — a Rule no scenario references (R2, until you write one) is **uncovered**; a scenario naming a renumbered or missing Rule is a **stale ref** or **orphan**. The full scheme lives in the bdd skill's SCENARIOS.md.
 
 The arc end to end: a persona from `personas.md`, a job that names it, criteria under the job, an engineering contract on top, and scenarios that trace back to a criterion — each sub-phase closed by its gate.
 

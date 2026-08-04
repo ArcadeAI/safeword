@@ -9,6 +9,7 @@
 
 import nodePath from 'node:path';
 
+import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
@@ -79,6 +80,21 @@ export interface ContractDefinition {
   requires: string[]; // Strings that must appear verbatim in the file content
 }
 
+interface CodexMigrationDefinition {
+  legacyFiles: string[];
+  cleanupFiles: string[];
+  legacyDirs: string[];
+  hookEvents: string[];
+  hookEventNames: Record<string, string>;
+  hookScripts: string[];
+  sharedRuntimePaths: readonly string[];
+  cleanupRuntimePaths: string[];
+  hookScriptEvents: Record<string, string>;
+  hookScriptPrefix: string;
+  packageRunner: 'npx';
+  projectMarker: string;
+}
+
 export interface SafewordSchema {
   version: string;
   ownedDirs: string[]; // Fully owned - create on setup, delete on reset
@@ -96,6 +112,7 @@ export interface SafewordSchema {
   textPatches: Record<string, TextPatchDefinition | TextPatchDefinition[]>;
   legacyTextPatches: Record<string, TextPatchDefinition>; // Remove old managed text patches without installing them
   contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
+  codexMigration: CodexMigrationDefinition; // Historical Codex identities retained until explicit finalization
   packages: {
     base: string[];
     conditional: Record<string, string[]>;
@@ -175,40 +192,6 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  */
 const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
 
-const CODEX_LEGACY_SKILL_FILES = [
-  'audit/SKILL.md',
-  'bdd/SKILL.md',
-  'bdd/DISCOVERY.md',
-  'bdd/PLAN_IMPLEMENTATION.md',
-  'bdd/SCENARIOS.md',
-  'bdd/TDD.md',
-  'bdd/DONE.md',
-  'bdd/SPLITTING.md',
-  'bdd/VERIFY.md',
-  'brainstorm/SKILL.md',
-  'cleanup-zombies/SKILL.md',
-  'debug/SKILL.md',
-  'elicit/SKILL.md',
-  'explain/SKILL.md',
-  'figure-it-out/SKILL.md',
-  'lint/SKILL.md',
-  'quality-review/SKILL.md',
-  'refactor/SKILL.md',
-  'retro/SKILL.md',
-  'review-spec/SKILL.md',
-  'self-review/SKILL.md',
-  'tdd-review/SKILL.md',
-  'testing/SKILL.md',
-  'ticket-system/SKILL.md',
-  'verify/SKILL.md',
-] as const;
-
-const CODEX_SKILL_DEPRECATED_FILES = CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file}`);
-
-const CODEX_SKILL_DEPRECATED_DIRS = [
-  ...new Set(CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file.split('/', 1)[0]}`)),
-];
-
 const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
   CURSOR_RULE_WRAPPERS.map(wrapper => [
     `.cursor/rules/${wrapper.name}.mdc`,
@@ -222,6 +205,49 @@ const CURSOR_COMMAND_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Objec
     { template: `commands/${wrapper.name}.md` },
   ]),
 );
+
+const CURSOR_SHARED_SKILL_FILES = [
+  'audit/SKILL.md',
+  'bdd/SKILL.md',
+  'bdd/DISCOVERY.md',
+  'bdd/PLAN_IMPLEMENTATION.md',
+  'bdd/SCENARIOS.md',
+  'bdd/TDD.md',
+  'bdd/DONE.md',
+  'bdd/SPLITTING.md',
+  'bdd/VERIFY.md',
+  'brainstorm/SKILL.md',
+  'cleanup-zombies/SKILL.md',
+  'closeout/SKILL.md',
+  'debug/SKILL.md',
+  'elicit/SKILL.md',
+  'explain/SKILL.md',
+  'figure-it-out/SKILL.md',
+  'lint/SKILL.md',
+  'quality-review/SKILL.md',
+  'refactor/SKILL.md',
+  'retro/SKILL.md',
+  'retro-filer/SKILL.md',
+  'review-spec/SKILL.md',
+  'self-review/SKILL.md',
+  'spike/SKILL.md',
+  'tdd-review/SKILL.md',
+  'testing/SKILL.md',
+  'ticket-system/SKILL.md',
+  'verify/SKILL.md',
+] as const;
+
+const CURSOR_SHARED_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
+  CURSOR_SHARED_SKILL_FILES.map(path => [
+    `.safeword/skills/${path}`,
+    { template: `skills/${path}` },
+  ]),
+);
+
+const CURSOR_SHARED_SKILL_DIRS = [
+  '.safeword/skills',
+  ...new Set(CURSOR_SHARED_SKILL_FILES.map(path => `.safeword/skills/${path.split('/', 1)[0]}`)),
+];
 
 function skipCodexRuntimeAssetInstall(): undefined {
   return;
@@ -238,7 +264,11 @@ const CODEX_RUNTIME_ASSET_FILENAMES = [
 const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromEntries(
   CODEX_RUNTIME_ASSET_FILENAMES.map(file => [
     `.safeword/hooks/codex/${file}`,
-    { template: `hooks/codex/${file}`, generator: skipCodexRuntimeAssetInstall },
+    {
+      dogfoodParity: true,
+      template: `hooks/codex/${file}`,
+      generator: skipCodexRuntimeAssetInstall,
+    },
   ]),
 );
 
@@ -253,7 +283,8 @@ const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromE
  * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
  * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
  * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
- * siblings (tickets/, learnings/, personas.md, glossary.md, surfaces.md) stay tracked.
+ * siblings (tickets/, learnings/, principles.md, personas.md, glossary.md,
+ * surfaces.md) stay tracked.
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
@@ -279,7 +310,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  * by the per-root `.gitignore` (`NAMESPACE_GITIGNORE_CONTENT`) instead, since a
  * static repo-root block cannot name an arbitrary root (issue #272).
  */
-export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
+const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
   '.safeword/self-reports/',
   '.safeword/boundary-audit.jsonl',
@@ -365,7 +396,7 @@ function managedGitattributes(ctx: ProjectContext): string {
 /**
  * The starter BDD lane's full surface — files (the bddLaneFile entries
  * below), deps (typescriptPackages.conditional.scaffoldBddLane), and the
- * test:bdd script. The `safeword check` leftover-scaffold advisory
+ * test:bdd script. The `safeword doctor` leftover-scaffold advisory
  * enumerates from these constants so its list can never drift from the
  * schema (ticket 56JCFZ, TB3.AC2).
  */
@@ -437,7 +468,7 @@ export function boundaryShimCommand(at: 'commit' | 'push'): string {
 function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
   return {
     operation: 'append',
-    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword reset\`\n`,
+    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword remove\`\n`,
     marker: BOUNDARY_SHIM_MARKER,
     rerender: true,
     // A hook file that setup alone created holds nothing but the shim after
@@ -450,6 +481,7 @@ function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
 /** The canonical schema is plugin-only for Codex. */
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
+  codexMigration: CODEX_MIGRATION_SCHEMA,
 
   // Directories fully owned by safeword (created on setup, deleted on reset)
   ownedDirs: [
@@ -462,6 +494,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/prompts',
     '.safeword/scripts',
     '.safeword/statusline',
+    ...CURSOR_SHARED_SKILL_DIRS,
     '.cursor',
     '.cursor/rules',
     '.cursor/commands',
@@ -573,13 +606,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/.gherkin-lintrc',
     // Merged into session-auto-upgrade.ts — check + apply now run in one pass (XQ9CXA)
     '.safeword/hooks/session-update-check.ts',
-    // Codex implementation moved into the packaged Codex plugin and `safeword hook codex`.
-    // Keep cleanup file-scoped for `.agents/skills/*` because `.agents/skills` is a shared
-    // agent directory; a user-authored sibling skill must survive migration.
-    ...CODEX_SKILL_DEPRECATED_FILES,
-    // This agent is superseded by the Codex plugin. It was formerly owned by
-    // Safe Word, so it is safe to retire without touching custom agent files.
-    '.codex/agents/safeword-retro-filer.toml',
+    // Legacy Codex assets are intentionally absent. Generic maintenance must
+    // preserve them until explicit, proof-gated migration finalization.
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -621,8 +649,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-quality-reviewing',
     '.claude/skills/safeword-refactoring',
     '.claude/skills/safeword-bdd-orchestrating',
-    // Empty after deprecated Codex skill files are removed; non-empty user-modified dirs survive.
-    ...CODEX_SKILL_DEPRECATED_DIRS,
+    // Legacy Codex skill directories remain until explicit migration finalization.
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)
@@ -674,8 +701,17 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-bun-check.sh': {
       template: 'hooks/session-bun-check.sh',
     },
+    '.safeword/hooks/lib/audit-scope.sh': {
+      template: 'hooks/lib/audit-scope.sh',
+    },
     '.safeword/hooks/resolve-namespace-root.ts': {
       template: 'hooks/resolve-namespace-root.ts',
+    },
+    '.safeword/hooks/resolve-project-knowledge.ts': {
+      template: 'hooks/resolve-project-knowledge.ts',
+    },
+    '.safeword/hooks/audit-principle-trace.ts': {
+      template: 'hooks/audit-principle-trace.ts',
     },
     '.safeword/hooks/record-skill-invocation.ts': {
       template: 'hooks/record-skill-invocation.ts',
@@ -691,6 +727,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/branch-staleness.ts': { template: 'hooks/lib/branch-staleness.ts' },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
+    '.safeword/hooks/lib/closeout-binding.ts': { template: 'hooks/lib/closeout-binding.ts' },
     '.safeword/hooks/lib/cursor-run-identity.ts': {
       template: 'hooks/lib/cursor-run-identity.ts',
     },
@@ -701,6 +738,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
+    '.safeword/hooks/lib/host-toolchain.ts': { template: 'hooks/lib/host-toolchain.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
     '.safeword/hooks/lib/run-identity.ts': { template: 'hooks/lib/run-identity.ts' },
@@ -710,6 +748,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
     '.safeword/hooks/lib/jsonl-spool.ts': { template: 'hooks/lib/jsonl-spool.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
+    '.safeword/hooks/lib/drain-retro-spool.ts': { template: 'hooks/lib/drain-retro-spool.ts' },
     '.safeword/hooks/lib/retro-draft-spool.ts': { template: 'hooks/lib/retro-draft-spool.ts' },
     '.safeword/hooks/lib/retro-debug.ts': { template: 'hooks/lib/retro-debug.ts' },
     '.safeword/hooks/lib/retro-extract.ts': { template: 'hooks/lib/retro-extract.ts' },
@@ -724,6 +763,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/phase-provenance.ts': { template: 'hooks/lib/phase-provenance.ts' },
     '.safeword/hooks/lib/impl-plan.ts': { template: 'hooks/lib/impl-plan.ts' },
+    '.safeword/hooks/lib/project-knowledge.ts': { template: 'hooks/lib/project-knowledge.ts' },
+    '.safeword/hooks/lib/principle-trace.ts': { template: 'hooks/lib/principle-trace.ts' },
     '.safeword/hooks/lib/plan-gate.ts': { template: 'hooks/lib/plan-gate.ts' },
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
@@ -770,6 +811,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Hooks - TypeScript with Bun runtime
     '.safeword/hooks/session-safeword-context.ts': {
       template: 'hooks/session-safeword-context.ts',
+    },
+    '.safeword/hooks/session-reply-format.ts': {
+      template: 'hooks/session-reply-format.ts',
     },
     '.safeword/hooks/session-codex-start.ts': {
       template: 'hooks/session-codex-start.ts',
@@ -972,6 +1016,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/scripts/cleanup-zombies.sh': {
       template: 'scripts/cleanup-zombies.sh',
     },
+    '.safeword/scripts/closeout-cleanup.ts': {
+      template: 'scripts/closeout-cleanup.ts',
+    },
+
+    // Host-neutral skill materialization retained for Cursor's thin wrappers.
+    // Claude loads the same canonical sources from its native plugin cache.
+    ...CURSOR_SHARED_SKILL_OWNED_FILES,
 
     // Claude skills (short names, auto-trigger + explicit invocation)
     '.claude/skills/debug/SKILL.md': {
@@ -1017,6 +1068,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Skills auto-create /slash-commands, so separate commands are unnecessary
     '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
+    '.claude/skills/closeout/SKILL.md': { template: 'skills/closeout/SKILL.md' },
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
     '.claude/skills/explain/SKILL.md': { template: 'skills/explain/SKILL.md' },
     '.claude/skills/self-review/SKILL.md': { template: 'skills/self-review/SKILL.md' },
@@ -1027,6 +1079,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'skills/cleanup-zombies/SKILL.md',
     },
     '.claude/skills/retro/SKILL.md': { template: 'skills/retro/SKILL.md' },
+    '.claude/skills/spike/SKILL.md': { template: 'skills/spike/SKILL.md' },
     '.claude/skills/retro-filer/SKILL.md': {
       template: 'skills/retro-filer/SKILL.md',
     },
@@ -1106,6 +1159,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...rustManagedFiles,
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,
+
+    // Project principles — scaffolded once; users author the small, durable set
+    // that guides product and technical decisions. Like personas, a configured
+    // paths.principles override suppresses the default scaffold uniformly.
+    '.safeword-project/principles.md': {
+      template: 'principles-template.md',
+      configKey: 'principles',
+    },
 
     // Project personas — scaffolded once with format header + commented example;
     // user authors real persona blocks thereafter (safeword reads, never overwrites
@@ -1348,12 +1409,21 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       requires: SHARED_FILING_INVARIANTS,
     },
     'packages/cli/templates/hooks/lib/quality.ts': {
-      // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The export must exist
-      // or Cursor users get a broken hook. The four marker strings (CONFIDENT,
-      // BLOCKED, Tried:, Need:) define the binary-terminal shape from ticket 143.
-      // Removing any of them would silently regress the prompt back to legacy
-      // free-form review.
-      requires: ['QUALITY_REVIEW_MESSAGE', 'CONFIDENT', 'BLOCKED', 'Tried:', 'Need:'],
+      // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The grammar, renderer,
+      // and evaluator exports keep proactive wording and Stop validation coupled;
+      // requiring individual labels here would create a second grammar source.
+      requires: [
+        'QUALITY_REVIEW_MESSAGE',
+        // prompt-questions.ts imports all three pre-response pointers; the Stop
+        // header composes the bare rule inline. Removing any one forks the
+        // reply-shape vocabulary back across two hooks.
+        'REPLY_FORMAT_LEAD_RULE',
+        'REPLY_FORMAT_LEAD',
+        'REPLY_FORMAT_REMINDER',
+        'DECISION_BRIEF_GRAMMAR',
+        'renderDecisionBriefContract',
+        'evaluateDecisionBriefCompliance',
+      ],
     },
     'packages/cli/templates/doc-templates/test-definitions-feature.md': {
       // Canonical test-definitions.md format. Rule grouping (Gherkin 6+

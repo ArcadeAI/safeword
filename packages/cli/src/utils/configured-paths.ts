@@ -18,10 +18,12 @@
 
 import nodePath from 'node:path';
 
-import { isDirectory, readFileSafe } from './fs.js';
+import { exists, isDirectory, readFileSafe } from './fs.js';
+import { toRepoDirectory } from './repo-path.js';
 
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
-export type ConfiguredPathKey = 'personas' | 'glossary' | 'surfaces' | 'architecture';
+export type ConfiguredPathKey =
+  'principles' | 'personas' | 'glossary' | 'surfaces' | 'architecture';
 
 /**
  * Directory keys under `paths.*` (unlike ConfiguredPathKey, these point at
@@ -54,6 +56,7 @@ interface SafewordConfigShape {
 }
 
 const CONFIG_SUBPATH = ['.safeword', 'config.json'];
+const SAFEWORD_PROJECT_MARKER_SUBPATH = ['.safeword', 'SAFEWORD.md'];
 
 /** Default namespace root for fresh contexts (epic AQJ95G). */
 const NAMESPACE_ROOT_DEFAULT = '.project';
@@ -61,11 +64,18 @@ const NAMESPACE_ROOT_DEFAULT = '.project';
 /** Legacy namespace root, honored where it already exists (pre-AQJ95G installs). */
 export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
+/** True after explicit Safeword setup has enrolled this repository. */
+export function hasSafewordProjectMarker(cwd: string): boolean {
+  return exists(nodePath.join(cwd, ...SAFEWORD_PROJECT_MARKER_SUBPATH));
+}
+
 function readSafewordConfig(cwd: string): SafewordConfigShape | undefined {
   const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);
   const content = readFileSafe(configPath);
-  if (content === undefined) return undefined;
+  return content === undefined ? undefined : parseSafewordConfig(content);
+}
 
+function parseSafewordConfig(content: string): SafewordConfigShape | undefined {
   try {
     return JSON.parse(content) as SafewordConfigShape;
   } catch {
@@ -111,7 +121,7 @@ function parseGitDocumentationSource(
  * empty, non-string, or the config file is missing/unparseable.
  *
  * Exported for callers that need to know "is this overridden?" without
- * resolving the path (e.g., reconcile's `configKey` gate, `safeword check`
+ * resolving the path (e.g., reconcile's `configKey` gate, `safeword doctor`
  * advisory messaging).
  */
 export function readConfiguredPath(
@@ -123,6 +133,16 @@ export function readConfiguredPath(
   const raw = parsed?.paths?.[key];
   if (!nonEmptyString(raw)) return undefined;
   return raw;
+}
+
+/** Read a configured path from caller-supplied config content (e.g. a Git tree). */
+export function readConfiguredPathFromContent(
+  content: string | undefined,
+  key: ConfiguredPathKey | ConfiguredDirectoryKey,
+): string | undefined {
+  if (content === undefined) return undefined;
+  const raw = parseSafewordConfig(content)?.paths?.[key];
+  return nonEmptyString(raw) ? raw : undefined;
 }
 
 /**
@@ -160,7 +180,7 @@ export function readBddConventionsPath(cwd: string): string | undefined {
  * design: an unparseable config never silently disables enforcement.
  *
  * Read by both enforcement surfaces — the commit-time stage hook and the CI
- * `safeword architecture --check` backstop.
+ * `safeword project architecture --check` backstop.
  */
 export function isArchitectureDocumentEnforcementEnabled(cwd: string): boolean {
   const parsed = readSafewordConfig(cwd);
@@ -211,7 +231,7 @@ export function readConfiguredDocumentationSourceDecision(
 
 /**
  * Resolve the absolute namespace root — the directory holding safeword's
- * project knowledge (tickets, learnings, personas, glossary, surfaces,
+ * project knowledge (tickets, learnings, principles, personas, glossary, surfaces,
  * architecture).
  *
  * Precedence (epic AQJ95G): explicit config `paths.projectRoot` →
@@ -237,6 +257,28 @@ export function resolveNamespaceRoot(cwd: string): string {
 /** Absolute tickets directory under the resolved namespace root. */
 export function resolveTicketsDirectory(cwd: string): string {
   return nodePath.join(resolveNamespaceRoot(cwd), 'tickets');
+}
+
+/**
+ * Repo-relative ticket directories for a caller-supplied project-root config.
+ * With no explicit root, preserve namespace precedence: `.project` wins over
+ * legacy `.safeword-project`, and a fresh project defaults to `.project`.
+ */
+export function ticketDirectoriesForConfiguredRoot(
+  cwd: string,
+  configuredProjectRoot: string | undefined,
+  rootExists: (repoRelativeRoot: string) => boolean,
+): string[] {
+  if (configuredProjectRoot === undefined) {
+    let projectRoot = NAMESPACE_ROOT_DEFAULT;
+    if (!rootExists(projectRoot) && rootExists(NAMESPACE_ROOT_LEGACY)) {
+      projectRoot = NAMESPACE_ROOT_LEGACY;
+    }
+    return [nodePath.posix.join(projectRoot, 'tickets')];
+  }
+  const projectRoot = toRepoDirectory(cwd, configuredProjectRoot);
+  if (projectRoot === undefined) return [];
+  return [nodePath.posix.join(projectRoot, 'tickets')];
 }
 
 /** Absolute learnings directory under the resolved namespace root. */
@@ -266,8 +308,7 @@ export function resolveGeneratedArchitecturePath(cwd: string): string {
 
 /**
  * The resolved architecture narrative location (ticket BY7RNR, GitHub #848):
- * where the human-authored architecture document lives for nudges, prompts,
- * and the drift advisory.
+ * where the human-authored architecture document lives for nudges and prompts.
  */
 export interface ArchitectureNarrative {
   /** Absolute path of the narrative target. Existence is NOT guaranteed. */

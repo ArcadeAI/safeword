@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 import { globSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { extractSkeleton, PURPOSE_PLACEHOLDER } from './architecture-skeleton.js';
+import { extractSkeleton, PURPOSE_PLACEHOLDER, type Skeleton } from './architecture-skeleton.js';
 import { readBoundaryConfig } from './boundary-config.js';
 import { readCargoPackageName, readCargoWorkspaceMembers } from './cargo-manifest.js';
 import { findAllInTree, isDirectory, readFileSafe, readJson } from './fs.js';
@@ -32,6 +32,8 @@ export interface PackageNode {
   dir: string;
   /** One-line purpose (the purpose floor); a placeholder until prose is written. */
   purpose: string;
+  /** True when `purpose` came from the package.json description. */
+  seededPurpose?: boolean;
   /**
    * Whether the package yields a non-empty skeleton (source modules to enumerate,
    * so it gets a leaf doc) — across every layout the extractor recognizes: `src/`,
@@ -98,6 +100,23 @@ export interface MonorepoModel {
   unreadableWorkspaces: UnreadableWorkspace[];
 }
 
+/** One discovered package and the leaf structure observed during the same operation. */
+interface MonorepoLeafSnapshot {
+  dir: string;
+  skeleton: Skeleton;
+}
+
+/**
+ * Operation-scoped monorepo facts. The released model shape stays unchanged while
+ * orchestration can reuse the same directory-sorted leaves and extracted skeletons.
+ */
+export interface MonorepoArchitectureSnapshot {
+  model: MonorepoModel;
+  leaves: MonorepoLeafSnapshot[];
+  /** Discovery observed workspace member patterns, even if they resolve to zero leaves. */
+  workspaceRoot: boolean;
+}
+
 /**
  * Probe every workspace manager at the root, returning the globs to expand plus the
  * managers that are PRESENT but unparseable (ticket UWP4XK, GitHub #558).
@@ -130,20 +149,8 @@ export function discoverWorkspaces(projectDirectory: string): WorkspaceDiscovery
 }
 
 /**
- * Absolute directories of the leaf packages, sorted. The union of two sources:
- * the DECLARED workspace members (workspace globs expanded, recognized-manifest
- * dirs kept) and the ORPHAN non-JS packages a bounded tree walk finds outside any
- * declared workspace (issue #844). A dir claimed by both is listed once. Returns
- * `[]` for a non-workspace project with no orphan packages.
- */
-export function discoverLeafDirectories(projectDirectory: string): string[] {
-  return leafDirectoriesFrom(projectDirectory, discoverWorkspaces(projectDirectory).patterns);
-}
-
-/**
- * The declared-workspace ∪ orphan leaf union behind {@link discoverLeafDirectories},
- * taking already-read workspace patterns so a caller that has run discovery (the
- * model extractor) doesn't probe every manager a second time.
+ * The declared-workspace ∪ orphan leaf union, taking already-read workspace
+ * patterns so snapshot extraction doesn't probe every manager a second time.
  */
 function leafDirectoriesFrom(projectDirectory: string, patterns: string[]): string[] {
   const workspaceLeaves = resolveLeafDirectories(projectDirectory, patterns);
@@ -304,17 +311,32 @@ function hasRecognizedManifest(directory: string): boolean {
   );
 }
 
-/** The package/edge model the root index renders over. */
-export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
+/**
+ * Build the root model and leaf inputs from one workspace discovery pass.
+ *
+ * `leaves` preserves directory ordering for target enumeration; `model.packages`
+ * preserves its released name ordering for root rendering and fingerprints.
+ */
+export function extractMonorepoArchitectureSnapshot(
+  projectDirectory: string,
+): MonorepoArchitectureSnapshot {
   const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
   // Includes both declared workspace members and orphan non-JS packages (issue #844).
-  const packages: PackageNode[] = leafDirectoriesFrom(projectDirectory, patterns)
-    .map(dir => ({
-      name: packageName(dir),
-      dir,
-      purpose: PURPOSE_PLACEHOLDER,
-      introspected: extractSkeleton(dir).nodes.length > 0,
-    }))
+  const leaves = leafDirectoriesFrom(projectDirectory, patterns).map(dir => ({
+    dir,
+    skeleton: extractSkeleton(dir),
+  }));
+  const packages: PackageNode[] = leaves
+    .map(({ dir, skeleton }) => {
+      const description = packageJsonDescription(dir);
+      return {
+        name: packageName(dir),
+        dir,
+        purpose: description ?? PURPOSE_PLACEHOLDER,
+        ...(description !== undefined && { seededPurpose: true }),
+        introspected: skeleton.nodes.length > 0,
+      };
+    })
     .toSorted((a, b) => byString(a.name, b.name));
 
   const names = new Set(packages.map(node => node.name));
@@ -328,21 +350,16 @@ export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
   }
   edges.sort((a, b) => byString(a.from, b.from) || byString(a.to, b.to));
 
-  return { packages, edges, unreadableWorkspaces };
+  return {
+    model: { packages, edges, unreadableWorkspaces },
+    leaves,
+    workspaceRoot: patterns.length > 0 || unreadableWorkspaces.length > 0,
+  };
 }
 
 /**
- * Root-index fingerprint: a hash over the package set, the inter-package edges,
- * and the shared boundary config. Distinct from per-leaf `shapeFingerprint`.
- */
-export function monorepoFingerprint(projectDirectory: string): string {
-  return monorepoFingerprintOf(projectDirectory, extractMonorepoModel(projectDirectory));
-}
-
-/**
- * {@link monorepoFingerprint} over an already-extracted model, so a caller that
- * needs both (the root-index heal renders the model AND stamps its fingerprint)
- * extracts once instead of re-running discovery and the orphan tree walk.
+ * Root-index fingerprint over an already-extracted model, so a caller that
+ * renders the model and stamps its fingerprint does not re-run discovery.
  */
 export function monorepoFingerprintOf(projectDirectory: string, model: MonorepoModel): string {
   const inputs = {
@@ -381,6 +398,14 @@ function packageName(packageDirectory: string): string {
     readPyprojectCrateName(packageDirectory) ??
     nodePath.basename(packageDirectory)
   );
+}
+
+/** A usable package.json description, normalized for an architecture purpose line. */
+function packageJsonDescription(packageDirectory: string): string | undefined {
+  const description = readManifest(packageDirectory)?.description;
+  return typeof description === 'string' && description.trim().length > 0
+    ? description.replaceAll(/\s+/g, ' ').trim()
+    : undefined;
 }
 
 /** The `module` path declared in a directory's `go.mod`, if any. */

@@ -20,7 +20,7 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
+  runCliWithoutInstall,
   writeTestFile,
 } from '../helpers';
 
@@ -39,7 +39,7 @@ describe('Setup - Template Bundling (Story 1)', () => {
     createTypeScriptPackageJson(temporaryDirectory);
     initGitRepo(temporaryDirectory);
 
-    await runCli(['setup'], { cwd: temporaryDirectory });
+    await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
     expect(fileExists(temporaryDirectory, '.safeword/SAFEWORD.md')).toBe(true);
 
@@ -54,7 +54,7 @@ describe('Setup - Template Bundling (Story 1)', () => {
     createTypeScriptPackageJson(temporaryDirectory);
     initGitRepo(temporaryDirectory);
 
-    await runCli(['setup'], { cwd: temporaryDirectory });
+    await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
     expect(fileExists(temporaryDirectory, '.safeword/guides')).toBe(true);
 
@@ -68,7 +68,7 @@ describe('Setup - Template Bundling (Story 1)', () => {
     createTypeScriptPackageJson(temporaryDirectory);
     initGitRepo(temporaryDirectory);
 
-    await runCli(['setup'], { cwd: temporaryDirectory });
+    await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
     expect(fileExists(temporaryDirectory, '.safeword/templates')).toBe(true);
 
@@ -82,7 +82,7 @@ describe('Setup - Template Bundling (Story 1)', () => {
     createTypeScriptPackageJson(temporaryDirectory);
     initGitRepo(temporaryDirectory);
 
-    await runCli(['setup'], { cwd: temporaryDirectory });
+    await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
     expect(fileExists(temporaryDirectory, '.safeword/prompts')).toBe(true);
 
@@ -93,11 +93,11 @@ describe('Setup - Template Bundling (Story 1)', () => {
     expect(mdFiles.length).toBeGreaterThan(0);
   });
 
-  it('should block re-run and preserve user content', async () => {
+  it('should converge a re-run and preserve user content', async () => {
     createTypeScriptPackageJson(temporaryDirectory);
     initGitRepo(temporaryDirectory);
 
-    await runCli(['setup'], { cwd: temporaryDirectory });
+    await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
     // Create user content
     writeTestFile(
@@ -106,12 +106,11 @@ describe('Setup - Template Bundling (Story 1)', () => {
       '# My Learning\n\nImportant info.',
     );
 
-    // Re-run setup should exit with error (already configured)
-    const result = await runCli(['setup'], {
+    // Re-run setup should converge without replacing user content.
+    const result = await runCliWithoutInstall(['setup'], {
       cwd: temporaryDirectory,
     });
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Already configured');
+    expect(result.exitCode).toBe(0);
 
     // User content should be untouched
     expect(fileExists(temporaryDirectory, '.safeword/learnings/my-learning.md')).toBe(true);
@@ -123,7 +122,7 @@ describe('Setup - Template Bundling (Story 1)', () => {
     createTypeScriptPackageJson(temporaryDirectory);
     initGitRepo(temporaryDirectory);
 
-    await runCli(['setup'], { cwd: temporaryDirectory });
+    await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
     // Collect all markdown files in .safeword/
     const safewordDirectory = nodePath.join(temporaryDirectory, '.safeword');

@@ -22,7 +22,7 @@ Relations (all optional, omit when none):
   blocked_on_override: <reason>  # advance past a non-done blocked_on on purpose; needs a
                                  #   real reason (logged, shown in the INDEX). cancelled/
                                  #   superseded/wontfix blockers require this to proceed
-  depends_on: [<id>]             # SOFT deps — surfaced by `safeword check` / INDEX, not enforced
+  depends_on: [<id>]             # SOFT deps — surfaced by `safeword doctor` / INDEX, not enforced
   external_issue: <https://.../issues/nnn>  # direct tracker issue URL for triage
   external_prs: [<https://.../pull/nnn>, ...]  # direct tracker PR URLs for in-flight/merged PRs
 -->

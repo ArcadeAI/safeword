@@ -3,113 +3,191 @@ title: CLI
 description: Safeword command-line interface reference
 ---
 
-All commands run via `bunx safeword@latest` (or just `bunx safeword` if you have it installed locally).
+All commands run via `bunx safeword@latest` (or just `safeword` when installed
+locally). Bare `safeword` is a read-only alias for `safeword status`.
 
-## safeword setup
+## Stable command model
 
-Initialize Safeword in a project. Run this once when you first add Safeword to a repo.
+Safeword groups public commands by the thing they operate on. Legacy top-level
+names such as `check`, `upgrade`, `diff`, `reset`, and `sync-config` remain
+hidden compatibility aliases through the 0.71 release line.
+
+| Command        | Effect      | Purpose                                      |
+| -------------- | ----------- | -------------------------------------------- |
+| `status`       | Read-only   | Report health and one next action            |
+| `setup`        | Mutating    | Converge Safeword configuration              |
+| `plan`         | Read-only   | Preview reconciliation effects               |
+| `doctor`       | Read-only   | Diagnose project configuration               |
+| `remove`       | Destructive | Remove the exact reviewed Safeword plan      |
+| `project …`    | Mixed       | Maintain project config, tests, and indexes  |
+| `tracker …`    | Mutating    | Connect and synchronize an external tracker  |
+| `claude …`     | Mixed       | Install and migrate the native Claude plugin |
+| `codex …`      | Mixed       | Install and migrate the profile Codex plugin |
+| `ticket …`     | Mixed       | List and create project tickets              |
+| `retro …`      | Mixed       | Extract, inspect, and reconcile findings     |
+| `capabilities` | Read-only   | Describe the stable machine interface        |
+
+Every public command accepts the same global options before or after the
+command:
+
+| Option       | Meaning                                               |
+| ------------ | ----------------------------------------------------- |
+| `--json`     | Write one schema-versioned JSON envelope to stdout    |
+| `--no-input` | Never prompt; return the required next action instead |
+| `--cwd`      | Operate on an explicit project directory              |
+| `--offline`  | Refuse work that declares network access              |
+| `--quiet`    | Suppress healthy human output                         |
+| `--verbose`  | Include detailed findings and completed effects       |
+
+Use `safeword capabilities --json --no-input` to discover command effects,
+prompt and network policy, aliases, schema versions, and executable fixtures.
+The published result contract is available as
+`safeword/schemas/cli-result-v1.json`.
+
+When a tracker is connected, `ticket new` creates or adopts the tracker issue
+before writing its local project record. `--offline` refuses that declared
+network path before a tracker client is constructed; projects without a
+tracker continue to create local records offline.
+
+## Core lifecycle
 
 ```bash
+# Observe; never changes the project
+bunx safeword@latest
+bunx safeword@latest status
+bunx safeword@latest doctor
+bunx safeword@latest plan
+
+# Converge the project
 bunx safeword@latest setup
+
+# Preview removal, then run the exact confirmation command Safeword prints
+bunx safeword@latest remove
 ```
 
-**When to use:** First time setting up Safeword in a project, or after cloning a repo that doesn't have Safeword yet.
+`setup` handles first-time installation and upgrades through the same
+idempotent convergence path. `remove` requires both `--yes` and the current
+`--plan <id>` so consent cannot apply to a project that changed after preview.
+Project verification runs automatically after `setup`; use `doctor` directly
+for CI health gates and debugging. The retained `upgrade` alias follows the
+same path during its compatibility window.
 
 ### What gets installed
 
-| What                    | Action                                             | Purpose                                               |
-| ----------------------- | -------------------------------------------------- | ----------------------------------------------------- |
-| `.safeword/`            | Creates directory                                  | Hooks, guides, templates                              |
-| `.claude/settings.json` | Creates or merges                                  | Hook configuration                                    |
-| `.claude/skills/`       | Creates directory                                  | Workflow skills                                       |
-| `.cursor/hooks.json`    | Creates or merges                                  | Hook configuration                                    |
-| `.cursor/rules/`        | Creates directory                                  | Behavior rules                                        |
-| `.cursor/commands/`     | Creates directory                                  | Slash commands                                        |
-| `eslint.config.mjs`     | Creates file                                       | Linting config (JS/TS)                                |
-| `package.json`          | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
-| `cucumber.mjs`          | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
-| `features/`             | Creates starter                                    | Gherkin `.feature` files — yours after creation       |
-| `steps/`                | Creates starter                                    | TypeScript step definitions — yours after creation    |
-| `.golangci.yml`         | Creates file                                       | Linting config (Go)                                   |
-| `ruff.toml`             | Creates file                                       | Linting config (Python)                               |
-| `mypy.ini`              | Creates file                                       | Type checking (Python)                                |
-| `.importlinter`         | Creates when layout is unambiguous                 | Circular-import guard (Python) — yours after creation |
-| `clippy.toml`           | Creates file                                       | Linting config (Rust)                                 |
-| `rustfmt.toml`          | Creates file                                       | Formatting config (Rust)                              |
-| `Cargo.toml`            | Adds lints section                                 | clippy lints (Rust)                                   |
-| `.sqlfluff`             | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
-| `AGENTS.md`             | Creates or prepends                                | Links to SAFEWORD.md                                  |
-| `.mcp.json`             | Creates or merges                                  | MCP server config                                     |
-| `.cursor/mcp.json`      | Creates or merges                                  | MCP server config (Cursor)                            |
+| What                 | Action                                             | Purpose                                               |
+| -------------------- | -------------------------------------------------- | ----------------------------------------------------- |
+| `.safeword/`         | Creates directory                                  | Hooks, guides, templates                              |
+| `.cursor/hooks.json` | Creates or merges                                  | Hook configuration                                    |
+| `.cursor/rules/`     | Creates directory                                  | Behavior rules                                        |
+| `.cursor/commands/`  | Creates directory                                  | Slash commands                                        |
+| `eslint.config.mjs`  | Creates file                                       | Linting config (JS/TS)                                |
+| `package.json`       | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
+| `cucumber.mjs`       | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
+| `features/`          | Creates starter                                    | Gherkin `.feature` files — yours after creation       |
+| `steps/`             | Creates starter                                    | TypeScript step definitions — yours after creation    |
+| `.golangci.yml`      | Creates file                                       | Linting config (Go)                                   |
+| `ruff.toml`          | Creates file                                       | Linting config (Python)                               |
+| `mypy.ini`           | Creates file                                       | Type checking (Python)                                |
+| `.importlinter`      | Creates when layout is unambiguous                 | Circular-import guard (Python) — yours after creation |
+| `clippy.toml`        | Creates file                                       | Linting config (Rust)                                 |
+| `rustfmt.toml`       | Creates file                                       | Formatting config (Rust)                              |
+| `Cargo.toml`         | Adds lints section                                 | clippy lints (Rust)                                   |
+| `.sqlfluff`          | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
+| `AGENTS.md`          | Creates or prepends                                | Links to SAFEWORD.md                                  |
+| `.mcp.json`          | Creates or merges                                  | MCP server config                                     |
+| `.cursor/mcp.json`   | Creates or merges                                  | MCP server config (Cursor)                            |
 
 Setup auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 
+Claude Code delivery is user-scoped and separate from project setup. Fresh setup does not create Safe Word-owned `.claude/settings.json` hooks or `.claude/skills/`; existing legacy Claude assets remain protected until the native plugin is proven and their reviewed cleanup is explicitly confirmed.
+
+## Claude Code plugin
+
+```bash
+safeword claude install
+# In the current Claude Code task:
+/reload-plugins
+safeword claude status
+
+# Legacy projects only: preview, then run the exact --yes --plan command returned
+safeword claude cleanup
+safeword claude recover # only when status reports recovery-required
+```
+
+`claude install` pins and verifies the official user-scoped plugin without changing project files. After install or update, `/reload-plugins` activates it in the current task; the next prompt records proof bound to the installed version and bundled hook manifest. `claude status` is read-only. Cleanup never installs, updates, enables, reloads, or trusts a plugin: it removes only recognized legacy Safeword project assets after exact plugin proof and explicit plan confirmation, preserving custom and third-party content.
+
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
-**Unless you already have cucumber**: when setup detects an existing cucumber harness — any `cucumber.{json,yaml,yml,js,cjs,mjs}` it didn't scaffold, or a `@cucumber/cucumber` dependency it didn't add — it skips the starter lane entirely (no files, no deps, no `test:bdd`) and prints the `paths.features` / `paths.steps` config lines that point safeword's BDD tooling at your suite instead. `safeword check` keeps warning until those paths are set, and warns about duplicate lanes left by older safeword versions (it never deletes anything itself). Uninstall/reset likewise leaves your cucumber config untouched; when safeword's own scaffolded lane is present, `reset --full` treats the cucumber devDependencies as safeword's and removes them along with it.
+**Unless you already have cucumber**: when setup detects an existing cucumber harness — any `cucumber.{json,yaml,yml,js,cjs,mjs}` it didn't scaffold, or a `@cucumber/cucumber` dependency it didn't add — it skips the starter lane entirely (no files, no deps, no `test:bdd`) and prints the `paths.features` / `paths.steps` config lines that point safeword's BDD tooling at your suite instead. `safeword doctor` keeps warning until those paths are set, and warns about duplicate lanes left by older safeword versions (it never deletes anything itself). Removal likewise leaves your cucumber config untouched; when safeword's own scaffolded lane is present, `remove --full` treats the cucumber devDependencies as safeword's and removes them along with it.
 
-## safeword upgrade
-
-Update Safeword files to the latest version.
+## Project, tracker, ticket, and retro commands
 
 ```bash
-bunx safeword@latest upgrade
+safeword project sync-config [--check]
+safeword project architecture [--check | --stage]
+safeword project sync-learnings
+safeword project sync-tickets
+safeword project codify <ticket> [--format vitest|gherkin] [--red] [--out <path>]
+safeword project test-plan [dir] [--kind <kind>] [--format human|json|sh]
+safeword project lint-gherkin [files...]
+
+safeword tracker connect <provider>
+safeword tracker sync [--plan | --apply-results <file>]
+
+safeword ticket list
+safeword ticket new <slug> [--type <type>] [--title <title>]
+
+safeword retro run
+safeword retro signals
+safeword retro reconcile
 ```
 
-**When to use:** After a new Safeword release, or when you want the latest improvements. Your customizations to skills and hooks are preserved—only the core files get updated.
+Run any command with `--help` for its complete option set.
+For `project test-plan` and `retro signals` / `self-report`, the retained
+`--format json` option emits the command's legacy raw shape. Use the global
+`--json` option for the stable result envelope.
 
-## safeword check
+## safeword project architecture
 
-Verify your installation and report issues. This verification runs automatically after `setup` and `upgrade`. `setup` and standalone `check` fail closed on broken configuration; `upgrade` still prints post-upgrade diagnostics, but its exit status reflects whether the upgrade apply succeeded.
+Generate or verify Safeword's deterministic architecture state document.
 
 ```bash
-bunx safeword@latest check
+bunx safeword@latest project architecture
 ```
 
-| Option      | Description               |
-| ----------- | ------------------------- |
-| `--offline` | Skip remote version check |
+| Option     | Description                                                                   |
+| ---------- | ----------------------------------------------------------------------------- |
+| `--check`  | Verify that committed architecture documents are current without writing      |
+| `--stage`  | Generate from the Git index and add changed documents to the current commit   |
+| `--staged` | Rewrite generated structure from the Git index without adding it to the index |
 
-**When to use:** Standalone use is for CI pipelines and debugging — a health gate in CI, or a diagnostic when something seems broken between upgrades. Shows missing files, version info, and potential problems.
+`--stage` and `--staged` exclude unstaged and untracked source shape, so the
+generated fingerprint remains reproducible when the commit is checked out
+elsewhere. They preserve human-authored prose already present in the worktree
+document and list excluded source-shape inputs when staged and worktree state
+differ.
 
-## safeword reset
+The enforcement opt-out is read immediately from the live worktree. Structural
+settings such as `paths.projectRoot` come from the staged `.safeword/config.json`;
+an unstaged config change is reported as an excluded architecture input.
 
-Remove all Safeword files from your project.
+Staged-tree generation refuses repositories containing submodule gitlinks
+because the Git index records only each submodule commit, not its materialized
+files. Run the default worktree command with the submodule checked out, or
+remove the gitlink from the staged tree before retrying.
 
-```bash
-bunx safeword reset
-```
+The commit-time hook auto-stages only direct `git commit` commands and command
+lists whose preceding `git add` operations it can model exactly. If another
+command such as lint or status precedes the commit, the hook leaves the index
+unchanged. When that command list would commit an architecture-relevant change,
+the hook prints recovery guidance; run the preceding command separately, then
+commit, or run `safeword project architecture --stage` explicitly.
 
-| Option        | Description                           |
-| ------------- | ------------------------------------- |
-| `--yes`, `-y` | Skip confirmation                     |
-| `--full`      | Also remove linting config + packages |
-
-**When to use:** If you want to uninstall Safeword completely. The `--full` flag also removes the linting setup (ESLint config, packages in package.json).
-
-## safeword diff
-
-Show differences between your local files and the latest templates.
-
-```bash
-bunx safeword@latest diff
-```
-
-| Option | Description           |
-| ------ | --------------------- |
-| `-v`   | Show full diff output |
-
-**When to use:** Before upgrading, to see what would change. Or to check if you've customized any files.
-
-## safeword sync-config
-
-Regenerate the dependency-cruiser configuration for `/audit`.
-
-```bash
-bunx safeword@latest sync-config
-```
-
-**When to use:** Before running `/audit`, or after changing your project's architecture boundaries. Detects workspaces and layers, then generates `.dependency-cruiser.cjs`.
+**When to use:** Use the default command for normal worktree generation,
+`--check` in CI, `--stage` in commit-time automation, or `--staged` to rewrite
+the worktree document to the staged-tree structure before deciding what to add.
+When no Git worktree is present, both staged-tree modes fall back to normal
+worktree generation and explain that no index was available.
 
 ---
 
@@ -144,27 +222,107 @@ Safeword manages two types of files:
 
 ### safeword codex install
 
-Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. This profile-only action does not create or modify project Codex configuration. Start a new Codex session after installation to load the plugin's skills and hooks.
+Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. For an existing Git-backed Safe Word marketplace, the command refreshes the marketplace before reinstalling the plugin; a fresh profile adds it first. This profile-only action does not create or modify project Codex configuration. Restart Codex after installation, start a new task to load one coherent skills-and-hooks catalogue, then review it in `/hooks`.
 
 ```bash
 bunx safeword@latest codex install
 ```
 
-### safeword codex migrate --remove-legacy-hooks
+### safeword codex status
 
-After Codex shows the plugin as trusted in `/hooks`, explicitly retire only Safe Word-owned legacy hook stanzas from the current project:
+Report the repository's migration state, current protection, and one safe next action:
 
 ```bash
-bunx safeword@latest codex migrate --remove-legacy-hooks
+bunx safeword@latest codex status
+bunx safeword@latest codex status --json
 ```
 
-Both commands require Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, or recreate project-local Codex hooks. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
+Human output exits `0` only in settled plugin mode, `2` when an action is
+required, and `1` for an execution error. JSON output writes one complete
+schema-1 object to stdout with the same exit semantics; diagnostics are
+represented in its structured `errors` array.
+
+The public CLI envelope remains schema 1. Its canonical Codex lifecycle state
+is versioned independently at `data.migration`:
+
+```json
+{
+  "schema_version": 1,
+  "data": {
+    "migration_state": "plugin_installed_restart_required",
+    "migration": {
+      "schema_version": "2",
+      "state": "plugin_installed_app_restart_required"
+    }
+  }
+}
+```
+
+New consumers use `data.migration.schema_version` and `data.migration.state`.
+`data.migration_state` remains a deprecated schema-1 compatibility field and
+retains its former value. New consumers should follow the canonical v2 state
+and restart the Codex application before checking activation again.
+
+### safeword codex migrate
+
+Resume the safe migration for the current profile and repository:
+
+```bash
+bunx safeword@latest codex migrate
+```
+
+The first run installs the profile plugin without changing repository files.
+Restart Codex, start a new task, review `/hooks`, and run
+`safeword codex status`. Working legacy
+handlers remain authoritative for the events they can still run; the packaged
+plugin covers missing or broken legacy events.
+
+Once status reports `compatibility`, preview or explicitly confirm
+finalization:
+
+```bash
+bunx safeword@latest codex migrate --finalize --json
+bunx safeword@latest codex migrate --finalize --yes --plan <plan-id>
+```
+
+The preview includes the exact paths, removed config blocks, immutable plan
+identity, and a copyable apply command. Safeword rejects the apply if any
+planned repository input changed after preview. Finalization requires current
+hook-execution proof. It backs up the complete
+pre-migration state, removes only the finite Safe Word-owned legacy inventory,
+preserves custom Codex content, records plugin mode, and installs a concise
+repository bootstrap for teammates without the profile plugin.
+
+`--remove-legacy-hooks` is a deprecated alias for finalization and obeys the
+same proof, confirmation, backup, and recovery rules.
+
+### safeword codex recover
+
+If status reports `recovery_required`, restore the backed-up pre-finalization
+state:
+
+```bash
+bunx safeword@latest codex recover
+```
+
+Recovery first returns an exact plan and copyable `--yes --plan <plan-id>`
+command. It refuses to overwrite files edited after finalization and names the
+conflicting path. Resolve that edit before retrying.
+
+These commands require Bun. Normal `setup` does not install a profile-scoped Codex plugin, create a `.codex` directory, recreate project-local Codex hooks, or retire recognized legacy protection. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
+
+Installing the plugin does not enroll repositories. Project-scoped Codex gates
+and state activate only after `safeword setup` creates
+`.safeword/SAFEWORD.md`; before then they fail open without creating
+`.project/`.
 
 ### Legacy: safeword migrate codex-plugin
 
-`safeword migrate codex-plugin` remains supported for existing scripts. New users should use `safeword codex install` instead.
+`safeword migrate codex-plugin` remains supported for existing scripts and
+routes through the same migration state machine. New automation should use
+`safeword codex migrate`.
 
-Run `safeword diff` to see which files you've modified.
+Run `safeword plan` to preview reconciliation without changing the project.
 
 <footer class="docs-footer">
 

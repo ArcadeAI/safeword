@@ -4,9 +4,6 @@
     "sessionStart": [
       {
         "command": "bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor"
-      },
-      {
-        "command": "bun ./.safeword/hooks/session-cursor-auto-upgrade.ts"
       }
     ],
     "preToolUse": [
@@ -20,7 +17,8 @@
     "beforeShellExecution": [
       {
         "command": "bun ./.safeword/hooks/cursor/before-shell-execution.ts",
-        "failClosed": true
+        "failClosed": true,
+        "timeout": 12
       }
     ],
     "afterFileEdit": [

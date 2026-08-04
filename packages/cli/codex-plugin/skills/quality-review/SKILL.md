@@ -48,6 +48,56 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 | verify              | Flaky-test & regression patterns, coverage gaps |
 | done                | CI/CD patterns, release checklists              |
 
+### Project-principle challenge
+
+For a BDD ticket, run `bun .safeword/hooks/resolve-project-knowledge.ts` at the
+start of each pass and read the current `principles`, `personas`, and `surfaces`
+paths and content it returns (including overrides such as `paths.principles`).
+Do not substitute labels or intake-era content.
+With `impl-plan.md`, read those sources alongside the plan and work-product.
+Treat the plan's
+**principle → concrete consequence → proof** entries as claims to refute, not a
+compliance checklist:
+
+- Challenge applicability, including a principle the plan may have omitted;
+  report only omissions that would materially change behavior, design, proof,
+  or a deliberate deviation.
+- Check that each consequence actually follows from the principle and appears
+  in the shipped work; check that the named proof demonstrates that consequence
+  rather than adjacent mechanics.
+- An experiential principle is not proven by tests alone. Require the
+  user-facing signal the plan named—such as a persona walkthrough, usability
+  observation, or Rave Moment check—and state any evidence limitation.
+- For sourcing or architecture principles, independently check current options,
+  extension boundaries, and compatibility claims against primary sources; do
+  not accept the plan's research summary as its own proof.
+- Treat an intentional conflict as valid only when Known deviations names it
+  and explains the trade-off.
+
+This is the judgment gate. `$safeword:audit` later checks trace integrity as observable
+facts only; it does not decide whether a principle was applicable or wise.
+
+### Persona and surface challenge
+
+For a BDD ticket, read `spec.md` plus the configured persona and surface
+inventories (`paths.personas` and `paths.surfaces`). Challenge whether the
+shipped behavior fulfills each persona's JTBD and Rules, rather than merely
+resolving a persona code. Then reconcile every affected surface against the
+plan, scenarios, and verification output:
+
+- Require one concrete proof result per affected surface, or a named `skip:`
+  with its limitation; an `@surface.*` tag alone is coverage intent, not surface
+  evidence.
+- Check the surface evidence used the real surface boundary or names why that
+  boundary could not run. A generic unit test does not prove runtime, client,
+  protocol, or deployment parity.
+- Challenge omitted personas or surfaces only when the source artifacts and
+  ticket scope make the omission material; do not turn either inventory into a
+  universal checklist.
+
+Persona fulfillment and proof fidelity are review judgments. `$safeword:audit` owns only
+unknown references, stale tags, and dead evidence links.
+
 ## 2. Research Angles
 
 Run each angle that applies — angle _diversity_ is the lever, not search volume: **source-currency** + **risk/security** (this section), **supersession** + **primary-source docs** (§3). If the user gave a focus or scope restriction, apply it to **every** angle — don't use it only for the first search.
@@ -113,42 +163,28 @@ For each new entry point or command in a code change, confirm a test built from 
 
 Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict must cite a `verified` source fetched this session.** A claim tagged `(training data)` or `(uncertain)` caps at NOTE / a non-blocking suggestion — it can inform, never block. Tag every issue with its provenance inline, and **surface** an unverifiable concern as a NOTE with the gap named ("couldn't verify X"), never silently drop it. Abstention discipline: LLM judges over-state confidence by default, so an unverified blocker is false certainty.
 
-### Fix gate (required)
-
-The provenance gate guards the **claim**. This one guards the **remedy** — the part that actually gets applied, since the Loop below says to fix every Critical issue. A wrong fix is therefore more dangerous than a wrong finding: it lands.
-
-**Verify the fix as a separate act from verifying the finding.** Before proposing a change:
-
-- **Does it break a test that already exists?** Read them — don't assume.
-- **Is every signature, parameter name, and idiom in it real?** Check the source; don't recall it.
-- **Does it regress a behavior the code has today?** A remedy that silences a signal (zeroing a counter that must increment, widening a catch, dropping an error path) trades one defect for a quieter one.
-
-If you can't verify the remedy, **state the problem and say you haven't validated a fix.** Naming a defect you can't yet fix is honest; a confident patch that breaks the suite proposes a regression while claiming authority — and it discredits the finding it came with.
-
 ## Loop: review → fix → re-review
 
 Run the review in passes until **Critical issues** come back None. A couple of passes is usually plenty — don't loop indefinitely.
 
 Each pass:
 
-1. **Review with a fresh, independent reviewer.** A same-model, same-context
-   reviewer shares your blind spots, and ungrounded self-correction can
-   _degrade_ the work rather than improve it. Prefer a different model of
-   comparable-or-better capability; otherwise run a fresh-context pass on your
-   own model (the usual path, since most setups run one model) — never a
-   _weaker_ one. Hand the reviewer only the work-product and its scope, have it
-   apply §1–3, and return the Output Format above.
-   - Claude Code: Agent/Task tool. Codex: ask in your prompt — subagents never
-     auto-spawn, and `/agent` only switches existing threads. Cursor: subagents.
-     No sub-agent? Re-read in a fresh context — independence is the point, not
-     the mechanism.
-2. **Triage.** Before accepting a severity, **look for the guard that already
-   mitigates it** — the reviewer saw only the work-product and its scope, so it
-   can't see a mitigation twenty lines outside; you can. If one exists, name it
-   and lower the severity. If the work and its own comments/docs agree, the
-   deviation is **deliberate and documented** — not an oversight, and saying
-   otherwise tells the author they missed what they actually decided. Then fix
-   every surviving **Critical issue** this pass. Apply the **Suggested
+1. **Run the shared independent-review coordinator.** After gathering any
+   current-source evidence needed by §1–3, pass only the bounded work-product
+   and scope to the host-owned coordinator:
+
+   ```bash
+   safeword review run quality-review changed-file [more-changed-files...]
+   ```
+
+   Claude-authored work prefers headless Codex; Codex-authored work prefers
+   headless Claude. The coordinator uses a neutral snapshot, checks reviewer
+   provenance, preserves the exact preferred-route failure, and labels any
+   permitted same-agent fallback as degraded. Treat its typed result as the
+   review verdict. If it blocks, follow its one recovery action; do not invent
+   a private subagent route or mint passing evidence yourself.
+
+2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
 3. **Decide.** Stop when **Critical issues = None**; remaining suggestions are
    optional. Re-review only if you changed the work-product this pass.

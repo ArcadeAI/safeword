@@ -17,10 +17,9 @@ import {
   createTemporaryDirectory,
   getReconcileTestUtilities,
   removeTemporaryDirectory,
-  runCommandSync,
+  runCli,
+  runConfirmedRemoval,
 } from '../helpers';
-
-const __dirname = import.meta.dirname;
 
 describe('Reset Command - Reconcile Integration', () => {
   let temporaryDirectory: string;
@@ -312,38 +311,27 @@ describe('Reset Command - Reconcile Integration', () => {
   });
 
   describe('reset command integration', () => {
-    it('should run reset successfully via CLI', () => {
+    it('should run reset successfully via CLI', async () => {
       createConfiguredProject();
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} reset --yes`, {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
+      const result = await runConfirmedRemoval(temporaryDirectory);
 
       const isRemoved = !existsSync(nodePath.join(temporaryDirectory, '.safeword'));
-      if (result.exitCode === 0) {
-        expect(result.stdout).toContain('Reset');
-      } else {
-        const sawResetOutput = result.stdout.includes('Reset') || result.stdout.includes('Removed');
-        expect(sawResetOutput).toBe(true);
-      }
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Complete');
       expect(isRemoved).toBe(true);
     });
 
-    it('should do nothing on unconfigured project', () => {
+    it('should do nothing on unconfigured project', async () => {
       // Just package.json, no .safeword
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
       );
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} reset --yes`, {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
-      expect(result.stdout.toLowerCase()).toContain('nothing to remove');
+      const result = await runCli(['reset'], { cwd: temporaryDirectory });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Changed: no');
     });
   });
 });

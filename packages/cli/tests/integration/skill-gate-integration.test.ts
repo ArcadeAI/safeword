@@ -14,6 +14,7 @@ import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   removeTemporaryDirectory,
   setupOrThrow,
 } from '../helpers.js';
@@ -35,7 +36,7 @@ describe('skill-invocation gate: end-to-end (147)', () => {
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
   });
 
   afterAll(() => {

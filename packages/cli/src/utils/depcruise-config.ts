@@ -2,7 +2,7 @@
  * Dependency-cruiser config generator
  *
  * Generates dependency-cruiser configuration from detected architecture.
- * Used by `safeword sync-config` command and `/audit` slash command.
+ * Used by `safeword project sync-config` command and `/audit` slash command.
  */
 
 import nodePath from 'node:path';

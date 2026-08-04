@@ -15,7 +15,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -24,8 +24,9 @@ import { isDogfoodRepo } from '../../templates/hooks/lib/dogfood.js';
 import { recordRetroDebugEvent } from '../../templates/hooks/lib/retro-debug.js';
 import {
   draftSpoolPath,
-  markDraftsFiled,
+  drainAcknowledgedDrafts,
   readSpooledDrafts,
+  recordFiledAck,
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
@@ -162,15 +163,21 @@ export async function runRetro(
 
   if (projectDirectory === undefined) return { ok: true, result, drops };
 
-  // Drain the drafts that reached the tracker; failed/deferred stay spooled for the
-  // agent path. agentFilingNeeded = anything still spooled after the drain.
-  markDraftsFiled(projectDirectory, sessionId, result.filedSignatures);
+  // A tracker result alone cannot authorize a drain: persist a destination-bound
+  // ack first, then drain only those signatures whose ack write succeeded. If the
+  // local write fails after a successful post, retaining the draft may cause a
+  // deduped retry, but it cannot silently destroy the finding (#1805).
+  const acknowledgedCount = result.filedDestinations.filter(destination =>
+    recordFiledAck(projectDirectory, sessionId, destination),
+  ).length;
+  drainAcknowledgedDrafts(projectDirectory, sessionId);
   const remainingDrafts = readSpooledDrafts(projectDirectory, sessionId).length;
   const agentFilingNeeded = remainingDrafts > 0;
   recordRetroDebugEvent({
     event: 'retro_cli_filing',
     sessionId,
     filedCount: result.filedSignatures.length,
+    acknowledgedCount,
     remainingDrafts,
     agentFilingNeeded,
   });
@@ -186,6 +193,12 @@ export interface RetroCliOptions {
   windowStart?: number;
   /** Stable session id forwarded from the hook, so the ledger isn't keyed to 'unknown'. */
   sessionId?: string;
+}
+
+export interface RetroCommandExecution {
+  readonly outcome: RetroOutcome;
+  readonly extractionSucceeded: boolean;
+  readonly restTransportAvailable: boolean;
 }
 
 /** Injectable seam for `buildAutoExtractor` (tests assert the resolved model/argv). */
@@ -226,24 +239,77 @@ function spawnCodexExtractor(argv: string[], spawnOptions: Parameters<AutoExtrac
   return Promise.resolve({ code: result.status, stdout: '' });
 }
 
+function spawnCursorExtractor(argv: string[], spawnOptions: Parameters<AutoExtractSpawn>[1]) {
+  const result = spawnSync('cursor-agent', argv, {
+    cwd: spawnOptions.cwd,
+    env: spawnOptions.env,
+    encoding: 'utf8',
+    timeout: 600_000,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return Promise.resolve({ code: result.status, stdout: result.stdout ?? '' });
+}
+
+const CURSOR_RETRO_DENY_RULES = [
+  'Shell(**)',
+  'Read(**)',
+  'Write(**)',
+  'Mcp(**)',
+  'WebFetch(**)',
+  'WebSearch(**)',
+] as const;
+
 /**
- * Build the auto-extract `FindingExtractor`: run the retro extraction in a
- * separate, isolated headless `claude -p` session (read-only, no `--bare`) from a
- * neutral temp cwd, with `SAFEWORD_RETRO_CHILD=1` set by the runner. The model
- * defaults to the install's `retro.model` config (sonnet fallback — haiku proved
- * too weak; ZFGWS1). Fail-open: the runner returns `[]` on any error.
+ * Install the most restrictive project-local Cursor CLI policy before the
+ * headless child starts. Cursor gives deny rules precedence over user allows;
+ * the empty network allowlist and enabled sandbox add a second boundary.
+ */
+function prepareCursorExtractionDirectory(directory: string): void {
+  const gitInit = spawnSync('git', ['init', '--quiet'], { cwd: directory, encoding: 'utf8' });
+  if (gitInit.status !== 0)
+    throw new Error(gitInit.stderr || 'could not initialize Cursor sandbox');
+  const cursorDirectory = nodePath.join(directory, '.cursor');
+  mkdirSync(cursorDirectory, { recursive: true });
+  writeFileSync(
+    nodePath.join(cursorDirectory, 'cli.json'),
+    JSON.stringify({
+      permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
+      approvalMode: 'allowlist',
+    }),
+  );
+  writeFileSync(
+    nodePath.join(cursorDirectory, 'sandbox.json'),
+    JSON.stringify({
+      type: 'workspace_readwrite',
+      disableTmpWrite: true,
+      networkPolicy: { default: 'deny', allow: [] },
+    }),
+  );
+}
+
+/**
+ * Build the host-matched auto extractor in a neutral temporary workspace. Each
+ * adapter applies its native containment boundary (Claude read allowlist, Codex
+ * read-only sandbox, or Cursor deny rules plus sandbox) and reports checked
+ * extraction success separately from a schema-valid empty result. The legacy
+ * Stop-hook callers can remain silent, while closeout fails closed on errors.
  */
 export async function buildAutoExtractor(
   projectDirectory: string,
   dependencies: AutoExtractDependencies = {},
 ): Promise<FindingExtractor> {
-  const { runCodexHeadlessExtractionChecked, runHeadlessExtraction, resolveRetroModel } =
-    await import('../../templates/hooks/lib/retro-extract.js');
+  const {
+    runCodexHeadlessExtractionChecked,
+    runCursorHeadlessExtractionChecked,
+    runHeadlessExtractionChecked,
+    resolveRetroModel,
+  } = await import('../../templates/hooks/lib/retro-extract.js');
 
   const agent = dependencies.agent ?? 'claude';
   const model = dependencies.model ?? resolveRetroModel(projectDirectory, agent);
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
+  const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
 
   const workDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-retro-'));
   if (agent === 'codex') {
@@ -273,8 +339,30 @@ export async function buildAutoExtractor(
     };
   }
 
-  return (transcript: string) =>
-    runHeadlessExtraction(transcript, {
+  if (agent === 'cursor') {
+    prepareCursorExtractionDirectory(workDirectory);
+    return async (transcript: string) => {
+      const result = await runCursorHeadlessExtractionChecked(transcript, {
+        spawn: spawnCursor,
+        env: process.env,
+        cwd: workDirectory,
+        model,
+      });
+      recordRetroDebugEvent({
+        event: 'retro_cli_extraction',
+        agent: 'cursor',
+        ok: result.ok,
+        findingsCount: result.findings.length,
+        failureReason: result.failureReason,
+        exitCode: result.exitCode,
+      });
+      dependencies.onExtractionResult?.(result);
+      return result.findings;
+    };
+  }
+
+  return async (transcript: string) => {
+    const result = await runHeadlessExtractionChecked(transcript, {
       spawn: spawnClaude,
       writeDigest: (digest: string) => {
         const path = nodePath.join(workDirectory, 'digest.txt');
@@ -285,10 +373,23 @@ export async function buildAutoExtractor(
       cwd: workDirectory, // neutral cwd — not the user's project
       model,
     });
+    recordRetroDebugEvent({
+      event: 'retro_cli_extraction',
+      agent: 'claude',
+      ok: result.ok,
+      findingsCount: result.findings.length,
+      failureReason: result.failureReason,
+      exitCode: result.exitCode,
+    });
+    dependencies.onExtractionResult?.(result);
+    return result.findings;
+  };
 }
 
 function resolveAutoExtractAgent(env: Record<string, string | undefined>): RetroAgent {
-  return env.SAFEWORD_RETRO_AGENT === 'codex' ? 'codex' : 'claude';
+  if (env.SAFEWORD_RETRO_AGENT === 'codex') return 'codex';
+  if (env.SAFEWORD_RETRO_AGENT === 'cursor') return 'cursor';
+  return 'claude';
 }
 
 async function buildRetroExtractor(
@@ -304,7 +405,7 @@ async function buildRetroExtractor(
 }
 
 function resolveRetroHarness(agent: RetroAgent, detectAgent: () => string): string {
-  return agent === 'codex' ? 'codex' : detectAgent();
+  return agent === 'claude' ? detectAgent() : agent;
 }
 
 function unavailableTransportFailure(): Promise<never> {
@@ -355,7 +456,7 @@ export function reportRetroCommandOutcome(
     return;
   }
   if (!options.extractionSucceeded) {
-    error('retro: Codex auto-extraction did not produce schema-valid output.');
+    error('retro: auto-extraction did not produce schema-valid output.');
     process.exitCode = 1;
     return;
   }
@@ -383,12 +484,14 @@ export function reportRetroCommandOutcome(
  * findings JSON, then invokes this), and the transport is a REST client. Both
  * are intentionally thin and live outside the tested deterministic core.
  */
-export async function retroCommand(options: RetroCliOptions): Promise<void> {
+export async function executeRetroCommand(
+  options: RetroCliOptions,
+  cwd?: string,
+): Promise<RetroCommandExecution> {
   const { detectAgent } = await import('../../templates/hooks/lib/self-report.js');
-  const { error, info, success } = await import('../utils/output.js');
   const { createRestTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
 
-  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const projectDirectory = cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const autoExtractAgent = resolveAutoExtractAgent(process.env);
   let extractionSucceeded = true;
   const extract = await buildRetroExtractor(options, projectDirectory, autoExtractAgent, result => {
@@ -428,9 +531,19 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
     }),
   });
 
-  reportRetroCommandOutcome(outcome, {
+  return {
+    outcome,
     extractionSucceeded,
     restTransportAvailable: restTransport !== undefined,
+  };
+}
+
+export async function retroCommand(options: RetroCliOptions): Promise<void> {
+  const { error, info, success } = await import('../utils/output.js');
+  const execution = await executeRetroCommand(options);
+  reportRetroCommandOutcome(execution.outcome, {
+    extractionSucceeded: execution.extractionSucceeded,
+    restTransportAvailable: execution.restTransportAvailable,
     output: { error, info, success },
   });
 }
@@ -449,8 +562,26 @@ export interface ReconcileCliDependencies {
   tracker?: ReconcileTracker;
 }
 
+export type RetroReconcileExecution =
+  | { readonly ok: true; readonly result: Awaited<ReturnType<typeof reconcile>> }
+  | { readonly ok: false; readonly reason: string };
+
+export async function executeRetroReconcile(
+  dependencies: ReconcileCliDependencies = {},
+): Promise<RetroReconcileExecution> {
+  const { createReconcileTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
+  const tracker = dependencies.tracker ?? createReconcileTransport(resolveGitHubToken());
+  if (!tracker) return { ok: false, reason: 'no GitHub access; nothing swept' };
+
+  const result = await reconcile(tracker);
+  const totalFailure =
+    result.failed.length > 0 && result.flagged.length === 0 && result.skipped.length === 0;
+  if (totalFailure) return { ok: false, reason: 'every evaluated issue failed; nothing swept' };
+  return { ok: true, result };
+}
+
 /**
- * `safeword retro-reconcile` — the flag-only reconcile sweep (G19QG7 SM2). No
+ * `safeword retro reconcile` — the flag-only reconcile sweep (G19QG7 SM2). No
  * transcript involved; it reads open retro-labeled issues, normalizes their
  * newest provenance to a code-state date, and marks possibly-resolved ones.
  * Fails loudly (exit 1) without GitHub access — a manual mode should say why it
@@ -460,16 +591,14 @@ export async function retroReconcileCommand(
   dependencies: ReconcileCliDependencies = {},
 ): Promise<void> {
   const { error, info, success } = await import('../utils/output.js');
-  const { createReconcileTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
-
-  const tracker = dependencies.tracker ?? createReconcileTransport(resolveGitHubToken());
-  if (!tracker) {
-    error('retro-reconcile: no GitHub access; nothing swept.');
+  const execution = await executeRetroReconcile(dependencies);
+  if (!execution.ok) {
+    error(`retro-reconcile: ${execution.reason}.`);
     process.exitCode = 1;
     return;
   }
 
-  const result = await reconcile(tracker);
+  const { result } = execution;
   info(
     `reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.deferred.length} deferred to a later run, ${result.failed.length} failed`,
   );
@@ -480,10 +609,5 @@ export async function retroReconcileCommand(
   // red run, not a report indistinguishable from a healthy quiet day (4KP67A).
   // `deferred` needs no check: it only populates once flagged hits the per-run
   // bound, so deferred > 0 implies flagged > 0 and the predicate is false.
-  if (result.failed.length > 0 && result.flagged.length === 0 && result.skipped.length === 0) {
-    error('retro-reconcile: every evaluated issue failed; nothing swept.');
-    process.exitCode = 1;
-    return;
-  }
   success('reconcile complete');
 }

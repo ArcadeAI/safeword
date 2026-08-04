@@ -31,7 +31,7 @@ import {
 
 const HEALTHY_LINE = 'Configuration is healthy';
 const UPDATE_CHECK_PATTERN = /Checking for updates|Update available/;
-const RUN_UPGRADE_HINT = 'Run `safeword upgrade`';
+const RUN_SETUP_HINT = 'Run `safeword setup`';
 
 /** personas.md with a duplicate short code — a config-health issue reconcile
  * never repairs (user content), producing a real broken postcondition. */
@@ -210,7 +210,7 @@ describe('3293WH + BBJKR5: upgrade self-verify (reported health issue)', () => {
 
       expect(result.exitCode).toBe(0);
       expect(output).toMatch(/personas\.md:\d+/);
-      expect(output).not.toContain(RUN_UPGRADE_HINT);
+      expect(output).not.toContain(RUN_SETUP_HINT);
       expect(output).not.toContain(HEALTHY_LINE);
 
       const checkAfter = await runCli(['check', '--offline'], { cwd: dir });
@@ -320,7 +320,7 @@ describe('3293WH: reportHealthSummary remediation hint', () => {
     captureConsole();
     const hasIssues = reportHealthSummary(health);
     expect(hasIssues).toBe(true);
-    expect(logged.join('\n')).toContain(RUN_UPGRADE_HINT);
+    expect(logged.join('\n')).toContain(RUN_SETUP_HINT);
   });
 
   it.each(failureBranches)(
@@ -332,7 +332,7 @@ describe('3293WH: reportHealthSummary remediation hint', () => {
       });
       const output = logged.join('\n');
       expect(hasIssues).toBe(true);
-      expect(output).not.toContain(RUN_UPGRADE_HINT);
+      expect(output).not.toContain(RUN_SETUP_HINT);
       expect(output).toContain('Configuration issues remain after the upgrade');
       expect(output).not.toContain(HEALTHY_LINE);
     },
@@ -350,7 +350,7 @@ describe('3293WH: docs demote check (TB2.AC1)', () => {
   it('TB2.AC1.docs_present_check_as_automatic_first', () => {
     const cliMdx = readFileSync(surfaces[2] ?? '', 'utf8');
     // Pinned automatic-after phrase (gate review: literal fixed at RED).
-    expect(cliMdx).toContain('runs automatically after `setup` and `upgrade`');
+    expect(cliMdx).toContain('runs automatically after `setup`');
     expect(cliMdx).toMatch(/CI|debugging/);
 
     // No surface instructs running check as a routine step.

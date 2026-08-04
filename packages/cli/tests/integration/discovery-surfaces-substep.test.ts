@@ -14,14 +14,18 @@ const CANONICAL = fileURLToPath(
 const CLAUDE_DOGFOOD = fileURLToPath(
   new URL('../../../../.claude/skills/bdd/DISCOVERY.md', import.meta.url),
 );
-const CODEX_DOGFOOD = fileURLToPath(
-  new URL('../../../../.agents/skills/bdd/DISCOVERY.md', import.meta.url),
+// The Codex surface is the generated plugin catalogue, not a dogfood copy:
+// `.agents/skills/` was retired in V5V4YP (the schema deletes those paths on
+// upgrade), and the plugin assets are asserted to derive from the canonical
+// template by codex-plugin-catalogue.release.test.ts.
+const CODEX_PLUGIN = fileURLToPath(
+  new URL('../../codex-plugin/skills/bdd/references/DISCOVERY.md', import.meta.url),
 );
 
 describe.each([
   ['canonical template', CANONICAL],
   ['Claude dogfood copy', CLAUDE_DOGFOOD],
-  ['Codex dogfood copy', CODEX_DOGFOOD],
+  ['Codex plugin copy', CODEX_PLUGIN],
 ])('DISCOVERY.md surfaces sub-step — %s', (_label, filePath) => {
   const content = readFileSync(filePath, 'utf8');
 

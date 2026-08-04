@@ -45,6 +45,47 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
       When the architecture doc is generated
       Then the module is still listed in the skeleton
 
+    @architecture-state-docs.NTB1.AC1
+    Scenario: A mixed source root lists directories and loose modules
+      Given a project whose src/ contains a directory "auth" and a file "pipeline.ts"
+      When the architecture doc is generated
+      Then the doc lists exactly auth and pipeline
+      And their references point to src/auth and src/pipeline.ts
+
+    @architecture-state-docs.NTB1.AC1
+    Scenario: Colocated tests are excluded without falling through to root scripts
+      Given a project whose src/ contains only colocated tests and whose root contains a script
+      When the architecture doc is generated
+      Then no architecture doc is written
+
+    @architecture-state-docs.NTB1.AC1
+    Scenario: A directory and same-named source file produce one directory-backed module
+      Given a project whose src/ contains a directory "auth" and a file "auth.ts"
+      When the architecture doc is generated
+      Then the doc lists exactly one auth module
+      And the auth reference points to src/auth
+
+    @architecture-state-docs.NTB1.AC1
+    Scenario: A file-backed module heals to its same-named directory path
+      Given a generated doc whose auth module is backed by src/auth.ts
+      When a same-named src/auth directory is added and the doc is regenerated
+      Then the doc lists exactly one auth module
+      And the auth reference points to src/auth
+
+    @architecture-state-docs.NTB1.AC1
+    Scenario: Repeated mixed-tree generation is deterministic
+      Given a project whose src/ contains a directory "auth" and a file "pipeline.ts"
+      When the architecture doc is generated twice without a source change
+      Then the generated architecture doc is byte-identical across both runs
+
+  Rule: Generated-document ownership is explicit
+
+    @architecture-state-docs.NTB1.AC1
+    Scenario: The guide distinguishes machine-owned structure from preserved module prose
+      Given a project with the installed architecture guide
+      Then the guide identifies the root index as fully machine-owned
+      And the guide identifies module purpose prose as human-owned and preserved
+
   Rule: Stale prose is visibly flagged, never silently wrong
 
     @architecture-state-docs.NTB1.AC2

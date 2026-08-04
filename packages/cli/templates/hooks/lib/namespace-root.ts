@@ -16,6 +16,11 @@ import nodePath from 'node:path';
 export const NAMESPACE_ROOT_DEFAULT = '.project';
 export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
+/** True after explicit Safeword setup has enrolled this repository. */
+export function hasSafewordProjectMarker(projectDirectory: string): boolean {
+  return existsSync(nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'));
+}
+
 /**
  * The raw non-empty `paths.<key>` string from `.safeword/config.json`, or
  * `undefined` (unset, empty, non-string, or missing/unparseable config).
@@ -37,6 +42,19 @@ export function readConfiguredPathValue(projectDirectory: string, key: string): 
   const raw = parsed.paths?.[key];
   if (typeof raw !== 'string' || raw.length === 0) return undefined;
   return raw;
+}
+
+/** Resolve a configured project path or derive its default from the namespace root. */
+export function resolveConfiguredPath(
+  projectDirectory: string,
+  key: string,
+  defaultBasename = `${key}.md`,
+): string {
+  const configured = readConfiguredPathValue(projectDirectory, key);
+  if (configured === undefined) {
+    return nodePath.join(resolveNamespaceRoot(projectDirectory), defaultBasename);
+  }
+  return nodePath.isAbsolute(configured) ? configured : nodePath.join(projectDirectory, configured);
 }
 
 function readConfiguredProjectRoot(projectDirectory: string): string | undefined {

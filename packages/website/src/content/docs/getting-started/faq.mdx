@@ -37,11 +37,11 @@ Both tools coexist — ESLint handles code analysis while Biome handles formatti
 
 ### Do my teammates need to install Safeword?
 
-No. Commit the Safe Word project configuration for the surfaces your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`. Each Codex user installs the Safe Word plugin into their own profile with `safeword codex install`, starts a new Codex session, reviews it in `/hooks`, then optionally runs `safeword codex migrate --remove-legacy-hooks` for old project hooks. No Safe Word Codex workflow tree belongs in the repository. The linting devDependencies install with their normal `npm install` / `bun install`.
+No. Commit the Safe Word project configuration for the surfaces your team uses, such as `.safeword/` and `.cursor/`. Each Claude Code user runs `safeword claude install`, then `/reload-plugins`; each Codex user installs and reviews the Codex plugin separately. Profile plugins do not belong in the repository. Existing project-local Claude or Codex protection stays in place until the matching plugin proves it is running and someone explicitly approves the cleanup or finalization plan. The linting devDependencies install with their normal `npm install` / `bun install`.
 
 ### Will it interfere with my development workflow?
 
-No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run when you code normally. In repos that already use husky, setup appends one warn-only line to `pre-commit`/`pre-push` — the boundary evidence check. It reports, never blocks a commit, and `safeword reset` removes it; safeword never installs a hook manager. Safeword also adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run when you code normally. In repos that already use husky, setup appends one warn-only line to `pre-commit`/`pre-push` — the boundary evidence check. It reports, never blocks a commit, and `safeword remove` removes it; safeword never installs a hook manager. Safeword also adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
 
 ### Some lint rules are wrong for my project type
 
@@ -88,11 +88,11 @@ Both approaches work in your project's `eslint.config.mjs`. Safeword's LLM hook 
 
 ### Can I remove Safeword later?
 
-Yes. Run `bunx safeword reset --full` to remove all Safeword files and linting packages. Your application code is unaffected. See [CLI](/reference/cli) for details.
+Yes. Run `bunx safeword remove --full` to preview the removal, then run the exact `--yes --plan <id>` command Safeword prints. Your application code is unaffected. See [CLI](/reference/cli) for details.
 
 ### What if I only want some of the features?
 
-Safeword's hooks are configured in `.claude/settings.json` (Claude Code) and `.cursor/hooks.json` (Cursor). Codex uses the profile-scoped Safe Word plugin, installed with `safeword codex install`; Codex visibly skips unreviewed or changed plugin hooks until you trust them in `/hooks`. You can disable individual Claude Code or Cursor hooks by removing them from the settings. See [Configuration](/reference/configuration) for details.
+Claude Code uses the user-scoped Safe Word plugin installed with `safeword claude install`; Cursor hooks remain in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Existing custom or third-party Claude settings remain yours, and Safeword removes recognized legacy entries only through an explicitly approved `safeword claude cleanup` plan. See [Configuration](/reference/configuration) for details.
 
 <footer class="docs-footer">
 

@@ -34,6 +34,11 @@ Focused review (~1 minute). Check the test that was just written:
 - **Atomic?** Tests ONE behavior. Red flag: multiple When/Then pairs.
 - **Right assertions?** Meaningful expectations, not `.toBeTruthy()` or `.not.toThrow()`.
 - **Behavior, not implementation?** Tests observable outcomes. Red flag: mocking internals, checking call counts.
+- **Scenario fidelity?** For a BDD scenario, does the primary test exercise the
+  `When` through the actor-facing entry point and observe the `Then` as the
+  actor-visible result? Setup shortcuts belong in `Given`; direct store calls,
+  injected lower-level events, and internal-state assertions are supporting
+  evidence only.
 - **Fails for the right reason — confirmed by the run, not the eye?** Execute the test now and read the actual failure: it must report the _missing behavior_, not a syntax, import, or setup error. This is the one bullet you don't judge by reading — the run is the evidence.
 - **Right test type?** Load the testing skill and consult its scope hierarchy (E2E > Integration > Unit). Was a higher-scope test practical here? Did we drop to unit when integration would catch more?
 - **Coverage adequacy?** Consult testing guide's bug detection matrix. Ask: "What could still break that this test wouldn't catch?" Flag gaps — missing edge cases, error paths, or boundary values. **Where a gap goes:** a missing scenario is a scope change, not a mid-implement edit — defer it to a follow-up ticket, or loop back to define-behavior, re-run the scenario-gate, and re-enter plan-implementation (update impl-plan.md for the new scenario) before implement. Don't silently append scenarios to a signed-off `test-definitions.md`.
@@ -60,6 +65,9 @@ If issues found: fix before refactoring. If clean: run $safeword:refactor, commi
 Full review (~2-3 minutes). The entire scenario is done. Review the complete unit:
 
 - **Test + implementation alignment?** Does the test cover the scenario's Given/When/Then? This is a **local** review — no web research needed.
+- **Scenario fidelity?** Does the completed proof still use the scenario's
+  actor-facing entry point and observe its actor-visible result, with
+  implementation-level checks kept as supporting evidence?
 - **Full suite green?** Run the full suite once here to catch cross-module regressions.
 - **New external dependency or API in this scenario?** Only then run **$safeword:quality-review** for ecosystem verification (versions, deprecated APIs, security) — verify it at the moment you introduce it, before later scenarios build on it. A scenario that adds no new third-party/external surface (internal modules, stdlib, or a second use of an already-reviewed dep don't count) skips this; the whole-ticket pass at implement-exit is the catch-all.
 - **Ready for next scenario?** Any loose ends or technical debt to note?

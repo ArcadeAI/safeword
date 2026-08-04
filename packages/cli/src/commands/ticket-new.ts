@@ -14,19 +14,21 @@
  * off-board. `--parent` epic-linking composes on top of whichever route runs.
  */
 
+import nodePath from 'node:path';
 import process from 'node:process';
 
-import { createTicketRouted } from '../ticket-create/index.js';
+import { effectsFromMutationJournal } from '../cli-protocol/mutation-effects.js';
+import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { createTicketRouted, RoutedTicketCreationError } from '../ticket-create/index.js';
 import { buildWriterRegistry } from '../tracker-sync/clients.js';
 import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { linkChildToEpic, validateEpicParent } from '../utils/epic-linker.js';
 import { cryptoIdMinter, type IdMinter } from '../utils/id-minter.js';
-import { header, info, success } from '../utils/output.js';
-import { normalizeSlug, SlugError } from '../utils/slug.js';
-import { formatTicketReference } from '../utils/ticket-reference.js';
+import { normalizeSlug } from '../utils/slug.js';
 import { TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
 
 const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature', 'epic']);
+type ParsedTicketType = TicketType | undefined | 'invalid';
 
 export interface TicketNewOptions {
   type?: string;
@@ -38,15 +40,29 @@ export interface TicketNewOptions {
   issue?: string;
 }
 
-export async function ticketNew(
+export async function createTicketResult(
   slug: string,
   options: TicketNewOptions,
-  cwd: string = process.cwd(),
-): Promise<void> {
-  const type = assertOptionsValid(options, resolveType(options.type), cwd);
-  const normalizedSlug = resolveSlug(slug);
-
-  header('Create ticket');
+  cwd: string,
+): Promise<CliResult> {
+  let type: TicketType | undefined;
+  let normalizedSlug: string;
+  try {
+    type = validateOptions(options, resolveType(options.type), cwd);
+    normalizedSlug = normalizeSlug(slug);
+  } catch (validationError) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'TICKET_INPUT_INVALID',
+          message:
+            validationError instanceof Error ? validationError.message : String(validationError),
+          retryable: false,
+        },
+      ],
+    });
+  }
 
   try {
     const result = await createTicketRouted(
@@ -66,81 +82,104 @@ export async function ticketNew(
         minter: resolveMinter(),
       },
     );
-    // Write the reverse index on the epic: append the child to its children[].
-    // The epic was validated pre-create, but could have changed since — the
-    // child already exists here, so surface a recoverable warning, not a fail.
+    const findings = [];
     if (options.parent !== undefined) {
       const linked = linkChildToEpic(cwd, result.id, options.parent);
       if (!linked.ok) {
-        process.stderr.write(
-          `Warning: ${linked.reason} — created ${result.id} with parent: ${options.parent}, but the epic's children list was not updated. Add '${result.id}' to its children: manually.\n`,
-        );
+        findings.push({
+          code: 'EPIC_REVERSE_LINK_FAILED',
+          message: linked.reason,
+          severity: 'warning' as const,
+        });
       }
     }
-    success(`Created ticket ${formatTicketReference(result.id, normalizedSlug)}`);
-    info(`Folder: ${result.folderPath}`);
-    info(`File:   ${result.ticketPath}`);
-    // NB: deliberately no index regen here — writing INDEX.md into the tickets
-    // dir on every `ticket new` pollutes "tickets dir = ticket folders" and makes
-    // the index a cross-branch merge-conflict magnet (the most concurrent op).
-    // The index refreshes via `safeword sync-tickets` and `safeword check`. 1GGD28.
-  } catch (error: unknown) {
-    if (error instanceof TicketIdCollisionError) {
-      fail(error.message);
-    }
-    // Issue-first creation mints identity before any folder, so a tracker failure
-    // here leaves no orphan. Surface the message (gh/Arcade never echo the token).
-    process.stderr.write(`Failed to create ticket: ${errorMessage(error)}\n`);
-    process.exit(1);
+    const effects =
+      result.mutations.length === 0
+        ? {
+            files: [
+              {
+                kind: 'create',
+                target: nodePath.relative(cwd, result.ticketPath),
+                operation: 'write',
+              },
+              {
+                kind: 'create',
+                target: nodePath.relative(cwd, result.folderPath),
+                operation: 'mkdir',
+              },
+            ],
+          }
+        : effectsFromMutationJournal(result.mutations);
+    return createResult({
+      state: 'changed',
+      effects,
+      findings,
+      data: {
+        command: 'ticket new',
+        ticket_id: result.id,
+        folder: nodePath.relative(cwd, result.folderPath),
+        file: nodePath.relative(cwd, result.ticketPath),
+      },
+    });
+  } catch (creationError) {
+    const partialMutations =
+      creationError instanceof RoutedTicketCreationError ? creationError.mutations : [];
+    const changed = partialMutations.length > 0;
+    return createResult({
+      state: 'failed',
+      changed,
+      effects: effectsFromMutationJournal(partialMutations),
+      errors: [
+        {
+          code:
+            creationError instanceof TicketIdCollisionError
+              ? 'TICKET_ID_COLLISION'
+              : 'TICKET_CREATE_FAILED',
+          message: errorMessage(creationError),
+          retryable: !(creationError instanceof TicketIdCollisionError),
+        },
+      ],
+      recovery: changed
+        ? [
+            {
+              command: 'safeword tracker sync',
+              description:
+                'Reconcile the pending tracker reference before retrying ticket creation.',
+              requiresHuman: false,
+            },
+          ]
+        : [],
+    });
   }
 }
 
-/** Validate all option constraints, exiting before anything is created;
- * returns the type narrowed past the `invalid` sentinel. */
-function assertOptionsValid(
+function validateOptions(
   options: TicketNewOptions,
-  type: TicketType | undefined | 'invalid',
+  type: ParsedTicketType,
   cwd: string,
 ): TicketType | undefined {
   if (type === 'invalid') {
-    fail(`Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.`);
+    throw new Error(
+      `Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.`,
+    );
   }
-  // Features keep motivation in spec.md (single source of truth), so they have
-  // no **Why:** field for --why to fill — fail loud rather than silently drop it.
   if (options.why !== undefined && type === 'feature') {
-    fail(
+    throw new Error(
       '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.',
     );
   }
-  // Validate --parent BEFORE creating anything, so a bad epic reference leaves
-  // no half-linked child behind (AC3).
   if (options.parent !== undefined) {
     const check = validateEpicParent(cwd, options.parent);
-    if (!check.ok) fail(check.reason);
+    if (!check.ok) throw new Error(check.reason);
   }
   return type;
-}
-
-function resolveSlug(slug: string): string {
-  try {
-    return normalizeSlug(slug);
-  } catch (error: unknown) {
-    if (error instanceof SlugError) fail(error.message);
-    throw error;
-  }
-}
-
-/** Write a one-line diagnostic to stderr and exit non-zero. */
-function fail(message: string): never {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
 }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function resolveType(value: string | undefined): TicketType | undefined | 'invalid' {
+function resolveType(value: string | undefined): ParsedTicketType {
   if (value === undefined) return undefined;
   return VALID_TYPES.has(value as TicketType) ? (value as TicketType) : 'invalid';
 }

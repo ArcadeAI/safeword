@@ -2,6 +2,10 @@
 
 Feature source: `features/architecture-narrative-blindspots.feature`
 
+> **Supersession (2026-07-28):** GitHub #1609 retired the TB2 package-mention
+> advisory. Its R/G/R entries below are historical evidence for removed behavior,
+> not current test obligations.
+
 test-definitions.md is the R/G/R ledger. TB1 rules are proven in the vitest hook
 lane (git-backed integration + differential parity, `@wip` in cucumber); TB2
 rules run in the cucumber acceptance lane against the real CLI.

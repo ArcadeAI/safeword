@@ -2,73 +2,164 @@
  * Version comparison utilities
  */
 
-/**
- * Compare two semver versions
- * @param a
- * @param b
- * @returns -1 if a < b, 0 if a == b, 1 if a > b
- */
-export function compareVersions(a: string, b: string): -1 | 0 | 1 {
-  const aParts = a.split('.').map(Number);
-  const bParts = b.split('.').map(Number);
-
-  for (let i = 0; i < 3; i++) {
-    const aValue = aParts[i] ?? 0;
-    const bValue = bParts[i] ?? 0;
-    if (aValue < bValue) return -1;
-    if (aValue > bValue) return 1;
+function onlyAsciiDigits(value: string): boolean {
+  if (value.length === 0) return false;
+  for (const character of value) {
+    if (character < '0' || character > '9') return false;
   }
+  return true;
+}
 
+function validSemverIdentifier(value: string): boolean {
+  if (value.length === 0) return false;
+  for (const character of value) {
+    const valid =
+      (character >= '0' && character <= '9') ||
+      (character >= 'A' && character <= 'Z') ||
+      (character >= 'a' && character <= 'z') ||
+      character === '-';
+    if (!valid) return false;
+  }
+  return true;
+}
+
+function validSemverIdentifiers(value: string): boolean {
+  return value.split('.').every(identifier => validSemverIdentifier(identifier));
+}
+
+interface ParsedSemver {
+  readonly core: readonly [string, string, string];
+  readonly prerelease: readonly string[];
+}
+
+type Comparison = -1 | 0 | 1;
+
+function hasForbiddenLeadingZero(value: string): boolean {
+  return value.length > 1 && value.startsWith('0');
+}
+
+function parseCore(value: string): ParsedSemver['core'] | undefined {
+  const parts = value.split('.');
+  if (
+    parts.length !== 3 ||
+    parts.some(part => !onlyAsciiDigits(part) || hasForbiddenLeadingZero(part))
+  ) {
+    return undefined;
+  }
+  return parts as [string, string, string];
+}
+
+function parseIdentifiers(
+  value: string,
+  forbidNumericLeadingZeros: boolean,
+): readonly string[] | undefined {
+  if (!validSemverIdentifiers(value)) return undefined;
+  const identifiers = value.split('.');
+  if (
+    forbidNumericLeadingZeros &&
+    identifiers.some(
+      identifier => onlyAsciiDigits(identifier) && hasForbiddenLeadingZero(identifier),
+    )
+  ) {
+    return undefined;
+  }
+  return identifiers;
+}
+
+function parseSemver(version: string): ParsedSemver | undefined {
+  const buildParts = version.split('+');
+  if (buildParts.length > 2) return undefined;
+  const withoutBuild = buildParts[0] ?? '';
+  const build = buildParts[1];
+  if (build !== undefined && parseIdentifiers(build, false) === undefined) return undefined;
+
+  const prereleaseSeparator = withoutBuild.indexOf('-');
+  const coreText =
+    prereleaseSeparator === -1 ? withoutBuild : withoutBuild.slice(0, prereleaseSeparator);
+  const prereleaseText =
+    prereleaseSeparator === -1 ? undefined : withoutBuild.slice(prereleaseSeparator + 1);
+  const core = parseCore(coreText);
+  if (core === undefined) return undefined;
+  const prerelease = prereleaseText === undefined ? [] : parseIdentifiers(prereleaseText, true);
+  return prerelease === undefined ? undefined : { core, prerelease };
+}
+
+function compareNumeric(left: string, right: string): Comparison {
+  const leftValue = BigInt(left);
+  const rightValue = BigInt(right);
+  if (leftValue < rightValue) return -1;
+  if (leftValue > rightValue) return 1;
+  return 0;
+}
+
+function comparePrereleaseIdentifier(left: string, right: string): Comparison {
+  if (left === right) return 0;
+  const leftNumeric = onlyAsciiDigits(left);
+  const rightNumeric = onlyAsciiDigits(right);
+  if (leftNumeric && rightNumeric) return compareNumeric(left, right);
+  if (leftNumeric) return -1;
+  if (rightNumeric) return 1;
+  return left < right ? -1 : 1;
+}
+
+function comparePrerelease(left: readonly string[], right: readonly string[]): Comparison {
+  if (left.length === 0 && right.length === 0) return 0;
+  if (left.length === 0) return 1;
+  if (right.length === 0) return -1;
+
+  for (let index = 0; index < Math.max(left.length, right.length); index++) {
+    const leftIdentifier = left[index];
+    if (leftIdentifier === undefined) return -1;
+    const rightIdentifier = right[index];
+    if (rightIdentifier === undefined) return 1;
+    const comparison = comparePrereleaseIdentifier(leftIdentifier, rightIdentifier);
+    if (comparison !== 0) return comparison;
+  }
+  return 0;
+}
+
+function compareCore(left: ParsedSemver['core'], right: ParsedSemver['core']): Comparison {
+  for (let index = 0; index < 3; index++) {
+    const comparison = compareNumeric(left[index] ?? '0', right[index] ?? '0');
+    if (comparison !== 0) return comparison;
+  }
+  return 0;
+}
+
+function compareLegacyVersions(left: string, right: string): Comparison {
+  const leftParts = left.split('.').map(Number);
+  const rightParts = right.split('.').map(Number);
+  for (let index = 0; index < 3; index++) {
+    const leftValue = leftParts[index] ?? 0;
+    const rightValue = rightParts[index] ?? 0;
+    if (leftValue < rightValue) return -1;
+    if (leftValue > rightValue) return 1;
+  }
   return 0;
 }
 
 /**
- * Check if latest version is newer than current
- * @param current
- * @param latest
+ * Compare SemVer versions. Legacy non-SemVer inputs retain numeric-core comparison
+ * so downgrade protection remains conservative for older project markers.
+ *
+ * Safety gates must validate both inputs with `isSafePackageVersion` before calling
+ * this function: the compatibility fallback cannot distinguish equal numeric cores
+ * from wholly unparseable input.
+ * @param a
+ * @param b
+ * @returns -1 if a < b, 0 if a == b, 1 if a > b
  */
-export function isNewerVersion(current: string, latest: string): boolean {
-  return compareVersions(current, latest) === -1;
+export function compareVersions(a: string, b: string): Comparison {
+  const parsedA = parseSemver(a);
+  const parsedB = parseSemver(b);
+  if (parsedA === undefined || parsedB === undefined) return compareLegacyVersions(a, b);
+  const coreComparison = compareCore(parsedA.core, parsedB.core);
+  return coreComparison === 0
+    ? comparePrerelease(parsedA.prerelease, parsedB.prerelease)
+    : coreComparison;
 }
 
-const REGISTRY_TIMEOUT_MS = 3000;
-const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
-
-/**
- * Type guard for a comparable semver string (e.g. `"1.2.3"`). Use before
- * passing a registry- or cache-sourced value into {@link compareVersions},
- * which silently produces `NaN` comparisons on malformed input.
- * @param value
- */
-export function isComparableVersion(value: unknown): value is string {
-  return typeof value === 'string' && VERSION_PATTERN.test(value);
-}
-
-/**
- * Fetch the latest published safeword version from the npm registry.
- * Returns undefined on network error, timeout, non-OK response, or an
- * unparseable/invalid version — callers treat undefined as "unknown".
- * @param timeout milliseconds before the request is aborted
- */
-export async function fetchRegistryLatestVersion(
-  timeout = REGISTRY_TIMEOUT_MS,
-): Promise<string | undefined> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, timeout);
-
-  try {
-    const response = await fetch('https://registry.npmjs.org/safeword/latest', {
-      signal: controller.signal,
-    });
-    if (!response.ok) return undefined;
-
-    const data = (await response.json()) as { version?: unknown };
-    return isComparableVersion(data.version) ? data.version : undefined;
-  } catch {
-    return undefined;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+/** Accept a SemVer-shaped package version before interpolating it into a shell command. */
+export function isSafePackageVersion(version: string): boolean {
+  return parseSemver(version) !== undefined;
 }

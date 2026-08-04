@@ -13,12 +13,12 @@ allowed-tools: '*'
 Mine THIS session's transcript for safeword friction and file it — the manual counterpart
 to the Stop-hook auto-trigger. This skill is thin: it resolves the transcript path (which
 a user-invoked command, unlike the Stop hook, does not receive in a payload), then defers
-to the existing guides and the `safeword retro` CLI, which owns extraction, the egress
+to the existing guides and the `safeword retro run` CLI, which owns extraction, the egress
 guard, and filing.
 
 ## 1. Resolve the transcript path (never guess it)
 
-`safeword retro` **requires** `--transcript <path>` and refuses to guess. Resolve the
+`safeword retro run` **requires** `--transcript <path>` and refuses to guess. Resolve the
 current session's transcript for THIS harness. Each rule below resolves deterministically
 from the environment; only fall back to asking the user when the deterministic path
 comes up empty.
@@ -68,7 +68,7 @@ before anything is filed.
   on **Codex / Cursor** (no `claude` binary) prefer the in-context path below.
 
   ```bash
-  safeword retro --transcript < path > --auto-extract
+  safeword retro run --transcript < path > --auto-extract
   ```
 
 - **In-context (any harness):** extract the friction yourself following
@@ -76,7 +76,7 @@ before anything is filed.
   JSON), then hand them off:
 
   ```bash
-  safeword retro --transcript <path> --findings <findings.json>
+  safeword retro run --transcript <path> --findings <findings.json>
   ```
 
 Optional: `--session-id <id>` for stable ledger attribution across fires;

@@ -31,6 +31,10 @@ blocking — resolve before retrying.
 
 ## Review the spec
 
+At review time, run `bun .safeword/hooks/resolve-project-knowledge.ts` and read
+the current configured principles, personas, and surfaces it returns. Do not
+rely on paths or content remembered from intake.
+
 Read the active ticket's `spec.md` and check, against `personas.md` and the
 ticket's `scope` / `out_of_scope`: every JTBD resolves to a real persona and
 reads as a genuine job; each JTBD has ≥1 observable, product-level numbered Rule

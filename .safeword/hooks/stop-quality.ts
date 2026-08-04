@@ -3,7 +3,8 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import {
   deriveTddStep,
@@ -24,14 +25,21 @@ import {
   isCrossModelReviewRequired,
   modelsMatch,
   parseReviewStamps,
+  readCrossAgentReviewPolicy,
   reviewGateForNextAsset,
   reviewScope,
 } from './lib/review-ledger.ts';
-import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
+import {
+  type BddPhase,
+  getDisqualificationMessage,
+  getQualityMessage,
+  isDecisionBriefCompliant,
+} from './lib/quality.ts';
 import {
   EXPLAIN_HINT,
   type FailureEntry,
   getStateFilePath,
+  type QualityState,
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
@@ -122,19 +130,23 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
 }
 
 /**
- * Record which phase boundary the Stop backstop just reviewed, so a later Stop
- * or PostToolUse review won't re-review it. Mirrors the marker PostToolUse sets
- * for phase changes (ticket SXSCJQ).
+ * Record state for a generic Stop review: phase boundaries are deduped against
+ * PostToolUse, and the idle-review marker stays set until UserPromptSubmit.
  */
-function recordReviewMarker(
+function recordStopReviewState(
   sessionId: string | undefined,
-  patch: { lastReviewedPhase?: string },
+  patch: Pick<QualityState, 'lastReviewedPhase' | 'stopQualityReviewAwaitingUserPrompt'>,
 ): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
-  if (!existsSync(stateFile)) return;
   try {
-    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    mkdirSync(nodePath.dirname(stateFile), { recursive: true });
+    // Partial, not QualityState: the file may be absent (fresh session) or
+    // predate a field. The shared contract names the shape; the runtime
+    // boundary below keeps a stale or malformed file from crashing the hook.
+    const state: Partial<QualityState> = existsSync(stateFile)
+      ? JSON.parse(readFileSync(stateFile, 'utf8'))
+      : {};
     Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
@@ -244,7 +256,7 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
   const phasesRequiringImplemented = ['verify', 'done'];
   if (phasesRequiringImplemented.includes(ticketInfo.phase) && status !== 'implemented') {
     hardBlockDone(
-      `Impl plan reconciliation incomplete: impl-plan.md status is "${status ?? 'unknown'}". Walk Decisions, Arch alignment, and Known deviations against what shipped, then set **Status:** implemented (see TDD.md "Implement exit: reconcile the plan").`,
+      `Impl plan reconciliation incomplete: impl-plan.md status is "${status ?? 'unknown'}". Walk Decisions, Design alignment, and Known deviations against what shipped, then set **Status:** implemented (see TDD.md "Implement exit: reconcile the plan").`,
     );
   }
 }
@@ -290,9 +302,9 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   const logPath = `${resolveNamespaceRoot(projectDir)}/skill-invocations.log`;
   const stamps = existsSync(logPath) ? parseReviewStamps(readFileSync(logPath, 'utf8')) : [];
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
-  if (!reviewGateForNextAsset(scope, stamps).ok) {
+  if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
     hardBlockDone(
-      'Architecture review gate: the impl-plan design has no independent design review at its current content. Spawn a fresh-context reviewer, then run `bun .safeword/hooks/write-review-stamp.ts impl-plan` on pass (or add `--skip "<reason>"` to log a deliberate skip).',
+      'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun .safeword/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
     );
   }
 
@@ -308,7 +320,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
     );
     if (realReviews.length > 0 && !hasCrossModelReview) {
       hardBlockDone(
-        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), recording it via `write-review-stamp.ts --model <id> impl-plan`.',
+        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and actual_model via `write-review-stamp.ts impl-plan`.',
       );
     }
   }
@@ -356,6 +368,7 @@ const combinedText = input.last_assistant_message ?? '';
 // AP3FGJ). The edit-tools gate below then guards only the review/backstop path.
 const ticketInfo = getCurrentTicketInfo(input.session_id);
 const currentPhase = ticketInfo.phase;
+const sessionState = readSessionState(projectDir, input.session_id);
 
 // Artifact gates are phase/state-driven, not edit-activity-driven, so they run BEFORE the
 // edit-tools early-exit below — a missing impl-plan or an unreviewed design must block a stop
@@ -370,6 +383,7 @@ checkArchitectureReviewGate(ticketInfo);
 // recover that turn boundary, retain the prior bounded scan. The done phase is
 // the exception: fall through to its gate.
 const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(lines);
+
 const editsToReview = editsInCurrentTurn ?? detectEditToolsUsed(lines);
 if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
@@ -411,8 +425,10 @@ function checkUsageLimit(transcriptLines: string[]): void {
 function detectEditToolsUsed(transcriptLines: string[]): boolean {
   let checked = 0;
   for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+    const transcriptLine = transcriptLines[i];
+    if (transcriptLine === undefined) continue;
     try {
-      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
+      const message: TranscriptMessage = JSON.parse(transcriptLine);
       if (message.type === 'assistant' && message.message?.content !== undefined) {
         checked++;
         if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
@@ -433,8 +449,10 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
 function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
   let checked = 0;
   for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+    const transcriptLine = transcriptLines[i];
+    if (transcriptLine === undefined) continue;
     try {
-      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
+      const message: TranscriptMessage = JSON.parse(transcriptLine);
       if (isGenuineUserPrompt(message)) {
         return false;
       }
@@ -728,22 +746,22 @@ if (typecheckAdvice.advice !== null) {
 // Boundary backstop: phase reviews are no longer LOC-throttled. Implement-step
 // TDD reviews are quiet by default; the real work still happens internally and
 // hard/anomaly gates above still surface when action is needed.
-const sessionState = readSessionState(projectDir, input.session_id);
-
 // Derive TDD step from test-definitions.md (not cache)
 const tddStep =
   currentPhase === 'implement' && ticketInfo.folder
     ? deriveTddStep(projectDir, ticketInfo.folder)
     : null;
 
-// No ticket/phase context (no active ticket, or a done-status ticket): fire the
-// generic review on every edit-stop, as before — there's no boundary to dedup.
-// With a phase: review per phase, deduped against PostToolUse so each boundary
-// is reviewed once. Implement-step reviews stay quiet.
+// No resolvable phase: dedupe a generic review against the next
+// UserPromptSubmit. This is broader than "no active ticket" — resolveStopPhase
+// also yields no phase for an in_progress ticket missing `phase:`, for any
+// status escape hatch, and for a done-status patch/typeless/scenario-less
+// ticket. With a phase, reviews remain deduped per phase against PostToolUse;
+// implement-step reviews stay quiet.
 const isImplementStep = currentPhase === 'implement' && tddStep !== null;
 let fireReview: boolean;
 if (currentPhase === undefined) {
-  fireReview = true;
+  fireReview = !sessionState?.stopQualityReviewAwaitingUserPrompt;
 } else if (isImplementStep) {
   fireReview = false;
 } else {
@@ -754,9 +772,12 @@ if (!fireReview) {
   process.exit(0);
 }
 
-if (currentPhase) {
-  recordReviewMarker(input.session_id, { lastReviewedPhase: currentPhase });
-}
+recordStopReviewState(
+  input.session_id,
+  currentPhase === undefined
+    ? { stopQualityReviewAwaitingUserPrompt: true }
+    : { lastReviewedPhase: currentPhase },
+);
 
 // Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
 // recent failure exists, append an explicit "CONFIDENT requires X first" line so
@@ -765,7 +786,7 @@ const phaseFailurePatterns: Record<string, string> = {
   implement: 'loc-exceeded',
   done: 'done-gate-tests-failed',
 };
-const relevantPattern = phaseFailurePatterns[currentPhase];
+const relevantPattern = currentPhase ? (phaseFailurePatterns[currentPhase] ?? null) : null;
 const recentRelevant = relevantPattern
   ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
       ?.pattern
@@ -775,4 +796,7 @@ const disqual = getDisqualificationMessage({
   pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
   recentRelevantFailure: recentRelevant,
 });
+if (!disqual && isDecisionBriefCompliant(combinedText)) {
+  process.exit(0);
+}
 softBlock(disqual ? `${baseMessage}\n\n${disqual}` : baseMessage);

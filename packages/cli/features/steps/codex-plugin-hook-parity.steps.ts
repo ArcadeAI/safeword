@@ -42,6 +42,8 @@ interface CodexPluginHookParityWorld extends SafewordWorld {
 
 function createProject(prefix: string): string {
   const projectRoot = mkdtempSync(nodePath.join(tmpdir(), prefix));
+  mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(projectRoot, '.safeword/SAFEWORD.md'), '# enrolled\n');
   writeFileSync(
     nodePath.join(projectRoot, 'package.json'),
     `${JSON.stringify({ name: 'codex-plugin-hook-parity-fixture', version: '1.0.0' }, undefined, 2)}\n`,
@@ -676,12 +678,12 @@ Then(
   },
 );
 
-Then('it invokes the shared auto-upgrade core', function (this: SafewordWorld) {
+Then('SessionStart performs no implicit upgrade', function (this: SafewordWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   const parsed = JSON.parse(this.result.stdout) as {
-    hookSpecificOutput?: { additionalContext?: string };
+    systemMessage?: string;
   };
-  assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD Agent Instructions/u);
+  assert.doesNotMatch(parsed.systemMessage ?? '', /upgrade|available/u);
 });
 
 Then(
@@ -698,16 +700,22 @@ Then(
   },
 );
 
-Then('the notice is included in SessionStart additionalContext', function (this: SafewordWorld) {
-  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
-  const parsed = JSON.parse(this.result.stdout) as {
-    systemMessage?: string;
-    hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
-  };
-  assert.match(parsed.systemMessage ?? '', /v2\.0\.0 available \(major\)/u);
-  assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-  assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD Agent Instructions/u);
-});
+Then(
+  'the upgrade notice is absent from SessionStart additionalContext',
+  function (this: SafewordWorld) {
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+    const parsed = JSON.parse(this.result.stdout) as {
+      systemMessage?: string;
+      hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
+    };
+    assert.doesNotMatch(parsed.systemMessage ?? '', /v2\.0\.0 available \(major\)/u);
+    assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
+    assert.match(
+      parsed.hookSpecificOutput?.additionalContext ?? '',
+      /SAFEWORD Agent Instructions/u,
+    );
+  },
+);
 
 Then('the command exits successfully', function (this: SafewordWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
@@ -799,7 +807,7 @@ Then(
     const commands = this.hookManifestCommands ?? [];
     assert.equal(commands.length, 5);
     for (const command of commands) {
-      assert.match(command, /bunx --bun safeword@[\d.]+ hook codex [a-z-]+/u);
+      assert.match(command, /bunx --bun safeword@[0-9A-Za-z.+-]+ hook codex [a-z-]+/u);
       assert.doesNotMatch(command, /npx/u);
     }
   },

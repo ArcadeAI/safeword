@@ -90,6 +90,8 @@ Safeword auto-detects your stack and configures linting accordingly:
 
 Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
 
+Edit-time linting uses the generated language-pack config when it exists. For JavaScript/TypeScript, Python, Go, and Rust, a missing config falls back to the tool's defaults and reports once per session that Safeword rules are not active. SQLFluff runs only when its generated config exists. The lint hook never repairs a pack, runs setup, stages files, or creates a commit. Version convergence remains the responsibility of the session-start updater; to repair a missing pack manually, run `safeword setup`.
+
 ## Biome & Alternative Formatters
 
 If your project uses Biome, dprint, or Rome, Safeword detects it automatically and skips Prettier installation. Your formatter keeps running as-is.
@@ -118,7 +120,7 @@ Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
 
 ## Hook Configuration
 
-Hooks are configured in `.claude/settings.json` (Claude Code) and `.cursor/hooks.json` (Cursor). Codex uses the profile-scoped Safe Word plugin; install it with `safeword codex install`. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
+Claude Code hooks run from the user-scoped Safe Word plugin installed with `safeword claude install`; Cursor hooks are configured in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Fresh setup does not create Safe Word-owned Claude hook settings. Existing legacy Claude settings remain authoritative until current plugin execution is proven and an explicit `safeword claude cleanup` plan removes only recognized Safeword entries. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
 
 To disable a specific hook, remove the safeword hook entry from that agent's config.
 
@@ -128,6 +130,20 @@ Two opt-in review gates (both default off) add independent-review requirements o
 
 - `reviewGate: true` — every ticket phase advance requires an independent phase-exit review stamp (a fresh-context reviewer, logged via `write-review-stamp.ts --phase <phase>`), or an explicitly logged skip reason. Built for autonomous runs where user checkpoints auto-confirm.
 - `architectureReviewGate: true` — a new-flow feature can't reach verify/done until its `impl-plan.md` design has been independently reviewed: the Decisions section must cite evidence (URL or `[n]` marker), and the review stamp binds to the plan's content hash — editing the design after review invalidates it. Add `crossModelReview: true` to require the reviewer run on a different model than the author.
+
+Adversarial reviews use `crossAgentReview` to choose their reviewer route:
+
+```json
+{
+  "crossAgentReview": "prefer"
+}
+```
+
+- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer is unavailable, Safe Word classifies the failure and may run a visibly `degraded` same-agent fallback.
+- `require` — the opposite-agent route must complete. Missing installation, sign-in, timeout, process failure, invalid output, or changed source blocks the gate with one concrete recovery action; degraded results and skips cannot satisfy it.
+- `off` — retain the existing review route and do not create cross-agent evidence.
+
+Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs to keep the default route fully independent. Review results report the author, assigned and actual reviewer, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy. A model is recorded only when the executed reviewer supplies a verifiable identifier; Safe Word never invents a default model name.
 
 ### Design approval gate
 
@@ -210,7 +226,6 @@ Safeword has two types of files:
 **Overwritten on upgrade** (you shouldn't edit these directly):
 
 - `.safeword/hooks/*`, `.safeword/guides/*`, `.safeword/templates/*`
-- `.claude/skills/*`
 - `.cursor/rules/*`, `.cursor/commands/*`
 
 **Never overwritten** (safe to customize):
@@ -226,7 +241,6 @@ Safeword has two types of files:
 **Partially updated** (your customizations preserved, safeword keys re-merged):
 
 - `AGENTS.md`, `CLAUDE.md` — safeword link block re-ensured, your content preserved
-- `.claude/settings.json` — safeword hooks updated, your custom hooks preserved
 - `.cursor/hooks.json` — safeword hooks updated, your custom hooks preserved
 - `package.json` — lint/format/`test:bdd` scripts and devDependencies merged (every project; created minimal + private if missing)
 - `.mcp.json`, `.cursor/mcp.json` — MCP server config merged
@@ -235,12 +249,12 @@ Safeword has two types of files:
 **To customize something that gets overwritten:**
 
 1. Copy it to your namespace root (e.g., `.project/my-hook.ts` — see [Project Namespace Root](#project-namespace-root))
-2. Update `.claude/settings.json` to point to your copy
+2. Point the project-local surface that owns the customization at your copy
 3. Your version won't be touched by upgrades
 
 ## Project Namespace Root
 
-Safeword's project knowledge — tickets, learnings, personas, glossary, surfaces, architecture record — lives under a single **namespace root** directory, resolved in this order:
+Safeword's project knowledge — tickets, learnings, principles, personas, glossary, surfaces, architecture record — lives under a single **namespace root** directory, resolved in this order:
 
 1. `paths.projectRoot` in `.safeword/config.json`, if set
 2. `.project/` — the default for new installs
@@ -248,17 +262,18 @@ Safeword's project knowledge — tickets, learnings, personas, glossary, surface
 
 A project with neither directory resolves to `.project/`.
 
-The `paths` object also supports per-file overrides — `personas`, `glossary`, `surfaces`, and `architecture` — which default to `<root>/personas.md`, `<root>/glossary.md`, `<root>/surfaces.md`, and `<root>/architecture.md` under the resolved root. A per-file key wins over the root for its file.
+The `paths` object also supports per-file overrides — `principles`, `personas`, `glossary`, `surfaces`, and `architecture` — which default to matching `.md` files under the resolved root. A per-file key wins over the root for its file.
 
 Persona headers may carry an explicit short code, for example `## Platform Operator (PO)`. Automatic codes use **3–4 letters** (`Platform Operator` → `PLO`); explicit overrides may use **2–4 letters**. Carry the resolved code unchanged through JTBD ids and Gherkin lineage (`oauth-flow.PO1.R1`). Safeword still accepts existing explicit 5–6 character codes and resolves former derived aliases, so upgrading does not require renaming historical specs or scenarios.
 
-Two directory keys, `features` and `steps`, point the BDD acceptance lane at relocated (or host-owned) directories. Unlike the per-file overrides they **augment** the defaults rather than replace them: `safeword codify`, `safeword lint-gherkin`, and the `safeword check` spec gate read the configured `features` directory _in addition to_ root `features/` and the workspace-package conventions, and the scaffolded `cucumber.mjs` runner reads both keys (`steps` matters only to the runner, for relocated TypeScript step definitions). Set them when your acceptance suite lives elsewhere (e.g. `tests/behaviors` + `tests/steps`), including when setup detected an existing cucumber harness and skipped the starter lane:
+Two directory keys, `features` and `steps`, point the BDD acceptance lane at relocated (or host-owned) directories. Unlike the per-file overrides they **augment** the defaults rather than replace them: `safeword project codify`, `safeword project lint-gherkin`, and the `safeword doctor` spec gate read the configured `features` directory _in addition to_ root `features/` and the workspace-package conventions, and the scaffolded `cucumber.mjs` runner reads both keys (`steps` matters only to the runner, for relocated TypeScript step definitions). Set them when your acceptance suite lives elsewhere (e.g. `tests/behaviors` + `tests/steps`), including when setup detected an existing cucumber harness and skipped the starter lane:
 
 ```json
 {
   "installedPacks": ["typescript"],
   "paths": {
     "projectRoot": ".project",
+    "principles": "docs/principles.md",
     "personas": "docs/personas.md",
     "glossary": "docs/glossary.md",
     "surfaces": "docs/surfaces.md",
@@ -279,6 +294,15 @@ Two directory keys, `features` and `steps`, point the BDD acceptance lane at rel
 
 Relative paths resolve against the project root (the directory containing `.safeword/`); absolute paths are used verbatim.
 
+`principles.md`, `personas.md`, and `surfaces.md` share one safe ownership
+lifecycle. Setup scaffolds a missing default, preserves authored content
+byte-for-byte, and suppresses the default scaffold when the matching
+`paths.principles`, `paths.personas`, or `paths.surfaces` override is present.
+Doctor fails non-zero with a key-specific error when a configured file is
+missing. When an override and its default both exist, doctor reports a zero-exit
+orphan advisory naming both paths; Safeword never deletes user-authored
+knowledge, so cleanup remains an explicit user choice.
+
 For adopted host harnesses with a house style, `bdd.conventions` points at a conventions document the host owns — what an unimplemented step body looks like, how spec-ahead scenarios are verified without executing them (for example a cucumber dry-run/check profile), and which tags the host's profiles exclude by default:
 
 ```json
@@ -289,11 +313,11 @@ For adopted host harnesses with a house style, `bdd.conventions` points at a con
 }
 ```
 
-When set, `safeword codify` prints a pointer to the doc alongside its output, and the installed BDD skill prose directs agents to read and follow it over safeword's defaults. Safeword never parses or validates the doc — it lives next to the harness and is maintained by whoever maintains the harness, so it cannot drift the way conventions transcribed into skill prose do.
+When set, `safeword project codify` prints a pointer to the doc alongside its output, and the installed BDD skill prose directs agents to read and follow it over safeword's defaults. Safeword never parses or validates the doc — it lives next to the harness and is maintained by whoever maintains the harness, so it cannot drift the way conventions transcribed into skill prose do.
 
 `surfaces.md` is optional project knowledge for BDD. Use it for recurring product, agent, runtime, protocol, client, or deployment contexts where behavior must keep working, such as Claude Code, OpenAI Codex, Cursor, web, mobile, MCP, cloud service, or self-hosted deployments. Keep one-off contexts in a feature spec's `## Surfaces` section unless they recur across tickets, are ambiguous enough to drift, or are important enough that missing them would leave a context untested. When a spec lists affected surfaces, saved `.feature` scenarios should cover them with `@surface.<slug>` tags or explicit `skip:` reasons.
 
-`docs.sources` is separate from `paths.*`. Use it to tell audit where project documentation lives. Local sources are validated by `safeword check`; URL and git sources are treated as audit inventory and should be fetched during audit when access is available, or reported as skipped coverage when they are not accessible. Set `"docs": { "sources": [] }` to keep fallback discovery and stop future audits from asking for configured sources.
+`docs.sources` is separate from `paths.*`. Use it to tell audit where project documentation lives. Local sources are validated by `safeword doctor`; URL and git sources are treated as audit inventory and should be fetched during audit when access is available, or reported as skipped coverage when they are not accessible. Set `"docs": { "sources": [] }` to keep fallback discovery and stop future audits from asking for configured sources.
 
 ## Project-Specific Content
 
@@ -308,7 +332,7 @@ This folder is yours—Safeword will never modify it.
 ## Tracker Integration (`ticketBridge`)
 
 Mirror local tickets one-way into GitHub Issues or Linear. Off by default; configured via
-`safeword connect`. See [Tracker Integration](/reference/tracker-integration/) for the full guide.
+`safeword tracker connect`. See [Tracker Integration](/reference/tracker-integration/) for the full guide.
 
 ```json
 {

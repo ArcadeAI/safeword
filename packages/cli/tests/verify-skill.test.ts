@@ -15,10 +15,6 @@ const commandContent = readFileSync(
   nodePath.join(templatesDirectory, 'commands/verify.md'),
   'utf8',
 );
-const dogfoodAgentsSkillContent = readFileSync(
-  nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md'),
-  'utf8',
-);
 const dogfoodClaudeSkillContent = readFileSync(
   nodePath.join(repoRoot, '.claude/skills/verify/SKILL.md'),
   'utf8',
@@ -40,7 +36,6 @@ const templateFiles: [string, string][] = [['skill', skillContent]];
 
 const allVerifySurfaces: [string, string][] = [
   ['template skill', skillContent],
-  ['dogfood agents skill', dogfoodAgentsSkillContent],
   ['dogfood claude skill', dogfoodClaudeSkillContent],
   ['Codex plugin skill', codexPluginSkillContent],
 ];
@@ -51,7 +46,7 @@ describe('verify command pointer (7PG694)', () => {
     ['dogfood cursor command', dogfoodCursorCommandContent],
   ])('%s is a thin pointer to the canonical skill', (_name, content) => {
     expect(content).toContain('Read and follow the instructions in');
-    expect(content).toContain('.claude/skills/verify/SKILL.md');
+    expect(content).toContain('.safeword/skills/verify/SKILL.md');
     expect(content.split('\n').length).toBeLessThan(10);
   });
 });

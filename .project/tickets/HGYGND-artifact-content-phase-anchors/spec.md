@@ -82,11 +82,13 @@ hashes.
   last-wins-on-re-advance all carry over.
 - **Canonical per-phase artifact** (phase entered ← exit artifact of phase
   left): define-behavior ← `spec.md` · scenario-gate ← the feature source
-  (`features/<slug>.feature` or configured path) · implement ← `impl-plan.md` ·
-  verify ← `test-definitions.md` (the R/G/R ledger) · done ← `verify.md`. The
-  explicit path (rather than a derived map) pins per-ticket ambiguity —
-  configurable features dir, legacy AC-path tickets — and keeps the traversal
-  trail the shipped birth check already reads (`engine.ts:198`).
+  (`features/<slug>.feature`, a direct workspace's `features/` lane, or the
+  configured feature lane; same-named `.feature` files elsewhere are not
+  executable evidence) · implement ← `impl-plan.md` · verify ←
+  `test-definitions.md` (the R/G/R ledger) · done ← `verify.md`. The explicit
+  path (rather than a derived map) pins per-ticket ambiguity — configurable
+  features dir, legacy AC-path tickets — and keeps the traversal trail the
+  shipped birth check already reads (`engine.ts:198`).
 - **Boundary verification (#810):** for the entered phase of a transition in
   the change — the anchored artifact exists in the shipped tree and passes the
   artifact's existing shape predicate (`parseImplPlan`, `checkVerifyArtifact`,
@@ -212,7 +214,7 @@ Unaffected:
 ## Vocabulary
 
 - **Artifact-content anchor** — a `phase_anchors` entry tying an entered phase
-  to the exit artifact of the phase being left, as `<relpath>@<content-hash>`;
+  to the exit artifact of the phase being left, as a bare repo-relative path;
   verified against the final tree, never against git history.
 - **Final-tree verification** — checking anchors in the tree being
   committed/pushed/PR'd, requiring no history and therefore surviving
@@ -263,6 +265,13 @@ hex-shaped anchor for its entered phase draws the migrate-to-path remediation.
 `test-definitions.md` tick annotations keep their SHA grammar, reachability
 resolution, and done-gate validation exactly as shipped — the redesign removes
 the phase-anchor dependency on git history, not the ledger's.
+
+#### artifact-content-phase-anchors.SM1.R6 — Ownership and configured lanes are resolved from canonical staged paths
+
+An anchor belongs to the ticket being advanced and, for feature sources, to an
+executable or configured feature lane. Ticket-root discovery, path
+normalization, and ownership checks use the staged tree's configuration and
+paths rather than unstaged worktree state.
 
 ## Rave Moment
 

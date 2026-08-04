@@ -2,11 +2,34 @@
 
 **Entry:** Agent enters `plan-implementation` phase. Scenarios passed the scenario-gate; behavior is fixed. This phase produces the implementation design record — `impl-plan.md` — and nothing else ships from it. Application code stays untouched until `implement` (the pre-tool hook enforces this).
 
+If a spike returned a structured handoff at the optional checkpoint, scaffold
+`impl-plan.md` first, then carry every value into the record immediately:
+
+- evidence → Approach proof, including the proof command/output citation;
+- shortcuts → Approach build order;
+- decision → Decisions; and
+- production consequences → implementation tasks and Assessment triggers.
+
+Consume the handoff in the fresh production worktree created from
+`PRE_SPIKE_BASE`. Commit this plan and the updated ticket state there, complete
+plan review, and only then begin production implementation in that same
+worktree. Never reuse the spike's experimental code or commits.
+
 ## Design the approach — ideal first
 
 1. **Sketch the ideal design** for the validated scenarios as if the codebase didn't exist. Run `$safeword:figure-it-out` for each **load-bearing** choice — slicing, data model, storage, interfaces, test layers — and record the evidence in the Decisions table. Non-obvious choices get researched, not recalled.
 2. **Then survey what exists** — after sketching the ideal, read the generated architecture state doc (`architecture.generated.md` — the machine-owned _what-is_) and the decision record (resolved from `paths.architecture`) for **reuse** candidates: components that already do the job, or do it better. Order matters: surveying first anchors the design to the status quo.
 3. **Reconcile without sunk-cost conformance.** Existing architecture is changeable with a recorded decision, not a constraint to conform to. Reuse what's better; change what's worse — deliberately, with the change recorded (ADR lifecycle below).
+
+## Apply project principles
+
+Re-read the configured principles file (`paths.principles`, default
+`<namespace-root>/principles.md`) so planning does not depend on intake context
+surviving. Identify only the **applicable project principles**—do not enumerate
+the catalogue as a checklist. For each applicable principle, record in Design
+alignment: **principle → concrete consequence → proof**. Put an intentional
+conflict in Known deviations with its reason. No applicable principle is a
+valid `skip:`; vague “complies with principles” prose is not.
 
 ## Environment fluency
 
@@ -23,7 +46,7 @@ Scaffold from `.safeword/templates/impl-plan-template.md` (sibling to `ticket.md
 
 - **Approach** — open with the riskiest assumption and the cheapest scenario that proves it; then the proof plan: for each scenario the primary proof (`unit`, `integration`, `E2E`, or `eval` per `testing/SKILL.md`'s highest practical scope rule), supporting proofs, at least one wiring test per new entry point, and the build order with the load-bearing slice first. Cover each **affected surface** the spec lists — name the proof that covers it or a per-surface `skip: <reason>`.
 - **Decisions** — one row per significant technical choice: choice, alternatives, rejected-because, with the `$safeword:figure-it-out` evidence cited.
-- **Arch alignment** — consult the architecture record (resolve `paths.architecture` in `.safeword/config.json`; default `.project/architecture.md`; a directory holds one ADR per `.md`, README excluded) **before** filling this in. Records exist: list the decisions this design honors. None recorded yet: write `skip: no ADRs in this project yet` and offer to draft the first ADR (technology choices spanning features, data ownership, cross-service contracts).
+- **Design alignment** — record applicable project principles with their concrete consequence and proof, then consult the architecture record (resolve `paths.architecture` in `.safeword/config.json`; default `.project/architecture.md`; a directory holds one ADR per `.md`, README excluded). Records exist: list the decisions this design honors. With applicable principles but no records, write `None recorded yet` for the architecture sub-entry and offer to draft the first ADR for a significant decision. With neither applicable principles nor architecture records, write `skip: no applicable principles or ADRs` and offer to draft the first ADR for a significant decision (technology choices spanning features, data ownership, cross-service contracts).
 - **Known deviations** — where this deviates from guidance and why that's acceptable.
 - **Doc impact** — which configured `docs.sources` surfaces the customer-visible changes touch, folded into the build order as tasks; internal-only: `skip: <reason>`.
 - **Assessment triggers** — what would prompt revisiting these choices.
@@ -44,7 +67,7 @@ Scaffold from `.safeword/templates/impl-plan-template.md` (sibling to `ticket.md
 
 ## Exit: review, then (optionally) the user
 
-1. **Independent review first.** Spawn a fresh reviewer with no conversation history — handed only `impl-plan.md`, the ticket scope, and the `.feature` source — to refute the plan (wrong-direction design, missed scenarios, editorial padding via the deletion test). Fix findings, re-review, then stamp the exit (`write-review-stamp.ts --phase plan-implementation`, where the review gate is enabled). Human handoff happens **only after** this review passes — raw planning output is never presented for approval. Exception, any time: information only the user has (intent, priorities, constraints not in code or docs) routes to the user the moment the gap appears — `$safeword:elicit`.
+1. **Independent review first.** At review time, run `bun .safeword/hooks/resolve-project-knowledge.ts`, then run `safeword review run plan-implementation impl-plan.md spec.md ticket.md feature-file principles-file personas-file surfaces-file` with the current files identified by the resolver. The shared coordinator sends that bounded packet to the opposite headless agent when available; its typed verdict, failure classification, and independence level are authoritative, so do not substitute a private subagent. Give the reviewer the current `spec.md`, configured principles file, configured personas file, and configured surfaces file in that packet. The reviewer refutes the plan: challenge whether it selected the actually applicable principles, whether each concrete consequence follows from its principle, whether the proposed proof can prove that consequence, whether conflicts belong in Known deviations, whether the design fulfills each persona's JTBD, and whether any affected surface was omitted or lacks credible proof. Also check wrong-direction design, missed scenarios, and editorial padding via the deletion test. Fix findings, re-resolve the sources, re-review, then stamp the exit with the returned agent provenance (`write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --phase plan-implementation`, where the review gate is enabled). Add `--model` only when the executed reviewer reports a verifiable model identifier; the coordinator never invents one. Human handoff happens **only after** this review passes — raw planning output is never presented for approval. Exception, any time: information only the user has (intent, priorities, constraints not in code or docs) routes to the user the moment the gap appears — `$safeword:elicit`.
 2. **`designApprovalGate`** (in `.safeword/config.json`): **absent or off** — the reviewed plan advances autonomously; do not ask. **Enabled** — present the reviewed plan (riskiest assumption, build order, decisions) and wait for user approval before `implement`.
 3. **Sessions without an interactive user** (cloud/headless — Claude Code on the Web, Codex Cloud, Cursor Cloud Agents): an enabled approval gate must not stall the container. Record the auto-decision as pending approval in the ticket work log and surface the reviewed plan in the session's reviewable output (PR description / session summary) — approval lands at PR review. Note: Cursor Cloud Agents run `preToolUse` hooks but not stop hooks, so enforcement rides the transition gate there, not stop-time nudges.
 4. **Update frontmatter:** `phase: implement`. The pre-tool transition gate verifies `impl-plan.md` parses valid with status `planned` — a missing or invalid plan blocks the move with the fix named. A `phase_skips` justification satisfies phase provenance only — a new-flow feature (spec.md present) still needs the valid plan to enter implement.

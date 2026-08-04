@@ -37,4 +37,22 @@ export interface VerifyClient {
 export interface ConnectResult {
   exitCode: number;
   connected: boolean;
+  mutations: readonly ConnectMutation[];
+}
+
+export interface ConnectMutation {
+  surface: 'file' | 'configuration' | 'network';
+  kind: string;
+  target: string;
+  operation: string;
+}
+
+export class ConnectExecutionError extends Error {
+  readonly mutations: readonly ConnectMutation[];
+
+  constructor(cause: unknown, mutations: readonly ConnectMutation[]) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = 'ConnectExecutionError';
+    this.mutations = mutations;
+  }
 }

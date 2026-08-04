@@ -22,6 +22,9 @@ import process from 'node:process';
 
 import { getActiveTicket } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
+import { evaluateDoneEvidence } from '../lib/done-gate.ts';
+import { updateTicketStatus } from '../lib/hierarchy.ts';
+import { resolveNamespaceRoot } from '../lib/namespace-root.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
 import { recordRetroDebugEvent } from '../lib/retro-debug.ts';
 import { decideRetroFilingGate, formatCodexFilingDispatch } from '../lib/retro-filing-gate.ts';
@@ -60,6 +63,64 @@ function isDonePhaseWork(projectDirectory: string, input: CodexStopInput): boole
 function architectureNudge(projectDirectory: string, input: CodexStopInput): string | null {
   if (!isDonePhaseWork(projectDirectory, input)) return null;
   return architectureDocumentNudgeForProject(projectDirectory);
+}
+
+interface DoneTransitionResult {
+  completed: boolean;
+  /** A failed shared evidence verdict that must take response precedence. */
+  blockReason?: string;
+  /** Captured before the ticket moves out of the advisory's done-phase predicate. */
+  architectureAdvisory: string | null;
+}
+
+/**
+ * Complete only the ticket explicitly bound to this Codex session. The
+ * architecture advisory keeps its separate global fallback below; using it here
+ * would let an unbound session close another builder's most-recent ticket.
+ */
+function completeSessionDoneTicket(
+  projectDirectory: string,
+  input: CodexStopInput,
+): DoneTransitionResult {
+  const runIdentity = resolveRunIdentity(input, { runtime: 'codex' });
+  // No session id and no CODEX_THREAD_ID means no identity at all, and the state
+  // path would collapse to the unscoped `quality-state-undefined.json` every
+  // id-less hook run shares — whatever ticket it names belongs to some other
+  // session. Stop before the read: an unbound session keeps the architecture
+  // advisory's global fallback (isDonePhaseWork, above) but is never a
+  // lifecycle-mutation fallback. Issue #1425; spec SWM1.R1.
+  if (runIdentity.sessionKey === null) {
+    return { completed: false, architectureAdvisory: null };
+  }
+  const ticket = readSessionActiveTicket(projectDirectory, runIdentity);
+  if (!ticket?.folder || ticket.status !== 'in_progress' || ticket.phase !== 'done') {
+    return { completed: false, architectureAdvisory: null };
+  }
+
+  // The advisory is eligible only while the ticket is still in_progress/done.
+  // Cache it now, then discard it if evidence fails rather than letting an
+  // advisory obscure the remediation the builder must act on.
+  const architectureAdvisory = architectureNudge(projectDirectory, input);
+  const ticketDirectory = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticket.folder,
+  );
+  const verdict = evaluateDoneEvidence({
+    projectDir: projectDirectory,
+    ticketDir: ticketDirectory,
+    ticketType: ticket.type,
+  });
+  if (!verdict.ok) {
+    return {
+      completed: false,
+      blockReason: verdict.reason ?? 'Done evidence could not be verified.',
+      architectureAdvisory: null,
+    };
+  }
+
+  updateTicketStatus(ticketDirectory, 'done', 'done');
+  return { completed: true, architectureAdvisory };
 }
 
 /**
@@ -120,7 +181,8 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
     timeout: 600_000,
   });
   const error = result.error as (Error & { code?: string }) | undefined;
-  const ok = result.status === 0 && !result.error && pendingOffsetState !== undefined;
+  const offsetState = pendingOffsetState;
+  const ok = result.status === 0 && !result.error && offsetState !== undefined;
   recordRetroDebugEvent({
     event: 'codex_stop_child_exit',
     command: nodePath.basename(command),
@@ -134,23 +196,19 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
     pendingOffsetState: pendingOffsetState !== undefined,
     ok,
   });
-  if (!ok) return;
+  if (!ok || !offsetState) return;
 
   try {
-    writeOffsetState(
-      pendingOffsetState.sessionId,
-      pendingOffsetState.state,
-      pendingOffsetState.baseDirectory,
-    );
+    writeOffsetState(offsetState.sessionId, offsetState.state, offsetState.baseDirectory);
     recordRetroDebugEvent({
       event: 'codex_stop_offset_write',
-      sessionId: pendingOffsetState.sessionId,
+      sessionId: offsetState.sessionId,
       ok: true,
     });
   } catch {
     recordRetroDebugEvent({
       event: 'codex_stop_offset_write',
-      sessionId: pendingOffsetState.sessionId,
+      sessionId: offsetState.sessionId,
       ok: false,
     });
     // A state-write failure must not make Stop visible or blocking.
@@ -172,7 +230,16 @@ async function main(): Promise<string> {
 
   runRetroExtraction(projectDirectory, input);
 
-  const reason = architectureNudge(projectDirectory, input);
+  const completion = completeSessionDoneTicket(projectDirectory, input);
+  if (completion.blockReason) {
+    return JSON.stringify({ decision: 'block', reason: completion.blockReason });
+  }
+
+  // A successful completion uses the advisory captured before status changed;
+  // unbound/noneligible sessions keep the adapter's existing advisory fallback.
+  const reason = completion.completed
+    ? completion.architectureAdvisory
+    : architectureNudge(projectDirectory, input);
   if (reason) return JSON.stringify({ decision: 'block', reason });
 
   // Filing gate (#628): extraction above is synchronous, so drafts it spooled are
@@ -197,7 +264,7 @@ async function main(): Promise<string> {
   return SILENT;
 }
 
-let output = SILENT;
+let output: string;
 try {
   output = await main();
 } catch {

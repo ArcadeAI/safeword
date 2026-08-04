@@ -11,6 +11,7 @@
     "shfmt",
     "dot",
     "shellcheck",
+    "pgrep",
     "rustup",
     "ruff",
     "golangci-lint",
@@ -23,12 +24,10 @@
     "check",
     "lint-gherkin",
     "lint-imports",
-    "feature-directories",
-    "which"
+    "feature-directories"
   ],
   "ignoreDependencies": [
     "safeword",
-    "tsx",
     "@next/eslint-plugin-next",
     "@tanstack/eslint-plugin-query",
     "eslint-plugin-better-tailwindcss",

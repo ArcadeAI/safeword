@@ -15,6 +15,7 @@ import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   fileExists,
+  INSTALL_DEPENDENCIES_ENV,
   readPackageJson,
   readTestFile,
   removeTemporaryDirectory,
@@ -39,7 +40,7 @@ describe('setup scaffolds the lane in a TS project (AC1)', () => {
   beforeAll(async () => {
     directory = createTemporaryDirectory();
     createTypeScriptPackageJson(directory);
-    await setupOrThrow(directory);
+    await setupOrThrow(directory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
   }, TIMEOUT_BUN_INSTALL);
 
   afterAll(() => {
@@ -61,7 +62,7 @@ describe('setup scaffolds the lane in a TS project (AC1)', () => {
     expect(packageJson.devDependencies?.['@cucumber/cucumber']).toBeDefined();
     expect(packageJson.devDependencies?.['gherkin-lint']).toBeUndefined();
     expect(packageJson.devDependencies?.tsx).toBeDefined();
-    expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword lint-gherkin');
+    expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword project lint-gherkin');
     expect(packageJson.scripts?.['test:bdd']).toContain('cucumber-js');
   });
 });
@@ -74,7 +75,7 @@ describe('setup preserves existing package.json content (AC1)', () => {
     createTypeScriptPackageJson(directory, {
       scripts: { test: 'vitest run', 'test:bdd': 'my-own-runner' },
     });
-    await setupOrThrow(directory);
+    await setupOrThrow(directory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
   }, TIMEOUT_BUN_INSTALL);
 
   afterAll(() => {
@@ -129,7 +130,9 @@ describe('setup merges into a polyglot repo (AC2)', () => {
     // Name deliberately differs from the directory basename so wrongful
     // re-creation (which derives name from the basename) is observable.
     createTypeScriptPackageJson(directory, { name: 'my-custom-name' });
-    await setupOrThrow(directory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
+    await setupOrThrow(directory, ['setup', '--yes'], {
+      env: { ...SKIP_SKILLS_ENV, ...INSTALL_DEPENDENCIES_ENV },
+    });
   }, TIMEOUT_BUN_INSTALL);
 
   afterAll(() => {

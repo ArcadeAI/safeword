@@ -1,5 +1,5 @@
 /**
- * Shared types for `safeword sync-tracker` — the one-way projection of local
+ * Shared types for `safeword tracker sync` — the one-way projection of local
  * tickets into a customer tracker (Linear / GitHub Issues). The whole pipe
  * funnels through one provider-neutral payload and one call site so the eventual
  * third provider is a refactor of one place, not a scatter of `if (provider===)`.

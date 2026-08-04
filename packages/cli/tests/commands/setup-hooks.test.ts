@@ -17,8 +17,8 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
-  TIMEOUT_BUN_INSTALL,
+  runCliWithoutInstall,
+  TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
 
@@ -45,6 +45,11 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
 
   beforeEach(() => {
     temporaryDirectory = createTemporaryDirectory();
+    writeTestFile(
+      temporaryDirectory,
+      '.claude/settings.json',
+      '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+    );
   });
 
   afterEach(() => {
@@ -58,7 +63,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
         createTypeScriptPackageJson(temporaryDirectory);
         initGitRepo(temporaryDirectory);
 
-        await runCli(['setup'], { cwd: temporaryDirectory });
+        await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
         expect(fileExists(temporaryDirectory, '.claude/settings.json')).toBe(true);
 
@@ -72,14 +77,14 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
         expect(settings.hooks.PostToolUse).toBeDefined();
         expect(Array.isArray(settings.hooks.PostToolUse)).toBe(true);
       },
-      TIMEOUT_BUN_INSTALL,
+      TIMEOUT_SETUP,
     );
 
     it('should reference .safeword/hooks paths', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
       const settingsString = JSON.stringify(settings);
@@ -94,7 +99,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       expect(fileExists(temporaryDirectory, '.claude/skills')).toBe(true);
 
@@ -125,6 +130,14 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
               command: 'echo "My custom hook"',
               description: 'Custom SessionStart hook',
             },
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'bun .safeword/hooks/session-version.ts',
+                },
+              ],
+            },
           ],
         },
       };
@@ -134,7 +147,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
         JSON.stringify(existingSettings, undefined, 2),
       );
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
 
@@ -154,7 +167,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
 
@@ -180,7 +193,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
 
@@ -211,7 +224,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
 
@@ -241,10 +254,14 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
         initGitRepo(temporaryDirectory);
 
         // Create .claude directory with read-only settings.json
-        writeTestFile(temporaryDirectory, '.claude/settings.json', '{}');
+        writeTestFile(
+          temporaryDirectory,
+          '.claude/settings.json',
+          '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+        );
         chmodSync(nodePath.join(temporaryDirectory, '.claude/settings.json'), 0o444);
 
-        const result = await runCli(['setup'], {
+        const result = await runCliWithoutInstall(['setup'], {
           cwd: temporaryDirectory,
         });
 
@@ -262,7 +279,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       // Lib directory should exist with TypeScript modules
       expect(fileExists(temporaryDirectory, '.safeword/hooks/lib')).toBe(true);
@@ -278,7 +295,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       expect(fileExists(temporaryDirectory, '.mcp.json')).toBe(true);
 
@@ -307,7 +324,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
         };
         writeTestFile(temporaryDirectory, '.mcp.json', JSON.stringify(existingMcp, undefined, 2));
 
-        await runCli(['setup'], { cwd: temporaryDirectory });
+        await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
         const mcpConfig = JSON.parse(readTestFile(temporaryDirectory, '.mcp.json'));
 
@@ -319,7 +336,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
         expect(mcpConfig.mcpServers.context7).toBeDefined();
         expect(mcpConfig.mcpServers.playwright).toBeDefined();
       },
-      TIMEOUT_BUN_INSTALL,
+      TIMEOUT_SETUP,
     );
   });
 
@@ -328,7 +345,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       // Commands moved to skills — .claude/commands/ is a shared dir (may or may not exist)
       // Skills directory should have safeword skills installed
@@ -341,7 +358,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       expect(fileExists(temporaryDirectory, '.mcp.json')).toBe(true);
 
@@ -355,7 +372,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       const mcpConfig = JSON.parse(readTestFile(temporaryDirectory, '.mcp.json'));
 

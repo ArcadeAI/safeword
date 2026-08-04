@@ -18,8 +18,8 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import {
-  runCodexHeadlessExtractionChecked,
-  runHeadlessExtraction,
+  runCodexHeadlessJobChecked,
+  runHeadlessJob,
 } from '../../templates/hooks/lib/retro-extract.js';
 import { warn } from '../utils/output.js';
 import type { ExecutionTier } from './execution.js';
@@ -155,7 +155,7 @@ async function runCodex(
     });
   const readFile = options.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
 
-  return runCodexHeadlessExtractionChecked<Review | undefined>(
+  return runCodexHeadlessJobChecked<Review | undefined>(
     input,
     {
       spawn: spawnAdapter('codex', spawn),
@@ -187,7 +187,7 @@ async function runClaude(
 
   // The Claude path is fail-OPEN by construction (it returns the job's
   // fallback), so `undefined` back is what "no usable review" looks like here.
-  const output = await runHeadlessExtraction<Review | undefined>(
+  const output = await runHeadlessJob<Review | undefined>(
     input,
     {
       spawn: spawnAdapter('claude', spawn),

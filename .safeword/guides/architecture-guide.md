@@ -13,15 +13,14 @@ that rot differently — keep them apart and never edit one as if it were the ot
 | ------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
 | **File**      | `<namespace-root>/architecture.generated.md` (plus `packages/<pkg>/architecture.generated.md` in monorepos) | `ARCHITECTURE.md` (or `paths.architecture`) |
 | **Answers**   | "What the system **is** right now"                                                                          | "**Why** we decided X"                      |
-| **Owner**     | Machine — carries a `generator: safeword-architecture` marker                                               | Humans                                      |
-| **Editing**   | Never by hand; regenerated deterministically                                                                | In place, by people                         |
+| **Owner**     | Split — structure is machine-owned; module purpose prose is human-owned                                     | Humans                                      |
+| **Editing**   | Edit module purpose prose only; never edit structural fields                                                | In place, by people                         |
 | **Freshness** | Self-heals at session start; enforced in commits + CI                                                       | Reviewed like any doc                       |
 
-The rest of this guide is the how-to for the **hand-curated decision doc** — the
-genre you author. The generated state doc is summarized next: you read it, you
-don't write it.
+The rest of this guide is the how-to for the **hand-curated decision doc**. The
+generated state doc is summarized next, including its narrow editable region.
 
-## The Generated State Document (read it, don't write it)
+## The Generated State Document
 
 Safeword keeps a deterministic, point-in-time map of the system fresh on its own
 (no LLM):
@@ -37,12 +36,20 @@ Safeword keeps a deterministic, point-in-time map of the system fresh on its own
   after out-of-band human edits). Prose that has fallen behind the structure is
   flagged `⚠ stale` rather than left silently wrong. A doc safeword does not own
   (no marker) is never touched.
-- **Enforced, not just suggested** — `safeword architecture --check` fails CI when
+- **Enforced, not just suggested** — `safeword project architecture --check` fails CI when
   a committed doc is stale; a commit-time hook regenerates and stages it
   automatically. Both honor `architectureDocEnforcement` (default-on; set `false`
   to opt out).
-- **Don't hand-edit it** — your edits are overwritten on the next heal. Record
-  durable decisions in the hand-curated doc below instead.
+- **Machine-owned structure** — headings, code references, fingerprints,
+  reconciliation stamps, dependency edges, and status markers are regenerated.
+  The monorepo root index is fully machine-owned.
+- **Human-owned module purpose prose** — in single-repo and package leaf docs,
+  the prose after a module's code reference is preserved across structural heals
+  only while that module remains present. Formatting may be normalized. Removing
+  a module replaces its section with an orphan marker, so move any durable
+  rationale to the hand-curated doc first. A structural change may mark surviving
+  prose `⚠ stale`; update it when the module's responsibility changes. Purpose
+  prose describes what a module does.
 
 ---
 
@@ -389,12 +396,12 @@ The layer rules above are a language-agnostic _concept_: who may import whom.
 `ARCHITECTURE.md` is the single source of truth for the rules; enforce them with
 the tool native to each language. Safeword wires up the JS/TS one for you.
 
-| Language   | Enforcement                                 | How                                                                                                                                                                                                       |
-| ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **JS/TS**  | **dependency-cruiser** (safeword-generated) | `safeword sync-config` generates `.safeword/depcruise-config.cjs` from your detected layers; `bun run deps` and CI fail on a forbidden edge. `eslint-plugin-boundaries` is a viable IDE-time alternative. |
-| **Python** | **import-linter**                           | Declare layer contracts in your `importlinter` config; `lint-imports` fails on a forbidden import. (Circular imports also fail at runtime.)                                                               |
-| **Go**     | **the compiler** (+ depguard)               | Circular package imports are a build error — if it builds, there are none. Enforce directional layer rules with `depguard` via golangci-lint.                                                             |
-| **Rust**   | **the compiler** (+ cargo-deny)             | The module system rejects circular module dependencies at build time. Gate crate-level dependencies with `cargo-deny`.                                                                                    |
+| Language   | Enforcement                                 | How                                                                                                                                                                                                               |
+| ---------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **JS/TS**  | **dependency-cruiser** (safeword-generated) | `safeword project sync-config` generates `.safeword/depcruise-config.cjs` from your detected layers; `bun run deps` and CI fail on a forbidden edge. `eslint-plugin-boundaries` is a viable IDE-time alternative. |
+| **Python** | **import-linter**                           | Declare layer contracts in your `importlinter` config; `lint-imports` fails on a forbidden import. (Circular imports also fail at runtime.)                                                                       |
+| **Go**     | **the compiler** (+ depguard)               | Circular package imports are a build error — if it builds, there are none. Enforce directional layer rules with `depguard` via golangci-lint.                                                                     |
+| **Rust**   | **the compiler** (+ cargo-deny)             | The module system rejects circular module dependencies at build time. Gate crate-level dependencies with `cargo-deny`.                                                                                            |
 
 **Concept → config:** define the layers and allowed dependencies in
 `ARCHITECTURE.md` (the table above), then let the per-language tool be the gate.

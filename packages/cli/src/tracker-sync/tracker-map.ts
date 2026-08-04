@@ -98,6 +98,21 @@ export function loadTrackerMap(
 }
 
 /**
+ * Creation-safe sidecar policy: absence is a legitimate first run and yields an
+ * empty map; corruption remains a refusal so recorded references are never
+ * silently discarded.
+ */
+export function loadTrackerMapOrEmpty(
+  filePath: string,
+): { ok: true; map: TrackerMap } | { ok: false; reason: 'corrupt' } {
+  const loaded = loadTrackerMap(filePath);
+  if (loaded.ok) return loaded;
+  return loaded.reason === 'missing'
+    ? { ok: true, map: new TrackerMap() }
+    : { ok: false, reason: 'corrupt' };
+}
+
+/**
  * Decide create vs update vs reconcile for a ticket: absent → create (AC5);
  * recorded → update with the existing ref (AC6); pending → reconcile to the
  * existing issue without a second create (AC8).

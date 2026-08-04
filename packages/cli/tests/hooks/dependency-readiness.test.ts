@@ -590,13 +590,10 @@ describe('dependency readiness hook support', () => {
     });
   });
 
-  it('session hook auto-installs a missing worktree (JNVP4W), degrading if the install fails', () => {
+  it('session hook bootstraps a missing worktree and degrades cleanly on failure', () => {
     writeBunProject();
     markSafewordProject();
 
-    // node_modules absent → the hook bootstraps (`bun ci`) regardless of the
-    // autoInstall opt-in. The fixture's lockfile is a stub, so the install
-    // fails — exercising the degrade: exit 0, a 'failed' state, never a wedge.
     const result = runHook(SESSION_HOOK);
 
     expect(result.status).toBe(0);
@@ -609,7 +606,7 @@ describe('dependency readiness hook support', () => {
     expect(state.installCommand).toBe('bun ci');
   });
 
-  it('session hook bootstraps dependencies when auto-install is explicitly enabled', () => {
+  it('session hook bootstraps missing dependencies when auto-install is enabled', () => {
     writeMinimalBunProject();
     markSafewordProject();
     writeGeneratedBunLock();
@@ -623,7 +620,7 @@ describe('dependency readiness hook support', () => {
 
     expect(result.status).toBe(0);
     const output = JSON.parse(result.stdout);
-    expect(output.hookSpecificOutput.additionalContext).toContain('bootstrapped');
+    expect(output.hookSpecificOutput.additionalContext).toContain('dependencies bootstrapped');
     expect(existsSync(path.join(projectDirectory, 'node_modules'))).toBe(true);
 
     const state = JSON.parse(readTestFile(projectDirectory, '.project/dependency-readiness.json'));
@@ -633,7 +630,7 @@ describe('dependency readiness hook support', () => {
     });
   });
 
-  it('session hook records auto-install failures without silently rewriting dependencies', () => {
+  it('session hook reports an attempted install that fails', () => {
     writeBunProject();
     markSafewordProject();
     writeJson('.safeword/config.json', {

@@ -24,6 +24,32 @@ Degradation is the intended path — no gate blocks on harness absence.
 
 Start with the most constraining test — usually E2E or integration. Prefer the highest scope that covers the behavior with acceptable feedback speed.
 
+### Scenario proof fidelity
+
+The primary proof must preserve the scenario's contract boundary. Declarative
+wording does not require literal keystroke fidelity, but it does require the
+same actor-facing entry point and actor-visible result that the `When` and
+`Then` claim.
+
+- **Setup shortcuts belong in `Given`.** Fixtures, direct state setup, and
+  lower-level helpers may establish context without replaying every prior user
+  action.
+- **Exercise the `When` through the actor-facing entry point.** A direct
+  application-store call or injected lower-level browser event may prove
+  underlying logic, but it does not prove a named UI control, keyboard or
+  operating-system gesture, CLI command, or API request.
+- **Observe the `Then` as the actor-visible result.** Store, editor, or component
+  state is supporting evidence; it does not prove a visible UI result, emitted
+  CLI output, or external API response.
+- **Keep evidence limits explicit.** When the real boundary cannot be automated
+  reliably, use the existing `@manual` or `@live` path and perform and record
+  that check separately. A tag, skip reason, or narrower automated test does
+  not prove the broader scenario by itself.
+
+If a scenario accidentally names incidental UI mechanics rather than product
+behavior, loop back to define-behavior and rewrite it; do not silently reinterpret
+the scenario during implementation.
+
 ### Feature-source executable path
 
 When the scenario source is a `.feature` file and the Cucumber lane exists, RED starts by making that scenario executable through Cucumber step definitions:
@@ -127,7 +153,7 @@ Then reconcile the plan.
 All scenarios complete → reconcile `impl-plan.md` against what actually shipped, **before** advancing to verify (the stop hook blocks `verify`/`done` while the plan still says `planned`):
 
 1. **Walk the Decisions table** — for each row ask "did we actually do this, or did we change our mind?" Update changed rows: new choice, new rationale, the abandoned choice moves into Alternatives considered.
-2. **Walk Arch alignment** — for each claim ask "did the implementation honor this?" Move anything that deviated into **Known deviations** with the reason.
+2. **Walk Design alignment** — for applicable project principles and architecture claims, ask "did the implementation honor each stated consequence, and does its proof pass?" Move anything that deviated into **Known deviations** with the reason.
 3. **Refresh Assessment triggers** — add triggers the implementation surfaced (e.g., "works at current scale, degrades past 10x").
 4. **Flip the status line** to `**Status:** implemented`. The phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); log the reconciliation outcome ({N} decisions updated, {M} deviations recorded) as a narrative work-log entry.
 
@@ -143,20 +169,20 @@ surfaces a real spec, scope, value, or risk decision.
 Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`, the stop hook blocks `verify`/`done` for a new-flow feature until its `impl-plan.md` design has been **independently reviewed** — the same propose-then-challenge discipline the scenario-gate applies to scenarios, now applied to the design. Two requirements:
 
 1. **Cited evidence.** The Decisions section must carry a citation — a URL or a `[n]` source-reference marker — proving the choice was weighed against real evidence (the `$safeword:figure-it-out` trace), or an auditable `skip: <reason>`.
-2. **A fresh-context review.** Spawn a reviewer with **no conversation history**, handed only `impl-plan.md` and the ticket scope, to try to refute the design against its cited sources. On a pass, stamp it:
+2. **A fresh-context review.** Run `safeword review run plan-implementation impl-plan.md ticket-spec feature-file` so the shared coordinator gives only the bounded design evidence to the preferred opposite headless agent. Its typed result must satisfy the configured policy; a private subagent result cannot satisfy this gate. On a pass, stamp it:
 
    ```bash
-   bun .safeword/hooks/write-review-stamp.ts impl-plan
+   bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" impl-plan
    ```
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp.
 
-**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. This means an explicit different-model subagent — **not** a `context: fork`, which inherits the author's model. Record the model you assigned:
+**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. Record a model only when the executed reviewer reports a verifiable identifier; the cross-agent coordinator does not guess a default model:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --model "<reviewer-model-id>" impl-plan
+bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" impl-plan
 ```
 
-The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If you can't run a different model, log a deliberate skip (`--skip "<reason>"`) rather than stamping a same-model review. (This gate is stricter than quality-review's advisory loop, which accepts a fresh-context pass on your own model — here a genuinely different model, or an explicit `--skip`, is required.)
+The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. When `crossAgentReview` is `require`, degraded evidence and skips also fail closed; restore the opposite reviewer and rerun the coordinator. (This gate is stricter than quality-review's advisory loop, which may accept a labeled same-agent result under the default `prefer` policy.)
 
 **Avoid bloat.**

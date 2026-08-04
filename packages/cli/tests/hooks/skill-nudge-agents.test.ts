@@ -14,12 +14,16 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 const repoRoot = nodePath.join(process.cwd(), '..', '..');
 const claudeHook = nodePath.join(repoRoot, '.safeword/hooks/post-tool-skill-nudge.ts');
 const cursorHook = nodePath.join(repoRoot, '.safeword/hooks/cursor/post-tool-skill-nudge.ts');
-const codexHook = nodePath.join(repoRoot, '.safeword/hooks/codex/post-tool-skill-nudge.ts');
+const templateCodexHook = nodePath.join(
+  repoRoot,
+  'packages/cli/templates/hooks/codex/post-tool-skill-nudge.ts',
+);
 
 // Holder object so beforeAll can set the path without a top-level reassignment.
 const fixture = { dir: '' };
 const goFile = (name: string): string => nodePath.join(fixture.dir, name);
 const GO_SKILL_DESC = 'Idiomatic Go: goroutines, channels, generics, error handling.';
+const PYTHON_SKILL_DESC = 'Idiomatic Python: typing, async, packaging, and testing.';
 
 function run(hookPath: string, input: unknown, projectDirectory: string = fixture.dir): string {
   const result = spawnSync('bun', [hookPath], {
@@ -52,6 +56,12 @@ beforeAll(() => {
       `---\nname: golang-pro\ndescription: "${GO_SKILL_DESC}"\n---\n# Go\n`,
     );
   }
+  const pythonSkill = nodePath.join(fixture.dir, '.agents/skills/python-pro');
+  mkdirSync(pythonSkill, { recursive: true });
+  writeFileSync(
+    nodePath.join(pythonSkill, 'SKILL.md'),
+    `---\nname: python-pro\ndescription: "${PYTHON_SKILL_DESC}"\n---\n# Python\n`,
+  );
 });
 
 afterAll(() => {
@@ -86,7 +96,7 @@ describe('skill nudge fires across all three agents on a .go edit (single-skill 
   });
 
   it('Codex — forwards it as hookSpecificOutput.additionalContext', () => {
-    const out = run(codexHook, {
+    const out = run(templateCodexHook, {
       tool_name: 'Edit',
       tool_input: { file_path: goFile('c.go') },
       session_id: 'codex-1',
@@ -94,10 +104,32 @@ describe('skill nudge fires across all three agents on a .go edit (single-skill 
     expect(JSON.parse(out).hookSpecificOutput.additionalContext).toContain(GO_SKILL_DESC);
   });
 
-  it('stays silent for a non-Go (.py) edit — Claude', () => {
+  it('Codex template — aggregates nudges for every language in an apply_patch', () => {
+    const out = run(templateCodexHook, {
+      tool_name: 'apply_patch',
+      session_id: 'codex-multi-language',
+      tool_input: {
+        command: `*** Begin Patch\n*** Update File: ${goFile('multi.go')}\n*** End Patch\n*** Begin Patch\n*** Update File: ${goFile('multi.py')}\n*** End Patch`,
+      },
+    });
+    const context = JSON.parse(out).hookSpecificOutput.additionalContext;
+    expect(context).toContain(GO_SKILL_DESC);
+    expect(context).toContain(PYTHON_SKILL_DESC);
+  });
+
+  it('stays silent for an unsupported (.js) edit — Claude', () => {
     const out = run(claudeHook, {
-      tool_input: { file_path: goFile('d.py') },
+      tool_input: { file_path: goFile('d.js') },
       session_id: 'claude-2',
+    });
+    expect(out.trim()).toBe('');
+  });
+
+  it('fails open when a Codex source hook returns no output', () => {
+    const out = run(templateCodexHook, {
+      tool_name: 'Edit',
+      tool_input: { file_path: goFile('d.js') },
+      session_id: 'codex-empty-source-output',
     });
     expect(out.trim()).toBe('');
   });

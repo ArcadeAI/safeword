@@ -17,6 +17,7 @@ import {
   detectUnanchoredPhaseTransition,
   evaluateTicketWrite,
   frontmatterOf as parseTicketFrontmatter,
+  type PhaseAnchorScope,
   scalar,
 } from '../../templates/hooks/lib/phase-provenance.js';
 
@@ -48,8 +49,8 @@ export interface LegalityStep {
 
 /** One touched ticket: its changed artifacts plus at-rest context. */
 export interface TicketChange {
-  /** Ticket folder name, e.g. `BND001-clean`. */
-  ticketFolder: string;
+  /** Canonical ticket ownership and executable-feature-lane scope. */
+  anchorScope: PhaseAnchorScope;
   artifacts: ChangedArtifact[];
   /** ticket.md as it stands after the change (staged version, else on-disk). */
   ticketCurrent?: string;
@@ -148,12 +149,14 @@ function legalityVerdict(
  */
 function phaseAnchorVerdict(
   ticketFile: ChangedArtifact,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
 ): CheckVerdict {
   try {
     const anchor = detectUnanchoredPhaseTransition(
       ticketFile.prior,
       ticketFile.proposed ?? '',
+      scope,
       readArtifact,
     );
     return anchor.kind === 'unanchored'
@@ -170,6 +173,7 @@ function phaseAnchorVerdict(
 /** Transition checks over a staged/changed ticket.md. */
 function ticketFileChecks(
   ticketFile: ChangedArtifact,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
   legalitySteps?: LegalityStep[],
 ): CheckVerdict[] {
@@ -187,7 +191,7 @@ function ticketFileChecks(
 
   checks.push(
     legalityVerdict(ticketFile, legalitySteps),
-    phaseAnchorVerdict(ticketFile, readArtifact),
+    phaseAnchorVerdict(ticketFile, scope, readArtifact),
   );
 
   return checks;
@@ -304,7 +308,9 @@ function reconcileTicket(
 ): CheckVerdict[] {
   const ticketFile = change.artifacts.find(a => a.artifact === 'ticket.md');
   return [
-    ...(ticketFile ? ticketFileChecks(ticketFile, readArtifact, change.legalitySteps) : []),
+    ...(ticketFile
+      ? ticketFileChecks(ticketFile, change.anchorScope, readArtifact, change.legalitySteps)
+      : []),
     ...atRestBirthCheck(change),
     ...ledgerChecks(change, resolveSha),
     ...artifactShapeChecks(change),
@@ -326,7 +332,7 @@ export function reconcileChange(
   readArtifact?: ArtifactReader,
 ): TicketReconciliation[] {
   return changes.map(change => ({
-    ticket: change.ticketFolder,
+    ticket: change.anchorScope.ticketPath.split('/').at(-1) ?? change.anchorScope.ticketPath,
     checks: reconcileTicket(change, resolveSha, readArtifact),
   }));
 }

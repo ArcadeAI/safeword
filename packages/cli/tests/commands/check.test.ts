@@ -4,7 +4,7 @@
  * Tests for `safeword check` command.
  */
 
-import { rmSync, unlinkSync } from 'node:fs';
+import { mkdirSync, rmSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -39,6 +39,24 @@ describe('Test Suite 8: Health Check', () => {
       temporaryDirectory,
       `.project/tickets/${folder}/ticket.md`,
       ['---', ...frontmatter, '---', '', `# ${folder}`, ''].join('\n'),
+    );
+  }
+
+  function setConfiguredPath(
+    key: 'glossary' | 'personas' | 'principles' | 'surfaces',
+    configuredPath: string,
+  ): void {
+    const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+      paths?: Record<string, unknown>;
+      [key: string]: unknown;
+    };
+    writeTestFile(
+      temporaryDirectory,
+      '.safeword/config.json',
+      JSON.stringify({
+        ...existing,
+        paths: { ...existing.paths, [key]: configuredPath },
+      }),
     );
   }
 
@@ -90,9 +108,9 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain(`Project config (v999.0.0) is newer than CLI (v${VERSION})`);
-      expect(result.stdout).toContain('pnpm add -D safeword@999.0.0 && pnpm exec safeword upgrade');
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain(`Project config (v999.0.0) is newer than CLI (v${VERSION})`);
+      expect(result.stdout).toContain('pnpm add -D safeword@999.0.0 && pnpm exec safeword setup');
     });
 
     it('uses bun run for the Bun package-manager repair command', async () => {
@@ -102,8 +120,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('bun add -D safeword@999.0.0 && bun run safeword upgrade');
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain('bun add -D safeword@999.0.0 && bun run safeword setup');
     });
 
     it('uses yarn run for the Yarn package-manager repair command', async () => {
@@ -113,8 +131,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('yarn add -D safeword@999.0.0 && yarn run safeword upgrade');
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain('yarn add -D safeword@999.0.0 && yarn run safeword setup');
     });
 
     it('does not print a shell command when project version is not a package version', async () => {
@@ -124,8 +142,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain(
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain(
         'Project version is not safe to use in a package install command',
       );
       expect(result.stdout).not.toContain('safeword@999.0.0; echo owned');
@@ -139,7 +157,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(result.stdout.toLowerCase()).toContain('not configured');
       expect(result.stdout.toLowerCase()).toContain('setup');
     });
@@ -184,7 +202,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1); // Issues should cause non-zero exit
+      expect(result.exitCode).toBe(2); // Repairable issues require action.
       expect(result.stdout.toLowerCase()).toMatch(/missing|issue|repair|upgrade/i);
     });
   });
@@ -208,7 +226,7 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).not.toBe(0);
       expect(result.stdout).toMatch(/python.*pack.*not installed/i);
-      expect(result.stdout).toMatch(/safeword upgrade/i);
+      expect(result.stdout).toMatch(/Next: safeword plan/i);
     });
   });
 
@@ -257,15 +275,15 @@ describe('Test Suite 8: Health Check', () => {
         ),
       );
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/personas\.md:\d+:.*duplicate persona code/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/personas\.md:\d+:.*duplicate persona code/);
     });
 
     it('reports single-character-name error with line ref', async () => {
       const result = await runCheckWithPersonas(['## A', '**Role:** Too short.', ''].join('\n'));
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/personas\.md:\d+:.*at least 2 characters/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/personas\.md:\d+:.*at least 2 characters/);
     });
 
     it('reports digit-first-name with explicit-override prompt', async () => {
@@ -273,9 +291,9 @@ describe('Test Suite 8: Health Check', () => {
         ['## 3 Amigos', '**Role:** Pathological name.', ''].join('\n'),
       );
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/non-canonical code/);
-      expect(result.stderr).toMatch(/author an explicit 2–4 letter code/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/non-canonical code/);
+      expect(result.stdout).toMatch(/author an explicit 2–4 letter code/);
     });
 
     it('passes when personas.md is well-formed', async () => {
@@ -320,28 +338,23 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('configurable persona path (ticket K7N2QM)', () => {
-    /**
-     * Add a `paths.personas` override to the project's existing
-     * `.safeword/config.json`. Preserves any other config keys (notably
-     * `installedPacks`) that `createConfiguredProject` wrote during
-     * setup — overwriting them would trigger spurious "missing pack"
-     * reports that short-circuit the issues section.
-     */
-    function setPersonasOverride(personasPath: string): void {
-      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
-        installedPacks?: string[];
-        [key: string]: unknown;
-      };
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({ ...existing, paths: { personas: personasPath } }),
-      );
-    }
+    it.each(['personas', 'principles', 'surfaces', 'glossary'] as const)(
+      'reports a loud failure when configured %s path is a directory',
+      async key => {
+        await createConfiguredProject(temporaryDirectory);
+        mkdirSync(nodePath.join(temporaryDirectory, 'knowledge'));
+        setConfiguredPath(key, 'knowledge');
+
+        const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+        expect(result.exitCode).toBe(2);
+        expect(result.stdout).toContain(`${key}-path: knowledge: not a file`);
+      },
+    );
 
     it('R2.3: reports loud failure when configured path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
-      setPersonasOverride('docs/personas.md'); // file intentionally not created
+      setConfiguredPath('personas', 'docs/personas.md'); // file intentionally not created
       // Remove the scaffolded default so this test isolates the override branch.
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
@@ -349,8 +362,8 @@ describe('Test Suite 8: Health Check', () => {
         cwd: temporaryDirectory,
       });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/personas-path:.*docs\/personas\.md.*file not found/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/personas-path:.*docs\/personas\.md.*file not found/);
     });
 
     it('R2.4: passes when configured persona file is present and well-formed', async () => {
@@ -360,7 +373,7 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       // Remove default so the legacy advisory does not fire.
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
@@ -377,13 +390,13 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## A', '**Role:** Too short.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/personas\.md:\d+:.*at least 2 characters/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/personas\.md:\d+:.*at least 2 characters/);
     });
 
     it('R2.6: emits zero-exit advisory when override is active AND legacy default file still exists', async () => {
@@ -395,7 +408,7 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       // The default-location file was scaffolded by createConfiguredProject
       // and is intentionally left in place — that is the "legacy" condition.
 
@@ -439,19 +452,67 @@ describe('Test Suite 8: Health Check', () => {
     });
   });
 
-  describe('glossary.md validation (ticket YR6C49)', () => {
-    function setGlossaryOverride(glossaryPath: string): void {
-      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
-        installedPacks?: string[];
-        [key: string]: unknown;
-      };
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({ ...existing, paths: { glossary: glossaryPath } }),
-      );
-    }
+  describe('configurable surface path', () => {
+    it('reports a loud failure when the configured surface path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setConfiguredPath('surfaces', 'docs/surfaces.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'surfaces.md'));
 
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/surfaces-path:.*docs\/surfaces\.md.*file not found/);
+    });
+
+    it('reports an orphan advisory when an override and default surface file coexist', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/surfaces.md', '# Surfaces\n\n## Web\n');
+      setConfiguredPath('surfaces', 'docs/surfaces.md');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/\.project\/surfaces\.md.*orphan/i);
+    });
+  });
+
+  describe('configurable principles path', () => {
+    it('reports a loud failure when the configured principles path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setConfiguredPath('principles', 'docs/principles.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'principles.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/principles-path:.*docs\/principles\.md.*file not found/);
+    });
+
+    it('passes without an orphan advisory when a valid override replaces the default', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/principles.md', '# Principles\n\n## Delight users\n');
+      setConfiguredPath('principles', 'docs/principles.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'principles.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/principles.*orphan/i);
+    });
+
+    it('reports an orphan advisory when an override and default principles file coexist', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/principles.md', '# Principles\n\n## Delight users\n');
+      setConfiguredPath('principles', 'docs/principles.md');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/\.project\/principles\.md.*orphan/i);
+    });
+  });
+
+  describe('glossary.md validation (ticket YR6C49)', () => {
     it('R6.1: reports malformed glossary with line refs and exits non-zero', async () => {
       await createConfiguredProject(temporaryDirectory);
       // Two duplicate term blocks → duplicate-term errors.
@@ -465,18 +526,18 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/glossary\.md:\d+:.*duplicate term/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/glossary\.md:\d+:.*duplicate term/);
     });
 
     it('R6.2: reports loud failure when configured glossary path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
-      setGlossaryOverride('docs/glossary.md'); // file intentionally not created
+      setConfiguredPath('glossary', 'docs/glossary.md'); // file intentionally not created
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/glossary-path:.*docs\/glossary\.md.*file not found/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/glossary-path:.*docs\/glossary\.md.*file not found/);
     });
 
     it('R6.3: emits zero-exit advisory when override is active AND legacy default still exists', async () => {
@@ -493,7 +554,7 @@ describe('Test Suite 8: Health Check', () => {
         '.project/glossary.md',
         ['## Legacy', '**Definition:** Old location.', ''].join('\n'),
       );
-      setGlossaryOverride('docs/glossary.md');
+      setConfiguredPath('glossary', 'docs/glossary.md');
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -522,8 +583,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/docs-source:.*docs\/product.*file or directory not found/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/docs-source:.*docs\/product.*file or directory not found/);
     });
 
     it('passes when configured local docs sources exist and external sources are declarative', async () => {
@@ -599,7 +660,7 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/merge-conflict markers/i);
-      expect(combined).toMatch(/safeword sync-tickets --quiet/i);
+      expect(combined).toMatch(/safeword project sync-tickets --quiet/i);
     });
   });
 
@@ -803,6 +864,46 @@ describe('Test Suite 8: Health Check', () => {
       expect(combined).toMatch(/demo \(COV004\):.*demo\.TB1\.AC2.*uncovered/i);
     });
 
+    it('keeps a hyphenated tracker id and metadata slug intact in feature coverage', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      const base = '.project/tickets/ENG-45-login-bug';
+      writeTestFile(
+        temporaryDirectory,
+        `${base}/ticket.md`,
+        [
+          '---',
+          'id: ENG-45',
+          'slug: login-bug',
+          'type: feature',
+          'status: in_progress',
+          '---',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(temporaryDirectory, `${base}/spec.md`, SPEC_TWO_ACS);
+      writeTestFile(
+        temporaryDirectory,
+        'features/login-bug.feature',
+        [
+          'Feature: Login bug',
+          '',
+          '  @demo.TB1.AC1',
+          '  Scenario: feature source covers only AC1',
+          '    Given a',
+          '    When b',
+          '    Then c',
+          '',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/login-bug \(ENG-45\):.*demo\.TB1\.AC2.*uncovered/i);
+      expect(combined).not.toMatch(/demo\.TB1\.AC1.*uncovered/i);
+    });
+
     it('reports an affected surface with no matching feature-source tag as a zero-exit advisory', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('COV007-demo', 'in_progress', {
@@ -871,7 +972,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(2);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/features\/demo\.feature/);
       expect(combined).toMatch(/invalid gherkin/i);
@@ -911,7 +1012,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(2);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/features\/demo\.feature/);
       expect(combined).toMatch(/has no AC tag.*missing lineage/i);
@@ -1035,7 +1136,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(2);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(
         /JTBD demo\.TB1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job/,
@@ -1057,7 +1158,7 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('Architecture-claim advisory (K4BWTQ)', () => {
-    function implPlan(archAlignment: string): string {
+    function implPlan(designAlignment: string, heading = 'Design alignment'): string {
       return [
         '# Impl Plan: t',
         '',
@@ -1071,9 +1172,9 @@ describe('Test Suite 8: Health Check', () => {
         '',
         'skip: none',
         '',
-        '## Arch alignment',
+        `## ${heading}`,
         '',
-        archAlignment,
+        designAlignment,
         '',
         '## Known deviations',
         '',
@@ -1086,32 +1187,35 @@ describe('Test Suite 8: Health Check', () => {
       ].join('\n');
     }
 
-    function writeArchTicket(ticketId: string, archAlignment: string): void {
+    function writeArchTicket(ticketId: string, designAlignment: string, heading?: string): void {
       const base = `.project/tickets/${ticketId}`;
       writeTestFile(
         temporaryDirectory,
         `${base}/ticket.md`,
         ['---', `id: ${ticketId}`, 'type: feature', 'status: in_progress', '---', ''].join('\n'),
       );
-      writeTestFile(temporaryDirectory, `${base}/impl-plan.md`, implPlan(archAlignment));
+      writeTestFile(temporaryDirectory, `${base}/impl-plan.md`, implPlan(designAlignment, heading));
     }
 
-    it('flags Arch alignment content when the architecture location is absent', async () => {
-      await createConfiguredProject(temporaryDirectory);
-      rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
-        force: true,
-      });
-      writeArchTicket('ARC001', 'Honors ADR-001 storage ownership.');
+    it.each(['Design alignment', 'Arch alignment'])(
+      'flags %s content when the architecture location is absent',
+      async heading => {
+        await createConfiguredProject(temporaryDirectory);
+        rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
+          force: true,
+        });
+        writeArchTicket('ARC001', 'Honors ADR-001 storage ownership.', heading);
 
-      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+        const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(/ARC001/);
-      expect(combined).toMatch(/architecture/i);
-    });
+        expect(result.exitCode).toBe(0);
+        const combined = `${result.stdout}\n${result.stderr}`;
+        expect(combined).toMatch(/ARC001/);
+        expect(combined).toMatch(/architecture/i);
+      },
+    );
 
-    it('stays silent when Arch alignment is skip-annotated, even with no architecture location', async () => {
+    it('stays silent when Design alignment is skip-annotated, even with no architecture location', async () => {
       await createConfiguredProject(temporaryDirectory);
       rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
         force: true,
@@ -1124,7 +1228,27 @@ describe('Test Suite 8: Health Check', () => {
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC002/);
     });
 
-    it('stays silent when Arch alignment has content and the architecture location exists', async () => {
+    it('stays silent when Design alignment contains principles but no architecture claim', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
+        force: true,
+      });
+      writeArchTicket(
+        'ARC004',
+        [
+          '| Principle | Consequence | Proof | Conflict |',
+          '| --- | --- | --- | --- |',
+          '| Delight the user | Recovery stays in context | verify.md | |',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC004/);
+    });
+
+    it('stays silent when Design alignment has content and the architecture location exists', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(
         temporaryDirectory,
@@ -1223,6 +1347,27 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ANC006/);
+    });
+
+    it("reports a feature-source anchor that belongs to another ticket's slug", async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'features/another-ticket.feature',
+        ['Feature: another ticket', '', '  Scenario: foreign', '    Then it exists', ''].join('\n'),
+      );
+      writeAnchorTicket('ANC008-demo', [
+        'type: feature',
+        'phase: scenario-gate',
+        'status: in_progress',
+        'phase_anchors:',
+        '  - scenario-gate: features/another-ticket.feature',
+      ]);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ANC008.*outside this ticket/is);
     });
 
     it('reports a path anchor whose artifact is missing from disk', async () => {

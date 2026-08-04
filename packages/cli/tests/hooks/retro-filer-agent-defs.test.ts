@@ -30,6 +30,11 @@ describe('safeword-retro-filer agent definitions (GH628F — shipped artifacts p
 // the drain prohibition — the behavioral half of the bare-drain tripwire.
 describe('filer ack procedure in shipped prompts (GH644A)', () => {
   const mdText = readFileSync(nodePath.join(AGENTS_DIR, 'safeword-retro-filer.md'), 'utf8');
+  const claudeSkillText = readFileSync(nodePath.join(SKILLS_DIR, 'retro-filer/SKILL.md'), 'utf8');
+  const codexSkillText = readFileSync(
+    nodePath.join(PLUGIN_SKILLS_DIR, 'retro-filer/SKILL.md'),
+    'utf8',
+  );
   const guideText = readFileSync(
     nodePath.resolve(import.meta.dirname, '../../templates/guides/self-report-filing.md'),
     'utf8',
@@ -39,6 +44,20 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
     expect(mdText).toContain('.acks.jsonl');
     expect(mdText.toLowerCase()).toMatch(/after each successful post/);
     expect(mdText.toLowerCase()).toMatch(/before (draining|you drain)/);
+    expect(mdText.toLowerCase()).toContain('re-read that ack file');
+    expect(mdText.toLowerCase()).toContain('only when that exact record is visible');
+    expect(mdText).toContain('drain-retro-spool.ts');
+    expect(mdText.toLowerCase()).toContain('never rewrite or');
+  });
+
+  it.each([
+    ['Claude fallback skill', claudeSkillText],
+    ['Codex plugin skill', codexSkillText],
+  ])('%s requires write-confirmed acknowledgement before removal', (_label, text) => {
+    expect(text.toLowerCase()).toContain('re-read it and exact-match');
+    expect(text.toLowerCase()).toContain('only when the append succeeded');
+    expect(text.toLowerCase()).toContain('append or verification fails, leave the draft in place');
+    expect(text).toContain('drain-retro-spool.ts');
   });
 
   it('the dispatch text states that only the filer drains the spool', async () => {
@@ -51,6 +70,10 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
   it("the guide's inline-fallback section documents appending the ack record", () => {
     expect(guideText).toContain('.acks.jsonl');
     expect(guideText.toLowerCase()).toMatch(/ack record|ack line/);
+    expect(guideText.toLowerCase()).toContain('re-read the ack file');
+    expect(guideText.toLowerCase()).toContain('only a draft with that write-confirmed record');
+    expect(guideText).toContain('drain-retro-spool.ts');
+    expect(guideText.toLowerCase()).toContain('explicit enforcement limit');
   });
 });
 
@@ -71,11 +94,23 @@ describe('canonical spool dedupe contract (#1031)', () => {
     expect(legacy).toBeGreaterThanOrEqual(0);
     expect(canonical).toBeGreaterThan(legacy);
     expect(text).toContain('canonicalSignature');
-    expect(text).toContain('is:issue');
-    expect(text).toContain('is:open');
     expect(text.toLowerCase()).toMatch(/never.*title/);
     expect(text.toLowerCase()).toContain('body contains its exact');
     expect(text).toContain('safeword-retro-canonical');
+
+    // #1465 review — the shipped prompt must own its limit rather than claim a
+    // guarantee it cannot deliver. No read proves absence (search_issues is
+    // capped; the exhaustive reads strip HTML comments), so the path is
+    // best-effort and must say so.
+    expect(text).toContain('search_issues');
+    expect(text.toLowerCase()).toContain('best-effort');
+
+    // The load-bearing safety rule, and the one worth a duplicate to keep: a
+    // resemblance may never join a draft to an issue. Acking on a title match
+    // binds the signature permanently and discards the draft body — silent and
+    // lossy, and strictly worse than the duplicate it avoids.
+    expect(text.toLowerCase()).toMatch(/never merge|may (never|only) .*merge/);
+    expect(text).toContain('#631');
   });
 
   it('ships the Codex filer skill from the canonical template through the schema', async () => {
@@ -103,7 +138,7 @@ describe('canonical spool dedupe contract (#1031)', () => {
         alwaysApply: false,
         description:
           "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
-        referencePath: '.claude/skills/retro-filer/SKILL.md',
+        referencePath: '.safeword/skills/retro-filer/SKILL.md',
         skill: 'retro-filer',
       },
     });
@@ -113,7 +148,7 @@ describe('canonical spool dedupe contract (#1031)', () => {
       alwaysApply: false,
       description:
         "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
-      referencePath: '.claude/skills/retro-filer/SKILL.md',
+      referencePath: '.safeword/skills/retro-filer/SKILL.md',
       skill: 'retro-filer',
     });
     expect(readFileSync(nodePath.join(CURSOR_RULES_DIR, 'safeword-retro-filer.mdc'), 'utf8')).toBe(
@@ -123,8 +158,13 @@ describe('canonical spool dedupe contract (#1031)', () => {
 
   it('keeps the shared inline fallback on the exact-marker contract', () => {
     expect(guideText).toContain('canonicalSignature');
-    expect(guideText).toContain('is:issue is:open');
     expect(guideText.toLowerCase()).toContain('never by title');
     expect(guideText).toContain('safeword-retro-canonical');
+    // #1465 review — same owned-limit + never-merge-on-resemblance contract as
+    // the agent/skill copies.
+    expect(guideText).toContain('search_issues');
+    expect(guideText.toLowerCase()).toContain('best-effort');
+    expect(guideText.toLowerCase()).toMatch(/never merge|may (never|only) .*merge/);
+    expect(guideText).toContain('#631');
   });
 });

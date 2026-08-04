@@ -79,6 +79,19 @@ describe('safeword test-plan --format sh', () => {
     expect(sh).toContain('cargo deny check advisories');
   });
 
+  it('renders --kind deps for Go as a pinned govulncheck scan', async () => {
+    const sh = await renderSh(makeRepo({ 'go.mod': 'module x\n' }), 'deps');
+    expect(sh).toContain('go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...');
+  });
+
+  it('renders --kind deps for uv projects as uv audit', async () => {
+    const sh = await renderSh(
+      makeRepo({ 'pyproject.toml': '[project]\nname="x"\n', 'uv.lock': 'version = 1\n' }),
+      'deps',
+    );
+    expect(sh).toContain('uv audit');
+  });
+
   it('eval runs the resolved suite and exits zero on success', async () => {
     const root = makeRepo({
       'package.json': JSON.stringify({ scripts: { test: 'echo RAN_SUITE' } }),

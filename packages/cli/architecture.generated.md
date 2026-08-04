@@ -1,6 +1,7 @@
 ---
 generator: safeword-architecture
 fingerprint: 177e27b50a5fdde1d02d56a68b2939a699e8e397de7e62be10ffbfb2c18ec58a
+fingerprint: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407
 ---
 
 # Architecture
@@ -9,53 +10,113 @@ fingerprint: 177e27b50a5fdde1d02d56a68b2939a699e8e397de7e62be10ffbfb2c18ec58a
 
 ### boundary
 
-<!-- reconciled: 775eecda88726a4e3534dd13ba6eb4ffcdcbf5ca42582940435de969ba860f80 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/boundary`
 
-No description yet — awaiting prose.
+Evaluates architectural boundary evidence and dependency-policy compliance.
 
-> ⚠ stale: structure changed since this section was reconciled.
+### claude-plugin
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/claude-plugin`
+
+Selects the project reconciliation schema for native Claude plugin delivery or retained legacy Claude assets.
+
+### cli
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/cli.ts`
+
+Composes the executable and registers public, compatibility, and hidden hook commands.
+
+### cli-protocol
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/cli-protocol`
+
+Defines the typed command catalogue, effect policy, plans, results, rendering, and execution adapters.
 
 ### codex-plugin
 
-<!-- reconciled: 46c36d5f38a649de87c0efdc15506fc108e44f584fdbcd3547d5958a1682bb89 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/codex-plugin`
 
-No description yet — awaiting prose.
-
-> ⚠ stale: structure changed since this section was reconciled.
+Owns Codex profile-plugin installation, proof, legacy authority, migration, finalization, and recovery.
 
 ### commands
 
-<!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/commands`
 
-No description yet — awaiting prose.
+Implements domain handlers for setup, status, removal, project workflows, tickets, Codex, and retrospectives.
 
-> ⚠ stale: structure changed since this section was reconciled.
+### cursor-wrappers
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/cursor-wrappers.ts`
+
+Generates thin Cursor command and rule wrappers from canonical workflow templates.
+
+### health
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/health.ts`
+
+<!-- seeded-purpose: 6a514346e034c47f263a14d1f352d56fe0f1435fb100f8804a19b9b70aebc139 -->
+
+Config-health verification core (ticket 3293WH).
+
+### index
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/index.ts`
+
+Exposes the stable library API for version, detection, reconciliation, and ESLint consumers.
 
 ### learning-sync
 
-<!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/learning-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: b56dcde39a15d17f52892285e891cbc4a384a735d1cac4e9a4440ed6b7c3e6e6 -->
 
-> ⚠ stale: structure changed since this section was reconciled.
+Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md` files in that folder so agents can navigate learnings via a Karpathy-style LLM Wiki index (plain markdown + grep)…
+
+### owned-paths
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/owned-paths.ts`
+
+<!-- seeded-purpose: a7727a2c03309440ca648329be38a5fb0566d597b367b41423d2b09c163d44b0 -->
+
+Derive the set of top-level path prefixes that safeword may write to, sourced from SAFEWORD_SCHEMA at build time.
 
 ### packs
 
-<!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/packs`
 
-No description yet — awaiting prose.
+Detects supported languages and supplies their files, packages, and setup behavior.
 
-> ⚠ stale: structure changed since this section was reconciled.
+### parity
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/parity.ts`
+
+Checks canonical templates, dogfood mirrors, generated catalogues, and one-way content contracts for drift.
 
 ### pr-review
 
@@ -69,110 +130,142 @@ No description yet — awaiting prose.
 
 ### presets
 
-<!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/presets`
 
-No description yet — awaiting prose.
+Publishes conditional JavaScript and TypeScript ESLint presets through the package export.
 
-> ⚠ stale: structure changed since this section was reconciled.
+### reconcile
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/reconcile.ts`
+
+<!-- seeded-purpose: 76b396197de407a1fbd82d9825006ca749d81e0faf97ee7d8006ae6583373657 -->
+
+Reconciliation Engine
 
 ### retro
 
-<!-- reconciled: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/retro`
 
-No description yet — awaiting prose.
+Sanitizes, deduplicates, triages, reconciles, and files retrospective findings.
 
-> ⚠ stale: structure changed since this section was reconciled.
+### review
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/review`
+
+Coordinates independent adversarial reviews across Claude and Codex, including runtime discovery, neutral packet construction, policy enforcement, fallback handling, and provenance.
+
+### schema
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/schema.ts`
+
+<!-- seeded-purpose: cf6127ae78364456709c16fc16d5bcba85386d254f98d01b24b63dd8a39b9a00 -->
+
+SAFEWORD Schema - Single Source of Truth
+
+### self-report-capture
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/self-report-capture.ts`
+
+<!-- seeded-purpose: 1d6ab8a143a63251557b3fecb492adadece7106155c9cfbf6118f1eb235efe63 -->
+
+CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
 ### skills
 
-<!-- reconciled: b3f28d8c3e9bdad22efef89e1925cd740e93bd7b5341a4d45a228b0212a63a12 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/skills`
 
-No description yet — awaiting prose.
-
-> ⚠ stale: structure changed since this section was reconciled.
+Installs optional third-party language coding skills without owning Safe Word workflow skills.
 
 ### templates
 
-<!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/templates`
 
-No description yet — awaiting prose.
-
-> ⚠ stale: structure changed since this section was reconciled.
+Builds dynamic configuration and legacy-cleanup content consumed by reconciliation.
 
 ### test-plan
 
-<!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/test-plan`
 
-No description yet — awaiting prose.
-
-> ⚠ stale: structure changed since this section was reconciled.
+Resolves and renders the canonical test, build, typecheck, BDD, and dependency plan for a project.
 
 ### ticket-create
 
-<!-- reconciled: a48bcc3820c9cca4a78184f53ae752117d461b6ed53541d3b3cddaad10d4a349 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/ticket-create`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: cd55e2fe5512344c84b7dd05daf04eeee694ac625fc57c8bb223112f0b3ededb -->
 
-> ⚠ stale: structure changed since this section was reconciled.
+Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB1). provider:none → the local minter (today's behavior, no tracker client built).
 
 ### ticket-sync
 
-<!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/ticket-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 5fdae57e79b128bcbf454f6c3fe43a4055247db3add218f54aa2008dc911d08c -->
 
-> ⚠ stale: structure changed since this section was reconciled.
+Ticket sync — generates capability-discovery indexes over the ticket corpus: `<namespace-root>/tickets/INDEX.md` (active tickets, grouped by epic) and `INDEX-completed.md` (the `completed/` archive).
 
 ### tracker-connect
 
-<!-- reconciled: 5ba924bfe0161fd9d14b96fd8ab887c88c0082bea39062b56d9cd9918c9595ca -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/tracker-connect`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 21d448b7a5545f4c8179c2071ea2bee6d64843126d4ab910e3fd10950e7d449f -->
 
-> ⚠ stale: structure changed since this section was reconciled.
+The connect orchestration (2TK5AD) — the single flow `setup` and `connect` both run.
 
 ### tracker-sync
 
-<!-- reconciled: 5b032204a124515d544b1fe4e73d3ad3f975d603c0d450c672ecdb5b5bc6bb33 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/tracker-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 11bf14632c9d632ee25e364801faad3e599320096950805ee110e066eb822838 -->
 
-> ⚠ stale: structure changed since this section was reconciled.
+The sync-tracker orchestrator — the single call site that projects the ticket corpus one-way into the configured tracker (JS5K5G).
 
 ### upstream-monitor
 
-<!-- reconciled: a269dbaedd84d54c4fa979fcca89547589746c19adc8d03f3b933c0234441ef7 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/upstream-monitor`
 
-No description yet — awaiting prose.
-
-> ⚠ stale: structure changed since this section was reconciled.
+Tracks upstream Claude Code, Codex CLI, and Cursor release signals for compatibility review.
 
 ### utils
 
-<!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
 
 `src/utils`
 
-No description yet — awaiting prose.
+Provides shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives.
 
-> ⚠ stale: structure changed since this section was reconciled.
+### version
+
+<!-- reconciled: a83b61b200bea793945f8b79c23de6e9d19ef0eb5727e27d3904c669a6488407 -->
+
+`src/version.ts`
+
+Reads the Safeword release version from package metadata.

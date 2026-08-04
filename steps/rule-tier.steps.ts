@@ -515,7 +515,12 @@ When(
         '@demo.TB2.R1',
         nodePath.join(this.fixtureDirectory, 'demo.feature'),
       ],
-      { cwd: nodePath.join(REPO_ROOT, 'packages/cli'), encoding: 'utf8', timeout: 120_000 },
+      {
+        cwd: nodePath.join(REPO_ROOT, 'packages/cli'),
+        encoding: 'utf8',
+        timeout: 120_000,
+        env: { ...process.env, NODE_OPTIONS: '--import tsx' },
+      },
     );
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     this.cucumberOutput = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
@@ -551,7 +556,7 @@ Then('a check issue names that JTBD as mixing criteria kinds', function (this: R
     combinedOutput(this),
     /JTBD demo\.TB1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job/,
   );
-  assert.equal(this.result?.exitCode, 1, 'mixed criteria should be a hard check issue');
+  assert.equal(this.result?.exitCode, 2, 'mixed criteria should require user action');
 });
 
 Then('an uncovered advisory names that rule ID', function (this: RuleTierWorld) {

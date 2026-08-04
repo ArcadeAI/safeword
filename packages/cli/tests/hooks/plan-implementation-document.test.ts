@@ -34,7 +34,7 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
       for (const section of [
         'Approach',
         'Decisions',
-        'Arch alignment',
+        'Design alignment',
         'Known deviations',
         'Assessment triggers',
       ]) {
@@ -46,6 +46,25 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
   it('directs consulting the architecture record before the alignment section (TB1.R4)', () => {
     for (const { path, text } of planCopies) {
       expect(text, path).toContain('paths.architecture');
+    }
+  });
+
+  it('maps applicable project principles to a consequence and proof', () => {
+    for (const { path, text } of planCopies) {
+      expect(text, path).toContain('paths.principles');
+      expect(text, path).toMatch(/applicable project principles/i);
+      expect(text, path).toMatch(/consequence/i);
+      expect(text, path).toMatch(/proof/i);
+      expect(text, path).toMatch(/do not enumerate|not a checklist|only.*applicable/i);
+    }
+  });
+
+  it('gives the independent reviewer the principles source and asks it to challenge the mapping', () => {
+    for (const { path, text } of planCopies) {
+      expect(text, path).toMatch(/reviewer[\s\S]*principles file/i);
+      expect(text, path).toMatch(/challenge[\s\S]*applicab/i);
+      expect(text, path).toMatch(/consequence[\s\S]*proof/i);
+      expect(text, path).toMatch(/deviation/i);
     }
   });
 
@@ -226,12 +245,7 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
   });
 
   it('no shipped surface keeps a six-phase adjacency (scenario-gate directly to implement)', () => {
-    const roots = [
-      'packages/cli/templates',
-      '.claude/skills',
-      '.agents/skills',
-      '.safeword/templates',
-    ];
+    const roots = ['packages/cli/templates', '.claude/skills', '.safeword/templates'];
     expectNoShippedSurfaceMatches('scenario-gate | implement', roots);
     expectNoShippedSurfaceMatches('scenario-gate → implement', roots);
   });

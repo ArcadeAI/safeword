@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { applyCodexFinalization } from '../src/codex-plugin/finalization.js';
 import { formatParityFixReport, runParity, syncParityPairs } from '../src/parity.js';
 
 function makeFixture(): { rootDirectory: string; templatesDirectory: string } {
@@ -156,6 +157,29 @@ describe('runParity', () => {
       expect(result.failures[0]?.message).toContain('sample.ts');
     });
 
+    it('includes managed runtime files that opt into dogfood parity', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'runtime.ts'), 'CANONICAL\n');
+      writeFileSync(nodePath.join(rootDirectory, '.safeword/runtime.ts'), 'DRIFTED\n');
+
+      const result = runParity({
+        schema: {
+          ownedFiles: {},
+          managedFiles: {
+            '.safeword/runtime.ts': { dogfoodParity: true, template: 'runtime.ts' },
+          },
+          contracts: {},
+        },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.message).toContain('.safeword/runtime.ts');
+    });
+
     it('fails identifying the missing path when one side of a pair is missing', () => {
       const { rootDirectory, templatesDirectory } = makeFixture();
       writeFileSync(nodePath.join(templatesDirectory, 'sample.ts'), 'only template\n');
@@ -175,6 +199,74 @@ describe('runParity', () => {
       expect(result.failures[0]?.kind).toBe('pair');
       expect(result.failures[0]?.message).toContain('.safeword/sample.ts');
       expect(result.failures[0]?.message.toLowerCase()).toMatch(/missing|not found|does not exist/);
+    });
+
+    it('allows a completed Codex plugin finalization to omit only its retired hook pairs', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      const destinationPath = '.safeword/hooks/codex/stop.ts';
+      mkdirSync(nodePath.join(templatesDirectory, 'hooks/codex'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'hooks/codex/stop.ts'), 'retired hook\n');
+
+      applyCodexFinalization(rootDirectory, [
+        // eslint-disable-next-line unicorn/no-null -- the migration API uses null for deletion.
+        { path: destinationPath, content: null },
+        { path: '.safeword/codex-plugin.json', content: '{}\n' },
+        {
+          path: '.agents/skills/safeword-plugin-setup/SKILL.md',
+          content: '# plugin bootstrap\n',
+        },
+      ]);
+
+      const input = {
+        schema: {
+          ownedFiles: { [destinationPath]: { template: 'hooks/codex/stop.ts' } },
+          contracts: {},
+        },
+        mode: 'all' as const,
+        rootDirectory,
+        templatesDirectory,
+      };
+
+      expect(runParity(input).failures).toHaveLength(0);
+      expect(syncParityPairs(input).synced).toEqual([]);
+    });
+
+    it('continues to enforce shared hook pairs after Codex finalization', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      const retiredPath = '.safeword/hooks/codex/stop.ts';
+      const sharedPath = '.safeword/hooks/prompt-timestamp.ts';
+      mkdirSync(nodePath.join(templatesDirectory, 'hooks/codex'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'hooks/codex/stop.ts'), 'retired hook\n');
+      writeFileSync(
+        nodePath.join(templatesDirectory, 'hooks/prompt-timestamp.ts'),
+        'shared hook\n',
+      );
+
+      applyCodexFinalization(rootDirectory, [
+        // eslint-disable-next-line unicorn/no-null -- the migration API uses null for deletion.
+        { path: retiredPath, content: null },
+        { path: '.safeword/codex-plugin.json', content: '{}\n' },
+        {
+          path: '.agents/skills/safeword-plugin-setup/SKILL.md',
+          content: '# plugin bootstrap\n',
+        },
+      ]);
+
+      const result = runParity({
+        schema: {
+          ownedFiles: {
+            [retiredPath]: { template: 'hooks/codex/stop.ts' },
+            [sharedPath]: { template: 'hooks/prompt-timestamp.ts' },
+          },
+          contracts: {},
+        },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.message).toContain(sharedPath);
     });
 
     it('fails on whitespace-only differences (strict byte comparison)', () => {
@@ -396,6 +488,31 @@ describe('syncParityPairs (--fix, issue #585)', () => {
     expect(result.synced).toEqual(['.safeword/sample.ts']);
     expect(result.unfixable).toHaveLength(0);
     expect(readFileSync(nodePath.join(rootDirectory, '.safeword/sample.ts'), 'utf8')).toBe(
+      'CANONICAL\n',
+    );
+  });
+
+  it('syncs managed runtime files that opt into dogfood parity', () => {
+    const { rootDirectory, templatesDirectory } = makeFixture();
+    mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(templatesDirectory, 'runtime.ts'), 'CANONICAL\n');
+    writeFileSync(nodePath.join(rootDirectory, '.safeword/runtime.ts'), 'DRIFTED\n');
+
+    const result = syncParityPairs({
+      schema: {
+        ownedFiles: {},
+        managedFiles: {
+          '.safeword/runtime.ts': { dogfoodParity: true, template: 'runtime.ts' },
+        },
+        contracts: {},
+      },
+      mode: 'all',
+      rootDirectory,
+      templatesDirectory,
+    });
+
+    expect(result.synced).toEqual(['.safeword/runtime.ts']);
+    expect(readFileSync(nodePath.join(rootDirectory, '.safeword/runtime.ts'), 'utf8')).toBe(
       'CANONICAL\n',
     );
   });

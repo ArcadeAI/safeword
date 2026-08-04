@@ -91,9 +91,9 @@ fi
 # only if it actually supports test-plan.
 supports_test_plan() {
   case "$CANDIDATE" in
-    node_modules/.bin/safeword) node_modules/.bin/safeword test-plan --help > /dev/null 2>&1 ;;
-    "bun packages/cli/src/cli.ts") bun packages/cli/src/cli.ts test-plan --help > /dev/null 2>&1 ;;
-    "bunx safeword") bunx safeword test-plan --help > /dev/null 2>&1 ;;
+    node_modules/.bin/safeword) node_modules/.bin/safeword project test-plan --help > /dev/null 2>&1 ;;
+    "bun packages/cli/src/cli.ts") bun packages/cli/src/cli.ts project test-plan --help > /dev/null 2>&1 ;;
+    "bunx safeword") bunx safeword project test-plan --help > /dev/null 2>&1 ;;
   esac
 }
 
@@ -116,10 +116,10 @@ run_safeword() {
 # explicit check is load-bearing. A successful empty plan stays a clean no-op
 # (`bash -c ""` → exit 0).
 run_plan() {
-  plan="$(run_safeword test-plan --kind "$plan_kind" --format sh)"
+  plan="$(run_safeword project test-plan --kind "$plan_kind" --format sh)"
   rc=$?
   if [ "$rc" -ne 0 ]; then
-    echo "❌ Evidence generation failed: safeword test-plan --kind $plan_kind exited $rc (red, not a passed check)" >&2
+    echo "❌ Evidence generation failed: safeword project test-plan --kind $plan_kind exited $rc (red, not a passed check)" >&2
     return "$rc"
   fi
   bash -c "$plan"
@@ -138,25 +138,25 @@ else
   exit 1
 fi
 
-# --- Test suite (resolved by safeword test-plan — one source of truth) ---
+# --- Test suite (resolved by safeword project test-plan — one source of truth) ---
 plan_kind=verify
 run_plan
 
-# --- Gherkin acceptance lane (resolved by safeword test-plan --kind bdd:
+# --- Gherkin acceptance lane (resolved by safeword project test-plan --kind bdd:
 #     cucumber-js, behave, … — godog/cucumber-rs fold into the Go/Rust test lanes).
 #     Mirrors run_plan's generator exit-code check (#487) so a failed generator is
 #     not read as an empty (skipped) lane. ---
-bdd_plan="$(run_safeword test-plan --kind bdd --format sh)"
+bdd_plan="$(run_safeword project test-plan --kind bdd --format sh)"
 rc=$?
 if [ "$rc" -ne 0 ]; then
-  echo "❌ Evidence generation failed: safeword test-plan --kind bdd exited $rc (red, not a passed check)" >&2
+  echo "❌ Evidence generation failed: safeword project test-plan --kind bdd exited $rc (red, not a passed check)" >&2
 elif [ -z "$bdd_plan" ]; then
   echo "Gherkin acceptance lane: ⏭️ Skipped — no acceptance lane detected"
 else
   bash -c "$bdd_plan"
 fi
 
-# --- Build check (resolved by safeword test-plan) ---
+# --- Build check (resolved by safeword project test-plan) ---
 plan_kind=build
 run_plan
 
@@ -171,9 +171,9 @@ run_plan
 plan_kind=typecheck
 run_plan
 
-# --- Supply-chain: `cargo deny check advisories` (RustSec DB) for Rust —
-#     the zero-false-positive security signal. Empty for non-Rust or when
-#     cargo-deny is absent (a visible skip, never a false green). ---
+# --- Supply-chain: JavaScript's package-manager audit, Python's `uv audit` or
+#     `pip-audit`, Go's pinned `govulncheck`, and Rust's cargo-deny advisories.
+#     A missing scanner prints a visible skip, never a false green. ---
 plan_kind=deps
 run_plan
 ```
@@ -184,7 +184,7 @@ If `LOCAL_EVIDENCE_LIMITS` is non-empty, keep running checks that can run, but c
 
 If a full Vitest suite fails only because `packages/cli/tests/integration/cucumber-bdd.test.ts` times out while `bun run --cwd packages/cli test:bdd` passes directly, classify it as `⚠️ Local environment limitation: Cucumber wrapper timed out under full-suite load`. Report the isolated Cucumber lane as the Gherkin evidence and rerun that direct lane once. Treat it as a real product failure only when the direct Cucumber lane fails or CI reproduces it.
 
-Regression fixtures covered by `safeword test-plan` and its tests:
+Regression fixtures covered by `safeword project test-plan` and its tests:
 
 - **no-build JavaScript:** a `test` script with no `build` script runs tests and has no JavaScript build entry.
 - **non-Bun JavaScript:** lockfiles and `packageManager` select the matching package manager instead of assuming Bun.
@@ -270,6 +270,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Parent Epic:** {id} (siblings: X/Y done) or N/A
 **Reconcile:** ✅ No pattern deviation (or ⚠️ N deviations, M missing uplevel ticket — soft, never blocks)
 **Experience:** ✅ No new friction (or ⚠️ N friction points / dulled peak, or ⏭️ N/A — not persona-facing) — soft, never blocks
+**Surface Evidence:** ✅ N/N affected surfaces have recorded proof (or ⚠️ N unproven/limited, or ⏭️ N/A — no affected surfaces)
 **Evidence limits:** ✅ None (or ⚠️ <local limitation>; affected failures are not product evidence until reproduced outside the limit)
 ```
 
@@ -283,6 +284,13 @@ The Status section uses the existing Verify Checklist format. Format with these 
 - **Peak (only when the ticket or its parent declared a `## Rave Moment` in `spec.md`):** walk that moment as the persona — does it still land, and did this work advance or endanger it? A peak that quietly degraded is a finding even when every test is green.
 
 A ⚠️ Experience finding routes to **Agent's next actions** if you'll fix it now, or to **Decisions needed** if it's a scope/value call for the user. It is never a reason to hold `done` on its own.
+
+**Surface evidence** records what actually ran, not just scenario tags. For each
+affected surface in `spec.md`, add a compact matrix row with **Affected
+surface**, **proof command or manual check**, and **result**. Use the real
+runtime/client/protocol/deployment boundary where available; otherwise record a
+`skip: <reason>` and carry the limitation into Evidence limits. This matrix is
+the input quality review uses to challenge parity.
 
 **Done-gate evidence patterns** (the stop hook validates these literal phrases — do not move or rename):
 

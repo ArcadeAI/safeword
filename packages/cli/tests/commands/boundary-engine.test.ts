@@ -8,9 +8,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { reconcileChange, type TicketChange } from '../../src/boundary/engine.js';
+import { WORKSPACE_ROOTS } from '../../src/utils/workspace-roots.js';
 import { boundaryTicketContent, shapeValidImplPlan } from './boundary-helpers';
 
 const IMPL_PLAN = '.project/tickets/ENG001-fixture/impl-plan.md';
+const FEATURE_ROOTS = ['features'];
 
 function ticketContent(phase: string, anchors?: string[]): string {
   return boundaryTicketContent({ id: 'ZZENG', phase, anchors });
@@ -18,7 +20,11 @@ function ticketContent(phase: string, anchors?: string[]): string {
 
 function advanceChange(anchors: string[] | undefined): TicketChange {
   return {
-    ticketFolder: 'ENG001-fixture',
+    anchorScope: {
+      ticketPath: '.project/tickets/ENG001-fixture',
+      featureRoots: FEATURE_ROOTS,
+      workspaceRoots: WORKSPACE_ROOTS,
+    },
     artifacts: [
       {
         artifact: 'ticket.md',
@@ -64,7 +70,11 @@ describe('boundary engine — reader/resolver failure degrades to indeterminate'
       '',
     ].join('\n');
     const change: TicketChange = {
-      ticketFolder: 'ENG002-fixture',
+      anchorScope: {
+        ticketPath: '.project/tickets/ENG002-fixture',
+        featureRoots: FEATURE_ROOTS,
+        workspaceRoots: WORKSPACE_ROOTS,
+      },
       artifacts: [{ artifact: 'test-definitions.md', proposed: ledger }],
       ticketCurrent: ticketContent('implement', [`implement: ${IMPL_PLAN}`]),
       hasLedger: true,

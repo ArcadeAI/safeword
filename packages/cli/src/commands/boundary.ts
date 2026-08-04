@@ -24,7 +24,11 @@ import {
   TICKET_ARTIFACTS,
   type TicketChange,
 } from '../boundary/engine.js';
-import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+import {
+  readConfiguredPathFromContent,
+  ticketDirectoriesForConfiguredRoot,
+} from '../utils/configured-paths.js';
+import { createPhaseAnchorScope } from '../utils/feature-source.js';
 import { readFileSafe } from '../utils/fs.js';
 import { warn } from '../utils/output.js';
 
@@ -35,6 +39,7 @@ export interface BoundaryOptions {
 type Boundary = 'commit' | 'push';
 
 const AUDIT_RELATIVE_PATH = nodePath.join('.safeword', 'boundary-audit.jsonl');
+const CONFIG_REPO_PATH = '.safeword/config.json';
 
 /** Run git, returning stdout or undefined on any failure (never throws). */
 function tryGit(cwd: string, args: string[]): string | undefined {
@@ -128,28 +133,44 @@ function parseTicketPath(
   return { ticketFolder, basename };
 }
 
+function findChangedTicket(
+  path: string,
+  ticketsDirectories: string[],
+): { ticketFolder: string; basename: string; ticketsDirectory: string } | undefined {
+  for (const ticketsDirectory of ticketsDirectories) {
+    const parsed = parseTicketPath(path, `${ticketsDirectory}/`);
+    if (parsed !== undefined) return { ...parsed, ticketsDirectory };
+  }
+  return undefined;
+}
+
 /** Map changed paths to per-ticket changes with prior/proposed + at-rest context. */
-function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): TicketChange[] {
-  const ticketsDirectory = nodePath.relative(cwd, resolveTicketsDirectory(cwd));
-  const prefix = `${ticketsDirectory}/`;
+function collectChanges(
+  cwd: string,
+  range: BoundaryRange,
+  at: Boundary,
+  ticketsDirectories: string[],
+  configuredFeatures?: string,
+): TicketChange[] {
   const byTicket = new Map<string, TicketChange>();
 
   for (const path of range.paths) {
-    const parsed = parseTicketPath(path, prefix);
+    const parsed = findChangedTicket(path, ticketsDirectories);
     if (parsed === undefined) continue;
-    const change = byTicket.get(parsed.ticketFolder) ?? {
-      ticketFolder: parsed.ticketFolder,
+    const ticketPath = `${parsed.ticketsDirectory}/${parsed.ticketFolder}`;
+    const change = byTicket.get(ticketPath) ?? {
+      anchorScope: createPhaseAnchorScope(cwd, ticketPath, configuredFeatures),
       artifacts: [],
       hasLedger: false,
     };
     change.artifacts.push(readChangedArtifact(cwd, path, parsed.basename, range, at));
-    byTicket.set(parsed.ticketFolder, change);
+    byTicket.set(ticketPath, change);
   }
 
   // At-rest context per touched ticket: ticket.md as it stands after the
   // change (staged version wins over disk) and whether a ledger exists.
   for (const change of byTicket.values()) {
-    const folder = nodePath.join(cwd, ticketsDirectory, change.ticketFolder);
+    const folder = nodePath.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find(a => a.artifact === 'ticket.md')?.proposed;
     change.ticketCurrent = staged ?? readFileSafe(nodePath.join(folder, 'ticket.md'));
     change.hasLedger =
@@ -160,7 +181,7 @@ function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): Ticket
     // endpoints (N76NQ0 — a range that traversed phases one legal step at a
     // time must not read as a skip).
     if (at === 'push' && change.artifacts.some(a => a.artifact === 'ticket.md')) {
-      const path = `${prefix}${change.ticketFolder}/ticket.md`;
+      const path = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path, range.priorRef);
     }
   }
@@ -189,13 +210,33 @@ function appendAudit(cwd: string, entry: object): void {
   appendFileSync(auditPath, `${JSON.stringify(entry)}\n`);
 }
 
+function treeContainsPath(cwd: string, at: Boundary, repoRelativeRoot: string): boolean {
+  const args =
+    at === 'commit'
+      ? ['ls-files', '--cached', '--', `${repoRelativeRoot}/`]
+      : ['ls-tree', '-r', '--name-only', 'HEAD', '--', `${repoRelativeRoot}/`];
+  const listing = tryGit(cwd, args);
+  return (listing?.trim().length ?? 0) > 0;
+}
+
+function resolveBoundaryTicketDirectories(
+  cwd: string,
+  at: Boundary,
+  configuredProjectRoot?: string,
+): string[] {
+  const directories = ticketDirectoriesForConfiguredRoot(cwd, configuredProjectRoot, root =>
+    treeContainsPath(cwd, at, root),
+  );
+  if (configuredProjectRoot !== undefined && directories.length === 0) {
+    warn(`Configured project root "${configuredProjectRoot}" is outside the repository.`);
+  }
+  return directories;
+}
+
 /** The reconciliation body — separated so the entry point stays a trivial guard. */
 function reconcileBoundary(cwd: string, at: Boundary): void {
   const range = boundaryRange(cwd, at);
   if (range === undefined || range.paths.length === 0) return;
-
-  const changes = collectChanges(cwd, range, at);
-  if (changes.length === 0) return;
 
   // The push tier verifies LEDGER SHAs against real history; the commit tier
   // stays content-only for SHAs (sub-second budget — no history walks).
@@ -206,6 +247,13 @@ function reconcileBoundary(cwd: string, at: Boundary): void {
   const resolveSha = at === 'push' ? createLedgerShaResolver(cwd) : undefined;
   const readTreeArtifact = (relpath: string): string | undefined =>
     contentAt(cwd, at === 'commit' ? `:${relpath}` : `HEAD:${relpath}`);
+  const configContent = readTreeArtifact(CONFIG_REPO_PATH);
+  const configuredFeatures = readConfiguredPathFromContent(configContent, 'features');
+  const configuredProjectRoot = readConfiguredPathFromContent(configContent, 'projectRoot');
+  const ticketsDirectories = resolveBoundaryTicketDirectories(cwd, at, configuredProjectRoot);
+  const changes = collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures);
+  if (changes.length === 0) return;
+
   const reconciliations = reconcileChange(changes, resolveSha, readTreeArtifact);
   for (const finding of findings(reconciliations)) {
     warn(

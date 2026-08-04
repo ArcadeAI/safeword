@@ -75,6 +75,25 @@ export interface MintedIdentity {
 /** Mints identity from the tracker (the network boundary). Injected for tests. */
 export type IdentitySource = () => Promise<MintedIdentity>;
 
+const SAFE_TRACKER_IDENTITY = /^[A-Z0-9][\w.-]*$/i;
+const WINDOWS_RESERVED_DEVICE_WITH_EXTENSION = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\./i;
+
+/**
+ * Tracker identities become part of a ticket folder name. Keep that boundary
+ * deliberately narrower than platform path syntax: GitHub numbers, Linear
+ * keys, and UUIDs all fit, while separators, drive prefixes, dot segments, and
+ * control characters cannot reach path normalization. A bare Windows device
+ * name is safe after the required `-${slug}` suffix; a device name followed by
+ * a period remains reserved even after that suffix and must be rejected.
+ */
+function assertSafeTrackerIdentity(id: string): void {
+  if (!SAFE_TRACKER_IDENTITY.test(id) || WINDOWS_RESERVED_DEVICE_WITH_EXTENSION.test(id)) {
+    throw new Error(
+      `Tracker returned "${JSON.stringify(id)}", which is not a safe ticket identity.`,
+    );
+  }
+}
+
 export function createTicket(
   cwd: string,
   minter: IdMinter,
@@ -100,6 +119,7 @@ export async function createIssueFirstTicket(
   onMinted?: (minted: MintedIdentity) => void,
 ): Promise<NewTicketResult & { ref?: TrackerReference }> {
   const minted = await identity();
+  assertSafeTrackerIdentity(minted.id);
   // Hook fires after the issue is minted but BEFORE any folder is written, so a
   // caller can persist a `pending` ref first: then a folder on disk always implies
   // a map entry, and a later sync reconciles instead of double-creating (narrows

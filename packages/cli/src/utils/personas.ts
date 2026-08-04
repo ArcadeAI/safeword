@@ -24,7 +24,7 @@ import { findDuplicates, groupByLine } from './validation.js';
 // asserting the canonical bounds, docs referencing them without hardcoding,
 // future code in the same package). They are deliberately NOT re-exported
 // from `src/presets/typescript/index.ts` — customers interact with persona
-// validation through `safeword check`, not by reading these constants
+// validation through `safeword doctor`, not by reading these constants
 // directly. Promoting them to safeword's public preset surface would make
 // the values part of safeword's semver contract (changing 6 → 8 would
 // become a breaking change), and there's no current consumer that needs
@@ -421,9 +421,9 @@ export function lookupPersonaReference(
  * gracefully on a missing or unreadable file — returns
  * `{ status: 'unknown' }` rather than throwing, regardless of whether the
  * resolved path is the default or a configured override. Strict
- * validation lives in `safeword check`; this lookup API is meant to be
+ * validation lives in `safeword doctor`; this lookup API is meant to be
  * cheap, consistent, and side-effect-free. Do NOT change the unknown
- * return to a throw for configured-but-missing — `safeword check` owns
+ * return to a throw for configured-but-missing — `safeword doctor` owns
  * the loud signal (ticket K7N2QM).
  */
 export function validatePersonaReference(cwd: string, input: string): PersonaReferenceResult {

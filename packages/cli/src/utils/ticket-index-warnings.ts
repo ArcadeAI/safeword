@@ -1,11 +1,4 @@
-const SYNCTICKETS_QUIET_COMMAND = '`safeword sync-tickets --quiet`';
-
-export function buildIndexConflictSummary(count: number): string {
-  return (
-    `Detected merge-conflict markers in ${count} ticket index file(s). ` +
-    `Run ${SYNCTICKETS_QUIET_COMMAND} to regenerate cleanly.`
-  );
-}
+const SYNCTICKETS_QUIET_COMMAND = '`safeword project sync-tickets --quiet`';
 
 export function buildIndexConflictListMessage(paths: string[]): string {
   return (

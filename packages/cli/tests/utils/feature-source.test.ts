@@ -53,6 +53,20 @@ describe('findFeatureSourcePath', () => {
 
     expect(featurePath).toBeUndefined();
   });
+
+  it('reads the authoritative slug when a tracker identity contains a hyphen', () => {
+    const project = makeProject();
+    writeProjectFile(
+      project,
+      '.project/tickets/ENG-45-login-bug/ticket.md',
+      ['---', 'id: ENG-45', 'slug: login-bug', '---', ''].join('\n'),
+    );
+    writeProjectFile(project, 'features/login-bug.feature');
+
+    expect(findFeatureSourcePath(project, 'ENG-45-login-bug')).toBe(
+      nodePath.join(project, 'features/login-bug.feature'),
+    );
+  });
 });
 
 describe('collectExecutableFeatureDirectories', () => {

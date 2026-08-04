@@ -45,7 +45,7 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
     initGitRepo(dir);
     writeTestFile(dir, 'lefthook.yml', LEFTHOOK_CONFIG);
 
-    const result = await runCli(['setup'], { cwd: dir });
+    const result = await runCli(['setup', '--verbose'], { cwd: dir });
 
     expect(result.exitCode).toBe(0);
     expect(output(result)).toContain(BOUNDARY_INVOCATION);
@@ -58,7 +58,7 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
     initGitRepo(dir);
     writeTestFile(dir, '.pre-commit-config.yaml', 'repos: []\n');
 
-    const result = await runCli(['setup'], { cwd: dir });
+    const result = await runCli(['setup', '--verbose'], { cwd: dir });
 
     expect(result.exitCode).toBe(0);
     expect(output(result)).toContain(BOUNDARY_INVOCATION);
@@ -69,7 +69,7 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
   it('bare host is pointed at husky without any hook writes (TB1.R3)', async () => {
     initGitRepo(dir);
 
-    const result = await runCli(['setup'], { cwd: dir });
+    const result = await runCli(['setup', '--verbose'], { cwd: dir });
 
     expect(result.exitCode).toBe(0);
     expect(output(result)).toContain('husky');
@@ -85,7 +85,7 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
     packageJson.devDependencies = { ...packageJson.devDependencies, husky: '^9.1.7' };
     writeTestFile(dir, 'package.json', `${JSON.stringify(packageJson, undefined, 2)}\n`);
 
-    const result = await runCli(['setup'], { cwd: dir });
+    const result = await runCli(['setup', '--verbose'], { cwd: dir });
 
     expect(result.exitCode).toBe(0);
     expect(fileExists(dir, '.husky/pre-commit')).toBe(false);
@@ -99,7 +99,7 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
     writeTestFile(dir, 'lefthook.yml', LEFTHOOK_CONFIG);
     execFileSync('git', ['config', 'core.hooksPath', '.git/hooks'], { cwd: dir, stdio: 'pipe' });
 
-    const result = await runCli(['setup'], { cwd: dir });
+    const result = await runCli(['setup', '--verbose'], { cwd: dir });
 
     expect(result.exitCode).toBe(0);
     expect(readTestFile(dir, '.husky/pre-commit')).toBe('npx lint-staged\n');
@@ -109,7 +109,7 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
   it('pasting the printed snippet quiesces the nudge (TB1.R3 rejection)', async () => {
     initGitRepo(dir);
     writeTestFile(dir, 'lefthook.yml', LEFTHOOK_CONFIG);
-    const first = await runCli(['setup'], { cwd: dir });
+    const first = await runCli(['setup', '--verbose'], { cwd: dir });
     // Extract the printed snippet's command into the config the way a user
     // pasting it would: the config now invokes the boundary gate.
     expect(output(first)).toContain(BOUNDARY_INVOCATION);
@@ -127,7 +127,7 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
   });
 
   it('non-git directory gets no hook writes and no hook nudge (SM1.R2 rejection)', async () => {
-    const result = await runCli(['setup'], { cwd: dir });
+    const result = await runCli(['setup', '--verbose'], { cwd: dir });
 
     expect(result.exitCode).toBe(0);
     expect(fileExists(dir, '.husky/pre-commit')).toBe(false);
@@ -141,7 +141,7 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
     mkdirSync(sub, { recursive: true });
     createTypeScriptProjectReadyForSetup(sub);
 
-    const result = await runCli(['setup'], { cwd: sub });
+    const result = await runCli(['setup', '--verbose'], { cwd: sub });
 
     expect(result.exitCode).toBe(0);
     expect(fileExists(sub, '.husky/pre-commit')).toBe(false);

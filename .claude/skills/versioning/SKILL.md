@@ -37,7 +37,7 @@ existing behavior. If a change can't fit this constraint, bump major instead.
 ### Major (0.x -> 1.0, 1.x -> 2.0) — Notify, user decides
 
 The only class that breaks auto-upgrade silence. User runs
-`bunx safeword@<version> upgrade` manually after reviewing the changelog.
+`bunx safeword@<version> setup` manually after reviewing the changelog.
 
 - Removed or renamed hooks, skills, or commands
 - Changed reconcile behavior (owned -> managed, file moves)
@@ -92,7 +92,30 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
    bun install # rewrites bun.lock's workspace version; no resolution change
    ```
 
-3. **PR + admin-merge.** `main` is protected:
+3. **Validate Codex activation evidence** for releases that change the Codex
+   plugin, its hooks, or its activation contract. The deterministic check is
+   required and covers both a still-running install-time host and a fresh host:
+
+   ```bash
+   bun run --cwd packages/cli test tests/codex-plugin/headless-activation-check.test.ts
+   ```
+
+   When authenticated Codex credentials are available, also run the opt-in
+   cache smoke with an explicit compatible model. The example below was checked
+   on 2026-08-03 against [OpenAI's model guidance](https://developers.openai.com/api/docs/guides/latest-model),
+   which recommends `gpt-5.6-terra` when balancing capability and cost. Model
+   availability is account- and CLI-dependent, so re-check that guidance and
+   select a currently supported model before each release:
+
+   ```bash
+   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_CODEX_SMOKE_MODEL=gpt-5.6-terra bun run --cwd packages/cli test:smoke:live
+   ```
+
+   The live command proves all five hooks from structured profile evidence.
+   Its headless `codex exec` process must leave activation pending; only a fresh
+   Desktop/app-server host and its activation receipt prove a Desktop restart.
+
+4. **PR + admin-merge.** `main` is protected:
 
    ```bash
    git checkout -b release/vX.Y.Z
@@ -104,7 +127,7 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
    gh pr merge --delete-branch --admin < num > --squash
    ```
 
-4. **Annotated tag on the merge commit.** Body should roll up changes since the prior tag — see `git show v0.35.1` for the style.
+5. **Annotated tag on the merge commit.** Body should roll up changes since the prior tag — see `git show v0.35.1` for the style.
 
    ```bash
    git checkout main && git pull --ff-only origin main
@@ -116,14 +139,14 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
 
    Tag push triggers `.github/workflows/release.yml`.
 
-5. **Verify the publish.** Watch the run, then confirm on npm:
+6. **Verify the publish.** Watch the run, then confirm on npm:
 
    ```bash
    gh run view conclusion -q '.conclusion' < id > --json # → success
    npm view safeword version                             # → X.Y.Z
    ```
 
-   Optional: `bunx safeword@latest upgrade` in this repo to round-trip the dogfood install.
+   Optional: `bunx safeword@latest setup` in this repo to round-trip the dogfood install.
 
 **Named failure modes** (match symptoms, then fix):
 

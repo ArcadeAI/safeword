@@ -6,7 +6,7 @@
  * network boundary) is injected.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +22,7 @@ describe('createIssueFirstTicket (tracker-identity-and-join.TB1.AC1)', () => {
   });
   afterEach(() => {
     removeTemporaryDirectory(cwd);
+    rmSync(`${cwd}-escaped-login-bug`, { force: true, recursive: true });
   });
 
   // TB1.AC1.connected_mints_issue_before_any_folder (@wiring)
@@ -58,4 +59,49 @@ describe('createIssueFirstTicket (tracker-identity-and-join.TB1.AC1)', () => {
 
     expect(ticketFolders(ticketsDirectory)).toEqual(before);
   });
+
+  it.each([
+    ['../escaped', 'parent traversal'],
+    [String.raw`..\escaped`, 'Windows parent traversal'],
+    ['.', 'current-directory segment'],
+    ['..', 'parent-directory segment'],
+    ['/tmp/escaped', 'POSIX absolute path'],
+    [String.raw`C:\temp\escaped`, 'Windows absolute path'],
+    ['bad\u{0}key', 'NUL byte'],
+    ['bad\u{1F}key', 'control character'],
+    ['nul.json', 'Windows reserved device name with an extension'],
+    ['CON.ticket', 'Windows reserved device name with an extension'],
+    ['lpt9.backup', 'Windows reserved parallel device name with an extension'],
+  ])('rejects a %s tracker identity before callbacks or filesystem writes (%s)', async id => {
+    const ticketsDirectory = resolveTicketsDirectory(cwd);
+    const before = ticketFolders(ticketsDirectory);
+    const onMinted = vi.fn();
+
+    await expect(
+      createIssueFirstTicket(
+        cwd,
+        { slug: 'login-bug', type: 'task' },
+        () =>
+          Promise.resolve({
+            id,
+            ref: { provider: 'linear' as const, id },
+          }),
+        onMinted,
+      ),
+    ).rejects.toThrow(/safe ticket identity/i);
+
+    expect(onMinted).not.toHaveBeenCalled();
+    expect(ticketFolders(ticketsDirectory)).toEqual(before);
+  });
+
+  it.each(['CON', 'COM1', 'ENG-45.'])(
+    'accepts %s when the slug suffix makes the composed folder name portable',
+    async id => {
+      const result = await createIssueFirstTicket(cwd, { slug: 'login-bug', type: 'task' }, () =>
+        Promise.resolve({ id, ref: { provider: 'linear' as const, id } }),
+      );
+
+      expect(nodePath.basename(result.folderPath)).toBe(`${id}-login-bug`);
+    },
+  );
 });

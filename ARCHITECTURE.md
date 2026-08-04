@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.17
-**Last Updated:** 2026-07-14
+**Version:** 1.20
+**Last Updated:** 2026-08-01
 **Status:** Production
 
 ---
@@ -10,6 +10,7 @@
 
 - [Overview](#overview)
 - [Monorepo Structure](#monorepo-structure)
+- [Generated State and Human Decisions](#generated-state-and-human-decisions)
 - [CLI Structure](#cli-structure)
 - [Language Packs](#language-packs)
 - [Language Detection](#language-detection)
@@ -17,7 +18,9 @@
 - [Dependencies](#dependencies)
 - [Test Structure](#test-structure)
 - [Build & Distribution](#build--distribution)
+- [Migration & Evolution](#migration--evolution)
 - [Key Decisions](#key-decisions)
+- [References](#references)
 
 ---
 
@@ -27,19 +30,19 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 
 ### Tech Stack
 
-| Category        | Choice             | Rationale                                                                              |
-| --------------- | ------------------ | -------------------------------------------------------------------------------------- |
-| Runtime         | Bun                | Fast startup, TypeScript native                                                        |
-| Package Manager | npm/bun            | Standard for JS ecosystem                                                              |
-| JS Linting      | ESLint             | Industry standard, extensive rule set                                                  |
-| Python Linting  | Ruff               | Fast, replaces flake8/black/isort                                                      |
-| Go Linting      | golangci-lint      | Aggregates 100+ linters, fast                                                          |
-| Rust Linting    | clippy             | 750+ lints, pedantic by default                                                        |
-| Rust Formatting | rustfmt            | Deterministic, gofmt-style formatting                                                  |
-| SQL Linting     | SQLFluff           | dbt-aware, Jinja templater support                                                     |
-| Type Checking   | tsc / mypy         | Native type checkers for each language                                                 |
-| Arch Validation | dependency-cruiser | Circular dep detection, layer rules (JS/TS)                                            |
-| Arch Validation | import-linter      | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack |
+| Category        | Choice                                             | Rationale                                                                                  |
+| --------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Runtime         | Node (published CLI), Bun (development and `bunx`) | The package declares exact supported Node lines; Bun keeps local TypeScript workflows fast |
+| Package Manager | npm, Bun, pnpm, Yarn                               | Reconciliation detects and preserves the host project's package-manager choice             |
+| JS Linting      | ESLint                                             | Industry standard, extensive rule set                                                      |
+| Python Linting  | Ruff                                               | Fast, replaces flake8/black/isort                                                          |
+| Go Linting      | golangci-lint                                      | Aggregates 100+ linters, fast                                                              |
+| Rust Linting    | clippy                                             | 750+ lints, pedantic by default                                                            |
+| Rust Formatting | rustfmt                                            | Deterministic, gofmt-style formatting                                                      |
+| SQL Linting     | SQLFluff                                           | dbt-aware, Jinja templater support                                                         |
+| Type Checking   | tsc / mypy                                         | Native type checkers for each language                                                     |
+| Arch Validation | dependency-cruiser                                 | Circular dep detection, layer rules (JS/TS)                                                |
+| Arch Validation | import-linter                                      | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack     |
 
 ---
 
@@ -61,47 +64,70 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ---
 
+## Generated State and Human Decisions
+
+Safeword intentionally keeps two architecture genres separate:
+
+| Document                               | Authority                                              | What it contributes                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `.project/architecture.generated.md`   | Machine-owned monorepo index                           | Workspace package inventory, package purposes, dependency edges, coverage gaps, and a freshness fingerprint                           |
+| `packages/*/architecture.generated.md` | Machine-owned structure plus human-owned purpose prose | Current top-level source modules, resolving paths, per-module purposes, and visible stale/orphan markers                              |
+| `ARCHITECTURE.md`                      | Human-owned decision record                            | System context, runtime and data flows, invariants, rationale, trade-offs, rejected alternatives, and migration/reassessment guidance |
+
+### Reverse-authoring adequacy
+
+The generated state is the structural evidence floor for this document, not a complete replacement for it. It is deliberately sufficient to detect missing, renamed, or orphaned packages/modules. It cannot by itself supply a good architecture narrative because several required inputs are not structural facts:
+
+| Authoring need                                | Generated state                                  | Additional source of truth                                                |
+| --------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
+| Package and top-level module inventory        | Complete when no coverage-gap marker is present  | Generated root and leaf documents                                         |
+| Inter-package dependency direction            | Complete for parsed workspace manifests          | Root generated document and workspace manifests                           |
+| Module responsibility                         | Human prose; may be placeholder or visibly stale | Module entry points and package leaf prose                                |
+| Public commands, effects, and exit semantics  | Not represented                                  | `src/cli-protocol/catalog.ts`, JSON schema, and executable protocol tests |
+| Reconciliation ownership and mutation rules   | Not represented                                  | `src/schema.ts`, `src/reconcile.ts`, and reconciliation tests             |
+| Runtime/event flows and external integrations | Not represented                                  | Command/hook entry points, manifests, workflows, and integration tests    |
+| Why, trade-offs, alternatives, and migrations | Not derivable safely                             | This document and the accepted ticket/design history                      |
+
+Therefore a reverse-written `ARCHITECTURE.md` must start from every generated node, then reconcile it with the CLI catalogue, schema, boundary configuration, package manifests, release workflows, and accepted design records. Treating the generated map alone as sufficient would turn current structure into invented rationale.
+
+---
+
 ## CLI Structure
 
-```text
-packages/cli/
-├── codex-plugin/    # Codex plugin bundle (manifest, hooks.json, scoped safeword:<skill> skills)
-├── src/
-│   ├── boundary/         # Commit/push boundary reconciliation gate: ticket-artifact evidence, phase anchors, ledger annotations
-│   ├── commands/         # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings, …)
-│   ├── learning-sync/    # Generates <namespace-root>/learnings/INDEX.md from learning files
-│   ├── packs/            # Language packs + registry
-│   │   ├── {lang}/       # index.ts, files.ts, setup.ts per language
-│   │   ├── registry.ts   # Central pack registry and detection
-│   │   ├── config.ts     # Pack config management (.safeword/config.json)
-│   │   ├── install.ts    # Pack installation logic
-│   │   └── types.ts      # Shared type definitions
-│   ├── pr-review/        # Autonomous PR reviewer runner: trigger/green gate, capability-narrow poster, verdict, cross-vendor + adversarial passes (judgment lives in the skill, not here)
-│   ├── presets/          # ESLint presets (exported as safeword/eslint)
-│   │   └── typescript/   # ESLint configs, rules, detection
-│   ├── retro/            # Retro pipeline: finding sanitization, drafts, egress guard, GitHub REST transport (miner front-end lives in commands/retro.ts)
-│   ├── skills/           # Skill package installer (harness side of the pack/harness skill split)
-│   ├── templates/        # Template content helpers
-│   ├── test-plan/        # Resolves per-language test/build/typecheck/bdd/deps command plans (verify + stop-gate source of truth)
-│   ├── ticket-sync/      # Generates <namespace-root>/tickets/INDEX.md + INDEX-completed.md discovery indexes
-│   ├── tracker-connect/  # `safeword connect` flow: tracker credentials, config, secret store
-│   ├── tracker-sync/     # One-way projection of the ticket corpus into the configured tracker
-│   ├── upstream-monitor/ # Watches upstream agent-CLI changelogs (claude-code, codex-cli, cursor) via snapshots
-│   ├── utils/            # Detection, file ops, git, version
-│   ├── schema.ts         # Single source of truth for all managed files
-│   └── reconcile.ts      # Schema-based file management
-├── templates/
-│   ├── SAFEWORD.md     # Core instructions (installed to .safeword/)
-│   ├── AGENTS.md       # Project context template
-│   ├── commands/       # Slash commands (see templates/commands/ for full list)
-│   ├── cursor/         # Cursor IDE rules (.mdc files)
-│   ├── doc-templates/  # Feature specs, design docs, tickets
-│   ├── guides/         # Methodology guides (TDD, planning, etc.)
-│   ├── hooks/          # Claude Code and Cursor hook adapters plus shared hook libraries
-│   ├── prompts/        # Prompt templates for commands
-│   ├── scripts/        # Shell scripts (cleanup, bisect)
-│   └── skills/         # Claude Code skills (Codex workflow skills live in codex-plugin/skills)
-```
+The generated package leaf is the current structural inventory. These purposes explain how its top-level modules fit together:
+
+| Module                   | Responsibility                                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `boundary`               | Evaluates architectural boundary evidence and dependency policy                                        |
+| `cli.ts`                 | Executable composition root that registers public, compatibility, and hidden hook commands             |
+| `cli-protocol`           | Typed command catalogue, policy, plan/result envelopes, rendering, and execution adapters              |
+| `codex-plugin`           | Profile plugin catalogue, installation, proof, legacy authority, migration, finalization, and recovery |
+| `commands`               | Domain command handlers for setup, status, removal, project workflows, Codex, tickets, and retros      |
+| `cursor-wrappers.ts`     | Generates thin Cursor command/rule wrappers from canonical workflow templates                          |
+| `health.ts`              | Aggregates configuration, path, coverage, version, and integration health findings                     |
+| `index.ts`               | Stable library exports for version, detection, reconciliation, and ESLint consumers                    |
+| `learning-sync`          | Builds deterministic discovery indexes over project learnings                                          |
+| `owned-paths.ts`         | Derives writable top-level path prefixes from the schema                                               |
+| `packs`                  | Detects languages and installs language-native files, packages, and setup behavior                     |
+| `parity.ts`              | Enforces template/dogfood/generated catalogue pairs and one-way content contracts                      |
+| `presets`                | Publishes conditional TypeScript/JavaScript ESLint presets                                             |
+| `pr-review`              | Runs the autonomous cross-vendor PR reviewer, trigger gates, fork safety, verdict routing, and posting |
+| `reconcile.ts`           | Computes and executes idempotent file, JSON, text-patch, permission, and dependency plans              |
+| `retro`                  | Sanitizes, deduplicates, triages, reconciles, and files retrospective findings                         |
+| `schema.ts`              | Single source of truth for owned, managed, preserved, deprecated, merged, and patched assets           |
+| `self-report-capture.ts` | Accepts bounded CLI-side self-observation events for retrospective analysis                            |
+| `skills`                 | Installs optional third-party language coding skills without owning Safe Word workflows                |
+| `templates`              | Produces dynamic configuration and legacy-cleanup content used by reconciliation                       |
+| `test-plan`              | Resolves and renders the canonical test/build/typecheck/BDD/dependency plan for a project              |
+| `ticket-create`          | Routes ticket creation between local identifiers and issue-first tracker identities                    |
+| `ticket-sync`            | Builds active and completed ticket-corpus discovery indexes                                            |
+| `tracker-connect`        | Configures tracker identity, credentials, secret storage, and handoff state                            |
+| `tracker-sync`           | Plans and applies one-way projection from local tickets to GitHub or Linear                            |
+| `upstream-monitor`       | Tracks upstream agent-CLI release signals for compatibility review                                     |
+| `utils`                  | Shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives        |
+| `version.ts`             | Reads the release version from package metadata                                                        |
+
+Shipped assets live beside the source: `templates/` is the canonical project-local payload, while `codex-plugin/` is the generated profile-scoped plugin bundle. `packages/cli/architecture.generated.md` remains the source of structural truth when this table is reviewed.
 
 ---
 
@@ -285,7 +311,7 @@ published React preset.
 
 ## Reconciliation Engine
 
-The reconciliation engine (`src/reconcile.ts`) is the core of all file operations. Commands never write files directly — they compute a plan from the schema and execute it.
+The reconciliation engine (`src/reconcile.ts`) is the core of project-configuration file ownership. Setup, convergence, and removal compute plans from the schema rather than copying trees blindly. Domain workflows such as ticket/tracker sync and generated indexes own their narrower state through dedicated modules, but still enter through the typed CLI protocol and report completed effects explicitly.
 
 ### Schema (`src/schema.ts`)
 
@@ -323,7 +349,7 @@ A `managedFiles` entry may also carry an optional `configKey` (`'personas' | 'gl
 
 **Key property:** Idempotent. Running the same mode twice produces the same result.
 
-### Data Flow
+### Setup Convergence Flow
 
 ```text
 CLI command
@@ -379,17 +405,20 @@ CLI command
 
 ## Test Structure
 
-| Script             | Config                     | Includes                                                                                                 | Purpose                                     |
-| ------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `test`             | `vitest.config.ts`         | `*.test.ts`                                                                                              | Main suite (1300+)                          |
-| `test:release`     | `vitest.release.config.ts` | `*.release.test.ts`                                                                                      | Dogfood parity gate                         |
-| `test:slow`        | `vitest.slow.config.ts`    | `*.slow.test.ts`                                                                                         | Real package installs                       |
-| `test:integration` | (default config)           | `tests/integration/`                                                                                     | Integration subset                          |
-| `test:bdd`         | `cucumber.mjs`             | `features/**/*.feature` + workspace `*/features/**/*.feature` + configured `paths.features` dir (56JCFZ) | Gherkin acceptance lane (cucumber-js, 102a) |
+| Script                    | Config                     | Includes                                                                                                 | Purpose                                                      |
+| ------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `test`                    | `vitest.config.ts`         | `*.test.ts`                                                                                              | Default unit and integration suite                           |
+| `test:smoke`              | default config             | Named fast and integration smoke files                                                                   | Broader pre-merge smoke validation                           |
+| `test:smoke:live`         | `vitest.live.config.ts`    | `*.live.test.ts`                                                                                         | Live-model smoke validation                                  |
+| `test:release`            | `vitest.release.config.ts` | `*.release.test.ts`                                                                                      | Package, supply-chain, schema, and dogfood release contracts |
+| `test:slow`               | `vitest.slow.config.ts`    | `*.slow.test.ts`                                                                                         | Real package installs                                        |
+| `test:slow:install-proof` | `vitest.slow.config.ts`    | `non-git-install-proof.slow.test.ts`                                                                     | Focused physical dependency-install proof                    |
+| `test:integration`        | default config             | `tests/integration/`                                                                                     | Integration subset                                           |
+| `test:bdd`                | `cucumber.mjs`             | `features/**/*.feature` + workspace `*/features/**/*.feature` + configured `paths.features` dir (56JCFZ) | Gherkin acceptance lane (cucumber-js, 102a)                  |
 
-The vitest lanes extend `vitest.base.ts` (sequential execution, `maxWorkers: 1`). `test:bdd` is a **separate runner**: cucumber-js executes `.feature` files with TypeScript step defs (loaded via `tsx/esm`). Unit/integration stay in vitest (which globs only `*.test.ts`); the acceptance lane and the unit suite partition the tree, neither double-runs a spec.
+The Vitest lanes extend `vitest.base.ts` and use up to three workers. `test:bdd` is a **separate runner**: cucumber-js executes `.feature` files with TypeScript step defs (loaded via `tsx/esm`). Unit/integration stay in vitest (which globs only `*.test.ts`); the acceptance lane and the unit suite partition the tree, neither double-runs a spec.
 
-The lane is also **core customer scaffolding** (102b): `safeword setup` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` as conditional packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b). **Unless the repo already has its own cucumber harness** (56JCFZ, issue #645): setup detects host cucumber configs/deps (excluding safeword's own template revisions, hash-registered in `cucumber-template-revisions.ts`), suppresses the entire starter lane, and points the user at `paths.features`/`paths.steps` — which all readers (`codify`/`lint-gherkin`/`check` via `feature-source.ts`) and the scaffolded runner consume as augment-not-replace. `safeword check` carries the persistent misalignment advisories; uninstall never removes host-owned harness pieces.
+The lane is also **core customer scaffolding** (102b): `safeword setup` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` as conditional packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b). **Unless the repo already has its own cucumber harness** (56JCFZ, issue #645): setup detects host cucumber configs/deps (excluding safeword's own template revisions, hash-registered in `cucumber-template-revisions.ts`), suppresses the entire starter lane, and points the user at `paths.features`/`paths.steps` — which all readers (`project codify` / `project lint-gherkin` / `doctor` via `feature-source.ts`) and the scaffolded runner consume as augment-not-replace. `safeword doctor` carries the persistent misalignment advisories; removal never removes host-owned harness pieces.
 
 ---
 
@@ -403,9 +432,19 @@ tsup → dist/
   └── *.d.ts              # Type declarations
 ```
 
-Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plugin/` (bundled for Codex plugin install).
+Published files: `dist/` + `schemas/` + `templates/` (bundled for setup convergence) + `codex-plugin/` (bundled for Codex plugin install).
 
-**Publish gate:** `prepublishOnly` runs `test:release` (dogfood parity) then `build`.
+**Publish path:** an annotated `v*` tag triggers `.github/workflows/release.yml`. Its unprivileged build job installs from the frozen lockfile, builds, runs the release-contract suite, and packs the tarball. A separate minimal OIDC job downloads that artifact and runs `npm publish --provenance --ignore-scripts`. The local `prepublishOnly` hook (tag check → release tests → build) remains defense in depth, not the canonical release path.
+
+---
+
+## Migration & Evolution
+
+- **Project configuration:** `safeword plan` previews reconciliation, `safeword setup` converges the current project, and `safeword doctor` verifies the result. Schema ownership categories determine whether an asset is replaced, merged, created only when absent, preserved, or removed.
+- **Public CLI:** canonical commands are catalogued with stable typed effects and schema-versioned JSON. Hidden compatibility aliases remain through the documented 0.71 window and emit machine-readable deprecation findings.
+- **Codex delivery:** migration follows Expand → Prove → Contract. Profile-plugin proof must cover the running hook manifest before legacy project protection can be finalized; fingerprinted backup and recovery protect interrupted transitions.
+- **Generated architecture:** fingerprints migrate structural state deterministically. Machine-owned fields heal from source and manifests; human purpose prose survives and is marked stale when it needs semantic review.
+- **Architecture decisions:** update accepted decisions in place. Mark superseded choices explicitly, keep their original rationale, and record the replacement and reassessment trigger rather than creating detached ADR files.
 
 ---
 
@@ -448,7 +487,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plu
 | What           | TDD (RED→GREEN→REFACTOR) is inline in BDD skill Phase 6, not a separate handoff                                                                                                                                                                              |
 | Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked                                                                                                                                                   |
 | Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                                                                                                                                                                         |
-| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: no nesting)                                                                                                                                                     |
+| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: model-mediated depth and tool availability do not guarantee the workflow handoff)                                                                               |
 | Implementation | `packages/cli/templates/skills/bdd/` — TDD runs in the `implement` phase (`TDD.md`); the skill was later split from one `SKILL.md` into per-phase files (DISCOVERY / SCENARIOS / TDD / VERIFY / DONE / SPLITTING), see the 2026-05-31 Phase 0 decision below |
 
 ### Skill Consolidation (Removed Redundant Skills)
@@ -511,19 +550,19 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plu
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | What           | PostToolUse hook counts changed lines via `git diff --stat HEAD` and binds `activeTicket` on ticket.md edits. Phase and TDD step are derived at read time from ticket files, not cached. |
 | Why            | Prevents 1000-line PRs; forces commit discipline. Phase/TDD derivation avoids stale cache in multi-session/multi-developer scenarios.                                                    |
-| Trade-off      | Adds ~50ms per tool call (git diff + ticket scan); per-session state in `.safeword-project/quality-state-{sessionId}.json`                                                               |
+| Trade-off      | Adds ~50ms per tool call (git diff + ticket scan); per-session state in `<namespace-root>/quality-state-{sessionId}.json`                                                                |
 | Alternatives   | LOC check in stop hook only (rejected: too late), commit-prefix detection (rejected: convention-based, bypassable), manual discipline (rejected)                                         |
 | Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; per-session state files; shared `lib/active-ticket.ts` (includes `deriveTddStep()`)                         |
 
 **Gate types:**
 
-- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`.safeword/`, `.claude/`, `.cursor/`, `.safeword-project/`) are excluded from the count via git pathspec, so setup/upgrade output doesn't inflate it.
+- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`.safeword/`, `.claude/`, `.cursor/`, and the resolved namespace root—`.project/` by default, legacy `.safeword-project/`) are excluded from the count via git pathspec, so setup convergence output doesn't inflate it.
 - **Phase reminders** — prompt hook derives current phase from ticket.md via `getTicketInfo()` and injects phase-specific one-liner each turn. No blocking gate — guidance only.
 - **TDD step reminders** — prompt hook derives TDD step from test-definitions.md via `deriveTddStep()` during `implement` phase. Shows RED/GREEN/REFACTOR status each turn.
 
 **Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`) and restricts code edits to `implement` phase only. Planning phases (intake, define-behavior, scenario-gate) and done phase only allow edits to meta paths. No ticket or no in_progress ticket = no restriction.
 
-**Meta-path exemption:** Files under `.safeword-project/`, `.safeword/`, `.claude/`, and `.cursor/` are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
+**Meta-path exemption:** Files under the resolved namespace root, `.safeword/`, `.claude/`, and `.cursor/` are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
 
 **Active ticket resolution:** Session-scoped. Each session's state file (`quality-state-{session_id}.json`) tracks the `activeTicket` it's working on. Both `pre-tool-quality.ts` and `stop-quality.ts` read this session binding, then call `getTicketInfo()` to re-read the ticket's current phase and status from disk (stateless re-evaluation). This prevents cross-session blocking — tickets from other sessions are invisible. `getActiveTicket()` (global scan) is only used for hierarchy navigation after the done gate passes. Post-tool auto-clears `activeTicket` when the ticket reaches `done` or `backlog` status.
 
@@ -531,7 +570,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plu
 
 **`additionalContext` field:** PreToolUse deny output uses `additionalContext` (Claude Code v2.1.9+) to guide Claude toward skills. `permissionDecisionReason` explains WHY blocked; `additionalContext` tells WHAT TO DO. This prevents content drift — hooks reference skills by name, skills own the review content.
 
-**Quality review cadence (SXSCJQ; implement-step reviews quieted by JENFZX):** The quality review fires at phase boundaries, not on a LOC throttle. PostToolUse surfaces a phase-appropriate review (`getQualityMessage`) as `additionalContext` on each `phase:` change in `ticket.md` — at the edit, so it works in long autonomous runs where the Stop hook never fires. Ordinary implement-step (RED/GREEN/REFACTOR) reviews no longer surface per step; they are folded into the whole-ticket review at the implement→verify exit (JENFZX). The Stop hook is a deduped backstop: it reviews per phase, but only for a boundary not already marked (`lastReviewedPhase` in session state), and still fires a generic review when there is no active ticket. The former implement-phase LOC review throttle (`LOC_REVIEW_THRESHOLD`) is removed. Shared decision logic lives in `lib/review-trigger.ts` (`shouldReviewPhase`); checkbox-flip detection in `lib/checkbox-transitions.ts`.
+**Quality review cadence (SXSCJQ; implement-step reviews quieted by JENFZX):** The quality review fires at phase boundaries, not on a LOC throttle. PostToolUse surfaces a phase-appropriate review (`getQualityMessage`) as `additionalContext` on each `phase:` change in `ticket.md` — at the edit, so it works in long autonomous runs where the Stop hook never fires. Ordinary implement-step (RED/GREEN/REFACTOR) reviews no longer surface per step; they are folded into the whole-ticket review at the implement→verify exit (JENFZX). The Stop hook is a deduped backstop: it reviews per phase, but only for a boundary not already marked (`lastReviewedPhase` in session state). With no resolvable ticket phase — no active ticket, or one in a status escape hatch — a generic review is recorded once per user-prompt boundary: `stopQualityReviewAwaitingUserPrompt` keeps later idle Stops silent until `UserPromptSubmit` clears it, while typecheck, phase, and done gates remain independent. The former implement-phase LOC review throttle (`LOC_REVIEW_THRESHOLD`) is removed. Shared decision logic lives in `lib/review-trigger.ts` (`shouldReviewPhase`); checkbox-flip detection in `lib/checkbox-transitions.ts`.
 
 **Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex uses the profile-scoped Safe Word plugin, whose hook manifest calls the packaged, version-pinned `bunx --bun safeword@<version> hook codex stop` entrypoint. It emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
 
@@ -567,7 +606,7 @@ and Codex Stop so all three address the same state key.
 | Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | What           | BDD Phase 0 (`intake`) now writes a per-ticket `spec.md` with persona-anchored Jobs To Be Done → numbered Rules (Acceptance Criteria remain as the soft-deprecated legacy alternative) → engineering scope, backed by a project glossary and personas file. Scenarios carry lineage `<slug>.<persona><JTBD#>.R<#>.<scenario>` (or `.AC<#>` on the legacy path) so coverage gaps are machine-checkable. |
-| Why            | Engineering scope (`scope` / `out_of_scope` / `done_when`) captured _what_ to build but not _who_ for or _why_; product framing anchors scenarios to verifiable criteria and lets `safeword check` flag uncovered rules and orphan scenarios.                                                                                                                                                          |
+| Why            | Engineering scope (`scope` / `out_of_scope` / `done_when`) captured _what_ to build but not _who_ for or _why_; product framing anchors scenarios to verifiable criteria and lets `safeword doctor` flag uncovered rules and orphan scenarios.                                                                                                                                                         |
 | Trade-off      | Longer intake for features; Phase 0 advances through structured signoff sub-gates (orientation → JTBD → Rules → scope) rather than one step.                                                                                                                                                                                                                                                           |
 | Alternatives   | Keep engineering-only scope (rejected: no product framing); separate product skill with handoff (rejected: skill-to-skill handoffs unreliable — same reasoning as the BDD+TDD merge above).                                                                                                                                                                                                            |
 | Implementation | `packages/cli/templates/skills/bdd/DISCOVERY.md` (Phase 0 sub-phases + worked example), `SCENARIOS.md` (lineage numbering), `spec-template.md`, glossary/persona `managedFiles` entries; per-file path overrides via `.safeword/config.json` `paths.*` (ticket K7N2QM). Epic DZ2NM5.                                                                                                                   |
@@ -641,22 +680,147 @@ safeword accepts this trade — **consistency and enforcement over independent b
 
 ---
 
+### Host-owned cross-agent adversarial review coordinator
+
+**Status:** Accepted
+**Date:** 2026-08-02
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Class-1 quality, scenario/phase, and implementation-plan reviews currently rely on host-native fresh contexts. That preserves same-vendor blind spots and lets each surface drift. Live bidirectional testing also showed that first-hit `PATH` lookup and trailing prompts are brittle, while nested sandboxes may hide a reviewer's desktop credential store.                                                                                                                                                                                                                     |
+| Decision       | One host-owned `safeword review run` coordinator derives the author runtime, prefers the opposite Claude/Codex CLI, snapshots bounded inputs into a neutral workspace, uses explicit capability-checked executables with structured argv and stdin, validates structured output, and returns typed reviewer/failure/independence provenance. Desktop profiles are reused only where the host boundary can access them; cloud receives only reviewer-scoped managed credentials. Default policy is `prefer` after parity proof, with `require` and `off` as explicit configurations. |
+| Consequences   | All class-1 skills share one observable execution and fallback contract. A same-agent fallback is labeled degraded and cannot satisfy required cross-agent evidence. Missing installation/authentication, runtime failure/timeout, invalid output, and exhausted routes fail loudly with one next action. Neutral packet containment, tool denial, vendor sandbox flags, and post-run hashes remain layered controls; no sandbox label is trusted alone.                                                                                                                            |
+| Alternatives   | Host-native delegation only was rejected because it cannot choose the opposite vendor deterministically. Direct vendor SDK calls were rejected because they duplicate CLI-owned authentication/provider configuration. Shell commands and first-hit `PATH` lookup were rejected by the live spike. Trusting nested read-only mode alone was rejected because host sandbox behavior and credential access differ.                                                                                                                                                                    |
+| Reassess when  | A host offers a supported credential broker or external-review primitive; Claude/Codex materially change noninteractive or sandbox contracts; Cursor joins the pairing; or review packets regularly exceed bounded snapshot limits.                                                                                                                                                                                                                                                                                                                                                 |
+| Implementation | Ticket `QZAFT2`; `packages/cli/src/review/`, typed `review run` CLI wiring, optional agent provenance on review stamps, canonical class-1 skill templates, parity tests, and desktop/cloud simulation plus live smoke coverage.                                                                                                                                                                                                                                                                                                                                                     |
+
 ### Profile-Scoped Generated Codex Plugin and Staged Hook Migration
 
 **Status:** Accepted
 **Date:** 2026-07-16
 **Supersedes:** none
+**Superseded in part by:** [Next-Task Codex Plugin Activation and Migration Result v2](#next-task-codex-plugin-activation-and-migration-result-v2) (lifecycle wording, pending-marker name, and schema-1 migration-state result)
 
-| Field          | Value                                                                                                                                                                                                                                                                                                                      |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Codex needs the full Safe Word workflow without copying workflow files into each repository. Plugin hooks are not trusted merely because a plugin is installed, so initial migration cannot safely remove working legacy hooks.                                                                                            |
-| Decision       | Generate the checked-in Codex skill catalogue from canonical workflow templates; distribute and test it through the packed package and isolated profile cache; install the profile plugin first and remove only Safe Word legacy hook handlers through a later explicit `--remove-legacy-hooks` action.                    |
-| Consequences   | The package owns a generated catalogue and requires release/cache drift checks. The automated live lane proves no untrusted hook runs, while an interactive manual acceptance records Codex's review screen for new or changed hooks. Initial migration preserves legacy hooks and gives the builder the `/hooks` handoff. |
-| Alternatives   | Manually maintain plugin skills: rejected because the existing thin catalogue drifted. Generate at customer runtime: rejected because it adds a customer-time failure mode and cannot prove the installed cache. Delete hooks on plugin enablement: rejected because enabled does not mean trusted.                        |
-| Reassess when  | Codex adds a public trust-status or approval API, changes plugin/cache or hook schemas, introduces project-scoped plugins, or the canonical workflow adopts metadata/reference syntax outside the generator allowlist.                                                                                                     |
-| Implementation | Ticket MZH9QH: `packages/cli/src/codex-plugin/`, generated `packages/cli/codex-plugin/skills/`, staged migration command, tarball/cache proof, and documented interactive hook acceptance.                                                                                                                                 |
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Codex needs the full Safe Word workflow without copying workflow files into each repository. Plugin installation and enablement do not prove its hooks executed, so migration cannot safely remove working legacy protection. Shared repository cleanup also needs to survive interruption without overwriting teammate changes.                                                                                                                                                                                                                                            |
+| Decision       | Generate and distribute the Codex plugin from canonical templates. Migrate with Expand → Prove → Contract: install profile-first; record profile-local SessionStart proof bound to package version and the exact hook-manifest digest; let each viable legacy event remain authoritative while the plugin covers gaps; and finalize only with current proof plus explicit confirmation. Finalization uses a contained, fingerprinted transaction backup and conflict-safe recovery. Historical ownership and viability identities live in `SAFEWORD_SCHEMA.codexMigration`. |
+| Consequences   | Generic setup and upgrade preserve recognized legacy assets. `safeword codex status` derives human and schema-1 JSON output from one typed state model. Finalization removes only schema-owned assets, preserves custom content, records plugin mode, and leaves a setup-only bootstrap. Interrupted work reports `recovery_required`; recovery refuses to overwrite intervening edits. Profile proof is operational evidence for the active profile, not a claim that every teammate migrated.                                                                             |
+| Alternatives   | Manually maintain plugin skills: rejected because the existing thin catalogue drifted. Generate at customer runtime: rejected because it adds a customer-time failure mode and cannot prove the installed cache. Delete hooks on plugin enablement: rejected because enabled does not mean trusted.                                                                                                                                                                                                                                                                         |
+| Reassess when  | Codex adds a public trust-status or approval API, changes plugin/cache or hook schemas, introduces project-scoped plugins, or the canonical workflow adopts metadata/reference syntax outside the generator allowlist.                                                                                                                                                                                                                                                                                                                                                      |
+| Implementation | Tickets MZH9QH and AJVXWV (#1572): `packages/cli/src/codex-plugin/`, schema-owned migration inventory, generated `packages/cli/codex-plugin/skills/`, proof/restart markers, event-level dispatch authority, typed status, transactional finalization/recovery, tarball/cache proof, and documented interactive hook acceptance.                                                                                                                                                                                                                                            |
+
+### Explicit Project Enrollment for Profile-Scoped Codex Hooks
+
+**Status:** Accepted
+**Date:** 2026-07-27
+**Supersedes:** implicit hook-time namespace creation
+
+| Field          | Value                                                                                                                                                                                                                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | The Codex plugin is profile-scoped, so its lifecycle hooks can run in repositories that never installed Safeword. The quality-state observer previously treated any committed repository as enrolled and created a partial `.project/` namespace after ordinary tool use.                                           |
+| Decision       | `.safeword/SAFEWORD.md`, created by explicit `safeword setup`, is the project-enrollment marker. Before that marker exists, Codex project gates fail open and project-scoped PreToolUse, PostToolUse, and Stop handlers do not run or write state; SessionStart may still supply package-owned plugin instructions. |
+| Consequences   | Installing the profile plugin never implicitly enrolls a repository. Setup creates the complete resolved namespace, including its transient-state ignore contract, before Codex hooks may write there. Default, legacy, and configured custom namespace roots retain identical behavior after enrollment.           |
+| Alternatives   | Lazy full bootstrap was rejected because a global plugin should not mutate unrelated repositories. User-cache state before enrollment was rejected because project gates lack the project artifacts they govern and repository fingerprinting would add lifecycle complexity without useful enforcement.            |
+| Reassess when  | Codex introduces project-scoped plugin activation, or Safeword adds a standalone profile workflow whose pre-enrollment state has value independent of project setup.                                                                                                                                                |
+| Implementation | Ticket F7BH4J: `hasSafewordProjectMarker` in CLI and standalone hook path helpers; packaged Codex dispatcher guards; Codex proof-cache guard; integration coverage for unconfigured, default, legacy, and custom-root repositories.                                                                                 |
+
+### Typed CLI Execution and Discovery
+
+**Status:** Accepted
+**Date:** 2026-07-28
+**Supersedes:** command-specific output and implicit command discovery
+**Superseded in part by:** [Next-Task Codex Plugin Activation and Migration Result v2](#next-task-codex-plugin-activation-and-migration-result-v2) (Codex domain migration result only; the public CLI result envelope remains v1)
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Safeword commands historically mixed observation, mutation, prompting, output, and process termination. Humans could infer intent from prose, but agents could not reliably discover effects, distinguish drift from failure, or bind destructive consent to an exact preview.                                                                                                                                                                                                                                                                                                                     |
+| Decision       | Public commands follow Observe → Plan → Confirm → Apply → Verify → Report. Domain handlers return schema-version-1 `Plan` and `Result` values; the executable adapter alone renders output and maps `healthy`/`changed`/`action_required`/`failed` to exit 0/0/2/1. A declarative command catalog owns canonical leaves, aliases, effect/prompt/network policy, schema versions, and deterministic invocation fixtures. `Result.effects` records completed effects; proposed effects live in `Plan.effects`. Destructive confirmation binds a plan identity to its precondition digest.            |
+| Consequences   | Bare `safeword` is read-only status. Every public leaf supports `--json --no-input`; JSON is one snake-case envelope validated against the published v1 JSON Schema, while human output leads with one verdict and at most one next action. `--offline` refuses declared network work, read-only commands cannot report applied effects, and partial failures retain completed effects plus stable recovery. Legacy names remain hidden deprecated aliases through 0.71. Hook helpers remain hidden and keep their latency-oriented direct adapters under stricter no-network/no-lifecycle policy. |
+| Alternatives   | Capture legacy console output (rejected: prose cannot preserve semantic effect integrity); derive capabilities from Commander (rejected: it lacks effect, consent, compatibility, and fixture metadata); require `--yes` without a plan identity (rejected: consent could apply to changed effects); remove old commands immediately (rejected: breaks scripts and installed integrations).                                                                                                                                                                                                        |
+| Reassess when  | A second JSON schema is needed, Commander cannot preserve global-option placement or `--` semantics, or a host exposes a native typed command/effect protocol that can replace Safeword’s adapter.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Implementation | Issue #1574 / ticket K53GQ9: `packages/cli/src/cli-protocol/`, `packages/cli/schemas/cli-result-v1.schema.json`, canonical and compatibility wiring in `packages/cli/src/cli.ts`, executable catalog-fixture tests, and `packages/cli/features/predictable-safeword-cli.feature`.                                                                                                                                                                                                                                                                                                                  |
+
+Every public invocation, including compatibility aliases and interactive
+commands, executes through its catalog handler and returns the shared typed
+result to the renderer. Aliases add a machine-readable deprecation finding to
+that same result. Command-specific output schemas and direct console/process
+exit paths are not compatibility boundaries; callers migrate through the
+versioned result envelope and published aliases instead.
+
+Commands that intentionally emit a shell or code artifact still return a typed
+Result. They place the artifact in the Result's raw-presentation field, and the
+shared renderer emits it for human mode while JSON mode keeps the common
+schema-1 envelope. Raw presentation is an output form, not a second command
+protocol.
+
+The typed Codex protocol adapters are observation-only unless their catalog
+entry explicitly declares mutation. Existing Claude and Cursor SessionStart
+automation remains a separate, fail-open lifecycle feature: it may wire the
+committed Git guard, bootstrap missing dependencies, and apply compatible
+Safeword upgrades. Those actions are surfaced through their established hook
+contracts and never turn a failed background convenience into a blocked
+session. `safeword setup` remains the explicit convergence path.
+
+### Next-Task Codex Plugin Activation and Migration Result v2
+
+**Status:** Superseded by [Restart-Bound Codex Plugin Activation](#restart-bound-codex-plugin-activation)
+**Date:** 2026-08-01
+**Supersedes in part:** [Profile-Scoped Generated Codex Plugin and Staged Hook Migration](#profile-scoped-generated-codex-plugin-and-staged-hook-migration) and [Typed CLI Execution and Discovery](#typed-cli-execution-and-discovery)
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Codex can install a refreshed plugin while the app is running, but an existing task keeps the bundle it already loaded. The former `restart-pending-v1.json` name and `plugin_installed_restart_required` state incorrectly prescribed an application reboot. Reusing schema version 1 for renamed lifecycle semantics would silently break machine consumers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Decision       | Before installing the released plugin, inspect configured marketplaces through `codex plugin marketplace list --json`; refresh an existing Git-backed `safeword` marketplace only when its source identity is the official `ArcadeAI/safeword` repository, fail closed on a mismatched Git source, and retain the supported add path for fresh, local, or older-source metadata. Installation fails closed if marketplace discovery or refresh fails. Write `activation-pending-v1.json`, bound to exact plugin version and hook-manifest digest. The current task remains immutable; a later task's matching SessionStart proof retires the marker. Read the v0.70 restart marker only as an exact-identity compatibility input; once a canonical marker is durably written, it supersedes and removes any older legacy marker. Emit `CodexMigrationResultV2` with `schema_version: 2` and `plugin_installed_new_session_required`; expose it under the public schema-v1 envelope's versioned `data.migration` object while retaining the former `data.migration_state` value for compatibility. |
+| Consequences   | Users can deploy a plugin update without restarting Codex, but must start a new task to use it and review changed hooks. Human output names the current-task/new-task boundary explicitly. Malformed, stale, version-mismatched, and digest-mismatched markers create neither pending activation nor proof. Schema-1 domain migration-result consumers must move consciously to v2; public `safeword ... --json` envelope consumers are unaffected.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Alternatives   | Hot-reload or rewrite the running task: rejected because Codex exposes no supported task reload boundary. Use a stable `safeword@latest` hook dispatcher: rejected because reviewed hook behavior could change without renewed trust. Keep the old state and change prose only: rejected because machine and human contracts would disagree. Rename the enum under schema 1: rejected because it is a breaking in-place mutation. Mutate Codex's cache directly: rejected because supported marketplace commands own that state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Reassess when  | Codex exposes a documented trust-preserving plugin hot-reload API, a task/plugin identity API, or materially changes marketplace list/upgrade JSON.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Implementation | Ticket `4S2S8V-codex-plugin-next-task-upgrades`; `packages/cli/src/commands/migrate-codex-plugin.ts`, `packages/cli/src/codex-plugin/profile-proof.ts`, `packages/cli/src/codex-plugin/migration.ts`, command/filesystem integration tests, tagged Cucumber scenarios, and a release-time live host runbook.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+### Generated Native Claude Plugin with Live Proof and Project Contraction
+
+**Status:** Proposed
+**Date:** 2026-08-02
+**Supersedes:** none
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Claude Code can install a marketplace plugin into a user profile and apply plugin changes in the current task with `/reload-plugins`, but installation and listing do not prove the selected cache bundle executed. Existing projects already contain working Safeword-owned Claude hooks and workflows, while fresh projects should avoid materializing that framework tree. Cleanup must not overwrite custom project content or mutate Claude's marketplace, trust, reload, or enablement state.                                                                                                                                                                                                                                                                                                                                                                                       |
+| Decision       | Generate the complete root `plugin/` tree from canonical CLI templates and distribute it through the official release-tagged marketplace. Install converges the user-scoped profile through supported Claude commands. SessionStart or the first UserPromptSubmit after reload records proof under `${CLAUDE_PLUGIN_DATA}`, bound to exact version, hook-manifest digest, and canonical `${CLAUDE_PLUGIN_ROOT}`. Existing projects retain viable legacy authority per event until current proof and an explicitly confirmed project-only cleanup. Cleanup uses a host-neutral contained, fingerprinted, durable transaction shared with Codex behind host-specific inventory and marker adapters. Reconciliation computes one of `fresh-native`, `legacy`, or `plugin-mode` before planning files, so setup preserves existing protection and never recreates retired Claude-only assets. |
+| Consequences   | Native skills use Claude's `safeword:` namespace and the installed cache is the framework runtime boundary. Status joins profile health, execution proof, legacy inventory, and recovery state under an explicit precedence order. `/reload-plugins` can activate a new bundle without restarting the task; the next prompt proves it. Public Claude profile commands may leave reported partial effects on failure because supported add/remove operations do not restore byte-identical private files; Safeword never rewrites those files directly. Project cleanup preserves unknown content and refuses stale plans, concurrent edits, symlinks, and path escape.                                                                                                                                                                                                                    |
+| Alternatives   | Keep project-local delivery: rejected because every upgrade churns framework-owned repository files. Treat enabled/listed as proof: rejected because configuration is not execution. Delete legacy assets during setup or install: rejected because it creates a protection gap and crosses profile/project scopes. Copy Codex migration wholesale: rejected because Claude has different cache, reload, trust, namespace, and settings semantics. Restore private Claude profile files after failure: rejected because those formats are undocumented and a restore could overwrite concurrent user changes.                                                                                                                                                                                                                                                                             |
+| Reassess when  | Claude exposes a supported non-interactive reload/trust API, changes SessionStart/UserPromptSubmit ordering or plugin environment variables, makes marketplace operations transactional, changes tagged-source or cache semantics, or Cursor gains a native boundary that removes the shared materialized runtime constraint.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Implementation | Ticket `0S31PG` / issue #1785; planned modules under `packages/cli/src/claude-plugin/`, shared migration transaction extraction, schema delivery modes, generated root plugin catalogue, typed `safeword claude` commands, release-tag cache smoke, and migration/status/setup integration coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+### Restart-Bound Codex Plugin Activation
+
+**Status:** Accepted
+**Date:** 2026-08-02
+**Supersedes:** [Next-Task Codex Plugin Activation and Migration Result v2](#next-task-codex-plugin-activation-and-migration-result-v2)
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Live rc.1 verification disproved the assumption that a new Codex task reloads an externally upgraded plugin. The long-lived Desktop app-server reused a cached rc.0 skill catalogue while rc.1 hooks executed, creating a split-brain plugin. Matching version-and-manifest hook timestamps also predated installation, so hook proof alone could not establish coherent activation.                                                                                                                                                                                                                                                                                                               |
+| Decision       | External installation writes `activation-pending-v2.json` with exact plugin identity, a unique activation ID, installation time, and every Codex app-server process identity active during installation. It removes pre-install proof. SessionStart may retire the marker only when it runs after installation under a different app-server PID and start time; successful retirement writes an activation receipt. Status uses `plugin_installed_app_restart_required` and tells the user to restart Codex before opening and reviewing a new task. POSIX `ps` and Windows PowerShell process tables are parsed without shell interpolation; unavailable or ambiguous host identity fails closed. |
+| Consequences   | A new task in the same app cannot turn status green. Restarting Codex automatically converges proof without requiring the user to edit profile files. Hook proof remains evidence for hook execution, while the host transition is the evidence that skills and hooks were reloaded from one post-install catalogue. The deprecated public `data.migration_state` compatibility value remains unchanged; canonical consumers use `data.migration.state`.                                                                                                                                                                                                                                           |
+| Alternatives   | Continue promising next-task activation: rejected by live evidence. Treat post-install hook timestamps as whole-plugin proof: rejected because hooks and skills can resolve from different snapshots. Require a permanent manual confirmation flag: rejected because a verifiable host transition can converge automatically. Ask the running Desktop host to refresh after an external CLI install: rejected because the parent-owned app-server transport gives an unrelated Safeword process no supported way to address that host and request its existing runtime refresh.                                                                                                                    |
+| Reassess when  | Codex exposes a supported external-installer-to-running-host refresh boundary, provides a stable app-instance identity to hooks, or guarantees that creating a task reconstructs the plugin manager.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Implementation | Ticket `4S2S8V`; `packages/cli/src/codex-plugin/host-process.ts`, `profile-proof.ts`, migration status and CLI handlers, process/proof/migration tests, revised Cucumber lifecycle scenarios, customer documentation, and the dogfood removal of retired project-local Codex hooks.                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ## References
+
+### Per-file host JavaScript toolchain ownership
+
+**Status:** Accepted
+**Date:** 2026-07-24
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | The shared post-edit JS/TS hook resolves a recognized host toolchain from the edited file's canonical directory ancestry, bounded by the canonical Safeword project root. A recognized Ultracite Biome preset takes precedence over direct Biome; the owner runs only through its local executable, with owner `cwd`, owner-relative `--`-guarded operand, and a child environment without `BIOME_CONFIG_PATH` or `BIOME_BINARY`. |
+| Why            | Root-only detection causes nested polyglot workspaces to use the wrong policy; PATH/package-runner execution and ambient Biome overrides can run a different tool or configuration than the project declared.                                                                                                                                                                                                                     |
+| Trade-off      | The hook owns path/config parsing and executable lookup instead of delegating to package runners. Unsupported formatters remain on the existing no-Prettier path until a dedicated adapter and scenarios are added.                                                                                                                                                                                                               |
+| Alternatives   | Root-wide formatter detection: rejected because it crosses workspace boundaries. Generic package-manager invocation: rejected because it can download or select a global binary. Shell commands: rejected because filenames are operands, not code.                                                                                                                                                                               |
+| Implementation | `packages/cli/templates/hooks/lib/host-toolchain.ts` and the shared `lintFile` entry point; ticket 13E3EN.                                                                                                                                                                                                                                                                                                                        |
 
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`
 - Ruff docs: https://docs.astral.sh/ruff/

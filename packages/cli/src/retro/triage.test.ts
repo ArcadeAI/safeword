@@ -62,8 +62,14 @@ class FakeGitHub implements IssueTracker {
   }
 
   searchBySignature(signature: string): Promise<IssueReference[]> {
-    // Match on the signature embedded in the body (as the real REST transport does
-    // via in:body + exact-filter), NOT the title.
+    // Match on the signature embedded in the body (as the real REST transport
+    // does, by string-matching the enumerated issue bodies), NOT the title.
+    //
+    // Note this searches `this.issues` LIVE, so it sees issues created earlier in
+    // the same triage run. That made the double strictly more correct than the
+    // transport once was — and is why same-batch duplicate filing (#1453) went
+    // unnoticed here. The transport now keeps its own created-this-run view;
+    // github-rest.test.ts is where that behavior is pinned.
     return Promise.resolve(
       this.issues
         .filter(i => i.body.includes(signature))
@@ -162,14 +168,21 @@ describe('triage — never a duplicate issue (SM1.AC2)', () => {
     const result = await triage(gh, [enc('New friction')], ctx());
     expect(gh.calls.createIssue).toBe(1);
     expect(result.created).toEqual(['New friction']);
+    expect(result.filedDestinations).toEqual([{ signature: 'retro:New friction', issue: 1 }]);
   });
 
   it('retro-transcript-mining.SM1.AC2.existing_signature_creates_no_duplicate', async () => {
     const gh = new FakeGitHub();
-    gh.seedIssue('Known friction', { sessions: ['old'], manifestations: ['m1'] });
+    const existing = gh.seedIssue('Known friction', {
+      sessions: ['old'],
+      manifestations: ['m1'],
+    });
     const result = await triage(gh, [enc('Known friction')], ctx());
     expect(gh.calls.createIssue).toBe(0);
     expect(result.created).toEqual([]);
+    expect(result.filedDestinations).toEqual([
+      { signature: 'retro:Known friction', issue: existing.number },
+    ]);
   });
 
   it('retro-transcript-mining.SM1.AC2.exactly_five_new_signatures_all_file', async () => {

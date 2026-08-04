@@ -40,10 +40,6 @@ const selfReviewForms: [string, string][] = [
     readFileSync(nodePath.join(templatesDirectory, 'skills/self-review/SKILL.md'), 'utf8'),
   ],
   [
-    'dogfood codex self-review skill',
-    readFileSync(nodePath.join(repoRoot, '.agents/skills/self-review/SKILL.md'), 'utf8'),
-  ],
-  [
     'dogfood claude self-review skill',
     readFileSync(nodePath.join(repoRoot, '.claude/skills/self-review/SKILL.md'), 'utf8'),
   ],
@@ -190,8 +186,11 @@ const qualityReviewForms: [string, string][] = [
     readFileSync(nodePath.join(repoRoot, '.claude/skills/quality-review/SKILL.md'), 'utf8'),
   ],
   [
-    'quality-review dogfood agents skill',
-    readFileSync(nodePath.join(repoRoot, '.agents/skills/quality-review/SKILL.md'), 'utf8'),
+    'quality-review Codex plugin skill',
+    readFileSync(
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/quality-review/SKILL.md'),
+      'utf8',
+    ),
   ],
 ];
 
@@ -232,8 +231,11 @@ const auditDriftForms: [string, string][] = [
     readFileSync(nodePath.join(repoRoot, '.claude/skills/audit/SKILL.md'), 'utf8'),
   ],
   [
-    'audit dogfood agents skill',
-    readFileSync(nodePath.join(repoRoot, '.agents/skills/audit/SKILL.md'), 'utf8'),
+    'audit Codex plugin skill',
+    readFileSync(
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/audit/SKILL.md'),
+      'utf8',
+    ),
   ],
 ];
 
@@ -252,7 +254,7 @@ describe('audit drift check resolves the local safeword CLI, not @latest (#264)'
       // The in-repo source checkout is the middle fallback — assert it too so a
       // regression that drops the dogfood branch can't pass silently.
       expect(content).toContain('bun packages/cli/src/cli.ts');
-      expect(content).toContain('$SW sync-config --check');
+      expect(content).toContain('$SW project sync-config --check');
     },
   );
 });

@@ -3,4 +3,4 @@ alwaysApply: false
 description: Deep quality review of any work-product — code, docs, specs, plans, decisions — with web research. Use when explicitly verifying against latest docs ('double check against latest', 'verify versions', 'check security'), pressure-testing correctness and elegance, or needing deeper analysis beyond the automatic hook. Fetches current sources, checks versions and claims, and weighs alternatives.
 ---
 
-@.claude/skills/quality-review/SKILL.md
+@.safeword/skills/quality-review/SKILL.md

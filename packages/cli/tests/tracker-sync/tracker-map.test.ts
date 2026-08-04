@@ -4,7 +4,12 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { loadTrackerMap, planTicketSync, TrackerMap } from '../../src/tracker-sync/tracker-map.js';
+import {
+  loadTrackerMap,
+  loadTrackerMapOrEmpty,
+  planTicketSync,
+  TrackerMap,
+} from '../../src/tracker-sync/tracker-map.js';
 import type { TrackerReference } from '../../src/tracker-sync/types.js';
 
 /**
@@ -44,6 +49,15 @@ describe('sync-tracker tracker-map sidecar', () => {
     new TrackerMap().save(sidecarPath);
     const result = loadTrackerMap(sidecarPath);
     expect(result.ok).toBe(true);
+  });
+
+  it('applies the creation policy: missing becomes empty but corrupt still refuses', () => {
+    const missing = loadTrackerMapOrEmpty(sidecarPath);
+    expect(missing.ok).toBe(true);
+    if (missing.ok) expect(missing.map.serialize()).toEqual({ version: 1, issues: {} });
+
+    writeFileSync(sidecarPath, '{ this is not json');
+    expect(loadTrackerMapOrEmpty(sidecarPath)).toEqual({ ok: false, reason: 'corrupt' });
   });
 
   // AC5 — a ticket absent from a present sidecar plans a create

@@ -1,6 +1,6 @@
 // Safeword: retro auto-trigger core (ticket FTCQGD).
 //
-// Shared, agent-neutral core for firing `safeword retro` from a session's
+// Shared, agent-neutral core for firing `safeword retro run` from a session's
 // end-of-turn hook. The Claude `stop-retro.ts` hook wraps this; the Codex
 // (53DQJZ) and Cursor (KHYXY4) adapters will reuse the same gate/resolver/
 // sentinel/nudge so there is one core, not three.
@@ -292,7 +292,7 @@ export function buildRetroNudge(transcriptPath: string): string {
     `Safeword retro has not run for this session. The transcript at ${transcriptPath} ` +
     `is available to mine for safeword friction (bugs / rough edges / gaps); the retro ` +
     `guide at .safeword/guides/retro.md describes the fresh-context extraction and ` +
-    `\`safeword retro\` filing step.`
+    `\`safeword retro run\` filing step.`
   );
 }
 

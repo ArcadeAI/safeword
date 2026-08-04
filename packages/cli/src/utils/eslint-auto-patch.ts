@@ -1,7 +1,7 @@
 /**
  * Auto-patch a downstream project's flat ESLint config to spread
  * `safeword.configs.vendoredIgnores`. Used by `safeword setup` and
- * `safeword upgrade` (ticket 154).
+ * `safeword setup` (ticket 154).
  *
  * Textual insertion, not AST — the heuristic handles the common shapes
  * (bare array literal + `defineConfig(...)` wrapper). Anything else

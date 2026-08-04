@@ -1,0 +1,57 @@
+{
+  "ticket": "93C14D",
+  "recorded_at": "2026-08-03T20:00:52Z",
+  "head": "d544e487f32e53d69ec00af9a758ef0d3b17b061",
+  "results": [
+    {
+      "command": "bun scripts/parity-check.ts",
+      "outcome": "pass",
+      "detail": "All 239 template, dogfood, and generated-host pairs plus 8 content contracts are synchronized"
+    },
+    {
+      "command": "bunx vitest run packages/cli/tests/commands/retro.test.ts packages/cli/tests/hooks/retro-extract.test.ts packages/cli/tests/hooks/closeout-session-binding.test.ts packages/cli/tests/closeout-cleanup.test.ts packages/cli/tests/integration/closeout-host-adapters.test.ts",
+      "outcome": "pass",
+      "detail": "130 focused runtime tests passed, including native Claude, Codex, and Cursor extraction; exact session/transcript binding; and real linked-worktree plus branch cleanup through each shipped hook"
+    },
+    {
+      "command": "bunx vitest run packages/cli/tests/integration/closeout-host-adapters.test.ts packages/cli/tests/closeout-cleanup.test.ts",
+      "outcome": "pass",
+      "detail": "63 tests passed, including three real resumed cleanup suffixes plus rejection of missing, malformed, stale, future, wrong-head, dirty-state, failed-retry, invalid-hash, and unpublishable verification receipts"
+    },
+    {
+      "command": "bun run --cwd packages/cli test:release",
+      "outcome": "pass",
+      "detail": "10 release-contract files and 28 tests passed against the regenerated 0.72.0 Claude and Codex plugin artifacts"
+    },
+    {
+      "command": "bun run test:bdd",
+      "outcome": "pass",
+      "detail": "826 scenarios: 823 passed and 3 skipped; 29496 steps: 29492 passed and 4 skipped"
+    },
+    {
+      "command": "bun run --cwd packages/cli test",
+      "outcome": "pass",
+      "detail": "426 files passed; 6465 tests passed and 5 skipped under full repository load"
+    },
+    {
+      "command": "$safeword:lint",
+      "outcome": "pass",
+      "detail": "ESLint, Prettier, and TypeScript checks completed without remaining errors or formatting changes"
+    },
+    {
+      "command": "SAFEWORD_RUN_CLOSEOUT_HEADLESS_LIVE=1 bun run --cwd packages/cli test:smoke:live -- tests/smoke/closeout-headless.live.test.ts",
+      "outcome": "pass",
+      "detail": "The fail-closed opt-in gate and real authenticated Claude Sonnet plus Codex gpt-5.5 production adapters passed 3/3 checks, each returning a nonempty exact-schema SafeWord finding; disposable fixtures were removed"
+    },
+    {
+      "command": "$safeword:audit",
+      "outcome": "pass",
+      "detail": "Diff-scoped config, dependency-architecture, principle-trace, domain-document, documentation-impact, and changed-test quality checks reported no errors or warnings"
+    },
+    {
+      "command": "bun audit",
+      "outcome": "pass",
+      "detail": "No vulnerabilities found after pinning brace-expansion 5.0.9, fast-uri 3.1.5, and PostCSS 8.5.23, the patched releases for GHSA-rgw5-rvv9-x895, GHSA-7p8r-x3mc-p8w7, and GHSA-fxqj-rqcc-2cmp"
+    }
+  ]
+}

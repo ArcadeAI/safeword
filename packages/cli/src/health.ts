@@ -1,11 +1,9 @@
 /**
  * Config-health verification core (ticket 3293WH).
  *
- * Extracted from the `check` command so mutating commands (`setup`,
- * `upgrade`) can prove their own postcondition at exit. Deliberately
- * network-free: the npm update-check stays in commands/check.ts — a
- * postcondition check must not depend on the registry being reachable,
- * and an "update available" nag right after upgrading would be wrong.
+ * Shared by typed status and setup convergence so mutating commands can prove
+ * their own postcondition at exit. Deliberately network-free: a postcondition
+ * check must not depend on the registry being reachable.
  *
  * Uses reconcile() with dryRun to detect missing files and configuration
  * issues.
@@ -14,15 +12,20 @@
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { detectUnanchoredPhaseState } from '../templates/hooks/lib/phase-provenance.js';
+import {
+  detectUnanchoredPhaseState,
+  type PhaseAnchorScope,
+} from '../templates/hooks/lib/phase-provenance.js';
+import { schemaForClaudeDelivery } from './claude-plugin/delivery-schema.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.js';
-import { readTickets } from './ticket-sync/index.js';
+import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, type SafewordSchema } from './schema.js';
+import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
+  type ConfiguredPathKey,
   defaultConfiguredPath,
   readConfiguredDocumentationSources,
   readConfiguredPath,
@@ -30,12 +33,18 @@ import {
   resolveTicketsDirectory,
 } from './utils/configured-paths.js';
 import { createProjectContext } from './utils/context.js';
-import { findFeatureSourcePath, hasDefaultExecutableFeatureFiles } from './utils/feature-source.js';
+import {
+  createPhaseAnchorEnvironment,
+  findFeatureSourcePath,
+  hasDefaultExecutableFeatureFiles,
+} from './utils/feature-source.js';
+import { readFrontmatterScalar } from './utils/frontmatter.js';
 import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
 import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
 import { header, info, listItem, success, warn } from './utils/output.js';
 import { parsePersonas, validatePersonas } from './utils/personas.js';
+import { toRepoRelativePath } from './utils/repo-path.js';
 import {
   buildCoverageReport,
   buildCoverageReportFromFeature,
@@ -46,6 +55,7 @@ import {
   isRuleId,
   type SurfaceCoverageReport,
 } from './utils/scenario-coverage.js';
+import { buildIndexConflictListMessage } from './utils/ticket-index-warnings.js';
 import { formatTicketReference } from './utils/ticket-reference.js';
 import { findDanglingDependencies, findTicketsInCycles } from './utils/ticket-relations.js';
 import { VERSION } from './version.js';
@@ -65,12 +75,18 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
   return issues;
 }
 
-// The persona/glossary find*Issues + find*Advisories pairs below (and the
-// validate*Reference / lookup* pairs in personas.ts / glossary.ts) are
-// intentionally parallel, NOT a missed extraction: the cores diverge (persona
-// matches code/name, glossary matches name/alias; different parse+validate
-// fns and messages), and where they don't, deduping two call sites into a
-// multi-param helper would cost clarity. Assessed in ticket XEP59N — leave as is.
+function missingClaudeSettingsIssues(cwd: string, schema: SafewordSchema): string[] {
+  const required = '.claude/settings.json' in schema.jsonMerges;
+  return required && !exists(nodePath.join(cwd, '.claude', 'settings.json'))
+    ? ['Missing: .claude/settings.json']
+    : [];
+}
+
+// Persona and glossary content validation stays separate because their parsers
+// and diagnostics differ. Their configured-path lifecycle is shared with the
+// other user-authored project-knowledge files below. The parallel lookup and
+// validation paths were assessed in ticket XEP59N; combining their different
+// matching and diagnostic rules would cost clarity.
 
 /**
  * Validate personas.md when present, routing through any configured
@@ -84,17 +100,47 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
  *   in; typo would otherwise silently strand persona references). Ticket
  *   K7N2QM.
  */
+type ConfiguredKnowledgeFileKey = Extract<
+  ConfiguredPathKey,
+  'glossary' | 'principles' | 'personas' | 'surfaces'
+>;
+
+const PATH_ONLY_KNOWLEDGE_KEYS = ['principles', 'surfaces'] as const;
+const CONFIGURED_KNOWLEDGE_KEYS: readonly ConfiguredKnowledgeFileKey[] = [
+  'personas',
+  'principles',
+  'surfaces',
+  'glossary',
+];
+
+/** Factual configured-file health shared by user-authored project knowledge. */
+function findConfiguredKnowledgeIssues(cwd: string, key: ConfiguredKnowledgeFileKey): string[] {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined) return [];
+  const configuredPath = resolveConfiguredPath(cwd, key);
+  if (isDirectory(configuredPath)) return [`${key}-path: ${override}: not a file`];
+  if (exists(configuredPath)) return [];
+  return [`${key}-path: ${override}: file not found`];
+}
+
+/** Non-destructively identify a default knowledge file stranded by an override. */
+function findConfiguredKnowledgeAdvisories(cwd: string, key: ConfiguredKnowledgeFileKey): string[] {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined) return [];
+  const defaultPath = defaultConfiguredPath(cwd, key);
+  if (!exists(defaultPath)) return [];
+  return [
+    `${nodePath.relative(cwd, defaultPath)} exists but paths.${key} points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
 function findPersonaIssues(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'personas');
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, 'personas');
+  if (configuredIssues.length > 0) return configuredIssues;
   const filePath = resolveConfiguredPath(cwd, 'personas');
   const content = readFileSafe(filePath);
 
-  if (content === undefined) {
-    if (override !== undefined) {
-      return [`personas-path: ${override}: file not found`];
-    }
-    return [];
-  }
+  if (content === undefined) return [];
 
   const errors = validatePersonas(parsePersonas(content));
   return errors.map(error => `personas.md:${error.line}: ${error.message}`);
@@ -112,28 +158,10 @@ function findNamespaceAdvisories(cwd: string): string[] {
     isDirectory(nodePath.join(cwd, '.safeword-project'))
   ) {
     return [
-      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword upgrade --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
+      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword setup --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
     ];
   }
   return [];
-}
-
-/**
- * Surface non-blocking diagnostics about persona path configuration.
- * When `paths.personas` is set AND the default-location file still exists,
- * emit a zero-exit advisory naming the orphaned file. Safeword reads from
- * the override; the legacy file is dead weight and may confuse readers who
- * think they're editing the live file. Non-destructive (data-loss principle
- * from ticket K7N2QM); user owns cleanup.
- */
-function findPersonaAdvisories(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'personas');
-  if (override === undefined) return [];
-  const defaultPath = defaultConfiguredPath(cwd, 'personas');
-  if (!exists(defaultPath)) return [];
-  return [
-    `${nodePath.relative(cwd, defaultPath)} exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
-  ];
 }
 
 /**
@@ -145,35 +173,15 @@ function findPersonaAdvisories(cwd: string): string[] {
  * YR6C49, mirrors K7N2QM).
  */
 function findGlossaryIssues(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'glossary');
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, 'glossary');
+  if (configuredIssues.length > 0) return configuredIssues;
   const filePath = resolveConfiguredPath(cwd, 'glossary');
   const content = readFileSafe(filePath);
 
-  if (content === undefined) {
-    if (override !== undefined) {
-      return [`glossary-path: ${override}: file not found`];
-    }
-    return [];
-  }
+  if (content === undefined) return [];
 
   const errors = validateGlossary(parseGlossary(content));
   return errors.map(error => `glossary.md:${error.line}: ${error.message}`);
-}
-
-/**
- * Surface non-blocking diagnostics about glossary path configuration.
- * When `paths.glossary` is set AND the default-location file still exists,
- * emit a zero-exit advisory naming the orphaned file (mirrors
- * {@link findPersonaAdvisories}; data-loss principle from K7N2QM).
- */
-function findGlossaryAdvisories(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'glossary');
-  if (override === undefined) return [];
-  const defaultPath = defaultConfiguredPath(cwd, 'glossary');
-  if (!exists(defaultPath)) return [];
-  return [
-    `${nodePath.relative(cwd, defaultPath)} exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
-  ];
 }
 
 /**
@@ -204,7 +212,7 @@ function findCucumberHarnessAdvisories(
     return [];
   }
   return [
-    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — codify, lint-gherkin, and check cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
+    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — project codify, project lint-gherkin, and doctor cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
   ];
 }
 
@@ -261,7 +269,7 @@ function listTicketIds(ticketsRoot: string): string[] {
 /**
  * Surface architecture-claim mismatches as non-blocking advisories (ticket
  * K4BWTQ). Structural only — no prose extraction (YR6C49 ruling): when an
- * in-progress ticket's impl-plan.md Arch alignment section carries content
+ * in-progress ticket's impl-plan.md Design alignment section carries content
  * (not `skip:`) but the resolved `paths.architecture` location does not
  * exist, the claim cannot be honoring anything recorded. Zero-exit.
  */
@@ -280,12 +288,12 @@ function findArchitectureAdvisories(cwd: string): string[] {
     if (implPlan === undefined) return [];
     if (!archAlignmentHasContent(implPlan)) return [];
     return [
-      `${ticketId}: impl-plan.md Arch alignment claims alignment, but no architecture record exists at ${resolved} — record the decision or mark the section skip:`,
+      `${ticketId}: impl-plan.md Design alignment claims alignment, but no architecture record exists at ${resolved} — record the decision or mark the section skip:`,
     ];
   });
 }
 
-/** Whether the impl plan's `## Arch alignment` section carries real content
+/** Whether the impl plan's canonical or legacy alignment section carries real content
  * (non-empty, not a `skip:` annotation). */
 function archAlignmentHasContent(implPlanContent: string): boolean {
   let isInSection = false;
@@ -293,10 +301,13 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
   for (const raw of implPlanContent.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('## ')) {
-      isInSection = line.slice(3).trim().toLowerCase() === 'arch alignment';
+      const heading = line.slice(3).trim().toLowerCase();
+      isInSection = heading === 'design alignment' || heading === 'arch alignment';
       continue;
     }
-    if (isInSection && line !== '') body.push(line);
+    // Principle alignment is the structured Markdown table in this shared
+    // section. Architecture claims are the remaining prose below it.
+    if (isInSection && line !== '' && !line.startsWith('|')) body.push(line);
   }
   if (body.length === 0) return false;
   return !(body.length === 1 && (body[0] ?? '').toLowerCase().startsWith('skip:'));
@@ -325,11 +336,18 @@ function emptyCoverageDiagnostics(): CoverageDiagnostics {
 function findCoverageDiagnostics(cwd: string): CoverageDiagnostics {
   const ticketsRoot = resolveTicketsDirectory(cwd);
   const all = emptyCoverageDiagnostics();
+  const configuredFeatures = readConfiguredPath(cwd, 'features');
+  const anchorEnvironment = createPhaseAnchorEnvironment(cwd, configuredFeatures);
   for (const ticketId of listTicketIds(ticketsRoot)) {
     const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
     all.issues.push(...ticketDiagnostics.issues);
     all.advisories.push(...ticketDiagnostics.advisories);
-    const anchorAdvisory = phaseAnchorAdvisoryForTicket(cwd, ticketsRoot, ticketId);
+    const anchorAdvisory = phaseAnchorAdvisoryForTicket(
+      cwd,
+      ticketsRoot,
+      ticketId,
+      anchorEnvironment,
+    );
     if (anchorAdvisory !== undefined) all.advisories.push(anchorAdvisory);
   }
   return all;
@@ -348,14 +366,18 @@ function phaseAnchorAdvisoryForTicket(
   cwd: string,
   ticketsRoot: string,
   ticketId: string,
+  anchorEnvironment: Omit<PhaseAnchorScope, 'ticketPath'>,
 ): string | undefined {
   const content = readFileSafe(nodePath.join(ticketsRoot, ticketId, 'ticket.md'));
   if (content === undefined || !isInProgress(content)) return undefined;
-  const verdict = detectUnanchoredPhaseState(content, relpath =>
+  const ticketDirectory = nodePath.join(ticketsRoot, ticketId);
+  const ticketPath = toRepoRelativePath(cwd, ticketDirectory);
+  const scope = { ticketPath, ...anchorEnvironment };
+  const verdict = detectUnanchoredPhaseState(content, scope, relpath =>
     readFileSafe(nodePath.join(cwd, relpath)),
   );
   if (verdict.kind !== 'unanchored') return undefined;
-  return `${formatCoverageTicketLabel(ticketId)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;
+  return `${formatCoverageTicketLabel(ticketId, content)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an
@@ -387,21 +409,23 @@ function coverageDiagnosticsForTicket(
         ? undefined
         : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
     const lineageIssues =
-      featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource);
-    const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource);
+      featureSource === undefined
+        ? []
+        : formatFeatureLineageIssues(cwd, ticketId, featureSource, ticketContent);
+    const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource, ticketContent);
     return {
       issues: [...lineageIssues, ...ruleTier.issues],
       advisories: [
-        ...formatCoverageReport(ticketId, report),
+        ...formatCoverageReport(ticketId, report, ticketContent),
         ...ruleTier.advisories,
-        ...formatSurfaceCoverageReport(ticketId, surfaceReport),
+        ...formatSurfaceCoverageReport(ticketId, surfaceReport, ticketContent),
       ],
     };
   } catch (parseError: unknown) {
     if (parseError instanceof FeatureParseError && featureSource !== undefined) {
       return {
         issues: [
-          `${formatCoverageTicketLabel(ticketId)}: ${nodePath.relative(cwd, featureSource.path)}: invalid Gherkin feature: ${parseError.message}`,
+          `${formatCoverageTicketLabel(ticketId, ticketContent)}: ${nodePath.relative(cwd, featureSource.path)}: invalid Gherkin feature: ${parseError.message}`,
         ],
         advisories: [],
       };
@@ -416,8 +440,9 @@ function ruleTierDiagnostics(
   ticketId: string,
   specContent: string,
   featureSource: FeatureSource | undefined,
+  ticketContent: string,
 ): CoverageDiagnostics {
-  const label = formatCoverageTicketLabel(ticketId);
+  const label = formatCoverageTicketLabel(ticketId, ticketContent);
   return {
     issues: findMixedCriteriaJtbds(specContent).map(
       jtbd =>
@@ -437,8 +462,9 @@ function formatFeatureLineageIssues(
   cwd: string,
   ticketId: string,
   featureSource: FeatureSource,
+  ticketContent: string,
 ): string[] {
-  const label = formatCoverageTicketLabel(ticketId);
+  const label = formatCoverageTicketLabel(ticketId, ticketContent);
   const relativePath = nodePath.relative(cwd, featureSource.path);
   return findFeatureLineageIssues(featureSource.content).map(
     issue => `${label}: ${relativePath}: ${issue}`,
@@ -471,8 +497,12 @@ function isInProgress(ticketContent: string): boolean {
 }
 
 /** Render a coverage report into one advisory string per finding. */
-function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
-  const ticketLabel = formatCoverageTicketLabel(ticketId);
+function formatCoverageReport(
+  ticketId: string,
+  report: CoverageReport,
+  ticketContent: string,
+): string[] {
+  const ticketLabel = formatCoverageTicketLabel(ticketId, ticketContent);
   return [
     ...report.uncovered.map(id =>
       isRuleId(id)
@@ -495,9 +525,10 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
 function formatSurfaceCoverageReport(
   ticketId: string,
   report: SurfaceCoverageReport | undefined,
+  ticketContent: string,
 ): string[] {
   if (report === undefined) return [];
-  const ticketLabel = formatCoverageTicketLabel(ticketId);
+  const ticketLabel = formatCoverageTicketLabel(ticketId, ticketContent);
   return [
     ...report.missing.map(
       surface =>
@@ -510,7 +541,11 @@ function formatSurfaceCoverageReport(
   ];
 }
 
-function formatCoverageTicketLabel(ticketId: string): string {
+function formatCoverageTicketLabel(ticketId: string, ticketContent?: string): string {
+  const id = readFrontmatterScalar(ticketContent, 'id');
+  const slug = readFrontmatterScalar(ticketContent, 'slug');
+  if (id !== undefined && slug !== undefined) return formatTicketReference(id, slug);
+
   const dashIndex = ticketId.indexOf('-');
   return dashIndex === -1
     ? ticketId
@@ -658,6 +693,8 @@ export interface CheckHealthOptions {
    * Standalone `check` leaves this false so the diagnostic reports the truth.
    */
   skipPackageChecks?: boolean;
+  /** Schema view used by the mutating command whose postcondition is being checked. */
+  schema?: SafewordSchema;
 }
 
 export async function checkHealth(
@@ -687,7 +724,8 @@ export async function checkHealth(
 
   // Use reconcile with dryRun to detect issues
   const ctx = createProjectContext(cwd);
-  const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
+  const healthSchema = options.schema ?? schemaForClaudeDelivery(cwd);
+  const result = await reconcile(healthSchema, 'upgrade', ctx, {
     dryRun: true,
   });
 
@@ -705,18 +743,16 @@ export async function checkHealth(
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
     ...findPersonaIssues(cwd),
+    ...PATH_ONLY_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeIssues(cwd, key)),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
+    ...missingClaudeSettingsIssues(cwd, healthSchema),
   ];
-
-  // Check for missing .claude/settings.json
-  if (!exists(nodePath.join(cwd, '.claude', 'settings.json'))) {
-    issues.push('Missing: .claude/settings.json');
-  }
 
   // Check for missing language packs (unless install was deliberately skipped)
   const missingPacks = options.skipPackageChecks ? [] : getMissingPacks(cwd);
   const coverageDiagnostics = findCoverageDiagnostics(cwd);
+  const ticketIndexConflicts = inspectTicketIndexConflicts(cwd);
   issues.push(...coverageDiagnostics.issues);
 
   return {
@@ -727,9 +763,11 @@ export async function checkHealth(
     latestVersion: undefined,
     issues,
     advisories: [
+      ...(ticketIndexConflicts.length === 0
+        ? []
+        : [buildIndexConflictListMessage(ticketIndexConflicts)]),
       ...findNamespaceAdvisories(cwd),
-      ...findPersonaAdvisories(cwd),
-      ...findGlossaryAdvisories(cwd),
+      ...CONFIGURED_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeAdvisories(cwd, key)),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
       ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),
@@ -742,9 +780,9 @@ export async function checkHealth(
 
 export interface ReportHealthOptions {
   /**
-   * Replaces the default `Run \`safeword upgrade\` …` instruction on every
+   * Replaces the default `Run \`safeword setup\` …` instruction on every
    * failure branch. Used by the post-upgrade self-verify (ticket 3293WH
-   * AC5): upgrade telling the user to run `safeword upgrade` as the fix is
+   * AC5): setup telling the user to run `safeword setup` as the fix is
    * a contradiction — an issue the reconcile just ran couldn't fix won't be
    * fixed by running it again.
    */
@@ -766,7 +804,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Missing Language Packs',
       lines: health.missingPacks.map(pack => `${pack} pack not installed`),
       render: listItem,
-      defaultHint: 'Run `safeword upgrade` to install missing packs',
+      defaultHint: 'Run `safeword setup` to install missing packs',
     };
   }
   if (health.missingPackages.length > 0) {
@@ -774,7 +812,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Missing Packages',
       lines: health.missingPackages,
       render: listItem,
-      defaultHint: 'Run `safeword upgrade` to install missing packages',
+      defaultHint: 'Run `safeword setup` to install missing packages',
     };
   }
   if (health.issues.length > 0) {
@@ -782,7 +820,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Issues Found',
       lines: health.issues,
       render: warn,
-      defaultHint: 'Run `safeword upgrade` to repair configuration',
+      defaultHint: 'Run `safeword setup` to repair configuration',
     };
   }
   return undefined;

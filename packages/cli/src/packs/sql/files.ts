@@ -17,7 +17,7 @@ import { detectSqlDialect } from './dialect.js';
  * templates/hooks/lib/lint-config.ts (kept in sync by hand — src can't import
  * templates).
  */
-export function hostOwnsSqlFormatting(ctx: ProjectContext): boolean {
+function hostOwnsSqlFormatting(ctx: ProjectContext): boolean {
   return (
     'prettier-plugin-sql' in ctx.developmentDeps || 'prettier-plugin-sql' in ctx.productionDeps
   );
@@ -68,7 +68,7 @@ function generateSqlfluffBaseConfig(
     // sqlfluff --config patches key-by-key, so omitting means customer's values survive.
     return `# Safeword SQLFluff config - adds stricter rules on top of project config
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
-# Re-run \`safeword upgrade\` to regenerate after project config changes.
+# Re-run \`safeword setup\` to regenerate after project config changes.
 #
 # NOTE: Your dialect and templater are preserved. Safeword only adds style rules.
 

@@ -3,12 +3,12 @@ id: 01EAKC
 slug: surface-orphan-tracker-issues
 type: task
 phase: intake
-status: blocked
+status: in_progress
 epic: offboard-local-ticketing
 parent: KKNFZA
 depends_on: [DGH59K]
 created: 2026-06-28T15:11:43.896Z
-last_modified: 2026-06-28T15:11:43.896Z
+last_modified: 2026-07-31T03:25:00.000Z
 ---
 
 # Surface orphaned tracker issues (created issue, no local ticket)
@@ -49,3 +49,4 @@ when this ticket hardens key handling.
 
 - 2026-06-28T15:11:43.896Z Started: Created ticket 01EAKC (follow-up from DGH59K Decision C)
 - 2026-06-29T00:00:00.000Z Noted the re-adopt-different-slug duplicate edge (PR #548 audit, deferred)
+- 2026-07-31T03:25:00.000Z Unblocked: Dependency DGH59K is complete. Release review also fixed unsafe adopted tracker identities and metadata parsing; tracker-side orphan discovery and duplicate-local-claim detection remain to implement.
