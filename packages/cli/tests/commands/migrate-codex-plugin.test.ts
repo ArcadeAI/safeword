@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import { applyCodexFinalization } from '../../src/codex-plugin/finalization.js';
+import { acquireCodexProfileLock } from '../../src/codex-plugin/profile-lock.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
   recordCodexHookProof,
@@ -686,6 +687,32 @@ command = 'echo "keep this user hook"'
     });
     const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
     expect(calls).toContain('plugin marketplace upgrade safeword --json');
+    expect(calls).not.toContain('plugin add safeword@safeword --json');
+  });
+
+  it('leaves the profile unchanged when another task is installing the plugin', async () => {
+    const fixture = createMigrationFixture('', true, false);
+    const profileEnvironment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
+    expect(
+      acquireCodexProfileLock(profileEnvironment, { owner: 'another-codex-task' }),
+    ).toBeDefined();
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json']);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [
+        {
+          code: 'PLUGIN_PROFILE_BUSY',
+          message: expect.stringContaining('Another Safeword task is updating this Codex profile'),
+        },
+      ],
+    });
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).toContain('plugin list --json');
+    expect(calls).not.toContain('plugin marketplace');
     expect(calls).not.toContain('plugin add safeword@safeword --json');
   });
 

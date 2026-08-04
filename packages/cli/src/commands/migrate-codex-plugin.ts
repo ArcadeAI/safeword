@@ -38,6 +38,7 @@ import {
   renderCodexMigrationHuman,
 } from '../codex-plugin/migration.js';
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
+import { acquireCodexProfileLock, releaseCodexProfileLock } from '../codex-plugin/profile-lock.js';
 import {
   codexActivationIsPending,
   type CodexHookProofObservation,
@@ -424,11 +425,22 @@ export function installCodexPlugin(
     reportCodexMigration(cwd, { json: options.json, environment: options.environment });
     return;
   }
-  run('bun', ['--version']);
-  run('codex', ['--version']);
-  addCodexPluginToProfile(options.marketplaceSource);
-  verifyCodexPluginIsEnabled({ installationCompleted: true });
-  if (options.recordActivationPending !== false) writeCodexActivationMarker(options.environment);
+  const lock = acquireCodexProfileLock(options.environment);
+  if (lock === undefined) {
+    throw new CodexMigrationError(
+      'PLUGIN_PROFILE_BUSY',
+      'Another Safeword task is updating this Codex profile. No profile changes were made; retry `safeword codex install` in a moment.',
+    );
+  }
+  try {
+    run('bun', ['--version']);
+    run('codex', ['--version']);
+    addCodexPluginToProfile(options.marketplaceSource);
+    verifyCodexPluginIsEnabled({ installationCompleted: true });
+    if (options.recordActivationPending !== false) writeCodexActivationMarker(options.environment);
+  } finally {
+    releaseCodexProfileLock(lock);
+  }
 
   if (options.json !== true) {
     success('Safe Word Codex plugin is enabled for this profile.');
