@@ -121,11 +121,31 @@ const REVIEW_OUTPUT_SCHEMA = {
           // A patch, present only once the fix gate has RUN it (R13).
           suggestedFix: { type: 'string' },
         },
-        required: ['path', 'line', 'consequence'],
+        required: [
+          'path',
+          'line',
+          'consequence',
+          'evidence',
+          'claim',
+          'why_it_matters',
+          'dimension',
+          'blocking',
+          'confidence',
+          'counter_evidence',
+          'suggestedFix',
+        ],
       },
     },
   },
-  required: ['verdict', 'findings'],
+  required: [
+    'verdict',
+    'verdict_reason',
+    'cross_model',
+    'intent_source',
+    'work_type',
+    'decision',
+    'findings',
+  ],
 };
 
 /**
