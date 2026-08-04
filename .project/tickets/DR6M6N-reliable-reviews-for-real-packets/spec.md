@@ -55,11 +55,23 @@ Unaffected:
 
 - **Review packet** — the bounded, read-only set of logical files handed to a
   reviewer for one dispatch.
-- **Review budget** — the total wall-clock time a review dispatch may take
-  before it is stopped and classified as a timeout.
+- **Attempt budget** — the wall-clock time a single review attempt may take
+  before it is stopped and classified as a timeout. Derived from packet size,
+  and never more than the **documented attempt maximum of 5 minutes**.
+- **Run bound** — the total wall-clock time a whole review run may take across
+  every route it tries. Never more than **15 minutes**.
+- **Route** — one independent way of getting a review: the reviewer agent on its
+  default model, the reviewer agent on its configured alternate model, and last
+  the author's own runtime. Each route gets its own attempt budget.
 - **Candidate** — one executable on `PATH` that might be a usable reviewer CLI.
-- **Result contract** — the exact JSON shape a reviewer result must have:
-  fixed fields, and severities limited to `info` / `warning` / `error`.
+  The candidates for one route share that route's attempt budget.
+- **Result contract** — the exact JSON shape a **reviewer answer** must have:
+  six fixed fields, and severities limited to `info` / `warning` / `error`.
+- **Reviewer answer** — what a reviewer returns; bound by the result contract.
+- **Review result** — Safe Word's own reported envelope. It wraps the reviewer
+  answer with routing facts Safe Word itself knows — which agent reviewed, on
+  which model, how independent the check was. Routing facts live here precisely
+  so the reviewer answer contract stays closed.
 
 ## Jobs To Be Done
 
@@ -102,11 +114,13 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU3.R1 — An exhausted reviewer agent is retried on a configured alternate model before the author's own runtime is used
 
-#### reliable-reviews-for-real-packets.TBU3.R2 — A review completed by the reviewer agent on its alternate model is still a full cross-agent check, and the result names the model that actually reviewed
+#### reliable-reviews-for-real-packets.TBU3.R2 — A review completed by the reviewer agent on its alternate model is still a full cross-agent check, and Safe Word's own review result names the model that reviewed without widening the reviewer answer contract
 
 #### reliable-reviews-for-real-packets.TBU3.R3 — With no alternate model configured, routing is exactly what it is today, and Safe Word never supplies a model name of its own
 
-#### reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own bounded budget, so an exhausted first attempt cannot leave the retry with no time to run
+#### reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
+
+#### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order and the whole run still finishes inside the run bound
 
 ### reliable-reviews-for-real-packets.NTB1 — Understand why no independent check happened
 

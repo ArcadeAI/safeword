@@ -5,7 +5,7 @@ Feature: Keep independent reviews reliable for real ticket packets
   independent attempt in reserve, and explain an exhausted route plainly.
 
   @reliable-reviews-for-real-packets.TBU1.R1 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R1 — A review's time budget scales with the size of the packet it must read, up to a documented maximum
+  Rule: reliable-reviews-for-real-packets.TBU1.R1 — A review attempt's time budget scales with the size of the packet it must read, up to a documented maximum of 5 minutes
 
     Scenario: A representative ticket-sized review is given time to finish
       Given a five-file review packet of about 58 KB
@@ -16,29 +16,32 @@ Feature: Keep independent reviews reliable for real ticket packets
     Scenario: A small packet keeps a smaller budget than a large one
       Given a single-file review packet of about 3 KB
       And a five-file review packet of about 58 KB
-      When each packet's review budget is derived
+      When each packet's attempt budget is derived
       Then the larger packet is allowed more time than the smaller one
 
-    Scenario: A reviewer answering exactly at the documented maximum is accepted
+    Scenario: A packet large enough to need it gets the whole attempt maximum
       Given a review packet at the largest size the coordinator accepts
-      And the assigned reviewer answers exactly at the documented maximum budget
-      When the independent review runs
-      Then the review returns the reviewer's verdict
+      When the attempt budget is derived
+      Then the attempt budget is 5 minutes
 
-    Scenario: An oversized packet's budget is capped at the documented maximum
-      Given a review packet at the largest size the coordinator accepts
-      When the review budget is derived
-      Then the budget equals the documented maximum
+    Scenario Outline: The attempt deadline is decided on a controlled clock
+      Given a reviewer whose answer arrives <timing> its attempt budget
+      When the independent review runs
+      Then the review <outcome>
+
+      Examples:
+        | timing                | outcome                     |
+        | one tick before       | returns the reviewer verdict|
+        | exactly at            | returns the reviewer verdict|
 
     @rejection
-    Scenario: A reviewer answering past the documented maximum is still stopped
-      Given a review packet at the largest size the coordinator accepts
-      And the assigned reviewer answers only after the documented maximum budget
+    Scenario: A reviewer answering one tick past its budget is refused
+      Given a reviewer whose answer arrives one tick after its attempt budget
       When the independent review runs
       Then the review is reported as timed out
 
   @reliable-reviews-for-real-packets.TBU1.R2 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside that maximum and reported as a timeout
+  Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside the attempt maximum and reported as a timeout
 
     @rejection
     Scenario: A reviewer that never answers is stopped and reported as a timeout
@@ -47,27 +50,36 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review is reported as timed out
 
     Scenario: An explicitly configured budget replaces the size-derived one
-      Given an explicitly configured review budget below the documented maximum
+      Given an explicitly configured attempt budget of 2 minutes
       And a five-file review packet of about 58 KB
-      When the review budget is derived
-      Then the configured budget is used instead of the size-derived budget
+      When the attempt budget is derived
+      Then the attempt budget is 2 minutes
 
-    Scenario: An explicitly configured budget cannot exceed the documented maximum
-      Given an explicitly configured review budget above the documented maximum
-      When the review budget is derived
-      Then the budget equals the documented maximum
+    Scenario Outline: A configured budget is honoured only up to the attempt maximum
+      Given an explicitly configured attempt budget of <configured>
+      When the attempt budget is derived
+      Then the attempt budget is <effective>
+
+      Examples:
+        | configured | effective |
+        | 4 minutes  | 4 minutes |
+        | 5 minutes  | 5 minutes |
+        | 6 minutes  | 5 minutes |
 
     @rejection
     Scenario Outline: A meaningless configured budget is ignored
-      Given an explicitly configured review budget of <budget>
-      When the review budget is derived
+      Given an explicitly configured attempt budget of <budget>
+      When the attempt budget is derived
       Then the size-derived budget is used instead of the configured budget
 
       Examples:
-        | budget         |
-        | zero           |
-        | a negative time|
-        | text           |
+        | budget           |
+        | zero             |
+        | a negative time  |
+        | not a number     |
+        | an infinite time |
+        | a blank value    |
+        | "90s"            |
 
   @reliable-reviews-for-real-packets.TBU1.R3 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU1.R3 — One slow or stale reviewer executable cannot consume every other installed candidate's opportunity
@@ -202,7 +214,14 @@ Feature: Keep independent reviews reliable for real ticket packets
       Given the reviewer agent's alternate model completed the review
       When the review result is reported
       Then the result reports a full cross-agent check
-      And the result names the model that produced the verdict
+      And Safe Word's own result names the model it asked to review
+
+    @rejection
+    Scenario: Naming the model never widens what a reviewer may answer
+      Given the reviewer agent's alternate model completed the review
+      When the reviewer's answer is checked
+      Then the answer carries no model field
+      And an answer that adds one is rejected
 
     Scenario: A required cross-agent check is satisfied by an alternate-model review
       Given a required cross-agent review policy
@@ -232,8 +251,28 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the reviewer is asked for a review without any model selection
 
+    @rejection
+    Scenario Outline: An unusable configured model is treated as none configured
+      Given a configured alternate model for the reviewer agent of <value>
+      And the reviewer agent's default model never answers
+      When the independent review runs
+      Then the reviewer is never asked for a review on an alternate model
+
+      Examples:
+        | value                       |
+        | a blank value               |
+        | only whitespace             |
+        | a value carrying a newline  |
+        | a value carrying a shell character |
+
+    Scenario: A configured model reaches the reviewer as one literal value
+      Given a configured alternate model for the reviewer agent
+      And the reviewer agent's default model never answers
+      When the independent review runs
+      Then the reviewer is asked for that model as a single unsplit value
+
   @reliable-reviews-for-real-packets.TBU3.R4 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own bounded budget, so an exhausted first attempt cannot leave the retry with no time to run
+  Rule: reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
 
     Scenario Outline: A route failing any way still leaves the next route its own budget
       Given a configured alternate model for the reviewer agent
@@ -249,12 +288,34 @@ Feature: Keep independent reviews reliable for real ticket packets
         | answers outside the contract     |
 
     @rejection
-    Scenario: Every route exhausting its own budget ends the run
+    Scenario: A route cannot borrow time from the next route's budget
+      Given a configured alternate model for the reviewer agent
+      And the reviewer agent's default model never answers
+      When the independent review runs
+      Then that route is stopped at its own attempt budget
+      And the alternate model still receives a full attempt budget
+
+  @reliable-reviews-for-real-packets.TBU3.R5 @surface.claude-code
+  Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order and the whole run still finishes inside the run bound
+
+    Scenario: Every route is tried, in order, before the run gives up
       Given a configured alternate model for the reviewer agent
       And no route ever answers
       When the independent review runs
-      Then the review reports that no route completed
-      And no further route is attempted
+      Then these routes were each attempted once, in this order:
+        | route                                 |
+        | the reviewer agent on its usual model |
+        | the reviewer agent on its alternate model |
+        | the author's own runtime              |
+      And the review reports that no route completed
+
+    @rejection
+    Scenario: A run that exhausts every route still finishes inside the run bound
+      Given a configured alternate model for the reviewer agent
+      And no route ever answers
+      When the independent review runs
+      Then the whole run finishes within 15 minutes
+      And no route is attempted a second time
 
   @reliable-reviews-for-real-packets.NTB1.R1 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure
@@ -300,6 +361,11 @@ Feature: Keep independent reviews reliable for real ticket packets
   @reliable-reviews-for-real-packets.NTB1.R2 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.NTB1.R2 — An explanation never carries raw reviewer output, diagnostic noise, or credentials
 
+    Scenario: An explanation is built only from Safe Word's own failure classification
+      Given any failed review route
+      When the exhausted-route result is reported
+      Then the explanation is composed only of the route and its classified cause
+
     @rejection
     Scenario Outline: Nothing a reviewer emits reaches the explanation
       Given a reviewer that fails while emitting a credential in <channel>
@@ -307,11 +373,14 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the explanation contains neither that text nor the credential
 
       Examples:
-        | channel                       |
-        | its diagnostic error output   |
-        | its answer output             |
-        | an unreadable answer          |
-        | a crash message               |
+        | channel                          |
+        | its diagnostic error output      |
+        | its answer output                |
+        | an unreadable answer             |
+        | a crash message                  |
+        | the error from failing to launch |
+        | its own executable path          |
+        | the arguments it was launched with |
 
     @rejection
     Scenario: A rejected answer is never echoed back to the builder

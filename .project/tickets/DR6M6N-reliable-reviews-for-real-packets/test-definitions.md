@@ -4,7 +4,7 @@ Feature source: `packages/cli/features/reliable-reviews-for-real-packets.feature
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: reliable-reviews-for-real-packets.TBU1.R1 — A review's time budget scales with the size of the packet it must read, up to a documented maximum
+## Rule: reliable-reviews-for-real-packets.TBU1.R1 — A review attempt's time budget scales with the size of the packet it must read, up to a documented maximum of 5 minutes
 
 ### Scenario: A representative ticket-sized review is given time to finish
 
@@ -18,25 +18,25 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A reviewer answering exactly at the documented maximum is accepted
+### Scenario: A packet large enough to need it gets the whole attempt maximum
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An oversized packet's budget is capped at the documented maximum
+### Scenario: The attempt deadline is decided on a controlled clock
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A reviewer answering past the documented maximum is still stopped
+### Scenario: A reviewer answering one tick past its budget is refused
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside that maximum and reported as a timeout
+## Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside the attempt maximum and reported as a timeout
 
 ### Scenario: A reviewer that never answers is stopped and reported as a timeout
 
@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An explicitly configured budget cannot exceed the documented maximum
+### Scenario: A configured budget is honoured only up to the attempt maximum
 
 - [ ] RED
 - [ ] GREEN
@@ -164,6 +164,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Naming the model never widens what a reviewer may answer
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A required cross-agent check is satisfied by an alternate-model review
 
 - [ ] RED
@@ -190,7 +196,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own bounded budget, so an exhausted first attempt cannot leave the retry with no time to run
+### Scenario: An unusable configured model is treated as none configured
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A configured model reaches the reviewer as one literal value
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
 
 ### Scenario: A route failing any way still leaves the next route its own budget
 
@@ -198,7 +216,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Every route exhausting its own budget ends the run
+### Scenario: A route cannot borrow time from the next route's budget
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order and the whole run still finishes inside the run bound
+
+### Scenario: Every route is tried, in order, before the run gives up
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A run that exhausts every route still finishes inside the run bound
 
 - [ ] RED
 - [ ] GREEN
@@ -237,6 +269,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ## Rule: reliable-reviews-for-real-packets.NTB1.R2 — An explanation never carries raw reviewer output, diagnostic noise, or credentials
+
+### Scenario: An explanation is built only from Safe Word's own failure classification
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Nothing a reviewer emits reaches the explanation
 
