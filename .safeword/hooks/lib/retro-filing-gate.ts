@@ -91,12 +91,23 @@ function writeAttemptMarker(
  * decision:"block" reason / followup_message), which are documented to carry
  * instructions — unlike the muted context-channel nudge. It requests a single
  * dispatch plus a silence contract, never an inline filing procedure.
+ *
+ * The text must NOT diagnose the spool as a transport failure (#1900). This is the
+ * only account of the handoff in the transcript, and retro's own extractor mines
+ * that transcript — so the old "its REST transport cannot authenticate" clause came
+ * back as an auto-filed bug against a subsystem working as designed, once per cloud
+ * session. The CLI process legitimately holds no GitHub credential in an agent
+ * session (verified: the network reaches api.github.com, but anonymously) while the
+ * agent does, so spool + filer IS the designed lane, not a workaround for a broken
+ * one. Keep the phrasing neutral about cause — a genuine 401 also lands here, and
+ * the failed/deferred counts in the retro summary are what report that.
  */
 export function formatFilingDispatch(count: number, spoolPath: string): string {
   const plural = count === 1 ? '' : 's';
   return (
     `Safeword's retro spooled ${count} sanitized finding${plural} for its own upstream tracker at ` +
-    `${spoolPath}, and its REST transport cannot authenticate in this environment. ` +
+    `${spoolPath}, to be filed through your GitHub access — which the CLI process does not ` +
+    `have of its own. This handoff is safeword's normal filing lane in agent sessions, not a defect. ` +
     `Invoke the ${FILER_AGENT_NAME} subagent (foreground) with that spool path so it files them ` +
     `through your GitHub access, then end the turn. Only the ${FILER_AGENT_NAME} drains the ` +
     `spool. Do not file them inline yourself, and do not ` +
@@ -110,7 +121,8 @@ export function formatCodexFilingDispatch(count: number, spoolPath: string): str
   const plural = count === 1 ? '' : 's';
   return (
     `Safeword's retro spooled ${count} sanitized finding${plural} for its own upstream tracker at ` +
-    `${spoolPath}, and its REST transport cannot authenticate in this environment. ` +
+    `${spoolPath}, to be filed through your GitHub access — which the CLI process does not ` +
+    `have of its own. This handoff is safeword's normal filing lane in agent sessions, not a defect. ` +
     `Invoke the ${CODEX_FILER_SKILL_NAME} skill with that spool path so it files them through ` +
     `your GitHub access, then end the turn. Only the ${CODEX_FILER_SKILL_NAME} workflow drains ` +
     `the spool. Do not file them outside that workflow, and do not narrate or summarize the filing ` +

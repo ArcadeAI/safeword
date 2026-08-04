@@ -98,6 +98,22 @@ describe('formatFilingDispatch (GH628F — one dispatch action plus silence cont
     }
   });
 
+  // #1900: the dispatch is the only account of the handoff in the transcript, and
+  // retro's extractor mines that transcript. Diagnosing the spool as a broken
+  // transport made it auto-file a bug against a working subsystem every cloud
+  // session, so neither dispatch may assert a transport failure.
+  it('does not diagnose the spool as a broken or unauthenticated transport', () => {
+    for (const text of [
+      formatFilingDispatch(1, '/proj/.safeword/retro-drafts/sess-1.jsonl'),
+      formatCodexFilingDispatch(1, '/proj/.safeword/retro-drafts/sess-1.jsonl'),
+    ]) {
+      expect(/cannot authenticate|auth(?:entication)? fail|broken transport/i.test(text)).toBe(
+        false,
+      );
+      expect(text.toLowerCase()).toContain('not a defect');
+    }
+  });
+
   it('routes Codex through the packaged filer skill without embedding a procedure', () => {
     const text = formatCodexFilingDispatch(3, '/proj/.safeword/retro-drafts/sess-1.jsonl');
     expect(text).toContain(CODEX_FILER_SKILL_NAME);
