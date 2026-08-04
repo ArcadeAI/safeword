@@ -12,6 +12,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A packet's size is the size of what the reviewer is actually sent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: The attempt budget follows packet size predictably
 
 - [ ] RED
@@ -308,7 +314,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order unless the run bound is reached first, which always wins
+## Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route that has not answered yet, while an answer already complete when the bound fires still counts
 
 ### Scenario: The run bound wins over trying the remaining routes
 

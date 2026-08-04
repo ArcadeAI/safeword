@@ -54,7 +54,9 @@ Unaffected:
 ## Vocabulary
 
 - **Review packet** — the bounded, read-only set of logical files handed to a
-  reviewer for one dispatch.
+  reviewer for one dispatch. Its **size** is the byte length of the serialized
+  packet as the reviewer actually receives it, paths included, so multibyte
+  content counts its real bytes.
 - **Attempt budget** — the wall-clock time a single review attempt may take
   before it is stopped and classified as a timeout. Derived deterministically
   from packet size as **60 seconds plus 3 milliseconds per packet byte, clamped
@@ -63,7 +65,9 @@ Unaffected:
   gets 233.217 seconds, and anything from 80,000 bytes up gets the 300-second
   maximum.
 - **Probe budget** — the time a single capability check on one candidate may
-  take: **5 seconds**, drawn from that candidate's share.
+  take: **5 seconds**, drawn from that candidate's own share. Whatever a
+  skipped or failed candidate leaves unused returns to the route, so the next
+  candidate's share is recalculated from the time that actually remains.
 - **Cleanup budget** — the time allowed to stop a reviewer and its descendants
   after an attempt ends: **5 seconds**, after which the run continues regardless.
   Reviewers are launched in their own process group so descendants are included.
@@ -143,7 +147,7 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
 
-#### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order unless the run bound is reached first, which always wins
+#### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route that has not answered yet, while an answer already complete when the bound fires still counts
 
 ### reliable-reviews-for-real-packets.NTB1 — Understand why no independent check happened
 

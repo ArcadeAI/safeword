@@ -13,6 +13,12 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the review returns the reviewer's verdict
 
+    Scenario: A packet's size is the size of what the reviewer is actually sent
+      Given a review packet of two files whose contents include multibyte characters
+      When the packet's size is measured
+      Then it is the byte length of the whole packet as the reviewer receives it
+      And it counts each file's path as well as its content
+
     Scenario Outline: The attempt budget follows packet size predictably
       Given a review packet of <size>
       When the attempt budget is derived
@@ -62,8 +68,9 @@ Feature: Keep independent reviews reliable for real ticket packets
     @rejection
     Scenario: A reviewer that never answers is stopped and reported as a timeout
       Given an assigned reviewer that never produces an answer
+      And no later route can complete either
       When the independent review runs
-      Then the review is reported as timed out
+      Then the assigned reviewer route is reported as timed out
 
     Scenario: An explicitly configured budget replaces the size-derived one
       Given an explicitly configured attempt budget of 2 minutes
@@ -77,10 +84,12 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the attempt budget is <effective>
 
       Examples:
-        | configured | effective |
-        | 4 minutes  | 4 minutes |
-        | 5 minutes  | 5 minutes |
-        | 6 minutes  | 5 minutes |
+        | configured        | effective   |
+        | 240 seconds       | 240 seconds |
+        | 299.999 seconds   | 299.999 seconds |
+        | 300 seconds       | 300 seconds |
+        | 300.001 seconds   | 300 seconds |
+        | 360 seconds       | 300 seconds |
 
     @rejection
     Scenario Outline: A meaningless configured budget is ignored
@@ -150,8 +159,9 @@ Feature: Keep independent reviews reliable for real ticket packets
     Scenario: Every reviewer executable failing still reports a timeout
       Given two installed reviewer executables that both accept the review contract
       And neither executable ever answers
+      And no later route can complete either
       When the independent review runs
-      Then the review is reported as timed out
+      Then the assigned reviewer route is reported as timed out
 
   @reliable-reviews-for-real-packets.TBU1.R4 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and its own process group, never waits on what the system will not kill, never claims to have stopped what escaped its reach, and never uses a late answer
@@ -273,7 +283,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       And a second installed reviewer executable that supports typed output
       When the independent review runs
       Then the review returns the second executable's verdict
-      And the second executable's share of the route budget is undiminished
+      And the second executable's share is recalculated from the time that remains
 
       Examples:
         | probe                                        |
@@ -474,7 +484,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the alternate model still receives a full attempt budget
 
   @reliable-reviews-for-real-packets.TBU3.R5 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order unless the run bound is reached first, which always wins
+  Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route that has not answered yet, while an answer already complete when the bound fires still counts
 
     @rejection
     Scenario: The run bound wins over trying the remaining routes
