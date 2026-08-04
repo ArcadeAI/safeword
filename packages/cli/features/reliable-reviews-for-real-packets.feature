@@ -19,15 +19,15 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the attempt budget is <budget>
 
       Examples:
-        | size                                | budget      |
-        | 0 bytes                             | 2 minutes   |
-        | 3 KB                                | 2 minutes   |
-        | 20 KB                               | 2 minutes   |
-        | 20 KB and one byte                  | just over 2 minutes |
-        | 58 KB                               | 234 seconds |
-        | 80 KB less one byte                 | just under 5 minutes |
-        | 80 KB                               | 5 minutes   |
-        | the largest size the coordinator accepts | 5 minutes |
+        | size                                     | budget      |
+        | 0 bytes                                  | 120 seconds |
+        | 2945 bytes                               | 120 seconds |
+        | 20000 bytes                              | 120 seconds |
+        | 20001 bytes                              | 120.003 seconds |
+        | 57739 bytes                              | 233.217 seconds |
+        | 79999 bytes                              | 299.997 seconds |
+        | 80000 bytes                              | 300 seconds |
+        | the largest size the coordinator accepts | 300 seconds |
 
     Scenario Outline: The attempt deadline is decided on a controlled clock
       Given a reviewer whose answer arrives <timing> its attempt budget
@@ -142,7 +142,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review is reported as timed out
 
   @reliable-reviews-for-real-packets.TBU1.R4 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R4 — A reviewer stopped for any reason leaves nothing running behind it, and nothing it says afterwards is used
+  Rule: reliable-reviews-for-real-packets.TBU1.R4 — Safe Word stops a finished reviewer and its descendants, never waits on one the system will not kill, and never uses anything it says afterwards
 
     Scenario Outline: A reviewer stopped for any reason leaves nothing running
       Given a reviewer that starts a child process of its own
@@ -156,7 +156,6 @@ Feature: Keep independent reviews reliable for real ticket packets
         | never answers                   |
         | crashes before answering        |
         | answers outside the contract    |
-        | ignores being asked to stop     |
 
     Scenario: Cleanup covers descendants the reviewer detached
       Given a reviewer that never answers and leaves a detached grandchild process
@@ -164,11 +163,12 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then no process from that reviewer's group is still running afterwards
 
     @rejection
-    Scenario: Cleanup that will not finish does not stall the run
+    Scenario: A reviewer the system will not kill is abandoned, not waited on
       Given a reviewer whose processes cannot be stopped
       When the independent review runs
       Then the run stops waiting for cleanup after 5 seconds
       And the next route still starts
+      And nothing that reviewer produces afterwards is used
 
     @rejection
     Scenario: A late answer after a timeout is ignored
@@ -204,11 +204,12 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then each field is described exactly as:
         | field          | shape                                            |
         | schema_version | the number 1 and nothing else                    |
-        | dispatch_id    | text                                             |
+        | dispatch_id    | text that is not empty                           |
         | reviewer_agent | one of claude or codex                           |
         | verdict        | one of approve or request_changes                |
-        | summary        | text                                             |
+        | summary        | text that is not empty                           |
         | findings       | a list of findings, possibly empty               |
+      And each finding is described exactly as a severity of info, warning or error, and a message that is text and not empty
       And no object anywhere in the contract permits an undeclared field
 
     Scenario Outline: The contract handed out permits exactly the severities the check accepts
@@ -289,7 +290,7 @@ Feature: Keep independent reviews reliable for real ticket packets
         | carries a field the contract does not define  |
         | omits a required field                        |
         | gives a required field the wrong type         |
-        | leaves a required field empty                 |
+        | leaves its identifier, summary or a message empty |
         | is not readable as a result at all            |
         | carries an extra field inside a finding       |
         | uses a verdict the contract does not permit   |
@@ -334,6 +335,17 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the review result is reported
       Then the result reports a full cross-agent check
       And Safe Word's own result names the model it asked to review
+
+    Scenario: Safe Word's own result reports routing in named fields
+      Given the reviewer agent's alternate model completed the review
+      When the review result is reported
+      Then Safe Word's own result carries exactly these routing facts:
+        | fact                | value                                     |
+        | assigned_reviewer   | the reviewer agent that was asked         |
+        | actual_reviewer     | the agent that produced the verdict       |
+        | reviewer_model      | the model Safe Word asked it to use       |
+        | independence        | cross-agent                               |
+      And the reviewer's own answer is reported unchanged alongside them
 
     @rejection
     Scenario: Naming the model never widens what a reviewer may answer
@@ -465,8 +477,19 @@ Feature: Keep independent reviews reliable for real ticket packets
         | ignoring being asked to stop               |
         | a mixture of all of these across routes    |
 
+    Scenario Outline: An answer landing exactly on the run bound wins the tie
+      Given a valid answer and the 20-minute run bound fall on the same instant
+      And the <first> event is handled first
+      When the run bound is reached
+      Then the review returns the reviewer's verdict
+
+      Examples:
+        | first     |
+        | answer    |
+        | run bound |
+
     @rejection
-    Scenario: A run is stopped at the run bound even if a route would continue
+    Scenario: A run is stopped at the run bound when no answer has landed
       Given a configured alternate model for the reviewer agent
       And the run has reached exactly 20 minutes with a route still working
       When the run bound is reached

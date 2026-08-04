@@ -94,7 +94,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU1.R4 — A reviewer stopped for any reason leaves nothing running behind it, and nothing it says afterwards is used
+## Rule: reliable-reviews-for-real-packets.TBU1.R4 — Safe Word stops a finished reviewer and its descendants, never waits on one the system will not kill, and never uses anything it says afterwards
 
 ### Scenario: A reviewer stopped for any reason leaves nothing running
 
@@ -108,7 +108,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Cleanup that will not finish does not stall the run
+### Scenario: A reviewer the system will not kill is abandoned, not waited on
 
 - [ ] RED
 - [ ] GREEN
@@ -220,6 +220,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Safe Word's own result reports routing in named fields
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Naming the model never widens what a reviewer may answer
 
 - [ ] RED
@@ -298,7 +304,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A run is stopped at the run bound even if a route would continue
+### Scenario: An answer landing exactly on the run bound wins the tie
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A run is stopped at the run bound when no answer has landed
 
 - [ ] RED
 - [ ] GREEN

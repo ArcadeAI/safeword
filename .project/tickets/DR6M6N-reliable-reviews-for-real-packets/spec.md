@@ -58,8 +58,9 @@ Unaffected:
 - **Attempt budget** — the wall-clock time a single review attempt may take
   before it is stopped and classified as a timeout. Derived deterministically
   from packet size as **60 seconds plus 3 milliseconds per packet byte, clamped
-  to between 2 and 5 minutes**. So a 3 KB packet gets the 2-minute floor, a
-  58 KB packet gets 234 seconds, and anything from 80 KB up gets the 5-minute
+  to between 120 and 300 seconds**. Sizes are exact byte counts, never KB. So a
+  2,945-byte packet gets the 120-second floor, the observed 57,739-byte packet
+  gets 233.217 seconds, and anything from 80,000 bytes up gets the 300-second
   maximum.
 - **Probe budget** — the time a single capability check on one candidate may
   take: **5 seconds**, drawn from that candidate's share.
@@ -109,7 +110,7 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU1.R3 — A route's budget is split across its untried candidates, so one slow or stale executable cannot consume every other candidate's opportunity
 
-#### reliable-reviews-for-real-packets.TBU1.R4 — A reviewer stopped for any reason leaves nothing running behind it, and nothing it says afterwards is used
+#### reliable-reviews-for-real-packets.TBU1.R4 — Safe Word stops a finished reviewer and its descendants, never waits on one the system will not kill, and never uses anything it says afterwards
 
 ### reliable-reviews-for-real-packets.TBU2 — Trust the fallback reviewer to return a usable result
 
