@@ -34,6 +34,17 @@ Feature: Keep independent reviews reliable for real ticket packets
         | one tick before       | returns the reviewer verdict|
         | exactly at            | returns the reviewer verdict|
 
+    Scenario Outline: An answer already complete when the deadline fires wins the tie
+      Given a reviewer whose answer and its attempt deadline fall on the same instant
+      And the <first> event is handled first
+      When the independent review runs
+      Then the review returns the reviewer's verdict
+
+      Examples:
+        | first    |
+        | answer   |
+        | deadline |
+
     @rejection
     Scenario: A reviewer answering one tick past its budget is refused
       Given a reviewer whose answer arrives one tick after its attempt budget
@@ -128,10 +139,19 @@ Feature: Keep independent reviews reliable for real ticket packets
   @reliable-reviews-for-real-packets.TBU1.R4 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU1.R4 — A reviewer stopped for any reason leaves nothing running behind it, and nothing it says afterwards is used
 
-    Scenario: A stopped reviewer leaves no process running
-      Given a reviewer that never answers and starts a child process of its own
+    Scenario Outline: A reviewer stopped for any reason leaves nothing running
+      Given a reviewer that starts a child process of its own
+      And that reviewer <ending>
       When the independent review runs
       Then neither the reviewer nor its child process is still running afterwards
+      And nothing is left running when the next candidate starts
+
+      Examples:
+        | ending                          |
+        | never answers                   |
+        | crashes before answering        |
+        | answers outside the contract    |
+        | ignores being asked to stop     |
 
     @rejection
     Scenario: A late answer after a timeout is ignored
@@ -196,6 +216,20 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the review returns the second executable's verdict
 
+    Scenario Outline: A candidate whose capability cannot be established is skipped with its budget preserved
+      Given a first installed reviewer executable that <probe>
+      And a second installed reviewer executable that supports typed output
+      When the independent review runs
+      Then the review returns the second executable's verdict
+      And the second executable's share of the route budget is undiminished
+
+      Examples:
+        | probe                                        |
+        | cannot be asked what it supports             |
+        | answers the capability question unreadably   |
+        | claims typed output but refuses the contract |
+        | is too old a version to support typed output |
+
     @rejection
     Scenario: No reviewer executable supporting typed output means no reviewer is available
       Given every installed reviewer executable cannot produce typed output
@@ -222,6 +256,19 @@ Feature: Keep independent reviews reliable for real ticket packets
         | carries an extra field inside a finding       |
         | uses a verdict the contract does not permit   |
         | declares a different contract version         |
+
+    @rejection
+    Scenario Outline: An answer that does not belong to this request is refused
+      Given a reviewer answer that follows the contract
+      But <mismatch>
+      When the answer is checked
+      Then the answer is refused and no verdict is recorded
+
+      Examples:
+        | mismatch                                          |
+        | it carries a different review's identifier        |
+        | it claims a reviewer other than the one asked     |
+        | it claims no reviewer at all                      |
 
   @reliable-reviews-for-real-packets.TBU3.R1 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.TBU3.R1 — An exhausted reviewer agent is retried on a configured alternate model before the author's own runtime
@@ -293,15 +340,30 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the reviewer is never asked for a review on an alternate model
 
       Examples:
-        | value                              |
-        | a blank value                      |
-        | only whitespace                    |
-        | a value carrying a newline         |
-        | a value carrying a shell character |
-        | a value carrying a control character |
-        | a value that looks like an option  |
-        | a value carrying a unicode separator |
-        | a value longer than the grammar allows |
+        | value                        |
+        | an empty value               |
+        | " "                          |
+        | a value carrying a newline   |
+        | "sonnet; rm -rf /"           |
+        | "sonnet$(whoami)"            |
+        | a value carrying a NUL byte  |
+        | "--help"                     |
+        | a value carrying U+2028      |
+        | a 201-character value        |
+
+    Scenario Outline: A model value within the grammar is used as configured
+      Given a configured alternate model for the reviewer agent of <value>
+      And the reviewer agent's default model never answers
+      When the independent review runs
+      Then the reviewer is asked to review on that model
+
+      Examples:
+        | value                        |
+        | "claude-sonnet-4-5-20250929" |
+        | "gpt-5-codex"                |
+        | "vendor/model:tag"           |
+        | "o3_mini.v2"                 |
+        | a 200-character value        |
 
     Scenario: A configured model reaches the reviewer as one literal value
       Given a configured alternate model for the reviewer agent

@@ -30,6 +30,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An answer already complete when the deadline fires wins the tie
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A reviewer answering one tick past its budget is refused
 
 - [ ] RED
@@ -96,7 +102,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: reliable-reviews-for-real-packets.TBU1.R4 — A reviewer stopped for any reason leaves nothing running behind it, and nothing it says afterwards is used
 
-### Scenario: A stopped reviewer leaves no process running
+### Scenario: A reviewer stopped for any reason leaves nothing running
 
 - [ ] RED
 - [ ] GREEN
@@ -148,6 +154,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A candidate whose capability cannot be established is skipped with its budget preserved
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: No reviewer executable supporting typed output means no reviewer is available
 
 - [ ] RED
@@ -157,6 +169,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: reliable-reviews-for-real-packets.TBU2.R3 — A result that violates the contract is still rejected, whatever produced it
 
 ### Scenario: Any answer outside the contract is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An answer that does not belong to this request is refused
 
 - [ ] RED
 - [ ] GREEN
@@ -217,6 +235,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: An unusable configured model is treated as none configured
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A model value within the grammar is used as configured
 
 - [ ] RED
 - [ ] GREEN

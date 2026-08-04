@@ -69,9 +69,14 @@ Unaffected:
 - **Candidate share** — a route's attempt budget split evenly across the
   candidates it has not yet tried, so a hanging candidate is stopped at its own
   share and every later candidate still gets a real turn.
-- **Model name grammar** — an accepted alternate model value is a single
-  non-empty line of printable, non-space characters, at most 200 long, that does
-  not begin with `-`. Anything else is treated as no model configured.
+- **Model name grammar** — an accepted alternate model value is 1 to 200
+  characters drawn only from ASCII letters, digits, `.`, `_`, `:`, `/`, and `-`,
+  and does not begin with `-`. That covers real model identifiers
+  (`claude-sonnet-4-5-20250929`, `gpt-5-codex`, `vendor/model:tag`) while
+  excluding whitespace, control characters, shell metacharacters, and
+  option-like values. Anything else is treated as no model configured. The value
+  is passed as its own argument and never through a shell, so the grammar is a
+  second line of defence rather than the only one.
 - **Result contract** — the exact JSON shape a **reviewer answer** must have:
   six fixed fields, and severities limited to `info` / `warning` / `error`.
 - **Reviewer answer** — what a reviewer returns; bound by the result contract.
