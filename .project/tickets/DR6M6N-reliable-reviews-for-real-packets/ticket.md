@@ -2,7 +2,7 @@
 id: DR6M6N
 slug: reliable-reviews-for-real-packets
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 scope:
   - a size-aware review budget with a documented bounded maximum, honoring the existing explicit override
@@ -43,3 +43,4 @@ last_modified: 2026-08-04T14:54:55.395Z
 ## Work Log
 
 - 2026-08-04T14:54:55.395Z Started: Created ticket DR6M6N
+- 2026-08-04T16:30:02.281Z Phase: intake → define-behavior
