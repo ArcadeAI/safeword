@@ -59,12 +59,19 @@ Unaffected:
   before it is stopped and classified as a timeout. Derived from packet size,
   and never more than the **documented attempt maximum of 5 minutes**.
 - **Run bound** — the total wall-clock time a whole review run may take across
-  every route it tries. Never more than **15 minutes**.
+  every route it tries: **20 minutes**. That is three 5-minute attempts plus 5
+  minutes reserved for launching, stopping, and checking reviewers, so an
+  exhausted run cannot overrun the bound just by doing its own bookkeeping.
 - **Route** — one independent way of getting a review: the reviewer agent on its
   default model, the reviewer agent on its configured alternate model, and last
   the author's own runtime. Each route gets its own attempt budget.
 - **Candidate** — one executable on `PATH` that might be a usable reviewer CLI.
-  The candidates for one route share that route's attempt budget.
+- **Candidate share** — a route's attempt budget split evenly across the
+  candidates it has not yet tried, so a hanging candidate is stopped at its own
+  share and every later candidate still gets a real turn.
+- **Model name grammar** — an accepted alternate model value is a single
+  non-empty line of printable, non-space characters, at most 200 long, that does
+  not begin with `-`. Anything else is treated as no model configured.
 - **Result contract** — the exact JSON shape a **reviewer answer** must have:
   six fixed fields, and severities limited to `info` / `warning` / `error`.
 - **Reviewer answer** — what a reviewer returns; bound by the result contract.
@@ -87,7 +94,9 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside that maximum and reported as a timeout
 
-#### reliable-reviews-for-real-packets.TBU1.R3 — One slow or stale reviewer executable cannot consume every other installed candidate's opportunity
+#### reliable-reviews-for-real-packets.TBU1.R3 — A route's budget is split across its untried candidates, so one slow or stale executable cannot consume every other candidate's opportunity
+
+#### reliable-reviews-for-real-packets.TBU1.R4 — A reviewer stopped for any reason leaves nothing running behind it, and nothing it says afterwards is used
 
 ### reliable-reviews-for-real-packets.TBU2 — Trust the fallback reviewer to return a usable result
 

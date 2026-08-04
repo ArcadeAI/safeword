@@ -82,7 +82,7 @@ Feature: Keep independent reviews reliable for real ticket packets
         | "90s"            |
 
   @reliable-reviews-for-real-packets.TBU1.R3 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R3 — One slow or stale reviewer executable cannot consume every other installed candidate's opportunity
+  Rule: reliable-reviews-for-real-packets.TBU1.R3 — A route's budget is split across its untried candidates, so one slow or stale executable cannot consume every other candidate's opportunity
 
     Scenario: A slow first reviewer executable still leaves the next one a chance
       Given two installed reviewer executables that both accept the review contract
@@ -90,6 +90,19 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the second executable answers promptly
       When the independent review runs
       Then the review returns the second executable's verdict
+
+    Scenario: A hanging candidate is stopped at its own share of the route budget
+      Given two installed reviewer executables that both accept the review contract
+      And the first executable never answers
+      When the independent review runs
+      Then the first executable is stopped at half the route's attempt budget
+      And the second executable is given the rest of the route's attempt budget
+
+    Scenario: Three candidates each get a real turn
+      Given three installed reviewer executables that all accept the review contract
+      And only the last executable ever answers
+      When the independent review runs
+      Then the review returns the last executable's verdict
 
     Scenario Outline: A first reviewer executable failing any way still leaves the next one a chance
       Given two installed reviewer executables that both accept the review contract
@@ -111,6 +124,21 @@ Feature: Keep independent reviews reliable for real ticket packets
       And neither executable ever answers
       When the independent review runs
       Then the review is reported as timed out
+
+  @reliable-reviews-for-real-packets.TBU1.R4 @surface.claude-code
+  Rule: reliable-reviews-for-real-packets.TBU1.R4 — A reviewer stopped for any reason leaves nothing running behind it, and nothing it says afterwards is used
+
+    Scenario: A stopped reviewer leaves no process running
+      Given a reviewer that never answers and starts a child process of its own
+      When the independent review runs
+      Then neither the reviewer nor its child process is still running afterwards
+
+    @rejection
+    Scenario: A late answer after a timeout is ignored
+      Given a reviewer that answers only after it was stopped for running out of time
+      When the independent review runs
+      Then the review is reported as timed out
+      And the late answer is not used
 
   @reliable-reviews-for-real-packets.TBU2.R1 @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.TBU2.R1 — A reviewer that supports typed output is given the exact result contract the check will enforce
@@ -178,16 +206,22 @@ Feature: Keep independent reviews reliable for real ticket packets
   Rule: reliable-reviews-for-real-packets.TBU2.R3 — A result that violates the contract is still rejected, whatever produced it
 
     @rejection
-    Scenario: An answer using a severity outside the contract is rejected
-      Given a reviewer answer whose finding severity is not permitted by the contract
+    Scenario Outline: Any answer outside the contract is rejected
+      Given a reviewer answer that <defect>
       When the answer is checked
       Then the answer is rejected as invalid reviewer output
 
-    @rejection
-    Scenario: An answer carrying an extra field is rejected
-      Given a reviewer answer carrying a field the contract does not define
-      When the answer is checked
-      Then the answer is rejected as invalid reviewer output
+      Examples:
+        | defect                                        |
+        | uses a severity the contract does not permit  |
+        | carries a field the contract does not define  |
+        | omits a required field                        |
+        | gives a required field the wrong type         |
+        | leaves a required field empty                 |
+        | is not readable as a result at all            |
+        | carries an extra field inside a finding       |
+        | uses a verdict the contract does not permit   |
+        | declares a different contract version         |
 
   @reliable-reviews-for-real-packets.TBU3.R1 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.TBU3.R1 — An exhausted reviewer agent is retried on a configured alternate model before the author's own runtime
@@ -259,11 +293,15 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the reviewer is never asked for a review on an alternate model
 
       Examples:
-        | value                       |
-        | a blank value               |
-        | only whitespace             |
-        | a value carrying a newline  |
+        | value                              |
+        | a blank value                      |
+        | only whitespace                    |
+        | a value carrying a newline         |
         | a value carrying a shell character |
+        | a value carrying a control character |
+        | a value that looks like an option  |
+        | a value carrying a unicode separator |
+        | a value longer than the grammar allows |
 
     Scenario: A configured model reaches the reviewer as one literal value
       Given a configured alternate model for the reviewer agent
@@ -314,7 +352,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Given a configured alternate model for the reviewer agent
       And no route ever answers
       When the independent review runs
-      Then the whole run finishes within 15 minutes
+      Then the whole run finishes within 20 minutes
       And no route is attempted a second time
 
   @reliable-reviews-for-real-packets.NTB1.R1 @surface.claude-code @surface.openai-codex
@@ -333,6 +371,22 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the exhausted-route result is reported
       Then the explanation says the assigned reviewer is not installed
       And the explanation says the fallback reviewer ran out of time
+
+    Scenario: All three routes failing keeps all three causes distinct
+      Given the reviewer agent on its usual model timed out
+      And the reviewer agent on its alternate model is not signed in
+      And the author's own runtime answered outside the result contract
+      When the exhausted-route result is reported
+      Then the explanation gives each of the three routes its own cause
+      And the explanation identifies the alternate-model route without naming the model
+
+    Scenario: Three different causes still yield exactly one thing to do next
+      Given the reviewer agent on its usual model timed out
+      And the reviewer agent on its alternate model is not signed in
+      And the author's own runtime answered outside the result contract
+      When the exhausted-route result is reported
+      Then the result offers exactly one next step to take
+      And that next step addresses the reviewer agent's own failure
 
     Scenario: An exhausted run offers one thing to do next
       Given the assigned reviewer timed out

@@ -62,9 +62,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU1.R3 — One slow or stale reviewer executable cannot consume every other installed candidate's opportunity
+## Rule: reliable-reviews-for-real-packets.TBU1.R3 — A route's budget is split across its untried candidates, so one slow or stale executable cannot consume every other candidate's opportunity
 
 ### Scenario: A slow first reviewer executable still leaves the next one a chance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A hanging candidate is stopped at its own share of the route budget
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Three candidates each get a real turn
 
 - [ ] RED
 - [ ] GREEN
@@ -77,6 +89,20 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Every reviewer executable failing still reports a timeout
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: reliable-reviews-for-real-packets.TBU1.R4 — A reviewer stopped for any reason leaves nothing running behind it, and nothing it says afterwards is used
+
+### Scenario: A stopped reviewer leaves no process running
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A late answer after a timeout is ignored
 
 - [ ] RED
 - [ ] GREEN
@@ -130,13 +156,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: reliable-reviews-for-real-packets.TBU2.R3 — A result that violates the contract is still rejected, whatever produced it
 
-### Scenario: An answer using a severity outside the contract is rejected
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An answer carrying an extra field is rejected
+### Scenario: Any answer outside the contract is rejected
 
 - [ ] RED
 - [ ] GREEN
@@ -245,6 +265,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A missing reviewer and a timed-out fallback are explained as two distinct causes
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: All three routes failing keeps all three causes distinct
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Three different causes still yield exactly one thing to do next
 
 - [ ] RED
 - [ ] GREEN
