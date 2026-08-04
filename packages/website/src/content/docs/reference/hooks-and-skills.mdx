@@ -163,11 +163,21 @@ removes only the exact linked worktree, remote branch, and local branch—in tha
 order. Dirty, locked, protected, changed, default, main, ambiguous, or otherwise
 unverifiable targets are preserved and reported with recovery actions.
 
+The dependency audit is a delivery-readiness gate and must pass before merge.
+After merge, closeout rechecks the immutable head's verification, build,
+typecheck, and BDD lanes, but does not rerun mutable dependency intelligence
+that could make an already-merged head impossible to clean up later.
+
+Claude Code and Cursor bind closeout to the session captured by their hooks.
+Codex uses the same hook binding when available; in Codex Desktop it can use the
+authenticated `CODEX_THREAD_ID` supplied by the host when the one-shot hook
+bridge is unavailable. Missing or expired identity still fails closed.
+
 If cleanup is interrupted after removing the topic worktree, the guard can
 resume from a surviving worktree using a private verification receipt in Git's
-shared common directory. It creates that receipt only after every lane passes on
-a clean exact PR head, accepts it for 24 hours, and rejects stale, malformed,
-dirty-state, or wrong-head proof.
+shared common directory. It creates that receipt only after every applicable
+post-merge lane passes on a clean exact PR head, accepts it for 24 hours, and
+rejects stale, malformed, dirty-state, or wrong-head proof.
 
 | Skill             | Triggers on                                                                                                         |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------- |

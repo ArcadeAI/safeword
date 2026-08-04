@@ -20,6 +20,9 @@ import {
   readFreshCloseoutBinding,
 } from '../../runtime/hooks/lib/closeout-binding.ts';
 import { readSpooledDrafts } from '../../runtime/hooks/lib/retro-draft-spool.ts';
+import { resolveRunIdentity } from '../../runtime/hooks/lib/run-identity.ts';
+
+export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
 
 export interface PullRequestIdentity {
   url: string;
@@ -719,7 +722,7 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
         };
   }
   let passed = invalidateVerificationReceipt(root);
-  for (const kind of ['verify', 'build', 'typecheck', 'bdd', 'deps']) {
+  for (const kind of POST_MERGE_VERIFICATION_KINDS) {
     const planResult = runSafeword(root, [
       'project',
       'test-plan',
@@ -756,6 +759,28 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
     });
   }
   return verification;
+}
+
+export function resolveCloseoutBinding(
+  root: string,
+  env: Record<string, string | undefined> = process.env,
+): CloseoutBinding | undefined {
+  const bridged = readFreshCloseoutBinding({ projectDirectory: root });
+  if (bridged !== undefined) return bridged;
+
+  const identity = resolveRunIdentity({}, { env });
+  if (
+    identity.runtime !== 'codex' ||
+    identity.source !== 'CODEX_THREAD_ID' ||
+    identity.sessionKey === null
+  ) {
+    return undefined;
+  }
+  return {
+    runtime: 'codex',
+    id: identity.sessionKey,
+    projectRoot: realpathSync(root),
+  };
 }
 
 interface GhPullRequest {
@@ -966,7 +991,7 @@ function argumentValue(name: string): string | undefined {
 if (import.meta.main) {
   const root = resolveRepositoryRoot(process.cwd());
   const pr = argumentValue('--pr');
-  const binding = root ? readFreshCloseoutBinding({ projectDirectory: root }) : undefined;
+  const binding = root ? resolveCloseoutBinding(root) : undefined;
   if (!root || !pr || !binding) {
     console.error(
       'closeout blocked: repository, --pr, and a fresh host session binding are required',
