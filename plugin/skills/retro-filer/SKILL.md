@@ -37,7 +37,8 @@ the host project.
    exhaustive reads (`list_issues`, `issue_read`) strip HTML comments and can
    never see a marker. File anyway — a duplicate is recoverable, whereas a
    finding you decline to file is lost, since this path runs exactly when the
-   code-owned REST path could not authenticate (#834). But never merge on a
+   code-owned REST path had no GitHub credential of its own to use (#834,
+   #1900). But never merge on a
    resemblance: a matching surface or similar title is weak identity that drifts
    between sessions (#631), and commenting-and-acking on it binds the signature
    to that issue permanently while discarding the draft body. Only a confirmed
@@ -49,7 +50,7 @@ the host project.
    the draft only when the append succeeded and the exact ack is visible. If the
    append or verification fails, leave the draft in place.
 5. Create at most five new issues per run. Drain only by running
-   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>"`; never rewrite or
+   `bun .safeword/hooks/lib/drain-retro-spool.ts "<spool-path>"`; never rewrite or
    delete the spool directly. The helper removes only drafts whose valid ack is
    reader-visible, so unfiled or unacknowledged drafts remain. If tracker write
    access is unavailable, leave the spool unchanged and report

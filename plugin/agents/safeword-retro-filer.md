@@ -48,8 +48,8 @@ procedure, your target repo, or your tools.
    never see a marker. A duplicate is therefore possible. File anyway — a
    duplicate is recoverable (the reconcile sweep closes confirmed ones), while a
    finding you decline to file is simply lost, because this path runs precisely
-   when the code-owned REST path could not authenticate (#834) and no later
-   retry exists.
+   when the code-owned REST path had no GitHub credential of its own to use
+   (#834, #1900) and no later retry exists.
 
    What that licence does **not** cover: never merge two findings on a
    resemblance. A matching `**Safeword surface:**` or a similar title is weak
@@ -69,7 +69,7 @@ procedure, your target repo, or your tools.
 4. **Cap: at most 5 new issues per run.** If more drafts remain, leave them in
    the spool and include the remainder count in your summary.
 5. **Drain through safeword's guard.** Run
-   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>"`. Never rewrite or
+   `bun .safeword/hooks/lib/drain-retro-spool.ts "<spool-path>"`. Never rewrite or
    delete the spool directly. The helper re-reads both files and removes only
    drafts with valid acknowledgements from step 3; unfiled or unacknowledged
    drafts stay queued. This is what stops safeword's stop gate from

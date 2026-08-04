@@ -66,8 +66,8 @@ Specific to this playbook:
 ## Retro drafts (transcript-mined, cloud filing)
 
 The invisible retro mines the session transcript for qualitative friction and, in
-a cloud container where its REST transport can't authenticate, **spools** the
-sanitized drafts to disk instead of losing them
+an agent session where the CLI process holds no GitHub credential of its own,
+**spools** the sanitized drafts to disk instead of losing them
 (`.safeword/retro-drafts/<session>.jsonl`). Two surfaces then point at that spool:
 
 - A **stop-gate dispatch** (the primary path): at a turn end with unfiled drafts,
