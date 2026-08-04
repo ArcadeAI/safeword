@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import nodePath from 'node:path';
 
-export type MonitorSourceKey = 'claude-code' | 'codex-cli' | 'cursor';
+export type MonitorSourceKey = 'claude-code' | 'codex-cli' | 'codex-project-plugins' | 'cursor';
 
 export interface MonitorSource {
   key: MonitorSourceKey;
@@ -11,6 +11,10 @@ export interface MonitorSource {
   snapshotPath: string;
   url: string;
   normalize(raw: string): string;
+  /** Opening line of the filed issue. Defaults to changelog-drift wording. */
+  headline?: string;
+  /** Triage checklist for the filed issue. Defaults to the changelog checklist. */
+  checklist?: readonly string[];
 }
 
 export interface SourceChangeInput {
@@ -73,6 +77,31 @@ const MONITOR_SOURCES: readonly MonitorSource[] = [
     url: 'https://github.com/openai/codex/releases.atom',
     normalize: normalizeReleaseAtom,
   },
+  // Tripwire source (#1907): Safeword works around Codex having no
+  // project-scoped plugin activation by gating every Codex hook on the
+  // `.safeword/SAFEWORD.md` enrollment marker. Removal depends on this
+  // upstream issue, which nothing in this repo would otherwise notice.
+  // Complements the pinned-version tripwire in
+  // packages/cli/tests/codex-project-scope-tripwire.test.ts: the pin fires when
+  // we upgrade Codex, this fires when upstream moves. Either alone can sit
+  // silently green.
+  {
+    key: 'codex-project-plugins',
+    label: 'Codex project-scoped plugins (openai/codex#18115)',
+    platformEpic: 'QM5G9M',
+    snapshotPath: `${SNAPSHOT_DIRECTORY}/codex-project-plugins.txt`,
+    url: 'https://api.github.com/repos/openai/codex/issues/18115',
+    normalize: normalizeIssueState,
+    headline:
+      'The upstream issue behind a Safeword workaround changed state: **openai/codex#18115** (project-scoped plugin activation).',
+    checklist: [
+      '- [ ] Did project-scoped plugin activation actually ship, or was the issue closed as stale/duplicate?',
+      '- [ ] If it shipped: is the `.safeword/SAFEWORD.md` enrollment marker still load-bearing as a scope substitute?',
+      '- [ ] Reassess the `hasSafewordProjectMarker` guards, the packaged hook copies, and the ARCHITECTURE.md ADR "Explicit Project Enrollment for Profile-Scoped Codex Hooks".',
+      '- [ ] If it shipped and the workaround is gone: delete `packages/cli/tests/codex-project-scope-tripwire.test.ts` and this monitor source.',
+      '- [ ] If it did not ship: advance the snapshot and leave both tripwires in place.',
+    ],
+  },
   {
     key: 'cursor',
     label: 'Cursor',
@@ -111,6 +140,22 @@ export function normalizeReleaseAtom(raw: string): string {
     .map(lines => lines.join('\n'))
     .join('\n\n')
     .trim();
+}
+
+/**
+ * Reduce a GitHub issue API response to the only facts worth waking someone
+ * for: whether it is still open, and how it was closed.
+ *
+ * Deliberately excludes title, body, labels, comment counts, and timestamps.
+ * An upstream issue attracts comments and edits constantly; including any of
+ * that turns a weekly watch into weekly noise, and a tripwire that cries wolf
+ * gets its snapshot advanced without anyone reading the diff.
+ */
+export function normalizeIssueState(raw: string): string {
+  const issue = JSON.parse(raw) as { state?: unknown; state_reason?: unknown };
+  const state = typeof issue.state === 'string' ? issue.state : 'unknown';
+  const reason = typeof issue.state_reason === 'string' ? issue.state_reason : 'none';
+  return `state: ${state}\nstate_reason: ${reason}`;
 }
 
 export function normalizeCursorHtml(raw: string): string {
@@ -173,7 +218,7 @@ export function buildIssuePayload(change: Omit<SourceChange, 'changed' | 'hash'>
   return {
     title: `[upstream-changelog] ${change.source.label} changed`,
     body: [
-      `Upstream changelog changed for **${change.source.label}**.`,
+      change.source.headline ?? `Upstream changelog changed for **${change.source.label}**.`,
       '',
       `- Source: ${change.source.url}`,
       `- Snapshot: \`${change.source.snapshotPath}\``,
@@ -181,11 +226,13 @@ export function buildIssuePayload(change: Omit<SourceChange, 'changed' | 'hash'>
       '',
       '## Relevance Checklist',
       '',
-      '- [ ] Touches hooks lifecycle?',
-      '- [ ] Touches skills/commands?',
-      '- [ ] Touches settings/config schema?',
-      '- [ ] Creates or closes a gate-bypass risk?',
-      '- [ ] Needs Breaks / Adopt / Watch triage?',
+      ...(change.source.checklist ?? [
+        '- [ ] Touches hooks lifecycle?',
+        '- [ ] Touches skills/commands?',
+        '- [ ] Touches settings/config schema?',
+        '- [ ] Creates or closes a gate-bypass risk?',
+        '- [ ] Needs Breaks / Adopt / Watch triage?',
+      ]),
       '',
       '## Diff',
       '',
@@ -301,10 +348,20 @@ export function createGitHubIssueClient(options: {
   };
 }
 
-export async function fetchText(url: string): Promise<string> {
+export async function fetchText(url: string, token?: string): Promise<string> {
+  // api.github.com allows 60 unauthenticated requests per hour per IP, and CI
+  // runners share addresses — an unauthenticated read can fail on a busy
+  // runner even though this monitor asks once a week. Other hosts get no
+  // Authorization header; sending the workflow token off-origin would leak it.
+  const isGitHubApi = new URL(url).hostname === 'api.github.com';
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'safeword-upstream-changelog-monitor',
+      ...(isGitHubApi && {
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      }),
     },
   });
   if (!response.ok) {

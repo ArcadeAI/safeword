@@ -22,7 +22,7 @@ if (!owner || !repo) {
 }
 
 const reported = await runUpstreamMonitor({
-  fetchText,
+  fetchText: url => fetchText(url, token),
   issueClient: createGitHubIssueClient({ fetch, owner, repo, token }),
   log: message => {
     console.log(message);

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildIssuePayload,
   createSnapshotText,
   detectSourceChange,
   getMonitorSource,
   normalizeCursorHtml,
+  normalizeIssueState,
   normalizeReleaseAtom,
   snapshotBody,
 } from '../../src/upstream-monitor/index.js';
@@ -58,6 +60,44 @@ describe('upstream monitor source adapters', () => {
 
     expect(second).toBe(first);
     expect(first).toBe("What's New in Cursor\nJune 20, 2026\nAdded hooks.");
+  });
+
+  // Raw API payloads, not JS objects: GitHub really does send
+  // `"state_reason": null` on an open issue, and the normalizer has to survive
+  // exactly that.
+  const OPEN_ISSUE = '{"number":18115,"state":"open","state_reason":null,"title":"anything"}';
+  const CLOSED_ISSUE = '{"number":18115,"state":"closed","state_reason":"completed"}';
+
+  it('reduces a watched upstream issue to its open/closed state', () => {
+    expect(normalizeIssueState(OPEN_ISSUE)).toBe('state: open\nstate_reason: none');
+    expect(normalizeIssueState(CLOSED_ISSUE)).toBe('state: closed\nstate_reason: completed');
+  });
+
+  it('ignores upstream issue churn that is not a state change', () => {
+    const busy =
+      '{"number":18115,"state":"open","state_reason":null,"title":"Support project-scoped plugins (renamed)","body":"edited again","comments":47,"labels":[{"name":"enhancement"}],"updated_at":"2026-08-04T00:00:00Z"}';
+
+    // A watched issue attracts comments and edits constantly. Only a state
+    // change should wake anyone; anything else trains people to ignore it.
+    expect(normalizeIssueState(busy)).toBe(normalizeIssueState(OPEN_ISSUE));
+  });
+
+  it('fires when the watched upstream issue closes', () => {
+    const source = getMonitorSource('codex-project-plugins');
+    const snapshot = createSnapshotText(
+      source,
+      normalizeIssueState(OPEN_ISSUE),
+      '2026-08-04T00:00:00.000Z',
+    );
+
+    const change = detectSourceChange({
+      source,
+      liveContent: normalizeIssueState(CLOSED_ISSUE),
+      snapshotContent: snapshot,
+    });
+
+    expect(change.changed).toBe(true);
+    expect(buildIssuePayload(change).body).toContain('openai/codex#18115');
   });
 
   it('compares live content against the snapshot body, not metadata headers', () => {
