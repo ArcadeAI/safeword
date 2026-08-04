@@ -109,7 +109,8 @@ function assertSupportedHost(cwd: string): void {
 }
 
 function officialMarketplaceSource(): string {
-  return `${MARKETPLACE_BASE}#v${SAFEWORD_SCHEMA.version}`;
+  const ref = SAFEWORD_SCHEMA.version.includes('-') ? `v${SAFEWORD_SCHEMA.version}` : 'stable';
+  return `${MARKETPLACE_BASE}#${ref}`;
 }
 
 function claudeConfigDirectory(): string {
@@ -225,13 +226,20 @@ function marketplaceSource(entry: JsonObject): {
 function marketplaceSourceStatus(entry: JsonObject): MarketplaceSourceStatus {
   const { url, ref, kind } = marketplaceSource(entry);
   if (url !== MARKETPLACE_BASE) return 'conflict';
-  if (typeof ref !== 'string' || !ref.startsWith('v')) return 'conflict';
-  const version = ref.slice(1);
-  if (!isSafePackageVersion(version)) return 'conflict';
   if (kind !== undefined && (typeof kind !== 'string' || !['url', 'git'].includes(kind))) {
     return 'conflict';
   }
-  if (version === SAFEWORD_SCHEMA.version) return 'current';
+  return marketplaceReferenceStatus(ref);
+}
+
+function marketplaceReferenceStatus(ref: unknown): MarketplaceSourceStatus {
+  if (ref === 'stable') return 'current';
+  if (typeof ref !== 'string' || !ref.startsWith('v')) return 'conflict';
+  const version = ref.slice(1);
+  if (!isSafePackageVersion(version)) return 'conflict';
+  if (version === SAFEWORD_SCHEMA.version) {
+    return SAFEWORD_SCHEMA.version.includes('-') ? 'current' : 'stale';
+  }
   const comparison = compareVersions(version, SAFEWORD_SCHEMA.version);
   return comparison < 0 ? 'stale' : 'conflict';
 }

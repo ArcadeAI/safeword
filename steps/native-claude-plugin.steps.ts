@@ -69,7 +69,7 @@ interface NativeClaudePluginWorld {
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
 const EXPECTED_VERSION = SAFEWORD_SCHEMA.version;
-const OFFICIAL_MARKETPLACE_SOURCE = `https://github.com/ArcadeAI/safeword.git#v${EXPECTED_VERSION}`;
+const OFFICIAL_MARKETPLACE_SOURCE = 'https://github.com/ArcadeAI/safeword.git#stable';
 
 function pluginCachePath(root: string): string {
   return nodePath.join(root, 'cache', 'safeword', EXPECTED_VERSION);
@@ -2087,7 +2087,7 @@ Given(
         name: 'safeword',
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-        ref: `v${EXPECTED_VERSION}`,
+        ref: 'stable',
       },
     ];
     state.marketplaceDeclarations = [selectedScope, otherScope].map(scope => ({
@@ -2788,7 +2788,7 @@ Then(
       state.marketplaceDeclarations.some(
         marketplace =>
           marketplace.name === 'safeword' &&
-          marketplace.ref === `v${EXPECTED_VERSION}` &&
+          marketplace.ref === 'stable' &&
           marketplace.scope === scope &&
           (scope !== 'project' || marketplace.projectPath === this.lifecycle?.project),
       ),
@@ -2911,7 +2911,7 @@ Then(
       source: {
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-        ref: `v${EXPECTED_VERSION}`,
+        ref: 'stable',
       },
     });
     assert.equal(settings.enabledPlugins?.['safeword@safeword'], true);
@@ -3231,7 +3231,7 @@ Then(
         name: 'safeword',
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
-        ref: `v${EXPECTED_VERSION}`,
+        ref: 'stable',
       },
     ]);
     assert.deepEqual(state.plugins, [
