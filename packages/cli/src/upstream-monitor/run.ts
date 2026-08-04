@@ -21,7 +21,7 @@ if (!owner || !repo) {
   process.exit(1);
 }
 
-const reported = await runUpstreamMonitor({
+const { reported, failed } = await runUpstreamMonitor({
   fetchText: url => fetchText(url, token),
   issueClient: createGitHubIssueClient({ fetch, owner, repo, token }),
   log: message => {
@@ -32,4 +32,12 @@ const reported = await runUpstreamMonitor({
   rootDirectory: process.cwd(),
 });
 
-console.log(`upstream changelog monitor complete; reported=${reported}`);
+console.log(`upstream changelog monitor complete; reported=${reported} failed=${failed}`);
+
+// A source that could not be checked is missing evidence, not a pass. Exit
+// non-zero so a broken watch surfaces as a red scheduled run rather than a
+// line in a log nobody reads — the same reason the tripwires exist at all.
+if (failed > 0) {
+  console.error(`${failed} upstream source(s) could not be checked; see the log above.`);
+  process.exit(1);
+}

@@ -259,35 +259,58 @@ export async function reportSourceChange(
   return { action: 'created', issueNumber };
 }
 
-export async function runUpstreamMonitor(dependencies: MonitorDependencies): Promise<number> {
+export interface MonitorRunResult {
+  reported: number;
+  failed: number;
+}
+
+export async function runUpstreamMonitor(
+  dependencies: MonitorDependencies,
+): Promise<MonitorRunResult> {
   const sources = dependencies.sources ?? MONITOR_SOURCES;
   let reported = 0;
+  let failed = 0;
 
   for (const source of sources) {
-    const raw = await dependencies.fetchText(source.url);
-    const liveContent = source.normalize(raw);
-    const snapshotPath = nodePath.join(dependencies.rootDirectory, source.snapshotPath);
-    const snapshotContent = await dependencies.readText(snapshotPath);
-    const change = detectSourceChange({ liveContent, snapshotContent, source });
+    // Each source is an independent watch, so one must not be able to cancel
+    // the others. A transient fetch error or a scraper broken by a third-party
+    // markup change would otherwise abort the loop, and every source after it
+    // — including the workaround tripwires, whose whole value is firing on the
+    // week upstream moves — would go silently unchecked.
+    try {
+      const raw = await dependencies.fetchText(source.url);
+      const liveContent = source.normalize(raw);
+      const snapshotPath = nodePath.join(dependencies.rootDirectory, source.snapshotPath);
+      const snapshotContent = await dependencies.readText(snapshotPath);
+      const change = detectSourceChange({ liveContent, snapshotContent, source });
 
-    if (!change.changed) {
-      dependencies.log?.(`${source.key}: no change`);
-      continue;
+      if (!change.changed) {
+        dependencies.log?.(`${source.key}: no change`);
+        continue;
+      }
+
+      const result = await reportSourceChange(
+        dependencies.issueClient,
+        buildIssuePayload({
+          current: change.current,
+          previous: change.previous,
+          source,
+        }),
+      );
+      reported += 1;
+      dependencies.log?.(`${source.key}: ${result.action} issue #${result.issueNumber}`);
+    } catch (error) {
+      // Distinct from "no change" on purpose: an unchecked source is missing
+      // evidence, not a clean bill of health. The caller exits non-zero so a
+      // permanently broken watch shows up as a red run instead of a quiet log.
+      failed += 1;
+      dependencies.log?.(
+        `${source.key}: check FAILED — ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
-
-    const result = await reportSourceChange(
-      dependencies.issueClient,
-      buildIssuePayload({
-        current: change.current,
-        previous: change.previous,
-        source,
-      }),
-    );
-    reported += 1;
-    dependencies.log?.(`${source.key}: ${result.action} issue #${result.issueNumber}`);
   }
 
-  return reported;
+  return { reported, failed };
 }
 
 export function createGitHubIssueClient(options: {
