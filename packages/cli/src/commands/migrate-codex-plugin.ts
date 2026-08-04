@@ -173,6 +173,7 @@ function refreshOrAddCodexMarketplace(marketplaceSource: string | undefined): vo
     [
       'add',
       marketplaceSource ?? MARKETPLACE_SOURCE,
+      ...(marketplaceSource === undefined ? ['--ref', 'stable'] : []),
       '--sparse',
       '.agents/plugins',
       '--sparse',
