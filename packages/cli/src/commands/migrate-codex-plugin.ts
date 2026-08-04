@@ -2,8 +2,11 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, type Stats } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, type Stats } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
+
+import { parse } from 'smol-toml';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
@@ -48,6 +51,7 @@ import {
 import { preparedCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { info, success } from '../utils/output.js';
+import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 
 const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
 const PLUGIN_ID = 'safeword@safeword';
@@ -147,7 +151,119 @@ function runCodexMarketplace(arguments_: string[], failureContext: string): stri
   }
 }
 
-function refreshOrAddCodexMarketplace(marketplaceSource: string | undefined): void {
+interface ConfiguredMarketplace {
+  ref?: string;
+  source?: string;
+}
+
+function configuredSafewordMarketplace(
+  environment: NodeJS.ProcessEnv = process.env,
+): ConfiguredMarketplace | undefined {
+  const configPath = nodePath.join(
+    environment.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
+    'config.toml',
+  );
+  if (!existsSync(configPath)) return;
+  try {
+    const document = parse(readFileSync(configPath, 'utf8')) as {
+      marketplaces?: { safeword?: ConfiguredMarketplace };
+    };
+    return document.marketplaces?.safeword;
+  } catch (error) {
+    throw new CodexMigrationError(
+      'PLUGIN_MARKETPLACE_FAILED',
+      'The Codex profile configuration is invalid TOML; the Safeword marketplace was not changed.',
+      { cause: error },
+    );
+  }
+}
+
+function marketplaceAddArguments(source: string, ref: string): string[] {
+  return [
+    'add',
+    source,
+    '--ref',
+    ref,
+    '--sparse',
+    '.agents/plugins',
+    '--sparse',
+    'packages/cli/codex-plugin',
+    '--json',
+  ];
+}
+
+function exactVersionReference(ref: string): string | undefined {
+  const version = ref.startsWith('v') ? ref.slice(1) : '';
+  return isSafePackageVersion(version) ? version : undefined;
+}
+
+function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): void {
+  const source = configured.source ?? MARKETPLACE_SOURCE;
+  runCodexMarketplace(
+    ['remove', 'safeword', '--json'],
+    'Could not replace the Safeword marketplace',
+  );
+  try {
+    runCodexMarketplace(
+      marketplaceAddArguments(MARKETPLACE_SOURCE, 'stable'),
+      'Could not enroll the Safeword stable marketplace channel',
+    );
+  } catch (error) {
+    try {
+      runCodexMarketplace(
+        marketplaceAddArguments(source, configured.ref ?? 'main'),
+        'Could not restore the previous Safeword marketplace after stable enrollment failed',
+      );
+    } catch {
+      // Preserve the original stable-enrollment error. The profile lock keeps
+      // other tasks out while this best-effort restoration runs.
+    }
+    throw error;
+  }
+}
+
+function assertMarketplacePinIsNotNewer(
+  ref: string | undefined,
+  pinnedVersion: string | undefined,
+): void {
+  if (pinnedVersion === undefined || compareVersions(pinnedVersion, SAFEWORD_SCHEMA.version) <= 0) {
+    return;
+  }
+  throw new CodexMigrationError(
+    'PLUGIN_NEWER_PIN_PRESERVED',
+    `Codex is pinned to newer Safeword ${ref}; Safeword left that explicit profile pin unchanged.`,
+  );
+}
+
+function refreshOfficialGitMarketplace(
+  marketplace: CodexMarketplaceList['marketplaces'][number],
+  environment: NodeJS.ProcessEnv,
+): void {
+  const source = marketplace.marketplaceSource?.source;
+  if (!isOfficialSafewordGitSource(source)) {
+    throw new CodexMigrationError(
+      'PLUGIN_MARKETPLACE_FAILED',
+      `The configured Codex marketplace named safeword does not point to ${MARKETPLACE_SOURCE}; plugin installation did not run.`,
+    );
+  }
+  const configured = configuredSafewordMarketplace(environment);
+  const ref = configured?.ref;
+  const pinnedVersion = ref === undefined ? undefined : exactVersionReference(ref);
+  assertMarketplacePinIsNotNewer(ref, pinnedVersion);
+  if (ref === 'main' || pinnedVersion !== undefined) {
+    replaceCodexMarketplaceWithStable({ ...configured, source: configured?.source ?? source });
+    return;
+  }
+  runCodexMarketplace(
+    ['upgrade', 'safeword', '--json'],
+    'Could not refresh the configured Safeword Codex marketplace',
+  );
+}
+
+function refreshOrAddCodexMarketplace(
+  marketplaceSource: string | undefined,
+  environment: NodeJS.ProcessEnv = process.env,
+): void {
   if (marketplaceSource === undefined) {
     const output = runCodexMarketplace(
       ['list', '--json'],
@@ -157,16 +273,7 @@ function refreshOrAddCodexMarketplace(marketplaceSource: string | undefined): vo
       candidate => candidate.name === 'safeword',
     );
     if (marketplace?.marketplaceSource?.sourceType === 'git') {
-      if (!isOfficialSafewordGitSource(marketplace.marketplaceSource.source)) {
-        throw new CodexMigrationError(
-          'PLUGIN_MARKETPLACE_FAILED',
-          `The configured Codex marketplace named safeword does not point to ${MARKETPLACE_SOURCE}; plugin installation did not run.`,
-        );
-      }
-      runCodexMarketplace(
-        ['upgrade', 'safeword', '--json'],
-        'Could not refresh the configured Safeword Codex marketplace',
-      );
+      refreshOfficialGitMarketplace(marketplace, environment);
       return;
     }
   }
@@ -186,8 +293,11 @@ function refreshOrAddCodexMarketplace(marketplaceSource: string | undefined): vo
   );
 }
 
-function addCodexPluginToProfile(marketplaceSource: string | undefined): void {
-  refreshOrAddCodexMarketplace(marketplaceSource);
+function addCodexPluginToProfile(
+  marketplaceSource: string | undefined,
+  environment: NodeJS.ProcessEnv = process.env,
+): void {
+  refreshOrAddCodexMarketplace(marketplaceSource, environment);
   run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
 }
 
@@ -436,7 +546,7 @@ export function installCodexPlugin(
   try {
     run('bun', ['--version']);
     run('codex', ['--version']);
-    addCodexPluginToProfile(options.marketplaceSource);
+    addCodexPluginToProfile(options.marketplaceSource, options.environment);
     verifyCodexPluginIsEnabled({ installationCompleted: true });
     if (options.recordActivationPending !== false) writeCodexActivationMarker(options.environment);
   } finally {

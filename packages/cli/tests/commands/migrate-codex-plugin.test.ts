@@ -133,6 +133,9 @@ case "$*" in
     fi
     echo '{"marketplaceName":"safeword"}'
     ;;
+  'plugin marketplace remove safeword --json')
+    echo '{"marketplaceName":"safeword"}'
+    ;;
   'plugin marketplace add '* )
     if [ "$(printenv SAFEWORD_FAIL_PLUGIN_INSTALL 2>/dev/null || true)" = "1" ]; then
       echo 'marketplace unavailable' >&2
@@ -799,6 +802,49 @@ command = 'echo "keep this user hook"'
     const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
     expect(calls).toContain('plugin marketplace upgrade safeword --json');
     expect(calls).toContain('plugin add safeword@safeword --json');
+  });
+
+  it('moves an official main-branch marketplace onto the stable channel before installing', async () => {
+    const fixture = createMigrationFixture('', true, true, '0.68.0');
+    writeFileSync(
+      nodePath.join(fixture.directory, 'profile/config.toml'),
+      '[marketplaces.safeword]\nsource = "https://github.com/ArcadeAI/safeword.git"\nref = "main"\n',
+    );
+
+    const result = await runCodexCommand(fixture, ['codex', 'install']);
+
+    expect(result.exitCode).toBe(2);
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).toContain('plugin marketplace remove safeword --json');
+    expect(calls).toContain('plugin marketplace add ArcadeAI/safeword --ref stable');
+    expect(calls).not.toContain('plugin marketplace upgrade safeword --json');
+    expect(calls.indexOf('plugin marketplace remove')).toBeLessThan(
+      calls.indexOf('plugin marketplace add'),
+    );
+    expect(calls.indexOf('plugin marketplace add')).toBeLessThan(
+      calls.indexOf('plugin add safeword@safeword'),
+    );
+  });
+
+  it('preserves a newer explicit marketplace pin without profile mutation', async () => {
+    const fixture = createMigrationFixture('', true, true, '0.68.0');
+    writeFileSync(
+      nodePath.join(fixture.directory, 'profile/config.toml'),
+      '[marketplaces.safeword]\nsource = "ArcadeAI/safeword"\nref = "v9.0.0"\n',
+    );
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json']);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'PLUGIN_NEWER_PIN_PRESERVED' }],
+    });
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).not.toContain('plugin marketplace remove');
+    expect(calls).not.toContain('plugin marketplace add');
+    expect(calls).not.toContain('plugin add safeword@safeword');
   });
 
   it.each([
