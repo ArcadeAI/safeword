@@ -780,6 +780,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/session-codex-start.ts': {
       template: 'hooks/session-codex-start.ts',
+      // Packaged by the CLI for native Codex dispatch, but no longer copied
+      // into projects. Existing copies are legacy migration inputs.
+      generator: (): undefined => undefined,
     },
     '.safeword/hooks/session-cursor-auto-upgrade.ts': {
       template: 'hooks/session-cursor-auto-upgrade.ts',

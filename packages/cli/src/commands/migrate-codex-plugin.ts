@@ -45,6 +45,7 @@ import {
   observeCodexHookProof,
   writeCodexActivationMarker,
 } from '../codex-plugin/profile-proof.js';
+import { preparedCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { info, success } from '../utils/output.js';
 
@@ -475,6 +476,7 @@ function buildCodexFinalizationMutations(
   preparedLegacyHookRemoval: PreparedLegacyHookRemoval | undefined,
 ): CodexFinalizationMutation[] {
   const mutations: CodexFinalizationMutation[] = [];
+  let configBase: string | undefined;
   if (preparedLegacyHookRemoval !== undefined) {
     if (
       regularCodexConfigMetadata(preparedLegacyHookRemoval.configPath).kind === 'missing' ||
@@ -485,7 +487,14 @@ function buildCodexFinalizationMutations(
         'Codex configuration changed during plugin verification; no legacy hooks were removed.',
       );
     }
-    mutations.push({ path: CODEX_CONFIG_PATH, content: preparedLegacyHookRemoval.cleaned });
+    configBase = preparedLegacyHookRemoval.cleaned;
+  }
+  const configPath = nodePath.join(cwd, CODEX_CONFIG_PATH);
+  const configMetadata = regularCodexConfigMetadata(configPath);
+  const originalConfig = configMetadata.kind === 'missing' ? '' : readFileSync(configPath, 'utf8');
+  const bootstrappedConfig = preparedCodexProjectBootstrap(cwd, configBase);
+  if (bootstrappedConfig !== originalConfig) {
+    mutations.push({ path: CODEX_CONFIG_PATH, content: bootstrappedConfig });
   }
   for (const path of observeLegacyAssets(cwd)) mutations.push({ path, content: null });
   mutations.push(
@@ -727,6 +736,34 @@ export async function removeLegacyCodexHooks(
       removedLegacyHooks: preparedLegacyHookRemoval !== undefined,
     });
   });
+  return true;
+}
+
+export function automaticallyMigrateLegacyCodex(
+  cwd = process.cwd(),
+  environment: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (codexFinalizationIsComplete(cwd) || codexRecoveryIsRequired(cwd)) return false;
+  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+  const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
+  if (!hasLegacy) return false;
+
+  // Build and validate the complete cleanup transaction before touching the
+  // developer's shared profile. Ambiguous project state therefore leaves both
+  // delivery modes untouched.
+  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
+  const plannedEffects = finalizationEffects(cwd, plannedMutations);
+  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
+
+  installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
+  assertCodexFinalizationPlanUnchanged(
+    cwd,
+    preparedLegacyHookRemoval,
+    plannedMutations,
+    plannedEffects,
+    plannedInputs,
+  );
+  applyCodexFinalization(cwd, plannedMutations);
   return true;
 }
 

@@ -13,6 +13,8 @@ import {
   type Finding,
 } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
+import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
+import { installCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
 import { checkHealth, type HealthStatus } from '../health.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
@@ -45,6 +47,7 @@ import {
 } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
+import { automaticallyMigrateLegacyCodex } from './migrate-codex-plugin.js';
 import {
   buildArchitecture,
   hasArchitectureDetected,
@@ -602,7 +605,8 @@ function setupResult(input: SetupResultInput): CliResult {
         ...findings,
         {
           code: 'SETUP_CODEX_PLUGIN_HANDOFF',
-          message: 'Codex plugin: safeword codex install',
+          message:
+            'Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.',
           severity: 'info' as const,
         },
       ];
@@ -610,7 +614,7 @@ function setupResult(input: SetupResultInput): CliResult {
   if (actionRequired) state = 'action_required';
   const nextCommands = actionRequired
     ? [installation.command ?? 'safeword setup']
-    : ['safeword claude install', 'safeword codex install'];
+    : ['safeword claude install'];
   return createResult({
     state,
     changed,
@@ -688,6 +692,36 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
 
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
+    observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
+      installCodexProjectBootstrap(cwd),
+    );
+    const codexHandoffFindings: Finding[] = [];
+    const codexMigrationTargets = [
+      CODEX_MIGRATION_SCHEMA.paths.config,
+      CODEX_MIGRATION_SCHEMA.paths.backupRoot,
+      CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
+      CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
+      ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
+    ];
+    try {
+      const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () =>
+        automaticallyMigrateLegacyCodex(cwd),
+      );
+      if (migrated) {
+        codexHandoffFindings.push({
+          code: 'CODEX_PLUGIN_HANDOFF_COMPLETE',
+          message:
+            'Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.',
+          severity: 'info',
+        });
+      }
+    } catch (error) {
+      codexHandoffFindings.push({
+        code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}`,
+        severity: 'warning',
+      });
+    }
     const architectureEffects = observeFileStage(
       cwd,
       ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
@@ -748,7 +782,10 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       installation,
       eslintPolicy,
       gitInitialized: context.isGitRepo,
-      guidanceFindings: setupGuidanceFindings(context, result, architectureEffects),
+      guidanceFindings: [
+        ...setupGuidanceFindings(context, result, architectureEffects),
+        ...codexHandoffFindings,
+      ],
       pythonSetup,
       namespaceMigration,
       completedEffects,

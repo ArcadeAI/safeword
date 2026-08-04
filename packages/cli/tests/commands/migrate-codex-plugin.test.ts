@@ -23,7 +23,10 @@ import {
   recordCodexHookProof,
   writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
-import { removeLegacyCodexHooks } from '../../src/commands/migrate-codex-plugin.js';
+import {
+  automaticallyMigrateLegacyCodex,
+  removeLegacyCodexHooks,
+} from '../../src/commands/migrate-codex-plugin.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, runCli } from '../helpers';
 
@@ -305,6 +308,51 @@ describe('migrate codex-plugin command', () => {
     expect(calls).toContain('plugin list --json');
     expect(calls).not.toContain('plugin marketplace add');
     expect(calls).not.toContain('plugin add safeword@safeword');
+  });
+
+  it('automatically installs the plugin and transactionally removes recognized legacy state', () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const legacySkill = nodePath.join(fixture.directory, '.agents/skills/audit/SKILL.md');
+    mkdirSync(nodePath.dirname(legacySkill), { recursive: true });
+    writeFileSync(legacySkill, 'legacy audit skill\n');
+    const environment = {
+      CODEX_HOME: nodePath.join(fixture.directory, 'profile'),
+    };
+    vi.stubEnv('PATH', `${fixture.bin}:${process.env.PATH ?? ''}`);
+    vi.stubEnv('SAFEWORD_CODEX_LOG', nodePath.join(fixture.directory, 'codex.log'));
+    vi.stubEnv('CODEX_HOME', environment.CODEX_HOME);
+
+    expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
+
+    const config = readFileSync(fixture.configPath, 'utf8');
+    expect(config).not.toContain('safeword hook codex');
+    expect(config).toContain('bunx --bun safeword@latest codex bootstrap');
+    expect(existsSync(legacySkill)).toBe(false);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
+    expect(
+      existsSync(
+        nodePath.join(fixture.directory, '.safeword/codex-migration-backup/manifest.json'),
+      ),
+    ).toBe(true);
+  });
+
+  it('retains complete legacy state when automatic plugin installation fails', () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const environment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
+    vi.stubEnv('PATH', `${fixture.bin}:${process.env.PATH ?? ''}`);
+    vi.stubEnv('SAFEWORD_CODEX_LOG', nodePath.join(fixture.directory, 'codex.log'));
+    vi.stubEnv('SAFEWORD_FAIL_PLUGIN_INSTALL', '1');
+    vi.stubEnv('CODEX_HOME', environment.CODEX_HOME);
+
+    expect(() => automaticallyMigrateLegacyCodex(fixture.directory, environment)).toThrow(
+      'marketplace unavailable',
+    );
+
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
+      false,
+    );
   });
 
   it('removes legacy hooks only after the explicit handoff cleanup request', async () => {
@@ -597,7 +645,9 @@ command = 'echo "keep this user hook"'
     const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode, result.stderr).toBe(0);
-    expect(readFileSync(configPath, 'utf8')).toBe(original);
+    const finalized = readFileSync(configPath, 'utf8');
+    expect(finalized).toContain(original.trim());
+    expect(finalized).toContain('bunx --bun safeword@latest codex bootstrap');
     expect(existsSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'))).toBe(false);
   });
 
