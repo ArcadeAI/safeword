@@ -302,11 +302,31 @@ it('preserves user input after validation error');
 
 ---
 
+## Working Around An Upstream Bug? Ship A Tripwire
+
+When you pin a dependency to dodge someone else's bug, the workaround is
+temporary by intent and permanent in practice — comments and tickets do not
+reach whoever eventually holds the code.
+
+Write a test that asserts the dependency is **still pinned at the last
+known-bad version**, with a file header naming what to delete when it fails.
+The next upgrade turns CI red in front of the person doing the upgrade.
+
+Assert the pin, never the bug — a test that reproduces the bug goes green when
+upstream fixes it, silently, leaving the dead workaround behind.
+
+Warranted when removal depends on someone else's release _and_ the failure
+mode is silent. Rules: `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/testing-guide.md` → "Upstream
+Workaround Tripwires". Scaffold: `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/tripwire-template.md`.
+
+---
+
 ## Quick Reference
 
 | Need                             | Action                                                                    |
 | -------------------------------- | ------------------------------------------------------------------------- |
 | Full test type selection guide   | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/testing-guide.md`               |
+| Upstream-workaround tripwire     | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/tripwire-template.md`        |
 | Smoke/live/release lane guidance | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/verification-lanes-guide.md`    |
 | LLM eval design guide            | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-evals-guide.md`             |
 | Test definition template (BDD)   | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |

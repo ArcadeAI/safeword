@@ -31,12 +31,28 @@ function sha256(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
-function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Buffer } {
-  const result = spawnSync('git', arguments_, { cwd: repoRoot });
+/**
+ * `maxBuffer` is load-bearing. A sealed input larger than the default 1 MiB
+ * (plugin/runtime/cli.js is ~1.6 MB) made `git show` fail with ENOBUFS, and
+ * reviewedInput's fallback then read the working tree instead. That silently
+ * turned "these are the bytes the reviewer attested to" into "your working
+ * tree must not change" — so regenerating a committed build artifact failed
+ * this test while the seal itself was intact.
+ */
+function git(arguments_: string[]): {
+  status: number;
+  stdout: Buffer;
+  stderr: Buffer;
+  spawnFailed: boolean;
+} {
+  const result = spawnSync('git', arguments_, { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 });
   return {
     status: result.status ?? 1,
     stdout: result.stdout,
     stderr: result.stderr,
+    // A spawn-level failure (ENOBUFS, git missing) is not the same as git
+    // reporting "no such path in that commit"; only the latter may fall back.
+    spawnFailed: Boolean(result.error),
   };
 }
 
@@ -50,6 +66,12 @@ function sealedCommit(): string | undefined {
 function reviewedInput(path: string, commit: string | undefined): Buffer {
   if (!commit) return readFileSync(nodePath.join(repoRoot, path));
   const result = git(['show', `${commit}:${path}`]);
+  if (result.spawnFailed) {
+    // Reading the working tree here would compare the wrong bytes and report
+    // it as a seal violation. Fail loudly instead of quietly changing what
+    // this test checks.
+    throw new Error(`git show ${commit}:${path} could not run; cannot verify sealed input`);
+  }
   return result.status === 0 ? result.stdout : readFileSync(nodePath.join(repoRoot, path));
 }
 
