@@ -62,7 +62,19 @@ function readAttemptMarker(projectDirectory: string, sessionId: string): Attempt
     const raw = JSON.parse(
       readFileSync(attemptMarkerPath(projectDirectory, sessionId), 'utf8'),
     ) as Record<string, unknown>;
-    if (typeof raw.key !== 'string' || typeof raw.attempts !== 'number') return undefined;
+    // `typeof === 'number'` alone admits NaN and negatives from a corrupt marker.
+    // NaN loses every comparison, so `attempts >= FILING_ATTEMPT_CAP` would be
+    // false forever and the gate would re-fire without limit — the cap is the only
+    // thing bounding that loop. Treat an unusable count as no marker (fail-open to
+    // a fresh batch), matching how every other malformed field is handled here.
+    if (
+      typeof raw.key !== 'string' ||
+      typeof raw.attempts !== 'number' ||
+      !Number.isInteger(raw.attempts) ||
+      raw.attempts < 0
+    ) {
+      return undefined;
+    }
     const marker: AttemptMarker = { key: raw.key, attempts: raw.attempts };
     if (
       Array.isArray(raw.signatures) &&

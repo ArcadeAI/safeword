@@ -71,6 +71,25 @@ describe('retro filing gate decision (GH628F — dispatch until drained, capped)
     expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined();
   });
 
+  // A non-finite count would lose every `attempts >= CAP` comparison, so the gate
+  // would re-fire without limit; a negative one would silently widen the budget.
+  // Rejecting the marker restarts the batch at zero, and the cap still binds.
+  it.each([
+    ['non-finite', '{"key":"k","attempts":1e999}\n'],
+    ['negative', '{"key":"k","attempts":-5}\n'],
+    ['fractional', '{"key":"k","attempts":1.5}\n'],
+  ])('still enforces the cap when the persisted count is %s', (_label, marker) => {
+    spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
+    writeFileSync(
+      nodePath.join(projectDirectory, '.safeword/retro-drafts', 'sess-1.filing-attempts'),
+      marker,
+    );
+    for (let attempt = 1; attempt <= FILING_ATTEMPT_CAP; attempt++) {
+      expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined();
+    }
+    expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeUndefined();
+  });
+
   it('keys the attempt budget per session spool', () => {
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
     spoolDrafts(projectDirectory, 'sess-2', [draft('retro:aaaaaaaaaaaa')]);
@@ -253,6 +272,25 @@ describe('retro filing tripwire (GH644A — unacked removals become telemetry)',
         writeFileSync(
           nodePath.join(projectDirectory, '.safeword/retro-drafts', `${s}.filing-attempts`),
           'not json',
+        );
+      },
+    ],
+    // `1e999` parses to Infinity, the one way JSON yields a non-finite count.
+    [
+      'marker with a non-finite attempt count',
+      (s: string) => {
+        writeFileSync(
+          nodePath.join(projectDirectory, '.safeword/retro-drafts', `${s}.filing-attempts`),
+          '{"key":"k","attempts":1e999}\n',
+        );
+      },
+    ],
+    [
+      'marker with a negative attempt count',
+      (s: string) => {
+        writeFileSync(
+          nodePath.join(projectDirectory, '.safeword/retro-drafts', `${s}.filing-attempts`),
+          '{"key":"k","attempts":-5}\n',
         );
       },
     ],
