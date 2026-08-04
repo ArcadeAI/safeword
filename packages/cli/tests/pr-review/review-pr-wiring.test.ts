@@ -153,6 +153,62 @@ describe('safeword review-pr — entry point wiring (36EEMY)', () => {
     expect(requested).toContain('POST /repos/acme/monorepo/check-runs');
   });
 
+  it('routes an unfamiliar artifact through mandatory integrity review and publishes the finding', async () => {
+    stubGitHub({
+      pullFiles: ['policies/access.flux'],
+      compareFiles: [],
+      previouslyReviewed: false,
+    });
+
+    const promptDirectory = nodePath.join(projectDirectory, '.claude', 'skills', 'pr-review');
+    mkdirSync(promptDirectory, { recursive: true });
+    writeFileSync(nodePath.join(promptDirectory, 'SKILL.md'), 'Review this pull request.');
+
+    const bundleDirectory = nodePath.join(projectDirectory, '.safeword-pr-review');
+    mkdirSync(nodePath.join(bundleDirectory, 'files', 'policies'), { recursive: true });
+    writeFileSync(nodePath.join(bundleDirectory, 'pull-number'), '42');
+    writeFileSync(
+      nodePath.join(bundleDirectory, 'diff.patch'),
+      'diff --git a/policies/access.flux b/policies/access.flux\n-allow admin\n+allow *\n',
+    );
+    writeFileSync(nodePath.join(bundleDirectory, 'files', 'policies', 'access.flux'), 'allow *\n');
+
+    const unfamiliarFinding: Review = {
+      verdict: 'needs-a-human',
+      findings: [
+        {
+          path: 'policies/access.flux',
+          line: 1,
+          consequence: 'The policy now grants access to every caller.',
+        },
+      ],
+    };
+
+    let childArgv: string[] = [];
+    const outcome = await reviewPrCommand({
+      repository: 'acme/monorepo',
+      pull: '42',
+      projectDirectory,
+      bundleDirectory,
+      spawn: (_binary, argv) => {
+        childArgv = argv;
+        const outputPath = argv[argv.indexOf('-o') + 1];
+        if (outputPath !== undefined) writeFileSync(outputPath, JSON.stringify(unfamiliarFinding));
+        return { status: 0, stdout: '' };
+      },
+    });
+
+    expect(outcome).toMatchObject({ ran: true, posted: true });
+    expect(childArgv.join(' ')).toContain('Mandatory review assignment: integrity');
+    expect(childArgv.join(' ')).toContain('language, framework, file extension');
+    expect(childArgv.join(' ')).toContain('policies/access.flux');
+    expect(childArgv.join(' ')).toContain('allow *');
+
+    const inlinePost = requested.find(path => path.endsWith('/pulls/42/comments'));
+    expect(inlinePost).toBe('POST /repos/acme/monorepo/pulls/42/comments');
+    expect(requested).toContain('POST /repos/acme/monorepo/check-runs');
+  });
+
   it('does not re-review when only DOCS changed since the last review', async () => {
     // The pull request as a whole touches source — that source landed in the
     // commit already reviewed. Since then only docs changed, so R8 says stay

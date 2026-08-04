@@ -36,7 +36,11 @@ export interface ReviewInputParts {
  * off-topic (R12) unless the change made it dangerous.
  */
 export function buildReviewInput(parts: ReviewInputParts): string {
-  const sections: string[] = [];
+  const sections: string[] = [
+    `## Mandatory review assignment: integrity
+
+Review every changed artifact for broken behavior, violated contracts, unsafe assumptions, and regressions. This assignment is mandatory even when the language, framework, file extension, or repository architecture is unfamiliar. Unknown technology is a reason to inspect the evidence, not a reason to stay silent.`,
+  ];
   if (parts.intent !== undefined && parts.intent.length > 0) {
     sections.push(`## Declared intent\n\n${parts.intent}`);
   }
