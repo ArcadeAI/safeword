@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
   schedule:
     # Weekly on Sunday at midnight UTC - catches runner image and environmental drift
     - cron: '0 0 * * 0'
