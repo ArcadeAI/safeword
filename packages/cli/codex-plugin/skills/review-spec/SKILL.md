@@ -86,7 +86,7 @@ Report findings the way safeword talks to the user — lead with the answer, str
 
 - **Lead with a tally** — `**Findings:** N must-fix, M should-strengthen, P looks-good.`
 - **Three tiers** — Must Fix (correctness/structure), Should Strengthen (clarity/specificity), Looks Good (specific acknowledgement, never padding).
-- **One `####` per finding** with the scenario id + a short issue; under it, **Current** (quote the G/W/T, bold the offending phrase) → why → **Proposed** (the rewrite). Fix last, so the explanation reads as the answer. **The `Proposed` rewrite is a claim in its own right** — it must still prove the same Rule and survive the checks above (a rewrite that fixes AODI but no longer covers the criterion is a regression).
+- **One `####` per finding** with the scenario id + a short issue; under it, **Current** (quote the G/W/T, bold the offending phrase) → why → **Proposed** (the rewrite). Fix last, so the explanation reads as the answer. **The `Proposed` rewrite is a claim in its own right** — it must still prove the same Rule and survive the checks above (a rewrite that fixes AODI but no longer covers the criterion is a regression). PRINCIPLES §1: verify the remedy, not just the finding.
 - **One finding per root cause** — raise each defect once under its most precise category; don't stack labels ("vacuous" + "non-observable") on one scenario's single structural cause. This de-dups WITHIN one scenario only — two scenarios that each carry a defect are always two separate findings.
 - **Bulk** — when one pattern hits ≥3 scenarios: one header, an **Affected** id list, one **Representative** quote, one **Proposed pattern**.
 - **End with `**Next:**`** — the single fix to start.

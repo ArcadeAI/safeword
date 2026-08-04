@@ -125,7 +125,13 @@ Each pass:
      auto-spawn, and `/agent` only switches existing threads. Cursor: subagents.
      No sub-agent? Re-read in a fresh context — independence is the point, not
      the mechanism.
-2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
+2. **Triage.** Before accepting a severity, **look for the guard that already
+   mitigates it** — the reviewer saw only the work-product and its scope, so it
+   can't see a mitigation twenty lines outside; you can. If one exists, name it
+   and lower the severity. If the work and its own comments/docs agree, the
+   deviation is **deliberate and documented** — not an oversight, and saying
+   otherwise tells the author they missed what they actually decided. Then fix
+   every surviving **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
 3. **Decide.** Stop when **Critical issues = None**; remaining suggestions are
    optional. Re-review only if you changed the work-product this pass.
