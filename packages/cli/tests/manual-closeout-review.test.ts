@@ -31,8 +31,16 @@ function sha256(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
+// `git show` of a sealed blob has to hold the whole file in memory, and one of
+// the reviewed inputs is the bundled CLI (~1.6 MB and growing). spawnSync's
+// default 1 MB cap made that read fail with ENOBUFS, and `reviewedInput` treats
+// any non-zero status as "not in history" and falls back to the WORKING TREE —
+// so the seal silently compared the working copy to itself and passed for any
+// bundle. It only surfaced once a branch actually changed the bundle.
+const MAX_SEALED_BLOB_BYTES = 64 * 1024 * 1024;
+
 function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Buffer } {
-  const result = spawnSync('git', arguments_, { cwd: repoRoot });
+  const result = spawnSync('git', arguments_, { cwd: repoRoot, maxBuffer: MAX_SEALED_BLOB_BYTES });
   return {
     status: result.status ?? 1,
     stdout: result.stdout,
