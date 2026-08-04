@@ -56,8 +56,16 @@ Unaffected:
 - **Review packet** — the bounded, read-only set of logical files handed to a
   reviewer for one dispatch.
 - **Attempt budget** — the wall-clock time a single review attempt may take
-  before it is stopped and classified as a timeout. Derived from packet size,
-  and never more than the **documented attempt maximum of 5 minutes**.
+  before it is stopped and classified as a timeout. Derived deterministically
+  from packet size as **60 seconds plus 3 milliseconds per packet byte, clamped
+  to between 2 and 5 minutes**. So a 3 KB packet gets the 2-minute floor, a
+  58 KB packet gets 234 seconds, and anything from 80 KB up gets the 5-minute
+  maximum.
+- **Probe budget** — the time a single capability check on one candidate may
+  take: **5 seconds**, drawn from that candidate's share.
+- **Cleanup budget** — the time allowed to stop a reviewer and its descendants
+  after an attempt ends: **5 seconds**, after which the run continues regardless.
+  Reviewers are launched in their own process group so descendants are included.
 - **Run bound** — the total wall-clock time a whole review run may take across
   every route it tries: **20 minutes**. That is three 5-minute attempts plus 5
   minutes reserved for launching, stopping, and checking reviewers, so an

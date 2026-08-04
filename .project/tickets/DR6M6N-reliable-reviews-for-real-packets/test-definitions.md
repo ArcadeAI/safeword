@@ -12,13 +12,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A small packet keeps a smaller budget than a large one
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A packet large enough to need it gets the whole attempt maximum
+### Scenario: The attempt budget follows packet size predictably
 
 - [ ] RED
 - [ ] GREEN
@@ -108,6 +102,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Cleanup covers descendants the reviewer detached
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Cleanup that will not finish does not stall the run
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A late answer after a timeout is ignored
 
 - [ ] RED
@@ -123,6 +129,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: The contract handed out names exactly the fields the check enforces
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The contract handed out pins every field's shape
 
 - [ ] RED
 - [ ] GREEN
@@ -155,6 +167,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A candidate whose capability cannot be established is skipped with its budget preserved
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A capability question that hangs is abandoned quickly
 
 - [ ] RED
 - [ ] GREEN
@@ -274,7 +292,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A run that exhausts every route still finishes inside the run bound
+### Scenario: A run finishes inside the run bound however its routes fail
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A run is stopped at the run bound even if a route would continue
 
 - [ ] RED
 - [ ] GREEN

@@ -13,16 +13,21 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the review returns the reviewer's verdict
 
-    Scenario: A small packet keeps a smaller budget than a large one
-      Given a single-file review packet of about 3 KB
-      And a five-file review packet of about 58 KB
-      When each packet's attempt budget is derived
-      Then the larger packet is allowed more time than the smaller one
-
-    Scenario: A packet large enough to need it gets the whole attempt maximum
-      Given a review packet at the largest size the coordinator accepts
+    Scenario Outline: The attempt budget follows packet size predictably
+      Given a review packet of <size>
       When the attempt budget is derived
-      Then the attempt budget is 5 minutes
+      Then the attempt budget is <budget>
+
+      Examples:
+        | size                                | budget      |
+        | 0 bytes                             | 2 minutes   |
+        | 3 KB                                | 2 minutes   |
+        | 20 KB                               | 2 minutes   |
+        | 20 KB and one byte                  | just over 2 minutes |
+        | 58 KB                               | 234 seconds |
+        | 80 KB less one byte                 | just under 5 minutes |
+        | 80 KB                               | 5 minutes   |
+        | the largest size the coordinator accepts | 5 minutes |
 
     Scenario Outline: The attempt deadline is decided on a controlled clock
       Given a reviewer whose answer arrives <timing> its attempt budget
@@ -153,6 +158,18 @@ Feature: Keep independent reviews reliable for real ticket packets
         | answers outside the contract    |
         | ignores being asked to stop     |
 
+    Scenario: Cleanup covers descendants the reviewer detached
+      Given a reviewer that never answers and leaves a detached grandchild process
+      When the independent review runs
+      Then no process from that reviewer's group is still running afterwards
+
+    @rejection
+    Scenario: Cleanup that will not finish does not stall the run
+      Given a reviewer whose processes cannot be stopped
+      When the independent review runs
+      Then the run stops waiting for cleanup after 5 seconds
+      And the next route still starts
+
     @rejection
     Scenario: A late answer after a timeout is ignored
       Given a reviewer that answers only after it was stopped for running out of time
@@ -180,6 +197,19 @@ Feature: Keep independent reviews reliable for real ticket packets
         | summary        |
         | findings       |
       And each finding it describes requires exactly a severity and a message
+
+    Scenario: The contract handed out pins every field's shape
+      Given the review result contract handed to a reviewer
+      When its shape is inspected
+      Then each field is described exactly as:
+        | field          | shape                                            |
+        | schema_version | the number 1 and nothing else                    |
+        | dispatch_id    | text                                             |
+        | reviewer_agent | one of claude or codex                           |
+        | verdict        | one of approve or request_changes                |
+        | summary        | text                                             |
+        | findings       | a list of findings, possibly empty               |
+      And no object anywhere in the contract permits an undeclared field
 
     Scenario Outline: The contract handed out permits exactly the severities the check accepts
       Given the review result contract handed to a reviewer
@@ -229,6 +259,14 @@ Feature: Keep independent reviews reliable for real ticket packets
         | answers the capability question unreadably   |
         | claims typed output but refuses the contract |
         | is too old a version to support typed output |
+
+    Scenario: A capability question that hangs is abandoned quickly
+      Given a first installed reviewer executable that never answers the capability question
+      And a second installed reviewer executable that supports typed output
+      When the independent review runs
+      Then the capability question is abandoned after 5 seconds
+      And nothing from that executable is left running
+      And the review returns the second executable's verdict
 
     @rejection
     Scenario: No reviewer executable supporting typed output means no reviewer is available
@@ -410,12 +448,30 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the review reports that no route completed
 
     @rejection
-    Scenario: A run that exhausts every route still finishes inside the run bound
+    Scenario Outline: A run finishes inside the run bound however its routes fail
       Given a configured alternate model for the reviewer agent
-      And no route ever answers
+      And a review packet at the largest size the coordinator accepts
+      And every route fails by <failure>
       When the independent review runs
       Then the whole run finishes within 20 minutes
       And no route is attempted a second time
+
+      Examples:
+        | failure                                    |
+        | never answering                            |
+        | hanging on the capability question         |
+        | failing to launch                          |
+        | answering outside the contract every time  |
+        | ignoring being asked to stop               |
+        | a mixture of all of these across routes    |
+
+    @rejection
+    Scenario: A run is stopped at the run bound even if a route would continue
+      Given a configured alternate model for the reviewer agent
+      And the run has reached exactly 20 minutes with a route still working
+      When the run bound is reached
+      Then the run stops
+      And the review reports that no route completed
 
   @reliable-reviews-for-real-packets.NTB1.R1 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure
@@ -462,10 +518,15 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the offered next step is to <remedy>
 
       Examples:
-        | cause             | remedy                    |
-        | is not installed  | install the reviewer      |
-        | is not signed in  | sign in to the reviewer   |
-        | timed out         | retry the review          |
+        | cause                            | remedy                        |
+        | is not installed                 | install the reviewer          |
+        | is not signed in                 | sign in to the reviewer       |
+        | timed out                        | retry the review              |
+        | is too old to be used            | update the reviewer           |
+        | could not be launched            | check the reviewer runs       |
+        | crashed                          | retry the review              |
+        | answered outside the contract    | retry the review              |
+        | could not be given the contract  | retry the review              |
 
     @rejection
     Scenario: An exhausted run never claims a review happened
