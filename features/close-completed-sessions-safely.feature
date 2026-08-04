@@ -134,6 +134,14 @@ Feature: Close completed sessions safely
       When closeout runs again
       Then it performs no destructive action and reports the session already closed
 
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: New dependency intelligence does not strand cleanup of an immutable merged head
+      Given delivery-time verification including dependency audit passed before merge
+      And the exact pull request head is confirmed merged
+      And a dependency advisory published after merge now affects that immutable head
+      When closeout revalidates the merged head for cleanup
+      Then it reruns verification, build, typecheck, and BDD without rerunning dependency audit
+
   @close-completed-sessions-safely.TBU1.R1
   Rule: close-completed-sessions-safely.TBU1.R1 — Merge actions never exceed the authority explicitly granted by the user
 
@@ -264,6 +272,13 @@ Feature: Close completed sessions safely
       Given the canonical skill and generated Claude Code, OpenAI Codex, and Cursor artifacts carry the closeout contract
       When Safeword checks workflow parity
       Then every closeout parity pair and action entry point passes
+
+    @surface.openai-codex
+    Scenario: Codex Desktop binds closeout from its authenticated thread environment
+      Given Codex Desktop exposes the current thread identity to the closeout process
+      And no fresh pre-tool binding cache is available
+      When the user previews closeout from that task
+      Then closeout binds the current Codex thread and evaluates the exact merged delivery
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Closeout drift fails parity at the changed surface

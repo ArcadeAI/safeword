@@ -333,9 +333,12 @@ it never stages, commits, or opens a PR.
 
 Closeout can resume after its topic worktree has already been removed. The
 guard stores a private 24-hour receipt in Git's shared common directory only
-after every verification lane passes on the clean exact pull-request head; a
-missing, stale, malformed, dirty-state, or wrong-head receipt blocks the
-remaining branch cleanup.
+after every applicable post-merge lane passes on the clean exact pull-request
+head. Dependency auditing remains a pre-merge delivery gate; mutable advisory
+data cannot strand cleanup of an immutable merged head. Claude Code and Cursor
+use hook-captured session identity, while Codex Desktop may use its authenticated
+`CODEX_THREAD_ID` when the one-shot hook bridge is unavailable. Missing, stale,
+malformed, dirty-state, or wrong-head proof blocks the remaining branch cleanup.
 
 **MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
 
