@@ -45511,7 +45511,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
       this._exitCallback = (err) => {
         if (err.code !== "commander.executeSubCommandAsync") {
           throw err;
-        } else {}
+        }
       };
     }
     return this;
