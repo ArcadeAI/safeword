@@ -124,7 +124,7 @@ with two differences:
    (`.acks.jsonl` in place of `.jsonl`), then re-read the ack file and exact-match
    the signature and destination. Only a draft with that write-confirmed record
    may be removed. If append or verification fails, retain it. Then run
-   `bun .safeword/hooks/lib/drain-retro-spool.ts "<spool-path>"`; never rewrite or
+   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>"`; never rewrite or
    delete the spool directly. The helper re-reads both files and removes only
    acknowledged drafts. The acks are what
    prove the drain honest — a drain without them trips safeword's bare-drain

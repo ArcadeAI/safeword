@@ -71,7 +71,7 @@ export function formatRetroNudge(count: number, spoolPath: string): string {
     `in agent sessions, not a defect. This boundary ` +
     `observed them queued for the safeword-retro-filer subagent (or the live agent's GitHub access); ` +
     `the filing path re-reads the spool before reporting what remains. ` +
-    `The filing procedure is in .safeword/guides/self-report-filing.md.`
+    `The filing procedure is in "${CLAUDE_PLUGIN_ROOT}"/resources/guides/self-report-filing.md.`
   );
 }
 

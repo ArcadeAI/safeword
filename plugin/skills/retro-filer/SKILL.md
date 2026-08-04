@@ -50,7 +50,7 @@ the host project.
    the draft only when the append succeeded and the exact ack is visible. If the
    append or verification fails, leave the draft in place.
 5. Create at most five new issues per run. Drain only by running
-   `bun .safeword/hooks/lib/drain-retro-spool.ts "<spool-path>"`; never rewrite or
+   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>"`; never rewrite or
    delete the spool directly. The helper removes only drafts whose valid ack is
    reader-visible, so unfiled or unacknowledged drafts remain. If tracker write
    access is unavailable, leave the spool unchanged and report

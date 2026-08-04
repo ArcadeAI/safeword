@@ -69,7 +69,7 @@ procedure, your target repo, or your tools.
 4. **Cap: at most 5 new issues per run.** If more drafts remain, leave them in
    the spool and include the remainder count in your summary.
 5. **Drain through safeword's guard.** Run
-   `bun .safeword/hooks/lib/drain-retro-spool.ts "<spool-path>"`. Never rewrite or
+   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>"`. Never rewrite or
    delete the spool directly. The helper re-reads both files and removes only
    drafts with valid acknowledgements from step 3; unfiled or unacknowledged
    drafts stay queued. This is what stops safeword's stop gate from
