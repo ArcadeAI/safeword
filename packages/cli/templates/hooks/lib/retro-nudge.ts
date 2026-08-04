@@ -21,11 +21,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { atomicWriteFile } from './jsonl-spool.js';
-import { draftSpoolPath, readSpooledDrafts } from './retro-draft-spool.js';
+import { draftSpoolPath, readSpooledDrafts, spoolSiblingPath } from './retro-draft-spool.js';
 
 /** The per-session marker recording the last unfiled batch already surfaced. */
 function nudgeMarkerPath(projectDirectory: string, sessionId: string): string {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.nudged');
+  return spoolSiblingPath(projectDirectory, sessionId, '.nudged');
 }
 
 /** Stable key for an unfiled batch — order-independent over its signatures. Shared with the filing gate. */

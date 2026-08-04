@@ -24,7 +24,12 @@
 import { readFileSync } from 'node:fs';
 
 import { atomicWriteFile } from './jsonl-spool.js';
-import { draftSpoolPath, readAcks, readSpooledDrafts } from './retro-draft-spool.js';
+import {
+  draftSpoolPath,
+  readAcks,
+  readSpooledDrafts,
+  spoolSiblingPath,
+} from './retro-draft-spool.js';
 import { batchKey } from './retro-nudge.js';
 import { captureBareDrain, readSelfReportConfig } from './self-report.js';
 
@@ -39,7 +44,7 @@ export const CODEX_FILER_SKILL_NAME = 'safeword:retro-filer';
 
 /** The per-session marker recording filing attempts for the current batch. */
 function attemptMarkerPath(projectDirectory: string, sessionId: string): string {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.filing-attempts');
+  return spoolSiblingPath(projectDirectory, sessionId, '.filing-attempts');
 }
 
 interface AttemptMarker {
@@ -85,23 +90,7 @@ function writeAttemptMarker(
   }
 }
 
-/**
- * The Claude/Cursor one-action dispatch. Imperative ON PURPOSE: this text
- * travels only through the harnesses' sanctioned continuation channels (Stop
- * decision:"block" reason / followup_message), which are documented to carry
- * instructions — unlike the muted context-channel nudge. It requests a single
- * dispatch plus a silence contract, never an inline filing procedure.
- *
- * The text must NOT diagnose the spool as a transport failure (#1900). This is the
- * only account of the handoff in the transcript, and retro's own extractor mines
- * that transcript — so the old "its REST transport cannot authenticate" clause came
- * back as an auto-filed bug against a subsystem working as designed, once per cloud
- * session. The CLI process legitimately holds no GitHub credential in an agent
- * session (verified: the network reaches api.github.com, but anonymously) while the
- * agent does, so spool + filer IS the designed lane, not a workaround for a broken
- * one. Keep the phrasing neutral about cause — a genuine 401 also lands here, and
- * the failed/deferred counts in the retro summary are what report that.
- */
+/** How one harness's carrier is named; everything else in the dispatch is shared. */
 interface FilingCarrier {
   /** Names the carrier and how it is invoked, e.g. `the X subagent (foreground) with`. */
   invocation: string;
@@ -118,6 +107,22 @@ interface FilingCarrier {
  * is named — keeping them as two hand-maintained strings meant an edit to the
  * shared wording could land in only one (the #1900 reframing had to be applied
  * twice by hand, which is exactly that drift risk).
+ *
+ * Imperative ON PURPOSE: this text travels only through the harnesses' sanctioned
+ * continuation channels (Stop decision:"block" reason / followup_message), which
+ * are documented to carry instructions — unlike the muted context-channel nudge.
+ * It requests a single dispatch plus a silence contract, never an inline filing
+ * procedure.
+ *
+ * The text must NOT diagnose the spool as a transport failure (#1900). This is the
+ * only account of the handoff in the transcript, and retro's own extractor mines
+ * that transcript — so the old "its REST transport cannot authenticate" clause came
+ * back as an auto-filed bug against a subsystem working as designed, once per cloud
+ * session. The CLI process legitimately holds no GitHub credential in an agent
+ * session (verified: the network reaches api.github.com, but anonymously) while the
+ * agent does, so spool + filer IS the designed lane, not a workaround for a broken
+ * one. Keep the phrasing neutral about cause — a genuine 401 also lands here, and
+ * the failed/deferred counts in the retro summary are what report that.
  */
 function formatDispatch(count: number, spoolPath: string, carrier: FilingCarrier): string {
   const plural = count === 1 ? '' : 's';
@@ -133,6 +138,7 @@ function formatDispatch(count: number, spoolPath: string, carrier: FilingCarrier
   );
 }
 
+/** The Claude/Cursor one-action dispatch, routed through the shipped filer subagent. */
 export function formatFilingDispatch(count: number, spoolPath: string): string {
   return formatDispatch(count, spoolPath, {
     invocation: `the ${FILER_AGENT_NAME} subagent (foreground) with`,

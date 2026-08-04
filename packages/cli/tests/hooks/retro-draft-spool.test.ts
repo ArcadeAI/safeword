@@ -11,6 +11,7 @@ import {
   markDraftsFiled,
   readSpooledDrafts,
   spoolDrafts,
+  spoolSiblingPath,
   verifyDraftBody,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { retroDraft as draft, sealedRetroDraft as sealedDraft } from '../helpers.js';
@@ -126,6 +127,36 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
     spoolDrafts(projectDirectory, 'sess-1', [current]);
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([current]);
     expect(verifyDraftBody(current)).toBe(true);
+  });
+});
+
+describe('spoolSiblingPath — marker paths that cannot collide with the spool', () => {
+  it('swaps the spool extension for the sibling suffix', () => {
+    const spool = draftSpoolPath('/proj', 'sess-1');
+    expect(spool.endsWith('.jsonl')).toBe(true);
+    expect(spoolSiblingPath('/proj', 'sess-1', '.nudged')).toBe(
+      spool.replace(/\.jsonl$/, '.nudged'),
+    );
+    expect(spoolSiblingPath('/proj', 'sess-1', '.acks.jsonl')).toBe(
+      spool.replace(/\.jsonl$/, '.acks.jsonl'),
+    );
+  });
+
+  // The collision this guards: the previous `.replace(/\.jsonl$/, …)` returned the
+  // SPOOL's own path whenever the regex failed to match, so a marker write would
+  // clobber the drafts. Every shipped suffix must land somewhere else.
+  it('never returns the spool path itself for any shipped marker suffix', () => {
+    const spool = draftSpoolPath('/proj', 'sess-1');
+    for (const suffix of ['.nudged', '.acks.jsonl', '.filing-attempts']) {
+      expect(spoolSiblingPath('/proj', 'sess-1', suffix)).not.toBe(spool);
+    }
+  });
+
+  it('keeps each marker kind on a distinct path for the same session', () => {
+    const paths = ['.nudged', '.acks.jsonl', '.filing-attempts'].map(suffix =>
+      spoolSiblingPath('/proj', 'sess-1', suffix),
+    );
+    expect(new Set(paths).size).toBe(paths.length);
   });
 });
 

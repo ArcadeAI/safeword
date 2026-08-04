@@ -67,6 +67,30 @@ export function draftSpoolPath(projectDirectory: string, sessionId: string): str
   return nodePath.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
 }
 
+/** The extension `spoolName` appends; every sibling marker replaces it. */
+const SPOOL_EXTENSION = '.jsonl';
+
+/**
+ * Path of a sibling file sharing the spool's session-derived basename — the acks
+ * ledger, the nudge marker, the filing-attempt marker. Three modules previously
+ * each did their own `draftSpoolPath(...).replace(/\.jsonl$/, ...)`; a regex that
+ * failed to match would silently no-op and hand back the SPOOL's own path, so the
+ * marker write would overwrite the drafts it exists to protect. Appending when the
+ * extension is absent makes that collision unrepresentable instead of relying on
+ * `spoolName` never changing.
+ */
+export function spoolSiblingPath(
+  projectDirectory: string,
+  sessionId: string,
+  suffix: string,
+): string {
+  const spool = draftSpoolPath(projectDirectory, sessionId);
+  const base = spool.endsWith(SPOOL_EXTENSION)
+    ? spool.slice(0, -SPOOL_EXTENSION.length)
+    : /* istanbul ignore next — unreachable while spoolName appends the extension */ spool;
+  return `${base}${suffix}`;
+}
+
 /** A parsed spool line is a draft only when the required code-assembled fields are present. */
 function toDraft(value: unknown): SpooledDraft | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
@@ -179,7 +203,7 @@ export interface FiledAck {
 
 /** Ack file beside the spool: `<session>.acks.jsonl`, one FiledAck per line. */
 export function ackFilePath(projectDirectory: string, sessionId: string): string {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.acks.jsonl');
+  return spoolSiblingPath(projectDirectory, sessionId, '.acks.jsonl');
 }
 
 /** A filed ack names a non-empty signature and a meaningful tracker destination. */
