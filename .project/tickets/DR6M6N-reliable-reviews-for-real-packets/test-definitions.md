@@ -18,6 +18,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A reviewer answering exactly at the documented maximum is accepted
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An oversized packet's budget is capped at the documented maximum
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A reviewer answering past the documented maximum is still stopped
 
 - [ ] RED
@@ -38,9 +50,27 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An explicitly configured budget cannot exceed the documented maximum
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A meaningless configured budget is ignored
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: reliable-reviews-for-real-packets.TBU1.R3 — One slow or stale reviewer executable cannot consume every other installed candidate's opportunity
 
 ### Scenario: A slow first reviewer executable still leaves the next one a chance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A first reviewer executable failing any way still leaves the next one a chance
 
 - [ ] RED
 - [ ] GREEN
@@ -60,7 +90,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The contract handed out matches the contract enforced
+### Scenario: The contract handed out names exactly the fields the check enforces
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The contract handed out permits exactly the severities the check accepts
 
 - [ ] RED
 - [ ] GREEN
@@ -156,7 +192,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own bounded budget, so an exhausted first attempt cannot leave the retry with no time to run
 
-### Scenario: The alternate-model retry gets its own budget
+### Scenario: A route failing any way still leaves the next route its own budget
 
 - [ ] RED
 - [ ] GREEN
@@ -182,6 +218,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An exhausted run offers one thing to do next
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The offered next step matches what actually went wrong
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An exhausted run never claims a review happened
 
 - [ ] RED
@@ -190,7 +238,13 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: reliable-reviews-for-real-packets.NTB1.R2 — An explanation never carries raw reviewer output, diagnostic noise, or credentials
 
-### Scenario: Reviewer diagnostic noise never reaches the explanation
+### Scenario: Nothing a reviewer emits reaches the explanation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A rejected answer is never echoed back to the builder
 
 - [ ] RED
 - [ ] GREEN

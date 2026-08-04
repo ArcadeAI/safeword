@@ -2,7 +2,10 @@
 id: DR6M6N
 slug: reliable-reviews-for-real-packets
 type: feature
-phase: define-behavior
+phase: scenario-gate
+phase_anchors:
+  - define-behavior: .project/tickets/DR6M6N-reliable-reviews-for-real-packets/spec.md
+  - scenario-gate: packages/cli/features/reliable-reviews-for-real-packets.feature
 status: in_progress
 scope:
   - a size-aware review budget with a documented bounded maximum, honoring the existing explicit override
@@ -44,3 +47,4 @@ last_modified: 2026-08-04T14:54:55.395Z
 
 - 2026-08-04T14:54:55.395Z Started: Created ticket DR6M6N
 - 2026-08-04T16:30:02.281Z Phase: intake → define-behavior
+- 2026-08-04T16:33:40.692Z Phase: define-behavior → scenario-gate

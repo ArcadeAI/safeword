@@ -19,6 +19,17 @@ Feature: Keep independent reviews reliable for real ticket packets
       When each packet's review budget is derived
       Then the larger packet is allowed more time than the smaller one
 
+    Scenario: A reviewer answering exactly at the documented maximum is accepted
+      Given a review packet at the largest size the coordinator accepts
+      And the assigned reviewer answers exactly at the documented maximum budget
+      When the independent review runs
+      Then the review returns the reviewer's verdict
+
+    Scenario: An oversized packet's budget is capped at the documented maximum
+      Given a review packet at the largest size the coordinator accepts
+      When the review budget is derived
+      Then the budget equals the documented maximum
+
     @rejection
     Scenario: A reviewer answering past the documented maximum is still stopped
       Given a review packet at the largest size the coordinator accepts
@@ -36,10 +47,27 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review is reported as timed out
 
     Scenario: An explicitly configured budget replaces the size-derived one
-      Given an explicitly configured review budget
+      Given an explicitly configured review budget below the documented maximum
       And a five-file review packet of about 58 KB
       When the review budget is derived
       Then the configured budget is used instead of the size-derived budget
+
+    Scenario: An explicitly configured budget cannot exceed the documented maximum
+      Given an explicitly configured review budget above the documented maximum
+      When the review budget is derived
+      Then the budget equals the documented maximum
+
+    @rejection
+    Scenario Outline: A meaningless configured budget is ignored
+      Given an explicitly configured review budget of <budget>
+      When the review budget is derived
+      Then the size-derived budget is used instead of the configured budget
+
+      Examples:
+        | budget         |
+        | zero           |
+        | a negative time|
+        | text           |
 
   @reliable-reviews-for-real-packets.TBU1.R3 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU1.R3 — One slow or stale reviewer executable cannot consume every other installed candidate's opportunity
@@ -50,6 +78,20 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the second executable answers promptly
       When the independent review runs
       Then the review returns the second executable's verdict
+
+    Scenario Outline: A first reviewer executable failing any way still leaves the next one a chance
+      Given two installed reviewer executables that both accept the review contract
+      And the first executable <failure>
+      And the second executable answers promptly
+      When the independent review runs
+      Then the review returns the second executable's verdict
+
+      Examples:
+        | failure                        |
+        | never answers                  |
+        | crashes before answering       |
+        | cannot be launched at all      |
+        | answers outside the contract   |
 
     @rejection
     Scenario: Every reviewer executable failing still reports a timeout
@@ -66,11 +108,32 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the Codex reviewer is given the review result contract
 
-    Scenario: The contract handed out matches the contract enforced
+    Scenario: The contract handed out names exactly the fields the check enforces
       Given the review result contract handed to a reviewer
-      When an answer is checked against the enforced contract
-      Then every field and severity the contract permits is accepted
-      And nothing the contract forbids is accepted
+      When its required fields are listed
+      Then they are exactly these, and no others are permitted:
+        | field          |
+        | schema_version |
+        | dispatch_id    |
+        | reviewer_agent |
+        | verdict        |
+        | summary        |
+        | findings       |
+      And each finding it describes requires exactly a severity and a message
+
+    Scenario Outline: The contract handed out permits exactly the severities the check accepts
+      Given the review result contract handed to a reviewer
+      When a finding of severity <severity> is checked
+      Then the contract and the check agree that it is <accepted>
+
+      Examples:
+        | severity | accepted |
+        | info     | accepted |
+        | warning  | accepted |
+        | error    | accepted |
+        | high     | refused  |
+        | medium   | refused  |
+        | critical | refused  |
 
     Scenario: A Codex answer that follows the contract is accepted
       Given an installed Codex reviewer that answers in the review result contract
@@ -172,12 +235,18 @@ Feature: Keep independent reviews reliable for real ticket packets
   @reliable-reviews-for-real-packets.TBU3.R4 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own bounded budget, so an exhausted first attempt cannot leave the retry with no time to run
 
-    Scenario: The alternate-model retry gets its own budget
+    Scenario Outline: A route failing any way still leaves the next route its own budget
       Given a configured alternate model for the reviewer agent
-      And the reviewer agent's default model uses its entire budget without answering
+      And the reviewer agent's default model <failure>
       And the reviewer agent's alternate model answers promptly
       When the independent review runs
       Then the review returns the alternate model's verdict
+
+      Examples:
+        | failure                          |
+        | uses its entire budget silently  |
+        | crashes before answering         |
+        | answers outside the contract     |
 
     @rejection
     Scenario: Every route exhausting its own budget ends the run
@@ -204,6 +273,23 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the explanation says the assigned reviewer is not installed
       And the explanation says the fallback reviewer ran out of time
 
+    Scenario: An exhausted run offers one thing to do next
+      Given the assigned reviewer timed out
+      And the fallback reviewer's answer did not follow the result contract
+      When the exhausted-route result is reported
+      Then the result offers exactly one next step to take
+
+    Scenario Outline: The offered next step matches what actually went wrong
+      Given the assigned reviewer <cause>
+      When the exhausted-route result is reported
+      Then the offered next step is to <remedy>
+
+      Examples:
+        | cause             | remedy                    |
+        | is not installed  | install the reviewer      |
+        | is not signed in  | sign in to the reviewer   |
+        | timed out         | retry the review          |
+
     @rejection
     Scenario: An exhausted run never claims a review happened
       Given the assigned reviewer timed out
@@ -215,10 +301,23 @@ Feature: Keep independent reviews reliable for real ticket packets
   Rule: reliable-reviews-for-real-packets.NTB1.R2 — An explanation never carries raw reviewer output, diagnostic noise, or credentials
 
     @rejection
-    Scenario: Reviewer diagnostic noise never reaches the explanation
-      Given a reviewer that fails while printing diagnostic noise containing a credential
+    Scenario Outline: Nothing a reviewer emits reaches the explanation
+      Given a reviewer that fails while emitting a credential in <channel>
       When the exhausted-route result is reported
-      Then the explanation contains neither the diagnostic noise nor the credential
+      Then the explanation contains neither that text nor the credential
+
+      Examples:
+        | channel                       |
+        | its diagnostic error output   |
+        | its answer output             |
+        | an unreadable answer          |
+        | a crash message               |
+
+    @rejection
+    Scenario: A rejected answer is never echoed back to the builder
+      Given a reviewer answer that does not follow the result contract
+      When the exhausted-route result is reported
+      Then the explanation does not contain the rejected answer
 
   @reliable-reviews-for-real-packets.NTB1.R3 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.NTB1.R3 — A review that ran but was not independent still never satisfies a required cross-agent check
