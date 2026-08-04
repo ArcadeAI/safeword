@@ -36179,6 +36179,7 @@ var init_self_report = __esm(() => {
 var exports_retro_draft_spool = {};
 __export(exports_retro_draft_spool, {
   verifyDraftBody: () => verifyDraftBody,
+  spoolSiblingPath: () => spoolSiblingPath,
   spoolDrafts: () => spoolDrafts,
   recordFiledAck: () => recordFiledAck,
   readSpooledDrafts: () => readSpooledDrafts,
@@ -36197,6 +36198,11 @@ function spoolName(sessionId) {
 }
 function draftSpoolPath(projectDirectory, sessionId) {
   return nodePath73.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+}
+function spoolSiblingPath(projectDirectory, sessionId, suffix) {
+  const spool = draftSpoolPath(projectDirectory, sessionId);
+  const base = spool.endsWith(SPOOL_EXTENSION) ? spool.slice(0, -SPOOL_EXTENSION.length) : spool;
+  return `${base}${suffix}`;
 }
 function toDraft(value) {
   if (typeof value !== "object" || value === null)
@@ -36261,7 +36267,7 @@ function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   } catch {}
 }
 function ackFilePath(projectDirectory, sessionId) {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, ".acks.jsonl");
+  return spoolSiblingPath(projectDirectory, sessionId, ".acks.jsonl");
 }
 function isFiledAck(value) {
   if (typeof value !== "object" || value === null)
@@ -36316,7 +36322,7 @@ async function fileSpooledDrafts(projectDirectory, sessionId, post) {
 function spoolDrafts(projectDirectory, sessionId, drafts) {
   appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), drafts.map((draft) => draftLine(draft)), MAX_DRAFTS_PER_SESSION);
 }
-var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR;
+var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl";
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
   SPOOL_DIR = nodePath73.join(".safeword", "retro-drafts");
