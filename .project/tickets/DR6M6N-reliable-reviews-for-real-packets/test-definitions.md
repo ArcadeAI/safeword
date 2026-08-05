@@ -340,7 +340,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A run finishes inside the run bound however its routes fail
+### Scenario: Review work stops by the run bound however its routes fail
 
 - [ ] RED
 - [ ] GREEN
@@ -358,7 +358,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The command still returns promptly when a reviewer refuses to die
+### Scenario: The command returns by the bound plus its cleanup budget
 
 - [ ] RED
 - [ ] GREEN

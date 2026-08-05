@@ -54,9 +54,10 @@ Unaffected:
 ## Vocabulary
 
 - **Review packet** — the bounded, read-only set of logical files handed to a
-  reviewer for one dispatch. Its **size** is the byte length of the serialized
-  packet as the reviewer actually receives it, paths included, so multibyte
-  content counts its real bytes.
+  reviewer for one dispatch. It is **accepted** only while its file contents stay
+  within the existing 1 MiB limit — an unchanged bound. Its **size for budgeting**
+  is the byte length of the serialized packet as the reviewer actually receives
+  it, paths and structure included, because that is what costs the reviewer time.
 - **Attempt budget** — the wall-clock time a single review attempt may take
   before it is stopped and classified as a timeout. Derived deterministically
   from packet size as **60 seconds plus 3 milliseconds per packet byte, clamped
@@ -84,7 +85,9 @@ Unaffected:
 - **Candidate** — one executable on `PATH` that might be a usable reviewer CLI.
 - **Candidate share** — a route's attempt budget split evenly across the
   candidates it has not yet tried, so a hanging candidate is stopped at its own
-  share and every later candidate still gets a real turn.
+  share and every later candidate still gets a real turn. A share covers that
+  candidate's capability probe, its launch, and its review attempt. Cleanup is
+  outside the share and bounded separately.
 - **Model name grammar** — an accepted alternate model value is 1 to 200
   characters drawn only from ASCII letters, digits, `.`, `_`, `:`, `/`, and `-`,
   and does not begin with `-`. That covers real model identifiers

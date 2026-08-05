@@ -37,7 +37,7 @@ Feature: Keep independent reviews reliable for real ticket packets
 
     @rejection
     Scenario: A packet over the accepted maximum is refused rather than budgeted
-      Given a packet whose serialized bytes total one byte over 1 MiB
+      Given a packet whose file contents total one byte over the accepted 1 MiB limit
       When the independent review runs
       Then the packet is refused
       And no candidate is asked what it supports
@@ -127,11 +127,13 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review returns the second executable's verdict
 
     Scenario: A hanging candidate is stopped at its own share of the route budget
-      Given two installed reviewer executables that both accept the review contract
+      Given a route with a 300-second attempt budget
+      And two installed reviewer executables that both accept the review contract
+      And each capability question takes 5 seconds to answer
       And the first executable never answers
       When the independent review runs
-      Then the first executable is stopped at half the route's attempt budget
-      And the second executable is given the rest of the route's attempt budget
+      Then the first executable is stopped 145 seconds after it is asked to review
+      And the second executable is given the 145 seconds that remain after its own capability question
 
     Scenario: Three candidates each get a real turn
       Given three installed reviewer executables that all accept the review contract
@@ -525,12 +527,12 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the review reports that no route completed
 
     @rejection
-    Scenario Outline: A run finishes inside the run bound however its routes fail
+    Scenario Outline: Review work stops by the run bound however its routes fail
       Given a configured alternate model for the reviewer agent
       And a review packet at the largest size the coordinator accepts
       And every route fails by <failure>
       When the independent review runs
-      Then the whole run finishes within 20 minutes
+      Then no reviewer is still being waited on after 20 minutes
       And no route is attempted a second time
 
       Examples:
@@ -560,11 +562,11 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the answer is refused
       And the review reports that no route completed
 
-    Scenario: The command still returns promptly when a reviewer refuses to die
+    Scenario: The command returns by the bound plus its cleanup budget
       Given a configured alternate model for the reviewer agent
       And the run has reached the 20-minute bound with a reviewer that cannot be stopped
       When the run bound is reached
-      Then the command returns within a further 5 seconds
+      Then the command returns no later than 20 minutes and 5 seconds after it started
 
     @rejection
     Scenario: A run is stopped at the run bound when no answer has landed
