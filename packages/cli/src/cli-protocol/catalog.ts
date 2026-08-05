@@ -31,7 +31,7 @@ export interface CommandDefinition {
       readonly flags: string;
       readonly description: string;
       readonly defaultValue?: string;
-      readonly valueKind?: 'plan-identity';
+      readonly valueKind?: 'claude-plugin-scope' | 'plan-identity';
     }[];
   };
   readonly aliasFor?: string;
@@ -218,9 +218,20 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('codex install', 'Install the Codex profile plugin', 'mutate', {
     networkPolicy: 'declared',
   }),
-  command('codex status', 'Report Codex plugin and migration state', 'observe'),
-  command('claude install', 'Install the Claude profile plugin', 'mutate', {
+  command('codex bootstrap', 'Keep the project Codex plugin available', 'mutate', {
     networkPolicy: 'declared',
+  }),
+  command('codex status', 'Report Codex plugin and migration state', 'observe'),
+  command('claude install', 'Install the Claude plugin for a project or user', 'mutate', {
+    networkPolicy: 'declared',
+    commandOptions: [
+      {
+        flags: '--scope <scope>',
+        description: 'Install for this project or the current user profile',
+        defaultValue: 'project',
+        valueKind: 'claude-plugin-scope',
+      },
+    ],
   }),
   command('claude status', 'Report Claude plugin and migration state', 'observe'),
   command('claude cleanup', 'Remove verified legacy Claude project assets', 'destructive', {

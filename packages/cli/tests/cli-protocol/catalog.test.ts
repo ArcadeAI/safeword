@@ -49,6 +49,7 @@ describe('CLI command catalog', () => {
       'tracker connect',
       'codex migrate',
       'codex install',
+      'codex bootstrap',
       'codex status',
       'claude install',
       'claude status',

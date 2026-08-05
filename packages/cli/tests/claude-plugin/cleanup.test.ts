@@ -1,5 +1,6 @@
 /* eslint-disable unicorn/no-null -- transaction JSON uses null for an absent file image */
 
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
@@ -109,5 +110,18 @@ describe('Claude cleanup recovery', () => {
   it('is a healthy no-op after recovery has completed', () => {
     const { root } = fixture();
     expect(recoverClaudeCleanup(root).state).toBe('healthy');
+  });
+
+  it('recovers repository-owned state from a nested working directory', () => {
+    const { root, target, transaction } = fixture();
+    const nested = nodePath.join(root, 'packages/example');
+    mkdirSync(nested, { recursive: true });
+    execFileSync('git', ['init', '--quiet', root]);
+    writeFileSync(target, 'recognized legacy\n');
+    writeTransaction(transaction, 'complete-forward', 'recognized legacy\n');
+
+    expect(recoverClaudeCleanup(nested).state).toBe('changed');
+    expect(existsSync(target)).toBe(false);
+    expect(existsSync(transaction)).toBe(false);
   });
 });

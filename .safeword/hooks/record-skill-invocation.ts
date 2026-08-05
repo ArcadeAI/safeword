@@ -95,7 +95,9 @@ if (import.meta.main) {
     }
 
     recordSkillInvocation(projectDirectory, skillName, sessionId);
-    console.log(`[skill-invocation-log] ${skillName} ✓`);
+    console.log(
+      `[skill-invocation-log] ${skillName} ✓ helper=${nodePath.join(import.meta.dirname, 'record-skill-invocation.ts')}`,
+    );
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
