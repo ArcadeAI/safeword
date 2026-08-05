@@ -38,6 +38,7 @@ export type PublishedReceipt =
       coverage?: ArtifactCoverage[];
       reviewedSha: string;
       route: 'looks_ready' | 'needs_human';
+      unknowns?: string[];
     }
   | {
       markerOwned: true;
@@ -174,7 +175,7 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
 
   await dependencies.publish(
     {
-      ...(coverage && { coverage }),
+      ...(coverage && { coverage, unknowns: inspection.unknowns }),
       reviewedSha: pullRequest.headSha,
       route,
     },
