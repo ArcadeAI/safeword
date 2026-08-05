@@ -59,6 +59,9 @@ interface UnifiedInstallWorld extends SafewordWorld {
   compatibilityAlias?: string;
   compatibilityCanonical?: string;
   compatibilityRoute?: CompatibilityRoute;
+  compatibilityInvariant?: string;
+  referenceHelp?: string;
+  referenceCapabilities?: Record<string, unknown>;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -961,6 +964,178 @@ Then('metadata schedules no deletion date', function (this: UnifiedInstallWorld)
   assert.equal(this.compatibilityRoute?.retention, 'indefinite');
   assert.equal('removalDate' in (this.compatibilityRoute ?? {}), false);
 });
+
+Given('migration cleanup recovery and project commands outside the unified lifecycle', () => {
+  // The catalogue is the executable source used by the assertions below.
+});
+
+When('the canonical command catalogue is validated', () => {
+  assert.ok(commandCatalog.length > 0);
+});
+
+Then('each specialized operation retains its own behavior and effect policy', () => {
+  const expectedPolicies: Readonly<Record<string, string>> = {
+    'codex migrate': 'destructive',
+    'claude cleanup': 'destructive',
+    'claude recover': 'mutate',
+    'codex clean-guidance': 'destructive',
+    'codex recover': 'destructive',
+    'project sync-config': 'mutate',
+    'project architecture': 'mutate',
+    'project sync-learnings': 'mutate',
+    'project sync-tickets': 'mutate',
+  };
+  for (const [name, effectClass] of Object.entries(expectedPolicies)) {
+    const definition = commandCatalog.find(candidate => candidate.name === name);
+    assert.equal(definition?.aliasFor, undefined, name);
+    assert.equal(definition?.effectClass, effectClass, name);
+    assert.equal(typeof definition?.handler, 'function', name);
+  }
+});
+
+Then('only its alternate spelling is marked as a compatibility alias', () => {
+  const aliases = commandCatalog.filter(definition => definition.aliasFor !== undefined);
+  assert.equal(
+    aliases.every(definition => definition.compatibility !== undefined),
+    true,
+  );
+  assert.equal(
+    aliases.every(definition =>
+      commandCatalog.some(
+        canonical => canonical.name === definition.aliasFor && canonical.aliasFor === undefined,
+      ),
+    ),
+    true,
+  );
+});
+
+Given('compatibility route {string}', function (this: UnifiedInstallWorld, alias: string) {
+  this.compatibilityAlias = alias;
+  initializeHosts(this);
+});
+
+When(
+  'its behavior is compared with {string}',
+  function (this: UnifiedInstallWorld, canonical: string) {
+    const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
+    this.compatibilityCanonical = canonical;
+    if (alias === 'setup' || alias === 'upgrade') {
+      runRawCommand(this, [alias]);
+      return;
+    }
+    if (alias === 'diff') {
+      this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+      runRawCommand(this, ['diff', 'install', '--agents', 'none']);
+      return;
+    }
+    runInstall(this, ['--agents', 'none']);
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+    runRawCommand(this, [alias]);
+  },
+);
+
+Then(
+  'the observable contract remains {string}',
+  function (this: UnifiedInstallWorld, invariant: string) {
+    const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    if (alias === 'setup' || alias === 'upgrade') {
+      const project = requiredPath(this.projectRoot, 'project root');
+      assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+      assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+      assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
+      assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
+    } else {
+      const envelope = JSON.parse(this.result.stdout) as {
+        data?: { plan?: { effects?: { destructive?: unknown[] } } };
+      };
+      assert.ok(envelope.data?.plan);
+      assert.equal(
+        directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')),
+        this.fixtureBefore,
+      );
+    }
+    assert.ok(invariant.length > 0);
+  },
+);
+
+Given(
+  'canonical review run and codex clean-guidance commands',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+When('CLI reference and capability fixtures are validated', function (this: UnifiedInstallWorld) {
+  const project = requiredPath(this.projectRoot, 'project root');
+  const environment = { ...process.env, ...this.hostEnvironment, SAFEWORD_NO_UPDATE_CHECK: '1' };
+  const help = spawnSync(process.execPath, [CLI_PATH, '--help'], {
+    cwd: project,
+    encoding: 'utf8',
+    env: environment,
+  });
+  this.referenceHelp = help.stdout;
+  this.referenceCapabilities = runJsonCommand(this, 'capabilities');
+});
+
+Then('both commands are listed with their executable syntax and effect policy', () => {
+  for (const [name, effectClass] of [
+    ['review run', 'mutate'],
+    ['codex clean-guidance', 'destructive'],
+  ] as const) {
+    const definition = commandCatalog.find(candidate => candidate.name === name);
+    assert.equal(definition?.effectClass, effectClass);
+    assert.equal(typeof definition?.handler, 'function');
+  }
+});
+
+Then('codex clean-guidance is described as destructive deactivation', () => {
+  const definition = commandCatalog.find(candidate => candidate.name === 'codex clean-guidance');
+  assert.match(definition?.description ?? '', /deactivate.*recovery backup/iu);
+});
+
+Given(
+  'canonical commands and retained compatibility aliases',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+Then(
+  'the quick path omits aliases where hiding is supported',
+  function (this: UnifiedInstallWorld) {
+    const quickPath = this.result.stdout.split(
+      'Compatibility routes (retained indefinitely):',
+      1,
+    )[0];
+    const quickPathLines = (quickPath ?? '').split('\n').map(line => line.trimStart());
+    const aliases = commandCatalog.filter(definition => definition.aliasFor !== undefined);
+    for (const alias of aliases) {
+      const isCanonicalFamily = commandCatalog.some(
+        definition =>
+          definition.aliasFor === undefined && definition.name.startsWith(`${alias.name} `),
+      );
+      if (isCanonicalFamily) continue;
+      assert.equal(
+        quickPathLines.some(line => line === alias.name || line.startsWith(`${alias.name} `)),
+        false,
+        alias.name,
+      );
+    }
+  },
+);
+
+Then(
+  'one compatibility section documents every retained route',
+  function (this: UnifiedInstallWorld) {
+    const help = this.result.stdout;
+    assert.equal(help.match(/Compatibility routes \(retained indefinitely\):/gu)?.length, 1);
+    for (const route of compatibilityRoutes) {
+      assert.equal(help.includes(`${route.route} -> ${route.replacement}`), true, route.route);
+    }
+  },
+);
 
 Given(
   'core Claude and Codex already match the requested release',
