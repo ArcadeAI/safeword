@@ -456,10 +456,11 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
 }
 
 /**
- * Stop at a genuine human prompt, but not at the user-role tool-result message
- * Claude emits while completing that same turn. Returns undefined when the
- * bounded scan cannot find a reliable prompt boundary, so callers preserve the
- * existing fail-closed behavior.
+ * Stop at whatever started this turn — a human prompt, or a background-task
+ * notification that re-invoked the agent — but not at the user-role tool-result
+ * message Claude emits while completing that same turn. Returns undefined when
+ * the bounded scan finds no boundary, so callers preserve the existing
+ * fail-closed behavior.
  */
 function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
   let scanned = 0;
@@ -469,7 +470,7 @@ function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolea
     scanned++;
     try {
       const message: TranscriptMessage = JSON.parse(transcriptLine);
-      if (isGenuineUserPrompt(message) || isBackgroundTaskNotification(message)) {
+      if (startsNewTurn(message)) {
         return false;
       }
       if (message.type === 'assistant' && message.message?.content !== undefined) {
@@ -512,6 +513,11 @@ function isGenuineUserPrompt(message: TranscriptMessage): boolean {
  */
 function isBackgroundTaskNotification(message: TranscriptMessage): boolean {
   return TRANSCRIPT_TURN_START_NOTIFICATION_PATTERN.test(userMessageText(message));
+}
+
+/** Whether this message opened the turn the transcript currently ends in. */
+function startsNewTurn(message: TranscriptMessage): boolean {
+  return isGenuineUserPrompt(message) || isBackgroundTaskNotification(message);
 }
 
 function containsEditToolUse(content: ContentItem[]): boolean {
