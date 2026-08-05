@@ -22,7 +22,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 58459aa45
 - [x] GREEN 0cb1af846
-- [ ] REFACTOR
+- [x] REFACTOR skip: the receipt union is small and the next prerequisite scenarios will determine its stable shape
 
 ### Scenario: A scheduled sweep reviews a pending head after prerequisites settle
 
