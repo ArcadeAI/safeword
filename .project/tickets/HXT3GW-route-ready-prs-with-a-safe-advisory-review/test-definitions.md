@@ -130,7 +130,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED ae31fcc59
 - [x] GREEN 736d20e4f
-- [ ] REFACTOR
+- [x] REFACTOR skip: one run-state union now drives both publication and route policy
 
 ### Scenario: Competing run conditions use conservative state precedence
 
