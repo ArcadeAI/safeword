@@ -41,6 +41,14 @@ const MAX_SEALED_BLOB_BYTES = 64 * 1024 * 1024;
 
 function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Buffer } {
   const result = spawnSync('git', arguments_, { cwd: repoRoot, maxBuffer: MAX_SEALED_BLOB_BYTES });
+  // Distinguish "git ran and said no" from "git never ran". Only the former is a
+  // legitimate fallback to the working tree (the path genuinely predates the
+  // commit); a spawn-level failure — ENOBUFS, ENOENT, a signal — means the seal
+  // was never actually read, and silently substituting the working tree is how
+  // this check went blind in the first place. Fail loudly instead.
+  if (result.error) {
+    throw new Error(`git ${arguments_.join(' ')} could not run: ${result.error.message}`);
+  }
   return {
     status: result.status ?? 1,
     stdout: result.stdout,
