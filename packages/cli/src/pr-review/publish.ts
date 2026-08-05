@@ -26,6 +26,10 @@ export interface IssueCommentPublisher {
   updateComment(id: number, body: string): Promise<void>;
 }
 
+function hasExactReceiptMarker(body: string): boolean {
+  return body.split(/\r?\n/u).includes(RECEIPT_MARKER);
+}
+
 export function planReceiptPublication(
   comments: readonly ExistingIssueComment[],
 ): ReceiptPublicationPlan {
@@ -50,7 +54,7 @@ export async function publishReceipt(
       authorType: comment.authorType,
       createdAt: comment.createdAt,
       id: comment.id,
-      marker: comment.body.includes(RECEIPT_MARKER) ? 'exact' : 'absent',
+      marker: hasExactReceiptMarker(comment.body) ? 'exact' : 'absent',
     })),
   );
   const body = `${RECEIPT_MARKER}\n${renderedReceipt}`;
