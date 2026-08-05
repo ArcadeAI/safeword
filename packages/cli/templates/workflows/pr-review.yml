@@ -1,0 +1,43 @@
+name: Safeword advisory PR review
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions: {}
+
+jobs:
+  event-review:
+    if: github.event_name == 'pull_request_target'
+    permissions: {}
+    uses: ./.github/workflows/safeword-pr-review-worker.yml
+    with:
+      pull_number: ${{ github.event.pull_request.number }}
+      cancel_in_progress: ${{ github.event.action == 'converted_to_draft' }}
+
+  discover-ready-pull-requests:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pull_numbers: ${{ steps.discover.outputs.pull_numbers }}
+    steps:
+      - id: discover
+        name: Discover ready pull requests
+        run: echo 'pull_numbers=[]' >> "$GITHUB_OUTPUT"
+
+  scheduled-review:
+    needs: discover-ready-pull-requests
+    if: needs.discover-ready-pull-requests.outputs.pull_numbers != '[]'
+    strategy:
+      matrix:
+        pull_number: ${{ fromJSON(needs.discover-ready-pull-requests.outputs.pull_numbers) }}
+    permissions: {}
+    uses: ./.github/workflows/safeword-pr-review-worker.yml
+    with:
+      pull_number: ${{ matrix.pull_number }}
+      cancel_in_progress: false

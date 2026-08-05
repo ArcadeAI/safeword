@@ -1,0 +1,52 @@
+name: Safeword advisory PR review worker
+
+on:
+  workflow_call:
+    inputs:
+      pull_number:
+        required: true
+        type: number
+      cancel_in_progress:
+        required: true
+        type: boolean
+
+concurrency:
+  group: pr-review-${{ inputs.pull_number }}
+  cancel-in-progress: ${{ inputs.cancel_in_progress }}
+
+permissions: {}
+
+jobs:
+  invalidate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Reserve the current receipt
+        run: 'true'
+
+  inspect:
+    needs: invalidate
+    runs-on: ubuntu-latest
+    environment:
+      name: safeword-pr-review-model
+      deployment: false
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Inspect the exact pull request head as data
+        run: 'true'
+
+  publish:
+    needs: inspect
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Publish the advisory receipt
+        run: 'true'

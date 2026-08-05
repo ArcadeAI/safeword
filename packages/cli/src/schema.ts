@@ -1116,6 +1116,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     'steps/world.ts': bddLaneFile('cucumber/world.ts'),
     'steps/shared.steps.ts': bddLaneFile('cucumber/shared.steps.ts'),
 
+    // Default-off advisory PR review. Customers may customize managed workflow
+    // files after setup; reconciliation updates only unchanged template content.
+    '.github/workflows/safeword-pr-review.yml': {
+      template: 'workflows/pr-review.yml',
+    },
+    '.github/workflows/safeword-pr-review-worker.yml': {
+      template: 'workflows/pr-review-worker.yml',
+    },
+
     // TypeScript/JavaScript managed files (ESLint, tsconfig, Knip, Prettier configs)
     ...typescriptManagedFiles,
     // Python managed files (ruff.toml, mypy.ini, .importlinter)
