@@ -79,6 +79,15 @@ interface TranscriptMessage {
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 /** How many recent assistant messages to scan for edit tool usage. */
 const MAX_MESSAGES_FOR_TOOLS = 5;
+/**
+ * How many transcript lines to walk back looking for the current turn's user
+ * prompt. Counting assistant messages instead (MAX_MESSAGES_FOR_TOOLS) made the
+ * boundary unfindable on any turn with more tool rounds than the window, so an
+ * edit made earlier in that same turn fell outside the fallback scan and the
+ * review was skipped on the largest turns (ticket V8Z1NP). Bounded by lines so
+ * the walk stays cheap on a long transcript while covering a realistic turn.
+ */
+const MAX_LINES_FOR_TURN_BOUNDARY = 400;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
@@ -447,17 +456,17 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
  * existing fail-closed behavior.
  */
 function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
-  let checked = 0;
-  for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+  let scanned = 0;
+  for (let i = transcriptLines.length - 1; i >= 0 && scanned < MAX_LINES_FOR_TURN_BOUNDARY; i--) {
     const transcriptLine = transcriptLines[i];
     if (transcriptLine === undefined) continue;
+    scanned++;
     try {
       const message: TranscriptMessage = JSON.parse(transcriptLine);
       if (isGenuineUserPrompt(message)) {
         return false;
       }
       if (message.type === 'assistant' && message.message?.content !== undefined) {
-        checked++;
         if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
       }
     } catch {

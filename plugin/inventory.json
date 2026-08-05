@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "dba14a854a5cd730efc16c74f10b498f2e7caa753a5ee089dfd9b0f17b64873a"
+      "sha256": "fc38dab25592fcc488f749d2a3ad24db9333cabb433e971a76b2fdafa8e834dc"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
