@@ -103,7 +103,7 @@ Feature: Test Codex plugin migration
     Scenario: Unavailable profile enrollment preserves an old project's authored data and fallback
       Given a repo installed with today's project-local Codex assets
       And the repo contains user-owned tickets and learnings under the namespace root
-      When the plugin migration upgrade runs
+      When the plugin migration upgrade runs without profile enrollment available
       Then the upgrade reports profile enrollment failure loudly
       And the user-owned tickets and learnings remain byte-identical
       And Safe Word keeps repo-local `.agents/skills` available during the compatibility window
@@ -111,7 +111,7 @@ Feature: Test Codex plugin migration
 
     Scenario: User-authored Codex skills survive the migration
       Given an old project-local Codex install with a user-authored `.agents/skills/company-workflow/SKILL.md`
-      When the plugin migration upgrade runs
+      When the plugin migration upgrade runs without profile enrollment available
       Then the user-authored skill remains byte-identical
       And Safe Word-owned Codex skill files remain beside the user-authored skill until finalization
 
@@ -119,7 +119,7 @@ Feature: Test Codex plugin migration
     Scenario: Customized Codex config is not clobbered while stale Safe Word hooks await explicit migration
       Given an old project-local Codex install with user-authored Codex config entries
       And the config also contains old Safe Word hook commands pointing at `.safeword/hooks/codex`
-      When the plugin migration upgrade runs
+      When the plugin migration upgrade runs without profile enrollment available
       Then the user-authored Codex config entries remain
       And the stale Safe Word project-local hook commands remain until explicit migration
 

@@ -13632,6 +13632,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/templates/work-log-template.md": {
         template: "doc-templates/work-log-template.md"
       },
+      ".safeword/templates/tripwire-template.md": {
+        template: "doc-templates/tripwire-template.md"
+      },
       ".safeword/templates/spec-template.md": {
         template: "spec-template.md"
       },

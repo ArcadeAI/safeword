@@ -9,6 +9,14 @@ import {
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
+
+// Run this under the bun version pinned in the root package.json's
+// `packageManager`. `plugin/runtime/cli.js` comes out of Bun.build below, so its
+// bytes depend on the bun that runs this script — different versions emit
+// different code for identical source. CI's catalogue-freshness gate regenerates
+// and rejects any diff, so a bundle built with another bun can never pass it.
+// Note that `bun run generate:claude-plugin` re-invokes `bun` from PATH: the
+// pinned version has to be FIRST ON PATH, not merely the binary you launched.
 // @ts-expect-error -- this production generator executes under Bun; the CLI's
 // Node-targeted tsconfig intentionally does not expose Bun globals elsewhere.
 const cliBuild = await Bun.build({
