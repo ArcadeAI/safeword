@@ -121,14 +121,14 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Status gives a concise aggregate while doctor explains causes and coverage
 
 - [x] RED 6821dd77e
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN a26d7be1a
+- [x] REFACTOR skip: diagnostic rendering is already isolated in doctor.ts
 
 ### Scenario: The catalogue forbids status and doctor from sharing one handler contract
 
 - [x] RED 6821dd77e
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN a26d7be1a
+- [x] REFACTOR skip: the catalogue now binds two distinct typed handlers
 
 ## Rule: unified-first-time-install.TBU2.R2 — Planning covers every selected lifecycle effect without mutation
 

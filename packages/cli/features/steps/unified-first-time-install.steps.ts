@@ -239,6 +239,29 @@ function runJsonCommand(world: UnifiedInstallWorld, command: string): Record<str
   return JSON.parse(completed.stdout) as Record<string, unknown>;
 }
 
+function runRawCommand(world: UnifiedInstallWorld, arguments_: readonly string[]): void {
+  const project = requiredPath(world.projectRoot, 'project root');
+  const completed = spawnSync(
+    process.execPath,
+    [CLI_PATH, ...arguments_, '--json', '--cwd', project],
+    {
+      cwd: project,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ...world.hostEnvironment,
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        SAFEWORD_SKIP_INSTALL: '1',
+      },
+    },
+  );
+  world.result = {
+    stdout: completed.stdout,
+    stderr: completed.stderr,
+    exitCode: completed.status ?? 1,
+  };
+}
+
 Given(
   'an unconfigured project with available Claude and Codex hosts',
   function (this: UnifiedInstallWorld) {
@@ -411,3 +434,33 @@ Then(
     assert.notDeepEqual(this.statusEnvelope, this.doctorEnvelope);
   },
 );
+
+Given('a default unified installation', function (this: UnifiedInstallWorld) {
+  initializeHosts(this);
+  runInstall(this, []);
+  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+});
+
+When('the user runs uninstall without confirmation', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['uninstall']);
+});
+
+Then(
+  'an exact plan covers core Claude and Codex but not Cursor',
+  function (this: UnifiedInstallWorld) {
+    assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
+    const envelope = JSON.parse(this.result.stdout) as {
+      data?: { plan?: { id?: string }; surfaces?: { name?: string }[] };
+    };
+    assert.match(envelope.data?.plan?.id ?? '', /^[a-f\d]{64}$/u);
+    assert.deepEqual(
+      envelope.data?.surfaces?.map(surface => surface.name),
+      ['project', 'claude', 'codex'],
+    );
+  },
+);
+
+Then('no state is changed', function (this: UnifiedInstallWorld) {
+  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+});
