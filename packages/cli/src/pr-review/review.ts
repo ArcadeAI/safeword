@@ -11,9 +11,15 @@ export interface PullRequestReviewState {
 }
 
 export interface AdvisoryInspection {
+  artifacts?: ArtifactEvidence[];
   consequentialFindings: number;
   coverage?: ArtifactCoverage[];
   unknowns: string[];
+}
+
+export interface ArtifactEvidence {
+  kind: 'non_text';
+  path: string;
 }
 
 export type ArtifactCoverage =
@@ -77,6 +83,18 @@ function resolvePrerequisites(
   pullRequest: PullRequestReviewState,
 ): PullRequestReviewState['prerequisites'] {
   return pullRequest.requiredPrerequisites?.length === 0 ? 'passed' : pullRequest.prerequisites;
+}
+
+function resolveCoverage(inspection: AdvisoryInspection): ArtifactCoverage[] | undefined {
+  const coverage: ArtifactCoverage[] = [
+    ...(inspection.coverage ?? []),
+    ...(inspection.artifacts ?? []).map(({ path }) => ({
+      path,
+      skipReason: 'non_text' as const,
+      status: 'skipped' as const,
+    })),
+  ];
+  return coverage.length > 0 ? coverage : undefined;
 }
 
 async function stopBeforeReview(
@@ -152,10 +170,11 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
     inspection.consequentialFindings === 0 && inspection.unknowns.length === 0
       ? 'looks_ready'
       : 'needs_human';
+  const coverage = resolveCoverage(inspection);
 
   await dependencies.publish(
     {
-      ...(inspection.coverage && { coverage: inspection.coverage }),
+      ...(coverage && { coverage }),
       reviewedSha: pullRequest.headSha,
       route,
     },
