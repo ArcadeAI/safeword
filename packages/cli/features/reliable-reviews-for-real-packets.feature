@@ -177,7 +177,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the assigned reviewer route is reported as timed out
 
   @reliable-reviews-for-real-packets.TBU1.R4 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and its own process group, never waits on what the system will not kill, never claims to have stopped what escaped its reach, and never uses a late answer
+  Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and the descendants its platform lets it reach, never waits on what the system will not kill, never claims to have stopped what escaped, and never uses a late answer
 
     Scenario Outline: A reviewer stopped for any reason leaves nothing running
       Given a reviewer that starts a child process inside its own process group
@@ -194,10 +194,10 @@ Feature: Keep independent reviews reliable for real ticket packets
         | crashes before answering                   |
         | answers outside the contract               |
 
-    Scenario: Cleanup reaches every descendant in the reviewer's own process group
-      Given a reviewer that never answers and leaves a grandchild in its process group
+    Scenario: Cleanup reaches every descendant the platform groups with the reviewer
+      Given a reviewer that never answers and leaves a grandchild grouped with it
       When the independent review runs
-      Then no process from that reviewer's group is still running afterwards
+      Then no process grouped with that reviewer is still running afterwards
 
     @rejection
     Scenario: A descendant that escapes into its own session is not claimed to be stopped
@@ -283,7 +283,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then no review is requested from that reviewer
 
   @reliable-reviews-for-real-packets.TBU2.R2 @surface.openai-codex
-  Rule: reliable-reviews-for-real-packets.TBU2.R2 — A reviewer executable that cannot honor the result contract is skipped rather than tried and rejected
+  Rule: reliable-reviews-for-real-packets.TBU2.R2 — A reviewer executable that cannot honour the result contract never costs a later candidate its turn — skipped before launch when that is knowable, failed fast when it is not
 
     Scenario: A reviewer executable without typed output is skipped for one that has it
       Given an installed reviewer executable that cannot produce typed output
@@ -291,19 +291,19 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the review returns the second executable's verdict
 
-    Scenario Outline: A candidate whose capability cannot be established is skipped with its budget preserved
-      Given a first installed reviewer executable that <probe>
+    Scenario Outline: A candidate that cannot honour the contract never costs the next one its turn
+      Given a first installed reviewer executable that <problem>
       And a second installed reviewer executable that supports typed output
       When the independent review runs
       Then the review returns the second executable's verdict
       And the second executable's share is recalculated from the time that remains
 
       Examples:
-        | probe                                        |
+        | problem                                      |
         | cannot be asked what it supports             |
         | answers the capability question unreadably   |
-        | claims typed output but refuses the contract |
         | is too old a version to support typed output |
+        | claims typed output but rejects it on launch |
 
     Scenario: A capability question that hangs is abandoned quickly
       Given a first installed reviewer executable that never answers the capability question

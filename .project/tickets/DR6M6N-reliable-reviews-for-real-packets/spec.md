@@ -120,7 +120,7 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU1.R3 — A route's budget is split across its untried candidates, so one slow or stale executable cannot consume every other candidate's opportunity
 
-#### reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and its own process group, never waits on what the system will not kill, never claims to have stopped what escaped its reach, and never uses a late answer
+#### reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and the descendants its platform lets it reach, never waits on what the system will not kill, never claims to have stopped what escaped, and never uses a late answer
 
 ### reliable-reviews-for-real-packets.TBU2 — Trust the fallback reviewer to return a usable result
 
@@ -132,7 +132,7 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU2.R1 — A reviewer that supports typed output is given the exact result contract the check will enforce
 
-#### reliable-reviews-for-real-packets.TBU2.R2 — A reviewer executable that cannot honor the result contract is skipped rather than tried and rejected
+#### reliable-reviews-for-real-packets.TBU2.R2 — A reviewer executable that cannot honour the result contract never costs a later candidate its turn — skipped before launch when that is knowable, failed fast when it is not
 
 #### reliable-reviews-for-real-packets.TBU2.R3 — A result that violates the contract is still rejected, whatever produced it
 

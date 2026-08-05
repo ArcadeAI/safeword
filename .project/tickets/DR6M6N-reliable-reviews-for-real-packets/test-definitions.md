@@ -112,7 +112,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and its own process group, never waits on what the system will not kill, never claims to have stopped what escaped its reach, and never uses a late answer
+## Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and the descendants its platform lets it reach, never waits on what the system will not kill, never claims to have stopped what escaped, and never uses a late answer
 
 ### Scenario: A reviewer stopped for any reason leaves nothing running
 
@@ -120,7 +120,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Cleanup reaches every descendant in the reviewer's own process group
+### Scenario: Cleanup reaches every descendant the platform groups with the reviewer
 
 - [ ] RED
 - [ ] GREEN
@@ -182,7 +182,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU2.R2 — A reviewer executable that cannot honor the result contract is skipped rather than tried and rejected
+## Rule: reliable-reviews-for-real-packets.TBU2.R2 — A reviewer executable that cannot honour the result contract never costs a later candidate its turn — skipped before launch when that is knowable, failed fast when it is not
 
 ### Scenario: A reviewer executable without typed output is skipped for one that has it
 
@@ -190,7 +190,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A candidate whose capability cannot be established is skipped with its budget preserved
+### Scenario: A candidate that cannot honour the contract never costs the next one its turn
 
 - [ ] RED
 - [ ] GREEN

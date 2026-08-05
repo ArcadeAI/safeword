@@ -89,19 +89,35 @@ its descendants and closes its pipes, and says nothing about when. The two
 concerns never mix: *when* we decide to stop is virtual and exact, *whether the
 stop worked* is real and untimed.
 
-**Compatibility, stated precisely.** A project that configures no alternate
-model gets unchanged *route selection* and no model argument on any invocation.
-It does not get byte-identical behaviour overall — budgets, candidate shares,
-capability skipping, cleanup and explanations all change by design. On any route
-where Safe Word chose no model, `reviewer_model` is omitted from the envelope
-rather than null, so consumers can distinguish "no model was chosen" from "a
-model was chosen and lost".
+**Ties are arbitrated by state, not by callback order.** A clock alone cannot
+make "the answer wins at the same instant" deterministic — whichever callback
+fires first would decide. So each attempt carries one completion state, settled
+once and never re-settled: a complete, parsed answer sets it to *answered*; a
+deadline sets it to *timed out* **only if the state is still unsettled**. Both
+callback orderings are driven in tests, for the attempt deadline and the run
+bound, and both must reach the same verdict.
 
-**Capability and contract delivery are per runtime.** Claude already advertises
+**Supervisor states carry the cleanup proofs.** Each guarantee maps to one
+observable state rather than to elapsed time: *stopping* (signal sent),
+*stopped* (the child's own exit event fired), *abandoned* (the cleanup deadline
+passed while still stopping). "Nothing left when the next candidate starts"
+means the previous attempt reached *stopped* or *abandoned*; late-answer
+suppression means output arriving in either of those states is discarded because
+the completion state is already settled; honest reporting of an escaped
+descendant means *abandoned* is reported as such rather than as *stopped*.
+
+**Compatibility.** With no alternate model configured, route selection is
+unchanged and no model argument is ever passed — that is the whole claim, and
+the ticket's done-when now says exactly that. Budgets, candidate shares,
+capability skipping, cleanup and explanations do change; that is the feature.
+Where Safe Word chose no model, `reviewer_model` is omitted rather than null, so
+"no model was chosen" stays distinguishable from "a model was chosen and lost".
+
+**Capability and contract delivery are per runtime.** Claude advertises
 `--json-schema` and receives the contract inline; Codex advertises
-`--output-schema` and receives it as a file. Both are the same adapter shape —
-advertise, deliver, enforce — so neither runtime's candidates get skipped for
-lacking the other's flag.
+`--output-schema` and receives it as a file. Same adapter shape — advertise,
+deliver, enforce — so neither runtime's candidates are skipped for lacking the
+other's flag.
 
 ### Build order
 
@@ -178,11 +194,22 @@ the executable twice to learn what one launch already tells us.
 
 ### Temporary contract file lifecycle
 
-Created per dispatch with a unique name and owner-only permissions, in the same
-temp root the packet already uses. Removed on every exit path — success,
-timeout, crash, launch failure — via the same cleanup that stops the reviewer.
-Its path is never included in any explanation, which `NTB1.R2` already forbids
-for executable paths and launch arguments.
+**Two cleanup owners, never one.** A dispatch contains many attempts, so tying
+the contract file to attempt cleanup would delete it before a later candidate
+runs. Ownership is split:
+
+| Owner | Lifetime | Removes |
+| --- | --- | --- |
+| attempt cleanup | one candidate's launch → stop | that reviewer's processes and pipes |
+| dispatch cleanup | whole review run | the contract file and the temp root |
+
+Attempt cleanup never touches the contract file. The file is written once at
+dispatch start with a unique name and owner-only permissions, in the temp root
+the packet already uses, and removed once when the run ends — on every exit
+path including crash and launch failure. A test asserts the second and third
+candidates still find the file present and unchanged after an earlier attempt
+timed out. Its path never reaches an explanation, which `NTB1.R2` already
+forbids for executable paths and launch arguments.
 
 ### Worst-case timing arithmetic
 

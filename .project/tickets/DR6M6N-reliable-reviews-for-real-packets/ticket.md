@@ -28,7 +28,7 @@ done_when:
   - a reviewer that never completes is stopped inside the documented maximum and classified as timed out
   - a slow first candidate still leaves a later compatible candidate a real opportunity to run
   - an exhausted reviewer agent retries on a configured alternate model, still reports a full cross-agent check, and names the reviewing model
-  - with no alternate model configured, routing and output match today's behavior and safeword supplies no model name
+  - with no alternate model configured, route selection matches today and safeword passes no model name
   - each attempted route carries its own bounded budget rather than sharing one exhausted deadline
   - Codex receives the exact review result contract, and candidates lacking typed-output support are skipped
   - schema-conforming Codex output passes with allowed fields and severities unchanged
