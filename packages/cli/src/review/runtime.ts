@@ -386,6 +386,57 @@ function appendBounded(
   };
 }
 
+/**
+ * The time allowed for a reviewer to stop politely before it is forced. After
+ * this the run continues regardless: a process the system will not kill must
+ * never hold up the review.
+ */
+const CLEANUP_BUDGET_MS = 5000;
+
+/**
+ * A reviewer that could not authenticate says so on stderr; anything else keeps
+ * the caller's classification.
+ */
+function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
+  return /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr)
+    ? 'not_authenticated'
+    : otherwise;
+}
+
+/**
+ * Stops a reviewer and everything it started. A reviewer's own children inherit
+ * its pipes, so killing only the direct process leaves them running and the
+ * output streams open — the run then waits on a corpse. On POSIX the child
+ * leads its own process group and the whole group is signalled; on Windows the
+ * child tree is terminated instead, since process groups do not exist there.
+ */
+function stopReviewer(child: ReturnType<typeof spawn>): void {
+  const pid = child.pid;
+  if (pid === undefined) return;
+  if (process.platform === 'win32') {
+    try {
+      spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true });
+    } catch {
+      // Nothing further to try; the direct kill below still applies.
+    }
+    child.kill('SIGKILL');
+    return;
+  }
+  const signalGroup = (signal: NodeJS.Signals): void => {
+    try {
+      process.kill(-pid, signal);
+    } catch {
+      // Already gone, or never became a group leader.
+    }
+  };
+  signalGroup('SIGTERM');
+  const forced = setTimeout(() => {
+    signalGroup('SIGKILL');
+  }, CLEANUP_BUDGET_MS);
+  // Never let the wait for a stubborn reviewer keep the process alive.
+  forced.unref();
+}
+
 function runCandidate(
   executable: string,
   attempt: ReviewAttempt,
@@ -393,16 +444,30 @@ function runCandidate(
 ): Promise<UnverifiedReviewerOutput> {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
   return new Promise((resolve, reject) => {
-    let timedOut = false;
     let overflow = false;
     const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath), {
       cwd,
       env: reviewerEnvironment(reviewer),
       stdio: ['pipe', 'pipe', 'pipe'],
+      // Its own process group, so cleanup can reach descendants.
+      detached: process.platform !== 'win32',
     });
+    // One outcome per attempt, settled once. A late answer arriving after a
+    // deadline never changes a verdict that is already decided.
+    let settled = false;
+    const settle = (finish: () => void): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      finish();
+    };
     const timeout = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGKILL');
+      // Stop the reviewer and settle now: waiting for its streams to close
+      // would mean waiting on any descendant still holding them open.
+      stopReviewer(child);
+      settle(() => {
+        reject(new ReviewRuntimeError('timed_out', `${reviewer} review timed out`));
+      });
     }, timeoutMs);
     let stdout = '';
     let stderr = '';
@@ -416,7 +481,7 @@ function runCandidate(
       stdoutBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        child.kill('SIGKILL');
+        stopReviewer(child);
       }
     });
     child.stderr.on('data', (chunk: string) => {
@@ -425,7 +490,7 @@ function runCandidate(
       stderrBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        child.kill('SIGKILL');
+        stopReviewer(child);
       }
     });
     // Exit status and stderr own failure classification. EPIPE here commonly
@@ -434,43 +499,41 @@ function runCandidate(
       // The close handler classifies the reviewer exit.
     });
     child.on('error', error => {
-      clearTimeout(timeout);
-      reject(new ReviewRuntimeError('process_failed', error.message));
+      settle(() => {
+        reject(new ReviewRuntimeError('process_failed', error.message));
+      });
     });
+    // A reviewer that finished cleanly may still have left something running,
+    // so stop its group either way before the next candidate starts.
     child.on('close', code => {
-      clearTimeout(timeout);
-      if (timedOut) {
-        reject(new ReviewRuntimeError('timed_out', `${reviewer} review timed out`));
-        return;
-      }
-      if (overflow) {
-        const failure =
-          /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr)
-            ? 'not_authenticated'
-            : 'invalid_output';
-        reject(new ReviewRuntimeError(failure, `${reviewer} exceeded its output limit`));
-        return;
-      }
-      if (code !== 0) {
-        const failure =
-          /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr)
-            ? 'not_authenticated'
-            : 'process_failed';
-        reject(
-          new ReviewRuntimeError(
-            failure,
-            `${reviewer} review failed (${code ?? 'signal'}): ${stderr.trim()}`,
-          ),
-        );
-        return;
-      }
-      try {
-        resolve(parseReviewerOutput(reviewer, stdout));
-      } catch {
-        reject(
-          new ReviewRuntimeError('invalid_output', `${reviewer} returned invalid review output`),
-        );
-      }
+      settle(() => {
+        stopReviewer(child);
+        if (overflow) {
+          reject(
+            new ReviewRuntimeError(
+              classifyExit(stderr, 'invalid_output'),
+              `${reviewer} exceeded its output limit`,
+            ),
+          );
+          return;
+        }
+        if (code !== 0) {
+          reject(
+            new ReviewRuntimeError(
+              classifyExit(stderr, 'process_failed'),
+              `${reviewer} review failed (${code ?? 'signal'}): ${stderr.trim()}`,
+            ),
+          );
+          return;
+        }
+        try {
+          resolve(parseReviewerOutput(reviewer, stdout));
+        } catch {
+          reject(
+            new ReviewRuntimeError('invalid_output', `${reviewer} returned invalid review output`),
+          );
+        }
+      });
     });
     child.stdin.end(reviewPrompt(reviewer, packet));
   });
