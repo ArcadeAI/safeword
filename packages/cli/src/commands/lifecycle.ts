@@ -40,6 +40,14 @@ function lifecycleState(results: readonly CliResult[]): CliResult['state'] {
   return 'healthy';
 }
 
+function activationActionsFor(surface: SurfaceResult): string[] {
+  if (surface.name === 'claude' && surface.result.changed) return ['run /reload-plugins'];
+  if (surface.name === 'codex' && surface.result.state === 'action_required') {
+    return ['restart Codex', 'start a new Codex task'];
+  }
+  return [];
+}
+
 function combineInstallResults(
   agents: readonly string[],
   surfaces: readonly SurfaceResult[],
@@ -82,9 +90,14 @@ function combineInstallResults(
       selected_agents: agents,
       surfaces: ['project', 'claude', 'codex', 'cursor'].map(name => {
         const surface = surfaceByName.get(name);
-        return surface === undefined
-          ? { name, selected: false }
-          : { name, selected: true, state: surface.result.state };
+        if (surface === undefined) return { name, selected: false };
+        const activationActions = activationActionsFor(surface);
+        return {
+          name,
+          selected: true,
+          state: surface.result.state,
+          ...(activationActions.length > 0 && { activation_actions: activationActions }),
+        };
       }),
     },
   });

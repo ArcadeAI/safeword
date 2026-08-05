@@ -251,6 +251,18 @@ function installSurfaceLines(data: unknown): string[] {
   });
 }
 
+function installActivationLines(data: unknown): string[] {
+  if (!isRecord(data) || data.command !== 'install' || !Array.isArray(data.surfaces)) return [];
+  return data.surfaces.flatMap(surface => {
+    if (!isRecord(surface) || typeof surface.name !== 'string') return [];
+    const label = SURFACE_LABELS[surface.name];
+    if (label === undefined || !Array.isArray(surface.activation_actions)) return [];
+    return surface.activation_actions.flatMap(action =>
+      typeof action === 'string' ? [`${label} activation: ${action}`] : [],
+    );
+  });
+}
+
 function reviewIndependenceLine(data: unknown): string | undefined {
   if (!isRecord(data) || data.command !== 'review run') return undefined;
   if (data.independence === 'cross-agent') return 'An independent agent checked the work.';
@@ -324,6 +336,7 @@ export function renderHumanStreams(
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
     ...installSurfaceLines(result.data),
+    ...installActivationLines(result.data),
     ...messages,
     ...plannedEffectLines(result.data),
   ];

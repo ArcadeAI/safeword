@@ -351,7 +351,8 @@ export function installClaudePlugin(cwd: string): CliResult {
     verifyPlugin(cwd, effects);
 
     return createResult({
-      state: effects.length === 0 ? 'healthy' : 'changed',
+      state: effects.length === 0 ? 'healthy' : 'action_required',
+      changed: effects.length > 0,
       effects: {
         configuration: effects,
         network: effects.map(effect => ({ ...effect, target: 'Claude plugin marketplace' })),
