@@ -44,7 +44,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: Missing prerequisite configuration gives one concrete next action
 
-- [ ] RED
+- [x] RED bd4b1d8c7
 - [ ] GREEN
 - [ ] REFACTOR
 
