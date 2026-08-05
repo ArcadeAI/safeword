@@ -45845,6 +45845,7 @@ function emptyTriageResult() {
     created: [],
     deferred: [],
     failed: [],
+    filedDestinations: [],
     filedSignatures: []
   };
 }
