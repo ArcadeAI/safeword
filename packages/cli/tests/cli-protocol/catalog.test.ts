@@ -152,7 +152,11 @@ describe('CLI command catalog', () => {
 
     const setup = data.commands.find(command => command.name === 'setup');
     expect(setup?.compatibility).toEqual(
-      expect.objectContaining({ introduced_in: '0.72', retention: 'indefinite' }),
+      expect.objectContaining({
+        introduced_in: '0.72',
+        retention: 'indefinite',
+        redundant_options: [{ flag: '--yes', replacement: 'install' }],
+      }),
     );
     expect(setup?.compatibility).not.toHaveProperty('removal_eligible_after');
 

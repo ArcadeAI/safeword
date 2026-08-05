@@ -226,9 +226,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Setup yes is accepted and explicitly reported as redundant
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 109ec6162
+- [x] GREEN 291d19f42
+- [x] REFACTOR skip: compatibility option guidance is declarative catalogue metadata
 
 ### Scenario: Nontrivial aliases preserve their defined observable contract
 
