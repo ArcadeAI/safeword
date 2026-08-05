@@ -417,6 +417,13 @@ Then(
   },
 );
 
+Then(
+  'none is reported missing because of the total-byte budget',
+  function (this: AdvisoryReviewWorld) {
+    assert.deepEqual(this.receipts?.[0]?.missingEvidence, []);
+  },
+);
+
 When('Safeword evaluates review eligibility', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
   this.receipts = [];
