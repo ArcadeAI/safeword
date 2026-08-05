@@ -136,7 +136,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED a15e81048
 - [x] GREEN 5ead5a9fc
-- [ ] REFACTOR
+- [x] REFACTOR 6ffbe01f4
 
 ## Rule: Every new head invalidates the old conclusion and requires a fresh review
 
