@@ -106,7 +106,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: Evidence exactly at the total-byte budget remains reviewable
 
-- [ ] RED
+- [x] RED 3b98a9913
 - [ ] GREEN
 - [ ] REFACTOR
 
