@@ -16,9 +16,12 @@ export interface AdvisoryInspection {
   coverage?: ArtifactCoverage[];
   findings?: AdvisoryFinding[];
   maxTotalBytes?: number;
-  runState?: 'failed' | 'stale';
+  runConditions?: ReviewRunState[];
+  runState?: ReviewRunState;
   unknowns: string[];
 }
+
+export type ReviewRunState = 'complete' | 'failed' | 'incomplete' | 'stale';
 
 export interface AdvisoryFinding {
   consequence: string;
@@ -55,7 +58,7 @@ export type PublishedReceipt =
       reviewableTextArtifacts?: number;
       reviewedSha: string;
       route: 'looks_ready' | 'needs_human';
-      runState?: 'complete' | 'failed' | 'incomplete' | 'stale';
+      runState?: ReviewRunState;
       unknowns?: string[];
     }
   | {
@@ -140,7 +143,7 @@ function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
 }
 
 function deriveRoute(
-  runState: 'complete' | 'failed' | 'incomplete' | 'stale',
+  runState: ReviewRunState,
   inspection: AdvisoryInspection,
 ): 'looks_ready' | 'needs_human' {
   return runState === 'complete' &&
@@ -148,6 +151,28 @@ function deriveRoute(
     inspection.unknowns.length === 0
     ? 'looks_ready'
     : 'needs_human';
+}
+
+function deriveRunState(
+  evidenceState: 'complete' | 'incomplete',
+  inspection: AdvisoryInspection,
+): ReviewRunState {
+  const precedence: Record<ReviewRunState, number> = {
+    complete: 0,
+    incomplete: 1,
+    failed: 2,
+    stale: 3,
+  };
+  const conditions = [
+    evidenceState,
+    ...(inspection.runState ? [inspection.runState] : []),
+    ...(inspection.runConditions ?? []),
+  ];
+  let highest: ReviewRunState = evidenceState;
+  for (const condition of conditions) {
+    if (precedence[condition] > precedence[highest]) highest = condition;
+  }
+  return highest;
 }
 
 function deriveReviewedReceipt(
@@ -160,7 +185,7 @@ function deriveReviewedReceipt(
   ).length;
   const evidenceState =
     reviewableTextArtifacts === 0 || missingEvidence.length > 0 ? 'incomplete' : 'complete';
-  const runState = inspection.runState ?? evidenceState;
+  const runState = deriveRunState(evidenceState, inspection);
   const route = deriveRoute(runState, inspection);
 
   return {
