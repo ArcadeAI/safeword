@@ -176,7 +176,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED f8127df53
 - [x] GREEN 96feaed69
-- [ ] REFACTOR
+- [x] REFACTOR skip: receipt formatting is already a small pure renderer
 
 ### Scenario: Unavailable evidence remains unknown instead of looking successful
 
