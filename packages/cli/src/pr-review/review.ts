@@ -16,6 +16,7 @@ export interface AdvisoryInspection {
   coverage?: ArtifactCoverage[];
   findings?: AdvisoryFinding[];
   maxTotalBytes?: number;
+  runState?: 'failed' | 'stale';
   unknowns: string[];
 }
 
@@ -54,7 +55,7 @@ export type PublishedReceipt =
       reviewableTextArtifacts?: number;
       reviewedSha: string;
       route: 'looks_ready' | 'needs_human';
-      runState?: 'complete' | 'incomplete';
+      runState?: 'complete' | 'failed' | 'incomplete' | 'stale';
       unknowns?: string[];
     }
   | {
@@ -139,7 +140,7 @@ function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
 }
 
 function deriveRoute(
-  runState: 'complete' | 'incomplete',
+  runState: 'complete' | 'failed' | 'incomplete' | 'stale',
   inspection: AdvisoryInspection,
 ): 'looks_ready' | 'needs_human' {
   return runState === 'complete' &&
@@ -157,8 +158,9 @@ function deriveReviewedReceipt(
   const reviewableTextArtifacts = coverage?.filter(
     artifact => artifact.status === 'integrity_reviewed',
   ).length;
-  const runState =
+  const evidenceState =
     reviewableTextArtifacts === 0 || missingEvidence.length > 0 ? 'incomplete' : 'complete';
+  const runState = inspection.runState ?? evidenceState;
   const route = deriveRoute(runState, inspection);
 
   return {
