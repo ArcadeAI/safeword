@@ -11,6 +11,11 @@ and command outcomes. Entries are leaf-first; every finding has a disposition.
   delivery error, leaving the orchestration function focused on the successful
   delivery state machine. Behavior is characterized by the invalid-route and
   combined persistence/delivery-failure tests. Commit: `edd2ced14`.
+- [x] R2 Extract retained-alias deprecation selection from `executeDefinition`.
+  The helper keeps command execution focused on invocation and reporting while
+  preserving the legacy `retro` compatibility metadata. The real CLI alias
+  regression test proves the externally visible JSON envelope. Commit:
+  `1f5df8ef9`.
 
 ## Deferred
 
