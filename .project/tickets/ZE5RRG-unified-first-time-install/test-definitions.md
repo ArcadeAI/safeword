@@ -134,7 +134,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plan declares all effects for the selected lifecycle scope
 
-- [ ] RED
+- [x] RED pending: executable outline rejects the missing --agents contract
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -155,20 +155,20 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Confirmed uninstall preserves custom and third-party content
 
 - [x] RED 704c80202
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c25022a65
+- [x] REFACTOR c25022a65
 
 ### Scenario: A stale uninstall plan is refused
 
 - [x] RED skip: profile preconditions were added atomically with unified apply
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c25022a65
+- [x] REFACTOR skip: exact-plan preparation has one shared precondition builder
 
 ### Scenario: No-input uninstall never infers destructive consent
 
 - [x] RED skip: preview-only no-input behavior is the canonical uninstall default
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c25022a65
+- [x] REFACTOR skip: destructive consent is centralized in uninstallLifecycle
 
 ## Rule: unified-first-time-install.TBU2.R4 — Canonical architecture options distinguish index input from output staging
 

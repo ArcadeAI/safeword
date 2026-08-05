@@ -37,6 +37,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   planId?: string;
   unrelatedProfilePath?: string;
   unifiedUninstall?: boolean;
+  lifecycleOperation?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -203,6 +204,28 @@ esac
 function requiredPath(path: string | undefined, label: string): string {
   if (path === undefined) throw new Error(`${label} was not initialized`);
   return path;
+}
+
+interface LifecyclePlanEnvelope {
+  data: {
+    plan: {
+      command: string;
+      effects: { configuration: unknown[]; network: unknown[]; destructive: unknown[] };
+    };
+    surfaces: { name: string }[];
+  };
+}
+
+function assertSelectedProfilePlan(
+  operation: string | undefined,
+  selectedAgents: readonly string[],
+  envelope: LifecyclePlanEnvelope,
+): void {
+  if (selectedAgents.length === 0) return;
+  const effects = envelope.data.plan.effects;
+  assert.ok(effects.configuration.length > 0);
+  const selectedEffects = operation === 'install' ? effects.network : effects.destructive;
+  assert.ok(selectedEffects.length > 0);
 }
 
 After(function (this: UnifiedInstallWorld) {
@@ -579,4 +602,40 @@ Then('the plan is reported without applying any removal', function (this: Unifie
   assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
   const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
   assert.match(envelope.data?.plan?.id ?? '', /^[a-f\d]{64}$/u);
+});
+
+Given(
+  'an installation state with agents {string}',
+  function (this: UnifiedInstallWorld, agents: string) {
+    initializeHosts(this);
+    this.selectedAgents = agents === 'none' ? [] : agents.split(',');
+    this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+  },
+);
+
+When(
+  'the user previews {string} for that selection',
+  function (this: UnifiedInstallWorld, operation: string) {
+    this.lifecycleOperation = operation;
+    const agents = this.selectedAgents?.length === 0 ? 'none' : this.selectedAgents?.join(',');
+    runRawCommand(this, ['plan', operation, '--agents', requiredPath(agents, 'selected agents')]);
+  },
+);
+
+Then(
+  'project profile network destructive and manual effects are declared when applicable',
+  function (this: UnifiedInstallWorld) {
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    const envelope = JSON.parse(this.result.stdout) as LifecyclePlanEnvelope;
+    assert.equal(envelope.data.plan.command, this.lifecycleOperation);
+    assert.deepEqual(
+      envelope.data.surfaces.map(surface => surface.name),
+      ['project', ...(this.selectedAgents ?? [])],
+    );
+    assertSelectedProfilePlan(this.lifecycleOperation, this.selectedAgents ?? [], envelope);
+  },
+);
+
+Then('no effect is applied', function (this: UnifiedInstallWorld) {
+  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
 });
