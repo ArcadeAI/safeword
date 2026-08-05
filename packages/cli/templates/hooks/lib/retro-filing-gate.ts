@@ -69,13 +69,17 @@ function readAttemptMarker(projectDirectory: string, sessionId: string): Attempt
     // that path returns before any rewrite, so nothing ever repairs the marker.
     //
     // JSON cannot carry NaN (`{"attempts":NaN}` fails to parse), but `1e999` parses
-    // to Infinity, and a hand-edited marker can hold a negative or fractional count.
-    // Infinity makes `attempts >= FILING_ATTEMPT_CAP` true forever and strands the
-    // drafts unfiled; a negative silently widens the budget. Clamp to 0 so the cap
-    // re-binds from a known state — re-dispatching is the safe direction here (the
-    // filer dedups), stranding findings is not.
+    // to Infinity, and a hand-edited marker can hold a negative, fractional, or
+    // oversized count. Any value above the only values this gate can write makes
+    // `attempts >= FILING_ATTEMPT_CAP` true forever and strands the drafts unfiled;
+    // a negative silently widens the budget. Clamp to 0 so the cap re-binds from a
+    // known state — re-dispatching is the safe direction here (the filer dedups),
+    // stranding findings is not.
     const attempts =
-      typeof raw.attempts === 'number' && Number.isInteger(raw.attempts) && raw.attempts >= 0
+      typeof raw.attempts === 'number' &&
+      Number.isInteger(raw.attempts) &&
+      raw.attempts >= 0 &&
+      raw.attempts <= FILING_ATTEMPT_CAP
         ? raw.attempts
         : 0;
     const marker: AttemptMarker = { key: raw.key, attempts };

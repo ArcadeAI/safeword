@@ -96,6 +96,7 @@ describe('retro filing gate decision (GH628F — dispatch until drained, capped)
     ['non-finite', '1e999'],
     ['negative', '-5'],
     ['fractional', '1.5'],
+    ['oversized', String(FILING_ATTEMPT_CAP + 1)],
   ])('clamps a %s persisted count so the cap still binds', (_label, attempts) => {
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
     expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined(); // writes the real key
