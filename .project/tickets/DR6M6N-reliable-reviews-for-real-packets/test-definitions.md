@@ -172,8 +172,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A reviewer that cannot be given the contract is not asked to review
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 79f4972d4
+- [x] GREEN abafc0d2b
 - [ ] REFACTOR
 
 ## Rule: reliable-reviews-for-real-packets.TBU2.R2 — A reviewer executable that cannot honour the result contract never costs a later candidate its turn — skipped before launch when that is knowable, failed fast when it is not
