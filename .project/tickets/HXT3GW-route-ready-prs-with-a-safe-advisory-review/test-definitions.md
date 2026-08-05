@@ -9,7 +9,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A ready revision is reviewed once at its exact head
 
 - [x] RED c3cdd85e6
-- [ ] GREEN
+- [x] GREEN a5df1d4d9
 - [ ] REFACTOR
 
 ### Scenario: A draft revision creates no receipt
