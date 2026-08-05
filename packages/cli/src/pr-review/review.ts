@@ -12,11 +12,19 @@ export interface PullRequestReviewState {
 
 export interface AdvisoryInspection {
   consequentialFindings: number;
+  coverage?: ArtifactCoverage[];
   unknowns: string[];
+}
+
+export interface ArtifactCoverage {
+  path: string;
+  skipReason?: 'non_text';
+  status: 'integrity_reviewed' | 'skipped';
 }
 
 export type PublishedReceipt =
   | {
+      coverage?: ArtifactCoverage[];
       reviewedSha: string;
       route: 'looks_ready' | 'needs_human';
     }
@@ -140,6 +148,13 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
       ? 'looks_ready'
       : 'needs_human';
 
-  await dependencies.publish({ reviewedSha: pullRequest.headSha, route }, 'upsert_marker_owned');
+  await dependencies.publish(
+    {
+      ...(inspection.coverage && { coverage: inspection.coverage }),
+      reviewedSha: pullRequest.headSha,
+      route,
+    },
+    'upsert_marker_owned',
+  );
   return { attempts: 1, result: 'reviewed', reviewedSha: pullRequest.headSha };
 }
