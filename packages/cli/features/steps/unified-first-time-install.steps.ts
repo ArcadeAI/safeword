@@ -315,3 +315,34 @@ Then(
     );
   },
 );
+
+Given(
+  'an unconfigured project whose core dependencies and Cursor assets are locally available',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+When(
+  'the user installs offline with agents {string}',
+  function (this: UnifiedInstallWorld, agents: string) {
+    runInstall(this, ['--offline', '--agents', agents]);
+  },
+);
+
+Then(
+  'core project configuration and Cursor assets are installed without a network effect',
+  function (this: UnifiedInstallWorld) {
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    const project = requiredPath(this.projectRoot, 'project root');
+    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    assert.notEqual(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
+    const result = JSON.parse(this.result.stdout) as { effects?: { network?: unknown[] } };
+    assert.deepEqual(result.effects?.network, []);
+  },
+);
+
+Then('Claude and Codex are unchanged', function (this: UnifiedInstallWorld) {
+  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
+});
