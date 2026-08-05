@@ -17,7 +17,7 @@ interface AdvisoryReviewWorld {
   attempts?: number;
   currentHead?: string;
   outcome?: ReviewOutcome;
-  prerequisites?: 'passed' | 'pending';
+  prerequisites?: 'failed' | 'passed' | 'pending';
   ready?: boolean;
   receipts?: ObservableReceipt[];
   summary?: string;
@@ -47,6 +47,11 @@ Given(
     this.prerequisites = 'pending';
   },
 );
+
+Given('a pull request has a failing required prerequisite', function (this: AdvisoryReviewWorld) {
+  this.ready = true;
+  this.prerequisites = 'failed';
+});
 
 When('Safeword completes the advisory review', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
@@ -141,6 +146,17 @@ Then(
 
 Then(
   'no model review runs after the pending prerequisite is observed',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.attempts, 0);
+  },
+);
+
+Then('the current receipt reports `prerequisites failed`', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.receipts?.[0]?.status, 'prerequisites_failed');
+});
+
+Then(
+  'no model review runs after the failed prerequisite is observed',
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.attempts, 0);
   },
