@@ -24,6 +24,7 @@ type ObservableReceipt = PublishedReceipt & {
 
 interface AdvisoryReviewWorld {
   attempts?: number;
+  changedArtifactKind?: 'binary' | 'text';
   changedArtifactPath?: string;
   receiptBeforeTrigger?: string;
   prerequisiteSamples?: number;
@@ -119,6 +120,18 @@ Given(
 Given(
   /^a ready pull request changes (?:recognized source code|an unfamiliar behavior-affecting file) at `([^`]+)`$/,
   function (this: AdvisoryReviewWorld, path: string) {
+    this.changedArtifactKind = 'text';
+    this.changedArtifactPath = path;
+    this.currentHead = 'revision A';
+    this.prerequisites = 'passed';
+    this.ready = true;
+  },
+);
+
+Given(
+  /^a ready pull request changes binary artifact `([^`]+)`$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    this.changedArtifactKind = 'binary';
     this.changedArtifactPath = path;
     this.currentHead = 'revision A';
     this.prerequisites = 'passed';
@@ -190,10 +203,15 @@ When('Safeword completes the advisory review', async function (this: AdvisoryRev
     inspect: async () => {
       this.attempts = (this.attempts ?? 0) + 1;
       return {
+        artifacts:
+          this.changedArtifactKind === 'binary' && this.changedArtifactPath
+            ? [{ kind: 'non_text' as const, path: this.changedArtifactPath }]
+            : undefined,
         consequentialFindings: 0,
-        coverage: this.changedArtifactPath
-          ? [{ path: this.changedArtifactPath, status: 'integrity_reviewed' as const }]
-          : undefined,
+        coverage:
+          this.changedArtifactKind === 'text' && this.changedArtifactPath
+            ? [{ path: this.changedArtifactPath, status: 'integrity_reviewed' as const }]
+            : undefined,
         unknowns: [],
       };
     },
@@ -232,6 +250,23 @@ Then(
     );
     assert.equal(coverage?.skipReason, undefined);
     assert.equal(coverage?.technologyGate, undefined);
+  },
+);
+
+Then(
+  /^the current receipt marks `([^`]+)` as skipped because it is non-text$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    const coverage = this.receipts?.[0]?.coverage?.find(entry => entry.path === path);
+    assert.equal(coverage?.status, 'skipped');
+    assert.equal(coverage?.skipReason, 'non_text');
+  },
+);
+
+Then(
+  /^it does not mark `([^`]+)` as integrity-reviewed$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    const coverage = this.receipts?.[0]?.coverage?.find(entry => entry.path === path);
+    assert.notEqual(coverage?.status, 'integrity_reviewed');
   },
 );
 
