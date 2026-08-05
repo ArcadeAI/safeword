@@ -2,10 +2,10 @@
 id: V8Z1NP
 slug: stop-review-turn-boundary
 type: task
-phase: intake
+phase: done
 status: in_progress
 created: 2026-08-05T15:06:34.162Z
-last_modified: 2026-08-05T15:06:34.162Z
+last_modified: 2026-08-05T16:20:00Z
 ---
 
 # Review the long turns that do the most work, instead of silently skipping them
@@ -25,3 +25,5 @@ last_modified: 2026-08-05T15:06:34.162Z
 - 2026-08-05T15:12:00Z GREEN: boundary walk bounded by transcript lines (MAX_LINES_FOR_TURN_BOUNDARY = 400) instead of assistant-message count. 47/47 in the new file; 209/209 across six stop-hook suites. Template + .safeword mirror kept byte-identical.
 - 2026-08-05T15:35:00Z CI (run 31019532494, head cf4dcd9e): lint pass, Dogfood parity pass, vitest 6572 passed / 4 skipped / 0 failed (434 files). Acceptance lane 957/959 — the 2 failures are `test-codex-plugin-migration.feature:103` and `:112`, which fail identically on main at base `fba74ddd3` (run 30984010293). Inherited red, filed as #1964.
 - 2026-08-05T15:35:00Z Third mirror caught by CI, not by `parity:fix`: the generated `plugin/runtime/hooks/stop-quality.ts` (+ inventory/identity hashes) needs `bun run --cwd packages/cli generate:claude-plugin`. `parity:fix` reporting "all 8 contracts in sync" does not cover it.
+- 2026-08-05T16:20:00Z /audit (diff scope, base fba74ddd3): 0 errors, 0 warnings. Self-applied two audit findings on the new test file — weak assertion (`not.toBe('')`) replaced with decision/reason assertions, and two silent-path cases added for negative coverage. Mutation-checked: forcing the detector to `return true` fails exactly those two.
+- 2026-08-05T16:20:00Z /verify: 6571/6571 vitest, build ✅, lint ✅, dep drift clean, PR scope clean. Acceptance lane 954/959 — 2 failures inherited from main (#1964), not this change. verify.md written. Phase → done.

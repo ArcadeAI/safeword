@@ -2,11 +2,14 @@
  * Long agentic turns must still get their Stop quality review (ticket V8Z1NP).
  *
  * `detectEditToolsUsedInCurrentUserTurn` walks back looking for the user-prompt
- * boundary but gives up after MAX_MESSAGES_FOR_TOOLS assistant messages. On any
+ * boundary but gave up after MAX_MESSAGES_FOR_TOOLS assistant messages. On any
  * turn longer than that window the boundary is never found, the caller falls
  * back to a turn-blind scan of the same short window, and an edit made earlier
  * in the very same turn becomes invisible — the review is skipped on exactly
  * the largest turns.
+ *
+ * The silent cases below are load-bearing: without them, an implementation that
+ * simply always reports "edits happened" would satisfy the firing cases.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -22,6 +25,12 @@ const state: { projectDirectory: string } = { projectDirectory: '' };
 beforeEach(() => {
   state.projectDirectory = createTemporaryDirectory();
   mkdirSync(nodePath.join(state.projectDirectory, '.safeword'), { recursive: true });
+  createStopHookTicket(state.projectDirectory, {
+    id: '099',
+    slug: 'long-turn',
+    phase: 'implement',
+    status: 'in_progress',
+  });
 });
 
 afterEach(() => {
@@ -35,17 +44,10 @@ function userPrompt(text: string): string {
   });
 }
 
-function assistantEdit(id: string): string {
+function assistantToolUse(name: string, id: string): string {
   return JSON.stringify({
     type: 'assistant',
-    message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Edit', id }] },
-  });
-}
-
-function assistantBash(id: string): string {
-  return JSON.stringify({
-    type: 'assistant',
-    message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', id }] },
+    message: { role: 'assistant', content: [{ type: 'tool_use', name, id }] },
   });
 }
 
@@ -63,57 +65,85 @@ function assistantText(text: string): string {
   });
 }
 
-/**
- * One user turn: the edit lands first, then `followUpToolCalls` non-edit tool
- * rounds push it outside the short scan window before the turn's final reply.
- */
-function writeLongEditTurn(directory: string, followUpToolCalls: number): string {
-  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
-  const followUps = Array.from({ length: followUpToolCalls }, (_unused, i) => [
-    assistantBash(`bash-${i}`),
-    toolResult(`bash-${i}`),
+/** `count` non-edit tool rounds, each an assistant tool_use plus its result. */
+function bashRounds(count: number, prefix: string): string[] {
+  return Array.from({ length: count }, (_unused, i) => [
+    assistantToolUse('Bash', `${prefix}-${i}`),
+    toolResult(`${prefix}-${i}`),
   ]).flat();
+}
 
-  const lines = [
-    userPrompt('Refactor the parser and check it still builds.'),
-    assistantEdit('edit-1'),
-    toolResult('edit-1'),
-    ...followUps,
-    assistantText('Done — parser refactored and the build is clean.'),
-  ];
-
+function writeTranscript(directory: string, lines: string[]): string {
+  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
   writeFileSync(transcriptPath, lines.join('\n'));
   return transcriptPath;
 }
 
+/** One user turn whose edit is followed by `followUpToolCalls` non-edit rounds. */
+function editThenToolCalls(followUpToolCalls: number): string[] {
+  return [
+    userPrompt('Refactor the parser and check it still builds.'),
+    assistantToolUse('Edit', 'edit-1'),
+    toolResult('edit-1'),
+    ...bashRounds(followUpToolCalls, 'bash'),
+    assistantText('Done — parser refactored and the build is clean.'),
+  ];
+}
+
+function parseBlock(stdout: string): { decision?: string; reason?: string } {
+  return JSON.parse(stdout.trim()) as { decision?: string; reason?: string };
+}
+
 describe('Stop review on long agentic turns (V8Z1NP)', () => {
-  it('reviews a short edit turn (control — edit inside the scan window)', () => {
-    createStopHookTicket(state.projectDirectory, {
-      id: '099',
-      slug: 'long-turn',
-      phase: 'implement',
-      status: 'in_progress',
-    });
-    const transcriptPath = writeLongEditTurn(state.projectDirectory, 1);
+  it('reviews a short edit turn — control, edit inside the old scan window', () => {
+    const transcriptPath = writeTranscript(state.projectDirectory, editThenToolCalls(1));
 
     const result = runStopHook(state.projectDirectory, transcriptPath);
 
     expect(result.status).toBe(0);
-    expect(result.stdout.trim()).not.toBe('');
+    const block = parseBlock(result.stdout);
+    expect(block.decision).toBe('block');
+    expect(block.reason).toContain('implement');
   });
 
-  it('still reviews when the edit is pushed out of the scan window by tool calls', () => {
-    createStopHookTicket(state.projectDirectory, {
-      id: '099',
-      slug: 'long-turn',
-      phase: 'implement',
-      status: 'in_progress',
-    });
-    const transcriptPath = writeLongEditTurn(state.projectDirectory, 12);
+  it('reviews a long edit turn — the edit is pushed out of the old scan window', () => {
+    const transcriptPath = writeTranscript(state.projectDirectory, editThenToolCalls(12));
 
     const result = runStopHook(state.projectDirectory, transcriptPath);
 
     expect(result.status).toBe(0);
-    expect(result.stdout.trim()).not.toBe('');
+    const block = parseBlock(result.stdout);
+    expect(block.decision).toBe('block');
+    expect(block.reason).toContain('implement');
+  });
+
+  it('stays silent on a long turn that edited nothing', () => {
+    const transcriptPath = writeTranscript(state.projectDirectory, [
+      userPrompt('Walk me through how the parser resolves precedence.'),
+      ...bashRounds(12, 'read'),
+      assistantText('Precedence is resolved by the climbing loop in parse_expr.'),
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('stays silent when only a previous turn edited, however long this turn runs', () => {
+    const transcriptPath = writeTranscript(state.projectDirectory, [
+      userPrompt('Refactor the parser.'),
+      assistantToolUse('Edit', 'edit-1'),
+      toolResult('edit-1'),
+      assistantText('Parser refactored.'),
+      userPrompt('Thanks — now just explain what it does.'),
+      ...bashRounds(12, 'read'),
+      assistantText('It resolves precedence by climbing.'),
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
   });
 });
