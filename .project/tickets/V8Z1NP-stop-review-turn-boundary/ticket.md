@@ -2,10 +2,10 @@
 id: V8Z1NP
 slug: stop-review-turn-boundary
 type: task
-phase: verify
+phase: done
 status: in_progress
 created: 2026-08-05T15:06:34.162Z
-last_modified: 2026-08-05T16:20:00Z
+last_modified: 2026-08-05T16:28:00Z
 ---
 
 # Review the long turns that do the most work, instead of silently skipping them
@@ -28,3 +28,4 @@ last_modified: 2026-08-05T16:20:00Z
 - 2026-08-05T16:20:00Z /audit (diff scope, base fba74ddd3): 0 errors, 0 warnings. Self-applied two audit findings on the new test file — weak assertion (`not.toBe('')`) replaced with decision/reason assertions, and two silent-path cases added for negative coverage. Mutation-checked: forcing the detector to `return true` fails exactly those two.
 - 2026-08-05T16:20:00Z /verify: 6571/6571 vitest, build ✅, lint ✅, dep drift clean, PR scope clean. Acceptance lane 954/959 — 2 failures inherited from main (#1964), not this change. verify.md written. Phase → done.
 - 2026-08-05T16:35:00Z Phase held at verify (not done): `test:done` cannot run — the machine-global build lock is held by PID 84779 from the main checkout (/Users/alex/Projects/safeword), so the gate's run is SIGTERM'd while queued. Signal-terminated with zero assertions is contention, NOT a failure; the same tests passed 6571/6571 minutes earlier. Holding at verify so each Stop stops spawning another contending run. Flip to done once test:done completes green.
+- 2026-08-05T16:28:00Z test:done GREEN once the lock freed: 1468/1468 tests, 87 files, 164s. Confirms the earlier SIGTERMs were queue contention, not failures. Phase -> done. Status stays in_progress until merge.

@@ -4,7 +4,7 @@ Branch `fix-stop-review-turn-boundary`, base `fba74ddd3`. PR: https://github.com
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6571/6571 tests pass (434 files, 5 skipped, 0 failed)
+**Test Suite:** ✓ 6571/6571 tests pass (434 files, 5 skipped, 0 failed); done-gate `test:done` ✓ 1468/1468 (87 files)
 **Gherkin:** ⚠️ Local environment limitation: 954/959 pass, 3 skipped, 2 failed — `test-codex-plugin-migration.feature:103` and `:112` fail identically on `main` at base `fba74ddd3` (CI run 30984010293) and are unrelated to this change; filed as #1964
 **Build:** ✅ Success
 **Lint:** ✅ Clean (eslint + lint-gherkin + tsc --noEmit)
@@ -15,7 +15,7 @@ Branch `fix-stop-review-turn-boundary`, base `fba74ddd3`. PR: https://github.com
 **Reconcile:** ✅ No pattern deviation — the bound is still a constant beside `MAX_MESSAGES_FOR_TOOLS`, the fallback ladder is unchanged
 **Experience:** ⏭️ N/A — internal hook plumbing, not persona-facing
 **Surface Evidence:** ✅ 1/1 — see matrix below
-**Evidence limits:** ⚠️ Acceptance-lane red is inherited from `main`; those two scenarios are not evidence about this change
+**Evidence limits:** ⚠️ Acceptance-lane red is inherited from `main`; those two scenarios are not evidence about this change. The done-gate's first two `test:done` runs were SIGTERM'd while queued on the machine-global build lock (owner PID 84779, main checkout) — signal-terminated with zero assertions is contention, not failure; the re-run passed 1468/1468 once the lock freed.
 
 **Audit passed** — 0 errors, 0 warnings (diff scope, merge base `fba74ddd3`).
 
