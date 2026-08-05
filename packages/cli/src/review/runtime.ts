@@ -509,7 +509,15 @@ export async function runHeadlessReviewer(
   }
   // The contract file belongs to the dispatch, not to an attempt: several
   // candidates and routes read it, so attempt cleanup must never remove it.
-  const contract = reviewer === 'codex' ? writeContractFile() : undefined;
+  // A reviewer we cannot hand the contract to is never asked to review, and the
+  // underlying filesystem error stays out of the message — it would carry the
+  // temporary path.
+  let contract: ContractFile | undefined;
+  try {
+    contract = reviewer === 'codex' ? writeContractFile() : undefined;
+  } catch {
+    throw new ReviewRuntimeError('process_failed', `The ${reviewer} review could not be prepared`);
+  }
   try {
     return await runReviewerCandidates(
       { reviewer, packet, cwd, model, schemaPath: contract?.path },
@@ -521,7 +529,12 @@ export async function runHeadlessReviewer(
   }
 }
 
-function writeContractFile(): { readonly path: string; readonly cleanup: () => void } {
+interface ContractFile {
+  readonly path: string;
+  readonly cleanup: () => void;
+}
+
+function writeContractFile(): ContractFile {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-contract-'));
   const path = nodePath.join(directory, 'review-result.schema.json');
   writeFileSync(path, REVIEW_OUTPUT_SCHEMA, { mode: 0o600 });

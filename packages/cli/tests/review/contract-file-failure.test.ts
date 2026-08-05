@@ -22,7 +22,7 @@ const CODEX_CAPABILITIES =
  * PATH that records any launch. Restores the environment afterwards.
  */
 async function withUnwritableTemporaryRoot(
-  body: (scratch: string) => Promise<void>,
+  body: (scratch: string, binRoot: string) => Promise<void>,
 ): Promise<void> {
   const scratch = mkdtempSync(nodePath.join(tmpdir(), 'safeword-contract-'));
   // The executable must live OUTSIDE the untrusted root, or candidate

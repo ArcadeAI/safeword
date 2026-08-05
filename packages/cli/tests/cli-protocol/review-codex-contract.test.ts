@@ -120,16 +120,15 @@ describe('Codex typed-output contract', () => {
     ) as {
       required: string[];
       additionalProperties: boolean;
-      properties: Record<
-        string,
-        {
-          enum?: unknown[];
-          items?: {
-            properties: Record<string, { enum?: unknown[] }>;
+      properties: {
+        verdict: { enum: unknown[] };
+        findings: {
+          items: {
+            properties: { severity: { enum: unknown[] } };
             additionalProperties: boolean;
           };
-        }
-      >;
+        };
+      };
     };
 
     // The six fields the parser allows, and nothing else.
@@ -144,11 +143,11 @@ describe('Codex typed-output contract', () => {
     expect(schema.additionalProperties).toBe(false);
     expect(schema.properties.verdict.enum).toEqual(['approve', 'request_changes']);
     // The severities the parser accepts — not Codex's natural high/medium/low.
-    expect(schema.properties.findings.items?.properties.severity.enum).toEqual([
+    expect(schema.properties.findings.items.properties.severity.enum).toEqual([
       'info',
       'warning',
       'error',
     ]);
-    expect(schema.properties.findings.items?.additionalProperties).toBe(false);
+    expect(schema.properties.findings.items.additionalProperties).toBe(false);
   });
 });
