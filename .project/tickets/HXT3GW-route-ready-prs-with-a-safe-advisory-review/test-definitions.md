@@ -113,7 +113,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A consequential unfamiliar-artifact finding routes to a human
 
 - [x] RED ffe9bc1cb
-- [ ] GREEN
+- [x] GREEN 1a9c7b900
 - [ ] REFACTOR
 
 ### Scenario: The unfamiliar Flux policy regression routes to a human
