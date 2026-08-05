@@ -18,6 +18,7 @@ type ObservableReceipt = PublishedReceipt & {
 
 interface AdvisoryReviewWorld {
   attempts?: number;
+  prerequisitesConfigured?: boolean;
   currentHead?: string;
   missingPrerequisite?: string;
   outcome?: ReviewOutcome;
@@ -57,6 +58,15 @@ Given('a pull request has a failing required prerequisite', function (this: Advi
   this.ready = true;
   this.prerequisites = 'failed';
 });
+
+Given(
+  'a ready pull request has no `prReview.requiredChecks` configuration',
+  function (this: AdvisoryReviewWorld) {
+    this.prerequisitesConfigured = false;
+    this.prerequisites = 'pending';
+    this.ready = true;
+  },
+);
 
 Given(
   'revision A has a `prerequisites pending` marker-owned receipt',
@@ -99,6 +109,7 @@ When('Safeword completes the advisory review', async function (this: AdvisoryRev
   this.outcome = await reviewPullRequest({
     readPullRequest: async () => ({
       headSha: this.currentHead ?? '',
+      prerequisitesConfigured: this.prerequisitesConfigured ?? true,
       prerequisites: this.prerequisites ?? 'pending',
       ready: this.ready ?? false,
     }),
@@ -206,6 +217,27 @@ Then(
   'no model review runs after the failed prerequisite is observed',
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.attempts, 0);
+  },
+);
+
+Then('no advisory route is published', function (this: AdvisoryReviewWorld) {
+  assert.equal(
+    this.receipts?.some(receipt => 'route' in receipt),
+    false,
+  );
+});
+
+Then(
+  'the current receipt reports `prerequisites unconfigured`',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.receipts?.[0]?.status, 'prerequisites_unconfigured');
+  },
+);
+
+Then(
+  'it tells the builder to set `prReview.requiredChecks` explicitly',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.receipts?.[0]?.nextAction, 'Set prReview.requiredChecks explicitly.');
   },
 );
 
