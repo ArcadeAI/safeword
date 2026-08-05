@@ -95,7 +95,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A binary-only change set cannot look complete or ready
 
 - [x] RED 8ed19dc7d
-- [ ] GREEN
+- [x] GREEN 50a9830d4
 - [ ] REFACTOR
 
 ### Scenario: Evidence over budget cannot look complete or ready
