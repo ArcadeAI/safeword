@@ -10,6 +10,12 @@ import {
 
 type ObservableReceipt = PublishedReceipt & {
   commentId?: number;
+  coverage?: Array<{
+    path: string;
+    skipReason?: string;
+    status: 'integrity_reviewed' | 'skipped';
+    technologyGate?: string;
+  }>;
   markerOwned?: boolean;
   missingChecks?: string[];
   nextAction?: string;
@@ -18,6 +24,7 @@ type ObservableReceipt = PublishedReceipt & {
 
 interface AdvisoryReviewWorld {
   attempts?: number;
+  changedArtifactPath?: string;
   receiptBeforeTrigger?: string;
   prerequisiteSamples?: number;
   prerequisitesConfigured?: boolean;
@@ -109,6 +116,16 @@ Given(
   },
 );
 
+Given(
+  /^a ready pull request changes (?:recognized source code|an unfamiliar behavior-affecting file) at `([^`]+)`$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    this.changedArtifactPath = path;
+    this.currentHead = 'revision A';
+    this.prerequisites = 'passed';
+    this.ready = true;
+  },
+);
+
 Given('a marker-owned receipt already exists', function (this: AdvisoryReviewWorld) {
   this.scheduledReceiptId = 43;
   this.receipts = [
@@ -172,7 +189,13 @@ When('Safeword completes the advisory review', async function (this: AdvisoryRev
     }),
     inspect: async () => {
       this.attempts = (this.attempts ?? 0) + 1;
-      return { consequentialFindings: 0, unknowns: [] };
+      return {
+        consequentialFindings: 0,
+        coverage: this.changedArtifactPath
+          ? [{ path: this.changedArtifactPath, status: 'integrity_reviewed' as const }]
+          : undefined,
+        unknowns: [],
+      };
     },
     publish: async receipt => {
       this.receipts?.splice(0, this.receipts.length, receipt);
@@ -192,6 +215,25 @@ Then('the review attempt count for revision A is one', function (this: AdvisoryR
 Then('exactly one current receipt exists for revision A', function (this: AdvisoryReviewWorld) {
   assert.deepEqual(this.receipts, [{ reviewedSha: 'revision A', route: 'looks_ready' }]);
 });
+
+Then(
+  /^the current receipt marks `([^`]+)` as integrity-reviewed$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    const coverage = this.receipts?.[0]?.coverage?.find(entry => entry.path === path);
+    assert.equal(coverage?.status, 'integrity_reviewed');
+  },
+);
+
+Then(
+  'the coverage entry records no technology-specific skip or gate',
+  function (this: AdvisoryReviewWorld) {
+    const coverage = this.receipts?.[0]?.coverage?.find(
+      entry => entry.path === this.changedArtifactPath,
+    );
+    assert.equal(coverage?.skipReason, undefined);
+    assert.equal(coverage?.technologyGate, undefined);
+  },
+);
 
 When('Safeword evaluates review eligibility', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
