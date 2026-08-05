@@ -396,9 +396,9 @@ export function createGitHubIssueClient(options: {
       // Hitting the cap is not the same as "no such issue" — treating it that
       // way files a fresh duplicate every run. Say so rather than guess.
       if (!found && !lastPageReached) {
-        options.log?.(
-          `issue lookup hit the ${ISSUE_LOOKUP_MAX_PAGES}-page cap without finding "${title}"; a duplicate may be filed`,
-        );
+        const message = `issue lookup hit the ${ISSUE_LOOKUP_MAX_PAGES}-page cap without finding "${title}"; refusing to risk a duplicate`;
+        options.log?.(message);
+        throw new Error(message);
       }
 
       return found;

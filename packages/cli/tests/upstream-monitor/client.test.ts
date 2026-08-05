@@ -71,7 +71,7 @@ describe('GitHub issue client', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('reports hitting the page cap rather than silently reporting "not found"', async () => {
+  it('refuses to report "not found" after hitting the page cap', async () => {
     const log: string[] = [];
     // Every page full and non-matching, so the scan exhausts its budget.
     const { calls, client } = clientOver(
@@ -81,10 +81,13 @@ describe('GitHub issue client', () => {
       },
     );
 
-    expect(await client.findOpenIssueByTitle(TITLE)).toBeUndefined();
+    await expect(client.findOpenIssueByTitle(TITLE)).rejects.toThrow(
+      'issue lookup hit the 10-page cap',
+    );
     expect(calls).toHaveLength(10);
-    // Silence here reads as "no existing issue" and files a duplicate weekly.
-    expect(log.join('\n')).toContain('a duplicate may be filed');
+    // Returning undefined here would immediately file the duplicate the cap is
+    // supposed to prevent. The log keeps the operational failure explicit too.
+    expect(log.join('\n')).toContain('refusing to risk a duplicate');
   });
 
   it('bounds every request with a timeout signal', async () => {
