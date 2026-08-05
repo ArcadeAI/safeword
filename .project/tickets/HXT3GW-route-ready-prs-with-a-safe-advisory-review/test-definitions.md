@@ -114,7 +114,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED ffe9bc1cb
 - [x] GREEN 1a9c7b900
-- [ ] REFACTOR
+- [x] REFACTOR skip: GREEN already extracted the deterministic route policy from receipt assembly
 
 ### Scenario: The unfamiliar Flux policy regression routes to a human
 
