@@ -52,7 +52,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 1977e498f
 - [x] GREEN cd67e6b9c
-- [ ] REFACTOR
+- [x] REFACTOR skip: GREEN already extracted prerequisite resolution to preserve orchestration complexity
 
 ### Scenario: A repeated trigger cannot produce another review attempt
 
