@@ -50,6 +50,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   canonicalCommand?: string;
   historicalCommand?: string;
   humanInstallSummary?: boolean;
+  mixedInstallSummary?: boolean;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -1204,3 +1205,68 @@ Then('the human result names each surface and its outcome', function (this: Unif
 Then('Cursor is identified as not selected', function (this: UnifiedInstallWorld) {
   assert.match(this.result.stdout, /Cursor: not selected/u);
 });
+
+Given(
+  'selected surfaces finish with healthy changed and failed outcomes',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    this.mixedInstallSummary = true;
+  },
+);
+
+Given('Claude and Codex profile installation succeeds', function (this: UnifiedInstallWorld) {
+  initializeHosts(this);
+  this.humanInstallSummary = true;
+});
+
+When('the unified result is rendered', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['install'], false);
+});
+
+Then(
+  'the aggregate requires action and preserves every per-surface outcome',
+  function (this: UnifiedInstallWorld) {
+    assert.notEqual(this.result.exitCode, 0);
+    const rendered = `${this.result.stdout}\n${this.result.stderr}`;
+    assert.match(rendered, /Project setup: updated/u);
+    assert.match(rendered, /Claude: failed/u);
+    assert.match(rendered, /Codex: needs attention/u);
+    assert.doesNotMatch(rendered, /^Healthy$/mu);
+  },
+);
+
+Then(
+  'Claude reload and Codex restart plus new-task actions are shown separately',
+  function (this: UnifiedInstallWorld) {
+    const rendered = `${this.result.stdout}\n${this.result.stderr}`;
+    assert.match(rendered, /Claude activation: run \/reload-plugins/u);
+    assert.match(rendered, /Codex activation: restart Codex/u);
+    assert.match(rendered, /Codex activation: start a new Codex task/u);
+  },
+);
+
+Given(
+  'profile plugins are installed but activation proof is pending',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runInstall(this, []);
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  },
+);
+
+When('status is observed', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['status']);
+});
+
+Then(
+  'activation remains action-required and no active claim is made',
+  function (this: UnifiedInstallWorld) {
+    const envelope = JSON.parse(this.result.stdout) as {
+      state?: string;
+      findings?: { message?: string }[];
+    };
+    assert.equal(envelope.state, 'action_required');
+    assert.doesNotMatch(JSON.stringify(envelope.findings), /\bactive\b/iu);
+  },
+);
