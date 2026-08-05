@@ -11,7 +11,10 @@ permissions: {}
 jobs:
   event-review:
     if: github.event_name == 'pull_request_target'
-    permissions: {}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     uses: ./.github/workflows/safeword-pr-review-worker.yml
     with:
       pull_number: ${{ github.event.pull_request.number }}
@@ -36,7 +39,10 @@ jobs:
     strategy:
       matrix:
         pull_number: ${{ fromJSON(needs.discover-ready-pull-requests.outputs.pull_numbers) }}
-    permissions: {}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     uses: ./.github/workflows/safeword-pr-review-worker.yml
     with:
       pull_number: ${{ matrix.pull_number }}
