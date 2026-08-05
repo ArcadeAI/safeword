@@ -168,7 +168,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED f240bd9da
 - [x] GREEN c1e96498a
-- [ ] REFACTOR
+- [x] REFACTOR skip: exact-line ownership is isolated in one named predicate
 
 ## Rule: The current receipt exposes what the review did and did not establish
 
