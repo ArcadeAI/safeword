@@ -12,7 +12,11 @@ const directories: string[] = [];
 const originalPath = process.env.PATH;
 const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
 
-function fixture(autoUpdate: boolean | undefined, ref = 'stable') {
+function fixture(
+  autoUpdate: boolean | undefined,
+  ref = 'stable',
+  environment?: Record<string, unknown>,
+) {
   const root = createTemporaryDirectory();
   const project = nodePath.join(root, 'project');
   const bin = nodePath.join(root, 'bin');
@@ -27,7 +31,7 @@ function fixture(autoUpdate: boolean | undefined, ref = 'stable') {
   if (autoUpdate !== undefined) declaration.autoUpdate = autoUpdate;
   writeFileSync(
     settingsPath,
-    `${JSON.stringify({ unrelated: { keep: true }, extraKnownMarketplaces: { safeword: declaration } }, undefined, 2)}\n`,
+    `${JSON.stringify({ unrelated: { keep: true }, env: environment, extraKnownMarketplaces: { safeword: declaration } }, undefined, 2)}\n`,
   );
   const executable = nodePath.join(bin, 'claude');
   writeFileSync(
@@ -64,14 +68,34 @@ describe('Claude marketplace update enrollment', () => {
 
     const result = installClaudePlugin(project);
     const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+      env: Record<string, unknown>;
       unrelated: unknown;
       extraKnownMarketplaces: { safeword: { autoUpdate?: boolean } };
     };
 
     expect(result.state).toBe('changed');
     expect(settings.unrelated).toEqual({ keep: true });
+    expect(settings.env.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE).toBe('1');
     expect(settings.extraKnownMarketplaces.safeword.autoUpdate).toBe(true);
     expect(readFileSync(log, 'utf8')).not.toContain('plugin marketplace add');
+  });
+
+  it('preserves existing environment settings and an explicit marketplace failure policy', () => {
+    const { project, settingsPath } = fixture(true, 'stable', {
+      KEEP_ME: 'yes',
+      CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '0',
+    });
+
+    const result = installClaudePlugin(project);
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+      env: Record<string, unknown>;
+    };
+
+    expect(result.state).toBe('healthy');
+    expect(settings.env).toEqual({
+      KEEP_ME: 'yes',
+      CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '0',
+    });
   });
 
   it('preserves an explicit native auto-update opt-out', () => {

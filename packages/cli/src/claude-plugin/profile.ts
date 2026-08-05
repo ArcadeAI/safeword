@@ -208,6 +208,41 @@ function marketplaceAutoUpdatePreference(
   invalidScopeSettings(scope, `marketplace ${MARKETPLACE_NAME} autoUpdate must be a boolean.`);
 }
 
+function marketplaceFailurePolicy(
+  settings: JsonObject,
+  scope: ClaudePluginScope,
+): { configured: boolean; environment: JsonObject | undefined } {
+  const environment = settings.env;
+  if (environment !== undefined && !isJsonObject(environment)) {
+    invalidScopeSettings(scope, 'environment declarations are malformed.');
+  }
+  return {
+    environment,
+    configured: environment?.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE !== undefined,
+  };
+}
+
+function recordMarketplaceSafetyEffects(
+  effects: Effect[],
+  scope: ClaudePluginScope,
+  options: { autoUpdateEnabled: boolean; failurePolicyConfigured: boolean },
+): void {
+  if (!options.autoUpdateEnabled) {
+    effects.push({
+      kind: 'enable',
+      target: `${MARKETPLACE_NAME} marketplace auto-update`,
+      operation: scope,
+    });
+  }
+  if (!options.failurePolicyConfigured) {
+    effects.push({
+      kind: 'enable',
+      target: `${MARKETPLACE_NAME} last-known-good marketplace fallback`,
+      operation: scope,
+    });
+  }
+}
+
 function enableMarketplaceAutoUpdate(
   cwd: string,
   scope: ClaudePluginScope,
@@ -233,10 +268,18 @@ function enableMarketplaceAutoUpdate(
       `marketplace ${MARKETPLACE_NAME} was not persisted after installation.`,
     );
   }
-  if (marketplaceAutoUpdatePreference(declaration, scope) === true) return;
+  const failurePolicy = marketplaceFailurePolicy(settings, scope);
+  const autoUpdateEnabled = marketplaceAutoUpdatePreference(declaration, scope) === true;
+  if (autoUpdateEnabled && failurePolicy.configured) return;
 
   const updated = {
     ...settings,
+    env: failurePolicy.configured
+      ? failurePolicy.environment
+      : {
+          ...failurePolicy.environment,
+          CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1',
+        },
     extraKnownMarketplaces: {
       ...marketplaces,
       [MARKETPLACE_NAME]: { ...declaration, autoUpdate: true },
@@ -245,10 +288,9 @@ function enableMarketplaceAutoUpdate(
   writeDurableFile(path, `${JSON.stringify(updated, undefined, 2)}\n`, {
     mode: metadata.mode & 0o777,
   });
-  effects.push({
-    kind: 'enable',
-    target: `${MARKETPLACE_NAME} marketplace auto-update`,
-    operation: scope,
+  recordMarketplaceSafetyEffects(effects, scope, {
+    autoUpdateEnabled,
+    failurePolicyConfigured: failurePolicy.configured,
   });
 }
 
