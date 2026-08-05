@@ -58,7 +58,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED c1f286f9a
 - [x] GREEN 9ce8c08a3
-- [ ] REFACTOR
+- [x] REFACTOR skip: GREEN already isolated pre-review exits in one policy helper
 
 ### Scenario: An ineligible scheduled candidate invalidates its existing receipt
 
