@@ -7,7 +7,9 @@ import {
   type PublishedReceipt,
   type ReviewOutcome,
 } from '../packages/cli/src/pr-review/review.ts';
-import { planReceiptPublication } from '../packages/cli/src/pr-review/publish.ts';
+import { planReceiptPublication, publishReceipt } from '../packages/cli/src/pr-review/publish.ts';
+
+const RECEIPT_MARKER = '<!-- safeword:pr-review-receipt:v1 -->';
 
 type ObservableReceipt = PublishedReceipt & {
   commentId?: number;
@@ -33,6 +35,7 @@ interface AdvisoryReviewWorld {
   binaryArtifactPath?: string;
   changedArtifactKind?: 'binary' | 'text';
   changedArtifactPath?: string;
+  commentMutations?: string[];
   evidenceArtifacts?: Array<{ byteLength: number; path: string }>;
   finding?: { consequence: string; path: string };
   evidenceState?: string;
@@ -48,6 +51,12 @@ interface AdvisoryReviewWorld {
   prerequisites?: 'failed' | 'passed' | 'pending';
   ready?: boolean;
   receipts?: ObservableReceipt[];
+  receiptComments?: Array<{
+    authorType: 'Bot' | 'User';
+    body: string;
+    createdAt: string;
+    id: number;
+  }>;
   runConditions?: Array<'complete' | 'failed' | 'incomplete' | 'stale'>;
   scheduledReceiptId?: number;
   scheduledState?: 'closed' | 'draft' | 'merged';
@@ -318,6 +327,33 @@ Given(
 Given('revision B becomes the pull request head', function (this: AdvisoryReviewWorld) {
   this.currentHead = 'revision B';
 });
+
+Given(
+  'a prior race left three bot-authored marker-owned receipt comments',
+  function (this: AdvisoryReviewWorld) {
+    this.commentMutations = [];
+    this.receiptComments = [
+      {
+        authorType: 'Bot',
+        body: `${RECEIPT_MARKER}\noldest`,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        id: 10,
+      },
+      {
+        authorType: 'Bot',
+        body: `${RECEIPT_MARKER}\nnewer`,
+        createdAt: '2026-01-02T00:00:00.000Z',
+        id: 11,
+      },
+      {
+        authorType: 'Bot',
+        body: `${RECEIPT_MARKER}\nnewest`,
+        createdAt: '2026-01-03T00:00:00.000Z',
+        id: 12,
+      },
+    ];
+  },
+);
 
 Given(
   /^(?:before a new review begins|while revision A is being reviewed) revision B becomes the pull request head$/,
@@ -679,6 +715,33 @@ When(
   },
 );
 
+When('Safeword publishes the current result', async function (this: AdvisoryReviewWorld) {
+  await publishReceipt(
+    {
+      createComment: async body => {
+        this.commentMutations?.push('create');
+        this.receiptComments?.push({
+          authorType: 'Bot',
+          body,
+          createdAt: '2026-01-04T00:00:00.000Z',
+          id: 13,
+        });
+      },
+      deleteComment: async id => {
+        this.commentMutations?.push(`delete:${id}`);
+        this.receiptComments = this.receiptComments?.filter(comment => comment.id !== id);
+      },
+      listComments: async () => this.receiptComments ?? [],
+      updateComment: async (id, body) => {
+        this.commentMutations?.push(`update:${id}`);
+        const comment = this.receiptComments?.find(candidate => candidate.id === id);
+        if (comment) comment.body = body;
+      },
+    },
+    'current result',
+  );
+});
+
 Then(
   "the publication audit records revision A's `stale` write before any fresh route for revision B",
   function (this: AdvisoryReviewWorld) {
@@ -693,6 +756,24 @@ Then(
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.receipts?.[0]?.commentId, this.scheduledReceiptId);
     assert.equal(this.receipts?.[0]?.reviewedSha, 'revision B');
+  },
+);
+
+Then(
+  'it updates the oldest marker-owned comment as the canonical receipt',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.commentMutations?.[0], 'update:10');
+    assert.match(
+      this.receiptComments?.find(comment => comment.id === 10)?.body ?? '',
+      /current result/,
+    );
+  },
+);
+
+Then(
+  'it deletes every other bot-authored marker-owned receipt',
+  function (this: AdvisoryReviewWorld) {
+    assert.deepEqual(this.commentMutations?.slice(1), ['delete:11', 'delete:12']);
   },
 );
 
@@ -813,6 +894,13 @@ Then(
 Then(
   'exactly one marker-owned receipt comment exists on the pull request',
   function (this: AdvisoryReviewWorld) {
+    if (this.receiptComments) {
+      const ownedComments = this.receiptComments.filter(
+        comment => comment.authorType === 'Bot' && comment.body.includes(RECEIPT_MARKER),
+      );
+      assert.equal(ownedComments.length, 1);
+      return;
+    }
     assert.equal(this.receipts?.length, 1);
     assert.equal(this.receipts[0]?.markerOwned, true);
   },
