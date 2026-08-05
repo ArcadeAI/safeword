@@ -121,6 +121,10 @@ Given('a marker-owned receipt already exists', function (this: AdvisoryReviewWor
   ];
 });
 
+Given('no marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
+  this.receipts = [];
+});
+
 Given(
   'revision A has a `prerequisites pending` marker-owned receipt',
   function (this: AdvisoryReviewWorld) {
@@ -424,6 +428,10 @@ Then(
     assert.equal('route' in (this.receipts[0] ?? {}), false);
   },
 );
+
+Then('no receipt is created', function (this: AdvisoryReviewWorld) {
+  assert.deepEqual(this.receipts, []);
+});
 
 When('a later scheduled sweep evaluates revision A', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
