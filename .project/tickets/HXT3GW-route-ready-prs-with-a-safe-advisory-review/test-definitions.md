@@ -90,7 +90,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 59e27c5f1
 - [x] GREEN 5f56dcba8
-- [ ] REFACTOR
+- [x] REFACTOR skip: unknown evidence now travels with the existing normalized coverage payload
 
 ### Scenario: A binary-only change set cannot look complete or ready
 
