@@ -57,7 +57,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A repeated trigger cannot produce another review attempt
 
 - [x] RED c1f286f9a
-- [ ] GREEN
+- [x] GREEN 9ce8c08a3
 - [ ] REFACTOR
 
 ### Scenario: An ineligible scheduled candidate invalidates its existing receipt
