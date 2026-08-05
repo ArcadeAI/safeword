@@ -23,16 +23,36 @@ Slice 8 then widens that same vertical test to the other authoring direction and
 to the capabilities added in between; it does not introduce the wiring for the
 first time.
 
-The reasoning: independence in this system means *the reviewer is not the
-author*. A different model of the reviewer agent is still not the author, so it
-carries the same independence the default model does. The author's own runtime
-is the only degraded case, and it stays degraded.
+### What independence means here, and what it does not
+
+The previous framing was circular — it proved the coordinator labels a route
+cross-agent and that policy trusts the label. So state the invariant and its
+trust inputs plainly:
+
+**Invariant.** A check is independent when the *reviewer runtime is not the
+author runtime*. Nothing else is claimed.
+
+**Trust inputs.** Independence is derived, not asserted: from which executable
+was actually invoked, and from the reviewer's own `reviewer_agent` field
+verified against the assigned reviewer by the existing provenance check. The
+coordinator's `independence` value is an *output* of that derivation. Tests
+assert against the derived provenance and the invoked executable — never against
+the label the coordinator wrote.
+
+**What this does not establish.** It does not establish that the alternate model
+is as capable as the author's. `PRINCIPLES.md`'s review tier says a judgment
+reviewer should be *never weaker* than the author, and this design cannot
+enforce that: Z4Q24Q settled that "no weaker" cannot be checked provider-neutrally
+without a hardcoded model-tier table, so the gate enforces *different* only.
+Choosing a sensibly-capable alternate model stays the builder's call. That is a
+real limit, not an oversight — it is recorded in Known deviations and documented
+at the configuration key, where the builder making the choice will see it.
 
 ### Proof plan
 
 | Scenario group | Owner | Primary proof | Why that scope | Supporting proof |
 | --- | --- | --- | --- | --- |
-| TBU3.R1–R2 alternate-model route, independence | `coordinator.ts` | integration | routing and policy semantics span coordinator + runtime | unit on route ordering |
+| TBU3.R1–R2 alternate-model route, independence | `coordinator.ts` | integration | asserted against derived provenance and the invoked executable, never the coordinator label | unit on route ordering |
 | TBU3.R3 no model configured, grammar | `policy.ts` | unit | pure config parsing | integration that no model argument is passed |
 | TBU3.R4–R5 per-route budgets, ordering, run bound | `runtime.ts` | integration | needs real spawn + controlled clock | unit on budget arithmetic |
 | TBU3.R6 public command end to end | CLI entry | E2E via `runCli` | the entry point is the thing under test | begins at slice 1 in one direction, widened at slice 8 |
@@ -116,30 +136,45 @@ implementations:
 
 | Platform | Launch | Stop | Descendants |
 | --- | --- | --- | --- |
-| macOS, Linux | detached, own process group | signal the group, then force it | covered while they stay in the group |
-| Windows | own job-style child handle | terminate the child tree | covered by the tree terminate |
+| macOS, Linux | `spawn(..., { detached: true })`, own process group | `process.kill(-pgid, 'SIGTERM')`, then `SIGKILL` at the cleanup deadline | covered while they stay in the group |
+| Windows | ordinary spawn, child handle retained | `taskkill /PID <pid> /T /F` via the same bounded cleanup | covered by the `/T` tree terminate |
 
-Both implementations answer the same two questions — *is anything still
-running?* and *stop it* — so the runtime never branches on platform. Proofs are
-platform-gated: the group/tree behaviour is proved on the host that can run it,
-and the abstraction's contract is proved everywhere. What neither platform
-promises is a descendant that deliberately escapes — that stays the explicit
-non-promise `TBU1.R4` already carries.
+`taskkill` is chosen because it ships with Windows and needs no dependency;
+Node exposes no job-object API. **Liveness is never queried by PID** — the
+supervisor holds the child handle and treats the process as finished only when
+its own `exit`/`close` event fires, so PID reuse cannot make a leaked process
+look clean. If `taskkill` is unavailable, the supervisor kills the child it
+holds and reports the descendants as not-stopped rather than claiming success.
+
+**Honest support promise.** CI is Linux-only, so the POSIX path gets real
+OS-level proof and Windows gets a unit-level assertion that the correct
+termination command is issued with the right arguments — its actual OS effect is
+unverified here. That asymmetry is recorded in Known deviations rather than
+papered over with a platform-gated test that silently never runs. Neither
+platform promises a descendant that deliberately escapes its group or tree —
+the explicit non-promise `TBU1.R4` already carries.
 
 ### Capability states
 
-A help probe establishes only that a flag is *advertised*. The adapter therefore
-distinguishes three states, and only the last one earns a review attempt:
+A help probe establishes only that a flag is *advertised*. Writing a file and
+forming an argument establishes only that Safe Word can construct an
+invocation — neither proves the candidate will accept the contract. Only
+launching it does. So there are two states, honestly named:
 
 | State | How it is established | Classification |
 | --- | --- | --- |
-| unknown | probe failed, hung, or was unreadable | skip, next candidate |
-| advertised only | flag appears in help output | skip unless delivery succeeds |
-| contract delivered | the contract was written and accepted as an argument | try the review |
+| unusable | probe failed, hung, was unreadable, or the flag is absent | `not_installed` for that candidate; skipped without launching a review |
+| advertised | the flag appears in help output | earns one review attempt |
 
-Delivery is validated before the attempt starts — the file is written and the
-argument is formed — so a candidate that cannot receive the contract is skipped
-without consuming a review attempt.
+A candidate that advertises the flag but then rejects it fails at launch —
+non-zero exit, before any model work — and is classified `process_failed`. It
+costs a fraction of its share rather than the whole thing, and the remainder
+returns to the route, so the next candidate is unharmed. That is exactly what
+the `TBU2.R2` scenario requires: the candidate does not produce a review, and
+the next candidate's share is recalculated from the time that actually remains.
+
+No separate negotiation step is introduced. Inventing one would mean launching
+the executable twice to learn what one launch already tells us.
 
 ### Temporary contract file lifecycle
 
@@ -195,11 +230,23 @@ all stay as recorded there.
 
 ## Known deviations
 
-The alternate-model route means the reviewer agent may be invoked twice in one
-run. QZAFT2's model assumed one attempt per agent. The independence guarantee is
-unchanged — both attempts are the non-author agent — but the worst-case run
-duration grows from one attempt to three. Accepted deliberately, bounded by the
-20-minute run bound, and recorded here rather than hidden in the timing code.
+**The reviewer agent may now be invoked twice in one run.** QZAFT2's model
+assumed one attempt per agent. Independence is unchanged — both attempts are the
+non-author agent — but worst-case run duration grows from one attempt to three.
+Accepted deliberately, bounded by the run bound, recorded here rather than
+buried in timing code.
+
+**"Never weaker than the author" is not enforced.** `PRINCIPLES.md`'s review
+tier prefers a reviewer no weaker than the author. Safe Word cannot check that
+without a hardcoded model-tier table, which Z4Q24Q ruled out as provider-specific
+and release-fragile. A builder who configures a weak alternate model gets a
+genuinely independent but less capable second opinion. Mitigated by documenting
+the expectation at the configuration key; not mitigated by enforcement.
+
+**Windows cleanup is unproven at the OS level.** CI runs Linux only. The POSIX
+implementation is proved against real processes; the Windows one is proved only
+to issue the right command. Rather than claim parity, the promise is narrowed:
+descendant cleanup is verified on POSIX and best-effort on Windows.
 
 ## Doc impact
 
