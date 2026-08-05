@@ -55,16 +55,14 @@ Unaffected:
 
 - **Review packet** — the bounded, read-only set of logical files handed to a
   reviewer for one dispatch. It is **accepted** only while its file contents stay
-  within the existing 1 MiB limit — an unchanged bound. Its **size for budgeting**
-  is the byte length of the serialized packet as the reviewer actually receives
-  it, paths and structure included, because that is what costs the reviewer time.
-- **Attempt budget** — the wall-clock time a single review attempt may take
-  before it is stopped and classified as a timeout. Derived deterministically
-  from packet size as **60 seconds plus 3 milliseconds per packet byte, clamped
-  to between 120 and 300 seconds**. Sizes are exact byte counts, never KB. So a
-  2,945-byte packet gets the 120-second floor, the observed 57,739-byte packet
-  gets 233.217 seconds, and anything from 80,000 bytes up gets the 300-second
-  maximum.
+  within the existing 1 MiB limit — an unchanged bound. Size plays no part in the
+  deadline.
+- **Attempt deadline** — the wall-clock time a single review attempt may take
+  before it is stopped and classified as a timeout: **300 seconds**, flat, for
+  every packet. Field evidence sets it: across 91 real review runs, successful
+  reviews completed in 47 seconds at the median and 75 at the slowest, so 300
+  is four times the observed ceiling. Packet size is deliberately not an input —
+  duration tracks how much the reviewer writes, not how much it reads.
 - **Probe budget** — the time a single capability check on one candidate may
   take: **5 seconds**, drawn from that candidate's own share. Whatever a
   skipped or failed candidate leaves unused returns to the route, so the next
@@ -72,22 +70,23 @@ Unaffected:
 - **Cleanup budget** — the time allowed to stop a reviewer and its descendants
   after an attempt ends: **5 seconds**, after which the run continues regardless.
   Reviewers are launched in their own process group so descendants are included.
-- **Run bound** — **20 minutes**: the point after which no reviewer work is
-  started or allowed to continue. That is three 5-minute attempts plus 5 minutes
-  reserved for launching, probing and stopping reviewers, so an exhausted run
-  cannot reach the bound through its own bookkeeping alone. An answer already
-  complete at the bound is still checked, and the command then finishes within
-  the cleanup budget — so the command itself returns within 20 minutes and 5
-  seconds, even when a reviewer refuses to die.
+- **Run bound** — **540 seconds**: the point after which no reviewer work is
+  started or allowed to continue. The number comes from the caller, not from
+  route arithmetic — every invocation is an agent running the command through a
+  tool whose hard ceiling is 600 seconds, so a run that could outlast that would
+  be killed mid-flight with nothing to show. An answer already complete at the
+  bound is still checked, and the command returns within one further cleanup
+  budget.
 - **Route** — one independent way of getting a review: the reviewer agent on its
   default model, the reviewer agent on its configured alternate model, and last
   the author's own runtime. Each route gets its own attempt budget.
 - **Candidate** — one executable on `PATH` that might be a usable reviewer CLI.
-- **Candidate share** — a route's attempt budget split evenly across the
-  candidates it has not yet tried, so a hanging candidate is stopped at its own
-  share and every later candidate still gets a real turn. A share covers that
-  candidate's capability probe, its launch, and its review attempt. Cleanup is
-  outside the share and bounded separately.
+- **Candidate share** — a route's deadline split across the candidates it has
+  not yet tried, floored at **120 seconds** so a share is never too short for a
+  real review to land. A share covers that candidate's capability probe, its
+  launch, and its review attempt; cleanup sits outside it and is bounded
+  separately. When the floor cannot be met, later candidates are honestly
+  reported as not attempted rather than set up to fail.
 - **Model name grammar** — an accepted alternate model value is 1 to 200
   characters drawn only from ASCII letters, digits, `.`, `_`, `:`, `/`, and `-`,
   and does not begin with `-`. That covers real model identifiers
@@ -114,9 +113,9 @@ Unaffected:
 > want the review to be given enough time to finish, so I can get an actual
 > verdict instead of a timeout on work that was only ever slow, not stuck.
 
-#### reliable-reviews-for-real-packets.TBU1.R1 — A review's time budget scales with the size of the packet it must read, up to a documented maximum
+#### reliable-reviews-for-real-packets.TBU1.R1 — Every review attempt gets the same documented deadline, set well above the slowest review anyone has observed
 
-#### reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside that maximum and reported as a timeout
+#### reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped at its deadline and reported as a timeout
 
 #### reliable-reviews-for-real-packets.TBU1.R3 — A route's budget is split across its untried candidates, so one slow or stale executable cannot consume every other candidate's opportunity
 

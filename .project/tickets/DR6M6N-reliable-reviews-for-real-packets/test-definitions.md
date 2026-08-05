@@ -4,7 +4,7 @@ Feature source: `packages/cli/features/reliable-reviews-for-real-packets.feature
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: reliable-reviews-for-real-packets.TBU1.R1 — A review attempt's time budget scales with the size of the packet it must read, up to a documented maximum of 5 minutes
+## Rule: reliable-reviews-for-real-packets.TBU1.R1 — Every review attempt gets the same documented deadline, set well above the slowest review anyone has observed
 
 ### Scenario: A representative ticket-sized review is given time to finish
 
@@ -12,13 +12,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A packet's size is measured from the very bytes the reviewer is sent
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: The attempt budget follows packet size predictably
+### Scenario: Every attempt gets the same deadline whatever the packet holds
 
 - [ ] RED
 - [ ] GREEN
@@ -48,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside the attempt maximum and reported as a timeout
+## Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped at its deadline and reported as a timeout
 
 ### Scenario: A reviewer that never answers is stopped when its budget expires
 
@@ -56,13 +50,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An explicitly configured budget replaces the size-derived one
+### Scenario: An explicitly configured deadline replaces the default
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A configured budget is honoured only up to the attempt maximum
+### Scenario: A configured deadline is honoured only up to the run bound
 
 - [ ] RED
 - [ ] GREEN

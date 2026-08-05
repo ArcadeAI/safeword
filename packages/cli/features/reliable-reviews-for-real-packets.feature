@@ -5,7 +5,7 @@ Feature: Keep independent reviews reliable for real ticket packets
   independent attempt in reserve, and explain an exhausted route plainly.
 
   @reliable-reviews-for-real-packets.TBU1.R1 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R1 — A review attempt's time budget scales with the size of the packet it must read, up to a documented maximum of 5 minutes
+  Rule: reliable-reviews-for-real-packets.TBU1.R1 — Every review attempt gets the same documented deadline, set well above the slowest review anyone has observed
 
     Scenario: A representative ticket-sized review is given time to finish
       Given a five-file review packet of about 58 KB
@@ -13,27 +13,16 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the review returns the reviewer's verdict
 
-    Scenario: A packet's size is measured from the very bytes the reviewer is sent
-      Given a review packet of two files whose paths and contents include multibyte characters
-      When the packet is prepared for a reviewer
-      Then the bytes measured for the budget are the same bytes sent to the reviewer
-      And their count includes the packet's own structure, not only file contents
-
-    Scenario Outline: The attempt budget follows packet size predictably
+    Scenario Outline: Every attempt gets the same deadline whatever the packet holds
       Given a review packet of <size>
-      When the attempt budget is derived
-      Then the attempt budget is <budget>
+      When the attempt deadline is derived
+      Then the deadline is 300 seconds
 
       Examples:
-        | size                                     | budget      |
-        | 0 bytes                                  | 120 seconds |
-        | 2945 bytes                               | 120 seconds |
-        | 20000 bytes                              | 120 seconds |
-        | 20001 bytes                              | 120.003 seconds |
-        | 57739 bytes                              | 233.217 seconds |
-        | 79999 bytes                              | 299.997 seconds |
-        | 80000 bytes                              | 300 seconds |
-        | 1 MiB, the largest packet accepted       | 300 seconds |
+        | size                                     |
+        | a single small file                      |
+        | five files of about 58 KB                |
+        | 1 MiB, the largest packet accepted       |
 
     @rejection
     Scenario: A packet over the accepted maximum is refused rather than budgeted
@@ -71,7 +60,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review is reported as timed out
 
   @reliable-reviews-for-real-packets.TBU1.R2 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped inside the attempt maximum and reported as a timeout
+  Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped at its deadline and reported as a timeout
 
     @rejection
     Scenario: A reviewer that never answers is stopped when its budget expires
@@ -82,30 +71,28 @@ Feature: Keep independent reviews reliable for real ticket packets
       And it is no longer running once the cleanup budget has passed
       And the assigned reviewer route is reported as timed out
 
-    Scenario: An explicitly configured budget replaces the size-derived one
-      Given an explicitly configured attempt budget of 2 minutes
-      And a five-file review packet of about 58 KB
-      When the attempt budget is derived
-      Then the attempt budget is 2 minutes
+    Scenario: An explicitly configured deadline replaces the default
+      Given an explicitly configured attempt deadline of 2 minutes
+      When the attempt deadline is derived
+      Then the deadline is 2 minutes
 
-    Scenario Outline: A configured budget is honoured only up to the attempt maximum
-      Given an explicitly configured attempt budget of <configured>
-      When the attempt budget is derived
-      Then the attempt budget is <effective>
+    Scenario Outline: A configured deadline is honoured only up to the run bound
+      Given an explicitly configured attempt deadline of <configured>
+      When the attempt deadline is derived
+      Then the deadline is <effective>
 
       Examples:
         | configured        | effective   |
         | 240 seconds       | 240 seconds |
-        | 299.999 seconds   | 299.999 seconds |
         | 300 seconds       | 300 seconds |
-        | 300.001 seconds   | 300 seconds |
-        | 360 seconds       | 300 seconds |
+        | 540 seconds       | 540 seconds |
+        | 600 seconds       | 540 seconds |
 
     @rejection
     Scenario Outline: A meaningless configured budget is ignored
-      Given an explicitly configured attempt budget of <budget>
+      Given an explicitly configured attempt deadline of <budget>
       When the attempt budget is derived
-      Then the size-derived budget is used instead of the configured budget
+      Then the default deadline is used instead of the configured one
 
       Examples:
         | budget           |
@@ -532,7 +519,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       And a review packet at the largest size the coordinator accepts
       And every route fails by <failure>
       When the independent review runs
-      Then no reviewer is still being waited on after 20 minutes
+      Then no reviewer is still being waited on after 9 minutes
       And no route is attempted a second time
 
       Examples:
@@ -545,7 +532,7 @@ Feature: Keep independent reviews reliable for real ticket packets
         | a mixture of all of these across routes    |
 
     Scenario Outline: An answer landing exactly on the run bound wins the tie
-      Given a valid answer and the 20-minute run bound fall on the same instant
+      Given a valid answer and the 9-minute run bound fall on the same instant
       And the <first> event is handled first
       When the run bound is reached
       Then the review returns the reviewer's verdict
@@ -557,21 +544,21 @@ Feature: Keep independent reviews reliable for real ticket packets
 
     @rejection
     Scenario: An answer landing on the run bound is still checked before it counts
-      Given an answer that does not follow the result contract and the 20-minute run bound fall on the same instant
+      Given an answer that does not follow the result contract and the 9-minute run bound fall on the same instant
       When the run bound is reached
       Then the answer is refused
       And the review reports that no route completed
 
     Scenario: The command returns by the bound plus its cleanup budget
       Given a configured alternate model for the reviewer agent
-      And the run has reached the 20-minute bound with a reviewer that cannot be stopped
+      And the run has reached the 9-minute bound with a reviewer that cannot be stopped
       When the run bound is reached
-      Then the command returns no later than 20 minutes and 5 seconds after it started
+      Then the command returns no later than 9 minutes and 5 seconds after it started
 
     @rejection
     Scenario: A run is stopped at the run bound when no answer has landed
       Given a configured alternate model for the reviewer agent
-      And the run has reached exactly 20 minutes with a route still working
+      And the run has reached exactly 9 minutes with a route still working
       When the run bound is reached
       Then the run stops
       And the review reports that no route completed
