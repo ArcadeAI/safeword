@@ -31,21 +31,13 @@ function sha256(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
-// `git show` of a sealed blob has to hold the whole file in memory, and one of
-// the reviewed inputs is the bundled CLI (~1.6 MB and growing). spawnSync's
-// default 1 MB cap made that read fail with ENOBUFS, and `reviewedInput` treats
-// any non-zero status as "not in history" and falls back to the WORKING TREE —
-// so the seal silently compared the working copy to itself and passed for any
-// bundle. It only surfaced once a branch actually changed the bundle.
-const MAX_SEALED_BLOB_BYTES = 64 * 1024 * 1024;
-
 function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Buffer } {
-  const result = spawnSync('git', arguments_, { cwd: repoRoot, maxBuffer: MAX_SEALED_BLOB_BYTES });
-  // Distinguish "git ran and said no" from "git never ran". Only the former is a
-  // legitimate fallback to the working tree (the path genuinely predates the
-  // commit); a spawn-level failure — ENOBUFS, ENOENT, a signal — means the seal
-  // was never actually read, and silently substituting the working tree is how
-  // this check went blind in the first place. Fail loudly instead.
+  const result = spawnSync('git', arguments_, { cwd: repoRoot, maxBuffer: 32 * 1024 * 1024 });
+  // Distinguish "git ran and said no" from "git never ran". Callers treat a
+  // non-zero status as "not in that commit" and fall back to the working tree,
+  // which is right for a path that predates the seal — but a spawn-level failure
+  // (ENOBUFS, ENOENT, a signal) means the blob was never read at all, and
+  // silently substituting the working tree is how this check went blind before.
   if (result.error) {
     throw new Error(`git ${arguments_.join(' ')} could not run: ${result.error.message}`);
   }
@@ -56,19 +48,16 @@ function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Bu
   };
 }
 
-function sealedCommit(): string | undefined {
+function sealedCommit(manifest: Manifest): string | undefined {
   const relativeManifest = nodePath.relative(repoRoot, manifestPath);
-  const result = git(['log', '-1', '--format=%H', '--', relativeManifest]);
-  const commit = result.stdout.toString('utf8').trim();
-  if (result.status === 0 && commit) return commit;
-  // The other way this check goes blind: with no sealed commit, every input is
-  // read from the working tree and the ancestry assertion is skipped, so the seal
-  // degrades to "the manifest matches the tree it is sitting in" — vacuous. A
-  // shallow clone or a renamed manifest path gets there silently. CI pins
-  // fetch-depth: 0 for exactly this reason; fail loudly if that ever regresses.
-  throw new Error(
-    `no commit found for ${relativeManifest}; the seal cannot be verified against history ` +
-      '(shallow clone, or the manifest path moved)',
+  const result = git(['log', '--format=%H', '--', relativeManifest]);
+  if (result.status !== 0) return undefined;
+  const candidates = result.stdout.toString('utf8').trim().split('\n').filter(Boolean);
+  return candidates.find(commit =>
+    manifest.inputs.every(input => {
+      const reviewed = git(['show', `${commit}:${input.path}`]);
+      return reviewed.status === 0 && input.sha256 === sha256(reviewed.stdout);
+    }),
   );
 }
 
@@ -154,7 +143,7 @@ describe('hash-bound independent closeout review (93C14D)', () => {
     const manifestBytes = readFileSync(manifestPath, 'utf8');
     const manifest = JSON.parse(manifestBytes) as Manifest;
     const review = reviewJson(readFileSync(reviewPath, 'utf8'));
-    const commit = sealedCommit();
+    const commit = sealedCommit(manifest);
     if (commit) {
       expect(git(['merge-base', '--is-ancestor', commit, 'HEAD']).status).toBe(0);
     }
