@@ -270,6 +270,25 @@ Given('no marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
 });
 
 Given(
+  'a pull request has a `looks ready` marker-owned receipt for revision A',
+  function (this: AdvisoryReviewWorld) {
+    this.attempts = 0;
+    this.currentHead = 'revision A';
+    this.prerequisiteSamples = 0;
+    this.ready = true;
+    this.scheduledReceiptId = 44;
+    this.receipts = [
+      {
+        commentId: this.scheduledReceiptId,
+        markerOwned: true,
+        reviewedSha: 'revision A',
+        route: 'looks_ready',
+      },
+    ];
+  },
+);
+
+Given(
   'revision A has a `prerequisites pending` marker-owned receipt',
   function (this: AdvisoryReviewWorld) {
     this.currentHead = 'revision A';
@@ -560,6 +579,35 @@ Then(
     assert.equal(this.receipts?.[0]?.runState, runState);
   },
 );
+
+When('the pull request is converted to draft', async function (this: AdvisoryReviewWorld) {
+  this.ready = false;
+  const world = this;
+  this.outcome = await reviewPullRequest({
+    readPullRequest: async () => ({
+      headSha: this.currentHead ?? '',
+      markerReceiptExists: true,
+      prerequisitesConfigured: true,
+      get prerequisites() {
+        world.prerequisiteSamples = (world.prerequisiteSamples ?? 0) + 1;
+        return 'passed' as const;
+      },
+      ready: false,
+      state: 'draft',
+    }),
+    inspect: async () => {
+      this.attempts = (this.attempts ?? 0) + 1;
+      return { consequentialFindings: 0, unknowns: [] };
+    },
+    publish: async receipt => {
+      this.receipts?.splice(0, this.receipts.length, {
+        ...receipt,
+        commentId: this.scheduledReceiptId,
+        markerOwned: true,
+      });
+    },
+  });
+});
 
 Then('the receipt associates the finding with that artifact', function (this: AdvisoryReviewWorld) {
   assert.equal(this.receipts?.[0]?.findings?.[0]?.path, this.changedArtifactPath);
