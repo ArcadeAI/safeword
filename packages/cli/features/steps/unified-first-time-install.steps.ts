@@ -642,3 +642,147 @@ Then(
 Then('no effect is applied', function (this: UnifiedInstallWorld) {
   assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
 });
+
+Given('an unconfigured project', function (this: UnifiedInstallWorld) {
+  initializeHosts(this);
+});
+
+Then('the selector error names the supported values', function (this: UnifiedInstallWorld) {
+  assert.equal(this.result.exitCode, 1);
+  assert.match(this.result.stdout, /claude, codex, cursor, or none/u);
+});
+
+Then('no project or agent effect occurs', function (this: UnifiedInstallWorld) {
+  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+});
+
+Given(
+  'an unconfigured project with the Claude host available',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+Then(
+  'core project configuration and Claude are installed once',
+  function (this: UnifiedInstallWorld) {
+    const project = requiredPath(this.projectRoot, 'project root');
+    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+    const envelope = JSON.parse(this.result.stdout) as { data?: { selected_agents?: string[] } };
+    assert.deepEqual(envelope.data?.selected_agents, ['claude']);
+  },
+);
+
+Then('Codex and Cursor are unchanged', function (this: UnifiedInstallWorld) {
+  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
+  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
+});
+
+Given(
+  'an unconfigured project whose core assets are locally available',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+Then(
+  'core project configuration is installed without a network effect',
+  function (this: UnifiedInstallWorld) {
+    const project = requiredPath(this.projectRoot, 'project root');
+    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    const envelope = JSON.parse(this.result.stdout) as { effects?: { network?: unknown[] } };
+    assert.deepEqual(envelope.effects?.network, []);
+  },
+);
+
+Then('every agent integration is unchanged', function (this: UnifiedInstallWorld) {
+  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
+  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
+});
+
+Given(
+  'an installation whose selected effects require no destructive consent',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+When('the user installs without input', function (this: UnifiedInstallWorld) {
+  runInstall(this, ['--no-input']);
+});
+
+Then('the selected installation completes without prompting', function (this: UnifiedInstallWorld) {
+  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  assert.doesNotMatch(this.result.stderr, /\?/u);
+});
+
+Then(
+  'the selector error explains that none must be used alone',
+  function (this: UnifiedInstallWorld) {
+    assert.equal(this.result.exitCode, 1);
+    assert.match(this.result.stdout, /none.*used alone/u);
+  },
+);
+
+Given('a project with customer-owned Cursor configuration', function (this: UnifiedInstallWorld) {
+  initializeHosts(this);
+});
+
+Then('every Cursor file remains byte-for-byte unchanged', function (this: UnifiedInstallWorld) {
+  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
+});
+
+Given('a project with no Cursor configuration', function (this: UnifiedInstallWorld) {
+  initializeHosts(this);
+  const project = requiredPath(this.projectRoot, 'project root');
+  rmSync(nodePath.join(project, '.cursor'), { recursive: true, force: true });
+  this.cursorBefore = 'missing';
+});
+
+Then('no Cursor file or directory is created', function (this: UnifiedInstallWorld) {
+  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(existsSync(nodePath.join(project, '.cursor')), false);
+});
+
+Then(
+  'core project configuration and Safe Word-owned Cursor assets are installed',
+  function (this: UnifiedInstallWorld) {
+    const project = requiredPath(this.projectRoot, 'project root');
+    assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+    assert.equal(existsSync(nodePath.join(project, '.cursor')), true);
+  },
+);
+
+Then('Claude and Codex profiles are unchanged', function (this: UnifiedInstallWorld) {
+  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
+});
+
+Given(
+  'a project with customer and third-party Cursor configuration',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    const project = requiredPath(this.projectRoot, 'project root');
+    writeFileSync(nodePath.join(project, '.cursor/third-party.json'), '{"owner":"third-party"}\n');
+  },
+);
+
+Then(
+  'Safe Word Cursor entries are reconciled without replacing unrelated content',
+  function (this: UnifiedInstallWorld) {
+    const project = requiredPath(this.projectRoot, 'project root');
+    assert.equal(
+      readFileSync(nodePath.join(project, '.cursor/customer.json'), 'utf8'),
+      '{"ownedBy":"customer"}\n',
+    );
+    assert.equal(
+      readFileSync(nodePath.join(project, '.cursor/third-party.json'), 'utf8'),
+      '{"owner":"third-party"}\n',
+    );
+  },
+);

@@ -28,21 +28,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An unknown agent selector is rejected before mutation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: selector validation was implemented atomically with canonical install
+- [x] GREEN 77a6d027b
+- [x] REFACTOR skip: all selector failures use parseAgentSelection
 
 ### Scenario: Duplicate agent values are normalized to one integration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: selector normalization was implemented atomically with canonical install
+- [x] GREEN 77a6d027b
+- [x] REFACTOR skip: normalization is isolated in the shared parser
 
 ### Scenario: Project-only installation works offline
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: project-only selection was implemented atomically with canonical install
+- [x] GREEN f981dd72f
+- [x] REFACTOR skip: offline profile policy is isolated in lifecycle preflight
 
 ### Scenario: Explicit Cursor installation works offline when core dependencies are satisfied
 
@@ -52,43 +52,43 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Non-destructive install can run without input
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: install is non-destructive by catalogue policy
+- [x] GREEN 77a6d027b
+- [x] REFACTOR skip: no-input is a global typed invocation policy
 
 ### Scenario: None combined with an integration is rejected before mutation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: none exclusivity shipped with the shared selector parser
+- [x] GREEN 77a6d027b
+- [x] REFACTOR skip: all selector failures occur before lifecycle mutation
 
 ## Rule: unified-first-time-install.TBU1.R3 — Default installation leaves Cursor configuration untouched
 
 ### Scenario: Existing Cursor configuration survives default install byte-for-byte
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: default schema projection shipped with canonical install
+- [x] GREEN 77a6d027b
+- [x] REFACTOR skip: Cursor ownership is isolated in schemaForProjectSurfaces
 
 ### Scenario: Default install does not create missing Cursor configuration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: default schema projection shipped with canonical install
+- [x] GREEN 77a6d027b
+- [x] REFACTOR skip: missing Cursor directories remain outside the selected schema
 
 ## Rule: unified-first-time-install.TBU1.R4 — Cursor configuration is created only when cursor appears in agents
 
 ### Scenario: Explicit Cursor install reconciles its project-local assets
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: explicit Cursor projection shipped with canonical install
+- [x] GREEN 77a6d027b
+- [x] REFACTOR skip: Cursor reconciliation reuses the schema-owned partition
 
 ### Scenario: Explicit Cursor install preserves customer and third-party Cursor content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: reconciliation already preserves unowned Cursor entries
+- [x] GREEN 77a6d027b
+- [x] REFACTOR skip: preservation is enforced by reconciliation ownership
 
 ## Rule: unified-first-time-install.TBU1.R5 — Repeated installation converges safely across the selected surfaces
 
@@ -175,26 +175,26 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Canonical architecture flags independently select input and staging
 
 - [x] RED skip: the prior catalogue rejected both canonical flags
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7873ac1da
+- [x] REFACTOR skip: input and output mode resolution is isolated
 
 ### Scenario: Legacy architecture flags retain their exact behavior
 
 - [x] RED skip: legacy behavior predated the canonical normalization layer
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7873ac1da
+- [x] REFACTOR skip: legacy options normalize before execution
 
 ### Scenario: Canonical architecture flags are differential-tested against legacy behavior
 
 - [x] RED skip: canonical and legacy fixtures were added with the normalization layer
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7873ac1da
+- [x] REFACTOR skip: both spellings execute the same architecture mode
 
 ### Scenario: Stage output without a reproducible input is rejected
 
 - [x] RED skip: --stage-output was previously an unknown option
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7873ac1da
+- [x] REFACTOR skip: reproducible-input validation is centralized
 
 ## Rule: unified-first-time-install.TBU2.R5 — Global JSON is the sole canonical machine-output contract
 
