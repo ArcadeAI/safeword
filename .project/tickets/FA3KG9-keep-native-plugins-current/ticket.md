@@ -2,13 +2,13 @@
 id: FA3KG9
 slug: keep-native-plugins-current
 type: feature
-phase: verify
+phase: done
 phase_skips:
   - "intake: Backfilled after the maintainer-led issue 1785 investigation and accepted scope discussion already occurred in this task."
   - "define-behavior: Backfilled after the maintainer accepted the dual-host stable-channel and non-blocking Codex behavior in this task."
   - "scenario-gate: Backfilled after independent scenario review completed in this task before the implementation plan was finalized."
   - "plan-implementation: Backfilled after independent plan review completed in this task before production implementation continued."
-status: in_progress
+status: done
 scope:
   - move supported Claude Code and Codex installations onto one release-managed stable channel
   - enable each host's native startup update path and preserve its native reload semantics
@@ -47,7 +47,7 @@ phase_anchors:
   - verify: .project/tickets/FA3KG9-keep-native-plugins-current/test-definitions.md
   - done: .project/tickets/FA3KG9-keep-native-plugins-current/verify.md
 created: 2026-08-04T12:41:13.239Z
-last_modified: 2026-08-05T06:30:19Z
+last_modified: 2026-08-05T06:31:30Z
 ---
 
 # Keep native plugins current for builders
@@ -58,6 +58,7 @@ last_modified: 2026-08-05T06:30:19Z
 
 ## Work Log
 
+- 2026-08-05T06:31:30Z Complete: Every done condition has current verification evidence in `verify.md`, and the user explicitly authorized the separate 0.73.0 release operation.
 - 2026-08-05T06:30:19Z Phase: implement → verify. The full verification and audit evidence is recorded in `verify.md`; the subsequent release pass also fixed stable-version rejection of historical prerelease/build marketplace tags.
 - 2026-08-04T12:41:13.239Z Started: Created ticket FA3KG9
 - 2026-08-04T12:45:00.000Z Intake research: Claude supports per-marketplace auto-update and intentionally requires `/reload-plugins` or a later launch for an already-running session. Codex 0.146.0 and current upstream source auto-upgrade configured Git marketplaces at startup and refresh installed caches. Chose a release-promoted `stable` ref over package-hook updates or tracking `main`; RC paths remain exact-tagged.
