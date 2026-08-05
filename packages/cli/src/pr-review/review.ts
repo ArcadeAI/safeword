@@ -14,13 +14,20 @@ export interface AdvisoryInspection {
   artifacts?: ArtifactEvidence[];
   consequentialFindings: number;
   coverage?: ArtifactCoverage[];
+  maxTotalBytes?: number;
   unknowns: string[];
 }
 
-export interface ArtifactEvidence {
-  kind: 'non_text';
-  path: string;
-}
+export type ArtifactEvidence =
+  | {
+      kind: 'non_text';
+      path: string;
+    }
+  | {
+      byteLength: number;
+      kind: 'text';
+      path: string;
+    };
 
 export type ArtifactCoverage =
   | {
@@ -36,6 +43,7 @@ export type ArtifactCoverage =
 export type PublishedReceipt =
   | {
       coverage?: ArtifactCoverage[];
+      missingEvidence?: string[];
       reviewableTextArtifacts?: number;
       reviewedSha: string;
       route: 'looks_ready' | 'needs_human';
@@ -88,27 +96,51 @@ function resolvePrerequisites(
   return pullRequest.requiredPrerequisites?.length === 0 ? 'passed' : pullRequest.prerequisites;
 }
 
-function resolveCoverage(inspection: AdvisoryInspection): ArtifactCoverage[] | undefined {
-  const coverage: ArtifactCoverage[] = [
-    ...(inspection.coverage ?? []),
-    ...(inspection.artifacts ?? []).map(({ path }) => ({
-      path,
-      skipReason: 'non_text' as const,
-      status: 'skipped' as const,
-    })),
-  ];
-  return coverage.length > 0 ? coverage : undefined;
+interface ResolvedEvidence {
+  coverage?: ArtifactCoverage[];
+  missingEvidence: string[];
+}
+
+function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
+  const coverage: ArtifactCoverage[] = [...(inspection.coverage ?? [])];
+  const missingEvidence: string[] = [];
+  const artifacts = inspection.artifacts ?? [];
+  let totalBytes = 0;
+
+  for (const artifact of artifacts) {
+    if (artifact.kind === 'non_text') {
+      coverage.push({ path: artifact.path, skipReason: 'non_text', status: 'skipped' });
+      continue;
+    }
+
+    if (
+      inspection.maxTotalBytes === undefined ||
+      totalBytes + artifact.byteLength <= inspection.maxTotalBytes
+    ) {
+      totalBytes += artifact.byteLength;
+      coverage.push({ path: artifact.path, status: 'integrity_reviewed' });
+      continue;
+    }
+
+    missingEvidence.push(artifact.path);
+  }
+
+  return {
+    coverage: coverage.length > 0 ? coverage : undefined,
+    missingEvidence,
+  };
 }
 
 function deriveReviewedReceipt(
   reviewedSha: string,
   inspection: AdvisoryInspection,
 ): Extract<PublishedReceipt, { route: 'looks_ready' | 'needs_human' }> {
-  const coverage = resolveCoverage(inspection);
+  const { coverage, missingEvidence } = resolveEvidence(inspection);
   const reviewableTextArtifacts = coverage?.filter(
     artifact => artifact.status === 'integrity_reviewed',
   ).length;
-  const runState = reviewableTextArtifacts === 0 ? 'incomplete' : 'complete';
+  const runState =
+    reviewableTextArtifacts === 0 || missingEvidence.length > 0 ? 'incomplete' : 'complete';
   const route =
     runState === 'complete' &&
     inspection.consequentialFindings === 0 &&
@@ -117,8 +149,9 @@ function deriveReviewedReceipt(
       : 'needs_human';
 
   return {
-    ...(coverage && {
-      coverage,
+    ...((coverage || missingEvidence.length > 0) && {
+      coverage: coverage ?? [],
+      missingEvidence,
       reviewableTextArtifacts,
       runState,
       unknowns: inspection.unknowns,
