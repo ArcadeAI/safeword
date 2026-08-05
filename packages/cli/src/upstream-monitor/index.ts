@@ -17,7 +17,6 @@ export interface MonitorSource {
 }
 
 export interface SourceChangeInput {
-  currentFetchedAt?: string;
   liveContent: string;
   snapshotContent: string;
   source: MonitorSource;
