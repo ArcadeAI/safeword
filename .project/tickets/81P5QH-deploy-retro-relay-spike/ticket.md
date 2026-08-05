@@ -9,6 +9,7 @@ phase_anchors:
   - 'scenario-gate: features/deploy-retro-relay-spike.feature'
   - 'implement: .project/tickets/81P5QH-deploy-retro-relay-spike/impl-plan.md'
   - 'verify: .project/tickets/81P5QH-deploy-retro-relay-spike/test-definitions.md'
+  - 'done: .project/tickets/81P5QH-deploy-retro-relay-spike/test-definitions.md'
 scope:
   - production entrypoint with explicit host, port, health, shutdown, and fail-closed environment parsing
   - single Railway service with one persistent volume mounted at /data
