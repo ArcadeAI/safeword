@@ -22,6 +22,7 @@ const state: SpikeState = {
 };
 
 const directories: string[] = [];
+const SUBPROCESS_TEST_TIMEOUT_MS = 15_000;
 afterEach(() => {
   for (const directory of directories) rmSync(directory, { recursive: true, force: true });
   directories.length = 0;
@@ -100,30 +101,34 @@ describe('Railway spike safety', () => {
     );
   });
 
-  it('wires teardown preview through a real state file and subprocess', () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'railway-spike-command-'));
-    directories.push(directory);
-    const statePath = path.join(directory, 'state.json');
-    const scriptPath = path.join(process.cwd(), 'scripts', 'railway-spike.ts');
-    const tsxPath = path.join(process.cwd(), '..', '..', 'node_modules', '.bin', 'tsx');
-    const record = spawnSync(tsxPath, [scriptPath, 'record-state', statePath], {
-      encoding: 'utf8',
-      input: JSON.stringify(state),
-    });
-    expect(record.status).toBe(0);
-    const topology = spawnSync(tsxPath, [scriptPath, 'validate-topology', statePath], {
-      encoding: 'utf8',
-      input: JSON.stringify(validTopology()),
-    });
-    expect(topology.status).toBe(0);
-    const result = spawnSync(tsxPath, [scriptPath, 'teardown-preview', statePath], {
-      encoding: 'utf8',
-    });
+  it(
+    'wires teardown preview through a real state file and subprocess',
+    () => {
+      const directory = mkdtempSync(path.join(tmpdir(), 'railway-spike-command-'));
+      directories.push(directory);
+      const statePath = path.join(directory, 'state.json');
+      const scriptPath = path.join(process.cwd(), 'scripts', 'railway-spike.ts');
+      const tsxPath = path.join(process.cwd(), '..', '..', 'node_modules', '.bin', 'tsx');
+      const record = spawnSync(tsxPath, [scriptPath, 'record-state', statePath], {
+        encoding: 'utf8',
+        input: JSON.stringify(state),
+      });
+      expect(record.status).toBe(0);
+      const topology = spawnSync(tsxPath, [scriptPath, 'validate-topology', statePath], {
+        encoding: 'utf8',
+        input: JSON.stringify(validTopology()),
+      });
+      expect(topology.status).toBe(0);
+      const result = spawnSync(tsxPath, [scriptPath, 'teardown-preview', statePath], {
+        encoding: 'utf8',
+      });
 
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain(state.projectId);
-    expect(result.stdout).not.toContain(state.serviceId);
-  });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(state.projectId);
+      expect(result.stdout).not.toContain(state.serviceId);
+    },
+    SUBPROCESS_TEST_TIMEOUT_MS,
+  );
 
   it('rejects incomplete or secret-bearing reports', () => {
     const report = [
