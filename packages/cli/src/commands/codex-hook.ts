@@ -89,13 +89,16 @@ const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
 ]);
 
 async function readStdin(): Promise<string> {
-  let body = '';
-  process.stdin.setEncoding('utf8');
-  for await (const chunk of process.stdin) {
-    body += String(chunk);
-  }
-  return body;
+  stdinCache.body ??= (async () => {
+    let body = '';
+    process.stdin.setEncoding('utf8');
+    for await (const chunk of process.stdin) body += String(chunk);
+    return body;
+  })();
+  return await stdinCache.body;
 }
+
+const stdinCache: { body?: Promise<string> } = {};
 
 function parseCodexHookInput(raw: string): CodexHookInput | undefined {
   try {
@@ -665,7 +668,12 @@ export async function codexHook(
   }
   if (options.pluginHook === true) {
     try {
-      recordCodexHookProof(normalized, process.env);
+      const rawInput = await readStdin();
+      const input = parseCodexHookInput(rawInput);
+      recordCodexHookProof(normalized, process.env, new Date(), {
+        projectDirectory: resolveProjectDirectory(),
+        sessionId: input?.session_id,
+      });
     } catch {
       // Proof is advisory state. A read-only or malformed CODEX_HOME must never
       // prevent the packaged hook itself from protecting the project.

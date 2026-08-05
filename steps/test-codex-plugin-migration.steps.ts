@@ -1768,11 +1768,20 @@ Then(
 );
 
 Then(
+  'the upgrade reports profile enrollment failure loudly',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginMigrationResult;
+    assert.ok(result, 'migration result was not captured');
+    assert.equal(result.exitCode, 2);
+    assert.match(`${result.stdout}\n${result.stderr}`, /Codex|plugin|profile/iu);
+  },
+);
+
+Then(
   'the user-owned tickets and learnings remain byte-identical',
   function (this: CodexPluginMigrationWorld) {
     const result = this.codexPluginMigrationResult;
     assert.ok(result, 'migration result was not captured');
-    assert.equal(result.exitCode, 0, result.stderr);
     assert.deepEqual(
       readUserDataSnapshot(requirePath(this.codexPluginRepoRoot, 'repo root')),
       this.codexPluginUserDataSnapshot,

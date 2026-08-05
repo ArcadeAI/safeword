@@ -11,7 +11,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "75baa03967c3ecc256ba31943308557d4458af4246951884036245f191daf4c4"
+      "sha256": "44c13567262ae5bcd88a9243478d642cdfc2e170f2e1c8cd887b167b529bc629"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -127,11 +127,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "199147462ab7a94473497ae3bb38daecf5ca8b9a1cf5212bb27d133e539ff2f2"
+      "sha256": "04cef903e7991dc304d00657999419a4396a529cb1c47ce1f0f38b129b3d9568"
     },
     {
       "path": "runtime/dispatch.ts",
-      "sha256": "4534464d0d41e9ccea209780e27d25ebefbef938b00a34b597f35ff9c0e7bc33"
+      "sha256": "7ae850c6da5a3c3815818de802688ae4af6b71d055eeca8f8f5ceb8371fb3973"
     },
     {
       "path": "runtime/event-groups.json",
@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/record-skill-invocation.ts",
-      "sha256": "29fb33b76a98b5d8e96f3ce00dbfd0efde3ffa6db322d4e08d75046a895157e7"
+      "sha256": "b700df1e48aeb3e85aded1bcd042d12b82a901d4b1af79503a248df41045566f"
     },
     {
       "path": "runtime/hooks/resolve-namespace-root.ts",
