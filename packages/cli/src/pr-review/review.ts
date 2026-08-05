@@ -9,10 +9,16 @@ export interface AdvisoryInspection {
   unknowns: string[];
 }
 
-export interface PublishedReceipt {
-  reviewedSha: string;
-  route: 'looks_ready' | 'needs_human';
-}
+export type PublishedReceipt =
+  | {
+      reviewedSha: string;
+      route: 'looks_ready' | 'needs_human';
+    }
+  | {
+      markerOwned: true;
+      reviewedSha: string;
+      status: 'prerequisites_pending';
+    };
 
 export interface ReviewDependencies {
   inspect(headSha: string): Promise<AdvisoryInspection>;
@@ -31,6 +37,15 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
   const pullRequest = await dependencies.readPullRequest();
   if (!pullRequest.ready) {
     await dependencies.summarize?.('not ready (draft)');
+    return { attempts: 0, result: 'not_run' };
+  }
+
+  if (pullRequest.prerequisites === 'pending') {
+    await dependencies.publish({
+      markerOwned: true,
+      reviewedSha: pullRequest.headSha,
+      status: 'prerequisites_pending',
+    });
     return { attempts: 0, result: 'not_run' };
   }
 

@@ -108,7 +108,10 @@ When('Safeword evaluates review eligibility', async function (this: AdvisoryRevi
 Then(
   'no `looks ready` or `needs a human` route is published',
   function (this: AdvisoryReviewWorld) {
-    assert.deepEqual(this.receipts, []);
+    assert.equal(
+      this.receipts?.some(receipt => 'route' in receipt),
+      false,
+    );
     assert.equal(this.attempts, 0);
   },
 );
