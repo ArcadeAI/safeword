@@ -1611,18 +1611,36 @@ When(
   },
 );
 
-When('the plugin migration upgrade runs', function (this: CodexPluginMigrationWorld) {
-  const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-  this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
-    cwd: repoRoot,
-    env: {
-      // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
-      PATH: '',
-      SAFEWORD_SKIP_INSTALL: '1',
-    },
-    timeout: 120_000,
-  });
-});
+/**
+ * Every scenario in this rule runs the upgrade with profile enrollment made
+ * unavailable, and each one asserts the decline it produces (#1973). The
+ * decline is the point: it proves the upgrade ran, reached the Codex handoff,
+ * and preserved the project on the way out. Without that assertion these
+ * scenarios pass whether or not anything executed, because untouched files
+ * look identical to files nothing reached.
+ *
+ * Enrollment stays unavailable on purpose rather than being made to succeed.
+ * `installCodexPlugin` shells out to the real `bun` and `codex` binaries and
+ * clones the `ArcadeAI/safeword` marketplace at ref `stable`; the automatic
+ * migration path takes no local-source override. Succeeding here would mean a
+ * network clone per scenario and mutating whatever Codex profile is ambient.
+ * Hermetic coverage of a *successful* handoff is tracked separately.
+ */
+When(
+  'the plugin migration upgrade runs without profile enrollment available',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
+      cwd: repoRoot,
+      env: {
+        // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
+        PATH: '',
+        SAFEWORD_SKIP_INSTALL: '1',
+      },
+      timeout: 120_000,
+    });
+  },
+);
 
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
@@ -1769,13 +1787,31 @@ Then(
   },
 );
 
+/**
+ * Non-vacuity guard for every scenario under this rule (#1973). Survival
+ * assertions only mean something once the upgrade is known to have run and
+ * reached the Codex handoff; a migration that never started leaves the same
+ * files untouched and proves nothing.
+ */
+function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
+  const result = world.codexPluginMigrationResult;
+  assert.ok(result, 'migration result was not captured');
+  assert.equal(
+    result.exitCode,
+    2,
+    `expected a declined migration: ${result.stdout}${result.stderr}`,
+  );
+  assert.match(
+    `${result.stdout}\n${result.stderr}`,
+    /legacy project protection was retained/iu,
+    'upgrade did not reach the Codex handoff decline',
+  );
+}
+
 Then(
   'the upgrade reports profile enrollment failure loudly',
   function (this: CodexPluginMigrationWorld) {
-    const result = this.codexPluginMigrationResult;
-    assert.ok(result, 'migration result was not captured');
-    assert.equal(result.exitCode, 2);
-    assert.match(`${result.stdout}\n${result.stderr}`, /Codex|plugin|profile/iu);
+    assertMigrationRanAndDeclined(this);
   },
 );
 
@@ -1823,6 +1859,7 @@ Then('the user-authored skill remains byte-identical', function (this: CodexPlug
 Then(
   'Safe Word-owned Codex skill files remain beside the user-authored skill until finalization',
   function (this: CodexPluginMigrationWorld) {
+    assertMigrationRanAndDeclined(this);
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
       'bdd',
@@ -1833,6 +1870,7 @@ Then(
 );
 
 Then('the user-authored Codex config entries remain', function (this: CodexPluginMigrationWorld) {
+  assertMigrationRanAndDeclined(this);
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
   const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
   const lines = config.split(/\r?\n/u);
