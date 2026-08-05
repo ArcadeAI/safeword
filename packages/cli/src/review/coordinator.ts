@@ -109,12 +109,63 @@ function retryCommand(kind: ReviewKind, targets: readonly string[]): string {
   return `safeword review run ${kind} ${targets.map(target => shellQuote(target)).join(' ')}`;
 }
 
-function recoveryDescription(reviewer: ReviewAgent, failure: ReviewFailure): string {
-  const name = reviewer === 'codex' ? 'Codex' : 'Claude';
-  if (failure === 'not_installed') return `Install ${name}, then retry the independent review.`;
-  if (failure === 'not_authenticated')
-    return `Sign in to ${name}, then retry the independent review.`;
-  return 'Retry the independent review.';
+/** How an agent is written for a reader: the product name, not the runtime id. */
+function agentName(agent: ReviewAgent): string {
+  return agent === 'codex' ? 'Codex' : 'Claude';
+}
+
+/**
+ * What went wrong on one route, in words a reader who cannot see the code can
+ * act on. Built only from Safe Word's own classification — never from anything
+ * the reviewer printed, which may carry credentials or a rejected answer.
+ */
+function causePhrase(failure: string): string {
+  switch (failure) {
+    case 'timed_out': {
+      return 'ran out of time';
+    }
+    case 'not_installed': {
+      return 'is not installed, or is too old to be used';
+    }
+    case 'not_authenticated': {
+      return 'is not signed in';
+    }
+    case 'invalid_output': {
+      return 'gave an answer that could not be accepted';
+    }
+    case 'source_changed': {
+      return 'was reviewing files that changed underneath it';
+    }
+    case 'REVIEWER_PROVENANCE_MISSING':
+    case 'REVIEWER_PROVENANCE_CONTRADICTORY': {
+      return 'gave an answer that did not identify it as the reviewer';
+    }
+    default: {
+      return 'could not be run';
+    }
+  }
+}
+
+/** One sentence per attempted route, each naming its own cause. */
+function exhaustedExplanation(
+  routes: readonly {
+    readonly agent: ReviewAgent;
+    readonly role: string;
+    readonly failure: string;
+  }[],
+): string {
+  const sentences = routes.map(
+    route => `The ${route.role} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`,
+  );
+  return [...sentences, 'No independent check was recorded.'].join(' ');
+}
+
+/** The single next step, chosen from the assigned reviewer's own failure. */
+function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
+  const name = agentName(reviewer);
+  if (failure === 'not_installed') return `Install or update ${name}, then run the review again.`;
+  if (failure === 'not_authenticated') return `Sign in to ${name}, then run the review again.`;
+  return 'Run the review again.';
 }
 
 function unsupportedAuthorResult(input: {
@@ -260,14 +311,21 @@ async function runDegradedFallback(input: {
       findings: [
         {
           code: 'REVIEW_ROUTES_EXHAUSTED',
-          message: 'The independent check did not run, and the fallback did not complete safely.',
+          message: exhaustedExplanation([
+            {
+              agent: input.assignedReviewer,
+              role: 'independent reviewer',
+              failure: input.preferredFailure,
+            },
+            { agent: input.author, role: 'fallback review', failure: assessment.failure },
+          ]),
           severity: 'warning',
         },
       ],
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
-          description: recoveryDescription(input.assignedReviewer, input.preferredFailure),
+          description: nextStepFor(input.assignedReviewer, input.preferredFailure),
           requiresHuman: true,
         },
       ],
@@ -454,14 +512,20 @@ function exhaustedRunResult(input: {
     findings: [
       {
         code: 'REVIEW_ROUTES_EXHAUSTED',
-        message: 'The independent check ran out of time before every route could be tried.',
+        message: exhaustedExplanation([
+          {
+            agent: input.assignedReviewer,
+            role: 'independent reviewer',
+            failure: input.preferredFailure,
+          },
+        ]),
         severity: 'warning',
       },
     ],
     recovery: [
       {
         command: retryCommand(input.kind, input.targets),
-        description: recoveryDescription(input.assignedReviewer, input.preferredFailure),
+        description: nextStepFor(input.assignedReviewer, input.preferredFailure),
         requiresHuman: true,
       },
     ],

@@ -513,27 +513,27 @@ describe('cross-agent review public-command wiring', () => {
     {
       failure: 'not-installed',
       classification: 'not_installed',
-      action: 'Install Codex, then retry the independent review.',
+      action: 'Install or update Codex, then run the review again.',
     },
     {
       failure: 'auth',
       classification: 'not_authenticated',
-      action: 'Sign in to Codex, then retry the independent review.',
+      action: 'Sign in to Codex, then run the review again.',
     },
     {
       failure: 'process',
       classification: 'process_failed',
-      action: 'Retry the independent review.',
+      action: 'Run the review again.',
     },
     {
       failure: 'timeout',
       classification: 'timed_out',
-      action: 'Retry the independent review.',
+      action: 'Run the review again.',
     },
     {
       failure: 'invalid',
       classification: 'invalid_output',
-      action: 'Retry the independent review.',
+      action: 'Run the review again.',
     },
   ])(
     'preserves the $classification preferred-route failure',
@@ -728,7 +728,7 @@ describe('cross-agent review public-command wiring', () => {
       recovery: [
         {
           command: 'safeword review run quality-review review-input.md',
-          description: 'Retry the independent review.',
+          description: 'Run the review again.',
         },
       ],
       data: {
