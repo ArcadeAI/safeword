@@ -469,9 +469,10 @@ function normalizeWhitespace(text: string): string {
 
 function atomEntryBlocks(raw: string): string[] {
   const blocks: string[] = [];
+  const lowercaseRaw = raw.toLowerCase();
   let cursor = 0;
   for (;;) {
-    const start = raw.toLowerCase().indexOf('<entry', cursor);
+    const start = lowercaseRaw.indexOf('<entry', cursor);
     if (start === -1) {
       return blocks;
     }
@@ -479,7 +480,7 @@ function atomEntryBlocks(raw: string): string[] {
     if (startClose === -1) {
       return blocks;
     }
-    const end = raw.toLowerCase().indexOf('</entry>', startClose);
+    const end = lowercaseRaw.indexOf('</entry>', startClose);
     if (end === -1) {
       return blocks;
     }
