@@ -43,7 +43,7 @@ import type {
 } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
-import { getTemplatesDirectory, readFile } from './utils/fs.js';
+import { getTemplatesDirectory, readFile, readFileSafe } from './utils/fs.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
@@ -413,6 +413,28 @@ function bddLaneFile(templatePath: string): FileDefinition {
     template: templatePath,
     generator: (ctx: ProjectContext): string | undefined =>
       ctx.projectType.scaffoldBddLane
+        ? readFile(nodePath.join(getTemplatesDirectory(), templatePath))
+        : undefined,
+  };
+}
+
+function prReviewEnabled(cwd: string): boolean {
+  const content = readFileSafe(nodePath.join(cwd, '.safeword', 'config.json'));
+  if (content === undefined) return false;
+
+  try {
+    const config = JSON.parse(content) as { prReview?: { enabled?: unknown } };
+    return config.prReview?.enabled === true;
+  } catch {
+    return false;
+  }
+}
+
+function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
+  return {
+    template: templatePath,
+    generator: (ctx: ProjectContext): string | undefined =>
+      prReviewEnabled(ctx.cwd)
         ? readFile(nodePath.join(getTemplatesDirectory(), templatePath))
         : undefined,
   };
@@ -1127,12 +1149,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Default-off advisory PR review. Customers may customize managed workflow
     // files after setup; reconciliation updates only unchanged template content.
-    '.github/workflows/safeword-pr-review.yml': {
-      template: 'workflows/pr-review.yml',
-    },
-    '.github/workflows/safeword-pr-review-worker.yml': {
-      template: 'workflows/pr-review-worker.yml',
-    },
+    '.github/workflows/safeword-pr-review.yml': prReviewWorkflowFile('workflows/pr-review.yml'),
+    '.github/workflows/safeword-pr-review-worker.yml': prReviewWorkflowFile(
+      'workflows/pr-review-worker.yml',
+    ),
 
     // TypeScript/JavaScript managed files (ESLint, tsconfig, Knip, Prettier configs)
     ...typescriptManagedFiles,
