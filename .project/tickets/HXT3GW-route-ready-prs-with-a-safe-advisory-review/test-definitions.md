@@ -51,7 +51,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: An explicit empty prerequisite list proceeds immediately
 
 - [x] RED 1977e498f
-- [ ] GREEN
+- [x] GREEN cd67e6b9c
 - [ ] REFACTOR
 
 ### Scenario: A repeated trigger cannot produce another review attempt
