@@ -17,7 +17,7 @@ export type PublishedReceipt =
   | {
       markerOwned: true;
       reviewedSha: string;
-      status: 'prerequisites_pending';
+      status: 'prerequisites_failed' | 'prerequisites_pending';
     };
 
 export interface ReviewDependencies {
@@ -40,17 +40,14 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
     return { attempts: 0, result: 'not_run' };
   }
 
-  if (pullRequest.prerequisites === 'pending') {
+  if (pullRequest.prerequisites !== 'passed') {
     await dependencies.publish({
       markerOwned: true,
       reviewedSha: pullRequest.headSha,
-      status: 'prerequisites_pending',
+      status:
+        pullRequest.prerequisites === 'pending' ? 'prerequisites_pending' : 'prerequisites_failed',
     });
     return { attempts: 0, result: 'not_run' };
-  }
-
-  if (pullRequest.prerequisites !== 'passed') {
-    throw new Error('pull request is not eligible for advisory review');
   }
 
   const inspection = await dependencies.inspect(pullRequest.headSha);
