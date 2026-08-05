@@ -1,6 +1,6 @@
 # Impl Plan: Keep independent reviews reliable for real ticket packets
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -56,7 +56,7 @@ at the configuration key, where the builder making the choice will see it.
 | TBU3.R3 no model configured, grammar | `policy.ts` | unit | pure config parsing | integration that no model argument is passed |
 | TBU3.R4–R5 per-route budgets, ordering, run bound | `runtime.ts` | integration | needs real spawn + controlled clock | unit on budget arithmetic |
 | TBU3.R6 public command end to end | CLI entry | E2E via `runCli` | the entry point is the thing under test | begins at slice 1 in one direction, widened at slice 8 |
-| TBU1.R1 budget derivation | `runtime.ts` | unit | pure function of packet bytes | integration for the 111-second case |
+| TBU1.R1 attempt deadline | `runtime.ts` | unit | pure function of configuration, no packet input | boundary units for the clamp and for meaningless values |
 | TBU1.R2 stop on expiry | `runtime.ts` | integration | requires a real child process | — |
 | TBU1.R3 candidate shares | `runtime.ts` | integration | allocation is observable only across spawns | unit on share arithmetic |
 | TBU1.R4 cleanup, late answers | supervisor | integration | stop effects are OS behaviour | virtual-clock unit for the cleanup deadline; platform-gated OS test for stop effects |
@@ -73,21 +73,28 @@ command. No per-surface skip is needed.
 
 Carried from the scenario review (recorded in `spec.md`):
 
-- every timing boundary is proved on an injected clock, never real elapsed time;
-- process-liveness assertions use process-group handles, not raw PIDs;
-- the size fixture asserts exact byte counts against the same serialized packet
-  the reviewer is sent.
+- process-liveness is observed through the process actually disappearing, not
+  through a fixed wait;
+- the size fixture is gone with the size-derived budget it existed to prove.
 
-**Where the fake clock stops.** *Every* deadline decision — attempt budget,
-probe, cleanup, run bound — is proved on the injected clock, including the
-5-second cleanup boundary. No timing assertion uses real elapsed time.
+**How timing is actually proved — a deviation from the plan.** The plan called
+for an injected clock everywhere. What shipped instead: the deadline *arithmetic*
+is a pure function proved by unit tests at its boundaries, and the deadline
+*behaviour* is proved by shrinking the real deadline through configuration
+(`SAFEWORD_REVIEW_TIMEOUT_MS`, `SAFEWORD_REVIEW_RUN_BOUND_MS`) so a route
+finishes in under a second of real time.
 
-What a clock cannot simulate is OS behaviour: signalling, process-tree
-termination, pipe closure, liveness. Those get a separate integration test that
-makes **no timing claims at all** — it asserts that stopping a reviewer stops
-its descendants and closes its pipes, and says nothing about when. The two
-concerns never mix: *when* we decide to stop is virtual and exact, *whether the
-stop worked* is real and untimed.
+That is weaker than a virtual clock in one specific way — these tests can be
+disturbed by a heavily loaded machine — and stronger in another: the same
+configuration path a builder uses is the one under test, so nothing is proved
+against a seam that only exists for tests. One full-suite run did show a single
+timing failure under concurrent load that did not reproduce in isolation across
+six subsequent runs. Recorded rather than hidden; if it recurs, the injected
+clock is the fix.
+
+Stop *effects* — signalling, process-tree termination, pipe closure — are proved
+by polling until the descendant process is genuinely gone, with no timing claim
+attached.
 
 **Ties are arbitrated by state, not by callback order.** A clock alone cannot
 make "the answer wins at the same instant" deterministic — whichever callback
@@ -121,28 +128,30 @@ other's flag.
 
 ### Build order
 
-1. **One thin vertical slice, end to end.** Config read → grammar → route list
-   (reviewer/default → reviewer/alternate → author) → the model passed as a real
-   argument → coordinator labelling → a public-command test in one authoring
-   direction. Deliberately minimal on every axis except *going all the way
-   through*, so the riskiest assumption is proved by the production path rather
-   than by a fixture that manufactures routing metadata. `TBU3.R1`, `R2`, `R3`,
-   partial `R6`.
-2. **Per-route budgets and the run bound.** Each route gets its own attempt
-   budget; the bound stops routes that have not answered. `TBU3.R4`, `R5`.
-3. **Budget derivation.** Replace `timeoutMilliseconds()` with the packet-size
-   function, clamps, and the honoured override. `TBU1.R1`, `R2`.
-4. **Candidate shares.** Split a route's budget across untried candidates,
-   recalculating from what remains. `TBU1.R3`.
-5. **Codex typed output.** Temp contract file, `--output-schema`, capability
-   states, skipping candidates that cannot honour the contract. `TBU2.R1`–`R3`.
-6. **Process supervision, cleanup, late answers.** The supervisor abstraction
-   below, its two platform implementations, and late-answer suppression.
-   `TBU1.R4`.
+Reordered after mining 91 real review runs from parallel agent sessions. The
+Codex contract bug is deterministic — every one of the 13 fallback attempts in
+those logs failed `invalid_output` — while the timeout is a heavy tail. Fix the
+certain failure first.
+
+1. **Alternate-model route** — shipped. Config, grammar, argument wiring,
+   routing and the public command, proved end to end in one direction.
+   `TBU3.R1`, `R2`, `R3`.
+2. **Codex typed output.** Temp contract file, `--output-schema`, capability
+   states, skipping candidates that cannot honour the contract. Converts 13 of
+   the 15 observed failures from "no independent check" into a usable review.
+   `TBU2.R1`–`R3`.
+3. **The flat attempt deadline.** Replace `timeoutMilliseconds()` with the
+   300-second default and the honoured override, clamped to the run bound.
+   `TBU1.R1`, `R2`.
+4. **Per-route budgets and the run bound.** Each route gets its own deadline;
+   540 seconds stops routes that have not answered. `TBU3.R4`, `R5`.
+5. **Candidate shares.** Split a route's deadline across untried candidates
+   against the 120-second floor, recalculating from what remains. `TBU1.R3`.
+6. **Process supervision, cleanup, late answers.** `TBU1.R4`.
 7. **Explanations and envelope.** Per-failure-class remedies, three-route
-   causes, `reviewer_model` on the envelope. `NTB1.R1`–`R3`.
-8. **Public wiring completed.** Expand slice 1's vertical test to both authoring
-   directions and every capability now present. `TBU3.R6`.
+   causes, `reviewer_model`. `NTB1.R1`–`R3`.
+8. **Public wiring completed.** Widen slice 1's vertical test to both authoring
+   directions. `TBU3.R6`.
 
 ### Process supervision across platforms
 
@@ -230,13 +239,13 @@ launches, candidate cleanups and route transitions pushes review work past
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
-| Attempt budget | 60 s + 3 ms/byte, clamped to 120–300 s | fixed 300 s; adaptive from observed latency | fixed 300 s makes every genuine hang wait five minutes; adaptive needs persisted history this command does not have |
+| Attempt deadline | flat 300 s, and the run bound capped rather than merely defaulted | size-derived curve; inactivity timeout; adaptive from history | 91 real runs show duration tracking output length, not packet size, so the curve modelled noise; Codex emits nothing for the 71 s it spends generating, so an inactivity timeout degenerates into the total timeout with a worse failure mode; adaptive needs history this command does not keep |
 | Retry route | reviewer agent on a configured alternate model | retry same model; add Cursor as a third agent | same model on the same budget reproduces the timeout; Cursor as reviewer is out of scope per QZAFT2 |
 | Model configuration | `.safeword/config.json` plus a `SAFEWORD_REVIEW_*` env override, no default | ship a default model per agent | Z4Q24Q forbids shipped model names — they rot each release and bind us to one vendor |
 | Contract delivery to Codex | temp file passed as `--output-schema` | inline schema in the prompt only | Codex takes a file path, not inline JSON; verified against 0.146.0 during intake |
 | Capability adapters | one adapter shape per runtime — Claude inline `--json-schema`, Codex `--output-schema` file | one shared required-flag list | a shared list skips capable candidates of the other runtime for lacking a flag they never had |
 | Test clock boundary | every deadline virtual, including cleanup; one untimed OS test for stop effects | all-virtual; all-real; real timers for short boundaries | all-virtual cannot prove signalling; all-real makes 300-second boundaries cost 300 seconds; real short timers reintroduce the flakiness the constraint forbids |
-| Budget input | byte length of the serialized packet | sum of file content bytes | the reviewer reads the serialized packet, so that is what costs it time |
+| Run bound | 540 s | 20 min from route arithmetic | every caller invokes this through a tool capped at 600 s, so a longer bound is killed mid-flight rather than honoured |
 | Candidate allocation | route budget ÷ untried candidates, recalculated each turn | whole route budget per candidate | a hanging first candidate consumes everything — the defect this ticket exists to fix |
 | Process handling | a supervisor abstraction with POSIX group and Windows tree implementations | kill the child pid only; POSIX process groups everywhere | a bare pid kill leaves the reviewer's own children running, and process groups do not exist on Windows, which both affected surfaces support |
 | Clock | injected into the runtime | real timers with generous test tolerances | wall-clock tests at these durations are slow and flaky |
@@ -281,6 +290,24 @@ The configured `docs.sources` cover `README.md` and the website docs. The
 customer-visible changes are the new alternate-model configuration key and the
 documented timing bounds. Folded into the build order as a task at slice 8.
 
+## What changed during implementation
+
+- **Build order was reordered before any code shipped.** Mining 91 real review
+  runs from parallel agent sessions showed the Codex contract bug failing 13 of
+  13 attempts deterministically while the timeout was a heavy tail, so contract
+  delivery moved ahead of the timing work.
+- **The size-derived budget was abandoned entirely.** The same evidence showed
+  duration tracking output length rather than packet size; a flat deadline
+  replaced the curve, and the run bound was resized from route arithmetic
+  (20 minutes) to the 600-second ceiling of the tool every caller uses.
+- **The candidate-share floor was removed.** It contradicted the approved
+  scenario; the floor now governs starting a route, not dividing one.
+- **Four defects were caught by live reviews of this ticket's own commits**,
+  once the Codex route was repaired: an env-precedence bug, an unclassified
+  crash path when the contract file could not be written, surviving reviewer
+  descendants, and a discarded alternate-model failure. A fifth — an uncapped
+  run-bound override — came from the whole-ticket review.
+
 ## Assessment triggers
 
 - A reviewer CLI gains native typed-output negotiation, making the capability
@@ -291,3 +318,7 @@ documented timing bounds. Folded into the build order as a task at slice 8.
   into a configured one and force the run bound to be recomputed.
 - Safe Word gains persisted run history, which would make an adaptive budget
   practical where it is not today.
+- The caller's ceiling changes: the run bound is derived from the 600-second
+  tool limit, so a different invocation path would justify revisiting it.
+- A route grows several candidates that fail differently — only the last
+  candidate's failure is reported today, which can mislead.

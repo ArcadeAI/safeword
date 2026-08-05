@@ -2,7 +2,7 @@
 id: DR6M6N
 slug: reliable-reviews-for-real-packets
 type: feature
-phase: define-behavior
+phase: implement
 phase_anchors:
   - define-behavior: .project/tickets/DR6M6N-reliable-reviews-for-real-packets/spec.md
   - scenario-gate: packages/cli/features/reliable-reviews-for-real-packets.feature
