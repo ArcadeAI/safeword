@@ -2779,7 +2779,7 @@ describe('headless extraction credential boundary', () => {
           });
         },
       });
-      await extract('transcript');
+      await extract(JSON.stringify({ message: { role: 'user', content: 'transcript' } }));
     } finally {
       vi.unstubAllEnvs();
     }
