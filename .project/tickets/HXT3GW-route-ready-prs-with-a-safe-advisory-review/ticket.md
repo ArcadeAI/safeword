@@ -3,7 +3,7 @@ id: HXT3GW
 slug: route-ready-prs-with-a-safe-advisory-review
 type: feature
 phase: plan-implementation
-status: in_progress
+status: blocked
 parent: P0D6S2
 epic: trustworthy-advisory-pr-review
 phase_skips:
@@ -46,6 +46,7 @@ last_modified: 2026-08-05T14:38:52.499Z
 
 ## Work Log
 
+- 2026-08-05T15:07:58Z Blocked at the mandatory plan-implementation review gate after repeated route exhaustion. A full packet retry and a canonical 46 KB packet retry both timed out on preferred Claude and fallback routes; removing the 127 KB architecture record did not change the outcome. No review stamp, phase advance, `@wip` removal, or application-code change. Recovery: `bun packages/cli/src/cli.ts review run plan-implementation .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/impl-plan.md .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/spec.md .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/ticket.md features/route-ready-prs-with-a-safe-advisory-review.feature PRINCIPLES.md .project/personas.md .project/surfaces.md --no-input --json`.
 - 2026-08-05T14:53:40Z Authored the bounded MVP design and six-slice implementation plan. Local Markdown, Gherkin, lineage, and surface checks pass. The mandatory independent plan review did not run successfully: preferred Claude timed out and the fallback returned invalid output (`REVIEW_ROUTES_EXHAUSTED`). Remain at plan-implementation; retry the coordinator command recorded in the work log before implementation.
 - 2026-08-05T14:38:52Z Restarted at plan-implementation from the accepted P0D6S2 split. Inherits the parent intake and scenario evidence, narrowed to the independently valuable advisory-only core.
 - 2026-08-05T14:38:52.499Z Started: Created ticket HXT3GW

@@ -11,3 +11,6 @@
 - [14:49] Authored 14 named scenarios. Gherkin lint and scoped project lineage/surface checks pass.
 - [14:52] Authored `design.md` and `impl-plan.md`: three components, one schema-managed workflow, and six build slices with the privilege skeleton first.
 - [14:53] Plan review coordinator returned `REVIEW_ROUTES_EXHAUSTED` (Claude timed out; fallback invalid output). Remain at `plan-implementation`; do not remove `@wip` or touch application code before a successful retry.
+- [15:03] Retried the complete plan packet: preferred Claude and fallback both timed out.
+- [15:07] Removed redundant `design.md` and the 127 KB `ARCHITECTURE.md` from the coordinator input, leaving the canonical required packet at about 46 KB. Both routes still timed out. This disproves packet size as the active blocker.
+- [15:07] Marked HXT3GW blocked at the mandatory independent plan gate. Recovery command: `bun packages/cli/src/cli.ts review run plan-implementation .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/impl-plan.md .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/spec.md .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/ticket.md features/route-ready-prs-with-a-safe-advisory-review.feature PRINCIPLES.md .project/personas.md .project/surfaces.md --no-input --json`.
