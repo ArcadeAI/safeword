@@ -12,13 +12,61 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An ineligible revision cannot acquire an advisory route
+### Scenario: A draft revision creates no receipt
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Repeated triggers cannot produce another review attempt
+### Scenario: A pending prerequisite publishes a visible non-run receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A scheduled sweep reviews a pending head after prerequisites settle
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A prerequisite that never appears remains conservatively pending
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A failed prerequisite publishes a terminal non-run receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Missing prerequisite configuration gives one concrete next action
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An explicit empty prerequisite list proceeds immediately
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A repeated trigger cannot produce another review attempt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An ineligible scheduled candidate invalidates its existing receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An ineligible scheduled candidate creates no receipt when none exists
 
 - [ ] RED
 - [ ] GREEN
@@ -26,7 +74,37 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ## Rule: Every changed text artifact receives the same technology-neutral integrity floor
 
-### Scenario: Changed text reaches the integrity reviewer without a technology-specific gate
+### Scenario: Changed text is visibly covered without a technology-specific gate
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A non-text artifact is visibly excluded instead of falsely covered
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A skipped binary does not poison an otherwise complete clean review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A binary-only change set cannot look complete or ready
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Evidence over budget cannot look complete or ready
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Evidence exactly at the total-byte budget remains reviewable
 
 - [ ] RED
 - [ ] GREEN
@@ -54,7 +132,19 @@ _Selected live-model evaluation; excluded from deterministic CI._
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Competing run conditions use conservative state precedence
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Every new head invalidates the old conclusion and requires a fresh review
+
+### Scenario: Converting a reviewed pull request to draft removes its advisory route
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: A new head cannot inherit an earlier conclusion
 
@@ -62,9 +152,33 @@ _Selected live-model evaluation; excluded from deterministic CI._
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A new head updates the sole receipt instead of adding comment noise
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Publication reconciles duplicate marker-owned receipts
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Receipt reconciliation preserves comments Safeword does not own
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: The current receipt exposes what the review did and did not establish
 
-### Scenario: Available and missing evidence remain distinguishable
+### Scenario: Available evidence is reported with its actual values
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Unavailable evidence remains unknown instead of looking successful
 
 - [ ] RED
 - [ ] GREEN
@@ -78,7 +192,13 @@ _Selected live-model evaluation; excluded from deterministic CI._
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A no-finding result creates no reassuring comment noise
+### Scenario: A clean current review creates no reassuring comment noise
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A non-consequential finding remains visible on a looks-ready receipt
 
 - [ ] RED
 - [ ] GREEN
@@ -87,6 +207,12 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ## Rule: Inspection and publication remain split across least-privilege boundaries
 
 ### Scenario: An untrusted fork is reviewed as data without execution
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Missing audit evidence blocks publication
 
 - [ ] RED
 - [ ] GREEN

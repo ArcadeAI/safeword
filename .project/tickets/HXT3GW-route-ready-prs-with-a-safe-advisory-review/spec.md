@@ -36,9 +36,20 @@ Unaffected:
 
 ## Vocabulary
 
-- **Current receipt:** The single ordinary conversation comment for the current head. It records the reviewed SHA, route, run state, evidence, unknowns, available usage/noise, and findings.
+- **Current receipt:** The single marker-owned ordinary conversation comment for the pull request, updated in place across heads rather than recreated per revision. It records the reviewed SHA, route, run state, reviewed artifacts, evidence, unknowns, available usage/noise, and findings.
+- **Receipt reconciliation:** Publication selects the oldest bot-authored comment carrying the exact Safeword marker as canonical, updates it, and deletes other bot-authored exact-marker duplicates. User-authored or malformed-marker comments are never modified.
 - **Fresh review:** A complete model review of the current SHA. In this MVP every new SHA requires one; there is no materiality shortcut.
 - **Integrity floor:** Technology-neutral review of intent, contracts, permissions, safety boundaries, and consequential assumptions for every changed text artifact.
+- **Consequential finding:** A validated reviewer-result flag indicating that the evidence describes material user, security, correctness, or operability impact. Deterministic tests set this flag in fixtures; model prose never chooses the route directly.
+- **Configured prerequisite:** A required check identity explicitly named by the customer as context plus optional GitHub App ID. An explicit empty list means no prerequisites; missing configuration is unknown and cannot start a review.
+- **Run-state precedence:** When conditions overlap, `stale` overrides `failed`, which overrides `incomplete`, which overrides `complete`.
+- **Unresolved unknown:** An explicitly observed uncertainty remaining after every required evidence source completed; the run may be `complete` but must route to a human.
+- **Missing required evidence:** A required source that could not be acquired or completed; the run is `incomplete` and must route to a human.
+- **Non-run reporting:** A ready revision with pending, missing, or terminally failed prerequisites creates or updates the sole receipt with a non-run reason and no advisory route. An always-draft pull request creates no receipt; converting a reviewed pull request to draft rewrites its existing receipt to `not ready (draft)` and removes the route.
+- **Never-settling prerequisite:** A configured check identity that remains missing or pending stays conservatively `prerequisites pending`; the sole receipt names it and tells the builder to verify the check or configuration. Safeword never guesses success or invokes the model for that head.
+- **Ineligible scheduled candidate:** A scheduled candidate revalidated as draft, closed, or merged performs no prerequisite/model work. It rewrites an existing marker-owned receipt to `not ready (draft|closed|merged)` with no route, and creates no receipt if none exists.
+- **Inspection audit:** A deterministic workflow-contract record of the inspection job's permissions and step kinds; an empty or missing record fails the contract.
+- **Publication audit:** A deterministic publisher-contract record of its validated serialized-evidence input and GitHub endpoint calls; an empty or missing record fails the contract.
 
 ## Jobs To Be Done
 
