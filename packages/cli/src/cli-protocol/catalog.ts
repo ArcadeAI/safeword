@@ -100,7 +100,19 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('status', 'Report project health and the next action', 'observe'),
   command('install', 'Install Safeword for this project and selected agents', 'mutate', {
     networkPolicy: 'declared',
-    commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
+    commandOptions: [
+      { flags: '--agents <agents>', description: 'claude, codex, cursor, or none' },
+      { flags: '--no-modify', description: 'Do not edit the project ESLint configuration' },
+      {
+        flags: '--migrate-namespace',
+        description: 'Move the legacy project namespace to .project',
+      },
+      { flags: '--no-migrate-namespace', description: 'Keep the legacy project namespace' },
+      {
+        flags: '--repair-version-marker',
+        description: 'Replace an unreadable project version marker',
+      },
+    ],
   }),
   command('plan', 'Preview reconciliation effects', 'plan'),
   command('doctor', 'Diagnose project configuration', 'observe'),
@@ -329,16 +341,6 @@ const ALIASES: readonly CommandDefinition[] = [
       options: [
         ...canonicalOptions('install'),
         { flags: '-y, --yes', description: 'Retained redundant compatibility option' },
-        { flags: '--no-modify', description: 'Do not edit the project ESLint configuration' },
-        {
-          flags: '--migrate-namespace',
-          description: 'Move the legacy project namespace to .project',
-        },
-        { flags: '--no-migrate-namespace', description: 'Keep the legacy project namespace' },
-        {
-          flags: '--repair-version-marker',
-          description: 'Replace an unreadable project version marker',
-        },
       ],
     },
   },

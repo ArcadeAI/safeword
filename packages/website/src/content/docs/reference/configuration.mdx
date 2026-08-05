@@ -88,9 +88,9 @@ Safeword auto-detects your stack and configures linting accordingly:
 | Rust (beta)    | clippy            | rustc         | —                  |
 | SQL/dbt (beta) | SQLFluff          | —             | —                  |
 
-Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
+Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword install` again.
 
-Edit-time linting uses the generated language-pack config when it exists. For JavaScript/TypeScript, Python, Go, and Rust, a missing config falls back to the tool's defaults and reports once per session that Safeword rules are not active. SQLFluff runs only when its generated config exists. The lint hook never repairs a pack, runs setup, stages files, or creates a commit. Version convergence remains the responsibility of the session-start updater; to repair a missing pack manually, run `safeword setup`.
+Edit-time linting uses the generated language-pack config when it exists. For JavaScript/TypeScript, Python, Go, and Rust, a missing config falls back to the tool's defaults and reports once per session that Safeword rules are not active. SQLFluff runs only when its generated config exists. The lint hook never repairs a pack, runs installation, stages files, or creates a commit. Version convergence remains the responsibility of the session-start updater; to repair a missing pack manually, run `safeword install`.
 
 ## Biome & Alternative Formatters
 

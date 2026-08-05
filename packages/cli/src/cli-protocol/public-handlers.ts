@@ -32,7 +32,7 @@ function notConfigured(command: string): CliResult {
         severity: 'warning',
       },
     ],
-    nextActions: [{ command: 'safeword setup', mutates: true, requiresHuman: false }],
+    nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: false }],
     data: { command },
   });
 }

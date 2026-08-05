@@ -12,27 +12,33 @@
 
 ## Quick Start (30 seconds)
 
-**1. Install in your project:**
+**1. Install in your project and native agent profiles:**
 
 ```bash
 cd /path/to/your/project
-bunx safeword@latest setup
+bunx safeword@latest install
 ```
 
-**2. Verify installation:**
+By default, this configures the project and installs both the Claude Code and
+Codex plugins. Cursor stays untouched unless you explicitly select it:
+
+```bash
+bunx safeword@latest install --agents=cursor
+# Or install every integration:
+bunx safeword@latest install --agents=claude,codex,cursor
+```
+
+**2. Activate the installed profile plugins:**
+
+```bash
+# In Claude Code, run: /reload-plugins
+# Restart Codex and start a new task, then review: /hooks
+```
+
+**3. Verify installation:**
 
 ```bash
 bunx safeword@latest doctor
-```
-
-**3. Enable native agent plugins:**
-
-```bash
-# Claude Code 2.1.170+: installs the exact user-scoped release, then reloads it
-# in the current task without changing project files.
-bunx safeword@latest claude install
-# In Claude Code, run: /reload-plugins
-bunx safeword@latest claude status
 ```
 
 Existing projects keep their working legacy Claude hooks until current plugin
@@ -49,13 +55,6 @@ bunx safeword@latest claude recover
 Cleanup never installs, enables, reloads, or changes plugin trust. It preserves
 unknown and third-party Claude content and refuses stale proof or concurrent
 edits.
-
-For Codex, if your team uses it:
-
-```bash
-# Installs and verifies the profile-scoped plugin. It does not change this project.
-bunx safeword@latest codex install
-```
 
 The running Codex app may keep the Safe Word catalogue it already loaded.
 Restart Codex after installation, start a new task, then review the installed
@@ -285,7 +284,7 @@ Codex hooks live in the Safe Word plugin and run from the package with
 `bunx --bun safeword@<plugin-version> hook codex <event>`. Install and verify
 the profile-scoped plugin with `safeword codex install`; setup
 does not create project-local Codex hooks or workflow assets. The plugin does not
-implicitly enroll repositories: until `safeword setup` creates
+implicitly enroll repositories: until `safeword install` creates
 `.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
 `.project/` or other project state. Codex visibly skips
 unreviewed or changed plugin hooks and directs the builder to `/hooks`. Use
@@ -353,8 +352,8 @@ bunx safeword@latest status
 bunx safeword@latest doctor
 bunx safeword@latest plan
 
-# Converge Safeword in the current project
-bunx safeword@latest setup
+# Converge Safeword in the current project and selected integrations
+bunx safeword@latest install
 
 # Project and tracker workflows
 bunx safeword@latest project sync-config
@@ -553,7 +552,7 @@ Without these binaries, the scripts print a message and skip.
 **Editing Source Templates:**
 
 1. Edit in `packages/cli/templates/` (source of truth)
-2. Run `bunx safeword setup` to sync to `.safeword/`
+2. Run `bunx safeword install` to sync to `.safeword/`
 3. Test changes
 
 **Running Tests:**
@@ -596,7 +595,7 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 1. Edit canonical workflow templates in `packages/cli/templates/skills/` and Cursor rules in `packages/cli/templates/cursor/rules/`
 2. Run `bun run --cwd packages/cli generate:codex-plugin` to regenerate the checked-in Codex plugin catalogue
 3. Run the catalogue, package, cache, and parity tests
-4. Run `bunx safeword setup` to sync Claude Code and Cursor project assets; Codex users update through their profile plugin installation
+4. Run `bunx safeword install` to sync the project plus Claude Code and Codex; add `--agents=claude,codex,cursor` when explicitly testing Cursor assets
 
 ---
 

@@ -59,18 +59,19 @@ bunx safeword@latest doctor
 bunx safeword@latest plan
 
 # Converge the project
-bunx safeword@latest setup
+bunx safeword@latest install
 
 # Preview removal, then run the exact confirmation command Safeword prints
 bunx safeword@latest remove
 ```
 
-`setup` handles first-time installation and upgrades through the same
-idempotent convergence path. `remove` requires both `--yes` and the current
+`install` handles first-time installation and upgrades through the same
+idempotent convergence path, installing Claude and Codex by default while
+leaving Cursor untouched. `setup` remains a hidden deprecated alias. `remove` requires both `--yes` and the current
 `--plan <id>` so consent cannot apply to a project that changed after preview.
-Project verification runs automatically after `setup`; use `doctor` directly
+Project verification runs automatically after `install`; use `doctor` directly
 for CI health gates and debugging. The retained `upgrade` alias follows the
-same path during its compatibility window.
+same path indefinitely.
 
 ### What gets installed
 
@@ -288,10 +289,10 @@ Recovery first returns an exact plan and copyable `--yes --plan <plan-id>`
 command. It refuses to overwrite files edited after finalization and names the
 conflicting path. Resolve that edit before retrying.
 
-These commands require Bun. Normal `setup` does not install a profile-scoped Codex plugin, create a `.codex` directory, recreate project-local Codex hooks, or retire recognized legacy protection. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
+These commands require Bun. `install` installs the profile-scoped Codex plugin by default but does not create a `.codex` directory, recreate project-local Codex hooks, or retire recognized legacy protection. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
 
 Installing the plugin does not enroll repositories. Project-scoped Codex gates
-and state activate only after `safeword setup` creates
+and state activate only after `safeword install` creates
 `.safeword/SAFEWORD.md`; before then they fail open without creating
 `.project/`.
 

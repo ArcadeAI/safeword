@@ -242,7 +242,7 @@ function convergeNamespace(
               {
                 code: 'NAMESPACE_MIGRATION_AVAILABLE',
                 message:
-                  'This project still uses .safeword-project; run `safeword setup --migrate-namespace` to move it to .project.',
+                  'This project still uses .safeword-project; run `safeword install --migrate-namespace` to move it to .project.',
                 severity: 'info',
               },
             ],
@@ -338,7 +338,7 @@ function readProjectVersionMarker(
     };
   }
   const recoveryCommand = buildReplayCommand({
-    command: 'safeword setup --repair-version-marker',
+    command: 'safeword install --repair-version-marker',
     cwd,
   });
   return {
@@ -382,7 +382,7 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
       return { repaired: false };
     }
     const recoveryCommand = buildReplayCommand({
-      command: 'safeword setup --repair-version-marker',
+      command: 'safeword install --repair-version-marker',
       cwd,
     });
     return versionRefusal(
@@ -612,7 +612,7 @@ function setupResult(input: SetupResultInput): CliResult {
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
   const nextCommands = actionRequired
-    ? [installation.command ?? 'safeword setup']
+    ? [installation.command ?? 'safeword install']
     : ['safeword claude install', 'safeword codex install'];
   return createResult({
     state,

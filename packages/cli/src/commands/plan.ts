@@ -18,7 +18,7 @@ export async function observePlan(cwd: string): Promise<CliResult> {
           ]
         : [],
       nextActions: hasEffects
-        ? [{ command: 'safeword setup', mutates: true, requiresHuman: false }]
+        ? [{ command: 'safeword install', mutates: true, requiresHuman: false }]
         : [],
       data: { plan: toWirePlan(plan) },
     });

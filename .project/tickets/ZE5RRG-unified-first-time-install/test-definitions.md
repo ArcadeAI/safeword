@@ -215,8 +215,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Existing command and option aliases keep their named canonical behavior indefinitely
 
 - [x] RED 88077dc22
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 24992e06d
+- [x] REFACTOR skip: compatibility metadata already has one catalogue source
 
 ### Scenario: Specialized canonical commands remain first-class operations
 

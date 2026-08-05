@@ -54,15 +54,15 @@ function projectVersionFinding(
         message: `Project config v${projectVersion} can be upgraded to v${cliVersion}.`,
         severity: 'info',
       },
-      nextAction: { command: 'safeword setup', mutates: true, requiresHuman: false },
+      nextAction: { command: 'safeword install', mutates: true, requiresHuman: false },
     };
   }
   if (comparison <= 0) return {};
   const packageManager = detectPackageManager(cwd);
   const runUpgrade =
     packageManager === 'bun' || packageManager === 'yarn'
-      ? `${packageManager} run safeword setup`
-      : `${packageManager} exec safeword setup`;
+      ? `${packageManager} run safeword install`
+      : `${packageManager} exec safeword install`;
   return {
     finding: {
       code: 'CLI_OLDER_THAN_PROJECT',
@@ -120,7 +120,7 @@ async function observeProjectStatus(cwd: string): Promise<CliResult> {
             severity: 'warning',
           },
         ],
-        nextActions: [{ command: 'safeword setup', mutates: true, requiresHuman: false }],
+        nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: false }],
         data: { configured: false, cli_version: health.cliVersion },
       });
     }
