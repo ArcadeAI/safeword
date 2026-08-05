@@ -26,7 +26,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: A scheduled sweep reviews a pending head after prerequisites settle
 
-- [ ] RED
+- [x] RED c45d59875
 - [ ] GREEN
 - [ ] REFACTOR
 
