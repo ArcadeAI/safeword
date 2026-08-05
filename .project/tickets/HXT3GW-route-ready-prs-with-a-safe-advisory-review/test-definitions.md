@@ -236,4 +236,4 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ## Feature-level cross-scenario refactor
 
-- [ ] Shared contracts, fixtures, and helpers are coherent after all scenarios pass.
+- [ ] cross-scenario
