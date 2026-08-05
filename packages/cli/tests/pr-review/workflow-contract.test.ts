@@ -23,6 +23,14 @@ describe('advisory PR review workflow contract', () => {
         },
         schedule: [{ cron: '*/5 * * * *' }],
       },
+      jobs: {
+        'event-review': {
+          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
+        },
+        'scheduled-review': {
+          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
+        },
+      },
     });
     expect(worker).toMatchObject({
       on: {
@@ -47,5 +55,16 @@ describe('advisory PR review workflow contract', () => {
         },
       },
     });
+
+    const workerSource = readFileSync(workerPath, 'utf8');
+    expect(workerSource).not.toMatch(/actions\/checkout|gh pr checkout|git fetch/);
+
+    const workerJobs = worker.jobs as Record<string, Record<string, unknown>>;
+    for (const jobName of ['invalidate', 'publish']) {
+      const writeCapableJob = workerJobs[jobName];
+      expect(writeCapableJob.environment).toBeUndefined();
+      expect(JSON.stringify(writeCapableJob)).not.toContain('safeword-pr-review-model');
+      expect(JSON.stringify(writeCapableJob)).not.toContain('secrets.');
+    }
   });
 });
