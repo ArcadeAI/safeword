@@ -14,8 +14,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Every attempt gets the same deadline whatever the packet holds
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 7f5dcc432
+- [x] GREEN aaa128b86
 - [ ] REFACTOR
 
 ### Scenario: A packet over the accepted maximum is refused rather than budgeted
