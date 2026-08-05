@@ -11,7 +11,7 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
-import { commandWords, splitShellSegments } from './shell-segments.js';
+import { commandWords, parseShellCommandList, splitShellSegments } from './shell-segments.js';
 
 export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
@@ -369,6 +369,22 @@ export function isDependencyBackedCommand(command: string): boolean {
   return segments.some(segment => isDependencyBackedSegment(segment));
 }
 
+/**
+ * A stale-readiness recovery may run its retry in the same Bash call only when
+ * the recovery comes first and every following segment depends on its success.
+ * This preserves the pre-tool gate for `||`, `;`, and pipes, where a guarded
+ * command could otherwise run after a failed or concurrent recovery (#1763).
+ */
+export function isDependencyReadinessRecoveryCommand(command: string): boolean {
+  const segments = parseShellCommandList(command);
+  const [first] = segments;
+  if (segments.length < 2 || first === undefined || !isRecoverySegment(first.command)) {
+    return false;
+  }
+
+  return segments.slice(0, -1).every(segment => segment.operatorAfter === '&&');
+}
+
 /** Package managers whose install/ci/i reconciles `node_modules` against the inputs. */
 const INSTALL_MANAGERS = new Set(['bun', 'pnpm', 'npm', 'yarn']);
 /** Subcommands that perform a dependency install (not `add`/`remove`, which change inputs). */
@@ -416,6 +432,17 @@ function isInstallSegment(segment: string): boolean {
   // Classic `yarn` with no subcommand installs.
   if (base === 'yarn' && subcommand === undefined) return true;
   return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
+}
+
+function isRecoverySegment(segment: string): boolean {
+  return isInstallSegment(segment) || isTouchNodeModulesSegment(segment);
+}
+
+function isTouchNodeModulesSegment(segment: string): boolean {
+  const [binary, ...args] = commandWords(segment);
+  return (
+    nodePath.basename(binary ?? '') === 'touch' && args.length === 1 && args[0] === 'node_modules'
+  );
 }
 
 export function getDependencyReadinessStatePath(projectDirectory: string): string {

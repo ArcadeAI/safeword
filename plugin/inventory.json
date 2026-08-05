@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "d596c5a5e3bac89248f43bc350c7ac3f6c844af7c6320ec9a96a1d5992f079f6"
+      "sha256": "72d88c33f937a46d632b97d71cfaf0fc640844d2ae7953092ba5c9e506b549c8"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",
@@ -431,7 +431,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a"
+      "sha256": "0da067ce6ce0698bbeafb2bef6b268794dbb7d7bc8d7e2dc8e05a2b3e449d243"
     },
     {
       "path": "runtime/hooks/pre-tool-git-bare-fix.sh",

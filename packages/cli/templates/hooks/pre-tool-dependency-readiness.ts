@@ -8,6 +8,7 @@ import {
   formatDependencyRecovery,
   getDependencyReadiness,
   isDependencyBackedCommand,
+  isDependencyReadinessRecoveryCommand,
   toDependencyReadinessState,
   writeDependencyReadinessState,
   writeInstallMarker,
@@ -55,6 +56,13 @@ const readiness = getDependencyReadiness(projectDirectory);
 if (readiness.status === 'ready' || readiness.status === 'unsupported') {
   writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
   writeInstallMarker(projectDirectory, readiness);
+  process.exit(0);
+}
+
+// PreToolUse makes one decision for the whole Bash call. Permit only the
+// documented recovery when it leads an all-`&&` chain, so a retry can run after
+// success without letting `||`, `;`, or pipes evade this readiness gate.
+if (isDependencyReadinessRecoveryCommand(command)) {
   process.exit(0);
 }
 

@@ -675,6 +675,73 @@ describe('dependency readiness hook support', () => {
     expect(output.hookSpecificOutput.permissionDecisionReason).toContain('bun ci');
   });
 
+  it('pre-tool hook allows an install followed by a guarded retry over &&', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'bun ci && bun run test',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook allows the documented touch recovery followed by a guarded retry over &&', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'touch node_modules && bun run test',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it.each(['bun ci || bun run test', 'bun ci; bun run test', 'bun ci | bun run test'])(
+    'pre-tool hook blocks a guarded retry when the recovery chain uses %s',
+    command => {
+      writeBunProject();
+      markSafewordProject();
+      mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+      const past = new Date(Date.now() - 60_000);
+      utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+      const result = runHook(
+        PRE_TOOL_HOOK,
+        JSON.stringify({
+          tool_name: 'Bash',
+          tool_input: { command },
+        }),
+      );
+
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+    },
+  );
+
   it('pre-tool hook allows unrelated Bash commands without output', () => {
     writeBunProject();
     markSafewordProject();
