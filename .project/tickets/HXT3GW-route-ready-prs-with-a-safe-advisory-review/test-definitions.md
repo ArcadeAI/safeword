@@ -69,7 +69,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: An ineligible scheduled candidate creates no receipt when none exists
 
 - [x] RED 6c7353618
-- [ ] GREEN
+- [x] GREEN 2664ce6b5
 - [ ] REFACTOR
 
 ## Rule: Every changed text artifact receives the same technology-neutral integrity floor
