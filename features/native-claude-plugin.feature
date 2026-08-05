@@ -37,7 +37,7 @@ Feature: Ship Safeword as a native Claude Code plugin
         | source-shape     | marketplace-tag | plugin-version |
         | flattened fields | v0.70.0         | 0.70.0        |
         | packed string    | v0.70.0         | 0.70.0        |
-        | flattened fields | v0.71.0-rc.1    | 0.71.0-rc.1   |
+        | flattened fields | v0.71.0         | 0.71.0        |
 
     Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
       Given a project that has never installed Safeword
