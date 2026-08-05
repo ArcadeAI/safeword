@@ -137,6 +137,12 @@ async function executeDefinition(command: Command, definition: CommandDefinition
       definition.aliasFor,
       definition.compatibility,
     );
+  } else if (definition.name === 'retro run' && process.env.SAFEWORD_CLI_RETAINED_ALIAS === 'retro') {
+    const alias = findCommandDefinition('retro');
+    if (alias.aliasFor === undefined || alias.compatibility === undefined) {
+      throw new Error('Missing compatibility policy for retained alias retro');
+    }
+    result = withDeprecation(result, alias.name, alias.aliasFor, alias.compatibility);
   }
   reportResult(result, globalOptions, definition.name);
 }

@@ -33486,7 +33486,7 @@ var init_finalization = __esm(() => {
   CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/date.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/date.js
 var DATE_TIME_RE, TomlDate;
 var init_date = __esm(() => {
   /*!
@@ -33608,7 +33608,7 @@ var init_date = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/error.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/error.js
 function getLineColFromPtr(string, ptr) {
   let lines = string.slice(0, ptr).split(/\r\n|\n|\r/g);
   return [lines.length, lines.pop().length + 1];
@@ -33680,7 +33680,7 @@ ${codeblock}`, options);
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/primitive.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/primitive.js
 function parseString(str, ptr) {
   let c = str[ptr++];
   let first = c;
@@ -33865,7 +33865,7 @@ var init_primitive = __esm(() => {
   LEADING_ZERO = /^[+-]?0[0-9_]/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/util.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/util.js
 function indexOfNewline(str, start = 0, end = str.length) {
   let idx = str.indexOf(`
 `, start);
@@ -33913,6 +33913,8 @@ function skipUntil(str, ptr, sep, end, banNewLines = false) {
     let c = str[i];
     if (c === "#") {
       i = indexOfNewline(str, i);
+      if (i < 0)
+        break;
     } else if (c === sep) {
       return i + 1;
     } else if (c === end || banNewLines && (c === `
@@ -33957,7 +33959,7 @@ var init_util = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/extract.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/extract.js
 function sliceAndTrimEndOf(str, startPtr, endPtr) {
   let value = str.slice(startPtr, endPtr);
   let commentIdx = value.indexOf("#");
@@ -34058,7 +34060,7 @@ var init_extract = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/struct.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/struct.js
 function parseKey(str, ptr, end = "=") {
   let dot = ptr - 1;
   let parsed2 = [];
@@ -34236,7 +34238,7 @@ var init_struct = __esm(() => {
   KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/parse.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/parse.js
 function peekTable(key, table, meta, type) {
   let t = table;
   let m = meta;
@@ -34383,7 +34385,7 @@ var init_parse = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/stringify.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/stringify.js
 var init_stringify = __esm(() => {
   /*!
    * Copyright (c) Squirrel Chat et al., All rights reserved.
@@ -34414,7 +34416,7 @@ var init_stringify = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/index.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/index.js
 var init_dist3 = __esm(() => {
   init_parse();
   init_stringify();
@@ -50723,6 +50725,12 @@ async function executeDefinition(command2, definition) {
       throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
     }
     result = withDeprecation(result, definition.name, definition.aliasFor, definition.compatibility);
+  } else if (definition.name === "retro run" && process16.env.SAFEWORD_CLI_RETAINED_ALIAS === "retro") {
+    const alias2 = findCommandDefinition("retro");
+    if (alias2.aliasFor === undefined || alias2.compatibility === undefined) {
+      throw new Error("Missing compatibility policy for retained alias retro");
+    }
+    result = withDeprecation(result, alias2.name, alias2.aliasFor, alias2.compatibility);
   }
   reportResult(result, globalOptions, definition.name);
 }
@@ -50788,7 +50796,10 @@ function installCliCrashCapture() {
 init_version();
 installCliCrashCapture();
 if (process20.argv[2] === "retro" && process20.argv[3]?.startsWith("--")) {
+  process20.env.SAFEWORD_CLI_RETAINED_ALIAS = "retro";
   process20.argv.splice(3, 0, "run");
+} else {
+  delete process20.env.SAFEWORD_CLI_RETAINED_ALIAS;
 }
 var program2 = new Command().name("safeword").description("CLI for setting up and managing Safeword development environments").version(VERSION);
 program2.exitOverride();

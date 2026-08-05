@@ -19,7 +19,10 @@ installCliCrashCapture();
 // direct spelling working for installed hooks by routing option-led invocations
 // to the canonical `retro run` child before Commander parses the argv.
 if (process.argv[2] === 'retro' && process.argv[3]?.startsWith('--')) {
+  process.env.SAFEWORD_CLI_RETAINED_ALIAS = 'retro';
   process.argv.splice(3, 0, 'run');
+} else {
+  delete process.env.SAFEWORD_CLI_RETAINED_ALIAS;
 }
 
 const program = new Command()
