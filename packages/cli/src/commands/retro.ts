@@ -163,6 +163,7 @@ function emptyTriageResult(): TriageResult {
     created: [],
     deferred: [],
     failed: [],
+    filedDestinations: [],
     filedSignatures: [],
   };
 }

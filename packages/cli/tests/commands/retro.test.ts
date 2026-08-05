@@ -1624,6 +1624,7 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
           created: [],
           deferred: [],
           failed: [],
+          filedDestinations: [],
           filedSignatures: [],
         },
       },
