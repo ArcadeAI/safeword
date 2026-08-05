@@ -108,7 +108,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 3b98a9913
 - [x] GREEN c093d7a8f
-- [ ] REFACTOR
+- [x] REFACTOR skip: the inclusive boundary is a direct readable comparison in the shared reducer
 
 ### Scenario: A consequential unfamiliar-artifact finding routes to a human
 
