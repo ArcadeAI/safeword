@@ -33,7 +33,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A prerequisite that never appears remains conservatively pending
 
 - [x] RED 08b759d7e
-- [ ] GREEN
+- [x] GREEN 595ff87ca
 - [ ] REFACTOR
 
 ### Scenario: A failed prerequisite publishes a terminal non-run receipt
