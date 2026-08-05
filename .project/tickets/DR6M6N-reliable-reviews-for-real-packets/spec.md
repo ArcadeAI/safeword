@@ -81,12 +81,14 @@ Unaffected:
   default model, the reviewer agent on its configured alternate model, and last
   the author's own runtime. Each route gets its own attempt budget.
 - **Candidate** — one executable on `PATH` that might be a usable reviewer CLI.
-- **Candidate share** — a route's deadline split across the candidates it has
-  not yet tried, floored at **120 seconds** so a share is never too short for a
-  real review to land. A share covers that candidate's capability probe, its
-  launch, and its review attempt; cleanup sits outside it and is bounded
-  separately. When the floor cannot be met, later candidates are honestly
-  reported as not attempted rather than set up to fail.
+- **Candidate share** — a route's remaining deadline divided by the candidates
+  it has not yet tried, recalculated before each one. A candidate that fails
+  fast returns its unused time to the route, so later candidates get more, not
+  less. A share covers that candidate's capability probe, its launch, and its
+  review attempt; cleanup sits outside it and is bounded separately. The
+  120-second floor applies to starting a whole **route**, not to a share within
+  one — a route with several candidates deliberately gives each a smaller slice
+  rather than letting the first consume them all.
 - **Model name grammar** — an accepted alternate model value is 1 to 200
   characters drawn only from ASCII letters, digits, `.`, `_`, `:`, `/`, and `-`,
   and does not begin with `-`. That covers real model identifiers

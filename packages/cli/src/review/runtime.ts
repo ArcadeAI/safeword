@@ -484,16 +484,18 @@ async function runReviewerCandidates(
   const reviewer = attempt.reviewer;
   let foundCompatible = false;
   let lastFailure: ReviewRuntimeError | undefined;
-  for (const candidate of candidates) {
+  for (const [index, candidate] of candidates.entries()) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
     if (!supportsReviewContract(reviewer, candidate, Math.min(5000, remainingMs))) continue;
     foundCompatible = true;
     try {
-      return await runCandidate(
-        candidate,
-        attempt,
-        remainingReviewTime(deadline, reviewer, lastFailure),
-      );
+      // Each candidate gets an equal share of what is left, recalculated as the
+      // route proceeds — so a hanging executable is stopped at its own slice
+      // instead of consuming every later candidate's turn, and one that fails
+      // fast hands its unused time back to those that follow.
+      const untried = candidates.length - index;
+      const share = remainingReviewTime(deadline, reviewer, lastFailure) / untried;
+      return await runCandidate(candidate, attempt, share);
     } catch (error) {
       if (!(error instanceof ReviewRuntimeError)) throw error;
       lastFailure = error;
