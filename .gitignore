@@ -54,6 +54,7 @@ brand/
 .project/skill-invocations.log
 .project/re-entry.md
 .project/dependency-readiness.json
+.project/tmp/
 .safeword-project/quality-state*.json
 .safeword-project/cursor-run-identity.json
 .safeword-project/codex-run-identity.json
