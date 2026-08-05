@@ -85,7 +85,7 @@ Feature: Choose where Safeword runs in Claude
     Scenario: Project installation preserves unrelated repository settings
       Given the current project has user-authored and third-party Claude settings
       When safeword claude install runs with --scope project
-      Then only the official marketplace and Safeword plugin declarations are added at project scope
+      Then only the official marketplace, failure fallback, and Safeword plugin declarations are added at project scope
       And every unrelated project setting value is preserved
       And every project file outside Claude settings is byte-identical
 

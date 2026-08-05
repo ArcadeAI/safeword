@@ -25,7 +25,7 @@ Feature: Give Codex users the full Safe Word workflow
     Scenario: Fresh setup keeps workflow material out of the project
       Given an empty project has no Safe Word workflow material
       When the builder sets up Safe Word for Codex
-      Then Safe Word directs the builder to the explicit Codex plugin install command
+      Then the project bootstrap will enroll each Codex profile automatically
       And no Codex-owned workflow tree is written to .agents or .codex while shared Cursor skills remain available
 
     @rejection

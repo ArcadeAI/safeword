@@ -178,9 +178,12 @@ When('the builder sets up Safe Word for Codex', function (this: WorkflowWorld) {
 });
 
 Then(
-  'Safe Word directs the builder to the explicit Codex plugin install command',
+  'the project bootstrap will enroll each Codex profile automatically',
   function (this: WorkflowWorld) {
-    assert.ok(this.result.stdout.includes('safeword codex install'), this.result.stdout);
+    assert.ok(
+      this.result.stdout.includes('Codex bootstrap is enrolled for this project'),
+      this.result.stdout,
+    );
   },
 );
 

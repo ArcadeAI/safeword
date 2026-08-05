@@ -145,6 +145,10 @@ function unrelatedSettings(settings: string): Record<string, unknown> {
   };
   delete value.extraKnownMarketplaces?.safeword;
   delete value.enabledPlugins?.['safeword@safeword'];
+  if (typeof value.env === 'object' && value.env !== null) {
+    delete (value.env as Record<string, unknown>).CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE;
+    if (Object.keys(value.env).length === 0) delete value.env;
+  }
   if (Object.keys(value.extraKnownMarketplaces ?? {}).length === 0) {
     delete value.extraKnownMarketplaces;
   }
@@ -676,8 +680,12 @@ function materializeScopedSettings(
             url: marketplace.url,
             ref: marketplace.ref,
           },
+          ...(marketplace.ref === 'stable' && { autoUpdate: true }),
         },
       };
+      if (marketplace.ref === 'stable') {
+        settings.env = { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' };
+      }
     }
     const plugin = scopedPlugins.find(entry => entry.id === 'safeword@safeword');
     if (plugin !== undefined) {
@@ -758,7 +766,7 @@ function createExactScopedFixture(world: NativeClaudePluginWorld, scope: 'projec
       name: 'safeword',
       source: 'git',
       url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-      ref: `v${EXPECTED_VERSION}`,
+      ref: 'stable',
     },
   ];
   state.marketplaceDeclarations = [
@@ -766,7 +774,7 @@ function createExactScopedFixture(world: NativeClaudePluginWorld, scope: 'projec
       name: 'safeword',
       source: 'git',
       url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-      ref: `v${EXPECTED_VERSION}`,
+      ref: 'stable',
       scope,
       ...projectIdentity,
     },
@@ -2147,14 +2155,14 @@ Given(
         name: 'safeword',
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-        ref: `v${EXPECTED_VERSION}`,
+        ref: 'stable',
       },
     ];
     state.marketplaceDeclarations = [selectedScope, otherScope].map(scope => ({
       name: 'safeword',
       source: 'git',
       url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-      ref: `v${EXPECTED_VERSION}`,
+      ref: 'stable',
       ...scoped(scope),
     }));
     state.plugins = [
@@ -2897,23 +2905,26 @@ Then(
 );
 
 Then(
-  'only the official marketplace and Safeword plugin declarations are added at project scope',
+  'only the official marketplace, failure fallback, and Safeword plugin declarations are added at project scope',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
     assert.ok(this.lifecycle);
     const settings = JSON.parse(
       readFileSync(nodePath.join(this.lifecycle.project, '.claude/settings.json'), 'utf8'),
     ) as {
+      env?: Record<string, unknown>;
       enabledPlugins?: Record<string, unknown>;
       extraKnownMarketplaces?: Record<string, unknown>;
     };
     assert.deepEqual(settings.extraKnownMarketplaces?.safeword, {
+      autoUpdate: true,
       source: {
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
         ref: 'stable',
       },
     });
+    assert.equal(settings.env?.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE, '1');
     assert.equal(settings.enabledPlugins?.['safeword@safeword'], true);
   },
 );
@@ -2930,6 +2941,8 @@ Then(
     };
     delete settings.extraKnownMarketplaces?.safeword;
     delete settings.enabledPlugins?.['safeword@safeword'];
+    delete (settings.env as Record<string, unknown> | undefined)
+      ?.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE;
     assert.deepEqual(settings, this.lifecycle.projectSettingsSnapshot);
   },
 );
@@ -3001,7 +3014,13 @@ Then(
       effects?: { configuration?: unknown[] };
     };
     assert.deepEqual(result.effects?.configuration, [
-      { kind: 'add', target: 'safeword', operation: 'project' },
+      { kind: 'update', target: 'safeword', operation: 'project' },
+      { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'project' },
+      {
+        kind: 'enable',
+        target: 'safeword last-known-good marketplace fallback',
+        operation: 'project',
+      },
       { kind: 'install', target: 'safeword@safeword', operation: 'project' },
     ]);
   },
@@ -3030,7 +3049,15 @@ Then(
       result.effects?.configuration,
       completedEffects === 'no mutation'
         ? []
-        : [{ kind: 'add', target: 'safeword', operation: 'user' }],
+        : [
+            { kind: 'update', target: 'safeword', operation: 'user' },
+            { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'user' },
+            {
+              kind: 'enable',
+              target: 'safeword last-known-good marketplace fallback',
+              operation: 'user',
+            },
+          ],
     );
   },
 );
@@ -3389,6 +3416,12 @@ Then(
     };
     assert.deepEqual(result.effects?.configuration, [
       { kind: 'add', target: 'safeword', operation: 'user' },
+      { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'user' },
+      {
+        kind: 'enable',
+        target: 'safeword last-known-good marketplace fallback',
+        operation: 'user',
+      },
     ]);
   },
 );

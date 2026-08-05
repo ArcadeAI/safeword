@@ -29,6 +29,7 @@ import {
   currentCodexPluginIdentity,
   recordCodexHookProof,
 } from '../../src/codex-plugin/profile-proof.ts';
+import { codexProjectBootstrapContent } from '../../src/codex-plugin/project-bootstrap.ts';
 import { SAFEWORD_SCHEMA } from '../../src/schema.ts';
 import type { CliResult, SafewordWorld } from './world.js';
 
@@ -545,11 +546,11 @@ When('the builder migrates Codex and installation succeeds', function (this: Con
 });
 
 Then(
-  'the legacy Codex assets remain unchanged and migration is the next action',
+  'the legacy Codex assets remain protected and automatic enrollment is added',
   function (this: ContinuityCliWorld) {
     assert.equal(
       readFileSync(nodePath.join(requireProject(this), '.codex/config.toml'), 'utf8'),
-      LEGACY_CONFIG,
+      codexProjectBootstrapContent(LEGACY_CONFIG),
     );
     assert.equal(
       readFileSync(

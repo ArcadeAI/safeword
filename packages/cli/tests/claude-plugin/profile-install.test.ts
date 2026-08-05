@@ -116,7 +116,9 @@ describe('Claude marketplace update enrollment', () => {
     const result = installClaudePlugin(project);
 
     expect(result.state).toBe('failed');
-    expect(result.data?.classification).toBe('auto-update-disabled');
+    expect((result.data as { classification?: string } | undefined)?.classification).toBe(
+      'auto-update-disabled',
+    );
     expect(readFileSync(settingsPath, 'utf8')).toBe(before);
     expect(readFileSync(log, 'utf8')).not.toContain('plugin marketplace add');
     expect(readFileSync(log, 'utf8')).not.toContain('plugin list --json');
