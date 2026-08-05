@@ -318,8 +318,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The run bound wins over trying the remaining routes
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: observed failing before implementing, committed with GREEN
+- [x] GREEN a466343eb
 - [ ] REFACTOR
 
 ### Scenario: A route considers at most the first eight candidate executables
@@ -330,8 +330,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Every route is tried, in order, before the run gives up
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: observed failing before implementing, but committed together with GREEN rather than on its own — a discipline slip, not an unproven step
+- [x] GREEN a466343eb
 - [ ] REFACTOR
 
 ### Scenario: Review work stops by the run bound however its routes fail
