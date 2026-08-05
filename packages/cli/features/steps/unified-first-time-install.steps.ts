@@ -786,3 +786,41 @@ Then(
     );
   },
 );
+
+Given(
+  'setup is a retained compatibility route for non-destructive install',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+When('the user runs setup with yes', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['setup', '--yes']);
+});
+
+Then(
+  'unified installation runs without inferring additional consent',
+  function (this: UnifiedInstallWorld) {
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+    assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
+  },
+);
+
+Then(
+  'compatibility guidance reports that yes is redundant and names install',
+  function (this: UnifiedInstallWorld) {
+    const envelope = JSON.parse(this.result.stdout) as {
+      findings?: { code?: string; message?: string; metadata?: Record<string, unknown> }[];
+    };
+    assert.equal(
+      envelope.findings?.some(
+        finding =>
+          finding.code === 'CLI_OPTION_REDUNDANT' &&
+          finding.message?.includes('--yes') === true &&
+          finding.metadata?.replacement === 'install',
+      ),
+      true,
+    );
+  },
+);
