@@ -346,7 +346,7 @@ describe('migrate codex-plugin command', () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const userOwned = {
       '.project/tickets/ABC123/spec.md': '# Authored spec\n\nOwned by the user, not Safeword.\n',
-      '.project/learnings/INDEX.md': '# Learnings\n\n- Do not clobber authored notes.\n',
+      '.project/learnings/handoff-notes.md': '# Handoff notes\n\nDo not clobber authored notes.\n',
       '.agents/skills/company-workflow/SKILL.md': 'User-authored company workflow skill\n',
     };
     for (const [relativePath, contents] of Object.entries(userOwned)) {
