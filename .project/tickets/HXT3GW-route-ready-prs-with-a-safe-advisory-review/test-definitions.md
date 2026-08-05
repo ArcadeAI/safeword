@@ -101,7 +101,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: Evidence over budget cannot look complete or ready
 
 - [x] RED 77fab4030
-- [ ] GREEN
+- [x] GREEN f4138c283
 - [ ] REFACTOR
 
 ### Scenario: Evidence exactly at the total-byte budget remains reviewable
