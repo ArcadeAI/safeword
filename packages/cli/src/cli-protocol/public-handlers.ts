@@ -676,7 +676,8 @@ function cleanGuidanceConfirmation(
       ...(diagnostic.finding === undefined ? [] : [diagnostic.finding]),
       {
         code: 'CODEX_GUIDANCE_CLEANUP_CONFIRMATION_REQUIRED',
-        message: 'Review and confirm the exact legacy profile-guidance cleanup.',
+        message:
+          'Review and confirm deactivation of the exact legacy profile guidance; unrelated content is preserved and the move creates a recoverable backup.',
         severity: 'warning',
       },
     ],
@@ -741,7 +742,7 @@ function cleanGuidanceSuccess(cleanup: LegacyGlobalGuidanceCleanupResult): CliRe
     findings: [
       {
         code: 'CODEX_LEGACY_GLOBAL_GUIDANCE_BACKED_UP',
-        message: `Moved the exact historical guidance to ${cleanup.backupPath}.`,
+        message: `Deactivated the exact historical guidance by moving it to the recovery backup at ${cleanup.backupPath}; unrelated guidance was preserved.`,
         severity: 'info',
       },
     ],

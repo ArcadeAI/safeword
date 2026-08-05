@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   commandCatalog,
+  compatibilityRoutes,
   createCapabilitiesResult,
   publicCommands,
 } from '../../src/cli-protocol/catalog.js';
@@ -48,9 +49,7 @@ describe('CLI command catalog', () => {
       'tracker sync',
       'tracker connect',
       'codex migrate',
-      'codex install',
       'codex status',
-      'claude install',
       'claude status',
       'claude cleanup',
       'claude recover',
@@ -79,6 +78,8 @@ describe('CLI command catalog', () => {
     const aliases = commandCatalog.filter(command => command.aliasFor !== undefined);
     expect(aliases.map(alias => alias.name)).toEqual([
       'check',
+      'claude install',
+      'codex install',
       'setup',
       'upgrade',
       'diff',
@@ -148,14 +149,43 @@ describe('CLI command catalog', () => {
     for (const definition of publicCommands) {
       const published = data.commands.find(command => command.name === definition.name);
       expect(published?.options).toEqual(
-        definition.registration.options.map(({ flags, description, defaultValue, valueKind }) => ({
-          flags,
-          description,
-          ...(defaultValue !== undefined && { default_value: defaultValue }),
-          ...(valueKind !== undefined && { value_kind: valueKind }),
-        })),
+        definition.registration.options.map(
+          ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
+            flags,
+            description,
+            ...(defaultValue !== undefined && { default_value: defaultValue }),
+            ...(valueKind !== undefined && { value_kind: valueKind }),
+            ...(compatibilityReplacement !== undefined && {
+              compatibility: {
+                replacement: compatibilityReplacement,
+                retention: 'indefinite',
+              },
+            }),
+          }),
+        ),
       );
     }
+
+    expect(compatibilityRoutes).toEqual(
+      expect.arrayContaining([
+        { route: 'bare safeword', replacement: 'status', retention: 'indefinite' },
+        {
+          route: 'claude install',
+          replacement: 'install --agents=claude',
+          retention: 'indefinite',
+        },
+        {
+          route: 'codex install',
+          replacement: 'install --agents=codex',
+          retention: 'indefinite',
+        },
+        {
+          route: 'project architecture --stage',
+          replacement: 'project architecture --from-index --stage-output',
+          retention: 'indefinite',
+        },
+      ]),
+    );
 
     const setup = data.commands.find(command => command.name === 'setup');
     expect(setup?.compatibility).toEqual(
@@ -186,5 +216,18 @@ describe('CLI command catalog', () => {
         },
       ]),
     );
+  });
+
+  it('describes destructive operations as deactivation with preservation and recovery', () => {
+    const destructiveDescriptions = Object.fromEntries(
+      publicCommands
+        .filter(definition => definition.effectClass === 'destructive')
+        .map(definition => [definition.name, definition.description]),
+    );
+    expect(destructiveDescriptions.uninstall).toMatch(/Deactivate.*preserve.*recover/iu);
+    expect(destructiveDescriptions['codex clean-guidance']).toMatch(
+      /Deactivate.*preserve.*recovery backup/iu,
+    );
+    expect(destructiveDescriptions['claude cleanup']).toMatch(/Deactivate.*recoverable backup/iu);
   });
 });

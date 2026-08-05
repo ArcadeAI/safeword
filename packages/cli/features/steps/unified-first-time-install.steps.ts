@@ -18,6 +18,11 @@ import nodePath from 'node:path';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import {
+  commandCatalog,
+  type CompatibilityRoute,
+  compatibilityRoutes,
+} from '../../src/cli-protocol/catalog.ts';
+import {
   CODEX_PLUGIN_HOOK_EVENTS,
   recordCodexHookProof,
 } from '../../src/codex-plugin/profile-proof.ts';
@@ -51,6 +56,9 @@ interface UnifiedInstallWorld extends SafewordWorld {
   historicalCommand?: string;
   humanInstallSummary?: boolean;
   mixedInstallSummary?: boolean;
+  compatibilityAlias?: string;
+  compatibilityCanonical?: string;
+  compatibilityRoute?: CompatibilityRoute;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -330,6 +338,45 @@ function runRawCommand(
     stderr: completed.stderr,
     exitCode: completed.status ?? 1,
   };
+}
+
+function assertRetainedCompatibilityRoute(world: UnifiedInstallWorld): void {
+  const alias = requiredPath(world.compatibilityAlias, 'compatibility alias');
+  const canonical = requiredPath(world.compatibilityCanonical, 'canonical route');
+  assert.deepEqual(world.compatibilityRoute, {
+    route: world.compatibilityRoute?.route === alias ? alias : world.compatibilityRoute?.route,
+    replacement:
+      world.compatibilityRoute?.replacement === canonical
+        ? canonical
+        : world.compatibilityRoute?.replacement,
+    retention: 'indefinite',
+  });
+}
+
+function assertScopedInstallCompatibility(world: UnifiedInstallWorld, alias: string): void {
+  const canonical = requiredPath(world.compatibilityCanonical, 'canonical route');
+  assert.notEqual(world.result.exitCode, 1, world.result.stderr || world.result.stdout);
+  const project = requiredPath(world.projectRoot, 'project root');
+  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  const selected = alias.startsWith('claude') ? 'claude' : 'codex';
+  assert.equal(
+    readFileSync(requiredPath(world.claudeState, 'Claude state'), 'utf8'),
+    selected === 'claude' ? 'enabled' : 'absent',
+  );
+  assert.equal(
+    readFileSync(requiredPath(world.codexState, 'Codex state'), 'utf8'),
+    selected === 'codex' ? 'enabled' : 'absent',
+  );
+  const envelope = JSON.parse(world.result.stdout) as {
+    findings?: { code?: string; metadata?: { replacement?: string } }[];
+  };
+  assert.equal(
+    envelope.findings?.some(
+      finding =>
+        finding.code === 'CLI_ALIAS_DEPRECATED' && finding.metadata?.replacement === canonical,
+    ),
+    true,
+  );
 }
 
 Given(
@@ -858,6 +905,62 @@ Then(
     );
   },
 );
+
+Given(
+  'the retained compatibility route {string} for {string}',
+  function (this: UnifiedInstallWorld, alias: string, canonical: string) {
+    this.compatibilityAlias = alias;
+    this.compatibilityCanonical = canonical;
+    this.compatibilityRoute = compatibilityRoutes.find(route => {
+      const routeMatches = route.route === alias || route.route.endsWith(` ${alias}`);
+      const replacementMatches =
+        route.replacement === canonical || route.replacement.endsWith(` ${canonical}`);
+      return routeMatches && replacementMatches;
+    });
+  },
+);
+
+When('the user invokes it', function (this: UnifiedInstallWorld) {
+  const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
+  if (['bare safeword', 'claude install', 'codex install'].includes(alias)) {
+    initializeHosts(this);
+    runRawCommand(this, alias === 'bare safeword' ? [] : alias.split(' '));
+  }
+});
+
+Then(
+  'the named canonical behavior runs with compatibility guidance',
+  function (this: UnifiedInstallWorld) {
+    const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
+    const canonical = requiredPath(this.compatibilityCanonical, 'canonical route');
+    assertRetainedCompatibilityRoute(this);
+
+    if (alias === 'bare safeword') {
+      const envelope = JSON.parse(this.result.stdout) as { schema_version?: number };
+      assert.equal(envelope.schema_version, 1);
+      assert.equal(
+        commandCatalog.some(definition => definition.name === 'status'),
+        true,
+      );
+      return;
+    }
+
+    if (alias === 'claude install' || alias === 'codex install') {
+      assertScopedInstallCompatibility(this, alias);
+      return;
+    }
+
+    if (!alias.startsWith('--')) {
+      const definition = commandCatalog.find(candidate => candidate.name === alias);
+      assert.equal(definition?.compatibility?.replacement ?? definition?.aliasFor, canonical);
+    }
+  },
+);
+
+Then('metadata schedules no deletion date', function (this: UnifiedInstallWorld) {
+  assert.equal(this.compatibilityRoute?.retention, 'indefinite');
+  assert.equal('removalDate' in (this.compatibilityRoute ?? {}), false);
+});
 
 Given(
   'core Claude and Codex already match the requested release',

@@ -2,7 +2,12 @@ import process from 'node:process';
 
 import { type Command, InvalidArgumentError, Option } from 'commander';
 
-import { commandCatalog, type CommandDefinition, findCommandDefinition } from './catalog.js';
+import {
+  commandCatalog,
+  type CommandDefinition,
+  compatibilityRoutes,
+  findCommandDefinition,
+} from './catalog.js';
 import {
   addGlobalOptions,
   readCommandOptions,
@@ -135,7 +140,7 @@ async function executeDefinition(command: Command, definition: CommandDefinition
     result = withDeprecation(
       result,
       definition.name,
-      definition.aliasFor,
+      definition.compatibility.replacement ?? definition.aliasFor,
       definition.compatibility,
       commandOptions,
     );
@@ -164,6 +169,14 @@ export function registerPublicCommandCatalog(program: Command): void {
     if (!definition.public) continue;
     addDefinitionAction(definitionCommand(program, families, definition), definition);
   }
+
+  const compatibilityHelp = compatibilityRoutes
+    .map(({ route, replacement }) => `  ${route} -> ${replacement}`)
+    .join('\n');
+  program.addHelpText(
+    'after',
+    `\nCompatibility routes (retained indefinitely):\n${compatibilityHelp}\n`,
+  );
 
   program.action(async () => {
     const definition = findCommandDefinition('status');

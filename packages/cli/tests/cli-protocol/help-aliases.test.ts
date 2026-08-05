@@ -26,14 +26,23 @@ describe('canonical help and compatibility aliases', () => {
     }
     const helpLines = result.stdout.split('\n').map(line => line.trimStart());
     for (const hidden of ['setup', 'check', 'diff', 'reset', 'boundary', 'codex-hook']) {
-      expect(helpLines.some(line => line === hidden || line.startsWith(`${hidden} `))).toBe(false);
+      expect(
+        helpLines.some(
+          line => (line === hidden || line.startsWith(`${hidden} `)) && !line.includes(' -> '),
+        ),
+      ).toBe(false);
     }
+    expect(result.stdout).toContain('Compatibility routes (retained indefinitely):');
+    expect(result.stdout).toContain('claude install -> install --agents=claude');
+    expect(result.stdout).toContain(
+      'project architecture --stage -> project architecture --from-index --stage-output',
+    );
   });
 
   it.each([
     ['check', 'status'],
     ['diff', 'plan'],
-    ['reset', 'uninstall'],
+    ['reset', 'uninstall --agents=none'],
   ])('runs %s as a JSON-compatible alias for %s', async (legacy, replacement) => {
     const directory = createTemporaryDirectory();
     const result = await runCli([legacy, '--json', '--no-input', '--offline', '--cwd', directory], {
