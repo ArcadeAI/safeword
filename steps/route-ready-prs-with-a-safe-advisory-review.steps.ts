@@ -11,12 +11,15 @@ import {
 type ObservableReceipt = PublishedReceipt & {
   commentId?: number;
   markerOwned?: boolean;
+  missingChecks?: string[];
+  nextAction?: string;
   status?: string;
 };
 
 interface AdvisoryReviewWorld {
   attempts?: number;
   currentHead?: string;
+  missingPrerequisite?: string;
   outcome?: ReviewOutcome;
   prerequisites?: 'failed' | 'passed' | 'pending';
   ready?: boolean;
@@ -77,6 +80,16 @@ Given(
   'its configured prerequisites settle successfully after the event run exits',
   function (this: AdvisoryReviewWorld) {
     this.prerequisites = 'passed';
+  },
+);
+
+Given(
+  'a configured required-check identity has remained absent since the current head became ready',
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.missingPrerequisite = 'build / required';
+    this.prerequisites = 'pending';
+    this.ready = true;
   },
 );
 
@@ -164,6 +177,13 @@ Then('the current receipt reports `prerequisites pending`', function (this: Advi
 });
 
 Then(
+  'the current receipt still reports `prerequisites pending`',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.receipts?.[0]?.status, 'prerequisites_pending');
+  },
+);
+
+Then(
   'exactly one marker-owned receipt comment exists on the pull request',
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.receipts?.length, 1);
@@ -234,6 +254,50 @@ Then(
     assert.equal(
       this.receipts[0] && 'route' in this.receipts[0] && this.receipts[0].route,
       'looks_ready',
+    );
+  },
+);
+
+When('a later scheduled sweep samples that exact head', async function (this: AdvisoryReviewWorld) {
+  this.attempts = 0;
+  this.receipts = [];
+  const dependencies = {
+    readPullRequest: async () => ({
+      headSha: this.currentHead ?? '',
+      missingPrerequisites: [this.missingPrerequisite ?? ''],
+      prerequisites: this.prerequisites ?? 'pending',
+      ready: this.ready ?? false,
+    }),
+    inspect: async () => {
+      this.attempts = (this.attempts ?? 0) + 1;
+      return { consequentialFindings: 0, unknowns: [] };
+    },
+    publish: async (receipt: PublishedReceipt) => {
+      this.receipts?.push(receipt);
+    },
+  };
+
+  this.outcome = await reviewPullRequest(dependencies);
+});
+
+Then('no advisory route or model review is produced', function (this: AdvisoryReviewWorld) {
+  assert.equal(
+    this.receipts?.some(receipt => 'route' in receipt),
+    false,
+  );
+  assert.equal(this.attempts, 0);
+});
+
+Then('the sole receipt names the missing check identity', function (this: AdvisoryReviewWorld) {
+  assert.deepEqual(this.receipts?.[0]?.missingChecks, [this.missingPrerequisite]);
+});
+
+Then(
+  'it tells the builder to verify the check or `prReview.requiredChecks` configuration',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(
+      this.receipts?.[0]?.nextAction,
+      'Verify the check or prReview.requiredChecks configuration.',
     );
   },
 );
