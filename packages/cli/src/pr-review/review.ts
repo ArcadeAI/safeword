@@ -1,6 +1,7 @@
 export interface PullRequestReviewState {
   headSha: string;
   missingPrerequisites?: readonly string[];
+  prerequisitesConfigured: boolean;
   prerequisites: 'passed' | 'pending' | 'failed';
   ready: boolean;
 }
@@ -21,6 +22,12 @@ export type PublishedReceipt =
       nextAction: string;
       reviewedSha: string;
       status: 'prerequisites_pending';
+    }
+  | {
+      markerOwned: true;
+      nextAction: string;
+      reviewedSha: string;
+      status: 'prerequisites_unconfigured';
     }
   | {
       markerOwned: true;
@@ -47,6 +54,19 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
   const pullRequest = await dependencies.readPullRequest();
   if (!pullRequest.ready) {
     await dependencies.summarize?.('not ready (draft)');
+    return { attempts: 0, result: 'not_run' };
+  }
+
+  if (!pullRequest.prerequisitesConfigured) {
+    await dependencies.publish(
+      {
+        markerOwned: true,
+        nextAction: 'Set prReview.requiredChecks explicitly.',
+        reviewedSha: pullRequest.headSha,
+        status: 'prerequisites_unconfigured',
+      },
+      'upsert_marker_owned',
+    );
     return { attempts: 0, result: 'not_run' };
   }
 
