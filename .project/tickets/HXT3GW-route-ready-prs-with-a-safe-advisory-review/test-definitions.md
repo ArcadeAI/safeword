@@ -78,7 +78,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 4b6cc66a8
 - [x] GREEN 5aab71ae5
-- [ ] REFACTOR
+- [x] REFACTOR 022365334
 
 ### Scenario: A non-text artifact is visibly excluded instead of falsely covered
 
