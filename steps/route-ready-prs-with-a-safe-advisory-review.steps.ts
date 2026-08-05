@@ -8,13 +8,18 @@ import {
   type ReviewOutcome,
 } from '../packages/cli/src/pr-review/review.ts';
 
+type ObservableReceipt = PublishedReceipt & {
+  markerOwned?: boolean;
+  status?: string;
+};
+
 interface AdvisoryReviewWorld {
   attempts?: number;
   currentHead?: string;
   outcome?: ReviewOutcome;
   prerequisites?: 'passed' | 'pending';
   ready?: boolean;
-  receipts?: PublishedReceipt[];
+  receipts?: ObservableReceipt[];
   summary?: string;
 }
 
@@ -34,6 +39,14 @@ Given('a pull request is still a draft', function (this: AdvisoryReviewWorld) {
   this.ready = false;
   this.prerequisites = 'pending';
 });
+
+Given(
+  'a pull request is waiting for a required prerequisite',
+  function (this: AdvisoryReviewWorld) {
+    this.ready = true;
+    this.prerequisites = 'pending';
+  },
+);
 
 When('Safeword completes the advisory review', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
@@ -110,3 +123,22 @@ Then(
 Then('no receipt is created or updated', function (this: AdvisoryReviewWorld) {
   assert.deepEqual(this.receipts, []);
 });
+
+Then('the current receipt reports `prerequisites pending`', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.receipts?.[0]?.status, 'prerequisites_pending');
+});
+
+Then(
+  'exactly one marker-owned receipt comment exists on the pull request',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.receipts?.length, 1);
+    assert.equal(this.receipts[0]?.markerOwned, true);
+  },
+);
+
+Then(
+  'no model review runs after the pending prerequisite is observed',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.attempts, 0);
+  },
+);
