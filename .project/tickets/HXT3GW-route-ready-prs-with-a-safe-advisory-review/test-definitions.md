@@ -134,7 +134,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: Competing run conditions use conservative state precedence
 
-- [ ] RED
+- [x] RED a15e81048
 - [ ] GREEN
 - [ ] REFACTOR
 
