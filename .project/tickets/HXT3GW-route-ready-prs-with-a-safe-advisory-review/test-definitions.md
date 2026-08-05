@@ -122,7 +122,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED b758dfd64
 - [x] GREEN d9a0d5e6c
-- [ ] REFACTOR
+- [x] REFACTOR skip: provider transport and validation are already separated; live evaluation remains in verify
 
 ## Rule: Only a complete clean current review may report looks ready
 
