@@ -67,8 +67,8 @@ export function formatRetroNudge(count: number, spoolPath: string): string {
   const plural = count === 1 ? '' : 's';
   return (
     `Safeword's retro spooled ${count} unfiled finding${plural} from this session at ${spoolPath}; ` +
-    `the CLI process has no GitHub credential of its own, which is safeword's normal filing lane ` +
-    `in agent sessions, not a defect. This boundary ` +
+    `the CLI process has no GitHub credential of its own. This handoff is safeword's normal ` +
+    `filing lane in agent sessions, not a defect. This boundary ` +
     `observed them queued for the safeword-retro-filer subagent (or the live agent's GitHub access); ` +
     `the filing path re-reads the spool before reporting what remains. ` +
     `The filing procedure is in .safeword/guides/self-report-filing.md.`

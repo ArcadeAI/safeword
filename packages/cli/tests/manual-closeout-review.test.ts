@@ -60,7 +60,16 @@ function sealedCommit(): string | undefined {
   const relativeManifest = nodePath.relative(repoRoot, manifestPath);
   const result = git(['log', '-1', '--format=%H', '--', relativeManifest]);
   const commit = result.stdout.toString('utf8').trim();
-  return result.status === 0 && commit ? commit : undefined;
+  if (result.status === 0 && commit) return commit;
+  // The other way this check goes blind: with no sealed commit, every input is
+  // read from the working tree and the ancestry assertion is skipped, so the seal
+  // degrades to "the manifest matches the tree it is sitting in" — vacuous. A
+  // shallow clone or a renamed manifest path gets there silently. CI pins
+  // fetch-depth: 0 for exactly this reason; fail loudly if that ever regresses.
+  throw new Error(
+    `no commit found for ${relativeManifest}; the seal cannot be verified against history ` +
+      '(shallow clone, or the manifest path moved)',
+  );
 }
 
 function reviewedInput(path: string, commit: string | undefined): Buffer {

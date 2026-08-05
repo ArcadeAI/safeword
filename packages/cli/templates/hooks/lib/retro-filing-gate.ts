@@ -62,20 +62,23 @@ function readAttemptMarker(projectDirectory: string, sessionId: string): Attempt
     const raw = JSON.parse(
       readFileSync(attemptMarkerPath(projectDirectory, sessionId), 'utf8'),
     ) as Record<string, unknown>;
-    // `typeof === 'number'` alone admits NaN and negatives from a corrupt marker.
-    // NaN loses every comparison, so `attempts >= FILING_ATTEMPT_CAP` would be
-    // false forever and the gate would re-fire without limit — the cap is the only
-    // thing bounding that loop. Treat an unusable count as no marker (fail-open to
-    // a fresh batch), matching how every other malformed field is handled here.
-    if (
-      typeof raw.key !== 'string' ||
-      typeof raw.attempts !== 'number' ||
-      !Number.isInteger(raw.attempts) ||
-      raw.attempts < 0
-    ) {
-      return undefined;
-    }
-    const marker: AttemptMarker = { key: raw.key, attempts: raw.attempts };
+    if (typeof raw.key !== 'string') return undefined;
+    // Sanitize an unusable count instead of dropping the whole marker. `signatures`
+    // is what arms the bare-drain tripwire, and discarding it would disable that
+    // telemetry for the rest of the session: after a drain the spool is empty, and
+    // that path returns before any rewrite, so nothing ever repairs the marker.
+    //
+    // JSON cannot carry NaN (`{"attempts":NaN}` fails to parse), but `1e999` parses
+    // to Infinity, and a hand-edited marker can hold a negative or fractional count.
+    // Infinity makes `attempts >= FILING_ATTEMPT_CAP` true forever and strands the
+    // drafts unfiled; a negative silently widens the budget. Clamp to 0 so the cap
+    // re-binds from a known state — re-dispatching is the safe direction here (the
+    // filer dedups), stranding findings is not.
+    const attempts =
+      typeof raw.attempts === 'number' && Number.isInteger(raw.attempts) && raw.attempts >= 0
+        ? raw.attempts
+        : 0;
+    const marker: AttemptMarker = { key: raw.key, attempts };
     if (
       Array.isArray(raw.signatures) &&
       raw.signatures.every((v): v is string => typeof v === 'string')

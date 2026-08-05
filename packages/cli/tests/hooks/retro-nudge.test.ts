@@ -67,11 +67,35 @@ describe('formatRetroNudge (BNGK9W — a statement, never an imperative)', () =>
   });
 
   // #1900: this line lands in the transcript retro's own extractor mines, so
-  // diagnosing the spool as a broken transport made it auto-file a bug against a
-  // working subsystem. Same contract the Stop dispatch carries.
-  it('does not diagnose the spool as a broken or unauthenticated transport', () => {
+  // diagnosing the spool as a transport failure made it auto-file a bug against a
+  // working subsystem. Pin the whole string — an exact-phrase `toContain` breaks on
+  // compliant rewording while still admitting a non-matching rephrasing of the very
+  // diagnosis it exists to forbid.
+  it('renders the exact nudge wording', () => {
+    expect(formatRetroNudge(2, '/proj/.safeword/retro-drafts/sess-1.jsonl')).toBe(
+      "Safeword's retro spooled 2 unfiled findings from this session at " +
+        '/proj/.safeword/retro-drafts/sess-1.jsonl; the CLI process has no GitHub credential of ' +
+        "its own. This handoff is safeword's normal filing lane in agent sessions, not a defect. " +
+        'This boundary observed them queued for the safeword-retro-filer subagent (or the live ' +
+        "agent's GitHub access); the filing path re-reads the spool before reporting what " +
+        'remains. The filing procedure is in .safeword/guides/self-report-filing.md.',
+    );
+  });
+
+  // The class of claim that is banned, not three literal spellings of it — the old
+  // guard let "its transport is unauthorized in this environment" through untouched.
+  it('makes no claim that the transport failed or was rejected', () => {
     const line = formatRetroNudge(2, '/proj/.safeword/retro-drafts/sess-1.jsonl');
-    expect(/could not authenticate|cannot authenticate|broken transport/i.test(line)).toBe(false);
-    expect(line).toContain('not a defect');
+    for (const diagnosis of [
+      /authenticat/i,
+      /unauthori[sz]ed/i,
+      /\b401\b/,
+      /\bbroken\b/i,
+      /\bfailed\b|\bfailure\b/i,
+      /\brejected\b/i,
+      /credential (error|problem|failure)/i,
+    ]) {
+      expect(diagnosis.test(line), `nudge must not assert: ${diagnosis}`).toBe(false);
+    }
   });
 });

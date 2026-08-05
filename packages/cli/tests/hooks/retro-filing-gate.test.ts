@@ -1,4 +1,4 @@
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -71,19 +71,38 @@ describe('retro filing gate decision (GH628F — dispatch until drained, capped)
     expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined();
   });
 
-  // A non-finite count would lose every `attempts >= CAP` comparison, so the gate
-  // would re-fire without limit; a negative one would silently widen the budget.
-  // Rejecting the marker restarts the batch at zero, and the cap still binds.
-  it.each([
-    ['non-finite', '{"key":"k","attempts":1e999}\n'],
-    ['negative', '{"key":"k","attempts":-5}\n'],
-    ['fractional', '{"key":"k","attempts":1.5}\n'],
-  ])('still enforces the cap when the persisted count is %s', (_label, marker) => {
-    spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
-    writeFileSync(
-      nodePath.join(projectDirectory, '.safeword/retro-drafts', 'sess-1.filing-attempts'),
-      marker,
+  // The count only reaches the cap comparison when the marker's key equals the
+  // CURRENT batchKey — a sha256 hex. Seeding a placeholder key (e.g. "k") makes
+  // `attempts` dead code and the test vacuous, so corrupt the count in a marker
+  // the gate itself wrote: dispatch once for the real key, then rewrite only
+  // `attempts`. Measured on the unsanitized code these gave 7 dispatches
+  // (negative: widened budget) and 0 (Infinity: drafts stranded unfiled).
+  function corruptPersistedAttempts(sessionId: string, attempts: string): void {
+    const markerFile = nodePath.join(
+      projectDirectory,
+      '.safeword/retro-drafts',
+      `${sessionId}.filing-attempts`,
     );
+    const persisted = JSON.parse(readFileSync(markerFile, 'utf8')) as Record<string, unknown>;
+    // Written as raw JSON text, not via JSON.stringify: `1e999` has to survive to
+    // disk as a literal, and stringify would emit the Infinity it parses to as null.
+    const others = Object.entries(persisted)
+      .filter(([field]) => field !== 'attempts')
+      .map(([field, value]) => `${JSON.stringify(field)}:${JSON.stringify(value)}`);
+    writeFileSync(markerFile, `{"attempts":${attempts},${others.join(',')}}\n`);
+  }
+
+  it.each([
+    ['non-finite', '1e999'],
+    ['negative', '-5'],
+    ['fractional', '1.5'],
+  ])('clamps a %s persisted count so the cap still binds', (_label, attempts) => {
+    spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
+    expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined(); // writes the real key
+    corruptPersistedAttempts('sess-1', attempts);
+
+    // Clamped to 0, so the batch gets its full budget back and then goes quiet —
+    // never unbounded (the negative case) and never silent-forever (Infinity).
     for (let attempt = 1; attempt <= FILING_ATTEMPT_CAP; attempt++) {
       expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined();
     }
@@ -121,15 +140,26 @@ describe('formatFilingDispatch (GH628F — one dispatch action plus silence cont
   // retro's extractor mines that transcript. Diagnosing the spool as a broken
   // transport made it auto-file a bug against a working subsystem every cloud
   // session, so neither dispatch may assert a transport failure.
-  it('does not diagnose the spool as a broken or unauthenticated transport', () => {
+  // The class of claim that is banned, not three literal spellings of it. The exact
+  // wording is already pinned by the characterization test below, so asserting a
+  // specific reassuring phrase here would only add breakage surface without
+  // catching a rephrased diagnosis.
+  it('makes no claim that the transport failed or was rejected', () => {
     for (const text of [
       formatFilingDispatch(1, '/proj/.safeword/retro-drafts/sess-1.jsonl'),
       formatCodexFilingDispatch(1, '/proj/.safeword/retro-drafts/sess-1.jsonl'),
     ]) {
-      expect(/cannot authenticate|auth(?:entication)? fail|broken transport/i.test(text)).toBe(
-        false,
-      );
-      expect(text.toLowerCase()).toContain('not a defect');
+      for (const diagnosis of [
+        /authenticat/i,
+        /unauthori[sz]ed/i,
+        /\b401\b/,
+        /\bbroken\b/i,
+        /\bfailed\b|\bfailure\b/i,
+        /\brejected\b/i,
+        /credential (error|problem|failure)/i,
+      ]) {
+        expect(diagnosis.test(text), `dispatch must not assert: ${diagnosis}`).toBe(false);
+      }
     }
   });
 
@@ -246,6 +276,28 @@ describe('retro filing tripwire (GH644A — unacked removals become telemetry)',
     appendFileSync(ackFilePath(projectDirectory, 's1'), '{"signature": "retro:bb'); // torn
     markDraftsFiled(projectDirectory, 's1', ['retro:aaaaaaaaaaaa', 'retro:bbbbbbbbbbbb']);
     expect(() => evaluate('s1')).not.toThrow();
+    expect(trips).toBe(1);
+  });
+
+  // A corrupt attempt count must not cost the batch snapshot. Dropping the whole
+  // marker would take `signatures` with it, and this path — spool already drained,
+  // so the gate returns before any rewrite — is where nothing would ever repair it.
+  // The tripwire would then stay disarmed for the rest of the session.
+  it('still trips on a bare drain when the persisted count is corrupt', () => {
+    dispatchBatch('s1', ['retro:aaaaaaaaaaaa']);
+    const markerFile = nodePath.join(
+      projectDirectory,
+      '.safeword/retro-drafts',
+      's1.filing-attempts',
+    );
+    const persisted = JSON.parse(readFileSync(markerFile, 'utf8')) as Record<string, unknown>;
+    const others = Object.entries(persisted)
+      .filter(([field]) => field !== 'attempts')
+      .map(([field, value]) => `${JSON.stringify(field)}:${JSON.stringify(value)}`);
+    writeFileSync(markerFile, `{"attempts":-5,${others.join(',')}}\n`);
+
+    markDraftsFiled(projectDirectory, 's1', ['retro:aaaaaaaaaaaa']); // drained, no acks
+    evaluate('s1');
     expect(trips).toBe(1);
   });
 
