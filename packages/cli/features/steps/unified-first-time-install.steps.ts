@@ -14,6 +14,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { gunzipSync } from 'node:zlib';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
@@ -62,6 +63,9 @@ interface UnifiedInstallWorld extends SafewordWorld {
   compatibilityInvariant?: string;
   referenceHelp?: string;
   referenceCapabilities?: Record<string, unknown>;
+  legacyGuidancePath?: string;
+  recoveryCommand?: string;
+  unrelatedProfileBefore?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -71,6 +75,25 @@ function writeExecutable(path: string, content: string): void {
 
 function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
+}
+
+function historicalGlobalGuidance(): string {
+  const encoded = readFileSync(
+    nodePath.resolve(import.meta.dirname, '../../tests/fixtures/legacy-global-guidance.txt.gz.b64'),
+    'utf8',
+  );
+  return gunzipSync(Buffer.from(encoded.replaceAll(/\s/gu, ''), 'base64')).toString('utf8');
+}
+
+function createLegacyGuidanceFixture(world: UnifiedInstallWorld): void {
+  const codexHome = requiredPath(world.hostEnvironment?.CODEX_HOME, 'Codex home');
+  const guidancePath = nodePath.join(codexHome, 'AGENTS.md');
+  const unrelatedPath = nodePath.join(codexHome, 'CUSTOM.md');
+  writeFileSync(guidancePath, historicalGlobalGuidance());
+  writeFileSync(unrelatedPath, '# Customer profile policy\n');
+  world.legacyGuidancePath = guidancePath;
+  world.unrelatedProfilePath = unrelatedPath;
+  world.unrelatedProfileBefore = readFileSync(unrelatedPath, 'utf8');
 }
 
 function createClaudePayload(root: string): string {
@@ -380,6 +403,24 @@ function assertScopedInstallCompatibility(world: UnifiedInstallWorld, alias: str
     ),
     true,
   );
+}
+
+function assertUninstallPreview(envelope: Record<string, unknown> | undefined): void {
+  assert.ok(envelope);
+  const data = envelope.data as { plan: { effects: { destructive: unknown[] } } };
+  assert.ok(data.plan.effects.destructive.length > 0);
+}
+
+function assertGuidanceCleanupPreview(envelope: Record<string, unknown> | undefined): void {
+  assert.ok(envelope);
+  const data = envelope.data as {
+    plan: { effects: { destructive: { operation?: string }[]; files: unknown[] } };
+  };
+  assert.equal(
+    data.plan.effects.destructive.some(effect => effect.operation === 'deactivate'),
+    true,
+  );
+  assert.ok(data.plan.effects.files.length > 0);
 }
 
 Given(
@@ -1134,6 +1175,104 @@ Then(
     for (const route of compatibilityRoutes) {
       assert.equal(help.includes(`${route.route} -> ${route.replacement}`), true, route.route);
     }
+  },
+);
+
+Given('uninstall and legacy cleanup commands', function (this: UnifiedInstallWorld) {
+  initializeHosts(this);
+  runInstall(this, ['--agents', 'none']);
+  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  createLegacyGuidanceFixture(this);
+});
+
+When('the user inspects help and previews each command', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['uninstall', '--agents', 'none']);
+  this.statusEnvelope = JSON.parse(this.result.stdout) as Record<string, unknown>;
+  runRawCommand(this, ['codex', 'clean-guidance']);
+  this.doctorEnvelope = JSON.parse(this.result.stdout) as Record<string, unknown>;
+});
+
+Then(
+  'descriptions identify deactivated state preserved content backups and recovery paths',
+  function (this: UnifiedInstallWorld) {
+    const uninstall = commandCatalog.find(definition => definition.name === 'uninstall');
+    const cleanup = commandCatalog.find(definition => definition.name === 'codex clean-guidance');
+    assert.match(uninstall?.description ?? '', /deactivate.*preserve.*recover/iu);
+    assert.match(cleanup?.description ?? '', /deactivate.*preserve.*recovery backup/iu);
+    assertUninstallPreview(this.statusEnvelope);
+    assertGuidanceCleanupPreview(this.doctorEnvelope);
+  },
+);
+
+Given(
+  'a command moves active guidance out of service into a backup',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    createLegacyGuidanceFixture(this);
+  },
+);
+
+When('its catalogue and human plan are rendered', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['codex', 'clean-guidance'], false);
+});
+
+Then(
+  'both call the operation destructive deactivation rather than only a backup',
+  function (this: UnifiedInstallWorld) {
+    const cleanup = commandCatalog.find(definition => definition.name === 'codex clean-guidance');
+    assert.match(cleanup?.description ?? '', /deactivate/iu);
+    const rendered = `${this.result.stdout}\n${this.result.stderr}`;
+    assert.match(rendered, /destructive:/iu);
+    assert.match(rendered, /deactivation/iu);
+  },
+);
+
+Given(
+  'a confirmed cleanup moved recognized Safe Word state into a recovery backup',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    createLegacyGuidanceFixture(this);
+    const project = requiredPath(this.projectRoot, 'project root');
+    const unrelatedProjectPath = nodePath.join(project, 'customer.txt');
+    writeFileSync(unrelatedProjectPath, 'customer project content\n');
+    this.projectBefore = readFileSync(unrelatedProjectPath, 'utf8');
+    runRawCommand(this, ['codex', 'clean-guidance']);
+    const preview = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
+    const planId = requiredPath(preview.data?.plan?.id, 'legacy cleanup plan');
+    runRawCommand(this, ['codex', 'clean-guidance', '--yes', '--plan', planId]);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+    const applied = JSON.parse(this.result.stdout) as { recovery?: { command?: string }[] };
+    this.recoveryCommand = requiredPath(applied.recovery?.[0]?.command, 'recovery command');
+  },
+);
+
+When('the user runs the advertised recovery action', function (this: UnifiedInstallWorld) {
+  const completed = spawnSync(
+    'sh',
+    ['-c', requiredPath(this.recoveryCommand, 'recovery command')],
+    {
+      encoding: 'utf8',
+    },
+  );
+  assert.equal(completed.status, 0, completed.stderr);
+});
+
+Then('the recognized state is restored to service', function (this: UnifiedInstallWorld) {
+  assert.equal(
+    readFileSync(requiredPath(this.legacyGuidancePath, 'legacy guidance'), 'utf8'),
+    historicalGlobalGuidance(),
+  );
+});
+
+Then(
+  'unrelated current project and profile content remains unchanged',
+  function (this: UnifiedInstallWorld) {
+    const project = requiredPath(this.projectRoot, 'project root');
+    assert.equal(readFileSync(nodePath.join(project, 'customer.txt'), 'utf8'), this.projectBefore);
+    assert.equal(
+      readFileSync(requiredPath(this.unrelatedProfilePath, 'unrelated profile content'), 'utf8'),
+      this.unrelatedProfileBefore,
+    );
   },
 );
 
