@@ -148,7 +148,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: A new head cannot inherit an earlier conclusion
 
-- [ ] RED
+- [x] RED 8965770bd
 - [ ] GREEN
 - [ ] REFACTOR
 
