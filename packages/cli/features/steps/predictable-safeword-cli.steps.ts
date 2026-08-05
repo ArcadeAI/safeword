@@ -140,7 +140,11 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
 
 function setupProject(world: PredictableCliWorld): void {
   const directory = temporaryProject(world);
-  runCli(world, ['setup', '--json', '--no-input', '--cwd', directory], directory);
+  runCli(
+    world,
+    ['setup', '--agents', 'none', '--json', '--no-input', '--cwd', directory],
+    directory,
+  );
   assert.equal(world.result.exitCode, 0);
   const setupResult = world.result;
   runCli(world, ['plan', '--json', '--no-input', '--offline', '--cwd', directory], directory);
@@ -555,7 +559,15 @@ Given('setup has converged a project', function (this: PredictableCliWorld) {
 });
 
 When('the user runs setup again', function (this: PredictableCliWorld) {
-  runCli(this, ['setup', '--json', '--no-input', '--cwd', temporaryProject(this)]);
+  runCli(this, [
+    'setup',
+    '--agents',
+    'none',
+    '--json',
+    '--no-input',
+    '--cwd',
+    temporaryProject(this),
+  ]);
 });
 
 Then('the result is successful and changed is false', function (this: PredictableCliWorld) {
@@ -876,12 +888,13 @@ When(
 );
 
 Then(
-  'canonical behavior runs with a deprecation finding and removal eligibility metadata',
+  'canonical behavior runs with indefinite-retention compatibility metadata',
   function (this: PredictableCliWorld) {
     const finding = assertPresent(this.protocolResult).findings.find(
       candidate => candidate.code === 'CLI_ALIAS_DEPRECATED',
     );
-    assert.equal(finding?.metadata?.removal_eligible_after, '0.71');
+    assert.equal(finding?.metadata?.retention, 'indefinite');
+    assert.equal(finding?.metadata?.removal_eligible_after, undefined);
   },
 );
 

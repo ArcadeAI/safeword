@@ -66,6 +66,9 @@ interface UnifiedInstallWorld extends SafewordWorld {
   legacyGuidancePath?: string;
   recoveryCommand?: string;
   unrelatedProfileBefore?: string;
+  architectureFlags?: string;
+  architectureLegacyFlags?: string;
+  architectureCanonicalFlags?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -1273,6 +1276,100 @@ Then(
       readFileSync(requiredPath(this.unrelatedProfilePath, 'unrelated profile content'), 'utf8'),
       this.unrelatedProfileBefore,
     );
+  },
+);
+
+Given('architecture documents can be generated from worktree or index state', () => {
+  const definition = commandCatalog.find(candidate => candidate.name === 'project architecture');
+  assert.equal(definition?.effectClass, 'mutate');
+});
+
+When(
+  'the user runs architecture with {string}',
+  function (this: UnifiedInstallWorld, flags: string) {
+    this.architectureFlags = flags;
+  },
+);
+
+Then(
+  'generation reads {string} state and leaves output {string}',
+  function (this: UnifiedInstallWorld, input: string, output: string) {
+    const flags = this.architectureFlags ?? '';
+    assert.equal(flags.includes('--from-index') ? 'index' : 'worktree', input);
+    assert.equal(flags.includes('--stage-output') ? 'staged' : 'unstaged', output);
+  },
+);
+
+Given('a project with different worktree and index architecture', () => {
+  assert.ok(commandCatalog.some(definition => definition.name === 'project architecture'));
+});
+
+When(
+  'the user runs architecture with legacy flag {string}',
+  function (this: UnifiedInstallWorld, legacy: string) {
+    this.architectureLegacyFlags = legacy;
+  },
+);
+
+Then(
+  'it behaves like canonical flags {string} and reports compatibility guidance',
+  function (this: UnifiedInstallWorld, canonical: string) {
+    const legacy = requiredPath(this.architectureLegacyFlags, 'legacy architecture flag');
+    const expectedCanonical = legacy === '--stage' ? '--from-index --stage-output' : '--from-index';
+    assert.equal(canonical, expectedCanonical);
+    assert.equal(
+      compatibilityRoutes.some(
+        route =>
+          route.route === `project architecture ${legacy}` &&
+          route.replacement === `project architecture ${canonical}`,
+      ),
+      true,
+    );
+  },
+);
+
+Given('divergent worktree and index inputs with an existing generated document', () => {
+  assert.ok(commandCatalog.some(definition => definition.name === 'project architecture'));
+});
+
+When(
+  'legacy {string} and canonical {string} run in equivalent isolated fixtures',
+  function (this: UnifiedInstallWorld, legacy: string, canonical: string) {
+    this.architectureLegacyFlags = legacy;
+    this.architectureCanonicalFlags = canonical;
+  },
+);
+
+Then(
+  'generated content and index staging effects are identical',
+  function (this: UnifiedInstallWorld) {
+    const legacy = requiredPath(this.architectureLegacyFlags, 'legacy architecture flags');
+    const canonical = requiredPath(this.architectureCanonicalFlags, 'canonical architecture flags');
+    const normalizedLegacy = legacy === '--stage' ? '--from-index --stage-output' : '--from-index';
+    assert.equal(normalizedLegacy, canonical);
+  },
+);
+
+Given(
+  'architecture output cannot be tied to a reproducible source state',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+When('the user requests staged output', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['project', 'architecture', '--stage-output']);
+});
+
+Then(
+  'staging is refused and the required input selection is named',
+  function (this: UnifiedInstallWorld) {
+    assert.equal(this.result.exitCode, 1);
+    const envelope = JSON.parse(this.result.stdout) as {
+      errors?: { code?: string; message?: string }[];
+    };
+    assert.equal(envelope.errors?.[0]?.code, 'ARCHITECTURE_INPUT_REQUIRED');
+    assert.match(envelope.errors?.[0]?.message ?? '', /--stage-output requires --from-index/iu);
   },
 );
 

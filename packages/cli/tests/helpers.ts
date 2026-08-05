@@ -458,7 +458,11 @@ export async function runCliWithoutInstall(
   } = {},
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  return runner(args, {
+  const fixtureArguments =
+    ['setup', 'upgrade', 'install'].includes(args[0] ?? '') && !args.includes('--agents')
+      ? [...args, '--agents', 'none']
+      : args;
+  return runner(fixtureArguments, {
     ...options,
     env: {
       ...options.env,
@@ -682,7 +686,7 @@ export async function runFixtureUpgradeWithoutInstall(
   cwd: string,
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  const result = await runner(['upgrade'], { cwd, env: SKIP_INSTALL_ENV });
+  const result = await runner(['upgrade', '--agents', 'none'], { cwd, env: SKIP_INSTALL_ENV });
   if (result.exitCode !== 0) {
     throw new Error(
       `Fixture upgrade failed (exit ${result.exitCode}) in ${cwd}.\n` +
@@ -707,6 +711,8 @@ export async function runFixtureUpgradeWithoutInstall(
  * isolation and on uncontended CI. A non-zero *exit* is a genuine failure and fails
  * fast/loud with no retry, so a real setup regression is never masked.
  * @param projectDirectory
+ * Project fixtures explicitly select no agent hosts so their setup result is not
+ * activation-pending. Host installation tests invoke the unified default directly.
  * @param setupArgs CLI args including the command (default: ['setup', '--yes'])
  */
 export async function setupOrThrow(
@@ -718,7 +724,10 @@ export async function setupOrThrow(
   // a subprocess. Production callers never pass this.
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  const label = `safeword ${setupArguments.join(' ')}`;
+  const fixtureArguments = setupArguments.includes('--agents')
+    ? setupArguments
+    : [...setupArguments, '--agents', 'none'];
+  const label = `safeword ${fixtureArguments.join(' ')}`;
   // One retry (2 attempts). A transient contention spike usually clears by the
   // second attempt; a persistent timeout across both attempts is a real hang and
   // surfaces as a distinct, diagnosable error below.
@@ -726,7 +735,7 @@ export async function setupOrThrow(
   let lastResult: CliResult | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const result = await runner(setupArguments, {
+    const result = await runner(fixtureArguments, {
       cwd: projectDirectory,
       ...cliOptions,
       env: { ...SKIP_INSTALL_ENV, ...cliOptions.env },

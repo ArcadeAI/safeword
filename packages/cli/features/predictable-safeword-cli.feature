@@ -172,10 +172,10 @@ Feature: One predictable Safeword CLI
       When the user requests ordinary help
       Then canonical command families are visible and internal helpers are hidden
 
-    Scenario Outline: Replaced commands remain compatible aliases for two release lines
+    Scenario Outline: Replaced commands remain compatible aliases indefinitely
       Given the legacy command "<legacy>"
       When the user invokes it in retained release line <release_line>
-      Then canonical behavior runs with a deprecation finding and removal eligibility metadata
+      Then canonical behavior runs with indefinite-retention compatibility metadata
       Examples:
         | legacy          | release_line |
         | check           | 1            |
