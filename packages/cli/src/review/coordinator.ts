@@ -287,6 +287,7 @@ async function runDegradedFallback(input: {
   readonly preferredFailure: ReviewFailure;
   readonly policy: ReviewPolicy;
   readonly runDeadline: number;
+  readonly alternateFailure?: string;
 }): Promise<CliResult> {
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
@@ -317,6 +318,15 @@ async function runDegradedFallback(input: {
               role: 'independent reviewer',
               failure: input.preferredFailure,
             },
+            ...(input.alternateFailure === undefined
+              ? []
+              : [
+                  {
+                    agent: input.assignedReviewer,
+                    role: 'same reviewer on its alternate model',
+                    failure: input.alternateFailure,
+                  },
+                ]),
             { agent: input.author, role: 'fallback review', failure: assessment.failure },
           ]),
           severity: 'warning',
@@ -335,6 +345,9 @@ async function runDegradedFallback(input: {
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         preferred_failure: input.preferredFailure,
+        ...(input.alternateFailure !== undefined && {
+          alternate_model_failure: input.alternateFailure,
+        }),
         fallback_failure: assessment.failure,
         independence: 'none',
       },
@@ -421,9 +434,13 @@ async function runAlternateModelRoute(input: {
   readonly reviewer: ReviewAgent;
   readonly preferredFailure: ReviewFailure;
   readonly runDeadline: number;
-}): Promise<CliResult | undefined> {
+}): Promise<
+  | { readonly kind: 'completed'; readonly result: CliResult }
+  | { readonly kind: 'failed'; readonly failure: string }
+  | { readonly kind: 'skipped' }
+> {
   const model = readAlternateReviewerModel(input.cwd, input.reviewer);
-  if (model === undefined || !canFundRoute(input.runDeadline)) return undefined;
+  if (model === undefined || !canFundRoute(input.runDeadline)) return { kind: 'skipped' };
 
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
@@ -440,12 +457,12 @@ async function runAlternateModelRoute(input: {
     sourceChanged,
     snapshotChanged,
   });
-  if (changedResult !== undefined) return changedResult;
+  if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
-  if (assessment.kind === 'failed') return undefined;
+  if (assessment.kind === 'failed') return { kind: 'failed', failure: assessment.failure };
   const output = assessment.output;
 
-  return createResult({
+  const result = createResult({
     state: output.verdict === 'approve' ? 'healthy' : 'action_required',
     findings: [
       {
@@ -469,6 +486,7 @@ async function runAlternateModelRoute(input: {
       reviewer_output: output,
     },
   });
+  return { kind: 'completed', result };
 }
 
 /**
@@ -494,9 +512,12 @@ async function runRemainingRoutes(input: {
     preferredFailure: input.preferredFailure,
     runDeadline: input.runDeadline,
   });
-  if (alternate !== undefined) return alternate;
-  if (!canFundRoute(input.runDeadline)) return exhaustedRunResult(input);
-  return runDegradedFallback(input);
+  if (alternate.kind === 'completed') return alternate.result;
+  // An attempted-and-failed alternate model is part of the story; a skipped one
+  // never happened and must not be reported as a route that failed.
+  const alternateFailure = alternate.kind === 'failed' ? alternate.failure : undefined;
+  if (!canFundRoute(input.runDeadline)) return exhaustedRunResult({ ...input, alternateFailure });
+  return runDegradedFallback({ ...input, alternateFailure });
 }
 
 /** The run bound arrived before a later route could be funded. */
@@ -506,6 +527,7 @@ function exhaustedRunResult(input: {
   readonly preferredFailure: ReviewFailure;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly alternateFailure?: string;
 }): CliResult {
   return createResult({
     state: 'action_required',
@@ -518,6 +540,15 @@ function exhaustedRunResult(input: {
             role: 'independent reviewer',
             failure: input.preferredFailure,
           },
+          ...(input.alternateFailure === undefined
+            ? []
+            : [
+                {
+                  agent: input.assignedReviewer,
+                  role: 'same reviewer on its alternate model',
+                  failure: input.alternateFailure,
+                },
+              ]),
         ]),
         severity: 'warning',
       },
