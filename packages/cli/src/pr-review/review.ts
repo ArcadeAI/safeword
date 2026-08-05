@@ -18,16 +18,23 @@ export interface ReviewDependencies {
   inspect(headSha: string): Promise<AdvisoryInspection>;
   publish(receipt: PublishedReceipt): Promise<void>;
   readPullRequest(): Promise<PullRequestReviewState>;
+  summarize?(summary: string): Promise<void>;
 }
 
 export interface ReviewOutcome {
   attempts: number;
-  reviewedSha: string;
+  reviewedSha?: string;
+  result: 'not_run' | 'reviewed';
 }
 
 export async function reviewPullRequest(dependencies: ReviewDependencies): Promise<ReviewOutcome> {
   const pullRequest = await dependencies.readPullRequest();
-  if (!pullRequest.ready || pullRequest.prerequisites !== 'passed') {
+  if (!pullRequest.ready) {
+    await dependencies.summarize?.('not ready (draft)');
+    return { attempts: 0, result: 'not_run' };
+  }
+
+  if (pullRequest.prerequisites !== 'passed') {
     throw new Error('pull request is not eligible for advisory review');
   }
 
@@ -38,5 +45,5 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
       : 'needs_human';
 
   await dependencies.publish({ reviewedSha: pullRequest.headSha, route });
-  return { attempts: 1, reviewedSha: pullRequest.headSha };
+  return { attempts: 1, result: 'reviewed', reviewedSha: pullRequest.headSha };
 }
