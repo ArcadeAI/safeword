@@ -7,7 +7,11 @@ import {
   type PublishedReceipt,
   type ReviewOutcome,
 } from '../packages/cli/src/pr-review/review.ts';
-import { planReceiptPublication, publishReceipt } from '../packages/cli/src/pr-review/publish.ts';
+import {
+  planReceiptPublication,
+  publishReceipt,
+  renderReceipt,
+} from '../packages/cli/src/pr-review/publish.ts';
 
 const RECEIPT_MARKER = '<!-- safeword:pr-review-receipt:v1 -->';
 
@@ -38,6 +42,7 @@ interface AdvisoryReviewWorld {
   commentMutations?: string[];
   evidenceArtifacts?: Array<{ byteLength: number; path: string }>;
   finding?: { consequence: string; path: string };
+  inputTokens?: number;
   evidenceState?: string;
   existingReviewedSha?: string;
   maxTotalBytes?: number;
@@ -46,6 +51,7 @@ interface AdvisoryReviewWorld {
   prerequisitesConfigured?: boolean;
   protectedCommentBefore?: string;
   protectedCommentId?: number;
+  renderedReceipt?: string;
   requiredPrerequisites?: string[];
   currentHead?: string;
   missingPrerequisite?: string;
@@ -63,6 +69,7 @@ interface AdvisoryReviewWorld {
   scheduledReceiptId?: number;
   scheduledState?: 'closed' | 'draft' | 'merged';
   summary?: string;
+  outputTokens?: number;
 }
 
 function conditionState(condition: string): 'complete' | 'failed' | 'incomplete' | 'stale' {
@@ -356,6 +363,19 @@ Given(
     ];
   },
 );
+
+Given(
+  'a terminal review attempt used 123 input tokens and 45 output tokens',
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.inputTokens = 123;
+    this.outputTokens = 45;
+  },
+);
+
+Given('required check `build` completed successfully', function (this: AdvisoryReviewWorld) {
+  this.prerequisites = 'passed';
+});
 
 Given('a canonical bot-authored marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
   this.commentMutations = [];
@@ -774,6 +794,19 @@ When('Safeword publishes the current result', async function (this: AdvisoryRevi
   );
 });
 
+When('Safeword publishes the current receipt', function (this: AdvisoryReviewWorld) {
+  this.renderedReceipt = renderReceipt({
+    checks: [{ name: 'build', status: this.prerequisites === 'passed' ? 'success' : 'unknown' }],
+    findingCounts: { consequential: 0, nonConsequential: 0 },
+    reviewedSha: this.currentHead ?? '',
+    reviewers: ['openai'],
+    runState: 'complete',
+    skippedChecks: [],
+    tokenUsage: { input: this.inputTokens, output: this.outputTokens },
+    unknowns: [],
+  });
+});
+
 Then(
   "the publication audit records revision A's `stale` write before any fresh route for revision B",
   function (this: AdvisoryReviewWorld) {
@@ -827,6 +860,36 @@ Then('the protected comment is neither updated nor deleted', function (this: Adv
     false,
   );
 });
+
+Then('the receipt names the reviewed revision and run state', function (this: AdvisoryReviewWorld) {
+  assert.match(this.renderedReceipt ?? '', /revision A/);
+  assert.match(this.renderedReceipt ?? '', /complete/);
+});
+
+Then(
+  'it lists reviewers, checks, skipped checks, remaining unknowns, available token use, and finding counts',
+  function (this: AdvisoryReviewWorld) {
+    for (const label of [
+      'Reviewers',
+      'Checks',
+      'Skipped checks',
+      'Unknowns',
+      'Token usage',
+      'Findings',
+    ]) {
+      assert.match(this.renderedReceipt ?? '', new RegExp(label));
+    }
+  },
+);
+
+Then(
+  'it reports 123 input tokens, 45 output tokens, and `build: success`',
+  function (this: AdvisoryReviewWorld) {
+    assert.match(this.renderedReceipt ?? '', /123 input/);
+    assert.match(this.renderedReceipt ?? '', /45 output/);
+    assert.match(this.renderedReceipt ?? '', /build: success/);
+  },
+);
 
 Then(
   'revision B requires a full fresh review before a current route is published',
