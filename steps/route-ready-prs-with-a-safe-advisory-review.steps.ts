@@ -19,6 +19,8 @@ type ObservableReceipt = PublishedReceipt & {
   markerOwned?: boolean;
   missingChecks?: string[];
   nextAction?: string;
+  reviewableTextArtifacts?: number;
+  runState?: 'complete' | 'failed' | 'incomplete' | 'stale';
   status?: string;
   unknowns?: string[];
 };
@@ -147,6 +149,17 @@ Given(
     this.binaryArtifactPath = binaryPath;
     this.changedArtifactKind = 'text';
     this.changedArtifactPath = textPath;
+    this.currentHead = 'revision A';
+    this.prerequisites = 'passed';
+    this.ready = true;
+  },
+);
+
+Given(
+  /^a ready pull request changes only binary `([^`]+)`$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    this.changedArtifactKind = 'binary';
+    this.changedArtifactPath = path;
     this.currentHead = 'revision A';
     this.prerequisites = 'passed';
     this.ready = true;
@@ -306,6 +319,19 @@ Then(
 Then('the complete current route is `looks ready`', function (this: AdvisoryReviewWorld) {
   const receipt = this.receipts?.[0];
   assert.equal(receipt && 'route' in receipt && receipt.route, 'looks_ready');
+});
+
+Then('the receipt reports zero reviewable text artifacts', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.receipts?.[0]?.reviewableTextArtifacts, 0);
+});
+
+Then('the published state is `incomplete`', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.receipts?.[0]?.runState, 'incomplete');
+});
+
+Then('the route is `needs a human`', function (this: AdvisoryReviewWorld) {
+  const receipt = this.receipts?.[0];
+  assert.equal(receipt && 'route' in receipt && receipt.route, 'needs_human');
 });
 
 When('Safeword evaluates review eligibility', async function (this: AdvisoryReviewWorld) {
