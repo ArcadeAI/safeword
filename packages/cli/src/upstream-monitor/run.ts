@@ -21,20 +21,16 @@ if (!owner || !repo) {
   process.exit(1);
 }
 
+// The monitor and the issue client both report operational detail; in a
+// scheduled run the workflow log is the only place anyone will read it.
+const log = (message: string): void => {
+  console.log(message);
+};
+
 const { reported, failed } = await runUpstreamMonitor({
   fetchText: url => fetchText(url, token),
-  issueClient: createGitHubIssueClient({
-    fetch,
-    owner,
-    repo,
-    token,
-    log: message => {
-      console.log(message);
-    },
-  }),
-  log: message => {
-    console.log(message);
-  },
+  issueClient: createGitHubIssueClient({ fetch, owner, repo, token, log }),
+  log,
   readText,
   rootDirectory: process.cwd(),
 });
