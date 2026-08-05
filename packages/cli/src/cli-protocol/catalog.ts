@@ -8,8 +8,7 @@ type NetworkPolicy = 'never' | 'declared';
 
 interface Compatibility {
   readonly introducedIn: string;
-  readonly retainedThrough: string;
-  readonly removalEligibleAfter: string;
+  readonly retention: 'indefinite';
 }
 
 export interface CommandDefinition {
@@ -41,8 +40,7 @@ export interface CommandDefinition {
 const MACHINE_ENVIRONMENT = { SAFEWORD_NO_UPDATE_CHECK: '1' } as const;
 const RETAINED_ALIAS: Compatibility = {
   introducedIn: '0.70',
-  retainedThrough: '0.71',
-  removalEligibleAfter: '0.71',
+  retention: 'indefinite',
 };
 
 function command(
@@ -325,6 +323,7 @@ const ALIASES: readonly CommandDefinition[] = [
   alias('check', 'status'),
   {
     ...alias('setup', 'install'),
+    compatibility: { introducedIn: '0.72', retention: 'indefinite' },
     registration: {
       syntax: 'setup',
       options: [
@@ -447,8 +446,7 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
     ...(definition.compatibility !== undefined && {
       compatibility: {
         introduced_in: definition.compatibility.introducedIn,
-        retained_through: definition.compatibility.retainedThrough,
-        removal_eligible_after: definition.compatibility.removalEligibleAfter,
+        retention: definition.compatibility.retention,
       },
     }),
   };

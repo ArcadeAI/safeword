@@ -11,7 +11,7 @@ describe('canonical help and compatibility aliases', () => {
 
     for (const canonical of [
       'status',
-      'setup',
+      'install',
       'plan',
       'doctor',
       'remove',
@@ -25,7 +25,7 @@ describe('canonical help and compatibility aliases', () => {
       expect(result.stdout).toContain(canonical);
     }
     const helpLines = result.stdout.split('\n').map(line => line.trimStart());
-    for (const hidden of ['check', 'diff', 'reset', 'boundary', 'codex-hook']) {
+    for (const hidden of ['setup', 'check', 'diff', 'reset', 'boundary', 'codex-hook']) {
       expect(helpLines.some(line => line === hidden || line.startsWith(`${hidden} `))).toBe(false);
     }
   });

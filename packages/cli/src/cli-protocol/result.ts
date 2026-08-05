@@ -100,8 +100,7 @@ export function withDeprecation(
   replacement: string,
   compatibility: {
     readonly introducedIn: string;
-    readonly retainedThrough: string;
-    readonly removalEligibleAfter: string;
+    readonly retention: 'indefinite';
   },
 ): CliResult {
   return {
@@ -115,8 +114,7 @@ export function withDeprecation(
         metadata: {
           replacement,
           introduced_in: compatibility.introducedIn,
-          retained_through: compatibility.retainedThrough,
-          removal_eligible_after: compatibility.removalEligibleAfter,
+          retention: compatibility.retention,
         },
       },
     ],

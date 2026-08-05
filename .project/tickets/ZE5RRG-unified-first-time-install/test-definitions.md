@@ -214,7 +214,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Existing command and option aliases keep their named canonical behavior indefinitely
 
-- [ ] RED
+- [x] RED 88077dc22
 - [ ] GREEN
 - [ ] REFACTOR
 
