@@ -25,6 +25,7 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
+import type { SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
@@ -148,6 +149,7 @@ export async function convergeSetup(
       readonly stop: () => void;
     };
     adapters?: Partial<SetupAdapters>;
+    schema?: SafewordSchema;
   },
 ): Promise<CliResult> {
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
@@ -191,6 +193,7 @@ export async function convergeSetup(
       namespaceMigration,
       preliminaryFileEffects: versionMarkerEffects,
       adapters,
+      schema: options.schema,
     });
   } catch (setupError) {
     return setupFailure(setupError, {
@@ -665,6 +668,7 @@ interface ApplySetupInput {
   readonly namespaceMigration: NamespaceConvergence;
   readonly preliminaryFileEffects: readonly Effect[];
   readonly adapters: SetupAdapters;
+  readonly schema?: SafewordSchema;
 }
 
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
@@ -678,7 +682,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   } = input;
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
-  const setupSchema = schemaForClaudeDelivery(cwd);
+  const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
   const result = await reconcile(setupSchema, operation, context);
   const completedEffects: CompletedSetupEffects = {
     files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],

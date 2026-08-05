@@ -29,6 +29,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   claudeState?: string;
   codexState?: string;
   cursorBefore?: string;
+  hostEnvironment?: NodeJS.ProcessEnv;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -171,24 +172,21 @@ esac
   world.claudeState = claudeState;
   world.codexState = codexState;
   world.cursorBefore = directoryDigest(nodePath.join(project, '.cursor'));
-  world.parameters = {
-    ...world.parameters,
-    environment: {
-      PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-      CODEX_HOME: profile,
-      SAFEWORD_CLAUDE_MARKETPLACE: claudeMarketplace,
-      SAFEWORD_CLAUDE_PAYLOAD: claudePayload,
-      SAFEWORD_CLAUDE_SOURCE: officialClaudeSource,
-      SAFEWORD_CLAUDE_STATE: claudeState,
-      SAFEWORD_CODEX_MARKETPLACE: codexMarketplace,
-      SAFEWORD_CODEX_STATE: codexState,
-      SAFEWORD_VERSION: SAFEWORD_SCHEMA.version,
-    },
+  world.hostEnvironment = {
+    PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+    CODEX_HOME: profile,
+    SAFEWORD_CLAUDE_MARKETPLACE: claudeMarketplace,
+    SAFEWORD_CLAUDE_PAYLOAD: claudePayload,
+    SAFEWORD_CLAUDE_SOURCE: officialClaudeSource,
+    SAFEWORD_CLAUDE_STATE: claudeState,
+    SAFEWORD_CODEX_MARKETPLACE: codexMarketplace,
+    SAFEWORD_CODEX_STATE: codexState,
+    SAFEWORD_VERSION: SAFEWORD_SCHEMA.version,
   };
 }
 
 function requiredPath(path: string | undefined, label: string): string {
-  assert.notEqual(path, undefined, `${label} was not initialized`);
+  if (path === undefined) throw new Error(`${label} was not initialized`);
   return path;
 }
 
@@ -207,7 +205,7 @@ When(
   'the user runs the canonical install command without an agent selector',
   function (this: UnifiedInstallWorld) {
     const project = requiredPath(this.projectRoot, 'project root');
-    const environment = (this.parameters.environment ?? {}) as NodeJS.ProcessEnv;
+    const environment = this.hostEnvironment ?? {};
     const completed = spawnSync(
       process.execPath,
       [CLI_PATH, 'install', '--json', '--cwd', project],

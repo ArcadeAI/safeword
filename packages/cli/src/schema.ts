@@ -1425,3 +1425,49 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   // NPM packages to install (JS/TS specific packages from typescript pack)
   packages: typescriptPackages,
 };
+
+export type ProjectSurface = 'core' | 'cursor';
+
+const CURSOR_PROJECT_PATHS = new Set([
+  '.safeword/hooks/lib/cursor-run-identity.ts',
+  '.safeword/hooks/lib/cursor-state.ts',
+  '.safeword/hooks/session-cursor-auto-upgrade.ts',
+]);
+
+function isCursorProjectPath(path: string): boolean {
+  return (
+    path === '.cursor' ||
+    path.startsWith('.cursor/') ||
+    path === '.safeword/hooks/cursor' ||
+    path.startsWith('.safeword/hooks/cursor/') ||
+    path === '.safeword/skills' ||
+    path.startsWith('.safeword/skills/') ||
+    CURSOR_PROJECT_PATHS.has(path)
+  );
+}
+
+function withoutCursorEntries<T>(values: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(Object.entries(values).filter(([path]) => !isCursorProjectPath(path)));
+}
+
+/** Select project-owned surfaces without scattering Cursor path filters through commands. */
+export function schemaForProjectSurfaces(
+  schema: SafewordSchema,
+  surfaces: readonly ProjectSurface[],
+): SafewordSchema {
+  if (surfaces.includes('cursor')) return schema;
+  return {
+    ...schema,
+    ownedDirs: schema.ownedDirs.filter(path => !isCursorProjectPath(path)),
+    sharedDirs: schema.sharedDirs.filter(path => !isCursorProjectPath(path)),
+    preservedDirs: schema.preservedDirs.filter(path => !isCursorProjectPath(path)),
+    deprecatedFiles: schema.deprecatedFiles.filter(path => !isCursorProjectPath(path)),
+    deprecatedDirs: schema.deprecatedDirs.filter(path => !isCursorProjectPath(path)),
+    ownedFiles: withoutCursorEntries(schema.ownedFiles),
+    managedFiles: withoutCursorEntries(schema.managedFiles),
+    jsonMerges: withoutCursorEntries(schema.jsonMerges),
+    textPatches: withoutCursorEntries(schema.textPatches),
+    legacyTextPatches: withoutCursorEntries(schema.legacyTextPatches),
+    contracts: withoutCursorEntries(schema.contracts),
+  };
+}
