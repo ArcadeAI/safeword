@@ -11,7 +11,7 @@ import {
 } from './execute.js';
 import { isPlanIdentity } from './plan.js';
 import { createProgressReporter } from './policy.js';
-import { createResult, type CliResult, withDeprecation } from './result.js';
+import { type CliResult, createResult, withDeprecation } from './result.js';
 
 const FAMILY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   project: 'Manage project-local Safeword state',
