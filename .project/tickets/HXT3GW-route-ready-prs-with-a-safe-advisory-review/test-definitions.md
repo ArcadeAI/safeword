@@ -142,7 +142,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: Converting a reviewed pull request to draft removes its advisory route
 
-- [ ] RED
+- [x] RED 29979b908
 - [ ] GREEN
 - [ ] REFACTOR
 
