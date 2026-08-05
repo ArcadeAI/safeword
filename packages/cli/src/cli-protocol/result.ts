@@ -225,6 +225,32 @@ function plannedEffectLines(data: unknown): string[] {
   return lines.length === 0 ? [] : ['Planned effects:', ...lines];
 }
 
+const SURFACE_LABELS: Readonly<Record<string, string>> = {
+  project: 'Project setup',
+  claude: 'Claude',
+  codex: 'Codex',
+  cursor: 'Cursor',
+};
+
+const SURFACE_OUTCOMES: Readonly<Record<string, string>> = {
+  healthy: 'ready',
+  changed: 'updated',
+  action_required: 'needs attention',
+  failed: 'failed',
+};
+
+function installSurfaceLines(data: unknown): string[] {
+  if (!isRecord(data) || data.command !== 'install' || !Array.isArray(data.surfaces)) return [];
+  return data.surfaces.flatMap(surface => {
+    if (!isRecord(surface) || typeof surface.name !== 'string') return [];
+    const label = SURFACE_LABELS[surface.name];
+    if (label === undefined) return [];
+    if (surface.selected === false) return [`${label}: not selected`];
+    const outcome = typeof surface.state === 'string' ? SURFACE_OUTCOMES[surface.state] : undefined;
+    return outcome === undefined ? [] : [`${label}: ${outcome}`];
+  });
+}
+
 function reviewIndependenceLine(data: unknown): string | undefined {
   if (!isRecord(data) || data.command !== 'review run') return undefined;
   if (data.independence === 'cross-agent') return 'An independent agent checked the work.';
@@ -297,6 +323,7 @@ export function renderHumanStreams(
     ...optionalLine(independenceLine),
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
+    ...installSurfaceLines(result.data),
     ...messages,
     ...plannedEffectLines(result.data),
   ];

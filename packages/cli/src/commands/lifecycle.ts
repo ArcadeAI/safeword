@@ -58,6 +58,7 @@ function combineInstallResults(
       results.flatMap(result => result.effects[category]),
     ]),
   );
+  const surfaceByName = new Map(surfaces.map(surface => [surface.name, surface]));
   return createResult({
     state: lifecycleState(results),
     changed: results.some(result => result.changed),
@@ -79,11 +80,12 @@ function combineInstallResults(
       command: 'install',
       operation: 'install',
       selected_agents: agents,
-      surfaces: surfaces.map(surface => ({
-        name: surface.name,
-        selected: true,
-        state: surface.result.state,
-      })),
+      surfaces: ['project', 'claude', 'codex', 'cursor'].map(name => {
+        const surface = surfaceByName.get(name);
+        return surface === undefined
+          ? { name, selected: false }
+          : { name, selected: true, state: surface.result.state };
+      }),
     },
   });
 }

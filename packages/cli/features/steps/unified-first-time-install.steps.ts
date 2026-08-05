@@ -890,7 +890,7 @@ Then(
     const envelope = JSON.parse(this.result.stdout) as {
       changed?: boolean;
       state?: string;
-      data?: { surfaces?: { state?: string }[] };
+      data?: { surfaces?: { selected?: boolean; state?: string }[] };
     };
     const project = requiredPath(this.projectRoot, 'project root');
     assert.equal(
@@ -904,7 +904,9 @@ Then(
     assert.equal(envelope.state, 'healthy', JSON.stringify(envelope));
     assert.equal(envelope.changed, false);
     assert.equal(
-      envelope.data?.surfaces?.every(surface => surface.state === 'healthy'),
+      envelope.data?.surfaces
+        ?.filter(surface => surface.selected !== false)
+        .every(surface => surface.state === 'healthy'),
       true,
     );
     assert.doesNotMatch(
