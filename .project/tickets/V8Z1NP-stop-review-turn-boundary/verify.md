@@ -55,4 +55,4 @@ Merge base `fba74ddd3`; 7 changed files.
 
 ## Not fixed here, deliberately
 
-# 1964 (`main`'s red acceptance lane) is a product-vs-test disagreement in the Codex plugin migration: the product writes a `safeword-plugin-setup` bootstrap skill and exits 0 where the steps assert exit 2 and no such skill. Root cause posted to the issue. Choosing either side edits a rejection-path assertion on someone else's feature, so it is not riding this ticket.
+Issue #1964 (`main`'s red acceptance lane) is a product-vs-test disagreement in the Codex plugin migration: the product writes a `safeword-plugin-setup` bootstrap skill and exits 0 where the steps assert exit 2 and no such skill. Root cause posted to the issue. Choosing either side edits a rejection-path assertion on someone else's feature, so it is not riding this ticket.
