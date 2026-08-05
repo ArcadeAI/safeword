@@ -1,5 +1,6 @@
 export interface PullRequestReviewState {
   headSha: string;
+  missingPrerequisites?: readonly string[];
   prerequisites: 'passed' | 'pending' | 'failed';
   ready: boolean;
 }
@@ -16,8 +17,15 @@ export type PublishedReceipt =
     }
   | {
       markerOwned: true;
+      missingChecks: string[];
+      nextAction: string;
       reviewedSha: string;
-      status: 'prerequisites_failed' | 'prerequisites_pending';
+      status: 'prerequisites_pending';
+    }
+  | {
+      markerOwned: true;
+      reviewedSha: string;
+      status: 'prerequisites_failed';
     };
 
 export type ReceiptPublicationMode = 'upsert_marker_owned';
@@ -43,17 +51,21 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
   }
 
   if (pullRequest.prerequisites !== 'passed') {
-    await dependencies.publish(
-      {
-        markerOwned: true,
-        reviewedSha: pullRequest.headSha,
-        status:
-          pullRequest.prerequisites === 'pending'
-            ? 'prerequisites_pending'
-            : 'prerequisites_failed',
-      },
-      'upsert_marker_owned',
-    );
+    const receipt: PublishedReceipt =
+      pullRequest.prerequisites === 'pending'
+        ? {
+            markerOwned: true,
+            missingChecks: [...(pullRequest.missingPrerequisites ?? [])],
+            nextAction: 'Verify the check or prReview.requiredChecks configuration.',
+            reviewedSha: pullRequest.headSha,
+            status: 'prerequisites_pending',
+          }
+        : {
+            markerOwned: true,
+            reviewedSha: pullRequest.headSha,
+            status: 'prerequisites_failed',
+          };
+    await dependencies.publish(receipt, 'upsert_marker_owned');
     return { attempts: 0, result: 'not_run' };
   }
 
