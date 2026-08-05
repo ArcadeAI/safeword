@@ -46,7 +46,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED bd4b1d8c7
 - [x] GREEN 5621521bc
-- [ ] REFACTOR
+- [x] REFACTOR skip: configuration absence is one early-return policy branch with explicit receipt data
 
 ### Scenario: An explicit empty prerequisite list proceeds immediately
 
