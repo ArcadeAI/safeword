@@ -167,7 +167,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Receipt reconciliation preserves comments Safeword does not own
 
 - [x] RED f240bd9da
-- [ ] GREEN
+- [x] GREEN c1e96498a
 - [ ] REFACTOR
 
 ## Rule: The current receipt exposes what the review did and did not establish
