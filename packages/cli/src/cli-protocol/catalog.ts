@@ -97,7 +97,9 @@ function hidden(name: string): CommandDefinition {
 }
 
 const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
-  command('status', 'Report project health and the next action', 'observe'),
+  command('status', 'Report project health and the next action', 'observe', {
+    commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
+  }),
   command('install', 'Install Safeword for this project and selected agents', 'mutate', {
     networkPolicy: 'declared',
     commandOptions: [
@@ -115,7 +117,9 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     ],
   }),
   command('plan', 'Preview reconciliation effects', 'plan'),
-  command('doctor', 'Diagnose project configuration', 'observe'),
+  command('doctor', 'Diagnose project configuration', 'observe', {
+    commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
+  }),
   command('remove', 'Remove Safeword configuration', 'destructive', {
     promptPolicy: 'confirm',
     networkPolicy: 'declared',

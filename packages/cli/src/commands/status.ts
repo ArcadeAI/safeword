@@ -1,3 +1,4 @@
+import type { AgentIntegration } from '../cli-protocol/agent-selection.js';
 import {
   type CliResult,
   createResult,
@@ -83,6 +84,96 @@ export async function observeStatus(
 ): Promise<CliResult> {
   const result = await observeProjectStatus(cwd);
   return withGlobalGuidance(result, environment);
+}
+
+export interface LifecycleSurfaceObservation {
+  readonly name: 'project' | AgentIntegration;
+  readonly result: CliResult;
+}
+
+function lifecycleState(surfaces: readonly LifecycleSurfaceObservation[]): CliResult['state'] {
+  const states = new Set(surfaces.map(surface => surface.result.state));
+  if (states.has('failed')) return 'failed';
+  if (states.has('action_required')) return 'action_required';
+  if (states.has('changed')) return 'changed';
+  return 'healthy';
+}
+
+function projectIsConfigured(result: CliResult): boolean {
+  return (result.data as { configured?: boolean } | undefined)?.configured === true;
+}
+
+export async function observeLifecycleSurfaces(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<readonly LifecycleSurfaceObservation[]> {
+  const project = await observeStatus(cwd, environment);
+  const surfaces: LifecycleSurfaceObservation[] = [{ name: 'project', result: project }];
+  if (!projectIsConfigured(project)) return surfaces;
+
+  if (agents.includes('claude')) {
+    const { observeClaudeStatus } = await import('../claude-plugin/status.js');
+    surfaces.push({ name: 'claude', result: observeClaudeStatus(cwd) });
+  }
+  if (agents.includes('codex')) {
+    const { observeCodexMigration } = await import('./migrate-codex-plugin.js');
+    surfaces.push({ name: 'codex', result: observeCodexMigration(cwd, environment) });
+  }
+  if (agents.includes('cursor')) {
+    surfaces.push({
+      name: 'cursor',
+      result: createResult({
+        state: project.state,
+        data: { command: 'cursor status', coverage: 'project-owned Cursor assets' },
+      }),
+    });
+  }
+  return surfaces;
+}
+
+function combinedEffects(surfaces: readonly LifecycleSurfaceObservation[]): CliResult['effects'] {
+  const categories = ['files', 'packages', 'configuration', 'network', 'destructive'] as const;
+  return Object.fromEntries(
+    categories.map(category => [
+      category,
+      surfaces.flatMap(surface => surface.result.effects[category]),
+    ]),
+  ) as unknown as CliResult['effects'];
+}
+
+export function summarizeLifecycleStatus(
+  agents: readonly AgentIntegration[],
+  surfaces: readonly LifecycleSurfaceObservation[],
+): CliResult {
+  const results = surfaces.map(surface => surface.result);
+  return createResult({
+    state: lifecycleState(surfaces),
+    changed: results.some(result => result.changed),
+    effects: combinedEffects(surfaces),
+    findings: results.flatMap(result => result.findings),
+    errors: results.flatMap(result => result.errors),
+    recovery: results.flatMap(result => result.recovery),
+    nextActions: results.flatMap(result => result.nextActions).slice(0, 1),
+    data: {
+      command: 'status',
+      operation: 'status',
+      selected_agents: agents,
+      surfaces: surfaces.map(surface => ({
+        name: surface.name,
+        selected: true,
+        state: surface.result.state,
+      })),
+    },
+  });
+}
+
+export async function observeLifecycleStatus(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<CliResult> {
+  return summarizeLifecycleStatus(agents, await observeLifecycleSurfaces(cwd, agents, environment));
 }
 
 function withGlobalGuidance(result: CliResult, environment: NodeJS.ProcessEnv): CliResult {

@@ -9,6 +9,7 @@ import type {
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
+import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { numericOption, stringOption } from './option-values.js';
@@ -33,6 +34,14 @@ function notConfigured(command: string): CliResult {
       },
     ],
     nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: false }],
+    data: { command },
+  });
+}
+
+function invalidAgentSelection(command: string, error: AgentSelectionError): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ ...error, retryable: false }],
     data: { command },
   });
 }
@@ -69,8 +78,17 @@ function configCheckResult(inspection: ConfigInspection): CliResult {
 }
 
 async function statusHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { observeStatus } = await import('../commands/status.js');
-  return observeStatus(invocation.cwd);
+  const parsed = parseAgentSelection(invocation.options.agents);
+  if (!parsed.ok) return invalidAgentSelection('status', parsed.error);
+  const { observeLifecycleStatus } = await import('../commands/status.js');
+  return observeLifecycleStatus(invocation.cwd, parsed.selection.agents);
+}
+
+async function doctorHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const parsed = parseAgentSelection(invocation.options.agents);
+  if (!parsed.ok) return invalidAgentSelection('doctor', parsed.error);
+  const { diagnoseLifecycle } = await import('../commands/doctor.js');
+  return diagnoseLifecycle(invocation.cwd, parsed.selection.agents);
 }
 
 async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -1347,7 +1365,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   install: installHandler,
   setup: setupHandler,
   plan: planHandler,
-  doctor: statusHandler,
+  doctor: doctorHandler,
   remove: removeHandler,
   'project sync-config': syncConfigHandler,
   'project architecture': architectureHandler,

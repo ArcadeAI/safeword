@@ -120,13 +120,13 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Status gives a concise aggregate while doctor explains causes and coverage
 
-- [ ] RED
+- [x] RED 6821dd77e
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: The catalogue forbids status and doctor from sharing one handler contract
 
-- [ ] RED
+- [x] RED 6821dd77e
 - [ ] GREEN
 - [ ] REFACTOR
 
