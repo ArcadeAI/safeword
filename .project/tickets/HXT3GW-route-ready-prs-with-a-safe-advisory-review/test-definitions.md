@@ -175,7 +175,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Available evidence is reported with its actual values
 
 - [x] RED f8127df53
-- [ ] GREEN
+- [x] GREEN 96feaed69
 - [ ] REFACTOR
 
 ### Scenario: Unavailable evidence remains unknown instead of looking successful
