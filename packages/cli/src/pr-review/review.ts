@@ -5,6 +5,7 @@ export interface PullRequestReviewState {
   requiredPrerequisites?: readonly string[];
   prerequisites: 'passed' | 'pending' | 'failed';
   ready: boolean;
+  reviewedReceiptSha?: string;
 }
 
 export interface AdvisoryInspection {
@@ -48,7 +49,7 @@ export interface ReviewDependencies {
 export interface ReviewOutcome {
   attempts: number;
   reviewedSha?: string;
-  result: 'not_run' | 'reviewed';
+  result: 'not_run' | 'reviewed' | 'suppressed';
 }
 
 function resolvePrerequisites(
@@ -57,11 +58,18 @@ function resolvePrerequisites(
   return pullRequest.requiredPrerequisites?.length === 0 ? 'passed' : pullRequest.prerequisites;
 }
 
-export async function reviewPullRequest(dependencies: ReviewDependencies): Promise<ReviewOutcome> {
-  const pullRequest = await dependencies.readPullRequest();
+async function stopBeforeReview(
+  dependencies: ReviewDependencies,
+  pullRequest: PullRequestReviewState,
+): Promise<ReviewOutcome | undefined> {
   if (!pullRequest.ready) {
     await dependencies.summarize?.('not ready (draft)');
     return { attempts: 0, result: 'not_run' };
+  }
+
+  if (pullRequest.reviewedReceiptSha === pullRequest.headSha) {
+    await dependencies.summarize?.('suppressed');
+    return { attempts: 0, result: 'suppressed' };
   }
 
   if (!pullRequest.prerequisitesConfigured) {
@@ -76,6 +84,14 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
     );
     return { attempts: 0, result: 'not_run' };
   }
+
+  return undefined;
+}
+
+export async function reviewPullRequest(dependencies: ReviewDependencies): Promise<ReviewOutcome> {
+  const pullRequest = await dependencies.readPullRequest();
+  const earlyOutcome = await stopBeforeReview(dependencies, pullRequest);
+  if (earlyOutcome) return earlyOutcome;
 
   const prerequisites = resolvePrerequisites(pullRequest);
 
