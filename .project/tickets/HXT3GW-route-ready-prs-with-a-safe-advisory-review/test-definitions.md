@@ -34,7 +34,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 08b759d7e
 - [x] GREEN 595ff87ca
-- [ ] REFACTOR
+- [x] REFACTOR skip: the pending and failed receipt variants are already explicit and non-overlapping
 
 ### Scenario: A failed prerequisite publishes a terminal non-run receipt
 
