@@ -20,9 +20,11 @@ export type PublishedReceipt =
       status: 'prerequisites_failed' | 'prerequisites_pending';
     };
 
+export type ReceiptPublicationMode = 'upsert_marker_owned';
+
 export interface ReviewDependencies {
   inspect(headSha: string): Promise<AdvisoryInspection>;
-  publish(receipt: PublishedReceipt): Promise<void>;
+  publish(receipt: PublishedReceipt, mode: ReceiptPublicationMode): Promise<void>;
   readPullRequest(): Promise<PullRequestReviewState>;
   summarize?(summary: string): Promise<void>;
 }
@@ -41,12 +43,17 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
   }
 
   if (pullRequest.prerequisites !== 'passed') {
-    await dependencies.publish({
-      markerOwned: true,
-      reviewedSha: pullRequest.headSha,
-      status:
-        pullRequest.prerequisites === 'pending' ? 'prerequisites_pending' : 'prerequisites_failed',
-    });
+    await dependencies.publish(
+      {
+        markerOwned: true,
+        reviewedSha: pullRequest.headSha,
+        status:
+          pullRequest.prerequisites === 'pending'
+            ? 'prerequisites_pending'
+            : 'prerequisites_failed',
+      },
+      'upsert_marker_owned',
+    );
     return { attempts: 0, result: 'not_run' };
   }
 
@@ -56,6 +63,6 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
       ? 'looks_ready'
       : 'needs_human';
 
-  await dependencies.publish({ reviewedSha: pullRequest.headSha, route });
+  await dependencies.publish({ reviewedSha: pullRequest.headSha, route }, 'upsert_marker_owned');
   return { attempts: 1, result: 'reviewed', reviewedSha: pullRequest.headSha };
 }
