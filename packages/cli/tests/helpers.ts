@@ -393,6 +393,14 @@ function warnIfDistributionStale(): void {
   }
 }
 
+function projectFixtureArguments(args: string[]): string[] {
+  // Most suites use setup/upgrade only to prepare project files. Keep those fixtures
+  // independent of installed hosts; unified-install scenarios invoke the CLI directly.
+  return ['setup', 'upgrade'].includes(args[0] ?? '') && !args.includes('--agents')
+    ? [...args, '--agents', 'none']
+    : args;
+}
+
 /**
  * Runs the CLI with the given arguments in the specified directory
  * Uses built CLI (dist/cli.js)
@@ -411,10 +419,11 @@ export async function runCli(
   } = {},
 ): Promise<CliResult> {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_BUN_INSTALL } = options;
+  const cliArguments = projectFixtureArguments(args);
   warnIfDistributionStale();
 
   try {
-    const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_PATH, ...args], {
+    const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_PATH, ...cliArguments], {
       cwd,
       env: { ...process.env, ...env },
       timeout,
@@ -503,9 +512,10 @@ export function runCliSync(
   } = {},
 ): CliResult {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_SYNC } = options;
+  const cliArguments = projectFixtureArguments(args);
   warnIfDistributionStale();
 
-  const command = `${process.execPath} ${CLI_PATH} ${args.join(' ')}`;
+  const command = `${process.execPath} ${CLI_PATH} ${cliArguments.join(' ')}`;
 
   try {
     const stdout = execSync(command, {
