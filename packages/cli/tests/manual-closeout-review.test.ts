@@ -64,25 +64,22 @@ function git(arguments_: string[]): {
  * `git` here would silently convert the whole seal into "nothing may change" —
  * the same failure this file's `maxBuffer` note describes, one level up.
  *
- * Git exiting non-zero, or finding no commit, still yields undefined: that is
- * a legitimate "no sealed commit to read from", not a broken environment.
+ * Git exiting non-zero, or finding no commit, still yields no candidates: that
+ * is a legitimate "no sealed commit to read from", not a broken environment.
  */
-function sealedCommitFrom(result: ReturnType<typeof git>): string | undefined {
+function sealedCommitCandidatesFrom(result: ReturnType<typeof git>): string[] {
   if (result.spawnFailed) {
     throw new Error('git log could not run; cannot resolve the sealed commit');
   }
-  const commit = result.stdout.toString('utf8').trim();
-  return result.status === 0 && commit ? commit : undefined;
+  if (result.status !== 0) return [];
+  return result.stdout.toString('utf8').trim().split('\n').filter(Boolean);
 }
 
 function sealedCommit(manifest: Manifest): string | undefined {
   const relativeManifest = nodePath.relative(repoRoot, manifestPath);
-  const result = git(['log', '--format=%H', '--', relativeManifest]);
-  if (result.spawnFailed) {
-    throw new Error('git log could not run; cannot resolve the sealed commit');
-  }
-  if (result.status !== 0) return undefined;
-  const candidates = result.stdout.toString('utf8').trim().split('\n').filter(Boolean);
+  const candidates = sealedCommitCandidatesFrom(
+    git(['log', '--format=%H', '--', relativeManifest]),
+  );
   return candidates.find(commit =>
     manifest.inputs.every(input => {
       const reviewed = git(['show', `${commit}:${input.path}`]);
@@ -170,27 +167,28 @@ describe('sealed-commit resolution', () => {
     ...overrides,
   });
 
-  it('returns the commit git reported', () => {
-    const sha = 'a'.repeat(40);
-    const reported = gitResult({ stdout: Buffer.from(`${sha}\n`) });
-    expect(sealedCommitFrom(reported)).toBe(sha);
+  it('returns the commits git reported', () => {
+    const first = 'a'.repeat(40);
+    const second = 'b'.repeat(40);
+    const reported = gitResult({ stdout: Buffer.from(`${first}\n${second}\n`) });
+    expect(sealedCommitCandidatesFrom(reported)).toEqual([first, second]);
   });
 
   it('refuses to resolve when git could not run at all', () => {
     // Returning undefined here would degrade every sealed input to a
     // working-tree comparison without a word — the seal would silently become
     // "nothing may change" and blame whoever regenerated a build artifact.
-    expect(() => sealedCommitFrom(gitResult({ spawnFailed: true }))).toThrow(
+    expect(() => sealedCommitCandidatesFrom(gitResult({ spawnFailed: true }))).toThrow(
       'cannot resolve the sealed commit',
     );
   });
 
-  it('reports no sealed commit when git ran but found none', () => {
-    // A legitimate absence, not a broken environment: still undefined.
+  it('reports no sealed commits when git ran but found none', () => {
+    // A legitimate absence, not a broken environment: still an empty list.
     const failed = gitResult({ status: 1 });
     const blank = gitResult({ stdout: Buffer.from('  \n') });
-    expect(sealedCommitFrom(failed)).toBeUndefined();
-    expect(sealedCommitFrom(blank)).toBeUndefined();
+    expect(sealedCommitCandidatesFrom(failed)).toEqual([]);
+    expect(sealedCommitCandidatesFrom(blank)).toEqual([]);
   });
 });
 
