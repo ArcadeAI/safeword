@@ -122,7 +122,8 @@ export async function installLifecycle(
     });
   }
   const { agents } = parsed.selection;
-  if (invocation.offline && agents.length > 0) return onlineRequired('install');
+  const requiresProfileNetwork = agents.some(agent => agent === 'claude' || agent === 'codex');
+  if (invocation.offline && requiresProfileNetwork) return onlineRequired('install');
 
   const projectResult = await installProjectSurface(invocation, agents);
   const surfaces = await installAgentSurfaces(agents, projectResult, adapters);
