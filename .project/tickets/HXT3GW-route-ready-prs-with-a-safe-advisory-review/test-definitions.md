@@ -28,7 +28,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED c45d59875
 - [x] GREEN 04ea31474
-- [ ] REFACTOR
+- [x] REFACTOR skip: the publication-mode contract is a single literal union with no production duplication to extract
 
 ### Scenario: A prerequisite that never appears remains conservatively pending
 
