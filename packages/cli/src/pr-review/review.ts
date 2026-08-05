@@ -16,11 +16,16 @@ export interface AdvisoryInspection {
   unknowns: string[];
 }
 
-export interface ArtifactCoverage {
-  path: string;
-  skipReason?: 'non_text';
-  status: 'integrity_reviewed' | 'skipped';
-}
+export type ArtifactCoverage =
+  | {
+      path: string;
+      status: 'integrity_reviewed';
+    }
+  | {
+      path: string;
+      skipReason: 'non_text';
+      status: 'skipped';
+    };
 
 export type PublishedReceipt =
   | {
