@@ -11,6 +11,16 @@ module.exports = {
   forbidden: [
     ...generated.forbidden,
 
+    // The relay is an independently deployed package and cannot couple to
+    // CLI or website implementation internals.
+    {
+      name: 'retro-relay-package-isolated',
+      severity: 'error',
+      comment: 'The relay must remain deployable independently from CLI and website internals',
+      from: { path: '^packages/retro-relay/src/' },
+      to: { path: '^packages/(cli|website)/src/' },
+    },
+
     // === CLI PACKAGE ARCHITECTURE ===
 
     // Commands cannot import other commands (except setup → sync-config)

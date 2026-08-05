@@ -1,0 +1,4 @@
+.git
+.project/tmp
+**/dist
+**/node_modules

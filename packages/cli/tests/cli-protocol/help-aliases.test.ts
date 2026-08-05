@@ -34,6 +34,7 @@ describe('canonical help and compatibility aliases', () => {
     ['check', 'status'],
     ['diff', 'plan'],
     ['reset', 'remove'],
+    ['retro', 'retro run'],
   ])('runs %s as a JSON-compatible alias for %s', async (legacy, replacement) => {
     const directory = createTemporaryDirectory();
     const result = await runCli([legacy, '--json', '--no-input', '--offline', '--cwd', directory], {
