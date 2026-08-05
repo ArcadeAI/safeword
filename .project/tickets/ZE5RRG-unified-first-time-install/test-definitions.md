@@ -292,15 +292,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Missing Claude leaves core and Codex success visible
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: partial-surface aggregation shipped with canonical targeted retry guidance
+- [x] GREEN 66e5cd7f8
+- [x] REFACTOR skip: host failure stays isolated in the Claude surface result
 
 ### Scenario: A failed profile install cannot produce a healthy aggregate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: lifecycleState already prioritizes failed surface outcomes
+- [x] GREEN 66e5cd7f8
+- [x] REFACTOR skip: aggregate precedence remains centralized in lifecycleState
 
 ## Rule: unified-first-time-install.NTB1.R4 — Destructive commands say what they deactivate preserve back up and recover
 

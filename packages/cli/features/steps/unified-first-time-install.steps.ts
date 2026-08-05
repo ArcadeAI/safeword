@@ -134,6 +134,10 @@ function initializeHosts(world: UnifiedInstallWorld): void {
     `#!/bin/sh
 set -eu
 printf '%s\n' "$*" >> "$SAFEWORD_CLAUDE_LOG"
+if [ "$(cat "$SAFEWORD_CLAUDE_FAILURE")" = 'unavailable' ]; then
+  echo 'Claude host unavailable' >&2
+  exit 127
+fi
 case "$*" in
   '--version') echo '2.1.170' ;;
   'plugin marketplace list --json')
@@ -1268,5 +1272,81 @@ Then(
     };
     assert.equal(envelope.state, 'action_required');
     assert.doesNotMatch(JSON.stringify(envelope.findings), /\bactive\b/iu);
+  },
+);
+
+Given(
+  'core and Codex succeed while the Claude host is unavailable',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'unavailable');
+  },
+);
+
+When('the default install completes', function (this: UnifiedInstallWorld) {
+  runInstall(this, []);
+});
+
+Then(
+  'the result records core and Codex effects and names Claude unavailable',
+  function (this: UnifiedInstallWorld) {
+    const envelope = JSON.parse(this.result.stdout) as {
+      errors?: { message?: string }[];
+      data?: { surfaces?: { name?: string; state?: string }[] };
+    };
+    assert.equal(
+      envelope.data?.surfaces?.some(
+        surface => surface.name === 'project' && surface.state !== 'failed',
+      ),
+      true,
+    );
+    assert.equal(
+      envelope.data?.surfaces?.some(
+        surface => surface.name === 'codex' && surface.state !== 'failed',
+      ),
+      true,
+    );
+    assert.equal(
+      envelope.data?.surfaces?.some(
+        surface => surface.name === 'claude' && surface.state === 'failed',
+      ),
+      true,
+    );
+    assert.match(JSON.stringify(envelope.errors), /claude/iu);
+  },
+);
+
+Then('the next action retries only Claude', function (this: UnifiedInstallWorld) {
+  const envelope = JSON.parse(this.result.stdout) as {
+    next_actions?: { command?: string }[];
+  };
+  const retries = envelope.next_actions?.filter(action =>
+    action.command?.startsWith('safeword install'),
+  );
+  assert.deepEqual(
+    retries?.map(action => action.command),
+    ['safeword install --agents=claude'],
+  );
+});
+
+Given(
+  'one selected profile install fails after another surface succeeds',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    runInstall(this, []);
+  },
+);
+
+When('the unified result is finalized', () => {
+  // The preceding install returns the complete aggregated result.
+});
+
+Then(
+  'the aggregate is action-required or failed and never healthy',
+  function (this: UnifiedInstallWorld) {
+    const envelope = JSON.parse(this.result.stdout) as { state?: string };
+    assert.equal(['action_required', 'failed'].includes(envelope.state ?? ''), true);
+    assert.notEqual(envelope.state, 'healthy');
   },
 );
