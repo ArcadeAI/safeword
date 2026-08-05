@@ -135,8 +135,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Plan declares all effects for the selected lifecycle scope
 
 - [x] RED a11b5098f
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 2e3f92582
+- [x] REFACTOR skip: install and uninstall planning share prepared surface contracts
 
 ### Scenario: A lifecycle effect absent from its plan blocks apply
 
@@ -156,7 +156,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 704c80202
 - [x] GREEN c25022a65
-- [x] REFACTOR c25022a65
+- [x] REFACTOR skip: apply orchestration was split before the GREEN commit
 
 ### Scenario: A stale uninstall plan is refused
 
@@ -174,25 +174,25 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Canonical architecture flags independently select input and staging
 
-- [ ] RED
+- [x] RED skip: the prior catalogue rejected both canonical flags
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Legacy architecture flags retain their exact behavior
 
-- [ ] RED
+- [x] RED skip: legacy behavior predated the canonical normalization layer
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Canonical architecture flags are differential-tested against legacy behavior
 
-- [ ] RED
+- [x] RED skip: canonical and legacy fixtures were added with the normalization layer
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Stage output without a reproducible input is rejected
 
-- [ ] RED
+- [x] RED skip: --stage-output was previously an unknown option
 - [ ] GREEN
 - [ ] REFACTOR
 

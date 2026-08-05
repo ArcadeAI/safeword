@@ -143,10 +143,15 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('project architecture', 'Refresh generated architecture state', 'mutate', {
     commandOptions: [
       { flags: '--check', description: 'Report drift without writing' },
-      { flags: '--stage', description: 'Stage regenerated architecture documents' },
+      { flags: '--from-index', description: 'Generate from the staged Git index' },
+      { flags: '--stage-output', description: 'Stage generated architecture documents' },
+      {
+        flags: '--stage',
+        description: 'Deprecated alias for --from-index --stage-output',
+      },
       {
         flags: '--staged',
-        description: 'Regenerate from the staged tree without staging documents',
+        description: 'Deprecated alias for --from-index',
       },
     ],
   }),

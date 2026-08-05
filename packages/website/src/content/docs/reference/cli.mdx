@@ -125,7 +125,7 @@ The **BDD acceptance lane is universal**: every project gets cucumber-js wired (
 
 ```bash
 safeword project sync-config [--check]
-safeword project architecture [--check | --stage]
+safeword project architecture [--check | --from-index [--stage-output]]
 safeword project sync-learnings
 safeword project sync-tickets
 safeword project codify <ticket> [--format vitest|gherkin] [--red] [--out <path>]
@@ -156,13 +156,13 @@ Generate or verify Safeword's deterministic architecture state document.
 bunx safeword@latest project architecture
 ```
 
-| Option     | Description                                                                   |
-| ---------- | ----------------------------------------------------------------------------- |
-| `--check`  | Verify that committed architecture documents are current without writing      |
-| `--stage`  | Generate from the Git index and add changed documents to the current commit   |
-| `--staged` | Rewrite generated structure from the Git index without adding it to the index |
+| Option           | Description                                                              |
+| ---------------- | ------------------------------------------------------------------------ |
+| `--check`        | Verify that committed architecture documents are current without writing |
+| `--from-index`   | Rewrite generated structure from the Git index without staging output    |
+| `--stage-output` | Add generated documents to the index; requires `--from-index`            |
 
-`--stage` and `--staged` exclude unstaged and untracked source shape, so the
+`--from-index` excludes unstaged and untracked source shape, so the
 generated fingerprint remains reproducible when the commit is checked out
 elsewhere. They preserve human-authored prose already present in the worktree
 document and list excluded source-shape inputs when staged and worktree state
@@ -182,10 +182,10 @@ lists whose preceding `git add` operations it can model exactly. If another
 command such as lint or status precedes the commit, the hook leaves the index
 unchanged. When that command list would commit an architecture-relevant change,
 the hook prints recovery guidance; run the preceding command separately, then
-commit, or run `safeword project architecture --stage` explicitly.
+commit, or run `safeword project architecture --from-index --stage-output` explicitly.
 
 **When to use:** Use the default command for normal worktree generation,
-`--check` in CI, `--stage` in commit-time automation, or `--staged` to rewrite
+`--check` in CI, `--from-index --stage-output` in commit-time automation, or `--from-index` to rewrite
 the worktree document to the staged-tree structure before deciding what to add.
 When no Git worktree is present, both staged-tree modes fall back to normal
 worktree generation and explain that no index was available.

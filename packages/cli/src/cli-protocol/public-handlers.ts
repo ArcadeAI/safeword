@@ -261,7 +261,7 @@ function architectureCheckResult(
         : [
             {
               code: 'ARCHITECTURE_DRIFT',
-              message: `Architecture documents are stale (${stale.join(', ')}). Run \`safeword project architecture\` for the current worktree, or \`safeword project architecture --staged\` to reproduce the staged tree, then commit the result.`,
+              message: `Architecture documents are stale (${stale.join(', ')}). Run \`safeword project architecture\` for the current worktree, or \`safeword project architecture --from-index\` to reproduce the staged tree, then commit the result.`,
               severity: 'warning',
             },
             ...advisories,
@@ -356,6 +356,43 @@ async function runArchitectureStagedTreeMode(
   });
 }
 
+interface ArchitectureCliMode {
+  readonly fromIndex: boolean;
+  readonly stageOutput: boolean;
+  readonly legacy?: '--stage' | '--staged';
+}
+
+function architectureCliMode(options: Readonly<Record<string, unknown>>): ArchitectureCliMode {
+  let legacy: ArchitectureCliMode['legacy'];
+  if (options.stage === true) legacy = '--stage';
+  else if (options.staged === true) legacy = '--staged';
+  return {
+    fromIndex: options.fromIndex === true || legacy !== undefined,
+    stageOutput: options.stageOutput === true || legacy === '--stage',
+    ...(legacy !== undefined && { legacy }),
+  };
+}
+
+function withArchitectureOptionCompatibility(
+  result: CliResult,
+  legacy: ArchitectureCliMode['legacy'],
+): CliResult {
+  if (legacy === undefined) return result;
+  const replacement = legacy === '--stage' ? '--from-index --stage-output' : '--from-index';
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: 'CLI_OPTION_DEPRECATED',
+        message: `${legacy} is deprecated; use ${replacement}.`,
+        severity: 'warning',
+        metadata: { legacy, replacement, retention: 'indefinite' },
+      },
+    ],
+  };
+}
+
 async function architectureHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { isWouldChangeAction, planSelfHealProject, selfHealProject } =
     await import('../utils/architecture-document.js');
@@ -364,17 +401,33 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
   const { isArchitectureDocumentEnforcementEnabled } = await import('../utils/configured-paths.js');
 
   const enforcementEnabled = isArchitectureDocumentEnforcementEnabled(invocation.cwd);
-  if (!enforcementEnabled && (invocation.options.check || invocation.options.stage)) {
+  const mode = architectureCliMode(invocation.options);
+  if (mode.stageOutput && !mode.fromIndex) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'ARCHITECTURE_INPUT_REQUIRED',
+          message:
+            '--stage-output requires --from-index so staged output has a reproducible source.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'project architecture' },
+    });
+  }
+  if (!enforcementEnabled && (invocation.options.check || mode.stageOutput)) {
     return architectureEnforcementDisabledResult(
       architectureAdvisories(discoverUnreadableWorkspaces(invocation.cwd)),
     );
   }
 
-  if (invocation.options.stage === true) {
-    return runArchitectureStagedTreeMode(invocation, 'stage');
-  }
-  if (invocation.options.staged === true) {
-    return runArchitectureStagedTreeMode(invocation, 'staged');
+  if (mode.fromIndex) {
+    const result = await runArchitectureStagedTreeMode(
+      invocation,
+      mode.stageOutput ? 'stage' : 'staged',
+    );
+    return withArchitectureOptionCompatibility(result, mode.legacy);
   }
 
   const snapshot = extractMonorepoArchitectureSnapshot(invocation.cwd);
@@ -463,7 +516,7 @@ function architectureHealResult(input: {
     nextActions: staleStaging
       ? [
           {
-            command: 'safeword project architecture --stage',
+            command: 'safeword project architecture --from-index --stage-output',
             mutates: true,
             requiresHuman: false,
           },
