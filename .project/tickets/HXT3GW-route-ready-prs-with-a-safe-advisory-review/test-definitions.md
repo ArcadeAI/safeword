@@ -62,7 +62,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: An ineligible scheduled candidate invalidates its existing receipt
 
-- [ ] RED
+- [x] RED 0295da622
 - [ ] GREEN
 - [ ] REFACTOR
 
