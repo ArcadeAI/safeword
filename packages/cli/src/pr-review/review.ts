@@ -23,6 +23,13 @@ export interface AdvisoryInspection {
 
 export type ReviewRunState = 'complete' | 'failed' | 'incomplete' | 'stale';
 
+const RUN_STATE_PRECEDENCE: Record<ReviewRunState, number> = {
+  complete: 0,
+  incomplete: 1,
+  failed: 2,
+  stale: 3,
+};
+
 export interface AdvisoryFinding {
   consequence: string;
   path: string;
@@ -157,12 +164,6 @@ function deriveRunState(
   evidenceState: 'complete' | 'incomplete',
   inspection: AdvisoryInspection,
 ): ReviewRunState {
-  const precedence: Record<ReviewRunState, number> = {
-    complete: 0,
-    incomplete: 1,
-    failed: 2,
-    stale: 3,
-  };
   const conditions = [
     evidenceState,
     ...(inspection.runState ? [inspection.runState] : []),
@@ -170,7 +171,7 @@ function deriveRunState(
   ];
   let highest: ReviewRunState = evidenceState;
   for (const condition of conditions) {
-    if (precedence[condition] > precedence[highest]) highest = condition;
+    if (RUN_STATE_PRECEDENCE[condition] > RUN_STATE_PRECEDENCE[highest]) highest = condition;
   }
   return highest;
 }
