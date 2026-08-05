@@ -240,6 +240,16 @@ describe('migrate codex-plugin command', () => {
     });
   }
 
+  function stubAutomaticMigrationEnvironment(
+    fixture: ReturnType<typeof createMigrationFixture>,
+  ): NodeJS.ProcessEnv {
+    const environment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
+    vi.stubEnv('PATH', `${fixture.bin}:${process.env.PATH ?? ''}`);
+    vi.stubEnv('SAFEWORD_CODEX_LOG', nodePath.join(fixture.directory, 'codex.log'));
+    vi.stubEnv('CODEX_HOME', environment.CODEX_HOME);
+    return environment;
+  }
+
   function recordCurrentProof(fixture: ReturnType<typeof createMigrationFixture>): void {
     const environment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
@@ -318,12 +328,7 @@ describe('migrate codex-plugin command', () => {
     const legacySkill = nodePath.join(fixture.directory, '.agents/skills/audit/SKILL.md');
     mkdirSync(nodePath.dirname(legacySkill), { recursive: true });
     writeFileSync(legacySkill, 'legacy audit skill\n');
-    const environment = {
-      CODEX_HOME: nodePath.join(fixture.directory, 'profile'),
-    };
-    vi.stubEnv('PATH', `${fixture.bin}:${process.env.PATH ?? ''}`);
-    vi.stubEnv('SAFEWORD_CODEX_LOG', nodePath.join(fixture.directory, 'codex.log'));
-    vi.stubEnv('CODEX_HOME', environment.CODEX_HOME);
+    const environment = stubAutomaticMigrationEnvironment(fixture);
 
     expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
 
@@ -360,10 +365,7 @@ describe('migrate codex-plugin command', () => {
     const safewordSkill = nodePath.join(fixture.directory, '.agents/skills/audit/SKILL.md');
     mkdirSync(nodePath.dirname(safewordSkill), { recursive: true });
     writeFileSync(safewordSkill, 'legacy audit skill\n');
-    const environment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
-    vi.stubEnv('PATH', `${fixture.bin}:${process.env.PATH ?? ''}`);
-    vi.stubEnv('SAFEWORD_CODEX_LOG', nodePath.join(fixture.directory, 'codex.log'));
-    vi.stubEnv('CODEX_HOME', environment.CODEX_HOME);
+    const environment = stubAutomaticMigrationEnvironment(fixture);
 
     expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
 
@@ -379,11 +381,8 @@ describe('migrate codex-plugin command', () => {
 
   it('retains complete legacy state when automatic plugin installation fails', () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
-    const environment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
-    vi.stubEnv('PATH', `${fixture.bin}:${process.env.PATH ?? ''}`);
-    vi.stubEnv('SAFEWORD_CODEX_LOG', nodePath.join(fixture.directory, 'codex.log'));
+    const environment = stubAutomaticMigrationEnvironment(fixture);
     vi.stubEnv('SAFEWORD_FAIL_PLUGIN_INSTALL', '1');
-    vi.stubEnv('CODEX_HOME', environment.CODEX_HOME);
 
     expect(() => automaticallyMigrateLegacyCodex(fixture.directory, environment)).toThrow(
       'marketplace unavailable',
