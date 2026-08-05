@@ -16,15 +16,15 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: offline preflight was implemented atomically in 77a6d027b
 - [x] GREEN dce2cfd9a
-- [x] REFACTOR dce2cfd9a
+- [x] REFACTOR skip: shared runInstall fixture already isolates the boundary
 
 ## Rule: unified-first-time-install.TBU1.R2 — Agent selectors narrow installation to exactly the selected integrations
 
 ### Scenario: A valid selector changes only the requested integrations
 
 - [x] RED skip: selector partitioning was implemented atomically in 77a6d027b
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 75332f63e
+- [x] REFACTOR skip: selector assertions already reuse the shared host fixture
 
 ### Scenario: An unknown agent selector is rejected before mutation
 

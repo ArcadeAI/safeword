@@ -34,7 +34,7 @@ describe('CLI command catalog', () => {
       .map(definition => definition.name);
     expect(canonicalNames).toEqual([
       'status',
-      'setup',
+      'install',
       'plan',
       'doctor',
       'remove',
@@ -79,6 +79,7 @@ describe('CLI command catalog', () => {
     const aliases = commandCatalog.filter(command => command.aliasFor !== undefined);
     expect(aliases.map(alias => alias.name)).toEqual([
       'check',
+      'setup',
       'upgrade',
       'diff',
       'reset',
@@ -97,12 +98,13 @@ describe('CLI command catalog', () => {
       'migrate codex-plugin',
     ]);
     for (const alias of aliases) {
-      expect(alias.compatibility).toEqual({
-        introducedIn: '0.70',
-        retainedThrough: '0.71',
-        removalEligibleAfter: '0.71',
-      });
+      expect(alias.compatibility).toEqual(
+        expect.objectContaining({ introducedIn: expect.any(String), retention: 'indefinite' }),
+      );
+      expect(alias.compatibility).not.toHaveProperty('retainedThrough');
+      expect(alias.compatibility).not.toHaveProperty('removalEligibleAfter');
     }
+    expect(aliases.find(alias => alias.name === 'setup')?.compatibility?.introducedIn).toBe('0.72');
 
     const hidden = commandCatalog.filter(command => !command.public);
     expect(hidden.map(command => command.name)).toEqual([
@@ -146,6 +148,12 @@ describe('CLI command catalog', () => {
         })),
       );
     }
+
+    const setup = data.commands.find(command => command.name === 'setup');
+    expect(setup?.compatibility).toEqual(
+      expect.objectContaining({ introduced_in: '0.72', retention: 'indefinite' }),
+    );
+    expect(setup?.compatibility).not.toHaveProperty('removal_eligible_after');
 
     const remove = data.commands.find(command => command.name === 'remove');
     expect(remove?.options).toEqual(
