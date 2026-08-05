@@ -100,7 +100,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: Evidence over budget cannot look complete or ready
 
-- [ ] RED
+- [x] RED 77fab4030
 - [ ] GREEN
 - [ ] REFACTOR
 
