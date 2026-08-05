@@ -1,0 +1,102 @@
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { createTemporaryDirectory, runCli } from '../helpers.js';
+
+const CAPABILITIES: Readonly<Record<string, string>> = {
+  claude:
+    '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model',
+  codex:
+    '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --model --output-schema',
+};
+
+/**
+ * Three routes, three different causes: the reviewer's default model never
+ * answers, its alternate model is not signed in, and the author's own runtime
+ * answers off-contract.
+ */
+function installThreeFailures(host: string): string {
+  const bin = nodePath.join(host, 'bin');
+  mkdirSync(bin, { recursive: true });
+
+  writeFileSync(
+    nodePath.join(bin, 'codex'),
+    String.raw`#!/bin/sh
+set -eu
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${CAPABILITIES.codex}'; exit 0; fi
+if printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then
+  printf 'not logged in\n' >&2
+  exit 1
+fi
+exec /bin/sleep 3600
+`,
+    { mode: 0o755 },
+  );
+  chmodSync(nodePath.join(bin, 'codex'), 0o755);
+
+  writeFileSync(
+    nodePath.join(bin, 'claude'),
+    String.raw`#!/bin/sh
+set -eu
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${CAPABILITIES.claude}'; exit 0; fi
+printf 'not-a-review\n'
+`,
+    { mode: 0o755 },
+  );
+  chmodSync(nodePath.join(bin, 'claude'), 0o755);
+  return bin;
+}
+
+describe('when all three routes fail', () => {
+  it('keeps each route its own cause, including the alternate model', async () => {
+    const directory = createTemporaryDirectory();
+    const host = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReviewAlternateModel: { codex: 'vendor-model-2' } }),
+    );
+    const bin = installThreeFailures(host);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '800',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '6000',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const payload = JSON.parse(result.stdout) as {
+      findings: { message: string }[];
+      data: Record<string, unknown>;
+    };
+    const explanation = payload.findings.map(finding => finding.message).join(' ');
+
+    // Three attempts, three distinct causes.
+    expect(explanation).toMatch(/ran out of time/i);
+    expect(explanation).toMatch(/not signed in/i);
+    expect(explanation).toMatch(/could not be accepted/i);
+    // The alternate-model attempt is named as such, without naming the model.
+    expect(explanation).toMatch(/alternate model/i);
+    expect(explanation).not.toContain('vendor-model-2');
+    expect(payload.data.independence).toBe('none');
+  }, 30_000);
+});
