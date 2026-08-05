@@ -252,9 +252,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Unified install reports a per-surface completion summary
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED cc1cd00ca
+- [x] GREEN f9c274962
+- [x] REFACTOR skip: surface labels and outcome vocabulary are centralized in the renderer
 
 ### Scenario: A summary never collapses mixed outcomes into success
 
