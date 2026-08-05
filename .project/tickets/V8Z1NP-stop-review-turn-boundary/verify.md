@@ -4,7 +4,7 @@ Branch `fix-stop-review-turn-boundary`, base `fba74ddd3`. PR: https://github.com
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6571/6571 tests pass (434 files, 5 skipped, 0 failed); done-gate `test:done` ✓ 1468/1468 (87 files)
+**Test Suite:** ✓ 6574/6574 tests pass (434 files, 5 skipped); done-gate `test:done` ✓ 1468/1468 (87 files). One local full-suite run also failed `cli-protocol/review-wiring.test.ts` — load-flake, not this change: it passes in isolation (74/74), CI's full suite passes it on the same commit (run 31026649251), and it holds no reference to `stop-quality`. Root cause is the fixed review deadline (#1932, evidenced there).
 **Gherkin:** ⚠️ Local environment limitation: 954/959 pass, 3 skipped, 2 failed — `test-codex-plugin-migration.feature:103` and `:112` fail identically on `main` at base `fba74ddd3` (CI run 30984010293) and are unrelated to this change; filed as #1964
 **Build:** ✅ Success
 **Lint:** ✅ Clean (eslint + lint-gherkin + tsc --noEmit)
