@@ -258,9 +258,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A summary never collapses mixed outcomes into success
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: mixed-state aggregation was implemented with the first surface renderer
+- [x] GREEN f9c274962
+- [x] REFACTOR skip: aggregate severity and per-surface rendering remain separate helpers
 
 ### Scenario: A non-technical builder can act on the summary without knowing the architecture
 
@@ -278,15 +278,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Install completion reports exact activation actions for both profile plugins
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 519477c33
+- [x] GREEN 2a70553b6
+- [x] REFACTOR skip: activation actions are structured once and rendered generically
 
 ### Scenario: Installed plugins are not reported active before host proof
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: pending Codex proof already produced action-required status
+- [x] GREEN 2a70553b6
+- [x] REFACTOR skip: profile activation state remains owned by each host adapter
 
 ## Rule: unified-first-time-install.NTB1.R3 — A partial failure names what failed without hiding successful work
 
