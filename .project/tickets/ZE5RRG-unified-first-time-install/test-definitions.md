@@ -94,27 +94,27 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A second identical unified install reports no changes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 11ee15a7a
+- [x] GREEN 66e5cd7f8
+- [x] REFACTOR skip: native delivery projections are isolated before reconciliation
 
 ### Scenario: Install repairs drift and completes a partial installation without duplication
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 11ee15a7a
+- [x] GREEN 66e5cd7f8
+- [x] REFACTOR skip: all selected surfaces reuse the shared convergence boundary
 
 ### Scenario: A failed surface does not roll back successful surfaces
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 11ee15a7a
+- [x] GREEN 66e5cd7f8
+- [x] REFACTOR skip: retry normalization is scoped by the recorded surface result
 
 ### Scenario: Targeted retry converges only the surface that previously failed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 11ee15a7a
+- [x] GREEN 66e5cd7f8
+- [x] REFACTOR skip: canonical retry selectors reuse install's existing surface partition
 
 ## Rule: unified-first-time-install.TBU2.R1 — Status and doctor are observably different commands
 
