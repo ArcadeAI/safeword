@@ -43,7 +43,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
     **Setup enrolls each repository.** Installing the profile plugin does not enroll every repository you open. Until `safeword setup` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
 
-    **PreToolUse gates run through the plugin.** Run `safeword codex install` to refresh, install, and verify the profile-scoped plugin. Restart Codex after installation, start a new task to load one coherent skills-and-hooks catalogue, then review and trust it in Codex. Its hooks use version-pinned Bunx commands. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools.
+    **Native gates run through the plugin.** The project SessionStart bootstrap enrolls each developer's profile automatically; `safeword codex install` is available when you want to enroll immediately. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue. Until then, the bootstrap warns without blocking work. Native plugin hooks use version-pinned Bunx commands.
 
     **Stop completion and nudges run through Codex continuations.** The packaged `safeword hook codex stop` entrypoint checks shared evidence for the session-bound, in-progress done-phase ticket and marks it done only when that evidence passes. It otherwise continues the turn with exact remediation or advisory text such as an ARCHITECTURE.md drift nudge; it never stages, commits, or opens a PR.
 
@@ -80,13 +80,12 @@ Open your project and ask your agent to build something real:
   <TabItem label="Codex">
     Watch what happens:
 
-    1. Run `safeword codex migrate`, restart Codex, then start a new task
-    2. Review the Safe Word plugin in `/hooks`
-    3. Your agent follows scoped plugin skills such as `safeword:bdd`
-    4. Before supported edits, Codex runs the plugin's version-pinned Bunx PreToolUse hook
-    5. Run `safeword codex status`; after current hook proof exists, preview with `safeword codex migrate --finalize` and run its exact `--yes --plan <plan-id>` action
-    6. If a safeword gate blocks the edit, your agent gets the denial before changing files
-    7. When the agent stops, Codex runs the plugin's Bunx Stop hook to complete verified session-bound done-phase tickets or surface remediation and advisories such as ARCHITECTURE.md drift
+    1. Setup commits one project SessionStart bootstrap
+    2. On each teammate's first task, it enrolls that teammate's Codex profile in the stable plugin channel
+    3. If the current task cannot load the plugin yet, it warns loudly and asks for one new task; it does not block edits or commands
+    4. In the next task, your agent follows scoped plugin skills such as `safeword:bdd`
+    5. Native plugin hooks provide the normal Safeword workflow gates
+    6. A recognized legacy installation is backed up and removed automatically only after native installation succeeds
 
   </TabItem>
 </Tabs>
@@ -99,13 +98,13 @@ Safeword added a few folders to your project:
 | ----------------------- | --------------------------------------------------------------- |
 | `.safeword/hooks/`      | Project runtime used by supported project-local surfaces        |
 | Safe Word Claude plugin | Project-scoped by default; user-scoped when explicitly selected |
-| Safe Word Codex plugin  | Profile-scoped Codex workflow skills and hooks                  |
+| Safe Word Codex plugin  | Project bootstrap plus profile-scoped workflow skills and hooks |
 | `.cursor/hooks.json`    | Hook configuration for Cursor                                   |
 | `.cursor/rules/`        | Rules for Cursor                                                |
 | `.cursor/commands/`     | Slash commands for Cursor                                       |
 | `.safeword/`            | Project configuration, guides, and templates                    |
 
-Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache. Each Claude Code user runs `safeword claude install` and `/reload-plugins`. Existing project-local Claude protection remains authoritative until the current plugin records exact execution proof and someone explicitly runs the reviewed `safeword claude cleanup` plan. Each Codex user separately installs and reviews the Codex plugin. Each repository is enrolled with `safeword setup`, which creates the project namespace before plugin hooks write project state.
+Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache and follows the verified stable channel unless native updates were explicitly disabled. Codex setup commits one non-blocking SessionStart bootstrap, and each collaborator's first task enrolls only that collaborator's profile. Until a later task records exact native proof, the bootstrap warns that work is unprotected but permits it to continue. Each repository is enrolled with `safeword setup`, which creates the project namespace before plugin hooks write project state.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 

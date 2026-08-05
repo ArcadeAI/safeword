@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
+import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 
@@ -198,6 +199,59 @@ function scopedMarketplaceDeclaration(
   return declaration;
 }
 
+function marketplaceAutoUpdatePreference(
+  declaration: JsonObject | undefined,
+  scope: ClaudePluginScope,
+): boolean | undefined {
+  const preference = declaration?.autoUpdate;
+  if (preference === undefined || typeof preference === 'boolean') return preference;
+  invalidScopeSettings(scope, `marketplace ${MARKETPLACE_NAME} autoUpdate must be a boolean.`);
+}
+
+function enableMarketplaceAutoUpdate(
+  cwd: string,
+  scope: ClaudePluginScope,
+  effects: Effect[],
+): void {
+  const path = scopedSettingsPath(cwd, scope);
+  const metadata = lstatSync(path);
+  if (!metadata.isFile()) {
+    invalidScopeSettings(scope, `settings are not a regular file: ${path}`);
+  }
+  const settings = readScopedSettings(cwd, scope);
+  const marketplaces = settings?.extraKnownMarketplaces;
+  if (!isJsonObject(settings) || !isJsonObject(marketplaces)) {
+    invalidScopeSettings(
+      scope,
+      `marketplace ${MARKETPLACE_NAME} was not persisted after installation.`,
+    );
+  }
+  const declaration = marketplaces[MARKETPLACE_NAME];
+  if (!isJsonObject(declaration)) {
+    invalidScopeSettings(
+      scope,
+      `marketplace ${MARKETPLACE_NAME} was not persisted after installation.`,
+    );
+  }
+  if (marketplaceAutoUpdatePreference(declaration, scope) === true) return;
+
+  const updated = {
+    ...settings,
+    extraKnownMarketplaces: {
+      ...marketplaces,
+      [MARKETPLACE_NAME]: { ...declaration, autoUpdate: true },
+    },
+  };
+  writeDurableFile(path, `${JSON.stringify(updated, undefined, 2)}\n`, {
+    mode: metadata.mode & 0o777,
+  });
+  effects.push({
+    kind: 'enable',
+    target: `${MARKETPLACE_NAME} marketplace auto-update`,
+    operation: scope,
+  });
+}
+
 type MarketplaceSourceStatus = 'current' | 'stale' | 'conflict';
 
 function marketplaceSource(entry: JsonObject): {
@@ -307,6 +361,11 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
       nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
       break;
     }
+    case 'CLAUDE_AUTO_UPDATE_DISABLED': {
+      classification = 'auto-update-disabled';
+      nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+      break;
+    }
     case 'CLAUDE_PLUGIN_METADATA_UNVERIFIED': {
       classification = 'unverified-metadata';
       nextAction = 'claude plugin list --json';
@@ -386,7 +445,17 @@ function marketplaceEffectKind(observation: MarketplaceObservation): 'add' | 'up
 function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
   const before = observeMarketplace(cwd, scope, effects);
   assertTrustedMarketplace(before);
-  if (marketplaceIsCurrent(before)) return;
+  const autoUpdatePreference = marketplaceAutoUpdatePreference(before.declaration, scope);
+  if (marketplaceIsCurrent(before)) {
+    if (autoUpdatePreference !== false) enableMarketplaceAutoUpdate(cwd, scope, effects);
+    return;
+  }
+  if (autoUpdatePreference === false) {
+    throw new ClaudeProfileError(
+      'CLAUDE_AUTO_UPDATE_DISABLED',
+      `Claude ${scope}-scope marketplace auto-update is explicitly disabled; Safeword left the marketplace declaration unchanged.`,
+    );
+  }
   runClaude(
     cwd,
     ['plugin', 'marketplace', 'add', officialMarketplaceSource(), '--scope', scope],
@@ -404,6 +473,7 @@ function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effec
       effects,
     );
   }
+  enableMarketplaceAutoUpdate(cwd, scope, effects);
 }
 
 function assertConvergeablePluginVersion(plugin: JsonObject): void {
