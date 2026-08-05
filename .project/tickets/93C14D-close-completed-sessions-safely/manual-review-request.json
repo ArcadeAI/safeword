@@ -1,80 +1,397 @@
 {
   "version": 1,
   "ticket": "93C14D",
-  "created_at": "2026-08-03T02:47:15Z",
+  "created_at": "2026-08-03T22:42:11Z",
   "inputs": [
-    { "path": "packages/cli/templates/skills/closeout/SKILL.md", "sha256": "d612ee520e5d36ffc29d46e02e66c94b25d4d079bf9912d72f436830e317b460" },
-    { "path": ".claude/skills/closeout/SKILL.md", "sha256": "d612ee520e5d36ffc29d46e02e66c94b25d4d079bf9912d72f436830e317b460" },
-    { "path": ".cursor/commands/closeout.md", "sha256": "d362347a05e9af55ffc0cb97645b261df445792724e58a9b8c1ac5ab4318392f" },
-    { "path": ".safeword/skills/closeout/SKILL.md", "sha256": "d612ee520e5d36ffc29d46e02e66c94b25d4d079bf9912d72f436830e317b460" },
-    { "path": ".safeword/scripts/closeout-cleanup.ts", "sha256": "20ae0f8b4da1c2c4629d9813fa34012ec3b60a7a33b41735da9b1e3779110b2a" },
-    { "path": "features/close-completed-sessions-safely.feature", "sha256": "cd97feabb9e4b2330946a331120fb141fb490659f82757601029fd3bb1da64ac" },
-    { "path": "packages/cli/codex-plugin/skills/closeout/SKILL.md", "sha256": "586796fd065d447ba7feadbaee5dabff19dccf492f2ee8221f0464b8b88d7ede" },
-    { "path": "plugin/skills/closeout/SKILL.md", "sha256": "c14dd3c006e4e4593c111456dec7b8b72c41734213914a601251518635760377" },
-    { "path": "packages/cli/scripts/generate-claude-plugin.ts", "sha256": "6252ed6cbc5fa4b7e684e3d5bca85b73c7c2f69f5c113c0a7834d0e7dacb8042" },
-    { "path": "plugin/resources/scripts/closeout-cleanup.ts", "sha256": "c04aa3390330a1b070f1939426a56291b985205da2790c6ef3d593991e732526" },
-    { "path": "packages/cli/tests/closeout-skill.test.ts", "sha256": "62535b652bfc9de168b85c778f8a9bab2358699ef56f2b24b5e1046bb70e32e9" },
-    { "path": "packages/cli/tests/integration/closeout-host-adapters.test.ts", "sha256": "c1691e28426933e52153a8f7d305525f043b548c1b91705224e1ce0bd4f26509" },
-    { "path": "packages/cli/src/parity.ts", "sha256": "7260f5937ce32fc5999545a1a79b63e0780fdfcc536f3f175a5553373002039e" },
-    { "path": "packages/cli/src/codex-plugin/catalogue.ts", "sha256": "d3055def60c9930bb9b0e771884dffa2e5114ad1433a5c9821d1bda23e7fcc0c" },
-    { "path": "packages/cli/src/claude-plugin/catalogue.ts", "sha256": "e490209e2b0ec35a44a27623876b8d59051fc9a4187a21213e341a35cfd5628a" },
-    { "path": ".project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json", "sha256": "4da7ef05718ff238eafa8184275f4ce6aa9fdea1249d379e4a5532f734299740" }
+    {
+      "path": ".project/tickets/93C14D-close-completed-sessions-safely/impl-plan.md",
+      "sha256": "14ff1eca98866950b58048ec93f236e9375916dacb9015cf7900106e1b17725b"
+    },
+    {
+      "path": ".project/tickets/93C14D-close-completed-sessions-safely/test-definitions.md",
+      "sha256": "24fb7007e293c722e000226972dd55c371deeaf23a54854b3bfc3f0120ac7fa5"
+    },
+    {
+      "path": "README.md",
+      "sha256": "7d29426ba28f5429e245d09ad6866af12a8d8f321233252acb2aba728011298d"
+    },
+    {
+      "path": "package.json",
+      "sha256": "0f0ee931395b97a5f62a765bfd51f3580735329be2d587182d3315f72b156bd3"
+    },
+    {
+      "path": "bun.lock",
+      "sha256": "9fb8dc6795d68e7151b85a3306a915a533dbcc5e47a9a60b7479e7b2ac089216"
+    },
+    {
+      "path": "packages/website/src/content/docs/reference/hooks-and-skills.mdx",
+      "sha256": "787aa3985c4c62b701122a4be8fd70aab8dc04fbf0da5bc3834c50cd9b1d425a"
+    },
+    {
+      "path": "packages/cli/templates/skills/closeout/SKILL.md",
+      "sha256": "b0c91bd5580cac13b383db9ef2a7a55821210685c91435d0d4fde58a63db2dfc"
+    },
+    {
+      "path": ".claude/skills/closeout/SKILL.md",
+      "sha256": "b0c91bd5580cac13b383db9ef2a7a55821210685c91435d0d4fde58a63db2dfc"
+    },
+    {
+      "path": ".cursor/commands/closeout.md",
+      "sha256": "d362347a05e9af55ffc0cb97645b261df445792724e58a9b8c1ac5ab4318392f"
+    },
+    {
+      "path": ".safeword/skills/closeout/SKILL.md",
+      "sha256": "b0c91bd5580cac13b383db9ef2a7a55821210685c91435d0d4fde58a63db2dfc"
+    },
+    {
+      "path": ".safeword/hooks/lib/closeout-binding.ts",
+      "sha256": "ab833457c0f29fefe2242c42a7eea784987a629329c91ec7d434a492eb3112ca"
+    },
+    {
+      "path": ".safeword/hooks/lib/retro-extract.ts",
+      "sha256": "390086ac3d80bbce4787aae788f6fb788adbbd383f2134964bc5bb13b877d45e"
+    },
+    {
+      "path": ".safeword/scripts/closeout-cleanup.ts",
+      "sha256": "a26f61be38276a85c99a3fc9a0141842c83e18dfebd0aa299c062e194f0e5f3e"
+    },
+    {
+      "path": "features/close-completed-sessions-safely.feature",
+      "sha256": "291bc887f8de34766a2b83813a2c270493a8ac4d16b6085a85855e707cc68d3d"
+    },
+    {
+      "path": "packages/cli/codex-plugin/skills/closeout/SKILL.md",
+      "sha256": "1c1c8c50ca10d5ac6320de42d989b73c6e0d7813d4d042a6737a08c4e6918245"
+    },
+    {
+      "path": "plugin/skills/closeout/SKILL.md",
+      "sha256": "6837f21a58aa88b759c300a9c17822a7a7bc703707c825a6407e60fad7b11513"
+    },
+    {
+      "path": "packages/cli/scripts/generate-claude-plugin.ts",
+      "sha256": "6252ed6cbc5fa4b7e684e3d5bca85b73c7c2f69f5c113c0a7834d0e7dacb8042"
+    },
+    {
+      "path": "packages/cli/src/commands/retro.ts",
+      "sha256": "3aa8f61339e828b4a19e5d454fb585fb11891cc793ed36d49c775470914f6fa5"
+    },
+    {
+      "path": "packages/cli/templates/hooks/lib/closeout-binding.ts",
+      "sha256": "ab833457c0f29fefe2242c42a7eea784987a629329c91ec7d434a492eb3112ca"
+    },
+    {
+      "path": "packages/cli/templates/hooks/lib/retro-extract.ts",
+      "sha256": "390086ac3d80bbce4787aae788f6fb788adbbd383f2134964bc5bb13b877d45e"
+    },
+    {
+      "path": "packages/cli/templates/scripts/closeout-cleanup.ts",
+      "sha256": "a26f61be38276a85c99a3fc9a0141842c83e18dfebd0aa299c062e194f0e5f3e"
+    },
+    {
+      "path": "plugin/resources/scripts/closeout-cleanup.ts",
+      "sha256": "b2b6ed4428c784e2086fc2f7e9e6f95dbc2890c881f198a3ebf122026fed3962"
+    },
+    {
+      "path": "plugin/runtime/cli.js",
+      "sha256": "199147462ab7a94473497ae3bb38daecf5ca8b9a1cf5212bb27d133e539ff2f2"
+    },
+    {
+      "path": "plugin/runtime/hooks/lib/closeout-binding.ts",
+      "sha256": "4d89818ea62ee89d894a56a1947e05d1ee9edbf8eff45882a2c3adc2a589164e"
+    },
+    {
+      "path": "plugin/runtime/hooks/lib/retro-extract.ts",
+      "sha256": "390086ac3d80bbce4787aae788f6fb788adbbd383f2134964bc5bb13b877d45e"
+    },
+    {
+      "path": "plugin/identity.json",
+      "sha256": "7676ee1f028e7af127a8a4a4333ca9694acd27f7147d7a34e19827bd2735c6f8"
+    },
+    {
+      "path": "plugin/inventory.json",
+      "sha256": "77bcc3f808b9caf85f1661f6ae3f07ee0e31c541c0e17dd5b75008b076ed3f12"
+    },
+    {
+      "path": "packages/cli/tests/closeout-skill.test.ts",
+      "sha256": "62535b652bfc9de168b85c778f8a9bab2358699ef56f2b24b5e1046bb70e32e9"
+    },
+    {
+      "path": "packages/cli/tests/closeout-cleanup.test.ts",
+      "sha256": "4bb256b3e92882085b62c32834948d6306017ad741245b7fbebf37c28fe464c0"
+    },
+    {
+      "path": "packages/cli/tests/commands/retro.test.ts",
+      "sha256": "d8e310ade30d658f78485977e6cc1bacd7f9442b47fe7e243390cf4e2d8fafa3"
+    },
+    {
+      "path": "packages/cli/tests/hooks/closeout-session-binding.test.ts",
+      "sha256": "2868f0a5a05762119529757d6f447845cd0c9fc6cf2d3d68311dddf23165368d"
+    },
+    {
+      "path": "packages/cli/tests/hooks/retro-extract.test.ts",
+      "sha256": "09e920e8d9515189b346d152b31c379c7ead165375014be31e4bbca1b3a1910c"
+    },
+    {
+      "path": "packages/cli/tests/integration/closeout-host-adapters.test.ts",
+      "sha256": "5a6c3a467d3784b30afa3c2b318f2ddaa48669855fc8ac5a4acdf5d02b064fa2"
+    },
+    {
+      "path": "packages/cli/tests/smoke/closeout-headless.live.test.ts",
+      "sha256": "b44fe610774c8a36ad1d8f16e84530e5758b85e44b498c03acd80e2c8f205f82"
+    },
+    {
+      "path": "packages/cli/tests/manual-closeout-review.test.ts",
+      "sha256": "00b7b21c1944cfd13984636387d8aa4d8f0072d21ae64af4899fe66e260ed1c8"
+    },
+    {
+      "path": "packages/cli/src/parity.ts",
+      "sha256": "7260f5937ce32fc5999545a1a79b63e0780fdfcc536f3f175a5553373002039e"
+    },
+    {
+      "path": "packages/cli/src/codex-plugin/catalogue.ts",
+      "sha256": "d3055def60c9930bb9b0e771884dffa2e5114ad1433a5c9821d1bda23e7fcc0c"
+    },
+    {
+      "path": "packages/cli/src/claude-plugin/catalogue.ts",
+      "sha256": "7124a0076b9aa3ec51d7ff611b7d279c50516ff6397ce57806f406b5ba43d83d"
+    },
+    {
+      "path": ".project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json",
+      "sha256": "e10a4f92044cdc8d3d57a3952d85316c8b3cdda50ee11379dad5eb9db1e29d6e"
+    }
   ],
   "expected_scenarios": [
-    { "id": "01", "title": "Current delivery evidence makes an authorized merge eligible" },
-    { "id": "02", "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=missing local verification, resolution=run current local verification)" },
-    { "id": "03", "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=stale local verification, resolution=verify the pull request head)" },
-    { "id": "04", "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=failing local verification, resolution=fix the local verification failure)" },
-    { "id": "05", "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=a pending required hosted check, resolution=wait for the required check)" },
-    { "id": "06", "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=a failing required hosted check, resolution=fix the hosted check failure)" },
-    { "id": "07", "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=an unresolved review requirement, resolution=resolve the review requirement)" },
-    { "id": "08", "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=draft pull request state, resolution=mark the pull request ready when approved)" },
-    { "id": "09", "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=auto-merge enabled but not merged, resolution=wait for a confirmed merged state)" },
-    { "id": "10", "title": "A fully closed delivery reports every final state" },
-    { "id": "11", "title": "A completed retro permits cleanup (result=zero substantial findings)" },
-    { "id": "12", "title": "A completed retro permits cleanup (result=every finding filed)" },
-    { "id": "13", "title": "Incomplete retro blocks cleanup (state=not run, resolution=run the retrospective)" },
-    { "id": "14", "title": "Incomplete retro blocks cleanup (state=failed extraction, resolution=resolve the extraction failure)" },
-    { "id": "15", "title": "Incomplete retro blocks cleanup (state=failed filing, resolution=resolve the filing failure)" },
-    { "id": "16", "title": "Incomplete retro blocks cleanup (state=pending drafts in the spool, resolution=drain the filing spool)" },
-    { "id": "17", "title": "A request to skip retro does not create a bypass" },
-    { "id": "18", "title": "Closeout continues only the unfinished suffix (completed=verification, authority=absent, next=report ready without attempting a merge)" },
-    { "id": "19", "title": "Closeout continues only the unfinished suffix (completed=verification, authority=explicit normal merge, next=attempt the authorized policy-compliant merge)" },
-    { "id": "20", "title": "Closeout continues only the unfinished suffix (completed=entry into the merge queue, authority=already exercised, next=wait for a confirmed merged state)" },
-    { "id": "21", "title": "Closeout continues only the unfinished suffix (completed=confirmed merge and completed retro, authority=already exercised, next=clean the exact targets)" },
-    { "id": "22", "title": "Closeout continues only the unfinished suffix (completed=worktree removal and remote branch removal, authority=already exercised, next=remove the exact local branch)" },
-    { "id": "23", "title": "A local merge-command error after remote success is partial success" },
-    { "id": "24", "title": "An unconfirmed merge result stops safely (result=returned success)" },
-    { "id": "25", "title": "An unconfirmed merge result stops safely (result=returned an error)" },
-    { "id": "26", "title": "A blocked closeout reports every simultaneous unresolved item" },
-    { "id": "27", "title": "Re-running a completed closeout is unchanged" },
-    { "id": "28", "title": "Explicit authority bounds the merge action (authority=no merge authority, outcome=reports readiness without attempting a merge)" },
-    { "id": "29", "title": "Explicit authority bounds the merge action (authority=normal merge authority, outcome=attempts a policy-compliant merge without bypassing rules)" },
-    { "id": "30", "title": "Explicit authority bounds the merge action (authority=administrative merge authority, outcome=attempts the explicitly authorized administrative merge)" },
-    { "id": "31", "title": "Normal authority never escalates to an administrative merge" },
-    { "id": "32", "title": "Historical or implied admin intent is insufficient" },
-    { "id": "33", "title": "Missing, ambiguous, or unmerged pull request identity blocks cleanup (pull-request-state=no matching pull request)" },
-    { "id": "34", "title": "Missing, ambiguous, or unmerged pull request identity blocks cleanup (pull-request-state=multiple matching pull requests)" },
-    { "id": "35", "title": "Missing, ambiguous, or unmerged pull request identity blocks cleanup (pull-request-state=one matching pull request that is not merged)" },
-    { "id": "36", "title": "Exact merged identity permits ordered cleanup" },
-    { "id": "37", "title": "A squash or rebase merge can clean an exact non-ancestor branch" },
-    { "id": "38", "title": "Already absent exact targets remain complete" },
-    { "id": "39", "title": "A merged topic branch with no linked worktree cleans only its exact branches" },
-    { "id": "40", "title": "Changed branch identity is preserved (target=local branch)" },
-    { "id": "41", "title": "Changed branch identity is preserved (target=remote branch)" },
-    { "id": "42", "title": "Unsafe worktree targets are never removed (state=the main worktree, resolution=main worktrees are never closeout targets)" },
-    { "id": "43", "title": "Unsafe worktree targets are never removed (state=a dirty linked worktree, resolution=review or commit the uncommitted changes)" },
-    { "id": "44", "title": "Unsafe worktree targets are never removed (state=a locked linked worktree, resolution=review the lock reason before unlocking)" },
-    { "id": "45", "title": "Unsafe worktree targets are never removed (state=an ambiguous linked worktree, resolution=resolve the exact target identity)" },
-    { "id": "46", "title": "Unsafe worktree targets are never removed (state=a stale worktree registration, resolution=repair or prune the registration explicitly)" },
-    { "id": "47", "title": "A branch used by a different worktree is preserved" },
-    { "id": "48", "title": "Each local host entry point drives the canonical closeout workflow (runtime=Claude Code)" },
-    { "id": "49", "title": "Each local host entry point drives the canonical closeout workflow (runtime=OpenAI Codex)" },
-    { "id": "50", "title": "Each local host entry point drives the canonical closeout workflow (runtime=Cursor)" },
-    { "id": "51", "title": "Synchronized closeout artifacts pass host parity" },
-    { "id": "52", "title": "Closeout drift fails parity at the changed surface (surface=canonical template)" },
-    { "id": "53", "title": "Closeout drift fails parity at the changed surface (surface=dogfood Claude)" },
-    { "id": "54", "title": "Closeout drift fails parity at the changed surface (surface=generated Codex)" },
-    { "id": "55", "title": "Closeout drift fails parity at the changed surface (surface=generated Cursor)" }
+    {
+      "id": "01",
+      "title": "Current delivery evidence makes an authorized merge eligible"
+    },
+    {
+      "id": "02",
+      "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=missing local verification, resolution=run current local verification)"
+    },
+    {
+      "id": "03",
+      "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=stale local verification, resolution=verify the pull request head)"
+    },
+    {
+      "id": "04",
+      "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=failing local verification, resolution=fix the local verification failure)"
+    },
+    {
+      "id": "05",
+      "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=a pending required hosted check, resolution=wait for the required check)"
+    },
+    {
+      "id": "06",
+      "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=a failing required hosted check, resolution=fix the hosted check failure)"
+    },
+    {
+      "id": "07",
+      "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=an unresolved review requirement, resolution=resolve the review requirement)"
+    },
+    {
+      "id": "08",
+      "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=draft pull request state, resolution=mark the pull request ready when approved)"
+    },
+    {
+      "id": "09",
+      "title": "Incomplete delivery evidence blocks merge and cleanup (blocker=auto-merge enabled but not merged, resolution=wait for a confirmed merged state)"
+    },
+    {
+      "id": "10",
+      "title": "A fully closed delivery reports every final state"
+    },
+    {
+      "id": "11",
+      "title": "Retro extraction runs in the bound host runtime (host=Claude Code, extractor=Claude Code)"
+    },
+    {
+      "id": "12",
+      "title": "Retro extraction runs in the bound host runtime (host=OpenAI Codex, extractor=OpenAI Codex)"
+    },
+    {
+      "id": "13",
+      "title": "Retro extraction runs in the bound host runtime (host=Cursor, extractor=Cursor Agent)"
+    },
+    {
+      "id": "14",
+      "title": "A completed retro permits cleanup (result=zero substantial findings)"
+    },
+    {
+      "id": "15",
+      "title": "A completed retro permits cleanup (result=every finding filed)"
+    },
+    {
+      "id": "16",
+      "title": "Incomplete retro blocks cleanup (state=not run, resolution=run the retrospective)"
+    },
+    {
+      "id": "17",
+      "title": "Incomplete retro blocks cleanup (state=failed extraction, resolution=resolve the extraction failure)"
+    },
+    {
+      "id": "18",
+      "title": "Incomplete retro blocks cleanup (state=failed filing, resolution=resolve the filing failure)"
+    },
+    {
+      "id": "19",
+      "title": "Incomplete retro blocks cleanup (state=pending drafts in the spool, resolution=drain the filing spool)"
+    },
+    {
+      "id": "20",
+      "title": "A request to skip retro does not create a bypass"
+    },
+    {
+      "id": "21",
+      "title": "Closeout continues only the unfinished suffix (completed=verification, authority=absent, next=report ready without attempting a merge)"
+    },
+    {
+      "id": "22",
+      "title": "Closeout continues only the unfinished suffix (completed=verification, authority=explicit normal merge, next=attempt the authorized policy-compliant merge)"
+    },
+    {
+      "id": "23",
+      "title": "Closeout continues only the unfinished suffix (completed=entry into the merge queue, authority=already exercised, next=wait for a confirmed merged state)"
+    },
+    {
+      "id": "24",
+      "title": "Closeout continues only the unfinished suffix (completed=confirmed merge and completed retro, authority=already exercised, next=clean the exact targets)"
+    },
+    {
+      "id": "25",
+      "title": "Closeout continues only the unfinished suffix (completed=worktree removal and remote branch removal, authority=already exercised, next=remove the exact local branch)"
+    },
+    {
+      "id": "26",
+      "title": "A local merge-command error after remote success is partial success"
+    },
+    {
+      "id": "27",
+      "title": "An unconfirmed merge result stops safely (result=returned success)"
+    },
+    {
+      "id": "28",
+      "title": "An unconfirmed merge result stops safely (result=returned an error)"
+    },
+    {
+      "id": "29",
+      "title": "A blocked closeout reports every simultaneous unresolved item"
+    },
+    {
+      "id": "30",
+      "title": "Re-running a completed closeout is unchanged"
+    },
+    {
+      "id": "31",
+      "title": "Explicit authority bounds the merge action (authority=no merge authority, outcome=reports readiness without attempting a merge)"
+    },
+    {
+      "id": "32",
+      "title": "Explicit authority bounds the merge action (authority=normal merge authority, outcome=attempts a policy-compliant merge without bypassing rules)"
+    },
+    {
+      "id": "33",
+      "title": "Explicit authority bounds the merge action (authority=administrative merge authority, outcome=attempts the explicitly authorized administrative merge)"
+    },
+    {
+      "id": "34",
+      "title": "Normal authority never escalates to an administrative merge"
+    },
+    {
+      "id": "35",
+      "title": "Historical or implied admin intent is insufficient"
+    },
+    {
+      "id": "36",
+      "title": "Missing, ambiguous, or unmerged pull request identity blocks cleanup (pull-request-state=no matching pull request)"
+    },
+    {
+      "id": "37",
+      "title": "Missing, ambiguous, or unmerged pull request identity blocks cleanup (pull-request-state=multiple matching pull requests)"
+    },
+    {
+      "id": "38",
+      "title": "Missing, ambiguous, or unmerged pull request identity blocks cleanup (pull-request-state=one matching pull request that is not merged)"
+    },
+    {
+      "id": "39",
+      "title": "Exact merged identity permits ordered cleanup"
+    },
+    {
+      "id": "40",
+      "title": "A squash or rebase merge can clean an exact non-ancestor branch"
+    },
+    {
+      "id": "41",
+      "title": "Already absent exact targets remain complete"
+    },
+    {
+      "id": "42",
+      "title": "A merged topic branch with no linked worktree cleans only its exact branches"
+    },
+    {
+      "id": "43",
+      "title": "Changed branch identity is preserved (target=local branch)"
+    },
+    {
+      "id": "44",
+      "title": "Changed branch identity is preserved (target=remote branch)"
+    },
+    {
+      "id": "45",
+      "title": "Unsafe worktree targets are never removed (state=the main worktree, resolution=main worktrees are never closeout targets)"
+    },
+    {
+      "id": "46",
+      "title": "Unsafe worktree targets are never removed (state=a dirty linked worktree, resolution=review or commit the uncommitted changes)"
+    },
+    {
+      "id": "47",
+      "title": "Unsafe worktree targets are never removed (state=a locked linked worktree, resolution=review the lock reason before unlocking)"
+    },
+    {
+      "id": "48",
+      "title": "Unsafe worktree targets are never removed (state=an ambiguous linked worktree, resolution=resolve the exact target identity)"
+    },
+    {
+      "id": "49",
+      "title": "Unsafe worktree targets are never removed (state=a stale worktree registration, resolution=repair or prune the registration explicitly)"
+    },
+    {
+      "id": "50",
+      "title": "A branch used by a different worktree is preserved"
+    },
+    {
+      "id": "51",
+      "title": "Each local host entry point drives the canonical closeout workflow (runtime=Claude Code)"
+    },
+    {
+      "id": "52",
+      "title": "Each local host entry point drives the canonical closeout workflow (runtime=OpenAI Codex)"
+    },
+    {
+      "id": "53",
+      "title": "Each local host entry point drives the canonical closeout workflow (runtime=Cursor)"
+    },
+    {
+      "id": "54",
+      "title": "Synchronized closeout artifacts pass host parity"
+    },
+    {
+      "id": "55",
+      "title": "Closeout drift fails parity at the changed surface (surface=canonical template)"
+    },
+    {
+      "id": "56",
+      "title": "Closeout drift fails parity at the changed surface (surface=dogfood Claude)"
+    },
+    {
+      "id": "57",
+      "title": "Closeout drift fails parity at the changed surface (surface=generated Codex)"
+    },
+    {
+      "id": "58",
+      "title": "Closeout drift fails parity at the changed surface (surface=generated Cursor)"
+    }
   ]
 }

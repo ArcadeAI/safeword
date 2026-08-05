@@ -168,14 +168,21 @@ describe('triage — never a duplicate issue (SM1.AC2)', () => {
     const result = await triage(gh, [enc('New friction')], ctx());
     expect(gh.calls.createIssue).toBe(1);
     expect(result.created).toEqual(['New friction']);
+    expect(result.filedDestinations).toEqual([{ signature: 'retro:New friction', issue: 1 }]);
   });
 
   it('retro-transcript-mining.SM1.AC2.existing_signature_creates_no_duplicate', async () => {
     const gh = new FakeGitHub();
-    gh.seedIssue('Known friction', { sessions: ['old'], manifestations: ['m1'] });
+    const existing = gh.seedIssue('Known friction', {
+      sessions: ['old'],
+      manifestations: ['m1'],
+    });
     const result = await triage(gh, [enc('Known friction')], ctx());
     expect(gh.calls.createIssue).toBe(0);
     expect(result.created).toEqual([]);
+    expect(result.filedDestinations).toEqual([
+      { signature: 'retro:Known friction', issue: existing.number },
+    ]);
   });
 
   it('retro-transcript-mining.SM1.AC2.exactly_five_new_signatures_all_file', async () => {

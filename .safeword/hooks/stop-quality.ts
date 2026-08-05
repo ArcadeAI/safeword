@@ -29,7 +29,12 @@ import {
   reviewGateForNextAsset,
   reviewScope,
 } from './lib/review-ledger.ts';
-import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
+import {
+  type BddPhase,
+  getDisqualificationMessage,
+  getQualityMessage,
+  isDecisionBriefCompliant,
+} from './lib/quality.ts';
 import {
   EXPLAIN_HINT,
   type FailureEntry,
@@ -791,4 +796,7 @@ const disqual = getDisqualificationMessage({
   pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
   recentRelevantFailure: recentRelevant,
 });
+if (!disqual && isDecisionBriefCompliant(combinedText)) {
+  process.exit(0);
+}
 softBlock(disqual ? `${baseMessage}\n\n${disqual}` : baseMessage);

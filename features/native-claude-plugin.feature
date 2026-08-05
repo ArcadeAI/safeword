@@ -14,7 +14,7 @@ Feature: Ship Safeword as a native Claude Code plugin
 
     Scenario Outline: Install converges supported profile states to the exact enabled user-scoped plugin
       Given a Claude Code 2.1.170 or newer profile with <initial-state>
-      When safeword claude install runs
+      When safeword claude install runs with --scope user
       Then the official marketplace and exact enabled Safeword version exist at user scope
       And every project file is byte-identical
       And unrelated profile state is byte-identical
@@ -26,6 +26,19 @@ Feature: Ship Safeword as a native Claude Code plugin
         | the exact official Safeword plugin disabled         |
         | an enabled older official Safeword plugin version   |
 
+    Scenario Outline: Install converges supported official source shapes and older release tags
+      Given a supported Claude profile uses the official marketplace in <source-shape> form at <marketplace-tag> with plugin <plugin-version>
+      When safeword claude install runs with --scope user
+      Then the official marketplace and exact enabled Safeword version exist at user scope
+      And every project file is byte-identical
+      And unrelated profile state is byte-identical
+
+      Examples:
+        | source-shape     | marketplace-tag | plugin-version |
+        | flattened fields | v0.70.0         | 0.70.0        |
+        | packed string    | v0.70.0         | 0.70.0        |
+        | flattened fields | v0.71.0         | 0.71.0        |
+
     Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
       Given a project that has never installed Safeword
       When safeword setup runs for native Claude delivery
@@ -36,7 +49,7 @@ Feature: Ship Safeword as a native Claude Code plugin
     @rejection
     Scenario Outline: Install refuses an unsupported Claude host before profile mutation
       Given the Claude executable reports <version>
-      When safeword claude install runs
+      When safeword claude install runs with --scope user
       Then it returns unsupported-host with profile and project state byte-identical
       And upgrading or reinstalling Claude Code is the sole safe next action
 
@@ -48,21 +61,34 @@ Feature: Ship Safeword as a native Claude Code plugin
     @rejection
     Scenario: Install refuses a marketplace name that resolves to an unofficial source
       Given the active Claude profile maps the Safeword marketplace name to a different source
-      When safeword claude install runs
+      When safeword claude install runs with --scope user
       Then installation fails without changing the project or the conflicting marketplace
       And the result names the official marketplace identity as the safe next action
+
+    Scenario Outline: Install refuses malformed, noncanonical, or newer official marketplace tags
+      Given the active Claude profile maps the official marketplace in <source-shape> form to <marketplace-tag>
+      When safeword claude install runs with --scope user
+      Then installation fails without changing the project or the conflicting marketplace
+      And the result names the official marketplace identity as the safe next action
+
+      Examples:
+        | source-shape     | marketplace-tag  |
+        | flattened fields | v999.0.0          |
+        | packed string    | v0.71.0+shadow    |
+        | flattened fields | release-0.70.0    |
+        | packed string    | v0.72.0-rc.1      |
 
     @rejection
     Scenario: Install rejects current metadata backed by a legacy cached payload
       Given the exact enabled plugin metadata points to a cache without native identity
-      When safeword claude install runs
+      When safeword claude install runs with --scope user
       Then installation fails as unverified without changing the project
       And no reload action is reported for the legacy cached payload
 
     @rejection
     Scenario Outline: Claude subprocess failure reports partial profile effects without project mutation
       Given a supported Claude profile whose <operation> command fails
-      When safeword claude install runs
+      When safeword claude install runs with --scope user
       Then it returns errored without changing project files or unrelated profile values
       And profile files outside the observed Claude command write set are byte-identical
       And every profile effect completed before the failure is reported exactly
@@ -118,10 +144,10 @@ Feature: Ship Safeword as a native Claude Code plugin
       And execution proof is written beneath CLAUDE_PLUGIN_DATA
       And ticket, configuration, and runtime project state remain beneath the project root
 
-    Scenario: An aggregate event returns one valid host response
+    Scenario: Separate SessionStart hooks return host-safe responses
       Given the installed plugin cache is available without its source checkout or package registry
       When its generated SessionStart entrypoint executes
-      Then Claude receives one valid SessionStart response containing every sibling context
+      Then Claude receives independently valid SessionStart responses containing every sibling context
 
     @rejection
     Scenario: A failed sibling hook prevents event-level plugin proof

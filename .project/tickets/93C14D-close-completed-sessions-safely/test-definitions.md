@@ -28,6 +28,15 @@ required `Scenario:` heading grammar.
 
 ## Rule: close-completed-sessions-safely.NTB1.R2 — Retrospective capture is a mandatory prerequisite to destructive cleanup
 
+### Scenario Outline: Retro extraction runs in the bound host runtime
+
+- [x] RED — closeout's mandatory retro subprocess did not carry the bound host,
+      so Codex and Cursor could fall back to Claude extraction
+- [x] GREEN — the guard forwards `SAFEWORD_RETRO_AGENT` from the exact fresh
+      Claude/Codex/Cursor binding; each runtime has a checked headless extractor
+- [x] REFACTOR — runtime selection is a small pure mapping while the real
+      subprocess boundary test proves the environment is forwarded
+
 ### Scenario: A completed retro permits cleanup
 
 - [x] RED 0170c9663

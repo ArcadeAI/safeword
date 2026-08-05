@@ -1,13 +1,25 @@
 #!/usr/bin/env bun
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';
 import { readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
+import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
+
+export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
 
 export interface PullRequestIdentity {
   url: string;
@@ -138,10 +150,12 @@ function collectWorktreeBlockers(
   plan: CleanupPlan,
   pullRequest: PullRequestIdentity,
   topicWorktrees: WorktreeIdentity[],
-  mainWorktrees: WorktreeIdentity[],
+  defaultBranchWorktrees: WorktreeIdentity[],
   deliveryWorktreePath: string,
 ): void {
-  if (mainWorktrees.length !== 1) block(plan, 'exactly one surviving main worktree is required');
+  if (defaultBranchWorktrees.length !== 1) {
+    block(plan, 'exactly one surviving default-branch worktree is required');
+  }
   if (topicWorktrees.length > 1) block(plan, 'the linked topic worktree is ambiguous');
   const worktree = topicWorktrees[0];
   if (worktree && nodePath.resolve(worktree.path) !== nodePath.resolve(deliveryWorktreePath)) {
@@ -161,12 +175,12 @@ function assembleOperations(
   observation: CloseoutObservation,
   pullRequest: PullRequestIdentity,
   worktree: WorktreeIdentity | undefined,
-  mainWorktree: WorktreeIdentity,
+  survivingWorktree: WorktreeIdentity,
 ): void {
   if (worktree) {
     plan.operations.push({
       kind: 'remove-worktree',
-      cwd: mainWorktree.path,
+      cwd: survivingWorktree.path,
       path: worktree.path,
       oid: pullRequest.headRefOid,
     });
@@ -176,7 +190,7 @@ function assembleOperations(
   if (observation.remote) {
     plan.operations.push({
       kind: 'delete-remote-ref',
-      cwd: mainWorktree.path,
+      cwd: survivingWorktree.path,
       remote: observation.remote.name,
       ref: `refs/heads/${pullRequest.headRefName}`,
       oid: pullRequest.headRefOid,
@@ -187,7 +201,7 @@ function assembleOperations(
   if (observation.localRefOid) {
     plan.operations.push({
       kind: 'delete-local-ref',
-      cwd: mainWorktree.path,
+      cwd: survivingWorktree.path,
       ref: `refs/heads/${pullRequest.headRefName}`,
       oid: pullRequest.headRefOid,
     });
@@ -218,17 +232,19 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
   const topicWorktrees = observation.worktrees.filter(
     worktree => worktree.branch === pullRequest.headRefName,
   );
-  const mainWorktrees = observation.worktrees.filter(worktree => worktree.main);
+  const defaultBranchWorktrees = observation.worktrees.filter(
+    worktree => worktree.branch === observation.defaultBranch,
+  );
   collectWorktreeBlockers(
     plan,
     pullRequest,
     topicWorktrees,
-    mainWorktrees,
+    defaultBranchWorktrees,
     observation.deliveryWorktreePath,
   );
-  const mainWorktree = mainWorktrees[0];
-  if (plan.blockers.length === 0 && mainWorktree) {
-    assembleOperations(plan, observation, pullRequest, topicWorktrees[0], mainWorktree);
+  const survivingWorktree = defaultBranchWorktrees[0];
+  if (plan.blockers.length === 0 && survivingWorktree) {
+    assembleOperations(plan, observation, pullRequest, topicWorktrees[0], survivingWorktree);
   }
 
   return plan;
@@ -376,13 +392,13 @@ function run(
   command: string,
   arguments_: string[],
   cwd: string,
-  options: { shell?: boolean } = {},
+  options: { shell?: boolean; env?: Record<string, string | undefined> } = {},
 ): ProcessResult {
   const result = spawnSync(command, arguments_, {
     cwd,
     encoding: 'utf8',
     shell: options.shell ?? false,
-    env: process.env,
+    env: { ...process.env, ...options.env },
   });
   return {
     status: result.status ?? 1,
@@ -434,9 +450,23 @@ export function safewordCliCommand(root: string): [string, ...string[]] {
   return ['bunx', 'safeword'];
 }
 
-function runSafeword(root: string, arguments_: string[]): ProcessResult {
+function runSafeword(
+  root: string,
+  arguments_: string[],
+  env?: Record<string, string | undefined>,
+): ProcessResult {
   const [command, ...prefix] = safewordCliCommand(root);
-  return run(command, [...prefix, ...arguments_], root);
+  return run(command, [...prefix, ...arguments_], root, { env });
+}
+
+type SafewordRunner = (
+  root: string,
+  arguments_: string[],
+  env?: Record<string, string | undefined>,
+) => ProcessResult;
+
+export function retroAgentForRuntime(runtime: CloseoutBinding['runtime']): string {
+  return runtime;
 }
 
 function exactCodexTranscript(id: string): string | undefined {
@@ -463,9 +493,8 @@ interface TranscriptMetadata {
   sessionId?: unknown;
   session_id?: unknown;
   conversation_id?: unknown;
-  cwd?: unknown;
   type?: unknown;
-  payload?: { id?: unknown; cwd?: unknown };
+  payload?: { id?: unknown };
 }
 
 function exactString(value: unknown): string | undefined {
@@ -477,8 +506,23 @@ export function transcriptMatchesBinding(
   binding: CloseoutBinding,
   repositoryRoot: string,
 ): boolean {
-  if (!existsSync(transcriptPath)) return false;
-  const expectedRoot = nodePath.resolve(repositoryRoot);
+  if (
+    !existsSync(transcriptPath) ||
+    !existsSync(repositoryRoot) ||
+    !existsSync(binding.projectRoot)
+  )
+    return false;
+  const expectedRoot = realpathSync(repositoryRoot);
+  if (realpathSync(binding.projectRoot) !== expectedRoot) return false;
+  if (binding.runtime === 'cursor') {
+    const resolvedTranscript = realpathSync(transcriptPath);
+    return (
+      nodePath.basename(resolvedTranscript) === `${binding.id}.jsonl` &&
+      nodePath.basename(nodePath.dirname(resolvedTranscript)) === binding.id &&
+      nodePath.basename(nodePath.dirname(nodePath.dirname(resolvedTranscript))) ===
+        'agent-transcripts'
+    );
+  }
   try {
     return readFileSync(transcriptPath, 'utf8')
       .split('\n')
@@ -491,10 +535,7 @@ export function transcriptMatchesBinding(
           exactString(record.session_id) ??
           exactString(record.conversation_id) ??
           exactString(codexMetadata?.id);
-        const cwd = exactString(record.cwd) ?? exactString(codexMetadata?.cwd);
-        return (
-          sessionId === binding.id && cwd !== undefined && nodePath.resolve(cwd) === expectedRoot
-        );
+        return sessionId === binding.id;
       });
   } catch {
     return false;
@@ -524,19 +565,27 @@ export function classifyRetroFailure(
   return 'unknown';
 }
 
-function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['retro'] {
+export function runBoundRetro(
+  root: string,
+  binding: CloseoutBinding,
+  runner: SafewordRunner = runSafeword,
+): CloseoutObservation['retro'] {
   const transcript = resolveTranscript(binding, root);
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0 };
-  const retro = runSafeword(root, [
-    'retro',
-    'run',
-    '--json',
-    '--auto-extract',
-    '--transcript',
-    transcript,
-    '--session-id',
-    binding.id,
-  ]);
+  const retro = runner(
+    root,
+    [
+      'retro',
+      'run',
+      '--json',
+      '--auto-extract',
+      '--transcript',
+      transcript,
+      '--session-id',
+      binding.id,
+    ],
+    { SAFEWORD_RETRO_AGENT: retroAgentForRuntime(binding.runtime) },
+  );
   const result = json<{
     state?: string;
     data?: { agent_filing_needed?: boolean };
@@ -569,14 +618,108 @@ interface TestPlanEntry {
   available: boolean;
 }
 
+interface VerificationReceipt {
+  version: 1;
+  headOid: string;
+  stateHash: string;
+  recordedAt: string;
+}
+
+const VERIFICATION_RECEIPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function cleanWorkingStateHash(headOid: string): string {
+  return createHash('sha256').update(`${headOid}\0`).digest('hex');
+}
+
+function verificationReceiptPath(root: string): string | undefined {
+  const commonDirectory = git(root, 'rev-parse', '--git-common-dir');
+  const path = commonDirectory.stdout.trim();
+  return commonDirectory.status === 0 && path !== ''
+    ? nodePath.join(nodePath.resolve(root, path), 'safeword', 'closeout-verification.json')
+    : undefined;
+}
+
+function readVerificationReceipt(
+  root: string,
+  expectedOid: string,
+  now = new Date(),
+): VerificationReceipt | undefined {
+  const path = verificationReceiptPath(root);
+  if (!path || !existsSync(path)) return undefined;
+  try {
+    const receipt = JSON.parse(readFileSync(path, 'utf8')) as Partial<VerificationReceipt>;
+    const recordedAt =
+      typeof receipt.recordedAt === 'string' ? Date.parse(receipt.recordedAt) : NaN;
+    return receipt.version === 1 &&
+      receipt.headOid === expectedOid &&
+      receipt.stateHash === cleanWorkingStateHash(expectedOid) &&
+      Number.isFinite(recordedAt) &&
+      recordedAt <= now.getTime() &&
+      now.getTime() - recordedAt <= VERIFICATION_RECEIPT_MAX_AGE_MS
+      ? (receipt as VerificationReceipt)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function invalidateVerificationReceipt(root: string): boolean {
+  const path = verificationReceiptPath(root);
+  if (!path || !existsSync(path)) return true;
+  try {
+    unlinkSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeVerificationReceipt(
+  root: string,
+  receipt: Omit<VerificationReceipt, 'version'>,
+): boolean {
+  const path = verificationReceiptPath(root);
+  if (!path) return false;
+  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(temporaryPath, `${JSON.stringify({ version: 1, ...receipt })}\n`, {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    renameSync(temporaryPath, path);
+    return true;
+  } catch {
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    return false;
+  }
+}
+
 function workingStateHash(root: string, headOid: string): string {
   const status = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
   return createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex');
 }
 
 function runVerification(root: string, expectedOid: string): CloseoutObservation['verification'] {
-  let passed = true;
-  for (const kind of ['verify', 'build', 'typecheck', 'bdd', 'deps']) {
+  const observedHead = git(root, 'rev-parse', 'HEAD').stdout.trim();
+  if (observedHead !== expectedOid) {
+    const receipt = readVerificationReceipt(root, expectedOid);
+    return receipt
+      ? {
+          current: true,
+          passed: true,
+          headOid: receipt.headOid,
+          stateHash: receipt.stateHash,
+        }
+      : {
+          current: false,
+          passed: false,
+          headOid: observedHead,
+          stateHash: workingStateHash(root, observedHead),
+        };
+  }
+  let passed = invalidateVerificationReceipt(root);
+  for (const kind of POST_MERGE_VERIFICATION_KINDS) {
     const planResult = runSafeword(root, [
       'project',
       'test-plan',
@@ -597,11 +740,43 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
     }
   }
   const headOid = git(root, 'rev-parse', 'HEAD').stdout.trim();
-  return {
+  const status = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
+  const clean = status.status === 0 && status.stdout === '';
+  const verification = {
     current: headOid === expectedOid,
-    passed,
+    passed: passed && clean,
     headOid,
-    stateHash: workingStateHash(root, headOid),
+    stateHash: createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex'),
+  };
+  if (verification.current && verification.passed) {
+    verification.passed = writeVerificationReceipt(root, {
+      headOid,
+      stateHash: verification.stateHash,
+      recordedAt: new Date().toISOString(),
+    });
+  }
+  return verification;
+}
+
+export function resolveCloseoutBinding(
+  root: string,
+  env: Record<string, string | undefined> = process.env,
+): CloseoutBinding | undefined {
+  const bridged = readFreshCloseoutBinding({ projectDirectory: root });
+  if (bridged !== undefined) return bridged;
+
+  const identity = resolveRunIdentity({}, { env });
+  if (
+    identity.runtime !== 'codex' ||
+    identity.source !== 'CODEX_THREAD_ID' ||
+    identity.sessionKey === null
+  ) {
+    return undefined;
+  }
+  return {
+    runtime: 'codex',
+    id: identity.sessionKey,
+    projectRoot: realpathSync(root),
   };
 }
 
@@ -614,7 +789,7 @@ interface GhPullRequest {
   headRepository?: { name?: string; nameWithOwner?: string };
 }
 
-function pullRequestIdentity(value: GhPullRequest): PullRequestIdentity | undefined {
+export function pullRequestIdentity(value: GhPullRequest): PullRequestIdentity | undefined {
   const owner =
     value.headRepositoryOwner?.login ?? value.headRepository?.nameWithOwner?.split('/')[0];
   const repository =
@@ -726,11 +901,15 @@ function observeProtection(
     root,
   );
   const parsed = json<{ protected?: boolean }>(result);
-  return parsed?.protected === true
-    ? 'protected'
-    : parsed?.protected === false
-      ? 'unprotected'
-      : 'unknown';
+  return resolveProtection('matched', parsed?.protected);
+}
+
+export function resolveProtection(
+  remoteResolution: CloseoutObservation['remoteResolution'],
+  observed?: boolean,
+): CloseoutObservation['protection'] {
+  if (remoteResolution === 'absent') return 'unprotected';
+  return observed === true ? 'protected' : observed === false ? 'unprotected' : 'unknown';
 }
 
 export function defaultBranchArguments(identity: PullRequestIdentity): string[] {
@@ -780,13 +959,13 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
     defaultBranch,
     protection:
       identity && mutableTargets.remoteResolution === 'absent'
-        ? 'unprotected'
+        ? resolveProtection(mutableTargets.remoteResolution)
         : identity
           ? observeProtection(root, identity)
           : 'unknown',
     deliveryWorktreePath: nodePath.resolve(root),
     verification: runVerification(root, expectedOid),
-    retro: runRetro(root, binding),
+    retro: runBoundRetro(root, binding),
   };
 }
 
@@ -809,7 +988,7 @@ function argumentValue(name: string): string | undefined {
 if (import.meta.main) {
   const root = resolveRepositoryRoot(process.cwd());
   const pr = argumentValue('--pr');
-  const binding = root ? readFreshCloseoutBinding({ projectDirectory: root }) : undefined;
+  const binding = root ? resolveCloseoutBinding(root) : undefined;
   if (!root || !pr || !binding) {
     console.error(
       'closeout blocked: repository, --pr, and a fresh host session binding are required',

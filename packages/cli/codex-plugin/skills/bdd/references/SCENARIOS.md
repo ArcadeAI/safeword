@@ -18,9 +18,9 @@
 
 Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features). For tiny features with one obvious behavioral dimension and no partitioning to enumerate, dimensions.md may instead be a single line `skip: <non-empty reason>`.
 
-### Scenario saturation
+### Are the scenarios complete?
 
-Each propose-and-converge turn either surfaces new scenarios or doesn't. When a turn produces no new scenarios → proceed to scenario-gate.
+Ask the user: **Do these scenarios fully describe the intended behavior and important boundaries, or is anything missing?** If their feedback adds scenarios, revise the set and ask again. When they confirm nothing is missing, proceed to scenario-gate.
 
 ### Concrete example
 
@@ -55,7 +55,7 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **User:** "Looks good, proceed."
 
-**Result:** No new scenarios → scenario saturation → proceed to scenario-gate.
+**Result:** The user confirms the intended behavior and important boundaries are fully described → proceed to scenario-gate.
 
 ### Two formats: discovery vs saved
 
@@ -198,11 +198,11 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 **Entry:** Agent enters `scenario-gate` phase.
 
-Run the **`$safeword:review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Apply its findings, then complete the saturation check and exit below.
+Run the **`$safeword:review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Apply its findings, then complete the plain-language completeness check and exit below.
 
-### Coverage saturation
+### Are the reviewed scenarios complete?
 
-If the adversarial pass + user feedback produced new scenarios → loop back to define-behavior. If nothing new surfaced → done.
+Ask the user: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior. When nothing is missing, the quality gate is complete.
 
 ### Scenario Gate Exit
 

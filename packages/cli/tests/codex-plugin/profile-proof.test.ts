@@ -11,6 +11,7 @@ import {
   codexActivationIsPending,
   type CodexHostProcessIdentity,
   codexProofPath,
+  codexSessionProofIsCurrent,
   currentCodexPluginIdentity,
   observeCodexHookProof,
   recordCodexHookProof,
@@ -107,6 +108,39 @@ describe('Codex profile hook proof', () => {
       recordCodexHookProof(event, environment);
     }
     expect(observeCodexHookProof(environment).status).toBe('current');
+  });
+
+  it('binds SessionStart proof to one canonical project and Codex task', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    const otherProject = nodePath.join(codexHome, 'other-project');
+    mkdirSync(project);
+    mkdirSync(otherProject);
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:00:00.000Z'), {
+      projectDirectory: project,
+      sessionId: 'task-a',
+    });
+
+    expect(codexSessionProofIsCurrent(project, 'task-a', environment)).toBe(true);
+    expect(codexSessionProofIsCurrent(project, 'task-b', environment)).toBe(false);
+    expect(codexSessionProofIsCurrent(otherProject, 'task-a', environment)).toBe(false);
+  });
+
+  it('invalidates task proof when the profile plugin is reinstalled', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    mkdirSync(project);
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:00:00.000Z'), {
+      projectDirectory: project,
+      sessionId: 'task-a',
+    });
+
+    writeCodexActivationMarker(environment, new Date('2026-08-02T09:01:00.000Z'), {
+      activeHosts: [],
+    });
+
+    expect(codexSessionProofIsCurrent(project, 'task-a', environment)).toBe(false);
   });
 
   it('invalidates proof that predates a new installation', () => {

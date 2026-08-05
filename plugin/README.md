@@ -18,13 +18,18 @@ Safeword configures AI coding agents with proven development workflows:
 
 ```bash
 safeword claude install
+# Or, to enable Safeword across every project in this Claude profile:
+safeword claude install --scope user
 # In Claude Code:
 /reload-plugins
 safeword claude status
 ```
 
-The installer pins the official release at user scope and verifies the installed
-cache payload. It does not modify project files.
+The installer pins the official release at project scope by default and records
+the declaration in `.claude/settings.json`. Explicit `--scope user` activation
+instead writes the Claude profile and leaves the repository unchanged. Status
+reports both installations as `scope-overlap` when they apply together; neither
+is removed automatically. Both modes verify the same Claude-owned cache payload.
 
 ### From GitHub
 
@@ -43,7 +48,8 @@ claude --plugin-dir /path/to/safeword/plugin
 
 After installing or updating, run `/reload-plugins` to make the plugin available
 in the current task. The next prompt records execution proof bound to the exact
-version, hook-manifest digest, and canonical installed cache path.
+version, hook-manifest digest, canonical installed cache path, and current
+canonical project root.
 
 Project state is still created explicitly:
 

@@ -1,18 +1,27 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  ackFilePath,
+  draftSpoolPath,
   fileSpooledDrafts,
   readAcks,
   readSpooledDrafts,
+  recordFiledAck,
   spoolDrafts,
   type SpooledDraft,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
 import { retroDraft as draft, sealedRetroDraft } from '../helpers.js';
+
+const DRAIN_RETRO_SPOOL = nodePath.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/lib/drain-retro-spool.ts',
+);
 
 describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbatim, drain filed)', () => {
   let projectDirectory: string;
@@ -119,6 +128,82 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([
       draft('retro:bbbbbbbbbbbb', 'Failing'),
     ]);
+  });
+
+  it('retains a posted draft when its acknowledgement write fails', async () => {
+    const posted = draft('retro:aaaaaaaaaaaa', 'Posted');
+    spoolDrafts(projectDirectory, 'sess-1', [posted]);
+    mkdirSync(ackFilePath(projectDirectory, 'sess-1'));
+
+    const result = await fileSpooledDrafts(projectDirectory, 'sess-1', () =>
+      Promise.resolve({ issue: 101 }),
+    );
+
+    expect(result).toEqual({ posted: 0, failed: 1, rejected: 0 });
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([posted]);
+  });
+
+  it('retains a posted draft when its acknowledgement cannot be read back', async () => {
+    const posted = draft('retro:aaaaaaaaaaaa', 'Posted');
+    spoolDrafts(projectDirectory, 'sess-1', [posted]);
+    const path = ackFilePath(projectDirectory, 'sess-1');
+    writeFileSync(path, '');
+    chmodSync(path, 0o200);
+
+    const result = await fileSpooledDrafts(projectDirectory, 'sess-1', () =>
+      Promise.resolve({ issue: 101 }),
+    );
+
+    expect(result).toEqual({ posted: 0, failed: 1, rejected: 0 });
+    expect(readAcks(projectDirectory, 'sess-1')).toEqual([]);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([posted]);
+  });
+
+  it.each([undefined, '', ' '.repeat(3), 0, -1, NaN, Infinity])(
+    'rejects an acknowledgement destination that its reader would not accept: %s',
+    issue => {
+      expect(
+        recordFiledAck(projectDirectory, 'sess-1', {
+          signature: 'retro:aaaaaaaaaaaa',
+          issue,
+        } as { signature: string; issue: number | string }),
+      ).toBe(false);
+      expect(readAcks(projectDirectory, 'sess-1')).toEqual([]);
+    },
+  );
+
+  it('retains a posted draft when the poster returns an invalid destination', async () => {
+    const posted = draft('retro:aaaaaaaaaaaa', 'Invalid destination');
+    spoolDrafts(projectDirectory, 'sess-1', [posted]);
+
+    const result = await fileSpooledDrafts(projectDirectory, 'sess-1', () =>
+      Promise.resolve({ issue: undefined } as unknown as { issue: number | string }),
+    );
+
+    expect(result).toEqual({ posted: 0, failed: 1, rejected: 0 });
+    expect(readAcks(projectDirectory, 'sess-1')).toEqual([]);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([posted]);
+  });
+
+  it('the shipped drain helper removes only reader-visible acknowledged drafts', () => {
+    const acknowledged = draft('retro:aaaaaaaaaaaa', 'Acknowledged');
+    const unacknowledged = draft('retro:bbbbbbbbbbbb', 'Unacknowledged');
+    spoolDrafts(projectDirectory, 'sess-1', [acknowledged, unacknowledged]);
+    expect(
+      recordFiledAck(projectDirectory, 'sess-1', {
+        signature: acknowledged.signature,
+        issue: 101,
+      }),
+    ).toBe(true);
+
+    const result = spawnSync(
+      'bun',
+      [DRAIN_RETRO_SPOOL, draftSpoolPath(projectDirectory, 'sess-1')],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.status).toBe(0);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([unacknowledged]);
   });
 
   it('leaves an un-postable draft spooled for retry, and a later boundary still nudges for it', async () => {

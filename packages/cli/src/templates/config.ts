@@ -434,12 +434,12 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/session-dependency-readiness.ts`),
     asyncRewakeHook(`bun ${HOOKS_DIR}/session-auto-upgrade.ts`),
     hook(`bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
+    hook(`bun ${HOOKS_DIR}/session-reply-format.ts --agent=claude`),
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
     hook(`bun ${HOOKS_DIR}/session-architecture-heal.ts`),
     hook(`bun ${HOOKS_DIR}/session-author-model.ts`),
     hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
-    matchedHook('compact', `bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-compact-context.ts`),
   ],
   UserPromptSubmit: [

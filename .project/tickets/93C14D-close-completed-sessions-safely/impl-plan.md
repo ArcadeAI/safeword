@@ -56,13 +56,18 @@ Proof and build order:
 5. Make retro a natural prerequisite owned by the guard. Claude, Codex, and
    Cursor pre-shell hooks bind the host-provided exact session/conversation id to
    the imminent guard command in a short-lived, project-scoped, single-consumer
-   cache (Cursor binds `transcript_path` too).
+   cache, including the canonical project root (Cursor binds `transcript_path`
+   too).
    The guard fails closed when that binding is missing or expired—there is no
    newest-file fallback. It resolves the exact transcript from the bound identity,
-   proves the transcript metadata/cwd belongs to the current repository/worktree,
+   proves Claude/Codex metadata or Cursor's canonical transcript path belongs to
+   the bound repository/worktree,
    derives the spool identity from that transcript, invokes
-   `safeword retro run --format json`
-   with either the egress-guarded findings file or supported auto-extraction,
+   `safeword retro run --json --auto-extract` with
+   `SAFEWORD_RETRO_AGENT` selected from the bound Claude, Codex, or Cursor host.
+   Every extractor distinguishes valid empty findings from failure; Cursor runs
+   with deny-all tool permissions, an enabled sandbox, no temporary writes, and
+   deny-default network policy,
    parses the process result directly, and reads that derived session's spool.
    Only a healthy/changed result with `data.agent_filing_needed: false` and zero
    pending drafts can produce a cleanup plan. Callers cannot supply a receipt or
@@ -148,6 +153,12 @@ No ADR is warranted: this is a reversible use of established extension points.
   unknown rather than absent, lookalike GitHub URLs are rejected, and concurrent
   bindings cannot overwrite or adopt another session. NUL-delimited worktree
   observation also preserves paths containing newlines or blank lines.
+- Final sealed-review adversarial testing found that branch-only and already-absent
+  resumes could not re-run exact-head verification from the surviving worktree.
+  The guard now keeps a private 24-hour Git-common-dir receipt only for a clean,
+  successful exact-head run, invalidates it before every retry, and rejects stale,
+  malformed, dirty-state, or wrong-head proof. Real-Git tests cover all remaining
+  cleanup suffixes plus the negative receipt lifecycle.
 - The independent semantic gate is hash-bound to the final Claude, Cursor,
   Codex, guard, feature, and automated-result artifacts. Its deterministic test
   rejects stale inputs, unknown reviewers, missing or non-binary rows, and any

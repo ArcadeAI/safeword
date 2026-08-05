@@ -91,8 +91,22 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
 
 async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline) return onlineRequired('claude install');
+  const requestedScope = invocation.options.scope ?? 'project';
+  if (requestedScope !== 'project' && requestedScope !== 'user') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: 'Claude plugin scope must be either project or user.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'claude install' },
+    });
+  }
   const { installClaudePlugin } = await import('../claude-plugin/profile.js');
-  return installClaudePlugin(invocation.cwd);
+  return installClaudePlugin(invocation.cwd, requestedScope);
 }
 
 async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -912,6 +926,17 @@ function runCodexInstall(
   };
 }
 
+async function codexBootstrapHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { bootstrapCodexPlugin } = await import('../commands/codex-bootstrap.js');
+  let rawInput = '';
+  try {
+    rawInput = readFileSync(0, 'utf8');
+  } catch {
+    // A missing hook payload is reported as unverified, never as a blocker.
+  }
+  return bootstrapCodexPlugin(invocation.cwd, rawInput, { offline: invocation.offline });
+}
+
 function codexFailureCode(
   error: unknown,
   message: string,
@@ -1351,6 +1376,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'tracker connect': invocation => trackerHandler('tracker connect', invocation),
   'codex migrate': invocation => codexMutationHandler('codex migrate', invocation),
   'codex install': invocation => codexMutationHandler('codex install', invocation),
+  'codex bootstrap': codexBootstrapHandler,
   'codex status': codexStatusHandler,
   'claude install': claudeInstallHandler,
   'claude status': claudeStatusHandler,

@@ -30,6 +30,14 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-reply-format.ts --agent=claude"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-version.ts"
           }
         ]
@@ -63,15 +71,6 @@
           {
             "type": "command",
             "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-start-reentry.ts"
-          }
-        ]
-      },
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-safeword-context.ts --agent=claude"
           }
         ]
       },

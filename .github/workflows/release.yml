@@ -22,7 +22,9 @@ on:
 permissions: {}
 
 concurrency:
-  group: release-${{ github.ref }}
+  # One release at a time: an older tag finishing late must never move the
+  # customer-facing stable channel behind a newer release.
+  group: safeword-stable-release
   cancel-in-progress: false # never cancel an in-flight publish
 
 jobs:
@@ -162,3 +164,43 @@ jobs:
             --access public \
             --tag "$NPM_TAG" \
             --ignore-scripts
+
+  promote-stable:
+    name: Promote stable plugin channel
+    needs: publish
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout published release
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify the exact public package before promotion
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PUBLISHED_VERSION=$(npm view "safeword@$TAG_VERSION" version)
+          if [ "$PUBLISHED_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::npm returned $PUBLISHED_VERSION for safeword@$TAG_VERSION"
+            exit 1
+          fi
+
+      - name: Advance stable without force or rollback
+        run: |
+          git fetch origin refs/heads/stable:refs/remotes/origin/stable || true
+          if git show-ref --verify --quiet refs/remotes/origin/stable && \
+             ! git merge-base --is-ancestor refs/remotes/origin/stable "$GITHUB_SHA"; then
+            echo "::error::Refusing to move stable backward or across unrelated history"
+            exit 1
+          fi
+          git push origin "$GITHUB_SHA:refs/heads/stable"

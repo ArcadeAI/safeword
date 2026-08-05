@@ -30,6 +30,11 @@ describe('safeword-retro-filer agent definitions (GH628F — shipped artifacts p
 // the drain prohibition — the behavioral half of the bare-drain tripwire.
 describe('filer ack procedure in shipped prompts (GH644A)', () => {
   const mdText = readFileSync(nodePath.join(AGENTS_DIR, 'safeword-retro-filer.md'), 'utf8');
+  const claudeSkillText = readFileSync(nodePath.join(SKILLS_DIR, 'retro-filer/SKILL.md'), 'utf8');
+  const codexSkillText = readFileSync(
+    nodePath.join(PLUGIN_SKILLS_DIR, 'retro-filer/SKILL.md'),
+    'utf8',
+  );
   const guideText = readFileSync(
     nodePath.resolve(import.meta.dirname, '../../templates/guides/self-report-filing.md'),
     'utf8',
@@ -39,6 +44,20 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
     expect(mdText).toContain('.acks.jsonl');
     expect(mdText.toLowerCase()).toMatch(/after each successful post/);
     expect(mdText.toLowerCase()).toMatch(/before (draining|you drain)/);
+    expect(mdText.toLowerCase()).toContain('re-read that ack file');
+    expect(mdText.toLowerCase()).toContain('only when that exact record is visible');
+    expect(mdText).toContain('drain-retro-spool.ts');
+    expect(mdText.toLowerCase()).toContain('never rewrite or');
+  });
+
+  it.each([
+    ['Claude fallback skill', claudeSkillText],
+    ['Codex plugin skill', codexSkillText],
+  ])('%s requires write-confirmed acknowledgement before removal', (_label, text) => {
+    expect(text.toLowerCase()).toContain('re-read it and exact-match');
+    expect(text.toLowerCase()).toContain('only when the append succeeded');
+    expect(text.toLowerCase()).toContain('append or verification fails, leave the draft in place');
+    expect(text).toContain('drain-retro-spool.ts');
   });
 
   it('the dispatch text states that only the filer drains the spool', async () => {
@@ -51,6 +70,10 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
   it("the guide's inline-fallback section documents appending the ack record", () => {
     expect(guideText).toContain('.acks.jsonl');
     expect(guideText.toLowerCase()).toMatch(/ack record|ack line/);
+    expect(guideText.toLowerCase()).toContain('re-read the ack file');
+    expect(guideText.toLowerCase()).toContain('only a draft with that write-confirmed record');
+    expect(guideText).toContain('drain-retro-spool.ts');
+    expect(guideText.toLowerCase()).toContain('explicit enforcement limit');
   });
 });
 

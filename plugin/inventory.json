@@ -3,15 +3,15 @@
   "assets": [
     {
       "path": "agents/safeword-retro-filer.md",
-      "sha256": "562f68cdec41156ec1ea1a74a4041ddef225b34d66f29b87e34363c6952cffe9"
+      "sha256": "2d5f4474bac8c752e4eeeaec615b6b90723fe45842b0b997a38dd726dce6bbc3"
     },
     {
       "path": "hooks/hooks.json",
-      "sha256": "79728d2f2251659a458208ac8d5ea45fe7aebe54e9204e4aaa108de491e39503"
+      "sha256": "e2919a15d4ab1838c26d5679dd0167a119960a74752b1dd1a3f404d6e500fef0"
     },
     {
       "path": "package.json",
-      "sha256": "45a45ac44b6c8047e66a19b065373448db7293e3f1084e2f206dcded4f31166c"
+      "sha256": "44c13567262ae5bcd88a9243478d642cdfc2e170f2e1c8cd887b167b529bc629"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -55,7 +55,7 @@
     },
     {
       "path": "resources/guides/self-report-filing.md",
-      "sha256": "8f43077e93a0817adfce58954eaf7cef73d22118638baa4b64c044b3b583ddcb"
+      "sha256": "f506f55a24869ed2dee54b855440dcabc771c6ff8329ae4df2c484eb60e4a7e0"
     },
     {
       "path": "resources/guides/skill-eval-optimization-guide.md",
@@ -87,7 +87,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "c04aa3390330a1b070f1939426a56291b985205da2790c6ef3d593991e732526"
+      "sha256": "2985c120fc447c8ae26706e5ef76c5cbd5da2402f6fe78f756a4a135b8cf27dc"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -127,15 +127,15 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f06136ac8bb631cbd9a66e58af1ca4e935cbc87bc186160d920669c08a0797b7"
+      "sha256": "593554b41becd0037b5a1696642c97e33b3b21f9c47cf3949110f025b9234b7d"
     },
     {
       "path": "runtime/dispatch.ts",
-      "sha256": "4534464d0d41e9ccea209780e27d25ebefbef938b00a34b597f35ff9c0e7bc33"
+      "sha256": "7ae850c6da5a3c3815818de802688ae4af6b71d055eeca8f8f5ceb8371fb3973"
     },
     {
       "path": "runtime/event-groups.json",
-      "sha256": "4ed2fdbb7b7ac150a397040464494fc0eb034cc1c67e5331697fdc42d664177c"
+      "sha256": "95bba61fd386c81cb7abb061b67c42a81a5ea1d9c1c87130fc0a9fc35366a0da"
     },
     {
       "path": "runtime/hooks/audit-principle-trace.ts",
@@ -183,7 +183,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "4d2508635bdccb42feeb30d58fc0584991535bf72d40f0a7b5d04df88d898dc2"
+      "sha256": "4d89818ea62ee89d894a56a1947e05d1ee9edbf8eff45882a2c3adc2a589164e"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -204,6 +204,10 @@
     {
       "path": "runtime/hooks/lib/done-gate.ts",
       "sha256": "ec20a296e371793841d24f0b2d89150391d13ad40fa4faeab28c5d8193b44546"
+    },
+    {
+      "path": "runtime/hooks/lib/drain-retro-spool.ts",
+      "sha256": "4cf68e893669ffd335db24816d8b7d92d2e08df76b010bb7210616d6ede73b5e"
     },
     {
       "path": "runtime/hooks/lib/git-operation.ts",
@@ -287,7 +291,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "5357c7466670414953e05ec2306c6b20eaaed0197c43aae029e3ff1b6c792e04"
+      "sha256": "e70eed9fdae0cda61cb2e9356394e7aae333368aa15dfc8b4242e668a692942a"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -311,11 +315,11 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "f44a4f581f16c993a29485c2496189e6167d604b94a5b70d1dbfb63c745086f0"
+      "sha256": "07c60b19333e7df750635a6e558b198f53818ba5b94ce82ffd827c25c3bf991d"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
-      "sha256": "8b6267faf4f97a3e1833eec72eb40cb46655e6e4bb517e6ca9445a12c28592d2"
+      "sha256": "390086ac3d80bbce4787aae788f6fb788adbbd383f2134964bc5bb13b877d45e"
     },
     {
       "path": "runtime/hooks/lib/retro-filing-gate.ts",
@@ -323,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-nudge.ts",
-      "sha256": "75329fab0d03e0d4303b1ccceff6051c7190c3d99dd7360b94d01913cc96d6d1"
+      "sha256": "b0205d7b3aca177a7d2f6b3694bf3519aa4127bd9875f0d265fc5226b5980a34"
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
@@ -451,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/record-skill-invocation.ts",
-      "sha256": "29fb33b76a98b5d8e96f3ce00dbfd0efde3ffa6db322d4e08d75046a895157e7"
+      "sha256": "b700df1e48aeb3e85aded1bcd042d12b82a901d4b1af79503a248df41045566f"
     },
     {
       "path": "runtime/hooks/resolve-namespace-root.ts",
@@ -502,6 +506,10 @@
       "sha256": "54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2"
     },
     {
+      "path": "runtime/hooks/session-reply-format.ts",
+      "sha256": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532"
+    },
+    {
       "path": "runtime/hooks/session-safeword-context.ts",
       "sha256": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5"
     },
@@ -515,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "109d9a3f43f41323fcb603d3cda3b61e405fa082b5bf791f68b24842129fd5ab"
+      "sha256": "dba14a854a5cd730efc16c74f10b498f2e7caa753a5ee089dfd9b0f17b64873a"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -555,7 +563,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "1600df799059ea9d399f6a7bdd16c0f03be2cdd1f1f743595c350600a5d9ce5b"
+      "sha256": "2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -583,7 +591,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "c14dd3c006e4e4593c111456dec7b8b72c41734213914a601251518635760377"
+      "sha256": "4880f44b0bcfaaaf743c5b31b9fbcb507aa884897158c53471bbf06a1ca82425"
     },
     {
       "path": "skills/debug/SKILL.md",
@@ -615,7 +623,7 @@
     },
     {
       "path": "skills/retro-filer/SKILL.md",
-      "sha256": "69784daf36495f00611e0057b6cc52a0ce0a0be4744c96d5ee37f784251cfb52"
+      "sha256": "ab8ee614de58b92cb47a648e63fcc612b9b4d53ec984b8bbdf6ec0ac6efb61a0"
     },
     {
       "path": "skills/retro/SKILL.md",

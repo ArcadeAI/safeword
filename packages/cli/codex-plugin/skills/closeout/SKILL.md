@@ -27,6 +27,9 @@ Collect and report every blocker. Missing, stale, failing, pending, unknown, or
 ambiguous evidence means **no merge or cleanup**. A merge command's exit status
 never proves that the pull request is merged.
 
+Dependency audit is part of this delivery-time verification boundary. Resolve
+its failures before merge while the pull request head can still be changed.
+
 ## 2. Respect merge authority
 
 Invocation alone grants no merge authority. Read authority only from the current user request;
@@ -63,13 +66,20 @@ complete only after proving it was the exact planned target. If the pull request
 is merged, its retrospective is complete, and its exact branch and worktree are
 already absent, report that the session is already closed.
 
+The guard records a private, atomic verification receipt in Git's shared common
+directory only after every verification lane passes on a clean exact PR head.
+For 24 hours, that receipt can prove the immutable head when an interrupted
+cleanup must resume from a surviving worktree after the topic worktree is gone.
+A missing, stale, malformed, dirty-state, or wrong-head receipt blocks cleanup.
+
 ## 4. Complete the current session's retrospective
 
 After merge is independently confirmed, invoke the cleanup guard in preview
 mode. Its host hook supplies a short-lived, single-consumer binding to this exact
-session (and Cursor transcript). A missing or expired binding fails closed;
-there is no newest-session fallback and callers cannot nominate another receipt,
-session, transcript, or spool.
+session (and Cursor transcript). Codex Desktop may instead supply its authenticated
+current `CODEX_THREAD_ID`, consistent with SafeWord's other Codex identity bridges.
+A missing or expired binding or identity fails closed; there is no newest-session
+fallback and callers cannot nominate another receipt, session, transcript, or spool.
 
 The guard runs `safeword retro run --json` itself and accepts only a
 successful result whose `data.agent_filing_needed` is `false` and whose derived
@@ -89,10 +99,13 @@ Run the guard from the delivery worktree; preview is the default:
 bun .safeword/scripts/closeout-cleanup.ts --pr PR_NUMBER
 ```
 
-The preview reruns the project's verification, build, typecheck, BDD, and
-dependency plans and binds the resulting repository state and exact PR identity
-to `PLAN_DIGEST`. Report the complete operation list and all blockers. Do not
-apply a blocked plan.
+At the exact delivery head, the post-merge preview reruns the project's
+verification, build, typecheck, and BDD plans. It does not rerun dependency audit:
+that changing intelligence is enforced at the delivery-time, pre-merge boundary
+and cannot repair an immutable merged head. After that worktree is gone, preview
+requires its fresh clean-head receipt instead. It binds the resulting repository
+state and exact PR identity to `PLAN_DIGEST`. Report the complete operation list
+and all blockers. Do not apply a blocked plan.
 
 With the user's cleanup intent already established by invoking closeout, apply
 only the unchanged preview:
