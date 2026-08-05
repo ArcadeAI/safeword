@@ -227,7 +227,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An exhausted reviewer agent is retried on its alternate model
 
 - [x] RED e8b1a6bdd
-- [ ] GREEN
+- [x] GREEN 5f4ec9fd6
 - [ ] REFACTOR
 
 ### Scenario: An alternate model that also fails falls back to the author's own runtime
