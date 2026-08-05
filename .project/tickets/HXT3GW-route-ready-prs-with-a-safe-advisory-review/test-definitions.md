@@ -14,7 +14,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: A draft revision creates no receipt
 
-- [ ] RED
+- [x] RED d763c43a8
 - [ ] GREEN
 - [ ] REFACTOR
 
