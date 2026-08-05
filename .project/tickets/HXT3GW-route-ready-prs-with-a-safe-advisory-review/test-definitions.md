@@ -32,7 +32,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: A prerequisite that never appears remains conservatively pending
 
-- [ ] RED
+- [x] RED 08b759d7e
 - [ ] GREEN
 - [ ] REFACTOR
 
