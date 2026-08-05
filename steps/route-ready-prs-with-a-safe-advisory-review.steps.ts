@@ -17,6 +17,7 @@ type ObservableReceipt = PublishedReceipt & {
     technologyGate?: string;
   }>;
   markerOwned?: boolean;
+  missingEvidence?: string[];
   missingChecks?: string[];
   nextAction?: string;
   reviewableTextArtifacts?: number;
@@ -30,6 +31,8 @@ interface AdvisoryReviewWorld {
   binaryArtifactPath?: string;
   changedArtifactKind?: 'binary' | 'text';
   changedArtifactPath?: string;
+  evidenceArtifacts?: Array<{ byteLength: number; path: string }>;
+  maxTotalBytes?: number;
   receiptBeforeTrigger?: string;
   prerequisiteSamples?: number;
   prerequisitesConfigured?: boolean;
@@ -161,6 +164,20 @@ Given(
     this.changedArtifactKind = 'binary';
     this.changedArtifactPath = path;
     this.currentHead = 'revision A';
+    this.prerequisites = 'passed';
+    this.ready = true;
+  },
+);
+
+Given(
+  "a ready pull request's changed text exceeds `maxTotalBytes`",
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.evidenceArtifacts = [
+      { byteLength: 60, path: 'src/first.ts' },
+      { byteLength: 50, path: 'src/over-budget.ts' },
+    ];
+    this.maxTotalBytes = 100;
     this.prerequisites = 'passed';
     this.ready = true;
   },
@@ -333,6 +350,44 @@ Then('the route is `needs a human`', function (this: AdvisoryReviewWorld) {
   const receipt = this.receipts?.[0];
   assert.equal(receipt && 'route' in receipt && receipt.route, 'needs_human');
 });
+
+When(
+  'Safeword assembles the bounded integrity evidence',
+  async function (this: AdvisoryReviewWorld) {
+    this.attempts = 0;
+    this.receipts = [];
+    this.outcome = await reviewPullRequest({
+      readPullRequest: async () => ({
+        headSha: this.currentHead ?? '',
+        prerequisitesConfigured: true,
+        prerequisites: this.prerequisites ?? 'pending',
+        ready: this.ready ?? false,
+      }),
+      inspect: async () => {
+        this.attempts = (this.attempts ?? 0) + 1;
+        return {
+          artifacts: this.evidenceArtifacts?.map(artifact => ({
+            ...artifact,
+            kind: 'text' as const,
+          })),
+          consequentialFindings: 0,
+          maxTotalBytes: this.maxTotalBytes,
+          unknowns: [],
+        };
+      },
+      publish: async receipt => {
+        this.receipts?.splice(0, this.receipts.length, receipt);
+      },
+    });
+  },
+);
+
+Then(
+  'the receipt names the over-budget artifacts as missing required evidence',
+  function (this: AdvisoryReviewWorld) {
+    assert.deepEqual(this.receipts?.[0]?.missingEvidence, ['src/over-budget.ts']);
+  },
+);
 
 When('Safeword evaluates review eligibility', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
