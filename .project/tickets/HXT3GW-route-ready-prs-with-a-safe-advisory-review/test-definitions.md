@@ -102,7 +102,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 77fab4030
 - [x] GREEN f4138c283
-- [ ] REFACTOR
+- [x] REFACTOR skip: bounded evidence normalization is already isolated from receipt routing
 
 ### Scenario: Evidence exactly at the total-byte budget remains reviewable
 
