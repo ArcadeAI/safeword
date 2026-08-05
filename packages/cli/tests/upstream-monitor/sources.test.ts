@@ -1,15 +1,32 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildIssuePayload,
   createSnapshotText,
   detectSourceChange,
   getMonitorSource,
   normalizeCursorHtml,
+  normalizeIssueState,
   normalizeReleaseAtom,
+  parseGitHubRepo,
   snapshotBody,
 } from '../../src/upstream-monitor/index.js';
 
 describe('upstream monitor source adapters', () => {
+  it.each(['owner/repo/extra', 'owner/', '/repo'])(
+    'rejects malformed repository name %s',
+    value => {
+      expect(parseGitHubRepo(value)).toBeUndefined();
+    },
+  );
+
+  it('parses an owner/repo repository name', () => {
+    expect(parseGitHubRepo('ArcadeAI/safeword')).toEqual({
+      owner: 'ArcadeAI',
+      repo: 'safeword',
+    });
+  });
+
   it('normalizes Codex release Atom feeds into stable release text', () => {
     const normalized = normalizeReleaseAtom(`
       <?xml version="1.0" encoding="UTF-8"?>
@@ -40,6 +57,33 @@ describe('upstream monitor source adapters', () => {
     );
   });
 
+  it('reads Atom titles wrapped in CDATA without leaking the markers', () => {
+    const normalized = normalizeReleaseAtom(`
+      <feed>
+        <entry>
+          <title type="html"><![CDATA[v0.150.0]]></title>
+          <updated>2026-08-01T00:00:00Z</updated>
+          <link href="https://example.test/v0.150.0" />
+        </entry>
+      </feed>
+    `);
+
+    // A leaked "<![CDATA[" would sit in the snapshot forever and diff against
+    // every non-CDATA release, firing the monitor on markup, not on news.
+    expect(normalized).toContain('v0.150.0');
+    expect(normalized).not.toContain('CDATA');
+  });
+
+  it('does not spill attribute text into content when an attribute value contains ">"', () => {
+    // Third-party markup this repo does not control. A naive tag scanner exits
+    // tag mode at the ">" inside the quoted href and emits the rest as prose.
+    const normalized = normalizeCursorHtml(
+      '<main><p><a href="/c?a=1>2">Shipped hooks</a></p></main>',
+    );
+
+    expect(normalized).toBe('Shipped hooks');
+  });
+
   it('normalizes Cursor HTML without reacting to cosmetic markup differences', () => {
     const first = normalizeCursorHtml(`
       <main>
@@ -58,6 +102,53 @@ describe('upstream monitor source adapters', () => {
 
     expect(second).toBe(first);
     expect(first).toBe("What's New in Cursor\nJune 20, 2026\nAdded hooks.");
+  });
+
+  it.each(['&#x1FFFFFFF;', '&#9999999999;', '&#xD800;'])(
+    'replaces invalid numeric character reference %s instead of disabling the watch',
+    characterReference => {
+      expect(normalizeCursorHtml(`<p>before ${characterReference} after</p>`)).toBe(
+        'before � after',
+      );
+    },
+  );
+
+  // Raw API payloads, not JS objects: GitHub really does send
+  // `"state_reason": null` on an open issue, and the normalizer has to survive
+  // exactly that.
+  const OPEN_ISSUE = '{"number":18115,"state":"open","state_reason":null,"title":"anything"}';
+  const CLOSED_ISSUE = '{"number":18115,"state":"closed","state_reason":"completed"}';
+
+  it('reduces a watched upstream issue to its open/closed state', () => {
+    expect(normalizeIssueState(OPEN_ISSUE)).toBe('state: open\nstate_reason: none');
+    expect(normalizeIssueState(CLOSED_ISSUE)).toBe('state: closed\nstate_reason: completed');
+  });
+
+  it('ignores upstream issue churn that is not a state change', () => {
+    const busy =
+      '{"number":18115,"state":"open","state_reason":null,"title":"Support project-scoped plugins (renamed)","body":"edited again","comments":47,"labels":[{"name":"enhancement"}],"updated_at":"2026-08-04T00:00:00Z"}';
+
+    // A watched issue attracts comments and edits constantly. Only a state
+    // change should wake anyone; anything else trains people to ignore it.
+    expect(normalizeIssueState(busy)).toBe(normalizeIssueState(OPEN_ISSUE));
+  });
+
+  it('fires when the watched upstream issue closes', () => {
+    const source = getMonitorSource('codex-project-plugins');
+    const snapshot = createSnapshotText(
+      source,
+      normalizeIssueState(OPEN_ISSUE),
+      '2026-08-04T00:00:00.000Z',
+    );
+
+    const change = detectSourceChange({
+      source,
+      liveContent: normalizeIssueState(CLOSED_ISSUE),
+      snapshotContent: snapshot,
+    });
+
+    expect(change.changed).toBe(true);
+    expect(buildIssuePayload(change).body).toContain('openai/codex#18115');
   });
 
   it('compares live content against the snapshot body, not metadata headers', () => {

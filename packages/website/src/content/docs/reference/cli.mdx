@@ -99,12 +99,14 @@ same path during its compatibility window.
 
 Setup auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 
-Claude Code delivery is user-scoped and separate from project setup. Fresh setup does not create Safe Word-owned `.claude/settings.json` hooks or `.claude/skills/`; existing legacy Claude assets remain protected until the native plugin is proven and their reviewed cleanup is explicitly confirmed.
+Claude Code delivery is separate from project setup. `safeword claude install` defaults to project scope and records Claude's marketplace and plugin activation in `.claude/settings.json`; `--scope user` activates the same cached plugin across projects. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh setup does not create legacy Safe Word-owned Claude hooks or skills.
 
 ## Claude Code plugin
 
 ```bash
 safeword claude install
+# Or intentionally activate it across projects:
+safeword claude install --scope user
 # In the current Claude Code task:
 /reload-plugins
 safeword claude status
@@ -114,7 +116,7 @@ safeword claude cleanup
 safeword claude recover # only when status reports recovery-required
 ```
 
-`claude install` pins and verifies the official user-scoped plugin without changing project files. After install or update, `/reload-plugins` activates it in the current task; the next prompt records proof bound to the installed version and bundled hook manifest. `claude status` is read-only. Cleanup never installs, updates, enables, reloads, or trusts a plugin: it removes only recognized legacy Safeword project assets after exact plugin proof and explicit plan confirmation, preserving custom and third-party content.
+`claude install` selects and verifies the official stable plugin at project scope by default, preserving unrelated settings and an explicit native-update opt-out. Pass `--scope user` for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next prompt records proof bound to the installed version and bundled hook manifest. `claude status` is read-only. Cleanup never installs, updates, enables, reloads, or trusts a plugin: it removes only recognized legacy Safeword project assets after exact plugin proof and explicit plan confirmation, preserving custom and third-party content.
 
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
@@ -201,7 +203,7 @@ Safeword manages two types of files:
 
 ### safeword codex install
 
-Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. For an existing Git-backed Safe Word marketplace, the command refreshes the marketplace before reinstalling the plugin; a fresh profile adds it first. This profile-only action does not create or modify project Codex configuration. Restart Codex after installation, start a new task to load one coherent skills-and-hooks catalogue, then review it in `/hooks`.
+Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled from the verified `stable` channel. This explicit command is useful for immediate enrollment; ordinary setup also commits a project SessionStart bootstrap that performs the same profile-only enrollment for each collaborator. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue.
 
 ```bash
 bunx safeword@latest codex install
@@ -250,11 +252,11 @@ Resume the safe migration for the current profile and repository:
 bunx safeword@latest codex migrate
 ```
 
-The first run installs the profile plugin without changing repository files.
-Restart Codex, start a new task, review `/hooks`, and run
-`safeword codex status`. Working legacy
-handlers remain authoritative for the events they can still run; the packaged
-plugin covers missing or broken legacy events.
+This explicit flow remains available for diagnosis and recovery. Ordinary
+setup or upgrade now handles a fully recognized, unmodified legacy installation
+automatically: it installs the profile plugin first, creates the SessionStart
+bootstrap, then transactionally backs up and removes the recognized legacy
+assets. If installation fails, the complete legacy installation remains.
 
 Once status reports `compatibility`, preview or explicitly confirm
 finalization:
@@ -288,7 +290,14 @@ Recovery first returns an exact plan and copyable `--yes --plan <plan-id>`
 command. It refuses to overwrite files edited after finalization and names the
 conflicting path. Resolve that edit before retrying.
 
-These commands require Bun. Normal `setup` does not install a profile-scoped Codex plugin, create a `.codex` directory, recreate project-local Codex hooks, or retire recognized legacy protection. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
+These commands require Bun. Normal `setup` creates or merges one marked
+`[[hooks.SessionStart]]` bootstrap in `.codex/config.toml`; it installs no
+PreToolUse or command-interception hook. At task start the bootstrap exits
+successfully and is silent only when exact profile, project, version, and task
+proof exists. Otherwise it emits a prominent warning, explains that work may
+continue without Safeword protection, and gives one recovery action. Plugin
+hooks use version-pinned `bunx --bun safeword@<version>` commands; they never
+use npx or bypass Codex hook trust.
 
 Installing the plugin does not enroll repositories. Project-scoped Codex gates
 and state activate only after `safeword setup` creates

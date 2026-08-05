@@ -13464,7 +13464,10 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
         template: "hooks/session-reply-format.ts"
       },
       ".safeword/hooks/session-codex-start.ts": {
-        template: "hooks/session-codex-start.ts"
+        template: "hooks/session-codex-start.ts",
+        generator: () => {
+          return;
+        }
       },
       ".safeword/hooks/session-cursor-auto-upgrade.ts": {
         template: "hooks/session-cursor-auto-upgrade.ts"
@@ -13628,6 +13631,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".safeword/templates/work-log-template.md": {
         template: "doc-templates/work-log-template.md"
+      },
+      ".safeword/templates/tripwire-template.md": {
+        template: "doc-templates/tripwire-template.md"
       },
       ".safeword/templates/spec-template.md": {
         template: "spec-template.md"
@@ -26656,6 +26662,3078 @@ function durableRename(source, destination) {
 }
 var init_durable_write = () => {};
 
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/date.js
+var DATE_TIME_RE, TomlDate;
+var init_date = __esm(() => {
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+  DATE_TIME_RE = /^(\d{4}-\d{2}-\d{2})?[T ]?(?:(\d{2}):\d{2}(?::\d{2}(?:\.\d+)?)?)?(Z|[-+]\d{2}:\d{2})?$/i;
+  TomlDate = class TomlDate extends Date {
+    #hasDate = false;
+    #hasTime = false;
+    #offset = null;
+    constructor(date) {
+      let hasDate = true;
+      let hasTime = true;
+      let offset = "Z";
+      if (typeof date === "string") {
+        let match = date.match(DATE_TIME_RE);
+        if (match) {
+          if (!match[1]) {
+            hasDate = false;
+            date = `0000-01-01T${date}`;
+          }
+          hasTime = !!match[2];
+          hasTime && date[10] === " " && (date = date.replace(" ", "T"));
+          if (match[2] && +match[2] > 23) {
+            date = "";
+          } else {
+            offset = match[3] || null;
+            date = date.toUpperCase();
+            if (!offset && hasTime)
+              date += "Z";
+          }
+        } else {
+          date = "";
+        }
+      }
+      super(date);
+      if (!isNaN(this.getTime())) {
+        this.#hasDate = hasDate;
+        this.#hasTime = hasTime;
+        this.#offset = offset;
+      }
+    }
+    isDateTime() {
+      return this.#hasDate && this.#hasTime;
+    }
+    isLocal() {
+      return !this.#hasDate || !this.#hasTime || !this.#offset;
+    }
+    isDate() {
+      return this.#hasDate && !this.#hasTime;
+    }
+    isTime() {
+      return this.#hasTime && !this.#hasDate;
+    }
+    isValid() {
+      return this.#hasDate || this.#hasTime;
+    }
+    toISOString() {
+      let iso = super.toISOString();
+      if (this.isDate())
+        return iso.slice(0, 10);
+      if (this.isTime())
+        return iso.slice(11, 23);
+      if (this.#offset === null)
+        return iso.slice(0, -1);
+      if (this.#offset === "Z")
+        return iso;
+      let offset = +this.#offset.slice(1, 3) * 60 + +this.#offset.slice(4, 6);
+      offset = this.#offset[0] === "-" ? offset : -offset;
+      let offsetDate = new Date(this.getTime() - offset * 60000);
+      return offsetDate.toISOString().slice(0, -1) + this.#offset;
+    }
+    static wrapAsOffsetDateTime(jsDate, offset = "Z") {
+      let date = new TomlDate(jsDate);
+      date.#offset = offset;
+      return date;
+    }
+    static wrapAsLocalDateTime(jsDate) {
+      let date = new TomlDate(jsDate);
+      date.#offset = null;
+      return date;
+    }
+    static wrapAsLocalDate(jsDate) {
+      let date = new TomlDate(jsDate);
+      date.#hasTime = false;
+      date.#offset = null;
+      return date;
+    }
+    static wrapAsLocalTime(jsDate) {
+      let date = new TomlDate(jsDate);
+      date.#hasDate = false;
+      date.#offset = null;
+      return date;
+    }
+  };
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/error.js
+function getLineColFromPtr(string, ptr) {
+  let lines = string.slice(0, ptr).split(/\r\n|\n|\r/g);
+  return [lines.length, lines.pop().length + 1];
+}
+function makeCodeBlock(string, line, column) {
+  let lines = string.split(/\r\n|\n|\r/g);
+  let codeblock = "";
+  let numberLen = (Math.log10(line + 1) | 0) + 1;
+  for (let i = line - 1;i <= line + 1; i++) {
+    let l = lines[i - 1];
+    if (!l)
+      continue;
+    codeblock += i.toString().padEnd(numberLen, " ");
+    codeblock += ":  ";
+    codeblock += l;
+    codeblock += `
+`;
+    if (i === line) {
+      codeblock += " ".repeat(numberLen + column + 2);
+      codeblock += `^
+`;
+    }
+  }
+  return codeblock;
+}
+var TomlError;
+var init_error = __esm(() => {
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+  TomlError = class TomlError extends Error {
+    line;
+    column;
+    codeblock;
+    constructor(message, options) {
+      const [line, column] = getLineColFromPtr(options.toml, options.ptr);
+      const codeblock = makeCodeBlock(options.toml, line, column);
+      super(`Invalid TOML document: ${message}
+
+${codeblock}`, options);
+      this.line = line;
+      this.column = column;
+      this.codeblock = codeblock;
+    }
+  };
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/primitive.js
+function parseString(str, ptr) {
+  let c = str[ptr++];
+  let first = c;
+  let isLiteral = c === "'";
+  let isMultiline = c === str[ptr] && c === str[ptr + 1];
+  if (isMultiline) {
+    if (str[ptr += 2] === `
+`)
+      ptr++;
+    else if (str[ptr] === "\r" && str[ptr + 1] === `
+`)
+      ptr += 2;
+  }
+  let parsed = "";
+  let sliceStart = ptr;
+  let state = 0;
+  for (let i = ptr;i < str.length; i++) {
+    c = str[i];
+    if (isMultiline && (c === `
+` || c === "\r" && str[i + 1] === `
+`)) {
+      state = state && 3;
+    } else if (c < " " && c !== "\t" || c === "\x7F") {
+      throw new TomlError("control characters are not allowed in strings", {
+        toml: str,
+        ptr: i
+      });
+    } else if ((!state || state === 3) && c === first && (!isMultiline || str[i + 1] === first && str[i + 2] === first)) {
+      if (isMultiline) {
+        if (str[i + 3] === first)
+          i++;
+        if (str[i + 3] === first)
+          i++;
+      }
+      return [
+        state ? parsed : parsed + str.slice(sliceStart, i),
+        i + (isMultiline ? 3 : 1)
+      ];
+    } else if (!state) {
+      if (!isLiteral && c === "\\") {
+        parsed += str.slice(sliceStart, sliceStart = i);
+        state = 1;
+      }
+    } else if (state === 1) {
+      if (c === "x" || c === "u" || c === "U") {
+        let value = 0;
+        let len = c === "x" ? 2 : c === "u" ? 4 : 8;
+        for (let j = 0;j < len; j++, i++) {
+          let hex = str.charCodeAt(i + 1);
+          let digit = hex >= 48 && hex <= 57 ? hex - 48 : hex >= 65 && hex <= 70 ? hex - 65 + 10 : hex >= 97 && hex <= 102 ? hex - 97 + 10 : -1;
+          if (digit < 0)
+            throw new TomlError("invalid non-hex character in unicode escape", { toml: str, ptr: i + 1 });
+          value = value << 4 | digit;
+        }
+        if (value < 0 || value > 1114111 || value >= 55296 && value <= 57343) {
+          throw new TomlError("invalid unicode escape", { toml: str, ptr: i });
+        }
+        parsed += String.fromCodePoint(value);
+        sliceStart = i + 1;
+        state = 0;
+      } else if (c === " " || c === "\t") {
+        state = 2;
+      } else {
+        if (c === "b")
+          parsed += "\b";
+        else if (c === "t")
+          parsed += "\t";
+        else if (c === "n")
+          parsed += `
+`;
+        else if (c === "f")
+          parsed += "\f";
+        else if (c === "r")
+          parsed += "\r";
+        else if (c === "e")
+          parsed += "\x1B";
+        else if (c === '"')
+          parsed += '"';
+        else if (c === "\\")
+          parsed += "\\";
+        else
+          throw new TomlError("unrecognized escape sequence", { toml: str, ptr: i });
+        sliceStart = i + 1;
+        state = 0;
+      }
+    } else if (c !== " " && c !== "\t") {
+      if (state === 2) {
+        throw new TomlError("invalid escape: only line-ending whitespace may be escaped", {
+          toml: str,
+          ptr: sliceStart
+        });
+      }
+      state = !isLiteral && c === "\\" ? 1 : 0;
+      sliceStart = i;
+    }
+  }
+  throw new TomlError("unfinished string", { toml: str, ptr });
+}
+function parseValue(value, toml, ptr, integersAsBigInt) {
+  if (value === "true")
+    return true;
+  if (value === "false")
+    return false;
+  if (value === "-inf")
+    return -Infinity;
+  if (value === "inf" || value === "+inf")
+    return Infinity;
+  if (value === "nan" || value === "+nan" || value === "-nan")
+    return NaN;
+  if (value === "-0")
+    return integersAsBigInt ? 0n : 0;
+  let isInt = INT_REGEX.test(value);
+  if (isInt || FLOAT_REGEX.test(value)) {
+    if (LEADING_ZERO.test(value)) {
+      throw new TomlError("leading zeroes are not allowed", {
+        toml,
+        ptr
+      });
+    }
+    value = value.replace(/_/g, "");
+    let numeric = +value;
+    if (isNaN(numeric)) {
+      throw new TomlError("invalid number", {
+        toml,
+        ptr
+      });
+    }
+    if (isInt) {
+      if ((isInt = !Number.isSafeInteger(numeric)) && !integersAsBigInt) {
+        throw new TomlError("integer value cannot be represented losslessly", {
+          toml,
+          ptr
+        });
+      }
+      if (isInt || integersAsBigInt === true)
+        numeric = BigInt(value);
+    }
+    return numeric;
+  }
+  const date = new TomlDate(value);
+  if (!date.isValid()) {
+    throw new TomlError("invalid value", {
+      toml,
+      ptr
+    });
+  }
+  return date;
+}
+var INT_REGEX, FLOAT_REGEX, LEADING_ZERO;
+var init_primitive = __esm(() => {
+  init_date();
+  init_error();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+  INT_REGEX = /^((0x[0-9a-fA-F](_?[0-9a-fA-F])*)|(([+-]|0[ob])?\d(_?\d)*))$/;
+  FLOAT_REGEX = /^[+-]?\d(_?\d)*(\.\d(_?\d)*)?([eE][+-]?\d(_?\d)*)?$/;
+  LEADING_ZERO = /^[+-]?0[0-9_]/;
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/util.js
+function indexOfNewline(str, start = 0, end = str.length) {
+  let idx = str.indexOf(`
+`, start);
+  if (str[idx - 1] === "\r")
+    idx--;
+  return idx <= end ? idx : -1;
+}
+function skipComment(str, ptr) {
+  for (let i = ptr;i < str.length; i++) {
+    let c = str[i];
+    if (c === `
+`)
+      return i;
+    if (c === "\r" && str[i + 1] === `
+`)
+      return i + 1;
+    if (c < " " && c !== "\t" || c === "\x7F") {
+      throw new TomlError("control characters are not allowed in comments", {
+        toml: str,
+        ptr
+      });
+    }
+  }
+  return str.length;
+}
+function skipVoid(str, ptr, banNewLines, banComments) {
+  let c;
+  while (true) {
+    while ((c = str[ptr]) === " " || c === "\t" || !banNewLines && (c === `
+` || c === "\r" && str[ptr + 1] === `
+`))
+      ptr++;
+    if (banComments || c !== "#")
+      break;
+    ptr = skipComment(str, ptr);
+  }
+  return ptr;
+}
+function skipUntil(str, ptr, sep, end, banNewLines = false) {
+  if (!end) {
+    ptr = indexOfNewline(str, ptr);
+    return ptr < 0 ? str.length : ptr;
+  }
+  for (let i = ptr;i < str.length; i++) {
+    let c = str[i];
+    if (c === "#") {
+      i = indexOfNewline(str, i);
+      if (i < 0)
+        break;
+    } else if (c === sep) {
+      return i + 1;
+    } else if (c === end || banNewLines && (c === `
+` || c === "\r" && str[i + 1] === `
+`)) {
+      return i;
+    }
+  }
+  throw new TomlError("cannot find end of structure", {
+    toml: str,
+    ptr
+  });
+}
+var init_util = __esm(() => {
+  init_error();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/extract.js
+function sliceAndTrimEndOf(str, startPtr, endPtr) {
+  let value = str.slice(startPtr, endPtr);
+  let commentIdx = value.indexOf("#");
+  if (commentIdx > -1) {
+    skipComment(str, commentIdx);
+    value = value.slice(0, commentIdx);
+  }
+  return [value.trimEnd(), commentIdx];
+}
+function extractValue(str, ptr, end, depth, integersAsBigInt) {
+  if (depth === 0) {
+    throw new TomlError("document contains excessively nested structures. aborting.", {
+      toml: str,
+      ptr
+    });
+  }
+  let c = str[ptr];
+  if (c === "[" || c === "{") {
+    let [value, endPtr2] = c === "[" ? parseArray(str, ptr, depth, integersAsBigInt) : parseInlineTable(str, ptr, depth, integersAsBigInt);
+    if (end) {
+      endPtr2 = skipVoid(str, endPtr2);
+      if (str[endPtr2] === ",")
+        endPtr2++;
+      else if (str[endPtr2] !== end) {
+        throw new TomlError("expected comma or end of structure", {
+          toml: str,
+          ptr: endPtr2
+        });
+      }
+    }
+    return [value, endPtr2];
+  }
+  if (c === '"' || c === "'") {
+    let [parsed, endPtr2] = parseString(str, ptr);
+    if (end) {
+      endPtr2 = skipVoid(str, endPtr2);
+      if (str[endPtr2] && str[endPtr2] !== "," && str[endPtr2] !== end && str[endPtr2] !== `
+` && str[endPtr2] !== "\r") {
+        throw new TomlError("unexpected character encountered", {
+          toml: str,
+          ptr: endPtr2
+        });
+      }
+      if (str[endPtr2] === ",")
+        endPtr2++;
+    }
+    return [parsed, endPtr2];
+  }
+  let endPtr = skipUntil(str, ptr, ",", end);
+  let slice = sliceAndTrimEndOf(str, ptr, endPtr - (str[endPtr - 1] === "," ? 1 : 0));
+  if (!slice[0]) {
+    throw new TomlError("incomplete key-value declaration: no value specified", {
+      toml: str,
+      ptr
+    });
+  }
+  if (end && slice[1] > -1) {
+    endPtr = skipVoid(str, ptr + slice[1]);
+    if (str[endPtr] === ",")
+      endPtr++;
+  }
+  return [
+    parseValue(slice[0], str, ptr, integersAsBigInt),
+    endPtr
+  ];
+}
+var init_extract = __esm(() => {
+  init_primitive();
+  init_struct();
+  init_util();
+  init_error();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/struct.js
+function parseKey(str, ptr, end = "=") {
+  let dot = ptr - 1;
+  let parsed = [];
+  let endPtr = str.indexOf(end, ptr);
+  if (endPtr < 0) {
+    throw new TomlError("incomplete key-value: cannot find end of key", {
+      toml: str,
+      ptr
+    });
+  }
+  do {
+    let c = str[ptr = ++dot];
+    if (c !== " " && c !== "\t") {
+      if (c === '"' || c === "'") {
+        if (c === str[ptr + 1] && c === str[ptr + 2]) {
+          throw new TomlError("multiline strings are not allowed in keys", {
+            toml: str,
+            ptr
+          });
+        }
+        let [part, eos] = parseString(str, ptr);
+        dot = str.indexOf(".", eos);
+        let strEnd = str.slice(eos, dot < 0 || dot > endPtr ? endPtr : dot);
+        let newLine = indexOfNewline(strEnd);
+        if (newLine > -1) {
+          throw new TomlError("newlines are not allowed in keys", {
+            toml: str,
+            ptr: ptr + dot + newLine
+          });
+        }
+        if (strEnd.trimStart()) {
+          throw new TomlError("found extra tokens after the string part", {
+            toml: str,
+            ptr: eos
+          });
+        }
+        if (endPtr < eos) {
+          endPtr = str.indexOf(end, eos);
+          if (endPtr < 0) {
+            throw new TomlError("incomplete key-value: cannot find end of key", {
+              toml: str,
+              ptr
+            });
+          }
+        }
+        parsed.push(part);
+      } else {
+        dot = str.indexOf(".", ptr);
+        let part = str.slice(ptr, dot < 0 || dot > endPtr ? endPtr : dot);
+        if (!KEY_PART_RE.test(part)) {
+          throw new TomlError("only letter, numbers, dashes and underscores are allowed in keys", {
+            toml: str,
+            ptr
+          });
+        }
+        parsed.push(part.trimEnd());
+      }
+    }
+  } while (dot + 1 && dot < endPtr);
+  return [parsed, skipVoid(str, endPtr + 1, true, true)];
+}
+function parseInlineTable(str, ptr, depth, integersAsBigInt) {
+  let res = {};
+  let seen = new Set;
+  let c;
+  ptr++;
+  while ((c = str[ptr++]) !== "}" && c) {
+    if (c === ",") {
+      throw new TomlError("expected value, found comma", {
+        toml: str,
+        ptr: ptr - 1
+      });
+    } else if (c === "#")
+      ptr = skipComment(str, ptr);
+    else if (c !== " " && c !== "\t" && c !== `
+` && c !== "\r") {
+      let k;
+      let t = res;
+      let hasOwn = false;
+      let [key, keyEndPtr] = parseKey(str, ptr - 1);
+      for (let i = 0;i < key.length; i++) {
+        if (i)
+          t = hasOwn ? t[k] : t[k] = {};
+        k = key[i];
+        if ((hasOwn = Object.hasOwn(t, k)) && (typeof t[k] !== "object" || seen.has(t[k]))) {
+          throw new TomlError("trying to redefine an already defined value", {
+            toml: str,
+            ptr
+          });
+        }
+        if (!hasOwn && k === "__proto__") {
+          Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
+        }
+      }
+      if (hasOwn) {
+        throw new TomlError("trying to redefine an already defined value", {
+          toml: str,
+          ptr
+        });
+      }
+      let [value, valueEndPtr] = extractValue(str, keyEndPtr, "}", depth - 1, integersAsBigInt);
+      seen.add(value);
+      t[k] = value;
+      ptr = valueEndPtr;
+    }
+  }
+  if (!c) {
+    throw new TomlError("unfinished table encountered", {
+      toml: str,
+      ptr
+    });
+  }
+  return [res, ptr];
+}
+function parseArray(str, ptr, depth, integersAsBigInt) {
+  let res = [];
+  let c;
+  ptr++;
+  while ((c = str[ptr++]) !== "]" && c) {
+    if (c === ",") {
+      throw new TomlError("expected value, found comma", {
+        toml: str,
+        ptr: ptr - 1
+      });
+    } else if (c === "#")
+      ptr = skipComment(str, ptr);
+    else if (c !== " " && c !== "\t" && c !== `
+` && c !== "\r") {
+      let e = extractValue(str, ptr - 1, "]", depth - 1, integersAsBigInt);
+      res.push(e[0]);
+      ptr = e[1];
+    }
+  }
+  if (!c) {
+    throw new TomlError("unfinished array encountered", {
+      toml: str,
+      ptr
+    });
+  }
+  return [res, ptr];
+}
+var KEY_PART_RE;
+var init_struct = __esm(() => {
+  init_primitive();
+  init_extract();
+  init_util();
+  init_error();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+  KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/parse.js
+function peekTable(key, table, meta, type) {
+  let t = table;
+  let m = meta;
+  let k;
+  let hasOwn = false;
+  let state;
+  for (let i = 0;i < key.length; i++) {
+    if (i) {
+      t = hasOwn ? t[k] : t[k] = {};
+      m = (state = m[k]).c;
+      if (type === 0 && (state.t === 1 || state.t === 2)) {
+        return null;
+      }
+      if (state.t === 2) {
+        let l = t.length - 1;
+        t = t[l];
+        m = m[l].c;
+      }
+    }
+    k = key[i];
+    if ((hasOwn = Object.hasOwn(t, k)) && m[k]?.t === 0 && m[k]?.d) {
+      return null;
+    }
+    if (!hasOwn) {
+      if (k === "__proto__") {
+        Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
+        Object.defineProperty(m, k, { enumerable: true, configurable: true, writable: true });
+      }
+      m[k] = {
+        t: i < key.length - 1 && type === 2 ? 3 : type,
+        d: false,
+        i: 0,
+        c: {}
+      };
+    }
+  }
+  state = m[k];
+  if (state.t !== type && !(type === 1 && state.t === 3)) {
+    return null;
+  }
+  if (type === 2) {
+    if (!state.d) {
+      state.d = true;
+      t[k] = [];
+    }
+    t[k].push(t = {});
+    state.c[state.i++] = state = { t: 1, d: false, i: 0, c: {} };
+  }
+  if (state.d) {
+    return null;
+  }
+  state.d = true;
+  if (type === 1) {
+    t = hasOwn ? t[k] : t[k] = {};
+  } else if (type === 0 && hasOwn) {
+    return null;
+  }
+  return [k, t, state.c];
+}
+function parse(toml, { maxDepth = 1000, integersAsBigInt } = {}) {
+  let res = {};
+  let meta = {};
+  let tbl = res;
+  let m = meta;
+  for (let ptr = skipVoid(toml, 0);ptr < toml.length; ) {
+    if (toml[ptr] === "[") {
+      let isTableArray = toml[++ptr] === "[";
+      let k = parseKey(toml, ptr += +isTableArray, "]");
+      if (isTableArray) {
+        if (toml[k[1] - 1] !== "]") {
+          throw new TomlError("expected end of table declaration", {
+            toml,
+            ptr: k[1] - 1
+          });
+        }
+        k[1]++;
+      }
+      let p = peekTable(k[0], res, meta, isTableArray ? 2 : 1);
+      if (!p) {
+        throw new TomlError("trying to redefine an already defined table or value", {
+          toml,
+          ptr
+        });
+      }
+      m = p[2];
+      tbl = p[1];
+      ptr = k[1];
+    } else {
+      let k = parseKey(toml, ptr);
+      let p = peekTable(k[0], tbl, m, 0);
+      if (!p) {
+        throw new TomlError("trying to redefine an already defined table or value", {
+          toml,
+          ptr
+        });
+      }
+      let v = extractValue(toml, k[1], undefined, maxDepth, integersAsBigInt);
+      p[1][p[0]] = v[0];
+      ptr = v[1];
+    }
+    ptr = skipVoid(toml, ptr, true);
+    if (toml[ptr] && toml[ptr] !== `
+` && toml[ptr] !== "\r") {
+      throw new TomlError("each key-value declaration must be followed by an end-of-line", {
+        toml,
+        ptr
+      });
+    }
+    ptr = skipVoid(toml, ptr);
+  }
+  return res;
+}
+var init_parse = __esm(() => {
+  init_struct();
+  init_extract();
+  init_util();
+  init_error();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/stringify.js
+var init_stringify = __esm(() => {
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/index.js
+var init_dist3 = __esm(() => {
+  init_parse();
+  init_stringify();
+  init_date();
+  init_error();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+});
+
+// src/codex-plugin/finalization.ts
+var exports_finalization = {};
+__export(exports_finalization, {
+  validateCodexFinalizationPaths: () => validateCodexFinalizationPaths,
+  resolveCodexFinalizationConfirmation: () => resolveCodexFinalizationConfirmation,
+  recoverCodexFinalization: () => recoverCodexFinalization,
+  observeCodexRecoveryPlan: () => observeCodexRecoveryPlan,
+  codexRecoveryIsRequired: () => codexRecoveryIsRequired,
+  codexFinalizationIsComplete: () => codexFinalizationIsComplete,
+  applyCodexFinalization: () => applyCodexFinalization
+});
+import { createHash as createHash5, randomUUID as randomUUID2 } from "crypto";
+import {
+  chmodSync as chmodSync2,
+  existsSync as existsSync23,
+  lstatSync as lstatSync3,
+  mkdirSync as mkdirSync5,
+  mkdtempSync as mkdtempSync2,
+  readdirSync as readdirSync16,
+  readFileSync as readFileSync21,
+  rmdirSync as rmdirSync3,
+  rmSync as rmSync3
+} from "fs";
+import nodePath37 from "path";
+async function resolveCodexFinalizationConfirmation(_options) {
+  if (_options.assumeYes)
+    return true;
+  if (_options.confirm === undefined) {
+    throw new Error("Finalization requires confirmation. Re-run interactively or pass --finalize --yes.");
+  }
+  return _options.confirm();
+}
+function codexFinalizationIsComplete(cwd) {
+  try {
+    const marker = JSON.parse(readFileSync21(assertSafeComponents(cwd, PROJECT_MARKER_PATH), "utf8"));
+    const manifest = JSON.parse(readFileSync21(assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`), "utf8"));
+    if (!isBackupManifest(manifest))
+      return false;
+    validateManifestIntent(manifest);
+    return marker.schema_version === 1 && marker.mode === "plugin" && manifest.status === "finalized" && marker.transaction_id === manifest.transaction_id && marker.plan_sha256 === manifest.plan_sha256 && manifestPlanDigest(manifest.entries) === manifest.plan_sha256 && backupPayloadsAreValid(cwd, manifest);
+  } catch {
+    return false;
+  }
+}
+function pathEntryExists(path4) {
+  try {
+    lstatSync3(path4);
+    return true;
+  } catch (error2) {
+    if (error2.code === "ENOENT")
+      return false;
+    throw error2;
+  }
+}
+function codexRecoveryIsRequired(cwd) {
+  return pathEntryExists(containedPath(cwd, BACKUP_PATH)) && !codexFinalizationIsComplete(cwd);
+}
+function sha2562(content) {
+  return createHash5("sha256").update(content).digest("hex");
+}
+function containedPath(cwd, relativePath) {
+  if (relativePath === "" || nodePath37.isAbsolute(relativePath) || relativePath.split(/[\\/]/u).includes("..")) {
+    throw new CodexMigrationError("UNSAFE_MIGRATION_PATH", `Unsafe Codex migration path: ${relativePath}`);
+  }
+  const root = nodePath37.resolve(cwd);
+  const resolved = nodePath37.resolve(root, relativePath);
+  if (resolved !== root && !resolved.startsWith(`${root}${nodePath37.sep}`)) {
+    throw new CodexMigrationError("UNSAFE_MIGRATION_PATH", `Unsafe Codex migration path: ${relativePath}`);
+  }
+  return resolved;
+}
+function assertSafeComponents(cwd, relativePath) {
+  const target = containedPath(cwd, relativePath);
+  const segments = relativePath.split(/[\\/]/u);
+  let cursor = nodePath37.resolve(cwd);
+  for (const segment of segments) {
+    cursor = nodePath37.join(cursor, segment);
+    let metadata;
+    try {
+      metadata = lstatSync3(cursor);
+    } catch (error2) {
+      if (error2.code === "ENOENT")
+        continue;
+      throw error2;
+    }
+    if (metadata.isSymbolicLink()) {
+      throw new CodexMigrationError("UNSAFE_MIGRATION_PATH", `Unsafe Codex migration path is a symbolic link: ${relativePath}`);
+    }
+    if (cursor === target ? !metadata.isFile() : !metadata.isDirectory()) {
+      throw new CodexMigrationError("UNSAFE_MIGRATION_PATH", `Unsafe Codex migration path is not a regular file: ${relativePath}`);
+    }
+  }
+  return target;
+}
+function validateCodexFinalizationPaths(cwd, mutations) {
+  for (const mutation of mutations)
+    assertSafeComponents(cwd, mutation.path);
+}
+function beforeImage(cwd, backupDirectory, mutation, index, beforePreparationStep) {
+  const path4 = assertSafeComponents(cwd, mutation.path);
+  if (!existsSync23(path4))
+    return { kind: "absent" };
+  beforePreparationStep?.("source-read", index);
+  const content = readFileSync21(path4);
+  const payload = `payloads/${index}.bin`;
+  beforePreparationStep?.("payload-write", index);
+  writeDurable(nodePath37.join(backupDirectory, payload), content, 384);
+  return {
+    kind: "file",
+    mode: lstatSync3(path4).mode & 511,
+    sha256: sha2562(content),
+    payload
+  };
+}
+function afterImage(mutation, before) {
+  if (mutation.content === null)
+    return { kind: "absent" };
+  const content = Buffer.from(mutation.content);
+  return {
+    kind: "file",
+    mode: mutation.mode ?? (before.kind === "file" ? before.mode : 420),
+    sha256: sha2562(content)
+  };
+}
+function writeDurable(path4, content, mode) {
+  writeDurableFile(path4, content, { mode });
+}
+function writeManifest(backupDirectory, manifest) {
+  writeDurable(nodePath37.join(backupDirectory, "manifest.json"), `${JSON.stringify(manifest, null, 2)}
+`, 384);
+}
+function applyMutation(cwd, mutation, after) {
+  const path4 = assertSafeComponents(cwd, mutation.path);
+  if (mutation.content === null) {
+    rmSync3(path4, { force: true });
+    return;
+  }
+  if (after.kind !== "file")
+    throw new Error("Invalid Codex finalization file image.");
+  writeDurable(path4, mutation.content, after.mode);
+  chmodSync2(path4, after.mode);
+}
+function restoreBeforeImage(cwd, backupDirectory, entry) {
+  const path4 = assertSafeComponents(cwd, entry.path);
+  if (entry.before.kind === "absent") {
+    rmSync3(path4, { force: true });
+    return;
+  }
+  if (entry.before.payload === undefined) {
+    throw new Error(`Codex migration backup payload is missing for ${entry.path}.`);
+  }
+  const payload = assertSafeComponents(backupDirectory, entry.before.payload);
+  const content = readFileSync21(payload);
+  if (sha2562(content) !== entry.before.sha256) {
+    throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
+  }
+  writeDurable(path4, content, entry.before.mode);
+  chmodSync2(path4, entry.before.mode);
+}
+function observedImage(cwd, relativePath) {
+  const path4 = assertSafeComponents(cwd, relativePath);
+  if (!existsSync23(path4))
+    return { kind: "absent" };
+  const content = readFileSync21(path4);
+  return {
+    kind: "file",
+    mode: lstatSync3(path4).mode & 511,
+    sha256: sha2562(content)
+  };
+}
+function imagesMatch(left, right) {
+  if (left.kind !== right.kind)
+    return false;
+  return left.kind === "absent" || right.kind === "file" && left.mode === right.mode && left.sha256 === right.sha256;
+}
+function readBackupManifest(cwd) {
+  const backupDirectory = containedPath(cwd, BACKUP_PATH);
+  const manifestPath = assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`);
+  const manifest = JSON.parse(readFileSync21(manifestPath, "utf8"));
+  if (!isBackupManifest(manifest)) {
+    throw new Error("Codex migration backup manifest is malformed.");
+  }
+  return { backupDirectory, manifest };
+}
+function isSafeRelativePath(path4) {
+  return path4 !== "" && !nodePath37.isAbsolute(path4) && !path4.split(/[\\/]/u).includes("..");
+}
+function isFileMode(value) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 511;
+}
+function isSha256(value) {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+function isFileImage(value, requiresPayload) {
+  if (typeof value !== "object" || value === null)
+    return false;
+  const image = value;
+  const baseFieldsAreValid = [
+    image.kind === "file",
+    isFileMode(image.mode),
+    isSha256(image.sha256)
+  ].every(Boolean);
+  if (!baseFieldsAreValid)
+    return false;
+  if (!requiresPayload)
+    return image.payload === undefined;
+  return typeof image.payload === "string" && isSafeRelativePath(image.payload);
+}
+function isAbsentImage(value) {
+  return typeof value === "object" && value !== null && value.kind === "absent";
+}
+function isBackupEntry(value) {
+  if (typeof value !== "object" || value === null)
+    return false;
+  const entry = value;
+  return typeof entry.path === "string" && isSafeRelativePath(entry.path) && (isFileImage(entry.before, true) || isAbsentImage(entry.before)) && (isFileImage(entry.after, false) || isAbsentImage(entry.after));
+}
+function hasValidTransactionBinding(manifest) {
+  return typeof manifest.transaction_id === "string" && /^[\da-f-]{36}$/iu.test(manifest.transaction_id) && isSha256(manifest.plan_sha256);
+}
+function hasValidBackupEntries(manifest) {
+  if (!Array.isArray(manifest.entries) || manifest.entries.length === 0)
+    return false;
+  if (!manifest.entries.every(isBackupEntry))
+    return false;
+  return new Set(manifest.entries.map((entry) => entry.path)).size === manifest.entries.length;
+}
+function isBackupManifest(value) {
+  if (typeof value !== "object" || value === null)
+    return false;
+  const manifest = value;
+  return manifest.schema_version === 1 && ["prepared", "finalized", "recovering"].includes(String(manifest.status)) && hasValidTransactionBinding(manifest) && hasValidBackupEntries(manifest);
+}
+function manifestPlanDigest(entries) {
+  const intent = entries.map((entry) => ({
+    path: entry.path,
+    before: entry.before,
+    after: entry.path === PROJECT_MARKER_PATH && entry.after.kind === "file" ? { kind: "file", mode: entry.after.mode } : entry.after
+  }));
+  return sha2562(Buffer.from(JSON.stringify(intent)));
+}
+function entryPathIsAllowed(path4) {
+  return path4 === CODEX_CONFIG_PATH || path4 === PROJECT_MARKER_PATH || path4 === BOOTSTRAP_PATH || CODEX_MIGRATION_SCHEMA.legacyFiles.includes(path4);
+}
+function validateManifestIntent(manifest) {
+  for (const [index, entry] of manifest.entries.entries()) {
+    if (!entryPathIsAllowed(entry.path)) {
+      throw new Error(`Recovery path ${entry.path} is not part of the Codex migration inventory.`);
+    }
+    if (entry.before.kind === "file" && entry.before.payload !== `payloads/${index}.bin`) {
+      throw new Error(`Codex migration backup payload identity is invalid for ${entry.path}.`);
+    }
+  }
+  if (manifestPlanDigest(manifest.entries) !== manifest.plan_sha256) {
+    throw new Error("Codex migration backup plan integrity check failed.");
+  }
+}
+function backupPayloadsAreValid(cwd, manifest) {
+  const backupDirectory = containedPath(cwd, BACKUP_PATH);
+  return manifest.entries.every((entry) => {
+    if (entry.before.kind === "absent")
+      return true;
+    const payload = entry.before.payload;
+    if (payload === undefined)
+      return false;
+    const content = readFileSync21(assertSafeComponents(backupDirectory, payload));
+    return sha2562(content) === entry.before.sha256;
+  });
+}
+function validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore) {
+  const current = observedImage(cwd, entry.path);
+  if (!imagesMatch(current, entry.after) && !(allowBefore && imagesMatch(current, entry.before))) {
+    throw new CodexMigrationError("RECOVERY_CONFLICT", `Codex recovery conflict at ${entry.path}; no files were restored.`);
+  }
+  if (entry.before.kind === "file") {
+    if (entry.before.payload === undefined) {
+      throw new Error(`Codex migration backup payload is missing for ${entry.path}.`);
+    }
+    const content = readFileSync21(assertSafeComponents(backupDirectory, entry.before.payload));
+    if (sha2562(content) !== entry.before.sha256) {
+      throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
+    }
+  }
+  return current;
+}
+function loadValidatedRecovery(cwd) {
+  const { backupDirectory, manifest } = readBackupManifest(cwd);
+  validateManifestIntent(manifest);
+  const allowBefore = manifest.status !== "finalized";
+  const current = manifest.entries.map((entry) => validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore));
+  return { backupDirectory, manifest, current };
+}
+function recoverCodexFinalization(cwd) {
+  const manifestPath = containedPath(cwd, `${BACKUP_PATH}/manifest.json`);
+  if (!pathEntryExists(containedPath(cwd, BACKUP_PATH)))
+    return false;
+  if (!existsSync23(manifestPath)) {
+    throw new Error("Codex migration backup manifest is missing; recovery cannot continue.");
+  }
+  const { backupDirectory, manifest } = loadValidatedRecovery(cwd);
+  manifest.status = "recovering";
+  writeManifest(backupDirectory, manifest);
+  for (const entry of manifest.entries.toReversed()) {
+    restoreBeforeImage(cwd, backupDirectory, entry);
+  }
+  rmSync3(backupDirectory, { recursive: true });
+  return true;
+}
+function observeCodexRecoveryPlan(cwd) {
+  if (!pathEntryExists(containedPath(cwd, BACKUP_PATH))) {
+    return {
+      effects: [],
+      preconditionDigest: sha2562(Buffer.from("codex-recovery-absent-v1"))
+    };
+  }
+  const { manifest, current } = loadValidatedRecovery(cwd);
+  return {
+    effects: manifest.entries.map((entry) => ({ path: entry.path, action: "restore" })),
+    preconditionDigest: sha2562(Buffer.from(JSON.stringify({ manifest, current })))
+  };
+}
+function rollbackAppliedEntries(input) {
+  try {
+    input.beforeRollback?.();
+    for (const entry of input.entries.slice(0, input.appliedCount)) {
+      if (!imagesMatch(observedImage(input.cwd, entry.path), entry.after)) {
+        throw new Error(`Codex rollback conflict at ${entry.path}; recovery evidence was retained.`);
+      }
+    }
+    for (let index = input.appliedCount - 1;index >= 0; index -= 1) {
+      const entry = input.entries[index];
+      if (entry === undefined) {
+        throw new Error("Codex rollback plan is incomplete.", { cause: input.originalError });
+      }
+      restoreBeforeImage(input.cwd, input.backupDirectory, entry);
+    }
+    rmSync3(input.backupDirectory, { recursive: true });
+  } catch (rollbackError) {
+    throw new Error(`Codex finalization failed (${String(input.originalError)}) and rollback could not complete; recovery is required: ${String(rollbackError)}`, { cause: rollbackError });
+  }
+}
+function prepareCodexFinalization(cwd, backupDirectory, mutations, beforePreparationStep) {
+  const backupParent = nodePath37.dirname(backupDirectory);
+  const backupParentExisted = pathEntryExists(backupParent);
+  mkdirSync5(backupParent, { recursive: true, mode: 448 });
+  const stagingDirectory = mkdtempSync2(nodePath37.join(backupParent, ".codex-migration-backup-preparing-"));
+  try {
+    mkdirSync5(nodePath37.join(stagingDirectory, "payloads"), {
+      recursive: true,
+      mode: 448
+    });
+    const transactionId = randomUUID2();
+    let effectiveMutations = mutations.map((mutation) => ({ ...mutation }));
+    let entries = effectiveMutations.map((mutation, index) => {
+      const before = beforeImage(cwd, stagingDirectory, mutation, index, beforePreparationStep);
+      return { path: mutation.path, before, after: afterImage(mutation, before) };
+    });
+    const planSha256 = manifestPlanDigest(entries);
+    effectiveMutations = effectiveMutations.map((mutation) => mutation.path === PROJECT_MARKER_PATH && mutation.content !== null ? {
+      ...mutation,
+      content: `${JSON.stringify({
+        schema_version: 1,
+        mode: "plugin",
+        transaction_id: transactionId,
+        plan_sha256: planSha256
+      })}
+`
+    } : mutation);
+    entries = effectiveMutations.map((mutation, index) => {
+      const previous = entries[index];
+      if (previous === undefined) {
+        throw new Error("Codex migration plan changed during preparation.");
+      }
+      return {
+        path: mutation.path,
+        before: previous.before,
+        after: afterImage(mutation, previous.before)
+      };
+    });
+    const manifest = {
+      schema_version: 1,
+      status: "prepared",
+      transaction_id: transactionId,
+      plan_sha256: planSha256,
+      entries
+    };
+    beforePreparationStep?.("manifest-write");
+    writeManifest(stagingDirectory, manifest);
+    if (pathEntryExists(backupDirectory)) {
+      throw new CodexMigrationError("BACKUP_EXISTS", `Codex migration backup already exists at ${BACKUP_PATH}.`);
+    }
+    durableRename(stagingDirectory, backupDirectory);
+    return { effectiveMutations, entries, manifest };
+  } finally {
+    rmSync3(stagingDirectory, { recursive: true, force: true });
+    if (!backupParentExisted && pathEntryExists(backupParent) && readdirSync16(backupParent).length === 0) {
+      rmdirSync3(backupParent);
+    }
+  }
+}
+function applyCodexFinalization(cwd, mutations, options = {}) {
+  const backupDirectory = assertSafeComponents(cwd, BACKUP_PATH);
+  if (existsSync23(backupDirectory)) {
+    throw new CodexMigrationError("BACKUP_EXISTS", `Codex migration backup already exists at ${BACKUP_PATH}.`);
+  }
+  validateCodexFinalizationPaths(cwd, mutations);
+  const { effectiveMutations, entries, manifest } = prepareCodexFinalization(cwd, backupDirectory, mutations, options.beforePreparationStep);
+  options.afterPrepared?.();
+  let appliedCount = 0;
+  try {
+    for (const [index, mutation] of effectiveMutations.entries()) {
+      options.beforeMutation?.(index);
+      const entry = entries[index];
+      if (entry === undefined)
+        throw new Error("Codex migration plan changed during execution.");
+      if (!imagesMatch(observedImage(cwd, entry.path), entry.before)) {
+        throw new Error(`Codex migration path ${entry.path} changed after the Codex migration backup was prepared.`);
+      }
+      applyMutation(cwd, mutation, entry.after);
+      appliedCount += 1;
+    }
+  } catch (error2) {
+    rollbackAppliedEntries({
+      cwd,
+      backupDirectory,
+      entries,
+      appliedCount,
+      originalError: error2,
+      beforeRollback: options.beforeRollback
+    });
+    throw error2;
+  }
+  manifest.status = "finalized";
+  writeManifest(backupDirectory, manifest);
+  return manifest;
+}
+var BACKUP_PATH, PROJECT_MARKER_PATH, BOOTSTRAP_PATH, CODEX_CONFIG_PATH;
+var init_finalization = __esm(() => {
+  init_durable_write();
+  init_inventory();
+  init_migration_error();
+  BACKUP_PATH = CODEX_MIGRATION_SCHEMA.paths.backupRoot;
+  PROJECT_MARKER_PATH = CODEX_MIGRATION_SCHEMA.paths.pluginMarker;
+  BOOTSTRAP_PATH = CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill;
+  CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;
+});
+
+// src/codex-plugin/legacy-command.ts
+function commandParts(command) {
+  return command.trim().split(" ").filter((part) => part !== "");
+}
+function isHistoricalPackagePrefix(parts) {
+  return parts[0] === CODEX_MIGRATION_SCHEMA.packageRunner && parts[1] === "--yes" && parts[2] === "safeword";
+}
+function packagedHookEvent(hook2) {
+  if (hook2.length === 3 && hook2[0] === "hook" && hook2[1] === "codex" && CODEX_MIGRATION_SCHEMA.hookEvents.includes(hook2[2] ?? "")) {
+    return hook2[2];
+  }
+  if (hook2.length === 2 && hook2[0] === "codex-hook" && CODEX_MIGRATION_SCHEMA.hookEvents.includes(hook2[1] ?? "")) {
+    return hook2[1];
+  }
+  return;
+}
+function packageIdentity(command) {
+  const parts = commandParts(command);
+  if (!isHistoricalPackagePrefix(parts))
+    return;
+  const event = packagedHookEvent(parts.slice(3));
+  return event === undefined ? undefined : { kind: "package", event };
+}
+function scriptIdentity(command) {
+  const prefix = CODEX_MIGRATION_SCHEMA.hookScriptPrefix;
+  if (!command.startsWith(prefix))
+    return;
+  const remainder = command.slice(prefix.length);
+  const quote = remainder.indexOf('"');
+  if (quote === -1)
+    return;
+  const script = remainder.slice(0, quote);
+  const event = CODEX_MIGRATION_SCHEMA.hookScriptEvents[script];
+  if (event === undefined)
+    return;
+  const arguments_ = remainder.slice(quote + 1);
+  const supportedArguments = arguments_ === "" || script === "session-safeword-context.ts" && arguments_ === " --agent=codex";
+  return supportedArguments ? { kind: "script", event, script } : undefined;
+}
+function legacyCommandIdentity(command) {
+  return packageIdentity(command) ?? scriptIdentity(command);
+}
+var init_legacy_command = __esm(() => {
+  init_inventory();
+});
+
+// src/codex-plugin/legacy-authority.ts
+import { accessSync, constants, lstatSync as lstatSync4, readFileSync as readFileSync22 } from "fs";
+import nodePath38 from "path";
+function regularFile(path4) {
+  try {
+    return lstatSync4(path4).isFile();
+  } catch {
+    return false;
+  }
+}
+function eventCommands(config, eventName) {
+  if (typeof config.hooks !== "object" || config.hooks === null)
+    return [];
+  const groups = config.hooks[eventName];
+  if (!Array.isArray(groups))
+    return [];
+  return groups.flatMap((group) => {
+    const hooks = group.hooks;
+    if (!Array.isArray(hooks))
+      return [];
+    return hooks.flatMap((hook2) => {
+      const candidate = hook2;
+      return candidate.type === "command" && typeof candidate.command === "string" ? [candidate.command] : [];
+    });
+  });
+}
+function packageRunnerIsAvailable(cwd, environment) {
+  const runner = SAFEWORD_SCHEMA.codexMigration.packageRunner;
+  const pathEntries = (environment.PATH ?? "").split(nodePath38.delimiter).filter(Boolean);
+  const extensions = process.platform === "win32" ? (environment.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
+  return pathEntries.some((entry) => extensions.some((extension) => {
+    const candidate = nodePath38.resolve(cwd, entry, `${runner}${extension.toLowerCase()}`);
+    try {
+      accessSync(candidate, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+      return regularFile(candidate);
+    } catch {
+      return false;
+    }
+  }));
+}
+function commandIsViable(command, event, cwd, environment) {
+  const identity = legacyCommandIdentity(command);
+  if (identity?.event !== event)
+    return false;
+  if (identity.kind === "package") {
+    return regularFile(nodePath38.join(cwd, SAFEWORD_SCHEMA.codexMigration.projectMarker)) && packageRunnerIsAvailable(cwd, environment);
+  }
+  return identity.kind === "script" && regularFile(nodePath38.join(cwd, CODEX_MIGRATION_SCHEMA.paths.hookRuntimeRoot, identity.script));
+}
+function legacyCodexEventIsViable(cwd, event, environment = process.env) {
+  const eventName = SAFEWORD_SCHEMA.codexMigration.hookEventNames[event];
+  if (eventName === undefined)
+    return false;
+  const configPath2 = nodePath38.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
+  if (!regularFile(configPath2))
+    return false;
+  let config;
+  try {
+    config = parse(readFileSync22(configPath2, "utf8"));
+  } catch {
+    return false;
+  }
+  return eventCommands(config, eventName).some((command) => commandIsViable(command, event, cwd, environment));
+}
+var init_legacy_authority = __esm(() => {
+  init_dist3();
+  init_schema();
+  init_inventory();
+  init_legacy_command();
+});
+
+// src/codex-plugin/legacy-config.ts
+import { lstatSync as lstatSync5, readFileSync as readFileSync23 } from "fs";
+import nodePath39 from "path";
+function hookHeaderEntries(event) {
+  const eventKeys = [event, `"${event}"`, `'${event}'`];
+  return TOML_HOOK_KEYS.flatMap((hookKey) => eventKeys.flatMap((eventKey) => [
+    [`[[${hookKey}.${eventKey}]]`, { event, kind: "parent" }],
+    ...TOML_HOOK_KEYS.map((nestedHookKey) => [`[[${hookKey}.${eventKey}.${nestedHookKey}]]`, { event, kind: "nested" }])
+  ]));
+}
+function splitLines(content) {
+  if (content === "")
+    return [];
+  const lines = content.split(`
+`);
+  return lines.map((line, index) => index < lines.length - 1 ? `${line}
+` : line);
+}
+function uncommented(line) {
+  const comment = line.indexOf("#");
+  return (comment === -1 ? line : line.slice(0, comment)).trim();
+}
+function hookHeader(line) {
+  return HOOK_HEADER_LOOKUP.get(uncommented(line).replaceAll(/\s+/gu, ""));
+}
+function eventHeader(line) {
+  const header2 = hookHeader(line);
+  return header2?.kind === "parent" ? header2.event : undefined;
+}
+function isNestedHookHeader(line, event) {
+  const header2 = hookHeader(line);
+  return header2?.kind === "nested" && header2.event === event;
+}
+function startsNewTopLevelSection(line, event) {
+  const header2 = uncommented(line);
+  return header2.startsWith("[") && !isNestedHookHeader(line, event);
+}
+function assignmentValue(line, key) {
+  const equals = line.indexOf("=");
+  if (equals === -1 || line.slice(0, equals).trim() !== key)
+    return;
+  return line.slice(equals + 1).trim();
+}
+function quotedValue(value) {
+  const quote = value[0];
+  if (quote !== '"' && quote !== "'")
+    return;
+  for (let index = 1;index < value.length; index += 1) {
+    const character = value[index];
+    if (quote === '"' && character === "\\") {
+      index += 1;
+      continue;
+    }
+    if (character !== quote)
+      continue;
+    const trailing = value.slice(index + 1).trim();
+    return trailing === "" || trailing.startsWith("#") ? value.slice(1, index) : undefined;
+  }
+  return;
+}
+function bareCommandValue(line) {
+  const value = assignmentValue(line, "command");
+  return value === undefined ? undefined : quotedValue(value);
+}
+function blockCommandValues(lines, range) {
+  const commands = [];
+  for (let index = range.start + 1;index < range.end; index += 1) {
+    const command = bareCommandValue(lines[index] ?? "");
+    if (command !== undefined)
+      commands.push(command);
+  }
+  return commands;
+}
+function allowedHookLine(line) {
+  const trimmed = line.trim();
+  if (trimmed === "" || trimmed.startsWith("#"))
+    return true;
+  const type = quotedValue(assignmentValue(line, "type") ?? "");
+  if (type === "command")
+    return true;
+  if (bareCommandValue(line) !== undefined)
+    return true;
+  if (quotedValue(assignmentValue(line, "statusMessage") ?? "") !== undefined)
+    return true;
+  const timeout = assignmentValue(line, "timeout");
+  return timeout !== undefined && Number.isSafeInteger(Number(timeout));
+}
+function containsOnlyAllowedHookLines(lines, range) {
+  for (let index = range.start + 1;index < range.end; index += 1) {
+    if (!allowedHookLine(lines[index] ?? ""))
+      return false;
+  }
+  return true;
+}
+function classifyHookBlock(lines, range) {
+  const commands = blockCommandValues(lines, range);
+  const safeWordCommand = commands.some((command) => legacyCommandIdentity(command) !== undefined);
+  const safeWordAmbiguous = safeWordCommand && (commands.length !== 1 || !containsOnlyAllowedHookLines(lines, range));
+  return {
+    range,
+    safeWordOwned: commands.length === 1 && legacyCommandIdentity(commands[0] ?? "") !== undefined && !safeWordAmbiguous,
+    safeWordAmbiguous
+  };
+}
+function isKnownParentScaffold(lines, range) {
+  for (let index = range.start + 1;index < range.end; index += 1) {
+    const trimmed = (lines[index] ?? "").trim();
+    if (trimmed === "" || trimmed.startsWith("#"))
+      continue;
+    if (quotedValue(assignmentValue(lines[index] ?? "", "matcher") ?? "") === undefined)
+      return false;
+  }
+  return true;
+}
+function sectionEnd(lines, start, event) {
+  let end = start + 1;
+  while (end < lines.length && !startsNewTopLevelSection(lines[end] ?? "", event))
+    end += 1;
+  return end;
+}
+function nestedHookStarts(lines, start, end, event) {
+  const starts = [];
+  for (let index = start + 1;index < end; index += 1) {
+    if (isNestedHookHeader(lines[index] ?? "", event))
+      starts.push(index);
+  }
+  return starts;
+}
+function eventRemovalRanges(lines, start, end, event) {
+  const nestedStarts = nestedHookStarts(lines, start, end, event);
+  if (nestedStarts.length === 0)
+    return [];
+  const blocks = nestedStarts.map((nestedStart, index) => classifyHookBlock(lines, { start: nestedStart, end: nestedStarts[index + 1] ?? end }));
+  if (blocks.some((block) => block.safeWordAmbiguous)) {
+    throw new Error("Legacy Safe Word hook cleanup found an ambiguous hook block; no changes were made.");
+  }
+  const ownedBlocks = blocks.filter((block) => block.safeWordOwned);
+  if (ownedBlocks.length === 0)
+    return [];
+  const parentRange = { start, end: nestedStarts[0] ?? end };
+  return ownedBlocks.length === blocks.length && isKnownParentScaffold(lines, parentRange) ? [{ start, end }] : ownedBlocks.map((block) => block.range);
+}
+function removalRanges(lines) {
+  const removals = [];
+  let cursor = 0;
+  while (cursor < lines.length) {
+    const event = eventHeader(lines[cursor] ?? "");
+    if (event === undefined) {
+      cursor += 1;
+      continue;
+    }
+    const end = sectionEnd(lines, cursor, event);
+    removals.push(...eventRemovalRanges(lines, cursor, end, event));
+    cursor = end;
+  }
+  return removals;
+}
+function tomlObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
+}
+function semanticNestedHookCount(value) {
+  const command = tomlObject(value)?.command;
+  return typeof command === "string" && legacyCommandIdentity(command) !== undefined ? 1 : 0;
+}
+function semanticParentHookCount(value) {
+  const nestedHooks = tomlObject(value)?.hooks;
+  return Array.isArray(nestedHooks) ? nestedHooks.reduce((count, hook2) => count + semanticNestedHookCount(hook2), 0) : 0;
+}
+function semanticEventHookCount(value) {
+  return Array.isArray(value) ? value.reduce((count, parent) => count + semanticParentHookCount(parent), 0) : 0;
+}
+function semanticLegacyCommandCounts(document2) {
+  const counts = new Map;
+  const hooks = tomlObject(tomlObject(document2)?.hooks);
+  if (hooks === undefined)
+    return counts;
+  for (const event of KNOWN_HOOK_EVENTS) {
+    const count = semanticEventHookCount(hooks[event]);
+    if (count > 0)
+      counts.set(event, count);
+  }
+  return counts;
+}
+function sourceLegacyCommandCounts(lines) {
+  const counts = new Map;
+  let cursor = 0;
+  while (cursor < lines.length) {
+    const event = eventHeader(lines[cursor] ?? "");
+    if (event === undefined) {
+      cursor += 1;
+      continue;
+    }
+    const end = sectionEnd(lines, cursor, event);
+    const count = nestedHookStarts(lines, cursor, end, event).flatMap((start, index, starts) => blockCommandValues(lines, { start, end: starts[index + 1] ?? end })).filter((command) => legacyCommandIdentity(command) !== undefined).length;
+    if (count > 0)
+      counts.set(event, (counts.get(event) ?? 0) + count);
+    cursor = end;
+  }
+  return counts;
+}
+function countsMatch(left, right) {
+  for (const event of KNOWN_HOOK_EVENTS) {
+    if ((left.get(event) ?? 0) !== (right.get(event) ?? 0))
+      return false;
+  }
+  return true;
+}
+function prepareLegacyCodexHookBlocks(content) {
+  let document2;
+  try {
+    document2 = parse(content);
+  } catch (error2) {
+    throw new Error("Codex configuration is invalid TOML; no legacy hooks were removed.", {
+      cause: error2
+    });
+  }
+  const lines = splitLines(content);
+  if (!countsMatch(semanticLegacyCommandCounts(document2), sourceLegacyCommandCounts(lines))) {
+    throw new Error("Codex configuration uses unsupported Safe Word hook formatting; no legacy hooks were removed.");
+  }
+  const ranges = removalRanges(lines);
+  const removedBlocks = ranges.map((range) => lines.slice(range.start, range.end).join(""));
+  const reverseOrderedRanges = ranges.toSorted((left, right) => right.start - left.start);
+  for (const range of reverseOrderedRanges) {
+    lines.splice(range.start, range.end - range.start);
+  }
+  return { cleaned: lines.join(""), removedBlocks };
+}
+function metadataOrMissing(path4) {
+  try {
+    return lstatSync5(path4);
+  } catch (error2) {
+    const code = error2.code;
+    if (code === "ENOENT" || code === "ENOTDIR")
+      return;
+    throw error2;
+  }
+}
+function unsafeConfigEntry(label, metadata, operation) {
+  let kind = "not a regular file";
+  if (metadata.isSymbolicLink())
+    kind = "a symbolic link";
+  else if (label === "Codex configuration directory")
+    kind = "not an ordinary directory";
+  if (operation === "observe") {
+    throw new CodexConfigObservationError(`${label} is ${kind} and cannot be observed safely.`);
+  }
+  throw new Error(`${label} is ${kind}; no legacy hooks were removed.`);
+}
+function regularCodexConfigMetadata(configPath2, operation = "cleanup") {
+  const directoryMetadata = metadataOrMissing(nodePath39.dirname(configPath2));
+  if (directoryMetadata === undefined)
+    return { kind: "missing" };
+  if (!directoryMetadata.isDirectory()) {
+    unsafeConfigEntry("Codex configuration directory", directoryMetadata, operation);
+  }
+  const metadata = metadataOrMissing(configPath2);
+  if (metadata === undefined)
+    return { kind: "missing" };
+  if (!metadata.isFile())
+    unsafeConfigEntry("Codex configuration", metadata, operation);
+  return { kind: "regular", metadata };
+}
+function prepareLegacyHookRemoval(cwd) {
+  const configPath2 = nodePath39.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
+  if (regularCodexConfigMetadata(configPath2).kind === "missing")
+    return;
+  const original = readFileSync23(configPath2, "utf8");
+  const { cleaned, removedBlocks } = prepareLegacyCodexHookBlocks(original);
+  if (cleaned === original)
+    return;
+  return { configPath: configPath2, original, cleaned, removedBlocks };
+}
+function observeLegacyEvents(cwd) {
+  const configPath2 = nodePath39.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
+  if (regularCodexConfigMetadata(configPath2, "observe").kind === "missing")
+    return [];
+  try {
+    return semanticLegacyCommandCounts(parse(readFileSync23(configPath2, "utf8"))).keys().toArray().toSorted((left, right) => left.localeCompare(right));
+  } catch (error2) {
+    if (error2 instanceof CodexConfigObservationError)
+      throw error2;
+    throw new CodexConfigObservationError("Codex configuration cannot be read or parsed safely.", {
+      cause: error2
+    });
+  }
+}
+var KNOWN_HOOK_EVENTS, TOML_HOOK_KEYS, HOOK_HEADER_LOOKUP, CodexConfigObservationError;
+var init_legacy_config = __esm(() => {
+  init_dist3();
+  init_inventory();
+  init_legacy_command();
+  KNOWN_HOOK_EVENTS = new Set([
+    "SessionStart",
+    "SubagentStart",
+    "PreToolUse",
+    "PermissionRequest",
+    "PostToolUse",
+    "PreCompact",
+    "PostCompact",
+    "UserPromptSubmit",
+    "SubagentStop",
+    "Stop"
+  ]);
+  TOML_HOOK_KEYS = ["hooks", '"hooks"', "'hooks'"];
+  HOOK_HEADER_LOOKUP = new Map([...KNOWN_HOOK_EVENTS].flatMap((event) => hookHeaderEntries(event)));
+  CodexConfigObservationError = class CodexConfigObservationError extends Error {
+    constructor(message, options) {
+      super(message, options);
+      this.name = "CodexConfigObservationError";
+    }
+  };
+});
+
+// src/codex-plugin/migration.ts
+function codexPluginVersionMatchesPackage(plugin) {
+  return plugin.version === null || plugin.version === SAFEWORD_SCHEMA.version;
+}
+function pluginProtectionIsCurrent(facts) {
+  return !facts.activationPending && facts.plugin.enabled === true && codexPluginVersionMatchesPackage(facts.plugin) && facts.proof.status === "current" && (facts.plugin.version === null || facts.proof.plugin_version === facts.plugin.version);
+}
+function deriveCodexMigrationResult(facts) {
+  const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
+  const protectedStatus = legacyProtection(facts, hasLegacy);
+  const state = migrationState(facts, hasLegacy);
+  const nextCommand = nextAction(state);
+  return {
+    schema_version: "2",
+    ok: state === "plugin",
+    state,
+    protected: facts.recoveryRequired ? "uncertain" : protectedStatus,
+    changed: false,
+    plugin: facts.plugin,
+    proof: facts.proof,
+    legacy: {
+      events: facts.legacyEvents,
+      viable_events: facts.viableLegacyEvents,
+      assets: facts.legacyAssets
+    },
+    effects: { files: [] },
+    errors: [],
+    next_actions: nextCommand === undefined ? [] : [
+      {
+        command: nextCommand,
+        mutates: state !== "plugin_installed_app_restart_required" && state !== "plugin_enabled_hook_unproven",
+        requires_human: true
+      }
+    ]
+  };
+}
+function migrationState(facts, hasLegacy) {
+  return MIGRATION_STATE_RULES.find((rule) => rule.matches(facts, hasLegacy))?.state ?? "not_configured";
+}
+function legacyProtection(facts, hasLegacy) {
+  if (pluginProtectionIsCurrent(facts))
+    return "protected";
+  if (!hasLegacy || facts.viableLegacyEvents.length === 0)
+    return "unprotected";
+  return facts.viableLegacyEvents.length === facts.legacyEvents.length ? "protected" : "partial";
+}
+function nextAction(state) {
+  return NEXT_ACTIONS[state];
+}
+function renderCodexMigrationHuman(result) {
+  const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
+  if (result.state === "plugin_setup_required") {
+    lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
+  } else if (result.state === "plugin_installed_app_restart_required" || result.state === "plugin_enabled_hook_unproven") {
+    lines.push(CODEX_RESTART_GUIDANCE);
+  }
+  const next = result.next_actions[0];
+  if (next !== undefined)
+    lines.push(`Next: ${next.command}`);
+  return `${lines.join(`
+`)}
+`;
+}
+function codexMigrationExitCode(result) {
+  if (result.errors.length > 0)
+    return 1;
+  return result.ok ? 0 : 2;
+}
+var CODEX_RESTART_GUIDANCE = "This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.", MIGRATION_STATE_RULES, NEXT_ACTIONS;
+var init_migration = __esm(() => {
+  init_schema();
+  init_inventory();
+  MIGRATION_STATE_RULES = [
+    { state: "recovery_required", matches: (facts) => facts.recoveryRequired },
+    {
+      state: "plugin_setup_required",
+      matches: (facts) => facts.finalized && facts.plugin.enabled !== true
+    },
+    {
+      state: "plugin_disabled",
+      matches: (facts) => facts.plugin.installed && facts.plugin.enabled === false
+    },
+    {
+      state: "plugin_update_required",
+      matches: (facts) => facts.plugin.enabled === true && !codexPluginVersionMatchesPackage(facts.plugin)
+    },
+    {
+      state: "plugin_installed_app_restart_required",
+      matches: (facts) => facts.activationPending && facts.plugin.enabled === true
+    },
+    {
+      state: "plugin_enabled_hook_unproven",
+      matches: (facts) => facts.plugin.enabled === true && !pluginProtectionIsCurrent(facts)
+    },
+    {
+      state: "compatibility",
+      matches: (facts, hasLegacy) => pluginProtectionIsCurrent(facts) && hasLegacy
+    },
+    {
+      state: "plugin",
+      matches: (facts) => pluginProtectionIsCurrent(facts)
+    },
+    { state: "legacy", matches: (_facts, hasLegacy) => hasLegacy }
+  ];
+  NEXT_ACTIONS = {
+    recovery_required: "safeword codex recover",
+    compatibility: "safeword codex migrate --finalize",
+    plugin: undefined,
+    plugin_installed_app_restart_required: "safeword codex status",
+    plugin_enabled_hook_unproven: "safeword codex status",
+    plugin_setup_required: "safeword codex migrate",
+    plugin_disabled: "safeword codex migrate",
+    plugin_update_required: "safeword codex migrate",
+    legacy: "safeword codex migrate",
+    not_configured: "safeword codex migrate"
+  };
+});
+
+// src/codex-plugin/profile-lock.ts
+import { randomUUID as randomUUID3 } from "crypto";
+import { mkdirSync as mkdirSync6, readFileSync as readFileSync24, rmSync as rmSync4, statSync as statSync3, writeFileSync as writeFileSync9 } from "fs";
+import { homedir as homedir2 } from "os";
+import nodePath40 from "path";
+function profileDirectory(environment) {
+  return environment.CODEX_HOME ?? nodePath40.join(homedir2(), ".codex");
+}
+function lockPath(environment) {
+  return nodePath40.join(profileDirectory(environment), "safeword/profile-mutation.lock");
+}
+function acquisitionGatePath(path4) {
+  return `${path4}.acquire`;
+}
+function readRecord(path4) {
+  try {
+    const value = JSON.parse(readFileSync24(nodePath40.join(path4, "owner.json"), "utf8"));
+    return typeof value.owner === "string" && typeof value.acquired_at === "number" ? { owner: value.owner, acquired_at: value.acquired_at } : undefined;
+  } catch {
+    return;
+  }
+}
+function lockAge(path4, now) {
+  const record = readRecord(path4);
+  if (record !== undefined)
+    return now - record.acquired_at;
+  try {
+    return now - statSync3(path4).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+function createLock(path4, owner, now) {
+  try {
+    mkdirSync6(path4);
+    writeFileSync9(nodePath40.join(path4, "owner.json"), `${JSON.stringify({ owner, acquired_at: now })}
+`, { encoding: "utf8", flag: "wx", mode: 384 });
+    return { path: path4, owner };
+  } catch {
+    return;
+  }
+}
+function acquireCodexProfileLock(environment = process.env, options = {}) {
+  const path4 = lockPath(environment);
+  const owner = options.owner ?? randomUUID3();
+  const now = (options.now ?? Date.now)();
+  mkdirSync6(nodePath40.dirname(path4), { recursive: true });
+  const gate = acquisitionGatePath(path4);
+  try {
+    mkdirSync6(gate);
+  } catch {
+    return;
+  }
+  try {
+    const acquired = createLock(path4, owner, now);
+    if (acquired !== undefined)
+      return acquired;
+    if (lockAge(path4, now) <= (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS))
+      return;
+    rmSync4(path4, { recursive: true, force: true });
+    return createLock(path4, owner, now);
+  } finally {
+    rmSync4(gate, { recursive: true, force: true });
+  }
+}
+function releaseCodexProfileLock(lock) {
+  if (readRecord(lock.path)?.owner !== lock.owner)
+    return false;
+  rmSync4(lock.path, { recursive: true, force: true });
+  return true;
+}
+var DEFAULT_MAX_AGE_MS;
+var init_profile_lock = __esm(() => {
+  DEFAULT_MAX_AGE_MS = 10 * 60 * 1000;
+});
+
+// src/codex-plugin/host-process.ts
+import { spawnSync as spawnSync2 } from "child_process";
+function parseProcessRows(output) {
+  return output.split(`
+`).flatMap((line) => {
+    const columns = line.trim().split(/\s+/u);
+    if (columns.length < 8)
+      return [];
+    const pid = Number(columns[0]);
+    const parentPid = Number(columns[1]);
+    if (!Number.isSafeInteger(pid) || !Number.isSafeInteger(parentPid))
+      return [];
+    const startedAt = new Date(columns.slice(2, 7).join(" "));
+    if (Number.isNaN(startedAt.getTime()))
+      return [];
+    return [
+      {
+        pid,
+        parentPid,
+        started_at: startedAt.toISOString(),
+        command: columns.slice(7).join(" ")
+      }
+    ];
+  });
+}
+function parseWindowsProcessRows(output) {
+  return output.split(`
+`).flatMap((line) => {
+    const [pidText, parentPidText, startedAtText, ...command] = line.trimEnd().split("\t");
+    const pid = Number(pidText);
+    const parentPid = Number(parentPidText);
+    const startedAt = new Date(Number(startedAtText));
+    if (!Number.isSafeInteger(pid) || !Number.isSafeInteger(parentPid) || command.length === 0)
+      return [];
+    if (Number.isNaN(startedAt.getTime()))
+      return [];
+    return [
+      {
+        pid,
+        parentPid,
+        started_at: startedAt.toISOString(),
+        command: command.join("\t")
+      }
+    ];
+  });
+}
+function isCodexAppServer(row) {
+  const command = row.command.replaceAll("\\", "/");
+  return /(?:^|\/)codex(?:\.exe)?["']?\s/iu.test(command) && /(?:^|\s)app-server(?:\s|$)/u.test(command);
+}
+function codexHostsFromProcessTable(output, parentPid, format = "posix") {
+  const rows = format === "windows" ? parseWindowsProcessRows(output) : parseProcessRows(output);
+  const running = rows.filter((row) => isCodexAppServer(row)).map(({ pid, started_at }) => ({ pid, started_at }));
+  const byPid = new Map(rows.map((row) => [row.pid, row]));
+  let candidate = byPid.get(parentPid);
+  const visited = new Set;
+  while (candidate !== undefined && !visited.has(candidate.pid)) {
+    if (isCodexAppServer(candidate)) {
+      return {
+        available: true,
+        running,
+        current: { pid: candidate.pid, started_at: candidate.started_at }
+      };
+    }
+    visited.add(candidate.pid);
+    candidate = byPid.get(candidate.parentPid);
+  }
+  return { available: true, running, current: null };
+}
+function observeCodexHostProcesses() {
+  if (process.platform === "win32") {
+    const result2 = spawnSync2("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WINDOWS_PROCESS_COMMAND], { encoding: "utf8", timeout: 2000 });
+    if (result2.status !== 0)
+      return { available: false, running: [], current: null };
+    return codexHostsFromProcessTable(result2.stdout, process.ppid, "windows");
+  }
+  const result = spawnSync2("ps", ["-axo", "pid=,ppid=,lstart=,command="], {
+    encoding: "utf8",
+    timeout: 2000
+  });
+  if (result.status !== 0)
+    return { available: false, running: [], current: null };
+  return codexHostsFromProcessTable(result.stdout, process.ppid);
+}
+function observeRunningCodexHosts() {
+  const observation = observeCodexHostProcesses();
+  return observation.available ? observation.running : null;
+}
+function sameCodexHost(left, right) {
+  return left.pid === right.pid && left.started_at === right.started_at;
+}
+var WINDOWS_PROCESS_COMMAND = 'Get-CimInstance Win32_Process | ForEach-Object { $started = [DateTimeOffset]$_.CreationDate; Write-Output ("{0}`t{1}`t{2}`t{3}" -f $_.ProcessId, $_.ParentProcessId, $started.ToUnixTimeMilliseconds(), $_.CommandLine) }';
+var init_host_process = () => {};
+
+// src/codex-plugin/profile-proof.ts
+import { createHash as createHash6, randomUUID as randomUUID4 } from "crypto";
+import { existsSync as existsSync24, readFileSync as readFileSync25, realpathSync, rmSync as rmSync5 } from "fs";
+import { homedir as homedir3 } from "os";
+import nodePath41 from "path";
+function codexProfileDirectory(environment = process.env) {
+  return environment.CODEX_HOME ?? nodePath41.join(homedir3(), ".codex");
+}
+function codexProofPath(environment = process.env, event = "session-start") {
+  return nodePath41.join(codexProfileDirectory(environment), "safeword/hook-proof-v2", `${event}.json`);
+}
+function canonicalProjectDirectory(projectDirectory) {
+  try {
+    return realpathSync(projectDirectory);
+  } catch {
+    return nodePath41.resolve(projectDirectory);
+  }
+}
+function codexSessionProofPath(projectDirectory, sessionId, environment) {
+  const project = canonicalProjectDirectory(projectDirectory);
+  const projectDigest = createHash6("sha256").update(project).digest("hex");
+  const sessionDigest = createHash6("sha256").update(sessionId).digest("hex");
+  return nodePath41.join(codexProfileDirectory(environment), "safeword/session-proof-v1", projectDigest, `${sessionDigest}.json`);
+}
+function legacyCodexActivationMarkerPath(environment = process.env) {
+  return nodePath41.join(codexProfileDirectory(environment), "safeword/activation-pending-v1.json");
+}
+function codexActivationMarkerPath(environment = process.env) {
+  return nodePath41.join(codexProfileDirectory(environment), "safeword/activation-pending-v2.json");
+}
+function codexActivationReceiptPath(environment = process.env) {
+  return nodePath41.join(codexProfileDirectory(environment), "safeword/activation-current-v1.json");
+}
+function legacyCodexRestartMarkerPath(environment = process.env) {
+  return nodePath41.join(codexProfileDirectory(environment), "safeword/restart-pending-v1.json");
+}
+function codexActivationIsPending(environment = process.env) {
+  const identity = currentCodexPluginIdentity();
+  return existsSync24(codexActivationMarkerPath(environment)) || [legacyCodexActivationMarkerPath(environment), legacyCodexRestartMarkerPath(environment)].some((path4) => legacyActivationMarkerMatches(path4, identity));
+}
+function packagedHookManifestPath() {
+  const candidates = [
+    nodePath41.resolve(import.meta.dirname, "../codex-plugin/hooks.json"),
+    nodePath41.resolve(import.meta.dirname, "../../codex-plugin/hooks.json")
+  ];
+  const manifest = candidates.find((candidate) => existsSync24(candidate));
+  if (manifest === undefined) {
+    throw new Error("Could not locate the packaged Codex hook manifest.");
+  }
+  return manifest;
+}
+function currentCodexPluginIdentity() {
+  const manifest = readFileSync25(packagedHookManifestPath());
+  return {
+    plugin_version: SAFEWORD_SCHEMA.version,
+    manifest_sha256: createHash6("sha256").update(manifest).digest("hex")
+  };
+}
+function matchesCodexPluginIdentity(value, identity) {
+  return value.plugin_version === identity.plugin_version && value.manifest_sha256 === identity.manifest_sha256;
+}
+function writeCodexActivationMarker(environment = process.env, now = new Date, options = {}) {
+  const path4 = codexActivationMarkerPath(environment);
+  const activeHosts = options.activeHosts === undefined ? observeRunningCodexHosts() : options.activeHosts;
+  const marker = {
+    schema_version: 2,
+    ...currentCodexPluginIdentity(),
+    activation_id: options.activationId ?? randomUUID4(),
+    installed_at: now.toISOString(),
+    host_observation: activeHosts === null ? "unavailable" : "observed",
+    active_hosts: activeHosts ?? []
+  };
+  writeAtomicJson(path4, marker);
+  for (const event of CODEX_PLUGIN_HOOK_EVENTS)
+    rmSync5(codexProofPath(environment, event), { force: true });
+  rmSync5(nodePath41.join(codexProfileDirectory(environment), "safeword/hook-proof-v1"), {
+    recursive: true,
+    force: true
+  });
+  rmSync5(nodePath41.join(codexProfileDirectory(environment), "safeword/session-proof-v1"), {
+    recursive: true,
+    force: true
+  });
+  rmSync5(codexActivationReceiptPath(environment), { force: true });
+  rmSync5(legacyCodexActivationMarkerPath(environment), { force: true });
+  rmSync5(legacyCodexRestartMarkerPath(environment), { force: true });
+  return marker;
+}
+function hostObservationForOverride(current = null) {
+  return {
+    available: true,
+    current,
+    running: current === null ? [] : [current]
+  };
+}
+function activationReceiptForRestart(marker, hostObservation, identity, now) {
+  const currentHost = hostObservation.current;
+  if (!hostObservation.available || currentHost === null || marker.host_observation !== "observed" || now.getTime() < Date.parse(marker.installed_at) || marker.active_hosts.some((installedHost) => hostObservation.running.some((runningHost) => sameCodexHost(installedHost, runningHost)))) {
+    return null;
+  }
+  return {
+    schema_version: 1,
+    ...identity,
+    activation_id: marker.activation_id,
+    activated_at: now.toISOString(),
+    host: currentHost
+  };
+}
+function recordCodexHookProof(event, environment = process.env, now = new Date, writeOptions = {}) {
+  const identity = currentCodexPluginIdentity();
+  const marker = readActivationMarkerV2(environment, identity);
+  let receipt = readActivationReceipt(environment, identity);
+  if (event === "session-start" && marker !== null) {
+    const hostObservation = writeOptions.hostObservation ?? ("currentHost" in writeOptions ? hostObservationForOverride(writeOptions.currentHost) : observeCodexHostProcesses());
+    const restartedReceipt = activationReceiptForRestart(marker, hostObservation, identity, now);
+    if (restartedReceipt !== null) {
+      receipt = restartedReceipt;
+      writeAtomicJson(codexActivationReceiptPath(environment), receipt);
+      rmSync5(codexActivationMarkerPath(environment), { force: true });
+    }
+  }
+  const proof = {
+    schema_version: 2,
+    event,
+    ...identity,
+    activation_id: receipt?.activation_id ?? marker?.activation_id ?? null,
+    recorded_at: now.toISOString()
+  };
+  writeAtomicJson(codexProofPath(environment, event), proof, writeOptions);
+  const sessionId = writeOptions.sessionId?.trim();
+  if (event === "session-start" && writeOptions.projectDirectory !== undefined && sessionId) {
+    const projectDirectory = canonicalProjectDirectory(writeOptions.projectDirectory);
+    const sessionProof = {
+      schema_version: 1,
+      ...identity,
+      project_directory: projectDirectory,
+      session_id: sessionId,
+      recorded_at: now.toISOString()
+    };
+    writeAtomicJson(codexSessionProofPath(projectDirectory, sessionId, environment), sessionProof);
+  }
+  return proof;
+}
+function codexSessionProofIsCurrent(projectDirectory, sessionId, environment = process.env) {
+  const canonicalProject = canonicalProjectDirectory(projectDirectory);
+  try {
+    const value = JSON.parse(readFileSync25(codexSessionProofPath(canonicalProject, sessionId, environment), "utf8"));
+    return value.schema_version === 1 && value.project_directory === canonicalProject && value.session_id === sessionId && typeof value.recorded_at === "string" && !Number.isNaN(Date.parse(value.recorded_at)) && matchesCodexPluginIdentity(value, currentCodexPluginIdentity());
+  } catch {
+    return false;
+  }
+}
+function writeAtomicJson(path4, value, options = {}) {
+  writeDurableFile(path4, `${JSON.stringify(value)}
+`, {
+    mode: 384,
+    beforeRename: options.beforeRename
+  });
+}
+function legacyActivationMarkerMatches(path4, identity) {
+  if (!existsSync24(path4))
+    return false;
+  try {
+    const marker = JSON.parse(readFileSync25(path4, "utf8"));
+    return marker.schema_version === 1 && matchesCodexPluginIdentity(marker, identity);
+  } catch {
+    return false;
+  }
+}
+function readActivationMarkerV2(environment, identity) {
+  return readIdentityBoundJson(codexActivationMarkerPath(environment), identity, isActivationMarkerV2);
+}
+function readActivationReceipt(environment, identity) {
+  return readIdentityBoundJson(codexActivationReceiptPath(environment), identity, isActivationReceiptV1);
+}
+function readIdentityBoundJson(path4, identity, validator) {
+  if (!existsSync24(path4))
+    return null;
+  try {
+    const value = JSON.parse(readFileSync25(path4, "utf8"));
+    return validator(value) && matchesCodexPluginIdentity(value, identity) ? value : null;
+  } catch {
+    return null;
+  }
+}
+function readEventProof(path4, expectedEvent) {
+  try {
+    const proof = JSON.parse(readFileSync25(path4, "utf8"));
+    return isCodexHookProof(proof) && proof.event === expectedEvent ? proof : null;
+  } catch {
+    return null;
+  }
+}
+function observeCodexHookProof(environment = process.env) {
+  const candidates = CODEX_PLUGIN_HOOK_EVENTS.map((event) => ({
+    event,
+    path: codexProofPath(environment, event)
+  }));
+  const existing = candidates.filter((candidate) => existsSync24(candidate.path));
+  if (existing.length === 0) {
+    return {
+      status: "missing",
+      plugin_version: null,
+      manifest_sha256: null,
+      recorded_at: null,
+      activation_id: null,
+      events: [],
+      missing_events: CODEX_PLUGIN_HOOK_EVENTS
+    };
+  }
+  const parsed = existing.map((item) => readEventProof(item.path, item.event));
+  if (parsed.includes(null))
+    return malformedObservation();
+  const validProofs = parsed.filter((proof) => proof !== null);
+  const identity = currentCodexPluginIdentity();
+  const activationId = readActivationMarkerV2(environment, identity)?.activation_id ?? readActivationReceipt(environment, identity)?.activation_id ?? null;
+  const current = validProofs.filter((proof) => matchesCodexPluginIdentity(proof, identity) && (activationId === null || proof.schema_version === 2 && proof.activation_id === activationId));
+  const events = current.map((proof) => proof.event);
+  const missingEvents = CODEX_PLUGIN_HOOK_EVENTS.filter((event) => !events.includes(event));
+  const latest = current.toSorted((left, right) => right.recorded_at.localeCompare(left.recorded_at)).at(0);
+  let status = "stale";
+  if (current.length === CODEX_PLUGIN_HOOK_EVENTS.length)
+    status = "current";
+  else if (current.length > 0)
+    status = "partial";
+  return {
+    status,
+    plugin_version: latest?.plugin_version ?? validProofs[0]?.plugin_version ?? null,
+    manifest_sha256: latest?.manifest_sha256 ?? validProofs[0]?.manifest_sha256 ?? null,
+    recorded_at: latest?.recorded_at ?? null,
+    activation_id: activationId,
+    events,
+    missing_events: missingEvents
+  };
+}
+function malformedObservation() {
+  return {
+    status: "malformed",
+    plugin_version: null,
+    manifest_sha256: null,
+    recorded_at: null,
+    activation_id: null,
+    events: [],
+    missing_events: CODEX_PLUGIN_HOOK_EVENTS
+  };
+}
+function isCodexHookProof(value) {
+  if (typeof value !== "object" || value === null)
+    return false;
+  const proof = value;
+  return (proof.schema_version === 1 || proof.schema_version === 2) && isCodexPluginHookEvent(proof.event) && typeof proof.plugin_version === "string" && typeof proof.manifest_sha256 === "string" && /^[\da-f]{64}$/u.test(proof.manifest_sha256) && (proof.schema_version === 1 || ("activation_id" in proof) && (typeof proof.activation_id === "string" || proof.activation_id === null)) && typeof proof.recorded_at === "string" && !Number.isNaN(Date.parse(proof.recorded_at));
+}
+function isActivationMarkerV2(value) {
+  if (typeof value !== "object" || value === null)
+    return false;
+  const marker = value;
+  return marker.schema_version === 2 && typeof marker.plugin_version === "string" && typeof marker.manifest_sha256 === "string" && /^[\da-f]{64}$/u.test(marker.manifest_sha256) && typeof marker.activation_id === "string" && typeof marker.installed_at === "string" && !Number.isNaN(Date.parse(marker.installed_at)) && (marker.host_observation === "observed" || marker.host_observation === "unavailable") && Array.isArray(marker.active_hosts) && marker.active_hosts.every(isCodexHostProcessIdentity);
+}
+function isActivationReceiptV1(value) {
+  if (typeof value !== "object" || value === null)
+    return false;
+  const receipt = value;
+  return receipt.schema_version === 1 && typeof receipt.plugin_version === "string" && typeof receipt.manifest_sha256 === "string" && /^[\da-f]{64}$/u.test(receipt.manifest_sha256) && typeof receipt.activation_id === "string" && typeof receipt.activated_at === "string" && !Number.isNaN(Date.parse(receipt.activated_at)) && isCodexHostProcessIdentity(receipt.host);
+}
+function isCodexHostProcessIdentity(value) {
+  if (typeof value !== "object" || value === null)
+    return false;
+  const host = value;
+  return Number.isSafeInteger(host.pid) && (host.pid ?? 0) > 0 && typeof host.started_at === "string" && !Number.isNaN(Date.parse(host.started_at));
+}
+function isCodexPluginHookEvent(value) {
+  return typeof value === "string" && CODEX_PLUGIN_HOOK_EVENTS.includes(value);
+}
+var CODEX_PLUGIN_HOOK_EVENTS;
+var init_profile_proof = __esm(() => {
+  init_schema();
+  init_durable_write();
+  init_host_process();
+  CODEX_PLUGIN_HOOK_EVENTS = [
+    "session-start",
+    "pre-tool-use",
+    "post-tool-use",
+    "user-prompt-submit",
+    "stop"
+  ];
+});
+
+// src/codex-plugin/project-bootstrap.ts
+import { readFileSync as readFileSync26 } from "fs";
+import nodePath42 from "path";
+function withoutManagedBlock(content) {
+  const begin = content.indexOf(BEGIN_MARKER);
+  const end = content.indexOf(END_MARKER);
+  if (begin === -1 && end === -1) {
+    if (content.includes(BOOTSTRAP_COMMAND)) {
+      throw new Error("Codex configuration contains an unrecognized Safeword bootstrap command; no changes were made.");
+    }
+    return content;
+  }
+  if (begin === -1 || end === -1 || end < begin || content.includes(BEGIN_MARKER, begin + 1)) {
+    throw new Error("Codex configuration contains malformed Safeword bootstrap markers; no changes were made.");
+  }
+  const afterEnd = end + END_MARKER.length;
+  if (content.includes(END_MARKER, afterEnd)) {
+    throw new Error("Codex configuration contains duplicate Safeword bootstrap markers; no changes were made.");
+  }
+  return `${content.slice(0, begin)}${content.slice(afterEnd)}`.replaceAll(/\n{3,}/gu, `
+
+`);
+}
+function codexProjectBootstrapContent(content) {
+  try {
+    parse(content);
+  } catch (error2) {
+    throw new Error("Codex configuration is invalid TOML; no bootstrap was installed.", {
+      cause: error2
+    });
+  }
+  const preserved = withoutManagedBlock(content).trimEnd();
+  const prefix = preserved === "" ? "" : `${preserved}
+
+`;
+  const next = `${prefix}${BOOTSTRAP_BLOCK}`;
+  try {
+    parse(next);
+  } catch (error2) {
+    throw new Error("Safeword could not safely merge its Codex bootstrap configuration.", {
+      cause: error2
+    });
+  }
+  return next;
+}
+function preparedCodexProjectBootstrap(cwd, baseContent) {
+  const configPath2 = nodePath42.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
+  let content = baseContent;
+  if (content === undefined) {
+    content = regularCodexConfigMetadata(configPath2).kind === "missing" ? "" : readFileSync26(configPath2, "utf8");
+  }
+  return codexProjectBootstrapContent(content);
+}
+function installCodexProjectBootstrap(cwd) {
+  const configPath2 = nodePath42.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
+  const metadata = regularCodexConfigMetadata(configPath2);
+  const original = metadata.kind === "missing" ? "" : readFileSync26(configPath2, "utf8");
+  const content = codexProjectBootstrapContent(original);
+  if (content === original)
+    return false;
+  writeDurableFile(configPath2, content, {
+    mode: metadata.kind === "regular" ? metadata.metadata.mode : 420
+  });
+  return true;
+}
+var BEGIN_MARKER = "# --- safeword codex bootstrap: begin ---", END_MARKER = "# --- safeword codex bootstrap: end ---", BOOTSTRAP_COMMAND = "bunx --bun safeword@latest codex bootstrap", BOOTSTRAP_BLOCK;
+var init_project_bootstrap = __esm(() => {
+  init_dist3();
+  init_durable_write();
+  init_inventory();
+  init_legacy_config();
+  BOOTSTRAP_BLOCK = `${BEGIN_MARKER}
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "${BOOTSTRAP_COMMAND}"
+timeout = 120
+statusMessage = "Checking Safeword for this project"
+${END_MARKER}
+`;
+});
+
+// src/codex-plugin/operations.ts
+import { spawnSync as spawnSync3 } from "child_process";
+import { createHash as createHash7 } from "crypto";
+import { existsSync as existsSync25, lstatSync as lstatSync6, readFileSync as readFileSync27 } from "fs";
+import { homedir as homedir4 } from "os";
+import nodePath43 from "path";
+function run(command, arguments_) {
+  const result = spawnSync3(command, arguments_, { encoding: "utf8" });
+  if (result.error)
+    throw new Error(`${command} is required. Install it, then re-run this command.`);
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout).trim();
+    throw new Error(detail || `${command} ${arguments_.join(" ")} failed.`);
+  }
+  return result.stdout;
+}
+function pluginObservationFromList(output) {
+  const parsed = JSON.parse(output);
+  const plugin = parsed.installed?.find((candidate) => candidate.pluginId === PLUGIN_ID);
+  return {
+    installed: plugin !== undefined,
+    enabled: plugin?.enabled ?? (plugin === undefined ? false : null),
+    version: plugin?.version ?? null,
+    observation: "observed"
+  };
+}
+function isOfficialSafewordGitSource(source) {
+  if (source === undefined)
+    return false;
+  const normalized = source.toLowerCase().replace(/\/$/u, "").replace(/\.git$/u, "");
+  return new Set([
+    "arcadeai/safeword",
+    "git@github.com:arcadeai/safeword",
+    "https://github.com/arcadeai/safeword",
+    "ssh://git@github.com/arcadeai/safeword"
+  ]).has(normalized);
+}
+function observeCodexPlugin() {
+  return pluginObservationFromList(run("codex", ["plugin", "list", "--json"]));
+}
+function marketplaceListFromOutput(output) {
+  let parsed;
+  try {
+    parsed = JSON.parse(output);
+  } catch (error2) {
+    throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "Codex returned malformed marketplace discovery JSON; plugin installation did not run.", { cause: error2 });
+  }
+  if (typeof parsed !== "object" || parsed === null || !Array.isArray(parsed.marketplaces) || !parsed.marketplaces?.every((marketplace) => typeof marketplace === "object" && marketplace !== null)) {
+    throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "Codex returned an unsupported marketplace discovery result; plugin installation did not run.");
+  }
+  return parsed;
+}
+function runCodexMarketplace(arguments_, failureContext) {
+  try {
+    return run("codex", ["plugin", "marketplace", ...arguments_]);
+  } catch (error2) {
+    throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `${failureContext}; plugin installation did not run: ${String(error2)}`, { cause: error2 });
+  }
+}
+function configuredSafewordMarketplace(environment = process.env) {
+  const configPath2 = nodePath43.join(environment.CODEX_HOME ?? nodePath43.join(homedir4(), ".codex"), "config.toml");
+  if (!existsSync25(configPath2))
+    return;
+  try {
+    const document2 = parse(readFileSync27(configPath2, "utf8"));
+    return document2.marketplaces?.safeword;
+  } catch (error2) {
+    throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The Codex profile configuration is invalid TOML; the Safeword marketplace was not changed.", { cause: error2 });
+  }
+}
+function marketplaceAddArguments(source, ref) {
+  return [
+    "add",
+    source,
+    "--ref",
+    ref,
+    "--sparse",
+    ".agents/plugins",
+    "--sparse",
+    "packages/cli/codex-plugin",
+    "--json"
+  ];
+}
+function exactVersionReference(ref) {
+  const version2 = ref.startsWith("v") ? ref.slice(1) : "";
+  return isSafePackageVersion(version2) ? version2 : undefined;
+}
+function replaceCodexMarketplaceWithStable(configured) {
+  const source = configured.source ?? MARKETPLACE_SOURCE;
+  runCodexMarketplace(["remove", "safeword", "--json"], "Could not replace the Safeword marketplace");
+  try {
+    runCodexMarketplace(marketplaceAddArguments(MARKETPLACE_SOURCE, "stable"), "Could not enroll the Safeword stable marketplace channel");
+  } catch (error2) {
+    try {
+      runCodexMarketplace(marketplaceAddArguments(source, configured.ref ?? "main"), "Could not restore the previous Safeword marketplace after stable enrollment failed");
+    } catch {}
+    throw error2;
+  }
+}
+function assertMarketplacePinIsNotNewer(ref, pinnedVersion) {
+  if (pinnedVersion === undefined || compareVersions(pinnedVersion, SAFEWORD_SCHEMA.version) <= 0) {
+    return;
+  }
+  throw new CodexMigrationError("PLUGIN_NEWER_PIN_PRESERVED", `Codex is pinned to newer Safeword ${ref}; Safeword left that explicit profile pin unchanged.`);
+}
+function refreshOfficialGitMarketplace(marketplace, environment) {
+  const source = marketplace.marketplaceSource?.source;
+  if (!isOfficialSafewordGitSource(source)) {
+    throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `The configured Codex marketplace named safeword does not point to ${MARKETPLACE_SOURCE}; plugin installation did not run.`);
+  }
+  const configured = configuredSafewordMarketplace(environment);
+  const ref = configured?.ref;
+  const pinnedVersion = ref === undefined ? undefined : exactVersionReference(ref);
+  assertMarketplacePinIsNotNewer(ref, pinnedVersion);
+  if (ref === "main" || pinnedVersion !== undefined) {
+    replaceCodexMarketplaceWithStable({ ...configured, source: configured?.source ?? source });
+    return;
+  }
+  runCodexMarketplace(["upgrade", "safeword", "--json"], "Could not refresh the configured Safeword Codex marketplace");
+}
+function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.env) {
+  if (marketplaceSource === undefined) {
+    const output = runCodexMarketplace(["list", "--json"], "Could not inspect configured Codex marketplaces");
+    const marketplace = marketplaceListFromOutput(output).marketplaces.find((candidate) => candidate.name === "safeword");
+    if (marketplace?.marketplaceSource?.sourceType === "git") {
+      refreshOfficialGitMarketplace(marketplace, environment);
+      return;
+    }
+  }
+  runCodexMarketplace([
+    "add",
+    marketplaceSource ?? MARKETPLACE_SOURCE,
+    ...marketplaceSource === undefined ? ["--ref", "stable"] : [],
+    "--sparse",
+    ".agents/plugins",
+    "--sparse",
+    "packages/cli/codex-plugin",
+    "--json"
+  ], "Could not add the Safeword Codex marketplace");
+}
+function addCodexPluginToProfile(marketplaceSource, environment = process.env) {
+  refreshOrAddCodexMarketplace(marketplaceSource, environment);
+  run("codex", ["plugin", "add", PLUGIN_ID, "--json"]);
+}
+function verifyCodexPluginIsEnabled(options = {}) {
+  let pluginList;
+  try {
+    pluginList = run("codex", ["plugin", "list", "--json"]);
+  } catch (error2) {
+    const prefix = options.installationCompleted === true ? "Plugin installation succeeded, but enablement is unknown" : "Could not verify the Safe Word Codex plugin";
+    throw new CodexMigrationError(options.installationCompleted === true ? "PLUGIN_ENABLEMENT_UNKNOWN" : "PLUGIN_ENABLEMENT_FAILED", `${prefix}: ${String(error2)}`, { cause: error2 });
+  }
+  const plugin = pluginObservationFromList(pluginList);
+  if (plugin.enabled !== true) {
+    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.");
+  }
+  if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
+    throw new Error(`Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`);
+  }
+}
+function pathExistsIncludingDanglingSymlink(path4) {
+  try {
+    lstatSync6(path4);
+    return true;
+  } catch (error2) {
+    const code = error2.code;
+    if (code === "ENOENT" || code === "ENOTDIR")
+      return false;
+    throw error2;
+  }
+}
+function observeLegacyAssets(cwd) {
+  return SAFEWORD_SCHEMA.codexMigration.cleanupFiles.filter((path4) => pathExistsIncludingDanglingSymlink(nodePath43.join(cwd, path4)));
+}
+function observeViableLegacyEvents(cwd, legacyEvents, environment) {
+  const eventIdsByName = new Map(Object.entries(SAFEWORD_SCHEMA.codexMigration.hookEventNames).map(([event, name]) => [
+    name,
+    event
+  ]));
+  return legacyEvents.filter((eventName) => {
+    const event = eventIdsByName.get(eventName);
+    return event !== undefined && legacyCodexEventIsViable(cwd, event, environment);
+  });
+}
+function observeCodexMigrationResult(cwd = process.cwd(), environment = process.env) {
+  let legacyEvents = [];
+  let configObservationError;
+  try {
+    legacyEvents = observeLegacyEvents(cwd);
+  } catch (error2) {
+    if (!(error2 instanceof CodexConfigObservationError))
+      throw error2;
+    configObservationError = error2;
+  }
+  const recoveryRequired = codexRecoveryIsRequired(cwd);
+  let plugin;
+  let pluginObservationError;
+  if (recoveryRequired) {
+    plugin = { installed: false, enabled: null, version: null, observation: "unknown" };
+  } else {
+    try {
+      plugin = observeCodexPlugin();
+    } catch (error2) {
+      plugin = { installed: false, enabled: null, version: null, observation: "unknown" };
+      pluginObservationError = error2 instanceof Error ? error2 : new Error(String(error2));
+    }
+  }
+  const result = deriveCodexMigrationResult({
+    plugin,
+    proof: observeCodexHookProof(environment),
+    legacyAssets: observeLegacyAssets(cwd),
+    legacyEvents,
+    viableLegacyEvents: observeViableLegacyEvents(cwd, legacyEvents, environment),
+    finalized: codexFinalizationIsComplete(cwd),
+    recoveryRequired,
+    activationPending: codexActivationIsPending(environment)
+  });
+  if (pluginObservationError !== undefined) {
+    result.errors.push({
+      code: "PLUGIN_OBSERVATION_FAILED",
+      message: pluginObservationError.message,
+      retryable: true
+    });
+  }
+  if (configObservationError !== undefined) {
+    result.errors.push({
+      code: "CODEX_CONFIG_UNREADABLE",
+      message: configObservationError.message,
+      retryable: false
+    });
+  }
+  return result;
+}
+function codexMigrationMessage(state, proof) {
+  if (state === "plugin_enabled_hook_unproven" && proof !== undefined) {
+    return `Codex migration state: plugin_enabled_hook_unproven. In the restarted Codex app, review /hooks and exercise these missing hooks: ${proof.missing_events.join(", ")}. Then run safeword codex migrate --finalize.`;
+  }
+  return CODEX_MIGRATION_MESSAGES[state] ?? `Codex migration state: ${state}.`;
+}
+function legacyCodexMigrationState(state) {
+  return state === "plugin_installed_app_restart_required" ? "plugin_installed_restart_required" : state;
+}
+function observeCodexMigration(cwd = process.cwd(), environment = process.env) {
+  const result = observeCodexMigrationResult(cwd, environment);
+  const legacyState = legacyCodexMigrationState(result.state);
+  const globalGuidance = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
+  let state = "action_required";
+  if (result.errors.length > 0)
+    state = "failed";
+  else if (result.ok && globalGuidance.finding === undefined)
+    state = "healthy";
+  return createResult({
+    state,
+    findings: result.errors.length > 0 ? [] : [
+      {
+        code: `CODEX_${legacyState.toUpperCase()}`,
+        message: codexMigrationMessage(result.state, result.proof),
+        severity: result.ok ? "info" : "warning",
+        metadata: {
+          migration_schema_version: result.schema_version,
+          migration_state: result.state
+        }
+      },
+      ...globalGuidance.finding === undefined ? [] : [globalGuidance.finding]
+    ],
+    errors: result.errors,
+    nextActions: [
+      ...result.next_actions.map((action) => ({
+        command: action.command,
+        mutates: action.mutates,
+        requiresHuman: action.requires_human
+      })),
+      ...globalGuidance.nextAction === undefined ? [] : [globalGuidance.nextAction]
+    ],
+    data: {
+      command: "codex status",
+      migration_state: legacyState,
+      migration: {
+        schema_version: result.schema_version,
+        state: result.state
+      },
+      protected: result.protected,
+      plugin: result.plugin,
+      proof: result.proof,
+      legacy: result.legacy,
+      global_guidance: globalGuidance.observation
+    }
+  });
+}
+function reportCodexMigration(cwd, options) {
+  const result = observeCodexMigrationResult(cwd, options.environment);
+  result.changed = options.changed === true;
+  if (options.effects !== undefined)
+    result.effects.files = options.effects;
+  process.stdout.write(options.json === true ? `${JSON.stringify(result)}
+` : renderCodexMigrationHuman(result));
+  process.exitCode = codexMigrationExitCode(result);
+}
+function installCodexPlugin(options = {}) {
+  const cwd = options.cwd ?? process.cwd();
+  if (shouldReportExistingMigrationState(cwd, options)) {
+    reportCodexMigration(cwd, { json: options.json, environment: options.environment });
+    return;
+  }
+  const lock = acquireCodexProfileLock(options.environment);
+  if (lock === undefined) {
+    throw new CodexMigrationError("PLUGIN_PROFILE_BUSY", "Another Safeword task is updating this Codex profile. No profile changes were made; retry `safeword codex install` in a moment.");
+  }
+  try {
+    run("bun", ["--version"]);
+    run("codex", ["--version"]);
+    addCodexPluginToProfile(options.marketplaceSource, options.environment);
+    verifyCodexPluginIsEnabled({ installationCompleted: true });
+    if (options.recordActivationPending !== false)
+      writeCodexActivationMarker(options.environment);
+  } finally {
+    releaseCodexProfileLock(lock);
+  }
+  if (options.json !== true) {
+    success("Safe Word Codex plugin is enabled for this profile.");
+    info("This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.");
+  }
+  if (options.reportMigrationState === true) {
+    reportCodexMigration(cwd, {
+      json: options.json,
+      environment: options.environment,
+      changed: true
+    });
+  }
+}
+function shouldReportExistingMigrationState(cwd, options) {
+  if (codexRecoveryIsRequired(cwd))
+    return true;
+  if (options.reportMigrationState !== true)
+    return false;
+  const plugin = observeCodexMigrationResult(cwd, options.environment).plugin;
+  return plugin.enabled === true && codexPluginVersionMatchesPackage(plugin);
+}
+function buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval) {
+  const mutations = [];
+  let configBase;
+  if (preparedLegacyHookRemoval !== undefined) {
+    if (regularCodexConfigMetadata(preparedLegacyHookRemoval.configPath).kind === "missing" || readFileSync27(preparedLegacyHookRemoval.configPath, "utf8") !== preparedLegacyHookRemoval.original) {
+      throw new Error("Codex configuration changed during plugin verification; no legacy hooks were removed.");
+    }
+    configBase = preparedLegacyHookRemoval.cleaned;
+  }
+  const configPath2 = nodePath43.join(cwd, CODEX_CONFIG_PATH2);
+  const configMetadata = regularCodexConfigMetadata(configPath2);
+  const originalConfig = configMetadata.kind === "missing" ? "" : readFileSync27(configPath2, "utf8");
+  const bootstrappedConfig = preparedCodexProjectBootstrap(cwd, configBase);
+  if (bootstrappedConfig !== originalConfig) {
+    mutations.push({ path: CODEX_CONFIG_PATH2, content: bootstrappedConfig });
+  }
+  for (const path4 of observeLegacyAssets(cwd))
+    mutations.push({ path: path4, content: null });
+  mutations.push({
+    path: CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
+    content: `${JSON.stringify({ schema_version: 1, mode: "plugin" })}
+`
+  }, {
+    path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
+    content: "---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n"
+  });
+  return mutations;
+}
+function finalizationEffects(cwd, mutations) {
+  return mutations.map((mutation) => {
+    let action;
+    if (mutation.content === null)
+      action = "remove";
+    else if (pathExistsIncludingDanglingSymlink(nodePath43.join(cwd, mutation.path)))
+      action = "update";
+    else
+      action = "create";
+    return { path: mutation.path, action };
+  });
+}
+function observeCodexFinalizationEffects(cwd) {
+  return observeCodexFinalizationPlan(cwd).effects;
+}
+function renderCodexFinalizationPlan(cwd, mutations, preparedLegacyHookRemoval) {
+  const lines = ["Finalization plan:"];
+  for (const effect of finalizationEffects(cwd, mutations)) {
+    lines.push(`- ${effect.action} ${effect.path}`);
+    if (effect.path !== CODEX_CONFIG_PATH2 || preparedLegacyHookRemoval === undefined)
+      continue;
+    for (const block of preparedLegacyHookRemoval.removedBlocks) {
+      lines.push("  exact config block:", "  --- begin block ---", block.trimEnd(), "  --- end block ---");
+    }
+  }
+  return `${lines.join(`
+`)}
+`;
+}
+function snapshotCodexFinalizationInputs(cwd, mutations) {
+  validateCodexFinalizationPaths(cwd, mutations);
+  return mutations.map((mutation) => {
+    const path4 = nodePath43.join(cwd, mutation.path);
+    let metadata;
+    try {
+      metadata = lstatSync6(path4);
+    } catch (error2) {
+      if (error2.code === "ENOENT") {
+        return { path: mutation.path, state: "absent" };
+      }
+      throw error2;
+    }
+    if (!metadata.isFile()) {
+      throw new Error(`Unsafe Codex migration path is not a regular file: ${mutation.path}`);
+    }
+    return {
+      path: mutation.path,
+      state: "file",
+      mode: metadata.mode & 511,
+      content: readFileSync27(path4).toString("base64")
+    };
+  });
+}
+function observeCodexFinalizationPlan(cwd) {
+  const prepared = prepareLegacyHookRemoval(cwd);
+  const mutations = buildCodexFinalizationMutations(cwd, prepared);
+  const effects = finalizationEffects(cwd, mutations);
+  const inputs = snapshotCodexFinalizationInputs(cwd, mutations);
+  const preconditionDigest3 = createHash7("sha256").update(JSON.stringify({ mutations, effects, inputs })).digest("hex");
+  return {
+    effects,
+    exactConfigBlocks: prepared?.removedBlocks ?? [],
+    preconditionDigest: preconditionDigest3
+  };
+}
+function assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, mutations, effects, inputs) {
+  const currentMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
+  const currentEffects = finalizationEffects(cwd, currentMutations);
+  if (JSON.stringify(currentMutations) !== JSON.stringify(mutations) || JSON.stringify(currentEffects) !== JSON.stringify(effects) || JSON.stringify(snapshotCodexFinalizationInputs(cwd, mutations)) !== JSON.stringify(inputs)) {
+    throw new CodexMigrationError("PLAN_STALE", "Codex finalization plan changed after confirmation; no repository files were modified.");
+  }
+}
+function reportCompletedFinalization(cwd, options) {
+  if (options.json === true)
+    reportCodexMigration(cwd, options);
+  else
+    success("Safe Word Codex migration is already finalized.");
+}
+function reportAppliedFinalization(cwd, input) {
+  if (input.options.json === true) {
+    reportCodexMigration(cwd, {
+      ...input.options,
+      changed: true,
+      effects: input.effects
+    });
+    return;
+  }
+  info("Backed up the complete legacy Codex state for conflict-safe recovery.");
+  info(input.removedLegacyHooks ? "Removed Safe Word legacy Codex project protection after the verified plugin handoff." : "No Safe Word legacy Codex hooks were found in this project.");
+}
+function reportCodexWhen(enabled, report) {
+  if (enabled)
+    report();
+}
+async function removeLegacyCodexHooks(cwd = process.cwd(), options = {}) {
+  if (codexRecoveryIsRequired(cwd)) {
+    reportCodexWhen(options.report !== false, () => {
+      reportCodexMigration(cwd, options);
+    });
+    return false;
+  }
+  if (observeCodexHookProof(options.environment).status !== "current") {
+    throw new CodexMigrationError("FINALIZATION_PROOF_REQUIRED", "Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.");
+  }
+  if (codexFinalizationIsComplete(cwd)) {
+    reportCodexWhen(options.report !== false, () => {
+      reportCompletedFinalization(cwd, options);
+    });
+    return false;
+  }
+  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
+  const plannedEffects = finalizationEffects(cwd, plannedMutations);
+  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
+  const plan = renderCodexFinalizationPlan(cwd, plannedMutations, preparedLegacyHookRemoval);
+  const confirm = options.confirm;
+  const confirmed = await resolveCodexFinalizationConfirmation({
+    assumeYes: options.yes === true,
+    confirm: confirm === undefined ? undefined : () => confirm(plan)
+  });
+  if (!confirmed) {
+    reportCodexWhen(options.report !== false, () => {
+      info("Codex migration finalization was declined; the project was left unchanged.");
+    });
+    return false;
+  }
+  run("bun", ["--version"]);
+  run("codex", ["--version"]);
+  verifyCodexPluginIsEnabled();
+  reportCodexWhen(options.report !== false && options.json !== true, () => {
+    success("Safe Word Codex plugin is enabled for this profile.");
+  });
+  assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, plannedMutations, plannedEffects, plannedInputs);
+  applyCodexFinalization(cwd, plannedMutations);
+  reportCodexWhen(options.report !== false, () => {
+    reportAppliedFinalization(cwd, {
+      options,
+      effects: plannedEffects,
+      removedLegacyHooks: preparedLegacyHookRemoval !== undefined
+    });
+  });
+  return true;
+}
+function automaticallyMigrateLegacyCodex(cwd = process.cwd(), environment = process.env) {
+  if (codexFinalizationIsComplete(cwd) || codexRecoveryIsRequired(cwd))
+    return false;
+  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+  const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
+  if (!hasLegacy)
+    return false;
+  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
+  const plannedEffects = finalizationEffects(cwd, plannedMutations);
+  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
+  installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
+  assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, plannedMutations, plannedEffects, plannedInputs);
+  applyCodexFinalization(cwd, plannedMutations);
+  return true;
+}
+async function migrateCodexPlugin(cwd = process.cwd(), options = {}) {
+  if (options.removeLegacyHooks) {
+    await removeLegacyCodexHooks(cwd, { yes: options.yes, confirm: options.confirm });
+    return;
+  }
+  installCodexPlugin({
+    marketplaceSource: options.marketplaceSource,
+    recordActivationPending: false
+  });
+}
+function recoverCodexMigration(cwd = process.cwd(), options = {}) {
+  if (options.report === false) {
+    return recoverCodexFinalization(cwd);
+  }
+  const changed = recoverCodexFinalization(cwd);
+  if (options.json === true) {
+    reportCodexMigration(cwd, { ...options, changed });
+  } else {
+    success(changed ? "Restored the backed-up Safe Word legacy Codex project state." : "No Safe Word Codex migration recovery was needed.");
+  }
+  return changed;
+}
+var MARKETPLACE_SOURCE = "ArcadeAI/safeword", PLUGIN_ID = "safeword@safeword", CODEX_CONFIG_PATH2, CODEX_MIGRATION_MESSAGES;
+var init_operations = __esm(() => {
+  init_dist3();
+  init_result();
+  init_schema();
+  init_finalization();
+  init_inventory();
+  init_legacy_authority();
+  init_legacy_config();
+  init_legacy_global_guidance();
+  init_migration();
+  init_migration_error();
+  init_profile_lock();
+  init_profile_proof();
+  init_project_bootstrap();
+  CODEX_CONFIG_PATH2 = CODEX_MIGRATION_SCHEMA.paths.config;
+  CODEX_MIGRATION_MESSAGES = {
+    plugin_installed_app_restart_required: CODEX_RESTART_GUIDANCE,
+    compatibility: "Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.",
+    plugin_enabled_hook_unproven: "Codex migration state: plugin_enabled_hook_unproven. Review /hooks in the restarted Codex app; when protection is confirmed, run safeword codex migrate --finalize.",
+    recovery_required: "Codex migration state: recovery_required. Recovery is required before migration can continue."
+  };
+});
+
 // src/packs/install.ts
 function installPack(packId, cwd) {
   if (isPackInstalled(cwd, packId)) {
@@ -26676,9 +29754,9 @@ var init_install2 = __esm(() => {
 });
 
 // src/utils/hook-nudge.ts
-import nodePath37 from "path";
+import nodePath44 from "path";
 function configAlreadyIntegrates(cwd, configNames) {
-  return configNames.some((name) => (readFileSafe(nodePath37.join(cwd, name)) ?? "").includes(BOUNDARY_INVOCATION));
+  return configNames.some((name) => (readFileSafe(nodePath44.join(cwd, name)) ?? "").includes(BOUNDARY_INVOCATION));
 }
 function hookIntegrationNudge(ctx) {
   if (!ctx.isGitRepo)
@@ -26687,7 +29765,7 @@ function hookIntegrationNudge(ctx) {
 }
 function repoRootNote(cwd) {
   const top = gitToplevel(cwd);
-  return top === undefined || nodePath37.resolve(top) === nodePath37.resolve(cwd) ? undefined : `Boundary gate: git hooks belong at the repository root (${top}). Run \`safeword setup\` there to install the boundary gate.`;
+  return top === undefined || nodePath44.resolve(top) === nodePath44.resolve(cwd) ? undefined : `Boundary gate: git hooks belong at the repository root (${top}). Run \`safeword setup\` there to install the boundary gate.`;
 }
 function worldNudge(ctx) {
   switch (ctx.hookManager) {
@@ -26755,18 +29833,18 @@ To wire the warn-only boundary gate, add under repos:
 
 // src/utils/namespace-migration.ts
 import { execSync as execSync2 } from "child_process";
-import { existsSync as existsSync23, readFileSync as readFileSync21, renameSync as renameSync4, writeFileSync as writeFileSync9 } from "fs";
-import nodePath38 from "path";
+import { existsSync as existsSync26, readFileSync as readFileSync28, renameSync as renameSync4, writeFileSync as writeFileSync10 } from "fs";
+import nodePath45 from "path";
 function planNamespaceMigration(cwd) {
   if (readConfiguredPath(cwd, "projectRoot") !== undefined)
     return "custom-root";
-  const legacyPath = nodePath38.join(cwd, LEGACY_ROOT);
+  const legacyPath = nodePath45.join(cwd, LEGACY_ROOT);
   if (!isDirectory(legacyPath))
     return "already-current";
-  const targetPath = nodePath38.join(cwd, DEFAULT_ROOT);
+  const targetPath = nodePath45.join(cwd, DEFAULT_ROOT);
   if (isDirectory(targetPath))
     return "both-dirs";
-  if (existsSync23(targetPath))
+  if (existsSync26(targetPath))
     return "blocked";
   return "offer";
 }
@@ -26783,12 +29861,12 @@ function isGitTracked(cwd) {
   }
 }
 function rewriteLegacyPathOverrides(cwd) {
-  const configPath2 = nodePath38.join(cwd, ".safeword", "config.json");
-  if (!existsSync23(configPath2))
+  const configPath2 = nodePath45.join(cwd, ".safeword", "config.json");
+  if (!existsSync26(configPath2))
     return [];
   let parsed;
   try {
-    parsed = JSON.parse(readFileSync21(configPath2, "utf8"));
+    parsed = JSON.parse(readFileSync28(configPath2, "utf8"));
   } catch {
     return [];
   }
@@ -26803,7 +29881,7 @@ function rewriteLegacyPathOverrides(cwd) {
     rewritten.push(key);
   }
   if (rewritten.length > 0) {
-    writeFileSync9(configPath2, `${JSON.stringify(parsed, undefined, 2)}
+    writeFileSync10(configPath2, `${JSON.stringify(parsed, undefined, 2)}
 `);
   }
   return rewritten.toSorted((a, b) => a.localeCompare(b));
@@ -26814,7 +29892,7 @@ function executeNamespaceMigration(cwd) {
     if (method === "git") {
       execSync2(`git mv "${LEGACY_ROOT}" "${DEFAULT_ROOT}"`, { cwd, stdio: "pipe" });
     } else {
-      renameSync4(nodePath38.join(cwd, LEGACY_ROOT), nodePath38.join(cwd, DEFAULT_ROOT));
+      renameSync4(nodePath45.join(cwd, LEGACY_ROOT), nodePath45.join(cwd, DEFAULT_ROOT));
     }
   } catch (error2) {
     throw new Error(`Failed to move ${LEGACY_ROOT}/ to ${DEFAULT_ROOT}/: ${error2 instanceof Error ? error2.message : String(error2)}`, { cause: error2 });
@@ -26828,9 +29906,9 @@ var init_namespace_migration = __esm(() => {
 });
 
 // src/utils/safeword-version-sync.ts
-import nodePath39 from "path";
+import nodePath46 from "path";
 function stripDeadConfigVersion(safewordDirectory) {
-  const configPath2 = nodePath39.join(safewordDirectory, "config.json");
+  const configPath2 = nodePath46.join(safewordDirectory, "config.json");
   const content = readFileSafe(configPath2);
   if (!content)
     return false;
@@ -26864,7 +29942,7 @@ function syncPackageJsonSafewordVersion(cwd, options = {}) {
   return false;
 }
 function readPackageJson(cwd) {
-  return readJson(nodePath39.join(cwd, "package.json"));
+  return readJson(nodePath46.join(cwd, "package.json"));
 }
 function packageJsonReferencesCurrentSafewordVersion(cwd) {
   const packageJson = readPackageJson(cwd);
@@ -26898,27 +29976,27 @@ var init_safeword_version_sync = __esm(() => {
 });
 
 // src/utils/setup-workspaces.ts
-import { readdirSync as readdirSync16 } from "fs";
-import nodePath40 from "path";
+import { readdirSync as readdirSync17 } from "fs";
+import nodePath47 from "path";
 function workspacePackageJsonTargets(cwd, context) {
   if (context.projectType.existingFormatter)
     return [];
   return getWorkspacePatterns(cwd).flatMap((pattern) => {
     if (!pattern.endsWith("/*"))
-      return [nodePath40.join(pattern, "package.json")];
+      return [nodePath47.join(pattern, "package.json")];
     const workspaceRoot = pattern.slice(0, -2);
-    const fullPath = nodePath40.join(cwd, workspaceRoot);
+    const fullPath = nodePath47.join(cwd, workspaceRoot);
     if (!exists(fullPath))
       return [];
     try {
-      return readdirSync16(fullPath, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() && !entry.name.startsWith(".") ? [nodePath40.join(workspaceRoot, entry.name, "package.json")] : []);
+      return readdirSync17(fullPath, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() && !entry.name.startsWith(".") ? [nodePath47.join(workspaceRoot, entry.name, "package.json")] : []);
     } catch {
       return [];
     }
   });
 }
 function addFormatScriptIfMissing(packageDirectory) {
-  const packageJsonPath = nodePath40.join(packageDirectory, "package.json");
+  const packageJsonPath = nodePath47.join(packageDirectory, "package.json");
   if (!exists(packageJsonPath))
     return false;
   const packageJson = readJson(packageJsonPath);
@@ -26932,15 +30010,15 @@ function addFormatScriptIfMissing(packageDirectory) {
   return true;
 }
 function processGlobWorkspacePattern(cwd, workspacePath) {
-  const fullPath = nodePath40.join(cwd, workspacePath);
+  const fullPath = nodePath47.join(cwd, workspacePath);
   if (!exists(fullPath))
     return [];
   try {
-    return readdirSync16(fullPath, { withFileTypes: true }).flatMap((entry) => {
+    return readdirSync17(fullPath, { withFileTypes: true }).flatMap((entry) => {
       if (!entry.isDirectory() || entry.name.startsWith("."))
         return [];
-      const relativePackageJson = nodePath40.join(workspacePath, entry.name, "package.json");
-      return addFormatScriptIfMissing(nodePath40.join(fullPath, entry.name)) ? [relativePackageJson] : [];
+      const relativePackageJson = nodePath47.join(workspacePath, entry.name, "package.json");
+      return addFormatScriptIfMissing(nodePath47.join(fullPath, entry.name)) ? [relativePackageJson] : [];
     });
   } catch {
     return [];
@@ -26953,7 +30031,7 @@ function setupWorkspaceFormatScripts(cwd, context) {
     if (pattern.endsWith("/*")) {
       return processGlobWorkspacePattern(cwd, pattern.slice(0, -2));
     }
-    return addFormatScriptIfMissing(nodePath40.join(cwd, pattern)) ? [nodePath40.join(pattern, "package.json")] : [];
+    return addFormatScriptIfMissing(nodePath47.join(cwd, pattern)) ? [nodePath47.join(pattern, "package.json")] : [];
   });
 }
 var init_setup_workspaces = __esm(() => {
@@ -26962,8 +30040,8 @@ var init_setup_workspaces = __esm(() => {
 });
 
 // src/utils/stale-config-scan.ts
-import { existsSync as existsSync24, readdirSync as readdirSync17, readFileSync as readFileSync22 } from "fs";
-import nodePath41 from "path";
+import { existsSync as existsSync27, readdirSync as readdirSync18, readFileSync as readFileSync29 } from "fs";
+import nodePath48 from "path";
 function prettierignoreHasCustomerReference(content) {
   let isInsideManagedBlock = false;
   for (const line of content.split(`
@@ -26982,16 +30060,16 @@ function prettierignoreHasCustomerReference(content) {
   return false;
 }
 function fileHasStaleReference(relativePath, content) {
-  if (nodePath41.basename(relativePath) === ".prettierignore") {
+  if (nodePath48.basename(relativePath) === ".prettierignore") {
     return prettierignoreHasCustomerReference(content);
   }
   return content.includes(LEGACY_REFERENCE);
 }
 function workflowConfigPaths(cwd) {
-  const directory = nodePath41.join(cwd, ...WORKFLOWS_SUBPATH);
+  const directory = nodePath48.join(cwd, ...WORKFLOWS_SUBPATH);
   let names;
   try {
-    names = readdirSync17(directory);
+    names = readdirSync18(directory);
   } catch {
     return [];
   }
@@ -27001,12 +30079,12 @@ function scanStaleNamespaceConfigs(cwd) {
   const candidates = [...CURATED_ROOT_CONFIGS, ...workflowConfigPaths(cwd)];
   const stale = [];
   for (const relativePath of candidates) {
-    const fullPath = nodePath41.join(cwd, relativePath);
-    if (!existsSync24(fullPath))
+    const fullPath = nodePath48.join(cwd, relativePath);
+    if (!existsSync27(fullPath))
       continue;
     let content;
     try {
-      content = readFileSync22(fullPath, "utf8");
+      content = readFileSync29(fullPath, "utf8");
     } catch {
       continue;
     }
@@ -27049,8 +30127,8 @@ var init_stale_config_scan = __esm(() => {
 
 // src/utils/eslint-auto-patch.ts
 import { execSync as execSync3 } from "child_process";
-import { copyFileSync, readFileSync as readFileSync23, writeFileSync as writeFileSync10 } from "fs";
-import nodePath42 from "path";
+import { copyFileSync, readFileSync as readFileSync30, writeFileSync as writeFileSync11 } from "fs";
+import nodePath49 from "path";
 function findMatchingBracket(source, openIndex) {
   if (source[openIndex] !== "[")
     return -1;
@@ -27173,16 +30251,16 @@ function detectEol(source) {
 `;
 }
 function isTypeScriptConfig(configPath2) {
-  return TS_EXTENSIONS.has(nodePath42.extname(configPath2));
+  return TS_EXTENSIONS.has(nodePath49.extname(configPath2));
 }
 function isCjsConfig(configPath2) {
-  return CJS_EXTENSIONS.has(nodePath42.extname(configPath2));
+  return CJS_EXTENSIONS.has(nodePath49.extname(configPath2));
 }
 function autoPatchEslintConfig(options) {
   const { configPath: configPath2 } = options;
   let source;
   try {
-    source = readFileSync23(configPath2, "utf8");
+    source = readFileSync30(configPath2, "utf8");
   } catch {
     return { kind: "bailed", reason: "read-failed" };
   }
@@ -27215,7 +30293,7 @@ function writeAndValidate(configPath2, patched, runSyntaxCheck) {
   const backupPath = `${configPath2}${BACKUP_SUFFIX}`;
   try {
     copyFileSync(configPath2, backupPath);
-    writeFileSync10(configPath2, patched, "utf8");
+    writeFileSync11(configPath2, patched, "utf8");
   } catch {
     return { ok: false, reason: "write-failed" };
   }
@@ -27238,18 +30316,18 @@ var init_eslint_auto_patch = __esm(() => {
 });
 
 // src/utils/vendored-ignores-nudge.ts
-import { readFileSync as readFileSync24 } from "fs";
-import nodePath43 from "path";
+import { readFileSync as readFileSync31 } from "fs";
+import nodePath50 from "path";
 function shouldEmitVendoredIgnoresNudge(options) {
   const { cwd, existingEslintConfig, hasJavaScript } = options;
   if (!hasJavaScript)
     return false;
   if (!existingEslintConfig)
     return false;
-  const fullPath = nodePath43.join(cwd, existingEslintConfig);
+  const fullPath = nodePath50.join(cwd, existingEslintConfig);
   let text;
   try {
-    text = readFileSync24(fullPath, "utf8");
+    text = readFileSync31(fullPath, "utf8");
   } catch {
     return true;
   }
@@ -27262,7 +30340,7 @@ function applyVendoredIgnoresPolicy(options) {
     return { kind: "manual", attempted: false };
   if (!options.existingEslintConfig)
     return { kind: "unchanged" };
-  const configPath2 = nodePath43.join(options.cwd, options.existingEslintConfig);
+  const configPath2 = nodePath50.join(options.cwd, options.existingEslintConfig);
   const result = autoPatchEslintConfig({ configPath: configPath2 });
   if (result.kind === "patched")
     return result;
@@ -27281,19 +30359,19 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/utils/boundaries.ts
-import { readdirSync as readdirSync18 } from "fs";
-import nodePath44 from "path";
+import { readdirSync as readdirSync19 } from "fs";
+import nodePath51 from "path";
 function findMonorepoPackages(projectDirectory) {
   const packages = [];
   for (const root of WORKSPACE_ROOTS) {
-    const rootPath = nodePath44.join(projectDirectory, root);
+    const rootPath = nodePath51.join(projectDirectory, root);
     if (!exists(rootPath))
       continue;
     try {
-      const entries = readdirSync18(rootPath, { withFileTypes: true });
+      const entries = readdirSync19(rootPath, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory() && !entry.name.startsWith(".")) {
-          packages.push(nodePath44.join(root, entry.name));
+          packages.push(nodePath51.join(root, entry.name));
         }
       }
     } catch {}
@@ -27305,7 +30383,7 @@ function hasLayerForPrefix(elements, layer, pathPrefix) {
 }
 function isGherkinDirectory(fullPath) {
   try {
-    return readdirSync18(fullPath).some((entry) => entry.endsWith(".feature"));
+    return readdirSync19(fullPath).some((entry) => entry.endsWith(".feature"));
   } catch {
     return false;
   }
@@ -27313,7 +30391,7 @@ function isGherkinDirectory(fullPath) {
 function scanSearchPath(projectDirectory, searchPath, pathPrefix, elements) {
   for (const layerDefinition of ARCHITECTURE_LAYERS) {
     for (const dirName of layerDefinition.dirs) {
-      const fullPath = nodePath44.join(projectDirectory, searchPath, dirName);
+      const fullPath = nodePath51.join(projectDirectory, searchPath, dirName);
       if (exists(fullPath) && !isGherkinDirectory(fullPath) && !hasLayerForPrefix(elements, layerDefinition.layer, pathPrefix)) {
         elements.push({
           layer: layerDefinition.layer,
@@ -27327,7 +30405,7 @@ function scanSearchPath(projectDirectory, searchPath, pathPrefix, elements) {
 function scanForLayers(projectDirectory, basePath) {
   const elements = [];
   const prefix = basePath ? `${basePath}/` : "";
-  scanSearchPath(projectDirectory, nodePath44.join(basePath, "src"), `${prefix}src/`, elements);
+  scanSearchPath(projectDirectory, nodePath51.join(basePath, "src"), `${prefix}src/`, elements);
   scanSearchPath(projectDirectory, basePath, prefix, elements);
   return elements;
 }
@@ -27367,9 +30445,9 @@ var init_boundaries = __esm(() => {
 });
 
 // src/utils/depcruise-config.ts
-import nodePath45 from "path";
+import nodePath52 from "path";
 function detectWorkspaces(cwd) {
-  const packageJsonPath = nodePath45.join(cwd, "package.json");
+  const packageJsonPath = nodePath52.join(cwd, "package.json");
   const packageJson = readJson(packageJsonPath);
   if (!packageJson?.workspaces)
     return;
@@ -27520,22 +30598,22 @@ __export(exports_sync_config, {
   hasArchitectureDetected: () => hasArchitectureDetected,
   buildArchitecture: () => buildArchitecture
 });
-import { readFileSync as readFileSync25, writeFileSync as writeFileSync11 } from "fs";
-import nodePath46 from "path";
+import { readFileSync as readFileSync32, writeFileSync as writeFileSync12 } from "fs";
+import nodePath53 from "path";
 function syncConfigCore(cwd, arch) {
-  const safewordDirectory = nodePath46.join(cwd, ".safeword");
+  const safewordDirectory = nodePath53.join(cwd, ".safeword");
   const result = {
     generatedConfig: false,
     createdMainConfig: false
   };
-  const generatedConfigPath = nodePath46.join(safewordDirectory, "depcruise-config.cjs");
+  const generatedConfigPath = nodePath53.join(safewordDirectory, "depcruise-config.cjs");
   const generatedConfig = generateDependencyCruiseConfigFile(arch);
-  writeFileSync11(generatedConfigPath, generatedConfig);
+  writeFileSync12(generatedConfigPath, generatedConfig);
   result.generatedConfig = true;
-  const mainConfigPath = nodePath46.join(cwd, ".dependency-cruiser.cjs");
+  const mainConfigPath = nodePath53.join(cwd, ".dependency-cruiser.cjs");
   if (!exists(mainConfigPath)) {
     const mainConfig = generateDependencyCruiseMainConfig();
-    writeFileSync11(mainConfigPath, mainConfig);
+    writeFileSync12(mainConfigPath, mainConfig);
     result.createdMainConfig = true;
   }
   return result;
@@ -27549,12 +30627,12 @@ function hasArchitectureDetected(arch) {
   return arch.elements.length > 0 || arch.isMonorepo || (arch.workspaces?.length ?? 0) > 0;
 }
 function inspectConfig(cwd, arch) {
-  const generatedConfigPath = nodePath46.join(cwd, ".safeword", "depcruise-config.cjs");
+  const generatedConfigPath = nodePath53.join(cwd, ".safeword", "depcruise-config.cjs");
   if (!exists(generatedConfigPath)) {
     return { matches: false, reason: "missing" };
   }
   const generated = generateDependencyCruiseConfigFile(arch);
-  const onDisk = readFileSync25(generatedConfigPath, "utf8");
+  const onDisk = readFileSync32(generatedConfigPath, "utf8");
   return generated === onDisk ? { matches: true } : { matches: false, reason: "drifted" };
 }
 var init_sync_config = __esm(() => {
@@ -27568,14 +30646,14 @@ var exports_converge_setup = {};
 __export(exports_converge_setup, {
   convergeSetup: () => convergeSetup
 });
-import { existsSync as existsSync25, lstatSync as lstatSync3, readdirSync as readdirSync19, readFileSync as readFileSync26, readlinkSync as readlinkSync3 } from "fs";
-import nodePath47 from "path";
+import { existsSync as existsSync28, lstatSync as lstatSync7, readdirSync as readdirSync20, readFileSync as readFileSync33, readlinkSync as readlinkSync3 } from "fs";
+import nodePath54 from "path";
 function ensurePackageJson(cwd) {
-  const packageJsonPath = nodePath47.join(cwd, "package.json");
+  const packageJsonPath = nodePath54.join(cwd, "package.json");
   if (exists(packageJsonPath))
     return false;
   writeJson(packageJsonPath, {
-    name: nodePath47.basename(cwd) || "project",
+    name: nodePath54.basename(cwd) || "project",
     version: "0.1.0",
     private: true,
     scripts: {}
@@ -27619,7 +30697,7 @@ function configurePython(cwd, context) {
   };
 }
 async function convergeSetup(cwd, options) {
-  const configured = existsSync25(nodePath47.join(cwd, ".safeword"));
+  const configured = existsSync28(nodePath54.join(cwd, ".safeword"));
   const versionGate = configured ? checkProjectVersion(cwd, options.repairVersionMarker === true) : { repaired: false };
   if (versionGate.refusal !== undefined)
     return versionGate.refusal;
@@ -27728,14 +30806,14 @@ function versionRefusal(code, message, recovery = []) {
   };
 }
 function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) {
-  const metadata = lstatSync3(projectVersionPath, { throwIfNoEntry: false });
+  const metadata = lstatSync7(projectVersionPath, { throwIfNoEntry: false });
   if (metadata === undefined) {
     return { kind: "version", value: "0.0.0", replaceEntry: false };
   }
   if (metadata.isFile() && metadata.nlink === 1) {
     return {
       kind: "version",
-      value: readFileSync26(projectVersionPath, "utf8").trim(),
+      value: readFileSync33(projectVersionPath, "utf8").trim(),
       replaceEntry: false
     };
   }
@@ -27748,7 +30826,7 @@ function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) 
   if (repairVersionMarker) {
     return {
       kind: "version",
-      value: readFileSync26(projectVersionPath, "utf8").trim(),
+      value: readFileSync33(projectVersionPath, "utf8").trim(),
       replaceEntry: true
     };
   }
@@ -27768,14 +30846,14 @@ function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) 
   };
 }
 function checkProjectVersion(cwd, repairVersionMarker) {
-  const safewordDirectoryPath = nodePath47.join(cwd, ".safeword");
-  const safewordDirectoryMetadata = lstatSync3(safewordDirectoryPath, {
+  const safewordDirectoryPath = nodePath54.join(cwd, ".safeword");
+  const safewordDirectoryMetadata = lstatSync7(safewordDirectoryPath, {
     throwIfNoEntry: false
   });
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
     return versionRefusal("PROJECT_VERSION_UNSAFE", ".safeword must be an ordinary directory inside the project. Inspect and replace it manually before running setup.");
   }
-  const projectVersionPath = nodePath47.join(safewordDirectoryPath, "version");
+  const projectVersionPath = nodePath54.join(safewordDirectoryPath, "version");
   const marker = readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker);
   if (marker.kind === "gate")
     return marker.value;
@@ -27900,24 +30978,24 @@ function setupGuidanceFindings(context, reconciliation, architectureEffects) {
 function snapshotFiles(cwd, targets) {
   const snapshot = new Map;
   const visit = (absolutePath) => {
-    if (!existsSync25(absolutePath))
+    if (!existsSync28(absolutePath))
       return;
-    const stat = lstatSync3(absolutePath);
-    const relativePath = nodePath47.relative(cwd, absolutePath);
+    const stat = lstatSync7(absolutePath);
+    const relativePath = nodePath54.relative(cwd, absolutePath);
     if (stat.isSymbolicLink()) {
       snapshot.set(relativePath, `link:${readlinkSync3(absolutePath)}`);
       return;
     }
     if (stat.isDirectory()) {
-      for (const entry of readdirSync19(absolutePath))
-        visit(nodePath47.join(absolutePath, entry));
+      for (const entry of readdirSync20(absolutePath))
+        visit(nodePath54.join(absolutePath, entry));
       return;
     }
     if (stat.isFile())
-      snapshot.set(relativePath, readFileSync26(absolutePath).toString("base64"));
+      snapshot.set(relativePath, readFileSync33(absolutePath).toString("base64"));
   };
   for (const target of targets) {
-    visit(nodePath47.isAbsolute(target) ? target : nodePath47.join(cwd, target));
+    visit(nodePath54.isAbsolute(target) ? target : nodePath54.join(cwd, target));
   }
   return snapshot;
 }
@@ -27971,14 +31049,14 @@ function setupResult(input) {
     ...findings,
     {
       code: "SETUP_CODEX_PLUGIN_HANDOFF",
-      message: "Codex plugin: safeword codex install",
+      message: "Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.",
       severity: "info"
     }
   ];
   let state = changed ? "changed" : "healthy";
   if (actionRequired)
     state = "action_required";
-  const nextCommands = actionRequired ? [installation.command ?? "safeword setup"] : ["safeword claude install", "safeword codex install"];
+  const nextCommands = actionRequired ? [installation.command ?? "safeword setup"] : ["safeword claude install"];
   return createResult({
     state,
     changed,
@@ -27993,7 +31071,7 @@ function applyCompatibilityMigrations(cwd, completedEffects) {
   for (const packId of missingPacks) {
     observeFileStage(cwd, [".safeword"], completedEffects, () => installPack(packId, cwd));
   }
-  observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => stripDeadConfigVersion(nodePath47.join(cwd, ".safeword")));
+  observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => stripDeadConfigVersion(nodePath54.join(cwd, ".safeword")));
 }
 function recordInstalledPackages(packagesToInstall, installation, completedEffects) {
   if (!installation.attempted)
@@ -28039,6 +31117,31 @@ async function applySetup(cwd, input) {
   };
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
+    observeFileStage(cwd, [".codex/config.toml"], completedEffects, () => installCodexProjectBootstrap(cwd));
+    const codexHandoffFindings = [];
+    const codexMigrationTargets = [
+      CODEX_MIGRATION_SCHEMA.paths.config,
+      CODEX_MIGRATION_SCHEMA.paths.backupRoot,
+      CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
+      CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
+      ...CODEX_MIGRATION_SCHEMA.cleanupFiles
+    ];
+    try {
+      const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () => automaticallyMigrateLegacyCodex(cwd));
+      if (migrated) {
+        codexHandoffFindings.push({
+          code: "CODEX_PLUGIN_HANDOFF_COMPLETE",
+          message: "Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.",
+          severity: "info"
+        });
+      }
+    } catch (error2) {
+      codexHandoffFindings.push({
+        code: "CODEX_PLUGIN_HANDOFF_DEFERRED",
+        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error2 instanceof Error ? error2.message : String(error2)}`,
+        severity: "warning"
+      });
+    }
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
     observeFileStage(cwd, workspacePackageJsonTargets(cwd, context), completedEffects, () => adapters.configureWorkspaces(cwd, context));
     const eslintConfig = context.projectType.existingEslintConfig;
@@ -28080,7 +31183,10 @@ async function applySetup(cwd, input) {
       installation,
       eslintPolicy,
       gitInitialized: context.isGitRepo,
-      guidanceFindings: setupGuidanceFindings(context, result, architectureEffects),
+      guidanceFindings: [
+        ...setupGuidanceFindings(context, result, architectureEffects),
+        ...codexHandoffFindings
+      ],
       pythonSetup,
       namespaceMigration,
       completedEffects
@@ -28209,6 +31315,9 @@ var init_converge_setup = __esm(() => {
   init_reconciliation();
   init_result();
   init_durable_write();
+  init_inventory();
+  init_operations();
+  init_project_bootstrap();
   init_health();
   init_install2();
   init_files2();
@@ -28246,14 +31355,17 @@ var init_converge_setup = __esm(() => {
 var exports_profile = {};
 __export(exports_profile, {
   observeClaudeProfile: () => observeClaudeProfile,
-  installClaudePlugin: () => installClaudePlugin
+  observeApplicableClaudePlugins: () => observeApplicableClaudePlugins,
+  installClaudePlugin: () => installClaudePlugin,
+  canonicalClaudeProjectRoot: () => canonicalClaudeProjectRoot
 });
-import { spawnSync as spawnSync2 } from "child_process";
-import { createHash as createHash5 } from "crypto";
-import { lstatSync as lstatSync4, readFileSync as readFileSync27 } from "fs";
-import nodePath48 from "path";
+import { spawnSync as spawnSync4 } from "child_process";
+import { createHash as createHash8 } from "crypto";
+import { existsSync as existsSync29, lstatSync as lstatSync8, readFileSync as readFileSync34, realpathSync as realpathSync2, statSync as statSync4 } from "fs";
+import { homedir as homedir5 } from "os";
+import nodePath55 from "path";
 function runClaude(cwd, arguments_, effects) {
-  const result = spawnSync2("claude", arguments_, { cwd, encoding: "utf8" });
+  const result = spawnSync4("claude", arguments_, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
     const detail = `${result.stderr ?? ""}${result.stdout ?? ""}`.trim();
     const detailSuffix = detail === "" ? "" : ` (${detail})`;
@@ -28292,14 +31404,188 @@ function assertSupportedHost(cwd) {
   }
 }
 function officialMarketplaceSource() {
-  return `${MARKETPLACE_BASE}#v${SAFEWORD_SCHEMA.version}`;
+  const ref = SAFEWORD_SCHEMA.version.includes("-") ? `v${SAFEWORD_SCHEMA.version}` : "stable";
+  return `${MARKETPLACE_BASE}#${ref}`;
 }
-function sourceIsOfficial(entry) {
-  if (entry.source === officialMarketplaceSource())
-    return true;
+function claudeConfigDirectory() {
+  return process.env.CLAUDE_CONFIG_DIR ?? nodePath55.join(homedir5(), ".claude");
+}
+function canonicalDirectory(path4) {
+  if (typeof path4 !== "string" || path4.trim() === "")
+    return;
+  try {
+    if (!statSync4(path4).isDirectory())
+      return;
+    return nodePath55.normalize(realpathSync2(path4));
+  } catch {
+    return;
+  }
+}
+function canonicalClaudeProjectRoot(cwd) {
+  const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
+  const environmentRoot = configuredRoot === undefined ? undefined : configuredRoot.trim();
+  let candidate = environmentRoot === "" ? undefined : environmentRoot;
+  if (candidate === undefined) {
+    const result = spawnSync4("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8"
+    });
+    const gitRoot = result.status === 0 ? result.stdout?.trim() : undefined;
+    candidate = gitRoot === "" || gitRoot === undefined ? cwd : gitRoot;
+  }
+  const canonical = canonicalDirectory(candidate);
+  if (canonical === undefined) {
+    throw new ClaudeProfileError("CLAUDE_PROJECT_IDENTITY_INVALID", `Claude project root is missing, not a directory, or cannot be resolved: ${candidate}`);
+  }
+  return canonical;
+}
+function scopedSettingsPath(cwd, scope) {
+  return scope === "project" ? nodePath55.join(cwd, ".claude/settings.json") : nodePath55.join(claudeConfigDirectory(), "settings.json");
+}
+function isJsonObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function invalidScopeSettings(scope, message) {
+  throw new ClaudeProfileError("CLAUDE_SCOPE_SETTINGS_INVALID", `Claude ${scope}-scope ${message}`);
+}
+function readScopedSettings(cwd, scope) {
+  const path4 = scopedSettingsPath(cwd, scope);
+  if (!existsSync29(path4))
+    return;
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync34(path4, "utf8"));
+  } catch (error2) {
+    invalidScopeSettings(scope, `settings are not valid JSON: ${error2 instanceof Error ? error2.message : String(error2)}`);
+  }
+  if (!isJsonObject(settings))
+    invalidScopeSettings(scope, "settings must be a JSON object.");
+  return settings;
+}
+function scopedMarketplaceDeclaration(cwd, scope) {
+  const marketplaces = readScopedSettings(cwd, scope)?.extraKnownMarketplaces;
+  if (marketplaces === undefined)
+    return;
+  if (!isJsonObject(marketplaces)) {
+    invalidScopeSettings(scope, "marketplace declarations are malformed.");
+  }
+  const declaration = marketplaces[MARKETPLACE_NAME];
+  if (declaration === undefined)
+    return;
+  if (!isJsonObject(declaration)) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude ${scope}-scope marketplace ${MARKETPLACE_NAME} has malformed metadata.`);
+  }
+  return declaration;
+}
+function marketplaceAutoUpdatePreference(declaration, scope) {
+  const preference = declaration?.autoUpdate;
+  if (preference === undefined || typeof preference === "boolean")
+    return preference;
+  invalidScopeSettings(scope, `marketplace ${MARKETPLACE_NAME} autoUpdate must be a boolean.`);
+}
+function marketplaceFailurePolicy(settings, scope) {
+  const environment = settings.env;
+  if (environment !== undefined && !isJsonObject(environment)) {
+    invalidScopeSettings(scope, "environment declarations are malformed.");
+  }
+  return {
+    environment,
+    configured: environment?.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE !== undefined
+  };
+}
+function recordMarketplaceSafetyEffects(effects, scope, options) {
+  if (!options.autoUpdateEnabled) {
+    effects.push({
+      kind: "enable",
+      target: `${MARKETPLACE_NAME} marketplace auto-update`,
+      operation: scope
+    });
+  }
+  if (!options.failurePolicyConfigured) {
+    effects.push({
+      kind: "enable",
+      target: `${MARKETPLACE_NAME} last-known-good marketplace fallback`,
+      operation: scope
+    });
+  }
+}
+function enableMarketplaceAutoUpdate(cwd, scope, effects) {
+  const path4 = scopedSettingsPath(cwd, scope);
+  const metadata = lstatSync8(path4);
+  if (!metadata.isFile()) {
+    invalidScopeSettings(scope, `settings are not a regular file: ${path4}`);
+  }
+  const settings = readScopedSettings(cwd, scope);
+  const marketplaces = settings?.extraKnownMarketplaces;
+  if (!isJsonObject(settings) || !isJsonObject(marketplaces)) {
+    invalidScopeSettings(scope, `marketplace ${MARKETPLACE_NAME} was not persisted after installation.`);
+  }
+  const declaration = marketplaces[MARKETPLACE_NAME];
+  if (!isJsonObject(declaration)) {
+    invalidScopeSettings(scope, `marketplace ${MARKETPLACE_NAME} was not persisted after installation.`);
+  }
+  const failurePolicy = marketplaceFailurePolicy(settings, scope);
+  const autoUpdateEnabled = marketplaceAutoUpdatePreference(declaration, scope) === true;
+  if (autoUpdateEnabled && failurePolicy.configured)
+    return;
+  const updated = {
+    ...settings,
+    env: failurePolicy.configured ? failurePolicy.environment : {
+      ...failurePolicy.environment,
+      CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: "1"
+    },
+    extraKnownMarketplaces: {
+      ...marketplaces,
+      [MARKETPLACE_NAME]: { ...declaration, autoUpdate: true }
+    }
+  };
+  writeDurableFile(path4, `${JSON.stringify(updated, undefined, 2)}
+`, {
+    mode: metadata.mode & 511
+  });
+  recordMarketplaceSafetyEffects(effects, scope, {
+    autoUpdateEnabled,
+    failurePolicyConfigured: failurePolicy.configured
+  });
+}
+function marketplaceSource(entry) {
   const source = typeof entry.source === "object" && entry.source !== null ? entry.source : entry;
-  const sourceKind = source.source;
-  return source.url === MARKETPLACE_BASE && source.ref === `v${SAFEWORD_SCHEMA.version}` && (sourceKind === undefined || typeof sourceKind === "string" && ["url", "git"].includes(sourceKind));
+  let url = source.url;
+  let ref = source.ref;
+  let kind = source.source;
+  if (typeof entry.source === "string" && url === undefined && ref === undefined) {
+    const separator = entry.source.lastIndexOf("#");
+    if (separator !== -1) {
+      url = entry.source.slice(0, separator);
+      ref = entry.source.slice(separator + 1);
+      kind = undefined;
+    }
+  }
+  return { url, ref, kind };
+}
+function marketplaceSourceStatus(entry) {
+  const { url, ref, kind } = marketplaceSource(entry);
+  if (url !== MARKETPLACE_BASE)
+    return "conflict";
+  if (kind !== undefined && (typeof kind !== "string" || !["url", "git"].includes(kind))) {
+    return "conflict";
+  }
+  return marketplaceReferenceStatus(ref);
+}
+function marketplaceReferenceStatus(ref) {
+  if (ref === "stable")
+    return "current";
+  if (typeof ref !== "string" || !ref.startsWith("v"))
+    return "conflict";
+  const version2 = ref.slice(1);
+  if (!isSafePackageVersion(version2))
+    return "conflict";
+  if (version2 === SAFEWORD_SCHEMA.version) {
+    return SAFEWORD_SCHEMA.version.includes("-") ? "current" : "stale";
+  }
+  if (version2.includes("-") || version2.includes("+"))
+    return "conflict";
+  const comparison = compareVersions(version2, SAFEWORD_SCHEMA.version);
+  return comparison < 0 ? "stale" : "conflict";
 }
 function marketplaceEntries(cwd, effects) {
   return parseJsonArray(runClaude(cwd, ["plugin", "marketplace", "list", "--json"], effects), "plugin marketplace list --json", effects);
@@ -28307,13 +31593,21 @@ function marketplaceEntries(cwd, effects) {
 function pluginEntries(cwd, effects) {
   return parseJsonArray(runClaude(cwd, ["plugin", "list", "--json"], effects), "plugin list --json", effects);
 }
+function entryMatchesScope(entry, scope, cwd) {
+  if ((entry.scope ?? "user") !== scope)
+    return false;
+  return scope === "user" || canonicalDirectory(entry.projectPath) === cwd;
+}
 function safewordMarketplace(entries) {
   return entries.find((entry) => entry.name === MARKETPLACE_NAME);
 }
-function safewordPlugin(entries) {
-  return entries.find((entry) => entry.id === PLUGIN_ID);
+function safewordPlugin(entries, scope, cwd) {
+  return entries.find((entry) => entry.id === PLUGIN_ID2 && entryMatchesScope(entry, scope, cwd));
 }
-function failedResult(error2) {
+function applicableSafewordPlugins(entries, cwd) {
+  return entries.filter((entry) => entry.id === PLUGIN_ID2 && (entry.scope === "user" || entry.scope === "project" && canonicalDirectory(entry.projectPath) === cwd));
+}
+function failedResult(error2, scope) {
   let failure;
   if (error2 instanceof ClaudeProfileError)
     failure = error2;
@@ -28322,13 +31616,42 @@ function failedResult(error2) {
     failure = new ClaudeProfileError("CLAUDE_PLUGIN_INSTALL_FAILED", message);
   }
   let classification = "errored";
-  let nextAction = "safeword claude install";
-  if (failure.code === "CLAUDE_VERSION_UNSUPPORTED") {
-    classification = "unsupported-host";
-    nextAction = "claude update";
-  } else if (failure.code === "CLAUDE_MARKETPLACE_CONFLICT") {
-    classification = "marketplace-conflict";
-    nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope user`;
+  let nextAction2 = "safeword claude install";
+  let nextActionMutates = true;
+  switch (failure.code) {
+    case "CLAUDE_VERSION_UNSUPPORTED": {
+      classification = "unsupported-host";
+      nextAction2 = "claude update";
+      break;
+    }
+    case "CLAUDE_MARKETPLACE_CONFLICT": {
+      classification = "marketplace-conflict";
+      nextAction2 = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+      break;
+    }
+    case "CLAUDE_AUTO_UPDATE_DISABLED": {
+      classification = "auto-update-disabled";
+      nextAction2 = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+      break;
+    }
+    case "CLAUDE_PLUGIN_METADATA_UNVERIFIED": {
+      classification = "unverified-metadata";
+      nextAction2 = "claude plugin list --json";
+      nextActionMutates = false;
+      break;
+    }
+    case "CLAUDE_PLUGIN_DOWNGRADE_REFUSED": {
+      classification = "downgrade-refused";
+      nextAction2 = "claude plugin list --json";
+      nextActionMutates = false;
+      break;
+    }
+    case "CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED": {
+      classification = "postcondition-verification-failed";
+      nextAction2 = "claude plugin list --json";
+      nextActionMutates = false;
+      break;
+    }
   }
   return createResult({
     state: "failed",
@@ -28337,55 +31660,96 @@ function failedResult(error2) {
     errors: [{ code: failure.code, message: failure.message, retryable: true }],
     nextActions: [
       {
-        command: nextAction,
-        mutates: true,
+        command: nextAction2,
+        mutates: nextActionMutates,
         requiresHuman: true
       }
     ],
     data: { command: "claude install", classification }
   });
 }
-function ensureMarketplace(cwd, effects) {
-  let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
-  if (marketplace !== undefined && !sourceIsOfficial(marketplace)) {
-    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude marketplace ${MARKETPLACE_NAME} is configured from an unofficial source; expected ${officialMarketplaceSource()}.`);
-  }
-  if (marketplace !== undefined)
-    return;
-  runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", "user"], effects);
-  effects.push({ kind: "add", target: MARKETPLACE_NAME, operation: "user" });
-  marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
-  if (marketplace === undefined || !sourceIsOfficial(marketplace)) {
-    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
+function observeMarketplace(cwd, scope, effects) {
+  const declaration = scopedMarketplaceDeclaration(cwd, scope);
+  const shared = safewordMarketplace(marketplaceEntries(cwd, effects));
+  return {
+    declaration,
+    declarationStatus: declaration === undefined ? undefined : marketplaceSourceStatus(declaration),
+    shared,
+    sharedStatus: shared === undefined ? undefined : marketplaceSourceStatus(shared)
+  };
+}
+function assertTrustedMarketplace(observation) {
+  if (observation.declarationStatus === "conflict" || observation.sharedStatus === "conflict") {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.`);
   }
 }
-function convergePlugin(cwd, effects) {
-  const plugin = safewordPlugin(pluginEntries(cwd, effects));
+function marketplaceIsCurrent(observation) {
+  return observation.declarationStatus === "current" && observation.sharedStatus === "current";
+}
+function marketplaceEffectKind(observation) {
+  return observation.declarationStatus === "stale" || observation.sharedStatus === "stale" ? "update" : "add";
+}
+function ensureMarketplace(cwd, scope, effects) {
+  const before = observeMarketplace(cwd, scope, effects);
+  assertTrustedMarketplace(before);
+  const autoUpdatePreference = marketplaceAutoUpdatePreference(before.declaration, scope);
+  if (marketplaceIsCurrent(before)) {
+    if (autoUpdatePreference !== false)
+      enableMarketplaceAutoUpdate(cwd, scope, effects);
+    return;
+  }
+  if (autoUpdatePreference === false) {
+    throw new ClaudeProfileError("CLAUDE_AUTO_UPDATE_DISABLED", `Claude ${scope}-scope marketplace auto-update is explicitly disabled; Safeword left the marketplace declaration unchanged.`);
+  }
+  runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", scope], effects);
+  effects.push({
+    kind: marketplaceEffectKind(before),
+    target: MARKETPLACE_NAME,
+    operation: scope
+  });
+  if (!marketplaceIsCurrent(observeMarketplace(cwd, scope, effects))) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
+  }
+  enableMarketplaceAutoUpdate(cwd, scope, effects);
+}
+function assertConvergeablePluginVersion(plugin) {
+  if (typeof plugin.version !== "string" || !isSafePackageVersion(plugin.version)) {
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_METADATA_UNVERIFIED", `Claude reported malformed ${PLUGIN_ID2} version metadata in the selected scope.`);
+  }
+  if (compareVersions(plugin.version, SAFEWORD_SCHEMA.version) > 0) {
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_DOWNGRADE_REFUSED", `Claude reported ${PLUGIN_ID2} ${plugin.version}, which is newer than ${SAFEWORD_SCHEMA.version}; refusing an implicit downgrade.`);
+  }
+}
+function convergePlugin(cwd, scope, effects) {
+  const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
   if (plugin === undefined) {
-    runClaude(cwd, ["plugin", "install", PLUGIN_ID, "--scope", "user"], effects);
-    effects.push({ kind: "install", target: PLUGIN_ID, operation: "user" });
-  } else if (plugin.version !== SAFEWORD_SCHEMA.version) {
-    runClaude(cwd, ["plugin", "update", PLUGIN_ID, "--scope", "user"], effects);
-    effects.push({ kind: "update", target: PLUGIN_ID, operation: "user" });
-  } else if (plugin.enabled !== true) {
-    runClaude(cwd, ["plugin", "enable", PLUGIN_ID, "--scope", "user"], effects);
-    effects.push({ kind: "enable", target: PLUGIN_ID, operation: "user" });
+    runClaude(cwd, ["plugin", "install", PLUGIN_ID2, "--scope", scope], effects);
+    effects.push({ kind: "install", target: PLUGIN_ID2, operation: scope });
+  } else {
+    assertConvergeablePluginVersion(plugin);
+    if (plugin.version !== SAFEWORD_SCHEMA.version) {
+      runClaude(cwd, ["plugin", "update", PLUGIN_ID2, "--scope", scope], effects);
+      effects.push({ kind: "update", target: PLUGIN_ID2, operation: scope });
+    } else if (plugin.enabled !== true) {
+      runClaude(cwd, ["plugin", "enable", PLUGIN_ID2, "--scope", scope], effects);
+      effects.push({ kind: "enable", target: PLUGIN_ID2, operation: scope });
+    }
   }
 }
 function fileSha256(path4) {
-  return createHash5("sha256").update(readFileSync27(path4)).digest("hex");
+  return createHash8("sha256").update(readFileSync34(path4)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
-  if (typeof asset.path !== "string" || nodePath48.isAbsolute(asset.path) || asset.path.split(nodePath48.sep).includes("..") || typeof asset.sha256 !== "string") {
+  if (typeof asset.path !== "string" || nodePath55.isAbsolute(asset.path) || asset.path.split(nodePath55.sep).includes("..") || typeof asset.sha256 !== "string") {
     throw new TypeError("installed inventory contains an unsafe asset");
   }
-  const path4 = nodePath48.join(installPath, asset.path);
-  if (!lstatSync4(path4).isFile() || fileSha256(path4) !== asset.sha256) {
+  const path4 = nodePath55.join(installPath, asset.path);
+  if (!lstatSync8(path4).isFile() || fileSha256(path4) !== asset.sha256) {
     throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
   }
 }
 function assertInstalledIdentity(identity, inventory, inventoryContent) {
-  if (identity.schema_version !== 1 || identity.plugin_version !== SAFEWORD_SCHEMA.version || identity.inventory_sha256 !== createHash5("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity.schema_version !== 1 || identity.plugin_version !== SAFEWORD_SCHEMA.version || identity.inventory_sha256 !== createHash8("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -28402,45 +31766,77 @@ function assertRequiredNativeAssets(assets) {
   }
 }
 function validateNativePayload(plugin) {
-  if (typeof plugin.installPath !== "string" || !lstatSync4(plugin.installPath).isDirectory()) {
+  if (typeof plugin.installPath !== "string" || !lstatSync8(plugin.installPath).isDirectory()) {
     throw new TypeError("installed plugin path is missing");
   }
-  const identityPath = nodePath48.join(plugin.installPath, "identity.json");
-  const inventoryPath = nodePath48.join(plugin.installPath, "inventory.json");
-  const identity = JSON.parse(readFileSync27(identityPath, "utf8"));
-  const inventoryContent = readFileSync27(inventoryPath, "utf8");
+  const identityPath = nodePath55.join(plugin.installPath, "identity.json");
+  const inventoryPath = nodePath55.join(plugin.installPath, "inventory.json");
+  const identity = JSON.parse(readFileSync34(identityPath, "utf8"));
+  const inventoryContent = readFileSync34(inventoryPath, "utf8");
   const inventory = JSON.parse(inventoryContent);
   assertInstalledIdentity(identity, inventory, inventoryContent);
   assertRequiredNativeAssets(inventory.assets);
   for (const asset of inventory.assets)
     assertInstalledAsset(plugin.installPath, asset);
-  const hookManifest = nodePath48.join(plugin.installPath, "hooks/hooks.json");
+  const hookManifest = nodePath55.join(plugin.installPath, "hooks/hooks.json");
   if (identity.hook_manifest_sha256 !== fileSha256(hookManifest)) {
     throw new TypeError("installed hook manifest does not match its identity");
   }
 }
-function observeClaudeProfile(cwd) {
+function observeApplicableClaudePlugins(cwd) {
+  let projectRoot;
   try {
-    assertSupportedHost(cwd);
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+  } catch (error2) {
+    return {
+      status: "errored",
+      installations: [],
+      message: error2 instanceof Error ? error2.message : String(error2),
+      nextAction: "repair the reported Claude project path"
+    };
+  }
+  try {
+    assertSupportedHost(projectRoot);
   } catch (error2) {
     const message = error2 instanceof Error ? error2.message : String(error2);
     return {
-      health: "unsupported-host",
+      status: "unsupported-host",
+      installations: [],
       message,
       nextAction: message.startsWith("Could not parse") ? "reinstall Claude Code" : "update Claude Code"
     };
   }
-  let plugin;
+  let plugins;
   try {
-    plugin = safewordPlugin(pluginEntries(cwd, []));
+    plugins = applicableSafewordPlugins(pluginEntries(projectRoot, []), projectRoot);
   } catch (error2) {
     return {
-      health: "errored",
+      status: "errored",
+      installations: [],
       message: error2 instanceof Error ? error2.message : String(error2),
       nextAction: "repair the reported Claude plugin error"
     };
   }
-  return observeInstalledPlugin(plugin);
+  return {
+    status: "observed",
+    installations: plugins.map((plugin) => ({
+      scope: plugin.scope,
+      plugin,
+      ...observeInstalledPlugin(plugin)
+    }))
+  };
+}
+function observeClaudeProfile(cwd) {
+  const observation = observeApplicableClaudePlugins(cwd);
+  if (observation.status !== "observed") {
+    return {
+      health: observation.status,
+      message: observation.message,
+      nextAction: observation.nextAction
+    };
+  }
+  const installation = observation.installations.find((candidate) => candidate.scope === "project") ?? observation.installations.find((candidate) => candidate.scope === "user");
+  return installation ?? { health: "missing" };
 }
 function observeInstalledPlugin(plugin) {
   if (plugin === undefined)
@@ -28468,21 +31864,29 @@ function assertNativePayload(plugin, effects) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED", `Claude installed plugin metadata, but its native payload could not be verified: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
   }
 }
-function verifyPlugin(cwd, effects) {
-  const plugin = safewordPlugin(pluginEntries(cwd, effects));
-  if (plugin?.version === SAFEWORD_SCHEMA.version && plugin.enabled === true && plugin.scope === "user") {
-    assertNativePayload(plugin, effects);
-    return;
+function verifyPlugin(cwd, scope, effects) {
+  let entries;
+  try {
+    entries = pluginEntries(cwd, effects);
+  } catch (error2) {
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED", `Claude completed the selected-scope mutations, but the final plugin state could not be observed: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
   }
-  throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at user scope.`, effects);
+  const plugin = safewordPlugin(entries, scope, cwd);
+  if (plugin?.version === SAFEWORD_SCHEMA.version && plugin.enabled === true && plugin.scope === scope) {
+    assertNativePayload(plugin, effects);
+    return entries;
+  }
+  throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${PLUGIN_ID2} ${SAFEWORD_SCHEMA.version} as enabled at ${scope} scope.`, effects);
 }
-function installClaudePlugin(cwd) {
+function installClaudePlugin(cwd, scope = "project") {
   const effects = [];
   try {
-    assertSupportedHost(cwd);
-    ensureMarketplace(cwd, effects);
-    convergePlugin(cwd, effects);
-    verifyPlugin(cwd, effects);
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    assertSupportedHost(projectRoot);
+    ensureMarketplace(projectRoot, scope, effects);
+    convergePlugin(projectRoot, scope, effects);
+    const plugins = verifyPlugin(projectRoot, scope, effects);
+    const overlap = applicableSafewordPlugins(plugins, projectRoot).length > 1;
     return createResult({
       state: effects.length === 0 ? "healthy" : "changed",
       effects: {
@@ -28492,18 +31896,20 @@ function installClaudePlugin(cwd) {
       nextActions: [{ command: "/reload-plugins", mutates: false, requiresHuman: true }],
       data: {
         command: "claude install",
-        plugin: PLUGIN_ID,
+        plugin: PLUGIN_ID2,
         version: SAFEWORD_SCHEMA.version,
-        scope: "user"
+        scope,
+        ...overlap && { classification: "scope-overlap" }
       }
     });
   } catch (error2) {
-    return failedResult(error2);
+    return failedResult(error2, scope);
   }
 }
-var MINIMUM_CLAUDE_VERSION, MARKETPLACE_NAME = "safeword", PLUGIN_ID = "safeword@safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", ClaudeProfileError;
+var MINIMUM_CLAUDE_VERSION, MARKETPLACE_NAME = "safeword", PLUGIN_ID2 = "safeword@safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", ClaudeProfileError;
 var init_profile = __esm(() => {
   init_result();
+  init_durable_write();
   init_schema();
   MINIMUM_CLAUDE_VERSION = [2, 1, 170];
   ClaudeProfileError = class ClaudeProfileError extends Error {
@@ -28517,12 +31923,82 @@ var init_profile = __esm(() => {
   };
 });
 
+// src/claude-plugin/catalogue.ts
+import { createHash as createHash9 } from "crypto";
+function adaptHookValue(value) {
+  if (typeof value === "string") {
+    return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
+  }
+  if (Array.isArray(value))
+    return value.map((child) => adaptHookValue(child));
+  if (typeof value !== "object" || value === null)
+    return value;
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, adaptHookValue(child)]));
+}
+function wrapHookCommands(value, event) {
+  if (Array.isArray(value))
+    return value.map((child) => wrapHookCommands(child, event));
+  if (typeof value !== "object" || value === null)
+    return value;
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+    key,
+    key === "command" && typeof child === "string" ? `${PLUGIN_DISPATCH} ${event} -- ${child}` : wrapHookCommands(child, event)
+  ]));
+}
+function pluginSessionStartEntries(adapted) {
+  return Array.isArray(adapted.SessionStart) ? adapted.SessionStart.filter((entry) => !JSON.stringify(entry).includes("session-auto-upgrade.ts")) : [];
+}
+function pluginHookEntries(event, entries, adapted) {
+  if (event === "SessionStart") {
+    return wrapHookCommands(pluginSessionStartEntries(adapted), event);
+  }
+  if (event === "UserPromptSubmit") {
+    return [
+      {
+        hooks: [
+          {
+            type: "command",
+            command: `${PLUGIN_DISPATCH} ${event} --event-group`
+          }
+        ]
+      }
+    ];
+  }
+  return wrapHookCommands(entries, event);
+}
+function pluginHooks() {
+  const adapted = adaptHookValue(SETTINGS_HOOKS);
+  const withSetup = {
+    ...adapted,
+    Setup: [{ matcher: "init", hooks: [{ type: "command", command: "true" }] }]
+  };
+  return Object.fromEntries(Object.entries(withSetup).map(([event, entries]) => [
+    event,
+    pluginHookEntries(event, entries, adapted)
+  ]));
+}
+function pluginHookManifest() {
+  const hooks = pluginHooks();
+  return `${JSON.stringify({ hooks }, undefined, 2)}
+`;
+}
+function currentClaudePluginHookManifestSha256() {
+  return createHash9("sha256").update(pluginHookManifest()).digest("hex");
+}
+var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.ts';
+var init_catalogue = __esm(() => {
+  init_owned_paths();
+  init_schema();
+  init_config2();
+});
+
 // src/claude-plugin/inventory.ts
 var CLAUDE_MIGRATION_SCHEMA;
 var init_inventory2 = __esm(() => {
   CLAUDE_MIGRATION_SCHEMA = {
     paths: {
       proof: "plugins/data/safeword-safeword/execution-proof-v1.json",
+      proofDirectory: "plugins/data/safeword-safeword/execution-proofs-v2",
       pluginMarker: ".safeword/claude-plugin/plugin-mode-v1.json",
       transaction: ".safeword/claude-plugin/cleanup-transaction-v1.json"
     }
@@ -28534,42 +32010,65 @@ var exports_status2 = {};
 __export(exports_status2, {
   observeClaudeStatus: () => observeClaudeStatus
 });
-import { createHash as createHash6 } from "crypto";
-import { existsSync as existsSync26, lstatSync as lstatSync5, readFileSync as readFileSync28, realpathSync } from "fs";
-import { homedir as homedir2 } from "os";
-import nodePath49 from "path";
-function claudeConfigDirectory(environment = process.env) {
-  return environment.CLAUDE_CONFIG_DIR ?? nodePath49.join(homedir2(), ".claude");
+import { createHash as createHash10 } from "crypto";
+import { existsSync as existsSync30, lstatSync as lstatSync9, readFileSync as readFileSync35, realpathSync as realpathSync3 } from "fs";
+import { homedir as homedir6 } from "os";
+import nodePath56 from "path";
+function claudeConfigDirectory2(environment = process.env) {
+  return environment.CLAUDE_CONFIG_DIR ?? nodePath56.join(homedir6(), ".claude");
 }
 function isRegularFile(path4) {
   try {
-    return lstatSync5(path4).isFile();
+    return lstatSync9(path4).isFile();
   } catch {
     return false;
   }
 }
 function jsonObject(path4) {
   try {
-    const value = JSON.parse(readFileSync28(path4, "utf8"));
+    const value = JSON.parse(readFileSync35(path4, "utf8"));
     return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
   } catch {
     return;
   }
 }
-function proofIsCurrent(plugin) {
+function timestampIsCanonical(value) {
+  if (typeof value !== "string")
+    return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.toISOString() === value;
+}
+function proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalPluginRoot) {
+  return [
+    proof.schema_version === 2,
+    proof.project_root === canonicalProjectRoot,
+    proof.plugin_version === SAFEWORD_SCHEMA.version,
+    proof.plugin_version === plugin.version,
+    proof.hook_manifest_sha256 === identity.hook_manifest_sha256,
+    proof.hook_manifest_sha256 === currentClaudePluginHookManifestSha256(),
+    proof.canonical_plugin_root === canonicalPluginRoot,
+    proof.event === "SessionStart" || proof.event === "UserPromptSubmit",
+    typeof proof.session_id === "string" && proof.session_id !== "",
+    timestampIsCanonical(proof.recorded_at)
+  ].every(Boolean);
+}
+function proofIsCurrent(plugin, cwd) {
   if (typeof plugin.installPath !== "string")
     return false;
-  const identity = jsonObject(nodePath49.join(plugin.installPath, "identity.json"));
-  const proof = jsonObject(nodePath49.join(claudeConfigDirectory(), CLAUDE_MIGRATION_SCHEMA.paths.proof));
-  if (identity === undefined || proof === undefined)
-    return false;
+  const identity = jsonObject(nodePath56.join(plugin.installPath, "identity.json"));
   let canonicalRoot;
+  let canonicalProjectRoot;
   try {
-    canonicalRoot = realpathSync(plugin.installPath);
+    canonicalRoot = realpathSync3(plugin.installPath);
+    canonicalProjectRoot = canonicalClaudeProjectRoot(cwd);
   } catch {
     return false;
   }
-  return proof.schema_version === 1 && proof.plugin_version === SAFEWORD_SCHEMA.version && proof.hook_manifest_sha256 === identity.hook_manifest_sha256 && proof.canonical_plugin_root === canonicalRoot && (proof.event === "SessionStart" || proof.event === "UserPromptSubmit");
+  const projectDigest = createHash10("sha256").update(canonicalProjectRoot).digest("hex");
+  const proof = jsonObject(nodePath56.join(claudeConfigDirectory2(), CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory, `${projectDigest}.json`));
+  if (identity === undefined || proof === undefined)
+    return false;
+  return proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalRoot);
 }
 function legacyObservation(cwd) {
   const recognized = [];
@@ -28578,15 +32077,15 @@ function legacyObservation(cwd) {
   for (const [relative, definition] of Object.entries(SAFEWORD_SCHEMA.ownedFiles)) {
     if (!relative.startsWith(".claude/") || definition.template === undefined)
       continue;
-    const installed = nodePath49.join(cwd, relative);
-    if (!existsSync26(installed))
+    const installed = nodePath56.join(cwd, relative);
+    if (!existsSync30(installed))
       continue;
     if (!isRegularFile(installed)) {
       conflicts.push(relative);
       continue;
     }
-    const canonical = nodePath49.join(templates, definition.template);
-    if (isRegularFile(canonical) && createHash6("sha256").update(readFileSync28(installed)).digest("hex") === createHash6("sha256").update(readFileSync28(canonical)).digest("hex")) {
+    const canonical = nodePath56.join(templates, definition.template);
+    if (isRegularFile(canonical) && createHash10("sha256").update(readFileSync35(installed)).digest("hex") === createHash10("sha256").update(readFileSync35(canonical)).digest("hex")) {
       recognized.push(relative);
     } else {
       conflicts.push(relative);
@@ -28594,8 +32093,52 @@ function legacyObservation(cwd) {
   }
   return { recognized, conflicts };
 }
+function statusData(classification, options) {
+  const data = { command: "claude status", classification };
+  if (options.applicableScope !== undefined)
+    data.applicable_scope = options.applicableScope;
+  if (options.legacy !== undefined)
+    data.legacy = options.legacy;
+  if (options.installations !== undefined) {
+    data.installations = options.installations.map(({ scope, health, plugin }) => ({
+      scope,
+      health,
+      id: plugin.id,
+      version: plugin.version,
+      enabled: plugin.enabled,
+      install_path: plugin.installPath,
+      ...scope === "project" && { project_path: plugin.projectPath }
+    }));
+  }
+  return data;
+}
+function statusMessage(options) {
+  if (options.message !== undefined)
+    return options.message;
+  if (options.applicableScope === undefined)
+    return;
+  return `Safeword's applicable Claude installation is configured at ${options.applicableScope} scope for this repository.`;
+}
+function statusFindings(classification, options, failed) {
+  const message = statusMessage(options);
+  if (message === undefined)
+    return [];
+  let severity = "warning";
+  if (failed)
+    severity = "error";
+  else if (classification === "plugin-mode")
+    severity = "info";
+  return [
+    {
+      code: `CLAUDE_${classification.replaceAll("-", "_").toUpperCase()}`,
+      message,
+      severity
+    }
+  ];
+}
 function statusResult(classification, options = {}) {
-  const nextAction = options.nextAction ?? ACTIONS[classification];
+  const nextAction2 = options.nextAction ?? ACTIONS[classification];
+  const nextActions = options.nextActions ?? (nextAction2 === undefined ? [] : [nextAction2]);
   const failed = classification === "errored";
   let state = "action_required";
   if (classification === "plugin-mode")
@@ -28604,49 +32147,83 @@ function statusResult(classification, options = {}) {
     state = "failed";
   return createResult({
     state,
-    findings: options.message === undefined ? [] : [
-      {
-        code: `CLAUDE_${classification.replaceAll("-", "_").toUpperCase()}`,
-        message: options.message,
-        severity: failed ? "error" : "warning"
-      }
-    ],
-    nextActions: nextAction === undefined ? [] : [{ command: nextAction, mutates: !nextAction.startsWith("/"), requiresHuman: true }],
-    data: {
-      command: "claude status",
-      classification,
-      ...options.legacy !== undefined && { legacy: options.legacy }
-    }
+    findings: statusFindings(classification, options, failed),
+    nextActions: nextActions.map((command) => ({
+      command,
+      mutates: !command.startsWith("/"),
+      requiresHuman: true
+    })),
+    data: statusData(classification, options)
   });
 }
+function scopeOverlapResult(installations) {
+  if (new Set(installations.map((installation) => installation.scope)).size <= 1)
+    return;
+  const summary = installations.map((installation) => `${installation.scope} (${installation.health})`).join(" and ");
+  return statusResult("scope-overlap", {
+    installations,
+    message: `Safeword has overlapping Claude installations for this repository: ${summary}. Keep one by running either \`claude plugin uninstall safeword@safeword --scope project\` or \`claude plugin uninstall safeword@safeword --scope user\`.`,
+    nextActions: [
+      "claude plugin uninstall safeword@safeword --scope project",
+      "claude plugin uninstall safeword@safeword --scope user"
+    ]
+  });
+}
+function statusForInstallation(installation, projectRoot) {
+  if (installation.health !== "current") {
+    return statusResult(installation.health, {
+      nextAction: installation.nextAction,
+      message: installation.message,
+      applicableScope: installation.scope
+    });
+  }
+  if (!proofIsCurrent(installation.plugin, projectRoot)) {
+    return statusResult("unproven", { applicableScope: installation.scope });
+  }
+  const legacy = legacyObservation(projectRoot);
+  if (legacy.conflicts.length > 0) {
+    return statusResult("coexistence", { legacy, applicableScope: installation.scope });
+  }
+  if (legacy.recognized.length > 0) {
+    return statusResult("cleanup-ready", { legacy, applicableScope: installation.scope });
+  }
+  const classification = existsSync30(nodePath56.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker)) ? "plugin-mode" : "coexistence";
+  return statusResult(classification, { legacy, applicableScope: installation.scope });
+}
 function observeClaudeStatus(cwd) {
-  if (existsSync26(nodePath49.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
+  let projectRoot;
+  try {
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+  } catch (error2) {
+    return statusResult("errored", {
+      message: error2 instanceof Error ? error2.message : String(error2),
+      nextAction: "repair the reported Claude project path"
+    });
+  }
+  if (existsSync30(nodePath56.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
     return statusResult("recovery-required");
   }
-  const profile = observeClaudeProfile(cwd);
-  if (profile.health !== "current") {
-    return statusResult(profile.health, {
+  const profile = observeApplicableClaudePlugins(projectRoot);
+  if (profile.status !== "observed") {
+    return statusResult(profile.status, {
       nextAction: profile.nextAction,
       message: profile.message
     });
   }
-  if (!proofIsCurrent(profile.plugin ?? {}))
-    return statusResult("unproven");
-  const legacy = legacyObservation(cwd);
-  if (legacy.conflicts.length > 0)
-    return statusResult("coexistence", { legacy });
-  if (legacy.recognized.length > 0)
-    return statusResult("cleanup-ready", { legacy });
-  if (existsSync26(nodePath49.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker))) {
-    return statusResult("plugin-mode", { legacy });
-  }
-  return statusResult("coexistence", { legacy });
+  const overlap = scopeOverlapResult(profile.installations);
+  if (overlap !== undefined)
+    return overlap;
+  const installation = profile.installations[0];
+  if (installation === undefined)
+    return statusResult("missing");
+  return statusForInstallation(installation, projectRoot);
 }
 var ACTIONS;
 var init_status2 = __esm(() => {
   init_result();
   init_schema();
   init_fs();
+  init_catalogue();
   init_inventory2();
   init_profile();
   ACTIONS = {
@@ -28657,6 +32234,7 @@ var init_status2 = __esm(() => {
     "wrong-version": "safeword claude install",
     errored: "repair the reported Claude plugin error",
     unproven: "/reload-plugins",
+    "scope-overlap": undefined,
     coexistence: "resolve reported legacy conflicts",
     "cleanup-ready": "safeword claude cleanup",
     "plugin-mode": undefined
@@ -28670,31 +32248,31 @@ __export(exports_cleanup, {
   observeClaudeCleanupPlan: () => observeClaudeCleanupPlan,
   cleanupClaudeLegacy: () => cleanupClaudeLegacy
 });
-import { createHash as createHash7, randomUUID as randomUUID2 } from "crypto";
-import { chmodSync as chmodSync2, existsSync as existsSync27, lstatSync as lstatSync6, mkdirSync as mkdirSync5, readFileSync as readFileSync29, rmSync as rmSync3 } from "fs";
-import nodePath50 from "path";
-function sha2562(content) {
-  return createHash7("sha256").update(content).digest("hex");
+import { createHash as createHash11, randomUUID as randomUUID5 } from "crypto";
+import { chmodSync as chmodSync3, existsSync as existsSync31, lstatSync as lstatSync10, mkdirSync as mkdirSync7, readFileSync as readFileSync36, rmSync as rmSync6 } from "fs";
+import nodePath57 from "path";
+function sha2563(content) {
+  return createHash11("sha256").update(content).digest("hex");
 }
-function containedPath(cwd, relative) {
-  if (relative === "" || nodePath50.isAbsolute(relative) || relative.split(/[\\/]/u).includes("..")) {
+function containedPath2(cwd, relative) {
+  if (relative === "" || nodePath57.isAbsolute(relative) || relative.split(/[\\/]/u).includes("..")) {
     throw new Error(`Unsafe Claude cleanup target: ${relative}`);
   }
-  const root = nodePath50.resolve(cwd);
-  const target = nodePath50.resolve(root, relative);
-  if (!target.startsWith(`${root}${nodePath50.sep}`)) {
+  const root = nodePath57.resolve(cwd);
+  const target = nodePath57.resolve(root, relative);
+  if (!target.startsWith(`${root}${nodePath57.sep}`)) {
     throw new Error(`Unsafe Claude cleanup target: ${relative}`);
   }
   return target;
 }
 function assertSafeTarget(cwd, relative) {
-  const target = containedPath(cwd, relative);
-  let cursor = nodePath50.resolve(cwd);
+  const target = containedPath2(cwd, relative);
+  let cursor = nodePath57.resolve(cwd);
   for (const segment of relative.split(/[\\/]/u)) {
-    cursor = nodePath50.join(cursor, segment);
-    if (!existsSync27(cursor))
+    cursor = nodePath57.join(cursor, segment);
+    if (!existsSync31(cursor))
       continue;
-    const metadata = lstatSync6(cursor);
+    const metadata = lstatSync10(cursor);
     if (metadata.isSymbolicLink())
       throw new Error(`Unsafe symlinked Claude cleanup target: ${relative}`);
     if (cursor === target ? !metadata.isFile() : !metadata.isDirectory()) {
@@ -28711,10 +32289,10 @@ function recognizedPaths(status) {
 }
 function settingsMutation(cwd) {
   const relative = ".claude/settings.json";
-  const path4 = nodePath50.join(cwd, relative);
-  if (!existsSync27(path4))
+  const path4 = nodePath57.join(cwd, relative);
+  if (!existsSync31(path4))
     return;
-  const existing = JSON.parse(readFileSync29(path4, "utf8"));
+  const existing = JSON.parse(readFileSync36(path4, "utf8"));
   const hooks = existing.hooks ?? {};
   const cleaned = {};
   let removed = false;
@@ -28749,16 +32327,17 @@ function cleanupMutations(cwd, status) {
   return files;
 }
 function preconditionDigest3(cwd, mutations) {
-  return sha2562(JSON.stringify(mutations.map((mutation) => {
+  return sha2563(JSON.stringify(mutations.map((mutation) => {
     const target = assertSafeTarget(cwd, mutation.path);
-    return [mutation.path, sha2562(readFileSync29(target)), mutation.content];
+    return [mutation.path, sha2563(readFileSync36(target)), mutation.content];
   })));
 }
 function observeClaudeCleanupPlan(cwd) {
-  const status = observeClaudeStatus(cwd);
+  const projectRoot = canonicalClaudeProjectRoot(cwd);
+  const status = observeClaudeStatus(projectRoot);
   const classification = statusClassification(status);
-  const mutations = classification === "cleanup-ready" ? cleanupMutations(cwd, status) : [];
-  const digest = preconditionDigest3(cwd, mutations);
+  const mutations = classification === "cleanup-ready" ? cleanupMutations(projectRoot, status) : [];
+  const digest = preconditionDigest3(projectRoot, mutations);
   return {
     status,
     plan: createPlan({
@@ -28782,39 +32361,39 @@ function observeClaudeCleanupPlan(cwd) {
   };
 }
 function transactionPath(cwd) {
-  return containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction);
+  return containedPath2(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction);
 }
 function writeTransaction(cwd, transaction) {
   const path4 = transactionPath(cwd);
-  mkdirSync5(nodePath50.dirname(path4), { recursive: true, mode: 448 });
+  mkdirSync7(nodePath57.dirname(path4), { recursive: true, mode: 448 });
   writeDurableFile(path4, `${JSON.stringify(transaction, undefined, 2)}
 `, { mode: 384 });
 }
 function entryFor(cwd, mutation) {
   const path4 = assertSafeTarget(cwd, mutation.path);
-  const before = readFileSync29(path4);
+  const before = readFileSync36(path4);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
   return {
     path: mutation.path,
-    before_sha256: sha2562(before),
+    before_sha256: sha2563(before),
     before_base64: before.toString("base64"),
-    before_mode: lstatSync6(path4).mode & 511,
-    after_sha256: after === null ? null : sha2562(after),
+    before_mode: lstatSync10(path4).mode & 511,
+    after_sha256: after === null ? null : sha2563(after),
     after_base64: after === null ? null : after.toString("base64"),
-    after_mode: after === null ? null : lstatSync6(path4).mode & 511
+    after_mode: after === null ? null : lstatSync10(path4).mode & 511
   };
 }
 function observedSha(path4) {
-  return existsSync27(path4) ? sha2562(readFileSync29(path4)) : null;
+  return existsSync31(path4) ? sha2563(readFileSync36(path4)) : null;
 }
 function writeImage(path4, content, mode) {
   if (content === null) {
-    rmSync3(path4, { force: true });
+    rmSync6(path4, { force: true });
     return;
   }
-  mkdirSync5(nodePath50.dirname(path4), { recursive: true });
+  mkdirSync7(nodePath57.dirname(path4), { recursive: true });
   writeDurableFile(path4, Buffer.from(content, "base64"), { mode: mode ?? 420 });
-  chmodSync2(path4, mode ?? 420);
+  chmodSync3(path4, mode ?? 420);
 }
 function applyEntries(cwd, entries) {
   for (const entry of entries) {
@@ -28835,7 +32414,8 @@ function cleanupFailure(error2, classification = "coexistence") {
 }
 function cleanupClaudeLegacy(cwd, options) {
   try {
-    const observed = observeClaudeCleanupPlan(cwd);
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    const observed = observeClaudeCleanupPlan(projectRoot);
     const classification = statusClassification(observed.status);
     if (classification !== "cleanup-ready")
       return observed.status;
@@ -28859,20 +32439,20 @@ function cleanupClaudeLegacy(cwd, options) {
         data: { command: "claude cleanup", classification, plan: toWirePlan(observed.plan) }
       });
     }
-    const mutations = cleanupMutations(cwd, observed.status);
+    const mutations = cleanupMutations(projectRoot, observed.status);
     const transaction = {
       schema_version: 1,
-      transaction_id: randomUUID2(),
+      transaction_id: randomUUID5(),
       disposition: "complete-forward",
-      entries: mutations.map((mutation) => entryFor(cwd, mutation))
+      entries: mutations.map((mutation) => entryFor(projectRoot, mutation))
     };
-    writeTransaction(cwd, transaction);
-    applyEntries(cwd, transaction.entries);
-    const marker = containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
-    mkdirSync5(nodePath50.dirname(marker), { recursive: true });
+    writeTransaction(projectRoot, transaction);
+    applyEntries(projectRoot, transaction.entries);
+    const marker = containedPath2(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
+    mkdirSync7(nodePath57.dirname(marker), { recursive: true });
     writeDurableFile(marker, `${JSON.stringify({ schema_version: 1, mode: "plugin", transaction_id: transaction.transaction_id })}
 `, { mode: 384 });
-    rmSync3(transactionPath(cwd), { force: true });
+    rmSync6(transactionPath(projectRoot), { force: true });
     return createResult({
       state: "changed",
       effects: {
@@ -28888,35 +32468,41 @@ function cleanupClaudeLegacy(cwd, options) {
   }
 }
 function parseTransaction(cwd) {
-  const value = JSON.parse(readFileSync29(transactionPath(cwd), "utf8"));
+  const value = JSON.parse(readFileSync36(transactionPath(cwd), "utf8"));
   if (value.schema_version !== 1 || !Array.isArray(value.entries))
     throw new Error("Claude cleanup transaction is malformed.");
   return value;
 }
 function recoverClaudeCleanup(cwd) {
-  if (!existsSync27(transactionPath(cwd))) {
+  let projectRoot;
+  try {
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+  } catch (error2) {
+    return cleanupFailure(error2, "recovery-required");
+  }
+  if (!existsSync31(transactionPath(projectRoot))) {
     return createResult({
       state: "healthy",
       data: { command: "claude recover", classification: "plugin-mode" }
     });
   }
   try {
-    const transaction = parseTransaction(cwd);
+    const transaction = parseTransaction(projectRoot);
     for (const entry of transaction.entries) {
-      const path4 = assertSafeTarget(cwd, entry.path);
+      const path4 = assertSafeTarget(projectRoot, entry.path);
       const current = observedSha(path4);
       const expectedCurrent = transaction.disposition === "complete-forward" ? entry.before_sha256 : entry.after_sha256;
       if (current !== expectedCurrent)
         throw new Error(`Claude recovery conflict at ${entry.path}`);
     }
     for (const entry of transaction.entries) {
-      const path4 = containedPath(cwd, entry.path);
+      const path4 = containedPath2(projectRoot, entry.path);
       if (transaction.disposition === "complete-forward")
         writeImage(path4, entry.after_base64, entry.after_mode);
       else
         writeImage(path4, entry.before_base64, entry.before_mode);
     }
-    rmSync3(transactionPath(cwd), { force: true });
+    rmSync6(transactionPath(projectRoot), { force: true });
     return createResult({
       state: "changed",
       data: {
@@ -28940,6 +32526,7 @@ var init_cleanup = __esm(() => {
   init_result();
   init_durable_write();
   init_inventory2();
+  init_profile();
   init_status2();
 });
 
@@ -28988,14 +32575,14 @@ var exports_remove = {};
 __export(exports_remove, {
   removeProject: () => removeProject
 });
-import { existsSync as existsSync28, readFileSync as readFileSync30 } from "fs";
-import nodePath51 from "path";
+import { existsSync as existsSync32, readFileSync as readFileSync37 } from "fs";
+import nodePath58 from "path";
 function snapshotPackageFiles(cwd) {
   const snapshot = new Map;
   for (const target of PACKAGE_MANAGER_FILES) {
-    const path4 = nodePath51.join(cwd, target);
-    if (existsSync28(path4))
-      snapshot.set(target, readFileSync30(path4).toString("base64"));
+    const path4 = nodePath58.join(cwd, target);
+    if (existsSync32(path4))
+      snapshot.set(target, readFileSync37(path4).toString("base64"));
   }
   return snapshot;
 }
@@ -29123,7 +32710,7 @@ async function removeProject(cwd, options) {
   if (options.plan !== undefined && !isPlanIdentity(options.plan)) {
     return malformedPlanIdentity("remove");
   }
-  if (!existsSync28(nodePath51.join(cwd, ".safeword"))) {
+  if (!existsSync32(nodePath58.join(cwd, ".safeword"))) {
     return createResult({
       state: "healthy",
       findings: [
@@ -29298,24 +32885,24 @@ function stripTomlComment(line) {
 }
 
 // src/utils/architecture-skeleton.ts
-import { readdirSync as readdirSync20 } from "fs";
-import nodePath52 from "path";
+import { readdirSync as readdirSync21 } from "fs";
+import nodePath59 from "path";
 function extractSkeleton(projectDirectory, options = {}) {
-  if (exists(nodePath52.join(projectDirectory, "pyproject.toml"))) {
+  if (exists(nodePath59.join(projectDirectory, "pyproject.toml"))) {
     const pythonNodes = pythonModuleNodes(projectDirectory);
     if (pythonNodes.length > 0)
       return { nodes: pythonNodes };
   }
-  if (exists(nodePath52.join(projectDirectory, "Cargo.toml"))) {
+  if (exists(nodePath59.join(projectDirectory, "Cargo.toml"))) {
     return { nodes: rustModuleNodes(projectDirectory) };
   }
-  const sourceRoot = enumerateJsSourceRoot(nodePath52.join(projectDirectory, "src"), (name) => `src/${name}`);
+  const sourceRoot = enumerateJsSourceRoot(nodePath59.join(projectDirectory, "src"), (name) => `src/${name}`);
   if (sourceRoot.observed)
     return { nodes: sourceRoot.nodes };
-  if (exists(nodePath52.join(projectDirectory, "go.mod"))) {
+  if (exists(nodePath59.join(projectDirectory, "go.mod"))) {
     return { nodes: goLayoutNodes(projectDirectory) };
   }
-  const libraryRoot = enumerateJsSourceRoot(nodePath52.join(projectDirectory, "lib"), (name) => `lib/${name}`);
+  const libraryRoot = enumerateJsSourceRoot(nodePath59.join(projectDirectory, "lib"), (name) => `lib/${name}`);
   if (libraryRoot.observed)
     return { nodes: libraryRoot.nodes };
   if (options.workspaceRoot === true || declaresWorkspaces(projectDirectory))
@@ -29323,28 +32910,28 @@ function extractSkeleton(projectDirectory, options = {}) {
   return { nodes: topLevelJsModuleNodes(projectDirectory) };
 }
 function declaresWorkspaces(projectDirectory) {
-  if (exists(nodePath52.join(projectDirectory, "pnpm-workspace.yaml")))
+  if (exists(nodePath59.join(projectDirectory, "pnpm-workspace.yaml")))
     return true;
-  if (exists(nodePath52.join(projectDirectory, "go.work")))
+  if (exists(nodePath59.join(projectDirectory, "go.work")))
     return true;
-  const manifest = readJson(nodePath52.join(projectDirectory, "package.json"));
+  const manifest = readJson(nodePath59.join(projectDirectory, "package.json"));
   if (manifest !== null && typeof manifest === "object" && manifest.workspaces !== undefined) {
     return true;
   }
-  const pyproject = readFileSafe(nodePath52.join(projectDirectory, "pyproject.toml"));
+  const pyproject = readFileSafe(nodePath59.join(projectDirectory, "pyproject.toml"));
   return pyproject !== undefined && hasTomlTable(pyproject, "tool.uv.workspace");
 }
 function enumerateJsSourceRoot(directory, pathFor) {
   let entries;
   try {
-    entries = readdirSync20(directory, { withFileTypes: true });
+    entries = readdirSync21(directory, { withFileTypes: true });
   } catch {
     return { nodes: [], observed: false };
   }
   const observed = entries.some((entry) => entry.isDirectory() || entry.isFile() && isJsSourceModuleFile(entry.name));
   const byName = new Map(entries.filter((entry) => entry.isDirectory()).map((entry) => [
     entry.name,
-    directoryNode(entry.name, pathFor(entry.name), JS_SOURCE_EXTENSIONS2.map((extension) => nodePath52.join(directory, entry.name, `index${extension}`)))
+    directoryNode(entry.name, pathFor(entry.name), JS_SOURCE_EXTENSIONS2.map((extension) => nodePath59.join(directory, entry.name, `index${extension}`)))
   ]));
   const excludeColocatedTests = true;
   for (const node of jsFileNodes(entries, pathFor, excludeColocatedTests, directory)) {
@@ -29356,7 +32943,7 @@ function enumerateJsSourceRoot(directory, pathFor) {
 function topLevelJsModuleNodes(projectDirectory) {
   let entries;
   try {
-    entries = readdirSync20(projectDirectory, { withFileTypes: true });
+    entries = readdirSync21(projectDirectory, { withFileTypes: true });
   } catch {
     return [];
   }
@@ -29368,7 +32955,7 @@ function jsFileNodes(entries, pathFor, excludeTests, sourceDirectory) {
   for (const entry of files) {
     const name = jsModuleName(entry.name);
     if (!byName.has(name)) {
-      byName.set(name, sourceFileNode(name, pathFor(entry.name), nodePath52.join(sourceDirectory, entry.name)));
+      byName.set(name, sourceFileNode(name, pathFor(entry.name), nodePath59.join(sourceDirectory, entry.name)));
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
@@ -29409,7 +32996,7 @@ function purposeFromLeadingDocumentation(path4) {
   const content = readFileSafe(path4);
   if (content === undefined)
     return;
-  const extension = nodePath52.extname(path4);
+  const extension = nodePath59.extname(path4);
   let body;
   if (extension === ".rs") {
     body = rustModuleDocumentation(content);
@@ -29575,12 +33162,12 @@ function truncatePurpose(purpose) {
   return `${boundary.trimEnd()}\u2026`;
 }
 function goLayoutNodes(projectDirectory) {
-  return GO_LAYOUT_DIRECTORIES.filter((name) => isDirectory(nodePath52.join(projectDirectory, name))).map((name) => ({ name, path: name, purpose: PURPOSE_PLACEHOLDER })).toSorted(byNodeName);
+  return GO_LAYOUT_DIRECTORIES.filter((name) => isDirectory(nodePath59.join(projectDirectory, name))).map((name) => ({ name, path: name, purpose: PURPOSE_PLACEHOLDER })).toSorted(byNodeName);
 }
 function rustModuleNodes(projectDirectory) {
   let entries;
   try {
-    entries = readdirSync20(nodePath52.join(projectDirectory, "src"), { withFileTypes: true });
+    entries = readdirSync21(nodePath59.join(projectDirectory, "src"), { withFileTypes: true });
   } catch {
     return [];
   }
@@ -29588,7 +33175,7 @@ function rustModuleNodes(projectDirectory) {
   for (const entry of entries) {
     if (entry.isDirectory()) {
       byName.set(entry.name, directoryNode(entry.name, `src/${entry.name}`, [
-        nodePath52.join(projectDirectory, "src", entry.name, "mod.rs")
+        nodePath59.join(projectDirectory, "src", entry.name, "mod.rs")
       ]));
     }
   }
@@ -29598,30 +33185,30 @@ function rustModuleNodes(projectDirectory) {
     }
     const name = entry.name.slice(0, -".rs".length);
     if (!byName.has(name)) {
-      byName.set(name, sourceFileNode(name, `src/${entry.name}`, nodePath52.join(projectDirectory, "src", entry.name)));
+      byName.set(name, sourceFileNode(name, `src/${entry.name}`, nodePath59.join(projectDirectory, "src", entry.name)));
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
 }
 function pythonModuleNodes(projectDirectory) {
-  const sourceDirectory = nodePath52.join(projectDirectory, "src");
+  const sourceDirectory = nodePath59.join(projectDirectory, "src");
   if (isDirectory(sourceDirectory)) {
     return pythonModulesFrom(sourceDirectory, (name) => `src/${name}`, () => true);
   }
-  return pythonModulesFrom(projectDirectory, (name) => name, (directory) => exists(nodePath52.join(directory, "__init__.py")));
+  return pythonModulesFrom(projectDirectory, (name) => name, (directory) => exists(nodePath59.join(directory, "__init__.py")));
 }
 function pythonModulesFrom(directory, pathFor, keepPackageDirectory) {
   let entries;
   try {
-    entries = readdirSync20(directory, { withFileTypes: true });
+    entries = readdirSync21(directory, { withFileTypes: true });
   } catch {
     return [];
   }
   const byName = new Map;
   for (const entry of entries) {
-    if (entry.isDirectory() && keepPackageDirectory(nodePath52.join(directory, entry.name))) {
+    if (entry.isDirectory() && keepPackageDirectory(nodePath59.join(directory, entry.name))) {
       byName.set(entry.name, directoryNode(entry.name, pathFor(entry.name), [
-        nodePath52.join(directory, entry.name, "__init__.py")
+        nodePath59.join(directory, entry.name, "__init__.py")
       ]));
     }
   }
@@ -29631,7 +33218,7 @@ function pythonModulesFrom(directory, pathFor, keepPackageDirectory) {
     }
     const name = entry.name.slice(0, -".py".length);
     if (!byName.has(name)) {
-      byName.set(name, sourceFileNode(name, pathFor(entry.name), nodePath52.join(directory, entry.name)));
+      byName.set(name, sourceFileNode(name, pathFor(entry.name), nodePath59.join(directory, entry.name)));
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
@@ -29652,10 +33239,10 @@ var init_architecture_skeleton = __esm(() => {
 });
 
 // src/utils/boundary-config.ts
-import nodePath53 from "path";
+import nodePath60 from "path";
 function readBoundaryConfig(projectDirectory) {
   for (const name of DEPENDENCY_CRUISER_CONFIG_NAMES) {
-    const content = readFileSafe(nodePath53.join(projectDirectory, name));
+    const content = readFileSafe(nodePath60.join(projectDirectory, name));
     if (content !== undefined)
       return content;
   }
@@ -29781,9 +33368,9 @@ function distributionName(specifier) {
 var init_pyproject_manifest = () => {};
 
 // src/utils/architecture-fingerprint.ts
-import { createHash as createHash8 } from "crypto";
-import { readdirSync as readdirSync21, readFileSync as readFileSync31 } from "fs";
-import nodePath54 from "path";
+import { createHash as createHash12 } from "crypto";
+import { readdirSync as readdirSync22, readFileSync as readFileSync38 } from "fs";
+import nodePath61 from "path";
 function collectShapeInputs(projectDirectory, skeleton) {
   return {
     moduleNames: skeleton.nodes.map((node) => node.name).toSorted(byString),
@@ -29794,7 +33381,7 @@ function collectShapeInputs(projectDirectory, skeleton) {
 }
 function shapeFingerprintOf(projectDirectory, skeleton) {
   const inputs = collectShapeInputs(projectDirectory, skeleton);
-  return createHash8("sha256").update(JSON.stringify(inputs)).digest("hex");
+  return createHash12("sha256").update(JSON.stringify(inputs)).digest("hex");
 }
 function readDependencyNames(projectDirectory) {
   const names = new Set(readPackageJsonDependencyNames(projectDirectory));
@@ -29807,19 +33394,19 @@ function readDependencyNames(projectDirectory) {
   return [...names].toSorted(byString);
 }
 function readPackageJsonDependencyNames(projectDirectory) {
-  const manifest = readJson(nodePath54.join(projectDirectory, "package.json"));
+  const manifest = readJson(nodePath61.join(projectDirectory, "package.json"));
   return manifest === undefined ? [] : dependencySectionNames(manifest);
 }
 function readCargoDependencies(projectDirectory) {
   try {
-    return readCargoDependencyNames(readFileSync31(nodePath54.join(projectDirectory, "Cargo.toml"), "utf8"));
+    return readCargoDependencyNames(readFileSync38(nodePath61.join(projectDirectory, "Cargo.toml"), "utf8"));
   } catch {
     return [];
   }
 }
 function readPyprojectDependencyNames(projectDirectory) {
   try {
-    return readPyprojectDependencies(readFileSync31(nodePath54.join(projectDirectory, "pyproject.toml"), "utf8"));
+    return readPyprojectDependencies(readFileSync38(nodePath61.join(projectDirectory, "pyproject.toml"), "utf8"));
   } catch {
     return [];
   }
@@ -29827,7 +33414,7 @@ function readPyprojectDependencyNames(projectDirectory) {
 function readGoModuleRequires(projectDirectory) {
   let content;
   try {
-    content = readFileSync31(nodePath54.join(projectDirectory, "go.mod"), "utf8");
+    content = readFileSync38(nodePath61.join(projectDirectory, "go.mod"), "utf8");
   } catch {
     return [];
   }
@@ -29865,18 +33452,18 @@ function collectSchemaFiles(projectDirectory) {
 function scanDirectoryForSchema(projectDirectory, directory, schemaFiles, pending) {
   let entries;
   try {
-    entries = readdirSync21(directory, { withFileTypes: true });
+    entries = readdirSync22(directory, { withFileTypes: true });
   } catch {
     return;
   }
   for (const entry of entries) {
     if (entry.isDirectory()) {
       if (!SHAPE_SCAN_EXCLUDED_DIRECTORIES.has(entry.name)) {
-        pending.push(nodePath54.join(directory, entry.name));
+        pending.push(nodePath61.join(directory, entry.name));
       }
-    } else if (SCHEMA_EXTENSIONS.has(nodePath54.extname(entry.name))) {
-      const absolutePath = nodePath54.join(directory, entry.name);
-      schemaFiles.push(nodePath54.relative(projectDirectory, absolutePath).replaceAll("\\", "/"));
+    } else if (SCHEMA_EXTENSIONS.has(nodePath61.extname(entry.name))) {
+      const absolutePath = nodePath61.join(directory, entry.name);
+      schemaFiles.push(nodePath61.relative(projectDirectory, absolutePath).replaceAll("\\", "/"));
     }
   }
 }
@@ -29906,9 +33493,9 @@ __export(exports_architecture_monorepo, {
   discoverWorkspaces: () => discoverWorkspaces,
   discoverUnreadableWorkspaces: () => discoverUnreadableWorkspaces
 });
-import { createHash as createHash9 } from "crypto";
+import { createHash as createHash13 } from "crypto";
 import { globSync } from "fs";
-import nodePath55 from "path";
+import nodePath62 from "path";
 function discoverWorkspaces(projectDirectory) {
   const detections = [
     detectJsWorkspaces(projectDirectory),
@@ -29941,7 +33528,7 @@ function orphanDirectoriesFor(projectDirectory, manifest) {
   return findAllInTree(projectDirectory, manifest.filename).filter((dir) => {
     if (dir === projectDirectory)
       return false;
-    const content = readFileSafe(nodePath55.join(dir, manifest.filename));
+    const content = readFileSafe(nodePath62.join(dir, manifest.filename));
     return content !== undefined && manifest.declaresPackage(content);
   });
 }
@@ -29949,7 +33536,7 @@ function hasGoModule(content) {
   return /^module\s+\S+/m.test(content);
 }
 function installedPacks(projectDirectory) {
-  const config = readJson(nodePath55.join(projectDirectory, ".safeword", "config.json"));
+  const config = readJson(nodePath62.join(projectDirectory, ".safeword", "config.json"));
   if (config === null || typeof config !== "object")
     return new Set;
   const packs = config.installedPacks;
@@ -29967,7 +33554,7 @@ function resolveLeafDirectories(projectDirectory, patterns) {
   for (const pattern of patterns) {
     const globMatches = globSync(pattern, { cwd: projectDirectory });
     for (const match of globMatches) {
-      const absolute = nodePath55.join(projectDirectory, match);
+      const absolute = nodePath62.join(projectDirectory, match);
       if (isDirectory(absolute) && hasRecognizedManifest(absolute)) {
         matches.add(absolute);
       }
@@ -30000,7 +33587,7 @@ function isObjectRecord(value) {
   return typeof value === "object" && value !== null;
 }
 function hasRecognizedManifest(directory) {
-  return readJson(nodePath55.join(directory, "package.json")) !== undefined || readFileSafe(nodePath55.join(directory, "go.mod")) !== undefined || readFileSafe(nodePath55.join(directory, "Cargo.toml")) !== undefined || readFileSafe(nodePath55.join(directory, "pyproject.toml")) !== undefined;
+  return readJson(nodePath62.join(directory, "package.json")) !== undefined || readFileSafe(nodePath62.join(directory, "go.mod")) !== undefined || readFileSafe(nodePath62.join(directory, "Cargo.toml")) !== undefined || readFileSafe(nodePath62.join(directory, "pyproject.toml")) !== undefined;
 }
 function extractMonorepoArchitectureSnapshot(projectDirectory) {
   const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
@@ -30043,34 +33630,34 @@ function monorepoFingerprintOf(projectDirectory, model) {
       unreadable: model.unreadableWorkspaces.map((entry) => `${entry.manager}:${entry.config}`)
     }
   };
-  return createHash9("sha256").update(JSON.stringify(inputs)).digest("hex");
+  return createHash13("sha256").update(JSON.stringify(inputs)).digest("hex");
 }
 function readManifest(packageDirectory) {
-  const manifest = readJson(nodePath55.join(packageDirectory, "package.json"));
+  const manifest = readJson(nodePath62.join(packageDirectory, "package.json"));
   return manifest !== null && typeof manifest === "object" ? manifest : undefined;
 }
 function packageName(packageDirectory) {
   const name = readManifest(packageDirectory)?.name;
   if (typeof name === "string" && name.length > 0)
     return name;
-  return readGoModuleName(packageDirectory) ?? readCargoCrateName(packageDirectory) ?? readPyprojectCrateName(packageDirectory) ?? nodePath55.basename(packageDirectory);
+  return readGoModuleName(packageDirectory) ?? readCargoCrateName(packageDirectory) ?? readPyprojectCrateName(packageDirectory) ?? nodePath62.basename(packageDirectory);
 }
 function packageJsonDescription(packageDirectory) {
   const description = readManifest(packageDirectory)?.description;
   return typeof description === "string" && description.trim().length > 0 ? description.replaceAll(/\s+/g, " ").trim() : undefined;
 }
 function readGoModuleName(packageDirectory) {
-  const content = readFileSafe(nodePath55.join(packageDirectory, "go.mod"));
+  const content = readFileSafe(nodePath62.join(packageDirectory, "go.mod"));
   if (content === undefined)
     return;
   return /^module\s+(\S+)/m.exec(content)?.[1];
 }
 function readCargoCrateName(packageDirectory) {
-  const content = readFileSafe(nodePath55.join(packageDirectory, "Cargo.toml"));
+  const content = readFileSafe(nodePath62.join(packageDirectory, "Cargo.toml"));
   return content === undefined ? undefined : readCargoPackageName(content);
 }
 function readPyprojectCrateName(packageDirectory) {
-  const content = readFileSafe(nodePath55.join(packageDirectory, "pyproject.toml"));
+  const content = readFileSafe(nodePath62.join(packageDirectory, "pyproject.toml"));
   return content === undefined ? undefined : readPyprojectName(content);
 }
 function resolveTomlWorkspaceMembers(content, readMembers, table, label, configFile) {
@@ -30082,7 +33669,7 @@ function resolveTomlWorkspaceMembers(content, readMembers, table, label, configF
   return unreadable(label, configFile);
 }
 function detectUvWorkspace(projectDirectory) {
-  const content = readFileSafe(nodePath55.join(projectDirectory, "pyproject.toml"));
+  const content = readFileSafe(nodePath62.join(projectDirectory, "pyproject.toml"));
   if (content === undefined)
     return ABSENT;
   if (!hasTomlTable(content, "tool.uv.workspace"))
@@ -30094,7 +33681,7 @@ function manifestDependencyNames(packageDirectory) {
   return manifest === undefined ? [] : dependencySectionNames(manifest);
 }
 function detectPnpmWorkspaces(projectDirectory) {
-  const content = readFileSafe(nodePath55.join(projectDirectory, "pnpm-workspace.yaml"));
+  const content = readFileSafe(nodePath62.join(projectDirectory, "pnpm-workspace.yaml"));
   if (content === undefined)
     return ABSENT;
   const lines = content.split(/\r?\n/);
@@ -30120,7 +33707,7 @@ function collectPnpmGlobs(blockLines) {
   return globs;
 }
 function detectGoWork(projectDirectory) {
-  const content = readFileSafe(nodePath55.join(projectDirectory, "go.work"));
+  const content = readFileSafe(nodePath62.join(projectDirectory, "go.work"));
   if (content === undefined)
     return ABSENT;
   const lines = content.split(/\r?\n/);
@@ -30157,7 +33744,7 @@ function normalizeUseTarget(raw) {
   return unquoted.replace(/^\.\//, "");
 }
 function detectCargoWorkspace(projectDirectory) {
-  const content = readFileSafe(nodePath55.join(projectDirectory, "Cargo.toml"));
+  const content = readFileSafe(nodePath62.join(projectDirectory, "Cargo.toml"));
   if (content === undefined)
     return ABSENT;
   if (!hasTomlTable(content, "workspace"))
@@ -30227,9 +33814,9 @@ __export(exports_architecture_document, {
   isWouldChangeAction: () => isWouldChangeAction,
   isSafewordOwned: () => isSafewordOwned
 });
-import { createHash as createHash10 } from "crypto";
-import { mkdirSync as mkdirSync6, readFileSync as readFileSync32, writeFileSync as writeFileSync12 } from "fs";
-import nodePath56 from "path";
+import { createHash as createHash14 } from "crypto";
+import { mkdirSync as mkdirSync8, readFileSync as readFileSync39, writeFileSync as writeFileSync13 } from "fs";
+import nodePath63 from "path";
 function isWouldChangeAction(action) {
   return WOULD_CHANGE_ACTIONS.has(action);
 }
@@ -30250,9 +33837,9 @@ function healTarget(target, options = {}) {
   const existing = readExisting(target.path);
   const action = decideAction(existing, target.fingerprint, target.hasContent, target.matchesExisting);
   if (isWouldChangeAction(action) || options.renderUnchanged === true && action === "unchanged") {
-    mkdirSync6(nodePath56.dirname(target.path), { recursive: true });
+    mkdirSync8(nodePath63.dirname(target.path), { recursive: true });
     const { priorStamps, priorProse } = priorSectionHistory(existing, options.priorProseContent, options.preservePriorStructure ?? false, target.parseProse ?? parseSectionProse);
-    writeFileSync12(target.path, target.render(priorStamps, priorProse));
+    writeFileSync13(target.path, target.render(priorStamps, priorProse));
   }
   return { action, path: target.path };
 }
@@ -30283,7 +33870,7 @@ function singleRepoTarget(projectDirectory, workspaceRoot = false) {
   return skeletonTarget(projectDirectory, resolveGeneratedArchitecturePath(projectDirectory), extractSkeleton(projectDirectory, { workspaceRoot }));
 }
 function leafTarget(packageDirectory, skeleton) {
-  return skeletonTarget(packageDirectory, nodePath56.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME), skeleton);
+  return skeletonTarget(packageDirectory, nodePath63.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME), skeleton);
 }
 function rootIndexTarget(projectDirectory, model) {
   const fingerprint = monorepoFingerprintOf(projectDirectory, model);
@@ -30317,8 +33904,8 @@ function selfHealProject(projectDirectory, snapshot) {
 }
 function selfHealProjectPreservingProse(projectDirectory, proseProjectDirectory, options = {}, snapshot) {
   return projectTargets(projectDirectory, snapshot).map((target) => {
-    const relativePath = nodePath56.relative(projectDirectory, target.path);
-    const priorProseContent = readExisting(nodePath56.join(proseProjectDirectory, relativePath));
+    const relativePath = nodePath63.relative(projectDirectory, target.path);
+    const priorProseContent = readExisting(nodePath63.join(proseProjectDirectory, relativePath));
     return healTarget(target, {
       priorProseContent,
       renderUnchanged: options.renderUnchanged,
@@ -30331,7 +33918,7 @@ function planSelfHealProject(projectDirectory, snapshot) {
 }
 function readExisting(path4) {
   try {
-    return readFileSync32(path4, "utf8");
+    return readFileSync39(path4, "utf8");
   } catch {
     return;
   }
@@ -30390,7 +33977,7 @@ function seededPurposeMarker(purpose) {
   return `${SEEDED_PURPOSE_PREFIX}${purposeDigest(purpose)} -->`;
 }
 function purposeDigest(purpose) {
-  return createHash10("sha256").update(purpose).digest("hex");
+  return createHash14("sha256").update(purpose).digest("hex");
 }
 function parseSeededPurposeDigest(line) {
   if (!line.startsWith(SEEDED_PURPOSE_PREFIX) || !line.endsWith(" -->"))
@@ -30629,17 +34216,17 @@ __export(exports_architecture, {
 import { execFileSync as execFileSync6 } from "child_process";
 import {
   copyFileSync as copyFileSync2,
-  lstatSync as lstatSync7,
-  mkdirSync as mkdirSync7,
-  mkdtempSync as mkdtempSync2,
-  readFileSync as readFileSync33,
-  realpathSync as realpathSync2,
+  lstatSync as lstatSync11,
+  mkdirSync as mkdirSync9,
+  mkdtempSync as mkdtempSync3,
+  readFileSync as readFileSync40,
+  realpathSync as realpathSync4,
   renameSync as renameSync5,
-  rmSync as rmSync4,
-  writeFileSync as writeFileSync13
+  rmSync as rmSync7,
+  writeFileSync as writeFileSync14
 } from "fs";
 import { tmpdir } from "os";
-import nodePath57 from "path";
+import nodePath64 from "path";
 import process9 from "process";
 async function architecture(cwd = process9.cwd(), options = {}) {
   if (options.check) {
@@ -30714,7 +34301,7 @@ function architectureStage(cwd, reporter = defaultReporter) {
       } else {
         for (const result of changed) {
           const failure = stageMaterializedDocument(cwd, result, reporter);
-          const relativePath = nodePath57.relative(cwd, result.path);
+          const relativePath = nodePath64.relative(cwd, result.path);
           if (failure === undefined)
             stagedPaths.push(relativePath);
           else
@@ -30736,13 +34323,13 @@ function architectureStage(cwd, reporter = defaultReporter) {
   });
 }
 function persistWorktreeRecoveryCopy(destination, content) {
-  const directory = mkdtempSync2(nodePath57.join(tmpdir(), "safeword-architecture-recovery-"));
-  const path4 = nodePath57.join(directory, `${nodePath57.basename(destination)}.recovery`);
+  const directory = mkdtempSync3(nodePath64.join(tmpdir(), "safeword-architecture-recovery-"));
+  const path4 = nodePath64.join(directory, `${nodePath64.basename(destination)}.recovery`);
   try {
-    writeFileSync13(path4, content, { mode: 384 });
+    writeFileSync14(path4, content, { mode: 384 });
     return { directory, path: path4 };
   } catch (error_) {
-    rmSync4(directory, { recursive: true, force: true });
+    rmSync7(directory, { recursive: true, force: true });
     throw error_;
   }
 }
@@ -30753,7 +34340,7 @@ function restoreWorktreeAfterStaging(cwd, result, recoveryCopy, staged, reporter
   try {
     replaceArchitectureDocumentContent(result.restoreWorktreeContent, result.path, cwd);
     if (recoveryCopy !== undefined) {
-      rmSync4(recoveryCopy.directory, { recursive: true, force: true });
+      rmSync7(recoveryCopy.directory, { recursive: true, force: true });
     }
     reporter.warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
   } catch (error_) {
@@ -30823,7 +34410,7 @@ function architectureStaged(cwd, reporter = defaultReporter) {
   });
 }
 function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
-  const snapshotDirectory = mkdtempSync2(nodePath57.join(tmpdir(), "safeword-architecture-index-"));
+  const snapshotDirectory = mkdtempSync3(nodePath64.join(tmpdir(), "safeword-architecture-index-"));
   const sourceIndexFile = process9.env[ARCHITECTURE_SOURCE_INDEX_ENV];
   const sourceIndexEnvironment = sourceIndexFile === undefined ? undefined : { ...process9.env, GIT_INDEX_FILE: sourceIndexFile };
   try {
@@ -30833,17 +34420,17 @@ function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
       "--all",
       "--force",
       "--ignore-skip-worktree-bits",
-      `--prefix=${snapshotDirectory}${nodePath57.sep}`
+      `--prefix=${snapshotDirectory}${nodePath64.sep}`
     ], {
       cwd: gitContext.rootDirectory,
       ...sourceIndexEnvironment && { env: sourceIndexEnvironment },
       stdio: "ignore"
     });
-    const snapshotProjectDirectory = nodePath57.join(snapshotDirectory, gitContext.projectRelativeDirectory);
+    const snapshotProjectDirectory = nodePath64.join(snapshotDirectory, gitContext.projectRelativeDirectory);
     prepareSnapshotProjectRoot(cwd, snapshotProjectDirectory);
     return useSnapshot(snapshotProjectDirectory);
   } finally {
-    rmSync4(snapshotDirectory, { recursive: true, force: true });
+    rmSync7(snapshotDirectory, { recursive: true, force: true });
   }
 }
 function assertNoGitlinks(gitContext, sourceIndexEnvironment) {
@@ -30875,10 +34462,10 @@ function resolveGitContext(cwd) {
   }
   if (rootDirectory.length === 0)
     return;
-  const canonicalRoot = realpathSync2(rootDirectory);
-  const canonicalProject = realpathSync2(cwd);
-  const projectRelativeDirectory = nodePath57.relative(canonicalRoot, canonicalProject);
-  if (nodePath57.isAbsolute(projectRelativeDirectory) || projectRelativeDirectory === ".." || projectRelativeDirectory.startsWith(`..${nodePath57.sep}`)) {
+  const canonicalRoot = realpathSync4(rootDirectory);
+  const canonicalProject = realpathSync4(cwd);
+  const projectRelativeDirectory = nodePath64.relative(canonicalRoot, canonicalProject);
+  if (nodePath64.isAbsolute(projectRelativeDirectory) || projectRelativeDirectory === ".." || projectRelativeDirectory.startsWith(`..${nodePath64.sep}`)) {
     throw new Error("The architecture project directory is outside the Git worktree.");
   }
   return { rootDirectory: canonicalRoot, projectRelativeDirectory };
@@ -30891,13 +34478,13 @@ function prepareSnapshotProjectRoot(cwd, snapshotDirectory) {
   if (repoRelativeRoot === undefined) {
     throw new Error("The staged projectRoot resolves outside the repository.");
   }
-  assertPhysicalContainment(snapshotDirectory, nodePath57.join(snapshotDirectory, repoRelativeRoot));
-  if (!nodePath57.isAbsolute(configuredRoot))
+  assertPhysicalContainment(snapshotDirectory, nodePath64.join(snapshotDirectory, repoRelativeRoot));
+  if (!nodePath64.isAbsolute(configuredRoot))
     return;
   rewriteSnapshotProjectRoot(snapshotDirectory, repoRelativeRoot);
 }
 function rewriteSnapshotProjectRoot(snapshotDirectory, repoRelativeRoot) {
-  const configPath2 = nodePath57.join(snapshotDirectory, ".safeword", "config.json");
+  const configPath2 = nodePath64.join(snapshotDirectory, ".safeword", "config.json");
   const config = readJson(configPath2);
   if (config === undefined || typeof config !== "object" || config === null)
     return;
@@ -30919,19 +34506,19 @@ function assertPhysicalContainment(rootDirectory, candidatePath) {
   let existingAncestor = candidatePath;
   for (;; ) {
     try {
-      lstatSync7(existingAncestor);
+      lstatSync11(existingAncestor);
       break;
     } catch (error_) {
       if (error_.code !== "ENOENT")
         throw error_;
-      const parent = nodePath57.dirname(existingAncestor);
+      const parent = nodePath64.dirname(existingAncestor);
       if (parent === existingAncestor)
         throw error_;
       existingAncestor = parent;
     }
   }
-  const canonicalRoot = realpathSync2(rootDirectory);
-  const canonicalAncestor = realpathSync2(existingAncestor);
+  const canonicalRoot = realpathSync4(rootDirectory);
+  const canonicalAncestor = realpathSync4(existingAncestor);
   if (toRepoDirectory(canonicalRoot, canonicalAncestor) === undefined) {
     throw new Error("The architecture path physically escapes its allowed root.");
   }
@@ -30940,27 +34527,27 @@ function assertSnapshotHealTargetsContained(snapshotDirectory) {
   const { leaves } = extractMonorepoArchitectureSnapshot(snapshotDirectory);
   const targets = [
     resolveGeneratedArchitecturePath(snapshotDirectory),
-    ...leaves.map((leaf) => nodePath57.join(leaf.dir, GENERATED_ARCHITECTURE_FILENAME))
+    ...leaves.map((leaf) => nodePath64.join(leaf.dir, GENERATED_ARCHITECTURE_FILENAME))
   ];
   for (const target of targets) {
     assertPhysicalContainment(snapshotDirectory, target);
   }
 }
 function replaceArchitectureDocumentWith(destination, allowedRoot, writeTemporaryFile) {
-  const destinationDirectory = nodePath57.dirname(destination);
+  const destinationDirectory = nodePath64.dirname(destination);
   assertPhysicalContainment(allowedRoot, destination);
-  mkdirSync7(destinationDirectory, { recursive: true });
-  let temporaryDirectory = mkdtempSync2(nodePath57.join(tmpdir(), "safeword-architecture-replacement-"));
-  if (lstatSync7(temporaryDirectory).dev !== lstatSync7(destinationDirectory).dev) {
-    rmSync4(temporaryDirectory, { recursive: true, force: true });
-    temporaryDirectory = mkdtempSync2(nodePath57.join(destinationDirectory, ".safeword-architecture-"));
+  mkdirSync9(destinationDirectory, { recursive: true });
+  let temporaryDirectory = mkdtempSync3(nodePath64.join(tmpdir(), "safeword-architecture-replacement-"));
+  if (lstatSync11(temporaryDirectory).dev !== lstatSync11(destinationDirectory).dev) {
+    rmSync7(temporaryDirectory, { recursive: true, force: true });
+    temporaryDirectory = mkdtempSync3(nodePath64.join(destinationDirectory, ".safeword-architecture-"));
   }
   try {
-    const temporaryPath = nodePath57.join(temporaryDirectory, nodePath57.basename(destination));
+    const temporaryPath = nodePath64.join(temporaryDirectory, nodePath64.basename(destination));
     writeTemporaryFile(temporaryPath);
     renameSync5(temporaryPath, destination);
   } finally {
-    rmSync4(temporaryDirectory, { recursive: true, force: true });
+    rmSync7(temporaryDirectory, { recursive: true, force: true });
   }
 }
 function replaceArchitectureDocument(source, destination, allowedRoot) {
@@ -30970,7 +34557,7 @@ function replaceArchitectureDocument(source, destination, allowedRoot) {
 }
 function replaceArchitectureDocumentContent(content, destination, allowedRoot) {
   replaceArchitectureDocumentWith(destination, allowedRoot, (temporaryPath) => {
-    writeFileSync13(temporaryPath, content);
+    writeFileSync14(temporaryPath, content);
   });
 }
 function materializeIndexResults(cwd, snapshotDirectory, mode, reporter = defaultReporter) {
@@ -31007,13 +34594,13 @@ function planIndexMaterializations(cwd, snapshotDirectory, policy) {
     renderUnchanged: policy.renderUnchanged,
     preservePriorStructure: policy.preservePriorStructure
   }).map((result) => {
-    const relativePath = nodePath57.relative(snapshotDirectory, result.path);
-    if (relativePath === "" || nodePath57.isAbsolute(relativePath) || relativePath === ".." || relativePath.startsWith(`..${nodePath57.sep}`)) {
+    const relativePath = nodePath64.relative(snapshotDirectory, result.path);
+    if (relativePath === "" || nodePath64.isAbsolute(relativePath) || relativePath === ".." || relativePath.startsWith(`..${nodePath64.sep}`)) {
       throw new Error("Generated architecture path escaped the git index snapshot.");
     }
     return {
       result,
-      destination: nodePath57.join(cwd, relativePath),
+      destination: nodePath64.join(cwd, relativePath),
       shouldWrite: isWouldChangeAction(result.action) || policy.writeUnchanged && result.action === "unchanged"
     };
   });
@@ -31061,7 +34648,7 @@ function indexMaterializationPolicy(mode) {
 }
 function readWorktreeDocumentState(destination) {
   try {
-    return { existed: true, content: readFileSync33(destination, "utf8") };
+    return { existed: true, content: readFileSync40(destination, "utf8") };
   } catch (error_) {
     if (error_.code === "ENOENT")
       return { existed: false };
@@ -31079,7 +34666,7 @@ function restoreMaterializationPlans(cwd, plans) {
         replaceArchitectureDocumentContent(priorState.content, plan.destination, cwd);
       } else {
         assertPhysicalContainment(cwd, plan.destination);
-        rmSync4(plan.destination, { force: true });
+        rmSync7(plan.destination, { force: true });
       }
     } catch (error_) {
       errors.push(error_);
@@ -31091,11 +34678,11 @@ function readDivergentWorktreeContent(cwd, destination) {
   assertPhysicalContainment(cwd, destination);
   let worktreeContent;
   try {
-    worktreeContent = readFileSync33(destination, "utf8");
+    worktreeContent = readFileSync40(destination, "utf8");
   } catch {
     return;
   }
-  const relativePath = nodePath57.relative(cwd, destination);
+  const relativePath = nodePath64.relative(cwd, destination);
   let indexContent;
   try {
     const projectRelativePath = relativePath.replaceAll("\\", "/");
@@ -31109,7 +34696,7 @@ function readDivergentWorktreeContent(cwd, destination) {
 }
 function stageDocument(cwd, result) {
   try {
-    const relativePath = nodePath57.relative(cwd, result.path);
+    const relativePath = nodePath64.relative(cwd, result.path);
     execFileSync6("git", ["add", "--", relativePath], { cwd, stdio: "ignore" });
     return;
   } catch (error_) {
@@ -31120,7 +34707,7 @@ function isPotentialArchitectureInput(path4) {
   const normalized = path4.replaceAll("\\", "/");
   const segments = normalized.split("/");
   const basename = segments.at(-1) ?? "";
-  return normalized === ".safeword/config.json" || segments.includes("src") || segments.includes("lib") || ARCHITECTURE_INPUT_BASENAMES.has(basename) || normalized.endsWith(".prisma") || normalized.endsWith(".sql") || SOURCE_EXTENSIONS.has(nodePath57.posix.extname(basename));
+  return normalized === ".safeword/config.json" || segments.includes("src") || segments.includes("lib") || ARCHITECTURE_INPUT_BASENAMES.has(basename) || normalized.endsWith(".prisma") || normalized.endsWith(".sql") || SOURCE_EXTENSIONS.has(nodePath64.posix.extname(basename));
 }
 function nulSeparatedGitPaths(cwd, args) {
   try {
@@ -31207,10 +34794,10 @@ __export(exports_learning_sync, {
   LEARNINGS_RELATIVE_PATH: () => LEARNINGS_RELATIVE_PATH,
   INDEX_FILENAME: () => INDEX_FILENAME2
 });
-import { existsSync as existsSync29, readdirSync as readdirSync22, readFileSync as readFileSync34, writeFileSync as writeFileSync14 } from "fs";
-import nodePath58 from "path";
+import { existsSync as existsSync33, readdirSync as readdirSync23, readFileSync as readFileSync41, writeFileSync as writeFileSync15 } from "fs";
+import nodePath65 from "path";
 function parseLearning(filePath) {
-  const content = readFileSync34(filePath, "utf8");
+  const content = readFileSync41(filePath, "utf8");
   const lines = content.split(`
 `);
   if (lines.length < 3) {
@@ -31225,19 +34812,19 @@ function parseLearning(filePath) {
   if (covers.length === 0) {
     return { ok: false, reason: "Covers: line is empty" };
   }
-  const title = titleLine.startsWith("# ") ? titleLine.slice(2).trim() : nodePath58.basename(filePath, ".md");
-  const fileName = nodePath58.basename(filePath);
+  const title = titleLine.startsWith("# ") ? titleLine.slice(2).trim() : nodePath65.basename(filePath, ".md");
+  const fileName = nodePath65.basename(filePath);
   return { ok: true, entry: { fileName, title, covers } };
 }
 function readLearnings(learningsDirectory, relativeLabel = LEARNINGS_RELATIVE_PATH) {
-  if (!existsSync29(learningsDirectory)) {
+  if (!existsSync33(learningsDirectory)) {
     return { entries: [], skipped: [] };
   }
   const entries = [];
   const skipped = [];
-  const fileNames = readdirSync22(learningsDirectory).filter((name) => name.endsWith(".md") && name !== INDEX_FILENAME2).toSorted((a, b) => a.localeCompare(b));
+  const fileNames = readdirSync23(learningsDirectory).filter((name) => name.endsWith(".md") && name !== INDEX_FILENAME2).toSorted((a, b) => a.localeCompare(b));
   for (const fileName of fileNames) {
-    const filePath = nodePath58.join(learningsDirectory, fileName);
+    const filePath = nodePath65.join(learningsDirectory, fileName);
     const parsed2 = parseLearning(filePath);
     if (parsed2.ok) {
       entries.push({
@@ -31278,18 +34865,18 @@ function buildIndexContent2(entries) {
 }
 function syncLearnings(cwd) {
   const learningsDirectory = resolveLearningsDirectory(cwd);
-  const relativeLabel = nodePath58.relative(cwd, learningsDirectory) || LEARNINGS_RELATIVE_PATH;
-  const indexPath = nodePath58.join(learningsDirectory, INDEX_FILENAME2);
+  const relativeLabel = nodePath65.relative(cwd, learningsDirectory) || LEARNINGS_RELATIVE_PATH;
+  const indexPath = nodePath65.join(learningsDirectory, INDEX_FILENAME2);
   const { entries, skipped } = readLearnings(learningsDirectory, relativeLabel);
   const nextContent = buildIndexContent2(entries);
-  if (entries.length === 0 && !existsSync29(learningsDirectory)) {
+  if (entries.length === 0 && !existsSync33(learningsDirectory)) {
     return { wrote: false, entries, skipped, indexPath };
   }
-  const previousContent = existsSync29(indexPath) ? readFileSync34(indexPath, "utf8") : undefined;
+  const previousContent = existsSync33(indexPath) ? readFileSync41(indexPath, "utf8") : undefined;
   if (previousContent === nextContent) {
     return { wrote: false, entries, skipped, indexPath };
   }
-  writeFileSync14(indexPath, nextContent);
+  writeFileSync15(indexPath, nextContent);
   return { wrote: true, entries, skipped, indexPath };
 }
 var LEARNINGS_RELATIVE_PATH = "<namespace-root>/learnings", INDEX_FILENAME2 = "INDEX.md";
@@ -31464,8 +35051,8 @@ var exports_codify = {};
 __export(exports_codify, {
   codifyResult: () => codifyResult
 });
-import { existsSync as existsSync30, readdirSync as readdirSync23, readFileSync as readFileSync35, writeFileSync as writeFileSync15 } from "fs";
-import nodePath59 from "path";
+import { existsSync as existsSync34, readdirSync as readdirSync24, readFileSync as readFileSync42, writeFileSync as writeFileSync16 } from "fs";
+import nodePath66 from "path";
 function codifyResult(cwd, ticket, options) {
   try {
     const format = resolveFormat(options.format);
@@ -31499,12 +35086,12 @@ function codifyResult(cwd, ticket, options) {
         }
       }));
     }
-    const outputPath = nodePath59.resolve(cwd, options.out);
-    writeFileSync15(outputPath, skeleton, { flag: "wx" });
+    const outputPath = nodePath66.resolve(cwd, options.out);
+    writeFileSync16(outputPath, skeleton, { flag: "wx" });
     return Promise.resolve(createResult({
       state: "changed",
       effects: {
-        files: [{ kind: "create", target: nodePath59.relative(cwd, outputPath) }]
+        files: [{ kind: "create", target: nodePath66.relative(cwd, outputPath) }]
       },
       data: {
         command: "project codify",
@@ -31528,8 +35115,8 @@ function codifyResult(cwd, ticket, options) {
 }
 function parseCodifyScenarios(source) {
   try {
-    const parse = source.kind === "feature" ? parseFeatureScenarios : parseScenarios;
-    return parse(source.content);
+    const parse2 = source.kind === "feature" ? parseFeatureScenarios : parseScenarios;
+    return parse2(source.content);
   } catch (parseError) {
     if (parseError instanceof FeatureParseError) {
       fail2(`${source.displayPath}: invalid Gherkin feature: ${parseError.message}`);
@@ -31549,22 +35136,22 @@ function renderSkeleton(format, source, scenarios, ticket, red) {
   return emitVitestSkeleton(source.content, { red, source: ticket });
 }
 function readCodifySource(cwd, ticketDirectory) {
-  const featurePath = findFeatureSourcePath(cwd, nodePath59.basename(ticketDirectory));
+  const featurePath = findFeatureSourcePath(cwd, nodePath66.basename(ticketDirectory));
   if (featurePath !== undefined) {
     return {
       kind: "feature",
-      content: readFileSync35(featurePath, "utf8"),
-      displayPath: nodePath59.relative(cwd, featurePath)
+      content: readFileSync42(featurePath, "utf8"),
+      displayPath: nodePath66.relative(cwd, featurePath)
     };
   }
-  const testDefinitionsPath = nodePath59.join(ticketDirectory, "test-definitions.md");
-  if (!existsSync30(testDefinitionsPath)) {
-    fail2(`No feature source or test-definitions.md in ${nodePath59.relative(cwd, ticketDirectory)} \u2014 nothing to codify.`);
+  const testDefinitionsPath = nodePath66.join(ticketDirectory, "test-definitions.md");
+  if (!existsSync34(testDefinitionsPath)) {
+    fail2(`No feature source or test-definitions.md in ${nodePath66.relative(cwd, ticketDirectory)} \u2014 nothing to codify.`);
   }
   return {
     kind: "markdown",
-    content: readFileSync35(testDefinitionsPath, "utf8"),
-    displayPath: nodePath59.relative(cwd, testDefinitionsPath)
+    content: readFileSync42(testDefinitionsPath, "utf8"),
+    displayPath: nodePath66.relative(cwd, testDefinitionsPath)
   };
 }
 function resolveFormat(format = "vitest") {
@@ -31577,12 +35164,12 @@ function resolveTicketDirectory(cwd, ticket) {
   const ticketsRoot = resolveTicketsDirectory(cwd);
   let entries;
   try {
-    entries = readdirSync23(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+    entries = readdirSync24(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   } catch {
     return;
   }
   const match = entries.find((name) => name === ticket) ?? entries.find((name) => name.startsWith(`${ticket}-`));
-  return match === undefined ? undefined : nodePath59.join(ticketsRoot, match);
+  return match === undefined ? undefined : nodePath66.join(ticketsRoot, match);
 }
 function fail2(message) {
   throw new Error(message);
@@ -31613,9 +35200,9 @@ function renderShellPlan(entries) {
 }
 
 // src/test-plan/resolve.ts
-import { spawnSync as spawnSync3 } from "child_process";
-import { existsSync as existsSync31, readFileSync as readFileSync36 } from "fs";
-import nodePath60 from "path";
+import { spawnSync as spawnSync5 } from "child_process";
+import { existsSync as existsSync35, readFileSync as readFileSync43 } from "fs";
+import nodePath67 from "path";
 import process10 from "process";
 function fakeToolProbe(spec) {
   if (spec.startsWith("only:")) {
@@ -31638,17 +35225,17 @@ function defaultIsToolAvailable(tool) {
   const fake = process10.env.SAFEWORD_FAKE_TOOLS;
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
-  return spawnSync3("command", ["-v", tool], { shell: true, stdio: "ignore" }).status === 0;
+  return spawnSync5("command", ["-v", tool], { shell: true, stdio: "ignore" }).status === 0;
 }
 function entry(language, cwd, command, runner, available) {
   return { language, cwd, command, runner, available };
 }
 function readInstalledPacks(root) {
-  const configPath2 = nodePath60.join(root, ".safeword", "config.json");
-  if (!existsSync31(configPath2))
+  const configPath2 = nodePath67.join(root, ".safeword", "config.json");
+  if (!existsSync35(configPath2))
     return;
   try {
-    const parsed2 = JSON.parse(readFileSync36(configPath2, "utf8"));
+    const parsed2 = JSON.parse(readFileSync43(configPath2, "utf8"));
     if (!Array.isArray(parsed2.installedPacks))
       return;
     return new Set(parsed2.installedPacks.filter((pack) => typeof pack === "string"));
@@ -31677,7 +35264,7 @@ function firstDirectory(root, index, names) {
 }
 function readRootScripts(root) {
   try {
-    const pkg2 = JSON.parse(readFileSync36(nodePath60.join(root, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync43(nodePath67.join(root, "package.json"), "utf8"));
     return pkg2.scripts ?? {};
   } catch {
     return;
@@ -31715,7 +35302,7 @@ function configContains(index, file, marker) {
   if (dir === undefined)
     return false;
   try {
-    return readFileSync36(nodePath60.join(dir, file), "utf8").includes(marker);
+    return readFileSync43(nodePath67.join(dir, file), "utf8").includes(marker);
   } catch {
     return false;
   }
@@ -31827,11 +35414,11 @@ function resolveGo(root, index, kind, isAvailable) {
   if (!index.has("go.mod"))
     return;
   if (kind === "deps") {
-    const cwd2 = existsSync31(nodePath60.join(root, "go.work")) ? root : index.get("go.mod") ?? root;
+    const cwd2 = existsSync35(nodePath67.join(root, "go.work")) ? root : index.get("go.mod") ?? root;
     return entry("go", cwd2, "go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...", "govulncheck", isAvailable("go"));
   }
   const verb = kind === "build" ? "build" : "test";
-  if (existsSync31(nodePath60.join(root, "go.work"))) {
+  if (existsSync35(nodePath67.join(root, "go.work"))) {
     const command = `go ${verb} $(go list -f '{{.Dir}}/...' -m | xargs)`;
     return entry("go", root, command, "go", isAvailable("go"));
   }
@@ -31896,7 +35483,7 @@ var exports_test_plan = {};
 __export(exports_test_plan, {
   observeTestPlan: () => observeTestPlan
 });
-import nodePath61 from "path";
+import nodePath68 from "path";
 function rawTestPlanPresentation(format, plan) {
   if (format === "json")
     return { kind: "raw", body: JSON.stringify(plan) };
@@ -31933,7 +35520,7 @@ function observeTestPlan(cwd, dir, options) {
       ]
     }));
   }
-  const root = dir === undefined ? cwd : nodePath61.resolve(cwd, dir);
+  const root = dir === undefined ? cwd : nodePath68.resolve(cwd, dir);
   const plan = resolveTestPlan(root, { kind });
   return Promise.resolve(createResult({
     state: "healthy",
@@ -31951,8 +35538,8 @@ var exports_lint_gherkin = {};
 __export(exports_lint_gherkin, {
   observeGherkinLint: () => observeGherkinLint
 });
-import { existsSync as existsSync32, readFileSync as readFileSync37 } from "fs";
-import nodePath62 from "path";
+import { existsSync as existsSync36, readFileSync as readFileSync44 } from "fs";
+import nodePath69 from "path";
 function observeGherkinLint(cwd, files) {
   const featureFiles = files.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files);
   const issues = featureFiles.flatMap((file) => lintFile(cwd, file));
@@ -31973,13 +35560,13 @@ function observeGherkinLint(cwd, files) {
   });
 }
 function resolveInputFiles(cwd, files) {
-  return files.map((file) => nodePath62.resolve(cwd, file));
+  return files.map((file) => nodePath69.resolve(cwd, file));
 }
 function discoverFeatureFiles(cwd) {
   return collectExecutableFeatureFiles(cwd);
 }
 function lintFile(cwd, filePath) {
-  if (!existsSync32(filePath)) {
+  if (!existsSync36(filePath)) {
     return [
       {
         code: "GHERKIN_FILE_NOT_FOUND",
@@ -31987,7 +35574,7 @@ function lintFile(cwd, filePath) {
       }
     ];
   }
-  const content = readFileSync37(filePath, "utf8");
+  const content = readFileSync44(filePath, "utf8");
   return findGherkinLintIssues(content, { filePath }).map((issue2) => ({
     code: `GHERKIN_${issue2.rule.toUpperCase().replaceAll("-", "_")}`,
     message: formatIssue(cwd, filePath, issue2)
@@ -31998,7 +35585,7 @@ function formatIssue(cwd, filePath, issue2) {
   return `${location}: ${issue2.message} [${issue2.rule}]`;
 }
 function formatPath(cwd, filePath) {
-  return nodePath62.relative(cwd, filePath) || nodePath62.basename(filePath);
+  return nodePath69.relative(cwd, filePath) || nodePath69.basename(filePath);
 }
 var init_lint_gherkin = __esm(() => {
   init_result();
@@ -32113,47 +35700,47 @@ var init_run_identity = __esm(() => {
 });
 
 // src/review/packet.ts
-import { createHash as createHash11, randomUUID as randomUUID3 } from "crypto";
+import { createHash as createHash15, randomUUID as randomUUID6 } from "crypto";
 import {
   closeSync as closeSync2,
-  constants,
+  constants as constants2,
   fstatSync,
-  lstatSync as lstatSync8,
-  mkdirSync as mkdirSync8,
-  mkdtempSync as mkdtempSync3,
+  lstatSync as lstatSync12,
+  mkdirSync as mkdirSync10,
+  mkdtempSync as mkdtempSync4,
   openSync as openSync2,
-  readdirSync as readdirSync24,
-  readFileSync as readFileSync38,
-  realpathSync as realpathSync3,
-  rmSync as rmSync5,
-  writeFileSync as writeFileSync16
+  readdirSync as readdirSync25,
+  readFileSync as readFileSync45,
+  realpathSync as realpathSync5,
+  rmSync as rmSync8,
+  writeFileSync as writeFileSync17
 } from "fs";
 import { tmpdir as tmpdir2 } from "os";
-import nodePath63 from "path";
+import nodePath70 from "path";
 function digest(content) {
-  return createHash11("sha256").update(content).digest("hex");
+  return createHash15("sha256").update(content).digest("hex");
 }
 function fileDigest(path4) {
   try {
-    return digest(readFileSync38(path4));
+    return digest(readFileSync45(path4));
   } catch {
     return;
   }
 }
 function readContainedText(root, source, target) {
-  const descriptor = openSync2(source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  const descriptor = openSync2(source, constants2.O_RDONLY | (constants2.O_NOFOLLOW ?? 0));
   try {
     const opened = fstatSync(descriptor);
     if (!opened.isFile())
       throw new Error(`Review target is not a regular file: ${target}`);
-    const resolved = realpathSync3(source);
+    const resolved = realpathSync5(source);
     if (escapes(root, resolved))
       throw new Error(`Review target escapes the project: ${target}`);
-    const observed = lstatSync8(resolved);
+    const observed = lstatSync12(resolved);
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
       throw new Error(`Review target changed while it was being captured: ${target}`);
     }
-    const bytes = readFileSync38(descriptor);
+    const bytes = readFileSync45(descriptor);
     let content;
     try {
       content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -32166,14 +35753,14 @@ function readContainedText(root, source, target) {
   }
 }
 function escapes(root, candidate) {
-  const relative = nodePath63.relative(root, candidate);
-  return relative === ".." || relative.startsWith(`..${nodePath63.sep}`) || nodePath63.isAbsolute(relative);
+  const relative = nodePath70.relative(root, candidate);
+  return relative === ".." || relative.startsWith(`..${nodePath70.sep}`) || nodePath70.isAbsolute(relative);
 }
 function snapshotEntries(root, directory = root) {
-  return readdirSync24(directory).flatMap((name) => {
-    const path4 = nodePath63.join(directory, name);
-    const relative = nodePath63.relative(root, path4);
-    const stats = lstatSync8(path4);
+  return readdirSync25(directory).flatMap((name) => {
+    const path4 = nodePath70.join(directory, name);
+    const relative = nodePath70.relative(root, path4);
+    const stats = lstatSync12(path4);
     if (stats.isDirectory())
       return [`directory:${relative}`, ...snapshotEntries(root, path4)];
     if (stats.isFile())
@@ -32185,20 +35772,20 @@ function prepareReviewPacket(cwd, kind, targets) {
   if (targets.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
-  const workspace = mkdtempSync3(nodePath63.join(tmpdir2(), "safeword-review-"));
-  const canonicalRoot = realpathSync3(cwd);
+  const workspace = mkdtempSync4(nodePath70.join(tmpdir2(), "safeword-review-"));
+  const canonicalRoot = realpathSync5(cwd);
   const tracked = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
   try {
     let packetBytes = 0;
     logicalFiles = targets.map((target) => {
-      const source = nodePath63.resolve(cwd, target);
-      const relative = nodePath63.relative(cwd, source);
+      const source = nodePath70.resolve(cwd, target);
+      const relative = nodePath70.relative(cwd, source);
       if (escapes(cwd, source)) {
         throw new Error(`Review target escapes the project: ${target}`);
       }
-      const stats = lstatSync8(source);
+      const stats = lstatSync12(source);
       if (!stats.isFile() || stats.isSymbolicLink()) {
         throw new Error(`Review target is not a regular file: ${target}`);
       }
@@ -32211,25 +35798,25 @@ function prepareReviewPacket(cwd, kind, targets) {
       if (packetBytes > MAX_PACKET_BYTES) {
         throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
       }
-      const snapshot = nodePath63.join(workspace, relative);
-      mkdirSync8(nodePath63.dirname(snapshot), { recursive: true });
-      writeFileSync16(snapshot, bytes, { mode: 384 });
-      let parent = nodePath63.dirname(relative);
+      const snapshot = nodePath70.join(workspace, relative);
+      mkdirSync10(nodePath70.dirname(snapshot), { recursive: true });
+      writeFileSync17(snapshot, bytes, { mode: 384 });
+      let parent = nodePath70.dirname(relative);
       while (parent !== ".") {
         expectedSnapshotEntries.add(`directory:${parent}`);
-        parent = nodePath63.dirname(parent);
+        parent = nodePath70.dirname(parent);
       }
       expectedSnapshotEntries.add(`file:${relative}`);
       tracked.push({ source, snapshot, sha256: digest(bytes) });
       return { path: relative, content };
     });
   } catch (error2) {
-    rmSync5(workspace, { recursive: true, force: true });
+    rmSync8(workspace, { recursive: true, force: true });
     throw error2;
   }
   const packet = {
     schema_version: 1,
-    dispatch_id: randomUUID3(),
+    dispatch_id: randomUUID6(),
     kind,
     logical_files: logicalFiles
   };
@@ -32245,7 +35832,7 @@ function prepareReviewPacket(cwd, kind, targets) {
       return actualEntries.length !== expectedSnapshotEntries.size || actualEntries.some((entry2) => !expectedSnapshotEntries.has(entry2));
     },
     cleanup: () => {
-      rmSync5(workspace, { recursive: true, force: true });
+      rmSync8(workspace, { recursive: true, force: true });
     }
   };
 }
@@ -32274,8 +35861,8 @@ var init_review_ledger = __esm(() => {
 });
 
 // src/review/policy.ts
-import { readFileSync as readFileSync39 } from "fs";
-import nodePath64 from "path";
+import { readFileSync as readFileSync46 } from "fs";
+import nodePath71 from "path";
 function oppositeReviewPair(author) {
   if (author === "claude")
     return { author, reviewer: "codex" };
@@ -32285,7 +35872,7 @@ function oppositeReviewPair(author) {
 }
 function readReviewPolicy(cwd) {
   try {
-    const raw = readFileSync39(nodePath64.join(cwd, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync46(nodePath71.join(cwd, ".safeword", "config.json"), "utf8");
     return readCrossAgentReviewPolicy(raw);
   } catch {
     return "prefer";
@@ -32354,9 +35941,9 @@ var init_environment = __esm(() => {
 });
 
 // src/review/runtime.ts
-import { spawn, spawnSync as spawnSync4 } from "child_process";
-import { accessSync, constants as constants2, realpathSync as realpathSync4 } from "fs";
-import nodePath65 from "path";
+import { spawn, spawnSync as spawnSync6 } from "child_process";
+import { accessSync as accessSync2, constants as constants3, realpathSync as realpathSync6 } from "fs";
+import nodePath72 from "path";
 function timeoutMilliseconds() {
   const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
   return Number.isFinite(configured) && configured > 0 ? configured : 120000;
@@ -32427,14 +36014,14 @@ function reviewPrompt(reviewer, packet) {
 `);
 }
 function inside(root, candidate) {
-  const relative = nodePath65.relative(root, candidate);
-  return relative === "" || !nodePath65.isAbsolute(relative) && !relative.startsWith(`..${nodePath65.sep}`) && relative !== "..";
+  const relative = nodePath72.relative(root, candidate);
+  return relative === "" || !nodePath72.isAbsolute(relative) && !relative.startsWith(`..${nodePath72.sep}`) && relative !== "..";
 }
 function outsideUntrustedRoot(root, candidate) {
   if (inside(root, candidate))
     return false;
   try {
-    return !inside(root, realpathSync4(candidate));
+    return !inside(root, realpathSync6(candidate));
   } catch {
     return false;
   }
@@ -32448,10 +36035,10 @@ function remainingReviewTime(deadline, reviewer, lastFailure) {
 }
 function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
-  const candidates = (process.env.PATH ?? "").split(nodePath65.delimiter).filter((directory) => directory !== "" && nodePath65.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath65.join(directory, `${reviewer}${extension}`))).filter((candidate) => outsideUntrustedRoot(untrustedRoot, candidate));
+  const candidates = (process.env.PATH ?? "").split(nodePath72.delimiter).filter((directory) => directory !== "" && nodePath72.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath72.join(directory, `${reviewer}${extension}`))).filter((candidate) => outsideUntrustedRoot(untrustedRoot, candidate));
   return [...new Set(candidates)].filter((candidate) => {
     try {
-      accessSync(candidate, constants2.X_OK);
+      accessSync2(candidate, constants3.X_OK);
       return true;
     } catch {
       return false;
@@ -32459,7 +36046,7 @@ function executableCandidates(reviewer, untrustedRoot) {
   });
 }
 function supportsReviewContract(reviewer, executable, timeoutMs) {
-  const checked = spawnSync4(executable, HELP_ARGUMENTS[reviewer], {
+  const checked = spawnSync6(executable, HELP_ARGUMENTS[reviewer], {
     encoding: "utf8",
     env: reviewerEnvironment(reviewer),
     timeout: timeoutMs
@@ -33041,2310 +36628,6 @@ var init_coordinator = __esm(() => {
   init_runtime();
 });
 
-// src/codex-plugin/finalization.ts
-var exports_finalization = {};
-__export(exports_finalization, {
-  validateCodexFinalizationPaths: () => validateCodexFinalizationPaths,
-  resolveCodexFinalizationConfirmation: () => resolveCodexFinalizationConfirmation,
-  recoverCodexFinalization: () => recoverCodexFinalization,
-  observeCodexRecoveryPlan: () => observeCodexRecoveryPlan,
-  codexRecoveryIsRequired: () => codexRecoveryIsRequired,
-  codexFinalizationIsComplete: () => codexFinalizationIsComplete,
-  applyCodexFinalization: () => applyCodexFinalization
-});
-import { createHash as createHash12, randomUUID as randomUUID4 } from "crypto";
-import {
-  chmodSync as chmodSync3,
-  existsSync as existsSync33,
-  lstatSync as lstatSync9,
-  mkdirSync as mkdirSync9,
-  mkdtempSync as mkdtempSync4,
-  readdirSync as readdirSync25,
-  readFileSync as readFileSync40,
-  rmdirSync as rmdirSync3,
-  rmSync as rmSync6
-} from "fs";
-import nodePath66 from "path";
-async function resolveCodexFinalizationConfirmation(_options) {
-  if (_options.assumeYes)
-    return true;
-  if (_options.confirm === undefined) {
-    throw new Error("Finalization requires confirmation. Re-run interactively or pass --finalize --yes.");
-  }
-  return _options.confirm();
-}
-function codexFinalizationIsComplete(cwd) {
-  try {
-    const marker = JSON.parse(readFileSync40(assertSafeComponents(cwd, PROJECT_MARKER_PATH), "utf8"));
-    const manifest = JSON.parse(readFileSync40(assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`), "utf8"));
-    if (!isBackupManifest(manifest))
-      return false;
-    validateManifestIntent(manifest);
-    return marker.schema_version === 1 && marker.mode === "plugin" && manifest.status === "finalized" && marker.transaction_id === manifest.transaction_id && marker.plan_sha256 === manifest.plan_sha256 && manifestPlanDigest(manifest.entries) === manifest.plan_sha256 && backupPayloadsAreValid(cwd, manifest);
-  } catch {
-    return false;
-  }
-}
-function pathEntryExists(path4) {
-  try {
-    lstatSync9(path4);
-    return true;
-  } catch (error2) {
-    if (error2.code === "ENOENT")
-      return false;
-    throw error2;
-  }
-}
-function codexRecoveryIsRequired(cwd) {
-  return pathEntryExists(containedPath2(cwd, BACKUP_PATH)) && !codexFinalizationIsComplete(cwd);
-}
-function sha2563(content) {
-  return createHash12("sha256").update(content).digest("hex");
-}
-function containedPath2(cwd, relativePath) {
-  if (relativePath === "" || nodePath66.isAbsolute(relativePath) || relativePath.split(/[\\/]/u).includes("..")) {
-    throw new CodexMigrationError("UNSAFE_MIGRATION_PATH", `Unsafe Codex migration path: ${relativePath}`);
-  }
-  const root = nodePath66.resolve(cwd);
-  const resolved = nodePath66.resolve(root, relativePath);
-  if (resolved !== root && !resolved.startsWith(`${root}${nodePath66.sep}`)) {
-    throw new CodexMigrationError("UNSAFE_MIGRATION_PATH", `Unsafe Codex migration path: ${relativePath}`);
-  }
-  return resolved;
-}
-function assertSafeComponents(cwd, relativePath) {
-  const target = containedPath2(cwd, relativePath);
-  const segments = relativePath.split(/[\\/]/u);
-  let cursor = nodePath66.resolve(cwd);
-  for (const segment of segments) {
-    cursor = nodePath66.join(cursor, segment);
-    let metadata;
-    try {
-      metadata = lstatSync9(cursor);
-    } catch (error2) {
-      if (error2.code === "ENOENT")
-        continue;
-      throw error2;
-    }
-    if (metadata.isSymbolicLink()) {
-      throw new CodexMigrationError("UNSAFE_MIGRATION_PATH", `Unsafe Codex migration path is a symbolic link: ${relativePath}`);
-    }
-    if (cursor === target ? !metadata.isFile() : !metadata.isDirectory()) {
-      throw new CodexMigrationError("UNSAFE_MIGRATION_PATH", `Unsafe Codex migration path is not a regular file: ${relativePath}`);
-    }
-  }
-  return target;
-}
-function validateCodexFinalizationPaths(cwd, mutations) {
-  for (const mutation of mutations)
-    assertSafeComponents(cwd, mutation.path);
-}
-function beforeImage(cwd, backupDirectory, mutation, index, beforePreparationStep) {
-  const path4 = assertSafeComponents(cwd, mutation.path);
-  if (!existsSync33(path4))
-    return { kind: "absent" };
-  beforePreparationStep?.("source-read", index);
-  const content = readFileSync40(path4);
-  const payload = `payloads/${index}.bin`;
-  beforePreparationStep?.("payload-write", index);
-  writeDurable(nodePath66.join(backupDirectory, payload), content, 384);
-  return {
-    kind: "file",
-    mode: lstatSync9(path4).mode & 511,
-    sha256: sha2563(content),
-    payload
-  };
-}
-function afterImage(mutation, before) {
-  if (mutation.content === null)
-    return { kind: "absent" };
-  const content = Buffer.from(mutation.content);
-  return {
-    kind: "file",
-    mode: mutation.mode ?? (before.kind === "file" ? before.mode : 420),
-    sha256: sha2563(content)
-  };
-}
-function writeDurable(path4, content, mode) {
-  writeDurableFile(path4, content, { mode });
-}
-function writeManifest(backupDirectory, manifest) {
-  writeDurable(nodePath66.join(backupDirectory, "manifest.json"), `${JSON.stringify(manifest, null, 2)}
-`, 384);
-}
-function applyMutation(cwd, mutation, after) {
-  const path4 = assertSafeComponents(cwd, mutation.path);
-  if (mutation.content === null) {
-    rmSync6(path4, { force: true });
-    return;
-  }
-  if (after.kind !== "file")
-    throw new Error("Invalid Codex finalization file image.");
-  writeDurable(path4, mutation.content, after.mode);
-  chmodSync3(path4, after.mode);
-}
-function restoreBeforeImage(cwd, backupDirectory, entry2) {
-  const path4 = assertSafeComponents(cwd, entry2.path);
-  if (entry2.before.kind === "absent") {
-    rmSync6(path4, { force: true });
-    return;
-  }
-  if (entry2.before.payload === undefined) {
-    throw new Error(`Codex migration backup payload is missing for ${entry2.path}.`);
-  }
-  const payload = assertSafeComponents(backupDirectory, entry2.before.payload);
-  const content = readFileSync40(payload);
-  if (sha2563(content) !== entry2.before.sha256) {
-    throw new Error(`Codex migration backup payload is corrupt for ${entry2.path}.`);
-  }
-  writeDurable(path4, content, entry2.before.mode);
-  chmodSync3(path4, entry2.before.mode);
-}
-function observedImage(cwd, relativePath) {
-  const path4 = assertSafeComponents(cwd, relativePath);
-  if (!existsSync33(path4))
-    return { kind: "absent" };
-  const content = readFileSync40(path4);
-  return {
-    kind: "file",
-    mode: lstatSync9(path4).mode & 511,
-    sha256: sha2563(content)
-  };
-}
-function imagesMatch(left, right) {
-  if (left.kind !== right.kind)
-    return false;
-  return left.kind === "absent" || right.kind === "file" && left.mode === right.mode && left.sha256 === right.sha256;
-}
-function readBackupManifest(cwd) {
-  const backupDirectory = containedPath2(cwd, BACKUP_PATH);
-  const manifestPath = assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`);
-  const manifest = JSON.parse(readFileSync40(manifestPath, "utf8"));
-  if (!isBackupManifest(manifest)) {
-    throw new Error("Codex migration backup manifest is malformed.");
-  }
-  return { backupDirectory, manifest };
-}
-function isSafeRelativePath(path4) {
-  return path4 !== "" && !nodePath66.isAbsolute(path4) && !path4.split(/[\\/]/u).includes("..");
-}
-function isFileMode(value) {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 511;
-}
-function isSha256(value) {
-  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
-}
-function isFileImage(value, requiresPayload) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  const image = value;
-  const baseFieldsAreValid = [
-    image.kind === "file",
-    isFileMode(image.mode),
-    isSha256(image.sha256)
-  ].every(Boolean);
-  if (!baseFieldsAreValid)
-    return false;
-  if (!requiresPayload)
-    return image.payload === undefined;
-  return typeof image.payload === "string" && isSafeRelativePath(image.payload);
-}
-function isAbsentImage(value) {
-  return typeof value === "object" && value !== null && value.kind === "absent";
-}
-function isBackupEntry(value) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  const entry2 = value;
-  return typeof entry2.path === "string" && isSafeRelativePath(entry2.path) && (isFileImage(entry2.before, true) || isAbsentImage(entry2.before)) && (isFileImage(entry2.after, false) || isAbsentImage(entry2.after));
-}
-function hasValidTransactionBinding(manifest) {
-  return typeof manifest.transaction_id === "string" && /^[\da-f-]{36}$/iu.test(manifest.transaction_id) && isSha256(manifest.plan_sha256);
-}
-function hasValidBackupEntries(manifest) {
-  if (!Array.isArray(manifest.entries) || manifest.entries.length === 0)
-    return false;
-  if (!manifest.entries.every(isBackupEntry))
-    return false;
-  return new Set(manifest.entries.map((entry2) => entry2.path)).size === manifest.entries.length;
-}
-function isBackupManifest(value) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  const manifest = value;
-  return manifest.schema_version === 1 && ["prepared", "finalized", "recovering"].includes(String(manifest.status)) && hasValidTransactionBinding(manifest) && hasValidBackupEntries(manifest);
-}
-function manifestPlanDigest(entries) {
-  const intent = entries.map((entry2) => ({
-    path: entry2.path,
-    before: entry2.before,
-    after: entry2.path === PROJECT_MARKER_PATH && entry2.after.kind === "file" ? { kind: "file", mode: entry2.after.mode } : entry2.after
-  }));
-  return sha2563(Buffer.from(JSON.stringify(intent)));
-}
-function entryPathIsAllowed(path4) {
-  return path4 === CODEX_CONFIG_PATH || path4 === PROJECT_MARKER_PATH || path4 === BOOTSTRAP_PATH || CODEX_MIGRATION_SCHEMA.legacyFiles.includes(path4);
-}
-function validateManifestIntent(manifest) {
-  for (const [index, entry2] of manifest.entries.entries()) {
-    if (!entryPathIsAllowed(entry2.path)) {
-      throw new Error(`Recovery path ${entry2.path} is not part of the Codex migration inventory.`);
-    }
-    if (entry2.before.kind === "file" && entry2.before.payload !== `payloads/${index}.bin`) {
-      throw new Error(`Codex migration backup payload identity is invalid for ${entry2.path}.`);
-    }
-  }
-  if (manifestPlanDigest(manifest.entries) !== manifest.plan_sha256) {
-    throw new Error("Codex migration backup plan integrity check failed.");
-  }
-}
-function backupPayloadsAreValid(cwd, manifest) {
-  const backupDirectory = containedPath2(cwd, BACKUP_PATH);
-  return manifest.entries.every((entry2) => {
-    if (entry2.before.kind === "absent")
-      return true;
-    const payload = entry2.before.payload;
-    if (payload === undefined)
-      return false;
-    const content = readFileSync40(assertSafeComponents(backupDirectory, payload));
-    return sha2563(content) === entry2.before.sha256;
-  });
-}
-function validateRecoveryEntry(cwd, backupDirectory, entry2, allowBefore) {
-  const current = observedImage(cwd, entry2.path);
-  if (!imagesMatch(current, entry2.after) && !(allowBefore && imagesMatch(current, entry2.before))) {
-    throw new CodexMigrationError("RECOVERY_CONFLICT", `Codex recovery conflict at ${entry2.path}; no files were restored.`);
-  }
-  if (entry2.before.kind === "file") {
-    if (entry2.before.payload === undefined) {
-      throw new Error(`Codex migration backup payload is missing for ${entry2.path}.`);
-    }
-    const content = readFileSync40(assertSafeComponents(backupDirectory, entry2.before.payload));
-    if (sha2563(content) !== entry2.before.sha256) {
-      throw new Error(`Codex migration backup payload is corrupt for ${entry2.path}.`);
-    }
-  }
-  return current;
-}
-function loadValidatedRecovery(cwd) {
-  const { backupDirectory, manifest } = readBackupManifest(cwd);
-  validateManifestIntent(manifest);
-  const allowBefore = manifest.status !== "finalized";
-  const current = manifest.entries.map((entry2) => validateRecoveryEntry(cwd, backupDirectory, entry2, allowBefore));
-  return { backupDirectory, manifest, current };
-}
-function recoverCodexFinalization(cwd) {
-  const manifestPath = containedPath2(cwd, `${BACKUP_PATH}/manifest.json`);
-  if (!pathEntryExists(containedPath2(cwd, BACKUP_PATH)))
-    return false;
-  if (!existsSync33(manifestPath)) {
-    throw new Error("Codex migration backup manifest is missing; recovery cannot continue.");
-  }
-  const { backupDirectory, manifest } = loadValidatedRecovery(cwd);
-  manifest.status = "recovering";
-  writeManifest(backupDirectory, manifest);
-  for (const entry2 of manifest.entries.toReversed()) {
-    restoreBeforeImage(cwd, backupDirectory, entry2);
-  }
-  rmSync6(backupDirectory, { recursive: true });
-  return true;
-}
-function observeCodexRecoveryPlan(cwd) {
-  if (!pathEntryExists(containedPath2(cwd, BACKUP_PATH))) {
-    return {
-      effects: [],
-      preconditionDigest: sha2563(Buffer.from("codex-recovery-absent-v1"))
-    };
-  }
-  const { manifest, current } = loadValidatedRecovery(cwd);
-  return {
-    effects: manifest.entries.map((entry2) => ({ path: entry2.path, action: "restore" })),
-    preconditionDigest: sha2563(Buffer.from(JSON.stringify({ manifest, current })))
-  };
-}
-function rollbackAppliedEntries(input) {
-  try {
-    input.beforeRollback?.();
-    for (const entry2 of input.entries.slice(0, input.appliedCount)) {
-      if (!imagesMatch(observedImage(input.cwd, entry2.path), entry2.after)) {
-        throw new Error(`Codex rollback conflict at ${entry2.path}; recovery evidence was retained.`);
-      }
-    }
-    for (let index = input.appliedCount - 1;index >= 0; index -= 1) {
-      const entry2 = input.entries[index];
-      if (entry2 === undefined) {
-        throw new Error("Codex rollback plan is incomplete.", { cause: input.originalError });
-      }
-      restoreBeforeImage(input.cwd, input.backupDirectory, entry2);
-    }
-    rmSync6(input.backupDirectory, { recursive: true });
-  } catch (rollbackError) {
-    throw new Error(`Codex finalization failed (${String(input.originalError)}) and rollback could not complete; recovery is required: ${String(rollbackError)}`, { cause: rollbackError });
-  }
-}
-function prepareCodexFinalization(cwd, backupDirectory, mutations, beforePreparationStep) {
-  const backupParent = nodePath66.dirname(backupDirectory);
-  const backupParentExisted = pathEntryExists(backupParent);
-  mkdirSync9(backupParent, { recursive: true, mode: 448 });
-  const stagingDirectory = mkdtempSync4(nodePath66.join(backupParent, ".codex-migration-backup-preparing-"));
-  try {
-    mkdirSync9(nodePath66.join(stagingDirectory, "payloads"), {
-      recursive: true,
-      mode: 448
-    });
-    const transactionId = randomUUID4();
-    let effectiveMutations = mutations.map((mutation) => ({ ...mutation }));
-    let entries = effectiveMutations.map((mutation, index) => {
-      const before = beforeImage(cwd, stagingDirectory, mutation, index, beforePreparationStep);
-      return { path: mutation.path, before, after: afterImage(mutation, before) };
-    });
-    const planSha256 = manifestPlanDigest(entries);
-    effectiveMutations = effectiveMutations.map((mutation) => mutation.path === PROJECT_MARKER_PATH && mutation.content !== null ? {
-      ...mutation,
-      content: `${JSON.stringify({
-        schema_version: 1,
-        mode: "plugin",
-        transaction_id: transactionId,
-        plan_sha256: planSha256
-      })}
-`
-    } : mutation);
-    entries = effectiveMutations.map((mutation, index) => {
-      const previous = entries[index];
-      if (previous === undefined) {
-        throw new Error("Codex migration plan changed during preparation.");
-      }
-      return {
-        path: mutation.path,
-        before: previous.before,
-        after: afterImage(mutation, previous.before)
-      };
-    });
-    const manifest = {
-      schema_version: 1,
-      status: "prepared",
-      transaction_id: transactionId,
-      plan_sha256: planSha256,
-      entries
-    };
-    beforePreparationStep?.("manifest-write");
-    writeManifest(stagingDirectory, manifest);
-    if (pathEntryExists(backupDirectory)) {
-      throw new CodexMigrationError("BACKUP_EXISTS", `Codex migration backup already exists at ${BACKUP_PATH}.`);
-    }
-    durableRename(stagingDirectory, backupDirectory);
-    return { effectiveMutations, entries, manifest };
-  } finally {
-    rmSync6(stagingDirectory, { recursive: true, force: true });
-    if (!backupParentExisted && pathEntryExists(backupParent) && readdirSync25(backupParent).length === 0) {
-      rmdirSync3(backupParent);
-    }
-  }
-}
-function applyCodexFinalization(cwd, mutations, options = {}) {
-  const backupDirectory = assertSafeComponents(cwd, BACKUP_PATH);
-  if (existsSync33(backupDirectory)) {
-    throw new CodexMigrationError("BACKUP_EXISTS", `Codex migration backup already exists at ${BACKUP_PATH}.`);
-  }
-  validateCodexFinalizationPaths(cwd, mutations);
-  const { effectiveMutations, entries, manifest } = prepareCodexFinalization(cwd, backupDirectory, mutations, options.beforePreparationStep);
-  options.afterPrepared?.();
-  let appliedCount = 0;
-  try {
-    for (const [index, mutation] of effectiveMutations.entries()) {
-      options.beforeMutation?.(index);
-      const entry2 = entries[index];
-      if (entry2 === undefined)
-        throw new Error("Codex migration plan changed during execution.");
-      if (!imagesMatch(observedImage(cwd, entry2.path), entry2.before)) {
-        throw new Error(`Codex migration path ${entry2.path} changed after the Codex migration backup was prepared.`);
-      }
-      applyMutation(cwd, mutation, entry2.after);
-      appliedCount += 1;
-    }
-  } catch (error2) {
-    rollbackAppliedEntries({
-      cwd,
-      backupDirectory,
-      entries,
-      appliedCount,
-      originalError: error2,
-      beforeRollback: options.beforeRollback
-    });
-    throw error2;
-  }
-  manifest.status = "finalized";
-  writeManifest(backupDirectory, manifest);
-  return manifest;
-}
-var BACKUP_PATH, PROJECT_MARKER_PATH, BOOTSTRAP_PATH, CODEX_CONFIG_PATH;
-var init_finalization = __esm(() => {
-  init_durable_write();
-  init_inventory();
-  init_migration_error();
-  BACKUP_PATH = CODEX_MIGRATION_SCHEMA.paths.backupRoot;
-  PROJECT_MARKER_PATH = CODEX_MIGRATION_SCHEMA.paths.pluginMarker;
-  BOOTSTRAP_PATH = CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill;
-  CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/date.js
-var DATE_TIME_RE, TomlDate;
-var init_date = __esm(() => {
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-  DATE_TIME_RE = /^(\d{4}-\d{2}-\d{2})?[T ]?(?:(\d{2}):\d{2}(?::\d{2}(?:\.\d+)?)?)?(Z|[-+]\d{2}:\d{2})?$/i;
-  TomlDate = class TomlDate extends Date {
-    #hasDate = false;
-    #hasTime = false;
-    #offset = null;
-    constructor(date) {
-      let hasDate = true;
-      let hasTime = true;
-      let offset = "Z";
-      if (typeof date === "string") {
-        let match = date.match(DATE_TIME_RE);
-        if (match) {
-          if (!match[1]) {
-            hasDate = false;
-            date = `0000-01-01T${date}`;
-          }
-          hasTime = !!match[2];
-          hasTime && date[10] === " " && (date = date.replace(" ", "T"));
-          if (match[2] && +match[2] > 23) {
-            date = "";
-          } else {
-            offset = match[3] || null;
-            date = date.toUpperCase();
-            if (!offset && hasTime)
-              date += "Z";
-          }
-        } else {
-          date = "";
-        }
-      }
-      super(date);
-      if (!isNaN(this.getTime())) {
-        this.#hasDate = hasDate;
-        this.#hasTime = hasTime;
-        this.#offset = offset;
-      }
-    }
-    isDateTime() {
-      return this.#hasDate && this.#hasTime;
-    }
-    isLocal() {
-      return !this.#hasDate || !this.#hasTime || !this.#offset;
-    }
-    isDate() {
-      return this.#hasDate && !this.#hasTime;
-    }
-    isTime() {
-      return this.#hasTime && !this.#hasDate;
-    }
-    isValid() {
-      return this.#hasDate || this.#hasTime;
-    }
-    toISOString() {
-      let iso = super.toISOString();
-      if (this.isDate())
-        return iso.slice(0, 10);
-      if (this.isTime())
-        return iso.slice(11, 23);
-      if (this.#offset === null)
-        return iso.slice(0, -1);
-      if (this.#offset === "Z")
-        return iso;
-      let offset = +this.#offset.slice(1, 3) * 60 + +this.#offset.slice(4, 6);
-      offset = this.#offset[0] === "-" ? offset : -offset;
-      let offsetDate = new Date(this.getTime() - offset * 60000);
-      return offsetDate.toISOString().slice(0, -1) + this.#offset;
-    }
-    static wrapAsOffsetDateTime(jsDate, offset = "Z") {
-      let date = new TomlDate(jsDate);
-      date.#offset = offset;
-      return date;
-    }
-    static wrapAsLocalDateTime(jsDate) {
-      let date = new TomlDate(jsDate);
-      date.#offset = null;
-      return date;
-    }
-    static wrapAsLocalDate(jsDate) {
-      let date = new TomlDate(jsDate);
-      date.#hasTime = false;
-      date.#offset = null;
-      return date;
-    }
-    static wrapAsLocalTime(jsDate) {
-      let date = new TomlDate(jsDate);
-      date.#hasDate = false;
-      date.#offset = null;
-      return date;
-    }
-  };
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/error.js
-function getLineColFromPtr(string, ptr) {
-  let lines = string.slice(0, ptr).split(/\r\n|\n|\r/g);
-  return [lines.length, lines.pop().length + 1];
-}
-function makeCodeBlock(string, line, column) {
-  let lines = string.split(/\r\n|\n|\r/g);
-  let codeblock = "";
-  let numberLen = (Math.log10(line + 1) | 0) + 1;
-  for (let i = line - 1;i <= line + 1; i++) {
-    let l = lines[i - 1];
-    if (!l)
-      continue;
-    codeblock += i.toString().padEnd(numberLen, " ");
-    codeblock += ":  ";
-    codeblock += l;
-    codeblock += `
-`;
-    if (i === line) {
-      codeblock += " ".repeat(numberLen + column + 2);
-      codeblock += `^
-`;
-    }
-  }
-  return codeblock;
-}
-var TomlError;
-var init_error = __esm(() => {
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-  TomlError = class TomlError extends Error {
-    line;
-    column;
-    codeblock;
-    constructor(message, options) {
-      const [line, column] = getLineColFromPtr(options.toml, options.ptr);
-      const codeblock = makeCodeBlock(options.toml, line, column);
-      super(`Invalid TOML document: ${message}
-
-${codeblock}`, options);
-      this.line = line;
-      this.column = column;
-      this.codeblock = codeblock;
-    }
-  };
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/primitive.js
-function parseString(str, ptr) {
-  let c = str[ptr++];
-  let first = c;
-  let isLiteral = c === "'";
-  let isMultiline = c === str[ptr] && c === str[ptr + 1];
-  if (isMultiline) {
-    if (str[ptr += 2] === `
-`)
-      ptr++;
-    else if (str[ptr] === "\r" && str[ptr + 1] === `
-`)
-      ptr += 2;
-  }
-  let parsed2 = "";
-  let sliceStart = ptr;
-  let state = 0;
-  for (let i = ptr;i < str.length; i++) {
-    c = str[i];
-    if (isMultiline && (c === `
-` || c === "\r" && str[i + 1] === `
-`)) {
-      state = state && 3;
-    } else if (c < " " && c !== "\t" || c === "\x7F") {
-      throw new TomlError("control characters are not allowed in strings", {
-        toml: str,
-        ptr: i
-      });
-    } else if ((!state || state === 3) && c === first && (!isMultiline || str[i + 1] === first && str[i + 2] === first)) {
-      if (isMultiline) {
-        if (str[i + 3] === first)
-          i++;
-        if (str[i + 3] === first)
-          i++;
-      }
-      return [
-        state ? parsed2 : parsed2 + str.slice(sliceStart, i),
-        i + (isMultiline ? 3 : 1)
-      ];
-    } else if (!state) {
-      if (!isLiteral && c === "\\") {
-        parsed2 += str.slice(sliceStart, sliceStart = i);
-        state = 1;
-      }
-    } else if (state === 1) {
-      if (c === "x" || c === "u" || c === "U") {
-        let value = 0;
-        let len = c === "x" ? 2 : c === "u" ? 4 : 8;
-        for (let j = 0;j < len; j++, i++) {
-          let hex = str.charCodeAt(i + 1);
-          let digit = hex >= 48 && hex <= 57 ? hex - 48 : hex >= 65 && hex <= 70 ? hex - 65 + 10 : hex >= 97 && hex <= 102 ? hex - 97 + 10 : -1;
-          if (digit < 0)
-            throw new TomlError("invalid non-hex character in unicode escape", { toml: str, ptr: i + 1 });
-          value = value << 4 | digit;
-        }
-        if (value < 0 || value > 1114111 || value >= 55296 && value <= 57343) {
-          throw new TomlError("invalid unicode escape", { toml: str, ptr: i });
-        }
-        parsed2 += String.fromCodePoint(value);
-        sliceStart = i + 1;
-        state = 0;
-      } else if (c === " " || c === "\t") {
-        state = 2;
-      } else {
-        if (c === "b")
-          parsed2 += "\b";
-        else if (c === "t")
-          parsed2 += "\t";
-        else if (c === "n")
-          parsed2 += `
-`;
-        else if (c === "f")
-          parsed2 += "\f";
-        else if (c === "r")
-          parsed2 += "\r";
-        else if (c === "e")
-          parsed2 += "\x1B";
-        else if (c === '"')
-          parsed2 += '"';
-        else if (c === "\\")
-          parsed2 += "\\";
-        else
-          throw new TomlError("unrecognized escape sequence", { toml: str, ptr: i });
-        sliceStart = i + 1;
-        state = 0;
-      }
-    } else if (c !== " " && c !== "\t") {
-      if (state === 2) {
-        throw new TomlError("invalid escape: only line-ending whitespace may be escaped", {
-          toml: str,
-          ptr: sliceStart
-        });
-      }
-      state = !isLiteral && c === "\\" ? 1 : 0;
-      sliceStart = i;
-    }
-  }
-  throw new TomlError("unfinished string", { toml: str, ptr });
-}
-function parseValue(value, toml, ptr, integersAsBigInt) {
-  if (value === "true")
-    return true;
-  if (value === "false")
-    return false;
-  if (value === "-inf")
-    return -Infinity;
-  if (value === "inf" || value === "+inf")
-    return Infinity;
-  if (value === "nan" || value === "+nan" || value === "-nan")
-    return NaN;
-  if (value === "-0")
-    return integersAsBigInt ? 0n : 0;
-  let isInt = INT_REGEX.test(value);
-  if (isInt || FLOAT_REGEX.test(value)) {
-    if (LEADING_ZERO.test(value)) {
-      throw new TomlError("leading zeroes are not allowed", {
-        toml,
-        ptr
-      });
-    }
-    value = value.replace(/_/g, "");
-    let numeric = +value;
-    if (isNaN(numeric)) {
-      throw new TomlError("invalid number", {
-        toml,
-        ptr
-      });
-    }
-    if (isInt) {
-      if ((isInt = !Number.isSafeInteger(numeric)) && !integersAsBigInt) {
-        throw new TomlError("integer value cannot be represented losslessly", {
-          toml,
-          ptr
-        });
-      }
-      if (isInt || integersAsBigInt === true)
-        numeric = BigInt(value);
-    }
-    return numeric;
-  }
-  const date = new TomlDate(value);
-  if (!date.isValid()) {
-    throw new TomlError("invalid value", {
-      toml,
-      ptr
-    });
-  }
-  return date;
-}
-var INT_REGEX, FLOAT_REGEX, LEADING_ZERO;
-var init_primitive = __esm(() => {
-  init_date();
-  init_error();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-  INT_REGEX = /^((0x[0-9a-fA-F](_?[0-9a-fA-F])*)|(([+-]|0[ob])?\d(_?\d)*))$/;
-  FLOAT_REGEX = /^[+-]?\d(_?\d)*(\.\d(_?\d)*)?([eE][+-]?\d(_?\d)*)?$/;
-  LEADING_ZERO = /^[+-]?0[0-9_]/;
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/util.js
-function indexOfNewline(str, start = 0, end = str.length) {
-  let idx = str.indexOf(`
-`, start);
-  if (str[idx - 1] === "\r")
-    idx--;
-  return idx <= end ? idx : -1;
-}
-function skipComment(str, ptr) {
-  for (let i = ptr;i < str.length; i++) {
-    let c = str[i];
-    if (c === `
-`)
-      return i;
-    if (c === "\r" && str[i + 1] === `
-`)
-      return i + 1;
-    if (c < " " && c !== "\t" || c === "\x7F") {
-      throw new TomlError("control characters are not allowed in comments", {
-        toml: str,
-        ptr
-      });
-    }
-  }
-  return str.length;
-}
-function skipVoid(str, ptr, banNewLines, banComments) {
-  let c;
-  while (true) {
-    while ((c = str[ptr]) === " " || c === "\t" || !banNewLines && (c === `
-` || c === "\r" && str[ptr + 1] === `
-`))
-      ptr++;
-    if (banComments || c !== "#")
-      break;
-    ptr = skipComment(str, ptr);
-  }
-  return ptr;
-}
-function skipUntil(str, ptr, sep, end, banNewLines = false) {
-  if (!end) {
-    ptr = indexOfNewline(str, ptr);
-    return ptr < 0 ? str.length : ptr;
-  }
-  for (let i = ptr;i < str.length; i++) {
-    let c = str[i];
-    if (c === "#") {
-      i = indexOfNewline(str, i);
-      if (i < 0)
-        break;
-    } else if (c === sep) {
-      return i + 1;
-    } else if (c === end || banNewLines && (c === `
-` || c === "\r" && str[i + 1] === `
-`)) {
-      return i;
-    }
-  }
-  throw new TomlError("cannot find end of structure", {
-    toml: str,
-    ptr
-  });
-}
-var init_util = __esm(() => {
-  init_error();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/extract.js
-function sliceAndTrimEndOf(str, startPtr, endPtr) {
-  let value = str.slice(startPtr, endPtr);
-  let commentIdx = value.indexOf("#");
-  if (commentIdx > -1) {
-    skipComment(str, commentIdx);
-    value = value.slice(0, commentIdx);
-  }
-  return [value.trimEnd(), commentIdx];
-}
-function extractValue(str, ptr, end, depth, integersAsBigInt) {
-  if (depth === 0) {
-    throw new TomlError("document contains excessively nested structures. aborting.", {
-      toml: str,
-      ptr
-    });
-  }
-  let c = str[ptr];
-  if (c === "[" || c === "{") {
-    let [value, endPtr2] = c === "[" ? parseArray(str, ptr, depth, integersAsBigInt) : parseInlineTable(str, ptr, depth, integersAsBigInt);
-    if (end) {
-      endPtr2 = skipVoid(str, endPtr2);
-      if (str[endPtr2] === ",")
-        endPtr2++;
-      else if (str[endPtr2] !== end) {
-        throw new TomlError("expected comma or end of structure", {
-          toml: str,
-          ptr: endPtr2
-        });
-      }
-    }
-    return [value, endPtr2];
-  }
-  if (c === '"' || c === "'") {
-    let [parsed2, endPtr2] = parseString(str, ptr);
-    if (end) {
-      endPtr2 = skipVoid(str, endPtr2);
-      if (str[endPtr2] && str[endPtr2] !== "," && str[endPtr2] !== end && str[endPtr2] !== `
-` && str[endPtr2] !== "\r") {
-        throw new TomlError("unexpected character encountered", {
-          toml: str,
-          ptr: endPtr2
-        });
-      }
-      if (str[endPtr2] === ",")
-        endPtr2++;
-    }
-    return [parsed2, endPtr2];
-  }
-  let endPtr = skipUntil(str, ptr, ",", end);
-  let slice = sliceAndTrimEndOf(str, ptr, endPtr - (str[endPtr - 1] === "," ? 1 : 0));
-  if (!slice[0]) {
-    throw new TomlError("incomplete key-value declaration: no value specified", {
-      toml: str,
-      ptr
-    });
-  }
-  if (end && slice[1] > -1) {
-    endPtr = skipVoid(str, ptr + slice[1]);
-    if (str[endPtr] === ",")
-      endPtr++;
-  }
-  return [
-    parseValue(slice[0], str, ptr, integersAsBigInt),
-    endPtr
-  ];
-}
-var init_extract = __esm(() => {
-  init_primitive();
-  init_struct();
-  init_util();
-  init_error();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/struct.js
-function parseKey(str, ptr, end = "=") {
-  let dot = ptr - 1;
-  let parsed2 = [];
-  let endPtr = str.indexOf(end, ptr);
-  if (endPtr < 0) {
-    throw new TomlError("incomplete key-value: cannot find end of key", {
-      toml: str,
-      ptr
-    });
-  }
-  do {
-    let c = str[ptr = ++dot];
-    if (c !== " " && c !== "\t") {
-      if (c === '"' || c === "'") {
-        if (c === str[ptr + 1] && c === str[ptr + 2]) {
-          throw new TomlError("multiline strings are not allowed in keys", {
-            toml: str,
-            ptr
-          });
-        }
-        let [part, eos] = parseString(str, ptr);
-        dot = str.indexOf(".", eos);
-        let strEnd = str.slice(eos, dot < 0 || dot > endPtr ? endPtr : dot);
-        let newLine = indexOfNewline(strEnd);
-        if (newLine > -1) {
-          throw new TomlError("newlines are not allowed in keys", {
-            toml: str,
-            ptr: ptr + dot + newLine
-          });
-        }
-        if (strEnd.trimStart()) {
-          throw new TomlError("found extra tokens after the string part", {
-            toml: str,
-            ptr: eos
-          });
-        }
-        if (endPtr < eos) {
-          endPtr = str.indexOf(end, eos);
-          if (endPtr < 0) {
-            throw new TomlError("incomplete key-value: cannot find end of key", {
-              toml: str,
-              ptr
-            });
-          }
-        }
-        parsed2.push(part);
-      } else {
-        dot = str.indexOf(".", ptr);
-        let part = str.slice(ptr, dot < 0 || dot > endPtr ? endPtr : dot);
-        if (!KEY_PART_RE.test(part)) {
-          throw new TomlError("only letter, numbers, dashes and underscores are allowed in keys", {
-            toml: str,
-            ptr
-          });
-        }
-        parsed2.push(part.trimEnd());
-      }
-    }
-  } while (dot + 1 && dot < endPtr);
-  return [parsed2, skipVoid(str, endPtr + 1, true, true)];
-}
-function parseInlineTable(str, ptr, depth, integersAsBigInt) {
-  let res = {};
-  let seen = new Set;
-  let c;
-  ptr++;
-  while ((c = str[ptr++]) !== "}" && c) {
-    if (c === ",") {
-      throw new TomlError("expected value, found comma", {
-        toml: str,
-        ptr: ptr - 1
-      });
-    } else if (c === "#")
-      ptr = skipComment(str, ptr);
-    else if (c !== " " && c !== "\t" && c !== `
-` && c !== "\r") {
-      let k;
-      let t = res;
-      let hasOwn = false;
-      let [key, keyEndPtr] = parseKey(str, ptr - 1);
-      for (let i = 0;i < key.length; i++) {
-        if (i)
-          t = hasOwn ? t[k] : t[k] = {};
-        k = key[i];
-        if ((hasOwn = Object.hasOwn(t, k)) && (typeof t[k] !== "object" || seen.has(t[k]))) {
-          throw new TomlError("trying to redefine an already defined value", {
-            toml: str,
-            ptr
-          });
-        }
-        if (!hasOwn && k === "__proto__") {
-          Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
-        }
-      }
-      if (hasOwn) {
-        throw new TomlError("trying to redefine an already defined value", {
-          toml: str,
-          ptr
-        });
-      }
-      let [value, valueEndPtr] = extractValue(str, keyEndPtr, "}", depth - 1, integersAsBigInt);
-      seen.add(value);
-      t[k] = value;
-      ptr = valueEndPtr;
-    }
-  }
-  if (!c) {
-    throw new TomlError("unfinished table encountered", {
-      toml: str,
-      ptr
-    });
-  }
-  return [res, ptr];
-}
-function parseArray(str, ptr, depth, integersAsBigInt) {
-  let res = [];
-  let c;
-  ptr++;
-  while ((c = str[ptr++]) !== "]" && c) {
-    if (c === ",") {
-      throw new TomlError("expected value, found comma", {
-        toml: str,
-        ptr: ptr - 1
-      });
-    } else if (c === "#")
-      ptr = skipComment(str, ptr);
-    else if (c !== " " && c !== "\t" && c !== `
-` && c !== "\r") {
-      let e = extractValue(str, ptr - 1, "]", depth - 1, integersAsBigInt);
-      res.push(e[0]);
-      ptr = e[1];
-    }
-  }
-  if (!c) {
-    throw new TomlError("unfinished array encountered", {
-      toml: str,
-      ptr
-    });
-  }
-  return [res, ptr];
-}
-var KEY_PART_RE;
-var init_struct = __esm(() => {
-  init_primitive();
-  init_extract();
-  init_util();
-  init_error();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-  KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/parse.js
-function peekTable(key, table, meta, type) {
-  let t = table;
-  let m = meta;
-  let k;
-  let hasOwn = false;
-  let state;
-  for (let i = 0;i < key.length; i++) {
-    if (i) {
-      t = hasOwn ? t[k] : t[k] = {};
-      m = (state = m[k]).c;
-      if (type === 0 && (state.t === 1 || state.t === 2)) {
-        return null;
-      }
-      if (state.t === 2) {
-        let l = t.length - 1;
-        t = t[l];
-        m = m[l].c;
-      }
-    }
-    k = key[i];
-    if ((hasOwn = Object.hasOwn(t, k)) && m[k]?.t === 0 && m[k]?.d) {
-      return null;
-    }
-    if (!hasOwn) {
-      if (k === "__proto__") {
-        Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
-        Object.defineProperty(m, k, { enumerable: true, configurable: true, writable: true });
-      }
-      m[k] = {
-        t: i < key.length - 1 && type === 2 ? 3 : type,
-        d: false,
-        i: 0,
-        c: {}
-      };
-    }
-  }
-  state = m[k];
-  if (state.t !== type && !(type === 1 && state.t === 3)) {
-    return null;
-  }
-  if (type === 2) {
-    if (!state.d) {
-      state.d = true;
-      t[k] = [];
-    }
-    t[k].push(t = {});
-    state.c[state.i++] = state = { t: 1, d: false, i: 0, c: {} };
-  }
-  if (state.d) {
-    return null;
-  }
-  state.d = true;
-  if (type === 1) {
-    t = hasOwn ? t[k] : t[k] = {};
-  } else if (type === 0 && hasOwn) {
-    return null;
-  }
-  return [k, t, state.c];
-}
-function parse(toml, { maxDepth = 1000, integersAsBigInt } = {}) {
-  let res = {};
-  let meta = {};
-  let tbl = res;
-  let m = meta;
-  for (let ptr = skipVoid(toml, 0);ptr < toml.length; ) {
-    if (toml[ptr] === "[") {
-      let isTableArray = toml[++ptr] === "[";
-      let k = parseKey(toml, ptr += +isTableArray, "]");
-      if (isTableArray) {
-        if (toml[k[1] - 1] !== "]") {
-          throw new TomlError("expected end of table declaration", {
-            toml,
-            ptr: k[1] - 1
-          });
-        }
-        k[1]++;
-      }
-      let p = peekTable(k[0], res, meta, isTableArray ? 2 : 1);
-      if (!p) {
-        throw new TomlError("trying to redefine an already defined table or value", {
-          toml,
-          ptr
-        });
-      }
-      m = p[2];
-      tbl = p[1];
-      ptr = k[1];
-    } else {
-      let k = parseKey(toml, ptr);
-      let p = peekTable(k[0], tbl, m, 0);
-      if (!p) {
-        throw new TomlError("trying to redefine an already defined table or value", {
-          toml,
-          ptr
-        });
-      }
-      let v = extractValue(toml, k[1], undefined, maxDepth, integersAsBigInt);
-      p[1][p[0]] = v[0];
-      ptr = v[1];
-    }
-    ptr = skipVoid(toml, ptr, true);
-    if (toml[ptr] && toml[ptr] !== `
-` && toml[ptr] !== "\r") {
-      throw new TomlError("each key-value declaration must be followed by an end-of-line", {
-        toml,
-        ptr
-      });
-    }
-    ptr = skipVoid(toml, ptr);
-  }
-  return res;
-}
-var init_parse = __esm(() => {
-  init_struct();
-  init_extract();
-  init_util();
-  init_error();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/stringify.js
-var init_stringify = __esm(() => {
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-});
-
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/index.js
-var init_dist3 = __esm(() => {
-  init_parse();
-  init_stringify();
-  init_date();
-  init_error();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-});
-
-// src/codex-plugin/legacy-command.ts
-function commandParts(command) {
-  return command.trim().split(" ").filter((part) => part !== "");
-}
-function isHistoricalPackagePrefix(parts) {
-  return parts[0] === CODEX_MIGRATION_SCHEMA.packageRunner && parts[1] === "--yes" && parts[2] === "safeword";
-}
-function packagedHookEvent(hook2) {
-  if (hook2.length === 3 && hook2[0] === "hook" && hook2[1] === "codex" && CODEX_MIGRATION_SCHEMA.hookEvents.includes(hook2[2] ?? "")) {
-    return hook2[2];
-  }
-  if (hook2.length === 2 && hook2[0] === "codex-hook" && CODEX_MIGRATION_SCHEMA.hookEvents.includes(hook2[1] ?? "")) {
-    return hook2[1];
-  }
-  return;
-}
-function packageIdentity(command) {
-  const parts = commandParts(command);
-  if (!isHistoricalPackagePrefix(parts))
-    return;
-  const event = packagedHookEvent(parts.slice(3));
-  return event === undefined ? undefined : { kind: "package", event };
-}
-function scriptIdentity(command) {
-  const prefix = CODEX_MIGRATION_SCHEMA.hookScriptPrefix;
-  if (!command.startsWith(prefix))
-    return;
-  const remainder = command.slice(prefix.length);
-  const quote = remainder.indexOf('"');
-  if (quote === -1)
-    return;
-  const script = remainder.slice(0, quote);
-  const event = CODEX_MIGRATION_SCHEMA.hookScriptEvents[script];
-  if (event === undefined)
-    return;
-  const arguments_ = remainder.slice(quote + 1);
-  const supportedArguments = arguments_ === "" || script === "session-safeword-context.ts" && arguments_ === " --agent=codex";
-  return supportedArguments ? { kind: "script", event, script } : undefined;
-}
-function legacyCommandIdentity(command) {
-  return packageIdentity(command) ?? scriptIdentity(command);
-}
-var init_legacy_command = __esm(() => {
-  init_inventory();
-});
-
-// src/codex-plugin/legacy-authority.ts
-import { accessSync as accessSync2, constants as constants3, lstatSync as lstatSync10, readFileSync as readFileSync41 } from "fs";
-import nodePath67 from "path";
-function regularFile(path4) {
-  try {
-    return lstatSync10(path4).isFile();
-  } catch {
-    return false;
-  }
-}
-function eventCommands(config, eventName) {
-  if (typeof config.hooks !== "object" || config.hooks === null)
-    return [];
-  const groups = config.hooks[eventName];
-  if (!Array.isArray(groups))
-    return [];
-  return groups.flatMap((group) => {
-    const hooks = group.hooks;
-    if (!Array.isArray(hooks))
-      return [];
-    return hooks.flatMap((hook2) => {
-      const candidate = hook2;
-      return candidate.type === "command" && typeof candidate.command === "string" ? [candidate.command] : [];
-    });
-  });
-}
-function packageRunnerIsAvailable(cwd, environment) {
-  const runner = SAFEWORD_SCHEMA.codexMigration.packageRunner;
-  const pathEntries = (environment.PATH ?? "").split(nodePath67.delimiter).filter(Boolean);
-  const extensions = process.platform === "win32" ? (environment.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
-  return pathEntries.some((entry2) => extensions.some((extension) => {
-    const candidate = nodePath67.resolve(cwd, entry2, `${runner}${extension.toLowerCase()}`);
-    try {
-      accessSync2(candidate, process.platform === "win32" ? constants3.F_OK : constants3.X_OK);
-      return regularFile(candidate);
-    } catch {
-      return false;
-    }
-  }));
-}
-function commandIsViable(command, event, cwd, environment) {
-  const identity = legacyCommandIdentity(command);
-  if (identity?.event !== event)
-    return false;
-  if (identity.kind === "package") {
-    return regularFile(nodePath67.join(cwd, SAFEWORD_SCHEMA.codexMigration.projectMarker)) && packageRunnerIsAvailable(cwd, environment);
-  }
-  return identity.kind === "script" && regularFile(nodePath67.join(cwd, CODEX_MIGRATION_SCHEMA.paths.hookRuntimeRoot, identity.script));
-}
-function legacyCodexEventIsViable(cwd, event, environment = process.env) {
-  const eventName = SAFEWORD_SCHEMA.codexMigration.hookEventNames[event];
-  if (eventName === undefined)
-    return false;
-  const configPath2 = nodePath67.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
-  if (!regularFile(configPath2))
-    return false;
-  let config;
-  try {
-    config = parse(readFileSync41(configPath2, "utf8"));
-  } catch {
-    return false;
-  }
-  return eventCommands(config, eventName).some((command) => commandIsViable(command, event, cwd, environment));
-}
-var init_legacy_authority = __esm(() => {
-  init_dist3();
-  init_schema();
-  init_inventory();
-  init_legacy_command();
-});
-
-// src/codex-plugin/legacy-config.ts
-import { lstatSync as lstatSync11, readFileSync as readFileSync42 } from "fs";
-import nodePath68 from "path";
-function hookHeaderEntries(event) {
-  const eventKeys = [event, `"${event}"`, `'${event}'`];
-  return TOML_HOOK_KEYS.flatMap((hookKey) => eventKeys.flatMap((eventKey) => [
-    [`[[${hookKey}.${eventKey}]]`, { event, kind: "parent" }],
-    ...TOML_HOOK_KEYS.map((nestedHookKey) => [`[[${hookKey}.${eventKey}.${nestedHookKey}]]`, { event, kind: "nested" }])
-  ]));
-}
-function splitLines(content) {
-  if (content === "")
-    return [];
-  const lines = content.split(`
-`);
-  return lines.map((line, index) => index < lines.length - 1 ? `${line}
-` : line);
-}
-function uncommented(line) {
-  const comment = line.indexOf("#");
-  return (comment === -1 ? line : line.slice(0, comment)).trim();
-}
-function hookHeader(line) {
-  return HOOK_HEADER_LOOKUP.get(uncommented(line).replaceAll(/\s+/gu, ""));
-}
-function eventHeader(line) {
-  const header2 = hookHeader(line);
-  return header2?.kind === "parent" ? header2.event : undefined;
-}
-function isNestedHookHeader(line, event) {
-  const header2 = hookHeader(line);
-  return header2?.kind === "nested" && header2.event === event;
-}
-function startsNewTopLevelSection(line, event) {
-  const header2 = uncommented(line);
-  return header2.startsWith("[") && !isNestedHookHeader(line, event);
-}
-function assignmentValue(line, key) {
-  const equals = line.indexOf("=");
-  if (equals === -1 || line.slice(0, equals).trim() !== key)
-    return;
-  return line.slice(equals + 1).trim();
-}
-function quotedValue(value) {
-  const quote = value[0];
-  if (quote !== '"' && quote !== "'")
-    return;
-  for (let index = 1;index < value.length; index += 1) {
-    const character = value[index];
-    if (quote === '"' && character === "\\") {
-      index += 1;
-      continue;
-    }
-    if (character !== quote)
-      continue;
-    const trailing = value.slice(index + 1).trim();
-    return trailing === "" || trailing.startsWith("#") ? value.slice(1, index) : undefined;
-  }
-  return;
-}
-function bareCommandValue(line) {
-  const value = assignmentValue(line, "command");
-  return value === undefined ? undefined : quotedValue(value);
-}
-function blockCommandValues(lines, range) {
-  const commands = [];
-  for (let index = range.start + 1;index < range.end; index += 1) {
-    const command = bareCommandValue(lines[index] ?? "");
-    if (command !== undefined)
-      commands.push(command);
-  }
-  return commands;
-}
-function allowedHookLine(line) {
-  const trimmed = line.trim();
-  if (trimmed === "" || trimmed.startsWith("#"))
-    return true;
-  const type = quotedValue(assignmentValue(line, "type") ?? "");
-  if (type === "command")
-    return true;
-  if (bareCommandValue(line) !== undefined)
-    return true;
-  if (quotedValue(assignmentValue(line, "statusMessage") ?? "") !== undefined)
-    return true;
-  const timeout = assignmentValue(line, "timeout");
-  return timeout !== undefined && Number.isSafeInteger(Number(timeout));
-}
-function containsOnlyAllowedHookLines(lines, range) {
-  for (let index = range.start + 1;index < range.end; index += 1) {
-    if (!allowedHookLine(lines[index] ?? ""))
-      return false;
-  }
-  return true;
-}
-function classifyHookBlock(lines, range) {
-  const commands = blockCommandValues(lines, range);
-  const safeWordCommand = commands.some((command) => legacyCommandIdentity(command) !== undefined);
-  const safeWordAmbiguous = safeWordCommand && (commands.length !== 1 || !containsOnlyAllowedHookLines(lines, range));
-  return {
-    range,
-    safeWordOwned: commands.length === 1 && legacyCommandIdentity(commands[0] ?? "") !== undefined && !safeWordAmbiguous,
-    safeWordAmbiguous
-  };
-}
-function isKnownParentScaffold(lines, range) {
-  for (let index = range.start + 1;index < range.end; index += 1) {
-    const trimmed = (lines[index] ?? "").trim();
-    if (trimmed === "" || trimmed.startsWith("#"))
-      continue;
-    if (quotedValue(assignmentValue(lines[index] ?? "", "matcher") ?? "") === undefined)
-      return false;
-  }
-  return true;
-}
-function sectionEnd(lines, start, event) {
-  let end = start + 1;
-  while (end < lines.length && !startsNewTopLevelSection(lines[end] ?? "", event))
-    end += 1;
-  return end;
-}
-function nestedHookStarts(lines, start, end, event) {
-  const starts = [];
-  for (let index = start + 1;index < end; index += 1) {
-    if (isNestedHookHeader(lines[index] ?? "", event))
-      starts.push(index);
-  }
-  return starts;
-}
-function eventRemovalRanges(lines, start, end, event) {
-  const nestedStarts = nestedHookStarts(lines, start, end, event);
-  if (nestedStarts.length === 0)
-    return [];
-  const blocks = nestedStarts.map((nestedStart, index) => classifyHookBlock(lines, { start: nestedStart, end: nestedStarts[index + 1] ?? end }));
-  if (blocks.some((block) => block.safeWordAmbiguous)) {
-    throw new Error("Legacy Safe Word hook cleanup found an ambiguous hook block; no changes were made.");
-  }
-  const ownedBlocks = blocks.filter((block) => block.safeWordOwned);
-  if (ownedBlocks.length === 0)
-    return [];
-  const parentRange = { start, end: nestedStarts[0] ?? end };
-  return ownedBlocks.length === blocks.length && isKnownParentScaffold(lines, parentRange) ? [{ start, end }] : ownedBlocks.map((block) => block.range);
-}
-function removalRanges(lines) {
-  const removals = [];
-  let cursor = 0;
-  while (cursor < lines.length) {
-    const event = eventHeader(lines[cursor] ?? "");
-    if (event === undefined) {
-      cursor += 1;
-      continue;
-    }
-    const end = sectionEnd(lines, cursor, event);
-    removals.push(...eventRemovalRanges(lines, cursor, end, event));
-    cursor = end;
-  }
-  return removals;
-}
-function tomlObject(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
-}
-function semanticNestedHookCount(value) {
-  const command = tomlObject(value)?.command;
-  return typeof command === "string" && legacyCommandIdentity(command) !== undefined ? 1 : 0;
-}
-function semanticParentHookCount(value) {
-  const nestedHooks = tomlObject(value)?.hooks;
-  return Array.isArray(nestedHooks) ? nestedHooks.reduce((count, hook2) => count + semanticNestedHookCount(hook2), 0) : 0;
-}
-function semanticEventHookCount(value) {
-  return Array.isArray(value) ? value.reduce((count, parent) => count + semanticParentHookCount(parent), 0) : 0;
-}
-function semanticLegacyCommandCounts(document2) {
-  const counts = new Map;
-  const hooks = tomlObject(tomlObject(document2)?.hooks);
-  if (hooks === undefined)
-    return counts;
-  for (const event of KNOWN_HOOK_EVENTS) {
-    const count = semanticEventHookCount(hooks[event]);
-    if (count > 0)
-      counts.set(event, count);
-  }
-  return counts;
-}
-function sourceLegacyCommandCounts(lines) {
-  const counts = new Map;
-  let cursor = 0;
-  while (cursor < lines.length) {
-    const event = eventHeader(lines[cursor] ?? "");
-    if (event === undefined) {
-      cursor += 1;
-      continue;
-    }
-    const end = sectionEnd(lines, cursor, event);
-    const count = nestedHookStarts(lines, cursor, end, event).flatMap((start, index, starts) => blockCommandValues(lines, { start, end: starts[index + 1] ?? end })).filter((command) => legacyCommandIdentity(command) !== undefined).length;
-    if (count > 0)
-      counts.set(event, (counts.get(event) ?? 0) + count);
-    cursor = end;
-  }
-  return counts;
-}
-function countsMatch(left, right) {
-  for (const event of KNOWN_HOOK_EVENTS) {
-    if ((left.get(event) ?? 0) !== (right.get(event) ?? 0))
-      return false;
-  }
-  return true;
-}
-function prepareLegacyCodexHookBlocks(content) {
-  let document2;
-  try {
-    document2 = parse(content);
-  } catch (error2) {
-    throw new Error("Codex configuration is invalid TOML; no legacy hooks were removed.", {
-      cause: error2
-    });
-  }
-  const lines = splitLines(content);
-  if (!countsMatch(semanticLegacyCommandCounts(document2), sourceLegacyCommandCounts(lines))) {
-    throw new Error("Codex configuration uses unsupported Safe Word hook formatting; no legacy hooks were removed.");
-  }
-  const ranges = removalRanges(lines);
-  const removedBlocks = ranges.map((range) => lines.slice(range.start, range.end).join(""));
-  const reverseOrderedRanges = ranges.toSorted((left, right) => right.start - left.start);
-  for (const range of reverseOrderedRanges) {
-    lines.splice(range.start, range.end - range.start);
-  }
-  return { cleaned: lines.join(""), removedBlocks };
-}
-function metadataOrMissing(path4) {
-  try {
-    return lstatSync11(path4);
-  } catch (error2) {
-    const code = error2.code;
-    if (code === "ENOENT" || code === "ENOTDIR")
-      return;
-    throw error2;
-  }
-}
-function unsafeConfigEntry(label, metadata, operation) {
-  let kind = "not a regular file";
-  if (metadata.isSymbolicLink())
-    kind = "a symbolic link";
-  else if (label === "Codex configuration directory")
-    kind = "not an ordinary directory";
-  if (operation === "observe") {
-    throw new CodexConfigObservationError(`${label} is ${kind} and cannot be observed safely.`);
-  }
-  throw new Error(`${label} is ${kind}; no legacy hooks were removed.`);
-}
-function regularCodexConfigMetadata(configPath2, operation = "cleanup") {
-  const directoryMetadata = metadataOrMissing(nodePath68.dirname(configPath2));
-  if (directoryMetadata === undefined)
-    return { kind: "missing" };
-  if (!directoryMetadata.isDirectory()) {
-    unsafeConfigEntry("Codex configuration directory", directoryMetadata, operation);
-  }
-  const metadata = metadataOrMissing(configPath2);
-  if (metadata === undefined)
-    return { kind: "missing" };
-  if (!metadata.isFile())
-    unsafeConfigEntry("Codex configuration", metadata, operation);
-  return { kind: "regular", metadata };
-}
-function prepareLegacyHookRemoval(cwd) {
-  const configPath2 = nodePath68.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
-  if (regularCodexConfigMetadata(configPath2).kind === "missing")
-    return;
-  const original = readFileSync42(configPath2, "utf8");
-  const { cleaned, removedBlocks } = prepareLegacyCodexHookBlocks(original);
-  if (cleaned === original)
-    return;
-  return { configPath: configPath2, original, cleaned, removedBlocks };
-}
-function observeLegacyEvents(cwd) {
-  const configPath2 = nodePath68.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
-  if (regularCodexConfigMetadata(configPath2, "observe").kind === "missing")
-    return [];
-  try {
-    return semanticLegacyCommandCounts(parse(readFileSync42(configPath2, "utf8"))).keys().toArray().toSorted((left, right) => left.localeCompare(right));
-  } catch (error2) {
-    if (error2 instanceof CodexConfigObservationError)
-      throw error2;
-    throw new CodexConfigObservationError("Codex configuration cannot be read or parsed safely.", {
-      cause: error2
-    });
-  }
-}
-var KNOWN_HOOK_EVENTS, TOML_HOOK_KEYS, HOOK_HEADER_LOOKUP, CodexConfigObservationError;
-var init_legacy_config = __esm(() => {
-  init_dist3();
-  init_inventory();
-  init_legacy_command();
-  KNOWN_HOOK_EVENTS = new Set([
-    "SessionStart",
-    "SubagentStart",
-    "PreToolUse",
-    "PermissionRequest",
-    "PostToolUse",
-    "PreCompact",
-    "PostCompact",
-    "UserPromptSubmit",
-    "SubagentStop",
-    "Stop"
-  ]);
-  TOML_HOOK_KEYS = ["hooks", '"hooks"', "'hooks'"];
-  HOOK_HEADER_LOOKUP = new Map([...KNOWN_HOOK_EVENTS].flatMap((event) => hookHeaderEntries(event)));
-  CodexConfigObservationError = class CodexConfigObservationError extends Error {
-    constructor(message, options) {
-      super(message, options);
-      this.name = "CodexConfigObservationError";
-    }
-  };
-});
-
-// src/codex-plugin/migration.ts
-function codexPluginVersionMatchesPackage(plugin) {
-  return plugin.version === null || plugin.version === SAFEWORD_SCHEMA.version;
-}
-function pluginProtectionIsCurrent(facts) {
-  return !facts.activationPending && facts.plugin.enabled === true && codexPluginVersionMatchesPackage(facts.plugin) && facts.proof.status === "current" && (facts.plugin.version === null || facts.proof.plugin_version === facts.plugin.version);
-}
-function deriveCodexMigrationResult(facts) {
-  const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
-  const protectedStatus = legacyProtection(facts, hasLegacy);
-  const state = migrationState(facts, hasLegacy);
-  const nextCommand = nextAction(state);
-  return {
-    schema_version: "2",
-    ok: state === "plugin",
-    state,
-    protected: facts.recoveryRequired ? "uncertain" : protectedStatus,
-    changed: false,
-    plugin: facts.plugin,
-    proof: facts.proof,
-    legacy: {
-      events: facts.legacyEvents,
-      viable_events: facts.viableLegacyEvents,
-      assets: facts.legacyAssets
-    },
-    effects: { files: [] },
-    errors: [],
-    next_actions: nextCommand === undefined ? [] : [
-      {
-        command: nextCommand,
-        mutates: state !== "plugin_installed_app_restart_required" && state !== "plugin_enabled_hook_unproven",
-        requires_human: true
-      }
-    ]
-  };
-}
-function migrationState(facts, hasLegacy) {
-  return MIGRATION_STATE_RULES.find((rule) => rule.matches(facts, hasLegacy))?.state ?? "not_configured";
-}
-function legacyProtection(facts, hasLegacy) {
-  if (pluginProtectionIsCurrent(facts))
-    return "protected";
-  if (!hasLegacy || facts.viableLegacyEvents.length === 0)
-    return "unprotected";
-  return facts.viableLegacyEvents.length === facts.legacyEvents.length ? "protected" : "partial";
-}
-function nextAction(state) {
-  return NEXT_ACTIONS[state];
-}
-function renderCodexMigrationHuman(result) {
-  const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
-  if (result.state === "plugin_setup_required") {
-    lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
-  } else if (result.state === "plugin_installed_app_restart_required" || result.state === "plugin_enabled_hook_unproven") {
-    lines.push(CODEX_RESTART_GUIDANCE);
-  }
-  const next = result.next_actions[0];
-  if (next !== undefined)
-    lines.push(`Next: ${next.command}`);
-  return `${lines.join(`
-`)}
-`;
-}
-function codexMigrationExitCode(result) {
-  if (result.errors.length > 0)
-    return 1;
-  return result.ok ? 0 : 2;
-}
-var CODEX_RESTART_GUIDANCE = "This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.", MIGRATION_STATE_RULES, NEXT_ACTIONS;
-var init_migration = __esm(() => {
-  init_schema();
-  init_inventory();
-  MIGRATION_STATE_RULES = [
-    { state: "recovery_required", matches: (facts) => facts.recoveryRequired },
-    {
-      state: "plugin_setup_required",
-      matches: (facts) => facts.finalized && facts.plugin.enabled !== true
-    },
-    {
-      state: "plugin_disabled",
-      matches: (facts) => facts.plugin.installed && facts.plugin.enabled === false
-    },
-    {
-      state: "plugin_update_required",
-      matches: (facts) => facts.plugin.enabled === true && !codexPluginVersionMatchesPackage(facts.plugin)
-    },
-    {
-      state: "plugin_installed_app_restart_required",
-      matches: (facts) => facts.activationPending && facts.plugin.enabled === true
-    },
-    {
-      state: "plugin_enabled_hook_unproven",
-      matches: (facts) => facts.plugin.enabled === true && !pluginProtectionIsCurrent(facts)
-    },
-    {
-      state: "compatibility",
-      matches: (facts, hasLegacy) => pluginProtectionIsCurrent(facts) && hasLegacy
-    },
-    {
-      state: "plugin",
-      matches: (facts) => pluginProtectionIsCurrent(facts)
-    },
-    { state: "legacy", matches: (_facts, hasLegacy) => hasLegacy }
-  ];
-  NEXT_ACTIONS = {
-    recovery_required: "safeword codex recover",
-    compatibility: "safeword codex migrate --finalize",
-    plugin: undefined,
-    plugin_installed_app_restart_required: "safeword codex status",
-    plugin_enabled_hook_unproven: "safeword codex status",
-    plugin_setup_required: "safeword codex migrate",
-    plugin_disabled: "safeword codex migrate",
-    plugin_update_required: "safeword codex migrate",
-    legacy: "safeword codex migrate",
-    not_configured: "safeword codex migrate"
-  };
-});
-
-// src/codex-plugin/host-process.ts
-import { spawnSync as spawnSync5 } from "child_process";
-function parseProcessRows(output) {
-  return output.split(`
-`).flatMap((line) => {
-    const columns = line.trim().split(/\s+/u);
-    if (columns.length < 8)
-      return [];
-    const pid = Number(columns[0]);
-    const parentPid = Number(columns[1]);
-    if (!Number.isSafeInteger(pid) || !Number.isSafeInteger(parentPid))
-      return [];
-    const startedAt = new Date(columns.slice(2, 7).join(" "));
-    if (Number.isNaN(startedAt.getTime()))
-      return [];
-    return [
-      {
-        pid,
-        parentPid,
-        started_at: startedAt.toISOString(),
-        command: columns.slice(7).join(" ")
-      }
-    ];
-  });
-}
-function parseWindowsProcessRows(output) {
-  return output.split(`
-`).flatMap((line) => {
-    const [pidText, parentPidText, startedAtText, ...command] = line.trimEnd().split("\t");
-    const pid = Number(pidText);
-    const parentPid = Number(parentPidText);
-    const startedAt = new Date(Number(startedAtText));
-    if (!Number.isSafeInteger(pid) || !Number.isSafeInteger(parentPid) || command.length === 0)
-      return [];
-    if (Number.isNaN(startedAt.getTime()))
-      return [];
-    return [
-      {
-        pid,
-        parentPid,
-        started_at: startedAt.toISOString(),
-        command: command.join("\t")
-      }
-    ];
-  });
-}
-function isCodexAppServer(row) {
-  const command = row.command.replaceAll("\\", "/");
-  return /(?:^|\/)codex(?:\.exe)?["']?\s/iu.test(command) && /(?:^|\s)app-server(?:\s|$)/u.test(command);
-}
-function codexHostsFromProcessTable(output, parentPid, format = "posix") {
-  const rows = format === "windows" ? parseWindowsProcessRows(output) : parseProcessRows(output);
-  const running = rows.filter((row) => isCodexAppServer(row)).map(({ pid, started_at }) => ({ pid, started_at }));
-  const byPid = new Map(rows.map((row) => [row.pid, row]));
-  let candidate = byPid.get(parentPid);
-  const visited = new Set;
-  while (candidate !== undefined && !visited.has(candidate.pid)) {
-    if (isCodexAppServer(candidate)) {
-      return {
-        available: true,
-        running,
-        current: { pid: candidate.pid, started_at: candidate.started_at }
-      };
-    }
-    visited.add(candidate.pid);
-    candidate = byPid.get(candidate.parentPid);
-  }
-  return { available: true, running, current: null };
-}
-function observeCodexHostProcesses() {
-  if (process.platform === "win32") {
-    const result2 = spawnSync5("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WINDOWS_PROCESS_COMMAND], { encoding: "utf8", timeout: 2000 });
-    if (result2.status !== 0)
-      return { available: false, running: [], current: null };
-    return codexHostsFromProcessTable(result2.stdout, process.ppid, "windows");
-  }
-  const result = spawnSync5("ps", ["-axo", "pid=,ppid=,lstart=,command="], {
-    encoding: "utf8",
-    timeout: 2000
-  });
-  if (result.status !== 0)
-    return { available: false, running: [], current: null };
-  return codexHostsFromProcessTable(result.stdout, process.ppid);
-}
-function observeRunningCodexHosts() {
-  const observation = observeCodexHostProcesses();
-  return observation.available ? observation.running : null;
-}
-function sameCodexHost(left, right) {
-  return left.pid === right.pid && left.started_at === right.started_at;
-}
-var WINDOWS_PROCESS_COMMAND = 'Get-CimInstance Win32_Process | ForEach-Object { $started = [DateTimeOffset]$_.CreationDate; Write-Output ("{0}`t{1}`t{2}`t{3}" -f $_.ProcessId, $_.ParentProcessId, $started.ToUnixTimeMilliseconds(), $_.CommandLine) }';
-var init_host_process = () => {};
-
-// src/codex-plugin/profile-proof.ts
-import { createHash as createHash13, randomUUID as randomUUID5 } from "crypto";
-import { existsSync as existsSync34, readFileSync as readFileSync43, rmSync as rmSync7 } from "fs";
-import { homedir as homedir3 } from "os";
-import nodePath69 from "path";
-function codexProfileDirectory(environment = process.env) {
-  return environment.CODEX_HOME ?? nodePath69.join(homedir3(), ".codex");
-}
-function codexProofPath(environment = process.env, event = "session-start") {
-  return nodePath69.join(codexProfileDirectory(environment), "safeword/hook-proof-v2", `${event}.json`);
-}
-function legacyCodexActivationMarkerPath(environment = process.env) {
-  return nodePath69.join(codexProfileDirectory(environment), "safeword/activation-pending-v1.json");
-}
-function codexActivationMarkerPath(environment = process.env) {
-  return nodePath69.join(codexProfileDirectory(environment), "safeword/activation-pending-v2.json");
-}
-function codexActivationReceiptPath(environment = process.env) {
-  return nodePath69.join(codexProfileDirectory(environment), "safeword/activation-current-v1.json");
-}
-function legacyCodexRestartMarkerPath(environment = process.env) {
-  return nodePath69.join(codexProfileDirectory(environment), "safeword/restart-pending-v1.json");
-}
-function codexActivationIsPending(environment = process.env) {
-  const identity = currentCodexPluginIdentity();
-  return existsSync34(codexActivationMarkerPath(environment)) || [legacyCodexActivationMarkerPath(environment), legacyCodexRestartMarkerPath(environment)].some((path4) => legacyActivationMarkerMatches(path4, identity));
-}
-function packagedHookManifestPath() {
-  const candidates = [
-    nodePath69.resolve(import.meta.dirname, "../codex-plugin/hooks.json"),
-    nodePath69.resolve(import.meta.dirname, "../../codex-plugin/hooks.json")
-  ];
-  const manifest = candidates.find((candidate) => existsSync34(candidate));
-  if (manifest === undefined) {
-    throw new Error("Could not locate the packaged Codex hook manifest.");
-  }
-  return manifest;
-}
-function currentCodexPluginIdentity() {
-  const manifest = readFileSync43(packagedHookManifestPath());
-  return {
-    plugin_version: SAFEWORD_SCHEMA.version,
-    manifest_sha256: createHash13("sha256").update(manifest).digest("hex")
-  };
-}
-function matchesCodexPluginIdentity(value, identity) {
-  return value.plugin_version === identity.plugin_version && value.manifest_sha256 === identity.manifest_sha256;
-}
-function writeCodexActivationMarker(environment = process.env, now = new Date, options = {}) {
-  const path4 = codexActivationMarkerPath(environment);
-  const activeHosts = options.activeHosts === undefined ? observeRunningCodexHosts() : options.activeHosts;
-  const marker = {
-    schema_version: 2,
-    ...currentCodexPluginIdentity(),
-    activation_id: options.activationId ?? randomUUID5(),
-    installed_at: now.toISOString(),
-    host_observation: activeHosts === null ? "unavailable" : "observed",
-    active_hosts: activeHosts ?? []
-  };
-  writeAtomicJson(path4, marker);
-  for (const event of CODEX_PLUGIN_HOOK_EVENTS)
-    rmSync7(codexProofPath(environment, event), { force: true });
-  rmSync7(nodePath69.join(codexProfileDirectory(environment), "safeword/hook-proof-v1"), {
-    recursive: true,
-    force: true
-  });
-  rmSync7(codexActivationReceiptPath(environment), { force: true });
-  rmSync7(legacyCodexActivationMarkerPath(environment), { force: true });
-  rmSync7(legacyCodexRestartMarkerPath(environment), { force: true });
-  return marker;
-}
-function hostObservationForOverride(current = null) {
-  return {
-    available: true,
-    current,
-    running: current === null ? [] : [current]
-  };
-}
-function activationReceiptForRestart(marker, hostObservation, identity, now) {
-  const currentHost = hostObservation.current;
-  if (!hostObservation.available || currentHost === null || marker.host_observation !== "observed" || now.getTime() < Date.parse(marker.installed_at) || marker.active_hosts.some((installedHost) => hostObservation.running.some((runningHost) => sameCodexHost(installedHost, runningHost)))) {
-    return null;
-  }
-  return {
-    schema_version: 1,
-    ...identity,
-    activation_id: marker.activation_id,
-    activated_at: now.toISOString(),
-    host: currentHost
-  };
-}
-function recordCodexHookProof(event, environment = process.env, now = new Date, writeOptions = {}) {
-  const identity = currentCodexPluginIdentity();
-  const marker = readActivationMarkerV2(environment, identity);
-  let receipt = readActivationReceipt(environment, identity);
-  if (event === "session-start" && marker !== null) {
-    const hostObservation = writeOptions.hostObservation ?? ("currentHost" in writeOptions ? hostObservationForOverride(writeOptions.currentHost) : observeCodexHostProcesses());
-    const restartedReceipt = activationReceiptForRestart(marker, hostObservation, identity, now);
-    if (restartedReceipt !== null) {
-      receipt = restartedReceipt;
-      writeAtomicJson(codexActivationReceiptPath(environment), receipt);
-      rmSync7(codexActivationMarkerPath(environment), { force: true });
-    }
-  }
-  const proof = {
-    schema_version: 2,
-    event,
-    ...identity,
-    activation_id: receipt?.activation_id ?? marker?.activation_id ?? null,
-    recorded_at: now.toISOString()
-  };
-  writeAtomicJson(codexProofPath(environment, event), proof, writeOptions);
-  return proof;
-}
-function writeAtomicJson(path4, value, options = {}) {
-  writeDurableFile(path4, `${JSON.stringify(value)}
-`, {
-    mode: 384,
-    beforeRename: options.beforeRename
-  });
-}
-function legacyActivationMarkerMatches(path4, identity) {
-  if (!existsSync34(path4))
-    return false;
-  try {
-    const marker = JSON.parse(readFileSync43(path4, "utf8"));
-    return marker.schema_version === 1 && matchesCodexPluginIdentity(marker, identity);
-  } catch {
-    return false;
-  }
-}
-function readActivationMarkerV2(environment, identity) {
-  return readIdentityBoundJson(codexActivationMarkerPath(environment), identity, isActivationMarkerV2);
-}
-function readActivationReceipt(environment, identity) {
-  return readIdentityBoundJson(codexActivationReceiptPath(environment), identity, isActivationReceiptV1);
-}
-function readIdentityBoundJson(path4, identity, validator) {
-  if (!existsSync34(path4))
-    return null;
-  try {
-    const value = JSON.parse(readFileSync43(path4, "utf8"));
-    return validator(value) && matchesCodexPluginIdentity(value, identity) ? value : null;
-  } catch {
-    return null;
-  }
-}
-function readEventProof(path4, expectedEvent) {
-  try {
-    const proof = JSON.parse(readFileSync43(path4, "utf8"));
-    return isCodexHookProof(proof) && proof.event === expectedEvent ? proof : null;
-  } catch {
-    return null;
-  }
-}
-function observeCodexHookProof(environment = process.env) {
-  const candidates = CODEX_PLUGIN_HOOK_EVENTS.map((event) => ({
-    event,
-    path: codexProofPath(environment, event)
-  }));
-  const existing = candidates.filter((candidate) => existsSync34(candidate.path));
-  if (existing.length === 0) {
-    return {
-      status: "missing",
-      plugin_version: null,
-      manifest_sha256: null,
-      recorded_at: null,
-      activation_id: null,
-      events: [],
-      missing_events: CODEX_PLUGIN_HOOK_EVENTS
-    };
-  }
-  const parsed2 = existing.map((item) => readEventProof(item.path, item.event));
-  if (parsed2.includes(null))
-    return malformedObservation();
-  const validProofs = parsed2.filter((proof) => proof !== null);
-  const identity = currentCodexPluginIdentity();
-  const activationId = readActivationMarkerV2(environment, identity)?.activation_id ?? readActivationReceipt(environment, identity)?.activation_id ?? null;
-  const current = validProofs.filter((proof) => matchesCodexPluginIdentity(proof, identity) && (activationId === null || proof.schema_version === 2 && proof.activation_id === activationId));
-  const events = current.map((proof) => proof.event);
-  const missingEvents = CODEX_PLUGIN_HOOK_EVENTS.filter((event) => !events.includes(event));
-  const latest = current.toSorted((left, right) => right.recorded_at.localeCompare(left.recorded_at)).at(0);
-  let status = "stale";
-  if (current.length === CODEX_PLUGIN_HOOK_EVENTS.length)
-    status = "current";
-  else if (current.length > 0)
-    status = "partial";
-  return {
-    status,
-    plugin_version: latest?.plugin_version ?? validProofs[0]?.plugin_version ?? null,
-    manifest_sha256: latest?.manifest_sha256 ?? validProofs[0]?.manifest_sha256 ?? null,
-    recorded_at: latest?.recorded_at ?? null,
-    activation_id: activationId,
-    events,
-    missing_events: missingEvents
-  };
-}
-function malformedObservation() {
-  return {
-    status: "malformed",
-    plugin_version: null,
-    manifest_sha256: null,
-    recorded_at: null,
-    activation_id: null,
-    events: [],
-    missing_events: CODEX_PLUGIN_HOOK_EVENTS
-  };
-}
-function isCodexHookProof(value) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  const proof = value;
-  return (proof.schema_version === 1 || proof.schema_version === 2) && isCodexPluginHookEvent(proof.event) && typeof proof.plugin_version === "string" && typeof proof.manifest_sha256 === "string" && /^[\da-f]{64}$/u.test(proof.manifest_sha256) && (proof.schema_version === 1 || ("activation_id" in proof) && (typeof proof.activation_id === "string" || proof.activation_id === null)) && typeof proof.recorded_at === "string" && !Number.isNaN(Date.parse(proof.recorded_at));
-}
-function isActivationMarkerV2(value) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  const marker = value;
-  return marker.schema_version === 2 && typeof marker.plugin_version === "string" && typeof marker.manifest_sha256 === "string" && /^[\da-f]{64}$/u.test(marker.manifest_sha256) && typeof marker.activation_id === "string" && typeof marker.installed_at === "string" && !Number.isNaN(Date.parse(marker.installed_at)) && (marker.host_observation === "observed" || marker.host_observation === "unavailable") && Array.isArray(marker.active_hosts) && marker.active_hosts.every(isCodexHostProcessIdentity);
-}
-function isActivationReceiptV1(value) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  const receipt = value;
-  return receipt.schema_version === 1 && typeof receipt.plugin_version === "string" && typeof receipt.manifest_sha256 === "string" && /^[\da-f]{64}$/u.test(receipt.manifest_sha256) && typeof receipt.activation_id === "string" && typeof receipt.activated_at === "string" && !Number.isNaN(Date.parse(receipt.activated_at)) && isCodexHostProcessIdentity(receipt.host);
-}
-function isCodexHostProcessIdentity(value) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  const host = value;
-  return Number.isSafeInteger(host.pid) && (host.pid ?? 0) > 0 && typeof host.started_at === "string" && !Number.isNaN(Date.parse(host.started_at));
-}
-function isCodexPluginHookEvent(value) {
-  return typeof value === "string" && CODEX_PLUGIN_HOOK_EVENTS.includes(value);
-}
-var CODEX_PLUGIN_HOOK_EVENTS;
-var init_profile_proof = __esm(() => {
-  init_schema();
-  init_durable_write();
-  init_host_process();
-  CODEX_PLUGIN_HOOK_EVENTS = [
-    "session-start",
-    "pre-tool-use",
-    "post-tool-use",
-    "user-prompt-submit",
-    "stop"
-  ];
-});
-
 // src/commands/migrate-codex-plugin.ts
 var exports_migrate_codex_plugin = {};
 __export(exports_migrate_codex_plugin, {
@@ -35355,486 +36638,108 @@ __export(exports_migrate_codex_plugin, {
   observeCodexFinalizationPlan: () => observeCodexFinalizationPlan,
   observeCodexFinalizationEffects: () => observeCodexFinalizationEffects,
   migrateCodexPlugin: () => migrateCodexPlugin,
-  installCodexPlugin: () => installCodexPlugin
+  installCodexPlugin: () => installCodexPlugin,
+  automaticallyMigrateLegacyCodex: () => automaticallyMigrateLegacyCodex
 });
-import { spawnSync as spawnSync6 } from "child_process";
-import { createHash as createHash14 } from "crypto";
-import { lstatSync as lstatSync12, readFileSync as readFileSync44 } from "fs";
-import nodePath70 from "path";
-function run(command, arguments_) {
-  const result = spawnSync6(command, arguments_, { encoding: "utf8" });
-  if (result.error)
-    throw new Error(`${command} is required. Install it, then re-run this command.`);
-  if (result.status !== 0) {
-    const detail = (result.stderr || result.stdout).trim();
-    throw new Error(detail || `${command} ${arguments_.join(" ")} failed.`);
-  }
-  return result.stdout;
-}
-function pluginObservationFromList(output) {
-  const parsed2 = JSON.parse(output);
-  const plugin = parsed2.installed?.find((candidate) => candidate.pluginId === PLUGIN_ID2);
-  return {
-    installed: plugin !== undefined,
-    enabled: plugin?.enabled ?? (plugin === undefined ? false : null),
-    version: plugin?.version ?? null,
-    observation: "observed"
-  };
-}
-function isOfficialSafewordGitSource(source) {
-  if (source === undefined)
-    return false;
-  const normalized = source.toLowerCase().replace(/\/$/u, "").replace(/\.git$/u, "");
-  return new Set([
-    "arcadeai/safeword",
-    "git@github.com:arcadeai/safeword",
-    "https://github.com/arcadeai/safeword",
-    "ssh://git@github.com/arcadeai/safeword"
-  ]).has(normalized);
-}
-function observeCodexPlugin() {
-  return pluginObservationFromList(run("codex", ["plugin", "list", "--json"]));
-}
-function marketplaceListFromOutput(output) {
-  let parsed2;
+var init_migrate_codex_plugin = __esm(() => {
+  init_operations();
+});
+
+// src/commands/codex-bootstrap.ts
+var exports_codex_bootstrap = {};
+__export(exports_codex_bootstrap, {
+  bootstrapCodexPlugin: () => bootstrapCodexPlugin
+});
+function sessionIdFromInput(rawInput) {
   try {
-    parsed2 = JSON.parse(output);
-  } catch (error2) {
-    throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "Codex returned malformed marketplace discovery JSON; plugin installation did not run.", { cause: error2 });
-  }
-  if (typeof parsed2 !== "object" || parsed2 === null || !Array.isArray(parsed2.marketplaces) || !parsed2.marketplaces?.every((marketplace) => typeof marketplace === "object" && marketplace !== null)) {
-    throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "Codex returned an unsupported marketplace discovery result; plugin installation did not run.");
-  }
-  return parsed2;
-}
-function runCodexMarketplace(arguments_, failureContext) {
-  try {
-    return run("codex", ["plugin", "marketplace", ...arguments_]);
-  } catch (error2) {
-    throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `${failureContext}; plugin installation did not run: ${String(error2)}`, { cause: error2 });
-  }
-}
-function refreshOrAddCodexMarketplace(marketplaceSource) {
-  if (marketplaceSource === undefined) {
-    const output = runCodexMarketplace(["list", "--json"], "Could not inspect configured Codex marketplaces");
-    const marketplace = marketplaceListFromOutput(output).marketplaces.find((candidate) => candidate.name === "safeword");
-    if (marketplace?.marketplaceSource?.sourceType === "git") {
-      if (!isOfficialSafewordGitSource(marketplace.marketplaceSource.source)) {
-        throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `The configured Codex marketplace named safeword does not point to ${MARKETPLACE_SOURCE}; plugin installation did not run.`);
-      }
-      runCodexMarketplace(["upgrade", "safeword", "--json"], "Could not refresh the configured Safeword Codex marketplace");
-      return;
-    }
-  }
-  runCodexMarketplace([
-    "add",
-    marketplaceSource ?? MARKETPLACE_SOURCE,
-    "--sparse",
-    ".agents/plugins",
-    "--sparse",
-    "packages/cli/codex-plugin",
-    "--json"
-  ], "Could not add the Safeword Codex marketplace");
-}
-function addCodexPluginToProfile(marketplaceSource) {
-  refreshOrAddCodexMarketplace(marketplaceSource);
-  run("codex", ["plugin", "add", PLUGIN_ID2, "--json"]);
-}
-function verifyCodexPluginIsEnabled(options = {}) {
-  let pluginList;
-  try {
-    pluginList = run("codex", ["plugin", "list", "--json"]);
-  } catch (error2) {
-    const prefix = options.installationCompleted === true ? "Plugin installation succeeded, but enablement is unknown" : "Could not verify the Safe Word Codex plugin";
-    throw new CodexMigrationError(options.installationCompleted === true ? "PLUGIN_ENABLEMENT_UNKNOWN" : "PLUGIN_ENABLEMENT_FAILED", `${prefix}: ${String(error2)}`, { cause: error2 });
-  }
-  const plugin = pluginObservationFromList(pluginList);
-  if (plugin.enabled !== true) {
-    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.");
-  }
-  if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
-    throw new Error(`Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`);
-  }
-}
-function pathExistsIncludingDanglingSymlink(path4) {
-  try {
-    lstatSync12(path4);
-    return true;
-  } catch (error2) {
-    const code = error2.code;
-    if (code === "ENOENT" || code === "ENOTDIR")
-      return false;
-    throw error2;
-  }
-}
-function observeLegacyAssets(cwd) {
-  return SAFEWORD_SCHEMA.codexMigration.cleanupFiles.filter((path4) => pathExistsIncludingDanglingSymlink(nodePath70.join(cwd, path4)));
-}
-function observeViableLegacyEvents(cwd, legacyEvents, environment) {
-  const eventIdsByName = new Map(Object.entries(SAFEWORD_SCHEMA.codexMigration.hookEventNames).map(([event, name]) => [
-    name,
-    event
-  ]));
-  return legacyEvents.filter((eventName) => {
-    const event = eventIdsByName.get(eventName);
-    return event !== undefined && legacyCodexEventIsViable(cwd, event, environment);
-  });
-}
-function observeCodexMigrationResult(cwd = process.cwd(), environment = process.env) {
-  let legacyEvents = [];
-  let configObservationError;
-  try {
-    legacyEvents = observeLegacyEvents(cwd);
-  } catch (error2) {
-    if (!(error2 instanceof CodexConfigObservationError))
-      throw error2;
-    configObservationError = error2;
-  }
-  const recoveryRequired = codexRecoveryIsRequired(cwd);
-  let plugin;
-  let pluginObservationError;
-  if (recoveryRequired) {
-    plugin = { installed: false, enabled: null, version: null, observation: "unknown" };
-  } else {
-    try {
-      plugin = observeCodexPlugin();
-    } catch (error2) {
-      plugin = { installed: false, enabled: null, version: null, observation: "unknown" };
-      pluginObservationError = error2 instanceof Error ? error2 : new Error(String(error2));
-    }
-  }
-  const result = deriveCodexMigrationResult({
-    plugin,
-    proof: observeCodexHookProof(environment),
-    legacyAssets: observeLegacyAssets(cwd),
-    legacyEvents,
-    viableLegacyEvents: observeViableLegacyEvents(cwd, legacyEvents, environment),
-    finalized: codexFinalizationIsComplete(cwd),
-    recoveryRequired,
-    activationPending: codexActivationIsPending(environment)
-  });
-  if (pluginObservationError !== undefined) {
-    result.errors.push({
-      code: "PLUGIN_OBSERVATION_FAILED",
-      message: pluginObservationError.message,
-      retryable: true
-    });
-  }
-  if (configObservationError !== undefined) {
-    result.errors.push({
-      code: "CODEX_CONFIG_UNREADABLE",
-      message: configObservationError.message,
-      retryable: false
-    });
-  }
-  return result;
-}
-function codexMigrationMessage(state, proof) {
-  if (state === "plugin_enabled_hook_unproven" && proof !== undefined) {
-    return `Codex migration state: plugin_enabled_hook_unproven. In the restarted Codex app, review /hooks and exercise these missing hooks: ${proof.missing_events.join(", ")}. Then run safeword codex migrate --finalize.`;
-  }
-  return CODEX_MIGRATION_MESSAGES[state] ?? `Codex migration state: ${state}.`;
-}
-function legacyCodexMigrationState(state) {
-  return state === "plugin_installed_app_restart_required" ? "plugin_installed_restart_required" : state;
-}
-function observeCodexMigration(cwd = process.cwd(), environment = process.env) {
-  const result = observeCodexMigrationResult(cwd, environment);
-  const legacyState = legacyCodexMigrationState(result.state);
-  const globalGuidance = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
-  let state = "action_required";
-  if (result.errors.length > 0)
-    state = "failed";
-  else if (result.ok && globalGuidance.finding === undefined)
-    state = "healthy";
-  return createResult({
-    state,
-    findings: result.errors.length > 0 ? [] : [
-      {
-        code: `CODEX_${legacyState.toUpperCase()}`,
-        message: codexMigrationMessage(result.state, result.proof),
-        severity: result.ok ? "info" : "warning",
-        metadata: {
-          migration_schema_version: result.schema_version,
-          migration_state: result.state
-        }
-      },
-      ...globalGuidance.finding === undefined ? [] : [globalGuidance.finding]
-    ],
-    errors: result.errors,
-    nextActions: [
-      ...result.next_actions.map((action) => ({
-        command: action.command,
-        mutates: action.mutates,
-        requiresHuman: action.requires_human
-      })),
-      ...globalGuidance.nextAction === undefined ? [] : [globalGuidance.nextAction]
-    ],
-    data: {
-      command: "codex status",
-      migration_state: legacyState,
-      migration: {
-        schema_version: result.schema_version,
-        state: result.state
-      },
-      protected: result.protected,
-      plugin: result.plugin,
-      proof: result.proof,
-      legacy: result.legacy,
-      global_guidance: globalGuidance.observation
-    }
-  });
-}
-function reportCodexMigration(cwd, options) {
-  const result = observeCodexMigrationResult(cwd, options.environment);
-  result.changed = options.changed === true;
-  if (options.effects !== undefined)
-    result.effects.files = options.effects;
-  process.stdout.write(options.json === true ? `${JSON.stringify(result)}
-` : renderCodexMigrationHuman(result));
-  process.exitCode = codexMigrationExitCode(result);
-}
-function installCodexPlugin(options = {}) {
-  const cwd = options.cwd ?? process.cwd();
-  if (shouldReportExistingMigrationState(cwd, options)) {
-    reportCodexMigration(cwd, { json: options.json, environment: options.environment });
+    const sessionId = JSON.parse(rawInput).session_id?.trim();
+    return sessionId === "" ? undefined : sessionId;
+  } catch {
     return;
   }
-  run("bun", ["--version"]);
-  run("codex", ["--version"]);
-  addCodexPluginToProfile(options.marketplaceSource);
-  verifyCodexPluginIsEnabled({ installationCompleted: true });
-  if (options.recordActivationPending !== false)
-    writeCodexActivationMarker(options.environment);
-  if (options.json !== true) {
-    success("Safe Word Codex plugin is enabled for this profile.");
-    info("This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.");
-  }
-  if (options.reportMigrationState === true) {
-    reportCodexMigration(cwd, {
-      json: options.json,
-      environment: options.environment,
-      changed: true
-    });
-  }
 }
-function shouldReportExistingMigrationState(cwd, options) {
-  if (codexRecoveryIsRequired(cwd))
-    return true;
-  if (options.reportMigrationState !== true)
-    return false;
-  const plugin = observeCodexMigrationResult(cwd, options.environment).plugin;
-  return plugin.enabled === true && codexPluginVersionMatchesPackage(plugin);
-}
-function buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval) {
-  const mutations = [];
-  if (preparedLegacyHookRemoval !== undefined) {
-    if (regularCodexConfigMetadata(preparedLegacyHookRemoval.configPath).kind === "missing" || readFileSync44(preparedLegacyHookRemoval.configPath, "utf8") !== preparedLegacyHookRemoval.original) {
-      throw new Error("Codex configuration changed during plugin verification; no legacy hooks were removed.");
+function additionalContext(message) {
+  return `${JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: message
     }
-    mutations.push({ path: CODEX_CONFIG_PATH2, content: preparedLegacyHookRemoval.cleaned });
-  }
-  for (const path4 of observeLegacyAssets(cwd))
-    mutations.push({ path: path4, content: null });
-  mutations.push({
-    path: CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
-    content: `${JSON.stringify({ schema_version: 1, mode: "plugin" })}
-`
-  }, {
-    path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
-    content: "---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n"
-  });
-  return mutations;
-}
-function finalizationEffects(cwd, mutations) {
-  return mutations.map((mutation) => {
-    let action;
-    if (mutation.content === null)
-      action = "remove";
-    else if (pathExistsIncludingDanglingSymlink(nodePath70.join(cwd, mutation.path)))
-      action = "update";
-    else
-      action = "create";
-    return { path: mutation.path, action };
-  });
-}
-function observeCodexFinalizationEffects(cwd) {
-  return observeCodexFinalizationPlan(cwd).effects;
-}
-function renderCodexFinalizationPlan(cwd, mutations, preparedLegacyHookRemoval) {
-  const lines = ["Finalization plan:"];
-  for (const effect of finalizationEffects(cwd, mutations)) {
-    lines.push(`- ${effect.action} ${effect.path}`);
-    if (effect.path !== CODEX_CONFIG_PATH2 || preparedLegacyHookRemoval === undefined)
-      continue;
-    for (const block of preparedLegacyHookRemoval.removedBlocks) {
-      lines.push("  exact config block:", "  --- begin block ---", block.trimEnd(), "  --- end block ---");
-    }
-  }
-  return `${lines.join(`
-`)}
+  })}
 `;
 }
-function snapshotCodexFinalizationInputs(cwd, mutations) {
-  validateCodexFinalizationPaths(cwd, mutations);
-  return mutations.map((mutation) => {
-    const path4 = nodePath70.join(cwd, mutation.path);
-    let metadata;
-    try {
-      metadata = lstatSync12(path4);
-    } catch (error2) {
-      if (error2.code === "ENOENT") {
-        return { path: mutation.path, state: "absent" };
-      }
-      throw error2;
+function hookResult(body, options) {
+  return createResult({
+    state: options.changed === true ? "changed" : "healthy",
+    changed: options.changed,
+    effects: options.changed === true ? {
+      configuration: [{ kind: "enable", target: "Safeword Codex profile plugin" }],
+      network: [{ kind: "fetch", target: "Safeword stable Codex marketplace" }]
+    } : undefined,
+    presentation: { kind: "raw", body },
+    data: {
+      command: "codex bootstrap",
+      protected_in_current_task: options.reason === "current",
+      profile_plugin_installed: options.installed,
+      reason: options.reason
     }
-    if (!metadata.isFile()) {
-      throw new Error(`Unsafe Codex migration path is not a regular file: ${mutation.path}`);
+  });
+}
+function plainFailure(error2) {
+  const message = error2 instanceof Error ? error2.message : String(error2);
+  return message.replaceAll(/`[^`]+`/gu, "the install command").split(`
+`, 1).at(0)?.trim() ?? "unknown installation failure";
+}
+function profilePluginIsCurrent(cwd, environment, observe) {
+  try {
+    const plugin = observe(cwd, environment).plugin;
+    return plugin.enabled === true && codexPluginVersionMatchesPackage(plugin);
+  } catch {
+    return false;
+  }
+}
+function installProfilePlugin(cwd, environment, install) {
+  try {
+    install({ cwd, environment, json: true, reportMigrationState: false });
+    return { installed: true };
+  } catch (error2) {
+    return { installed: false, error: error2 };
+  }
+}
+function bootstrapCodexPlugin(cwd, rawInput, options = {}) {
+  const environment = options.environment ?? process.env;
+  const sessionId = sessionIdFromInput(rawInput);
+  if (sessionId && codexSessionProofIsCurrent(cwd, sessionId, environment)) {
+    return hookResult("", { installed: true, reason: "current" });
+  }
+  const observe = options.observe ?? observeCodexMigrationResult;
+  const install = options.install ?? installCodexPlugin;
+  let profileCurrent = profilePluginIsCurrent(cwd, environment, observe);
+  let installed = false;
+  if (!profileCurrent && options.offline !== true) {
+    const installation = installProfilePlugin(cwd, environment, install);
+    if (installation.installed) {
+      installed = true;
+      profileCurrent = true;
+    } else {
+      return hookResult(additionalContext(`SAFEWORD IS NOT ACTIVE IN THIS TASK. You can continue working, but Safeword will not protect this task. Automatic profile installation failed: ${plainFailure(installation.error)}. Retry once with: ${RETRY_COMMAND}`), { installed: false, reason: "install-failed" });
     }
-    return {
-      path: mutation.path,
-      state: "file",
-      mode: metadata.mode & 511,
-      content: readFileSync44(path4).toString("base64")
-    };
-  });
-}
-function observeCodexFinalizationPlan(cwd) {
-  const prepared = prepareLegacyHookRemoval(cwd);
-  const mutations = buildCodexFinalizationMutations(cwd, prepared);
-  const effects = finalizationEffects(cwd, mutations);
-  const inputs = snapshotCodexFinalizationInputs(cwd, mutations);
-  const preconditionDigest4 = createHash14("sha256").update(JSON.stringify({ mutations, effects, inputs })).digest("hex");
-  return {
-    effects,
-    exactConfigBlocks: prepared?.removedBlocks ?? [],
-    preconditionDigest: preconditionDigest4
-  };
-}
-function assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, mutations, effects, inputs) {
-  const currentMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
-  const currentEffects = finalizationEffects(cwd, currentMutations);
-  if (JSON.stringify(currentMutations) !== JSON.stringify(mutations) || JSON.stringify(currentEffects) !== JSON.stringify(effects) || JSON.stringify(snapshotCodexFinalizationInputs(cwd, mutations)) !== JSON.stringify(inputs)) {
-    throw new CodexMigrationError("PLAN_STALE", "Codex finalization plan changed after confirmation; no repository files were modified.");
   }
+  if (!profileCurrent) {
+    return hookResult(additionalContext("SAFEWORD IS NOT ACTIVE IN THIS TASK. You can continue working, but Safeword will not protect this task. Automatic profile installation was skipped because Codex is offline. Start a new online Codex task in this repository to install and activate Safeword."), { installed: false, reason: "offline" });
+  }
+  return hookResult(additionalContext("SAFEWORD IS NOT ACTIVE IN THIS TASK. You can continue working, but Safeword will not protect this task. Safeword is installed for your Codex profile. Start a new Codex task in this repository to work with Safeword active."), { changed: installed, installed: true, reason: installed ? "installed" : "restart-required" });
 }
-function reportCompletedFinalization(cwd, options) {
-  if (options.json === true)
-    reportCodexMigration(cwd, options);
-  else
-    success("Safe Word Codex migration is already finalized.");
-}
-function reportAppliedFinalization(cwd, input) {
-  if (input.options.json === true) {
-    reportCodexMigration(cwd, {
-      ...input.options,
-      changed: true,
-      effects: input.effects
-    });
-    return;
-  }
-  info("Backed up the complete legacy Codex state for conflict-safe recovery.");
-  info(input.removedLegacyHooks ? "Removed Safe Word legacy Codex project protection after the verified plugin handoff." : "No Safe Word legacy Codex hooks were found in this project.");
-}
-function reportCodexWhen(enabled, report) {
-  if (enabled)
-    report();
-}
-async function removeLegacyCodexHooks(cwd = process.cwd(), options = {}) {
-  if (codexRecoveryIsRequired(cwd)) {
-    reportCodexWhen(options.report !== false, () => {
-      reportCodexMigration(cwd, options);
-    });
-    return false;
-  }
-  if (observeCodexHookProof(options.environment).status !== "current") {
-    throw new CodexMigrationError("FINALIZATION_PROOF_REQUIRED", "Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.");
-  }
-  if (codexFinalizationIsComplete(cwd)) {
-    reportCodexWhen(options.report !== false, () => {
-      reportCompletedFinalization(cwd, options);
-    });
-    return false;
-  }
-  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
-  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
-  const plannedEffects = finalizationEffects(cwd, plannedMutations);
-  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
-  const plan = renderCodexFinalizationPlan(cwd, plannedMutations, preparedLegacyHookRemoval);
-  const confirm = options.confirm;
-  const confirmed = await resolveCodexFinalizationConfirmation({
-    assumeYes: options.yes === true,
-    confirm: confirm === undefined ? undefined : () => confirm(plan)
-  });
-  if (!confirmed) {
-    reportCodexWhen(options.report !== false, () => {
-      info("Codex migration finalization was declined; the project was left unchanged.");
-    });
-    return false;
-  }
-  run("bun", ["--version"]);
-  run("codex", ["--version"]);
-  verifyCodexPluginIsEnabled();
-  reportCodexWhen(options.report !== false && options.json !== true, () => {
-    success("Safe Word Codex plugin is enabled for this profile.");
-  });
-  assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, plannedMutations, plannedEffects, plannedInputs);
-  applyCodexFinalization(cwd, plannedMutations);
-  reportCodexWhen(options.report !== false, () => {
-    reportAppliedFinalization(cwd, {
-      options,
-      effects: plannedEffects,
-      removedLegacyHooks: preparedLegacyHookRemoval !== undefined
-    });
-  });
-  return true;
-}
-async function migrateCodexPlugin(cwd = process.cwd(), options = {}) {
-  if (options.removeLegacyHooks) {
-    await removeLegacyCodexHooks(cwd, { yes: options.yes, confirm: options.confirm });
-    return;
-  }
-  installCodexPlugin({
-    marketplaceSource: options.marketplaceSource,
-    recordActivationPending: false
-  });
-}
-function recoverCodexMigration(cwd = process.cwd(), options = {}) {
-  if (options.report === false) {
-    return recoverCodexFinalization(cwd);
-  }
-  const changed = recoverCodexFinalization(cwd);
-  if (options.json === true) {
-    reportCodexMigration(cwd, { ...options, changed });
-  } else {
-    success(changed ? "Restored the backed-up Safe Word legacy Codex project state." : "No Safe Word Codex migration recovery was needed.");
-  }
-  return changed;
-}
-var MARKETPLACE_SOURCE = "ArcadeAI/safeword", PLUGIN_ID2 = "safeword@safeword", CODEX_CONFIG_PATH2, CODEX_MIGRATION_MESSAGES;
-var init_migrate_codex_plugin = __esm(() => {
+var RETRY_COMMAND = "bunx --bun safeword@latest codex install";
+var init_codex_bootstrap = __esm(() => {
   init_result();
-  init_finalization();
-  init_inventory();
-  init_legacy_authority();
-  init_legacy_config();
-  init_legacy_global_guidance();
   init_migration();
-  init_migration_error();
+  init_operations();
   init_profile_proof();
-  init_schema();
-  CODEX_CONFIG_PATH2 = CODEX_MIGRATION_SCHEMA.paths.config;
-  CODEX_MIGRATION_MESSAGES = {
-    plugin_installed_app_restart_required: CODEX_RESTART_GUIDANCE,
-    compatibility: "Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.",
-    plugin_enabled_hook_unproven: "Codex migration state: plugin_enabled_hook_unproven. Review /hooks in the restarted Codex app; when protection is confirmed, run safeword codex migrate --finalize.",
-    recovery_required: "Codex migration state: recovery_required. Recovery is required before migration can continue."
-  };
 });
 
 // templates/hooks/lib/jsonl-spool.ts
-import { appendFileSync, mkdirSync as mkdirSync10, readFileSync as readFileSync45, renameSync as renameSync6, writeFileSync as writeFileSync17 } from "fs";
-import nodePath71 from "path";
+import { appendFileSync, mkdirSync as mkdirSync11, readFileSync as readFileSync47, renameSync as renameSync6, writeFileSync as writeFileSync18 } from "fs";
+import nodePath73 from "path";
 function* iterateJsonlEntries(text) {
   for (const line of text.split(`
 `)) {
@@ -35851,7 +36756,7 @@ function* iterateJsonlEntries(text) {
 }
 function countJsonlRecords(filePath) {
   try {
-    return readFileSync45(filePath, "utf8").split(`
+    return readFileSync47(filePath, "utf8").split(`
 `).filter((line) => line.trim().length > 0).length;
   } catch {
     return 0;
@@ -35860,7 +36765,7 @@ function countJsonlRecords(filePath) {
 function readJsonlRecords(filePath, parse2) {
   let raw;
   try {
-    raw = readFileSync45(filePath, "utf8");
+    raw = readFileSync47(filePath, "utf8");
   } catch {
     return [];
   }
@@ -35885,7 +36790,7 @@ function tryAppendJsonlRecords(filePath, lines, cap) {
     if (room <= 0)
       return false;
     const toWrite = lines.slice(0, room);
-    mkdirSync10(nodePath71.dirname(filePath), { recursive: true });
+    mkdirSync11(nodePath73.dirname(filePath), { recursive: true });
     appendFileSync(filePath, `${toWrite.join(`
 `)}
 `);
@@ -35896,8 +36801,8 @@ function tryAppendJsonlRecords(filePath, lines, cap) {
 }
 function atomicWriteFile(file, contents) {
   const temporary = `${file}.${process.pid}.tmp`;
-  mkdirSync10(nodePath71.dirname(file), { recursive: true });
-  writeFileSync17(temporary, contents);
+  mkdirSync11(nodePath73.dirname(file), { recursive: true });
+  writeFileSync18(temporary, contents);
   renameSync6(temporary, file);
 }
 var init_jsonl_spool = () => {};
@@ -35925,8 +36830,8 @@ __export(exports_self_report, {
   captureBareDrain: () => captureBareDrain,
   buildRecord: () => buildRecord
 });
-import { existsSync as existsSync35, readdirSync as readdirSync26, readFileSync as readFileSync46 } from "fs";
-import nodePath72 from "path";
+import { existsSync as existsSync37, readdirSync as readdirSync26, readFileSync as readFileSync48 } from "fs";
+import nodePath74 from "path";
 function detectAgent(env = process.env) {
   const declared = env.SAFEWORD_AGENT_RUNTIME;
   if (declared && AGENT_IDS.has(declared))
@@ -35942,7 +36847,7 @@ function detectAgent(env = process.env) {
 }
 function readSelfReportConfig(projectDirectory) {
   try {
-    const raw = readFileSync46(nodePath72.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync48(nodePath74.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const config = parsed2.selfReport ?? {};
     return {
@@ -35955,7 +36860,7 @@ function readSelfReportConfig(projectDirectory) {
   }
 }
 function spoolPath(projectDirectory, sessionId) {
-  return nodePath72.join(projectDirectory, SELF_REPORT_DIR, `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}.jsonl`);
+  return nodePath74.join(projectDirectory, SELF_REPORT_DIR, `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}.jsonl`);
 }
 function sanitizeToken(value) {
   return value.replaceAll(/[^\w.@-]/g, "").slice(0, 80);
@@ -36035,7 +36940,7 @@ function recordSignal(projectDirectory, sessionId, signal, safewordVersion) {
 }
 function readInstalledVersion(projectDirectory) {
   try {
-    return readFileSync46(nodePath72.join(projectDirectory, ".safeword", "version"), "utf8").trim() || "unknown";
+    return readFileSync48(nodePath74.join(projectDirectory, ".safeword", "version"), "utf8").trim() || "unknown";
   } catch {
     return "unknown";
   }
@@ -36071,8 +36976,8 @@ function parseSpoolFile(filePath) {
   return readJsonlRecords(filePath, (value) => value);
 }
 function readReports(projectDirectory) {
-  const dir = nodePath72.join(projectDirectory, SELF_REPORT_DIR);
-  if (!existsSync35(dir))
+  const dir = nodePath74.join(projectDirectory, SELF_REPORT_DIR);
+  if (!existsSync37(dir))
     return [];
   let files;
   try {
@@ -36080,7 +36985,7 @@ function readReports(projectDirectory) {
   } catch {
     return [];
   }
-  return files.flatMap((name) => parseSpoolFile(nodePath72.join(dir, name)));
+  return files.flatMap((name) => parseSpoolFile(nodePath74.join(dir, name)));
 }
 function readSessionReports(projectDirectory, sessionId) {
   return parseSpoolFile(spoolPath(projectDirectory, sessionId));
@@ -36141,7 +37046,7 @@ function formatIssueDrafts(records) {
 }
 function surfacedMarkerPath(projectDirectory, sessionId) {
   const spool = spoolPath(projectDirectory, sessionId);
-  return nodePath72.join(nodePath72.dirname(spool), "surfaced", nodePath72.basename(spool));
+  return nodePath74.join(nodePath74.dirname(spool), "surfaced", nodePath74.basename(spool));
 }
 function readSurfacedSignatures(projectDirectory, sessionId) {
   return new Set(readJsonlRecords(surfacedMarkerPath(projectDirectory, sessionId), (value) => {
@@ -36168,7 +37073,7 @@ var AGENT_IDS, SELF_REPORT_DIR, MAX_RECORDS_PER_FILE = 200, SELF_REPORT_DEFAULTS
 var init_self_report = __esm(() => {
   init_jsonl_spool();
   AGENT_IDS = new Set(["claude", "cursor", "codex", "unknown"]);
-  SELF_REPORT_DIR = nodePath72.join(".safeword", "self-reports");
+  SELF_REPORT_DIR = nodePath74.join(".safeword", "self-reports");
   SELF_REPORT_DEFAULTS = { capture: true, surface: true, file: true };
   SAFEWORD_SEGMENTS = new Set(["safeword", ".safeword"]);
   INTERNAL_TAIL_PREFIXES = ["packages/cli/", "hooks/", "dist/", "templates/"];
@@ -36190,13 +37095,13 @@ __export(exports_retro_draft_spool, {
   canonicalSignatureForDraft: () => canonicalSignatureForDraft,
   ackFilePath: () => ackFilePath
 });
-import { createHash as createHash15 } from "crypto";
-import nodePath73 from "path";
+import { createHash as createHash16 } from "crypto";
+import nodePath75 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}.jsonl`;
 }
 function draftSpoolPath(projectDirectory, sessionId) {
-  return nodePath73.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+  return nodePath75.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
 }
 function toDraft(value) {
   if (typeof value !== "object" || value === null)
@@ -36248,7 +37153,7 @@ function draftForPosting(draft) {
 function verifyDraftBody(draft) {
   if (draft.bodyDigest === undefined)
     return true;
-  return createHash15("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
+  return createHash16("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
 function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   try {
@@ -36319,17 +37224,17 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR;
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
-  SPOOL_DIR = nodePath73.join(".safeword", "retro-drafts");
+  SPOOL_DIR = nodePath75.join(".safeword", "retro-drafts");
 });
 
 // templates/hooks/lib/dogfood.ts
-import { existsSync as existsSync36, readFileSync as readFileSync47 } from "fs";
-import nodePath74 from "path";
+import { existsSync as existsSync38, readFileSync as readFileSync49 } from "fs";
+import nodePath76 from "path";
 function isDogfoodRepo(projectDirectory) {
-  if (existsSync36(nodePath74.join(projectDirectory, "packages", "cli", "templates")))
+  if (existsSync38(nodePath76.join(projectDirectory, "packages", "cli", "templates")))
     return true;
   try {
-    const pkg2 = JSON.parse(readFileSync47(nodePath74.join(projectDirectory, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync49(nodePath76.join(projectDirectory, "package.json"), "utf8"));
     return pkg2.name === "safeword";
   } catch {
     return false;
@@ -36338,8 +37243,8 @@ function isDogfoodRepo(projectDirectory) {
 var init_dogfood = () => {};
 
 // templates/hooks/lib/retro-debug.ts
-import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync11 } from "fs";
-import nodePath75 from "path";
+import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync12 } from "fs";
+import nodePath77 from "path";
 import process11 from "process";
 function sanitizeDebugValue(key, value) {
   if (value === undefined)
@@ -36374,7 +37279,7 @@ function recordRetroDebugEvent(event, env = process11.env) {
   if (!logPath)
     return;
   try {
-    mkdirSync11(nodePath75.dirname(logPath), { recursive: true });
+    mkdirSync12(nodePath77.dirname(logPath), { recursive: true });
     appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
 `);
   } catch {}
@@ -36411,8 +37316,8 @@ __export(exports_retro_extract, {
   DEFAULT_CLAUDE_RETRO_MODEL: () => DEFAULT_CLAUDE_RETRO_MODEL,
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
-import { readFileSync as readFileSync48, writeFileSync as writeFileSync18 } from "fs";
-import nodePath76 from "path";
+import { readFileSync as readFileSync50, writeFileSync as writeFileSync19 } from "fs";
+import nodePath78 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
     return DEFAULT_CODEX_RETRO_MODEL;
@@ -36422,7 +37327,7 @@ function defaultRetroModel(agent) {
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
-    const raw = readFileSync48(nodePath76.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync50(nodePath78.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const model = parsed2.retro?.model;
     return typeof model === "string" && model.length > 0 ? model : defaultRetroModel(agent);
@@ -36582,10 +37487,10 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
     const digest2 = buildDigest(transcript);
     if (digest2.trim() === "")
       return { ok: false, failureReason: "empty_digest", findings: [] };
-    const schemaPath = dependencies.schemaPath ?? nodePath76.join(dependencies.cwd, "schema.json");
-    const outputPath = dependencies.outputPath ?? nodePath76.join(dependencies.cwd, "output.json");
-    const writeFile2 = dependencies.writeFile ?? writeFileSync18;
-    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync48(path4, "utf8"));
+    const schemaPath = dependencies.schemaPath ?? nodePath78.join(dependencies.cwd, "schema.json");
+    const outputPath = dependencies.outputPath ?? nodePath78.join(dependencies.cwd, "output.json");
+    const writeFile2 = dependencies.writeFile ?? writeFileSync19;
+    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync50(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
     const argv = buildCodexExtractArgv({
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
@@ -42549,9 +43454,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash16 } from "crypto";
+import { createHash as createHash17 } from "crypto";
 function shortHash(material) {
-  return createHash16("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash17("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -43033,9 +43938,9 @@ __export(exports_retro, {
   buildAutoExtractor: () => buildAutoExtractor
 });
 import { spawnSync as spawnSync7 } from "child_process";
-import { mkdirSync as mkdirSync12, mkdtempSync as mkdtempSync5, readFileSync as readFileSync49, writeFileSync as writeFileSync19 } from "fs";
+import { mkdirSync as mkdirSync13, mkdtempSync as mkdtempSync5, readFileSync as readFileSync51, writeFileSync as writeFileSync20 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
-import nodePath77 from "path";
+import nodePath79 from "path";
 import process14 from "process";
 function buildProvenanceResolver(options) {
   return () => {
@@ -43058,7 +43963,7 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const read = dependencies.readFile ?? ((path5) => readFileSync49(path5, "utf8"));
+  const read = dependencies.readFile ?? ((path5) => readFileSync51(path5, "utf8"));
   let transcript;
   try {
     transcript = read(options.transcript);
@@ -43076,7 +43981,7 @@ async function runRetro(options, dependencies) {
       sessionId,
       draftsPassed: drafts.length,
       skippedAppend: drafts.length === 0,
-      spoolFile: nodePath77.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
+      spoolFile: nodePath79.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
     });
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
@@ -43135,13 +44040,13 @@ function prepareCursorExtractionDirectory(directory) {
   const gitInit = spawnSync7("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
-  const cursorDirectory = nodePath77.join(directory, ".cursor");
-  mkdirSync12(cursorDirectory, { recursive: true });
-  writeFileSync19(nodePath77.join(cursorDirectory, "cli.json"), JSON.stringify({
+  const cursorDirectory = nodePath79.join(directory, ".cursor");
+  mkdirSync13(cursorDirectory, { recursive: true });
+  writeFileSync20(nodePath79.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
   }));
-  writeFileSync19(nodePath77.join(cursorDirectory, "sandbox.json"), JSON.stringify({
+  writeFileSync20(nodePath79.join(cursorDirectory, "sandbox.json"), JSON.stringify({
     type: "workspace_readwrite",
     disableTmpWrite: true,
     networkPolicy: { default: "deny", allow: [] }
@@ -43159,20 +44064,20 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
   const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
-  const workDirectory = mkdtempSync5(nodePath77.join(tmpdir3(), "safeword-retro-"));
+  const workDirectory = mkdtempSync5(nodePath79.join(tmpdir3(), "safeword-retro-"));
   if (agent === "codex") {
     return async (transcript) => {
       const result = await runCodexHeadlessExtractionChecked2(transcript, {
         spawn: spawnCodex,
         writeFile: (path5, content) => {
-          writeFileSync19(path5, content);
+          writeFileSync20(path5, content);
         },
-        readFile: (path5) => readFileSync49(path5, "utf8"),
+        readFile: (path5) => readFileSync51(path5, "utf8"),
         env: process14.env,
         cwd: workDirectory,
         model,
-        schemaPath: nodePath77.join(workDirectory, "schema.json"),
-        outputPath: nodePath77.join(workDirectory, "output.json")
+        schemaPath: nodePath79.join(workDirectory, "schema.json"),
+        outputPath: nodePath79.join(workDirectory, "output.json")
       });
       recordRetroDebugEvent({
         event: "retro_cli_extraction",
@@ -43211,8 +44116,8 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
     const result = await runHeadlessExtractionChecked2(transcript, {
       spawn: spawnClaude,
       writeDigest: (digest3) => {
-        const path5 = nodePath77.join(workDirectory, "digest.txt");
-        writeFileSync19(path5, digest3);
+        const path5 = nodePath79.join(workDirectory, "digest.txt");
+        writeFileSync20(path5, digest3);
         return path5;
       },
       env: process14.env,
@@ -43310,7 +44215,7 @@ async function executeRetroCommand(options, cwd) {
     transport,
     sessionId: options.sessionId ?? process14.env.CLAUDE_SESSION_ID ?? "unknown",
     harness: resolveRetroHarness(autoExtractAgent, detectAgent2),
-    readFile: (path5) => readFileSync49(path5, "utf8"),
+    readFile: (path5) => readFileSync51(path5, "utf8"),
     projectDirectory,
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
@@ -43340,7 +44245,7 @@ async function retroCommand(options) {
 }
 function readFindings(path5) {
   try {
-    const parsed2 = JSON.parse(readFileSync49(path5, "utf8"));
+    const parsed2 = JSON.parse(readFileSync51(path5, "utf8"));
     return Array.isArray(parsed2) ? parsed2 : [];
   } catch {
     return [];
@@ -43861,8 +44766,8 @@ __export(exports_boundary, {
   boundary: () => boundary
 });
 import { execFileSync as execFileSync8 } from "child_process";
-import { appendFileSync as appendFileSync3, existsSync as existsSync39, mkdirSync as mkdirSync13 } from "fs";
-import nodePath81 from "path";
+import { appendFileSync as appendFileSync3, existsSync as existsSync41, mkdirSync as mkdirSync14 } from "fs";
+import nodePath83 from "path";
 import process18 from "process";
 function tryGit(cwd, args) {
   try {
@@ -43941,10 +44846,10 @@ function collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures) 
     byTicket.set(ticketPath, change);
   }
   for (const change of byTicket.values()) {
-    const folder = nodePath81.join(cwd, change.anchorScope.ticketPath);
+    const folder = nodePath83.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find((a) => a.artifact === "ticket.md")?.proposed;
-    change.ticketCurrent = staged ?? readFileSafe(nodePath81.join(folder, "ticket.md"));
-    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync39(nodePath81.join(folder, "test-definitions.md"));
+    change.ticketCurrent = staged ?? readFileSafe(nodePath83.join(folder, "ticket.md"));
+    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync41(nodePath83.join(folder, "test-definitions.md"));
     if (at === "push" && change.artifacts.some((a) => a.artifact === "ticket.md")) {
       const path5 = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path5, range.priorRef);
@@ -43962,8 +44867,8 @@ function legalityStepsFor(cwd, path5, priorReference) {
   }));
 }
 function appendAudit(cwd, entry2) {
-  const auditPath = nodePath81.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync13(nodePath81.dirname(auditPath), { recursive: true });
+  const auditPath = nodePath83.join(cwd, AUDIT_RELATIVE_PATH);
+  mkdirSync14(nodePath83.dirname(auditPath), { recursive: true });
   appendFileSync3(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -44007,7 +44912,7 @@ function boundary(options) {
   try {
     const at = options.at === "push" ? "push" : "commit";
     const cwd = process18.cwd();
-    if (existsSync39(nodePath81.join(cwd, ".safeword"))) {
+    if (existsSync41(nodePath83.join(cwd, ".safeword"))) {
       reconcileBoundary(cwd, at);
     }
   } catch (error2) {
@@ -44022,7 +44927,7 @@ var init_boundary = __esm(() => {
   init_configured_paths();
   init_feature_source();
   init_fs();
-  AUDIT_RELATIVE_PATH = nodePath81.join(".safeword", "boundary-audit.jsonl");
+  AUDIT_RELATIVE_PATH = nodePath83.join(".safeword", "boundary-audit.jsonl");
 });
 
 // src/commands/codex-hook.ts
@@ -44035,23 +44940,25 @@ __export(exports_codex_hook, {
 import { execFileSync as execFileSync9, spawnSync as spawnSync8 } from "child_process";
 import {
   cpSync,
-  existsSync as existsSync40,
-  mkdirSync as mkdirSync14,
+  existsSync as existsSync42,
+  mkdirSync as mkdirSync15,
   mkdtempSync as mkdtempSync6,
-  readFileSync as readFileSync51,
-  rmSync as rmSync8,
-  writeFileSync as writeFileSync20
+  readFileSync as readFileSync53,
+  rmSync as rmSync9,
+  writeFileSync as writeFileSync21
 } from "fs";
 import { tmpdir as tmpdir4 } from "os";
-import nodePath82 from "path";
+import nodePath84 from "path";
 import process19 from "process";
 async function readStdin() {
-  let body = "";
-  process19.stdin.setEncoding("utf8");
-  for await (const chunk of process19.stdin) {
-    body += String(chunk);
-  }
-  return body;
+  stdinCache.body ??= (async () => {
+    let body = "";
+    process19.stdin.setEncoding("utf8");
+    for await (const chunk of process19.stdin)
+      body += String(chunk);
+    return body;
+  })();
+  return await stdinCache.body;
 }
 function parseCodexHookInput(raw) {
   try {
@@ -44130,9 +45037,9 @@ function writeCodexIdentityCache(input) {
   if (!sessionId || !skillName)
     return;
   try {
-    const cachePath = nodePath82.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync14(nodePath82.dirname(cachePath), { recursive: true });
-    writeFileSync20(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
+    const cachePath = nodePath84.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
+    mkdirSync15(nodePath84.dirname(cachePath), { recursive: true });
+    writeFileSync21(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
 function rememberCodexRunIdentity(input) {
@@ -44228,22 +45135,22 @@ function readPackagedSafewordInstructions() {
     "Current Safe Word authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
     "These current paths supersede retired Safe Word instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
     "",
-    readFileSync51(instructionsPath, "utf8")
+    readFileSync53(instructionsPath, "utf8")
   ].join(`
 `);
 }
 function findPackagedTemplate(relativePath) {
-  return TEMPLATE_DIRECTORIES.map((directory) => nodePath82.join(directory, relativePath)).find((candidate) => existsSync40(candidate));
+  return TEMPLATE_DIRECTORIES.map((directory) => nodePath84.join(directory, relativePath)).find((candidate) => existsSync42(candidate));
 }
 function resolvePackagedHook(relativePath) {
-  return findPackagedTemplate(nodePath82.join("hooks", relativePath));
+  return findPackagedTemplate(nodePath84.join("hooks", relativePath));
 }
 function normalizeNamespaceRootLabel(label) {
   const normalizedLabel = label.replaceAll("\\", "/");
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
 }
 function packagedNamespaceRootLabel(projectDirectory) {
-  return normalizeNamespaceRootLabel(nodePath82.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
+  return normalizeNamespaceRootLabel(nodePath84.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
 }
 function runPackagedHook(relativePath, rawInput, projectDirectory) {
   const hookPath = resolvePackagedHook(relativePath);
@@ -44258,10 +45165,10 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync6(nodePath82.join(tmpdir4(), "safeword-codex-hook-"));
-      cpSync(nodePath82.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync20(nodePath82.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
-      executableHookPath = nodePath82.join(temporaryHookDirectory, nodePath82.basename(hookPath));
+      temporaryHookDirectory = mkdtempSync6(nodePath84.join(tmpdir4(), "safeword-codex-hook-"));
+      cpSync(nodePath84.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync21(nodePath84.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      executableHookPath = nodePath84.join(temporaryHookDirectory, nodePath84.basename(hookPath));
     }
     const result = spawnSync8("bun", [executableHookPath], {
       cwd: projectDirectory,
@@ -44283,7 +45190,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
     };
   } finally {
     if (temporaryHookDirectory)
-      rmSync8(temporaryHookDirectory, { recursive: true, force: true });
+      rmSync9(temporaryHookDirectory, { recursive: true, force: true });
   }
 }
 function denyForPackagedHookFailure(result) {
@@ -44301,8 +45208,8 @@ function emitPackagedPreToolResult(result) {
   return true;
 }
 function readProjectTextFile(projectDirectory, relativePath) {
-  const filePath = nodePath82.join(projectDirectory, relativePath);
-  return existsSync40(filePath) ? readFileSync51(filePath, "utf8") : undefined;
+  const filePath = nodePath84.join(projectDirectory, relativePath);
+  return existsSync42(filePath) ? readFileSync53(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process19.stdout.write(`${JSON.stringify(output)}
@@ -44349,8 +45256,8 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath82.join(projectDirectory, ".project/tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync40(ticketPath) ? readFileSync51(ticketPath, "utf8") : "";
+  const ticketPath = nodePath84.join(projectDirectory, ".project/tickets", ticketFolder, "ticket.md");
+  const ticketContent = existsSync42(ticketPath) ? readFileSync53(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -44398,13 +45305,13 @@ async function runSessionStart() {
   const input = parseCodexHookInput(rawInput);
   if (!input)
     return;
-  const additionalContext = readPackagedSafewordInstructions();
-  if (!additionalContext)
+  const additionalContext2 = readPackagedSafewordInstructions();
+  if (!additionalContext2)
     return;
   emitAdditionalContext({
     hookSpecificOutput: {
       hookEventName: "SessionStart",
-      additionalContext
+      additionalContext: additionalContext2
     }
   });
 }
@@ -44412,7 +45319,7 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
   if (input?.tool_name !== "apply_patch")
     return [rawInput];
   return extractTargetPaths(input).map((filePath) => JSON.stringify({
-    tool_input: { file_path: nodePath82.resolve(projectDirectory, filePath) }
+    tool_input: { file_path: nodePath84.resolve(projectDirectory, filePath) }
   }));
 }
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
@@ -44444,9 +45351,9 @@ async function runPostToolUse() {
   const skillContext = packagedAdditionalContext(skillNudgeResult, "PostToolUse");
   if (skillContext)
     contexts.push(skillContext);
-  const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
-  if (additionalContext)
-    contexts.push(additionalContext);
+  const additionalContext2 = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
+  if (additionalContext2)
+    contexts.push(additionalContext2);
   if (contexts.length === 0)
     return;
   emitAdditionalContext({
@@ -44512,7 +45419,12 @@ async function codexHook(event, options = {}) {
   }
   if (options.pluginHook === true) {
     try {
-      recordCodexHookProof(normalized, process19.env);
+      const rawInput = await readStdin();
+      const input = parseCodexHookInput(rawInput);
+      recordCodexHookProof(normalized, process19.env, new Date, {
+        projectDirectory: resolveProjectDirectory(),
+        sessionId: input?.session_id
+      });
     } catch {}
     if (legacyCodexEventIsViable(resolveProjectDirectory(), normalized))
       return;
@@ -44520,7 +45432,7 @@ async function codexHook(event, options = {}) {
   await CODEX_HOOK_RUNNERS[normalized]();
 }
 var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE = ` 
-\r	\v\f`, SUPPORTED_CODEX_HOOK_EVENTS, CODEX_HOOK_RUNNERS;
+\r	\v\f`, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
   init_legacy_authority();
   init_profile_proof();
@@ -44530,8 +45442,8 @@ var init_codex_hook = __esm(() => {
   REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
-    nodePath82.resolve(MODULE_DIRECTORY, "../templates"),
-    nodePath82.resolve(MODULE_DIRECTORY, "../../templates")
+    nodePath84.resolve(MODULE_DIRECTORY, "../templates"),
+    nodePath84.resolve(MODULE_DIRECTORY, "../../templates")
   ];
   SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
   SUPPORTED_CODEX_HOOK_EVENTS = new Set([
@@ -44541,6 +45453,7 @@ var init_codex_hook = __esm(() => {
     "stop",
     "user-prompt-submit"
   ]);
+  stdinCache = {};
   CODEX_HOOK_RUNNERS = {
     "post-tool-use": runPostToolUse,
     "pre-tool-use": runPreToolUse,
@@ -46613,8 +47526,8 @@ var program = new Command;
 
 // src/cli-protocol/public-handlers.ts
 init_migration_error();
-import { existsSync as existsSync37, lstatSync as lstatSync13, readFileSync as readFileSync50, readlinkSync as readlinkSync4 } from "fs";
-import nodePath78 from "path";
+import { existsSync as existsSync39, lstatSync as lstatSync13, readFileSync as readFileSync52, readlinkSync as readlinkSync4 } from "fs";
+import nodePath80 from "path";
 
 // src/cli-protocol/online-required.ts
 init_result();
@@ -46939,8 +47852,22 @@ async function setupHandler(invocation) {
 async function claudeInstallHandler(invocation) {
   if (invocation.offline)
     return onlineRequired("claude install");
+  const requestedScope = invocation.options.scope ?? "project";
+  if (requestedScope !== "project" && requestedScope !== "user") {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "CLI_ARGUMENT_INVALID",
+          message: "Claude plugin scope must be either project or user.",
+          retryable: false
+        }
+      ],
+      data: { command: "claude install" }
+    });
+  }
   const { installClaudePlugin: installClaudePlugin2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
-  return installClaudePlugin2(invocation.cwd);
+  return installClaudePlugin2(invocation.cwd, requestedScope);
 }
 async function claudeStatusHandler(invocation) {
   const { observeClaudeStatus: observeClaudeStatus2 } = await Promise.resolve().then(() => (init_status2(), exports_status2));
@@ -46977,15 +47904,15 @@ async function removeHandler(invocation) {
   });
 }
 async function syncConfigHandler(invocation) {
-  const safewordDirectory = nodePath78.join(invocation.cwd, ".safeword");
-  if (!existsSync37(safewordDirectory))
+  const safewordDirectory = nodePath80.join(invocation.cwd, ".safeword");
+  if (!existsSync39(safewordDirectory))
     return notConfigured("project sync-config");
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
   const architecture2 = buildArchitecture2(invocation.cwd);
   const before = inspectConfig2(invocation.cwd, architecture2);
   if (invocation.options.check === true)
     return configCheckResult(before);
-  if (before.matches && existsSync37(nodePath78.join(invocation.cwd, ".dependency-cruiser.cjs"))) {
+  if (before.matches && existsSync39(nodePath80.join(invocation.cwd, ".dependency-cruiser.cjs"))) {
     return createResult({
       state: "healthy",
       data: { command: "project sync-config", in_sync: true }
@@ -47063,7 +47990,7 @@ function architectureModeResult(input) {
       files: [
         ...changed.map((result) => ({
           kind: result.action === "created" ? "create" : "update",
-          target: nodePath78.relative(input.cwd, result.path)
+          target: nodePath80.relative(input.cwd, result.path)
         })),
         ...input.stagedPaths.map((target) => ({ kind: "stage", target, operation: "stage" }))
       ]
@@ -47149,7 +48076,7 @@ function healedDocumentFindings(cwd, changed) {
       }
     ];
   }
-  const healed = changed.map((result) => nodePath78.relative(cwd, result.path)).join(", ");
+  const healed = changed.map((result) => nodePath80.relative(cwd, result.path)).join(", ");
   return [
     {
       code: "ARCHITECTURE_REFRESHED",
@@ -47171,7 +48098,7 @@ function architectureHealResult(input) {
       files: [
         ...input.changed.map((result) => ({
           kind: result.action === "created" ? "create" : "update",
-          target: nodePath78.relative(input.cwd, result.path)
+          target: nodePath80.relative(input.cwd, result.path)
         })),
         ...input.staged.map((effect) => ({ ...effect, operation: "stage" }))
       ]
@@ -47212,7 +48139,7 @@ async function syncLearningsHandler(invocation) {
       files: result.wrote ? [
         {
           kind: "write",
-          target: nodePath78.relative(invocation.cwd, result.indexPath)
+          target: nodePath80.relative(invocation.cwd, result.indexPath)
         }
       ] : []
     },
@@ -47232,7 +48159,7 @@ async function syncTicketsHandler(invocation) {
     effects: {
       files: result.wrote ? [result.indexPath, result.completedIndexPath].map((target) => ({
         kind: "write",
-        target: nodePath78.relative(invocation.cwd, target)
+        target: nodePath80.relative(invocation.cwd, target)
       })) : []
     },
     findings: result.skipped.map((skip) => ({
@@ -47498,8 +48425,8 @@ async function runCodexRecovery(invocation, migration) {
   if (suppliedPlan !== undefined && suppliedPlan !== plan.id)
     return staleCodexPlan(plan);
   const before = recovery.effects.map((effect) => ({
-    path: nodePath78.join(invocation.cwd, effect.path),
-    content: observeFile(nodePath78.join(invocation.cwd, effect.path))
+    path: nodePath80.join(invocation.cwd, effect.path),
+    content: observeFile(nodePath80.join(invocation.cwd, effect.path))
   }));
   let changed;
   try {
@@ -47530,7 +48457,7 @@ async function runCodexFinalization(invocation, migration) {
   if (suppliedPlan !== undefined && suppliedPlan !== current.plan.id) {
     return staleCodexPlan(current.plan);
   }
-  const paths = current.plan.effects.files.map((effect) => nodePath78.join(invocation.cwd, effect.target));
+  const paths = current.plan.effects.files.map((effect) => nodePath80.join(invocation.cwd, effect.target));
   const before = paths.map((path5) => ({ path: path5, snapshot: observeFile(path5) }));
   const changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
     yes: true,
@@ -47582,6 +48509,14 @@ function runCodexInstall(invocation, migration) {
       ]
     }
   };
+}
+async function codexBootstrapHandler(invocation) {
+  const { bootstrapCodexPlugin: bootstrapCodexPlugin2 } = await Promise.resolve().then(() => (init_codex_bootstrap(), exports_codex_bootstrap));
+  let rawInput = "";
+  try {
+    rawInput = readFileSync52(0, "utf8");
+  } catch {}
+  return bootstrapCodexPlugin2(invocation.cwd, rawInput, { offline: invocation.offline });
 }
 function codexFailureCode(error2, message, name, isFinalization) {
   if (error2 instanceof CodexMigrationError)
@@ -47809,8 +48744,8 @@ function retroFailure(message) {
 function retroOptions(invocation, transcript) {
   const findings = stringOption(invocation.options, "findings");
   return {
-    transcript: nodePath78.resolve(invocation.cwd, transcript),
-    findings: findings === undefined ? undefined : nodePath78.resolve(invocation.cwd, findings),
+    transcript: nodePath80.resolve(invocation.cwd, transcript),
+    findings: findings === undefined ? undefined : nodePath80.resolve(invocation.cwd, findings),
     autoExtract: invocation.options.autoExtract === true,
     windowStart: numericOption(invocation.options, "windowStart"),
     sessionId: stringOption(invocation.options, "sessionId")
@@ -47870,7 +48805,7 @@ function snapshotKind(stats) {
 }
 function snapshotBytes(path5, stats) {
   if (stats.isFile())
-    return readFileSync50(path5).toString("base64");
+    return readFileSync52(path5).toString("base64");
   if (stats.isSymbolicLink())
     return Buffer.from(readlinkSync4(path5)).toString("base64");
   return;
@@ -47889,7 +48824,7 @@ function observedFileEffect(cwd, path5, before) {
   const after = observeFile(path5);
   if (JSON.stringify(before) === JSON.stringify(after))
     return [];
-  const target = nodePath78.relative(cwd, path5).split(nodePath78.sep).join("/");
+  const target = nodePath80.relative(cwd, path5).split(nodePath80.sep).join("/");
   if (before === undefined)
     return [{ kind: "create", target }];
   if (after === undefined)
@@ -47957,6 +48892,7 @@ var HANDLERS = {
   "tracker connect": (invocation) => trackerHandler("tracker connect", invocation),
   "codex migrate": (invocation) => codexMutationHandler("codex migrate", invocation),
   "codex install": (invocation) => codexMutationHandler("codex install", invocation),
+  "codex bootstrap": codexBootstrapHandler,
   "codex status": codexStatusHandler,
   "claude install": claudeInstallHandler,
   "claude status": claudeStatusHandler,
@@ -48152,9 +49088,20 @@ var CANONICAL_COMMANDS = [
   command("codex install", "Install the Codex profile plugin", "mutate", {
     networkPolicy: "declared"
   }),
-  command("codex status", "Report Codex plugin and migration state", "observe"),
-  command("claude install", "Install the Claude profile plugin", "mutate", {
+  command("codex bootstrap", "Keep the project Codex plugin available", "mutate", {
     networkPolicy: "declared"
+  }),
+  command("codex status", "Report Codex plugin and migration state", "observe"),
+  command("claude install", "Install the Claude plugin for a project or user", "mutate", {
+    networkPolicy: "declared",
+    commandOptions: [
+      {
+        flags: "--scope <scope>",
+        description: "Install for this project or the current user profile",
+        defaultValue: "project",
+        valueKind: "claude-plugin-scope"
+      }
+    ]
   }),
   command("claude status", "Report Claude plugin and migration state", "observe"),
   command("claude cleanup", "Remove verified legacy Claude project assets", "destructive", {
@@ -48376,7 +49323,7 @@ function createCapabilitiesResult() {
 }
 
 // src/cli-protocol/execute.ts
-import nodePath79 from "path";
+import nodePath81 from "path";
 import process15 from "process";
 
 // src/cli-protocol/policy.ts
@@ -48435,7 +49382,7 @@ function readGlobalOptions(command2) {
   return {
     json: options.json === true,
     noInput: options.noInput === true,
-    cwd: nodePath79.resolve(process15.cwd(), options.cwd ?? "."),
+    cwd: nodePath81.resolve(process15.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,
     verbose: options.verbose === true
@@ -48534,6 +49481,13 @@ function addDefinitionOptions(command2, definition) {
       commanderOption.argParser((value) => {
         if (!isPlanIdentity(value)) {
           throw new InvalidArgumentError("plan identity must be the 64-character hexadecimal id returned by the latest preview");
+        }
+        return value;
+      });
+    } else if (option.valueKind === "claude-plugin-scope") {
+      commanderOption.argParser((value) => {
+        if (value !== "project" && value !== "user") {
+          throw new InvalidArgumentError("scope must be either project or user");
         }
         return value;
       });
@@ -48636,11 +49590,11 @@ init_result();
 // src/self-report-capture.ts
 init_self_report();
 init_version();
-import { existsSync as existsSync38 } from "fs";
-import nodePath80 from "path";
+import { existsSync as existsSync40 } from "fs";
+import nodePath82 from "path";
 import process17 from "process";
 function recordCliCrash(error2, argv = process17.argv, cwd = process17.env.CLAUDE_PROJECT_DIR ?? process17.cwd()) {
-  if (!existsSync38(nodePath80.join(cwd, ".safeword")))
+  if (!existsSync40(nodePath82.join(cwd, ".safeword")))
     return;
   if (!readSelfReportConfig(cwd).capture)
     return;

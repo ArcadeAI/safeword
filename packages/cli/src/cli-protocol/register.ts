@@ -61,6 +61,13 @@ function addDefinitionOptions(command: Command, definition: CommandDefinition): 
         }
         return value;
       });
+    } else if (option.valueKind === 'claude-plugin-scope') {
+      commanderOption.argParser(value => {
+        if (value !== 'project' && value !== 'user') {
+          throw new InvalidArgumentError('scope must be either project or user');
+        }
+        return value;
+      });
     }
     command.addOption(commanderOption);
   }
