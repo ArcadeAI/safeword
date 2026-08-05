@@ -206,9 +206,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Legacy raw JSON remains compatible but is not advertised as canonical
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 442ce7aec
+- [x] GREEN 441650544
+- [x] REFACTOR skip: both raw formats share one compatibility finding helper
 
 ## Rule: unified-first-time-install.TBU2.R6 — Every shipped alias remains executable but is excluded from the canonical quick path
 

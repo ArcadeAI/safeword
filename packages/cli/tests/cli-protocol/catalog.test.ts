@@ -121,7 +121,14 @@ describe('CLI command catalog', () => {
       string,
       unknown
     >;
-    const data = envelope.data as { commands: Record<string, unknown>[] };
+    const data = envelope.data as {
+      commands: Record<string, unknown>[];
+      machine_output: { canonical_option: string; schema_version: number };
+    };
+
+    expect(data.machine_output).toEqual(
+      expect.objectContaining({ canonical_option: '--json', schema_version: 1 }),
+    );
 
     expect(data.commands).toHaveLength(publicCommands.length);
     expect(data.commands.some(command => command.name === 'boundary')).toBe(false);
