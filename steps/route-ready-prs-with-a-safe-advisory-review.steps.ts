@@ -44,6 +44,8 @@ interface AdvisoryReviewWorld {
   receiptBeforeTrigger?: string;
   prerequisiteSamples?: number;
   prerequisitesConfigured?: boolean;
+  protectedCommentBefore?: string;
+  protectedCommentId?: number;
   requiredPrerequisites?: string[];
   currentHead?: string;
   missingPrerequisite?: string;
@@ -352,6 +354,36 @@ Given(
         id: 12,
       },
     ];
+  },
+);
+
+Given('a canonical bot-authored marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
+  this.commentMutations = [];
+  this.receiptComments = [
+    {
+      authorType: 'Bot',
+      body: `${RECEIPT_MARKER}\ncanonical`,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      id: 10,
+    },
+  ];
+});
+
+Given(
+  /^a (user-authored comment containing the exact marker|bot-authored comment containing a malformed marker) also exists$/,
+  function (this: AdvisoryReviewWorld, protectedComment: string) {
+    this.protectedCommentId = 20;
+    this.protectedCommentBefore =
+      protectedComment === 'user-authored comment containing the exact marker'
+        ? `${RECEIPT_MARKER}\nuser-authored content`
+        : `${RECEIPT_MARKER} malformed\nbot-authored content`;
+    this.receiptComments?.push({
+      authorType:
+        protectedComment === 'user-authored comment containing the exact marker' ? 'User' : 'Bot',
+      body: this.protectedCommentBefore,
+      createdAt: '2026-01-02T00:00:00.000Z',
+      id: this.protectedCommentId,
+    });
   },
 );
 
@@ -776,6 +808,25 @@ Then(
     assert.deepEqual(this.commentMutations?.slice(1), ['delete:11', 'delete:12']);
   },
 );
+
+Then('the canonical marker-owned receipt is updated', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.commentMutations?.[0], 'update:10');
+  assert.match(
+    this.receiptComments?.find(comment => comment.id === 10)?.body ?? '',
+    /current result/,
+  );
+});
+
+Then('the protected comment is neither updated nor deleted', function (this: AdvisoryReviewWorld) {
+  assert.equal(
+    this.receiptComments?.find(comment => comment.id === this.protectedCommentId)?.body,
+    this.protectedCommentBefore,
+  );
+  assert.equal(
+    this.commentMutations?.some(mutation => mutation.endsWith(`:${this.protectedCommentId}`)),
+    false,
+  );
+});
 
 Then(
   'revision B requires a full fresh review before a current route is published',
