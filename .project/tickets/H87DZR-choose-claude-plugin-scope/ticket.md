@@ -2,8 +2,8 @@
 id: H87DZR
 slug: choose-claude-plugin-scope
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - make project-scoped Claude plugin installation the default
   - preserve explicit user-scoped installation as a supported option
@@ -28,8 +28,9 @@ phase_anchors:
   - plan-implementation: .project/tickets/H87DZR-choose-claude-plugin-scope/impl-plan.md
   - implement: .project/tickets/H87DZR-choose-claude-plugin-scope/impl-plan.md
   - verify: .project/tickets/H87DZR-choose-claude-plugin-scope/test-definitions.md
+  - done: .project/tickets/H87DZR-choose-claude-plugin-scope/verify.md
 created: 2026-08-03T03:21:19.035Z
-last_modified: 2026-08-03T03:55:55.000Z
+last_modified: 2026-08-05T06:30:19Z
 ---
 
 # Choose where Safeword runs in Claude
@@ -40,6 +41,7 @@ last_modified: 2026-08-03T03:55:55.000Z
 
 ## Work Log
 
+- 2026-08-05T06:30:19Z Complete: The scoped Claude lifecycle, overlap behavior, preservation rules, and cleanup authority meet every done condition with the verification and independent-review evidence recorded in `verify.md`.
 - 2026-08-03T03:21:19.035Z Started: Created ticket H87DZR
 - 2026-08-03T03:21:19.035Z Intake converged from the user's explicit approval: project scope is the safe default, user scope remains an escape hatch, and neither scope is removed implicitly.
 - 2026-08-03T03:26:00.000Z Phase: intake → define-behavior. Two persona jobs and five rules capture scope choice, preservation, idempotence, overlap visibility, and cleanup safety.

@@ -2,7 +2,7 @@
 id: FA3KG9
 slug: keep-native-plugins-current
 type: feature
-phase: implement
+phase: verify
 phase_skips:
   - "intake: Backfilled after the maintainer-led issue 1785 investigation and accepted scope discussion already occurred in this task."
   - "define-behavior: Backfilled after the maintainer accepted the dual-host stable-channel and non-blocking Codex behavior in this task."
@@ -39,8 +39,15 @@ done_when:
   - each later developer auto-enrolls without repository churn and receives a prominent warning until a new task proves native activation
   - an unready Codex task reports the problem at startup with one understandable next action but does not prevent work
   - concurrent project, Codex-profile, and release-channel operations converge without partial state or stable-version rollback
+phase_anchors:
+  - define-behavior: .project/tickets/FA3KG9-keep-native-plugins-current/spec.md
+  - scenario-gate: packages/cli/features/keep-native-plugins-current.feature
+  - plan-implementation: .project/tickets/FA3KG9-keep-native-plugins-current/impl-plan.md
+  - implement: .project/tickets/FA3KG9-keep-native-plugins-current/impl-plan.md
+  - verify: .project/tickets/FA3KG9-keep-native-plugins-current/test-definitions.md
+  - done: .project/tickets/FA3KG9-keep-native-plugins-current/verify.md
 created: 2026-08-04T12:41:13.239Z
-last_modified: 2026-08-04T12:41:13.239Z
+last_modified: 2026-08-05T06:30:19Z
 ---
 
 # Keep native plugins current for builders
@@ -51,6 +58,7 @@ last_modified: 2026-08-04T12:41:13.239Z
 
 ## Work Log
 
+- 2026-08-05T06:30:19Z Phase: implement → verify. The full verification and audit evidence is recorded in `verify.md`; the subsequent release pass also fixed stable-version rejection of historical prerelease/build marketplace tags.
 - 2026-08-04T12:41:13.239Z Started: Created ticket FA3KG9
 - 2026-08-04T12:45:00.000Z Intake research: Claude supports per-marketplace auto-update and intentionally requires `/reload-plugins` or a later launch for an already-running session. Codex 0.146.0 and current upstream source auto-upgrade configured Git marketplaces at startup and refresh installed caches. Chose a release-promoted `stable` ref over package-hook updates or tracking `main`; RC paths remain exact-tagged.
 - 2026-08-04T12:45:00.000Z Isolated host probe: Codex treats the same repository with a new ref as a different source and requires remove/re-add; marketplace removal removes the installed cache but preserves the enabled plugin declaration, allowing re-add plus install to restore it.
