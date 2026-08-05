@@ -96,7 +96,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 8ed19dc7d
 - [x] GREEN 50a9830d4
-- [ ] REFACTOR
+- [x] REFACTOR skip: GREEN already extracted reviewed-receipt derivation from orchestration
 
 ### Scenario: Evidence over budget cannot look complete or ready
 
