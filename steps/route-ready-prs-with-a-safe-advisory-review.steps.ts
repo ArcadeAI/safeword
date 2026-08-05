@@ -34,6 +34,7 @@ interface AdvisoryReviewWorld {
   changedArtifactPath?: string;
   evidenceArtifacts?: Array<{ byteLength: number; path: string }>;
   finding?: { consequence: string; path: string };
+  evidenceState?: string;
   maxTotalBytes?: number;
   receiptBeforeTrigger?: string;
   prerequisiteSamples?: number;
@@ -220,6 +221,13 @@ Given(
   },
 );
 
+Given(/^the current review is (.+)$/, function (this: AdvisoryReviewWorld, state: string) {
+  this.currentHead = 'revision A';
+  this.evidenceState = state;
+  this.prerequisites = 'passed';
+  this.ready = true;
+});
+
 Given('a marker-owned receipt already exists', function (this: AdvisoryReviewWorld) {
   this.scheduledReceiptId = 43;
   this.receipts = [
@@ -383,10 +391,16 @@ Then('the published state is `incomplete`', function (this: AdvisoryReviewWorld)
   assert.equal(this.receipts?.[0]?.runState, 'incomplete');
 });
 
-Then('the route is `needs a human`', function (this: AdvisoryReviewWorld) {
-  const receipt = this.receipts?.[0];
-  assert.equal(receipt && 'route' in receipt && receipt.route, 'needs_human');
-});
+Then(
+  /^the route is `(looks ready|needs a human)`$/,
+  function (this: AdvisoryReviewWorld, route: string) {
+    const receipt = this.receipts?.[0];
+    assert.equal(
+      receipt && 'route' in receipt && receipt.route,
+      route === 'looks ready' ? 'looks_ready' : 'needs_human',
+    );
+  },
+);
 
 When(
   'Safeword assembles the bounded integrity evidence',
@@ -470,6 +484,56 @@ When('Safeword derives the route', async function (this: AdvisoryReviewWorld) {
     },
   });
 });
+
+When('Safeword derives the advisory route', async function (this: AdvisoryReviewWorld) {
+  this.receipts = [];
+  const state = this.evidenceState ?? '';
+  this.outcome = await reviewPullRequest({
+    readPullRequest: async () => ({
+      headSha: this.currentHead ?? '',
+      prerequisitesConfigured: true,
+      prerequisites: this.prerequisites ?? 'pending',
+      ready: this.ready ?? false,
+    }),
+    inspect: async () => {
+      let runState: 'failed' | 'stale' | undefined;
+      if (state.includes('reviewer or tool error')) runState = 'failed';
+      else if (state.includes('no longer current')) runState = 'stale';
+
+      return {
+        artifacts: [
+          {
+            byteLength: state === 'missing required evidence' ? 101 : 10,
+            kind: 'text' as const,
+            path: 'src/current.ts',
+          },
+        ],
+        consequentialFindings: state === 'complete with a consequential finding' ? 1 : 0,
+        findings: state.includes('finding')
+          ? [
+              {
+                consequence: 'Observed review finding.',
+                path: 'src/current.ts',
+              },
+            ]
+          : [],
+        maxTotalBytes: state === 'missing required evidence' ? 100 : undefined,
+        runState,
+        unknowns: state === 'complete with an unresolved unknown' ? ['Unresolved evidence'] : [],
+      };
+    },
+    publish: async receipt => {
+      this.receipts?.splice(0, this.receipts.length, receipt);
+    },
+  });
+});
+
+Then(
+  /^the published state is (complete|incomplete|failed|stale)$/,
+  function (this: AdvisoryReviewWorld, runState: string) {
+    assert.equal(this.receipts?.[0]?.runState, runState);
+  },
+);
 
 Then('the receipt associates the finding with that artifact', function (this: AdvisoryReviewWorld) {
   assert.equal(this.receipts?.[0]?.findings?.[0]?.path, this.changedArtifactPath);
