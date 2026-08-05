@@ -31,6 +31,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   cursorBefore?: string;
   hostEnvironment?: NodeJS.ProcessEnv;
   fixtureBefore?: string;
+  selectedAgents?: string[];
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -273,3 +274,44 @@ Then('an online next action is reported', function (this: UnifiedInstallWorld) {
     true,
   );
 });
+
+Given(
+  'an unconfigured project with all agent hosts available',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+When(
+  'the user installs with agents {string}',
+  function (this: UnifiedInstallWorld, agents: string) {
+    this.selectedAgents = agents.split(',');
+    runInstall(this, ['--agents', agents]);
+  },
+);
+
+Then('core project configuration is installed', function (this: UnifiedInstallWorld) {
+  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+});
+
+Then(
+  'exactly the {string} integrations are changed',
+  function (this: UnifiedInstallWorld, agents: string) {
+    const selected = new Set(agents.split(','));
+    assert.equal(
+      readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'),
+      selected.has('claude') ? 'enabled' : 'absent',
+    );
+    assert.equal(
+      readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'),
+      selected.has('codex') ? 'enabled' : 'absent',
+    );
+    const project = requiredPath(this.projectRoot, 'project root');
+    assert.equal(
+      directoryDigest(nodePath.join(project, '.cursor')) === this.cursorBefore,
+      !selected.has('cursor'),
+    );
+  },
+);

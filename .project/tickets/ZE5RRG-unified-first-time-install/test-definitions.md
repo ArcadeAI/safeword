@@ -15,14 +15,14 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Offline default install refuses before changing any surface
 
 - [x] RED skip: offline preflight was implemented atomically in 77a6d027b
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN dce2cfd9a
+- [x] REFACTOR dce2cfd9a
 
 ## Rule: unified-first-time-install.TBU1.R2 — Agent selectors narrow installation to exactly the selected integrations
 
 ### Scenario: A valid selector changes only the requested integrations
 
-- [ ] RED
+- [x] RED skip: selector partitioning was implemented atomically in 77a6d027b
 - [ ] GREEN
 - [ ] REFACTOR
 
