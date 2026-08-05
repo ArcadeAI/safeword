@@ -21,7 +21,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A pending prerequisite publishes a visible non-run receipt
 
 - [x] RED 58459aa45
-- [ ] GREEN
+- [x] GREEN 0cb1af846
 - [ ] REFACTOR
 
 ### Scenario: A scheduled sweep reviews a pending head after prerequisites settle
