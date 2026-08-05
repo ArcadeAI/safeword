@@ -34,6 +34,8 @@ interface UnifiedInstallWorld extends SafewordWorld {
   selectedAgents?: string[];
   statusEnvelope?: Record<string, unknown>;
   doctorEnvelope?: Record<string, unknown>;
+  planId?: string;
+  unrelatedProfilePath?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -464,3 +466,60 @@ Then(
 Then('no state is changed', function (this: UnifiedInstallWorld) {
   assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
 });
+
+Given(
+  'an exact uninstall plan and unrelated project and profile content',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runInstall(this, []);
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    const project = requiredPath(this.projectRoot, 'project root');
+    writeFileSync(nodePath.join(project, 'CUSTOM.md'), 'customer project content\n');
+    const profilePath = nodePath.join(
+      requiredPath(this.fixtureRoot, 'fixture root'),
+      'profile/customer.txt',
+    );
+    writeFileSync(profilePath, 'customer profile content\n');
+    this.unrelatedProfilePath = profilePath;
+    runRawCommand(this, ['uninstall']);
+    const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
+    this.planId = envelope.data?.plan?.id;
+    assert.match(this.planId ?? '', /^[a-f\d]{64}$/u);
+  },
+);
+
+When('the user confirms that exact plan', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['uninstall', '--yes', '--plan', requiredPath(this.planId, 'plan id')]);
+});
+
+Then('only recognized Safe Word-owned state is removed', function (this: UnifiedInstallWorld) {
+  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), false);
+  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
+  assert.equal(
+    readFileSync(nodePath.join(project, 'CUSTOM.md'), 'utf8'),
+    'customer project content\n',
+  );
+  assert.equal(
+    readFileSync(requiredPath(this.unrelatedProfilePath, 'profile customer content'), 'utf8'),
+    'customer profile content\n',
+  );
+  assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
+});
+
+Then(
+  'backup and recovery actions are reported where required',
+  function (this: UnifiedInstallWorld) {
+    const envelope = JSON.parse(this.result.stdout) as { recovery?: { command?: string }[] };
+    assert.equal(
+      envelope.recovery?.some(action => action.command === 'safeword install --agents=claude'),
+      true,
+    );
+    assert.equal(
+      envelope.recovery?.some(action => action.command === 'safeword install --agents=codex'),
+      true,
+    );
+  },
+);
