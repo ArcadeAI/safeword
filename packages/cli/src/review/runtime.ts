@@ -157,9 +157,29 @@ export class ReviewRuntimeError extends Error {
   }
 }
 
-function timeoutMilliseconds(): number {
-  const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : 120_000;
+/**
+ * How long one review attempt may take. Flat, not derived from packet size:
+ * across 91 real review runs, successful reviews finished in 47 seconds at the
+ * median and 75 at the slowest, and duration tracked how much the reviewer
+ * wrote rather than how much it read — so there was no size signal to model.
+ */
+const DEFAULT_ATTEMPT_DEADLINE_MS = 300_000;
+
+/**
+ * The ceiling on any single attempt. Every caller reaches this command through
+ * an agent tool capped at 600 seconds, so a longer deadline would be killed
+ * mid-flight instead of honoured — leaving a dead process and no verdict.
+ */
+const RUN_BOUND_MS = 540_000;
+
+export function attemptDeadlineMs(): number {
+  const raw = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
+  // `Number('')` and `Number('  ')` are 0, and `Number('90s')` is NaN — both
+  // fall through to the default rather than silently shortening a review.
+  const configured = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(configured) && configured > 0
+    ? Math.min(configured, RUN_BOUND_MS)
+    : DEFAULT_ATTEMPT_DEADLINE_MS;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -479,7 +499,7 @@ export async function runHeadlessReviewer(
   untrustedRoot: string = process.cwd(),
   model?: string,
 ): Promise<UnverifiedReviewerOutput> {
-  const deadline = Date.now() + timeoutMilliseconds();
+  const deadline = Date.now() + attemptDeadlineMs();
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError(
