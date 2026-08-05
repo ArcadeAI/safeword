@@ -129,7 +129,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Evidence state conservatively determines the advisory route
 
 - [x] RED ae31fcc59
-- [ ] GREEN
+- [x] GREEN 736d20e4f
 - [ ] REFACTOR
 
 ### Scenario: Competing run conditions use conservative state precedence
