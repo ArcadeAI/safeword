@@ -20,10 +20,12 @@ type ObservableReceipt = PublishedReceipt & {
   missingChecks?: string[];
   nextAction?: string;
   status?: string;
+  unknowns?: string[];
 };
 
 interface AdvisoryReviewWorld {
   attempts?: number;
+  binaryArtifactPath?: string;
   changedArtifactKind?: 'binary' | 'text';
   changedArtifactPath?: string;
   receiptBeforeTrigger?: string;
@@ -139,6 +141,18 @@ Given(
   },
 );
 
+Given(
+  /^a ready pull request changes clean text at `([^`]+)` and binary `([^`]+)`$/,
+  function (this: AdvisoryReviewWorld, textPath: string, binaryPath: string) {
+    this.binaryArtifactPath = binaryPath;
+    this.changedArtifactKind = 'text';
+    this.changedArtifactPath = textPath;
+    this.currentHead = 'revision A';
+    this.prerequisites = 'passed';
+    this.ready = true;
+  },
+);
+
 Given('a marker-owned receipt already exists', function (this: AdvisoryReviewWorld) {
   this.scheduledReceiptId = 43;
   this.receipts = [
@@ -202,11 +216,11 @@ When('Safeword completes the advisory review', async function (this: AdvisoryRev
     }),
     inspect: async () => {
       this.attempts = (this.attempts ?? 0) + 1;
+      const binaryPath =
+        this.binaryArtifactPath ??
+        (this.changedArtifactKind === 'binary' ? this.changedArtifactPath : undefined);
       return {
-        artifacts:
-          this.changedArtifactKind === 'binary' && this.changedArtifactPath
-            ? [{ kind: 'non_text' as const, path: this.changedArtifactPath }]
-            : undefined,
+        artifacts: binaryPath ? [{ kind: 'non_text' as const, path: binaryPath }] : undefined,
         consequentialFindings: 0,
         coverage:
           this.changedArtifactKind === 'text' && this.changedArtifactPath
@@ -269,6 +283,30 @@ Then(
     assert.notEqual(coverage?.status, 'integrity_reviewed');
   },
 );
+
+Then(
+  /^`([^`]+)` is marked integrity-reviewed$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    const coverage = this.receipts?.[0]?.coverage?.find(entry => entry.path === path);
+    assert.equal(coverage?.status, 'integrity_reviewed');
+  },
+);
+
+Then(
+  /^`([^`]+)` is marked skipped as non-text without becoming an unknown$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    const receipt = this.receipts?.[0];
+    const coverage = receipt?.coverage?.find(entry => entry.path === path);
+    assert.equal(coverage?.status, 'skipped');
+    assert.equal(coverage?.skipReason, 'non_text');
+    assert.deepEqual(receipt?.unknowns, []);
+  },
+);
+
+Then('the complete current route is `looks ready`', function (this: AdvisoryReviewWorld) {
+  const receipt = this.receipts?.[0];
+  assert.equal(receipt && 'route' in receipt && receipt.route, 'looks_ready');
+});
 
 When('Safeword evaluates review eligibility', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
