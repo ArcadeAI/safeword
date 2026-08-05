@@ -120,7 +120,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 _Selected live-model evaluation; excluded from deterministic CI._
 
-- [x] RED skip: live-model scenario is excluded from the deterministic implementation lane
+- [x] RED b758dfd64
 - [ ] GREEN
 - [ ] REFACTOR
 
