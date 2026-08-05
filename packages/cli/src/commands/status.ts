@@ -12,6 +12,7 @@ import {
 import { checkHealth } from '../health.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
+import { projectLifecycleSchema } from './lifecycle.js';
 
 function healthFindings(
   values: readonly string[],
@@ -80,9 +81,10 @@ function projectVersionFinding(
 
 export async function observeStatus(
   cwd: string,
+  agents: readonly AgentIntegration[] = ['claude', 'codex'],
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<CliResult> {
-  const result = await observeProjectStatus(cwd);
+  const result = await observeProjectStatus(cwd, agents);
   return withGlobalGuidance(result, environment);
 }
 
@@ -108,7 +110,7 @@ export async function observeLifecycleSurfaces(
   agents: readonly AgentIntegration[],
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<readonly LifecycleSurfaceObservation[]> {
-  const project = await observeStatus(cwd, environment);
+  const project = await observeStatus(cwd, agents, environment);
   const surfaces: LifecycleSurfaceObservation[] = [{ name: 'project', result: project }];
   if (!projectIsConfigured(project)) return surfaces;
 
@@ -198,9 +200,12 @@ function withGlobalGuidance(result: CliResult, environment: NodeJS.ProcessEnv): 
   };
 }
 
-async function observeProjectStatus(cwd: string): Promise<CliResult> {
+async function observeProjectStatus(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+): Promise<CliResult> {
   try {
-    const health = await checkHealth(cwd);
+    const health = await checkHealth(cwd, { schema: projectLifecycleSchema(cwd, agents) });
     if (!health.configured) {
       return createResult({
         state: 'action_required',

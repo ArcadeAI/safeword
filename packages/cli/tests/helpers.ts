@@ -396,7 +396,19 @@ function warnIfDistributionStale(): void {
 function projectFixtureArguments(args: string[]): string[] {
   // Most suites use setup/upgrade only to prepare project files. Keep those fixtures
   // independent of installed hosts; unified-install scenarios invoke the CLI directly.
-  return ['setup', 'upgrade'].includes(args[0] ?? '') && !args.includes('--agents')
+  const hasAgentSelection = args.some(
+    argument => argument === '--agents' || argument.startsWith('--agents='),
+  );
+  const projectLifecycleCommands = [
+    'setup',
+    'upgrade',
+    'check',
+    'status',
+    'doctor',
+    'diff',
+    'plan',
+  ];
+  return projectLifecycleCommands.includes(args[0] ?? '') && !hasAgentSelection
     ? [...args, '--agents', 'none']
     : args;
 }

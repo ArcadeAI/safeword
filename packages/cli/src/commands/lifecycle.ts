@@ -25,7 +25,7 @@ interface SurfaceResult {
   readonly result: CliResult;
 }
 
-function projectLifecycleSchema(cwd: string, agents: readonly string[]): SafewordSchema {
+export function projectLifecycleSchema(cwd: string, agents: readonly string[]): SafewordSchema {
   const deliverySchema = schemaForCodexDelivery(cwd, schemaForClaudeDelivery(cwd));
   return schemaForProjectSurfaces(deliverySchema, [
     'core',

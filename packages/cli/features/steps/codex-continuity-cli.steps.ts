@@ -540,6 +540,13 @@ When('the builder migrates Codex', function (this: ContinuityCliWorld) {
   run(this, ['codex', 'migrate']);
 });
 
+When(
+  'the builder upgrades only the Safe Word project with legacy Codex protection',
+  function (this: ContinuityCliWorld) {
+    run(this, ['upgrade', '--agents', 'none', '--no-migrate-namespace']);
+  },
+);
+
 When('the builder migrates Codex and installation succeeds', function (this: ContinuityCliWorld) {
   run(this, ['codex', 'migrate']);
 });

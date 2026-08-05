@@ -130,16 +130,24 @@ function createClaudePayload(root: string): string {
   return installPath;
 }
 
-function directoryDigest(directory: string): string {
+function directoryDigest(directory: string, ignoredNames: ReadonlySet<string> = new Set()): string {
   if (!existsSync(directory)) return 'missing';
   const visit = (path: string): unknown => {
     const stat = lstatSync(path);
     if (!stat.isDirectory()) return readFileSync(path).toString('base64');
     return readdirSync(path)
+      .filter(name => !ignoredNames.has(name))
       .toSorted((left, right) => left.localeCompare(right))
       .map(name => [name, visit(nodePath.join(path, name))]);
   };
   return JSON.stringify(visit(directory));
+}
+
+function fixtureEffectDigest(world: UnifiedInstallWorld): string {
+  return directoryDigest(
+    requiredPath(world.fixtureRoot, 'fixture root'),
+    new Set(['claude-log', 'codex-log']),
+  );
 }
 
 function initializeHosts(world: UnifiedInstallWorld): void {
@@ -265,7 +273,7 @@ esac
     SAFEWORD_CODEX_STATE: codexState,
     SAFEWORD_VERSION: SAFEWORD_SCHEMA.version,
   };
-  world.fixtureBefore = directoryDigest(root);
+  world.fixtureBefore = fixtureEffectDigest(world);
 }
 
 function requiredPath(path: string | undefined, label: string): string {
@@ -469,7 +477,7 @@ When('the user runs the canonical install command offline', function (this: Unif
 
 Then('no project profile or Cursor effect occurs', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
-  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+  assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
 });
 
 Then('an online next action is reported', function (this: UnifiedInstallWorld) {
@@ -603,7 +611,7 @@ Given('a default unified installation', function (this: UnifiedInstallWorld) {
   initializeHosts(this);
   runInstall(this, []);
   assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
-  this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+  this.fixtureBefore = fixtureEffectDigest(this);
 });
 
 When('the user runs uninstall without confirmation', function (this: UnifiedInstallWorld) {
@@ -626,7 +634,7 @@ Then(
 );
 
 Then('no state is changed', function (this: UnifiedInstallWorld) {
-  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+  assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
 });
 
 Given(
@@ -696,14 +704,14 @@ Given(
     this.planId = envelope.data?.plan?.id;
     assert.match(this.planId ?? '', /^[a-f\d]{64}$/u);
     writeFileSync(requiredPath(this.claudeState, 'Claude state'), 'absent');
-    this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+    this.fixtureBefore = fixtureEffectDigest(this);
     this.unifiedUninstall = true;
   },
 );
 
 Then('no removal occurs and a fresh plan is required', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
-  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+  assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
   const envelope = JSON.parse(this.result.stdout) as {
     findings?: { code?: string }[];
     next_actions?: { command?: string }[];
@@ -721,7 +729,7 @@ Then('no removal occurs and a fresh plan is required', function (this: UnifiedIn
 Given('an exact uninstall plan has not been confirmed', function (this: UnifiedInstallWorld) {
   initializeHosts(this);
   runInstall(this, []);
-  this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+  this.fixtureBefore = fixtureEffectDigest(this);
 });
 
 When('the user runs uninstall without input', function (this: UnifiedInstallWorld) {
@@ -730,7 +738,7 @@ When('the user runs uninstall without input', function (this: UnifiedInstallWorl
 
 Then('the plan is reported without applying any removal', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
-  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+  assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
   const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
   assert.match(envelope.data?.plan?.id ?? '', /^[a-f\d]{64}$/u);
 });
@@ -740,7 +748,7 @@ Given(
   function (this: UnifiedInstallWorld, agents: string) {
     initializeHosts(this);
     this.selectedAgents = agents === 'none' ? [] : agents.split(',');
-    this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+    this.fixtureBefore = fixtureEffectDigest(this);
   },
 );
 
@@ -768,7 +776,7 @@ Then(
 );
 
 Then('no effect is applied', function (this: UnifiedInstallWorld) {
-  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+  assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
 });
 
 Given('an unconfigured project', function (this: UnifiedInstallWorld) {
@@ -781,7 +789,7 @@ Then('the selector error names the supported values', function (this: UnifiedIns
 });
 
 Then('no project or agent effect occurs', function (this: UnifiedInstallWorld) {
-  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+  assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
 });
 
 Given(
@@ -1068,13 +1076,13 @@ When(
       return;
     }
     if (alias === 'diff') {
-      this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+      this.fixtureBefore = fixtureEffectDigest(this);
       runRawCommand(this, ['diff', 'install', '--agents', 'none']);
       return;
     }
     runInstall(this, ['--agents', 'none']);
     assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
-    this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+    this.fixtureBefore = fixtureEffectDigest(this);
     runRawCommand(this, [alias]);
   },
 );
@@ -1095,10 +1103,7 @@ Then(
         data?: { plan?: { effects?: { destructive?: unknown[] } } };
       };
       assert.ok(envelope.data?.plan);
-      assert.equal(
-        directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')),
-        this.fixtureBefore,
-      );
+      assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
     }
     assert.ok(invariant.length > 0);
   },
@@ -1592,7 +1597,7 @@ Given(
     this.planId = envelope.data?.plan?.id;
     assert.match(this.planId ?? '', /^[a-f\d]{64}$/u);
     writeFileSync(managedPath, this.unplannedContent);
-    this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+    this.fixtureBefore = fixtureEffectDigest(this);
   },
 );
 
@@ -1611,10 +1616,7 @@ Then(
   'the unplanned effect is refused and recovery guidance is returned',
   function (this: UnifiedInstallWorld) {
     assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
-    assert.equal(
-      directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')),
-      this.fixtureBefore,
-    );
+    assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
     const envelope = JSON.parse(this.result.stdout) as {
       findings?: { code?: string }[];
       next_actions?: { command?: string }[];

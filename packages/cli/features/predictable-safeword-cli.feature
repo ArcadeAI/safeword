@@ -2,10 +2,10 @@
 Feature: One predictable Safeword CLI
 
   Rule: predictable-safeword-cli.TBU1.R1 — The default command reports project health without changing the project
-    Scenario: Bare Safeword reports a healthy project
-      Given a configured healthy project
+    Scenario: Bare Safeword remains read-only after project-only installation
+      Given a configured project without native profile plugins
       When the user runs Safeword with no command
-      Then the result reports healthy state and no changes
+      Then the result reports action required without changes
 
     Scenario: Bare Safeword recommends planning drift
       Given a configured project with managed drift

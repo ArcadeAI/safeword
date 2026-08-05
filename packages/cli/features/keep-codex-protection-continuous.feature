@@ -6,7 +6,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario: Upgrade preserves recognized legacy protection
       Given a configured project with recognized legacy Codex hooks and workflow assets
-      When the builder upgrades Safe Word
+      When the builder upgrades only the Safe Word project with legacy Codex protection
       Then the legacy Codex assets remain unchanged and migration is the next action
 
     Scenario: Plugin installation failure leaves repository protection unchanged

@@ -292,7 +292,7 @@ globalThis.fetch = (() => {
   world.witnessLog = log;
 }
 
-Given('a configured healthy project', function (this: PredictableCliWorld) {
+Given('a configured project without native profile plugins', function (this: PredictableCliWorld) {
   setupProject(this);
 });
 
@@ -310,9 +310,9 @@ When('the user runs Safeword with no command', function (this: PredictableCliWor
   runCli(this, ['--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
 });
 
-Then('the result reports healthy state and no changes', function (this: PredictableCliWorld) {
+Then('the result reports action required without changes', function (this: PredictableCliWorld) {
   const result = wireResult(this);
-  assert.equal(result.state, 'healthy');
+  assert.equal(result.state, 'action_required');
   assert.equal(result.changed, false);
 });
 
@@ -744,7 +744,12 @@ When('status is run with cwd selecting the second project', function (this: Pred
 Then(
   'the result describes only the second project and the parent process cwd is unchanged',
   function (this: PredictableCliWorld) {
-    assert.equal((wireResult(this).data as { configured: boolean }).configured, false);
+    const data = wireResult(this).data as {
+      surfaces: { name: string; state: string }[];
+    };
+    assert.deepEqual(data.surfaces, [
+      { name: 'project', selected: true, state: 'action_required' },
+    ]);
     assert.equal(process.cwd(), this.parentCwd);
   },
 );

@@ -79,13 +79,11 @@ recoverable backup; if status reports `recovery_required`, run
 
 - `.safeword/SAFEWORD.md` - Global patterns and workflows
 - `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
-- `.safeword/skills/` - Canonical project-local skill references retained for Cursor
+- `.safeword/skills/` - Canonical project-local skill references when Cursor is selected
 - `.safeword/hooks/` - Auto-linting, quality review hooks
-- Safe Word Claude plugin - User-scoped native workflows and hooks; install it with `safeword claude install`
-- Safe Word Codex plugin - Profile-scoped skills and hooks; install it with `safeword codex install`
-- `.cursor/hooks.json` - Hook configuration for Cursor
-- `.cursor/rules/` - Behavior rules for Cursor
-- `.cursor/commands/` - Slash commands for Cursor
+- Safe Word Claude plugin - User-scoped native workflows and hooks installed by default
+- Safe Word Codex plugin - Profile-scoped skills and hooks installed by default
+- `.cursor/hooks.json`, `.cursor/rules/`, and `.cursor/commands/` - Created only with `--agents=cursor`
 
 **Commit these to your repo** for team consistency.
 
@@ -95,7 +93,7 @@ recoverable backup; if status reports `recovery_required`, run
 
 **Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.
 
-**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Fresh setup delivers Claude workflows through the user-scoped native plugin and does not materialize legacy `.claude` hooks, skills, commands, or agents. Existing legacy projects keep that protection until verified plugin execution and explicit cleanup. Setup does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
+**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Fresh installation delivers Claude workflows through the user-scoped native plugin and does not materialize legacy `.claude` hooks, skills, commands, or agents. Existing legacy projects keep that protection until verified plugin execution and explicit cleanup. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
@@ -282,7 +280,7 @@ Key directories created in your project:
 
 Codex hooks live in the Safe Word plugin and run from the package with
 `bunx --bun safeword@<plugin-version> hook codex <event>`. Install and verify
-the profile-scoped plugin with `safeword codex install`; setup
+the profile-scoped plugin with `safeword install --agents=codex`; install
 does not create project-local Codex hooks or workflow assets. The plugin does not
 implicitly enroll repositories: until `safeword install` creates
 `.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
@@ -409,7 +407,7 @@ ls < namespace-root > /learnings/
 
 ## Syncing Across Machines
 
-Commit the Safe Word project configuration your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`, for team consistency. Each Codex user runs `safeword codex install` in their own profile; Safe Word does not create a repository `.codex` configuration or workflow tree.
+Commit the Safe Word project configuration your team uses for team consistency. Each Codex user runs `safeword install --agents=codex` from the project to reconcile core configuration and install their profile plugin; Safe Word does not create a repository `.codex` configuration or workflow tree.
 
 ---
 
@@ -494,7 +492,7 @@ For JS/TS projects: ESLint, Prettier, supporting plugins, and `jiti` for TypeScr
 No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.oxfmtrc.*`, `deno.json`) and steps aside: it skips Prettier at install **and** its auto-format hook leaves all formatting to your tool — agent edits are never run through Prettier, for any file type (JS/TS, JSON, CSS, YAML). Files your formatter doesn't cover are left untouched rather than Prettier-formatted. ESLint still runs, because those formatters don't cover security scanning (`eslint-plugin-security`), cyclomatic complexity (`sonarjs`), or framework rules (React hooks, Next.js, Astro); safeword's ESLint config disables formatting rules, so it lints without fighting your formatter.
 
 **Do teammates need to install safeword separately?**
-No. Commit the Safe Word project configuration your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`. Each Codex user runs `safeword codex install` for a fresh profile. Users with legacy project-local Codex protection run the resumable `safeword codex migrate` flow, review the plugin in `/hooks`, and finalize only after current proof. The linting devDependencies install automatically with `npm install` / `bun install`.
+No. Commit the Safe Word project configuration your team uses. Each teammate runs `safeword install` from the project to reconcile core configuration and install their Claude and Codex profile plugins; Cursor remains opt-in. Users with legacy project-local Codex protection run the resumable `safeword codex migrate` flow, review the plugin in `/hooks`, and finalize only after current proof. The linting devDependencies install automatically with `npm install` / `bun install`.
 
 **Will it interfere with my development workflow?**
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, setup appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword remove` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.

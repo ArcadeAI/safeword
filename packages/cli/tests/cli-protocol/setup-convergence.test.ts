@@ -22,7 +22,7 @@ describe('convergent setup', () => {
     const result = await runCliWithoutInstall(['setup', '--cwd', directory], { cwd: directory });
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout.split('\n').filter(line => line.startsWith('Next:'))).toHaveLength(1);
+    expect(result.stdout.split('\n').filter(line => line.startsWith('Next:'))).toHaveLength(0);
     expect(result.stdout).toMatch(/^Complete\nChanged: yes\n/);
     expect(result.stdout).toContain('Configuration is healthy');
     expect(result.stdout).not.toContain('Created: .safeword/');
@@ -181,13 +181,13 @@ describe('convergent setup', () => {
         expect.objectContaining({
           code: 'PROJECT_VERSION_UNSAFE',
           message: expect.stringContaining(
-            `safeword setup --repair-version-marker --cwd '${directory}'`,
+            `safeword install --repair-version-marker --cwd '${directory}'`,
           ),
         }),
       );
       expect(result.recovery).toEqual([
         {
-          command: `safeword setup --repair-version-marker --cwd '${directory}'`,
+          command: `safeword install --repair-version-marker --cwd '${directory}'`,
           description:
             'Replace the unreadable version marker with the current CLI version, then converge setup.',
           requiresHuman: true,
@@ -330,7 +330,7 @@ describe('convergent setup', () => {
       ],
       recovery: [
         {
-          command: `safeword setup --repair-version-marker --cwd '${directory}'`,
+          command: `safeword install --repair-version-marker --cwd '${directory}'`,
           description:
             'Replace the linked project version marker without changing its other hardlink peers, then converge setup.',
           requiresHuman: true,

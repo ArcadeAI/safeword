@@ -214,7 +214,7 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
     throw new Error(
-      `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`,
+      `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`,
     );
   }
 }
@@ -766,8 +766,8 @@ export async function removeLegacyCodexHooks(
 }
 
 /**
- * Compatibility facade for the pre-`codex install` command shape. New users
- * should use `safeword codex install`; existing scripts retain their behavior.
+ * Compatibility facade for the pre-`install --agents=codex` command shape. New users
+ * should use `safeword install --agents=codex`; existing scripts retain their behavior.
  */
 export async function migrateCodexPlugin(
   cwd = process.cwd(),

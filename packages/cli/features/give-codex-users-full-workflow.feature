@@ -20,13 +20,12 @@ Feature: Give Codex users the full Safe Word workflow
       Then the release is rejected
 
   @codex-workflow.TBU1.R2
-  Rule: codex-workflow.TBU1.R2 - A project's Safe Word workflow files stay outside the repository throughout Codex setup and migration
+  Rule: codex-workflow.TBU1.R2 - Profile-owned Codex workflows stay outside the repository
 
-    Scenario: Fresh setup keeps workflow material out of the project
+    Scenario: Project-only configuration keeps Codex workflow material out of the project
       Given an empty project has no Safe Word workflow material
-      When the builder sets up Safe Word for Codex
-      Then Safe Word directs the builder to the explicit Codex plugin install command
-      And no Codex-owned workflow tree is written to .agents or .codex while shared Cursor skills remain available
+      When the builder installs only Safe Word project configuration
+      Then core assets are installed without any agent workflow tree
 
     @rejection
     Scenario: Project-local workflow output rejects the integration

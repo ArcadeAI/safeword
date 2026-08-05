@@ -140,7 +140,7 @@ function failedResult(error: unknown): CliResult {
     failure = new ClaudeProfileError('CLAUDE_PLUGIN_INSTALL_FAILED', message);
   }
   let classification = 'errored';
-  let nextAction = 'safeword claude install';
+  let nextAction = 'safeword install --agents=claude';
   if (failure.code === 'CLAUDE_VERSION_UNSUPPORTED') {
     classification = 'unsupported-host';
     nextAction = 'claude update';

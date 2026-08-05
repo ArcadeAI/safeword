@@ -1146,13 +1146,13 @@ function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
       {
         code: 'PLUGIN_UPDATE_REQUIRED',
         message:
-          'Finalization requires the packaged Safe Word plugin version. Run safeword codex install, restart Codex, start a new task, and review /hooks.',
+          'Finalization requires the packaged Safe Word plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.',
         retryable: true,
       },
     ],
     nextActions: [
       {
-        command: 'safeword codex install',
+        command: 'safeword install --agents=codex',
         mutates: true,
         requiresHuman: false,
       },

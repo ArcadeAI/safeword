@@ -17,14 +17,15 @@ Safeword configures AI coding agents with proven development workflows:
 ### Recommended CLI lifecycle
 
 ```bash
-safeword claude install
+safeword install --agents=claude
 # In Claude Code:
 /reload-plugins
 safeword claude status
 ```
 
-The installer pins the official release at user scope and verifies the installed
-cache payload. It does not modify project files.
+The installer configures the project, pins the official Claude release at user
+scope, and verifies the installed cache payload. The scoped command leaves Codex
+and Cursor untouched; plain `safeword install` installs Claude and Codex by default.
 
 ### From GitHub
 
@@ -45,9 +46,9 @@ After installing or updating, run `/reload-plugins` to make the plugin available
 in the current task. The next prompt records execution proof bound to the exact
 version, hook-manifest digest, and canonical installed cache path.
 
-Project state is still created explicitly:
+The install command creates or reconciles project-owned state at the same time:
 
-- `safeword setup` — create or reconcile project-owned state
+- `safeword install --agents=claude` — configure the project and install Claude support
 - `/safeword:bdd`, `/safeword:debug`, and the other namespaced skills — run native workflows
 
 For a legacy project, inspect migration state before removing anything:
@@ -67,7 +68,7 @@ Cleanup is project-only and preserves unrecognized or third-party Claude content
 - Claude Code 2.1.170 or newer
 - Bun (the installed plugin carries its exact bundled CLI runtime)
 
-## After setup
+## After installation
 
 Project-owned tickets, configuration, guides, and runtime state remain in the
 repository. Framework code executes from Claude's versioned installed plugin
@@ -77,7 +78,7 @@ cache; uninstalling the plugin removes that Claude delivery surface.
 
 - **Interactive trust**: Safeword never accepts plugin or workspace trust on your behalf.
 - **Live reload refusal**: If Claude refuses `/reload-plugins`, keep legacy protection and retry after resolving the host prompt.
-- **Cursor/other editors**: This plugin is Claude Code only. For Cursor support, use `bunx safeword@latest setup` directly.
+- **Cursor/other editors**: This plugin is Claude Code only. For Cursor support, run `bunx safeword@latest install --agents=cursor` explicitly.
 
 ## Learn more
 

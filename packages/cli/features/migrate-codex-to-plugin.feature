@@ -6,13 +6,13 @@ Feature: Move Codex users to the Safe Word plugin
 
     Scenario: Upgrade retains legacy hooks until explicit migration
       Given a Safe Word project has legacy Codex hooks
-      When the builder upgrades Safe Word
+      When the builder upgrades only the Safe Word project
       Then the legacy Codex hooks remain unchanged
 
     @rejection
     Scenario: Fresh setup does not create Safe Word Codex hooks
       Given a project has no Codex configuration
-      When the builder sets up Safe Word
+      When the builder sets up only the Safe Word project
       Then the project has no Safe Word Codex hook configuration
 
   @surface.safeword-cli @migrate-codex-to-plugin.TB1.R2

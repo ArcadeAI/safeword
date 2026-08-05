@@ -8,24 +8,24 @@ locally). Bare `safeword` is a read-only alias for `safeword status`.
 
 ## Stable command model
 
-Safeword groups public commands by the thing they operate on. Legacy top-level
-names such as `check`, `upgrade`, `diff`, `reset`, and `sync-config` remain
-hidden compatibility aliases through the 0.71 release line.
+Safeword has one canonical lifecycle. Retained aliases remain executable
+indefinitely for compatibility, but examples and recovery guidance use the
+canonical commands below.
 
-| Command        | Effect      | Purpose                                      |
-| -------------- | ----------- | -------------------------------------------- |
-| `status`       | Read-only   | Report health and one next action            |
-| `setup`        | Mutating    | Converge Safeword configuration              |
-| `plan`         | Read-only   | Preview reconciliation effects               |
-| `doctor`       | Read-only   | Diagnose project configuration               |
-| `remove`       | Destructive | Remove the exact reviewed Safeword plan      |
-| `project …`    | Mixed       | Maintain project config, tests, and indexes  |
-| `tracker …`    | Mutating    | Connect and synchronize an external tracker  |
-| `claude …`     | Mixed       | Install and migrate the native Claude plugin |
-| `codex …`      | Mixed       | Install and migrate the profile Codex plugin |
-| `ticket …`     | Mixed       | List and create project tickets              |
-| `retro …`      | Mixed       | Extract, inspect, and reconcile findings     |
-| `capabilities` | Read-only   | Describe the stable machine interface        |
+| Command        | Effect      | Purpose                                     |
+| -------------- | ----------- | ------------------------------------------- |
+| `status`       | Read-only   | Report health and one next action           |
+| `install`      | Mutating    | Configure the project and selected agents   |
+| `plan`         | Read-only   | Preview reconciliation effects              |
+| `doctor`       | Read-only   | Diagnose project configuration              |
+| `uninstall`    | Destructive | Remove the exact reviewed Safeword plan     |
+| `project …`    | Mixed       | Maintain project config, tests, and indexes |
+| `tracker …`    | Mutating    | Connect and synchronize an external tracker |
+| `claude …`     | Mixed       | Inspect, clean up, or recover Claude state  |
+| `codex …`      | Mixed       | Inspect, migrate, or recover Codex state    |
+| `ticket …`     | Mixed       | List and create project tickets             |
+| `retro …`      | Mixed       | Extract, inspect, and reconcile findings    |
+| `capabilities` | Read-only   | Describe the stable machine interface       |
 
 Every public command accepts the same global options before or after the
 command:
@@ -62,12 +62,12 @@ bunx safeword@latest plan
 bunx safeword@latest install
 
 # Preview removal, then run the exact confirmation command Safeword prints
-bunx safeword@latest remove
+bunx safeword@latest uninstall
 ```
 
 `install` handles first-time installation and upgrades through the same
 idempotent convergence path, installing Claude and Codex by default while
-leaving Cursor untouched. `setup` remains a hidden deprecated alias. `remove` requires both `--yes` and the current
+leaving Cursor untouched. `setup`, `upgrade`, `claude install`, and `codex install` remain deprecated aliases. `uninstall` requires both `--yes` and the current
 `--plan <id>` so consent cannot apply to a project that changed after preview.
 Project verification runs automatically after `install`; use `doctor` directly
 for CI health gates and debugging. The retained `upgrade` alias follows the
@@ -98,14 +98,14 @@ same path indefinitely.
 | `.mcp.json`          | Creates or merges                                  | MCP server config                                     |
 | `.cursor/mcp.json`   | Creates or merges                                  | MCP server config (Cursor)                            |
 
-Setup auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
+Install auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 
-Claude Code delivery is user-scoped and separate from project setup. Fresh setup does not create Safe Word-owned `.claude/settings.json` hooks or `.claude/skills/`; existing legacy Claude assets remain protected until the native plugin is proven and their reviewed cleanup is explicitly confirmed.
+Claude Code delivery is user-scoped. Fresh installation configures the project and installs the native profile plugin without creating Safe Word-owned `.claude/settings.json` hooks or `.claude/skills/`; existing legacy Claude assets remain protected until the native plugin is proven and their reviewed cleanup is explicitly confirmed.
 
 ## Claude Code plugin
 
 ```bash
-safeword claude install
+safeword install --agents=claude
 # In the current Claude Code task:
 /reload-plugins
 safeword claude status
@@ -115,11 +115,11 @@ safeword claude cleanup
 safeword claude recover # only when status reports recovery-required
 ```
 
-`claude install` pins and verifies the official user-scoped plugin without changing project files. After install or update, `/reload-plugins` activates it in the current task; the next prompt records proof bound to the installed version and bundled hook manifest. `claude status` is read-only. Cleanup never installs, updates, enables, reloads, or trusts a plugin: it removes only recognized legacy Safeword project assets after exact plugin proof and explicit plan confirmation, preserving custom and third-party content.
+`install --agents=claude` reconciles core project configuration and pins and verifies the official user-scoped plugin. After install or update, `/reload-plugins` activates it in the current task; the next prompt records proof bound to the installed version and bundled hook manifest. `claude status` is read-only. Cleanup never installs, updates, enables, reloads, or trusts a plugin: it removes only recognized legacy Safeword project assets after exact plugin proof and explicit plan confirmation, preserving custom and third-party content.
 
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
-**Unless you already have cucumber**: when setup detects an existing cucumber harness — any `cucumber.{json,yaml,yml,js,cjs,mjs}` it didn't scaffold, or a `@cucumber/cucumber` dependency it didn't add — it skips the starter lane entirely (no files, no deps, no `test:bdd`) and prints the `paths.features` / `paths.steps` config lines that point safeword's BDD tooling at your suite instead. `safeword doctor` keeps warning until those paths are set, and warns about duplicate lanes left by older safeword versions (it never deletes anything itself). Removal likewise leaves your cucumber config untouched; when safeword's own scaffolded lane is present, `remove --full` treats the cucumber devDependencies as safeword's and removes them along with it.
+**Unless you already have cucumber**: when install detects an existing cucumber harness — any `cucumber.{json,yaml,yml,js,cjs,mjs}` it didn't scaffold, or a `@cucumber/cucumber` dependency it didn't add — it skips the starter lane entirely (no files, no deps, no `test:bdd`) and prints the `paths.features` / `paths.steps` config lines that point safeword's BDD tooling at your suite instead. `safeword doctor` keeps warning until those paths are set, and warns about duplicate lanes left by older safeword versions (it never deletes anything itself). Uninstallation likewise leaves your cucumber config untouched; when safeword's own scaffolded lane is present, `uninstall` treats the cucumber devDependencies as Safeword-owned effects in its exact plan.
 
 ## Project, tracker, ticket, and retro commands
 
@@ -200,12 +200,12 @@ Safeword manages two types of files:
 
 **Managed files** — Created if missing, but never overwritten. You can customize these freely. Examples: `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`, `ruff.toml`, `.golangci.yml`, `clippy.toml`, `.sqlfluff`.
 
-### safeword codex install
+### safeword install --agents=codex
 
-Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. For an existing Git-backed Safe Word marketplace, the command refreshes the marketplace before reinstalling the plugin; a fresh profile adds it first. This profile-only action does not create or modify project Codex configuration. Restart Codex after installation, start a new task to load one coherent skills-and-hooks catalogue, then review it in `/hooks`.
+Reconcile core project configuration, install the Safe Word plugin into the active Codex profile, and verify Codex reports it enabled. For an existing Git-backed Safe Word marketplace, the command refreshes the marketplace before reinstalling the plugin; a fresh profile adds it first. It does not create project-local Codex hooks or workflow trees. Restart Codex after installation, start a new task to load one coherent skills-and-hooks catalogue, then review it in `/hooks`.
 
 ```bash
-bunx safeword@latest codex install
+bunx safeword@latest install --agents=codex
 ```
 
 ### safeword codex status

@@ -646,12 +646,13 @@ command = 'echo "keep this user hook"'
       state: 'action_required',
       changed: true,
       data: {
-        migration_state: 'plugin_installed_restart_required',
-        migration: {
-          schema_version: '2',
-          state: 'plugin_installed_app_restart_required',
-        },
-        plugin: { version: SAFEWORD_SCHEMA.version },
+        command: 'install',
+        operation: 'install',
+        selected_agents: ['codex'],
+        surfaces: expect.arrayContaining([
+          expect.objectContaining({ name: 'project', selected: true, state: 'changed' }),
+          expect.objectContaining({ name: 'codex', selected: true, state: 'action_required' }),
+        ]),
       },
       effects: {
         configuration: [{ kind: 'update', target: 'Safeword Codex profile plugin' }],
@@ -1052,9 +1053,16 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     const codexStatus = await runCodexCommand(fixture, ['codex', 'status', '--json']);
     const doctor = await runCodexCommand(fixture, ['doctor', '--json']);
 
-    for (const result of [codexStatus, doctor]) {
+    for (const [kind, result] of [
+      ['status', codexStatus],
+      ['doctor', doctor],
+    ] as const) {
       expect(result.exitCode).toBe(2);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      const envelope = JSON.parse(result.stdout) as {
+        data: Record<string, unknown>;
+        findings: { code: string }[];
+      };
+      expect(envelope).toMatchObject({
         state: 'action_required',
         findings: expect.arrayContaining([
           expect.objectContaining({
@@ -1065,10 +1073,22 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
             },
           }),
         ]),
-        data: {
-          global_guidance: { state: 'suspected_legacy', path: agentsPath },
-        },
       });
+      if (kind === 'status') {
+        expect(envelope.data).toMatchObject({
+          global_guidance: { state: 'suspected_legacy', path: agentsPath },
+        });
+      } else {
+        const coverage = envelope.data.coverage as {
+          surface: string;
+          evidence: { global_guidance?: { state: string; path: string } };
+        }[];
+        const projectCoverage = coverage.find(entry => entry.surface === 'project');
+        expect(projectCoverage?.evidence.global_guidance).toMatchObject({
+          state: 'suspected_legacy',
+          path: agentsPath,
+        });
+      }
     }
     expect(readFileSync(agentsPath, 'utf8')).toBe(editedLegacy);
   });

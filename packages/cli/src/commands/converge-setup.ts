@@ -599,26 +599,14 @@ function setupResult(input: SetupResultInput): CliResult {
     ...pythonFindings(pythonSetup),
   ];
   const actionRequired = findings.some(finding => finding.severity !== 'info');
-  const resultFindings = actionRequired
-    ? findings
-    : [
-        ...findings,
-        {
-          code: 'SETUP_CODEX_PLUGIN_HANDOFF',
-          message: 'Codex plugin: safeword codex install',
-          severity: 'info' as const,
-        },
-      ];
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
-  const nextCommands = actionRequired
-    ? [installation.command ?? 'safeword install']
-    : ['safeword claude install', 'safeword codex install'];
+  const nextCommands = actionRequired ? [installation.command ?? 'safeword install'] : [];
   return createResult({
     state,
     changed,
     effects: { files, packages, network },
-    findings: resultFindings,
+    findings,
     nextActions: nextCommands.map(command => ({ command, mutates: true, requiresHuman: true })),
     data: { configured: true, dependency_install: installation },
   });
