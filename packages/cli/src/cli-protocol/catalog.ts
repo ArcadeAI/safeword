@@ -120,10 +120,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('doctor', 'Diagnose project configuration', 'observe', {
     commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
   }),
-  command('remove', 'Remove Safeword configuration', 'destructive', {
+  command('uninstall', 'Uninstall Safeword from this project and selected agents', 'destructive', {
     promptPolicy: 'confirm',
     networkPolicy: 'declared',
     commandOptions: [
+      { flags: '--agents <agents>', description: 'claude, codex, cursor, or none' },
       { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
       {
         flags: '--plan <id>',
@@ -350,7 +351,22 @@ const ALIASES: readonly CommandDefinition[] = [
   },
   alias('upgrade', 'install'),
   alias('diff', 'plan'),
-  alias('reset', 'remove'),
+  {
+    ...alias('remove', 'uninstall'),
+    handler: publicHandler('remove'),
+    registration: {
+      syntax: 'remove',
+      options: canonicalOptions('uninstall').filter(option => !option.flags.includes('--agents')),
+    },
+  },
+  {
+    ...alias('reset', 'uninstall'),
+    handler: publicHandler('remove'),
+    registration: {
+      syntax: 'reset',
+      options: canonicalOptions('uninstall').filter(option => !option.flags.includes('--agents')),
+    },
+  },
   alias('sync-config', 'project sync-config'),
   alias('architecture', 'project architecture'),
   alias('sync-learnings', 'project sync-learnings'),

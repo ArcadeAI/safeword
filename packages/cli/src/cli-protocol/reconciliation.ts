@@ -3,7 +3,7 @@ import { lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type Action, reconcile, type ReconcileResult } from '../reconcile.js';
-import { SAFEWORD_SCHEMA } from '../schema.js';
+import { SAFEWORD_SCHEMA, type SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { type CliPlan, createPlan } from './plan.js';
 import type { Effects } from './result.js';
@@ -100,9 +100,10 @@ export interface ReconciliationPlan {
 export async function createReconciliationPlan(
   cwd: string,
   mode: PlanMode,
+  schema: SafewordSchema = SAFEWORD_SCHEMA,
 ): Promise<ReconciliationPlan> {
   const context = createProjectContext(cwd);
-  const dryRun = await reconcile(SAFEWORD_SCHEMA, mode, context, { dryRun: true });
+  const dryRun = await reconcile(schema, mode, context, { dryRun: true });
   const effects = effectsForReconciliation(dryRun, mode);
   return {
     dryRun,

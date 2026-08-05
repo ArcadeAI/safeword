@@ -148,7 +148,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Unqualified uninstall previews core Claude and Codex removal
 
-- [ ] RED
+- [x] RED a412d0132
 - [ ] GREEN
 - [ ] REFACTOR
 

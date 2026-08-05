@@ -14,7 +14,7 @@ describe('canonical help and compatibility aliases', () => {
       'install',
       'plan',
       'doctor',
-      'remove',
+      'uninstall',
       'project',
       'tracker',
       'codex',
@@ -33,7 +33,7 @@ describe('canonical help and compatibility aliases', () => {
   it.each([
     ['check', 'status'],
     ['diff', 'plan'],
-    ['reset', 'remove'],
+    ['reset', 'uninstall'],
   ])('runs %s as a JSON-compatible alias for %s', async (legacy, replacement) => {
     const directory = createTemporaryDirectory();
     const result = await runCli([legacy, '--json', '--no-input', '--offline', '--cwd', directory], {

@@ -160,6 +160,11 @@ async function removeHandler(invocation: CommandInvocation): Promise<CliResult> 
   });
 }
 
+async function uninstallHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { uninstallLifecycle } = await import('../commands/lifecycle.js');
+  return uninstallLifecycle(invocation);
+}
+
 async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResult> {
   const safewordDirectory = nodePath.join(invocation.cwd, '.safeword');
   if (!existsSync(safewordDirectory)) return notConfigured('project sync-config');
@@ -1366,6 +1371,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   setup: setupHandler,
   plan: planHandler,
   doctor: doctorHandler,
+  uninstall: uninstallHandler,
   remove: removeHandler,
   'project sync-config': syncConfigHandler,
   'project architecture': architectureHandler,
