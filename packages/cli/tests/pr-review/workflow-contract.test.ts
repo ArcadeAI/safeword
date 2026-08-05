@@ -66,6 +66,7 @@ describe('advisory PR review workflow contract', () => {
     const workerJobs = worker.jobs as Record<string, Record<string, unknown>>;
     for (const jobName of ['invalidate', 'publish']) {
       const writeCapableJob = workerJobs[jobName];
+      if (!writeCapableJob) throw new Error(`missing ${jobName} job`);
       expect(writeCapableJob.environment).toBeUndefined();
       expect(JSON.stringify(writeCapableJob)).not.toContain('safeword-pr-review-model');
       expect(JSON.stringify(writeCapableJob)).not.toContain('secrets.');
