@@ -89,6 +89,15 @@ describe('upstream monitor source adapters', () => {
     expect(first).toBe("What's New in Cursor\nJune 20, 2026\nAdded hooks.");
   });
 
+  it.each(['&#x1FFFFFFF;', '&#9999999999;', '&#xD800;'])(
+    'replaces invalid numeric character reference %s instead of disabling the watch',
+    characterReference => {
+      expect(normalizeCursorHtml(`<p>before ${characterReference} after</p>`)).toBe(
+        'before � after',
+      );
+    },
+  );
+
   // Raw API payloads, not JS objects: GitHub really does send
   // `"state_reason": null` on an open issue, and the normalizer has to survive
   // exactly that.

@@ -563,11 +563,17 @@ function decodeHtml(text: string): string {
   return decodeXml(text)
     .replaceAll('&nbsp;', ' ')
     .replaceAll(/&#x([\da-f]+);/gi, (_match, codePoint: string) =>
-      String.fromCodePoint(Number.parseInt(codePoint, 16)),
+      decodeNumericCharacterReference(Number.parseInt(codePoint, 16)),
     )
     .replaceAll(/&#(\d+);/g, (_match, codePoint: string) =>
-      String.fromCodePoint(Number(codePoint)),
+      decodeNumericCharacterReference(Number(codePoint)),
     );
+}
+
+function decodeNumericCharacterReference(codePoint: number): string {
+  const isInvalidScalar =
+    codePoint === 0 || codePoint > 0x10_ff_ff || (codePoint >= 0xd8_00 && codePoint <= 0xdf_ff);
+  return isInvalidScalar ? '\u{FFFD}' : String.fromCodePoint(codePoint);
 }
 
 function createBoundedDiff(previous: string, current: string): string {
