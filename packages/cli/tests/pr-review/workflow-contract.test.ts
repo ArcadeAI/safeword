@@ -4,6 +4,8 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+
 const templatesDirectory = nodePath.join(import.meta.dirname, '../../templates/workflows');
 const routerPath = nodePath.join(templatesDirectory, 'pr-review.yml');
 const workerPath = nodePath.join(templatesDirectory, 'pr-review-worker.yml');
@@ -26,9 +28,11 @@ describe('advisory PR review workflow contract', () => {
       jobs: {
         'event-review': {
           permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
+          uses: './.github/workflows/safeword-pr-review-worker.yml',
         },
         'scheduled-review': {
           permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
+          uses: './.github/workflows/safeword-pr-review-worker.yml',
         },
       },
     });
@@ -66,5 +70,9 @@ describe('advisory PR review workflow contract', () => {
       expect(JSON.stringify(writeCapableJob)).not.toContain('safeword-pr-review-model');
       expect(JSON.stringify(writeCapableJob)).not.toContain('secrets.');
     }
+
+    expect(
+      SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review-worker.yml'],
+    ).toMatchObject({ template: 'workflows/pr-review-worker.yml' });
   });
 });
