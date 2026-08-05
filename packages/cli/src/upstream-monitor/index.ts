@@ -476,15 +476,15 @@ function atomEntryBlocks(raw: string): string[] {
     if (start === -1) {
       return blocks;
     }
-    const startClose = raw.indexOf('>', start);
-    if (startClose === -1) {
+    const contentStart = tagEndIndex(raw, start);
+    if (contentStart === raw.length) {
       return blocks;
     }
-    const end = lowercaseRaw.indexOf('</entry>', startClose);
+    const end = lowercaseRaw.indexOf('</entry>', contentStart);
     if (end === -1) {
       return blocks;
     }
-    blocks.push(raw.slice(startClose + 1, end));
+    blocks.push(raw.slice(contentStart, end));
     cursor = end + '</entry>'.length;
   }
 }
