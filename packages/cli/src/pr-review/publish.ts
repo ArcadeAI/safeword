@@ -26,8 +26,40 @@ export interface IssueCommentPublisher {
   updateComment(id: number, body: string): Promise<void>;
 }
 
+export interface ReceiptView {
+  checks: { name: string; status: 'failed' | 'pending' | 'success' | 'unknown' }[];
+  findingCounts: { consequential: number; nonConsequential: number };
+  reviewedSha: string;
+  reviewers: string[];
+  runState: 'complete' | 'failed' | 'incomplete' | 'stale';
+  skippedChecks: string[];
+  tokenUsage: { input?: number; output?: number };
+  unknowns: string[];
+}
+
 function hasExactReceiptMarker(body: string): boolean {
   return body.split(/\r?\n/u).includes(RECEIPT_MARKER);
+}
+
+function listOrNone(values: readonly string[]): string {
+  return values.length > 0 ? values.join(', ') : 'none';
+}
+
+export function renderReceipt(receipt: ReceiptView): string {
+  const checks = receipt.checks.map(check => `${check.name}: ${check.status}`);
+  const inputTokens = receipt.tokenUsage.input ?? 'unknown';
+  const outputTokens = receipt.tokenUsage.output ?? 'unknown';
+
+  return [
+    `Reviewed revision: ${receipt.reviewedSha}`,
+    `Run state: ${receipt.runState}`,
+    `Reviewers: ${listOrNone(receipt.reviewers)}`,
+    `Checks: ${listOrNone(checks)}`,
+    `Skipped checks: ${listOrNone(receipt.skippedChecks)}`,
+    `Unknowns: ${listOrNone(receipt.unknowns)}`,
+    `Token usage: ${inputTokens} input, ${outputTokens} output`,
+    `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential`,
+  ].join('\n');
 }
 
 export function planReceiptPublication(
