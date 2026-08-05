@@ -116,8 +116,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Cleanup reaches every descendant the platform groups with the reviewer
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 2a3f80194
+- [x] GREEN 2d46c56a5
 - [ ] REFACTOR
 
 ### Scenario: A descendant that escapes into its own session is not claimed to be stopped
