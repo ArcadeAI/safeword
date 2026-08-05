@@ -4,7 +4,7 @@ slug: trustworthy-advisory-pr-review
 type: epic
 phase: plan-implementation
 status: in_progress
-children: [HXT3GW, Z7M7Y3, 436EQW]
+children: [HXT3GW, Z7M7Y3, 436EQW, YC6JCC]
 scope:
   - Automatically review each ready, substantive pull request at its current head SHA after the repository's deterministic prerequisites settle.
   - Apply a technology-neutral integrity floor to every behavior-affecting artifact, including unfamiliar file types, and record any deliberate exclusion.
@@ -51,6 +51,7 @@ last_modified: 2026-08-04T16:55:56Z
 
 ## Work Log
 
+- Added YC6JCC as the release-hardening child for automated GitHub workflow compatibility and disposable-runtime proof; existing product-behavior suggestions remain with their original children.
 - 2026-08-05T14:38:52Z Split accepted at the plan-implementation checkpoint. Promoted this ticket to an epic with three ordered children: HXT3GW ships the advisory-only exact-head MVP; Z7M7Y3 adds freshness reuse, inline finding lifecycle, and noise reduction; 436EQW adds controlled execution and exact remedy verification. The MVP deliberately performs no customer-code execution and fully re-reviews every new SHA.
 - 2026-08-05T01:54:26Z Applied all quality-review suggestions before implementation planning: specified no-review receipt evidence, required finding-count telemetry on the human-routing path, and made unprivileged fork inspection / isolated privileged publication an explicit behavioral seam.
 - 2026-08-04T16:55:56Z Scenario gate APPROVED by independent Claude review (`cross-agent`; stamp recorded). No build-only kill-risk requires a spike. Advanced to plan-implementation; carry explicit forbidden-action sentinels and a serialized trigger-claim seam into the proof plan.
