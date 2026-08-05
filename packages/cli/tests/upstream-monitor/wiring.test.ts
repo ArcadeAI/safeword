@@ -48,7 +48,6 @@ async function runAgainstCommittedSnapshot(upstreamResponse: string): Promise<Is
   await runUpstreamMonitor({
     fetchText: () => Promise.resolve(upstreamResponse),
     issueClient: recordingClient(filed),
-    now: () => new Date('2026-08-04T00:00:00.000Z'),
     readText,
     rootDirectory: repoRoot,
     sources: [source],
@@ -74,7 +73,6 @@ describe('source isolation', () => {
       log: message => {
         log.push(message);
       },
-      now: () => new Date('2026-08-04T00:00:00.000Z'),
       readText,
       rootDirectory: repoRoot,
       sources: [broken, source],

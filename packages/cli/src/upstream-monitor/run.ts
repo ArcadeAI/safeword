@@ -35,7 +35,6 @@ const { reported, failed } = await runUpstreamMonitor({
   log: message => {
     console.log(message);
   },
-  now: () => new Date(),
   readText,
   rootDirectory: process.cwd(),
 });

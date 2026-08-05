@@ -49,7 +49,6 @@ export interface ReportResult {
 export interface MonitorDependencies {
   fetchText(url: string): Promise<string>;
   issueClient: GitHubIssueClient;
-  now(): Date;
   readText(path: string): Promise<string>;
   rootDirectory: string;
   sources?: readonly MonitorSource[];
