@@ -72,8 +72,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A slow first reviewer executable still leaves the next one a chance
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 6a6afbc01
+- [x] GREEN 93d4ee0e5
 - [ ] REFACTOR
 
 ### Scenario: A hanging candidate is stopped at its own share of the route budget
