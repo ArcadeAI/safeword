@@ -89,7 +89,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A skipped binary does not poison an otherwise complete clean review
 
 - [x] RED 59e27c5f1
-- [ ] GREEN
+- [x] GREEN 5f56dcba8
 - [ ] REFACTOR
 
 ### Scenario: A binary-only change set cannot look complete or ready
