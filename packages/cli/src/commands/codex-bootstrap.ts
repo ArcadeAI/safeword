@@ -1,7 +1,7 @@
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { codexPluginVersionMatchesPackage } from '../codex-plugin/migration.js';
+import { installCodexPlugin, observeCodexMigrationResult } from '../codex-plugin/operations.js';
 import { codexSessionProofIsCurrent } from '../codex-plugin/profile-proof.js';
-import { installCodexPlugin, observeCodexMigrationResult } from './migrate-codex-plugin.js';
 
 interface SessionStartInput {
   session_id?: string;

@@ -14,6 +14,7 @@ import {
 } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
+import { automaticallyMigrateLegacyCodex } from '../codex-plugin/operations.js';
 import { installCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
 import { checkHealth, type HealthStatus } from '../health.js';
 import { installPack } from '../packs/install.js';
@@ -47,7 +48,6 @@ import {
 } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
-import { automaticallyMigrateLegacyCodex } from './migrate-codex-plugin.js';
 import {
   buildArchitecture,
   hasArchitectureDetected,
