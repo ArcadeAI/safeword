@@ -590,11 +590,32 @@ async function codifyHandler(invocation: CommandInvocation): Promise<CliResult> 
 
 async function testPlanHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeTestPlan } = await import('../commands/test-plan.js');
-  return observeTestPlan(
+  const result = await observeTestPlan(
     invocation.cwd,
     invocation.operands[0] as string | undefined,
     invocation.options,
   );
+  return withLegacyRawJsonGuidance(result, invocation.options, 'project test-plan');
+}
+
+function withLegacyRawJsonGuidance(
+  result: CliResult,
+  options: Readonly<Record<string, unknown>>,
+  command: string,
+): CliResult {
+  if (options.format !== 'json') return result;
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: 'CLI_RAW_JSON_DEPRECATED',
+        message: `The legacy raw JSON format for \`${command}\` remains available; use global \`--json\` for the canonical versioned envelope.`,
+        severity: 'warning',
+        metadata: { replacement: '--json', retention: 'indefinite' },
+      },
+    ],
+  };
 }
 
 async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -1256,7 +1277,7 @@ async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliRe
       break;
     }
   }
-  return createResult({
+  const result = createResult({
     state: 'healthy',
     presentation,
     data: {
@@ -1266,6 +1287,7 @@ async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliRe
       ...(format === 'issue' && { issues: formatIssueDrafts(records) }),
     },
   });
+  return withLegacyRawJsonGuidance(result, invocation.options, 'retro signals');
 }
 
 function retroFailure(message: string): CliResult {

@@ -186,7 +186,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'test, build, verify, typecheck, deps, or bdd',
         defaultValue: 'test',
       },
-      { flags: '--format <format>', description: 'human, json, or sh', defaultValue: 'human' },
+      {
+        flags: '--format <format>',
+        description: 'human, sh, or legacy raw json; use global --json for machine output',
+        defaultValue: 'human',
+      },
     ],
   }),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
@@ -325,7 +329,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     commandOptions: [
       {
         flags: '--format <format>',
-        description: 'Output format: human, json, or issue',
+        description: 'human, issue, or legacy raw json; use global --json for machine output',
         defaultValue: 'human',
       },
     ],
@@ -503,6 +507,11 @@ export function createCapabilitiesResult(): CliResult {
   return createResult({
     state: 'healthy',
     data: {
+      machine_output: {
+        canonical_option: '--json',
+        schema_version: 1,
+        description: 'One versioned result envelope on stdout.',
+      },
       commands: publicCommands.map(definition => capability(definition)),
     },
   });
