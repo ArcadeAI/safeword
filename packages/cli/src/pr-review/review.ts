@@ -229,6 +229,17 @@ async function stopBeforeReview(
     return { attempts: 0, result: 'suppressed' };
   }
 
+  if (pullRequest.reviewedReceiptSha) {
+    await dependencies.publish(
+      {
+        reviewedSha: pullRequest.reviewedReceiptSha,
+        route: 'needs_human',
+        runState: 'stale',
+      },
+      'upsert_marker_owned',
+    );
+  }
+
   if (!pullRequest.prerequisitesConfigured) {
     await dependencies.publish(
       {
