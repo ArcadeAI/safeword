@@ -43,14 +43,20 @@ for argument in "$@"; do
 done
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+emit_event() {
+  # An agent_message carries the answer as an escaped JSON string, so build the
+  # inner document first and escape it rather than hand-writing the nesting.
+  escaped=$(printf '%s' "$1" | sed 's/"/\\"/g')
+  printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text":"%s"}}\n' "$escaped"
+}
 if [ -z "$schema" ]; then
   # Ungoverned: Codex's own vocabulary, which the strict parser refuses.
-  printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text":"{\"schema_version\":1,\"dispatch_id\":\"%s\",\"reviewer_agent\":\"codex\",\"verdict\":\"approve\",\"summary\":\"reviewed\",\"findings\":[{\"severity\":\"high\",\"path\":\"a.ts\",\"title\":\"t\",\"recommendation\":\"r\"}]}"}}\n' "$dispatch_id"
+  emit_event "$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"codex","verdict":"approve","summary":"reviewed","findings":[{"severity":"high","path":"a.ts","title":"t","recommendation":"r"}]}' "$dispatch_id")"
   exit 0
 fi
-printf '%s\n' "$schema" > "$SAFEWORD_SCHEMA_PATH_LOG"
-cp "$schema" "$SAFEWORD_SCHEMA_COPY"
-printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text":"{\"schema_version\":1,\"dispatch_id\":\"%s\",\"reviewer_agent\":\"codex\",\"verdict\":\"approve\",\"summary\":\"reviewed\",\"findings\":[{\"severity\":\"warning\",\"message\":\"noted\"}]}"}}\n' "$dispatch_id"
+printf '%s\n' "$schema" > "$SAFEWORD_REVIEW_SCHEMA_PATH_LOG"
+cp "$schema" "$SAFEWORD_REVIEW_SCHEMA_COPY"
+emit_event "$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"codex","verdict":"approve","summary":"reviewed","findings":[{"severity":"warning","message":"noted"}]}' "$dispatch_id")"
 `,
     { mode: 0o755 },
   );
@@ -62,8 +68,8 @@ function reviewEnvironment(bin: string, directory: string): Record<string, strin
   return {
     PATH: `${bin}:/usr/bin:/bin`,
     SAFEWORD_AGENT_RUNTIME: 'claude',
-    SAFEWORD_SCHEMA_PATH_LOG: nodePath.join(directory, 'schema-path.log'),
-    SAFEWORD_SCHEMA_COPY: nodePath.join(directory, 'schema-copy.json'),
+    SAFEWORD_REVIEW_SCHEMA_PATH_LOG: nodePath.join(directory, 'schema-path.log'),
+    SAFEWORD_REVIEW_SCHEMA_COPY: nodePath.join(directory, 'schema-copy.json'),
     SAFEWORD_NO_UPDATE_CHECK: '1',
   };
 }

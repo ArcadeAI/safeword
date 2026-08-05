@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { accessSync, constants, realpathSync } from 'node:fs';
+import { accessSync, constants, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import type {
@@ -10,20 +11,27 @@ import type {
 } from './contract.js';
 import { reviewerEnvironment } from './environment.js';
 
-const REVIEW_OUTPUT_SCHEMA = JSON.stringify({
+/**
+ * The exact shape `parseReviewerOutput` enforces, expressed as JSON Schema so a
+ * reviewer can be told it up front instead of guessing. Every property carries
+ * a type and closed enums — Codex's structured-output mode rejects a bare
+ * `const`, and its natural vocabulary (high/medium severities, path/title/
+ * recommendation fields) is otherwise what comes back and gets refused.
+ */
+const REVIEW_OUTPUT_SCHEMA_SHAPE = {
   type: 'object',
   properties: {
-    schema_version: { const: 1 },
+    schema_version: { type: 'integer', enum: [1] },
     dispatch_id: { type: 'string' },
-    reviewer_agent: { enum: ['claude', 'codex'] },
-    verdict: { enum: ['approve', 'request_changes'] },
+    reviewer_agent: { type: 'string', enum: ['claude', 'codex'] },
+    verdict: { type: 'string', enum: ['approve', 'request_changes'] },
     summary: { type: 'string' },
     findings: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
-          severity: { enum: ['info', 'warning', 'error'] },
+          severity: { type: 'string', enum: ['info', 'warning', 'error'] },
           message: { type: 'string' },
         },
         required: ['severity', 'message'],
@@ -33,7 +41,9 @@ const REVIEW_OUTPUT_SCHEMA = JSON.stringify({
   },
   required: ['schema_version', 'dispatch_id', 'reviewer_agent', 'verdict', 'summary', 'findings'],
   additionalProperties: false,
-});
+} as const;
+
+const REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
 
 const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: [
@@ -72,14 +82,20 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
  * land before it. Claude takes the prompt on stdin with no positional marker,
  * so appending is safe there.
  */
-function reviewerArguments(reviewer: ReviewAgent, model: string | undefined): string[] {
+function reviewerArguments(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  schemaPath: string | undefined,
+): string[] {
   const base = [...ARGUMENTS[reviewer]];
-  if (model === undefined) return base;
-  const selection = ['--model', model];
+  const extra: string[] = [];
+  if (model !== undefined) extra.push('--model', model);
+  if (reviewer === 'codex' && schemaPath !== undefined) extra.push('--output-schema', schemaPath);
+  if (extra.length === 0) return base;
   const stdinMarker = base.lastIndexOf('-');
   return stdinMarker === -1
-    ? [...base, ...selection]
-    : [...base.slice(0, stdinMarker), ...selection, ...base.slice(stdinMarker)];
+    ? [...base, ...extra]
+    : [...base.slice(0, stdinMarker), ...extra, ...base.slice(stdinMarker)];
 }
 
 /** One reviewer dispatch: who reviews, what they read, and on which model. */
@@ -88,6 +104,8 @@ interface ReviewAttempt {
   readonly packet: ReviewPacket;
   readonly cwd: string;
   readonly model: string | undefined;
+  /** Written once per dispatch; owned by the dispatch, never by an attempt. */
+  readonly schemaPath: string | undefined;
 }
 
 const HELP_ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
@@ -114,6 +132,7 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
     '--ignore-rules',
     '--disable',
     '--config',
+    '--output-schema',
   ],
 };
 
@@ -333,11 +352,11 @@ function runCandidate(
   attempt: ReviewAttempt,
   timeoutMs: number,
 ): Promise<UnverifiedReviewerOutput> {
-  const { reviewer, packet, cwd, model } = attempt;
+  const { reviewer, packet, cwd, model, schemaPath } = attempt;
   return new Promise((resolve, reject) => {
     let timedOut = false;
     let overflow = false;
-    const child = spawn(executable, reviewerArguments(reviewer, model), {
+    const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath), {
       cwd,
       env: reviewerEnvironment(reviewer),
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -468,5 +487,28 @@ export async function runHeadlessReviewer(
       `No compatible ${reviewer} reviewer is installed`,
     );
   }
-  return runReviewerCandidates({ reviewer, packet, cwd, model }, candidates, deadline);
+  // The contract file belongs to the dispatch, not to an attempt: several
+  // candidates and routes read it, so attempt cleanup must never remove it.
+  const contract = reviewer === 'codex' ? writeContractFile() : undefined;
+  try {
+    return await runReviewerCandidates(
+      { reviewer, packet, cwd, model, schemaPath: contract?.path },
+      candidates,
+      deadline,
+    );
+  } finally {
+    contract?.cleanup();
+  }
+}
+
+function writeContractFile(): { readonly path: string; readonly cleanup: () => void } {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-contract-'));
+  const path = nodePath.join(directory, 'review-result.schema.json');
+  writeFileSync(path, REVIEW_OUTPUT_SCHEMA, { mode: 0o600 });
+  return {
+    path,
+    cleanup: () => {
+      rmSync(directory, { recursive: true, force: true });
+    },
+  };
 }

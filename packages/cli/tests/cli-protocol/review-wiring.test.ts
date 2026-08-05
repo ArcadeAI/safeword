@@ -26,7 +26,7 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
   exit 0
 fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${agent === 'claude' ? '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools' : '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config'}'
+  printf '%s\n' '${agent === 'claude' ? '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools' : '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema'}'
   exit 0
 fi
 printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"

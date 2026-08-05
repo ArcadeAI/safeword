@@ -32,10 +32,14 @@ const MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
  * exactly as it is today.
  */
 export function readAlternateReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
-  const configured =
-    process.env[`SAFEWORD_REVIEW_ALTERNATE_MODEL_${reviewer.toUpperCase()}`] ??
-    readConfiguredAlternateModel(cwd, reviewer);
-  return configured !== undefined && MODEL_NAME.test(configured) ? configured : undefined;
+  // Each source is validated on its own, so an unusable environment override
+  // reads as "not set" and falls through to the configured value rather than
+  // silently masking it.
+  const sources = [
+    process.env[`SAFEWORD_REVIEW_ALTERNATE_MODEL_${reviewer.toUpperCase()}`],
+    readConfiguredAlternateModel(cwd, reviewer),
+  ];
+  return sources.find(value => value !== undefined && MODEL_NAME.test(value));
 }
 
 function readConfiguredAlternateModel(cwd: string, reviewer: ReviewAgent): string | undefined {

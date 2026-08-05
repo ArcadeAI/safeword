@@ -12,7 +12,7 @@ const CAPABILITIES: Readonly<Record<ReviewAgent, string>> = {
   claude:
     '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model',
   codex:
-    '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --model',
+    '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --model --output-schema',
 };
 
 /**
