@@ -144,7 +144,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED 29979b908
 - [x] GREEN 243361bf2
-- [ ] REFACTOR
+- [x] REFACTOR skip: event and scheduled invalidation already share the same lifecycle branch
 
 ### Scenario: A new head cannot inherit an earlier conclusion
 
