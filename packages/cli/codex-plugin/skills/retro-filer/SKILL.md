@@ -40,8 +40,7 @@ the host project.
    exhaustive reads (`list_issues`, `issue_read`) strip HTML comments and can
    never see a marker. File anyway — a duplicate is recoverable, whereas a
    finding you decline to file is lost, since this path runs exactly when the
-   code-owned REST path had no GitHub credential of its own to use (#834,
-   #1900). But never merge on a
+   code-owned path left the draft unfiled (#834, #1900). But never merge on a
    resemblance: a matching surface or similar title is weak identity that drifts
    between sessions (#631), and commenting-and-acking on it binds the signature
    to that issue permanently while discarding the draft body. Only a confirmed
