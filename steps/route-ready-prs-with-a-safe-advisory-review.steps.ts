@@ -433,6 +433,13 @@ Then('no receipt is created', function (this: AdvisoryReviewWorld) {
   assert.deepEqual(this.receipts, []);
 });
 
+Then(
+  /^the workflow run summary records `not ready \((draft|closed|merged)\)`$/,
+  function (this: AdvisoryReviewWorld, state: 'closed' | 'draft' | 'merged') {
+    assert.equal(this.summary, `not ready (${state})`);
+  },
+);
+
 When('a later scheduled sweep evaluates revision A', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
   this.outcome = await reviewPullRequest({
