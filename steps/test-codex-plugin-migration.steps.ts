@@ -1616,6 +1616,8 @@ When('the plugin migration upgrade runs', function (this: CodexPluginMigrationWo
   this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
     cwd: repoRoot,
     env: {
+      // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
+      PATH: '',
       SAFEWORD_SKIP_INSTALL: '1',
     },
     timeout: 120_000,
