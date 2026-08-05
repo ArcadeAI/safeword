@@ -16,6 +16,7 @@ type ObservableReceipt = PublishedReceipt & {
     status: 'integrity_reviewed' | 'skipped';
     technologyGate?: string;
   }>;
+  findings?: Array<{ consequence: string; path: string }>;
   markerOwned?: boolean;
   missingEvidence?: string[];
   missingChecks?: string[];
@@ -32,6 +33,7 @@ interface AdvisoryReviewWorld {
   changedArtifactKind?: 'binary' | 'text';
   changedArtifactPath?: string;
   evidenceArtifacts?: Array<{ byteLength: number; path: string }>;
+  finding?: { consequence: string; path: string };
   maxTotalBytes?: number;
   receiptBeforeTrigger?: string;
   prerequisiteSamples?: number;
@@ -194,6 +196,27 @@ Given(
     this.maxTotalBytes = 100;
     this.prerequisites = 'passed';
     this.ready = true;
+  },
+);
+
+Given(
+  'an unfamiliar artifact reached the integrity reviewer',
+  function (this: AdvisoryReviewWorld) {
+    this.changedArtifactPath = 'policies/access.flux';
+    this.currentHead = 'revision A';
+    this.evidenceArtifacts = [{ byteLength: 32, path: this.changedArtifactPath }];
+    this.prerequisites = 'passed';
+    this.ready = true;
+  },
+);
+
+Given(
+  'the reviewer returned a consequential access-control finding',
+  function (this: AdvisoryReviewWorld) {
+    this.finding = {
+      consequence: 'Broadens access beyond the intended administrators.',
+      path: this.changedArtifactPath ?? '',
+    };
   },
 );
 
@@ -423,6 +446,34 @@ Then(
     assert.deepEqual(this.receipts?.[0]?.missingEvidence, []);
   },
 );
+
+When('Safeword derives the route', async function (this: AdvisoryReviewWorld) {
+  this.receipts = [];
+  this.outcome = await reviewPullRequest({
+    readPullRequest: async () => ({
+      headSha: this.currentHead ?? '',
+      prerequisitesConfigured: true,
+      prerequisites: this.prerequisites ?? 'pending',
+      ready: this.ready ?? false,
+    }),
+    inspect: async () => ({
+      artifacts: this.evidenceArtifacts?.map(artifact => ({
+        ...artifact,
+        kind: 'text' as const,
+      })),
+      consequentialFindings: this.finding ? 1 : 0,
+      findings: this.finding ? [this.finding] : [],
+      unknowns: [],
+    }),
+    publish: async receipt => {
+      this.receipts?.splice(0, this.receipts.length, receipt);
+    },
+  });
+});
+
+Then('the receipt associates the finding with that artifact', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.receipts?.[0]?.findings?.[0]?.path, this.changedArtifactPath);
+});
 
 When('Safeword evaluates review eligibility', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
