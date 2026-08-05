@@ -440,16 +440,11 @@ function checkUsageLimit(transcriptLines: string[]): void {
 function detectEditToolsUsed(transcriptLines: string[]): boolean {
   let checked = 0;
   for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
-    const transcriptLine = transcriptLines[i];
-    if (transcriptLine === undefined) continue;
-    try {
-      const message: TranscriptMessage = JSON.parse(transcriptLine);
-      if (message.type === 'assistant' && message.message?.content !== undefined) {
-        checked++;
-        if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
-      }
-    } catch {
-      // Skip invalid JSON lines
+    const message = parseTranscriptLine(transcriptLines[i]);
+    if (message === undefined) continue;
+    if (isAssistantMessage(message)) {
+      checked++;
+      if (containsEditToolUse(normalizeContentItems(message.message?.content))) return true;
     }
   }
   return false;
@@ -465,19 +460,14 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
 function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
   let scanned = 0;
   for (let i = transcriptLines.length - 1; i >= 0 && scanned < MAX_LINES_FOR_TURN_BOUNDARY; i--) {
-    const transcriptLine = transcriptLines[i];
-    if (transcriptLine === undefined) continue;
     scanned++;
-    try {
-      const message: TranscriptMessage = JSON.parse(transcriptLine);
-      if (startsNewTurn(message)) {
-        return false;
-      }
-      if (message.type === 'assistant' && message.message?.content !== undefined) {
-        if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
-      }
-    } catch {
-      // Skip invalid JSON lines and preserve the legacy bounded scan if no prompt is found.
+    // An unparseable line is skipped, not a boundary: preserve the legacy
+    // bounded scan when no turn start is found.
+    const message = parseTranscriptLine(transcriptLines[i]);
+    if (message === undefined) continue;
+    if (startsNewTurn(message)) return false;
+    if (isAssistantMessage(message)) {
+      if (containsEditToolUse(normalizeContentItems(message.message?.content))) return true;
     }
   }
   return undefined;
@@ -522,6 +512,20 @@ function startsNewTurn(message: TranscriptMessage): boolean {
 
 function containsEditToolUse(content: ContentItem[]): boolean {
   return content.some(item => item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name));
+}
+
+/** A transcript JSONL line, or undefined when it is not parseable. */
+function parseTranscriptLine(transcriptLine: string | undefined): TranscriptMessage | undefined {
+  if (transcriptLine === undefined) return undefined;
+  try {
+    return JSON.parse(transcriptLine) as TranscriptMessage;
+  } catch {
+    return undefined;
+  }
+}
+
+function isAssistantMessage(message: TranscriptMessage): boolean {
+  return message.type === 'assistant' && message.message?.content !== undefined;
 }
 
 /**
