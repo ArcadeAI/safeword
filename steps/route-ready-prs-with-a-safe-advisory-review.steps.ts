@@ -7,6 +7,7 @@ import {
   type PublishedReceipt,
   type ReviewOutcome,
 } from '../packages/cli/src/pr-review/review.ts';
+import { planReceiptPublication } from '../packages/cli/src/pr-review/publish.ts';
 
 type ObservableReceipt = PublishedReceipt & {
   commentId?: number;
@@ -296,6 +297,26 @@ Given('revision A has a current receipt', function (this: AdvisoryReviewWorld) {
   this.prerequisites = 'passed';
   this.ready = true;
   this.receipts = [{ reviewedSha: 'revision A', route: 'looks_ready' }];
+});
+
+Given(
+  'a pull request has one marker-owned receipt for revision A',
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.scheduledReceiptId = 42;
+    this.receipts = [
+      {
+        commentId: this.scheduledReceiptId,
+        markerOwned: true,
+        reviewedSha: 'revision A',
+        route: 'looks_ready',
+      },
+    ];
+  },
+);
+
+Given('revision B becomes the pull request head', function (this: AdvisoryReviewWorld) {
+  this.currentHead = 'revision B';
 });
 
 Given(
@@ -621,12 +642,57 @@ When('Safeword handles the change', async function (this: AdvisoryReviewWorld) {
   });
 });
 
+When(
+  'Safeword completes the advisory review for revision B',
+  async function (this: AdvisoryReviewWorld) {
+    this.outcome = await reviewPullRequest({
+      readPullRequest: async () => ({
+        headSha: this.currentHead ?? '',
+        prerequisitesConfigured: true,
+        prerequisites: 'passed',
+        ready: true,
+        reviewedReceiptSha: 'revision A',
+      }),
+      inspect: async () => ({
+        artifacts: [{ byteLength: 10, kind: 'text', path: 'revision-B.txt' }],
+        consequentialFindings: 0,
+        unknowns: [],
+      }),
+      publish: async receipt => {
+        const plan = planReceiptPublication(
+          (this.receipts ?? []).map((candidate, index) => ({
+            authorType: 'Bot',
+            createdAt: new Date(index).toISOString(),
+            id: candidate.commentId ?? index,
+            marker: candidate.markerOwned ? 'exact' : 'absent',
+          })),
+        );
+        this.receipts = [
+          {
+            ...receipt,
+            commentId: plan.canonicalCommentId,
+            markerOwned: true,
+          },
+        ];
+      },
+    });
+  },
+);
+
 Then(
   "the publication audit records revision A's `stale` write before any fresh route for revision B",
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.receipts?.[0]?.reviewedSha, 'revision A');
     assert.equal(this.receipts?.[0]?.runState, 'stale');
     assert.equal(this.receipts?.[1]?.reviewedSha, 'revision B');
+  },
+);
+
+Then(
+  'the same marker-owned comment is updated for revision B',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.receipts?.[0]?.commentId, this.scheduledReceiptId);
+    assert.equal(this.receipts?.[0]?.reviewedSha, 'revision B');
   },
 );
 
