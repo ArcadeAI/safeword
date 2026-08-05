@@ -2,14 +2,15 @@
 id: A9J9M8
 slug: operate-retry-safe-retro-relay
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/A9J9M8-operate-retry-safe-retro-relay/spec.md'
   - 'scenario-gate: features/operate-retry-safe-retro-relay.feature'
   - 'plan-implementation: features/operate-retry-safe-retro-relay.feature'
   - 'implement: .project/tickets/A9J9M8-operate-retry-safe-retro-relay/impl-plan.md'
   - 'verify: .project/tickets/A9J9M8-operate-retry-safe-retro-relay/test-definitions.md'
+  - 'done: .project/tickets/A9J9M8-operate-retry-safe-retro-relay/verify.md'
 scope:
   - one bounded relay acceptance path used by the shared safeword retro command in Claude, Cursor, and Codex
   - persist an opaque requestId and the exact sanitized payload before the first delivery attempt
@@ -34,7 +35,7 @@ done_when:
   - production startup authenticates separate harness and operator principals and repository authorization remains independent of request identity
   - an authenticated operations read exposes accepted, retryable, ambiguous, dead-letter, filed, and tombstone counts
 created: 2026-07-27T02:23:02.173Z
-last_modified: 2026-07-27T02:23:02.173Z
+last_modified: 2026-08-05T15:08:00.000Z
 ---
 
 # Deliver retry-safe retro findings across every harness
@@ -192,3 +193,6 @@ last_modified: 2026-07-27T02:23:02.173Z
   reporting without native fallback, strict response parsing, and timing-bound
   v2 drain evidence. Fresh quality re-review found no remaining critical or
   important issue; generated verification plans passed.
+- 2026-08-05 Complete: full verification and audit evidence is recorded in
+  `verify.md`; the user authorized the done transition after the final
+  mainline catch-up and ready-PR gate remediation.
