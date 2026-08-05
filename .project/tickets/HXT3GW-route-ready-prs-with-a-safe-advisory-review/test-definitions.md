@@ -160,7 +160,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: Publication reconciles duplicate marker-owned receipts
 
-- [ ] RED
+- [x] RED 718feba56
 - [ ] GREEN
 - [ ] REFACTOR
 
