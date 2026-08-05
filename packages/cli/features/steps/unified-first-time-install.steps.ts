@@ -47,6 +47,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   lifecycleOperation?: string;
   projectBefore?: string;
   unplannedContent?: string;
+  canonicalCommand?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -1098,5 +1099,39 @@ Then(
       envelope.next_actions?.some(action => action.command === 'safeword uninstall'),
       true,
     );
+  },
+);
+
+Given(
+  'the canonical lifecycle command {string}',
+  function (this: UnifiedInstallWorld, command: string) {
+    initializeHosts(this);
+    this.canonicalCommand = command;
+  },
+);
+
+When('the user requests global JSON output', function (this: UnifiedInstallWorld) {
+  const command = requiredPath(this.canonicalCommand, 'canonical command');
+  const argumentsByCommand: Readonly<Record<string, readonly string[]>> = {
+    install: ['install', '--agents', 'none'],
+    status: ['status', '--agents', 'none'],
+    doctor: ['doctor', '--agents', 'none'],
+    plan: ['plan', 'install', '--agents', 'none'],
+    uninstall: ['uninstall', '--agents', 'none'],
+  };
+  const arguments_ = argumentsByCommand[command];
+  if (arguments_ === undefined) throw new Error(`Unsupported lifecycle fixture: ${command}`);
+  runRawCommand(this, arguments_);
+});
+
+Then(
+  'stdout contains one versioned result envelope and no prose',
+  function (this: UnifiedInstallWorld) {
+    const trimmed = this.result.stdout.trim();
+    assert.equal(trimmed.startsWith('{') && trimmed.endsWith('}'), true);
+    assert.equal(trimmed.split('\n').length, 1);
+    const envelope = JSON.parse(trimmed) as { schema_version?: number; ok?: boolean };
+    assert.equal(envelope.schema_version, 1);
+    assert.equal(typeof envelope.ok, 'boolean');
   },
 );

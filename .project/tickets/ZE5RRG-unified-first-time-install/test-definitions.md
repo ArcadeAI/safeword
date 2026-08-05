@@ -200,9 +200,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Every lifecycle command renders one stable JSON envelope
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the versioned global envelope predates unified lifecycle commands
+- [x] GREEN 97ee66679
+- [x] REFACTOR skip: every public command reports through the shared result renderer
 
 ### Scenario: Legacy raw JSON remains compatible but is not advertised as canonical
 
