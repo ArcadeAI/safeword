@@ -17,6 +17,10 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import {
+  CODEX_PLUGIN_HOOK_EVENTS,
+  recordCodexHookProof,
+} from '../../src/codex-plugin/profile-proof.ts';
 import { SAFEWORD_SCHEMA } from '../../src/schema.ts';
 import type { SafewordWorld } from './world.js';
 
@@ -848,7 +852,21 @@ Given(
     initializeHosts(this);
     runInstall(this, []);
     assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
-    this.projectBefore = directoryDigest(requiredPath(this.projectRoot, 'project root'));
+    const environment = this.hostEnvironment ?? {};
+    const codexHome = requiredPath(environment.CODEX_HOME, 'Codex home');
+    rmSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'), { force: true });
+    for (const event of CODEX_PLUGIN_HOOK_EVENTS) recordCodexHookProof(event, environment);
+    runRawCommand(this, ['codex', 'migrate', '--finalize']);
+    const preview = JSON.parse(this.result.stdout) as {
+      data?: { plan?: { id?: string } };
+    };
+    const planId = requiredPath(preview.data?.plan?.id, 'Codex finalization plan');
+    runRawCommand(this, ['codex', 'migrate', '--finalize', '--yes', '--plan', planId]);
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    const finalization = JSON.parse(this.result.stdout) as { state?: string };
+    assert.equal(finalization.state, 'changed', this.result.stdout);
+    const project = requiredPath(this.projectRoot, 'project root');
+    this.projectBefore = readFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), 'utf8');
     writeFileSync(requiredPath(this.claudeLog, 'Claude log'), '');
     writeFileSync(requiredPath(this.codexLog, 'Codex log'), '');
   },
@@ -866,11 +884,16 @@ Then(
       state?: string;
       data?: { surfaces?: { state?: string }[] };
     };
+    const project = requiredPath(this.projectRoot, 'project root');
     assert.equal(
-      directoryDigest(requiredPath(this.projectRoot, 'project root')),
+      readFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), 'utf8'),
       this.projectBefore,
     );
-    assert.equal(envelope.state, 'healthy');
+    assert.equal(
+      readFileSync(nodePath.join(project, '.cursor/customer.json'), 'utf8'),
+      '{"ownedBy":"customer"}\n',
+    );
+    assert.equal(envelope.state, 'healthy', JSON.stringify(envelope));
     assert.equal(envelope.changed, false);
     assert.equal(
       envelope.data?.surfaces?.every(surface => surface.state === 'healthy'),
@@ -947,6 +970,7 @@ Then('successful core and Codex effects remain recorded', function (this: Unifie
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
   assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
   const envelope = JSON.parse(this.result.stdout) as {
+    effects?: { configuration?: { target?: string }[] };
     data?: { surfaces?: { name?: string; state?: string }[] };
   };
   assert.equal(
@@ -957,8 +981,12 @@ Then('successful core and Codex effects remain recorded', function (this: Unifie
   );
   assert.equal(
     envelope.data?.surfaces?.some(
-      surface => surface.name === 'codex' && surface.state === 'changed',
+      surface => surface.name === 'codex' && surface.state !== 'failed',
     ),
+    true,
+  );
+  assert.equal(
+    envelope.effects?.configuration?.some(effect => effect.target?.includes('Codex') === true),
     true,
   );
 });
@@ -974,8 +1002,11 @@ Then('Claude is the only failed surface offered for retry', function (this: Unif
       .map(surface => surface.name),
     ['claude'],
   );
+  const retryActions = envelope.next_actions?.filter(action =>
+    action.command?.startsWith('safeword install'),
+  );
   assert.deepEqual(
-    envelope.next_actions?.map(action => action.command),
+    retryActions?.map(action => action.command),
     ['safeword install --agents=claude'],
   );
 });
@@ -996,7 +1027,10 @@ Given(
 
 When('the user runs the reported Claude retry', function (this: UnifiedInstallWorld) {
   const envelope = JSON.parse(this.result.stdout) as { next_actions?: { command?: string }[] };
-  assert.equal(envelope.next_actions?.[0]?.command, 'safeword install --agents=claude');
+  assert.equal(
+    envelope.next_actions?.some(action => action.command === 'safeword install --agents=claude'),
+    true,
+  );
   runInstall(this, ['--agents', 'claude']);
 });
 

@@ -11,6 +11,7 @@ import {
   effectsForReconciliation,
 } from '../cli-protocol/reconciliation.js';
 import { type CliResult, createResult, type Effects } from '../cli-protocol/result.js';
+import { schemaForCodexDelivery } from '../codex-plugin/delivery-schema.js';
 import { type SafewordSchema, schemaForProjectSurfaces } from '../schema.js';
 import { convergeSetup } from './converge-setup.js';
 
@@ -22,6 +23,14 @@ interface LifecycleInstallAdapters {
 interface SurfaceResult {
   readonly name: string;
   readonly result: CliResult;
+}
+
+function projectLifecycleSchema(cwd: string, agents: readonly string[]): SafewordSchema {
+  const deliverySchema = schemaForCodexDelivery(cwd, schemaForClaudeDelivery(cwd));
+  return schemaForProjectSurfaces(deliverySchema, [
+    'core',
+    ...(agents.includes('cursor') ? (['cursor'] as const) : []),
+  ]);
 }
 
 function lifecycleState(results: readonly CliResult[]): CliResult['state'] {
@@ -58,11 +67,14 @@ function combineInstallResults(
       .filter(finding => finding.code !== 'SETUP_CODEX_PLUGIN_HANDOFF'),
     errors: results.flatMap(result => result.errors),
     recovery: results.flatMap(result => result.recovery),
-    nextActions: results
-      .flatMap(result => result.nextActions)
-      .filter(
-        action => !['safeword claude install', 'safeword codex install'].includes(action.command),
-      ),
+    nextActions: surfaces.flatMap(surface =>
+      surface.result.nextActions.flatMap(action => {
+        const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
+        if (profileInstall === null) return [action];
+        if (surface.result.state !== 'failed' || surface.name !== profileInstall[1]) return [];
+        return [{ ...action, command: `safeword install --agents=${surface.name}` }];
+      }),
+    ),
     data: {
       command: 'install',
       operation: 'install',
@@ -80,10 +92,7 @@ async function installProjectSurface(
   invocation: CommandInvocation,
   agents: readonly string[],
 ): Promise<CliResult> {
-  const projectSchema = schemaForProjectSurfaces(schemaForClaudeDelivery(invocation.cwd), [
-    'core',
-    ...(agents.includes('cursor') ? (['cursor'] as const) : []),
-  ]);
+  const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
@@ -218,10 +227,7 @@ async function prepareUninstall(
   cwd: string,
   agents: readonly AgentIntegration[],
 ): Promise<PreparedUninstall> {
-  const projectSchema = schemaForProjectSurfaces(schemaForClaudeDelivery(cwd), [
-    'core',
-    ...(agents.includes('cursor') ? (['cursor'] as const) : []),
-  ]);
+  const projectSchema = projectLifecycleSchema(cwd, agents);
   const project = await createReconciliationPlan(cwd, 'uninstall', projectSchema);
   const surfaces = plannedUninstallSurfaces(agents, project.plan.effects);
   const observations = await profilePreconditions(cwd, agents);
@@ -246,10 +252,7 @@ async function prepareInstall(
   cwd: string,
   agents: readonly AgentIntegration[],
 ): Promise<PreparedUninstall> {
-  const projectSchema = schemaForProjectSurfaces(schemaForClaudeDelivery(cwd), [
-    'core',
-    ...(agents.includes('cursor') ? (['cursor'] as const) : []),
-  ]);
+  const projectSchema = projectLifecycleSchema(cwd, agents);
   const project = await createReconciliationPlan(cwd, 'upgrade', projectSchema);
   const surfaces = [
     { name: 'project', effects: project.plan.effects },
