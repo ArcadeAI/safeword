@@ -1,4 +1,3 @@
-@wip
 Feature: Route ready PRs with a safe advisory review
 
   Every ready pull request receives one exact-head, technology-neutral advisory
