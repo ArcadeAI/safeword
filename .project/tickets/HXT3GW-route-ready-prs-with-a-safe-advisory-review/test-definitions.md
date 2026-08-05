@@ -154,7 +154,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: A new head updates the sole receipt instead of adding comment noise
 
-- [ ] RED
+- [x] RED fa2016652
 - [ ] GREEN
 - [ ] REFACTOR
 
