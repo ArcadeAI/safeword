@@ -254,10 +254,10 @@ launches, candidate cleanups and route transitions pushes review work past
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | every exhausted route names its own cause in plain words with one next step; the TBU keeps the raw classification in JSON | `packages/cli/features/reliable-reviews-for-real-packets.feature` NTB1.R1 | |
-| 3. Add, never replace | the result envelope gains `reviewer_model` and keeps every existing field; the alternate model is opt-in, so an unconfigured project keeps unchanged route selection and is never given a model | `packages/cli/features/reliable-reviews-for-real-packets.feature` TBU3.R3 | |
-| 5. Clarity before correctness | explanations are built only from Safe Word's own failure classification, never from reviewer output, so they stay readable and leak nothing | `packages/cli/features/reliable-reviews-for-real-packets.feature` NTB1.R2 | |
-| 1. Structure enforces; instructions suggest | bounds are enforced by the runtime — attempt budget, run bound, cleanup budget — rather than asked of the reviewer | `packages/cli/features/reliable-reviews-for-real-packets.feature` TBU1.R2, TBU3.R5 | |
+| Optimize for the NTB without constraining the TBU | every exhausted route names its own cause in plain words with one next step (NTB1.R1); the TBU keeps the raw classification in JSON | `packages/cli/features/reliable-reviews-for-real-packets.feature` | |
+| 3. Add, never replace | the result envelope gains `reviewer_model` and keeps every existing field; an unconfigured project keeps unchanged route selection and is never given a model (TBU3.R3) | `packages/cli/features/reliable-reviews-for-real-packets.feature` | |
+| 5. Clarity before correctness | explanations are built only from Safe Word's own failure classification, never from reviewer output, so they stay readable and leak nothing (NTB1.R2) | `packages/cli/features/reliable-reviews-for-real-packets.feature` | |
+| 1. Structure enforces; instructions suggest | bounds are enforced by the runtime — attempt deadline, run bound, cleanup budget — rather than asked of the reviewer (TBU1.R2, TBU3.R5) | `packages/cli/features/reliable-reviews-for-real-packets.feature` | |
 
 Architecture decisions honored: this extends the coordinator shipped by
 `QZAFT2-cross-agent-adversarial-reviews` without changing its trust boundaries —

@@ -76,7 +76,9 @@ describe('when the result contract cannot be written', () => {
       } catch (error) {
         reported = error as ReviewRuntimeError;
       }
-      expect(reported?.message).toBeDefined();
+      // The message says what happened and nothing about where it happened.
+      expect(reported?.message).toBe('The codex review could not be prepared');
+      expect(reported?.failure).toBe('process_failed');
       expect(reported?.message).not.toContain(nodePath.join(scratch, 'readonly'));
       expect(reported?.message).not.toContain('schema');
     });
