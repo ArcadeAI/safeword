@@ -103,7 +103,7 @@ Feature: Test Codex plugin migration
     Scenario: Unavailable profile enrollment preserves an old project's authored data and fallback
       Given a repo installed with today's project-local Codex assets
       And the repo contains user-owned tickets and learnings under the namespace root
-      When the plugin migration upgrade runs
+      When the plugin migration upgrade runs without profile tools
       Then the upgrade reports profile enrollment failure loudly
       And the user-owned tickets and learnings remain byte-identical
       And Safe Word keeps repo-local `.agents/skills` available during the compatibility window

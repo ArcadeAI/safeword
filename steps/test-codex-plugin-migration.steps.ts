@@ -25,6 +25,27 @@ const SAFEWORD_CODEX_PLUGIN_ROOT = nodePath.resolve(
 );
 const CODEX_PLUGIN_MANIFEST_PATH = '.codex-plugin/plugin.json';
 const SAFEWORD_CLI_PATH = nodePath.resolve(import.meta.dirname, '..', 'packages/cli/dist/cli.js');
+
+/**
+ * Deterministic tool boundary for migration scenarios.
+ *
+ * These scenarios must not inherit the runner's ambient `PATH`. Doing so made
+ * them measure whichever Codex happened to be installed: the "unavailable
+ * enrollment" scenario silently exercised the *available* path wherever Codex
+ * existed, and the survival scenarios flipped with the environment (#1973).
+ *
+ * `CODEX_AVAILABLE_PATH` puts the repo's pinned `@openai/codex` first, so a
+ * migration genuinely runs and the survival scenarios assert against real work
+ * rather than a migration that never happened. The system directories keep
+ * git/node resolvable; the pinned binary shadows any system Codex, so the
+ * result does not depend on the developer's machine.
+ */
+const CODEX_AVAILABLE_PATH = [
+  nodePath.resolve(import.meta.dirname, '..', 'node_modules/.bin'),
+  '/usr/local/bin',
+  '/usr/bin',
+  '/bin',
+].join(nodePath.delimiter);
 const CODEX_TEST_TICKET_ID = 'ABC123';
 const REPO_LOCAL_SAFEWORD_SENTINEL = 'REPO LOCAL SAFEWORD SHOULD NOT APPEAR';
 const POST_TOOL_GUIDANCE_LINE =
@@ -1611,18 +1632,34 @@ When(
   },
 );
 
-When('the plugin migration upgrade runs', function (this: CodexPluginMigrationWorld) {
-  const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-  this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
+function runCodexMigrationUpgrade(
+  world: CodexPluginMigrationWorld,
+  toolPath: string,
+): CommandResult {
+  const repoRoot = requirePath(world.codexPluginRepoRoot, 'repo root');
+  return runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
     cwd: repoRoot,
-    env: {
-      // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
-      PATH: '',
-      SAFEWORD_SKIP_INSTALL: '1',
-    },
+    // SAFEWORD_SKIP_INSTALL only skips project dependencies, so the tool
+    // boundary has to be set explicitly rather than inherited.
+    env: { PATH: toolPath, SAFEWORD_SKIP_INSTALL: '1' },
     timeout: 120_000,
   });
+}
+
+When('the plugin migration upgrade runs', function (this: CodexPluginMigrationWorld) {
+  this.codexPluginMigrationResult = runCodexMigrationUpgrade(this, CODEX_AVAILABLE_PATH);
 });
+
+// Separate step, not a flag on the shared one: the scenario name promises no
+// profile tools, so the fixture that makes that true belongs where a reader of
+// the feature file can see it. Folding it into the shared step is what made
+// three scenarios share one boundary and two of them stop testing anything.
+When(
+  'the plugin migration upgrade runs without profile tools',
+  function (this: CodexPluginMigrationWorld) {
+    this.codexPluginMigrationResult = runCodexMigrationUpgrade(this, '');
+  },
+);
 
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
@@ -1824,9 +1861,16 @@ Then(
   'Safe Word-owned Codex skill files remain beside the user-authored skill until finalization',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    // The migration actually ran here, so the bootstrap skill it writes is
+    // expected. Guarding that first keeps this from passing vacuously if the
+    // migration ever silently stops running again (#1973).
+    const migration = this.codexPluginMigrationResult;
+    assert.ok(migration, 'migration result was not captured');
+    assert.equal(migration.exitCode, 0, `migration did not run: ${migration.stderr}`);
     assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
       'bdd',
       'company-workflow',
+      'safeword-plugin-setup',
       'verify',
     ]);
   },
@@ -1834,6 +1878,19 @@ Then(
 
 Then('the user-authored Codex config entries remain', function (this: CodexPluginMigrationWorld) {
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+  // Survival is only meaningful if the migration actually evaluated this repo.
+  // Here it runs, finds the stale Safe Word hook commands, and deliberately
+  // declines — so the config survives because the decline path preserved it,
+  // not because nothing ran. Asserting the decline reason keeps that
+  // distinction: a migration that never started would leave the config equally
+  // untouched and prove nothing (#1973).
+  const migration = this.codexPluginMigrationResult;
+  assert.ok(migration, 'migration result was not captured');
+  assert.equal(migration.exitCode, 2, `expected a declined migration: ${migration.stderr}`);
+  assert.match(
+    `${migration.stdout}\n${migration.stderr}`,
+    /legacy project protection was retained/iu,
+  );
   const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
   const lines = config.split(/\r?\n/u);
   for (const line of this.codexPluginUserCodexConfigLines ?? []) {
