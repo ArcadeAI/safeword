@@ -140,9 +140,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A lifecycle effect absent from its plan blocks apply
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: exact-plan binding shipped atomically with unified uninstall apply
+- [x] GREEN c25022a65
+- [x] REFACTOR skip: stale and expanded plans share one precondition comparison
 
 ## Rule: unified-first-time-install.TBU2.R3 — Uninstallation reverses only recognized Safe Word-owned state after exact-plan confirmation
 

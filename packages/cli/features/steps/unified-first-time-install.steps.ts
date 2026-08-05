@@ -46,6 +46,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   unifiedUninstall?: boolean;
   lifecycleOperation?: string;
   projectBefore?: string;
+  unplannedContent?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -1046,3 +1047,56 @@ Then('core and Codex are not installed again', function (this: UnifiedInstallWor
     /plugin (?:marketplace|add)/u,
   );
 });
+
+Given(
+  'an apply would require an effect not present in the reviewed plan',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runInstall(this, ['--agents', 'none']);
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    const project = requiredPath(this.projectRoot, 'project root');
+    const managedPath = nodePath.join(project, '.safeword/templates/work-log-template.md');
+    this.unplannedContent = readFileSync(managedPath, 'utf8');
+    rmSync(managedPath);
+    runRawCommand(this, ['uninstall', '--agents', 'none']);
+    const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
+    this.planId = envelope.data?.plan?.id;
+    assert.match(this.planId ?? '', /^[a-f\d]{64}$/u);
+    writeFileSync(managedPath, this.unplannedContent);
+    this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+  },
+);
+
+When('the user confirms that plan', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, [
+    'uninstall',
+    '--agents',
+    'none',
+    '--yes',
+    '--plan',
+    requiredPath(this.planId, 'plan id'),
+  ]);
+});
+
+Then(
+  'the unplanned effect is refused and recovery guidance is returned',
+  function (this: UnifiedInstallWorld) {
+    assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
+    assert.equal(
+      directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')),
+      this.fixtureBefore,
+    );
+    const envelope = JSON.parse(this.result.stdout) as {
+      findings?: { code?: string }[];
+      next_actions?: { command?: string }[];
+    };
+    assert.equal(
+      envelope.findings?.some(finding => finding.code === 'PLAN_STALE'),
+      true,
+    );
+    assert.equal(
+      envelope.next_actions?.some(action => action.command === 'safeword uninstall'),
+      true,
+    );
+  },
+);
