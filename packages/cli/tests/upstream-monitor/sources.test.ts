@@ -8,10 +8,25 @@ import {
   normalizeCursorHtml,
   normalizeIssueState,
   normalizeReleaseAtom,
+  parseGitHubRepo,
   snapshotBody,
 } from '../../src/upstream-monitor/index.js';
 
 describe('upstream monitor source adapters', () => {
+  it.each(['owner/repo/extra', 'owner/', '/repo'])(
+    'rejects malformed repository name %s',
+    value => {
+      expect(parseGitHubRepo(value)).toBeUndefined();
+    },
+  );
+
+  it('parses an owner/repo repository name', () => {
+    expect(parseGitHubRepo('ArcadeAI/safeword')).toEqual({
+      owner: 'ArcadeAI',
+      repo: 'safeword',
+    });
+  });
+
   it('normalizes Codex release Atom feeds into stable release text', () => {
     const normalized = normalizeReleaseAtom(`
       <?xml version="1.0" encoding="UTF-8"?>

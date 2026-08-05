@@ -1,6 +1,12 @@
 import process from 'node:process';
 
-import { createGitHubIssueClient, fetchText, readText, runUpstreamMonitor } from './index.js';
+import {
+  createGitHubIssueClient,
+  fetchText,
+  parseGitHubRepo,
+  readText,
+  runUpstreamMonitor,
+} from './index.js';
 
 const repoFullName = process.env.GITHUB_REPOSITORY;
 const token = process.env.GITHUB_TOKEN;
@@ -15,11 +21,12 @@ if (!token) {
   process.exit(1);
 }
 
-const [owner, repo] = repoFullName.split('/', 2);
-if (!owner || !repo) {
+const parsedRepo = parseGitHubRepo(repoFullName);
+if (!parsedRepo) {
   console.error(`GITHUB_REPOSITORY must be owner/repo, got ${repoFullName}`);
   process.exit(1);
 }
+const { owner, repo } = parsedRepo;
 
 // The monitor and the issue client both report operational detail; in a
 // scheduled run the workflow log is the only place anyone will read it.

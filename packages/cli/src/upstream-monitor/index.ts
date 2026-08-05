@@ -133,6 +133,13 @@ export function getMonitorSource(key: MonitorSourceKey): MonitorSource {
   return source;
 }
 
+export function parseGitHubRepo(fullName: string): { owner: string; repo: string } | undefined {
+  const segments = fullName.split('/');
+  if (segments.length !== 2) return undefined;
+  const [owner, repo] = segments;
+  return owner && repo ? { owner, repo } : undefined;
+}
+
 function normalizeMarkdown(raw: string): string {
   return normalizeWhitespace(raw);
 }
