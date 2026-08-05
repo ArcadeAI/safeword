@@ -2,8 +2,8 @@
 id: 81P5QH
 slug: deploy-retro-relay-spike
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/81P5QH-deploy-retro-relay-spike/spec.md'
   - 'scenario-gate: features/deploy-retro-relay-spike.feature'
@@ -27,7 +27,7 @@ done_when:
   - a request accepted before restart remains authoritative after restart
   - the spike records costs, limitations, teardown steps, and the path to a real GitHub App
 created: 2026-07-27T00:28:08.780Z
-last_modified: 2026-07-27T00:28:08.780Z
+last_modified: 2026-08-05T15:06:00.000Z
 ---
 
 # Prove the retro relay on Railway
@@ -56,3 +56,4 @@ last_modified: 2026-07-27T00:28:08.780Z
 - 2026-07-27 Quality review requested Node security, bounded draining, and wired safety fixes. Upgraded the image to Node 24.18.0, configured 30-second Railway draining with a 25-second application bound, and added stdin-only atomic state, topology, report-redaction, and exact teardown validation.
 - 2026-07-27 Independent quality re-review approved with no critical issues.
 - 2026-07-27 Phase: implement → verify after the live durability proof, hardened redeployment, executable Gherkin, and safety wiring passed.
+- 2026-08-05 Complete: the Railway deployment workflow is now wired to relevant `main` changes, validates its required secret and repository variables before deploy, and retains a manual-dispatch path. The disposable Railway durability proof and its operational limitations remain recorded above.
