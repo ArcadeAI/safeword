@@ -149,7 +149,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: A new head cannot inherit an earlier conclusion
 
 - [x] RED 8965770bd
-- [ ] GREEN
+- [x] GREEN 716ae7513
 - [ ] REFACTOR
 
 ### Scenario: A new head updates the sole receipt instead of adding comment noise
