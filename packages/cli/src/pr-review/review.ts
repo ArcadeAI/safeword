@@ -36,8 +36,10 @@ export type ArtifactCoverage =
 export type PublishedReceipt =
   | {
       coverage?: ArtifactCoverage[];
+      reviewableTextArtifacts?: number;
       reviewedSha: string;
       route: 'looks_ready' | 'needs_human';
+      runState?: 'complete' | 'incomplete';
       unknowns?: string[];
     }
   | {
@@ -96,6 +98,34 @@ function resolveCoverage(inspection: AdvisoryInspection): ArtifactCoverage[] | u
     })),
   ];
   return coverage.length > 0 ? coverage : undefined;
+}
+
+function deriveReviewedReceipt(
+  reviewedSha: string,
+  inspection: AdvisoryInspection,
+): Extract<PublishedReceipt, { route: 'looks_ready' | 'needs_human' }> {
+  const coverage = resolveCoverage(inspection);
+  const reviewableTextArtifacts = coverage?.filter(
+    artifact => artifact.status === 'integrity_reviewed',
+  ).length;
+  const runState = reviewableTextArtifacts === 0 ? 'incomplete' : 'complete';
+  const route =
+    runState === 'complete' &&
+    inspection.consequentialFindings === 0 &&
+    inspection.unknowns.length === 0
+      ? 'looks_ready'
+      : 'needs_human';
+
+  return {
+    ...(coverage && {
+      coverage,
+      reviewableTextArtifacts,
+      runState,
+      unknowns: inspection.unknowns,
+    }),
+    reviewedSha,
+    route,
+  };
 }
 
 async function stopBeforeReview(
@@ -167,19 +197,7 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
   }
 
   const inspection = await dependencies.inspect(pullRequest.headSha);
-  const route =
-    inspection.consequentialFindings === 0 && inspection.unknowns.length === 0
-      ? 'looks_ready'
-      : 'needs_human';
-  const coverage = resolveCoverage(inspection);
-
-  await dependencies.publish(
-    {
-      ...(coverage && { coverage, unknowns: inspection.unknowns }),
-      reviewedSha: pullRequest.headSha,
-      route,
-    },
-    'upsert_marker_owned',
-  );
+  const receipt = deriveReviewedReceipt(pullRequest.headSha, inspection);
+  await dependencies.publish(receipt, 'upsert_marker_owned');
   return { attempts: 1, result: 'reviewed', reviewedSha: pullRequest.headSha };
 }
