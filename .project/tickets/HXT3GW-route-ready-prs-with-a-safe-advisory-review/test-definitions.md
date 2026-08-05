@@ -40,7 +40,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED a792a030e
 - [x] GREEN b9a30d4cf
-- [ ] REFACTOR
+- [x] REFACTOR skip: GREEN already unified terminal and pending non-run publication without changing their observable states
 
 ### Scenario: Missing prerequisite configuration gives one concrete next action
 
