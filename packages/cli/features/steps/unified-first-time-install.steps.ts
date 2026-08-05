@@ -49,6 +49,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   unplannedContent?: string;
   canonicalCommand?: string;
   historicalCommand?: string;
+  humanInstallSummary?: boolean;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -968,7 +969,8 @@ Given(
 );
 
 When('the user runs the default install', function (this: UnifiedInstallWorld) {
-  runInstall(this, []);
+  if (this.humanInstallSummary === true) runRawCommand(this, ['install'], false);
+  else runInstall(this, []);
 });
 
 Then('successful core and Codex effects remain recorded', function (this: UnifiedInstallWorld) {
@@ -1185,3 +1187,18 @@ Then(
     assert.equal(envelope.data?.machine_output?.canonical_option, '--json');
   },
 );
+
+Given('core Claude and Codex installation all succeed', function (this: UnifiedInstallWorld) {
+  initializeHosts(this);
+  this.humanInstallSummary = true;
+});
+
+Then('the human result names each surface and its outcome', function (this: UnifiedInstallWorld) {
+  assert.match(this.result.stdout, /Project setup: (?:ready|updated|needs attention)/u);
+  assert.match(this.result.stdout, /Claude: (?:ready|updated|needs attention)/u);
+  assert.match(this.result.stdout, /Codex: (?:ready|updated|needs attention)/u);
+});
+
+Then('Cursor is identified as not selected', function (this: UnifiedInstallWorld) {
+  assert.match(this.result.stdout, /Cursor: not selected/u);
+});
