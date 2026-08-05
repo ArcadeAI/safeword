@@ -1,11 +1,13 @@
 export interface PullRequestReviewState {
   headSha: string;
+  markerReceiptExists?: boolean;
   missingPrerequisites?: readonly string[];
   prerequisitesConfigured: boolean;
   requiredPrerequisites?: readonly string[];
   prerequisites: 'passed' | 'pending' | 'failed';
   ready: boolean;
   reviewedReceiptSha?: string;
+  state?: 'closed' | 'draft' | 'merged';
 }
 
 export interface AdvisoryInspection {
@@ -35,6 +37,12 @@ export type PublishedReceipt =
       markerOwned: true;
       reviewedSha: string;
       status: 'prerequisites_failed';
+    }
+  | {
+      markerOwned: true;
+      reason: 'closed' | 'draft' | 'merged';
+      reviewedSha: string;
+      status: 'not_ready';
     };
 
 export type ReceiptPublicationMode = 'upsert_marker_owned';
@@ -63,7 +71,19 @@ async function stopBeforeReview(
   pullRequest: PullRequestReviewState,
 ): Promise<ReviewOutcome | undefined> {
   if (!pullRequest.ready) {
-    await dependencies.summarize?.('not ready (draft)');
+    const reason = pullRequest.state ?? 'draft';
+    if (pullRequest.markerReceiptExists) {
+      await dependencies.publish(
+        {
+          markerOwned: true,
+          reason,
+          reviewedSha: pullRequest.headSha,
+          status: 'not_ready',
+        },
+        'upsert_marker_owned',
+      );
+    }
+    await dependencies.summarize?.(`not ready (${reason})`);
     return { attempts: 0, result: 'not_run' };
   }
 
