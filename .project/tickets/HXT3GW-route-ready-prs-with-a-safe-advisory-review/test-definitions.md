@@ -56,7 +56,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: A repeated trigger cannot produce another review attempt
 
-- [ ] RED
+- [x] RED c1f286f9a
 - [ ] GREEN
 - [ ] REFACTOR
 
