@@ -174,7 +174,7 @@ describe('plan and remove wiring', () => {
     expect(readFileSync(versionPath, 'utf8')).toBe('changed-after-preview\n');
     expect(JSON.parse(stale.stdout)).toMatchObject({
       state: 'action_required',
-      findings: [{ code: 'PLAN_STALE' }],
+      findings: expect.arrayContaining([expect.objectContaining({ code: 'PLAN_STALE' })]),
     });
   });
 

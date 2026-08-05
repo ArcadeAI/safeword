@@ -63,6 +63,8 @@ interface PredictableCliWorld extends SafewordWorld {
   publicCommandName?: string;
   hookEntrypoint?: string;
   hookSurface?: 'Claude Code' | 'Codex' | 'Cursor';
+  unifiedUninstall?: boolean;
+  hostEnvironment?: NodeJS.ProcessEnv;
   latencySamples?: number[];
   scheduledProgress?: () => void;
   progressMessages?: string[];
@@ -94,7 +96,7 @@ function runCli(
   const completed = spawnSync(process.execPath, [CLI_PATH, ...argv], {
     cwd,
     encoding: 'utf8',
-    env: childEnvironment(),
+    env: { ...childEnvironment(), ...world.hostEnvironment },
   });
   world.result = {
     stdout: completed.stdout,
@@ -492,7 +494,7 @@ Given(
 
 When('the user confirms the stale plan', function (this: PredictableCliWorld) {
   runCli(this, [
-    'remove',
+    this.unifiedUninstall === true ? 'uninstall' : 'remove',
     '--yes',
     '--plan',
     assertPresent(this.planId),

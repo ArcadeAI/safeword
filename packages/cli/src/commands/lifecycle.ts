@@ -1,13 +1,17 @@
 import { createHash } from 'node:crypto';
 
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
-import { parseAgentSelection } from '../cli-protocol/agent-selection.js';
+import { type AgentIntegration, parseAgentSelection } from '../cli-protocol/agent-selection.js';
 import type { CommandInvocation } from '../cli-protocol/handler.js';
 import { onlineRequired } from '../cli-protocol/online-required.js';
-import { createPlan, toWirePlan } from '../cli-protocol/plan.js';
-import { createReconciliationPlan } from '../cli-protocol/reconciliation.js';
+import { type CliPlan, createPlan, toWirePlan } from '../cli-protocol/plan.js';
+import {
+  applyReconciliation,
+  createReconciliationPlan,
+  effectsForReconciliation,
+} from '../cli-protocol/reconciliation.js';
 import { type CliResult, createResult, type Effects } from '../cli-protocol/result.js';
-import { schemaForProjectSurfaces } from '../schema.js';
+import { type SafewordSchema, schemaForProjectSurfaces } from '../schema.js';
 import { convergeSetup } from './converge-setup.js';
 
 interface LifecycleInstallAdapters {
@@ -155,39 +159,144 @@ function profileUninstallEffects(agent: 'claude' | 'codex'): Effects {
   };
 }
 
-export async function uninstallLifecycle(invocation: CommandInvocation): Promise<CliResult> {
-  const parsed = parseAgentSelection(invocation.options.agents);
-  if (!parsed.ok) {
-    return createResult({
-      state: 'failed',
-      errors: [{ ...parsed.error, retryable: false }],
-      data: { command: 'uninstall' },
-    });
+interface PreparedUninstall {
+  readonly agents: readonly AgentIntegration[];
+  readonly projectSchema: SafewordSchema;
+  readonly surfaces: readonly { readonly name: string; readonly effects: Effects }[];
+  readonly plan: CliPlan;
+}
+
+async function profilePreconditions(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+): Promise<unknown[]> {
+  const observations: unknown[] = [];
+  if (agents.includes('claude')) {
+    const { observeClaudeProfile } = await import('../claude-plugin/profile.js');
+    observations.push(['claude', observeClaudeProfile(cwd)]);
   }
-  const agents = parsed.selection.agents;
-  const projectSchema = schemaForProjectSurfaces(schemaForClaudeDelivery(invocation.cwd), [
+  if (agents.includes('codex')) {
+    const { observeCodexMigrationResult } = await import('./migrate-codex-plugin.js');
+    observations.push(['codex', observeCodexMigrationResult(cwd)]);
+  }
+  return observations;
+}
+
+function plannedUninstallSurfaces(
+  agents: readonly AgentIntegration[],
+  projectEffects: Effects,
+): { name: string; effects: Effects }[] {
+  const surfaces = [{ name: 'project', effects: projectEffects }];
+  for (const agent of agents) {
+    if (agent === 'cursor') {
+      surfaces.push({ name: agent, effects: createResult({ state: 'healthy' }).effects });
+    } else surfaces.push({ name: agent, effects: profileUninstallEffects(agent) });
+  }
+  return surfaces;
+}
+
+async function prepareUninstall(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+): Promise<PreparedUninstall> {
+  const projectSchema = schemaForProjectSurfaces(schemaForClaudeDelivery(cwd), [
     'core',
     ...(agents.includes('cursor') ? (['cursor'] as const) : []),
   ]);
-  const project = await createReconciliationPlan(invocation.cwd, 'uninstall', projectSchema);
-  const surfaces = [
-    { name: 'project', effects: project.plan.effects },
-    ...agents
-      .filter((agent): agent is 'claude' | 'codex' => agent !== 'cursor')
-      .map(agent => ({ name: agent, effects: profileUninstallEffects(agent) })),
-    ...(agents.includes('cursor') ? [{ name: 'cursor', effects: project.plan.effects }] : []),
-  ];
+  const project = await createReconciliationPlan(cwd, 'uninstall', projectSchema);
+  const surfaces = plannedUninstallSurfaces(agents, project.plan.effects);
+  const observations = await profilePreconditions(cwd, agents);
   const preconditionDigest = createHash('sha256')
-    .update(JSON.stringify([project.plan.preconditionDigest, agents]))
+    .update(JSON.stringify([project.plan.preconditionDigest, agents, observations]))
     .digest('hex');
-  const plan = createPlan({
-    command: 'uninstall',
-    preconditionDigest,
-    effects: mergeEffects(surfaces.map(surface => surface.effects)),
-    requiresConfirmation: true,
-    verification: [{ description: 'Re-run safeword status', command: 'safeword status' }],
-  });
+  return {
+    agents,
+    projectSchema,
+    surfaces,
+    plan: createPlan({
+      command: 'uninstall',
+      preconditionDigest,
+      effects: mergeEffects(surfaces.map(surface => surface.effects)),
+      requiresConfirmation: true,
+      verification: [{ description: 'Re-run safeword status', command: 'safeword status' }],
+    }),
+  };
+}
 
+function staleUninstallPlan(plan: CliPlan): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'PLAN_STALE',
+        message: 'Selected project or profile state changed after this uninstall plan was created.',
+        severity: 'warning',
+      },
+    ],
+    nextActions: [{ command: 'safeword uninstall', mutates: false, requiresHuman: true }],
+    data: { command: 'uninstall', plan: toWirePlan(plan) },
+  });
+}
+
+async function uninstallProfileSurfaces(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+): Promise<SurfaceResult[]> {
+  const completed: SurfaceResult[] = [];
+  if (agents.includes('claude')) {
+    const { uninstallClaudePlugin } = await import('../claude-plugin/profile.js');
+    completed.push({ name: 'claude', result: uninstallClaudePlugin(cwd) });
+  }
+  if (agents.includes('codex')) {
+    const { uninstallCodexPlugin } = await import('./migrate-codex-plugin.js');
+    completed.push({ name: 'codex', result: uninstallCodexPlugin() });
+  }
+  return completed;
+}
+
+async function applyPreparedUninstall(
+  cwd: string,
+  prepared: PreparedUninstall,
+): Promise<CliResult> {
+  const completed = await uninstallProfileSurfaces(cwd, prepared.agents);
+  const appliedProject = await applyReconciliation(cwd, 'uninstall', prepared.projectSchema);
+  const projectEffects = effectsForReconciliation(appliedProject, 'uninstall');
+  const projectChanged = projectEffects.destructive.length > 0 || projectEffects.files.length > 0;
+  completed.unshift({
+    name: 'project',
+    result: createResult({
+      state: projectChanged ? 'changed' : 'healthy',
+      effects: projectEffects,
+      data: { command: 'project uninstall', removed: appliedProject.removed },
+    }),
+  });
+  if (prepared.agents.includes('cursor')) {
+    completed.push({ name: 'cursor', result: createResult({ state: 'changed' }) });
+  }
+  const results = completed.map(surface => surface.result);
+  return createResult({
+    state: lifecycleState(results),
+    changed: results.some(result => result.changed),
+    effects: mergeEffects(results.map(result => result.effects)),
+    findings: results.flatMap(result => result.findings),
+    errors: results.flatMap(result => result.errors),
+    recovery: results.flatMap(result => result.recovery),
+    nextActions: results.flatMap(result => result.nextActions),
+    data: {
+      command: 'uninstall',
+      operation: 'uninstall',
+      selected_agents: prepared.agents,
+      surfaces: completed.map(surface => ({
+        name: surface.name,
+        selected: true,
+        state: surface.result.state,
+      })),
+    },
+  });
+}
+
+function uninstallPreview(prepared: PreparedUninstall): CliResult {
+  const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
   return createResult({
     state: 'action_required',
     findings: [
@@ -199,7 +308,7 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
     ],
     nextActions: [
       {
-        command: `safeword uninstall --agents=${agents.length === 0 ? 'none' : agents.join(',')} --yes --plan ${plan.id}`,
+        command: `safeword uninstall --agents=${selected} --yes --plan ${prepared.plan.id}`,
         mutates: true,
         requiresHuman: true,
       },
@@ -207,9 +316,32 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
     data: {
       command: 'uninstall',
       operation: 'uninstall',
-      selected_agents: agents,
-      surfaces: surfaces.map(surface => ({ name: surface.name, selected: true, state: 'planned' })),
-      plan: toWirePlan(plan),
+      selected_agents: prepared.agents,
+      surfaces: prepared.surfaces.map(surface => ({
+        name: surface.name,
+        selected: true,
+        state: 'planned',
+      })),
+      plan: toWirePlan(prepared.plan),
     },
   });
+}
+
+export async function uninstallLifecycle(invocation: CommandInvocation): Promise<CliResult> {
+  const parsed = parseAgentSelection(invocation.options.agents);
+  if (!parsed.ok) {
+    return createResult({
+      state: 'failed',
+      errors: [{ ...parsed.error, retryable: false }],
+      data: { command: 'uninstall' },
+    });
+  }
+  const prepared = await prepareUninstall(invocation.cwd, parsed.selection.agents);
+  const suppliedPlan =
+    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  if (invocation.options.yes === true && suppliedPlan !== undefined) {
+    if (suppliedPlan !== prepared.plan.id) return staleUninstallPlan(prepared.plan);
+    return applyPreparedUninstall(invocation.cwd, prepared);
+  }
+  return uninstallPreview(prepared);
 }

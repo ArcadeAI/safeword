@@ -120,6 +120,7 @@ export async function createReconciliationPlan(
 export async function applyReconciliation(
   cwd: string,
   mode: Exclude<PlanMode, 'upgrade'>,
+  schema: SafewordSchema = SAFEWORD_SCHEMA,
 ): Promise<ReconcileResult> {
-  return reconcile(SAFEWORD_SCHEMA, mode, createProjectContext(cwd));
+  return reconcile(schema, mode, createProjectContext(cwd));
 }

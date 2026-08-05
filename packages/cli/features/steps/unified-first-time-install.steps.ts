@@ -36,6 +36,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   doctorEnvelope?: Record<string, unknown>;
   planId?: string;
   unrelatedProfilePath?: string;
+  unifiedUninstall?: boolean;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -127,6 +128,9 @@ case "$*" in
   'plugin install safeword@safeword --scope user'|'plugin update safeword@safeword --scope user'|'plugin enable safeword@safeword --scope user')
     printf 'enabled' > "$SAFEWORD_CLAUDE_STATE"
     ;;
+  'plugin uninstall safeword@safeword --scope user --keep-data')
+    printf 'absent' > "$SAFEWORD_CLAUDE_STATE"
+    ;;
   'plugin list --json')
     if [ "$(cat "$SAFEWORD_CLAUDE_STATE")" = 'enabled' ]; then
       printf '[{"id":"safeword@safeword","version":"%s","enabled":true,"scope":"user","installPath":"%s"}]\n' "$SAFEWORD_VERSION" "$SAFEWORD_CLAUDE_PAYLOAD"
@@ -157,6 +161,10 @@ case "$*" in
     ;;
   'plugin add safeword@safeword --json')
     printf 'enabled' > "$SAFEWORD_CODEX_STATE"
+    echo '{"pluginId":"safeword@safeword"}'
+    ;;
+  'plugin remove safeword@safeword --json')
+    printf 'absent' > "$SAFEWORD_CODEX_STATE"
     echo '{"pluginId":"safeword@safeword"}'
     ;;
   'plugin list --json')
@@ -523,3 +531,52 @@ Then(
     );
   },
 );
+
+Given(
+  'selected state changed after an uninstall plan was previewed',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runInstall(this, []);
+    runRawCommand(this, ['uninstall']);
+    const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
+    this.planId = envelope.data?.plan?.id;
+    assert.match(this.planId ?? '', /^[a-f\d]{64}$/u);
+    writeFileSync(requiredPath(this.claudeState, 'Claude state'), 'absent');
+    this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+    this.unifiedUninstall = true;
+  },
+);
+
+Then('no removal occurs and a fresh plan is required', function (this: UnifiedInstallWorld) {
+  assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
+  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+  const envelope = JSON.parse(this.result.stdout) as {
+    findings?: { code?: string }[];
+    next_actions?: { command?: string }[];
+  };
+  assert.equal(
+    envelope.findings?.some(finding => finding.code === 'PLAN_STALE'),
+    true,
+  );
+  assert.equal(
+    envelope.next_actions?.some(action => action.command === 'safeword uninstall'),
+    true,
+  );
+});
+
+Given('an exact uninstall plan has not been confirmed', function (this: UnifiedInstallWorld) {
+  initializeHosts(this);
+  runInstall(this, []);
+  this.fixtureBefore = directoryDigest(requiredPath(this.fixtureRoot, 'fixture root'));
+});
+
+When('the user runs uninstall without input', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['uninstall', '--no-input']);
+});
+
+Then('the plan is reported without applying any removal', function (this: UnifiedInstallWorld) {
+  assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
+  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+  const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
+  assert.match(envelope.data?.plan?.id ?? '', /^[a-f\d]{64}$/u);
+});

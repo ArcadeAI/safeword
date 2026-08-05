@@ -444,6 +444,54 @@ export function installCodexPlugin(
   }
 }
 
+export function uninstallCodexPlugin(): CliResult {
+  try {
+    if (!observeCodexPlugin().installed) {
+      return createResult({
+        state: 'healthy',
+        data: { command: 'codex uninstall', plugin: PLUGIN_ID },
+      });
+    }
+    run('codex', ['plugin', 'remove', PLUGIN_ID, '--json']);
+    if (observeCodexPlugin().installed) {
+      throw new Error(`Codex still reports ${PLUGIN_ID} after uninstall.`);
+    }
+    return createResult({
+      state: 'changed',
+      effects: {
+        destructive: [{ kind: 'remove', target: PLUGIN_ID, operation: 'profile' }],
+      },
+      recovery: [
+        {
+          command: 'safeword install --agents=codex',
+          description: 'Reinstall the Codex profile plugin if this removal must be reversed.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'codex uninstall', plugin: PLUGIN_ID },
+    });
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CODEX_PLUGIN_UNINSTALL_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: true,
+        },
+      ],
+      recovery: [
+        {
+          command: 'safeword install --agents=codex',
+          description: 'Repair or restore the Codex profile plugin.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'codex uninstall', plugin: PLUGIN_ID },
+    });
+  }
+}
+
 function shouldReportExistingMigrationState(
   cwd: string,
   options: {

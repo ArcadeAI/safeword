@@ -154,19 +154,19 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Confirmed uninstall preserves custom and third-party content
 
-- [ ] RED
+- [x] RED 704c80202
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A stale uninstall plan is refused
 
-- [ ] RED
+- [x] RED skip: profile preconditions were added atomically with unified apply
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: No-input uninstall never infers destructive consent
 
-- [ ] RED
+- [x] RED skip: preview-only no-input behavior is the canonical uninstall default
 - [ ] GREEN
 - [ ] REFACTOR
 

@@ -368,3 +368,57 @@ export function installClaudePlugin(cwd: string): CliResult {
     return failedResult(error);
   }
 }
+
+export function uninstallClaudePlugin(cwd: string): CliResult {
+  const effects: Effect[] = [];
+  try {
+    assertSupportedHost(cwd);
+    if (safewordPlugin(pluginEntries(cwd, effects)) === undefined) {
+      return createResult({
+        state: 'healthy',
+        data: { command: 'claude uninstall', plugin: PLUGIN_ID, scope: 'user' },
+      });
+    }
+    runClaude(cwd, ['plugin', 'uninstall', PLUGIN_ID, '--scope', 'user', '--keep-data'], effects);
+    effects.push({ kind: 'remove', target: PLUGIN_ID, operation: 'user' });
+    if (safewordPlugin(pluginEntries(cwd, effects)) !== undefined) {
+      throw new ClaudeProfileError(
+        'CLAUDE_PLUGIN_UNINSTALL_UNVERIFIED',
+        `Claude still reports ${PLUGIN_ID} after uninstall.`,
+        effects,
+      );
+    }
+    return createResult({
+      state: 'changed',
+      effects: { destructive: effects },
+      recovery: [
+        {
+          command: 'safeword install --agents=claude',
+          description: 'Reinstall the Claude profile plugin if this removal must be reversed.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'claude uninstall', plugin: PLUGIN_ID, scope: 'user', data_preserved: true },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const failure =
+      error instanceof ClaudeProfileError
+        ? error
+        : new ClaudeProfileError('CLAUDE_PLUGIN_UNINSTALL_FAILED', message, effects);
+    return createResult({
+      state: 'failed',
+      changed: failure.effects.length > 0,
+      effects: { destructive: failure.effects },
+      errors: [{ code: failure.code, message: failure.message, retryable: true }],
+      recovery: [
+        {
+          command: 'safeword install --agents=claude',
+          description: 'Repair or restore the Claude profile plugin.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'claude uninstall', plugin: PLUGIN_ID, scope: 'user' },
+    });
+  }
+}
