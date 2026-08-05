@@ -9,7 +9,6 @@ import type {
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
-import { parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { numericOption, stringOption } from './option-values.js';
@@ -90,126 +89,12 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
   });
 }
 
-function lifecycleState(results: readonly CliResult[]): CliResult['state'] {
-  if (results.some(result => result.state === 'failed')) return 'failed';
-  if (results.some(result => result.state === 'action_required')) return 'action_required';
-  if (results.some(result => result.state === 'changed')) return 'changed';
-  return 'healthy';
-}
-
-function combineInstallResults(
-  agents: readonly string[],
-  surfaces: readonly { readonly name: string; readonly result: CliResult }[],
-): CliResult {
-  const results = surfaces.map(surface => surface.result);
-  const effectCategories = [
-    'files',
-    'packages',
-    'configuration',
-    'network',
-    'destructive',
-  ] as const;
-  const effects = Object.fromEntries(
-    effectCategories.map(category => [
-      category,
-      results.flatMap(result => result.effects[category]),
-    ]),
-  );
-  return createResult({
-    state: lifecycleState(results),
-    changed: results.some(result => result.changed),
-    effects,
-    findings: results
-      .flatMap(result => result.findings)
-      .filter(finding => finding.code !== 'SETUP_CODEX_PLUGIN_HANDOFF'),
-    errors: results.flatMap(result => result.errors),
-    recovery: results.flatMap(result => result.recovery),
-    nextActions: results
-      .flatMap(result => result.nextActions)
-      .filter(
-        action => !['safeword claude install', 'safeword codex install'].includes(action.command),
-      ),
-    data: {
-      command: 'install',
-      operation: 'install',
-      selected_agents: agents,
-      surfaces: surfaces.map(surface => ({
-        name: surface.name,
-        selected: true,
-        state: surface.result.state,
-      })),
-    },
-  });
-}
-
 async function installHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const parsed = parseAgentSelection(invocation.options.agents);
-  if (!parsed.ok) {
-    return createResult({
-      state: 'failed',
-      errors: [{ ...parsed.error, retryable: false }],
-      data: { command: 'install' },
-    });
-  }
-  const { agents } = parsed.selection;
-  if (invocation.offline && agents.length > 0) return onlineRequired('install');
-
-  const projectResult = await installProjectSurface(invocation, agents);
-  const surfaces = await installAgentSurfaces(invocation, agents, projectResult);
-  return combineInstallResults(agents, [{ name: 'project', result: projectResult }, ...surfaces]);
-}
-
-async function installProjectSurface(
-  invocation: CommandInvocation,
-  agents: readonly string[],
-): Promise<CliResult> {
-  const [{ convergeSetup }, { schemaForClaudeDelivery }, { schemaForProjectSurfaces }] =
-    await Promise.all([
-      import('../commands/converge-setup.js'),
-      import('../claude-plugin/delivery-schema.js'),
-      import('../schema.js'),
-    ]);
-  const projectSchema = schemaForProjectSurfaces(schemaForClaudeDelivery(invocation.cwd), [
-    'core',
-    ...(agents.includes('cursor') ? (['cursor'] as const) : []),
-  ]);
-  return convergeSetup(invocation.cwd, {
-    noModify: invocation.options.modify === false,
-    repairVersionMarker: invocation.options.repairVersionMarker === true,
-    migrateNamespace:
-      typeof invocation.options.migrateNamespace === 'boolean'
-        ? invocation.options.migrateNamespace
-        : undefined,
-    progress: invocation.progress,
-    schema: projectSchema,
+  const { installLifecycle } = await import('../commands/lifecycle.js');
+  return installLifecycle(invocation, {
+    installClaude: () => claudeInstallHandler(invocation),
+    installCodex: () => codexMutationHandler('codex install', invocation),
   });
-}
-
-async function installAgentSurfaces(
-  invocation: CommandInvocation,
-  agents: readonly string[],
-  projectResult: CliResult,
-): Promise<{ name: string; result: CliResult }[]> {
-  const surfaces: { name: string; result: CliResult }[] = [];
-  if (agents.includes('claude')) {
-    surfaces.push({ name: 'claude', result: await claudeInstallHandler(invocation) });
-  }
-  if (agents.includes('codex')) {
-    surfaces.push({
-      name: 'codex',
-      result: await codexMutationHandler('codex install', invocation),
-    });
-  }
-  if (agents.includes('cursor')) {
-    surfaces.push({
-      name: 'cursor',
-      result: createResult({
-        state: projectResult.state,
-        changed: projectResult.changed,
-      }),
-    });
-  }
-  return surfaces;
 }
 
 async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliResult> {

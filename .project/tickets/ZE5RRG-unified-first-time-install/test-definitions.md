@@ -8,8 +8,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Default install configures core Claude and Codex but not Cursor
 
-- [x] RED — `587bb98bb` proves the canonical install behavior failed before implementation.
-- [ ] GREEN
+- [x] RED 587bb98bb
+- [x] GREEN 77a6d027b
 - [ ] REFACTOR
 
 ### Scenario: Offline default install refuses before changing any surface
@@ -321,3 +321,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Cross-scenario refactor
+
+- [ ] cross-scenario
