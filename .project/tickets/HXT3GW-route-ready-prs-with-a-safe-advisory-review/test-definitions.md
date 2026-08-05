@@ -84,7 +84,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED cf53551d4
 - [x] GREEN c082f8e39
-- [ ] REFACTOR
+- [x] REFACTOR skip: coverage normalization is already isolated and the evidence variant is minimal
 
 ### Scenario: A skipped binary does not poison an otherwise complete clean review
 
