@@ -19,6 +19,7 @@ type ObservableReceipt = PublishedReceipt & {
 interface AdvisoryReviewWorld {
   attempts?: number;
   prerequisitesConfigured?: boolean;
+  requiredPrerequisites?: string[];
   currentHead?: string;
   missingPrerequisite?: string;
   outcome?: ReviewOutcome;
@@ -63,6 +64,16 @@ Given(
   'a ready pull request has no `prReview.requiredChecks` configuration',
   function (this: AdvisoryReviewWorld) {
     this.prerequisitesConfigured = false;
+    this.prerequisites = 'pending';
+    this.ready = true;
+  },
+);
+
+Given(
+  'a ready pull request explicitly configures no required prerequisites',
+  function (this: AdvisoryReviewWorld) {
+    this.prerequisitesConfigured = true;
+    this.requiredPrerequisites = [];
     this.prerequisites = 'pending';
     this.ready = true;
   },
@@ -241,6 +252,42 @@ Then(
     assert.equal(this.receipts?.[0]?.nextAction, 'Set prReview.requiredChecks explicitly.');
   },
 );
+
+When(
+  'the same triggered run evaluates eligibility and performs the advisory review',
+  async function (this: AdvisoryReviewWorld) {
+    this.attempts = 0;
+    this.receipts = [];
+    this.outcome = await reviewPullRequest({
+      readPullRequest: async () => ({
+        headSha: this.currentHead ?? '',
+        prerequisitesConfigured: this.prerequisitesConfigured ?? true,
+        requiredPrerequisites: this.requiredPrerequisites,
+        prerequisites: this.prerequisites ?? 'pending',
+        ready: this.ready ?? false,
+      }),
+      inspect: async () => {
+        this.attempts = (this.attempts ?? 0) + 1;
+        return { consequentialFindings: 0, unknowns: [] };
+      },
+      publish: async receipt => {
+        this.receipts?.splice(0, this.receipts.length, receipt);
+      },
+    });
+  },
+);
+
+Then(
+  'the same triggered run completes the advisory review for revision A',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.outcome?.reviewedSha, 'revision A');
+    assert.equal(this.attempts, 1);
+  },
+);
+
+Then('it publishes the current receipt for revision A', function (this: AdvisoryReviewWorld) {
+  assert.deepEqual(this.receipts, [{ reviewedSha: 'revision A', route: 'looks_ready' }]);
+});
 
 When('a later scheduled sweep evaluates revision A', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
