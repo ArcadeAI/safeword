@@ -8,7 +8,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: A ready revision is reviewed once at its exact head
 
-- [ ] RED
+- [x] RED c3cdd85e6
 - [ ] GREEN
 - [ ] REFACTOR
 
