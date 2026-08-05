@@ -1,9 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
+import type { ProjectContext } from '../../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../../templates/workflows');
@@ -75,5 +77,35 @@ describe('advisory PR review workflow contract', () => {
     expect(
       SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review-worker.yml'],
     ).toMatchObject({ template: 'workflows/pr-review-worker.yml' });
+    expect(SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review.yml']).toMatchObject({
+      template: 'workflows/pr-review.yml',
+    });
+  });
+
+  it('keeps both workflows absent until PR review is explicitly enabled', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-'));
+    const context = { cwd: projectDirectory } as ProjectContext;
+    const definitions = [
+      SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review.yml'],
+      SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review-worker.yml'],
+    ];
+
+    try {
+      for (const definition of definitions) {
+        expect(definition?.generator?.(context)).toBeUndefined();
+      }
+
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'));
+      writeFileSync(
+        nodePath.join(projectDirectory, '.safeword/config.json'),
+        JSON.stringify({ prReview: { enabled: true } }),
+      );
+
+      for (const definition of definitions) {
+        expect(definition?.generator?.(context)).toContain('Safeword advisory PR review');
+      }
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
   });
 });
