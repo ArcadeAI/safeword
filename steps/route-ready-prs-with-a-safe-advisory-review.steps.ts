@@ -143,6 +143,7 @@ When('Safeword evaluates review eligibility', async function (this: AdvisoryRevi
   const dependencies = {
     readPullRequest: async () => ({
       headSha: this.currentHead ?? '',
+      prerequisitesConfigured: this.prerequisitesConfigured ?? true,
       prerequisites: this.prerequisites ?? 'pending',
       ready: this.ready ?? false,
     }),
@@ -246,6 +247,7 @@ When('a later scheduled sweep evaluates revision A', async function (this: Advis
   this.outcome = await reviewPullRequest({
     readPullRequest: async () => ({
       headSha: this.currentHead ?? '',
+      prerequisitesConfigured: this.prerequisitesConfigured ?? true,
       prerequisites: this.prerequisites ?? 'pending',
       ready: this.ready ?? false,
     }),
@@ -297,6 +299,7 @@ When('a later scheduled sweep samples that exact head', async function (this: Ad
     readPullRequest: async () => ({
       headSha: this.currentHead ?? '',
       missingPrerequisites: [this.missingPrerequisite ?? ''],
+      prerequisitesConfigured: this.prerequisitesConfigured ?? true,
       prerequisites: this.prerequisites ?? 'pending',
       ready: this.ready ?? false,
     }),
