@@ -9,6 +9,7 @@ import {
   draftSpoolPath,
   markDraftsFiled,
   spoolDrafts,
+  spoolSiblingPath,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
   CODEX_FILER_SKILL_NAME,
@@ -19,6 +20,21 @@ import {
   formatFilingDispatch,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { appendRetroAck, retroDraft as draft, writeSelfReportConfig } from '../helpers.js';
+
+function corruptPersistedAttempts(
+  projectDirectory: string,
+  sessionId: string,
+  attempts: string,
+): void {
+  const markerFile = spoolSiblingPath(projectDirectory, sessionId, '.filing-attempts');
+  const persisted = JSON.parse(readFileSync(markerFile, 'utf8')) as Record<string, unknown>;
+  // Written as raw JSON text, not via JSON.stringify: `1e999` has to survive to
+  // disk as a literal, and stringify would emit the Infinity it parses to as null.
+  const others = Object.entries(persisted)
+    .filter(([field]) => field !== 'attempts')
+    .map(([field, value]) => `${JSON.stringify(field)}:${JSON.stringify(value)}`);
+  writeFileSync(markerFile, `{"attempts":${attempts},${others.join(',')}}\n`);
+}
 
 describe('retro filing gate decision (GH628F — dispatch until drained, capped)', () => {
   let projectDirectory: string;
@@ -77,21 +93,6 @@ describe('retro filing gate decision (GH628F — dispatch until drained, capped)
   // the gate itself wrote: dispatch once for the real key, then rewrite only
   // `attempts`. Measured on the unsanitized code these gave 7 dispatches
   // (negative: widened budget) and 0 (Infinity: drafts stranded unfiled).
-  function corruptPersistedAttempts(sessionId: string, attempts: string): void {
-    const markerFile = nodePath.join(
-      projectDirectory,
-      '.safeword/retro-drafts',
-      `${sessionId}.filing-attempts`,
-    );
-    const persisted = JSON.parse(readFileSync(markerFile, 'utf8')) as Record<string, unknown>;
-    // Written as raw JSON text, not via JSON.stringify: `1e999` has to survive to
-    // disk as a literal, and stringify would emit the Infinity it parses to as null.
-    const others = Object.entries(persisted)
-      .filter(([field]) => field !== 'attempts')
-      .map(([field, value]) => `${JSON.stringify(field)}:${JSON.stringify(value)}`);
-    writeFileSync(markerFile, `{"attempts":${attempts},${others.join(',')}}\n`);
-  }
-
   it.each([
     ['non-finite', '1e999'],
     ['negative', '-5'],
@@ -100,7 +101,7 @@ describe('retro filing gate decision (GH628F — dispatch until drained, capped)
   ])('clamps a %s persisted count so the cap still binds', (_label, attempts) => {
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
     expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined(); // writes the real key
-    corruptPersistedAttempts('sess-1', attempts);
+    corruptPersistedAttempts(projectDirectory, 'sess-1', attempts);
 
     // Clamped to 0, so the batch gets its full budget back and then goes quiet —
     // never unbounded (the negative case) and never silent-forever (Infinity).
@@ -286,16 +287,7 @@ describe('retro filing tripwire (GH644A — unacked removals become telemetry)',
   // The tripwire would then stay disarmed for the rest of the session.
   it('still trips on a bare drain when the persisted count is corrupt', () => {
     dispatchBatch('s1', ['retro:aaaaaaaaaaaa']);
-    const markerFile = nodePath.join(
-      projectDirectory,
-      '.safeword/retro-drafts',
-      's1.filing-attempts',
-    );
-    const persisted = JSON.parse(readFileSync(markerFile, 'utf8')) as Record<string, unknown>;
-    const others = Object.entries(persisted)
-      .filter(([field]) => field !== 'attempts')
-      .map(([field, value]) => `${JSON.stringify(field)}:${JSON.stringify(value)}`);
-    writeFileSync(markerFile, `{"attempts":-5,${others.join(',')}}\n`);
+    corruptPersistedAttempts(projectDirectory, 's1', '-5');
 
     markDraftsFiled(projectDirectory, 's1', ['retro:aaaaaaaaaaaa']); // drained, no acks
     evaluate('s1');
