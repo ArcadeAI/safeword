@@ -220,9 +220,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Specialized canonical commands remain first-class operations
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 587bb98bb7
+- [x] GREEN d1748ef02
+- [x] REFACTOR skip: specialized policy and alias classification share the executable catalogue
 
 ### Scenario: Setup yes is accepted and explicitly reported as redundant
 
@@ -232,21 +232,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Nontrivial aliases preserve their defined observable contract
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 587bb98bb7
+- [x] GREEN d1748ef02
+- [x] REFACTOR skip: each fixture exercises the shared lifecycle handler selected by the catalogue
 
 ### Scenario: The exhaustive reference includes review and destructive guidance commands
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 587bb98bb7
+- [x] GREEN 7c13e5ddc d1748ef02
+- [x] REFACTOR skip: help and capabilities derive from the same command definitions
 
 ### Scenario: Ordinary help teaches only canonical routes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 587bb98bb7
+- [x] GREEN 7c13e5ddc d1748ef02
+- [x] REFACTOR skip: the compatibility section is rendered from the retained-route inventory
 
 ## Rule: unified-first-time-install.NTB1.R1 — Results identify project Claude and Codex outcomes separately
 
@@ -306,22 +306,22 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Destructive help and plans name deactivation backup and recovery effects
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 587bb98bb7
+- [x] GREEN 7c13e5ddc ffb3f7e06
+- [x] REFACTOR skip: catalogue descriptions and structured plans keep separate presentation and effect concerns
 
 ### Scenario: A destructive operation cannot describe itself as backup-only
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 587bb98bb7
+- [x] GREEN 7c13e5ddc ffb3f7e06
+- [x] REFACTOR skip: the shared result renderer exposes destructive effects alongside the recovery backup
 
 ### Scenario: Recoverable destructive work can be restored without replacing unrelated content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 587bb98bb7
+- [x] GREEN ffb3f7e06
+- [x] REFACTOR skip: recovery targets the recognized moved artifact and leaves unrelated paths untouched
 
 ## Cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 7c13e5ddc — exact compatibility replacements now drive runtime guidance, capabilities, and help
