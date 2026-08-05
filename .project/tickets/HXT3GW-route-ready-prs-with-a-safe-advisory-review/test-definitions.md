@@ -15,7 +15,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A draft revision creates no receipt
 
 - [x] RED d763c43a8
-- [ ] GREEN
+- [x] GREEN 4635b17fc
 - [ ] REFACTOR
 
 ### Scenario: A pending prerequisite publishes a visible non-run receipt
