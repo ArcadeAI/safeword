@@ -10,11 +10,11 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 587bb98bb
 - [x] GREEN 77a6d027b
-- [ ] REFACTOR
+- [x] REFACTOR a92237a7f
 
 ### Scenario: Offline default install refuses before changing any surface
 
-- [ ] RED
+- [x] RED skip: offline preflight was implemented atomically in 77a6d027b
 - [ ] GREEN
 - [ ] REFACTOR
 

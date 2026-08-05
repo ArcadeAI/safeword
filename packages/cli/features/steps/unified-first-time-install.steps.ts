@@ -30,6 +30,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   codexState?: string;
   cursorBefore?: string;
   hostEnvironment?: NodeJS.ProcessEnv;
+  fixtureBefore?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -183,6 +184,7 @@ esac
     SAFEWORD_CODEX_STATE: codexState,
     SAFEWORD_VERSION: SAFEWORD_SCHEMA.version,
   };
+  world.fixtureBefore = directoryDigest(root);
 }
 
 function requiredPath(path: string | undefined, label: string): string {
@@ -194,6 +196,30 @@ After(function (this: UnifiedInstallWorld) {
   if (this.fixtureRoot !== undefined) rmSync(this.fixtureRoot, { recursive: true, force: true });
 });
 
+function runInstall(world: UnifiedInstallWorld, arguments_: readonly string[]): void {
+  const project = requiredPath(world.projectRoot, 'project root');
+  const environment = world.hostEnvironment ?? {};
+  const completed = spawnSync(
+    process.execPath,
+    [CLI_PATH, 'install', ...arguments_, '--json', '--cwd', project],
+    {
+      cwd: project,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ...environment,
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        SAFEWORD_SKIP_INSTALL: '1',
+      },
+    },
+  );
+  world.result = {
+    stdout: completed.stdout,
+    stderr: completed.stderr,
+    exitCode: completed.status ?? 1,
+  };
+}
+
 Given(
   'an unconfigured project with available Claude and Codex hosts',
   function (this: UnifiedInstallWorld) {
@@ -204,27 +230,7 @@ Given(
 When(
   'the user runs the canonical install command without an agent selector',
   function (this: UnifiedInstallWorld) {
-    const project = requiredPath(this.projectRoot, 'project root');
-    const environment = this.hostEnvironment ?? {};
-    const completed = spawnSync(
-      process.execPath,
-      [CLI_PATH, 'install', '--json', '--cwd', project],
-      {
-        cwd: project,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          ...environment,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-          SAFEWORD_SKIP_INSTALL: '1',
-        },
-      },
-    );
-    this.result = {
-      stdout: completed.stdout,
-      stderr: completed.stderr,
-      exitCode: completed.status ?? 1,
-    };
+    runInstall(this, []);
   },
 );
 
@@ -242,4 +248,28 @@ Then(
 Then('Cursor configuration is unchanged', function (this: UnifiedInstallWorld) {
   const project = requiredPath(this.projectRoot, 'project root');
   assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
+});
+
+Given(
+  'an unconfigured project whose default installation requires network access',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+  },
+);
+
+When('the user runs the canonical install command offline', function (this: UnifiedInstallWorld) {
+  runInstall(this, ['--offline']);
+});
+
+Then('no project profile or Cursor effect occurs', function (this: UnifiedInstallWorld) {
+  assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
+  assert.equal(directoryDigest(requiredPath(this.fixtureRoot, 'fixture root')), this.fixtureBefore);
+});
+
+Then('an online next action is reported', function (this: UnifiedInstallWorld) {
+  const result = JSON.parse(this.result.stdout) as { next_actions?: { command?: string }[] };
+  assert.equal(
+    result.next_actions?.some(action => action.command === 'safeword install'),
+    true,
+  );
 });
