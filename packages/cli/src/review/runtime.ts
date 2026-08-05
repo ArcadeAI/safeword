@@ -67,6 +67,29 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   ],
 };
 
+/**
+ * Codex reads its prompt from stdin via a trailing `-`, so a model flag has to
+ * land before it. Claude takes the prompt on stdin with no positional marker,
+ * so appending is safe there.
+ */
+function reviewerArguments(reviewer: ReviewAgent, model: string | undefined): string[] {
+  const base = [...ARGUMENTS[reviewer]];
+  if (model === undefined) return base;
+  const selection = ['--model', model];
+  const stdinMarker = base.lastIndexOf('-');
+  return stdinMarker === -1
+    ? [...base, ...selection]
+    : [...base.slice(0, stdinMarker), ...selection, ...base.slice(stdinMarker)];
+}
+
+/** One reviewer dispatch: who reviews, what they read, and on which model. */
+interface ReviewAttempt {
+  readonly reviewer: ReviewAgent;
+  readonly packet: ReviewPacket;
+  readonly cwd: string;
+  readonly model: string | undefined;
+}
+
 const HELP_ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: ['--help'],
   codex: ['exec', '--help'],
@@ -307,15 +330,14 @@ function appendBounded(
 
 function runCandidate(
   executable: string,
-  reviewer: ReviewAgent,
-  packet: ReviewPacket,
-  cwd: string,
+  attempt: ReviewAttempt,
   timeoutMs: number,
 ): Promise<UnverifiedReviewerOutput> {
+  const { reviewer, packet, cwd, model } = attempt;
   return new Promise((resolve, reject) => {
     let timedOut = false;
     let overflow = false;
-    const child = spawn(executable, ARGUMENTS[reviewer], {
+    const child = spawn(executable, reviewerArguments(reviewer, model), {
       cwd,
       env: reviewerEnvironment(reviewer),
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -397,12 +419,11 @@ function runCandidate(
 }
 
 async function runReviewerCandidates(
-  reviewer: ReviewAgent,
-  packet: ReviewPacket,
-  cwd: string,
+  attempt: ReviewAttempt,
   candidates: readonly string[],
   deadline: number,
 ): Promise<UnverifiedReviewerOutput> {
+  const reviewer = attempt.reviewer;
   let foundCompatible = false;
   let lastFailure: ReviewRuntimeError | undefined;
   for (const candidate of candidates) {
@@ -412,9 +433,7 @@ async function runReviewerCandidates(
     try {
       return await runCandidate(
         candidate,
-        reviewer,
-        packet,
-        cwd,
+        attempt,
         remainingReviewTime(deadline, reviewer, lastFailure),
       );
     } catch (error) {
@@ -439,6 +458,7 @@ export async function runHeadlessReviewer(
   packet: ReviewPacket,
   cwd: string,
   untrustedRoot: string = process.cwd(),
+  model?: string,
 ): Promise<UnverifiedReviewerOutput> {
   const deadline = Date.now() + timeoutMilliseconds();
   const candidates = executableCandidates(reviewer, untrustedRoot);
@@ -448,5 +468,5 @@ export async function runHeadlessReviewer(
       `No compatible ${reviewer} reviewer is installed`,
     );
   }
-  return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
+  return runReviewerCandidates({ reviewer, packet, cwd, model }, candidates, deadline);
 }

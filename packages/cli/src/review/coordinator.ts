@@ -10,7 +10,7 @@ import type {
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
-import { oppositeReviewPair, readReviewPolicy } from './policy.js';
+import { oppositeReviewPair, readAlternateReviewerModel, readReviewPolicy } from './policy.js';
 import { ReviewRuntimeError, runHeadlessReviewer } from './runtime.js';
 
 function verifyProvenance(
@@ -35,6 +35,7 @@ function verifyProvenance(
 async function executeReview(
   reviewer: 'claude' | 'codex',
   prepared: ReturnType<typeof prepareReviewPacket>,
+  model?: string,
 ): Promise<{
   outcome:
     | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
@@ -51,6 +52,7 @@ async function executeReview(
       prepared.packet,
       prepared.workspace,
       prepared.sourceRoot,
+      model,
     );
     outcome = { kind: 'completed', output };
   } catch (error) {
@@ -331,6 +333,68 @@ async function runDegradedFallback(input: {
   });
 }
 
+/**
+ * The reviewer agent retried on its configured alternate model. Returns
+ * undefined when no model is configured or the retry did not produce a
+ * verifiable review, leaving the caller to fall back to the author's own
+ * runtime exactly as before.
+ */
+async function runAlternateModelRoute(input: {
+  readonly cwd: string;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly author: ReviewAgent;
+  readonly reviewer: ReviewAgent;
+  readonly preferredFailure: ReviewFailure;
+}): Promise<CliResult | undefined> {
+  const model = readAlternateReviewerModel(input.cwd, input.reviewer);
+  if (model === undefined) return undefined;
+
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(
+    input.reviewer,
+    prepared,
+    model,
+  );
+  const changedResult = changedReviewResult({
+    author: input.author,
+    reviewer: input.reviewer,
+    kind: input.kind,
+    targets: input.targets,
+    sourceChanged,
+    snapshotChanged,
+  });
+  if (changedResult !== undefined) return changedResult;
+  const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
+  if (assessment.kind === 'failed') return undefined;
+  const output = assessment.output;
+
+  return createResult({
+    state: output.verdict === 'approve' ? 'healthy' : 'action_required',
+    findings: [
+      {
+        code: 'REVIEW_INDEPENDENCE',
+        message: 'An independent agent checked the work.',
+        severity: 'info',
+      },
+    ],
+    effects: {
+      network: [{ kind: 'review', target: input.reviewer, operation: 'request' }],
+    },
+    data: {
+      command: 'review run',
+      status: output.verdict === 'approve' ? 'approved' : 'changes_requested',
+      author_agent: input.author,
+      assigned_reviewer: input.reviewer,
+      actual_reviewer: output.reviewer_agent,
+      reviewer_model: model,
+      preferred_failure: input.preferredFailure,
+      independence: 'cross-agent',
+      reviewer_output: output,
+    },
+  });
+}
+
 export async function runReview(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -375,6 +439,16 @@ export async function runReview(input: {
   });
   if (changedResult !== undefined) return changedResult;
   if (outcome.kind === 'failed') {
+    // Before settling for the author reviewing its own work, give the reviewer
+    // agent one more attempt on a configured alternate model. It is still not
+    // the author, so a completed review there is fully independent.
+    const alternate = await runAlternateModelRoute({
+      ...input,
+      author: pair.author,
+      reviewer,
+      preferredFailure: outcome.failure,
+    });
+    if (alternate !== undefined) return alternate;
     return runDegradedFallback({
       ...input,
       author: pair.author,
