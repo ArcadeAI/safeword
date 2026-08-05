@@ -122,7 +122,7 @@ The generated package leaf is the current structural inventory. These purposes e
 | `ticket-sync`            | Builds active and completed ticket-corpus discovery indexes                                            |
 | `tracker-connect`        | Configures tracker identity, credentials, secret storage, and handoff state                            |
 | `tracker-sync`           | Plans and applies one-way projection from local tickets to GitHub or Linear                            |
-| `upstream-monitor`       | Tracks upstream agent-CLI release signals for compatibility review                                     |
+| `upstream-monitor`       | Tracks upstream agent-CLI release signals, and issues gating workaround removal, for review            |
 | `utils`                  | Shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives        |
 | `version.ts`             | Reads the release version from package metadata                                                        |
 
