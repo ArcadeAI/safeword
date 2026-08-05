@@ -207,7 +207,10 @@ Then(
     assert.ok(this.projectDirectory, 'project directory was not created');
     const cursorHooks = readProjectFile(this.projectDirectory, '.cursor/hooks.json');
     const pluginHooks = readProjectFile(PROJECT_ROOT, 'plugin/hooks/hooks.json');
-    assert.match(pluginHooks, /dispatch\.ts SessionStart --event-group/);
+    assert.match(
+      pluginHooks,
+      /dispatch\.ts SessionStart -- bun [^\n]+session-safeword-context\.ts/u,
+    );
     assert.match(cursorHooks, /session-safeword-context\.ts/);
   },
 );

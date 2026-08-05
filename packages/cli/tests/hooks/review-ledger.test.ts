@@ -13,6 +13,7 @@ import {
   hashArtifact,
   isReviewGateEnabled,
   parseReviewStamps,
+  readCrossAgentReviewPolicy,
   reviewGateForNextAsset,
   reviewScope,
   type ReviewStamp,
@@ -66,6 +67,59 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
     const stamps: ReviewStamp[] = [{ scope: 'define-behavior', skipReason: 'docs-only phase' }];
     expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
   });
+
+  it('hard cross-agent enforcement rejects degraded or opted-out evidence', () => {
+    const degraded: ReviewStamp[] = [
+      {
+        scope: 'scenario-gate',
+        author: 'claude',
+        reviewer: 'claude',
+        independence: 'degraded',
+      },
+    ];
+
+    expect(gatePhaseAdvance('scenario-gate', degraded, 'require').ok).toBe(false);
+    expect(gatePhaseAdvance('scenario-gate', [], 'require').ok).toBe(false);
+  });
+
+  it('hard cross-agent enforcement accepts distinct validated provenance', () => {
+    const independent: ReviewStamp[] = [
+      {
+        scope: 'scenario-gate',
+        author: 'claude',
+        reviewer: 'codex',
+        independence: 'cross-agent',
+      },
+    ];
+
+    expect(gatePhaseAdvance('scenario-gate', independent, 'require')).toEqual({ ok: true });
+  });
+
+  it('hard cross-agent enforcement rejects a same-agent stamp that claims independence', () => {
+    const contradictory: ReviewStamp[] = [
+      {
+        scope: 'scenario-gate',
+        author: 'claude',
+        reviewer: 'claude',
+        independence: 'cross-agent',
+      },
+    ];
+
+    expect(gatePhaseAdvance('scenario-gate', contradictory, 'require').ok).toBe(false);
+  });
+
+  it.each([
+    { author: 'claude', independence: 'cross-agent' as const },
+    { author: 'claude', reviewer: 'codex', independence: 'none' as const },
+    { skipReason: 'review unavailable' },
+  ] as const)(
+    'hard cross-agent enforcement rejects incomplete or opted-out evidence: %j',
+    stamp => {
+      expect(
+        gatePhaseAdvance('scenario-gate', [{ scope: 'scenario-gate', ...stamp }], 'require').ok,
+      ).toBe(false);
+    },
+  );
 });
 
 describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => {
@@ -112,6 +166,27 @@ describe('formatReviewStamp (write a stamp the gate will read — inverse of par
     );
   });
 
+  it('round-trips optional cross-agent provenance', () => {
+    const line = formatReviewStamp(
+      'QZAFT2:phase@scenario-gate',
+      undefined,
+      'codex-default',
+      'claude',
+      'codex',
+      'cross-agent',
+    );
+
+    expect(parseReviewStamps(`ts session ${line}`)).toEqual([
+      {
+        scope: 'QZAFT2:phase@scenario-gate',
+        model: 'codex-default',
+        author: 'claude',
+        reviewer: 'codex',
+        independence: 'cross-agent',
+      },
+    ]);
+  });
+
   it('round-trips through parseReviewStamps (real review)', () => {
     const scope = reviewScope('NMSD94', 'spec', hashArtifact('spec body'));
     const line = `2026-06-03T00:00:00Z sess ${formatReviewStamp(scope)}`;
@@ -144,6 +219,19 @@ describe('isReviewGateEnabled (default-off rollout guard)', () => {
 
   it('is off on malformed config (fail-safe)', () => {
     expect(isReviewGateEnabled('not json {')).toBe(false);
+  });
+});
+
+describe('readCrossAgentReviewPolicy', () => {
+  it('defaults missing, malformed, and unknown configuration to prefer', () => {
+    expect(readCrossAgentReviewPolicy()).toBe('prefer');
+    expect(readCrossAgentReviewPolicy('{not json')).toBe('prefer');
+    expect(readCrossAgentReviewPolicy('{"crossAgentReview":"future"}')).toBe('prefer');
+  });
+
+  it('reads require and off exactly', () => {
+    expect(readCrossAgentReviewPolicy('{"crossAgentReview":"require"}')).toBe('require');
+    expect(readCrossAgentReviewPolicy('{"crossAgentReview":"off"}')).toBe('off');
   });
 });
 

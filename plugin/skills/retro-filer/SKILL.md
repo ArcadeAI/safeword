@@ -45,9 +45,14 @@ the host project.
 
 4. After every successful comment or create, append exactly one compact JSON ack
    `{"signature":"<signature>","issue":<number>}` to the sibling `.acks.jsonl`
-   file before removing that draft from the spool. Leave failed drafts in place.
-5. Create at most five new issues per run. Rewrite the spool with only unfiled
-   drafts, or delete it when none remain. If tracker write access is unavailable,
-   leave the spool unchanged and report `retro-filer: cannot file - <reason>`.
+   file, then re-read it and exact-match that signature and destination. Remove
+   the draft only when the append succeeded and the exact ack is visible. If the
+   append or verification fails, leave the draft in place.
+5. Create at most five new issues per run. Drain only by running
+   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>"`; never rewrite or
+   delete the spool directly. The helper removes only drafts whose valid ack is
+   reader-visible, so unfiled or unacknowledged drafts remain. If tracker write
+   access is unavailable, leave the spool unchanged and report
+   `retro-filer: cannot file - <reason>`.
 
 Finish with one line of counts: `retro-filer: filed 2, commented 1, remaining 0`.

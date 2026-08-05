@@ -483,7 +483,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout.trim().split('\n').slice(0, 2)).toEqual([
         '- Contribute before asking. Embed open questions in your contribution.',
-        '- Reply format: lead with the answer. For substantive work updates, use one **CONFIDENT**/**BLOCKED** decision brief and end with **Next:**.',
+        `- ${REPLY_FORMAT_REMINDER}`,
       ]);
     });
 
@@ -496,8 +496,10 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('- Reply format: lead with the answer.');
       expect(result.stdout).toContain('substantive work update');
-      expect(result.stdout).toContain('**CONFIDENT**/**BLOCKED**');
+      expect(result.stdout).toContain('**CONFIDENT**');
+      expect(result.stdout).toContain('**BLOCKED**');
       expect(result.stdout).toContain('**Next:**');
+      expect(result.stdout).toContain('**Need:**');
     });
 
     it('keeps active implement/TDD prompts free of the decision-brief demand', () => {

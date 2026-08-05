@@ -25,10 +25,16 @@ import {
   isCrossModelReviewRequired,
   modelsMatch,
   parseReviewStamps,
+  readCrossAgentReviewPolicy,
   reviewGateForNextAsset,
   reviewScope,
 } from './lib/review-ledger.ts';
-import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
+import {
+  type BddPhase,
+  getDisqualificationMessage,
+  getQualityMessage,
+  isDecisionBriefCompliant,
+} from './lib/quality.ts';
 import {
   EXPLAIN_HINT,
   type FailureEntry,
@@ -296,9 +302,9 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   const logPath = `${resolveNamespaceRoot(projectDir)}/skill-invocations.log`;
   const stamps = existsSync(logPath) ? parseReviewStamps(readFileSync(logPath, 'utf8')) : [];
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
-  if (!reviewGateForNextAsset(scope, stamps).ok) {
+  if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
     hardBlockDone(
-      'Architecture review gate: the impl-plan design has no independent design review at its current content. Spawn a fresh-context reviewer, then run `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts impl-plan` on pass (or add `--skip "<reason>"` to log a deliberate skip).',
+      'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
     );
   }
 
@@ -314,7 +320,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
     );
     if (realReviews.length > 0 && !hasCrossModelReview) {
       hardBlockDone(
-        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), recording it via `write-review-stamp.ts --model <id> impl-plan`.',
+        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and actual_model via `write-review-stamp.ts impl-plan`.',
       );
     }
   }
@@ -790,4 +796,7 @@ const disqual = getDisqualificationMessage({
   pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
   recentRelevantFailure: recentRelevant,
 });
+if (!disqual && isDecisionBriefCompliant(combinedText)) {
+  process.exit(0);
+}
 softBlock(disqual ? `${baseMessage}\n\n${disqual}` : baseMessage);

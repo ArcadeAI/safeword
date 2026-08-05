@@ -15,8 +15,10 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
     expect(REPLY_FORMAT_LEAD_RULE).toBe('lead with the answer');
     expect(REPLY_FORMAT_LEAD).toBe('Reply format: lead with the answer.');
     expect(REPLY_FORMAT_REMINDER).toContain(REPLY_FORMAT_LEAD);
-    expect(REPLY_FORMAT_REMINDER).toContain('**CONFIDENT**/**BLOCKED**');
+    expect(REPLY_FORMAT_REMINDER).toContain('**CONFIDENT**');
+    expect(REPLY_FORMAT_REMINDER).toContain('**BLOCKED**');
     expect(REPLY_FORMAT_REMINDER).toContain('**Next:**');
+    expect(REPLY_FORMAT_REMINDER).toContain('**Need:**');
   });
 
   it('keeps the lead rule inline in the Stop pointer sentence, not appended to it', () => {
@@ -24,7 +26,7 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
     // shared fragment must compose into it, not arrive as a trailing labelled
     // afterthought — otherwise the most important rule reads as the least.
     expect(getQualityMessage('intake')).toContain(
-      `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight, end with **Next:**.`,
+      `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with **Next:** for CONFIDENT or **Need:** for BLOCKED.`,
     );
     expect(getQualityMessage('intake')).not.toContain(REPLY_FORMAT_LEAD);
   });

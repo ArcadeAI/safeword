@@ -18,6 +18,7 @@ const FAMILY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   tracker: 'Manage tracker connections and synchronization',
   codex: 'Manage the Safeword Codex plugin',
   ticket: 'Manage project tickets',
+  review: 'Run independent adversarial reviews',
   retro: 'Inspect and file Safeword runtime findings',
   migrate: 'Compatibility migration commands',
 };

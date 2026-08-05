@@ -81,9 +81,16 @@ export interface TriageResult {
    * for the agent path (BNGK9W).
    */
   filedSignatures: string[];
+  /** Destination issue for each filed signature, used to ack before spool drain. */
+  filedDestinations: { signature: string; issue: number }[];
 }
 
 const DEFAULT_MAX_NEW_ISSUES = 5;
+
+function recordFiledDestination(result: TriageResult, signature: string, issue: number): void {
+  result.filedSignatures.push(signature);
+  result.filedDestinations.push({ signature, issue });
+}
 
 export async function triage(
   transport: IssueTracker,
@@ -97,6 +104,7 @@ export async function triage(
     deferred: [],
     failed: [],
     filedSignatures: [],
+    filedDestinations: [],
   };
   const maxNew = ctx.maxNewIssues ?? DEFAULT_MAX_NEW_ISSUES;
   // Bound the session id before it flows into the ledger-comment JSON (eng-review
@@ -123,7 +131,7 @@ export async function triage(
       if (existing) {
         await recordOnKnownIssue(transport, existing, encounter, boundContext, result);
         // The finding is represented upstream (issue exists) — safe to drain.
-        result.filedSignatures.push(encounter.draft.signature);
+        recordFiledDestination(result, encounter.draft.signature, existing.number);
       } else if (newCount >= maxNew) {
         result.deferred.push(encounter.draft.title);
       } else {
@@ -134,7 +142,7 @@ export async function triage(
         });
         newCount += 1;
         result.created.push(encounter.draft.title);
-        result.filedSignatures.push(encounter.draft.signature);
+        recordFiledDestination(result, encounter.draft.signature, issue.number);
         await transport.createComment(
           issue.number,
           renderLedger(seedState(encounter, boundContext)),

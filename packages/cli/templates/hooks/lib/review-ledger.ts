@@ -21,7 +21,15 @@ export interface ReviewStamp {
   skipReason?: string;
   /** The reviewing model, recorded by the orchestrator that assigned it (ticket MR5M3A). Absent on pre-MR5M3A stamps. */
   model?: string;
+  /** Author runtime recorded from the validated coordinator result. */
+  author?: 'claude' | 'codex';
+  /** Actual reviewer runtime recorded from the validated coordinator result. */
+  reviewer?: 'claude' | 'codex';
+  /** Independence earned by the validated route. */
+  independence?: 'cross-agent' | 'degraded' | 'none';
 }
+
+export type CrossAgentReviewPolicy = 'prefer' | 'require' | 'off';
 
 /** Short content hash binding a stamp to the reviewed artifact's exact state. */
 export function hashArtifact(content: string): string {
@@ -41,13 +49,26 @@ export function reviewScope(ticketId: string, artifact: string, contentHash: str
 export type GateVerdict = { ok: true } | { ok: false; reason: string };
 
 /** A stamp satisfies a gate when it's a real review, or a skip with a non-empty reason. */
-function isSatisfyingStamp(stamp: ReviewStamp): boolean {
-  return stamp.skipReason === undefined || isValidSkipReason(stamp.skipReason);
+function isSatisfyingStamp(stamp: ReviewStamp, policy: CrossAgentReviewPolicy = 'prefer'): boolean {
+  const ordinarilySatisfying =
+    stamp.skipReason === undefined || isValidSkipReason(stamp.skipReason);
+  if (!ordinarilySatisfying || policy !== 'require') return ordinarilySatisfying;
+  return (
+    stamp.skipReason === undefined &&
+    stamp.independence === 'cross-agent' &&
+    stamp.author !== undefined &&
+    stamp.reviewer !== undefined &&
+    stamp.author !== stamp.reviewer
+  );
 }
 
 /** Whether the ledger holds a satisfying review stamp for `id` (an asset or a phase). */
-function hasSatisfyingStamp(id: string, stamps: readonly ReviewStamp[]): boolean {
-  return stamps.some(stamp => stamp.scope === id && isSatisfyingStamp(stamp));
+function hasSatisfyingStamp(
+  id: string,
+  stamps: readonly ReviewStamp[],
+  policy: CrossAgentReviewPolicy = 'prefer',
+): boolean {
+  return stamps.some(stamp => stamp.scope === id && isSatisfyingStamp(stamp, policy));
 }
 
 /**
@@ -58,9 +79,10 @@ function hasSatisfyingStamp(id: string, stamps: readonly ReviewStamp[]): boolean
 export function reviewGateForNextAsset(
   priorScope: string | undefined,
   stamps: readonly ReviewStamp[],
+  policy: CrossAgentReviewPolicy = 'prefer',
 ): GateVerdict {
   if (priorScope === undefined) return { ok: true };
-  if (hasSatisfyingStamp(priorScope, stamps)) return { ok: true };
+  if (hasSatisfyingStamp(priorScope, stamps, policy)) return { ok: true };
   return {
     ok: false,
     reason: `"${priorScope}" has not been reviewed — review it (or log a skip with a reason) before authoring the next asset`,
@@ -72,8 +94,12 @@ export function reviewGateForNextAsset(
  * independent review stamp for that phase exists. Unlike the per-asset gate
  * there is no "first" exemption — every phase exit needs a stamp.
  */
-export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]): GateVerdict {
-  if (hasSatisfyingStamp(phase, stamps)) return { ok: true };
+export function gatePhaseAdvance(
+  phase: string,
+  stamps: readonly ReviewStamp[],
+  policy: CrossAgentReviewPolicy = 'prefer',
+): GateVerdict {
+  if (hasSatisfyingStamp(phase, stamps, policy)) return { ok: true };
   return {
     ok: false,
     reason: `phase "${phase}" has no independent review stamp — run the phase-exit review (or log a skip with a reason) before advancing`,
@@ -91,7 +117,8 @@ export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]):
 // is the cheap, gameable floor; the ungameable check is Tier 2 (independent
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
-const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+skip:(.+))?$/;
+const REVIEW_LINE =
+  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex))?(?:\s+reviewer:(claude|codex))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+skip:(.+))?$/;
 
 /**
  * Rollout guard: the review gate is OFF unless `.safeword/config.json` sets
@@ -121,6 +148,22 @@ export function isArchitectureReviewGateEnabled(rawConfig?: string): boolean {
  */
 export function isCrossModelReviewRequired(rawConfig?: string): boolean {
   return configFlagIsTrue(rawConfig, 'crossModelReview');
+}
+
+/**
+ * Cross-agent review routing policy. Missing, malformed, and unknown values use
+ * the product default (`prefer`), matching the public review coordinator.
+ */
+export function readCrossAgentReviewPolicy(rawConfig?: string): CrossAgentReviewPolicy {
+  if (rawConfig === undefined) return 'prefer';
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    if (typeof config !== 'object' || config === null) return 'prefer';
+    const value = (config as Record<string, unknown>).crossAgentReview;
+    return value === 'require' || value === 'off' ? value : 'prefer';
+  } catch {
+    return 'prefer';
+  }
 }
 
 /**
@@ -181,10 +224,20 @@ export function detectPhaseAdvance(oldContent: string, newContent: string): stri
  * prefixes `<timestamp> <session> ` and appends the result, so the gate reads
  * back exactly this `scope`. A non-empty `skipReason` records a logged skip.
  */
-export function formatReviewStamp(scope: string, skipReason?: string, model?: string): string {
+export function formatReviewStamp(
+  scope: string,
+  skipReason?: string,
+  model?: string,
+  author?: ReviewStamp['author'],
+  reviewer?: ReviewStamp['reviewer'],
+  independence?: ReviewStamp['independence'],
+): string {
   const modelSegment = model === undefined ? '' : ` model:${model}`;
+  const authorSegment = author === undefined ? '' : ` author:${author}`;
+  const reviewerSegment = reviewer === undefined ? '' : ` reviewer:${reviewer}`;
+  const independenceSegment = independence === undefined ? '' : ` independence:${independence}`;
   const skipSegment = skipReason === undefined ? '' : ` skip:${skipReason}`;
-  return `review:${scope}${modelSegment}${skipSegment}`;
+  return `review:${scope}${modelSegment}${authorSegment}${reviewerSegment}${independenceSegment}${skipSegment}`;
 }
 
 /** Read review stamps from skill-invocation-log content (non-review lines ignored). */
@@ -194,9 +247,15 @@ export function parseReviewStamps(logContent: string): ReviewStamp[] {
     const match = REVIEW_LINE.exec(line);
     if (match?.[1] === undefined) continue;
     const model = match[2];
-    const skipReason = match[3];
+    const author = match[3] as ReviewStamp['author'];
+    const reviewer = match[4] as ReviewStamp['reviewer'];
+    const independence = match[5] as ReviewStamp['independence'];
+    const skipReason = match[6];
     const stamp: ReviewStamp = { scope: match[1] };
     if (model !== undefined) stamp.model = model;
+    if (author !== undefined) stamp.author = author;
+    if (reviewer !== undefined) stamp.reviewer = reviewer;
+    if (independence !== undefined) stamp.independence = independence;
     if (skipReason !== undefined) stamp.skipReason = skipReason;
     stamps.push(stamp);
   }

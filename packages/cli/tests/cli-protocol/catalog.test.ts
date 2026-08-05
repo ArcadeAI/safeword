@@ -59,6 +59,7 @@ describe('CLI command catalog', () => {
       'codex recover',
       'ticket list',
       'ticket new',
+      'review run',
       'retro run',
       'retro signals',
       'retro reconcile',

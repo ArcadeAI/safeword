@@ -70,18 +70,32 @@ describe('closeout observed resumption (93C14D NTB1.R3)', () => {
     expect(skill).toContain('unfinished suffix');
     expect(skill).toContain('already closed');
   });
+
+  it('keeps dependency audit in delivery readiness without rerunning it after merge', () => {
+    const skill = canonicalSkill();
+
+    expect(skill).toMatch(/Run `\/verify`[\s\S]*before[\s\S]*merge/i);
+    expect(skill).toMatch(/dependency audit[\s\S]*delivery-time/i);
+    expect(skill).toMatch(/post-merge[\s\S]*verification, build, typecheck, and BDD/i);
+    expect(skill).toMatch(/does not rerun[\s\S]*dependency audit/i);
+  });
 });
 
 describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
   it('makes the exact current-session retrospective a fail-closed cleanup prerequisite', () => {
     const skill = canonicalSkill();
+    const guard = readFileSync(
+      nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts'),
+      'utf8',
+    );
 
-    expect(skill).toContain('safeword retro run --format json');
+    expect(skill).toContain('safeword retro run --json');
+    expect(guard).toMatch(/'retro',\s*'run',\s*'--json',\s*'--auto-extract'/u);
     expect(skill).toContain('agent_filing_needed');
     expect(skill).toContain('empty filing spool');
     expect(skill).toMatch(/skip.*retro.*does not/i);
     expect(skill).toMatch(/missing.*expired.*binding/i);
-    expect(skill).toContain('no newest-session fallback');
+    expect(skill).toMatch(/no\s+newest-session\s+fallback/i);
     expect(skill).toMatch(/failed extraction.*failed filing.*pending drafts/is);
     expect(skill).toMatch(/no cleanup/i);
   });

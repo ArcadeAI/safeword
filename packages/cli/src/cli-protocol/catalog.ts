@@ -297,6 +297,14 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   }),
+  command('review run', 'Run an independent adversarial review', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'run <kind> <targets...>',
+    fixture: {
+      argv: ['review', 'run', 'quality-review', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command('retro run', 'Extract and file session findings', 'mutate', {
     networkPolicy: 'declared',
     commandOptions: [

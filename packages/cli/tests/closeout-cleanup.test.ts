@@ -1,10 +1,19 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { rememberCloseoutBinding } from '../templates/hooks/lib/closeout-binding.ts';
 import {
   applyCleanupPlan,
   buildCleanupPlan,
@@ -15,10 +24,28 @@ import {
   executeCleanupOperation,
   operationCommand,
   parseWorktrees,
+  POST_MERGE_VERIFICATION_KINDS,
+  pullRequestIdentity,
+  resolveCloseoutBinding,
+  resolveProtection,
   resolveRemoteRef as resolveRemoteReference,
+  retroAgentForRuntime,
+  runBoundRetro,
   safewordCliCommand,
   transcriptMatchesBinding,
 } from '../templates/scripts/closeout-cleanup.ts';
+
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+
+function normalizedCloseoutScript(path: string): string {
+  return readFileSync(path, 'utf8')
+    .replace(
+      /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
+      "import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';",
+    )
+    .replace('../../runtime/hooks/lib/retro-draft-spool.ts', '../hooks/lib/retro-draft-spool.ts')
+    .replace('../../runtime/hooks/lib/run-identity.ts', '../hooks/lib/run-identity.ts');
+}
 
 function safeObservation(overrides: Partial<CloseoutObservation> = {}): CloseoutObservation {
   return {
@@ -72,6 +99,92 @@ function runGit(...arguments_: string[]): string {
 }
 
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
+  it('revalidates immutable merged code without rerunning mutable dependency intelligence', () => {
+    expect(POST_MERGE_VERIFICATION_KINDS).toEqual(['verify', 'build', 'typecheck', 'bdd']);
+    expect(POST_MERGE_VERIFICATION_KINDS).not.toContain('deps');
+  });
+
+  it('uses Codex Desktop thread identity when the one-shot hook bridge is unavailable', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-codex-desktop-'));
+    try {
+      mkdirSync(nodePath.join(root, '.safeword'));
+      writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# SafeWord\n');
+
+      expect(resolveCloseoutBinding(root, { CODEX_THREAD_ID: 'desktop-thread-42' })).toEqual({
+        runtime: 'codex',
+        id: 'desktop-thread-42',
+        projectRoot: realpathSync(root),
+      });
+      expect(resolveCloseoutBinding(root, {})).toBeUndefined();
+
+      rememberCloseoutBinding({
+        projectDirectory: root,
+        runtime: 'claude',
+        id: 'hook-session-42',
+        transcriptPath: '/exact/hook-session-42.jsonl',
+      });
+      expect(resolveCloseoutBinding(root, { CODEX_THREAD_ID: 'desktop-thread-42' })).toEqual({
+        runtime: 'claude',
+        id: 'hook-session-42',
+        projectRoot: realpathSync(root),
+        transcriptPath: '/exact/hook-session-42.jsonl',
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('selects the mandatory retro extractor from the bound host runtime', () => {
+    expect(retroAgentForRuntime('claude')).toBe('claude');
+    expect(retroAgentForRuntime('codex')).toBe('codex');
+    expect(retroAgentForRuntime('cursor')).toBe('cursor');
+  });
+
+  it.each(['claude', 'codex', 'cursor'] as const)(
+    'passes the bound %s runtime to the real retro command boundary',
+    runtime => {
+      const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-agent-'));
+      const transcript =
+        runtime === 'cursor'
+          ? nodePath.join(root, 'agent-transcripts', `${runtime}-42`, `${runtime}-42.jsonl`)
+          : nodePath.join(root, 'transcript.jsonl');
+      mkdirSync(nodePath.dirname(transcript), { recursive: true });
+      writeFileSync(
+        transcript,
+        `${JSON.stringify(
+          runtime === 'cursor'
+            ? { role: 'user', message: { content: [{ type: 'text', text: 'hello' }] } }
+            : { session_id: `${runtime}-42`, cwd: root },
+        )}\n`,
+      );
+      let observedEnvironment: Record<string, string | undefined> | undefined;
+      let observedArguments: string[] = [];
+      try {
+        const result = runBoundRetro(
+          root,
+          { runtime, id: `${runtime}-42`, projectRoot: root, transcriptPath: transcript },
+          (_cwd, arguments_, env) => {
+            observedArguments = arguments_;
+            observedEnvironment = env;
+            return {
+              status: 0,
+              stdout: JSON.stringify({
+                state: 'healthy',
+                data: { agent_filing_needed: false },
+              }),
+              stderr: '',
+            };
+          },
+        );
+
+        expect(result.complete).toBe(true);
+        expect(observedArguments).toContain('--auto-extract');
+        expect(observedEnvironment?.SAFEWORD_RETRO_AGENT).toBe(runtime);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
   it.each([
     [true, '', false, 0, undefined],
     [false, 'Retro extraction failed.', false, 0, 'extraction'],
@@ -112,6 +225,59 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     ]);
   });
 
+  it('maps current GitHub pull request shapes without trusting incomplete identities', () => {
+    const expected = pullRequest();
+    expect(
+      pullRequestIdentity({
+        url: expected.url,
+        state: expected.state,
+        headRefName: expected.headRefName,
+        headRefOid: expected.headRefOid,
+        headRepositoryOwner: { login: expected.headOwner },
+        headRepository: { name: expected.headRepository },
+      }),
+    ).toEqual(expected);
+    expect(
+      pullRequestIdentity({
+        url: expected.url,
+        state: expected.state,
+        headRefName: expected.headRefName,
+        headRefOid: expected.headRefOid,
+        headRepository: { nameWithOwner: `${expected.headOwner}/${expected.headRepository}` },
+      }),
+    ).toEqual(expected);
+    expect(
+      pullRequestIdentity({
+        url: expected.url,
+        state: expected.state,
+        headRefName: expected.headRefName,
+        headRefOid: expected.headRefOid,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('derives branch protection conservatively while allowing a proven-absent remote ref', () => {
+    expect(resolveProtection('absent')).toBe('unprotected');
+    expect(resolveProtection('matched', true)).toBe('protected');
+    expect(resolveProtection('matched', false)).toBe('unprotected');
+    expect(resolveProtection('matched')).toBe('unknown');
+    expect(resolveProtection('unknown', false)).toBe('unprotected');
+  });
+
+  it('keeps installed and native-plugin closeout guards in canonical parity', () => {
+    const template = normalizedCloseoutScript(
+      nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts'),
+    );
+    expect(
+      normalizedCloseoutScript(nodePath.join(repoRoot, '.safeword/scripts/closeout-cleanup.ts')),
+    ).toBe(template);
+    expect(
+      normalizedCloseoutScript(
+        nodePath.join(repoRoot, 'plugin/resources/scripts/closeout-cleanup.ts'),
+      ),
+    ).toBe(template);
+  });
+
   it('previews exact cleanup in worktree, remote, local order with a stable digest', () => {
     const observation = safeObservation();
     const plan = buildCleanupPlan(observation);
@@ -127,6 +293,35 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(plan.operations[2]).toMatchObject({ ref: 'refs/heads/feature/closeout' });
     expect(cleanupPlanDigest(plan)).toMatch(/^[a-f0-9]{64}$/);
     expect(cleanupPlanDigest(plan)).toBe(cleanupPlanDigest(buildCleanupPlan(observation)));
+  });
+
+  it('uses the unique default-branch worktree when the primary worktree is detached', () => {
+    const observation = safeObservation({
+      worktrees: [
+        { path: '/repo-main', branch: 'main', oid: 'b'.repeat(40), main: false },
+        worktree(1),
+      ],
+    });
+
+    const plan = buildCleanupPlan(observation);
+
+    expect(plan.blockers).toEqual([]);
+    expect(plan.operations).toHaveLength(3);
+    expect(plan.operations.every(operation => operation.cwd === '/repo-main')).toBe(true);
+  });
+
+  it('never removes the primary worktree even when another worktree holds the default branch', () => {
+    const plan = buildCleanupPlan(
+      safeObservation({
+        worktrees: [
+          { path: '/repo-main', branch: 'main', oid: 'b'.repeat(40), main: false },
+          { ...worktree(1), main: true },
+        ],
+      }),
+    );
+
+    expect(plan.blockers).toContain('the main worktree is never a closeout target');
+    expect(plan.operations).toEqual([]);
   });
 
   it.each([
@@ -204,6 +399,22 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'ambiguous worktree',
       { worktrees: [worktree(0), worktree(1), worktree(1)] },
       'the linked topic worktree is ambiguous',
+    ],
+    [
+      'missing default-branch worktree',
+      { worktrees: [worktree(1)] },
+      'exactly one surviving default-branch worktree is required',
+    ],
+    [
+      'ambiguous default-branch worktree',
+      {
+        worktrees: [
+          worktree(0),
+          { ...worktree(0), path: '/another-main', main: false },
+          worktree(1),
+        ],
+      },
+      'exactly one surviving default-branch worktree is required',
     ],
     [
       'stale verification',
@@ -513,29 +724,134 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
-  it('accepts only transcript metadata bound to the exact session and repository', () => {
+  it('discovers a linked default-branch survivor after the primary worktree is detached', () => {
+    const sandbox = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-detached-main-'));
+    const primary = nodePath.join(sandbox, 'primary');
+    const surviving = nodePath.join(sandbox, 'surviving-main');
+    const topic = nodePath.join(sandbox, 'topic');
+    try {
+      runGit('init', '--initial-branch=main', primary);
+      runGit('-C', primary, 'config', 'user.email', 'closeout@example.test');
+      runGit('-C', primary, 'config', 'user.name', 'Closeout Test');
+      writeFileSync(nodePath.join(primary, 'README.md'), 'main\n');
+      runGit('-C', primary, 'add', 'README.md');
+      runGit('-C', primary, 'commit', '-m', 'main');
+      runGit('-C', primary, 'checkout', '--detach');
+      runGit('-C', primary, 'worktree', 'add', surviving, 'main');
+      runGit('-C', primary, 'worktree', 'add', '-b', 'feature/closeout', topic);
+
+      const worktrees = parseWorktrees(primary);
+      const survivingWorktree = {
+        path: realpathSync(surviving),
+        branch: 'main',
+        main: false,
+      };
+      const topicWorktree = {
+        path: realpathSync(topic),
+        branch: 'feature/closeout',
+        main: false,
+      };
+      expect(worktrees).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining(survivingWorktree),
+          expect.objectContaining(topicWorktree),
+        ]),
+      );
+
+      const oid = runGit('-C', topic, 'rev-parse', 'HEAD');
+      const plan = buildCleanupPlan(
+        safeObservation({
+          deliveryWorktreePath: realpathSync(topic),
+          pullRequests: [{ ...pullRequest(), headRefOid: oid }],
+          localRefOid: oid,
+          remote: undefined,
+          remoteResolution: 'absent',
+          worktrees,
+          verification: { current: true, passed: true, headOid: oid, stateHash: 'detached-main' },
+        }),
+      );
+
+      expect(plan.blockers).toEqual([]);
+      expect(plan.operations.every(operation => operation.cwd === realpathSync(surviving))).toBe(
+        true,
+      );
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts an exact bound session after its original worktree is removed', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-transcript-'));
+    const otherRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-other-'));
+    const originalWorktree = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-original-'));
     const transcript = nodePath.join(root, 'transcript.jsonl');
     mkdirSync(nodePath.join(root, '.project'));
     writeFileSync(
       transcript,
-      `${JSON.stringify({ type: 'user', sessionId: 'session-42', cwd: root })}\n`,
+      `${JSON.stringify({ type: 'user', sessionId: 'session-42', cwd: originalWorktree })}\n`,
     );
+    rmSync(originalWorktree, { recursive: true, force: true });
 
     expect(
-      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, root),
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'claude', id: 'session-42', projectRoot: root },
+        root,
+      ),
     ).toBe(true);
     expect(
-      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'other-session' }, root),
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'claude', id: 'other-session', projectRoot: root },
+        root,
+      ),
     ).toBe(false);
     expect(
-      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, '/other/repo'),
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'claude', id: 'session-42', projectRoot: root },
+        otherRoot,
+      ),
     ).toBe(false);
 
     const spoofedText = ['session-42', root].join(' ');
     writeFileSync(transcript, `${JSON.stringify({ type: 'message', text: spoofedText })}\n`);
     expect(
-      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, root),
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'claude', id: 'session-42', projectRoot: root },
+        root,
+      ),
+    ).toBe(false);
+  });
+
+  it('accepts a real Cursor transcript only when its canonical path matches the bound id', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-cursor-transcript-'));
+    const id = 'c2f6d84a-473f-47a3-824d-1107b75f23ce';
+    const directory = nodePath.join(root, 'agent-transcripts', id);
+    const transcript = nodePath.join(directory, `${id}.jsonl`);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      transcript,
+      `${JSON.stringify({ role: 'user', message: { content: [{ type: 'text', text: 'hello' }] } })}\n`,
+    );
+
+    expect(
+      transcriptMatchesBinding(transcript, { runtime: 'cursor', id, projectRoot: root }, root),
+    ).toBe(true);
+    expect(
+      transcriptMatchesBinding(
+        transcript,
+        { runtime: 'cursor', id: 'different-id', projectRoot: root },
+        root,
+      ),
+    ).toBe(false);
+    expect(
+      transcriptMatchesBinding(
+        nodePath.join(directory, 'subagents', `${id}.jsonl`),
+        { runtime: 'cursor', id, projectRoot: root },
+        root,
+      ),
     ).toBe(false);
   });
 });

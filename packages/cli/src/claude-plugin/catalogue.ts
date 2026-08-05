@@ -294,6 +294,37 @@ function wrapHookCommands(value: unknown, event: string): unknown {
   );
 }
 
+function pluginSessionStartEntries(adapted: Record<string, unknown>): unknown[] {
+  return Array.isArray(adapted.SessionStart)
+    ? adapted.SessionStart.filter(
+        entry => !JSON.stringify(entry).includes('session-auto-upgrade.ts'),
+      )
+    : [];
+}
+
+function pluginHookEntries(
+  event: string,
+  entries: unknown,
+  adapted: Record<string, unknown>,
+): unknown {
+  if (event === 'SessionStart') {
+    return wrapHookCommands(pluginSessionStartEntries(adapted), event);
+  }
+  if (event === 'UserPromptSubmit') {
+    return [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: `${PLUGIN_DISPATCH} ${event} --event-group`,
+          },
+        ],
+      },
+    ];
+  }
+  return wrapHookCommands(entries, event);
+}
+
 function pluginHooks(): Record<string, unknown> {
   const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
   const withSetup = {
@@ -303,29 +334,14 @@ function pluginHooks(): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(withSetup).map(([event, entries]) => [
       event,
-      event === 'SessionStart' || event === 'UserPromptSubmit'
-        ? [
-            {
-              hooks: [
-                {
-                  type: 'command',
-                  command: `${PLUGIN_DISPATCH} ${event} --event-group`,
-                },
-              ],
-            },
-          ]
-        : wrapHookCommands(entries, event),
+      pluginHookEntries(event, entries, adapted),
     ]),
   );
 }
 
 function pluginEventGroups(): string {
   const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
-  const sessionStart = Array.isArray(adapted.SessionStart)
-    ? adapted.SessionStart.filter(
-        entry => !JSON.stringify(entry).includes('session-auto-upgrade.ts'),
-      )
-    : [];
+  const sessionStart = pluginSessionStartEntries(adapted);
   const groups = Object.fromEntries(
     ['SessionStart', 'UserPromptSubmit'].map(event => [
       event,
