@@ -18,6 +18,7 @@ type ObservableReceipt = PublishedReceipt & {
 
 interface AdvisoryReviewWorld {
   attempts?: number;
+  receiptBeforeTrigger?: string;
   prerequisitesConfigured?: boolean;
   requiredPrerequisites?: string[];
   currentHead?: string;
@@ -78,6 +79,22 @@ Given(
     this.ready = true;
   },
 );
+
+Given('revision A is already completely reviewed', function (this: AdvisoryReviewWorld) {
+  this.attempts = 1;
+  this.currentHead = 'revision A';
+  this.prerequisites = 'passed';
+  this.ready = true;
+  this.receipts = [
+    {
+      commentId: 42,
+      markerOwned: true,
+      reviewedSha: 'revision A',
+      route: 'looks_ready',
+    },
+  ];
+  this.receiptBeforeTrigger = JSON.stringify(this.receipts[0]);
+});
 
 Given(
   'revision A has a `prerequisites pending` marker-owned receipt',
@@ -288,6 +305,51 @@ Then(
 Then('it publishes the current receipt for revision A', function (this: AdvisoryReviewWorld) {
   assert.deepEqual(this.receipts, [{ reviewedSha: 'revision A', route: 'looks_ready' }]);
 });
+
+When('another eligible trigger arrives for revision A', async function (this: AdvisoryReviewWorld) {
+  this.summary = undefined;
+  this.outcome = await reviewPullRequest({
+    readPullRequest: async () => ({
+      headSha: this.currentHead ?? '',
+      prerequisitesConfigured: true,
+      prerequisites: this.prerequisites ?? 'pending',
+      ready: this.ready ?? false,
+      reviewedReceiptSha: this.receipts?.[0]?.reviewedSha,
+    }),
+    inspect: async () => {
+      this.attempts = (this.attempts ?? 0) + 1;
+      return { consequentialFindings: 0, unknowns: [] };
+    },
+    publish: async receipt => {
+      this.receipts?.splice(0, this.receipts.length, receipt);
+    },
+    summarize: async summary => {
+      this.summary = summary;
+    },
+  });
+});
+
+Then('no second review attempt runs', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.outcome?.attempts, 0);
+});
+
+Then(
+  'the workflow run summary records the trigger as `suppressed`',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.summary, 'suppressed');
+  },
+);
+
+Then("revision A's review attempt count remains one", function (this: AdvisoryReviewWorld) {
+  assert.equal(this.attempts, 1);
+});
+
+Then(
+  'its marker-owned receipt remains byte-for-byte unchanged',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(JSON.stringify(this.receipts?.[0]), this.receiptBeforeTrigger);
+  },
+);
 
 When('a later scheduled sweep evaluates revision A', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
