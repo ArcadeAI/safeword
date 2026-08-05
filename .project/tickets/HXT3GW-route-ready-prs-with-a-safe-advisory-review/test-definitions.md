@@ -162,7 +162,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED 718feba56
 - [x] GREEN 0be78ce9a
-- [ ] REFACTOR
+- [x] REFACTOR skip: the publisher already separates pure selection from endpoint effects
 
 ### Scenario: Receipt reconciliation preserves comments Safeword does not own
 
