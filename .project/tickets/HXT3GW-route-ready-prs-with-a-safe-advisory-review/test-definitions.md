@@ -83,7 +83,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A non-text artifact is visibly excluded instead of falsely covered
 
 - [x] RED cf53551d4
-- [ ] GREEN
+- [x] GREEN c082f8e39
 - [ ] REFACTOR
 
 ### Scenario: A skipped binary does not poison an otherwise complete clean review
