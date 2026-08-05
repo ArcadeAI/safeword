@@ -1,6 +1,6 @@
 # Impl Plan: Keep native Safeword plugins current
 
-**Status:** implemented; live host acceptance remains release-gated
+**Status:** implemented
 
 ## Approach
 

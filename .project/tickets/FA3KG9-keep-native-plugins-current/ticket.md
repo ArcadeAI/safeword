@@ -3,6 +3,11 @@ id: FA3KG9
 slug: keep-native-plugins-current
 type: feature
 phase: implement
+phase_skips:
+  - "intake: Backfilled after the maintainer-led issue 1785 investigation and accepted scope discussion already occurred in this task."
+  - "define-behavior: Backfilled after the maintainer accepted the dual-host stable-channel and non-blocking Codex behavior in this task."
+  - "scenario-gate: Backfilled after independent scenario review completed in this task before the implementation plan was finalized."
+  - "plan-implementation: Backfilled after independent plan review completed in this task before production implementation continued."
 status: in_progress
 scope:
   - move supported Claude Code and Codex installations onto one release-managed stable channel
