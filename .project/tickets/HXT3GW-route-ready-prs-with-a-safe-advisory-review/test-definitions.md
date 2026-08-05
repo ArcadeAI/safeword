@@ -112,7 +112,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: A consequential unfamiliar-artifact finding routes to a human
 
-- [ ] RED
+- [x] RED ffe9bc1cb
 - [ ] GREEN
 - [ ] REFACTOR
 
