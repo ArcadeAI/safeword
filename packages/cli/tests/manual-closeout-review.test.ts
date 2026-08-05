@@ -40,11 +40,17 @@ function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Bu
   };
 }
 
-function sealedCommit(): string | undefined {
+function sealedCommit(manifest: Manifest): string | undefined {
   const relativeManifest = nodePath.relative(repoRoot, manifestPath);
-  const result = git(['log', '-1', '--format=%H', '--', relativeManifest]);
-  const commit = result.stdout.toString('utf8').trim();
-  return result.status === 0 && commit ? commit : undefined;
+  const result = git(['log', '--format=%H', '--', relativeManifest]);
+  if (result.status !== 0) return undefined;
+  const candidates = result.stdout.toString('utf8').trim().split('\n').filter(Boolean);
+  return candidates.find(commit =>
+    manifest.inputs.every(input => {
+      const reviewed = git(['show', `${commit}:${input.path}`]);
+      return reviewed.status === 0 && input.sha256 === sha256(reviewed.stdout);
+    }),
+  );
 }
 
 function reviewedInput(path: string, commit: string | undefined): Buffer {
@@ -129,7 +135,7 @@ describe('hash-bound independent closeout review (93C14D)', () => {
     const manifestBytes = readFileSync(manifestPath, 'utf8');
     const manifest = JSON.parse(manifestBytes) as Manifest;
     const review = reviewJson(readFileSync(reviewPath, 'utf8'));
-    const commit = sealedCommit();
+    const commit = sealedCommit(manifest);
     if (commit) {
       expect(git(['merge-base', '--is-ancestor', commit, 'HEAD']).status).toBe(0);
     }
