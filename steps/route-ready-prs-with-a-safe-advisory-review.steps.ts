@@ -183,6 +183,20 @@ Given(
   },
 );
 
+Given(
+  "a ready pull request's readable changed text totals exactly `maxTotalBytes`",
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.evidenceArtifacts = [
+      { byteLength: 40, path: 'src/first.ts' },
+      { byteLength: 60, path: 'src/exact-boundary.ts' },
+    ];
+    this.maxTotalBytes = 100;
+    this.prerequisites = 'passed';
+    this.ready = true;
+  },
+);
+
 Given('a marker-owned receipt already exists', function (this: AdvisoryReviewWorld) {
   this.scheduledReceiptId = 43;
   this.receipts = [
@@ -386,6 +400,20 @@ Then(
   'the receipt names the over-budget artifacts as missing required evidence',
   function (this: AdvisoryReviewWorld) {
     assert.deepEqual(this.receipts?.[0]?.missingEvidence, ['src/over-budget.ts']);
+  },
+);
+
+Then(
+  'every changed text artifact is marked integrity-reviewed',
+  function (this: AdvisoryReviewWorld) {
+    const coverage = this.receipts?.[0]?.coverage ?? [];
+    assert.deepEqual(
+      coverage.map(entry => ({ path: entry.path, status: entry.status })),
+      this.evidenceArtifacts?.map(artifact => ({
+        path: artifact.path,
+        status: 'integrity_reviewed',
+      })),
+    );
   },
 );
 
