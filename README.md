@@ -217,15 +217,16 @@ Key directories created in your project:
 
 **Purpose**: Fillable structures for feature documentation
 
-| Template                        | Purpose                                         | Used By             |
-| ------------------------------- | ----------------------------------------------- | ------------------- |
-| **feature-spec-template.md**    | Feature spec (user stories + constraints)       | planning-guide.md   |
-| **task-spec-template.md**       | Bug, improvement, refactor, or internal task    | planning-guide.md   |
-| **test-definitions-feature.md** | BDD scenarios (Rule + Scenario + G/W/T + R/G/R) | planning-guide.md   |
-| **design-doc-template.md**      | Design doc structure (architecture, components) | design-doc-guide.md |
-| **architecture-template.md**    | Living architecture decision structure          | planning-guide.md   |
-| **ticket-template.md**          | Context anchor for complex/multi-step work      | SAFEWORD.md         |
-| **work-log-template.md**        | Scratch pad and working memory during execution | SAFEWORD.md         |
+| Template                        | Purpose                                                     | Used By             |
+| ------------------------------- | ----------------------------------------------------------- | ------------------- |
+| **feature-spec-template.md**    | Feature spec (user stories + constraints)                   | planning-guide.md   |
+| **task-spec-template.md**       | Bug, improvement, refactor, or internal task                | planning-guide.md   |
+| **test-definitions-feature.md** | BDD scenarios (Rule + Scenario + G/W/T + R/G/R)             | planning-guide.md   |
+| **design-doc-template.md**      | Design doc structure (architecture, components)             | design-doc-guide.md |
+| **architecture-template.md**    | Living architecture decision structure                      | planning-guide.md   |
+| **ticket-template.md**          | Context anchor for complex/multi-step work                  | SAFEWORD.md         |
+| **work-log-template.md**        | Scratch pad and working memory during execution             | SAFEWORD.md         |
+| **tripwire-template.md**        | Upstream-workaround tripwire (header + pinned-version test) | testing-guide.md    |
 
 ---
 

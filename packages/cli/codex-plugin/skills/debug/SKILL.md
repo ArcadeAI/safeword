@@ -185,7 +185,23 @@ it('handles empty input without crashing', () => {
 - ONE change
 - No "while I'm here" improvements
 
-#### 3. Verify
+#### 3. Root Cause Is Upstream? Ship A Tripwire With The Workaround
+
+When the root cause lives in a dependency and the fix is a workaround — a
+version pin, an avoided API, a reimplemented helper — the workaround becomes
+removable on _their_ release, which nothing in this repo will ever announce.
+Comments and tickets do not reach whoever holds the code then.
+
+Add a test asserting the dependency is still pinned at the last known-bad
+version, with a header naming what to delete when it fails. Assert the pin,
+not the bug: a test that reproduces the bug goes green when upstream fixes
+it, silently, leaving the dead workaround behind.
+
+Warranted when removal depends on someone else's release _and_ the failure
+mode is silent. Rules: `.safeword/guides/testing-guide.md` → "Upstream
+Workaround Tripwires". Scaffold: `.safeword/templates/tripwire-template.md`.
+
+#### 4. Verify
 
 - [ ] New test passes
 - [ ] Existing tests still pass
@@ -198,14 +214,14 @@ Examples:
 - **Next:** commit with `fix(auth): release pool connection in error path`, mark ticket 234 done.
 - **Next:** commit the fix, then open a ticket for the unrelated logging gap surfaced at `src/auth.ts:88`.
 
-#### 4. If Fix Doesn't Work
+#### 5. If Fix Doesn't Work
 
 | Fix attempts | Action                                   |
 | ------------ | ---------------------------------------- |
 | 1-2          | Return to Phase 1 with new information   |
 | 3+           | STOP - Question architecture (see below) |
 
-#### 5. After 3+ Failed Fixes: Question Architecture
+#### 6. After 3+ Failed Fixes: Question Architecture
 
 Pattern indicating architectural problem:
 

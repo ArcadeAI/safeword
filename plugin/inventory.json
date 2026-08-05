@@ -63,7 +63,7 @@
     },
     {
       "path": "resources/guides/testing-guide.md",
-      "sha256": "7ece641cdb1a4fa00a2851ce08870954a81d5aa9f8315b264354bad3a3c08985"
+      "sha256": "5014e9d85494e42c7f2b5af92b672c46c13b8e309a2184219da67f287899ee8f"
     },
     {
       "path": "resources/guides/verification-lanes-guide.md",
@@ -122,12 +122,16 @@
       "sha256": "8930d608505fecac70719e874acae145461a00360f3eeeafa6801f2ba0b8e1f5"
     },
     {
+      "path": "resources/templates/tripwire-template.md",
+      "sha256": "ec7430cd752a3abc943a55970c9c66090450ad3313b16959d1bf81e86143d5e9"
+    },
+    {
       "path": "resources/templates/work-log-template.md",
       "sha256": "1b72b85cb2c0311f57bc87ebd2634d4d5072740878b42d397d03ab953f330f00"
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "04cef903e7991dc304d00657999419a4396a529cb1c47ce1f0f38b129b3d9568"
+      "sha256": "f32a88355e2646bc53dc7058752b11e5c93769dda242edc4adeb1e84c5d6bb99"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -595,7 +599,7 @@
     },
     {
       "path": "skills/debug/SKILL.md",
-      "sha256": "730bc2878af36eaaf7e91d34ab76c3bcd8d05820753eed42582d70c4822daaf5"
+      "sha256": "6fe09a11fea73743711cf620a222056fcc89e6b51e6a30f2dacce812a92c1b51"
     },
     {
       "path": "skills/elicit/SKILL.md",
@@ -647,7 +651,7 @@
     },
     {
       "path": "skills/testing/SKILL.md",
-      "sha256": "a7538a0aa5726cce382209e26f0c7a63cb92884950af24d2aba8e0c2ed9ced8b"
+      "sha256": "c24433f99f3283dcb083573fcfb1eddc8223d02bce09b9ead977597d0a219190"
     },
     {
       "path": "skills/ticket-system/SKILL.md",

@@ -1,0 +1,8 @@
+---
+source: https://api.github.com/repos/openai/codex/issues/18115
+source_key: codex-project-plugins
+reviewed_at: 2026-08-04T13:50:00.000Z
+---
+
+state: open
+state_reason: none
