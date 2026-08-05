@@ -12,6 +12,7 @@ import {
   getDependencyReadiness,
   isDependencyBackedCommand,
   isDependencyInstallCommand,
+  isDependencyReadinessRecoveryCommand,
   readDependencyBootstrapConfig,
   shouldBootstrapDependencies,
   writeInstallMarker,
@@ -719,28 +720,94 @@ describe('dependency readiness hook support', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
-  it.each(['bun ci || bun run test', 'bun ci; bun run test', 'bun ci | bun run test'])(
-    'pre-tool hook blocks a guarded retry when the recovery chain uses %s',
-    command => {
-      writeBunProject();
-      markSafewordProject();
-      mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
-      const past = new Date(Date.now() - 60_000);
-      utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
-      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  it('pre-tool hook still blocks the touch recovery when node_modules is missing', () => {
+    writeBunProject();
+    markSafewordProject();
+    expect(getDependencyReadiness(projectDirectory).status).toBe('missing');
 
-      const result = runHook(
-        PRE_TOOL_HOOK,
-        JSON.stringify({
-          tool_name: 'Bash',
-          tool_input: { command },
-        }),
-      );
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          // `touch` would create an empty regular FILE named node_modules and
+          // exit 0, so the retry would run with nothing installed.
+          command: 'touch node_modules && bun run test',
+        },
+      }),
+    );
 
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-    },
-  );
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+  });
+
+  it('pre-tool hook allows an install and retry when node_modules is missing', () => {
+    writeBunProject();
+    markSafewordProject();
+    expect(getDependencyReadiness(projectDirectory).status).toBe('missing');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: { command: 'bun ci && bun run test' },
+      }),
+    );
+
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook allows a guarded retry that redirects with 2>&1', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          // `&` here duplicates a file descriptor; it does not background the
+          // list, so it must not cost the retry its exemption.
+          command: 'bun ci && bun run test > out.log 2>&1',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it.each([
+    'bun ci || bun run test',
+    'bun ci; bun run test',
+    'bun ci | bun run test',
+    // `&` ends the `&&` list: bash runs `(bun ci && bun run dev) &` and then
+    // `bun run test` at once, whether or not the install succeeded.
+    'bun ci && bun run dev & bun run test',
+    'touch node_modules && bun run dev & bun run test',
+  ])('pre-tool hook blocks a guarded retry when the recovery chain uses %s', command => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: { command },
+      }),
+    );
+
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+  });
 
   it('pre-tool hook allows unrelated Bash commands without output', () => {
     writeBunProject();
@@ -971,5 +1038,62 @@ describe('dependency readiness hook support', () => {
       expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
       expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
     });
+  });
+});
+
+describe('isDependencyReadinessRecoveryCommand', () => {
+  // Unit pins for the shell-shape edges. The hook-process tests above pin the
+  // wiring; spawning a hook per edge case would cost seconds for no more signal.
+  it.each([
+    'bun ci && bun run test',
+    'pnpm install --frozen-lockfile && pnpm exec safeword doctor',
+    'yarn && yarn test',
+    'bun ci && bun run lint && bun run test',
+    'bun ci && bun run test > out.log 2>&1',
+  ])('exempts %s', command => {
+    expect(isDependencyReadinessRecoveryCommand(command, 'stale')).toBe(true);
+  });
+
+  it.each([
+    // The retry must be conditional on the recovery.
+    'bun ci || bun run test',
+    'bun ci; bun run test',
+    'bun ci | bun run test',
+    'bun ci && bun run dev & bun run test',
+    'bun ci & bun run test',
+    // The recovery must lead.
+    'bun run test && bun ci',
+    'cd packages/cli && bun ci && bun run test',
+    // A recovery that never materializes node_modules is not a recovery.
+    'bun install --dry-run && bun run test',
+    'bun install --help && bun run test',
+    // Shell forms the tokenizer cannot resolve stay denied.
+    '( bun ci || true ) && bun run test',
+    '{ bun ci; } && bun run test',
+    'if bun ci; then bun run test; fi',
+  ])('denies %s', command => {
+    expect(isDependencyReadinessRecoveryCommand(command, 'stale')).toBe(false);
+  });
+
+  it('exempts the touch recovery only for a stale marker', () => {
+    expect(
+      isDependencyReadinessRecoveryCommand('touch node_modules && bun run test', 'stale'),
+    ).toBe(true);
+    expect(
+      isDependencyReadinessRecoveryCommand('touch node_modules && bun run test', 'missing'),
+    ).toBe(false);
+    // An install recovers either status.
+    expect(isDependencyReadinessRecoveryCommand('bun ci && bun run test', 'missing')).toBe(true);
+  });
+
+  it('matches only the exact documented touch recovery', () => {
+    for (const command of [
+      'touch node_modules/ && bun run test',
+      'touch ./node_modules && bun run test',
+      'touch -m node_modules && bun run test',
+      'touch node_modules other && bun run test',
+    ]) {
+      expect(isDependencyReadinessRecoveryCommand(command, 'stale')).toBe(false);
+    }
   });
 });

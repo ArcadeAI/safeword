@@ -61,8 +61,9 @@ if (readiness.status === 'ready' || readiness.status === 'unsupported') {
 
 // PreToolUse makes one decision for the whole Bash call. Permit only the
 // documented recovery when it leads an all-`&&` chain, so a retry can run after
-// success without letting `||`, `;`, or pipes evade this readiness gate.
-if (isDependencyReadinessRecoveryCommand(command)) {
+// success without letting `||`, `;`, pipes, or a backgrounding `&` evade this
+// readiness gate.
+if (isDependencyReadinessRecoveryCommand(command, readiness.status)) {
   process.exit(0);
 }
 

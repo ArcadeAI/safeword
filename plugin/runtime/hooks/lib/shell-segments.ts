@@ -94,6 +94,51 @@ export function splitShellSegments(command: string): string[] {
   return parseShellCommandList(command).map(segment => segment.command);
 }
 
+/**
+ * Whether a segment carries an unquoted background `&`. A single `&` is a
+ * control operator that `parseShellCommandList` deliberately does not split on,
+ * so it survives inside a segment: `bun ci && start & run` yields two segments
+ * joined by `&&` even though bash backgrounds `bun ci && start` and then runs
+ * `run` immediately and unconditionally. A caller that reads `&&` as "the next
+ * segment only runs on success" must reject a segment that answers true here,
+ * or that guarantee is silently void.
+ *
+ * File-descriptor redirections also spell `&` (`2>&1`, `<&3`, `&>log`); those
+ * are not control operators and do not count.
+ */
+export function hasBackgroundOperator(segment: string): boolean {
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (let index = 0; index < segment.length; index += 1) {
+    const char = segment[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    // Backslash is literal inside single quotes (POSIX), an escape elsewhere.
+    if (char === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote !== undefined) {
+      if (char === quote) quote = undefined;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char !== '&') continue;
+    if (segment[index - 1] === '>' || segment[index - 1] === '<' || segment[index + 1] === '>') {
+      continue;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 function pushCommandSegment(
   segments: ShellCommandSegment[],
   segment: string,

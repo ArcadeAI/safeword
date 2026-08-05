@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   commandWordIndex,
   commandWords,
+  hasBackgroundOperator,
   parseShellCommandList,
   parseShellWords,
   splitShellSegments,
@@ -31,6 +32,37 @@ describe('parseShellCommandList', () => {
       { command: 'printf x', operatorAfter: '|&' },
       { command: 'git add --pathspec-from-file=-' },
     ]);
+  });
+});
+
+describe('hasBackgroundOperator', () => {
+  it('Scenario: a background `&` survives inside a segment, so it is reported there', () => {
+    // `parseShellCommandList` splits on `&&` but not on a single `&`, so the
+    // operator that voids an `&&` chain's conditionality lands inside a
+    // segment. A caller reading `operatorAfter` alone would never see it.
+    expect(parseShellCommandList('bun ci && start & run')).toEqual([
+      { command: 'bun ci', operatorAfter: '&&' },
+      { command: 'start & run' },
+    ]);
+    expect(hasBackgroundOperator('start & run')).toBe(true);
+    expect(hasBackgroundOperator('bun run dev &')).toBe(true);
+    expect(hasBackgroundOperator('bun run test')).toBe(false);
+  });
+
+  it('Scenario: file-descriptor redirections are not background operators', () => {
+    expect(hasBackgroundOperator('bun run test 2>&1')).toBe(false);
+    expect(hasBackgroundOperator('bun run test &>log')).toBe(false);
+    expect(hasBackgroundOperator('bun run test &>>log')).toBe(false);
+    expect(hasBackgroundOperator('cat <&3')).toBe(false);
+  });
+
+  it('Scenario: a quoted or escaped `&` is literal text, not an operator', () => {
+    expect(hasBackgroundOperator('echo "a & b"')).toBe(false);
+    expect(hasBackgroundOperator("echo 'a & b'")).toBe(false);
+    expect(hasBackgroundOperator(String.raw`echo a\&b`)).toBe(false);
+    // A backslash is literal inside single quotes, so the `&` after it is
+    // still quoted — and the closing quote still closes.
+    expect(hasBackgroundOperator(String.raw`echo '\' & run`)).toBe(true);
   });
 });
 

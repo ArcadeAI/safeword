@@ -11,7 +11,12 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
-import { commandWords, parseShellCommandList, splitShellSegments } from './shell-segments.js';
+import {
+  commandWords,
+  hasBackgroundOperator,
+  parseShellCommandList,
+  splitShellSegments,
+} from './shell-segments.js';
 
 export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
@@ -374,11 +379,27 @@ export function isDependencyBackedCommand(command: string): boolean {
  * the recovery comes first and every following segment depends on its success.
  * This preserves the pre-tool gate for `||`, `;`, and pipes, where a guarded
  * command could otherwise run after a failed or concurrent recovery (#1763).
+ *
+ * A background `&` breaks that guarantee from inside a segment rather than
+ * between two, because it ends the `&&` list early: bash reads
+ * `bun ci && start & run` as `(bun ci && start) &` followed by an unconditional,
+ * concurrent `run`. The tokenizer leaves `&` in place, so reject it explicitly.
+ *
+ * Only the LEADING segment is classified. An intermediate segment that undoes
+ * the recovery (`bun ci && rm -rf node_modules && bun run test`) still passes:
+ * the gate stops an agent from running into a stale worktree by accident, not
+ * from dismantling its own recovery on purpose.
  */
-export function isDependencyReadinessRecoveryCommand(command: string): boolean {
+export function isDependencyReadinessRecoveryCommand(
+  command: string,
+  status: DependencyReadinessStatus,
+): boolean {
   const segments = parseShellCommandList(command);
   const [first] = segments;
-  if (segments.length < 2 || first === undefined || !isRecoverySegment(first.command)) {
+  if (segments.length < 2 || first === undefined || !isRecoverySegment(first.command, status)) {
+    return false;
+  }
+  if (segments.some(segment => hasBackgroundOperator(segment.command))) {
     return false;
   }
 
@@ -434,8 +455,16 @@ function isInstallSegment(segment: string): boolean {
   return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
 }
 
-function isRecoverySegment(segment: string): boolean {
-  return isInstallSegment(segment) || isTouchNodeModulesSegment(segment);
+/**
+ * `touch node_modules` is only offered as recovery for a STALE marker, and it
+ * only earns the exemption there. With `node_modules` missing, `touch` creates
+ * an empty regular FILE of that name and exits 0 — so the retry would run with
+ * nothing installed, readiness would stay `missing` forever (the path is not a
+ * directory), and the stray file would block the real install that follows.
+ */
+function isRecoverySegment(segment: string, status: DependencyReadinessStatus): boolean {
+  if (isInstallSegment(segment)) return true;
+  return status === 'stale' && isTouchNodeModulesSegment(segment);
 }
 
 function isTouchNodeModulesSegment(segment: string): boolean {
