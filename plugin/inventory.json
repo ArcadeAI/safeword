@@ -131,7 +131,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "3fcf13ed3afc2a2d9119ee6b34082290bdbf553473c321f93dcab7f6563ca6bf"
+      "sha256": "4a4e814198703b4820d342265c2047787da6a73b41554541bca8c8068e90306a"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -319,7 +319,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "e3614a4dfea35a95f768cb9bd06f9660d78bd3b48884e6a880edea9de87f7815"
+      "sha256": "c39b894596d0ec79b0ca6eef761d387bd96b3539d6d6ebadf6a2ceace1da9fb1"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",

@@ -37099,7 +37099,7 @@ __export(exports_retro_draft_spool, {
 import { createHash as createHash16 } from "crypto";
 import nodePath75 from "path";
 function spoolName(sessionId) {
-  return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}.jsonl`;
+  return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
 }
 function draftSpoolPath(projectDirectory, sessionId) {
   return nodePath75.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
