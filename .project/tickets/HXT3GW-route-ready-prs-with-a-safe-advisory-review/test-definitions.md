@@ -121,7 +121,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED b758dfd64
-- [ ] GREEN
+- [x] GREEN d9a0d5e6c
 - [ ] REFACTOR
 
 ## Rule: Only a complete clean current review may report looks ready
