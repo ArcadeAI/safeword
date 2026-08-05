@@ -70,7 +70,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 6c7353618
 - [x] GREEN 2664ce6b5
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing lifecycle branch already shares receipt and no-receipt handling cleanly
 
 ## Rule: Every changed text artifact receives the same technology-neutral integrity floor
 
