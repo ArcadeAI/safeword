@@ -89,6 +89,12 @@ const MAX_MESSAGES_FOR_TOOLS = 5;
  */
 const MAX_LINES_FOR_TURN_BOUNDARY = 400;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
+/**
+ * A background-task completion the harness injects as a user-role message. It
+ * re-invokes the agent as a fresh turn, so it ends the previous one — unlike a
+ * `<system-reminder>`, which rides along inside a turn that is still running.
+ */
+const TRANSCRIPT_TURN_START_NOTIFICATION_PATTERN = /^\s*<task-notification\b/i;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
@@ -463,7 +469,7 @@ function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolea
     scanned++;
     try {
       const message: TranscriptMessage = JSON.parse(transcriptLine);
-      if (isGenuineUserPrompt(message)) {
+      if (isGenuineUserPrompt(message) || isBackgroundTaskNotification(message)) {
         return false;
       }
       if (message.type === 'assistant' && message.message?.content !== undefined) {
@@ -481,16 +487,31 @@ function normalizeContentItems(content: ContentItem[] | string | undefined): Con
   return Array.isArray(content) ? content : [];
 }
 
-function isGenuineUserPrompt(message: TranscriptMessage): boolean {
-  if (message.type !== 'user' || message.isMeta) return false;
+/** Joined text of a message's text blocks — empty for a pure tool-result message. */
+function userMessageText(message: TranscriptMessage): string {
+  if (message.type !== 'user' || message.isMeta) return '';
 
-  const text = normalizeContentItems(message.message?.content)
+  return normalizeContentItems(message.message?.content)
     .filter((item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text)
     .map(item => item.text)
     .join('\n')
     .trim();
+}
 
+function isGenuineUserPrompt(message: TranscriptMessage): boolean {
+  const text = userMessageText(message);
   return text.length > 0 && !TRANSCRIPT_SYSTEM_MESSAGE_PATTERN.test(text);
+}
+
+/**
+ * A background-task completion re-invokes the agent, so it starts a new turn:
+ * edits before it belong to an earlier unit of work that was reviewed on its
+ * own stop. Without this the widened boundary walk (V8Z1NP) reaches past the
+ * notification and demands a decision brief for a status turn that edited
+ * nothing — the false positive issue #1431 describes.
+ */
+function isBackgroundTaskNotification(message: TranscriptMessage): boolean {
+  return TRANSCRIPT_TURN_START_NOTIFICATION_PATTERN.test(userMessageText(message));
 }
 
 function containsEditToolUse(content: ContentItem[]): boolean {

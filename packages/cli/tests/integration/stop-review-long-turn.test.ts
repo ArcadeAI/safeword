@@ -130,6 +130,54 @@ describe('Stop review on long agentic turns (V8Z1NP)', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
+  it('stays silent on a background-notification turn whose own work edited nothing', () => {
+    // A `<task-notification>` re-invokes the agent, so it starts a new turn.
+    // Widening the boundary walk without treating it as one made the review
+    // reach past it to the previous turn's edit and demand a decision brief
+    // for a status check — the #1431 false positive.
+    const transcriptPath = writeTranscript(state.projectDirectory, [
+      userPrompt('Refactor the parser.'),
+      assistantToolUse('Edit', 'edit-1'),
+      toolResult('edit-1'),
+      assistantText('Refactored; suite running in the background.'),
+      userPrompt('<task-notification>\n<task-id>abc</task-id>\n</task-notification>'),
+      ...bashRounds(8, 'poll'),
+      assistantText('Suite finished: 1468/1468 green.'),
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('keeps a system reminder inside the turn — it rides along, it does not start one', () => {
+    // The mirror of the case above: unlike a task-notification, a
+    // `<system-reminder>` is injected mid-turn, so the edit before it is still
+    // this turn's work and must still be reviewed.
+    const transcriptPath = writeTranscript(state.projectDirectory, [
+      userPrompt('Refactor the parser.'),
+      assistantToolUse('Edit', 'edit-1'),
+      toolResult('edit-1'),
+      JSON.stringify({
+        type: 'user',
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: '<system-reminder>Task complete.</system-reminder>' }],
+        },
+      }),
+      ...bashRounds(8, 'check'),
+      assistantText('Parser refactored and verified.'),
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    const block = parseBlock(result.stdout);
+    expect(block.decision).toBe('block');
+    expect(block.reason).toContain('implement');
+  });
+
   it('stays silent when only a previous turn edited, however long this turn runs', () => {
     const transcriptPath = writeTranscript(state.projectDirectory, [
       userPrompt('Refactor the parser.'),
