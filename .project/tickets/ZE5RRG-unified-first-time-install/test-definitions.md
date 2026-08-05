@@ -239,13 +239,13 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The exhaustive reference includes review and destructive guidance commands
 
 - [x] RED 587bb98bb7
-- [x] GREEN 7c13e5ddc d1748ef02
+- [x] GREEN d1748ef02
 - [x] REFACTOR skip: help and capabilities derive from the same command definitions
 
 ### Scenario: Ordinary help teaches only canonical routes
 
 - [x] RED 587bb98bb7
-- [x] GREEN 7c13e5ddc d1748ef02
+- [x] GREEN d1748ef02
 - [x] REFACTOR skip: the compatibility section is rendered from the retained-route inventory
 
 ## Rule: unified-first-time-install.NTB1.R1 — Results identify project Claude and Codex outcomes separately
@@ -307,13 +307,13 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Destructive help and plans name deactivation backup and recovery effects
 
 - [x] RED 587bb98bb7
-- [x] GREEN 7c13e5ddc ffb3f7e06
+- [x] GREEN ffb3f7e06
 - [x] REFACTOR skip: catalogue descriptions and structured plans keep separate presentation and effect concerns
 
 ### Scenario: A destructive operation cannot describe itself as backup-only
 
 - [x] RED 587bb98bb7
-- [x] GREEN 7c13e5ddc ffb3f7e06
+- [x] GREEN ffb3f7e06
 - [x] REFACTOR skip: the shared result renderer exposes destructive effects alongside the recovery backup
 
 ### Scenario: Recoverable destructive work can be restored without replacing unrelated content
@@ -324,4 +324,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Cross-scenario refactor
 
-- [x] cross-scenario 7c13e5ddc — exact compatibility replacements now drive runtime guidance, capabilities, and help
+- [x] cross-scenario 7c13e5ddc
