@@ -14,8 +14,14 @@ export interface AdvisoryInspection {
   artifacts?: ArtifactEvidence[];
   consequentialFindings: number;
   coverage?: ArtifactCoverage[];
+  findings?: AdvisoryFinding[];
   maxTotalBytes?: number;
   unknowns: string[];
+}
+
+export interface AdvisoryFinding {
+  consequence: string;
+  path: string;
 }
 
 export type ArtifactEvidence =
@@ -43,6 +49,7 @@ export type ArtifactCoverage =
 export type PublishedReceipt =
   | {
       coverage?: ArtifactCoverage[];
+      findings?: AdvisoryFinding[];
       missingEvidence?: string[];
       reviewableTextArtifacts?: number;
       reviewedSha: string;
@@ -131,6 +138,17 @@ function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
   };
 }
 
+function deriveRoute(
+  runState: 'complete' | 'incomplete',
+  inspection: AdvisoryInspection,
+): 'looks_ready' | 'needs_human' {
+  return runState === 'complete' &&
+    inspection.consequentialFindings === 0 &&
+    inspection.unknowns.length === 0
+    ? 'looks_ready'
+    : 'needs_human';
+}
+
 function deriveReviewedReceipt(
   reviewedSha: string,
   inspection: AdvisoryInspection,
@@ -141,16 +159,12 @@ function deriveReviewedReceipt(
   ).length;
   const runState =
     reviewableTextArtifacts === 0 || missingEvidence.length > 0 ? 'incomplete' : 'complete';
-  const route =
-    runState === 'complete' &&
-    inspection.consequentialFindings === 0 &&
-    inspection.unknowns.length === 0
-      ? 'looks_ready'
-      : 'needs_human';
+  const route = deriveRoute(runState, inspection);
 
   return {
     ...((coverage || missingEvidence.length > 0) && {
       coverage: coverage ?? [],
+      findings: inspection.findings ?? [],
       missingEvidence,
       reviewableTextArtifacts,
       runState,
