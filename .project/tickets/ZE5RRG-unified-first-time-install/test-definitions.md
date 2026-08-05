@@ -47,8 +47,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Explicit Cursor installation works offline when core dependencies are satisfied
 
 - [x] RED a796ee390
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN f981dd72f
+- [x] REFACTOR skip: lifecycle preflight already isolates profile-network requirements
 
 ### Scenario: Non-destructive install can run without input
 

@@ -32,6 +32,8 @@ interface UnifiedInstallWorld extends SafewordWorld {
   hostEnvironment?: NodeJS.ProcessEnv;
   fixtureBefore?: string;
   selectedAgents?: string[];
+  statusEnvelope?: Record<string, unknown>;
+  doctorEnvelope?: Record<string, unknown>;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -221,6 +223,22 @@ function runInstall(world: UnifiedInstallWorld, arguments_: readonly string[]): 
   };
 }
 
+function runJsonCommand(world: UnifiedInstallWorld, command: string): Record<string, unknown> {
+  const project = requiredPath(world.projectRoot, 'project root');
+  const completed = spawnSync(process.execPath, [CLI_PATH, command, '--json', '--cwd', project], {
+    cwd: project,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      ...world.hostEnvironment,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+      SAFEWORD_SKIP_INSTALL: '1',
+    },
+  });
+  assert.notEqual(completed.status, 1, completed.stderr || completed.stdout);
+  return JSON.parse(completed.stdout) as Record<string, unknown>;
+}
+
 Given(
   'an unconfigured project with available Claude and Codex hosts',
   function (this: UnifiedInstallWorld) {
@@ -346,3 +364,50 @@ Then('Claude and Codex are unchanged', function (this: UnifiedInstallWorld) {
   assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
   assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
 });
+
+Given(
+  'a configured project with one profile action required',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runInstall(this, ['--agents', 'none']);
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  },
+);
+
+When('the user compares canonical status with doctor', function (this: UnifiedInstallWorld) {
+  this.statusEnvelope = runJsonCommand(this, 'status');
+  this.doctorEnvelope = runJsonCommand(this, 'doctor');
+});
+
+Then('both report the same health state', function (this: UnifiedInstallWorld) {
+  assert.equal(this.statusEnvelope?.state, this.doctorEnvelope?.state);
+});
+
+Then(
+  'only doctor includes causal diagnostics and coverage detail',
+  function (this: UnifiedInstallWorld) {
+    const statusData = this.statusEnvelope?.data as Record<string, unknown> | undefined;
+    const doctorData = this.doctorEnvelope?.data as Record<string, unknown> | undefined;
+    assert.equal(statusData?.diagnostics, undefined);
+    assert.equal(statusData?.coverage, undefined);
+    assert.ok(Array.isArray(doctorData?.diagnostics));
+    assert.ok(Array.isArray(doctorData?.coverage));
+  },
+);
+
+Given('the public command catalogue and handlers', () => {
+  // The executable catalogue is exercised by the command comparison below.
+});
+
+When('command contracts are validated', function (this: UnifiedInstallWorld) {
+  if (this.projectRoot === undefined) initializeHosts(this);
+  this.statusEnvelope = runJsonCommand(this, 'status');
+  this.doctorEnvelope = runJsonCommand(this, 'doctor');
+});
+
+Then(
+  'status and doctor have distinct executable fixtures and observable output',
+  function (this: UnifiedInstallWorld) {
+    assert.notDeepEqual(this.statusEnvelope, this.doctorEnvelope);
+  },
+);
