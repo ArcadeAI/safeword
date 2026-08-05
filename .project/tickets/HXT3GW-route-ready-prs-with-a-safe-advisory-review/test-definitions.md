@@ -161,7 +161,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Publication reconciles duplicate marker-owned receipts
 
 - [x] RED 718feba56
-- [ ] GREEN
+- [x] GREEN 0be78ce9a
 - [ ] REFACTOR
 
 ### Scenario: Receipt reconciliation preserves comments Safeword does not own
