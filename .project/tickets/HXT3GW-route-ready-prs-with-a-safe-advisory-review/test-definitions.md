@@ -77,7 +77,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: Changed text is visibly covered without a technology-specific gate
 
 - [x] RED 4b6cc66a8
-- [ ] GREEN
+- [x] GREEN 5aab71ae5
 - [ ] REFACTOR
 
 ### Scenario: A non-text artifact is visibly excluded instead of falsely covered
