@@ -2,6 +2,7 @@ export interface PullRequestReviewState {
   headSha: string;
   missingPrerequisites?: readonly string[];
   prerequisitesConfigured: boolean;
+  requiredPrerequisites?: readonly string[];
   prerequisites: 'passed' | 'pending' | 'failed';
   ready: boolean;
 }
@@ -50,6 +51,12 @@ export interface ReviewOutcome {
   result: 'not_run' | 'reviewed';
 }
 
+function resolvePrerequisites(
+  pullRequest: PullRequestReviewState,
+): PullRequestReviewState['prerequisites'] {
+  return pullRequest.requiredPrerequisites?.length === 0 ? 'passed' : pullRequest.prerequisites;
+}
+
 export async function reviewPullRequest(dependencies: ReviewDependencies): Promise<ReviewOutcome> {
   const pullRequest = await dependencies.readPullRequest();
   if (!pullRequest.ready) {
@@ -70,9 +77,11 @@ export async function reviewPullRequest(dependencies: ReviewDependencies): Promi
     return { attempts: 0, result: 'not_run' };
   }
 
-  if (pullRequest.prerequisites !== 'passed') {
+  const prerequisites = resolvePrerequisites(pullRequest);
+
+  if (prerequisites !== 'passed') {
     const receipt: PublishedReceipt =
-      pullRequest.prerequisites === 'pending'
+      prerequisites === 'pending'
         ? {
             markerOwned: true,
             missingChecks: [...(pullRequest.missingPrerequisites ?? [])],
