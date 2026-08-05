@@ -11,17 +11,17 @@ this one changes what "independent" means. If it is wrong, the alternate-model
 route must be labelled degraded like the author fallback, and slices 5–7 change
 shape.
 
-**Cheapest proof:** the coordinator's own labelling — an alternate-model route
-returns `independence: cross-agent` and the `require` policy accepts it — as an
-integration test against a fake reviewer that honours a model argument. That is
-slice 1, so a wrong answer about what independence *means* fails before any of
-the timing work is built.
+**Cheapest proof:** slice 1 runs the whole path for real in one authoring
+direction — a configured model is read, validated, passed as an actual argument
+to a fake reviewer that honours it, and the public command reports
+`independence: cross-agent` with the `require` policy accepting it. Thin on
+every axis except depth, so the assumption is proved by the production path
+rather than by a fixture that manufactures routing metadata. If the answer is
+wrong, it is wrong on slice 1, before any timing work exists.
 
-That slice-1 proof is deliberately narrow: it settles the semantics, not the
-plumbing. It cannot show the route is operational, because configuration,
-argument wiring and capability gating do not exist yet. The decisive
-end-to-end proof — `TBU3.R6` through the public command, both authoring
-directions — lands at slice 8, once every part it depends on is real.
+Slice 8 then widens that same vertical test to the other authoring direction and
+to the capabilities added in between; it does not introduce the wiring for the
+first time.
 
 The reasoning: independence in this system means *the reviewer is not the
 author*. A different model of the reviewer agent is still not the author, so it
@@ -35,13 +35,13 @@ is the only degraded case, and it stays degraded.
 | TBU3.R1–R2 alternate-model route, independence | `coordinator.ts` | integration | routing and policy semantics span coordinator + runtime | unit on route ordering |
 | TBU3.R3 no model configured, grammar | `policy.ts` | unit | pure config parsing | integration that no model argument is passed |
 | TBU3.R4–R5 per-route budgets, ordering, run bound | `runtime.ts` | integration | needs real spawn + controlled clock | unit on budget arithmetic |
-| TBU3.R6 public command end to end | CLI entry | E2E via `runCli` | the entry point is the thing under test | — |
+| TBU3.R6 public command end to end | CLI entry | E2E via `runCli` | the entry point is the thing under test | begins at slice 1 in one direction, widened at slice 8 |
 | TBU1.R1 budget derivation | `runtime.ts` | unit | pure function of packet bytes | integration for the 111-second case |
 | TBU1.R2 stop on expiry | `runtime.ts` | integration | requires a real child process | — |
 | TBU1.R3 candidate shares | `runtime.ts` | integration | allocation is observable only across spawns | unit on share arithmetic |
-| TBU1.R4 cleanup, late answers | `runtime.ts` | integration | process-group behaviour is not mockable | — |
+| TBU1.R4 cleanup, late answers | supervisor | integration | stop effects are OS behaviour | virtual-clock unit for the cleanup deadline; platform-gated OS test for stop effects |
 | TBU2.R1 contract delivery | `runtime.ts` | unit | schema is a value | integration asserting `--output-schema` is passed |
-| TBU2.R2 capability gating | `runtime.ts` | integration | probe is a subprocess | — |
+| TBU2.R2 capability gating | adapter | integration | probe is a subprocess | unit per capability state |
 | TBU2.R3 contract rejection | `parseReviewerOutput` | unit | pure validation | — |
 | NTB1.R1–R3 explanations, policy | `coordinator.ts` | integration | message assembly + policy together | E2E for the human-readable rendering |
 
@@ -58,14 +58,16 @@ Carried from the scenario review (recorded in `spec.md`):
 - the size fixture asserts exact byte counts against the same serialized packet
   the reviewer is sent.
 
-**Where the fake clock stops.** Budget arithmetic and deadline decisions run on
-the injected clock, so a 300-second boundary costs no real time. But signals,
-process groups, pipe closure and liveness are OS behaviour a fake clock cannot
-simulate — so those are proved against real short-lived subprocesses with real
-timers on sub-second budgets. The split is: *when* a deadline fires is virtual;
-*what happens* when it fires is real. One real-time smoke test covers
-process-group signalling and a descendant holding output open, at budgets small
-enough to stay fast.
+**Where the fake clock stops.** *Every* deadline decision — attempt budget,
+probe, cleanup, run bound — is proved on the injected clock, including the
+5-second cleanup boundary. No timing assertion uses real elapsed time.
+
+What a clock cannot simulate is OS behaviour: signalling, process-tree
+termination, pipe closure, liveness. Those get a separate integration test that
+makes **no timing claims at all** — it asserts that stopping a reviewer stops
+its descendants and closes its pipes, and says nothing about when. The two
+concerns never mix: *when* we decide to stop is virtual and exact, *whether the
+stop worked* is real and untimed.
 
 **Compatibility, stated precisely.** A project that configures no alternate
 model gets unchanged *route selection* and no model argument on any invocation.
@@ -83,26 +85,84 @@ lacking the other's flag.
 
 ### Build order
 
-1. **Routes with per-route budgets, including the alternate model.** Introduce
-   an explicit route list in `coordinator.ts` (reviewer/default →
-   reviewer/alternate → author), each with its own attempt budget. Proves the
-   riskiest assumption. `TBU3.R1`, `R2`, `R4`, `R5`.
-2. **Alternate-model configuration and grammar.** `policy.ts` reads the
-   configured model; grammar rejects anything unusable; nothing ships a default.
-   `TBU3.R3`.
-3. **Budget derivation.** Replace `timeoutMilliseconds()` with a packet-size
-   function plus clamps and the honoured override. `TBU1.R1`, `R2`.
+1. **One thin vertical slice, end to end.** Config read → grammar → route list
+   (reviewer/default → reviewer/alternate → author) → the model passed as a real
+   argument → coordinator labelling → a public-command test in one authoring
+   direction. Deliberately minimal on every axis except *going all the way
+   through*, so the riskiest assumption is proved by the production path rather
+   than by a fixture that manufactures routing metadata. `TBU3.R1`, `R2`, `R3`,
+   partial `R6`.
+2. **Per-route budgets and the run bound.** Each route gets its own attempt
+   budget; the bound stops routes that have not answered. `TBU3.R4`, `R5`.
+3. **Budget derivation.** Replace `timeoutMilliseconds()` with the packet-size
+   function, clamps, and the honoured override. `TBU1.R1`, `R2`.
 4. **Candidate shares.** Split a route's budget across untried candidates,
    recalculating from what remains. `TBU1.R3`.
-5. **Codex typed output.** Write the contract to a temp file, pass
-   `--output-schema`, add it to Codex's required capabilities so incapable
-   candidates are skipped. `TBU2.R1`, `R2`, `R3`.
-6. **Process groups, cleanup, late answers.** Launch detached into a group, kill
-   the group, bound the wait, ignore anything arriving after a stop. `TBU1.R4`.
+5. **Codex typed output.** Temp contract file, `--output-schema`, capability
+   states, skipping candidates that cannot honour the contract. `TBU2.R1`–`R3`.
+6. **Process supervision, cleanup, late answers.** The supervisor abstraction
+   below, its two platform implementations, and late-answer suppression.
+   `TBU1.R4`.
 7. **Explanations and envelope.** Per-failure-class remedies, three-route
-   causes, `reviewer_model` added to the result envelope. `NTB1.R1`–`R3`.
-8. **Public wiring.** E2E through the review command, both directions.
-   `TBU3.R6`.
+   causes, `reviewer_model` on the envelope. `NTB1.R1`–`R3`.
+8. **Public wiring completed.** Expand slice 1's vertical test to both authoring
+   directions and every capability now present. `TBU3.R6`.
+
+### Process supervision across platforms
+
+Killing a process group is POSIX-specific, and both affected surfaces run on
+macOS, Linux, and Windows. So cleanup goes behind a small supervisor with two
+implementations:
+
+| Platform | Launch | Stop | Descendants |
+| --- | --- | --- | --- |
+| macOS, Linux | detached, own process group | signal the group, then force it | covered while they stay in the group |
+| Windows | own job-style child handle | terminate the child tree | covered by the tree terminate |
+
+Both implementations answer the same two questions — *is anything still
+running?* and *stop it* — so the runtime never branches on platform. Proofs are
+platform-gated: the group/tree behaviour is proved on the host that can run it,
+and the abstraction's contract is proved everywhere. What neither platform
+promises is a descendant that deliberately escapes — that stays the explicit
+non-promise `TBU1.R4` already carries.
+
+### Capability states
+
+A help probe establishes only that a flag is *advertised*. The adapter therefore
+distinguishes three states, and only the last one earns a review attempt:
+
+| State | How it is established | Classification |
+| --- | --- | --- |
+| unknown | probe failed, hung, or was unreadable | skip, next candidate |
+| advertised only | flag appears in help output | skip unless delivery succeeds |
+| contract delivered | the contract was written and accepted as an argument | try the review |
+
+Delivery is validated before the attempt starts — the file is written and the
+argument is formed — so a candidate that cannot receive the contract is skipped
+without consuming a review attempt.
+
+### Temporary contract file lifecycle
+
+Created per dispatch with a unique name and owner-only permissions, in the same
+temp root the packet already uses. Removed on every exit path — success,
+timeout, crash, launch failure — via the same cleanup that stops the reviewer.
+Its path is never included in any explanation, which `NTB1.R2` already forbids
+for executable paths and launch arguments.
+
+### Worst-case timing arithmetic
+
+The run bound must survive the worst legal sequence, so the reserve is spent
+deliberately rather than assumed:
+
+- attempts: 3 routes × 300 s = 900 s — the whole of the three attempt budgets.
+- probes: bounded *inside* each candidate's share, so they add nothing.
+- candidate cleanups: 8 candidates × 3 routes × 5 s = 120 s worst case.
+- route transitions: 3 × negligible, budgeted at 5 s each = 15 s.
+- reserve: 300 s. Spend: 135 s. Headroom: 165 s.
+
+Invariant to hold in code and prove at the boundary: no sequence of probes,
+launches, candidate cleanups and route transitions pushes review work past
+20 minutes, and the command still returns within one further cleanup window.
 
 ## Decisions
 
@@ -113,10 +173,10 @@ lacking the other's flag.
 | Model configuration | `.safeword/config.json` plus a `SAFEWORD_REVIEW_*` env override, no default | ship a default model per agent | Z4Q24Q forbids shipped model names — they rot each release and bind us to one vendor |
 | Contract delivery to Codex | temp file passed as `--output-schema` | inline schema in the prompt only | Codex takes a file path, not inline JSON; verified against 0.146.0 during intake |
 | Capability adapters | one adapter shape per runtime — Claude inline `--json-schema`, Codex `--output-schema` file | one shared required-flag list | a shared list skips capable candidates of the other runtime for lacking a flag they never had |
-| Test clock boundary | virtual for when deadlines fire, real subprocesses for what happens when they do | all-virtual; all-real | all-virtual cannot prove signalling or process groups; all-real makes 300-second boundaries cost 300 seconds |
+| Test clock boundary | every deadline virtual, including cleanup; one untimed OS test for stop effects | all-virtual; all-real; real timers for short boundaries | all-virtual cannot prove signalling; all-real makes 300-second boundaries cost 300 seconds; real short timers reintroduce the flakiness the constraint forbids |
 | Budget input | byte length of the serialized packet | sum of file content bytes | the reviewer reads the serialized packet, so that is what costs it time |
 | Candidate allocation | route budget ÷ untried candidates, recalculated each turn | whole route budget per candidate | a hanging first candidate consumes everything — the defect this ticket exists to fix |
-| Process handling | launch detached in its own group, kill the group | kill the child pid only | a reviewer's own children survive a bare pid kill |
+| Process handling | a supervisor abstraction with POSIX group and Windows tree implementations | kill the child pid only; POSIX process groups everywhere | a bare pid kill leaves the reviewer's own children running, and process groups do not exist on Windows, which both affected surfaces support |
 | Clock | injected into the runtime | real timers with generous test tolerances | wall-clock tests at these durations are slow and flaky |
 
 ## Design alignment

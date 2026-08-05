@@ -6,7 +6,7 @@ phase: plan-implementation
 phase_anchors:
   - define-behavior: .project/tickets/DR6M6N-reliable-reviews-for-real-packets/spec.md
   - scenario-gate: packages/cli/features/reliable-reviews-for-real-packets.feature
-  - plan-implementation: .project/tickets/DR6M6N-reliable-reviews-for-real-packets/impl-plan.md
+  - plan-implementation: packages/cli/features/reliable-reviews-for-real-packets.feature
 status: in_progress
 scope:
   - a size-aware review budget with a documented bounded maximum, honoring the existing explicit override
