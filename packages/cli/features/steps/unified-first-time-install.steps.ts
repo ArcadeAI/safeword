@@ -48,6 +48,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   projectBefore?: string;
   unplannedContent?: string;
   canonicalCommand?: string;
+  historicalCommand?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -298,11 +299,15 @@ function runJsonCommand(world: UnifiedInstallWorld, command: string): Record<str
   return JSON.parse(completed.stdout) as Record<string, unknown>;
 }
 
-function runRawCommand(world: UnifiedInstallWorld, arguments_: readonly string[]): void {
+function runRawCommand(
+  world: UnifiedInstallWorld,
+  arguments_: readonly string[],
+  globalJson = true,
+): void {
   const project = requiredPath(world.projectRoot, 'project root');
   const completed = spawnSync(
     process.execPath,
-    [CLI_PATH, ...arguments_, '--json', '--cwd', project],
+    [CLI_PATH, ...arguments_, ...(globalJson ? ['--json'] : []), '--cwd', project],
     {
       cwd: project,
       encoding: 'utf8',
@@ -1133,5 +1138,50 @@ Then(
     const envelope = JSON.parse(trimmed) as { schema_version?: number; ok?: boolean };
     assert.equal(envelope.schema_version, 1);
     assert.equal(typeof envelope.ok, 'boolean');
+  },
+);
+
+Given(
+  'historical raw JSON command {string}',
+  function (this: UnifiedInstallWorld, command: string) {
+    initializeHosts(this);
+    this.historicalCommand = command;
+  },
+);
+
+When('the user requests its legacy raw format', function (this: UnifiedInstallWorld) {
+  const command = requiredPath(this.historicalCommand, 'historical command');
+  runRawCommand(this, [...command.split(' '), '--format', 'json'], false);
+});
+
+Then(
+  'the legacy shape is preserved with compatibility guidance outside stdout',
+  function (this: UnifiedInstallWorld) {
+    const raw = JSON.parse(this.result.stdout) as Record<string, unknown>;
+    assert.equal(raw.schema_version, undefined);
+    assert.match(this.result.stderr, /legacy raw JSON.*--json/iu);
+  },
+);
+
+Then(
+  'help and capabilities identify global JSON as canonical',
+  function (this: UnifiedInstallWorld) {
+    const project = requiredPath(this.projectRoot, 'project root');
+    const environment = { ...process.env, ...this.hostEnvironment, SAFEWORD_NO_UPDATE_CHECK: '1' };
+    const help = spawnSync(process.execPath, [CLI_PATH, '--help'], {
+      cwd: project,
+      encoding: 'utf8',
+      env: environment,
+    });
+    assert.match(help.stdout, /--json\s+Write one versioned result envelope as JSON/u);
+    const capabilities = spawnSync(
+      process.execPath,
+      [CLI_PATH, 'capabilities', '--json', '--cwd', project],
+      { cwd: project, encoding: 'utf8', env: environment },
+    );
+    const envelope = JSON.parse(capabilities.stdout) as {
+      data?: { machine_output?: { canonical_option?: string } };
+    };
+    assert.equal(envelope.data?.machine_output?.canonical_option, '--json');
   },
 );
