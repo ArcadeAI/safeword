@@ -3,11 +3,14 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  detectSourceChange,
   getMonitorSource,
   type GitHubIssueClient,
   type IssuePayload,
+  type MonitorSourceKey,
   readText,
   runUpstreamMonitor,
+  snapshotBody,
 } from '../../src/upstream-monitor/index.js';
 
 /**
@@ -54,6 +57,39 @@ async function runAgainstCommittedSnapshot(upstreamResponse: string): Promise<Is
   });
   return filed;
 }
+
+/**
+ * Every source, not just the tripwire. A snapshot committed at the wrong path,
+ * or under the wrong source's header, leaves the unit tests green while that
+ * source either fires every week or never fires at all — and the scheduled run
+ * is the only place it would surface.
+ */
+const SOURCE_KEYS: readonly MonitorSourceKey[] = [
+  'claude-code',
+  'codex-cli',
+  'codex-project-plugins',
+  'cursor',
+];
+
+describe('committed snapshots', () => {
+  it.each(SOURCE_KEYS)('%s reads back from its declared path', async key => {
+    const watched = getMonitorSource(key);
+    // Throws if the declared snapshotPath does not resolve.
+    const snapshotContent = await readText(nodePath.join(repoRoot, watched.snapshotPath));
+
+    // The header must identify this source: a copy-pasted snapshot would
+    // otherwise compare one upstream's content against another's baseline.
+    expect(snapshotContent).toContain(`source_key: ${key}`);
+    expect(snapshotContent).toContain(`source: ${watched.url}`);
+
+    // The body has to survive the parser the monitor actually uses. If it does
+    // not, every run diffs against an empty baseline and reports drift forever.
+    const body = snapshotBody(snapshotContent);
+    expect(body.length).toBeGreaterThan(0);
+    const unchanged = detectSourceChange({ source: watched, liveContent: body, snapshotContent });
+    expect(unchanged.changed).toBe(false);
+  });
+});
 
 describe('source isolation', () => {
   it('still checks later sources when an earlier one fails, and reports the failure', async () => {
