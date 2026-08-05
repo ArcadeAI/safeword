@@ -50,7 +50,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: An explicit empty prerequisite list proceeds immediately
 
-- [ ] RED
+- [x] RED 1977e498f
 - [ ] GREEN
 - [ ] REFACTOR
 
