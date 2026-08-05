@@ -41,10 +41,9 @@ for argument in "$@"; do
   previous="$argument"
 done
 printf '%s %s\n' '${agent}' "$model" >> "$SAFEWORD_REVIEW_ROUTE_LOG"
-# Never answer, and stay directly killable: exec replaces this shell with
-# sleep, so stopping the child really ends it. Surviving descendants are
-# slice 6's problem, not this test's.
-exec /bin/sleep 3600
+# Never answer, and leave a child holding the pipes open — cleanup must
+# reach the whole group, not just the process it launched.
+while true; do /bin/sleep 5; done
 `,
       { mode: 0o755 },
     );
