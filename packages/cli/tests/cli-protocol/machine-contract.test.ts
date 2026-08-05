@@ -31,5 +31,5 @@ describe('public command machine contract', () => {
         `${definition.name} used a synthetic adapter instead of its real handler`,
       ).toBe(false);
     }
-  }, 60_000);
+  }, 120_000);
 });

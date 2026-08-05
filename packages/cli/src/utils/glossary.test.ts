@@ -6,7 +6,7 @@
  * parsing, skip-mask semantics, structural validation, and lookup
  * (exact/alias/case-mismatch/unknown).
  *
- * Integration tests for `safeword setup` / `safeword check` glossary
+ * Integration tests for `safeword install` / `safeword check` glossary
  * behavior live under `tests/commands/`. File-IO behavior for
  * `validateGlossaryReference` lives under
  * `tests/utils/glossary-ref.test.ts` (sibling — separate file because

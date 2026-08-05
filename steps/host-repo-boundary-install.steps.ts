@@ -100,7 +100,7 @@ function seedHuskyHost(world: InstallWorld): string {
 }
 
 function setupNow(world: InstallWorld): void {
-  runCliIn(world, ['setup', '--verbose']);
+  runCliIn(world, ['setup', '--agents', 'none', '--verbose']);
   assert.equal(world.exitCode, 0, `setup failed:\n${world.output}`);
 }
 
@@ -290,7 +290,7 @@ Given('a git repository whose root is above the setup directory', function (this
 function emittedHookHost(world: InstallWorld, hook: string): void {
   const dir = newHost(world);
   mkdirSync(nodePath.join(dir, '.husky'), { recursive: true });
-  runCliIn(world, ['setup', '--verbose']);
+  runCliIn(world, ['setup', '--agents', 'none', '--verbose']);
   assert.equal(world.exitCode, 0, `setup failed:\n${world.output}`);
   assert.ok(existsSync(hookPath(world, hook)), `setup did not emit .husky/${hook}`);
   world.hook = hook;
@@ -307,15 +307,15 @@ function stubBinary(world: InstallWorld, script: string): void {
 // ---------------------------------------------------------------- Whens
 
 When('safeword setup runs in the host', function (this: InstallWorld) {
-  runCliIn(this, ['setup', '--verbose']);
+  runCliIn(this, ['setup', '--agents', 'none', '--verbose']);
 });
 
 When('safeword setup runs again in the host', function (this: InstallWorld) {
-  runCliIn(this, ['setup', '--verbose']);
+  runCliIn(this, ['setup', '--agents', 'none', '--verbose']);
 });
 
 When('safeword upgrade runs in the host', function (this: InstallWorld) {
-  runCliIn(this, ['upgrade']);
+  runCliIn(this, ['upgrade', '--agents', 'none']);
 });
 
 When('safeword reset runs in the host', function (this: InstallWorld) {

@@ -32,7 +32,12 @@ function sha256(content: string | Buffer): string {
 }
 
 function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Buffer } {
-  const result = spawnSync('git', arguments_, { cwd: repoRoot });
+  const result = spawnSync('git', arguments_, {
+    cwd: repoRoot,
+    // Generated plugin bundles can exceed spawnSync's 1 MiB default. A
+    // truncated `git show` must not silently fall back to the working tree.
+    maxBuffer: 16 * 1024 * 1024,
+  });
   return {
     status: result.status ?? 1,
     stdout: result.stdout,

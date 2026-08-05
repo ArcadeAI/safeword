@@ -1,13 +1,13 @@
 import { existsSync, lstatSync, readFileSync, readlinkSync, type Stats } from 'node:fs';
 import nodePath from 'node:path';
 
+import type * as CodexMigration from '../codex-plugin/installer.js';
 import type {
   LegacyGlobalGuidanceCleanupResult,
   LegacyGlobalGuidanceDiagnostic,
   LegacyGlobalGuidanceObservation,
 } from '../codex-plugin/legacy-global-guidance.js';
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
-import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
@@ -95,7 +95,7 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline && process.env.SAFEWORD_SKIP_INSTALL === undefined) {
     return onlineRequired('setup');
   }
-  const { convergeSetup } = await import('../commands/converge-setup.js');
+  const { convergeSetup } = await import('../lifecycle/project-install.js');
   return convergeSetup(invocation.cwd, {
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
@@ -650,7 +650,7 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
 }
 
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { observeCodexMigration } = await import('../commands/migrate-codex-plugin.js');
+  const { observeCodexMigration } = await import('../codex-plugin/installer.js');
   return observeCodexMigration(invocation.cwd);
 }
 
@@ -1221,7 +1221,7 @@ async function codexMutationHandler(
   if (invocation.offline && name !== 'codex recover') return onlineRequired(name);
   const isFinalization = isCodexFinalization(name, invocation);
   try {
-    const migration = await import('../commands/migrate-codex-plugin.js');
+    const migration = await import('../codex-plugin/installer.js');
     const preflight = await codexMutationPreflight(name, isFinalization, invocation, migration);
     if (preflight !== undefined) return preflight;
 

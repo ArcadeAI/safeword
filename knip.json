@@ -19,7 +19,6 @@
     "rustfmt",
     "architecture",
     "boundary",
-    "test-plan",
     "setup",
     "check",
     "lint-gherkin",

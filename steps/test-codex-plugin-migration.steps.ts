@@ -1613,13 +1613,17 @@ When(
 
 When('the plugin migration upgrade runs', function (this: CodexPluginMigrationWorld) {
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-  this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
-    cwd: repoRoot,
-    env: {
-      SAFEWORD_SKIP_INSTALL: '1',
+  this.codexPluginMigrationResult = runCommand(
+    process.execPath,
+    [SAFEWORD_CLI_PATH, 'upgrade', '--agents', 'none'],
+    {
+      cwd: repoRoot,
+      env: {
+        SAFEWORD_SKIP_INSTALL: '1',
+      },
+      timeout: 120_000,
     },
-    timeout: 120_000,
-  });
+  );
 });
 
 Then(

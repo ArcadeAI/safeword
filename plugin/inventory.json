@@ -127,7 +127,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "199147462ab7a94473497ae3bb38daecf5ca8b9a1cf5212bb27d133e539ff2f2"
+      "sha256": "a93eef7ab31b3039121c50d0845322e9c717e0e7b7539b5b23ff1e09136664f6"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -251,7 +251,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "5150936bbc783a951eaaf1587038f67f6469d6b642baa090a4403d5569188489"
+      "sha256": "2ae7f5f94c145572509b431972188f1be348542fb5026d9b68c215e632e7d1e6"
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
@@ -259,7 +259,7 @@
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
-      "sha256": "c46623f4bbdee4935eefa85c7beabafa7fa05063caad728178c15febe9fb68bb"
+      "sha256": "b1216eef2210f1665265f10c940e3cdc91f1360862f6f136373133feced76a1d"
     },
     {
       "path": "runtime/hooks/lib/parse-annotation.ts",
@@ -419,7 +419,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "29d6d9e22a9966cad5463de751b8e5cea848ba711285b0ee6e52d5ed4dfb1d10"
+      "sha256": "0429ab9d316796f52adc2491b1a117ce0482d6ec16ebd8ebd5a3378781d913da"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
@@ -575,7 +575,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "8789658cf9c427319bb702e37a62160ac805ec216c2c6e8e3655cfaeed8e6c7f"
+      "sha256": "938d791ca66b916ffd4ff3421ddb9358349d3f06fc7c2c143e866754e3144e0c"
     },
     {
       "path": "skills/bdd/VERIFY.md",

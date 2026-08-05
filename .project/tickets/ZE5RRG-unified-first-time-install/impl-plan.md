@@ -1,6 +1,6 @@
 # Impl Plan: One coherent Safe Word command model
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -72,11 +72,11 @@ The plan has ten slices and does not cross the plan-phase `>20 tasks` split trig
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | One default install and one actionable summary; `--agents`, verbose, JSON, plan identity, and targeted retry remain available. | `packages/cli/tests/cli-protocol/unified-lifecycle-wiring.test.ts`; NTB/TBU walkthroughs in `verify.md` | |
-| 1. Structure enforces; instructions suggest | Planner artifact, exact digest, schema partition, and catalogue translation make skipped effects/aliases mechanically visible. | `packages/cli/tests/cli-protocol/lifecycle-plan.test.ts`; `packages/cli/tests/cli-protocol/catalog.test.ts` | |
-| 2. Fire at boundaries, not every turn | Validation occurs at parse, pre-apply, destructive confirmation, and verification boundaries only. | `packages/cli/tests/cli-protocol/lifecycle-uninstall.test.ts` | |
-| 3. Add, never replace | Reconciliation owns only Safe Word entries and preserves customer/third-party Cursor and profile content. | `packages/cli/tests/commands/lifecycle-cursor.test.ts`; lifecycle uninstall integration tests | |
-| 5. Clarity before correctness | Canonical vocabulary is install/status/doctor/plan/uninstall; compatibility is hidden and documented once. | `packages/cli/tests/cli-protocol/help-aliases.test.ts`; CLI reference contract | |
+| Optimize for the NTB without constraining the TBU | One default install and one actionable summary; `--agents`, verbose, JSON, plan identity, and targeted retry remain available. | `packages/cli/features/unified-first-time-install.feature` | |
+| 1. Structure enforces; instructions suggest | Planner artifact, exact digest, schema partition, and catalogue translation make skipped effects/aliases mechanically visible. | `packages/cli/tests/cli-protocol/catalog.test.ts` | |
+| 2. Fire at boundaries, not every turn | Validation occurs at parse, pre-apply, destructive confirmation, and verification boundaries only. | `packages/cli/features/steps/unified-first-time-install.steps.ts` | |
+| 3. Add, never replace | Reconciliation owns only Safe Word entries and preserves customer/third-party Cursor and profile content. | `packages/cli/features/unified-first-time-install.feature` | |
+| 5. Clarity before correctness | Canonical vocabulary is install/status/doctor/plan/uninstall; compatibility is hidden and documented once. | `packages/cli/tests/cli-protocol/help-aliases.test.ts` | |
 
 Architecture decisions honored: `ARCHITECTURE.md` “Typed CLI Execution and Discovery,” “Profile-Scoped Generated Codex Plugin and Staged Hook Migration,” “Restart-Bound Codex Plugin Activation,” the current Claude native-plugin delivery contract, and the reconciliation ownership model. The Typed CLI entry will be updated to replace its obsolete 0.71 alias-removal window with indefinite compatibility and the unified lifecycle vocabulary.
 

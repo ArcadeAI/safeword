@@ -306,7 +306,7 @@ export const pythonManagedFiles: Record<string, ManagedFileDefinition> = {
  * True when this project is one safeword would scaffold an .importlinter for —
  * the single source of the "should import-linter be part of this project"
  * decision, shared by the scaffold generator and the install condition in
- * commands/converge-setup.ts (so the two can never drift).
+ * lifecycle/project-install.ts (so the two can never drift).
  */
 export function hasImportLinterScaffoldTarget(cwd: string): boolean {
   return importLinterScaffoldContent(cwd) !== undefined;

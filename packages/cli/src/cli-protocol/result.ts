@@ -78,6 +78,13 @@ const EMPTY_EFFECTS: Effects = {
   destructive: [],
 };
 
+export function combineEffects(groups: readonly Effects[]): Effects {
+  const categories = ['files', 'packages', 'configuration', 'network', 'destructive'] as const;
+  return Object.fromEntries(
+    categories.map(category => [category, groups.flatMap(effects => effects[category])]),
+  ) as unknown as Effects;
+}
+
 export function createResult(input: ResultInput): CliResult {
   return {
     schemaVersion: 1,

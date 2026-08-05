@@ -14,9 +14,9 @@ Feature: Ship Safeword as a native Claude Code plugin
 
     Scenario Outline: Install converges supported profile states to the exact enabled user-scoped plugin
       Given a Claude Code 2.1.170 or newer profile with <initial-state>
-      When safeword claude install runs
+      When safeword install for Claude runs
       Then the official marketplace and exact enabled Safeword version exist at user scope
-      And every project file is byte-identical
+      And project configuration is installed without changing unrelated project files
       And unrelated profile state is byte-identical
       And the result names /reload-plugins as the sole immediate action
 
@@ -26,18 +26,18 @@ Feature: Ship Safeword as a native Claude Code plugin
         | the exact official Safeword plugin disabled         |
         | an enabled older official Safeword plugin version   |
 
-    Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
+    Scenario: Scoped Cursor setup writes no legacy Claude assets
       Given a project that has never installed Safeword
-      When safeword setup runs for native Claude delivery
+      When scoped Cursor setup runs alongside native Claude delivery
       Then project-owned Safeword state is created
       And no Claude-only legacy hooks, skills, commands, or agents are materialized
-      And the result recommends safeword claude install without changing the Claude profile
+      And the result leaves the Claude profile unchanged without another host action
 
     @rejection
     Scenario Outline: Install refuses an unsupported Claude host before profile mutation
       Given the Claude executable reports <version>
-      When safeword claude install runs
-      Then it returns unsupported-host with profile and project state byte-identical
+      When safeword install for Claude runs
+      Then it returns unsupported-host after configuring the project without profile mutation
       And upgrading or reinstalling Claude Code is the sole safe next action
 
       Examples:
@@ -48,22 +48,22 @@ Feature: Ship Safeword as a native Claude Code plugin
     @rejection
     Scenario: Install refuses a marketplace name that resolves to an unofficial source
       Given the active Claude profile maps the Safeword marketplace name to a different source
-      When safeword claude install runs
-      Then installation fails without changing the project or the conflicting marketplace
+      When safeword install for Claude runs
+      Then installation fails after configuring the project without changing the conflicting marketplace
       And the result names the official marketplace identity as the safe next action
 
     @rejection
     Scenario: Install rejects current metadata backed by a legacy cached payload
       Given the exact enabled plugin metadata points to a cache without native identity
-      When safeword claude install runs
-      Then installation fails as unverified without changing the project
+      When safeword install for Claude runs
+      Then installation fails as unverified after configuring the project
       And no reload action is reported for the legacy cached payload
 
     @rejection
-    Scenario Outline: Claude subprocess failure reports partial profile effects without project mutation
+    Scenario Outline: Claude subprocess failure reports partial profile effects after project configuration
       Given a supported Claude profile whose <operation> command fails
-      When safeword claude install runs
-      Then it returns errored without changing project files or unrelated profile values
+      When safeword install for Claude runs
+      Then it returns errored after configuring the project without changing unrelated profile values
       And profile files outside the observed Claude command write set are byte-identical
       And every profile effect completed before the failure is reported exactly
       And the result names one repair or retry action
@@ -104,9 +104,9 @@ Feature: Ship Safeword as a native Claude Code plugin
 
     Scenario: Ordinary setup preserves an existing legacy project and its Claude profile
       Given an existing project has viable legacy Claude protection and arbitrary profile state
-      When ordinary safeword setup upgrades the project
+      When scoped project-only setup upgrades the project
       Then every viable legacy asset and the complete Claude profile are byte-identical
-      And the result recommends the explicit Claude lifecycle command without invoking it
+      And the result requires no host lifecycle command
 
   @native-claude-plugin.TBU1.R3 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R3 — Framework code executes from the installed versioned plugin while project state remains in the repository
@@ -149,7 +149,7 @@ Feature: Ship Safeword as a native Claude Code plugin
 
       Examples:
         | operation                |
-        | safeword claude install |
+        | safeword install --agents=claude |
         | safeword claude cleanup |
         | safeword claude recover |
 
@@ -162,7 +162,7 @@ Feature: Ship Safeword as a native Claude Code plugin
 
     Scenario: Setup in plugin mode never recreates retired Claude legacy assets
       Given a successfully cleaned project carries its durable plugin-mode marker
-      When safeword setup runs again
+      When scoped Cursor setup runs again
       Then no retired Claude hook, skill, command, agent, or settings entry is recreated
       And project-owned and Cursor-shared assets remain reconciled
 
@@ -249,9 +249,9 @@ Feature: Ship Safeword as a native Claude Code plugin
         | accompanied by an incomplete transaction                   | recovery-required | 2    | safeword claude recover                 |
         | hosted by Claude Code older than 2.1.170                    | unsupported-host  | 2    | update Claude Code                      |
         | hosted by an unparseable Claude executable                 | unsupported-host  | 2    | reinstall Claude Code                   |
-        | not installed                                               | missing           | 2    | safeword claude install                 |
-        | installed but disabled                                      | disabled          | 2    | safeword claude install                 |
-        | installed at a different version                            | wrong-version     | 2    | safeword claude install                 |
+        | not installed                                               | missing           | 2    | safeword install --agents=claude        |
+        | installed but disabled                                      | disabled          | 2    | safeword install --agents=claude        |
+        | installed at a different version                            | wrong-version     | 2    | safeword install --agents=claude        |
         | reported unhealthy by Claude                                | errored           | 1    | repair the reported Claude plugin error |
         | enabled without execution proof                              | unproven          | 2    | /reload-plugins                         |
         | proven with a stale version or digest                        | unproven          | 2    | /reload-plugins                         |
