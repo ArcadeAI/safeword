@@ -28,6 +28,9 @@ interface UnifiedInstallWorld extends SafewordWorld {
   profileBin?: string;
   claudeState?: string;
   codexState?: string;
+  claudeLog?: string;
+  codexLog?: string;
+  claudeFailure?: string;
   cursorBefore?: string;
   hostEnvironment?: NodeJS.ProcessEnv;
   fixtureBefore?: string;
@@ -38,6 +41,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   unrelatedProfilePath?: string;
   unifiedUninstall?: boolean;
   lifecycleOperation?: string;
+  projectBefore?: string;
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -101,6 +105,9 @@ function initializeHosts(world: UnifiedInstallWorld): void {
   const codexState = nodePath.join(profile, 'codex-state');
   const claudeMarketplace = nodePath.join(profile, 'claude-marketplace');
   const codexMarketplace = nodePath.join(profile, 'codex-marketplace');
+  const claudeLog = nodePath.join(profile, 'claude-log');
+  const codexLog = nodePath.join(profile, 'codex-log');
+  const claudeFailure = nodePath.join(profile, 'claude-failure');
   const claudePayload = createClaudePayload(root);
   mkdirSync(nodePath.join(project, '.cursor'), { recursive: true });
   mkdirSync(bin, { recursive: true });
@@ -110,12 +117,14 @@ function initializeHosts(world: UnifiedInstallWorld): void {
   for (const path of [claudeState, codexState, claudeMarketplace, codexMarketplace]) {
     writeFileSync(path, 'absent');
   }
+  for (const path of [claudeLog, codexLog, claudeFailure]) writeFileSync(path, '');
 
   const officialClaudeSource = `https://github.com/ArcadeAI/safeword.git#v${SAFEWORD_SCHEMA.version}`;
   writeExecutable(
     nodePath.join(bin, 'claude'),
     `#!/bin/sh
 set -eu
+printf '%s\n' "$*" >> "$SAFEWORD_CLAUDE_LOG"
 case "$*" in
   '--version') echo '2.1.170' ;;
   'plugin marketplace list --json')
@@ -127,6 +136,7 @@ case "$*" in
     ;;
   'plugin marketplace add '*' --scope user') printf 'official' > "$SAFEWORD_CLAUDE_MARKETPLACE" ;;
   'plugin install safeword@safeword --scope user'|'plugin update safeword@safeword --scope user'|'plugin enable safeword@safeword --scope user')
+    if [ -s "$SAFEWORD_CLAUDE_FAILURE" ]; then echo 'forced Claude failure' >&2; exit 3; fi
     printf 'enabled' > "$SAFEWORD_CLAUDE_STATE"
     ;;
   'plugin uninstall safeword@safeword --scope user --keep-data')
@@ -147,6 +157,7 @@ esac
     nodePath.join(bin, 'codex'),
     `#!/bin/sh
 set -eu
+printf '%s\n' "$*" >> "$SAFEWORD_CODEX_LOG"
 case "$*" in
   '--version') echo 'codex 0.141.0' ;;
   'plugin marketplace list --json')
@@ -186,15 +197,21 @@ esac
   world.profileBin = bin;
   world.claudeState = claudeState;
   world.codexState = codexState;
+  world.claudeLog = claudeLog;
+  world.codexLog = codexLog;
+  world.claudeFailure = claudeFailure;
   world.cursorBefore = directoryDigest(nodePath.join(project, '.cursor'));
   world.hostEnvironment = {
     PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
     CODEX_HOME: profile,
     SAFEWORD_CLAUDE_MARKETPLACE: claudeMarketplace,
+    SAFEWORD_CLAUDE_LOG: claudeLog,
+    SAFEWORD_CLAUDE_FAILURE: claudeFailure,
     SAFEWORD_CLAUDE_PAYLOAD: claudePayload,
     SAFEWORD_CLAUDE_SOURCE: officialClaudeSource,
     SAFEWORD_CLAUDE_STATE: claudeState,
     SAFEWORD_CODEX_MARKETPLACE: codexMarketplace,
+    SAFEWORD_CODEX_LOG: codexLog,
     SAFEWORD_CODEX_STATE: codexState,
     SAFEWORD_VERSION: SAFEWORD_SCHEMA.version,
   };
@@ -824,3 +841,174 @@ Then(
     );
   },
 );
+
+Given(
+  'core Claude and Codex already match the requested release',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runInstall(this, []);
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    this.projectBefore = directoryDigest(requiredPath(this.projectRoot, 'project root'));
+    writeFileSync(requiredPath(this.claudeLog, 'Claude log'), '');
+    writeFileSync(requiredPath(this.codexLog, 'Codex log'), '');
+  },
+);
+
+When('the user repeats the default install', function (this: UnifiedInstallWorld) {
+  runInstall(this, []);
+});
+
+Then(
+  'every surface remains unchanged and the result is healthy',
+  function (this: UnifiedInstallWorld) {
+    const envelope = JSON.parse(this.result.stdout) as {
+      changed?: boolean;
+      state?: string;
+      data?: { surfaces?: { state?: string }[] };
+    };
+    assert.equal(
+      directoryDigest(requiredPath(this.projectRoot, 'project root')),
+      this.projectBefore,
+    );
+    assert.equal(envelope.state, 'healthy');
+    assert.equal(envelope.changed, false);
+    assert.equal(
+      envelope.data?.surfaces?.every(surface => surface.state === 'healthy'),
+      true,
+    );
+    assert.doesNotMatch(
+      readFileSync(requiredPath(this.claudeLog, 'Claude log'), 'utf8'),
+      /plugin (?:install|update|enable)/u,
+    );
+    assert.doesNotMatch(
+      readFileSync(requiredPath(this.codexLog, 'Codex log'), 'utf8'),
+      /plugin add/u,
+    );
+  },
+);
+
+Given(
+  'core configuration has drifted Claude is already healthy and Codex is missing',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runInstall(this, []);
+    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    const project = requiredPath(this.projectRoot, 'project root');
+    rmSync(nodePath.join(project, '.safeword/SAFEWORD.md'));
+    writeFileSync(requiredPath(this.codexState, 'Codex state'), 'absent');
+    writeFileSync(requiredPath(this.claudeLog, 'Claude log'), '');
+    writeFileSync(requiredPath(this.codexLog, 'Codex log'), '');
+  },
+);
+
+Then('core drift is reconciled and Codex is installed', function (this: UnifiedInstallWorld) {
+  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
+});
+
+Then(
+  'healthy Claude state and user-owned content are preserved without duplicate entries',
+  function (this: UnifiedInstallWorld) {
+    const project = requiredPath(this.projectRoot, 'project root');
+    assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+    assert.equal(
+      readFileSync(nodePath.join(project, '.cursor/customer.json'), 'utf8'),
+      '{"ownedBy":"customer"}\n',
+    );
+    assert.doesNotMatch(
+      readFileSync(requiredPath(this.claudeLog, 'Claude log'), 'utf8'),
+      /plugin (?:install|update|enable)/u,
+    );
+    assert.equal(
+      readFileSync(requiredPath(this.codexLog, 'Codex log'), 'utf8')
+        .split('\n')
+        .filter(line => line === 'plugin add safeword@safeword --json').length,
+      1,
+    );
+  },
+);
+
+Given(
+  'core and Codex can install but Claude installation fails',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+  },
+);
+
+When('the user runs the default install', function (this: UnifiedInstallWorld) {
+  runInstall(this, []);
+});
+
+Then('successful core and Codex effects remain recorded', function (this: UnifiedInstallWorld) {
+  assert.equal(this.result.exitCode, 1);
+  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
+  const envelope = JSON.parse(this.result.stdout) as {
+    data?: { surfaces?: { name?: string; state?: string }[] };
+  };
+  assert.equal(
+    envelope.data?.surfaces?.some(
+      surface => surface.name === 'project' && surface.state === 'changed',
+    ),
+    true,
+  );
+  assert.equal(
+    envelope.data?.surfaces?.some(
+      surface => surface.name === 'codex' && surface.state === 'changed',
+    ),
+    true,
+  );
+});
+
+Then('Claude is the only failed surface offered for retry', function (this: UnifiedInstallWorld) {
+  const envelope = JSON.parse(this.result.stdout) as {
+    data?: { surfaces?: { name?: string; state?: string }[] };
+    next_actions?: { command?: string }[];
+  };
+  assert.deepEqual(
+    envelope.data?.surfaces
+      ?.filter(surface => surface.state === 'failed')
+      .map(surface => surface.name),
+    ['claude'],
+  );
+  assert.deepEqual(
+    envelope.next_actions?.map(action => action.command),
+    ['safeword install --agents=claude'],
+  );
+});
+
+Given(
+  'core and Codex succeeded while Claude failed on the prior install',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    runInstall(this, []);
+    assert.equal(this.result.exitCode, 1);
+    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), '');
+    this.projectBefore = directoryDigest(requiredPath(this.projectRoot, 'project root'));
+    writeFileSync(requiredPath(this.claudeLog, 'Claude log'), '');
+    writeFileSync(requiredPath(this.codexLog, 'Codex log'), '');
+  },
+);
+
+When('the user runs the reported Claude retry', function (this: UnifiedInstallWorld) {
+  const envelope = JSON.parse(this.result.stdout) as { next_actions?: { command?: string }[] };
+  assert.equal(envelope.next_actions?.[0]?.command, 'safeword install --agents=claude');
+  runInstall(this, ['--agents', 'claude']);
+});
+
+Then('Claude converges to healthy', function (this: UnifiedInstallWorld) {
+  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+});
+
+Then('core and Codex are not installed again', function (this: UnifiedInstallWorld) {
+  assert.equal(directoryDigest(requiredPath(this.projectRoot, 'project root')), this.projectBefore);
+  assert.doesNotMatch(
+    readFileSync(requiredPath(this.codexLog, 'Codex log'), 'utf8'),
+    /plugin (?:marketplace|add)/u,
+  );
+});
