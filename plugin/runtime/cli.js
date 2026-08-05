@@ -36826,6 +36826,7 @@ __export(exports_self_report, {
   formatSelfReportSurfacing: () => formatSelfReportSurfacing,
   formatIssueDrafts: () => formatIssueDrafts,
   detectAgent: () => detectAgent,
+  captureRetroFilingFault: () => captureRetroFilingFault,
   captureGateEscalation: () => captureGateEscalation,
   captureBareDrain: () => captureBareDrain,
   buildRecord: () => buildRecord
@@ -36966,6 +36967,11 @@ function captureBareDrain(projectDirectory, sessionId) {
   if (!readSelfReportConfig(projectDirectory).capture)
     return;
   recordSignal(projectDirectory, sessionId ?? "hook", { source: "retro-filing-gate", agent: detectAgent(), errorClass: "RetroBareDrain" }, readInstalledVersion(projectDirectory));
+}
+function captureRetroFilingFault(projectDirectory, sessionId) {
+  if (!readSelfReportConfig(projectDirectory).capture)
+    return;
+  recordSignal(projectDirectory, sessionId ?? "hook", { source: "retro-run", agent: detectAgent(), errorClass: "RetroFilingFault" }, readInstalledVersion(projectDirectory));
 }
 function captureGateEscalation(projectDirectory, sessionId, pattern) {
   if (!readSelfReportConfig(projectDirectory).capture)
@@ -44234,6 +44240,10 @@ async function executeRetroCommand(options, cwd) {
       version: VERSION
     })
   });
+  if (restTransport !== undefined && (outcome.result?.failed.length ?? 0) > 0) {
+    const { captureRetroFilingFault: captureRetroFilingFault2 } = await Promise.resolve().then(() => (init_self_report(), exports_self_report));
+    captureRetroFilingFault2(projectDirectory, options.sessionId);
+  }
   return {
     outcome,
     extractionSucceeded,

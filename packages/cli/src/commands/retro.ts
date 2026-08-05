@@ -531,6 +531,15 @@ export async function executeRetroCommand(
     }),
   });
 
+  // #1936: a credential WAS present and the write still failed — a real transport
+  // fault, not the ordinary "no credential in an agent session" lane. The dispatch
+  // and nudge stay cause-neutral (#1900) because retro's extractor mines them, so
+  // this is the channel that keeps the fault visible instead of silent.
+  if (restTransport !== undefined && (outcome.result?.failed.length ?? 0) > 0) {
+    const { captureRetroFilingFault } = await import('../../templates/hooks/lib/self-report.js');
+    captureRetroFilingFault(projectDirectory, options.sessionId);
+  }
+
   return {
     outcome,
     extractionSucceeded,
