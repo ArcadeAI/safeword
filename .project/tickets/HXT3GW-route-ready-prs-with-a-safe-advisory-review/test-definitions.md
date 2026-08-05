@@ -27,7 +27,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 ### Scenario: A scheduled sweep reviews a pending head after prerequisites settle
 
 - [x] RED c45d59875
-- [ ] GREEN
+- [x] GREEN 04ea31474
 - [ ] REFACTOR
 
 ### Scenario: A prerequisite that never appears remains conservatively pending
