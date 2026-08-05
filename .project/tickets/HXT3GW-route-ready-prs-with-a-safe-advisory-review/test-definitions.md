@@ -166,7 +166,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: Receipt reconciliation preserves comments Safeword does not own
 
-- [ ] RED
+- [x] RED f240bd9da
 - [ ] GREEN
 - [ ] REFACTOR
 
