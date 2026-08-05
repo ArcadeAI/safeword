@@ -339,6 +339,44 @@ describe('migrate codex-plugin command', () => {
     ).toBe(true);
   });
 
+  // The declining handoff is covered by the acceptance lane's TB1.R4 rule. The
+  // succeeding one is where files actually move and get rewritten, so it is the
+  // path where survival is least obvious and most worth pinning.
+  it('preserves user-owned project data and authored skills through a successful handoff', () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const userOwned = {
+      '.project/tickets/ABC123/spec.md': '# Authored spec\n\nOwned by the user, not Safeword.\n',
+      '.project/learnings/INDEX.md': '# Learnings\n\n- Do not clobber authored notes.\n',
+      '.agents/skills/company-workflow/SKILL.md': 'User-authored company workflow skill\n',
+    };
+    for (const [relativePath, contents] of Object.entries(userOwned)) {
+      const absolutePath = nodePath.join(fixture.directory, relativePath);
+      mkdirSync(nodePath.dirname(absolutePath), { recursive: true });
+      writeFileSync(absolutePath, contents);
+    }
+    // A Safeword-owned skill sharing the directory the authored one lives in:
+    // removing it is what proves the migration reached and rewrote this tree,
+    // so the survival assertions below are not just describing an inert repo.
+    const safewordSkill = nodePath.join(fixture.directory, '.agents/skills/audit/SKILL.md');
+    mkdirSync(nodePath.dirname(safewordSkill), { recursive: true });
+    writeFileSync(safewordSkill, 'legacy audit skill\n');
+    const environment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
+    vi.stubEnv('PATH', `${fixture.bin}:${process.env.PATH ?? ''}`);
+    vi.stubEnv('SAFEWORD_CODEX_LOG', nodePath.join(fixture.directory, 'codex.log'));
+    vi.stubEnv('CODEX_HOME', environment.CODEX_HOME);
+
+    expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
+
+    expect(existsSync(safewordSkill)).toBe(false);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
+    for (const [relativePath, contents] of Object.entries(userOwned)) {
+      expect(
+        readFileSync(nodePath.join(fixture.directory, relativePath), 'utf8'),
+        relativePath,
+      ).toBe(contents);
+    }
+  });
+
   it('retains complete legacy state when automatic plugin installation fails', () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const environment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
