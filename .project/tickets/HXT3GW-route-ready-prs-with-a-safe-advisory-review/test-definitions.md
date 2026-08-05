@@ -38,7 +38,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 ### Scenario: A failed prerequisite publishes a terminal non-run receipt
 
-- [ ] RED
+- [x] RED a792a030e
 - [ ] GREEN
 - [ ] REFACTOR
 
