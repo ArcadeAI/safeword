@@ -168,9 +168,9 @@ describe('formatFilingDispatch (GH628F — one dispatch action plus silence cont
   // formatters share a template without either wording drifting silently.
   it('renders the exact Claude/Cursor and Codex dispatch wording', () => {
     const shared =
-      "Safeword's retro spooled 2 sanitized findings for its own upstream tracker at /p/s.jsonl, " +
-      'to be filed through your GitHub access — which the CLI process does not have of its own. ' +
-      "This handoff is safeword's normal filing lane in agent sessions, not a defect. ";
+      "Safeword's retro spooled 2 sanitized findings for its own upstream tracker at /p/s.jsonl. " +
+      'They remain queued for filing through your GitHub access. This handoff uses ' +
+      "safeword's normal recovery lane for unfiled drafts. ";
     const tail =
       'so it files them through your GitHub access, then end the turn. ' +
       'Only %DRAIN% drains the spool. %PROHIBIT%, and do not narrate or summarize the filing in ' +

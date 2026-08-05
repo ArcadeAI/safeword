@@ -1,11 +1,10 @@
 // Retro draft spool (ticket BNGK9W — cloud filing transport).
 //
 // The invisible retro extracts + sanitizes findings into code-assembled drafts,
-// then files them via the REST transport. In a Claude cloud container the CLI
-// process has no GitHub credential of its own (GITHUB_TOKEN is the platform's, not
-// a GitHub token; #568), so without this spool the drafts would be LOST. It
-// persists the POST-EGRESS drafts to disk so an unfiled draft survives — the
-// agent-filing path (PATH B) reads the spool and
+// then tries to file them via the REST transport. The spool persists POST-EGRESS
+// drafts before that attempt so anything unfiled survives a missing credential,
+// upstream failure, filing cap, or acknowledgement failure. The agent-filing path
+// (PATH B) reads the spool and
 // posts each draft verbatim via its inherited GitHub MCP, then marks them filed.
 //
 // Only the code-assembled draft ({signature, title, body, labels}) is written —

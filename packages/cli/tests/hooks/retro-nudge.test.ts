@@ -74,10 +74,10 @@ describe('formatRetroNudge (BNGK9W — a statement, never an imperative)', () =>
   it('renders the exact nudge wording', () => {
     expect(formatRetroNudge(2, '/proj/.safeword/retro-drafts/sess-1.jsonl')).toBe(
       "Safeword's retro spooled 2 unfiled findings from this session at " +
-        '/proj/.safeword/retro-drafts/sess-1.jsonl; the CLI process has no GitHub credential of ' +
-        "its own. This handoff is safeword's normal filing lane in agent sessions, not a defect. " +
-        'This boundary observed them queued for the safeword-retro-filer subagent (or the live ' +
-        "agent's GitHub access); the filing path re-reads the spool before reporting what " +
+        '/proj/.safeword/retro-drafts/sess-1.jsonl; this boundary observed them queued for the ' +
+        "safeword-retro-filer subagent (or the live agent's GitHub access). This handoff uses " +
+        "safeword's normal recovery lane for unfiled drafts; the filing path re-reads the spool " +
+        'before reporting what ' +
         'remains. The filing procedure is in .safeword/guides/self-report-filing.md.',
     );
   });

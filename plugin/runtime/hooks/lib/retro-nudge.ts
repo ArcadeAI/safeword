@@ -1,9 +1,8 @@
 // Retro cloud-filing nudge decision (ticket BNGK9W, issue #568).
 //
-// PATH B: in an agent session the CLI process holds no GitHub credential of its own
-// (the agent holds one via its host), so the sanitized
-// drafts stay SPOOLED (lib/retro-draft-spool.ts) and the live agent must file them
-// via its inherited GitHub MCP. The async Stop hook that spools them is backgrounded
+// PATH B: sanitized drafts that remain after the code-owned filing attempt stay
+// SPOOLED (lib/retro-draft-spool.ts), and the live agent can file them via its
+// inherited GitHub access. The async Stop hook that spools them is backgrounded
 // and surfaces nothing (ZFGWS1), so a SEPARATE surfacing-capable boundary hook
 // (SessionStart / UserPromptSubmit) checks for unfiled drafts and emits ONE factual
 // line — a system-reminder the model reads, invisible to the user in chat.
@@ -67,9 +66,8 @@ export function formatRetroNudge(count: number, spoolPath: string): string {
   const plural = count === 1 ? '' : 's';
   return (
     `Safeword's retro spooled ${count} unfiled finding${plural} from this session at ${spoolPath}; ` +
-    `the CLI process has no GitHub credential of its own. This handoff is safeword's normal ` +
-    `filing lane in agent sessions, not a defect. This boundary ` +
-    `observed them queued for the safeword-retro-filer subagent (or the live agent's GitHub access); ` +
+    `this boundary observed them queued for the safeword-retro-filer subagent (or the live ` +
+    `agent's GitHub access). This handoff uses safeword's normal recovery lane for unfiled drafts; ` +
     `the filing path re-reads the spool before reporting what remains. ` +
     `The filing procedure is in "${CLAUDE_PLUGIN_ROOT}"/resources/guides/self-report-filing.md.`
   );

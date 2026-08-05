@@ -65,9 +65,9 @@ Specific to this playbook:
 
 ## Retro drafts (transcript-mined, cloud filing)
 
-The invisible retro mines the session transcript for qualitative friction and, in
-an agent session where the CLI process holds no GitHub credential of its own,
-**spools** the sanitized drafts to disk instead of losing them
+The invisible retro mines the session transcript for qualitative friction and
+**spools** sanitized drafts before the code-owned filing attempt so anything left
+unfiled remains recoverable
 (`.safeword/retro-drafts/<session>.jsonl`). Two surfaces then point at that spool:
 
 - A **stop-gate dispatch** (the primary path): at a turn end with unfiled drafts,
@@ -112,8 +112,8 @@ with two differences:
    exhaustive reads (`list_issues`, `issue_read`) strip HTML comments and can
    never see a marker. File anyway — a duplicate is recoverable (the reconcile
    sweep closes confirmed ones), while a finding you decline to file is lost,
-   because this fallback runs exactly when the code-owned REST path could not
-   authenticate (#834). Never merge on a resemblance, though: a matching
+   because this fallback runs when the code-owned path left a draft unfiled
+   (#834). Never merge on a resemblance, though: a matching
    `**Safeword surface:**` or a similar title is weak identity that drifts
    between sessions (#631), and commenting-and-acking on it binds the signature
    to that issue permanently while discarding the draft. Only a confirmed marker

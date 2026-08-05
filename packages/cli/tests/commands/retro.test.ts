@@ -26,6 +26,7 @@ import {
   verifyDraftBody,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
+import { decideRetroFilingGate } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { readJsonlFile } from '../helpers.js';
 
 vi.mock('../../src/retro/github-rest.js', () => ({
@@ -484,6 +485,27 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
     expect(outcome.ok).toBe(true);
     expect(readSpooledDrafts(projectDirectory, 'sess-a')).toHaveLength(2); // nothing filed → retained
     expect(outcome.agentFilingNeeded).toBe(true);
+  });
+
+  it('describes an authenticated transport failure without inventing its cause', async () => {
+    class FailingAuthenticatedGitHub extends RejectingGitHub {
+      override createIssue(): Promise<IssueReference> {
+        return Promise.reject(new Error('500 Internal Server Error'));
+      }
+    }
+
+    await runRetro(
+      { transcript: '/t.jsonl' },
+      dependencies({
+        transport: new FailingAuthenticatedGitHub(),
+        projectDirectory,
+        extract: () => Promise.resolve([twoFindings[0]]),
+      }),
+    );
+
+    const dispatch = decideRetroFilingGate(projectDirectory, 'sess-a');
+    expect(dispatch).toContain('remain queued');
+    expect(dispatch).not.toMatch(/credential|authenticat|\b401\b|not a defect/i);
   });
 
   it('a partial REST result drains only the filed draft, retaining the rejected one', async () => {

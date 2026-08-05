@@ -2,9 +2,9 @@
 // Safeword: cloud-retro filing nudge (UserPromptSubmit) — BNGK9W, issue #568.
 //
 // The async Stop hook extracts + spools the retro's post-egress drafts but, being
-// backgrounded (ZFGWS1), surfaces nothing. In an agent session the CLI process has
-// no GitHub credential of its own, so those drafts stay spooled — the designed
-// lane, not a failure (#1900). The PRIMARY filing path is the Stop-time
+// backgrounded (ZFGWS1), surfaces nothing. Drafts that remain after the code-owned
+// filing attempt stay spooled for the agent recovery lane (#1900). The PRIMARY
+// filing path is the Stop-time
 // filing gate (stop-retro-filing.ts, GH628F), which dispatches the
 // safeword-retro-filer subagent; this boundary hook is the BACKSTOP — once per
 // unfiled batch, it surfaces ONE factual line naming the spool. The line is a
