@@ -56,11 +56,28 @@ function git(arguments_: string[]): {
   };
 }
 
-function sealedCommit(): string | undefined {
-  const relativeManifest = nodePath.relative(repoRoot, manifestPath);
-  const result = git(['log', '-1', '--format=%H', '--', relativeManifest]);
+/**
+ * Resolve the sealed commit from a `git log` result.
+ *
+ * A spawn-level failure throws rather than returning undefined. Undefined
+ * degrades every input to a working-tree comparison, so swallowing a broken
+ * `git` here would silently convert the whole seal into "nothing may change" —
+ * the same failure this file's `maxBuffer` note describes, one level up.
+ *
+ * Git exiting non-zero, or finding no commit, still yields undefined: that is
+ * a legitimate "no sealed commit to read from", not a broken environment.
+ */
+function sealedCommitFrom(result: ReturnType<typeof git>): string | undefined {
+  if (result.spawnFailed) {
+    throw new Error('git log could not run; cannot resolve the sealed commit');
+  }
   const commit = result.stdout.toString('utf8').trim();
   return result.status === 0 && commit ? commit : undefined;
+}
+
+function sealedCommit(): string | undefined {
+  const relativeManifest = nodePath.relative(repoRoot, manifestPath);
+  return sealedCommitFrom(git(['log', '-1', '--format=%H', '--', relativeManifest]));
 }
 
 function reviewedInput(path: string, commit: string | undefined): Buffer {
@@ -127,6 +144,39 @@ function reviewIssues(manifest: Manifest, manifestBytes: string, review: Review)
   if (review.verdicts.some(verdict => verdict.verdict !== 'pass')) issues.push('failing verdict');
   return issues;
 }
+
+describe('sealed-commit resolution', () => {
+  const gitResult = (overrides: Partial<ReturnType<typeof git>>): ReturnType<typeof git> => ({
+    status: 0,
+    stdout: Buffer.from(''),
+    stderr: Buffer.from(''),
+    spawnFailed: false,
+    ...overrides,
+  });
+
+  it('returns the commit git reported', () => {
+    const sha = 'a'.repeat(40);
+    const reported = gitResult({ stdout: Buffer.from(`${sha}\n`) });
+    expect(sealedCommitFrom(reported)).toBe(sha);
+  });
+
+  it('refuses to resolve when git could not run at all', () => {
+    // Returning undefined here would degrade every sealed input to a
+    // working-tree comparison without a word — the seal would silently become
+    // "nothing may change" and blame whoever regenerated a build artifact.
+    expect(() => sealedCommitFrom(gitResult({ spawnFailed: true }))).toThrow(
+      'cannot resolve the sealed commit',
+    );
+  });
+
+  it('reports no sealed commit when git ran but found none', () => {
+    // A legitimate absence, not a broken environment: still undefined.
+    const failed = gitResult({ status: 1 });
+    const blank = gitResult({ stdout: Buffer.from('  \n') });
+    expect(sealedCommitFrom(failed)).toBeUndefined();
+    expect(sealedCommitFrom(blank)).toBeUndefined();
+  });
+});
 
 describe('hash-bound independent closeout review (93C14D)', () => {
   it('rejects multiple conflicting review result blocks', () => {
