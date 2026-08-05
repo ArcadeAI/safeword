@@ -64,7 +64,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED 0295da622
 - [x] GREEN 45e0bfd63
-- [ ] REFACTOR
+- [x] REFACTOR skip: invalidation remains one cohesive pre-review lifecycle branch
 
 ### Scenario: An ineligible scheduled candidate creates no receipt when none exists
 
