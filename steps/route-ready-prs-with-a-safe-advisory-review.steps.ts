@@ -19,6 +19,7 @@ type ObservableReceipt = PublishedReceipt & {
 interface AdvisoryReviewWorld {
   attempts?: number;
   receiptBeforeTrigger?: string;
+  prerequisiteSamples?: number;
   prerequisitesConfigured?: boolean;
   requiredPrerequisites?: string[];
   currentHead?: string;
@@ -28,6 +29,7 @@ interface AdvisoryReviewWorld {
   ready?: boolean;
   receipts?: ObservableReceipt[];
   scheduledReceiptId?: number;
+  scheduledState?: 'closed' | 'draft' | 'merged';
   summary?: string;
 }
 
@@ -94,6 +96,29 @@ Given('revision A is already completely reviewed', function (this: AdvisoryRevie
     },
   ];
   this.receiptBeforeTrigger = JSON.stringify(this.receipts[0]);
+});
+
+Given(
+  /^scheduled discovery selected a pull request that becomes (draft|closed|merged) before its worker starts$/,
+  function (this: AdvisoryReviewWorld, state: 'closed' | 'draft' | 'merged') {
+    this.attempts = 0;
+    this.currentHead = 'revision A';
+    this.prerequisiteSamples = 0;
+    this.ready = false;
+    this.scheduledState = state;
+  },
+);
+
+Given('a marker-owned receipt already exists', function (this: AdvisoryReviewWorld) {
+  this.scheduledReceiptId = 43;
+  this.receipts = [
+    {
+      commentId: this.scheduledReceiptId,
+      markerOwned: true,
+      reviewedSha: 'revision A',
+      route: 'looks_ready',
+    },
+  ];
 });
 
 Given(
@@ -348,6 +373,55 @@ Then(
   'its marker-owned receipt remains byte-for-byte unchanged',
   function (this: AdvisoryReviewWorld) {
     assert.equal(JSON.stringify(this.receipts?.[0]), this.receiptBeforeTrigger);
+  },
+);
+
+When('the worker revalidates the pull request', async function (this: AdvisoryReviewWorld) {
+  this.summary = undefined;
+  const world = this;
+  this.outcome = await reviewPullRequest({
+    readPullRequest: async () => ({
+      headSha: this.currentHead ?? '',
+      markerReceiptExists: (this.receipts?.length ?? 0) > 0,
+      prerequisitesConfigured: true,
+      get prerequisites() {
+        world.prerequisiteSamples = (world.prerequisiteSamples ?? 0) + 1;
+        return 'passed' as const;
+      },
+      ready: this.ready ?? false,
+      state: this.scheduledState,
+    }),
+    inspect: async () => {
+      this.attempts = (this.attempts ?? 0) + 1;
+      return { consequentialFindings: 0, unknowns: [] };
+    },
+    publish: async receipt => {
+      this.receipts?.splice(0, this.receipts.length, {
+        ...receipt,
+        commentId: this.scheduledReceiptId,
+        markerOwned: true,
+      });
+    },
+    summarize: async summary => {
+      this.summary = summary;
+    },
+  });
+});
+
+Then('no prerequisite sampling or model review runs', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.prerequisiteSamples, 0);
+  assert.equal(this.attempts, 0);
+});
+
+Then(
+  /^an existing marker-owned receipt is rewritten as `not ready \((draft|closed|merged)\)` with no advisory route$/,
+  function (this: AdvisoryReviewWorld, state: 'closed' | 'draft' | 'merged') {
+    assert.equal(this.receipts?.length, 1);
+    assert.equal(this.receipts[0]?.markerOwned, true);
+    assert.equal(this.receipts[0]?.commentId, this.scheduledReceiptId);
+    assert.equal(this.receipts[0]?.status, 'not_ready');
+    assert.equal('reason' in (this.receipts[0] ?? {}) && this.receipts[0].reason, state);
+    assert.equal('route' in (this.receipts[0] ?? {}), false);
   },
 );
 
