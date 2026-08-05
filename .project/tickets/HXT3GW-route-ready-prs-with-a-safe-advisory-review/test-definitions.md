@@ -16,7 +16,7 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 
 - [x] RED d763c43a8
 - [x] GREEN 4635b17fc
-- [ ] REFACTOR
+- [x] REFACTOR skip: the draft branch is a single policy decision with no duplication to extract
 
 ### Scenario: A pending prerequisite publishes a visible non-run receipt
 
