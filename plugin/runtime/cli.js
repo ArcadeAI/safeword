@@ -31579,6 +31579,8 @@ function marketplaceReferenceStatus(ref) {
   if (version2 === SAFEWORD_SCHEMA.version) {
     return SAFEWORD_SCHEMA.version.includes("-") ? "current" : "stale";
   }
+  if (version2.includes("-") || version2.includes("+"))
+    return "conflict";
   const comparison = compareVersions(version2, SAFEWORD_SCHEMA.version);
   return comparison < 0 ? "stale" : "conflict";
 }

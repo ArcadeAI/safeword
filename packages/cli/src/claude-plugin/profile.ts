@@ -336,6 +336,11 @@ function marketplaceReferenceStatus(ref: unknown): MarketplaceSourceStatus {
   if (version === SAFEWORD_SCHEMA.version) {
     return SAFEWORD_SCHEMA.version.includes('-') ? 'current' : 'stale';
   }
+  // Only the exact version being exercised by a prerelease build is trusted.
+  // Historical marketplace refs must be canonical release tags: treating an
+  // older prerelease or build-qualified tag as a normal upgrade source would
+  // silently bless a channel that `stable` never promoted.
+  if (version.includes('-') || version.includes('+')) return 'conflict';
   const comparison = compareVersions(version, SAFEWORD_SCHEMA.version);
   return comparison < 0 ? 'stale' : 'conflict';
 }
