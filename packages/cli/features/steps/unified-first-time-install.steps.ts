@@ -1350,3 +1350,83 @@ Then(
     assert.notEqual(envelope.state, 'healthy');
   },
 );
+
+Given(
+  'a unified install completed with one surface requiring action',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runRawCommand(this, ['install', '--agents', 'claude'], false);
+  },
+);
+
+When('a non-technical builder reads the human summary', () => {
+  // The preceding step captured the same summary a builder sees.
+});
+
+Then(
+  'they can identify what is ready what failed and the next action',
+  function (this: UnifiedInstallWorld) {
+    assert.match(this.result.stdout, /Project setup: updated/u);
+    assert.match(this.result.stdout, /Claude: needs attention/u);
+    assert.match(this.result.stdout, /Next: \/reload-plugins/u);
+  },
+);
+
+Then(
+  'no project profile plugin or reconciliation vocabulary is required',
+  function (this: UnifiedInstallWorld) {
+    assert.doesNotMatch(this.result.stdout, /surface|profile plugin|reconciliation/iu);
+  },
+);
+
+Given(
+  'a unified install completed with mixed per-surface outcomes',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    runInstall(this, []);
+  },
+);
+
+When('a technical builder requests verbose or JSON detail', () => {
+  // The fixture already requested the canonical JSON envelope.
+});
+
+Then(
+  'the selected scope and exact per-surface evidence are available',
+  function (this: UnifiedInstallWorld) {
+    const envelope = JSON.parse(this.result.stdout) as {
+      data?: {
+        selected_agents?: string[];
+        surfaces?: { name?: string; selected?: boolean; state?: string }[];
+      };
+    };
+    assert.deepEqual(envelope.data?.selected_agents, ['claude', 'codex']);
+    assert.deepEqual(
+      envelope.data?.surfaces
+        ?.filter(surface => surface.selected !== false)
+        .map(surface => [surface.name, surface.state]),
+      [
+        ['project', 'changed'],
+        ['claude', 'failed'],
+        ['codex', 'action_required'],
+      ],
+    );
+  },
+);
+
+Then(
+  'the failed surface has a targeted retry that does not repeat successful work',
+  function (this: UnifiedInstallWorld) {
+    const envelope = JSON.parse(this.result.stdout) as {
+      next_actions?: { command?: string }[];
+    };
+    const retries = envelope.next_actions?.filter(action =>
+      action.command?.startsWith('safeword install'),
+    );
+    assert.deepEqual(
+      retries?.map(action => action.command),
+      ['safeword install --agents=claude'],
+    );
+  },
+);

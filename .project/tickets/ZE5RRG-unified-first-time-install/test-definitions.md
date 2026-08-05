@@ -264,15 +264,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A non-technical builder can act on the summary without knowing the architecture
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: plain-language surface rendering shipped with the first summary scenario
+- [x] GREEN f9c274962
+- [x] REFACTOR skip: the same renderer serves technical and non-technical detail levels
 
 ### Scenario: A technical builder can inspect evidence and retry only the failed scope
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: JSON surface evidence and targeted retries shipped in prior lifecycle slices
+- [x] GREEN 66e5cd7f8
+- [x] REFACTOR skip: structured evidence is emitted from the same surface result records
 
 ## Rule: unified-first-time-install.NTB1.R2 — Manual reload or restart requirements remain unfinished activation steps
 
