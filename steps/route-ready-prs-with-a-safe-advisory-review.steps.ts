@@ -46,9 +46,22 @@ interface AdvisoryReviewWorld {
   prerequisites?: 'failed' | 'passed' | 'pending';
   ready?: boolean;
   receipts?: ObservableReceipt[];
+  runConditions?: Array<'complete' | 'failed' | 'incomplete' | 'stale'>;
   scheduledReceiptId?: number;
   scheduledState?: 'closed' | 'draft' | 'merged';
   summary?: string;
+}
+
+function conditionState(condition: string): 'complete' | 'failed' | 'incomplete' | 'stale' {
+  if (condition.includes('no longer current')) return 'stale';
+  if (condition.includes('reviewer or tool error')) return 'failed';
+  if (
+    condition.includes('missing required evidence') ||
+    condition.includes('required evidence is missing')
+  ) {
+    return 'incomplete';
+  }
+  return 'complete';
 }
 
 Given(
@@ -226,6 +239,18 @@ Given(/^the current review is (.+)$/, function (this: AdvisoryReviewWorld, state
   this.evidenceState = state;
   this.prerequisites = 'passed';
   this.ready = true;
+});
+
+Given(/^a review has (.+)$/, function (this: AdvisoryReviewWorld, condition: string) {
+  this.currentHead = 'revision A';
+  this.evidenceState = condition;
+  this.prerequisites = 'passed';
+  this.ready = true;
+  this.runConditions = [conditionState(condition)];
+});
+
+Given(/^(.+) also occurs$/, function (this: AdvisoryReviewWorld, condition: string) {
+  this.runConditions?.push(conditionState(condition));
 });
 
 Given('a marker-owned receipt already exists', function (this: AdvisoryReviewWorld) {
@@ -518,6 +543,7 @@ When('Safeword derives the advisory route', async function (this: AdvisoryReview
             ]
           : [],
         maxTotalBytes: state === 'missing required evidence' ? 100 : undefined,
+        runConditions: this.runConditions,
         runState,
         unknowns: state === 'complete with an unresolved unknown' ? ['Unresolved evidence'] : [],
       };
