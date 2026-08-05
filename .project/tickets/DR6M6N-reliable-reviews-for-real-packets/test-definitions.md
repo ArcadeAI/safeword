@@ -142,8 +142,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The Codex reviewer is told the exact shape its answer must take
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED cd4d474a6
+- [x] GREEN 4df19fd02
 - [ ] REFACTOR
 
 ### Scenario: The contract handed out names exactly the fields the check enforces
