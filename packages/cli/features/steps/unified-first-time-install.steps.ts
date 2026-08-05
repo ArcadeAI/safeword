@@ -222,8 +222,11 @@ function assertSelectedProfilePlan(
   envelope: LifecyclePlanEnvelope,
 ): void {
   if (selectedAgents.length === 0) return;
+  const profileSelected = selectedAgents.some(agent => agent === 'claude' || agent === 'codex');
+  if (operation === 'uninstall' && !profileSelected) return;
   const effects = envelope.data.plan.effects;
   assert.ok(effects.configuration.length > 0);
+  if (!profileSelected) return;
   const selectedEffects = operation === 'install' ? effects.network : effects.destructive;
   assert.ok(selectedEffects.length > 0);
 }

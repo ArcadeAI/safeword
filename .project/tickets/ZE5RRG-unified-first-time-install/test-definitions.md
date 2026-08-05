@@ -134,7 +134,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plan declares all effects for the selected lifecycle scope
 
-- [x] RED pending: executable outline rejects the missing --agents contract
+- [x] RED a11b5098f
 - [ ] GREEN
 - [ ] REFACTOR
 

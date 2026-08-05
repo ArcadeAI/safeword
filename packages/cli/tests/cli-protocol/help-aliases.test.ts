@@ -63,7 +63,7 @@ describe('canonical help and compatibility aliases', () => {
       findings: { code: string }[];
     };
     expect(envelope.state).toBe('action_required');
-    expect(envelope.findings.map(finding => finding.code)).toContain('RECONCILIATION_AVAILABLE');
+    expect(envelope.findings.map(finding => finding.code)).toContain('LIFECYCLE_EFFECTS_PLANNED');
   });
 
   it('accepts reset -y safely without applying an unbound destructive plan', async () => {

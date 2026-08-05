@@ -32,7 +32,7 @@ describe('plan and remove wiring', () => {
       data: {
         plan: {
           schema_version: 1,
-          command: 'setup',
+          command: 'install',
           id: expect.stringMatching(/^[a-f\d]{64}$/),
         },
       },

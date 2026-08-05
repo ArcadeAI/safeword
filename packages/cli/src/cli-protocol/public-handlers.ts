@@ -140,8 +140,8 @@ async function claudeRecoverHandler(invocation: CommandInvocation): Promise<CliR
 }
 
 async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { observePlan } = await import('../commands/plan.js');
-  return observePlan(invocation.cwd);
+  const { planLifecycle } = await import('../commands/lifecycle.js');
+  return planLifecycle(invocation);
 }
 
 async function removeHandler(invocation: CommandInvocation): Promise<CliResult> {

@@ -116,7 +116,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     ],
   }),
-  command('plan', 'Preview reconciliation effects', 'plan'),
+  command('plan', 'Preview reconciliation effects', 'plan', {
+    syntax: 'plan [operation]',
+    commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
+  }),
   command('doctor', 'Diagnose project configuration', 'observe', {
     commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
   }),
@@ -350,7 +353,10 @@ const ALIASES: readonly CommandDefinition[] = [
     },
   },
   alias('upgrade', 'install'),
-  alias('diff', 'plan'),
+  {
+    ...alias('diff', 'plan'),
+    registration: { syntax: 'diff [operation]', options: canonicalOptions('plan') },
+  },
   {
     ...alias('remove', 'uninstall'),
     handler: publicHandler('remove'),

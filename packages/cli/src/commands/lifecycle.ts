@@ -159,6 +159,25 @@ function profileUninstallEffects(agent: 'claude' | 'codex'): Effects {
   };
 }
 
+function agentInstallEffects(agent: AgentIntegration): Effects {
+  const labels: Readonly<Record<AgentIntegration, string>> = {
+    claude: 'Claude profile plugin',
+    codex: 'Codex profile plugin',
+    cursor: 'Cursor project integration',
+  };
+  const label = labels[agent];
+  const profile = agent === 'claude' || agent === 'codex';
+  return {
+    files: [],
+    packages: [],
+    configuration: [
+      { kind: 'activate', target: label, operation: profile ? 'profile' : 'project' },
+    ],
+    network: profile ? [{ kind: 'plugin-marketplace', target: label, operation: 'install' }] : [],
+    destructive: [],
+  };
+}
+
 interface PreparedUninstall {
   readonly agents: readonly AgentIntegration[];
   readonly projectSchema: SafewordSchema;
@@ -221,6 +240,110 @@ async function prepareUninstall(
       verification: [{ description: 'Re-run safeword status', command: 'safeword status' }],
     }),
   };
+}
+
+async function prepareInstall(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+): Promise<PreparedUninstall> {
+  const projectSchema = schemaForProjectSurfaces(schemaForClaudeDelivery(cwd), [
+    'core',
+    ...(agents.includes('cursor') ? (['cursor'] as const) : []),
+  ]);
+  const project = await createReconciliationPlan(cwd, 'upgrade', projectSchema);
+  const surfaces = [
+    { name: 'project', effects: project.plan.effects },
+    ...agents.map(agent => ({ name: agent, effects: agentInstallEffects(agent) })),
+  ];
+  const observations = await profilePreconditions(cwd, agents);
+  const preconditionDigest = createHash('sha256')
+    .update(JSON.stringify([project.plan.preconditionDigest, agents, observations]))
+    .digest('hex');
+  return {
+    agents,
+    projectSchema,
+    surfaces,
+    plan: createPlan({
+      command: 'install',
+      preconditionDigest,
+      effects: mergeEffects(surfaces.map(surface => surface.effects)),
+      requiresConfirmation: false,
+      verification: [{ description: 'Re-run safeword status', command: 'safeword status' }],
+    }),
+  };
+}
+
+function lifecyclePlanResult(
+  operation: 'install' | 'uninstall',
+  prepared: PreparedUninstall,
+): CliResult {
+  const hasEffects = Object.values(prepared.plan.effects).some(effects => effects.length > 0);
+  return createResult({
+    state: hasEffects ? 'action_required' : 'healthy',
+    findings: hasEffects
+      ? [
+          {
+            code: 'LIFECYCLE_EFFECTS_PLANNED',
+            message: `Safeword can ${operation} the selected lifecycle surfaces.`,
+            severity: 'warning',
+          },
+        ]
+      : [],
+    nextActions: hasEffects
+      ? [
+          {
+            command:
+              operation === 'install'
+                ? 'safeword install'
+                : `safeword uninstall --yes --plan ${prepared.plan.id}`,
+            mutates: true,
+            requiresHuman: operation === 'uninstall',
+          },
+        ]
+      : [],
+    data: {
+      command: 'plan',
+      operation,
+      selected_agents: prepared.agents,
+      surfaces: prepared.surfaces.map(surface => ({
+        name: surface.name,
+        selected: true,
+        state: 'planned',
+      })),
+      plan: toWirePlan(prepared.plan),
+    },
+  });
+}
+
+export async function planLifecycle(invocation: CommandInvocation): Promise<CliResult> {
+  const parsed = parseAgentSelection(invocation.options.agents);
+  if (!parsed.ok) {
+    return createResult({
+      state: 'failed',
+      errors: [{ ...parsed.error, retryable: false }],
+      data: { command: 'plan' },
+    });
+  }
+  const operand = invocation.operands[0];
+  const operation = operand === undefined ? 'install' : operand;
+  if (operation !== 'install' && operation !== 'uninstall') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'LIFECYCLE_OPERATION_INVALID',
+          message: 'Plan operation must be install or uninstall.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'plan' },
+    });
+  }
+  const prepared =
+    operation === 'install'
+      ? await prepareInstall(invocation.cwd, parsed.selection.agents)
+      : await prepareUninstall(invocation.cwd, parsed.selection.agents);
+  return lifecyclePlanResult(operation, prepared);
 }
 
 function staleUninstallPlan(plan: CliPlan): CliResult {
