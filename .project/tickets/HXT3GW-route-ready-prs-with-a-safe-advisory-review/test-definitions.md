@@ -156,7 +156,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED fa2016652
 - [x] GREEN aad72cadb
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonical selection is already isolated as a pure publication plan
 
 ### Scenario: Publication reconciles duplicate marker-owned receipts
 
