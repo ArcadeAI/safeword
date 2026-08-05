@@ -101,8 +101,26 @@ export function withDeprecation(
   compatibility: {
     readonly introducedIn: string;
     readonly retention: 'indefinite';
+    readonly redundantOptions?: readonly {
+      readonly key: string;
+      readonly flag: string;
+      readonly replacement: string;
+    }[];
   },
+  options: Readonly<Record<string, unknown>> = {},
 ): CliResult {
+  const redundantOptionFindings: Finding[] = (compatibility.redundantOptions ?? [])
+    .filter(option => options[option.key] === true)
+    .map(option => ({
+      code: 'CLI_OPTION_REDUNDANT',
+      message: `\`${option.flag}\` is accepted for compatibility but has no effect; use \`${option.replacement}\`.`,
+      severity: 'warning',
+      metadata: {
+        option: option.flag,
+        replacement: option.replacement,
+        retention: compatibility.retention,
+      },
+    }));
   return {
     ...result,
     findings: [
@@ -117,6 +135,7 @@ export function withDeprecation(
           retention: compatibility.retention,
         },
       },
+      ...redundantOptionFindings,
     ],
   };
 }

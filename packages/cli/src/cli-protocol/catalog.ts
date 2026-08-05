@@ -9,6 +9,11 @@ type NetworkPolicy = 'never' | 'declared';
 interface Compatibility {
   readonly introducedIn: string;
   readonly retention: 'indefinite';
+  readonly redundantOptions?: readonly {
+    readonly key: string;
+    readonly flag: string;
+    readonly replacement: string;
+  }[];
 }
 
 export interface CommandDefinition {
@@ -348,7 +353,11 @@ const ALIASES: readonly CommandDefinition[] = [
   alias('check', 'status'),
   {
     ...alias('setup', 'install'),
-    compatibility: { introducedIn: '0.72', retention: 'indefinite' },
+    compatibility: {
+      introducedIn: '0.72',
+      retention: 'indefinite',
+      redundantOptions: [{ key: 'yes', flag: '--yes', replacement: 'install' }],
+    },
     registration: {
       syntax: 'setup',
       options: [
@@ -480,6 +489,11 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
       compatibility: {
         introduced_in: definition.compatibility.introducedIn,
         retention: definition.compatibility.retention,
+        ...(definition.compatibility.redundantOptions !== undefined && {
+          redundant_options: definition.compatibility.redundantOptions.map(
+            ({ flag, replacement }) => ({ flag, replacement }),
+          ),
+        }),
       },
     }),
   };

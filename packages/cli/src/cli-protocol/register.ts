@@ -91,6 +91,7 @@ function definitionCommand(
 
 async function executeDefinition(command: Command, definition: CommandDefinition): Promise<void> {
   const globalOptions = readGlobalOptions(command);
+  const commandOptions = readCommandOptions(command);
   const progress =
     globalOptions.json || globalOptions.quiet
       ? undefined
@@ -108,7 +109,7 @@ async function executeDefinition(command: Command, definition: CommandDefinition
         cwd: globalOptions.cwd,
         noInput: globalOptions.noInput,
         offline: globalOptions.offline,
-        options: readCommandOptions(command),
+        options: commandOptions,
         operands: command.processedArgs,
         progress,
       });
@@ -136,6 +137,7 @@ async function executeDefinition(command: Command, definition: CommandDefinition
       definition.name,
       definition.aliasFor,
       definition.compatibility,
+      commandOptions,
     );
   }
   reportResult(result, globalOptions, definition.name);
