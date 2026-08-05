@@ -172,6 +172,25 @@ const DEFAULT_ATTEMPT_DEADLINE_MS = 300_000;
  */
 const RUN_BOUND_MS = 540_000;
 
+/**
+ * The whole run's ceiling, across every route it tries. Overridable for tests
+ * and for a builder whose caller allows longer.
+ */
+export function runBoundMs(): number {
+  const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : RUN_BOUND_MS;
+}
+
+/**
+ * The least time worth starting a route with. Below this a route cannot produce
+ * a real review, so it is honestly reported as not attempted rather than
+ * launched to fail. It tracks the attempt deadline so a shortened deadline does
+ * not make every later route unfundable.
+ */
+export function minimumRouteMs(): number {
+  return Math.min(120_000, attemptDeadlineMs());
+}
+
 export function attemptDeadlineMs(): number {
   const raw = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
   // `Number('')` and `Number('  ')` are 0, and `Number('90s')` is NaN — both
@@ -497,9 +516,11 @@ export async function runHeadlessReviewer(
   packet: ReviewPacket,
   cwd: string,
   untrustedRoot: string = process.cwd(),
-  model?: string,
+  options: { readonly model?: string; readonly runDeadline?: number } = {},
 ): Promise<UnverifiedReviewerOutput> {
-  const deadline = Date.now() + attemptDeadlineMs();
+  const { model, runDeadline } = options;
+  // A route never outlives the run: whichever bound arrives first wins.
+  const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError(

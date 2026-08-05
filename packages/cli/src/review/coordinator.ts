@@ -11,7 +11,16 @@ import type {
 } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
 import { oppositeReviewPair, readAlternateReviewerModel, readReviewPolicy } from './policy.js';
-import { ReviewRuntimeError, runHeadlessReviewer } from './runtime.js';
+import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
+
+/**
+ * Whether a route can still be funded. Below the minimum a route cannot produce
+ * a real review, so it is left unattempted and reported honestly rather than
+ * launched into a deadline it cannot meet.
+ */
+function canFundRoute(runDeadline: number): boolean {
+  return runDeadline - Date.now() >= minimumRouteMs();
+}
 
 function verifyProvenance(
   output: UnverifiedReviewerOutput,
@@ -36,6 +45,7 @@ async function executeReview(
   reviewer: 'claude' | 'codex',
   prepared: ReturnType<typeof prepareReviewPacket>,
   model?: string,
+  runDeadline?: number,
 ): Promise<{
   outcome:
     | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
@@ -52,7 +62,7 @@ async function executeReview(
       prepared.packet,
       prepared.workspace,
       prepared.sourceRoot,
-      model,
+      { model, runDeadline },
     );
     outcome = { kind: 'completed', output };
   } catch (error) {
@@ -225,9 +235,15 @@ async function runDegradedFallback(input: {
   readonly assignedReviewer: ReviewAgent;
   readonly preferredFailure: ReviewFailure;
   readonly policy: ReviewPolicy;
+  readonly runDeadline: number;
 }): Promise<CliResult> {
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(
+    input.author,
+    prepared,
+    undefined,
+    input.runDeadline,
+  );
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.author,
@@ -346,15 +362,17 @@ async function runAlternateModelRoute(input: {
   readonly author: ReviewAgent;
   readonly reviewer: ReviewAgent;
   readonly preferredFailure: ReviewFailure;
+  readonly runDeadline: number;
 }): Promise<CliResult | undefined> {
   const model = readAlternateReviewerModel(input.cwd, input.reviewer);
-  if (model === undefined) return undefined;
+  if (model === undefined || !canFundRoute(input.runDeadline)) return undefined;
 
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     input.reviewer,
     prepared,
     model,
+    input.runDeadline,
   );
   const changedResult = changedReviewResult({
     author: input.author,
@@ -395,6 +413,69 @@ async function runAlternateModelRoute(input: {
   });
 }
 
+/**
+ * Everything after the assigned reviewer failed: the alternate model, then the
+ * author's own runtime, each only while the run bound can still fund it.
+ */
+async function runRemainingRoutes(input: {
+  readonly cwd: string;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly author: ReviewAgent;
+  readonly assignedReviewer: ReviewAgent;
+  readonly preferredFailure: ReviewFailure;
+  readonly policy: ReviewPolicy;
+  readonly runDeadline: number;
+}): Promise<CliResult> {
+  const alternate = await runAlternateModelRoute({
+    cwd: input.cwd,
+    kind: input.kind,
+    targets: input.targets,
+    author: input.author,
+    reviewer: input.assignedReviewer,
+    preferredFailure: input.preferredFailure,
+    runDeadline: input.runDeadline,
+  });
+  if (alternate !== undefined) return alternate;
+  if (!canFundRoute(input.runDeadline)) return exhaustedRunResult(input);
+  return runDegradedFallback(input);
+}
+
+/** The run bound arrived before a later route could be funded. */
+function exhaustedRunResult(input: {
+  readonly author: ReviewAgent;
+  readonly assignedReviewer: ReviewAgent;
+  readonly preferredFailure: ReviewFailure;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+}): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'REVIEW_ROUTES_EXHAUSTED',
+        message: 'The independent check ran out of time before every route could be tried.',
+        severity: 'warning',
+      },
+    ],
+    recovery: [
+      {
+        command: retryCommand(input.kind, input.targets),
+        description: recoveryDescription(input.assignedReviewer, input.preferredFailure),
+        requiresHuman: true,
+      },
+    ],
+    data: {
+      command: 'review run',
+      status: 'blocked',
+      author_agent: input.author,
+      assigned_reviewer: input.assignedReviewer,
+      preferred_failure: input.preferredFailure,
+      independence: 'none',
+    },
+  });
+}
+
 export async function runReview(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -427,8 +508,15 @@ export async function runReview(input: {
   }
   const { reviewer } = pair;
 
+  // One bound for the whole run, set before the first route starts.
+  const runDeadline = Date.now() + runBoundMs();
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(
+    reviewer,
+    prepared,
+    undefined,
+    runDeadline,
+  );
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -442,19 +530,13 @@ export async function runReview(input: {
     // Before settling for the author reviewing its own work, give the reviewer
     // agent one more attempt on a configured alternate model. It is still not
     // the author, so a completed review there is fully independent.
-    const alternate = await runAlternateModelRoute({
-      ...input,
-      author: pair.author,
-      reviewer,
-      preferredFailure: outcome.failure,
-    });
-    if (alternate !== undefined) return alternate;
-    return runDegradedFallback({
+    return runRemainingRoutes({
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
       preferredFailure: outcome.failure,
       policy,
+      runDeadline,
     });
   }
   const provenance = verifyProvenance(outcome.output, reviewer, prepared.packet.dispatch_id);
