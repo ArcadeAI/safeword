@@ -143,7 +143,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Converting a reviewed pull request to draft removes its advisory route
 
 - [x] RED 29979b908
-- [ ] GREEN
+- [x] GREEN 243361bf2
 - [ ] REFACTOR
 
 ### Scenario: A new head cannot inherit an earlier conclusion
