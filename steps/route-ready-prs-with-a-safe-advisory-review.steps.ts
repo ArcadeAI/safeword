@@ -9,6 +9,7 @@ import {
 } from '../packages/cli/src/pr-review/review.ts';
 
 type ObservableReceipt = PublishedReceipt & {
+  commentId?: number;
   markerOwned?: boolean;
   status?: string;
 };
@@ -20,6 +21,7 @@ interface AdvisoryReviewWorld {
   prerequisites?: 'failed' | 'passed' | 'pending';
   ready?: boolean;
   receipts?: ObservableReceipt[];
+  scheduledReceiptId?: number;
   summary?: string;
 }
 
@@ -52,6 +54,31 @@ Given('a pull request has a failing required prerequisite', function (this: Advi
   this.ready = true;
   this.prerequisites = 'failed';
 });
+
+Given(
+  'revision A has a `prerequisites pending` marker-owned receipt',
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.prerequisites = 'pending';
+    this.ready = true;
+    this.scheduledReceiptId = 41;
+    this.receipts = [
+      {
+        commentId: this.scheduledReceiptId,
+        markerOwned: true,
+        reviewedSha: 'revision A',
+        status: 'prerequisites_pending',
+      },
+    ];
+  },
+);
+
+Given(
+  'its configured prerequisites settle successfully after the event run exits',
+  function (this: AdvisoryReviewWorld) {
+    this.prerequisites = 'passed';
+  },
+);
 
 When('Safeword completes the advisory review', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
@@ -159,5 +186,54 @@ Then(
   'no model review runs after the failed prerequisite is observed',
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.attempts, 0);
+  },
+);
+
+When('a later scheduled sweep evaluates revision A', async function (this: AdvisoryReviewWorld) {
+  this.attempts = 0;
+  this.outcome = await reviewPullRequest({
+    readPullRequest: async () => ({
+      headSha: this.currentHead ?? '',
+      prerequisites: this.prerequisites ?? 'pending',
+      ready: this.ready ?? false,
+    }),
+    inspect: async () => {
+      this.attempts = (this.attempts ?? 0) + 1;
+      return { consequentialFindings: 0, unknowns: [] };
+    },
+    publish: async (receipt, mode?: 'upsert_marker_owned') => {
+      const markerIndex = this.receipts?.findIndex(candidate => candidate.markerOwned) ?? -1;
+      if (mode === 'upsert_marker_owned' && markerIndex >= 0) {
+        this.receipts?.splice(markerIndex, 1, {
+          ...receipt,
+          commentId: this.receipts[markerIndex]?.commentId,
+          markerOwned: true,
+        });
+        return;
+      }
+      this.receipts?.push(receipt);
+    },
+  });
+});
+
+Then(
+  'that sweep completes the advisory review for revision A',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.outcome?.reviewedSha, 'revision A');
+    assert.equal(this.attempts, 1);
+  },
+);
+
+Then(
+  'it updates the same marker-owned receipt with the current route',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.receipts?.length, 1);
+    assert.equal(this.receipts[0]?.commentId, this.scheduledReceiptId);
+    assert.equal(this.receipts[0]?.markerOwned, true);
+    assert.equal('route' in (this.receipts[0] ?? {}), true);
+    assert.equal(
+      this.receipts[0] && 'route' in this.receipts[0] && this.receipts[0].route,
+      'looks_ready',
+    );
   },
 );
