@@ -609,6 +609,18 @@ When('the pull request is converted to draft', async function (this: AdvisoryRev
   });
 });
 
+Then(
+  /^the same marker-owned comment reports `not ready \(draft\)` with no advisory route$/,
+  function (this: AdvisoryReviewWorld) {
+    const receipt = this.receipts?.[0];
+    assert.equal(receipt?.commentId, this.scheduledReceiptId);
+    assert.equal(receipt?.markerOwned, true);
+    assert.equal(receipt?.status, 'not_ready');
+    assert.equal(receipt && 'reason' in receipt && receipt.reason, 'draft');
+    assert.equal('route' in (receipt ?? {}), false);
+  },
+);
+
 Then('the receipt associates the finding with that artifact', function (this: AdvisoryReviewWorld) {
   assert.equal(this.receipts?.[0]?.findings?.[0]?.path, this.changedArtifactPath);
 });
