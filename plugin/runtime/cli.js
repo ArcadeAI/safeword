@@ -50684,6 +50684,22 @@ function definitionCommand(program2, families, definition) {
     hidden: definition.aliasFor !== undefined
   });
 }
+function withCompatibilityDeprecation(result, definition) {
+  if (definition.aliasFor !== undefined) {
+    if (definition.compatibility === undefined) {
+      throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
+    }
+    return withDeprecation(result, definition.name, definition.aliasFor, definition.compatibility);
+  }
+  if (definition.name !== "retro run" || process16.env.SAFEWORD_CLI_RETAINED_ALIAS !== "retro") {
+    return result;
+  }
+  const alias2 = findCommandDefinition("retro");
+  if (alias2.aliasFor === undefined || alias2.compatibility === undefined) {
+    throw new Error("Missing compatibility policy for retained alias retro");
+  }
+  return withDeprecation(result, alias2.name, alias2.aliasFor, alias2.compatibility);
+}
 async function executeDefinition(command2, definition) {
   const globalOptions = readGlobalOptions(command2);
   const progress = globalOptions.json || globalOptions.quiet ? undefined : createProgressReporter({
@@ -50720,18 +50736,7 @@ async function executeDefinition(command2, definition) {
   } finally {
     progress?.stop();
   }
-  if (definition.aliasFor !== undefined) {
-    if (definition.compatibility === undefined) {
-      throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
-    }
-    result = withDeprecation(result, definition.name, definition.aliasFor, definition.compatibility);
-  } else if (definition.name === "retro run" && process16.env.SAFEWORD_CLI_RETAINED_ALIAS === "retro") {
-    const alias2 = findCommandDefinition("retro");
-    if (alias2.aliasFor === undefined || alias2.compatibility === undefined) {
-      throw new Error("Missing compatibility policy for retained alias retro");
-    }
-    result = withDeprecation(result, alias2.name, alias2.aliasFor, alias2.compatibility);
-  }
+  result = withCompatibilityDeprecation(result, definition);
   reportResult(result, globalOptions, definition.name);
 }
 function addDefinitionAction(command2, definition) {
