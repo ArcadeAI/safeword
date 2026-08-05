@@ -35,6 +35,7 @@ interface AdvisoryReviewWorld {
   evidenceArtifacts?: Array<{ byteLength: number; path: string }>;
   finding?: { consequence: string; path: string };
   evidenceState?: string;
+  existingReviewedSha?: string;
   maxTotalBytes?: number;
   receiptBeforeTrigger?: string;
   prerequisiteSamples?: number;
@@ -285,6 +286,22 @@ Given(
         route: 'looks_ready',
       },
     ];
+  },
+);
+
+Given('revision A has a current receipt', function (this: AdvisoryReviewWorld) {
+  this.attempts = 0;
+  this.existingReviewedSha = 'revision A';
+  this.currentHead = 'revision A';
+  this.prerequisites = 'passed';
+  this.ready = true;
+  this.receipts = [{ reviewedSha: 'revision A', route: 'looks_ready' }];
+});
+
+Given(
+  /^(?:before a new review begins|while revision A is being reviewed) revision B becomes the pull request head$/,
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision B';
   },
 );
 
@@ -577,6 +594,49 @@ Then(
   /^the published state is (complete|incomplete|failed|stale)$/,
   function (this: AdvisoryReviewWorld, runState: string) {
     assert.equal(this.receipts?.[0]?.runState, runState);
+  },
+);
+
+When('Safeword handles the change', async function (this: AdvisoryReviewWorld) {
+  this.receipts = [];
+  this.outcome = await reviewPullRequest({
+    readPullRequest: async () => ({
+      headSha: this.currentHead ?? '',
+      prerequisitesConfigured: true,
+      prerequisites: this.prerequisites ?? 'pending',
+      ready: this.ready ?? false,
+      reviewedReceiptSha: this.existingReviewedSha,
+    }),
+    inspect: async headSha => {
+      this.attempts = (this.attempts ?? 0) + 1;
+      return {
+        artifacts: [{ byteLength: 10, kind: 'text', path: `${headSha}.txt` }],
+        consequentialFindings: 0,
+        unknowns: [],
+      };
+    },
+    publish: async receipt => {
+      this.receipts?.push(receipt);
+    },
+  });
+});
+
+Then(
+  "the publication audit records revision A's `stale` write before any fresh route for revision B",
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.receipts?.[0]?.reviewedSha, 'revision A');
+    assert.equal(this.receipts?.[0]?.runState, 'stale');
+    assert.equal(this.receipts?.[1]?.reviewedSha, 'revision B');
+  },
+);
+
+Then(
+  'revision B requires a full fresh review before a current route is published',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.attempts, 1);
+    assert.equal(this.outcome?.reviewedSha, 'revision B');
+    const receipt = this.receipts?.[1];
+    assert.equal(receipt && 'route' in receipt && receipt.route, 'looks_ready');
   },
 );
 
