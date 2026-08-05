@@ -176,7 +176,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Given a configured alternate model for the reviewer agent
       And the reviewer agent's default model never answers
       When the independent review runs
-      Then that route is stopped at its own attempt budget
+      Then the alternate model still receives its own attempt
 
   @reliable-reviews-for-real-packets.TBU3.R5 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route that has not answered yet, while an answer already complete when the bound fires still counts
