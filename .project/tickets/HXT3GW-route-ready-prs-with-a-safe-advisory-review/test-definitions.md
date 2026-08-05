@@ -135,7 +135,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Competing run conditions use conservative state precedence
 
 - [x] RED a15e81048
-- [ ] GREEN
+- [x] GREEN 5ead5a9fc
 - [ ] REFACTOR
 
 ## Rule: Every new head invalidates the old conclusion and requires a fresh review
