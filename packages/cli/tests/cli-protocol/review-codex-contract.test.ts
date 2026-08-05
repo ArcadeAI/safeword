@@ -5,9 +5,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-
-const CODEX_CAPABILITIES =
-  '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema';
+import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 /**
  * A Codex reviewer that answers in its own natural vocabulary — `high`/`medium`
@@ -32,7 +30,7 @@ function installSchemaAwareCodex(directory: string): string {
     String.raw`#!/bin/sh
 set -eu
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${CODEX_CAPABILITIES}'
+  printf '%s\n' '${REVIEWER_CAPABILITIES.codex}'
   exit 0
 fi
 schema=''

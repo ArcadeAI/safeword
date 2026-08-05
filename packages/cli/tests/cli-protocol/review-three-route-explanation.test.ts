@@ -4,13 +4,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-
-const CAPABILITIES: Readonly<Record<string, string>> = {
-  claude:
-    '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model',
-  codex:
-    '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --model --output-schema',
-};
+import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 /**
  * Three routes, three different causes: the reviewer's default model never
@@ -25,7 +19,7 @@ function installThreeFailures(host: string): string {
     nodePath.join(bin, 'codex'),
     String.raw`#!/bin/sh
 set -eu
-if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${CAPABILITIES.codex}'; exit 0; fi
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then
   printf 'not logged in\n' >&2
   exit 1
@@ -40,7 +34,7 @@ exec /bin/sleep 3600
     nodePath.join(bin, 'claude'),
     String.raw`#!/bin/sh
 set -eu
-if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${CAPABILITIES.claude}'; exit 0; fi
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'; exit 0; fi
 printf 'not-a-review\n'
 `,
     { mode: 0o755 },

@@ -70,7 +70,7 @@ Unaffected:
 - **Cleanup budget** — the time allowed to stop a reviewer and its descendants
   after an attempt ends: **5 seconds**, after which the run continues regardless.
   Reviewers are launched in their own process group so descendants are included.
-- **Run bound** — **540 seconds**: the point after which no reviewer work is
+- **Run bound** — **540 seconds**, and never more: the point after which no reviewer work is
   started or allowed to continue. The number comes from the caller, not from
   route arithmetic — every invocation is an agent running the command through a
   tool whose hard ceiling is 600 seconds, so a run that could outlast that would

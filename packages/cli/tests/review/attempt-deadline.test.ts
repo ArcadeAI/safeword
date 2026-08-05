@@ -1,13 +1,23 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { attemptDeadlineMs } from '../../src/review/runtime.js';
+import { attemptDeadlineMs, runBoundMs } from '../../src/review/runtime.js';
 
 const original = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
+
+const originalBound = process.env.SAFEWORD_REVIEW_RUN_BOUND_MS;
 
 afterEach(() => {
   if (original === undefined) delete process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
   else process.env.SAFEWORD_REVIEW_TIMEOUT_MS = original;
+  if (originalBound === undefined) delete process.env.SAFEWORD_REVIEW_RUN_BOUND_MS;
+  else process.env.SAFEWORD_REVIEW_RUN_BOUND_MS = originalBound;
 });
+
+function withConfiguredBound(value: string | undefined): number {
+  if (value === undefined) delete process.env.SAFEWORD_REVIEW_RUN_BOUND_MS;
+  else process.env.SAFEWORD_REVIEW_RUN_BOUND_MS = value;
+  return runBoundMs();
+}
 
 function withConfigured(value: string | undefined): number {
   if (value === undefined) delete process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
@@ -43,5 +53,23 @@ describe('attempt deadline', () => {
     ['a unit-bearing string', '90s'],
   ])('ignores a meaningless configured deadline: %s', (_label, value) => {
     expect(withConfigured(value)).toBe(300_000);
+  });
+});
+
+describe('run bound', () => {
+  it('defaults to the documented ceiling', () => {
+    expect(withConfiguredBound(undefined)).toBe(540_000);
+  });
+
+  it('honours a shorter configured bound', () => {
+    expect(withConfiguredBound('2000')).toBe(2000);
+  });
+
+  it('never exceeds the ceiling, however it is configured', () => {
+    // A run that outlived the tool invoking it would be killed mid-flight with
+    // nothing to show, so the ceiling is a guarantee, not a default.
+    expect(withConfiguredBound('540000')).toBe(540_000);
+    expect(withConfiguredBound('600000')).toBe(540_000);
+    expect(withConfiguredBound('3600000')).toBe(540_000);
   });
 });

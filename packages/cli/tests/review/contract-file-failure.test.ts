@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ReviewPacket } from '../../src/review/contract.js';
 import { ReviewRuntimeError, runHeadlessReviewer } from '../../src/review/runtime.js';
+import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 const packet: ReviewPacket = {
   schema_version: 1,
@@ -13,9 +14,6 @@ const packet: ReviewPacket = {
   kind: 'quality-review',
   logical_files: [{ path: 'a.md', content: 'bounded review input' }],
 };
-
-const CODEX_CAPABILITIES =
-  '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema';
 
 /**
  * Runs `body` with a temp root the process cannot write into, and a Codex on
@@ -34,7 +32,7 @@ async function withUnwritableTemporaryRoot(
   const executable = nodePath.join(bin, 'codex');
   writeFileSync(
     executable,
-    `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\\n' '${CODEX_CAPABILITIES}'; exit 0; fi\nprintf 'launched\\n' >> '${nodePath.join(binRoot, 'launched.log')}'\nexit 0\n`,
+    `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi\nprintf 'launched\\n' >> '${nodePath.join(binRoot, 'launched.log')}'\nexit 0\n`,
     { mode: 0o755 },
   );
   chmodSync(executable, 0o755);

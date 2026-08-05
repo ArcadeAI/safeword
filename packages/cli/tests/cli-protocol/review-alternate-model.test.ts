@@ -5,15 +5,9 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 type ReviewAgent = 'claude' | 'codex';
-
-const CAPABILITIES: Readonly<Record<ReviewAgent, string>> = {
-  claude:
-    '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model',
-  codex:
-    '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --model --output-schema',
-};
 
 /**
  * A reviewer that refuses to answer unless it is asked to run on a specific
@@ -34,7 +28,7 @@ function installModelDependentReviewer(directory: string, agent: ReviewAgent): s
     String.raw`#!/bin/sh
 set -eu
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${CAPABILITIES[agent]}'
+  printf '%s\n' '${REVIEWER_CAPABILITIES[agent]}'
   exit 0
 fi
 model=''
@@ -71,7 +65,7 @@ function installAlwaysAnsweringReviewer(directory: string, agent: ReviewAgent): 
     String.raw`#!/bin/sh
 set -eu
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${CAPABILITIES[agent]}'
+  printf '%s\n' '${REVIEWER_CAPABILITIES[agent]}'
   exit 0
 fi
 payload=$(cat)

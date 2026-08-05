@@ -5,13 +5,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-
-const CAPABILITIES: Readonly<Record<string, string>> = {
-  claude:
-    '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model',
-  codex:
-    '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --model --output-schema',
-};
+import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 /**
  * Reviewers that record the route they were launched as and then never answer,
@@ -24,14 +18,14 @@ function installSilentReviewers(directory: string): string {
     'bin',
   );
   mkdirSync(bin, { recursive: true });
-  for (const agent of ['claude', 'codex']) {
+  for (const agent of ['claude', 'codex'] as const) {
     const executable = nodePath.join(bin, agent);
     writeFileSync(
       executable,
       String.raw`#!/bin/sh
 set -eu
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${CAPABILITIES[agent]}'
+  printf '%s\n' '${REVIEWER_CAPABILITIES[agent]}'
   exit 0
 fi
 model=default

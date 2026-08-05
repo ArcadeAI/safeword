@@ -178,7 +178,11 @@ const RUN_BOUND_MS = 540_000;
  */
 export function runBoundMs(): number {
   const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : RUN_BOUND_MS;
+  // Shorter is allowed; longer is not. The ceiling is what makes "the command
+  // returns before its caller gives up" a guarantee rather than a default.
+  return Number.isFinite(configured) && configured > 0
+    ? Math.min(configured, RUN_BOUND_MS)
+    : RUN_BOUND_MS;
 }
 
 /**
