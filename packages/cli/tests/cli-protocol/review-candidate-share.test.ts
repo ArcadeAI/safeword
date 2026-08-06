@@ -1,6 +1,5 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 
 import { describe, expect, it } from 'vitest';
 
@@ -61,8 +60,8 @@ exit 1
   return bin;
 }
 
-function installDelayedMutator(directory: string): string {
-  const bin = nodePath.join(directory, 'delayed-mutator');
+function installTermResistantCandidate(directory: string): string {
+  const bin = nodePath.join(directory, 'term-resistant');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, 'codex');
   writeFileSync(
@@ -73,10 +72,10 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
   printf '%s\n' '${REVIEWER_CAPABILITIES.codex}'
   exit 0
 fi
-printf 'delayed-mutator\n' >> "$SAFEWORD_REVIEW_CANDIDATE_LOG"
+printf 'term-resistant\n' >> "$SAFEWORD_REVIEW_CANDIDATE_LOG"
+printf '%s\n' "$$" > "$SAFEWORD_REVIEW_STUBBORN_PID"
 trap '' TERM
-(trap '' TERM; /bin/sleep 0.5; printf 'late mutation\n' > "$SAFEWORD_REVIEW_DELAYED_MUTATION_TARGET") &
-wait
+while :; do :; done
 `,
     { mode: 0o755 },
   );
@@ -170,14 +169,15 @@ describe('dividing a route between its candidates', () => {
     });
   });
 
-  it('terminates a timed-out reviewer before a later candidate or integrity check continues', async () => {
+  it('terminates a timed-out reviewer process group before a later candidate continues', async () => {
     const directory = createTemporaryDirectory();
     const target = nodePath.join(directory, 'review-input.md');
     const candidateLog = nodePath.join(directory, 'candidates.log');
+    const pidLog = nodePath.join(directory, 'stubborn.pid');
     writeFileSync(target, 'bounded review input\n');
     const host = createTemporaryDirectory();
-    const stale = installDelayedMutator(host);
-    const working = installCandidate(host, 'working-after-mutator', 'answer');
+    const stale = installTermResistantCandidate(host);
+    const working = installCandidate(host, 'working-after-stubborn', 'answer');
 
     const result = await runCli(
       [
@@ -196,7 +196,7 @@ describe('dividing a route between its candidates', () => {
           PATH: `${stale}:${working}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_CANDIDATE_LOG: candidateLog,
-          SAFEWORD_REVIEW_DELAYED_MUTATION_TARGET: target,
+          SAFEWORD_REVIEW_STUBBORN_PID: pidLog,
           SAFEWORD_REVIEW_TIMEOUT_MS: '800',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
@@ -204,12 +204,13 @@ describe('dividing a route between its candidates', () => {
       },
     );
 
-    await delay(700);
     expect(result.timedOut).toBe(false);
     expect(readFileSync(candidateLog, 'utf8').trim().split('\n')).toEqual([
-      'delayed-mutator',
-      'working-after-mutator',
+      'term-resistant',
+      'working-after-stubborn',
     ]);
+    const stubbornPid = Number(readFileSync(pidLog, 'utf8').trim());
+    expect(() => process.kill(-stubbornPid, 0)).toThrow();
     expect(readFileSync(target, 'utf8')).toBe('bounded review input\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       data: { actual_reviewer: 'codex', independence: 'cross-agent' },
