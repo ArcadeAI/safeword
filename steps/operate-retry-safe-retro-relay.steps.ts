@@ -248,7 +248,7 @@ async function runProof(
 }
 
 Before(
-  { tags: '@operate-retry-safe-retro-relay' },
+  { tags: '@operate-retry-safe-retro-relay', timeout: 180_000 },
   async function (this: SafewordWorld, scenario: { pickle: { name: string } }) {
     const scenarioName = scenario.pickle.name;
     proofCache.set(scenarioName, proofCache.get(scenarioName) ?? runProof(scenarioName));

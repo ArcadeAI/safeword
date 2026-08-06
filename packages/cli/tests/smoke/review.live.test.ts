@@ -3,12 +3,12 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_REVIEW_TIMEOUT_MS } from '../../src/review/runtime.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 const CAN_RUN = process.env.SAFEWORD_RUN_CROSS_AGENT_LIVE === '1';
 const SKIP_ACKNOWLEDGED = process.env.SAFEWORD_LIVE_ALLOW_SKIP === '1';
-const REVIEW_TIMEOUT_MS = 10 * 60_000;
-const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
+const LIVE_TEST_TIMEOUT_MS = DEFAULT_REVIEW_TIMEOUT_MS + 60_000;
 
 describe('live smoke: opposite headless reviewer routing', () => {
   it('gate: both live reviewer routes run, or the omission is explicit', () => {
@@ -53,7 +53,7 @@ describe('live smoke: opposite headless reviewer routing', () => {
             cwd: directory,
             env: {
               SAFEWORD_AGENT_RUNTIME: author,
-              SAFEWORD_REVIEW_TIMEOUT_MS: String(REVIEW_TIMEOUT_MS),
+              SAFEWORD_REVIEW_TIMEOUT_MS: String(DEFAULT_REVIEW_TIMEOUT_MS),
               SAFEWORD_NO_UPDATE_CHECK: '1',
             },
             timeout: LIVE_TEST_TIMEOUT_MS,

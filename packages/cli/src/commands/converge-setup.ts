@@ -376,11 +376,8 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
   const projectVersion = marker.value;
   if (!isSafePackageVersion(projectVersion)) {
     if (repairVersionMarker) {
-      if (marker.replaceEntry) {
-        writeDurableFile(projectVersionPath, `${VERSION}\n`, { mode: 0o644 });
-        return { repaired: true };
-      }
-      return { repaired: false };
+      writeDurableFile(projectVersionPath, `${VERSION}\n`, { mode: 0o644 });
+      return { repaired: true };
     }
     const recoveryCommand = buildReplayCommand({
       command: 'safeword setup --repair-version-marker',
@@ -518,7 +515,7 @@ interface SetupResultInput {
   readonly pythonSetup: PythonSetupResult;
   readonly namespaceMigration: NamespaceConvergence;
   readonly completedEffects: CompletedSetupEffects;
-  readonly claudeProjectPluginEnabled: boolean;
+  readonly claudeProjectPluginEnrolled: boolean;
 }
 
 interface CompletedSetupEffects {
@@ -583,7 +580,7 @@ function setupResult(input: SetupResultInput): CliResult {
     pythonSetup,
     namespaceMigration,
     completedEffects,
-    claudeProjectPluginEnabled,
+    claudeProjectPluginEnrolled,
   } = input;
   const files = uniqueEffects([
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
@@ -607,7 +604,7 @@ function setupResult(input: SetupResultInput): CliResult {
   // that rewrote delivered files may have moved the templates past the version
   // Claude installed, and `/reload-plugins` re-reads the old build — the
   // install command is what actually converges that case.
-  const claudePluginConverged = claudeProjectPluginEnabled && !changed;
+  const claudePluginReloadEligible = claudeProjectPluginEnrolled && !changed;
   const resultFindings = [
     ...findings,
     ...(actionRequired
@@ -620,7 +617,7 @@ function setupResult(input: SetupResultInput): CliResult {
             severity: 'info' as const,
           },
         ]),
-    ...(claudePluginConverged
+    ...(claudePluginReloadEligible
       ? [
           {
             code: 'SETUP_CLAUDE_PLUGIN_PRESERVED',
@@ -635,7 +632,7 @@ function setupResult(input: SetupResultInput): CliResult {
   if (actionRequired) state = 'action_required';
   const nextAction = setupNextAction({
     actionRequired,
-    claudePluginConverged,
+    claudePluginReloadEligible,
     installCommand: installation.command,
   });
   return createResult({
@@ -650,7 +647,7 @@ function setupResult(input: SetupResultInput): CliResult {
 
 function setupNextAction(input: {
   readonly actionRequired: boolean;
-  readonly claudePluginConverged: boolean;
+  readonly claudePluginReloadEligible: boolean;
   readonly installCommand?: string;
 }): { command: string; mutates: boolean; requiresHuman: boolean } {
   if (input.actionRequired) {
@@ -660,13 +657,13 @@ function setupNextAction(input: {
       requiresHuman: true,
     };
   }
-  if (input.claudePluginConverged) {
+  if (input.claudePluginReloadEligible) {
     return { command: '/reload-plugins', mutates: false, requiresHuman: true };
   }
   return { command: 'safeword claude install', mutates: true, requiresHuman: true };
 }
 
-function projectClaudePluginEnabled(cwd: string): boolean {
+function projectClaudePluginEnrolled(cwd: string): boolean {
   try {
     const settings = JSON.parse(
       readFileSync(nodePath.join(cwd, '.claude/settings.json'), 'utf8'),
@@ -761,9 +758,9 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       );
       if (migrated) {
         codexHandoffFindings.push({
-          code: 'CODEX_PLUGIN_HANDOFF_COMPLETE',
+          code: 'CODEX_PLUGIN_HANDOFF_STARTED',
           message:
-            'Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.',
+            'Codex installed the native profile plugin; legacy project protection remains until explicit finalization after the restarted app proves its hooks.',
           severity: 'info',
         });
       }
@@ -841,7 +838,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       pythonSetup,
       namespaceMigration,
       completedEffects,
-      claudeProjectPluginEnabled: projectClaudePluginEnabled(cwd),
+      claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd),
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
