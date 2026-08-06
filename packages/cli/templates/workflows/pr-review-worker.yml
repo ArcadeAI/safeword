@@ -54,8 +54,25 @@ jobs:
           mkdir -p .safeword
           gh api "repos/$GITHUB_REPOSITORY/contents/.safeword/config.json" --jq .content | base64 --decode > .safeword/config.json
           gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER/files" --paginate > pull-files.json
-          head_sha="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER" --jq .head.sha)"
-          jq --arg head_sha "$head_sha" '{schemaVersion: 1, headSha: $head_sha, artifacts: [.[] | select(.patch != null) | {path: .filename, content: .patch}]}' pull-files.json > inspection-input.json
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER" > pull.json
+          head_sha="$(jq -r .head.sha pull.json)"
+          gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/check-runs" --jq .check_runs > check-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/status" --jq .statuses > statuses.json
+          gh api "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments?per_page=100" > comments.json
+          jq -n --slurpfile files pull-files.json --slurpfile pull pull.json --slurpfile checks check-runs.json --slurpfile statuses statuses.json --slurpfile comments comments.json '
+            ($pull[0]) as $pr |
+            ([ $comments[0][] | select(.user.type == "Bot" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) ]) as $owned |
+            {
+              schemaVersion: 1,
+              headSha: $pr.head.sha,
+              pullState: (if $pr.merged then "merged" elif $pr.state == "closed" then "closed" elif $pr.draft then "draft" else "ready" end),
+              markerReceiptExists: ($owned | length > 0),
+              reviewedReceiptSha: ([$owned[].body | select(contains("\nRoute:")) | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha] | first // null),
+              artifacts: [$files[0][] | if .patch == null then {kind: "non_text", path: .filename} else {kind: "text", path: .filename, content: .patch} end],
+              checks: [$checks[0][] | {name, status, conclusion}],
+              statuses: [$statuses[0][] | {context, state}]
+            }
+          ' > inspection-input.json
       - name: Inspect bounded evidence without GitHub write authority
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

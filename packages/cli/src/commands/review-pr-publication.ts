@@ -43,7 +43,7 @@ function hasExactKeys(value: Record<string, unknown>, expected: readonly string[
 
 interface ParsedHandoff {
   inspectionAudit: unknown;
-  receipt: Extract<PublishedReceipt, { route: 'looks_ready' | 'needs_human' }>;
+  receipt: PublishedReceipt;
 }
 
 function isSerializedFinding(value: unknown): boolean {
@@ -91,6 +91,21 @@ function hasValidReceiptShape(receipt: Record<string, unknown>): boolean {
   );
 }
 
+const NON_RUN_STATUSES = new Set<unknown>([
+  'not_ready',
+  'prerequisites_failed',
+  'prerequisites_pending',
+  'prerequisites_unconfigured',
+]);
+
+function hasValidNonRunShape(receipt: Record<string, unknown>): boolean {
+  return (
+    receipt.markerOwned === true &&
+    typeof receipt.reviewedSha === 'string' &&
+    NON_RUN_STATUSES.has(receipt.status)
+  );
+}
+
 function hasConsistentRoute(receipt: Record<string, unknown>): boolean {
   const findings = receipt.findings as unknown[];
   const unknowns = receipt.unknowns as unknown[];
@@ -115,18 +130,15 @@ function parseReviewedReceipt(path: string): ParsedHandoff {
     throw new Error('review-pr: invalid advisory result artifact');
   }
   const receipt = value.receipt;
-  if (!hasValidReceiptShape(receipt)) {
+  if (!hasValidReceiptShape(receipt) && !hasValidNonRunShape(receipt)) {
     throw new Error('review-pr: invalid advisory receipt');
   }
-  if (!hasConsistentRoute(receipt)) {
+  if (receipt.route !== undefined && !hasConsistentRoute(receipt)) {
     throw new Error('review-pr: advisory route conflicts with its evidence');
   }
   return {
     inspectionAudit: value.inspectionAudit,
-    receipt: receipt as unknown as Extract<
-      PublishedReceipt,
-      { route: 'looks_ready' | 'needs_human' }
-    >,
+    receipt: receipt as unknown as PublishedReceipt,
   };
 }
 
@@ -157,22 +169,42 @@ function reviewedReceiptBody(
   });
 }
 
+function receiptBody(receipt: PublishedReceipt, current: boolean): string {
+  if ('route' in receipt) {
+    return reviewedReceiptBody(receipt, current ? (receipt.runState ?? 'incomplete') : 'stale');
+  }
+  if (!current) {
+    return `Reviewed revision: ${receipt.reviewedSha}\nRun state: stale\nRoute: needs a human`;
+  }
+  const nextAction = 'nextAction' in receipt ? `\nNext action: ${receipt.nextAction}` : '';
+  return `Reviewed revision: ${receipt.reviewedSha}\nRun state: ${receipt.status}${nextAction}`;
+}
+
 export async function invalidatePullRequestCommand(
   github: ReviewPrGitHubBoundary,
 ): Promise<ReviewPrStageOutcome> {
   const facts = await github.readPullRequest();
   const comments = await github.publisher.listComments();
-  if (
-    comments.every(
-      comment => comment.authorType !== 'Bot' || !comment.body.includes(RECEIPT_MARKER),
-    )
-  ) {
+  const ownedComments = comments.filter(
+    comment => comment.authorType === 'Bot' && comment.body.includes(RECEIPT_MARKER),
+  );
+  if (ownedComments.length === 0) {
     return { changed: false, reason: 'no marker-owned receipt to invalidate' };
   }
+  if (
+    facts.state === 'ready' &&
+    ownedComments.some(comment => comment.body.includes(`Reviewed revision: ${facts.headSha}`))
+  ) {
+    return { changed: false, reason: 'current head already has a terminal receipt' };
+  }
   const state = facts.state === 'ready' ? 'stale' : `not ready (${facts.state})`;
+  const priorReviewedSha = ownedComments
+    .map(comment => /Reviewed revision: (?<sha>[a-f\d]{40,64})/u.exec(comment.body)?.groups?.sha)
+    .find(sha => sha !== undefined);
+  const reviewedSha = facts.state === 'ready' ? (priorReviewedSha ?? facts.headSha) : facts.headSha;
   await publishReceipt(
     github.publisher,
-    `Reviewed revision: ${facts.headSha}\nRun state: ${state}\nRoute: needs a human`,
+    `Reviewed revision: ${reviewedSha}\nRun state: ${state}\nRoute: needs a human`,
   );
   return { changed: true, reason: state };
 }
@@ -184,8 +216,7 @@ export async function publishPullRequestCommand(
   const handoff = parseReviewedReceipt(resultPath);
   const { receipt } = handoff;
   const facts = await github.readPullRequest();
-  const runState: ReviewRunState =
-    facts.state === 'ready' && facts.headSha === receipt.reviewedSha ? receipt.runState : 'stale';
+  const current = facts.state === 'ready' && facts.headSha === receipt.reviewedSha;
   const validation = await publishValidatedSplitPrivilegeEvidence({
     inspectionAudit: handoff.inspectionAudit,
     publicationAudit: {
@@ -194,11 +225,16 @@ export async function publishPullRequestCommand(
       soleInput: 'serialized_advisory_evidence',
     },
     publish: async () => {
-      await publishReceipt(github.publisher, reviewedReceiptBody(receipt, runState));
+      await publishReceipt(github.publisher, receiptBody(receipt, current));
     },
   });
   if (validation.publicationBlocked) throw new Error('review-pr: privilege audit rejected');
-  return { changed: true, reason: runState };
+  let reason = 'stale';
+  if (current) reason = 'route' in receipt ? (receipt.runState ?? 'incomplete') : receipt.status;
+  return {
+    changed: true,
+    reason,
+  };
 }
 
 function requiredEnvironment(name: string): string {

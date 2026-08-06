@@ -27,6 +27,7 @@ describe('review-pr inspect command wiring', () => {
           maxTotalBytes: 1024,
           model: 'gpt-test',
           provider: 'openai',
+          requiredChecks: [],
         },
       }),
     );
@@ -35,9 +36,13 @@ describe('review-pr inspect command wiring', () => {
     writeFileSync(
       inputPath,
       JSON.stringify({
-        artifacts: [{ content: 'allow *', path: 'policies/access.flux' }],
+        artifacts: [{ content: 'allow *', kind: 'text', path: 'policies/access.flux' }],
+        checks: [],
         headSha: 'a'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
         schemaVersion: 1,
+        statuses: [],
       }),
     );
     const finding: ModelFinding = {
@@ -70,6 +75,7 @@ describe('review-pr inspect command wiring', () => {
           maxTotalBytes: 1024,
           model: 'gpt-test',
           provider: 'openai',
+          requiredChecks: [],
         },
       }),
     );
@@ -78,9 +84,13 @@ describe('review-pr inspect command wiring', () => {
     writeFileSync(
       inputPath,
       JSON.stringify({
-        artifacts: [{ content: 'changed', path: 'src/change.ts' }],
+        artifacts: [{ content: 'changed', kind: 'text', path: 'src/change.ts' }],
+        checks: [],
         headSha: 'b'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
         schemaVersion: 1,
+        statuses: [],
       }),
     );
     const credential = `sk-${'sentinel'.repeat(5)}`;
@@ -130,5 +140,90 @@ describe('review-pr inspect command wiring', () => {
     expect(output.errors).toContainEqual(
       expect.objectContaining({ code: 'PR_REVIEW_INSPECT_FAILED' }),
     );
+  });
+
+  it('publishes pending without calling the provider before a required check settles', async () => {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-pending-'));
+    directories.push(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 1024,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [{ context: 'build' }],
+        },
+      }),
+    );
+    const inputPath = nodePath.join(cwd, 'input.json');
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        artifacts: [{ content: 'changed', kind: 'text', path: 'src/change.ts' }],
+        // eslint-disable-next-line unicorn/no-null -- GitHub uses JSON null until completion.
+        checks: [{ conclusion: null, name: 'build', status: 'in_progress' }],
+        headSha: 'c'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
+        schemaVersion: 1,
+        statuses: [],
+      }),
+    );
+    const provider = vi.fn();
+
+    const result = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath: nodePath.join(cwd, 'result.json'),
+      provider,
+    });
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(result.receipt).toMatchObject({ status: 'prerequisites_pending' });
+  });
+
+  it('turns a provider failure into a publishable failed human route', async () => {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-failed-'));
+    directories.push(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 1024,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [],
+        },
+      }),
+    );
+    const inputPath = nodePath.join(cwd, 'input.json');
+    const outputPath = nodePath.join(cwd, 'result.json');
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        artifacts: [{ content: 'changed', kind: 'text', path: 'src/change.ts' }],
+        checks: [],
+        headSha: 'd'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
+        schemaVersion: 1,
+        statuses: [],
+      }),
+    );
+
+    const result = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider: () => Promise.reject(new Error('provider unavailable')),
+    });
+
+    expect(result.receipt).toMatchObject({ route: 'needs_human', runState: 'failed' });
+    expect(readFileSync(outputPath, 'utf8')).toContain('review provider failed');
   });
 });
