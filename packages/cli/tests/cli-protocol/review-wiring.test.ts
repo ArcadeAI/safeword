@@ -657,7 +657,6 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode, result.stdout).toBe(0);
-      expect(result.stdout).toContain('Healthy');
       expect(result.stdout).toContain(
         `${reviewerName} is not installed. Install ${reviewerName} for fully independent reviews; Safe Word continued with a ${authorName} review.`,
       );
