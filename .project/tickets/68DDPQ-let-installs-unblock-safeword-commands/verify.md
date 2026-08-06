@@ -47,14 +47,17 @@ surface changed.
 
 ## CI status
 
-The updated follow-up commit has not been pushed yet. PR #1992's checks were
-green on parent head `30954cc`; pushing this verified commit will start a new CI
-matrix for the current draft head.
+✅ **Green on head `08ea3f9`** — [run 31129263333](https://github.com/ArcadeAI/safeword/actions/runs/31129263333): test on node 24.18.1 and 22.23.2, lint, dogfood parity, and retro relay deployment inputs all pass; Deploy Retro Relay correctly skips outside a `main` push. That run also covered the acceptance (cucumber) and release-gate lanes, and the Claude plugin catalogue freshness gate — the check that rejects a runtime bundle built with an unpinned Bun.
+
+Pushes to this branch stopped creating `pull_request` runs (two pushes, zero runs created), so the matrix was dispatched manually. Checks attach by head SHA, so they appear on PR #1992 regardless. Root cause of the missing push trigger is unknown; the next push here may need the same manual dispatch.
 
 ## Review status
 
-All four PR comments were read. GitHub reports zero submitted reviews and zero
-unresolved review threads. The quality-review coordinator completed after the
-source review; no critical or suggested changes remain. The ticket stays **in
-progress** in the verify phase and issue #1763 stays open pending the new CI
-result.
+Every PR comment was read. GitHub reports zero submitted reviews and zero
+unresolved review threads; no critical or suggested changes remain. Round 2's
+two critical defects and the follow-up type error are all fixed with regression
+pins.
+
+The ticket is **done**: verification is satisfied by a full green CI matrix on
+the current head, which was the last outstanding item. Issue #1763 stays open
+until PR #1992 merges.

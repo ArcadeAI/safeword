@@ -2,11 +2,11 @@
 id: 68DDPQ
 slug: let-installs-unblock-safeword-commands
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1763
 created: 2026-08-05T16:10:26.457Z
-last_modified: 2026-08-06T14:43:51Z
+last_modified: 2026-08-06T23:22:00Z
 ---
 
 # Let dependency installs unblock Safeword commands
@@ -35,3 +35,7 @@ last_modified: 2026-08-06T14:43:51Z
 - 2026-08-06T14:04:09Z Verified: focused hook tests passed 294/294; the full repository suite passed (Retro Relay 167 passed, 1 skipped; CLI 6782 passed, 5 skipped). Full lint, typecheck, formatting, parity, plugin release contract, diff hygiene, and dependency audit completed; the audit has one pre-existing no-orphans warning and no errors.
 - 2026-08-06T14:22:23Z Revalidated: rebased the three ticket commits onto current `origin/main` (`cbd2700`, Bun generation pin), resolved only generated plugin-inventory conflicts, and re-ran the full suite. Results remain Retro Relay 167 passed/1 skipped and CLI 6782 passed/5 skipped; lint, formatting, parity, plugin contract, and audit remain clean.
 - 2026-08-06T14:43:51Z Revalidated again: caught the branch up to subsequent `origin/main` review-agent fallback commit `7414594`, resolving only generated plugin-inventory digests. Full verification on the exact final head passed: Retro Relay 167 passed/1 skipped and CLI 6784 passed/5 skipped; lint, formatting, parity, plugin contract, and audit remain clean.
+- 2026-08-06T23:22:00Z Fixed: widening `ShellControlOperator` to include a bare `&` left `combineShellStatus` in the architecture-stage gate on the old narrow union, so both its call sites failed to typecheck and CI went red on both node versions. Accepted `'&'` there and carry nothing forward across it — bash backgrounds the left list and runs the right one immediately, so the left status never gates it, exactly as for `;`. `bun run typecheck` does not cover `.safeword/hooks/`, so only the shipped-template release test caught it.
+- 2026-08-06T23:22:00Z Revalidated: merged `origin/main` `654a571`, conflicting only on the generated plugin digests. Regenerated under the pinned Bun 1.3.14 that #2015 now requires, which also removed the spurious `plugin/runtime/cli.js` bundler drift that two earlier sandbox regenerations had produced.
+- 2026-08-06T23:22:00Z CI: pushes to the PR branch stopped creating `pull_request` runs (two pushes, zero runs, while a manual `workflow_dispatch` on the same commit ran instantly). Root cause unknown; dispatched the matrix manually. Run 31129263333 is green on head `08ea3f9` — test on node 22 and 24, lint, dogfood parity, and retro relay inputs, plus the acceptance (cucumber) and release-gate lanes. Checks attach by head SHA, so they appear on PR #1992.
+- 2026-08-06T23:22:00Z Completed: verification is satisfied by a full green CI matrix on the current head. Marking done so the ready-PR gate unblocks and PR #1992 can leave draft for review.
