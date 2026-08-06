@@ -69,7 +69,15 @@ jobs:
               pullState: (if $pr.merged then "merged" elif $pr.state == "closed" then "closed" elif $pr.draft then "draft" else "ready" end),
               markerReceiptExists: ($owned | length > 0),
               reviewedReceiptSha: ([$owned[].body | select(contains("\nRoute:")) | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha] | first // null),
-              artifacts: [$files[0][] | if .patch == null then {kind: "unreadable_text", path: .filename} else {kind: "text", path: .filename, content: .patch} end],
+              artifacts: [$files[0][] |
+                if .patch != null then
+                  {kind: "text", path: .filename, content: .patch}
+                elif (.filename | test("\\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|bz2|xz|7z|woff2?|ttf|otf|mp3|mp4|mov|avi|webm|wav|ogg|wasm|class|jar|exe|dll|so|dylib|bin)$"; "i")) then
+                  {kind: "non_text", path: .filename}
+                else
+                  {kind: "unreadable_text", path: .filename}
+                end
+              ],
               checks: [$checks[0][] | {name, status, conclusion}],
               statuses: [$statuses[0][] | {context, state}]
             }

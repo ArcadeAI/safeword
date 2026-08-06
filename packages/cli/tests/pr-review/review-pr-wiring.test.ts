@@ -72,6 +72,56 @@ describe('review-pr inspect command wiring', () => {
     expect(JSON.parse(readFileSync(outputPath, 'utf8'))).toEqual(result);
   });
 
+  it('uses the same cumulative byte budget for provider evidence and receipt coverage', async () => {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-budget-'));
+    directories.push(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 100,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [],
+        },
+      }),
+    );
+    const inputPath = nodePath.join(cwd, 'inspection-input.json');
+    const outputPath = nodePath.join(cwd, 'inspection-result.json');
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        artifacts: [
+          { content: 'a'.repeat(60), kind: 'text', path: 'src/first.ts' },
+          { content: 'b'.repeat(50), kind: 'text', path: 'src/over-budget.ts' },
+        ],
+        checks: [],
+        headSha: 'f'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
+        schemaVersion: 1,
+        statuses: [],
+      }),
+    );
+    const provider = vi.fn().mockResolvedValue([]);
+
+    const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
+
+    expect(provider).toHaveBeenCalledWith({
+      apiKey: undefined,
+      evidence: [{ content: 'a'.repeat(60), path: 'src/first.ts' }],
+      model: 'gpt-test',
+    });
+    expect(receiptOf(result)).toMatchObject({
+      coverage: [{ path: 'src/first.ts', status: 'integrity_reviewed' }],
+      missingEvidence: ['src/over-budget.ts'],
+      route: 'needs_human',
+      runState: 'incomplete',
+    });
+  });
+
   it('redacts an echoed credential and forces the handoff to incomplete', async () => {
     const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-secret-'));
     directories.push(cwd);

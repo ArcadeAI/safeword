@@ -136,12 +136,7 @@ function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
   const coverage: ArtifactCoverage[] = [...(inspection.coverage ?? [])];
   const missingEvidence: string[] = [];
   const artifacts = inspection.artifacts ?? [];
-  const totalBytes = artifacts.reduce(
-    (total, artifact) => total + (artifact.kind === 'text' ? artifact.byteLength : 0),
-    0,
-  );
-  const totalBudgetExceeded =
-    inspection.maxTotalBytes !== undefined && totalBytes > inspection.maxTotalBytes;
+  let usedBytes = 0;
 
   for (const artifact of artifacts) {
     if (artifact.kind === 'non_text') {
@@ -153,8 +148,15 @@ function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
       continue;
     }
 
-    if (totalBudgetExceeded) missingEvidence.push(artifact.path);
-    else coverage.push({ path: artifact.path, status: 'integrity_reviewed' });
+    if (
+      inspection.maxTotalBytes !== undefined &&
+      usedBytes + artifact.byteLength > inspection.maxTotalBytes
+    ) {
+      missingEvidence.push(artifact.path);
+      continue;
+    }
+    usedBytes += artifact.byteLength;
+    coverage.push({ path: artifact.path, status: 'integrity_reviewed' });
   }
 
   return {

@@ -281,12 +281,6 @@ function boundedTextEvidence(
   artifacts: InspectionInput['artifacts'],
   maxTotalBytes: number,
 ): { content: string; path: string }[] {
-  const totalBytes = artifacts.reduce(
-    (total, artifact) =>
-      total + (artifact.kind === 'text' ? Buffer.byteLength(artifact.content, 'utf8') : 0),
-    0,
-  );
-  if (totalBytes > maxTotalBytes) return [];
   let usedBytes = 0;
   return artifacts.flatMap(artifact => {
     if (artifact.kind !== 'text') return [];

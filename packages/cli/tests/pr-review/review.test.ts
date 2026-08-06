@@ -28,7 +28,7 @@ describe('advisory review evidence floor', () => {
     });
   });
 
-  it('does not imply partial coverage when the change set exceeds the total budget', async () => {
+  it('reviews artifacts in order until the total budget is exhausted', async () => {
     let publishedReceipt: PublishedReceipt | undefined;
 
     await reviewPullRequest({
@@ -56,8 +56,8 @@ describe('advisory review evidence floor', () => {
     });
 
     expect(publishedReceipt).toMatchObject({
-      coverage: [],
-      missingEvidence: ['src/large.ts', 'src/small.ts'],
+      coverage: [{ path: 'src/large.ts', status: 'integrity_reviewed' }],
+      missingEvidence: ['src/small.ts'],
       route: 'needs_human',
       runState: 'incomplete',
     });

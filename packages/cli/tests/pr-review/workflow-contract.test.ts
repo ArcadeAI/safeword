@@ -70,6 +70,9 @@ describe('advisory PR review workflow contract', () => {
 
     const workerSource = readFileSync(workerPath, 'utf8');
     expect(workerSource).not.toMatch(/actions\/checkout|gh pr checkout|git fetch/);
+    expect(workerSource).toContain('{kind: "non_text", path: .filename}');
+    expect(workerSource).toContain('{kind: "unreadable_text", path: .filename}');
+    expect(workerSource).toContain('png|jpe?g|gif|webp');
 
     const workerJobs = worker.jobs as Record<string, Record<string, unknown>>;
     for (const jobName of ['invalidate', 'publish']) {

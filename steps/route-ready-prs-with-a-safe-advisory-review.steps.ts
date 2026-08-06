@@ -1257,7 +1257,12 @@ Then(
   'no other comment claims the pull request is safe to merge',
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.receiptComments?.length, 1);
-    assert.doesNotMatch(this.receiptComments?.[0]?.body ?? '', /safe to merge/iu);
+    const safetyMentions = (this.receiptComments?.[0]?.body ?? '')
+      .split('\n')
+      .filter(line => /safe to merge/iu.test(line));
+    assert.deepEqual(safetyMentions, [
+      'Advisory only: this review can miss issues, does not replace human review, and is not evidence that this pull request is safe to merge.',
+    ]);
   },
 );
 
