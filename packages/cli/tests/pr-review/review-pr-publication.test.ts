@@ -90,6 +90,7 @@ describe('review-pr publication command wiring', () => {
 
     expect(updateComment).toHaveBeenCalledOnce();
     expect(updateComment.mock.calls[0]?.[1]).toContain('not ready (draft)');
+    expect(updateComment.mock.calls[0]?.[1]).not.toContain('Route:');
     expect(createComment).not.toHaveBeenCalled();
   });
 });

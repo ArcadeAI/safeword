@@ -101,12 +101,48 @@ const NON_RUN_STATUSES = new Set<unknown>([
   'prerequisites_unconfigured',
 ]);
 
-function hasValidNonRunShape(receipt: Record<string, unknown>): boolean {
+function hasValidNotReadyShape(receipt: Record<string, unknown>): boolean {
   return (
-    receipt.markerOwned === true &&
-    typeof receipt.reviewedSha === 'string' &&
-    NON_RUN_STATUSES.has(receipt.status)
+    hasExactKeys(receipt, ['markerOwned', 'reason', 'reviewedSha', 'status']) &&
+    typeof receipt.reason === 'string' &&
+    ['closed', 'draft', 'merged'].includes(receipt.reason)
   );
+}
+
+function hasValidPendingShape(receipt: Record<string, unknown>): boolean {
+  return (
+    hasExactKeys(receipt, [
+      'markerOwned',
+      'missingChecks',
+      'nextAction',
+      'reviewedSha',
+      'status',
+    ]) &&
+    Array.isArray(receipt.missingChecks) &&
+    receipt.missingChecks.every(check => typeof check === 'string') &&
+    typeof receipt.nextAction === 'string'
+  );
+}
+
+function hasValidNonRunShape(receipt: Record<string, unknown>): boolean {
+  if (
+    receipt.markerOwned !== true ||
+    typeof receipt.reviewedSha !== 'string' ||
+    !NON_RUN_STATUSES.has(receipt.status)
+  ) {
+    return false;
+  }
+  if (receipt.status === 'not_ready') return hasValidNotReadyShape(receipt);
+  if (receipt.status === 'prerequisites_unconfigured') {
+    return (
+      hasExactKeys(receipt, ['markerOwned', 'nextAction', 'reviewedSha', 'status']) &&
+      typeof receipt.nextAction === 'string'
+    );
+  }
+  if (receipt.status === 'prerequisites_failed') {
+    return hasExactKeys(receipt, ['markerOwned', 'reviewedSha', 'status']);
+  }
+  return hasValidPendingShape(receipt);
 }
 
 function hasConsistentRoute(receipt: Record<string, unknown>): boolean {
@@ -222,9 +258,10 @@ export async function invalidatePullRequestCommand(
     .map(comment => /Reviewed revision: (?<sha>[a-f\d]{40,64})/u.exec(comment.body)?.groups?.sha)
     .find(sha => sha !== undefined);
   const reviewedSha = facts.state === 'ready' ? (priorReviewedSha ?? facts.headSha) : facts.headSha;
+  const route = facts.state === 'ready' ? '\nRoute: needs a human' : '';
   await publishReceipt(
     github.publisher,
-    `Reviewed revision: ${reviewedSha}\nRun state: ${state}\nRoute: needs a human`,
+    `Reviewed revision: ${reviewedSha}\nRun state: ${state}${route}`,
   );
   return { changed: true, reason: state };
 }
