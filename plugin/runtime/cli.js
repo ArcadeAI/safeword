@@ -35989,7 +35989,7 @@ import { accessSync as accessSync2, constants as constants3, realpathSync as rea
 import nodePath72 from "path";
 function timeoutMilliseconds() {
   const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : 120000;
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -36208,7 +36208,7 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   }
   return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
 }
-var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError;
+var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, DEFAULT_REVIEW_TIMEOUT_MS, REVIEW_RUBRICS, ReviewRuntimeError;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA = JSON.stringify({
@@ -36292,6 +36292,7 @@ var init_runtime = __esm(() => {
     ]
   };
   MAX_OUTPUT_BYTES = 1024 * 1024;
+  DEFAULT_REVIEW_TIMEOUT_MS = 10 * 60000;
   REVIEW_RUBRICS = {
     "quality-review": "Check correctness, edge cases, security, unnecessary complexity, and whether public wiring is proven through real collaborators.",
     "scenario-gate": "Try to falsify every scenario. Check vacuous passes, atomic/observable/deterministic/independent structure, negative cases, boundaries, failures, security, invariants, and public-surface wiring.",
