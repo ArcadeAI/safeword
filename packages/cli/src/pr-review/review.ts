@@ -38,6 +38,9 @@ const RUN_STATE_PRECEDENCE: Record<ReviewRunState, number> = {
 export interface AdvisoryFinding {
   consequential?: boolean;
   consequence: string;
+  evidence?: string;
+  line?: number;
+  nextAction?: string;
   path: string;
 }
 

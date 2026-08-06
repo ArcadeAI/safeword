@@ -4,9 +4,15 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { inspectPullRequestCommand } from '../../src/commands/review-pr.js';
+import { type InspectionHandoff, inspectPullRequestCommand } from '../../src/commands/review-pr.js';
 import type { ModelFinding } from '../../src/pr-review/providers/openai.js';
+import type { PublishedReceipt } from '../../src/pr-review/review.js';
 import { runCli } from '../helpers.js';
+
+function receiptOf(handoff: InspectionHandoff): PublishedReceipt {
+  if (handoff.kind !== 'receipt') throw new Error('expected a receipt handoff');
+  return handoff.receipt;
+}
 
 describe('review-pr inspect command wiring', () => {
   const directories: string[] = [];
@@ -48,6 +54,9 @@ describe('review-pr inspect command wiring', () => {
     const finding: ModelFinding = {
       consequential: true,
       consequence: 'The policy grants access to every caller.',
+      evidence: 'The changed policy says `allow *`.',
+      line: 1,
+      nextAction: 'Restrict access to the intended role.',
       path: 'policies/access.flux',
     };
     const provider = vi.fn().mockResolvedValue([finding]);
@@ -59,7 +68,7 @@ describe('review-pr inspect command wiring', () => {
       evidence: [{ content: 'allow *', path: 'policies/access.flux' }],
       model: 'gpt-test',
     });
-    expect(result.receipt).toMatchObject({ reviewedSha: 'a'.repeat(40), route: 'needs_human' });
+    expect(receiptOf(result)).toMatchObject({ reviewedSha: 'a'.repeat(40), route: 'needs_human' });
     expect(JSON.parse(readFileSync(outputPath, 'utf8'))).toEqual(result);
   });
 
@@ -107,6 +116,8 @@ describe('review-pr inspect command wiring', () => {
             {
               consequential: false,
               consequence: `Model echoed ${credential}`,
+              evidence: 'The changed line is present.',
+              nextAction: 'Review the changed line.',
               path: 'src/change.ts',
             },
           ]),
@@ -114,8 +125,8 @@ describe('review-pr inspect command wiring', () => {
 
       const serialized = readFileSync(outputPath, 'utf8');
       expect(serialized).not.toContain(credential);
-      expect(result.receipt).toMatchObject({ route: 'needs_human', runState: 'incomplete' });
-      expect(result.receipt).toMatchObject({ unknowns: ['credential-like value redacted'] });
+      expect(receiptOf(result)).toMatchObject({ route: 'needs_human', runState: 'incomplete' });
+      expect(receiptOf(result)).toMatchObject({ unknowns: ['credential-like value redacted'] });
     } finally {
       if (originalApiKey === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = originalApiKey;
@@ -182,7 +193,7 @@ describe('review-pr inspect command wiring', () => {
     });
 
     expect(provider).not.toHaveBeenCalled();
-    expect(result.receipt).toMatchObject({ status: 'prerequisites_pending' });
+    expect(receiptOf(result)).toMatchObject({ status: 'prerequisites_pending' });
   });
 
   it('turns a provider failure into a publishable failed human route', async () => {
@@ -223,7 +234,51 @@ describe('review-pr inspect command wiring', () => {
       provider: () => Promise.reject(new Error('provider unavailable')),
     });
 
-    expect(result.receipt).toMatchObject({ route: 'needs_human', runState: 'failed' });
+    expect(receiptOf(result)).toMatchObject({ route: 'needs_human', runState: 'failed' });
     expect(readFileSync(outputPath, 'utf8')).toContain('review provider failed');
+  });
+
+  it('emits a benign no-op handoff for an already-reviewed current head', async () => {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-noop-'));
+    directories.push(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 1024,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [],
+        },
+      }),
+    );
+    const headSha = 'e'.repeat(40);
+    const inputPath = nodePath.join(cwd, 'input.json');
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        artifacts: [{ content: 'changed', kind: 'text', path: 'src/change.ts' }],
+        checks: [],
+        headSha,
+        markerReceiptExists: true,
+        pullState: 'ready',
+        reviewedReceiptSha: headSha,
+        schemaVersion: 1,
+        statuses: [],
+      }),
+    );
+    const provider = vi.fn();
+
+    const result = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath: nodePath.join(cwd, 'result.json'),
+      provider,
+    });
+
+    expect(result).toMatchObject({ kind: 'noop' });
+    expect(provider).not.toHaveBeenCalled();
   });
 });

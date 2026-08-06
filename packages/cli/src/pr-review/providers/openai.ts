@@ -1,6 +1,9 @@
 export interface ModelFinding {
   consequential: boolean;
   consequence: string;
+  evidence: string;
+  line?: number;
+  nextAction: string;
   path: string;
 }
 
@@ -20,9 +23,12 @@ const FINDINGS_SCHEMA = {
         properties: {
           consequential: { type: 'boolean' },
           consequence: { type: 'string' },
+          evidence: { type: 'string' },
+          line: { type: ['integer', 'null'] },
+          nextAction: { type: 'string' },
           path: { type: 'string' },
         },
-        required: ['consequential', 'consequence', 'path'],
+        required: ['consequential', 'consequence', 'evidence', 'line', 'nextAction', 'path'],
         type: 'object',
       },
       type: 'array',
@@ -53,6 +59,25 @@ function outputText(response: unknown): string {
   throw new Error('OpenAI reviewer returned no text output');
 }
 
+function hasFindingFields(finding: Record<string, unknown>): finding is Record<string, unknown> & {
+  consequential: boolean;
+  consequence: string;
+  evidence: string;
+  line: number | null;
+  nextAction: string;
+} {
+  return (
+    typeof finding.consequential === 'boolean' &&
+    typeof finding.consequence === 'string' &&
+    finding.consequence.length > 0 &&
+    typeof finding.evidence === 'string' &&
+    finding.evidence.length > 0 &&
+    (finding.line === null || Number.isSafeInteger(finding.line)) &&
+    typeof finding.nextAction === 'string' &&
+    finding.nextAction.length > 0
+  );
+}
+
 function parseFindings(text: string, evidencePaths: Set<string>): ModelFinding[] {
   const parsed: unknown = JSON.parse(text);
   if (!isRecord(parsed) || !Array.isArray(parsed.findings)) {
@@ -62,9 +87,7 @@ function parseFindings(text: string, evidencePaths: Set<string>): ModelFinding[]
   return parsed.findings.map(finding => {
     if (
       !isRecord(finding) ||
-      typeof finding.consequential !== 'boolean' ||
-      typeof finding.consequence !== 'string' ||
-      finding.consequence.length === 0 ||
+      !hasFindingFields(finding) ||
       typeof finding.path !== 'string' ||
       !evidencePaths.has(finding.path)
     ) {
@@ -73,6 +96,9 @@ function parseFindings(text: string, evidencePaths: Set<string>): ModelFinding[]
     return {
       consequential: finding.consequential,
       consequence: finding.consequence,
+      evidence: finding.evidence,
+      ...(typeof finding.line === 'number' && { line: finding.line }),
+      nextAction: finding.nextAction,
       path: finding.path,
     };
   });

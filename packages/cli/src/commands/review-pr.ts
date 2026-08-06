@@ -20,16 +20,32 @@ export interface InspectPullRequestCommandOptions {
   provider?: InspectionProvider;
 }
 
-export interface InspectionHandoff {
-  inspectionAudit: {
-    checkout: false;
-    customerCodeExecution: false;
-    githubPermissions: { contents: 'read'; pullRequests: 'read' };
-    githubWriteCredential: false;
-  };
-  receipt: PublishedReceipt;
-  schemaVersion: 1;
+interface InspectionAudit {
+  checkout: false;
+  customerCodeExecution: false;
+  githubPermissions: { contents: 'read'; pullRequests: 'read' };
+  githubWriteCredential: false;
 }
+
+export type InspectionHandoff =
+  | {
+      inspectionAudit: InspectionAudit;
+      kind: 'noop';
+      schemaVersion: 1;
+    }
+  | {
+      inspectionAudit: InspectionAudit;
+      kind: 'receipt';
+      receipt: PublishedReceipt;
+      schemaVersion: 1;
+    };
+
+const INSPECTION_AUDIT: InspectionAudit = {
+  checkout: false,
+  customerCodeExecution: false,
+  githubPermissions: { contents: 'read', pullRequests: 'read' },
+  githubWriteCredential: false,
+};
 
 interface InspectionInput {
   artifacts: (
@@ -255,6 +271,20 @@ function resolvePrerequisiteState(
   return { missing, state };
 }
 
+function boundedTextEvidence(
+  artifacts: InspectionInput['artifacts'],
+  maxTotalBytes: number,
+): { content: string; path: string }[] {
+  let usedBytes = 0;
+  return artifacts.flatMap(artifact => {
+    if (artifact.kind !== 'text') return [];
+    const byteLength = Buffer.byteLength(artifact.content, 'utf8');
+    if (usedBytes + byteLength > maxTotalBytes) return [];
+    usedBytes += byteLength;
+    return [{ content: artifact.content, path: artifact.path }];
+  });
+}
+
 export async function inspectPullRequestCommand(
   options: InspectPullRequestCommandOptions,
 ): Promise<InspectionHandoff> {
@@ -273,9 +303,7 @@ export async function inspectPullRequestCommand(
   await reviewPullRequest({
     inspect: async () => {
       try {
-        const textEvidence = input.artifacts.flatMap(artifact =>
-          artifact.kind === 'text' ? [{ content: artifact.content, path: artifact.path }] : [],
-        );
+        const textEvidence = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
         const findings =
           textEvidence.length === 0
             ? []
@@ -287,8 +315,17 @@ export async function inspectPullRequestCommand(
         const receiptFindings = findings.map(finding => {
           const path = redactCredentials(finding.path, credentials);
           const consequence = redactCredentials(finding.consequence, credentials);
-          credentialRedacted ||= path.redacted || consequence.redacted;
-          return { ...finding, consequence: consequence.value, path: path.value };
+          const evidence = redactCredentials(finding.evidence, credentials);
+          const nextAction = redactCredentials(finding.nextAction, credentials);
+          credentialRedacted ||=
+            path.redacted || consequence.redacted || evidence.redacted || nextAction.redacted;
+          return {
+            ...finding,
+            consequence: consequence.value,
+            evidence: evidence.value,
+            nextAction: nextAction.value,
+            path: path.value,
+          };
         });
         return {
           artifacts: receiptArtifacts.map(artifact =>
@@ -341,14 +378,19 @@ export async function inspectPullRequestCommand(
       }),
   });
 
+  if (published === undefined) {
+    const handoff: InspectionHandoff = {
+      inspectionAudit: INSPECTION_AUDIT,
+      kind: 'noop',
+      schemaVersion: 1,
+    };
+    writeFileSync(options.outputPath, `${JSON.stringify(handoff)}\n`, { mode: 0o600 });
+    return handoff;
+  }
   const receipt = parseReviewedReceipt(published);
   const handoff: InspectionHandoff = {
-    inspectionAudit: {
-      checkout: false,
-      customerCodeExecution: false,
-      githubPermissions: { contents: 'read', pullRequests: 'read' },
-      githubWriteCredential: false,
-    },
+    inspectionAudit: INSPECTION_AUDIT,
+    kind: 'receipt',
     receipt,
     schemaVersion: 1,
   };

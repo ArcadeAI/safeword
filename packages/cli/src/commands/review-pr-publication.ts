@@ -43,7 +43,7 @@ function hasExactKeys(value: Record<string, unknown>, expected: readonly string[
 
 interface ParsedHandoff {
   inspectionAudit: unknown;
-  receipt: PublishedReceipt;
+  receipt?: PublishedReceipt;
 }
 
 function isSerializedFinding(value: unknown): boolean {
@@ -51,6 +51,9 @@ function isSerializedFinding(value: unknown): boolean {
     isRecord(value) &&
     typeof value.consequential === 'boolean' &&
     typeof value.consequence === 'string' &&
+    typeof value.evidence === 'string' &&
+    (value.line === undefined || typeof value.line === 'number') &&
+    typeof value.nextAction === 'string' &&
     typeof value.path === 'string'
   );
 }
@@ -119,12 +122,28 @@ function hasConsistentRoute(receipt: Record<string, unknown>): boolean {
   return (receipt.route === 'looks_ready') === mayLookReady;
 }
 
-function parseReviewedReceipt(path: string): ParsedHandoff {
+function parseHandoffEnvelope(path: string): Record<string, unknown> {
   const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
   if (
     !isRecord(value) ||
-    !hasExactKeys(value, ['inspectionAudit', 'receipt', 'schemaVersion']) ||
     value.schemaVersion !== 1 ||
+    (value.kind !== 'noop' && value.kind !== 'receipt')
+  ) {
+    throw new Error('review-pr: invalid advisory result artifact');
+  }
+  return value;
+}
+
+function parseReviewedReceipt(path: string): ParsedHandoff {
+  const value = parseHandoffEnvelope(path);
+  if (value.kind === 'noop') {
+    if (!hasExactKeys(value, ['inspectionAudit', 'kind', 'schemaVersion'])) {
+      throw new Error('review-pr: invalid no-op artifact');
+    }
+    return { inspectionAudit: value.inspectionAudit };
+  }
+  if (
+    !hasExactKeys(value, ['inspectionAudit', 'kind', 'receipt', 'schemaVersion']) ||
     !isRecord(value.receipt)
   ) {
     throw new Error('review-pr: invalid advisory result artifact');
@@ -148,8 +167,9 @@ function reviewedReceiptBody(
 ): string {
   const findings = (receipt.findings ?? []).map((finding: AdvisoryFinding) => ({
     consequence: finding.consequence,
-    evidence: 'Reported from the bounded changed-artifact evidence.',
-    nextAction: 'Inspect this path and decide whether the change is safe.',
+    evidence: finding.evidence ?? 'Evidence unavailable.',
+    ...(finding.line !== undefined && { line: finding.line }),
+    nextAction: finding.nextAction ?? 'Inspect this path and decide whether the change is safe.',
     path: finding.path,
   }));
   return renderReceipt({
@@ -215,6 +235,7 @@ export async function publishPullRequestCommand(
 ): Promise<ReviewPrStageOutcome> {
   const handoff = parseReviewedReceipt(resultPath);
   const { receipt } = handoff;
+  if (receipt === undefined) return { changed: false, reason: 'suppressed or not ready' };
   const facts = await github.readPullRequest();
   const current = facts.state === 'ready' && facts.headSha === receipt.reviewedSha;
   const validation = await publishValidatedSplitPrivilegeEvidence({

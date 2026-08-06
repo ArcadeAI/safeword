@@ -26,6 +26,9 @@ describe('OpenAI advisory review provider', () => {
                       {
                         consequential: true,
                         consequence: 'The wildcard grants access beyond administrators.',
+                        evidence: 'The changed rule is `allow *`.',
+                        line: 1,
+                        nextAction: 'Restrict the rule to the intended administrator role.',
                         path: 'policies/access.flux',
                       },
                     ],
@@ -66,6 +69,9 @@ describe('OpenAI advisory review provider', () => {
       {
         consequential: true,
         consequence: 'The wildcard grants access beyond administrators.',
+        evidence: 'The changed rule is `allow *`.',
+        line: 1,
+        nextAction: 'Restrict the rule to the intended administrator role.',
         path: 'policies/access.flux',
       },
     ]);

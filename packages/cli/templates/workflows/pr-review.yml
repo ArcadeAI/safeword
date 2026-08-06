@@ -41,7 +41,7 @@ jobs:
                 terminal="$(gh api "repos/$GITHUB_REPOSITORY/issues/$pull_number/comments?per_page=100" --jq "[.[] | select(.user.type == \"Bot\" and (.body | startswith(\"<!-- safeword:pr-review-receipt:v1 -->\")) and (.body | contains(\"Reviewed revision: $head_sha\")) and (.body | contains(\"\\nRoute:\")))] | length")"
                 if [ "$terminal" = "0" ]; then echo "$pull_number"; fi
               done
-          } | jq -s 'map(tonumber)')"
+          } | jq -cs 'map(tonumber)')"
           echo "pull_numbers=$pull_numbers" >> "$GITHUB_OUTPUT"
 
   scheduled-review:

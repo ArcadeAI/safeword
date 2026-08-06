@@ -30,6 +30,7 @@ describe('review-pr publication command wiring', () => {
           githubPermissions: { contents: 'read', pullRequests: 'read' },
           githubWriteCredential: false,
         },
+        kind: 'receipt',
         receipt: {
           coverage: [{ path: 'src/change.ts', status: 'integrity_reviewed' }],
           findings: [],
