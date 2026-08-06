@@ -192,44 +192,6 @@ failing with the scenario undefined before its step existed.
 - [x] GREEN aec039245
 - [x] REFACTOR skip: no structural improvement needed
 
-## Rule: reliable-reviews-for-real-packets.TBU4.R1 — Exhausted independent routes preserve useful review momentum without overstating trust
-
-### Scenario: A preferred review uses a safe additional review when the environment can provide one
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A failed additional review does not recurse
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: reliable-reviews-for-real-packets.TBU4.R2 — A limited review never clears a required independent-review gate
-
-### Scenario: A required independent review stays unsatisfied after a limited review
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: reliable-reviews-for-real-packets.TBU4.R3 — An environment without a safe review capability preserves recovery
-
-### Scenario: An environment without a safe review capability preserves recovery
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: reliable-reviews-for-real-packets.TBU4.R4 — Limited review material stays separate from host instructions and failed-route diagnostics
-
-### Scenario: A limited reviewer does not receive failed-route diagnostics
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ## Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure
 
 ### Scenario: A timeout and a rejected answer are explained as two distinct causes

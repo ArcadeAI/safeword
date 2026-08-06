@@ -2,7 +2,7 @@
 id: DR6M6N
 slug: reliable-reviews-for-real-packets
 type: feature
-phase: define-behavior
+phase: done
 phase_anchors:
   - define-behavior: .project/tickets/DR6M6N-reliable-reviews-for-real-packets/spec.md
   - scenario-gate: packages/cli/features/reliable-reviews-for-real-packets.feature
@@ -13,14 +13,13 @@ phase_skips:
   - scenario-gate: Re-entered define-behavior twice mid-implementation to correct scenarios that field evidence and an independent review proved wrong (the size-derived deadline, the candidate-share floor, the pre-launch capability claim). Each correction returned straight to implement rather than replaying the full gate, which had already run ten adversarial rounds over the same scenarios.
   - plan-implementation: The plan was reviewed independently four times before implementation began and reconciled at implement exit; the mid-flight returns to define-behavior did not change the design it records.
   - verify: Verification was completed in the same closeout pass as the final implementation review; the full-suite, acceptance, lint, build, audit, and independent-review evidence is recorded in verify.md.
-status: in_progress
+status: done
 scope:
   - an evidence-based flat review deadline with a documented bounded maximum, honoring the existing explicit override
   - per-candidate time allocation so an earlier reviewer executable cannot starve later ones
   - Codex typed-output wiring that hands it the exact review result contract
   - capability-gated candidate selection that skips reviewers unable to honor that contract
   - an alternate-model retry of the reviewer agent before degrading to the author's own runtime
-  - trustworthy review momentum after every independent CLI route is exhausted, without overstating the remaining review's independence or weakening required-review policy
   - plain-language exhausted-route explanations naming each route's own cause in human and JSON output
 out_of_scope:
   - shipping any model name inside safeword (the alternate model is user-configured)
@@ -40,11 +39,9 @@ done_when:
   - Codex receives the exact review result contract, and candidates lacking typed-output support are skipped
   - schema-conforming Codex output passes with allowed fields and severities unchanged
   - exhausted-route human and JSON output name the preferred and fallback causes without raw output, diagnostic noise, or secrets
-  - under prefer, exhausted independent routes have an explicit, safe outcome for hosts that can and cannot provide another bounded review
-  - any additional review names its trust limitations; require remains unsatisfied
   - prefer and require keep their current independence and fail-closed guarantees
 created: 2026-08-04T14:54:55.395Z
-last_modified: 2026-08-06T11:29:46-10:00
+last_modified: 2026-08-06T13:31:34-10:00
 ---
 
 # Keep independent reviews reliable for real ticket packets
@@ -58,5 +55,6 @@ last_modified: 2026-08-06T11:29:46-10:00
 - 2026-08-04T14:54:55.395Z Started: Created ticket DR6M6N
 - 2026-08-06T11:19:00.000-10:00 Extended: Added the user-requested in-session subagent fallback after typed CLI route exhaustion; preserved fail-closed required-review policy.
 - 2026-08-06T11:29:46-10:00 Reopened: Quality review found the fallback was specified as an implementation recipe and proved only by copied prose. Returned to define-behavior to settle the JTBD, trust boundary, host capability matrix, and failure scenarios before accepting a design.
+- 2026-08-06T13:31:34-10:00 Split: Moved the fallback ladder to review-with-the-best-available-agent (ZRV8D5) and restored this completed coordinator ticket to done.
 - 2026-08-04T16:30:02.281Z Phase: intake → define-behavior
 - 2026-08-04T16:33:40.692Z Phase: define-behavior → scenario-gate
