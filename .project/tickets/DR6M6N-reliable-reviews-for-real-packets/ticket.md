@@ -2,7 +2,7 @@
 id: DR6M6N
 slug: reliable-reviews-for-real-packets
 type: feature
-phase: implement
+phase: done
 phase_anchors:
   - define-behavior: .project/tickets/DR6M6N-reliable-reviews-for-real-packets/spec.md
   - scenario-gate: packages/cli/features/reliable-reviews-for-real-packets.feature
@@ -11,7 +11,7 @@ phase_anchors:
 phase_skips:
   - scenario-gate: Re-entered define-behavior twice mid-implementation to correct scenarios that field evidence and an independent review proved wrong (the size-derived deadline, the candidate-share floor, the pre-launch capability claim). Each correction returned straight to implement rather than replaying the full gate, which had already run ten adversarial rounds over the same scenarios.
   - plan-implementation: The plan was reviewed independently four times before implementation began and reconciled at implement exit; the mid-flight returns to define-behavior did not change the design it records.
-status: in_progress
+status: done
 scope:
   - a size-aware review budget with a documented bounded maximum, honoring the existing explicit override
   - per-candidate time allocation so an earlier reviewer executable cannot starve later ones
@@ -39,7 +39,7 @@ done_when:
   - exhausted-route human and JSON output name the preferred and fallback causes without raw output, diagnostic noise, or secrets
   - prefer and require keep their current independence and fail-closed guarantees
 created: 2026-08-04T14:54:55.395Z
-last_modified: 2026-08-04T14:54:55.395Z
+last_modified: 2026-08-05T16:00:00.000-10:00
 ---
 
 # Keep independent reviews reliable for real ticket packets
