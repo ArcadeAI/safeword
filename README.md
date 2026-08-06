@@ -418,6 +418,44 @@ Commit the Safe Word project configuration your team uses, including the marked 
 
 ---
 
+## Advisory Pull Request Review
+
+Safeword can install a default-off GitHub Actions reviewer that treats pull
+request changes as data, never checks out or executes them, and publishes one
+ordinary conversation comment. The comment is explicitly advisory: it cannot
+approve a pull request, satisfy a required check, or prove the change is safe to
+merge.
+
+Enable it in `.safeword/config.json` with an OpenAI model, a total evidence
+budget, and the exact prerequisite check contexts to wait for:
+
+```json
+{
+  "prReview": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-5.2",
+    "maxTotalBytes": 100000,
+    "requiredChecks": [{ "context": "ci" }]
+  }
+}
+```
+
+Run `safeword setup` after enabling it. Configure `OPENAI_API_KEY` as an
+environment secret on the `safeword-pr-review-model` GitHub environment. An
+explicit empty `requiredChecks` array means review immediately; omitting the
+field fails closed with a configuration next action. Pending checks are sampled
+again by a five-minute sweep. Missing or over-budget text evidence, model
+failure, findings, and unresolved unknowns all route to a human. Binary files
+with recognized binary extensions are recorded as skipped; a binary-only change
+cannot look ready.
+
+The workflow is release-gated on a disposable-repository smoke test for GitHub
+environment-secret scoping and concurrency. Keep it disabled until that smoke
+passes in the repository where it will run.
+
+---
+
 ## Customizing File Locations
 
 Safeword reads project-level information from the project namespace root: `paths.projectRoot` when configured, `.project/` by default, or legacy `.safeword-project/` when that directory already exists. If you already maintain these docs elsewhere, point safeword at your existing files via the optional `paths` block in `.safeword/config.json`:

@@ -12,6 +12,7 @@ import {
   publishReceipt,
   renderReceipt,
 } from '../packages/cli/src/pr-review/publish.ts';
+import { reviewWithOpenAI } from '../packages/cli/src/pr-review/providers/openai.ts';
 
 const RECEIPT_MARKER = '<!-- safeword:pr-review-receipt:v1 -->';
 
@@ -293,6 +294,62 @@ Given(
       consequence: 'Broadens access beyond the intended administrators.',
       path: this.changedArtifactPath ?? '',
     };
+  },
+);
+
+Given(
+  'a ready pull request changes an unfamiliar `.flux` policy from `allow admin` to `allow *`',
+  function (this: AdvisoryReviewWorld) {
+    this.changedArtifactPath = 'policies/access.flux';
+  },
+);
+
+When(
+  'the configured reviewer performs the technology-neutral integrity review',
+  async function (this: AdvisoryReviewWorld) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return 'skipped';
+    const path = this.changedArtifactPath ?? 'policies/access.flux';
+    const findings = await reviewWithOpenAI({
+      apiKey,
+      evidence: [{ content: '- allow admin\n+ allow *', path }],
+      model: process.env.SAFEWORD_LIVE_REVIEW_MODEL ?? 'gpt-5.2',
+    });
+    let receipt: PublishedReceipt | undefined;
+    await reviewPullRequest({
+      inspect: () =>
+        Promise.resolve({
+          artifacts: [{ byteLength: 23, kind: 'text' as const, path }],
+          consequentialFindings: findings.filter(finding => finding.consequential).length,
+          findings,
+          unknowns: [],
+        }),
+      publish: result => {
+        receipt = result;
+        return Promise.resolve();
+      },
+      readPullRequest: () =>
+        Promise.resolve({
+          headSha: 'live-flux-revision',
+          prerequisites: 'passed' as const,
+          prerequisitesConfigured: true,
+          ready: true,
+        }),
+    });
+    assert.ok(receipt);
+    this.receipts = [receipt];
+    this.publishedRoute = receipt.route;
+  },
+);
+
+Then(
+  'the receipt includes an access-control finding for the `.flux` artifact',
+  function (this: AdvisoryReviewWorld) {
+    const finding = this.receipts?.[0]?.findings?.find(
+      candidate => candidate.path === 'policies/access.flux',
+    );
+    assert.ok(finding);
+    assert.match(`${finding.evidence} ${finding.consequence}`, /access|permission|authoriz/iu);
   },
 );
 

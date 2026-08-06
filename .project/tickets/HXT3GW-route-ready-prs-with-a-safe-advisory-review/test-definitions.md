@@ -236,4 +236,4 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 999db2036

@@ -1,6 +1,6 @@
 # Impl Plan: Route ready PRs with a safe advisory review
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -12,6 +12,22 @@ than physically unavailable. The cheapest proof is the fork scenario: a
 workflow-contract test must show no checkout/execution step, no write permission
 on inspection, no model secret on publication, and a strict JSON-only handoff
 before any provider integration is built.
+
+## Implementation outcome
+
+The shipped MVP follows the planned split-privilege shape with a default-off
+router and reusable worker, typed `review-pr inspect|invalidate|publish` CLI
+stages, a strict JSON-only handoff, deterministic route/receipt reducers, and an
+OpenAI Responses adapter. The inspection job has read-only GitHub permissions
+and the model environment; publication has ordinary issue-comment authority but
+no model secret or checkout. The public handler and GitHub boundary are exercised
+through real entry points with only network/provider edges substituted.
+
+Deterministic evidence is recorded in the PR-review Vitest suite and all 60
+feature scenarios (2,336 steps). Independent cross-agent quality review approved
+the implementation after budget accounting and production binary classification
+were reconciled. The disposable GitHub/runtime and selected live Flux checks
+remain release evidence, not local deterministic proof.
 
 ### Proof plan
 
@@ -153,11 +169,11 @@ unsuppressable.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | One plain route and next action lead; exact evidence/usage/unknowns remain in the receipt | Receipt renderer tests and `design.md` data model | |
-| 1. Structure enforces; instructions suggest | Job permissions and absent checkout make write/execution authority unavailable to inspection; strict parsing, endpoint allow-list, and secret-reference lint independently observe the remaining boundaries | Workflow-contract and publisher tests | |
-| 2. Fire at boundaries, not every turn | Review starts at PR readiness/head boundaries or the bounded five-minute pending-state sweep and publishes one marker-owned receipt | Trigger/concurrency integration tests | Scheduled sweep is the minimum reliable wakeup because Actions-created check suites suppress check events |
-| 3. Add, never replace | Default-off schema-managed workflow is reconciled without replacing customer workflows/config | Schema and reconcile tests | |
-| 5. Clarity before correctness | One result vocabulary and route reducer drive CLI, workflow, receipt, and tests | Route matrix and real CLI wiring test | |
+| Optimize for the NTB without constraining the TBU | One plain route and next action lead; exact evidence/usage/unknowns remain in the receipt | `packages/cli/tests/pr-review/review-pr-publication.test.ts` | |
+| 1. Structure enforces; instructions suggest | Job permissions and absent checkout make write/execution authority unavailable to inspection; strict parsing, endpoint allow-list, and secret-reference lint independently observe the remaining boundaries | `packages/cli/tests/pr-review/workflow-contract.test.ts` | |
+| 2. Fire at boundaries, not every turn | Review starts at PR readiness/head boundaries or the bounded five-minute pending-state sweep and publishes one marker-owned receipt | `packages/cli/tests/pr-review/workflow-contract.test.ts` | |
+| 3. Add, never replace | Default-off schema-managed workflow is reconciled without replacing customer workflows/config | `packages/cli/tests/reconcile.test.ts` | |
+| 5. Clarity before correctness | One result vocabulary and route reducer drive CLI, workflow, receipt, and tests | `packages/cli/tests/pr-review/review-pr-wiring.test.ts` | |
 
 Architecture decisions honored:
 
@@ -190,6 +206,21 @@ Architecture decisions honored:
 - Scheduled workflows may be delayed by GitHub under load; pending prerequisites
   therefore remain visible in the sole non-route receipt until a later sweep
   observes a terminal state.
+- GitHub evidence acquisition currently uses the pull-files API's changed hunks,
+  not full blobs. A missing patch fails closed as unreadable text except for a
+  conservative recognized-binary extension list, which is recorded as skipped.
+  Full-blob fork access and runtime compatibility remain in YC6JCC's release
+  smoke rather than expanding inspection authority here.
+- The shipped prerequisite identity is exact check/status `context` only; the
+  planned optional GitHub App ID discriminator is deferred until a real
+  same-context collision requires it. Missing or ambiguous contexts still fail
+  closed.
+- The shipped evidence cap is the cumulative `maxTotalBytes` boundary. Per-file
+  and file-count caps were not needed for the bounded MVP; omitted/over-budget
+  evidence remains explicit and cannot produce `looks_ready`.
+- A provider failure is terminal for the current SHA, so the scheduled sweep
+  does not retry that same revision. This preserves conservative routing and
+  bounded cost; a new SHA always gets a fresh attempt.
 
 ## Doc impact
 

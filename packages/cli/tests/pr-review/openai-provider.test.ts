@@ -76,4 +76,57 @@ describe('OpenAI advisory review provider', () => {
       },
     ]);
   });
+
+  it('rejects findings whose path was not supplied as review evidence', async () => {
+    const fetchImplementation: typeof fetch = () =>
+      Promise.resolve(
+        Response.json({
+          output: [
+            {
+              content: [
+                {
+                  text: JSON.stringify({
+                    findings: [
+                      {
+                        consequential: true,
+                        consequence: 'An unrelated file is unsafe.',
+                        evidence: 'The model named a path outside the evidence set.',
+                        line: 1,
+                        nextAction: 'Do not publish this ungrounded finding.',
+                        path: 'not-reviewed.ts',
+                      },
+                    ],
+                  }),
+                  type: 'output_text',
+                },
+              ],
+              type: 'message',
+            },
+          ],
+        }),
+      );
+
+    await expect(
+      reviewWithOpenAI({
+        apiKey: 'test-key',
+        evidence: [{ content: 'allow *', path: 'policies/access.flux' }],
+        fetchImplementation,
+        model: 'gpt-test',
+      }),
+    ).rejects.toThrow('invalid path-bound finding');
+  });
+
+  it('reports a failed Responses request without parsing its body', async () => {
+    const fetchImplementation: typeof fetch = () =>
+      Promise.resolve(new Response('unavailable', { status: 503 }));
+
+    await expect(
+      reviewWithOpenAI({
+        apiKey: 'test-key',
+        evidence: [{ content: 'allow *', path: 'policies/access.flux' }],
+        fetchImplementation,
+        model: 'gpt-test',
+      }),
+    ).rejects.toThrow('OpenAI reviewer request failed (503)');
+  });
 });
