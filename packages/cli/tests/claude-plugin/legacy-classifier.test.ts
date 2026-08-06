@@ -100,7 +100,7 @@ describe('Claude legacy classifier', () => {
     const external = fixture();
     const installedPath = Object.keys(CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].files)[0];
     if (installedPath === undefined) throw new Error('Historical fixture path is missing.');
-    const firstSegment = installedPath.split('/')[0];
+    const firstSegment = installedPath.split('/', 1)[0];
     if (firstSegment === undefined) throw new Error('Historical fixture ancestor is missing.');
     mkdirSync(nodePath.join(external, nodePath.dirname(installedPath)), { recursive: true });
     writeFileSync(nodePath.join(external, installedPath), 'external bytes\n');

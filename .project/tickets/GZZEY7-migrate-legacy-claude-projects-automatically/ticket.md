@@ -42,6 +42,7 @@ last_modified: 2026-08-05T15:30:27.364Z
 
 ## Work Log
 
+- 2026-08-06T16:00:00Z PR review follow-up resolved missing hook-root fallback, bounded later-session recovery, symlinked-ancestor classification, and direct transaction-before-mutation acceptance coverage; consolidated plugin-mode construction and fail-open advisory framing; stabilized two current-main timing assertions without weakening their behavioral bounds.
 - 2026-08-05T15:30:27.364Z Started: Created ticket GZZEY7
 - 2026-08-05T15:34:00Z Intake confirmed: The user approved the independently quality-reviewed corrective plan after live failures in Arcade and www proved historical 0.68, 0.69, and 0.72 assets were misclassified. Scope keeps Claude trust human-owned while removing migration ceremony.
 - 2026-08-05T15:34:00Z Defined behavior: Four rules and twelve scenarios cover historical ownership, partial safe contraction, automatic proof boundary, crash/race recovery, and project/user scope continuity. Advanced to scenario-gate.

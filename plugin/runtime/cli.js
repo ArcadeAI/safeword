@@ -35313,9 +35313,10 @@ function recoveredAutomaticResult(projectRoot) {
   const recovered = recoverClaudeCleanup(projectRoot);
   if (recovered.state !== "failed")
     return { state: "complete", unresolvedPaths: [] };
+  const detail = recovered.errors?.[0]?.message ?? "the recorded cleanup transaction could not be read safely";
   return {
     state: "attention",
-    advisory: recovered.errors?.[0]?.message ?? "Safeword preserved a concurrent Claude migration edit. Run safeword claude recover.",
+    advisory: `Safeword preserved the old Claude integration because automatic recovery could not finish: ${detail} Your prompt was not blocked; run \`safeword claude recover\` to repair it.`,
     unresolvedPaths: []
   };
 }

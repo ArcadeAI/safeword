@@ -40,6 +40,12 @@ Feature source: `features/automatic-claude-migration.feature`
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: Legacy bytes never change before a durable transaction exists
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ### Scenario: A symlinked legacy path cannot escape automatic contraction
 
 - [x] RED
@@ -93,6 +99,12 @@ Feature source: `features/automatic-claude-migration.feature`
 - [x] REFACTOR
 
 ### Scenario: A timed-out automatic migration defers safely to the next prompt
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: A later session can recover after spending its normal launch
 
 - [x] RED
 - [x] GREEN

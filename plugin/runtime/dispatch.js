@@ -3328,10 +3328,10 @@ function initialSessionDigest(cwd, sessionDigest) {
 function claimClaudeMigrationAttempt(cwd, sessionId, kind = 'migration') {
   const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
   const initialSession = initialSessionDigest(cwd, sessionDigest) === sessionDigest;
-  const limit = kind === 'recovery' && !initialSession ? 1 : initialSession ? 3 : 1;
+  const limit = initialSession ? 3 : 1;
   const directory = nodePath5.join(
     attemptsPath(cwd),
-    kind === 'recovery' ? 'recoveries' : 'launches',
+    kind === 'recovery' && !initialSession ? 'recoveries' : 'launches',
   );
   mkdirSync2(directory, { recursive: true, mode: 448 });
   for (let slot = 1; slot <= limit; slot += 1) {
@@ -3702,11 +3702,11 @@ function migrateClaudeLegacyAutomatically(cwd, options) {
 function recoveredAutomaticResult(projectRoot) {
   const recovered = recoverClaudeCleanup(projectRoot);
   if (recovered.state !== 'failed') return { state: 'complete', unresolvedPaths: [] };
+  const detail =
+    recovered.errors?.[0]?.message ?? 'the recorded cleanup transaction could not be read safely';
   return {
     state: 'attention',
-    advisory:
-      recovered.errors?.[0]?.message ??
-      'Safeword preserved a concurrent Claude migration edit. Run safeword claude recover.',
+    advisory: `Safeword preserved the old Claude integration because automatic recovery could not finish: ${detail} Your prompt was not blocked; run \`safeword claude recover\` to repair it.`,
     unresolvedPaths: [],
   };
 }

@@ -156,4 +156,21 @@ describe('automatic Claude migration', () => {
     expect(() => migrate(missing)).not.toThrow();
     expect(migrate(missing)).toMatchObject({ state: 'attention' });
   });
+
+  it('explains a transaction recovery failure without changing legacy bytes', () => {
+    const { root, installedPath } = fixture();
+    const target = nodePath.join(root, installedPath);
+    const before = readFileSync(target);
+    mkdirSync(nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'), {
+      recursive: true,
+    });
+
+    const result = migrate(root);
+
+    expect(result.state).toBe('attention');
+    expect(result.advisory).toContain('Safeword preserved the old Claude integration');
+    expect(result.advisory).toContain('safeword claude recover');
+    expect(readFileSync(target)).toEqual(before);
+    expect(readClaudePluginMode(root)).toBeUndefined();
+  });
 });
