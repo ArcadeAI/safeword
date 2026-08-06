@@ -173,8 +173,10 @@ const DEFAULT_ATTEMPT_DEADLINE_MS = 300_000;
 const RUN_BOUND_MS = 540_000;
 
 /**
- * The whole run's ceiling, across every route it tries. Overridable for tests
- * and for a builder whose caller allows longer.
+ * The absolute reviewer-work deadline shared by every route. Packet preparation
+ * happens before this clock starts; synchronous integrity checks and the final
+ * bounded cleanup may finish after it. The override can shorten this deadline
+ * for tests, but cannot extend it beyond the caller-derived ceiling.
  */
 export function runBoundMs(): number {
   const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);

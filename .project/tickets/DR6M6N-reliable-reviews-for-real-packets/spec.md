@@ -68,9 +68,10 @@ Unaffected:
   skipped or failed candidate leaves unused returns to the route, so the next
   candidate's share is recalculated from the time that actually remains.
 - **Cleanup budget** — the time allowed to stop a reviewer and its descendants
-  after an attempt ends: **25 milliseconds** on POSIX, **1 second** on Windows,
-  after which the run continues regardless. Reviewers are launched in their own
-  process group so descendants are included.
+  after an attempt ends: on POSIX, **25 milliseconds** after `SIGTERM` and up to
+  another **25 milliseconds** after `SIGKILL`; on Windows, **1 second** for
+  `taskkill`. The run then continues regardless. Reviewers are launched in their
+  own process group so descendants are included.
 - **Run bound** — **540 seconds**, and never more: the point after which no reviewer work is
   started or allowed to continue. The number comes from the caller, not from
   route arithmetic — every invocation is an agent running the command through a
@@ -79,14 +80,16 @@ Unaffected:
   bound is still checked, and the command returns within one further cleanup
   budget.
 
-  Stated precisely: the bound governs **reviewer work**. Preparing the packet,
-  checking whether sources or the snapshot changed, writing and removing the
-  contract file, and stopping process trees all run outside it. Measured at the
-  largest legal packet (64 files, 1 MiB) that overhead is 18 ms per route plus
-  one cleanup budget per stopped reviewer — under a second in the worst legal
-  case, against 60 seconds of headroom below the caller's ceiling. The headroom
-  is what makes the guarantee hold, so it depends on the cleanup budget staying
-  small: raising it back to seconds would need this arithmetic redone.
+  Stated precisely: this is an absolute deadline shared by **reviewer work** and
+  starts after packet preparation. Capability probes, contract-file handling,
+  and earlier cleanups consume its remaining time; they do not extend every
+  route's allowance. Synchronous integrity checks and packet cleanup are not
+  interrupted by the deadline, and one process-tree cleanup already in progress
+  may finish after it — up to 50 ms on POSIX or 1 second on Windows. At the
+  largest legal packet (64 files, 1 MiB), measured preparation and integrity
+  overhead was 18 ms per route. That measurement supports the 60-second reserve
+  below the caller's ceiling, but is not presented as a hard filesystem-latency
+  bound or a whole-command deadline.
 - **Route** — one independent way of getting a review: the reviewer agent on its
   default model, the reviewer agent on its configured alternate model, and last
   the author's own runtime. Each route gets its own attempt budget.
