@@ -201,7 +201,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: A non-consequential finding remains visible on a looks-ready receipt
 
 - [x] RED 14d0350b3
-- [ ] GREEN
+- [x] GREEN 59a454c04
 - [ ] REFACTOR
 
 ## Rule: Inspection and publication remain split across least-privilege boundaries
