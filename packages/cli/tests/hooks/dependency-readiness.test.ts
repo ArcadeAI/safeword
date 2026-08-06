@@ -557,6 +557,20 @@ describe('dependency readiness hook support', () => {
     ['command bun test'],
     ['( bun test )'],
     ['env -u FOO bun test'],
+    ['bunx safeword-tools setup'],
+    ['bunx safeword'],
+    ['bunx safeword ticket list'],
+    ['bunx safeword setupx'],
+    ['bunx safeword setup && bunx vitest run'],
+    ['bunx safeword setup; bunx vitest run'],
+    ['bunx safeword setup || bunx vitest run'],
+    ['bunx safeword setup | bunx vitest run'],
+    ['bunx safeword setup & bunx vitest run'],
+    ['bunx safeword setup $(bunx vitest run)'],
+    ['bunx safeword setup `bunx vitest run`'],
+    ['bunx safeword setup <(bunx vitest run)'],
+    ['bunx safeword setup >(bunx vitest run)'],
+    ['bunx safeword setup\nbunx vitest run'],
   ])('treats dependency-backed command "%s" as guarded', command => {
     expect(isDependencyBackedCommand(command)).toBe(true);
   });
