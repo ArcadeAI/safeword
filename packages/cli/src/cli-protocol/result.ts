@@ -270,6 +270,55 @@ function installActivationLines(data: unknown): string[] {
   });
 }
 
+function doctorDiagnosticCauses(data: unknown): ReadonlySet<string> {
+  if (!isRecord(data) || data.command !== 'doctor' || !Array.isArray(data.diagnostics)) {
+    return new Set();
+  }
+  return new Set(
+    data.diagnostics.flatMap(diagnostic =>
+      isRecord(diagnostic) && typeof diagnostic.cause === 'string' ? [diagnostic.cause] : [],
+    ),
+  );
+}
+
+function doctorDiagnosticLines(data: unknown): string[] {
+  if (!isRecord(data) || data.command !== 'doctor' || !Array.isArray(data.coverage)) return [];
+
+  const coverage = data.coverage.flatMap(item => {
+    if (!isRecord(item) || typeof item.surface !== 'string') return [];
+    const label = SURFACE_LABELS[item.surface] ?? item.surface;
+    const outcome = typeof item.state === 'string' ? SURFACE_OUTCOMES[item.state] : undefined;
+    const evidence = isRecord(item.evidence)
+      ? Object.entries(item.evidence)
+          .filter((entry): entry is [string, string | number | boolean] =>
+            ['string', 'number', 'boolean'].includes(typeof entry[1]),
+          )
+          .map(([key, value]) => `${key.replaceAll('_', ' ')}=${String(value)}`)
+      : [];
+    const evidenceSuffix = evidence.length === 0 ? '' : ` (${evidence.join(', ')})`;
+    return [`- ${label}: ${outcome ?? 'unknown'}${evidenceSuffix}`];
+  });
+  const diagnostics = Array.isArray(data.diagnostics)
+    ? data.diagnostics.flatMap(item => {
+        if (
+          !isRecord(item) ||
+          typeof item.surface !== 'string' ||
+          typeof item.code !== 'string' ||
+          typeof item.cause !== 'string'
+        ) {
+          return [];
+        }
+        const label = SURFACE_LABELS[item.surface] ?? item.surface;
+        return [`- ${label} [${item.code}]: ${item.cause}`];
+      })
+    : [];
+
+  return [
+    ...(coverage.length === 0 ? [] : ['Diagnostic coverage:', ...coverage]),
+    ...(diagnostics.length === 0 ? [] : ['Causes:', ...diagnostics]),
+  ];
+}
+
 function reviewIndependenceLine(data: unknown): string | undefined {
   if (!isRecord(data) || data.command !== 'review run') return undefined;
   if (data.independence === 'cross-agent') return 'An independent agent checked the work.';
@@ -337,13 +386,17 @@ export function renderHumanStreams(
   if (suppressHumanOutput(result, options)) return { stdout: '', stderr: '' };
 
   const independenceLine = reviewIndependenceLine(result.data);
-  const messages = uniqueMessages(result).filter(message => message !== independenceLine);
+  const diagnosticCauses = doctorDiagnosticCauses(result.data);
+  const messages = uniqueMessages(result).filter(
+    message => message !== independenceLine && !diagnosticCauses.has(message),
+  );
   const lines = [
     ...optionalLine(independenceLine),
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
     ...installSurfaceLines(result.data),
     ...installActivationLines(result.data),
+    ...doctorDiagnosticLines(result.data),
     ...messages,
     ...plannedEffectLines(result.data),
   ];

@@ -24,6 +24,7 @@ canonical commands below.
 | `claude …`     | Mixed       | Inspect, clean up, or recover Claude state  |
 | `codex …`      | Mixed       | Inspect, migrate, or recover Codex state    |
 | `ticket …`     | Mixed       | List and create project tickets             |
+| `review run`   | Mutating    | Run an independent adversarial review       |
 | `retro …`      | Mixed       | Extract, inspect, and reconcile findings    |
 | `capabilities` | Read-only   | Describe the stable machine interface       |
 
@@ -78,9 +79,9 @@ same path indefinitely.
 | What                 | Action                                             | Purpose                                               |
 | -------------------- | -------------------------------------------------- | ----------------------------------------------------- |
 | `.safeword/`         | Creates directory                                  | Hooks, guides, templates                              |
-| `.cursor/hooks.json` | Creates or merges                                  | Hook configuration                                    |
-| `.cursor/rules/`     | Creates directory                                  | Behavior rules                                        |
-| `.cursor/commands/`  | Creates directory                                  | Slash commands                                        |
+| `.cursor/hooks.json` | Creates or merges only with `--agents=cursor`      | Hook configuration                                    |
+| `.cursor/rules/`     | Creates only with `--agents=cursor`                | Behavior rules                                        |
+| `.cursor/commands/`  | Creates only with `--agents=cursor`                | Slash commands                                        |
 | `eslint.config.mjs`  | Creates file                                       | Linting config (JS/TS)                                |
 | `package.json`       | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
 | `cucumber.mjs`       | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
@@ -96,7 +97,7 @@ same path indefinitely.
 | `.sqlfluff`          | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
 | `AGENTS.md`          | Creates or prepends                                | Links to SAFEWORD.md                                  |
 | `.mcp.json`          | Creates or merges                                  | MCP server config                                     |
-| `.cursor/mcp.json`   | Creates or merges                                  | MCP server config (Cursor)                            |
+| `.cursor/mcp.json`   | Creates or merges only with `--agents=cursor`      | MCP server config (Cursor)                            |
 
 Install auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 
@@ -137,6 +138,8 @@ safeword tracker sync [--plan | --apply-results <file>]
 
 safeword ticket list
 safeword ticket new <slug> [--type <type>] [--title <title>]
+
+safeword review run <kind> <targets...>
 
 safeword retro run
 safeword retro signals

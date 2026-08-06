@@ -359,7 +359,7 @@ bunx safeword@latest project architecture
 bunx safeword@latest tracker sync
 
 # Preview removal, then run the exact confirmation command Safeword prints
-bunx safeword@latest remove
+bunx safeword@latest uninstall
 
 # Discover the stable agent interface
 bunx safeword@latest capabilities --json --no-input
@@ -368,7 +368,8 @@ bunx safeword@latest capabilities --json --no-input
 Global `--json`, `--no-input`, `--cwd`, `--quiet`, `--offline`, and
 `--verbose` options work before or after public commands. The former `check`,
 `upgrade`, `diff`, `reset`, `sync-config`, and related top-level names remain
-hidden deprecated aliases through the 0.71 release line.
+hidden compatibility aliases indefinitely. New documentation and automation use
+the canonical commands above.
 
 ### Publishing (maintainers)
 
