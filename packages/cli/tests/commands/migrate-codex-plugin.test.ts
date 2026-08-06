@@ -76,9 +76,15 @@ describe('migrate codex-plugin command', () => {
 
   function createMigrationFixture(
     config: string,
-    pluginEnabled = true,
-    pluginInitiallyInstalled = true,
-    pluginVersion?: string,
+    {
+      pluginEnabled = true,
+      pluginInitiallyInstalled = true,
+      pluginVersion,
+    }: {
+      pluginEnabled?: boolean;
+      pluginInitiallyInstalled?: boolean;
+      pluginVersion?: string;
+    } = {},
   ) {
     const directory = createTemporaryDirectory();
     directories.push(directory);
@@ -227,7 +233,9 @@ describe('migrate codex-plugin command', () => {
   });
 
   it('automatically installs the plugin and transactionally removes recognized legacy state', () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const legacySkill = nodePath.join(fixture.directory, '.agents/skills/audit/SKILL.md');
     mkdirSync(nodePath.dirname(legacySkill), { recursive: true });
     writeFileSync(legacySkill, 'legacy audit skill\n');
@@ -251,7 +259,9 @@ describe('migrate codex-plugin command', () => {
   // succeeding one is where files actually move and get rewritten, so it is the
   // path where survival is least obvious and most worth pinning.
   it('preserves user-owned project data and authored skills through a successful handoff', () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const userOwnedFiles = {
       '.project/tickets/ABC123/spec.md': '# Authored spec\n\nOwned by the user, not Safeword.\n',
       '.project/learnings/handoff-notes.md': '# Handoff notes\n\nDo not clobber authored notes.\n',
@@ -284,7 +294,9 @@ describe('migrate codex-plugin command', () => {
   });
 
   it('retains complete legacy state when automatic plugin installation fails', () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const environment = stubAutomaticMigrationEnvironment(fixture);
     vi.stubEnv('SAFEWORD_FAIL_PLUGIN_INSTALL', '1');
 
@@ -607,7 +619,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('re-enables a disabled profile plugin while retaining legacy hooks', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, { pluginEnabled: false });
     const { configPath } = fixture;
     const before = readFileSync(configPath, 'utf8');
 
@@ -629,7 +641,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('updates an enabled older profile plugin while retaining legacy hooks', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, true, '0.68.0');
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, { pluginVersion: '0.68.0' });
     const before = readFileSync(fixture.configPath, 'utf8');
 
     const result = await runCodexCommand(fixture, ['codex', 'install', '--json']);
@@ -661,7 +673,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('does not install from stale metadata when marketplace refresh fails', async () => {
-    const fixture = createMigrationFixture('', true, true, '0.68.0');
+    const fixture = createMigrationFixture('', { pluginVersion: '0.68.0' });
 
     const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], {
       SAFEWORD_FAIL_MARKETPLACE_UPGRADE: '1',
@@ -683,7 +695,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('leaves the profile unchanged when another task is installing the plugin', async () => {
-    const fixture = createMigrationFixture('', true, false);
+    const fixture = createMigrationFixture('', { pluginInitiallyInstalled: false });
     const profileEnvironment = { CODEX_HOME: fixture.codexHome };
     expect(
       acquireCodexProfileLock(profileEnvironment, { owner: 'another-codex-task' }),
@@ -709,7 +721,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('rejects a Git marketplace that reuses the Safeword name for another source', async () => {
-    const fixture = createMigrationFixture('', true, true, '0.68.0');
+    const fixture = createMigrationFixture('', { pluginVersion: '0.68.0' });
 
     const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], {
       SAFEWORD_MISMATCHED_GIT_MARKETPLACE: '1',
@@ -731,7 +743,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('refreshes the official Safeword marketplace when configured with an SSH Git URL', async () => {
-    const fixture = createMigrationFixture('', true, true, '0.68.0');
+    const fixture = createMigrationFixture('', { pluginVersion: '0.68.0' });
 
     const result = await runCodexCommand(fixture, ['codex', 'install'], {
       SAFEWORD_SSH_GIT_MARKETPLACE: '1',
@@ -744,7 +756,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('moves an official main-branch marketplace onto the stable channel before installing', async () => {
-    const fixture = createMigrationFixture('', true, true, '0.68.0');
+    const fixture = createMigrationFixture('', { pluginVersion: '0.68.0' });
     writeFileSync(
       nodePath.join(fixture.directory, 'profile/config.toml'),
       '[marketplaces.safeword]\nsource = "https://github.com/ArcadeAI/safeword.git"\nref = "main"\n',
@@ -766,7 +778,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('preserves a newer explicit marketplace pin without profile mutation', async () => {
-    const fixture = createMigrationFixture('', true, true, '0.68.0');
+    const fixture = createMigrationFixture('', { pluginVersion: '0.68.0' });
     writeFileSync(
       nodePath.join(fixture.directory, 'profile/config.toml'),
       '[marketplaces.safeword]\nsource = "ArcadeAI/safeword"\nref = "v9.0.0"\n',
@@ -791,7 +803,7 @@ command = 'echo "keep this user hook"'
     ['malformed', { SAFEWORD_MALFORMED_MARKETPLACE_LIST: '1' }],
     ['unsupported', { SAFEWORD_UNSUPPORTED_MARKETPLACE_LIST: '1' }],
   ])('fails closed when marketplace discovery is %s', async (_name, environment) => {
-    const fixture = createMigrationFixture('', true, false);
+    const fixture = createMigrationFixture('', { pluginInitiallyInstalled: false });
 
     const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], environment);
 
@@ -806,7 +818,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('uses the supported add fallback for a configured non-Git marketplace', async () => {
-    const fixture = createMigrationFixture('', true, false);
+    const fixture = createMigrationFixture('', { pluginInitiallyInstalled: false });
 
     const result = await runCodexCommand(fixture, ['codex', 'install'], {
       SAFEWORD_MARKETPLACE_SOURCE_TYPE: 'local',
@@ -819,7 +831,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('refuses finalization when proof and the installed plugin version differ', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, true, '0.68.0');
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, { pluginVersion: '0.68.0' });
     recordCurrentProof(fixture);
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
@@ -834,7 +846,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('uses manifest-bound proof when an older Codex omits installed plugin version metadata', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, true);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
 
     const result = await finalizeCodex(fixture, {}, true);
@@ -852,7 +864,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('installs and verifies the profile plugin without creating project Codex configuration', async () => {
-    const fixture = createMigrationFixture('', true, false);
+    const fixture = createMigrationFixture('', { pluginInitiallyInstalled: false });
     const { directory, logPath } = fixture;
     rmSync(nodePath.join(directory, '.codex'), { recursive: true });
 
@@ -874,7 +886,9 @@ command = 'echo "keep this user hook"'
   });
 
   it('expands to the profile plugin without removing legacy hooks', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const { configPath } = fixture;
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
@@ -886,7 +900,9 @@ command = 'echo "keep this user hook"'
   });
 
   it('leaves recognized legacy protection unchanged when plugin installation fails', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const legacySkillPath = nodePath.join(fixture.directory, '.agents/skills/review-spec/SKILL.md');
     mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
     writeFileSync(legacySkillPath, '# legacy protection\n');
@@ -904,7 +920,9 @@ command = 'echo "keep this user hook"'
   });
 
   it('reports unknown enablement without changing the repository after partial installation', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const beforeConfig = readFileSync(fixture.configPath, 'utf8');
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], {
@@ -1134,7 +1152,9 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
   });
 
   it('records restart-required state after successful profile installation', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const codexHome = fixture.codexHome;
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate'], {
@@ -1660,7 +1680,9 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
   });
 
   it('returns one schema result for JSON migration, finalization, and recovery', async () => {
-    const installing = createMigrationFixture(LEGACY_HOOK_CONFIG, false, false);
+    const installing = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const install = await runCodexCommand(installing, ['codex', 'migrate', '--json']);
     expect(install.stderr).toBe('');
     expect(JSON.parse(install.stdout)).toMatchObject({
@@ -1706,7 +1728,9 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
   });
 
   it('returns a schema error instead of prose when JSON migration fails', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, false, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], {
       SAFEWORD_FAIL_PLUGIN_INSTALL: '1',
@@ -1790,7 +1814,9 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
   });
 
   it('reinstalls an absent plugin even when a stale activation marker remains', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, false, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
     const environment = {
       CODEX_HOME: fixture.codexHome,
     };
