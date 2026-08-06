@@ -41,6 +41,39 @@ function verifyProvenance(
   return { kind: 'verified', output: output as ReviewerOutput };
 }
 
+function independentReviewResult(input: {
+  readonly author: ReviewAuthor;
+  readonly reviewer: ReviewAgent;
+  readonly output: ReviewerOutput;
+  readonly model?: string;
+  readonly preferredFailure?: ReviewFailure;
+}): CliResult {
+  return createResult({
+    state: input.output.verdict === 'approve' ? 'healthy' : 'action_required',
+    findings: [
+      {
+        code: 'REVIEW_INDEPENDENCE',
+        message: 'An independent agent checked the work.',
+        severity: 'info',
+      },
+    ],
+    effects: {
+      network: [{ kind: 'review', target: input.reviewer, operation: 'request' }],
+    },
+    data: {
+      command: 'review run',
+      status: input.output.verdict === 'approve' ? 'approved' : 'changes_requested',
+      author_agent: input.author,
+      assigned_reviewer: input.reviewer,
+      actual_reviewer: input.output.reviewer_agent,
+      ...(input.model !== undefined && { reviewer_model: input.model }),
+      ...(input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure }),
+      independence: 'cross-agent',
+      reviewer_output: input.output,
+    },
+  });
+}
+
 async function executeReview(
   reviewer: 'claude' | 'codex',
   prepared: ReturnType<typeof prepareReviewPacket>,
@@ -462,29 +495,12 @@ async function runAlternateModelRoute(input: {
   if (assessment.kind === 'failed') return { kind: 'failed', failure: assessment.failure };
   const output = assessment.output;
 
-  const result = createResult({
-    state: output.verdict === 'approve' ? 'healthy' : 'action_required',
-    findings: [
-      {
-        code: 'REVIEW_INDEPENDENCE',
-        message: 'An independent agent checked the work.',
-        severity: 'info',
-      },
-    ],
-    effects: {
-      network: [{ kind: 'review', target: input.reviewer, operation: 'request' }],
-    },
-    data: {
-      command: 'review run',
-      status: output.verdict === 'approve' ? 'approved' : 'changes_requested',
-      author_agent: input.author,
-      assigned_reviewer: input.reviewer,
-      actual_reviewer: output.reviewer_agent,
-      reviewer_model: model,
-      preferred_failure: input.preferredFailure,
-      independence: 'cross-agent',
-      reviewer_output: output,
-    },
+  const result = independentReviewResult({
+    author: input.author,
+    reviewer: input.reviewer,
+    output,
+    model,
+    preferredFailure: input.preferredFailure,
   });
   return { kind: 'completed', result };
 }
@@ -663,26 +679,5 @@ export async function runReview(input: {
   }
   const output = provenance.output;
 
-  return createResult({
-    state: output.verdict === 'approve' ? 'healthy' : 'action_required',
-    findings: [
-      {
-        code: 'REVIEW_INDEPENDENCE',
-        message: 'An independent agent checked the work.',
-        severity: 'info',
-      },
-    ],
-    effects: {
-      network: [{ kind: 'review', target: reviewer, operation: 'request' }],
-    },
-    data: {
-      command: 'review run',
-      status: output.verdict === 'approve' ? 'approved' : 'changes_requested',
-      author_agent: author,
-      assigned_reviewer: reviewer,
-      actual_reviewer: output.reviewer_agent,
-      independence: 'cross-agent',
-      reviewer_output: output,
-    },
-  });
+  return independentReviewResult({ author, reviewer, output });
 }
