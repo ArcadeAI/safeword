@@ -9,13 +9,9 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { runParity } from '../src/parity.js';
+import { formatParityDriftFailure, runParity } from '../src/parity.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../templates');
-
-function formatParityDriftFailure(messages: string[]): string {
-  return `Parity drift detected. Run \`bunx safeword setup\` or copy templates to sync:\n  - ${messages.join('\n  - ')}`;
-}
 
 describe('dogfood parity', () => {
   it('points parity drift at the supported setup command', () => {
