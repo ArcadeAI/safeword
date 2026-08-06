@@ -2,8 +2,8 @@
 id: SH7HCW
 slug: keep-safeword-recovery-runnable
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1966
 phase_anchors:
   - 'define-behavior: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/spec.md'
@@ -11,6 +11,7 @@ phase_anchors:
   - 'plan-implementation: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/impl-plan.md'
   - 'implement: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/impl-plan.md'
   - 'verify: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/test-definitions.md'
+  - 'done: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/verify.md'
 scope:
   - Keep top-level Safeword setup and diagnostic commands reachable through the dependency-readiness PreToolUse hook.
   - Continue blocking dependency-backed package executors while project dependencies are missing or stale.
@@ -25,7 +26,7 @@ done_when:
   - `bunx vitest run` and chained commands that contain it remain guarded.
   - Dogfood parity failures direct maintainers to `bunx safeword setup`, not the removed `install` command.
 created: 2026-08-06T00:07:05.713Z
-last_modified: 2026-08-06T00:07:05.713Z
+last_modified: 2026-08-06T01:55:43Z
 ---
 
 # Keep Safeword recovery runnable when dependencies are broken
@@ -50,3 +51,4 @@ last_modified: 2026-08-06T00:07:05.713Z
 - 2026-08-06T01:20:00Z Implementation plan approved by independent cross-agent review and stamped. Four build tasks across two existing code paths are below the split threshold; no ADR. Advanced to implement.
 - 2026-08-06T01:36:00Z Implemented the planned strict recovery classifier in canonical and dogfood hooks, added real PreToolUse wiring plus adversarial command-smuggling coverage, and corrected parity recovery guidance. Independent whole-diff quality review approved with no required changes. Plan reconciled with both decisions unchanged and no deviations; advanced to verify.
 - 2026-08-06T01:55:43Z Verification complete: full unit, acceptance, build, lint, typecheck, and dependency-audit lanes passed. Added the missing executable Cucumber bindings discovered by the first full lane; all 22 recovery scenarios now run against the real hook. Diff audit passed with no errors or warnings.
+- 2026-08-06T01:55:43Z Closed: recovery commands remain runnable through dependency readiness while unrelated package execution stays guarded.
