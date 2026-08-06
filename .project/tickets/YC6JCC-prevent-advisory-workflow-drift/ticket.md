@@ -2,13 +2,13 @@
 id: YC6JCC
 slug: prevent-advisory-workflow-drift
 type: task
-phase: implement
+phase: verify
 status: in_progress
 parent: P0D6S2
 epic: trustworthy-advisory-pr-review
 depends_on: [HXT3GW]
 created: 2026-08-05T19:52:07.090Z
-last_modified: 2026-08-06T14:30:34Z
+last_modified: 2026-08-06T16:12:45Z
 ---
 
 # Prevent advisory workflow drift before release
@@ -30,20 +30,36 @@ freshness, inline findings, or customer-code execution. HXT3GW, Z7M7Y3, and
 
 **Done When:**
 
-- [x] CI validates the installed router and worker paths with a current GitHub Actions schema validator, including environment-secret syntax, reusable-workflow inputs/concurrency, matrix calls, and caller permission ceilings.
-- [x] Reconciliation proves both workflows stay absent unless `prReview.enabled` is exactly `true`, then installs both together from their registered templates.
-- [ ] The release lane fails closed unless a disposable-repository smoke proves event and scheduled calls serialize, model credentials remain confined to inspection, and publication creates only a merge-neutral issue comment.
-- [ ] Maintainer documentation names the required disposable fixture and explains how to refresh the compatibility evidence when GitHub Actions semantics change.
+- [x] CI validates the installed router, worker, and trusted publisher paths with a current GitHub Actions schema validator, including environment-secret syntax, reusable-workflow inputs/concurrency, matrix calls, and caller permission ceilings.
+- [x] Reconciliation proves all three workflows stay absent unless `prReview.enabled` is exactly `true`, then installs them together from their registered templates.
+- [x] The release lane fails closed unless a disposable-repository smoke proves event and scheduled calls serialize, model credentials remain confined to inspection, and publication creates only a merge-neutral issue comment.
+- [x] Maintainer documentation names the required disposable fixture and explains how to refresh the compatibility evidence when GitHub Actions semantics change.
 
 **Tests:**
 
 - [x] Integration: generated installed workflow files pass the pinned schema validator; a deliberately invalid fixture fails.
-- [x] Reconciliation: missing, malformed, false, and true `prReview.enabled` values produce the expected zero-or-two workflow plan.
-- [ ] Release smoke: a fork PR and scheduled re-evaluation use the same per-PR concurrency group without exposing the model secret to a write-capable job.
-- [ ] Release smoke: the advisory receipt leaves approvals, checks, statuses, and merge eligibility unchanged.
+- [x] Reconciliation: missing, malformed, false, and true `prReview.enabled` values produce the expected zero-or-three workflow plan.
+- [x] Release smoke: a fork PR and scheduled re-evaluation use the same per-PR concurrency group without exposing the model secret to a write-capable job.
+- [x] Release smoke: the advisory receipt leaves approvals, checks, statuses, and merge eligibility unchanged.
 
 ## Work Log
 
+- 2026-08-06T16:12:45Z Final local verification passed: workflow and smoke
+  contracts 6/6, schema contracts 36/36, and release contracts 4/4. The
+  release workflow now fails closed on the environment-protected live smoke;
+  the ticket remains in verification pending closure confirmation.
+- 2026-08-06T15:43:12Z Live GitHub evidence changed the architecture in two
+  necessary ways. Same-repository reusable calls required `secrets: inherit`
+  before the environment-scoped model secret reached inspection. Fork-triggered
+  runs could not write a PR comment even when their declared token scope said
+  `issues: write`; the ordinary PR-comment endpoint also required
+  `pull-requests: write`. Added a trusted, no-checkout `workflow_run` publisher
+  that discovers only the worker's JSON artifact, shares the per-PR lock, and
+  calls only invalidation/publication commands. The final disposable run passed:
+  event 31116176245, publisher 31116192147, and scheduled projection 31116229231
+  all succeeded; one active plus one pending lease was observed; one marker
+  comment remained; reviews, statuses, and mergeability were unchanged; both
+  disposable repositories were permanently deleted.
 - 2026-08-06T14:30:34Z Added the disposable fixture generator. It preserves the
   canonical router byte-for-byte, derives its manual sweep from the canonical
   scheduled caller, and confines worker drift to the three command probes that

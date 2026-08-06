@@ -450,9 +450,41 @@ failure, findings, and unresolved unknowns all route to a human. Binary files
 with recognized binary extensions are recorded as skipped; a binary-only change
 cannot look ready.
 
+Fork events inspect with read-only repository authority. GitHub then starts a
+trusted `workflow_run` publisher from the base branch; it never checks out pull
+request code and receives no model secret. GitHub currently requires
+`pull-requests: write` for an ordinary pull-request conversation comment, so the
+publisher is additionally constrained by Safeword's fixed issue-comment-only
+boundary and the release smoke verifies that it creates no review, check,
+status, or merge change.
+
 The workflow is release-gated on a disposable-repository smoke test for GitHub
 environment-secret scoping and concurrency. Keep it disabled until that smoke
 passes in the repository where it will run.
+
+### Maintainer compatibility proof
+
+The release environment named `pr-review-smoke` must define
+`SAFEWORD_PR_REVIEW_SMOKE_TOKEN`. Its account needs narrowly scoped authority to
+create and permanently delete public repositories under the base owner, manage
+their Actions environments and secrets, and create a fork under a different
+owner. Repository variables may set `SAFEWORD_PR_REVIEW_SMOKE_OWNER` (defaults
+to `ArcadeAI`) and `SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER` (defaults to the token's
+login).
+
+Run the same proof locally with:
+
+```bash
+bun run --cwd packages/cli smoke:pr-review:disposable
+```
+
+Each run creates `safeword-pr-review-smoke-<unique-id>` in both owners, exercises
+a real fork pull request plus the canonical scheduled-call projection, and then
+permanently deletes both repositories. Set
+`SAFEWORD_KEEP_PR_REVIEW_SMOKE=1` only while debugging. When GitHub Actions
+semantics change, update the pinned actionlint version and checksum in CI, run
+`check:pr-review-workflows`, run this disposable proof, and record both results
+in the compatibility ticket before release.
 
 ---
 

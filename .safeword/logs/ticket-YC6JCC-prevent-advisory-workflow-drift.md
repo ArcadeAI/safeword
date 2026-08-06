@@ -58,6 +58,26 @@
   JSON handoffs, one current issue comment, and byte-identical before/after
   merge/review/check/status state; permanently delete both repositories unless
   the explicit debug keep flag is set. ESLint and TypeScript pass.
+- [05:43] Runtime reconciliation: GitHub withheld the environment secret until
+  reusable callers used `secrets: inherit`; fork-triggered jobs could not write
+  even when their declared token scope requested it; and ordinary PR comments
+  required `pull-requests: write` in addition to `issues: write`. Added a third,
+  trusted `workflow_run` publisher with no checkout/model environment and a
+  strict JSON-artifact discovery step. Worker event calls inspect read-only;
+  scheduled calls retain direct publication; both final writers share the same
+  per-PR concurrency group.
+- [05:43] LIVE PASS: disposable base/fork PR 1 produced successful event run
+  31116176245, trusted publisher run 31116192147, and scheduled-call projection
+  31116229231. GitHub's concurrency API observed one active and one pending
+  `pr-review-1` lease. Exactly one current marker comment remained; reviews,
+  statuses, and mergeability were unchanged after publication; the model
+  sentinel appeared only in inspection; both repositories were permanently
+  deleted. The runner also gained bounded retries for read-only API 504s and one
+  pinned-action infrastructure failure, while semantic failures remain fatal.
+- [06:12] Final verification: workflow and smoke contracts pass 6/6, schema
+  contracts pass 36/36, release contracts pass 4/4, and ESLint, TypeScript,
+  Prettier, actionlint, and whitespace validation are clean. The release gate
+  and evidence are ready for closure confirmation.
 
 ## Sources
 

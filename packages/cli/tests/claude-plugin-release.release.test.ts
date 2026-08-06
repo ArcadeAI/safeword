@@ -45,4 +45,21 @@ describe('Claude plugin release contract', () => {
     expect(workflow).toContain('git push origin "$GITHUB_SHA:refs/heads/stable"');
     expect(workflow).not.toMatch(/git push[^\n]*(?:--force|-f\b)/u);
   });
+
+  it('blocks publication on the disposable advisory PR review compatibility proof', () => {
+    const workflow = readFileSync(
+      nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
+      'utf8',
+    );
+    const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');
+
+    expect(workflow).toContain('advisory-pr-review-smoke:');
+    expect(workflow).toContain('environment: pr-review-smoke');
+    expect(workflow).toContain('needs: [build, advisory-pr-review-smoke]');
+    expect(workflow).toContain('secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
+    expect(workflow).toContain('smoke:pr-review:disposable');
+    expect(readme).toContain('SAFEWORD_PR_REVIEW_SMOKE_OWNER');
+    expect(readme).toContain('SAFEWORD_KEEP_PR_REVIEW_SMOKE=1');
+    expect(readme).toContain('permanently deletes both repositories');
+  });
 });
