@@ -202,7 +202,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED 14d0350b3
 - [x] GREEN 59a454c04
-- [ ] REFACTOR
+- [x] REFACTOR skip: finding consequence labeling stays inside the isolated renderer
 
 ## Rule: Inspection and publication remain split across least-privilege boundaries
 
