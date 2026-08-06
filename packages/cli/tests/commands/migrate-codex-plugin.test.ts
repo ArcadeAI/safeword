@@ -96,7 +96,7 @@ function installFakeRuntime(
     nodePath.join(bin, 'codex'),
     String.raw`#!/bin/sh
 set -eu
-printf '%s\\n' "$*" >> "$SAFEWORD_CODEX_LOG"
+printf '%s\n' "$*" >> "$SAFEWORD_CODEX_LOG"
 if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" = "plugin list --json" ]; then
   printf '# concurrent config update\\n' >> "$SAFEWORD_CONFIG_PATH"
 fi
