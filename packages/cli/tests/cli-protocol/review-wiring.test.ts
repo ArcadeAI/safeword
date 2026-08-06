@@ -26,6 +26,8 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
   exit 0
 fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  help_mutate=$(printenv SAFEWORD_REVIEW_HELP_MUTATE || true)
+  if [ "$help_mutate" = "1" ]; then printf 'probe mutation\n' > review-input.md; fi
   swap_alias=$(printenv SAFEWORD_REVIEW_SWAP_ALIAS || true)
   swap_target=$(printenv SAFEWORD_REVIEW_SWAP_TARGET || true)
   if [ -n "$swap_alias" ] && [ -n "$swap_target" ]; then
@@ -381,6 +383,46 @@ describe('cross-agent review public-command wiring', () => {
           PATH: `${bin}:${process.env.PATH ?? ''}`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_FAKE_MUTATE: '1',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(readFileSync(target, 'utf8')).toBe(original);
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEWER_WRITE_ATTEMPT' }],
+      data: { independence: 'none' },
+    });
+  });
+
+  it('confines capability-probe writes to the disposable snapshot', async () => {
+    const directory = createTemporaryDirectory();
+    const target = nodePath.join(directory, 'review-input.md');
+    const log = nodePath.join(directory, 'review.log');
+    const original = 'bounded review input\n';
+    writeFileSync(target, original);
+    const bin = installFakeReviewer(directory, 'codex', log);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_HELP_MUTATE: '1',
           SAFEWORD_REVIEW_LOG: log,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },

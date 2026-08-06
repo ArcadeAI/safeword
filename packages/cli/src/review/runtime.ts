@@ -369,9 +369,11 @@ function executableCandidates(reviewer: ReviewAgent, untrustedRoot: string): str
 async function supportsReviewContract(
   reviewer: ReviewAgent,
   executable: string,
+  cwd: string,
   timeoutMs: number,
 ): Promise<boolean> {
   const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
+    cwd,
     env: reviewerEnvironment(reviewer),
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: process.platform !== 'win32',
@@ -640,7 +642,7 @@ async function runReviewerCandidates(
     const untried = candidates.length - index;
     const candidateDeadline = Date.now() + remainingMs / untried;
     const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
-    if (!(await supportsReviewContract(reviewer, candidate, probeBudget))) continue;
+    if (!(await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget))) continue;
     foundCompatible = true;
     try {
       // The capability probe and review share one candidate deadline. A hanging
