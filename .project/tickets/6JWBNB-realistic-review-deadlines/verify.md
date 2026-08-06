@@ -1,8 +1,8 @@
 ## Verify Checklist
 
-**Test Suite:** ✓ 46/46 focused runtime and CLI wiring tests pass, including the bounded `timed_out` path.
-**Gherkin:** ⚠️ Local evidence limitation: the workspace test-plan result detached before the separate BDD lane could be recorded.
-**Build:** ✅ Success — targeted runtime test rebuilt the CLI package successfully.
+**Test Suite:** ✓ 46/46 current-head focused runtime and CLI wiring tests pass, including the bounded `timed_out` path. The persistent full run on the immediately preceding ten-minute head also captured relay: 167 passed/1 skipped; CLI: 440 files, 6,771 passed/5 skipped.
+**Gherkin:** ❌ Failed — direct full lane: 1,080 scenarios (1,069 passed, 3 skipped, 8 failed). Seven `operate-retry-safe-retro-relay` scenarios timed out in a shared Before hook; one `predictable-safeword-cli` scenario compared different `recorded_at` timestamps.
+**Build:** ✅ Success — both packages built successfully after the BDD lane, on the current five-minute head.
 **Lint:** ✅ Clean — root ESLint, Prettier, and TypeScript checks passed; package lint passed before the final format pass.
 **Scenarios:** ⏭️ Skipped — task ticket has no BDD scenarios.
 **PR Scope:** ✅ Diff matches ticket scope — the timeout policy, its unit test, and regenerated Claude-plugin assets are all required by realistic-review-deadlines.
@@ -11,7 +11,7 @@
 **Reconcile:** ✅ No pattern deviation — the existing per-invocation deadline and explicit environment override remain in place.
 **Experience:** ⏭️ N/A — internal review-runtime plumbing, not persona-facing.
 **Surface Evidence:** ✅ 2/2 affected surfaces have recorded proof — CLI runtime and wiring: `bun run test tests/review/runtime.test.ts tests/cli-protocol/review-wiring.test.ts` (46/46); shipped Claude plugin: `bun run check:claude-plugin` (passed).
-**Evidence limits:** ⚠️ Full workspace test and BDD lanes have not been rerun at the final 300,000 ms head; CI and closeout verification remain required before merge.
+**Evidence limits:** ⚠️ The branch advanced from the ten-minute predecessor during the persistent full run, so the full unit count is not exact-head evidence; current focused coverage is 46/46. The separate direct BDD failure is a real repository failure outside this ticket's scope and must be resolved or isolated before closeout.
 
 ## Quality Review
 
@@ -31,4 +31,4 @@
 - (verified: Node.js child-process documentation) — fetched this session.
 - (verified: Google SRE cascading-failures guidance) — fetched this session.
 
-**Next:** Re-run the full workspace test and BDD lanes from a persistent terminal, then update this record with their final counts before marking the ticket done.
+**Next:** Resolve or isolate the unrelated BDD failures, then re-run the full workspace test and BDD lanes on the current head before marking the ticket done.

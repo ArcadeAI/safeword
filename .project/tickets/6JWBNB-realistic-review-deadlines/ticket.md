@@ -2,11 +2,11 @@
 id: 6JWBNB
 slug: realistic-review-deadlines
 type: task
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1932
 created: 2026-08-06T16:18:45.686Z
-last_modified: 2026-08-06T17:30:00Z
+last_modified: 2026-08-06T17:45:29Z
 ---
 
 # Let independent reviews finish for realistic packets
@@ -29,7 +29,7 @@ last_modified: 2026-08-06T17:30:00Z
 
 **Tests:**
 
-- [x] Unit: the default timeout is 600,000 ms for Claude and Codex.
+- [x] Unit: the default timeout is 300,000 ms for Claude and Codex.
 - [x] Unit: a valid explicit override wins for Claude and Codex.
 - [x] Regression: the review runtime still derives a finite deadline before attempting reviewer candidates.
 
@@ -43,6 +43,7 @@ Use a shared five-minute default rather than a packet-size formula or a reviewer
 
 ## Work Log
 
+- 2026-08-06T17:45:29Z Verified: current five-minute head passes 46/46 focused runtime and real CLI wiring tests. The persistent full test plan captured 167 passed/1 skipped relay tests and 440 files with 6,771 passed/5 skipped CLI tests before the branch advanced from the ten-minute predecessor. The direct BDD lane then failed 8 unrelated scenarios (seven `operate-retry-safe-retro-relay` Before-hook timeouts and one `predictable-safeword-cli` timestamp mismatch), so this ticket remains `verify`/`in_progress` without widening its scope.
 - 2026-08-06T17:30:00Z Verified: 46/46 focused runtime and real CLI wiring tests pass, including the bounded `timed_out` path; ESLint, TypeScript, generated-plugin release alignment, and diff validation are clean.
 - 2026-08-06T17:20:00Z Decision: Rebased onto current main and re-ran `/figure-it-out`; chose a shared 300,000 ms default because both reviewers have timed out at 120 seconds, 91 observed successes completed within 75 seconds, and the host CLIs expose no wall-clock review deadline of their own.
 - 2026-08-06T16:47:45Z Verified: the RED case failed with the prior 300,000 ms/120,000 ms defaults; the focused runtime suite passed 15/15 after the shared 600,000 ms cap. Root ESLint, Prettier, and TypeScript checks passed; the generated Claude plugin release contract passed. The full workspace test-plan process exited after the relay suite passed 167 tests, but its final CLI result detached before it could be captured, so `verify.md` records that evidence limit before any done transition.
