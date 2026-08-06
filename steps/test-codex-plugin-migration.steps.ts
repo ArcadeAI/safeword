@@ -140,6 +140,18 @@ function requirePath(value: string | undefined, label: string): string {
   return value;
 }
 
+function writeCompanyWorkflowSkill(repoRoot: string): string {
+  const skillPath = nodePath.join(repoRoot, '.agents/skills/company-workflow/SKILL.md');
+  mkdirSync(nodePath.dirname(skillPath), { recursive: true });
+  writeFileSync(
+    skillPath,
+    ['---', 'name: company-workflow', '---', '', '# Company Workflow', 'Use local process.'].join(
+      '\n',
+    ),
+  );
+  return readFileSync(skillPath, 'utf8');
+}
+
 function runCommand(
   command: string,
   args: string[],
@@ -1283,17 +1295,9 @@ Given(
   /^an old project-local Codex install with a user-authored `\.agents\/skills\/company-workflow\/SKILL\.md`$/,
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = createProjectLocalCodexInstallFixture();
-    const skillPath = nodePath.join(repoRoot, '.agents/skills/company-workflow/SKILL.md');
-    mkdirSync(nodePath.dirname(skillPath), { recursive: true });
-    writeFileSync(
-      skillPath,
-      ['---', 'name: company-workflow', '---', '', '# Company Workflow', 'Use local process.'].join(
-        '\n',
-      ),
-    );
 
     this.codexPluginRepoRoot = repoRoot;
-    this.codexPluginUserSkillSnapshot = readFileSync(skillPath, 'utf8');
+    this.codexPluginUserSkillSnapshot = writeCompanyWorkflowSkill(repoRoot);
   },
 );
 
@@ -1375,15 +1379,7 @@ Given(
   /^the repo contains a user-authored `\.agents\/skills\/company-workflow\/SKILL\.md`$/,
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    const skillPath = nodePath.join(repoRoot, '.agents/skills/company-workflow/SKILL.md');
-    mkdirSync(nodePath.dirname(skillPath), { recursive: true });
-    writeFileSync(
-      skillPath,
-      ['---', 'name: company-workflow', '---', '', '# Company Workflow', 'Use local process.'].join(
-        '\n',
-      ),
-    );
-    this.codexPluginUserSkillSnapshot = readFileSync(skillPath, 'utf8');
+    this.codexPluginUserSkillSnapshot = writeCompanyWorkflowSkill(repoRoot);
   },
 );
 
