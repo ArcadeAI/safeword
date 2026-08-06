@@ -32,6 +32,7 @@ export interface ReceiptView {
   findings?: ReceiptFindingView[];
   reviewedSha: string;
   reviewers: string[];
+  route?: 'looks_ready' | 'needs_human';
   runState: 'complete' | 'failed' | 'incomplete' | 'stale';
   skippedChecks: string[];
   tokenUsage: { input?: number; output?: number };
@@ -74,6 +75,9 @@ export function renderReceipt(receipt: ReceiptView): string {
   const summary = [
     `Reviewed revision: ${receipt.reviewedSha}`,
     `Run state: ${receipt.runState}`,
+    ...(receipt.route
+      ? [`Route: ${receipt.route === 'looks_ready' ? 'looks ready' : 'needs a human'}`]
+      : []),
     `Reviewers: ${listOrNone(receipt.reviewers)}`,
     `Checks: ${listOrNone(checks)}`,
     `Skipped checks: ${listOrNone(receipt.skippedChecks)}`,
