@@ -115,7 +115,7 @@ export class ReviewRuntimeError extends Error {
   }
 }
 
-const DEFAULT_REVIEW_TIMEOUT_MS = 600_000;
+const DEFAULT_REVIEW_TIMEOUT_MS = 300_000;
 
 export function reviewTimeoutMilliseconds(
   _reviewer: ReviewAgent,
