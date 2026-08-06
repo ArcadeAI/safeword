@@ -9,7 +9,10 @@ type JsonObject = Record<string, unknown>;
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
-const pluginRoot = nodePath.join(repoRoot, 'plugin');
+// Testability seam: the acceptance lane points this at a deliberately damaged
+// copy of the plugin to prove the contract can actually FAIL. Unset in every
+// real run, so release behaviour is unchanged.
+const pluginRoot = process.env.SAFEWORD_CLAUDE_PLUGIN_ROOT ?? nodePath.join(repoRoot, 'plugin');
 
 execFileSync('bun', ['scripts/generate-claude-historical-catalogue.ts', '--check'], {
   cwd: packageRoot,

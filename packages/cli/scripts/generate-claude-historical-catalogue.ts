@@ -16,10 +16,13 @@ interface ReleaseRecord {
 }
 
 const root = nodePath.resolve(import.meta.dirname, '../../..');
-const outputPath = nodePath.join(
-  root,
-  'packages/cli/src/claude-plugin/historical-catalogue.generated.ts',
-);
+// Testability seam: `--check` compares the freshly derived catalogue against
+// this file. The acceptance lane points it at a deliberately incomplete copy to
+// prove the contract can actually FAIL, naming the release and path it misses.
+// Unset in every real run, so generation and release behaviour are unchanged.
+const outputPath =
+  process.env.SAFEWORD_CLAUDE_CATALOGUE_PATH ??
+  nodePath.join(root, 'packages/cli/src/claude-plugin/historical-catalogue.generated.ts');
 
 function git(...args: string[]): string {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8' });
@@ -107,6 +110,37 @@ function filesFromSchema(
   );
 }
 
+/**
+ * Names the first release, path, and fingerprint the committed catalogue is
+ * missing. A bare "regenerate it" message tells a maintainer nothing about
+ * which historical asset would have been left unrecognized — and an
+ * unrecognized asset is one Safeword refuses to contract.
+ */
+function catalogueDriftMessage(
+  committed: string,
+  derived: { current: ReleaseRecord; releases: Record<string, ReleaseRecord> },
+): string {
+  const scanned: [string, ReleaseRecord][] = [
+    ['current', derived.current],
+    ...Object.entries(derived.releases),
+  ];
+  for (const [release, record] of scanned) {
+    for (const [path, fingerprint] of Object.entries(record.files)) {
+      if (!committed.includes(fingerprint)) {
+        return `Claude historical catalogue is missing release ${release} asset ${path} (fingerprint ${fingerprint}); regenerate it with bun run generate:claude-historical-catalogue.`;
+      }
+    }
+    for (const [event, fingerprints] of Object.entries(record.hooks)) {
+      const missing = fingerprints.find(fingerprint => !committed.includes(fingerprint));
+      if (missing !== undefined) {
+        return `Claude historical catalogue is missing release ${release} hook ${event} (fingerprint ${missing}); regenerate it with bun run generate:claude-historical-catalogue.`;
+      }
+    }
+  }
+  const versions = Object.keys(derived.releases).join(', ');
+  return `Claude historical catalogue is stale for releases ${versions}; regenerate it with bun run generate:claude-historical-catalogue.`;
+}
+
 async function main(): Promise<void> {
   const releases: Record<string, ReleaseRecord> = {};
   const hookEntries: Record<string, unknown> = {};
@@ -168,10 +202,7 @@ async function main(): Promise<void> {
   if (process.argv.includes('--check')) {
     const committed = readFileSync(outputPath, 'utf8');
     if (committed !== content) {
-      const versions = Object.keys(releases).join(', ');
-      throw new Error(
-        `Claude historical catalogue is stale or incomplete for releases ${versions}; regenerate it to expose the exact release, path, and fingerprint diff.`,
-      );
+      throw new Error(catalogueDriftMessage(committed, { current, releases }));
     }
     console.log(
       `Claude historical catalogue covers ${String(Object.keys(releases).length)} releases.`,

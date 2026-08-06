@@ -15051,7 +15051,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
 ${SAFEWORD_TRANSIENT_PATHS.join(`
 `)}
 `,
-        marker: ".safeword/boundary-audit.jsonl"
+        marker: ".safeword/claude-plugin/"
       },
       ".prettierignore": {
         operation: "append",
