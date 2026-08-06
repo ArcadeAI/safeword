@@ -574,6 +574,12 @@ describe('dependency readiness hook support', () => {
     ['corepack pnpm install --frozen-lockfile'],
     ['yarn install --immutable'],
     ['npx cowsay hello'],
+    ['bunx safeword@latest setup'],
+    ['bunx safeword@0.73.0 status'],
+    ['FOO=bar bunx safeword setup'],
+    ['bunx safeword status --json'],
+    ['bunx --bun safeword doctor'],
+    ['bunx safeword plan --offline'],
     // `>|` is a clobber redirect: `vitest` here is a target filename, not a
     // command — the pre-EDDABK private splitter treated it as one.
     ['echo cfg >| vitest'],
