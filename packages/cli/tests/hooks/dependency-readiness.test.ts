@@ -683,13 +683,30 @@ describe('dependency readiness hook support', () => {
     const past = new Date(Date.now() - 60_000);
     utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
-
     const result = runHook(
       PRE_TOOL_HOOK,
       JSON.stringify({
         tool_name: 'Bash',
         tool_input: {
           command: 'bun ci && bun run test',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook keeps safeword setup reachable when dependencies are missing', () => {
+    writeBunProject();
+    markSafewordProject();
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'bunx safeword@latest setup',
         },
       }),
     );
