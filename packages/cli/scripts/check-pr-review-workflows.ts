@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { createPrReviewSmokeFixture } from '../src/pr-review/smoke-fixture.js';
 import type { ProjectContext } from '../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 
@@ -59,6 +60,15 @@ export function checkPrReviewWorkflows(
       throw new Error('generated advisory PR review workflows failed actionlint');
     }
 
+    const fixture = createPrReviewSmokeFixture('0.0.0-smoke');
+    const sweepPath = '.github/workflows/safeword-pr-review-smoke-sweep.yml';
+    writeFileSync(nodePath.join(projectDirectory, installedPaths[0]), fixture.router);
+    writeFileSync(nodePath.join(projectDirectory, installedPaths[1]), fixture.worker);
+    writeFileSync(nodePath.join(projectDirectory, sweepPath), fixture.sweep);
+    if (runActionlint(executable, projectDirectory, [...installedPaths, sweepPath]) !== 0) {
+      throw new Error('disposable advisory PR review fixture failed actionlint');
+    }
+
     const invalidPath = '.github/workflows/deliberately-invalid.yml';
     writeFileSync(nodePath.join(projectDirectory, invalidPath), invalidWorkflow);
     if (runActionlint(executable, projectDirectory, [invalidPath]) === 0) {
@@ -68,7 +78,9 @@ export function checkPrReviewWorkflows(
     rmSync(projectDirectory, { force: true, recursive: true });
   }
 
-  console.log('Generated advisory PR review workflows passed actionlint; invalid control failed.');
+  console.log(
+    'Generated workflows and disposable fixture passed actionlint; invalid control failed.',
+  );
 }
 
 if (import.meta.main) checkPrReviewWorkflows();

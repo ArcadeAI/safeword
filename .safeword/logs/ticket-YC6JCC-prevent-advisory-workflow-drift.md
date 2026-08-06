@@ -47,6 +47,11 @@
   through the schema, validates them as a pair, then requires a deliberately
   invalid permission fixture to fail. Local actionlint, ESLint, and TypeScript
   checks pass.
+- [04:30] Fixture contract: the fork-event router is byte-identical to the
+  canonical router; the manual sweep projects the canonical scheduled caller;
+  the reusable worker differs only at the three unpublished CLI call sites.
+  Static checks now actionlint both canonical and smoke workflows. Fixture tests
+  pass 2/2; ESLint and TypeScript pass.
 
 ## Sources
 

@@ -8,7 +8,7 @@ parent: P0D6S2
 epic: trustworthy-advisory-pr-review
 depends_on: [HXT3GW]
 created: 2026-08-05T19:52:07.090Z
-last_modified: 2026-08-06T14:11:39Z
+last_modified: 2026-08-06T14:30:34Z
 ---
 
 # Prevent advisory workflow drift before release
@@ -44,6 +44,12 @@ freshness, inline findings, or customer-code execution. HXT3GW, Z7M7Y3, and
 
 ## Work Log
 
+- 2026-08-06T14:30:34Z Added the disposable fixture generator. It preserves the
+  canonical router byte-for-byte, derives its manual sweep from the canonical
+  scheduled caller, and confines worker drift to the three command probes that
+  test secret scope, read-only inspection, JSON handoff, and issue-comment
+  publication. Both fixture contract tests, actionlint, ESLint, and TypeScript
+  pass.
 - 2026-08-06T14:11:39Z Added a pinned actionlint v1.7.12 CI gate with
   checksum verification. The check renders the actual installed router and
   worker through the schema, validates them together, and proves the validator
