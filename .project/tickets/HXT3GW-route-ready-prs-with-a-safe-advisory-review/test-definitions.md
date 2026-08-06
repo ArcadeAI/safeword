@@ -222,7 +222,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED 042bd1a1e
 - [x] GREEN 27a919c7c
-- [ ] REFACTOR
+- [x] REFACTOR skip: the publisher exposes one fixed endpoint category by construction
 
 ## Rule: The receipt cannot approve a PR or satisfy a required check
 
