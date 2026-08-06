@@ -86,8 +86,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Successful handoff preserves authored project data while removing managed fallback
 
-- [x] RED #1989
-- [ ] GREEN pending
+- [x] RED ae935d66b
+- [x] GREEN bf5e436ec
 - [x] REFACTOR 7352a6dcd
 
 ### Scenario: User-authored Codex skills survive the migration
