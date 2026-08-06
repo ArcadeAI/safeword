@@ -175,6 +175,8 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU3.R6 — The public review command carries all of this end to end, and the required-review policy decides on what it reports
 
+#### reliable-reviews-for-real-packets.TBU3.R7 — When every CLI review route is exhausted, the active host gets one fresh-context leaf subagent fallback; it is degraded and never satisfies a required cross-agent check
+
 ### reliable-reviews-for-real-packets.NTB1 — Understand why no independent check happened
 
 **Persona:** Non-Technical Builder (NTB)
@@ -210,6 +212,10 @@ promised; finishing a review that used to time out is relief, not awe.
 - An exhausted-route message names both causes — for example, "the preferred
   reviewer ran out of time" and "the fallback reviewer's answer wasn't in the
   required format" — and exposes nothing else.
+- After that typed exhaustion result, a host with an agent tool dispatches one
+  read-only fresh-context reviewer with only the bounded targets and rubric.
+  Its verdict is useful under `prefer`, explicitly degraded, and ineligible for
+  `require`; no host capability leaves the existing recovery action unchanged.
 
 ## Constraints carried into implementation
 

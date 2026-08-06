@@ -210,6 +210,22 @@ Feature: Keep independent reviews reliable for real ticket packets
       When a builder runs the public review command
       Then the command reports the required check as unsatisfied
 
+  @reliable-reviews-for-real-packets.TBU3.R7 @surface.claude-code @surface.openai-codex @manual
+  Rule: reliable-reviews-for-real-packets.TBU3.R7 — Exhausted CLI routes get one fresh-context in-session fallback without weakening required review
+
+    Scenario: A preferred review uses one host subagent after every CLI route fails
+      Given every CLI review route is exhausted
+      When the active host handles the exhausted result
+      Then exactly one fresh-context leaf subagent reviews only the bounded packet
+      And its provenance is degraded
+
+    @rejection
+    Scenario: A required cross-agent review rejects the in-session fallback
+      Given every CLI review route is exhausted
+      And cross-agent review is required
+      When the active host handles the exhausted result
+      Then the in-session subagent does not satisfy the required check
+
   @reliable-reviews-for-real-packets.NTB1.R1 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure
 

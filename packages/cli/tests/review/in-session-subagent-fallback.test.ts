@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const cliRoot = nodePath.resolve(import.meta.dirname, '../..');
+const repoRoot = nodePath.resolve(cliRoot, '../..');
 
 function template(relativePath: string): string {
   return readFileSync(nodePath.join(cliRoot, 'templates', relativePath), 'utf8');
@@ -30,6 +31,24 @@ describe('in-session review fallback guidance', () => {
       expect(guide).toContain('in-session subagent');
       expect(guide).toContain('`degraded`');
       expect(guide).toMatch(/must not satisfy\s+`crossAgentReview: require`/u);
+    }
+  });
+
+  it('ships the fallback contract to the dogfood and native-plugin surfaces', () => {
+    const installedGuides = [
+      '.claude/skills/quality-review/SKILL.md',
+      '.safeword/skills/quality-review/SKILL.md',
+      'packages/cli/codex-plugin/skills/quality-review/SKILL.md',
+      'plugin/skills/quality-review/SKILL.md',
+      '.claude/skills/bdd/SKILL.md',
+      'packages/cli/codex-plugin/skills/bdd/SKILL.md',
+      'plugin/skills/bdd/SKILL.md',
+    ];
+
+    for (const relativePath of installedGuides) {
+      const guide = readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
+      expect(guide).toContain('REVIEW_ROUTES_EXHAUSTED');
+      expect(guide).toContain('in-session subagent');
     }
   });
 });

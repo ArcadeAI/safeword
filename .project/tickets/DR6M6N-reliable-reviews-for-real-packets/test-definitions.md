@@ -192,6 +192,20 @@ failing with the scenario undefined before its step existed.
 - [x] GREEN aec039245
 - [x] REFACTOR skip: no structural improvement needed
 
+## Rule: reliable-reviews-for-real-packets.TBU3.R7 — Exhausted CLI routes get one fresh-context in-session fallback without weakening required review
+
+### Scenario: A preferred review uses one host subagent after every CLI route fails
+
+- [x] RED b8b530510
+- [x] GREEN f79d273b6
+- [x] REFACTOR skip: one shared fallback contract is repeated locally at each fragile review handoff
+
+### Scenario: A required cross-agent review rejects the in-session fallback
+
+- [x] RED b8b530510
+- [x] GREEN f79d273b6
+- [x] REFACTOR skip: the existing policy boundary remains the single source of truth
+
 ## Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure
 
 ### Scenario: A timeout and a rejected answer are explained as two distinct causes

@@ -20,6 +20,7 @@ scope:
   - Codex typed-output wiring that hands it the exact review result contract
   - capability-gated candidate selection that skips reviewers unable to honor that contract
   - an alternate-model retry of the reviewer agent before degrading to the author's own runtime
+  - one fresh-context in-session subagent fallback after every CLI review route is exhausted
   - plain-language exhausted-route explanations naming each route's own cause in human and JSON output
 out_of_scope:
   - shipping any model name inside safeword (the alternate model is user-configured)
@@ -39,6 +40,7 @@ done_when:
   - Codex receives the exact review result contract, and candidates lacking typed-output support are skipped
   - schema-conforming Codex output passes with allowed fields and severities unchanged
   - exhausted-route human and JSON output name the preferred and fallback causes without raw output, diagnostic noise, or secrets
+  - under prefer, exhausted CLI routes dispatch one read-only leaf subagent and label its review degraded; require remains unsatisfied
   - prefer and require keep their current independence and fail-closed guarantees
 created: 2026-08-04T14:54:55.395Z
 last_modified: 2026-08-05T16:00:00.000-10:00
@@ -53,5 +55,6 @@ last_modified: 2026-08-05T16:00:00.000-10:00
 ## Work Log
 
 - 2026-08-04T14:54:55.395Z Started: Created ticket DR6M6N
+- 2026-08-06T11:19:00.000-10:00 Extended: Added the user-requested in-session subagent fallback after typed CLI route exhaustion; preserved fail-closed required-review policy.
 - 2026-08-04T16:30:02.281Z Phase: intake → define-behavior
 - 2026-08-04T16:33:40.692Z Phase: define-behavior → scenario-gate
