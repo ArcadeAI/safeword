@@ -96,7 +96,7 @@ function installFakeRuntime(
     nodePath.join(bin, 'codex'),
     String.raw`#!/bin/sh
 set -eu
-printf '%s\\n' "$*" >> "$SAFEWORD_CODEX_LOG"
+printf '%s\n' "$*" >> "$SAFEWORD_CODEX_LOG"
 if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" = "plugin list --json" ]; then
   printf '# concurrent config update\\n' >> "$SAFEWORD_CONFIG_PATH"
 fi
@@ -369,6 +369,9 @@ describe('migrate codex-plugin command', () => {
 
     expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
 
+    expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).toContain(
+      'plugin add safeword@safeword --json',
+    );
     expect(existsSync(safewordSkill)).toBe(false);
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
     for (const [relativePath, contents] of Object.entries(userOwned)) {
