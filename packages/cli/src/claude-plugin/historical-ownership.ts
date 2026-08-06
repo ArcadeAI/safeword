@@ -26,33 +26,42 @@ export function historicalCatalogueDigest(): string {
   return sha256(JSON.stringify(CLAUDE_HISTORICAL_CATALOGUE));
 }
 
-export function isAcceptedHistoricalFile(relativePath: string, content: Buffer | string): boolean {
-  const digest = sha256(content);
+interface CatalogueRelease {
+  readonly files: Record<string, string>;
+  readonly hooks: Record<string, readonly string[]>;
+}
+
+/**
+ * Every release whose exact bytes Safeword may contract: the current template
+ * plus each supported pre-plugin release. Ownership is proven against the union,
+ * so a project installed from any catalogued release is recognized.
+ */
+function acceptedReleases(): CatalogueRelease[] {
   return [
     CLAUDE_HISTORICAL_CATALOGUE.current,
     ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases),
-  ].some(release => (release.files as Record<string, string>)[relativePath] === digest);
+  ];
+}
+
+function acceptedHookFingerprints(event: string): string[] {
+  return acceptedReleases().flatMap(release => release.hooks[event] ?? []);
+}
+
+export function isAcceptedHistoricalFile(relativePath: string, content: Buffer | string): boolean {
+  const digest = sha256(content);
+  return acceptedReleases().some(release => release.files[relativePath] === digest);
 }
 
 export function isAcceptedHistoricalHook(event: string, entry: unknown): boolean {
   const canonical = JSON.stringify(stable(normalizeSafewordHookCommands(entry)));
   const fingerprint = sha256(canonical);
-  return [
-    CLAUDE_HISTORICAL_CATALOGUE.current,
-    ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases),
-  ].some(release =>
-    ((release.hooks as Record<string, readonly string[]>)[event] ?? []).includes(fingerprint),
-  );
+  return acceptedHookFingerprints(event).includes(fingerprint);
 }
 
 export function acceptedHistoricalHookEntries(event: string): unknown[] {
-  const fingerprints = new Set(
-    [
-      CLAUDE_HISTORICAL_CATALOGUE.current,
-      ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases),
-    ].flatMap(release => (release.hooks as Record<string, readonly string[]>)[event] ?? []),
+  return [...new Set(acceptedHookFingerprints(event))].map(fingerprint =>
+    historicalHookEntry(fingerprint),
   );
-  return [...fingerprints].map(fingerprint => historicalHookEntry(fingerprint));
 }
 
 export function historicalHookEntry(fingerprint: string): unknown {
@@ -64,12 +73,7 @@ export function supportedClaudeLegacyReleases(): string[] {
 }
 
 export function cataloguedClaudeLegacyPaths(): string[] {
-  return [
-    ...new Set(
-      [
-        CLAUDE_HISTORICAL_CATALOGUE.current,
-        ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases),
-      ].flatMap(release => Object.keys(release.files)),
-    ),
-  ].toSorted((left, right) => left.localeCompare(right));
+  return [...new Set(acceptedReleases().flatMap(release => Object.keys(release.files)))].toSorted(
+    (left, right) => left.localeCompare(right),
+  );
 }

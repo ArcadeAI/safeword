@@ -1,7 +1,16 @@
 /* eslint-disable unicorn/no-null -- null is the versioned absent-file image */
 
 import { createHash, randomUUID } from 'node:crypto';
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmdirSync,
+  rmSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { applyEdits, modify, parse, visit } from 'jsonc-parser';
@@ -191,9 +200,33 @@ function observedSha(path: string): string | null {
   return existsSync(path) ? sha256(readFileSync(path)) : null;
 }
 
-function writeImage(path: string, content: string | null, mode: number | null): void {
+/**
+ * Removes the directories a contracted file leaves behind. Legacy Claude
+ * delivery is nested (`.claude/skills/<skill>/SKILL.md`), so deleting the files
+ * alone strands a husk tree the user then has to clean up by hand. Pruning
+ * stops at the first non-empty ancestor and never leaves the project root, so
+ * it can only ever remove directories Safeword just emptied.
+ */
+function pruneEmptyAncestors(root: string, path: string): void {
+  const canonicalRoot = nodePath.resolve(root);
+  let directory = nodePath.dirname(nodePath.resolve(path));
+  while (directory.startsWith(`${canonicalRoot}${nodePath.sep}`)) {
+    try {
+      if (readdirSync(directory).length > 0) return;
+      rmdirSync(directory);
+    } catch {
+      // A concurrent writer repopulated or removed the directory. The files
+      // Safeword owns are already gone, so the prompt must not fail for a husk.
+      return;
+    }
+    directory = nodePath.dirname(directory);
+  }
+}
+
+function writeImage(root: string, path: string, content: string | null, mode: number | null): void {
   if (content === null) {
     rmSync(path, { force: true });
+    pruneEmptyAncestors(root, path);
     return;
   }
   mkdirSync(nodePath.dirname(path), { recursive: true });
@@ -212,7 +245,7 @@ function applyEntries(
     if (observedSha(path) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
-    writeImage(path, entry.after_base64, entry.after_mode);
+    writeImage(cwd, path, entry.after_base64, entry.after_mode);
   }
   return true;
 }
@@ -473,6 +506,7 @@ function applyRecoveryEntries(
   for (const entry of pending) {
     const path = containedPath(projectRoot, entry.path);
     writeImage(
+      projectRoot,
       path,
       forward ? entry.after_base64 : entry.before_base64,
       forward ? entry.after_mode : entry.before_mode,

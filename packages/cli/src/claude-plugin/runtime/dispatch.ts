@@ -1,7 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { parse } from 'jsonc-parser';
@@ -18,6 +17,7 @@ import {
   advisoryStateDigest,
   claimClaudeMigrationAdvisory,
   claimClaudeMigrationAttempt,
+  claudeConfigDirectory,
   claudeWatchedSettingsDigest,
   hasLegacyClaudePluginMode,
   pluginModeIsTerminal,
@@ -480,11 +480,8 @@ function scopeDeclaration(path: string): { enabled: boolean; marketplace: unknow
 }
 
 function incompatibleScopeOverlap(projectRoot: string): boolean {
-  const configuredDirectory = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
-  const configDirectory =
-    configuredDirectory === '' ? nodePath.join(homedir(), '.claude') : configuredDirectory;
   const project = scopeDeclaration(nodePath.join(projectRoot, '.claude/settings.json'));
-  const user = scopeDeclaration(nodePath.join(configDirectory, 'settings.json'));
+  const user = scopeDeclaration(nodePath.join(claudeConfigDirectory(), 'settings.json'));
   return (
     project.enabled &&
     user.enabled &&

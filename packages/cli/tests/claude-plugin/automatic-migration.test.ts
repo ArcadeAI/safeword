@@ -129,6 +129,27 @@ describe('automatic Claude migration', () => {
     expect(readClaudePluginMode(root)?.state).toBe('clean');
   });
 
+  it('removes the directories contracted legacy assets leave behind', () => {
+    const { root, installedPath } = fixture();
+    const keptPath = nodePath.join(nodePath.dirname(installedPath), 'notes.md');
+    const kept = nodePath.join(root, keptPath);
+    writeFileSync(kept, 'user-authored note\n');
+
+    expect(migrate(root).state).toBe('complete');
+
+    // The sibling the user owns pins its directory; only Safeword's own empty
+    // husks disappear.
+    expect(readFileSync(kept, 'utf8')).toBe('user-authored note\n');
+    const keptDirectory = nodePath.dirname(installedPath);
+    expect(existsSync(nodePath.join(root, keptDirectory))).toBe(true);
+
+    const { root: bare, installedPath: barePath } = fixture();
+    const bareDirectory = nodePath.dirname(barePath);
+    expect(migrate(bare).state).toBe('complete');
+    expect(existsSync(nodePath.join(bare, bareDirectory))).toBe(false);
+    expect(existsSync(nodePath.join(bare, '.claude'))).toBe(false);
+  });
+
   it('contains unexpected migration exceptions instead of throwing into the prompt', () => {
     const missing = nodePath.join(tmpdir(), 'safeword-missing-project-for-auto-migration');
     rmSync(missing, { recursive: true, force: true });

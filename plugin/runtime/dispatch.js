@@ -8,10 +8,9 @@ import {
   realpathSync as realpathSync2,
   statSync as statSync2,
 } from 'node:fs';
-import { homedir as homedir2 } from 'node:os';
 import nodePath7 from 'node:path';
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
+// ../../../../../../node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
   const len = text.length;
   let pos = 0,
@@ -441,7 +440,7 @@ var CharacterCodes;
   CharacterCodes2[(CharacterCodes2['tab'] = 9)] = 'tab';
 })(CharacterCodes || (CharacterCodes = {}));
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+// ../../../../../../node_modules/jsonc-parser/lib/esm/impl/string-intern.js
 var cachedSpaces = new Array(20).fill(0).map((_, index) => {
   return ' '.repeat(index);
 });
@@ -472,7 +471,7 @@ var cachedBreakLinesWithSpaces = {
 };
 var supportedEols = ['\n', '\r', '\r\n'];
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
+// ../../../../../../node_modules/jsonc-parser/lib/esm/impl/format.js
 function format(documentText, range, options) {
   let initialIndentLevel;
   let formatText;
@@ -717,7 +716,7 @@ function isEOL(text, offset) {
   return '\r\n'.indexOf(text.charAt(offset)) !== -1;
 }
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
+// ../../../../../../node_modules/jsonc-parser/lib/esm/impl/parser.js
 var ParseOptions;
 (function (ParseOptions2) {
   ParseOptions2.DEFAULT = {
@@ -1291,7 +1290,7 @@ function getNodeType(value) {
   }
 }
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
+// ../../../../../../node_modules/jsonc-parser/lib/esm/impl/edit.js
 function setProperty(text, originalPath, value, options) {
   const path = originalPath.slice();
   const errors = [];
@@ -1477,7 +1476,7 @@ function applyEdit(text, edit) {
   return text.substring(0, edit.offset) + edit.content + text.substring(edit.offset + edit.length);
 }
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
+// ../../../../../../node_modules/jsonc-parser/lib/esm/main.js
 var ScanError;
 (function (ScanError2) {
   ScanError2[(ScanError2['None'] = 0)] = 'None';
@@ -1638,7 +1637,9 @@ import {
   existsSync as existsSync3,
   lstatSync as lstatSync2,
   mkdirSync as mkdirSync3,
+  readdirSync as readdirSync2,
   readFileSync as readFileSync3,
+  rmdirSync,
   rmSync as rmSync3,
 } from 'node:fs';
 import nodePath6 from 'node:path';
@@ -3143,30 +3144,28 @@ function stable(value) {
 function historicalCatalogueDigest() {
   return sha256(JSON.stringify(CLAUDE_HISTORICAL_CATALOGUE));
 }
-function isAcceptedHistoricalFile(relativePath, content) {
-  const digest2 = sha256(content);
+function acceptedReleases() {
   return [
     CLAUDE_HISTORICAL_CATALOGUE.current,
     ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases),
-  ].some(release => release.files[relativePath] === digest2);
+  ];
+}
+function acceptedHookFingerprints(event) {
+  return acceptedReleases().flatMap(release => release.hooks[event] ?? []);
+}
+function isAcceptedHistoricalFile(relativePath, content) {
+  const digest2 = sha256(content);
+  return acceptedReleases().some(release => release.files[relativePath] === digest2);
 }
 function isAcceptedHistoricalHook(event, entry) {
   const canonical = JSON.stringify(stable(normalizeSafewordHookCommands(entry)));
   const fingerprint = sha256(canonical);
-  return [
-    CLAUDE_HISTORICAL_CATALOGUE.current,
-    ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases),
-  ].some(release => (release.hooks[event] ?? []).includes(fingerprint));
+  return acceptedHookFingerprints(event).includes(fingerprint);
 }
 function cataloguedClaudeLegacyPaths() {
-  return [
-    ...new Set(
-      [
-        CLAUDE_HISTORICAL_CATALOGUE.current,
-        ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases),
-      ].flatMap(release => Object.keys(release.files)),
-    ),
-  ].toSorted((left, right) => left.localeCompare(right));
+  return [...new Set(acceptedReleases().flatMap(release => Object.keys(release.files)))].toSorted(
+    (left, right) => left.localeCompare(right),
+  );
 }
 
 // claude-plugin/legacy-classifier.ts
@@ -3315,8 +3314,12 @@ function claimClaudeMigrationAdvisory(cwd, sessionId, stateDigest) {
 function advisoryStateDigest(advisory) {
   return digest(advisory);
 }
+function claudeConfigDirectory() {
+  const configured = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
+  return configured === '' ? nodePath4.join(homedir(), '.claude') : configured;
+}
 function claudeWatchedSettingsDigest(cwd) {
-  const configDirectory = process.env.CLAUDE_CONFIG_DIR ?? nodePath4.join(homedir(), '.claude');
+  const configDirectory = claudeConfigDirectory();
   const paths = [
     nodePath4.join(cwd, '.claude/settings.json'),
     nodePath4.join(configDirectory, 'settings.json'),
@@ -3555,9 +3558,23 @@ function entryFor(cwd, mutation) {
 function observedSha(path) {
   return existsSync3(path) ? sha2562(readFileSync3(path)) : null;
 }
-function writeImage(path, content, mode) {
+function pruneEmptyAncestors(root, path) {
+  const canonicalRoot = nodePath6.resolve(root);
+  let directory = nodePath6.dirname(nodePath6.resolve(path));
+  while (directory.startsWith(`${canonicalRoot}${nodePath6.sep}`)) {
+    try {
+      if (readdirSync2(directory).length > 0) return;
+      rmdirSync(directory);
+    } catch {
+      return;
+    }
+    directory = nodePath6.dirname(directory);
+  }
+}
+function writeImage(root, path, content, mode) {
   if (content === null) {
     rmSync3(path, { force: true });
+    pruneEmptyAncestors(root, path);
     return;
   }
   mkdirSync3(nodePath6.dirname(path), { recursive: true });
@@ -3571,7 +3588,7 @@ function applyEntries(cwd, entries, shouldDefer = () => false) {
     if (observedSha(path) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
-    writeImage(path, entry.after_base64, entry.after_mode);
+    writeImage(cwd, path, entry.after_base64, entry.after_mode);
   }
   return true;
 }
@@ -3786,6 +3803,7 @@ function applyRecoveryEntries(projectRoot, transaction, pending) {
   for (const entry of pending) {
     const path = containedPath(projectRoot, entry.path);
     writeImage(
+      projectRoot,
       path,
       forward ? entry.after_base64 : entry.before_base64,
       forward ? entry.after_mode : entry.before_mode,
@@ -4173,11 +4191,8 @@ function scopeDeclaration(path) {
   };
 }
 function incompatibleScopeOverlap(projectRoot) {
-  const configuredDirectory = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
-  const configDirectory =
-    configuredDirectory === '' ? nodePath7.join(homedir2(), '.claude') : configuredDirectory;
   const project = scopeDeclaration(nodePath7.join(projectRoot, '.claude/settings.json'));
-  const user = scopeDeclaration(nodePath7.join(configDirectory, 'settings.json'));
+  const user = scopeDeclaration(nodePath7.join(claudeConfigDirectory(), 'settings.json'));
   return (
     project.enabled &&
     user.enabled &&

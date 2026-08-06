@@ -105,8 +105,18 @@ export function advisoryStateDigest(advisory: string): string {
   return digest(advisory);
 }
 
+/**
+ * Resolves the Claude user-scope configuration directory. An empty or
+ * whitespace-only `CLAUDE_CONFIG_DIR` falls back to the default, so every
+ * caller watches and reads the same user settings file.
+ */
+export function claudeConfigDirectory(): string {
+  const configured = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
+  return configured === '' ? nodePath.join(homedir(), '.claude') : configured;
+}
+
 export function claudeWatchedSettingsDigest(cwd: string): string {
-  const configDirectory = process.env.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
+  const configDirectory = claudeConfigDirectory();
   const paths = [
     nodePath.join(cwd, '.claude/settings.json'),
     nodePath.join(configDirectory, 'settings.json'),

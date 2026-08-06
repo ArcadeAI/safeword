@@ -4978,38 +4978,32 @@ function stable2(value) {
 function historicalCatalogueDigest() {
   return sha2562(JSON.stringify(CLAUDE_HISTORICAL_CATALOGUE));
 }
-function isAcceptedHistoricalFile(relativePath, content) {
-  const digest = sha2562(content);
+function acceptedReleases() {
   return [
     CLAUDE_HISTORICAL_CATALOGUE.current,
     ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases)
-  ].some((release) => release.files[relativePath] === digest);
+  ];
+}
+function acceptedHookFingerprints(event) {
+  return acceptedReleases().flatMap((release) => release.hooks[event] ?? []);
+}
+function isAcceptedHistoricalFile(relativePath, content) {
+  const digest = sha2562(content);
+  return acceptedReleases().some((release) => release.files[relativePath] === digest);
 }
 function isAcceptedHistoricalHook(event, entry) {
   const canonical = JSON.stringify(stable2(normalizeSafewordHookCommands(entry)));
   const fingerprint = sha2562(canonical);
-  return [
-    CLAUDE_HISTORICAL_CATALOGUE.current,
-    ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases)
-  ].some((release) => (release.hooks[event] ?? []).includes(fingerprint));
+  return acceptedHookFingerprints(event).includes(fingerprint);
 }
 function acceptedHistoricalHookEntries(event) {
-  const fingerprints = new Set([
-    CLAUDE_HISTORICAL_CATALOGUE.current,
-    ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases)
-  ].flatMap((release) => release.hooks[event] ?? []));
-  return [...fingerprints].map((fingerprint) => historicalHookEntry(fingerprint));
+  return [...new Set(acceptedHookFingerprints(event))].map((fingerprint) => historicalHookEntry(fingerprint));
 }
 function historicalHookEntry(fingerprint) {
   return CLAUDE_HISTORICAL_CATALOGUE.hook_entries[fingerprint];
 }
 function cataloguedClaudeLegacyPaths() {
-  return [
-    ...new Set([
-      CLAUDE_HISTORICAL_CATALOGUE.current,
-      ...Object.values(CLAUDE_HISTORICAL_CATALOGUE.releases)
-    ].flatMap((release) => Object.keys(release.files)))
-  ].toSorted((left, right) => left.localeCompare(right));
+  return [...new Set(acceptedReleases().flatMap((release) => Object.keys(release.files)))].toSorted((left, right) => left.localeCompare(right));
 }
 var init_historical_ownership = __esm(() => {
   init_historical_catalogue_generated();
@@ -14386,6 +14380,7 @@ var init_schema = __esm(() => {
     ".safeword/retro-drafts/",
     ".safeword/self-reports/",
     ".safeword/boundary-audit.jsonl",
+    ".safeword/claude-plugin/",
     ...[".project", ".safeword-project"].flatMap((root) => NAMESPACE_TRANSIENT_BASENAMES.map((name) => `${root}/${name}`))
   ];
   NAMESPACE_GITIGNORE_PATTERNS = NAMESPACE_TRANSIENT_BASENAMES.map((name) => `/${name}`).join(`
@@ -15182,7 +15177,7 @@ var init_inventory2 = __esm(() => {
   BENIGN_CACHE_METADATA_BASENAMES = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
+// ../../../../../node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
   const len = text.length;
   let pos = 0, value = "", tokenOffset = 0, token = 16, lineNumber = 0, lineStartOffset = 0, tokenLineStartOffset = 0, prevTokenLineStartOffset = 0, scanError = 0;
@@ -15599,7 +15594,7 @@ var init_scanner = __esm(() => {
   })(CharacterCodes || (CharacterCodes = {}));
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+// ../../../../../node_modules/jsonc-parser/lib/esm/impl/string-intern.js
 var cachedSpaces, maxCachedValues = 200, cachedBreakLinesWithSpaces, supportedEols;
 var init_string_intern = __esm(() => {
   cachedSpaces = new Array(20).fill(0).map((_, index) => {
@@ -15638,7 +15633,7 @@ var init_string_intern = __esm(() => {
 `];
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
+// ../../../../../node_modules/jsonc-parser/lib/esm/impl/format.js
 function format(documentText, range, options) {
   let initialIndentLevel;
   let formatText;
@@ -15882,7 +15877,7 @@ var init_format = __esm(() => {
   init_string_intern();
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
+// ../../../../../node_modules/jsonc-parser/lib/esm/impl/parser.js
 function parse(text, errors = [], options = ParseOptions.DEFAULT) {
   let currentProperty = null;
   let currentParent = [];
@@ -16297,7 +16292,7 @@ var init_parser = __esm(() => {
   })(ParseOptions || (ParseOptions = {}));
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
+// ../../../../../node_modules/jsonc-parser/lib/esm/impl/edit.js
 function setProperty(text, originalPath, value, options) {
   const path3 = originalPath.slice();
   const errors = [];
@@ -16445,7 +16440,7 @@ var init_edit = __esm(() => {
   init_parser();
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
+// ../../../../../node_modules/jsonc-parser/lib/esm/main.js
 function modify(text, path3, value, options) {
   return setProperty(text, path3, value, options);
 }
@@ -16698,8 +16693,12 @@ function digest(value) {
 function advisoryStateDigest(advisory) {
   return digest(advisory);
 }
+function claudeConfigDirectory() {
+  const configured = (process.env.CLAUDE_CONFIG_DIR ?? "").trim();
+  return configured === "" ? nodePath24.join(homedir2(), ".claude") : configured;
+}
 function claudeWatchedSettingsDigest(cwd) {
-  const configDirectory = process.env.CLAUDE_CONFIG_DIR ?? nodePath24.join(homedir2(), ".claude");
+  const configDirectory = claudeConfigDirectory();
   const paths = [
     nodePath24.join(cwd, ".claude/settings.json"),
     nodePath24.join(configDirectory, "settings.json")
@@ -29428,7 +29427,7 @@ var init_reconciliation = __esm(() => {
   init_plan();
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/date.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/date.js
 var DATE_TIME_RE, TomlDate;
 var init_date = __esm(() => {
   /*!
@@ -29550,7 +29549,7 @@ var init_date = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/error.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/error.js
 function getLineColFromPtr(string, ptr) {
   let lines = string.slice(0, ptr).split(/\r\n|\n|\r/g);
   return [lines.length, lines.pop().length + 1];
@@ -29622,7 +29621,7 @@ ${codeblock}`, options);
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/primitive.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/primitive.js
 function parseString(str, ptr) {
   let c = str[ptr++];
   let first = c;
@@ -29807,7 +29806,7 @@ var init_primitive = __esm(() => {
   LEADING_ZERO = /^[+-]?0[0-9_]/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/util.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/util.js
 function indexOfNewline(str, start = 0, end = str.length) {
   let idx = str.indexOf(`
 `, start);
@@ -29855,8 +29854,6 @@ function skipUntil(str, ptr, sep, end, banNewLines = false) {
     let c = str[i];
     if (c === "#") {
       i = indexOfNewline(str, i);
-      if (i < 0)
-        break;
     } else if (c === sep) {
       return i + 1;
     } else if (c === end || banNewLines && (c === `
@@ -29901,7 +29898,7 @@ var init_util = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/extract.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/extract.js
 function sliceAndTrimEndOf(str, startPtr, endPtr) {
   let value = str.slice(startPtr, endPtr);
   let commentIdx = value.indexOf("#");
@@ -30002,7 +29999,7 @@ var init_extract = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/struct.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/struct.js
 function parseKey(str, ptr, end = "=") {
   let dot = ptr - 1;
   let parsed = [];
@@ -30180,7 +30177,7 @@ var init_struct = __esm(() => {
   KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/parse.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/parse.js
 function peekTable(key, table, meta, type) {
   let t = table;
   let m = meta;
@@ -30327,7 +30324,7 @@ var init_parse = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/stringify.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/stringify.js
 var init_stringify = __esm(() => {
   /*!
    * Copyright (c) Squirrel Chat et al., All rights reserved.
@@ -30358,7 +30355,7 @@ var init_stringify = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/index.js
+// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/index.js
 var init_dist3 = __esm(() => {
   init_parse();
   init_stringify();
@@ -34211,7 +34208,7 @@ function officialMarketplaceSource() {
   const ref = SAFEWORD_SCHEMA.version.includes("-") ? `v${SAFEWORD_SCHEMA.version}` : "stable";
   return `${MARKETPLACE_BASE}#${ref}`;
 }
-function claudeConfigDirectory() {
+function claudeConfigDirectory2() {
   return process.env.CLAUDE_CONFIG_DIR ?? nodePath59.join(homedir6(), ".claude");
 }
 function canonicalDirectory2(path4) {
@@ -34226,7 +34223,7 @@ function canonicalDirectory2(path4) {
   }
 }
 function scopedSettingsPath(cwd, scope) {
-  return scope === "project" ? nodePath59.join(cwd, ".claude/settings.json") : nodePath59.join(claudeConfigDirectory(), "settings.json");
+  return scope === "project" ? nodePath59.join(cwd, ".claude/settings.json") : nodePath59.join(claudeConfigDirectory2(), "settings.json");
 }
 function isJsonObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -34743,9 +34740,9 @@ var init_profile = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib/main.js
+// ../../../../../node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib/main.js
 var require_main = __commonJS((exports, module) => {
-  var __dirname = "/Users/alex/.codex/worktrees/5b09/safeword/node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib", __filename = "/Users/alex/.codex/worktrees/5b09/safeword/node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib/main.js";
+  var __dirname = "/Users/alex/Projects/safeword/node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib", __filename = "/Users/alex/Projects/safeword/node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib/main.js";
   var __defProp2 = Object.defineProperty;
   var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
   var __getOwnPropNames2 = Object.getOwnPropertyNames;
@@ -37465,7 +37462,7 @@ import { createHash as createHash12 } from "crypto";
 import { existsSync as existsSync32, readFileSync as readFileSync36, realpathSync as realpathSync4 } from "fs";
 import { homedir as homedir7 } from "os";
 import nodePath60 from "path";
-function claudeConfigDirectory2(environment = process.env) {
+function claudeConfigDirectory3(environment = process.env) {
   return environment.CLAUDE_CONFIG_DIR ?? nodePath60.join(homedir7(), ".claude");
 }
 function jsonObject(path4) {
@@ -37509,7 +37506,7 @@ function proofIsCurrent(plugin, cwd) {
     return false;
   }
   const projectDigest = createHash12("sha256").update(canonicalProjectRoot).digest("hex");
-  const proof = jsonObject(nodePath60.join(claudeConfigDirectory2(), CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory, `${projectDigest}.json`));
+  const proof = jsonObject(nodePath60.join(claudeConfigDirectory3(), CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory, `${projectDigest}.json`));
   if (identity === undefined || proof === undefined)
     return false;
   return proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalRoot);
@@ -37700,7 +37697,16 @@ __export(exports_cleanup, {
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
 import { createHash as createHash13, randomUUID as randomUUID5 } from "crypto";
-import { chmodSync as chmodSync3, existsSync as existsSync33, lstatSync as lstatSync10, mkdirSync as mkdirSync8, readFileSync as readFileSync37, rmSync as rmSync7 } from "fs";
+import {
+  chmodSync as chmodSync3,
+  existsSync as existsSync33,
+  lstatSync as lstatSync10,
+  mkdirSync as mkdirSync8,
+  readdirSync as readdirSync22,
+  readFileSync as readFileSync37,
+  rmdirSync as rmdirSync4,
+  rmSync as rmSync7
+} from "fs";
 import nodePath61 from "path";
 function sha2564(content) {
   return createHash13("sha256").update(content).digest("hex");
@@ -37810,9 +37816,24 @@ function entryFor(cwd, mutation) {
 function observedSha(path4) {
   return existsSync33(path4) ? sha2564(readFileSync37(path4)) : null;
 }
-function writeImage(path4, content, mode) {
+function pruneEmptyAncestors(root, path4) {
+  const canonicalRoot = nodePath61.resolve(root);
+  let directory = nodePath61.dirname(nodePath61.resolve(path4));
+  while (directory.startsWith(`${canonicalRoot}${nodePath61.sep}`)) {
+    try {
+      if (readdirSync22(directory).length > 0)
+        return;
+      rmdirSync4(directory);
+    } catch {
+      return;
+    }
+    directory = nodePath61.dirname(directory);
+  }
+}
+function writeImage(root, path4, content, mode) {
   if (content === null) {
     rmSync7(path4, { force: true });
+    pruneEmptyAncestors(root, path4);
     return;
   }
   mkdirSync8(nodePath61.dirname(path4), { recursive: true });
@@ -37827,7 +37848,7 @@ function applyEntries(cwd, entries, shouldDefer = () => false) {
     if (observedSha(path4) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
-    writeImage(path4, entry.after_base64, entry.after_mode);
+    writeImage(cwd, path4, entry.after_base64, entry.after_mode);
   }
   return true;
 }
@@ -38038,7 +38059,7 @@ function applyRecoveryEntries(projectRoot, transaction, pending) {
   const forward = transaction.disposition === "complete-forward";
   for (const entry of pending) {
     const path4 = containedPath2(projectRoot, entry.path);
-    writeImage(path4, forward ? entry.after_base64 : entry.before_base64, forward ? entry.after_mode : entry.before_mode);
+    writeImage(projectRoot, path4, forward ? entry.after_base64 : entry.before_base64, forward ? entry.after_mode : entry.before_mode);
   }
 }
 function completedRecoveryResult(projectRoot, transaction) {
@@ -38560,7 +38581,7 @@ function stripTomlComment(line) {
 }
 
 // src/utils/architecture-skeleton.ts
-import { readdirSync as readdirSync22 } from "fs";
+import { readdirSync as readdirSync23 } from "fs";
 import nodePath63 from "path";
 function extractSkeleton(projectDirectory, options = {}) {
   if (exists(nodePath63.join(projectDirectory, "pyproject.toml"))) {
@@ -38599,7 +38620,7 @@ function declaresWorkspaces(projectDirectory) {
 function enumerateJsSourceRoot(directory, pathFor) {
   let entries;
   try {
-    entries = readdirSync22(directory, { withFileTypes: true });
+    entries = readdirSync23(directory, { withFileTypes: true });
   } catch {
     return { nodes: [], observed: false };
   }
@@ -38618,7 +38639,7 @@ function enumerateJsSourceRoot(directory, pathFor) {
 function topLevelJsModuleNodes(projectDirectory) {
   let entries;
   try {
-    entries = readdirSync22(projectDirectory, { withFileTypes: true });
+    entries = readdirSync23(projectDirectory, { withFileTypes: true });
   } catch {
     return [];
   }
@@ -38842,7 +38863,7 @@ function goLayoutNodes(projectDirectory) {
 function rustModuleNodes(projectDirectory) {
   let entries;
   try {
-    entries = readdirSync22(nodePath63.join(projectDirectory, "src"), { withFileTypes: true });
+    entries = readdirSync23(nodePath63.join(projectDirectory, "src"), { withFileTypes: true });
   } catch {
     return [];
   }
@@ -38875,7 +38896,7 @@ function pythonModuleNodes(projectDirectory) {
 function pythonModulesFrom(directory, pathFor, keepPackageDirectory) {
   let entries;
   try {
-    entries = readdirSync22(directory, { withFileTypes: true });
+    entries = readdirSync23(directory, { withFileTypes: true });
   } catch {
     return [];
   }
@@ -39044,7 +39065,7 @@ var init_pyproject_manifest = () => {};
 
 // src/utils/architecture-fingerprint.ts
 import { createHash as createHash14 } from "crypto";
-import { readdirSync as readdirSync23, readFileSync as readFileSync39 } from "fs";
+import { readdirSync as readdirSync24, readFileSync as readFileSync39 } from "fs";
 import nodePath65 from "path";
 function collectShapeInputs(projectDirectory, skeleton) {
   return {
@@ -39127,7 +39148,7 @@ function collectSchemaFiles(projectDirectory) {
 function scanDirectoryForSchema(projectDirectory, directory, schemaFiles, pending) {
   let entries;
   try {
-    entries = readdirSync23(directory, { withFileTypes: true });
+    entries = readdirSync24(directory, { withFileTypes: true });
   } catch {
     return;
   }
@@ -40469,7 +40490,7 @@ __export(exports_learning_sync, {
   LEARNINGS_RELATIVE_PATH: () => LEARNINGS_RELATIVE_PATH,
   INDEX_FILENAME: () => INDEX_FILENAME2
 });
-import { existsSync as existsSync35, readdirSync as readdirSync24, readFileSync as readFileSync42, writeFileSync as writeFileSync15 } from "fs";
+import { existsSync as existsSync35, readdirSync as readdirSync25, readFileSync as readFileSync42, writeFileSync as writeFileSync15 } from "fs";
 import nodePath69 from "path";
 function parseLearning(filePath) {
   const content = readFileSync42(filePath, "utf8");
@@ -40497,7 +40518,7 @@ function readLearnings(learningsDirectory, relativeLabel = LEARNINGS_RELATIVE_PA
   }
   const entries = [];
   const skipped = [];
-  const fileNames = readdirSync24(learningsDirectory).filter((name) => name.endsWith(".md") && name !== INDEX_FILENAME2).toSorted((a, b) => a.localeCompare(b));
+  const fileNames = readdirSync25(learningsDirectory).filter((name) => name.endsWith(".md") && name !== INDEX_FILENAME2).toSorted((a, b) => a.localeCompare(b));
   for (const fileName of fileNames) {
     const filePath = nodePath69.join(learningsDirectory, fileName);
     const parsed2 = parseLearning(filePath);
@@ -40726,7 +40747,7 @@ var exports_codify = {};
 __export(exports_codify, {
   codifyResult: () => codifyResult
 });
-import { existsSync as existsSync36, readdirSync as readdirSync25, readFileSync as readFileSync43, writeFileSync as writeFileSync16 } from "fs";
+import { existsSync as existsSync36, readdirSync as readdirSync26, readFileSync as readFileSync43, writeFileSync as writeFileSync16 } from "fs";
 import nodePath70 from "path";
 function codifyResult(cwd, ticket, options) {
   try {
@@ -40839,7 +40860,7 @@ function resolveTicketDirectory(cwd, ticket) {
   const ticketsRoot = resolveTicketsDirectory(cwd);
   let entries;
   try {
-    entries = readdirSync25(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+    entries = readdirSync26(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   } catch {
     return;
   }
@@ -41384,7 +41405,7 @@ import {
   mkdirSync as mkdirSync11,
   mkdtempSync as mkdtempSync4,
   openSync as openSync2,
-  readdirSync as readdirSync26,
+  readdirSync as readdirSync27,
   readFileSync as readFileSync46,
   realpathSync as realpathSync6,
   rmSync as rmSync9,
@@ -41432,7 +41453,7 @@ function escapes(root, candidate) {
   return relative === ".." || relative.startsWith(`..${nodePath74.sep}`) || nodePath74.isAbsolute(relative);
 }
 function snapshotEntries(root, directory = root) {
-  return readdirSync26(directory).flatMap((name) => {
+  return readdirSync27(directory).flatMap((name) => {
     const path4 = nodePath74.join(directory, name);
     const relative = nodePath74.relative(root, path4);
     const stats = lstatSync12(path4);
@@ -42505,7 +42526,7 @@ __export(exports_self_report, {
   captureBareDrain: () => captureBareDrain,
   buildRecord: () => buildRecord
 });
-import { existsSync as existsSync39, readdirSync as readdirSync27, readFileSync as readFileSync49 } from "fs";
+import { existsSync as existsSync39, readdirSync as readdirSync28, readFileSync as readFileSync49 } from "fs";
 import nodePath78 from "path";
 function detectAgent(env = process.env) {
   const declared = env.SAFEWORD_AGENT_RUNTIME;
@@ -42656,7 +42677,7 @@ function readReports(projectDirectory) {
     return [];
   let files;
   try {
-    files = readdirSync27(dir).filter((name) => name.endsWith(".jsonl"));
+    files = readdirSync28(dir).filter((name) => name.endsWith(".jsonl"));
   } catch {
     return [];
   }
