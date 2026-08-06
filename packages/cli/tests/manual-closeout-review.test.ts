@@ -45,6 +45,8 @@ function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Bu
   };
 }
 
+type GitRunner = typeof git;
+
 function sealedCommit(): string | undefined {
   const relativeManifest = nodePath.relative(repoRoot, manifestPath);
   const result = git(['log', '-1', '--format=%H', '--', relativeManifest]);
@@ -52,10 +54,17 @@ function sealedCommit(): string | undefined {
   return result.status === 0 && commit ? commit : undefined;
 }
 
-function reviewedInput(path: string, commit: string | undefined): Buffer {
+function reviewedInput(
+  path: string,
+  commit: string | undefined,
+  gitRunner: GitRunner = git,
+): Buffer {
   if (!commit) return readFileSync(nodePath.join(repoRoot, path));
-  const result = git(['show', `${commit}:${path}`]);
-  return result.status === 0 ? result.stdout : readFileSync(nodePath.join(repoRoot, path));
+  const result = gitRunner(['show', `${commit}:${path}`]);
+  if (result.status === 0) return result.stdout;
+  throw new Error(
+    `Unable to read reviewed input ${path} from ${commit}: ${result.stderr.toString('utf8').trim()}`,
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -112,6 +121,27 @@ function reviewIssues(manifest: Manifest, manifestBytes: string, review: Review)
 }
 
 describe('hash-bound independent closeout review (93C14D)', () => {
+  it('reads a sealed generated bundle larger than the synchronous process default', () => {
+    const commit = sealedCommit();
+    expect(commit).toBeDefined();
+
+    const content = reviewedInput('plugin/runtime/cli.js', commit);
+
+    expect(content.byteLength).toBeGreaterThan(1024 * 1024);
+  });
+
+  it('rejects an unexpected git-show failure instead of reviewing working-tree bytes', () => {
+    const failedGit: GitRunner = () => ({
+      status: 128,
+      stdout: Buffer.alloc(0),
+      stderr: Buffer.from('fatal: synthetic read failure'),
+    });
+
+    expect(() => reviewedInput('plugin/runtime/cli.js', 'sealed-commit', failedGit)).toThrow(
+      'Unable to read reviewed input plugin/runtime/cli.js from sealed-commit: fatal: synthetic read failure',
+    );
+  });
+
   it('rejects multiple conflicting review result blocks', () => {
     const result = JSON.stringify({
       reviewer: { identity: 'reviewer-1', model: 'gpt-5' },

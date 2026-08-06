@@ -413,6 +413,12 @@ function projectFixtureArguments(args: string[]): string[] {
     : args;
 }
 
+interface RunCliOptions {
+  cwd?: string;
+  env?: Record<string, string>;
+  timeout?: number;
+}
+
 /**
  * Runs the CLI with the given arguments in the specified directory
  * Uses built CLI (dist/cli.js)
@@ -422,16 +428,8 @@ function projectFixtureArguments(args: string[]): string[] {
  * @param options.env
  * @param options.timeout
  */
-export async function runCli(
-  args: string[],
-  options: {
-    cwd?: string;
-    env?: Record<string, string>;
-    timeout?: number;
-  } = {},
-): Promise<CliResult> {
+async function executeCli(cliArguments: string[], options: RunCliOptions): Promise<CliResult> {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_BUN_INSTALL } = options;
-  const cliArguments = projectFixtureArguments(args);
   warnIfDistributionStale();
 
   try {
@@ -461,6 +459,18 @@ export async function runCli(
   }
 }
 
+export function runCli(args: string[], options: RunCliOptions = {}): Promise<CliResult> {
+  return executeCli(projectFixtureArguments(args), options);
+}
+
+/** Runs the exact argv supplied by a catalogue or parser contract. */
+export function runCliWithLiteralArguments(
+  args: string[],
+  options: RunCliOptions = {},
+): Promise<CliResult> {
+  return executeCli(args, options);
+}
+
 /**
  * Run the CLI while explicitly disabling dependency installation.
  *
@@ -479,8 +489,11 @@ export async function runCliWithoutInstall(
   } = {},
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
+  const hasAgentSelection = args.some(
+    argument => argument === '--agents' || argument.startsWith('--agents='),
+  );
   const fixtureArguments =
-    ['setup', 'upgrade', 'install'].includes(args[0] ?? '') && !args.includes('--agents')
+    ['setup', 'upgrade', 'install'].includes(args[0] ?? '') && !hasAgentSelection
       ? [...args, '--agents', 'none']
       : args;
   return runner(fixtureArguments, {

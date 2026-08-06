@@ -1066,6 +1066,65 @@ Given('compatibility route {string}', function (this: UnifiedInstallWorld, alias
   initializeHosts(this);
 });
 
+function assertUnifiedInstallAlias(world: UnifiedInstallWorld, alias: string): void {
+  assert.ok(alias === 'setup' || alias === 'upgrade');
+  const project = requiredPath(world.projectRoot, 'project root');
+  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  assert.equal(readFileSync(requiredPath(world.claudeState, 'Claude state'), 'utf8'), 'enabled');
+  assert.equal(readFileSync(requiredPath(world.codexState, 'Codex state'), 'utf8'), 'enabled');
+  assert.equal(directoryDigest(nodePath.join(project, '.cursor')), world.cursorBefore);
+}
+
+function assertPlanAlias(world: UnifiedInstallWorld, alias: string): void {
+  assert.equal(alias, 'diff');
+  const envelope = JSON.parse(world.result.stdout) as {
+    data?: {
+      operation?: string;
+      selected_agents?: string[];
+      plan?: { command?: string };
+    };
+  };
+  assert.equal(envelope.data?.operation, 'install');
+  assert.deepEqual(envelope.data?.selected_agents, []);
+  assert.equal(envelope.data?.plan?.command, 'install');
+  assert.equal(fixtureEffectDigest(world), world.fixtureBefore);
+}
+
+function assertProjectRemovalAlias(world: UnifiedInstallWorld, alias: string): void {
+  assert.ok(alias === 'remove' || alias === 'reset');
+  const envelope = JSON.parse(world.result.stdout) as {
+    data: {
+      plan: {
+        command: string;
+        id: string;
+        requires_confirmation: boolean;
+        effects: { destructive: unknown[] };
+      };
+    };
+    next_actions: { command: string }[];
+  };
+  assert.equal(envelope.data.plan.command, 'remove');
+  assert.equal(envelope.data.plan.requires_confirmation, true);
+  assert.match(envelope.data.plan.id, /^[a-f\d]{64}$/u);
+  assert.ok(envelope.data.plan.effects.destructive.length > 0);
+  assert.equal(
+    envelope.next_actions.some(action =>
+      action.command.startsWith('safeword remove --yes --plan '),
+    ),
+    true,
+  );
+  assert.equal(fixtureEffectDigest(world), world.fixtureBefore);
+}
+
+const compatibilityInvariantAssertions: Readonly<
+  Record<string, (world: UnifiedInstallWorld, alias: string) => void>
+> = {
+  'core Claude and Codex install while Cursor is omitted': assertUnifiedInstallAlias,
+  'core Claude and Codex converge while Cursor is omitted': assertUnifiedInstallAlias,
+  'selected effects are reported without mutation': assertPlanAlias,
+  'project-only removal requires an exact plan': assertProjectRemovalAlias,
+};
+
 When(
   'its behavior is compared with {string}',
   function (this: UnifiedInstallWorld, canonical: string) {
@@ -1092,20 +1151,9 @@ Then(
   function (this: UnifiedInstallWorld, invariant: string) {
     const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
     assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
-    if (alias === 'setup' || alias === 'upgrade') {
-      const project = requiredPath(this.projectRoot, 'project root');
-      assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
-      assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
-      assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
-      assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
-    } else {
-      const envelope = JSON.parse(this.result.stdout) as {
-        data?: { plan?: { effects?: { destructive?: unknown[] } } };
-      };
-      assert.ok(envelope.data?.plan);
-      assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
-    }
-    assert.ok(invariant.length > 0);
+    const assertInvariant = compatibilityInvariantAssertions[invariant];
+    assert.ok(assertInvariant, `Unhandled compatibility invariant: ${invariant}`);
+    assertInvariant(this, alias);
   },
 );
 
