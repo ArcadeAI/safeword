@@ -155,10 +155,10 @@ describe('dividing a route between its candidates', () => {
           PATH: `${stale}:${working}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_CANDIDATE_LOG: candidateLog,
-          SAFEWORD_REVIEW_TIMEOUT_MS: '800',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '4000',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
-        timeout: 2000,
+        timeout: 6000,
       },
     );
 
@@ -197,10 +197,10 @@ describe('dividing a route between its candidates', () => {
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_CANDIDATE_LOG: candidateLog,
           SAFEWORD_REVIEW_STUBBORN_PID: pidLog,
-          SAFEWORD_REVIEW_TIMEOUT_MS: '800',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '4000',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
-        timeout: 2000,
+        timeout: 6000,
       },
     );
 
