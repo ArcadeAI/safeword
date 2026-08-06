@@ -229,7 +229,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Publishing the receipt leaves GitHub merge eligibility unchanged
 
 - [x] RED dbbe6475b
-- [ ] GREEN
+- [x] GREEN 97e490aed
 - [ ] REFACTOR
 
 ---
