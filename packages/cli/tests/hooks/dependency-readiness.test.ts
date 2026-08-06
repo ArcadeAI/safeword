@@ -1002,6 +1002,20 @@ describe('dependency readiness hook support', () => {
       }
     });
 
+    it('ignores installs that omit dependencies or skip Yarn linking', () => {
+      for (const command of [
+        'bun install --production',
+        'bun install --omit dev',
+        'npm ci --omit=dev',
+        'npm ci --only production',
+        'pnpm install --prod',
+        'pnpm install --no-optional',
+        'yarn install --mode=update-lockfile',
+      ]) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
     it('does NOT stamp after a dry-run install (no sticky false-ready)', () => {
       makeStaleAfterNoopInstall();
 
@@ -1067,6 +1081,10 @@ describe('isDependencyReadinessRecoveryCommand', () => {
     // A recovery that never materializes node_modules is not a recovery.
     'bun install --dry-run && bun run test',
     'bun install --help && bun run test',
+    'bun install --production && bun run test',
+    'npm ci --omit=dev && npm test',
+    'pnpm install --prod && pnpm test',
+    'yarn install --mode=update-lockfile && yarn test',
     // Shell forms the tokenizer cannot resolve stay denied.
     '( bun ci || true ) && bun run test',
     '{ bun ci; } && bun run test',

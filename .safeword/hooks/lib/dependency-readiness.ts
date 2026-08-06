@@ -11,12 +11,7 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
-import {
-  commandWords,
-  hasBackgroundOperator,
-  parseShellCommandList,
-  splitShellSegments,
-} from './shell-segments.js';
+import { commandWords, parseShellCommandList, splitShellSegments } from './shell-segments.js';
 
 export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
@@ -380,10 +375,9 @@ export function isDependencyBackedCommand(command: string): boolean {
  * This preserves the pre-tool gate for `||`, `;`, and pipes, where a guarded
  * command could otherwise run after a failed or concurrent recovery (#1763).
  *
- * A background `&` breaks that guarantee from inside a segment rather than
- * between two, because it ends the `&&` list early: bash reads
- * `bun ci && start & run` as `(bun ci && start) &` followed by an unconditional,
- * concurrent `run`. The tokenizer leaves `&` in place, so reject it explicitly.
+ * A background `&` also breaks that guarantee: Bash ends the preceding list
+ * and runs it asynchronously. The shared tokenizer exposes it as its own
+ * control operator, so it cannot look like an all-`&&` recovery chain.
  *
  * Only the LEADING segment is classified. An intermediate segment that undoes
  * the recovery (`bun ci && rm -rf node_modules && bun run test`) still passes:
@@ -399,10 +393,6 @@ export function isDependencyReadinessRecoveryCommand(
   if (segments.length < 2 || first === undefined || !isRecoverySegment(first.command, status)) {
     return false;
   }
-  if (segments.some(segment => hasBackgroundOperator(segment.command))) {
-    return false;
-  }
-
   return segments.slice(0, -1).every(segment => segment.operatorAfter === '&&');
 }
 
@@ -411,12 +401,22 @@ const INSTALL_MANAGERS = new Set(['bun', 'pnpm', 'npm', 'yarn']);
 /** Subcommands that perform a dependency install (not `add`/`remove`, which change inputs). */
 const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
 /**
- * Flags that make an install update only the lockfile or report a plan WITHOUT
- * materializing `node_modules`. Stamping after these would mark deps ready while
- * `node_modules` stays stale — a sticky false-ready — so they disqualify the
- * command from post-install stamping.
+ * Flags that prevent an install from fully reconciling project dependencies.
+ * Some do not materialize `node_modules` at all; others omit dependencies or
+ * skip linking. Treating either as ready would let a recovery retry run with an
+ * incomplete tree and would let the post-tool hook stamp a sticky false-ready.
  */
-const NO_RECONCILE_FLAGS = new Set(['--dry-run', '--lockfile-only', '--package-lock-only']);
+const NON_RECONCILING_INSTALL_FLAGS = new Set([
+  '--dry-run',
+  '--lockfile-only',
+  '--package-lock-only',
+  '--production',
+  '--prod',
+  '-P',
+  '--no-dev',
+  '--no-optional',
+]);
+const NON_RECONCILING_INSTALL_OPTIONS = new Set(['--omit', '--only', '--mode']);
 /**
  * Flags that make any package manager print-and-exit instead of installing.
  * `bun install --help`, `npm ci --version`, and bare `yarn --version` all
@@ -443,8 +443,7 @@ function isInstallSegment(segment: string): boolean {
   if (binary === undefined) return false;
   const base = nodePath.basename(binary);
   if (!INSTALL_MANAGERS.has(base)) return false;
-  // A lockfile-only / dry-run install never materializes node_modules.
-  if (args.some(arg => NO_RECONCILE_FLAGS.has(arg.split('=')[0] ?? arg))) return false;
+  if (hasNonReconcilingInstallOption(args)) return false;
   // A report-only flag (--help/--version) makes the manager print and exit
   // without installing — for every manager, not just classic bare yarn.
   if (args.some(arg => REPORT_ONLY_INSTALL_FLAGS.has(arg))) return false;
@@ -453,6 +452,16 @@ function isInstallSegment(segment: string): boolean {
   // Classic `yarn` with no subcommand installs.
   if (base === 'yarn' && subcommand === undefined) return true;
   return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
+}
+
+function hasNonReconcilingInstallOption(args: string[]): boolean {
+  return args.some(arg => {
+    const [flag] = arg.split('=', 1);
+    return (
+      NON_RECONCILING_INSTALL_FLAGS.has(flag ?? arg) ||
+      NON_RECONCILING_INSTALL_OPTIONS.has(flag ?? arg)
+    );
+  });
 }
 
 /**

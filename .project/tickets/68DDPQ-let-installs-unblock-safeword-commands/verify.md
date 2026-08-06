@@ -2,39 +2,59 @@
 
 ## Verify Checklist
 
-**Test suite:** ✅ `bun run test` — 6621 passed, 7 skipped. The 7 failures in this sandbox are permission-simulation tests (`chmodSync(…, 0o555)` then assert the write fails) that cannot fail as expected under uid 0; they are unrelated to this change and pass in CI, which runs unprivileged.
-**Focused behavior tests:** ✅ `bun run test tests/hooks/dependency-readiness.test.ts tests/hooks/shell-segments.test.ts` — 141/141 passed.
-**Typecheck:** ✅ `bun run typecheck` — passed.
-**Build:** ✅ Package build completed as part of the test run.
-**Lint:** ✅ `bun run lint:eslint` — passed. `prettier --check` clean.
-**Parity:** ✅ `bun scripts/parity-check.ts` — all 241 pairs and 8 contracts in sync.
-**Plugin release contract:** ✅ `bun run check:claude-plugin` — aligned at 0.73.0.
-**Audit:** ✅ Scoped code-quality audit: 9 modules and 7 dependencies, with no dependency violations; learning, principle, and documentation trace checks produced no findings.
+**Full suite:** ✅ `bun run test` — Retro Relay: 167 passed, 1 skipped; CLI:
+6784 passed, 5 skipped. Re-ran after rebasing onto `origin/main` commit
+`7414594`.
+**Focused behavior tests:** ✅ `vitest run` over the five affected hook suites —
+294/294 passed.
+**Typecheck:** ✅ `bun run typecheck` and the full lint lane passed.
+**Build:** ✅ Both packages built during the full test run.
+**Lint:** ✅ `bun run lint` — ESLint, Gherkin lint, and CLI typecheck passed.
+**Formatting:** ✅ `bun run format:check` — clean.
+**Parity:** ✅ `bun scripts/parity-check.ts` — all 241 pairs and 8 contracts in
+sync.
+**Plugin release contract:** ✅ `bun run --cwd packages/cli check:claude-plugin`
+— aligned at 0.73.0.
+**Audit:** ✅ `bun run deps:validate` — 0 errors; the single `no-orphans`
+warning for unchanged `packages/cli/src/codex-plugin/hooks.ts` predates this
+branch.
 **Diff hygiene:** ✅ `git diff --check` — passed.
-**PR Scope:** ✅ The branch changes only the #1763 recovery classifier, the shared tokenizer helper it needs, the pre-tool gate, behavior tests, required shipped-hook mirrors, plugin integrity metadata, and ticket evidence.
-**Dependency Drift:** ✅ No package manifests or lockfiles changed.
-**Parent Epic:** ⏭️ No parent epic is associated with this task ticket.
-**Reconcile:** ✅ Canonical template, dogfood, and Claude-plugin runtime hook copies are byte-for-byte synchronized.
-**Scenarios:** ⏭️ No BDD definitions are required for this task ticket.
-**Experience:** ⏭️ Internal PreToolUse hook behavior; no interactive product surface changed.
+**PR Scope:** ✅ Changes are limited to the dependency-recovery review
+follow-ups: shared shell boundaries, install qualification, affected gate
+regressions, shipped-hook mirrors, plugin integrity metadata, and ticket
+evidence.
+**Reconcile:** ✅ Canonical template and dogfood hook copies are byte-identical;
+the generated Claude-plugin runtime has the expected plugin-CLI fallback and a
+sealed inventory around main's unchanged CLI bundle.
+**Scenarios:** ⏭️ No BDD source exists for this task ticket. Manual scenario
+review found no gaps; see `review-spec.md`.
+**Experience:** ⏭️ Internal PreToolUse hook behavior; no interactive product
+surface changed.
 
 ## Behavior covered
 
-- Allows a leading `bun ci` recovery followed by a guarded command over `&&`, for both `stale` and `missing` readiness.
-- Allows the documented `touch node_modules` recovery over `&&` **only** when readiness is `stale`.
-- Blocks the touch recovery when `node_modules` is missing, where `touch` would create an empty regular file and exit 0.
-- Blocks `||`, `;`, and pipe chains so a guarded command cannot run after a failed recovery.
-- Blocks a background `&` anywhere in the chain, which would otherwise end the `&&` list early and run the guarded command concurrently and unconditionally.
-- Keeps `2>&1`-style file-descriptor redirections allowed — they spell `&` but are not control operators.
-- Blocks a non-materializing install (`--dry-run`, `--help`) and any shell form the tokenizer cannot resolve (subshells, brace groups, `if`).
+- Allows a leading complete dependency install or stale-only documented
+  `touch node_modules` recovery before a guarded command, exclusively over
+  `&&`.
+- Rejects `||`, `;`, pipes, and unquoted background `&`, so the retry cannot
+  run after a failed or concurrent recovery.
+- Keeps file-descriptor redirections (`2>&1`, `<&3`, and `&>log`) inside their
+  command rather than mistaking them for background execution.
+- Rejects report-only, lockfile-only, dry-run, partial, and no-link install
+  forms before they can authorize a recovery or write a ready stamp.
+- Applies the shared `&` boundary to dependency readiness, process-kill,
+  ledger-write, Cursor, and architecture-stage gates.
 
 ## CI status
 
-CI was green on the pre-review head `78e05f9` (lint, dogfood parity, test on node 22 and node 24). That run predates the two critical fixes, so it is not evidence for the current head; CI re-runs on push.
+The updated follow-up commit has not been pushed yet. PR #1992's checks were
+green on parent head `30954cc`; pushing this verified commit will start a new CI
+matrix for the current draft head.
 
 ## Review status
 
-An independent adversarial re-review overturned the first APPROVE and found two
-critical defects, both now fixed with regression pins. See `quality-review.md`.
-The ticket stays **in progress** in the verify phase until CI is green on the
-current head; it has not been marked done.
+All four PR comments were read. GitHub reports zero submitted reviews and zero
+unresolved review threads. The quality-review coordinator completed after the
+source review; no critical or suggested changes remain. The ticket stays **in
+progress** in the verify phase and issue #1763 stays open pending the new CI
+result.

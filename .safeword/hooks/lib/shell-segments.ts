@@ -6,7 +6,7 @@
 // tests/hooks/shell-segments.test.ts as well as by each gate's own tests.
 //
 // This is NOT a shell parser. It splits a command string on unquoted segment
-// boundaries (`;`, newline, `&&`, `||`, single `|`) and whitespace-splits
+// boundaries (`;`, newline, `&`, `&&`, `||`, single `|`) and whitespace-splits
 // each segment honoring quotes and backslash escapes. Backslash is literal
 // inside single quotes (POSIX); `>|` is a clobbering redirection operator,
 // not a pipe boundary. Expansions, substitutions, and redirections are left
@@ -14,7 +14,7 @@
 
 import nodePath from 'node:path';
 
-export type ShellControlOperator = '&&' | '||' | ';' | '|' | '|&';
+export type ShellControlOperator = '&' | '&&' | '||' | ';' | '|' | '|&';
 
 export interface ShellCommandSegment {
   command: string;
@@ -73,6 +73,14 @@ export function parseShellCommandList(command: string): ShellCommandSegment[] {
       index += 1;
       continue;
     }
+    // A single `&` backgrounds the preceding pipeline. Keep file-descriptor
+    // redirections (`2>&1`, `<&3`, `&>log`) intact: their ampersand touches
+    // `<`/`>` or introduces `>`.
+    if (char === '&' && command[index - 1] !== '>' && command[index - 1] !== '<' && next !== '>') {
+      pushCommandSegment(segments, current, '&');
+      current = '';
+      continue;
+    }
     // A single `|` is a pipe boundary, and so is `|&` (bash's stdout+stderr
     // pipe) — consume its trailing `&` so it doesn't become the next segment's
     // phantom command word. `>|` / `>|&` are clobber redirections, not pipes.
@@ -92,51 +100,6 @@ export function parseShellCommandList(command: string): ShellCommandSegment[] {
 
 export function splitShellSegments(command: string): string[] {
   return parseShellCommandList(command).map(segment => segment.command);
-}
-
-/**
- * Whether a segment carries an unquoted background `&`. A single `&` is a
- * control operator that `parseShellCommandList` deliberately does not split on,
- * so it survives inside a segment: `bun ci && start & run` yields two segments
- * joined by `&&` even though bash backgrounds `bun ci && start` and then runs
- * `run` immediately and unconditionally. A caller that reads `&&` as "the next
- * segment only runs on success" must reject a segment that answers true here,
- * or that guarantee is silently void.
- *
- * File-descriptor redirections also spell `&` (`2>&1`, `<&3`, `&>log`); those
- * are not control operators and do not count.
- */
-export function hasBackgroundOperator(segment: string): boolean {
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-
-  for (let index = 0; index < segment.length; index += 1) {
-    const char = segment[index];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    // Backslash is literal inside single quotes (POSIX), an escape elsewhere.
-    if (char === '\\' && quote !== "'") {
-      escaped = true;
-      continue;
-    }
-    if (quote !== undefined) {
-      if (char === quote) quote = undefined;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char !== '&') continue;
-    if (segment[index - 1] === '>' || segment[index - 1] === '<' || segment[index + 1] === '>') {
-      continue;
-    }
-    return true;
-  }
-
-  return false;
 }
 
 function pushCommandSegment(

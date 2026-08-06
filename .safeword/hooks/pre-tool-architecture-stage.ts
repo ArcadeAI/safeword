@@ -130,6 +130,7 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
   const precedingAdds: GitInvocation[] = [];
   let directory = baseDirectory;
   for (const segment of parseShellCommandList(command)) {
+    if (segment.operatorAfter === '&') return undefined;
     const words = parseShellWords(segment.command);
     const commandIndex = commandWordIndex(words);
     const commandWords = words.slice(commandIndex);
@@ -177,10 +178,16 @@ function unsupportedCommitPlan(command: string, baseDirectory: string): GitCommi
 
   let directory = baseDirectory;
   let listStatus: boolean | undefined;
-  let operatorBefore: '&&' | '||' | ';' | undefined;
+  let operatorBefore: '&&' | '||' | ';' | '&' | undefined;
   let dominatingAdds: GitInvocation[] = [];
   for (const segment of parseShellCommandList(command)) {
-    if (segment.operatorAfter === '|' || segment.operatorAfter === '|&') return undefined;
+    if (
+      segment.operatorAfter === '|' ||
+      segment.operatorAfter === '|&' ||
+      segment.operatorAfter === '&'
+    ) {
+      return undefined;
+    }
 
     const words = parseShellWords(segment.command);
     const commandIndex = commandWordIndex(words);

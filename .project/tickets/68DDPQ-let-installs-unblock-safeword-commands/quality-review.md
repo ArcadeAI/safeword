@@ -63,6 +63,43 @@ reproduced against the real hook process before being fixed.
 **Verdict:** APPROVE with changes applied — two critical defects found and fixed
 in this branch, with regression pins for each.
 
+## Round 3 — 2026-08-06, PR-comment follow-up
+
+- **Comments:** ✅ Read all four top-level PR #1992 comments; GitHub reports
+  zero submitted reviews and zero unresolved review threads. The two earlier
+  critical defects remain fixed on the updated PR head.
+- **Shell semantics:** ✅ The [GNU Bash manual](https://www.gnu.org/software/bash/manual/html_node/Lists.html)
+  confirms that unquoted `&` is a list operator. The shared tokenizer now
+  emits it as a boundary for every consumer, while retaining literal
+  file-descriptor redirections (`2>&1`, `<&3`, `&>log`) as one command.
+- **Cross-gate safety:** ✅ Process-kill, Bash-ledger, Cursor routing, and
+  architecture-stage paths now receive the same boundary. Their regressions
+  demonstrate that a following guarded action is no longer hidden behind a
+  backgrounded command.
+- **Install semantics:** ✅ The [Bun](https://bun.sh/docs/pm/cli/install),
+  [npm](https://docs.npmjs.com/cli/using-npm/config/),
+  [pnpm](https://pnpm.io/cli/install), and
+  [Yarn](https://yarnpkg.com/cli/install) references support rejecting known
+  partial, no-link, and report-only forms. The common classifier now rejects
+  `--production`/`--prod`, `--omit`, `--only`, `--mode`, `--no-dev`,
+  `--no-optional`, lockfile-only, dry-run, help, and version forms before they
+  can authorize a recovery or write a ready stamp.
+- **Prior wording:** Corrected the Round 2 claim that these deferred concerns
+  had been filed separately. They had not been filed; this branch resolves
+  them directly.
+- **Scope:** ✅ The fix stays inside the shared tokenizer and the existing
+  readiness classifier. It deliberately does not simulate environment-driven
+  package-manager configuration or arbitrary Bash evaluation; the guard
+  remains a fast, literal, fail-closed check.
+- **Scenarios:** ✅ This task ticket has no BDD feature or test-definition
+  artifact, so scenario review is not applicable. Real hook-process and unit
+  regressions cover the observable contract instead; see `review-spec.md`.
+
+**Verdict:** APPROVE — no remaining critical or suggested changes.
+
+**Next:** Push the review follow-up commit so CI can validate the updated draft
+PR.
+
 ## Method
 
 Round 2 used an independent reviewer with no stake in the original design,

@@ -171,7 +171,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "10e0e007395432d608c48dc5a7bdb4a97965ecbb8b9c92f528b57cb9db51eacd"
+      "sha256": "52422979a303cf8079d380ca156f7c06cb6e5485a538d0c9b897f18eecc07994"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "c62b74556b5a511db8c44b34bf5badd725b5c49200d62c951aa893ca6c137f32"
+      "sha256": "2578c58d6ee7bbaf354f69a8690854bbc54ed80bd60308312083108bfc07b476"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",
@@ -283,7 +283,7 @@
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
-      "sha256": "711f6e78f249fa352b5614234c83daa8fd8906d6a2e38a99bfe3b6b761a9abf9"
+      "sha256": "e7bf036f0f1971da1c51afc996f75e2941ee0d024d9a5b208e6f96709ed1c193"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -363,7 +363,7 @@
     },
     {
       "path": "runtime/hooks/lib/shell-segments.ts",
-      "sha256": "3fe3108f48400aca11374ed20a87758d83ada51211bc1b4cf11cb1a6d7254b55"
+      "sha256": "25cdd693bce7ba599f2a45c3a42826308398626e8d6d6a1aecde823847b3ffd9"
     },
     {
       "path": "runtime/hooks/lib/skill-invocation-log.ts",
@@ -423,7 +423,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "29d6d9e22a9966cad5463de751b8e5cea848ba711285b0ee6e52d5ed4dfb1d10"
+      "sha256": "45dc0583e0dd6b9e0d3c42cd623998bac048bfa5ee37c3383ca16fa448de17b5"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
