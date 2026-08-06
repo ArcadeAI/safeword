@@ -53,6 +53,13 @@ interface AdvisoryReviewWorld {
   inputTokens?: number;
   evidenceState?: string;
   existingReviewedSha?: string;
+  forkArtifacts?: string[];
+  inspectionAudit?: {
+    checkout: boolean;
+    customerCodeExecution: boolean;
+    githubPermissions: { contents: string; pullRequests: string };
+    githubWriteCredential: boolean;
+  };
   maxTotalBytes?: number;
   nonConsequentialFinding?: {
     consequence: string;
@@ -66,8 +73,14 @@ interface AdvisoryReviewWorld {
   prerequisitesConfigured?: boolean;
   protectedCommentBefore?: string;
   protectedCommentId?: number;
+  publicationAudit?: {
+    executableArtifacts: string[];
+    forkCodeInputs: string[];
+    soleInput: string;
+  };
   renderedReceipt?: string;
   receiptRunState?: 'complete' | 'failed' | 'incomplete' | 'stale';
+  reviewedForkArtifacts?: string[];
   requiredPrerequisites?: string[];
   currentHead?: string;
   missingPrerequisite?: string;
@@ -437,6 +450,18 @@ Given(
     };
   },
 );
+
+Given('a ready pull request comes from an untrusted fork', function (this: AdvisoryReviewWorld) {
+  this.forkArtifacts = ['src/fork-auth.ts', 'config/unfamiliar.policy'];
+});
+
+Given('model inspection has no GitHub write credential', function (this: AdvisoryReviewWorld) {
+  this.inspectionAudit = undefined;
+});
+
+Given('publication has only serialized advisory evidence', function (this: AdvisoryReviewWorld) {
+  this.publicationAudit = undefined;
+});
 
 Given('a canonical bot-authored marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
   this.commentMutations = [];
@@ -932,6 +957,40 @@ When('Safeword publishes the result', async function (this: AdvisoryReviewWorld)
   );
 });
 
+When('Safeword reviews and publishes the result', async function (this: AdvisoryReviewWorld) {
+  const reviewModule =
+    (await import('../packages/cli/src/pr-review/review.ts')) as unknown as Record<string, unknown>;
+  const candidate = reviewModule.runSplitPrivilegeReview;
+  assert.equal(typeof candidate, 'function', 'split-privilege review entry point is missing');
+  const runSplitPrivilegeReview = candidate as (input: {
+    artifacts: string[];
+    inspect(request: {
+      artifacts: string[];
+      authority: AdvisoryReviewWorld['inspectionAudit'];
+    }): Promise<{ reviewedArtifacts: string[] }>;
+    publish(serializedEvidence: string): Promise<{ artifacts: string[] }>;
+  }) => Promise<{
+    inspectionAudit: NonNullable<AdvisoryReviewWorld['inspectionAudit']>;
+    publicationAudit: NonNullable<AdvisoryReviewWorld['publicationAudit']>;
+    receipt: { artifacts: string[] };
+  }>;
+
+  const result = await runSplitPrivilegeReview({
+    artifacts: this.forkArtifacts ?? [],
+    inspect: async request => {
+      this.inspectionAudit = request.authority;
+      return { reviewedArtifacts: request.artifacts };
+    },
+    publish: async serializedEvidence => {
+      const evidence = JSON.parse(serializedEvidence) as { reviewedArtifacts: string[] };
+      return { artifacts: evidence.reviewedArtifacts };
+    },
+  });
+  this.inspectionAudit = result.inspectionAudit;
+  this.publicationAudit = result.publicationAudit;
+  this.reviewedForkArtifacts = result.receipt.artifacts;
+});
+
 Then(
   "the publication audit records revision A's `stale` write before any fresh route for revision B",
   function (this: AdvisoryReviewWorld) {
@@ -1074,6 +1133,38 @@ Then(
       this.receiptComments?.[0]?.body ?? '',
       /Finding \(non-consequential\): src\/auth\.ts:12/,
     );
+  },
+);
+
+Then('the receipt lists the reviewed fork artifacts', function (this: AdvisoryReviewWorld) {
+  assert.deepEqual(this.reviewedForkArtifacts, this.forkArtifacts);
+});
+
+Then(
+  'the inspection audit records read-only GitHub permissions with no checkout or execution step',
+  function (this: AdvisoryReviewWorld) {
+    assert.deepEqual(this.inspectionAudit?.githubPermissions, {
+      contents: 'read',
+      pullRequests: 'read',
+    });
+    assert.equal(this.inspectionAudit?.githubWriteCredential, false);
+    assert.equal(this.inspectionAudit?.checkout, false);
+    assert.equal(this.inspectionAudit?.customerCodeExecution, false);
+  },
+);
+
+Then(
+  "the publication audit records serialized advisory evidence as the write-capable job's sole input",
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.publicationAudit?.soleInput, 'serialized_advisory_evidence');
+  },
+);
+
+Then(
+  'it records no fork code or executable artifact entering that job',
+  function (this: AdvisoryReviewWorld) {
+    assert.deepEqual(this.publicationAudit?.forkCodeInputs, []);
+    assert.deepEqual(this.publicationAudit?.executableArtifacts, []);
   },
 );
 
