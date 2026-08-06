@@ -27,7 +27,7 @@ export interface IssueCommentPublisher {
 }
 
 export interface ReceiptView {
-  checks: { name: string; status: 'failed' | 'pending' | 'success' | 'unknown' }[];
+  checks: { name: string; status?: 'failed' | 'pending' | 'success' | 'unknown' }[];
   findingCounts: { consequential: number; nonConsequential: number };
   reviewedSha: string;
   reviewers: string[];
@@ -46,7 +46,7 @@ function listOrNone(values: readonly string[]): string {
 }
 
 export function renderReceipt(receipt: ReceiptView): string {
-  const checks = receipt.checks.map(check => `${check.name}: ${check.status}`);
+  const checks = receipt.checks.map(check => `${check.name}: ${check.status ?? 'unknown'}`);
   const inputTokens = receipt.tokenUsage.input ?? 'unknown';
   const outputTokens = receipt.tokenUsage.output ?? 'unknown';
 
