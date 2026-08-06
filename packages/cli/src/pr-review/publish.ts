@@ -26,6 +26,10 @@ export interface IssueCommentPublisher {
   updateComment(id: number, body: string): Promise<void>;
 }
 
+export interface IssueCommentPublicationAudit {
+  calls: ['issue_comment'];
+}
+
 export interface ReceiptView {
   checks: { name: string; status?: 'failed' | 'pending' | 'success' | 'unknown' }[];
   findingCounts: { consequential: number; nonConsequential: number };
@@ -109,7 +113,7 @@ export function planReceiptPublication(
 export async function publishReceipt(
   publisher: IssueCommentPublisher,
   renderedReceipt: string,
-): Promise<void> {
+): Promise<IssueCommentPublicationAudit> {
   const comments = await publisher.listComments();
   const plan = planReceiptPublication(
     comments.map(comment => ({
@@ -127,4 +131,6 @@ export async function publishReceipt(
   for (const duplicateCommentId of plan.duplicateCommentIds) {
     await publisher.deleteComment(duplicateCommentId);
   }
+
+  return { calls: ['issue_comment'] };
 }
