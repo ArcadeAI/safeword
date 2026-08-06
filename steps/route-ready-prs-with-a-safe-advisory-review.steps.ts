@@ -54,6 +54,13 @@ interface AdvisoryReviewWorld {
   evidenceState?: string;
   existingReviewedSha?: string;
   maxTotalBytes?: number;
+  nonConsequentialFinding?: {
+    consequence: string;
+    evidence: string;
+    line: number;
+    nextAction: string;
+    path: string;
+  };
   receiptBeforeTrigger?: string;
   prerequisiteSamples?: number;
   prerequisitesConfigured?: boolean;
@@ -413,6 +420,21 @@ Given(
   function (this: AdvisoryReviewWorld) {
     this.currentHead = 'revision A';
     this.receiptComments = [];
+  },
+);
+
+Given(
+  /^a complete current review has one non-consequential finding at `src\/auth\.ts:12`$/,
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.receiptComments = [];
+    this.nonConsequentialFinding = {
+      consequence: 'The code is harder to maintain.',
+      evidence: 'The changed branch duplicates existing parsing logic.',
+      line: 12,
+      nextAction: 'Consider reusing the existing parser.',
+      path: 'src/auth.ts',
+    };
   },
 );
 
@@ -870,7 +892,13 @@ When('Safeword renders the ordinary-comment receipt', function (this: AdvisoryRe
 When('Safeword publishes the result', async function (this: AdvisoryReviewWorld) {
   const receipt = {
     checks: [],
-    findingCounts: { consequential: 0, nonConsequential: 0 },
+    findingCounts: {
+      consequential: 0,
+      nonConsequential: this.nonConsequentialFinding ? 1 : 0,
+    },
+    findings: this.nonConsequentialFinding
+      ? [{ ...this.nonConsequentialFinding, consequential: false }]
+      : [],
     reviewedSha: this.currentHead ?? '',
     reviewers: ['openai'],
     route: 'looks_ready',
@@ -1032,6 +1060,20 @@ Then(
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.receiptComments?.length, 1);
     assert.doesNotMatch(this.receiptComments?.[0]?.body ?? '', /safe to merge/iu);
+  },
+);
+
+Then('the current receipt reports `looks ready`', function (this: AdvisoryReviewWorld) {
+  assert.match(this.receiptComments?.[0]?.body ?? '', /Route: looks ready/);
+});
+
+Then(
+  /^it lists the finding as non-consequential at `src\/auth\.ts:12`$/,
+  function (this: AdvisoryReviewWorld) {
+    assert.match(
+      this.receiptComments?.[0]?.body ?? '',
+      /Finding \(non-consequential\): src\/auth\.ts:12/,
+    );
   },
 );
 
