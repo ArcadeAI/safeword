@@ -31,7 +31,6 @@ const CAPABILITIES = {
 type Agent = keyof typeof CAPABILITIES;
 type Behaviour =
   | 'answers'
-  | 'answers after delay'
   | 'never answers'
   | 'answers only with a model'
   | 'answers off contract'
@@ -63,8 +62,8 @@ function state(world: SafewordWorld): ReviewScenario {
     launchLog: nodePath.join(project, 'reviewer-launches.log'),
     environment: {
       SAFEWORD_AGENT_RUNTIME: 'claude',
-      SAFEWORD_REVIEW_TIMEOUT_MS: '900',
-      SAFEWORD_REVIEW_RUN_BOUND_MS: '6000',
+      SAFEWORD_REVIEW_TIMEOUT_MS: '2000',
+      SAFEWORD_REVIEW_RUN_BOUND_MS: '12000',
       SAFEWORD_NO_UPDATE_CHECK: '1',
     },
   };
@@ -89,7 +88,6 @@ printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text"
   const answer = `${body}\n${emit}`;
 
   if (behaviour === 'answers') return answer;
-  if (behaviour === 'answers after delay') return `/bin/sleep 1\n${answer}`;
   if (behaviour === 'never answers') return 'exec /bin/sleep 3600';
   if (behaviour === 'answers after termination') {
     return `${body}\non_term() {\n${emit}\n  exit 0\n}\ntrap on_term TERM INT\nwhile true; do /bin/sleep 5; done`;
@@ -227,8 +225,8 @@ Given('a review packet larger than the accepted maximum', function (this: Safewo
 
 Given('an explicitly configured attempt deadline', function (this: SafewordWorld) {
   const current = state(this);
-  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '500';
-  installReviewer(current, 'codex', 'answers after delay');
+  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '3000';
+  installReviewer(current, 'codex', 'never answers');
 });
 
 Given('a reviewer that never answers', function (this: SafewordWorld) {

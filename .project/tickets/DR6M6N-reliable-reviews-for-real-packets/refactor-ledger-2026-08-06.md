@@ -32,6 +32,11 @@ against current `main`.
   author-fallback steps previously inferred behavior from broad result fields.
   Reviewer launch logs now prove whether a process started, which route order ran,
   and that a shortened public deadline changes the outcome.
+- **Loaded cleanup margin:** the original 25-millisecond POSIX grace periods
+  could classify an ordinary process exit as abandoned under full-suite load.
+  Raised each TERM/KILL observation window to 250 milliseconds; the bound stays
+  below Windows' one-second tree cleanup while preserving the explicit abandoned
+  outcome when a group truly survives.
 
 ## Deliberately retained
 

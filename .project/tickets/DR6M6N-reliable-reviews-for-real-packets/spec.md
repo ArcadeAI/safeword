@@ -68,8 +68,8 @@ Unaffected:
   skipped or failed candidate leaves unused returns to the route, so the next
   candidate's share is recalculated from the time that actually remains.
 - **Cleanup budget** — the time allowed to stop a reviewer and its descendants
-  after an attempt ends: on POSIX, **25 milliseconds** after `SIGTERM` and up to
-  another **25 milliseconds** after `SIGKILL`; on Windows, **1 second** for
+  after an attempt ends: on POSIX, **250 milliseconds** after `SIGTERM` and up to
+  another **250 milliseconds** after `SIGKILL`; on Windows, **1 second** for
   `taskkill`. The run then continues regardless. Reviewers are launched in their
   own process group so descendants are included.
 - **Run bound** — **540 seconds**, and never more: the point after which no reviewer work is

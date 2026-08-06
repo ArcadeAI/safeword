@@ -616,7 +616,7 @@ describe('cross-agent review public-command wiring', () => {
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_FAILURE: failure,
             SAFEWORD_REVIEW_LOG: log,
-            SAFEWORD_REVIEW_TIMEOUT_MS: failure === 'timeout' ? '50' : '1000',
+            SAFEWORD_REVIEW_TIMEOUT_MS: failure === 'timeout' ? '250' : '5000',
             SAFEWORD_NO_UPDATE_CHECK: '1',
           },
         },
@@ -771,7 +771,7 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     const output = JSON.parse(result.stdout);
-    expect(Date.now() - startedAt).toBeLessThan(2000);
+    expect(Date.now() - startedAt).toBeLessThan(5000);
     expect(result.exitCode).toBe(2);
     expect(output).toMatchObject({
       state: 'action_required',

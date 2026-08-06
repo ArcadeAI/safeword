@@ -36136,7 +36136,7 @@ async function supportsReviewContract(reviewer, executable, cwd, timeoutMs) {
       finish(code === 0 && REQUIRED_CAPABILITIES[reviewer].every((flag) => advertisedFlags.has(flag)));
     });
   });
-  await stopReviewer(child);
+  await stopReviewerOrThrow(child, reviewer);
   child.stdout.destroy();
   child.stderr.destroy();
   child.unref();
@@ -36154,15 +36154,17 @@ function classifyExit(stderr, otherwise) {
   return /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr) ? "not_authenticated" : otherwise;
 }
 function stopWindowsReviewer(child, pid) {
+  if (child.exitCode !== null)
+    return Promise.resolve(true);
   return new Promise((resolve) => {
     let settled = false;
-    const finish = () => {
+    const finish = (stopped) => {
       if (settled)
         return;
       settled = true;
       clearTimeout(timeout);
       child.kill("SIGKILL");
-      resolve();
+      resolve(stopped);
     };
     const killer = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
@@ -36170,10 +36172,14 @@ function stopWindowsReviewer(child, pid) {
     });
     const timeout = setTimeout(() => {
       killer.kill("SIGKILL");
-      finish();
+      finish(false);
     }, WINDOWS_CLEANUP_BUDGET_MS);
-    killer.on("error", finish);
-    killer.on("close", finish);
+    killer.on("error", () => {
+      finish(false);
+    });
+    killer.on("close", (code) => {
+      finish(code === 0);
+    });
   });
 }
 function stopReviewer(child) {
@@ -36184,13 +36190,17 @@ function stopReviewer(child) {
   reviewerStops.set(child, stopping);
   return stopping;
 }
+async function stopReviewerOrThrow(child, reviewer) {
+  if (await stopReviewer(child))
+    return;
+  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`);
+}
 async function stopReviewerOnce(child) {
   const pid = child.pid;
   if (pid === undefined)
-    return;
+    return true;
   if (process.platform === "win32") {
-    await stopWindowsReviewer(child, pid);
-    return;
+    return stopWindowsReviewer(child, pid);
   }
   const signalGroup = (signal) => {
     try {
@@ -36217,6 +36227,7 @@ async function stopReviewerOnce(child) {
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
   }
+  return !groupExists();
 }
 async function runCandidate(executable, attempt, timeoutMs) {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
@@ -36292,7 +36303,7 @@ async function runCandidate(executable, attempt, timeoutMs) {
       child.stdin.end(reviewPrompt(reviewer, packet));
     });
   } finally {
-    await stopReviewer(child);
+    await stopReviewerOrThrow(child, reviewer);
   }
 }
 async function runReviewerCandidates(attempt, candidates, deadline) {

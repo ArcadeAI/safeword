@@ -437,7 +437,7 @@ function appendBounded(
  * forced. This remains small because cleanup is part of the candidate's bounded
  * turn, not background work that may overlap the next route.
  */
-const CLEANUP_BUDGET_MS = 25;
+const CLEANUP_BUDGET_MS = 250;
 const WINDOWS_CLEANUP_BUDGET_MS = 1000;
 
 /**
