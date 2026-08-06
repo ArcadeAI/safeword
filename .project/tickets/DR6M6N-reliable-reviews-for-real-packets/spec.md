@@ -213,8 +213,10 @@ Raised by the independent scenario review as test-design requirements rather
 than behaviours. They bind the proofs, not the spec, so they are recorded here
 and honoured in plan-implementation:
 
-- Every timing boundary (attempt budget, probe, cleanup, run bound) is proved on
-  a controlled clock, never on real elapsed wall-clock time.
+- Deadline arithmetic (attempt budget, candidate share, and run bound) is proved
+  as pure values at its boundaries. Process effects use shortened configured
+  deadlines against real child processes, poll for the observable outcome, and
+  make no production-duration claim from elapsed test time.
 - Process-liveness assertions use stable process-group handles, not raw PIDs,
   so PID reuse cannot make a leak look clean.
 - The size fixture asserts exact byte counts against the same serialized packet
