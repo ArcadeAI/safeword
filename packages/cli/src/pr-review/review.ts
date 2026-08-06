@@ -1,4 +1,7 @@
-export { runSplitPrivilegeReview } from './split-privilege.js';
+export {
+  publishValidatedSplitPrivilegeEvidence,
+  runSplitPrivilegeReview,
+} from './split-privilege.js';
 
 export interface PullRequestReviewState {
   headSha: string;
