@@ -208,7 +208,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: An untrusted fork is reviewed as data without execution
 
-- [ ] RED
+- [x] RED 358951843
 - [ ] GREEN
 - [ ] REFACTOR
 
