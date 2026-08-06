@@ -107,7 +107,8 @@ describe('review-pr inspect command wiring', () => {
       expect(result).toMatchObject({ route: 'needs_human', runState: 'incomplete' });
       expect(result).toMatchObject({ unknowns: ['credential-like value redacted'] });
     } finally {
-      process.env.OPENAI_API_KEY = originalApiKey;
+      if (originalApiKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalApiKey;
     }
   });
 

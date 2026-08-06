@@ -31,10 +31,14 @@ describe('advisory PR review workflow contract', () => {
         'event-review': {
           permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
           uses: './.github/workflows/safeword-pr-review-worker.yml',
+          with: {
+            inspect_requested: "${{ github.event.action != 'converted_to_draft' }}",
+          },
         },
         'scheduled-review': {
           permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
           uses: './.github/workflows/safeword-pr-review-worker.yml',
+          with: { inspect_requested: true },
         },
       },
     });
@@ -44,6 +48,7 @@ describe('advisory PR review workflow contract', () => {
           inputs: {
             pull_number: { required: true, type: 'number' },
             cancel_in_progress: { required: true, type: 'boolean' },
+            inspect_requested: { required: true, type: 'boolean' },
           },
         },
       },
@@ -54,6 +59,7 @@ describe('advisory PR review workflow contract', () => {
       jobs: {
         inspect: {
           environment: { name: 'safeword-pr-review-model', deployment: false },
+          if: '${{ inputs.inspect_requested }}',
           permissions: { contents: 'read', 'pull-requests': 'read' },
         },
         publish: {

@@ -9,6 +9,9 @@ on:
       cancel_in_progress:
         required: true
         type: boolean
+      inspect_requested:
+        required: true
+        type: boolean
 
 concurrency:
   group: pr-review-${{ inputs.pull_number }}
@@ -29,6 +32,7 @@ jobs:
 
   inspect:
     needs: invalidate
+    if: ${{ inputs.inspect_requested }}
     runs-on: ubuntu-latest
     environment:
       name: safeword-pr-review-model

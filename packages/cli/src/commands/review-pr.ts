@@ -108,6 +108,33 @@ function parseReviewedReceipt(value: unknown): PublishedReceipt {
   return value as unknown as PublishedReceipt;
 }
 
+function credentialValues(environment: NodeJS.ProcessEnv): string[] {
+  return Object.entries(environment)
+    .flatMap(([name, value]) =>
+      /(?:^|_)(?:KEY|SECRET|TOKEN)$/iu.test(name) && typeof value === 'string' && value.length >= 8
+        ? [value]
+        : [],
+    )
+    .toSorted((left, right) => right.length - left.length);
+}
+
+function redactCredentials(
+  value: string,
+  credentials: readonly string[],
+): {
+  redacted: boolean;
+  value: string;
+} {
+  let redacted = false;
+  let sanitized = value;
+  for (const credential of credentials) {
+    if (!sanitized.includes(credential)) continue;
+    redacted = true;
+    sanitized = sanitized.split(credential).join('[REDACTED]');
+  }
+  return { redacted, value: sanitized };
+}
+
 const productionProvider: InspectionProvider = options => {
   if (!options.apiKey) throw new Error('review-pr: OPENAI_API_KEY is required for inspection');
   return reviewWithOpenAI({ ...options, apiKey: options.apiKey });
@@ -123,24 +150,41 @@ export async function inspectPullRequestCommand(
     evidence: input.artifacts,
     model: config.model,
   });
+  const credentials = credentialValues(process.env);
+  let credentialRedacted = false;
+  const receiptArtifacts = input.artifacts.map(artifact => {
+    const sanitizedPath = redactCredentials(artifact.path, credentials);
+    credentialRedacted ||= sanitizedPath.redacted;
+    return { ...artifact, path: sanitizedPath.value };
+  });
+  const receiptFindings = findings.map(finding => {
+    const sanitizedPath = redactCredentials(finding.path, credentials);
+    const sanitizedConsequence = redactCredentials(finding.consequence, credentials);
+    credentialRedacted ||= sanitizedPath.redacted || sanitizedConsequence.redacted;
+    return {
+      ...finding,
+      consequence: sanitizedConsequence.value,
+      path: sanitizedPath.value,
+    };
+  });
   let published: PublishedReceipt | undefined;
 
   await reviewPullRequest({
     inspect: () =>
       Promise.resolve({
-        artifacts: input.artifacts.map(artifact => ({
+        artifacts: receiptArtifacts.map(artifact => ({
           byteLength: Buffer.byteLength(artifact.content, 'utf8'),
           kind: 'text' as const,
           path: artifact.path,
         })),
-        consequentialFindings: findings.filter(finding => finding.consequential).length,
-        findings: findings.map(finding => ({
+        consequentialFindings: receiptFindings.filter(finding => finding.consequential).length,
+        findings: receiptFindings.map(finding => ({
           consequence: finding.consequence,
           path: finding.path,
         })),
         maxTotalBytes: config.maxTotalBytes,
-        runState: 'complete',
-        unknowns: [],
+        runState: credentialRedacted ? 'incomplete' : 'complete',
+        unknowns: credentialRedacted ? ['credential-like value redacted'] : [],
       }),
     publish: receipt => {
       published = receipt;

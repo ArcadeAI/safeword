@@ -19,6 +19,7 @@ jobs:
     with:
       pull_number: ${{ github.event.pull_request.number }}
       cancel_in_progress: ${{ github.event.action == 'converted_to_draft' }}
+      inspect_requested: ${{ github.event.action != 'converted_to_draft' }}
 
   discover-ready-pull-requests:
     if: github.event_name == 'schedule'
@@ -47,3 +48,4 @@ jobs:
     with:
       pull_number: ${{ matrix.pull_number }}
       cancel_in_progress: false
+      inspect_requested: true

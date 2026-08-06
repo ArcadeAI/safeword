@@ -575,11 +575,33 @@ async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<Cl
     });
   }
   const { inspectPullRequestCommand } = await import('../commands/review-pr.js');
-  const receipt = await inspectPullRequestCommand({
-    cwd: invocation.cwd,
-    inputPath,
-    outputPath,
-  });
+  let receipt;
+  try {
+    receipt = await inspectPullRequestCommand({
+      cwd: invocation.cwd,
+      inputPath,
+      outputPath,
+    });
+  } catch {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PR_REVIEW_INSPECT_FAILED',
+          message: 'Pull-request inspection failed before a publishable handoff was produced.',
+          retryable: false,
+        },
+      ],
+      recovery: [
+        {
+          command:
+            'Check .safeword/config.json, the input artifact, and OPENAI_API_KEY, then retry.',
+          description: 'Correct the inspection prerequisite that failed.',
+          requiresHuman: true,
+        },
+      ],
+    });
+  }
   return createResult({
     state: 'changed',
     effects: {
