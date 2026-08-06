@@ -24,7 +24,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the pre-existing shared shell splitter already treats newlines as command boundaries
 - [x] GREEN 82a149766
-- [ ] REFACTOR
+- [x] REFACTOR skip: newline coverage belongs in the existing command matrix and needs no separate fixture
 
 ## Rule: keep-safeword-recovery-runnable.TBU1.R3 — Recovery guidance names a command that the current CLI supports
 
