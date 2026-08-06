@@ -79,7 +79,7 @@ Unaffected:
 
 #### test-codex-plugin-migration.TB1.R3 — Safe Word Codex hooks execute the packaged CLI entrypoints and preserve the existing deny, allow, context, and continuation semantics
 
-#### test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and working fallback assets intact until an explicit proven handoff
+#### test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and fallback assets intact until an explicit proven handoff
 
 ### test-codex-plugin-migration.SM1 — Trust the migration through targeted evidence, not a fragile monolith
 

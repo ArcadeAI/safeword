@@ -97,7 +97,7 @@ Feature: Test Codex plugin migration
       And each command invokes a packaged Safe Word command entrypoint
 
   @test-codex-plugin-migration.TB1.R4 @surface.openai-codex
-  Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and working fallback assets intact until an explicit proven handoff
+  Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and fallback assets intact until an explicit proven handoff
 
     @rejection
     Scenario: Unavailable profile enrollment preserves an old project's authored data and fallback

@@ -76,7 +76,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 011cb21d
 - [x] REFACTOR skip: hook manifest is intentionally explicit per Codex event
 
-## Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and working fallback assets intact until an explicit proven handoff
+## Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and fallback assets intact until an explicit proven handoff
 
 ### Scenario: Unavailable profile enrollment preserves an old project's authored data and fallback
 
@@ -86,9 +86,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Successful handoff preserves authored project data while removing managed fallback
 
-- [x] RED ae935d66b
-- [x] GREEN bf5e436ec
-- [x] REFACTOR 7352a6dcd
+- [x] RED ae935d66
+- [x] GREEN bf5e436e
+- [x] REFACTOR 7352a6dc
 
 ### Scenario: User-authored Codex skills survive the migration
 
