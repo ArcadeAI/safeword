@@ -48,6 +48,15 @@ last_modified: 2026-08-06T03:46:00Z
 
 ## Work Log
 
+- 2026-08-06T13:20:00Z Re-ran the selected live Flux scenario with two
+  1Password-injected OpenAI credentials. Both credentials authenticated against
+  `/v1/models`, while Responses returned HTTP 429 for `gpt-5.2`; the primary
+  credential returned the same result with `gpt-5-mini`. A sanitized diagnostic
+  identified `insufficient_quota` / `credit_balance_exhausted`, narrowing the
+  live evidence block to exhausted API credits rather than a missing or invalid
+  secret. The root live BDD script also omitted the TypeScript loader;
+  applying the deterministic lane's existing `NODE_OPTIONS='--import tsx'`
+  reached the production provider successfully.
 - 2026-08-06T03:46:00Z Advanced implement → verify after the final independent
   Claude quality review approved the authored source, tests, workflows, docs,
   and evidence packet. The generated runtime bundle exceeded the reviewer's

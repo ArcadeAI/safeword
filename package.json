@@ -31,7 +31,7 @@
     "deps:graph": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type dot | dot -T svg > dependency-graph.svg",
     "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err",
     "test:bdd": "bun run --cwd packages/retro-relay build && NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @manual and not @live'",
-    "test:bdd:live": "cucumber-js --profile live"
+    "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --profile live"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^13.2.0",
