@@ -1,4 +1,4 @@
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -9,6 +9,7 @@ import {
   draftSpoolPath,
   markDraftsFiled,
   spoolDrafts,
+  spoolSiblingPath,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
   CODEX_FILER_SKILL_NAME,
@@ -19,6 +20,21 @@ import {
   formatFilingDispatch,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { appendRetroAck, retroDraft as draft, writeSelfReportConfig } from '../helpers.js';
+
+function corruptPersistedAttempts(
+  projectDirectory: string,
+  sessionId: string,
+  attempts: string,
+): void {
+  const markerFile = spoolSiblingPath(projectDirectory, sessionId, '.filing-attempts');
+  const persisted = JSON.parse(readFileSync(markerFile, 'utf8')) as Record<string, unknown>;
+  // Written as raw JSON text, not via JSON.stringify: `1e999` has to survive to
+  // disk as a literal, and stringify would emit the Infinity it parses to as null.
+  const others = Object.entries(persisted)
+    .filter(([field]) => field !== 'attempts')
+    .map(([field, value]) => `${JSON.stringify(field)}:${JSON.stringify(value)}`);
+  writeFileSync(markerFile, `{"attempts":${attempts},${others.join(',')}}\n`);
+}
 
 describe('retro filing gate decision (GH628F — dispatch until drained, capped)', () => {
   let projectDirectory: string;
@@ -71,6 +87,30 @@ describe('retro filing gate decision (GH628F — dispatch until drained, capped)
     expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined();
   });
 
+  // The count only reaches the cap comparison when the marker's key equals the
+  // CURRENT batchKey — a sha256 hex. Seeding a placeholder key (e.g. "k") makes
+  // `attempts` dead code and the test vacuous, so corrupt the count in a marker
+  // the gate itself wrote: dispatch once for the real key, then rewrite only
+  // `attempts`. Measured on the unsanitized code these gave 7 dispatches
+  // (negative: widened budget) and 0 (Infinity: drafts stranded unfiled).
+  it.each([
+    ['non-finite', '1e999'],
+    ['negative', '-5'],
+    ['fractional', '1.5'],
+    ['oversized', String(FILING_ATTEMPT_CAP + 1)],
+  ])('clamps a %s persisted count so the cap still binds', (_label, attempts) => {
+    spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
+    expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined(); // writes the real key
+    corruptPersistedAttempts(projectDirectory, 'sess-1', attempts);
+
+    // Clamped to 0, so the batch gets its full budget back and then goes quiet —
+    // never unbounded (the negative case) and never silent-forever (Infinity).
+    for (let attempt = 1; attempt <= FILING_ATTEMPT_CAP; attempt++) {
+      expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeDefined();
+    }
+    expect(decideRetroFilingGate(projectDirectory, 'sess-1')).toBeUndefined();
+  });
+
   it('keys the attempt budget per session spool', () => {
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
     spoolDrafts(projectDirectory, 'sess-2', [draft('retro:aaaaaaaaaaaa')]);
@@ -96,6 +136,61 @@ describe('formatFilingDispatch (GH628F — one dispatch action plus silence cont
     for (const procedureWord of [/dedup/i, /search issues/i, /create an issue/i, /\blabels\b/i]) {
       expect(procedureWord.test(text)).toBe(false);
     }
+  });
+
+  // #1900: the dispatch is the only account of the handoff in the transcript, and
+  // retro's extractor mines that transcript. Diagnosing the spool as a broken
+  // transport made it auto-file a bug against a working subsystem every cloud
+  // session, so neither dispatch may assert a transport failure.
+  // The class of claim that is banned, not three literal spellings of it. The exact
+  // wording is already pinned by the characterization test below, so asserting a
+  // specific reassuring phrase here would only add breakage surface without
+  // catching a rephrased diagnosis.
+  it('makes no claim that the transport failed or was rejected', () => {
+    for (const text of [
+      formatFilingDispatch(1, '/proj/.safeword/retro-drafts/sess-1.jsonl'),
+      formatCodexFilingDispatch(1, '/proj/.safeword/retro-drafts/sess-1.jsonl'),
+    ]) {
+      for (const diagnosis of [
+        /authenticat/i,
+        /unauthori[sz]ed/i,
+        /\b401\b/,
+        /\bbroken\b/i,
+        /\bfailed\b|\bfailure\b/i,
+        /\brejected\b/i,
+        /credential (error|problem|failure)/i,
+      ]) {
+        expect(diagnosis.test(text), `dispatch must not assert: ${diagnosis}`).toBe(false);
+      }
+    }
+  });
+
+  // Characterization: both carriers render one shared body that differs only in
+  // how the carrier is named. Pinning the full strings is what lets the two
+  // formatters share a template without either wording drifting silently.
+  it('renders the exact Claude/Cursor and Codex dispatch wording', () => {
+    const shared =
+      "Safeword's retro spooled 2 sanitized findings for its own upstream tracker at /p/s.jsonl. " +
+      'They remain queued for filing through your GitHub access. This handoff uses ' +
+      "safeword's normal recovery lane for unfiled drafts. ";
+    const tail =
+      'so it files them through your GitHub access, then end the turn. ' +
+      'Only %DRAIN% drains the spool. %PROHIBIT%, and do not narrate or summarize the filing in ' +
+      'this or later responses. If the %NOUN% or write access to ArcadeAI/safeword is ' +
+      'unavailable, state that in one line and stop.';
+
+    expect(formatFilingDispatch(2, '/p/s.jsonl')).toBe(
+      `${shared}Invoke the safeword-retro-filer subagent (foreground) with that spool path ${tail
+        .replace('%DRAIN%', 'the safeword-retro-filer')
+        .replace('%PROHIBIT%', 'Do not file them inline yourself')
+        .replace('%NOUN%', 'subagent')}`,
+    );
+    expect(formatCodexFilingDispatch(2, '/p/s.jsonl')).toBe(
+      `${shared}Invoke the safeword:retro-filer skill with that spool path ${tail
+        .replace('%DRAIN%', 'the safeword:retro-filer workflow')
+        .replace('%PROHIBIT%', 'Do not file them outside that workflow')
+        .replace('%NOUN%', 'skill')}`,
+    );
   });
 
   it('routes Codex through the packaged filer skill without embedding a procedure', () => {
@@ -186,6 +281,19 @@ describe('retro filing tripwire (GH644A — unacked removals become telemetry)',
     expect(trips).toBe(1);
   });
 
+  // A corrupt attempt count must not cost the batch snapshot. Dropping the whole
+  // marker would take `signatures` with it, and this path — spool already drained,
+  // so the gate returns before any rewrite — is where nothing would ever repair it.
+  // The tripwire would then stay disarmed for the rest of the session.
+  it('still trips on a bare drain when the persisted count is corrupt', () => {
+    dispatchBatch('s1', ['retro:aaaaaaaaaaaa']);
+    corruptPersistedAttempts(projectDirectory, 's1', '-5');
+
+    markDraftsFiled(projectDirectory, 's1', ['retro:aaaaaaaaaaaa']); // drained, no acks
+    evaluate('s1');
+    expect(trips).toBe(1);
+  });
+
   it('stays silent while every dispatched signature still sits in the spool', () => {
     dispatchBatch('s1', ['retro:aaaaaaaaaaaa']);
     evaluate('s1');
@@ -209,6 +317,25 @@ describe('retro filing tripwire (GH644A — unacked removals become telemetry)',
         writeFileSync(
           nodePath.join(projectDirectory, '.safeword/retro-drafts', `${s}.filing-attempts`),
           'not json',
+        );
+      },
+    ],
+    // `1e999` parses to Infinity, the one way JSON yields a non-finite count.
+    [
+      'marker with a non-finite attempt count',
+      (s: string) => {
+        writeFileSync(
+          nodePath.join(projectDirectory, '.safeword/retro-drafts', `${s}.filing-attempts`),
+          '{"key":"k","attempts":1e999}\n',
+        );
+      },
+    ],
+    [
+      'marker with a negative attempt count',
+      (s: string) => {
+        writeFileSync(
+          nodePath.join(projectDirectory, '.safeword/retro-drafts', `${s}.filing-attempts`),
+          '{"key":"k","attempts":-5}\n',
         );
       },
     ],

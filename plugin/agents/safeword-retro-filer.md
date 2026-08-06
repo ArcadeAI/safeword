@@ -48,7 +48,7 @@ procedure, your target repo, or your tools.
    never see a marker. A duplicate is therefore possible. File anyway — a
    duplicate is recoverable (the reconcile sweep closes confirmed ones), while a
    finding you decline to file is simply lost, because this path runs precisely
-   when the code-owned REST path could not authenticate (#834) and no later
+   when the code-owned path left the draft unfiled (#834, #1900) and no later
    retry exists.
 
    What that licence does **not** cover: never merge two findings on a
