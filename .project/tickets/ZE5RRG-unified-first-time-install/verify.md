@@ -13,7 +13,7 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ Walked both audiences through mixed install outcomes. The non-technical summary says `Project setup: updated`, `Claude: needs attention`, and `Next: /reload-plugins` without architecture jargon. JSON gives the technical builder the selected agents, each surface state, and the exact retry `safeword install --agents=claude`. Worst step = the host-required reload/restart; new CLI selection steps vs the default flow = 0.
 **Surface Evidence:** ✅ 4/4 affected surfaces have recorded boundary proof
-**Evidence limits:** ⚠️ The final independent quality reviewer returned no valid verdict: the preferred reviewer timed out, the fallback returned invalid output, and the single prescribed retry exhausted the same routes. Automated quality, audit, behavior, and refactor gates remain independently reproducible; no reviewer verdict was inferred.
+**Evidence limits:** ⚠️ The final independent quality reviewer returned no valid verdict. The original preferred route timed out; two user-directed runs with the budget expanded from 120 to 300 seconds instead ended early as `process_failed`, while the fallback returned `invalid_output`. The prescribed retry is exhausted. Review reliability is tracked by [GitHub issue #1922](https://github.com/ArcadeAI/safeword/issues/1922). Automated quality, audit, behavior, and refactor gates remain independently reproducible; no reviewer verdict was inferred.
 
 Audit passed for branch-owned architecture and dependency boundaries. Dependency
 Cruiser reports zero errors and one pre-existing orphan warning for
