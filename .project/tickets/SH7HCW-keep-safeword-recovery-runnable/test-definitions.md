@@ -40,6 +40,6 @@ test-definitions.md is the R/G/R ledger.
 
 ## Acceptance lane binding
 
-- [x] RED observed: `bun run test:bdd` reported all 22 recovery scenarios as undefined
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 333cbddd3
+- [x] GREEN 464dbc4dd
+- [x] REFACTOR skip: shared fixture helpers keep the real-hook process setup in one place
