@@ -5,7 +5,8 @@ type: task
 phase: done
 status: done
 created: 2026-08-06T21:05:20.272Z
-last_modified: 2026-08-06T23:23:35Z
+last_modified: 2026-08-06T23:29:56Z
+external_prs: [https://github.com/ArcadeAI/safeword/pull/2117]
 ---
 
 # Keep agent-created pull requests in draft until approved
@@ -38,3 +39,4 @@ last_modified: 2026-08-06T23:23:35Z
 - 2026-08-06T21:57:34Z Isolated: moved the uncommitted feature from an unrelated detached branch onto `codex/keep-agent-created-prs-draft` from current `origin/main`; the feature diff now contains only its five scoped files.
 - 2026-08-06T22:12:05Z Verified: on the clean branch, 6,936 tests, 1,077 acceptance scenarios, build, lint, formatting, typecheck, and the diff-scoped audit passed. The dependency audit still reports the same six pre-existing advisories outside ticket scope.
 - 2026-08-06T23:23:35Z Done: User confirmed completion after the full Safe Word process; closed with verify and audit evidence recorded.
+- 2026-08-06T23:29:56Z Published: Opened draft pull request https://github.com/ArcadeAI/safeword/pull/2117 and confirmed it targets `main` with draft status.
