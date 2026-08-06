@@ -15177,7 +15177,7 @@ var init_inventory2 = __esm(() => {
   BENIGN_CACHE_METADATA_BASENAMES = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
 });
 
-// ../../../../../node_modules/jsonc-parser/lib/esm/impl/scanner.js
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
   const len = text.length;
   let pos = 0, value = "", tokenOffset = 0, token = 16, lineNumber = 0, lineStartOffset = 0, tokenLineStartOffset = 0, prevTokenLineStartOffset = 0, scanError = 0;
@@ -15594,7 +15594,7 @@ var init_scanner = __esm(() => {
   })(CharacterCodes || (CharacterCodes = {}));
 });
 
-// ../../../../../node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
 var cachedSpaces, maxCachedValues = 200, cachedBreakLinesWithSpaces, supportedEols;
 var init_string_intern = __esm(() => {
   cachedSpaces = new Array(20).fill(0).map((_, index) => {
@@ -15633,7 +15633,7 @@ var init_string_intern = __esm(() => {
 `];
 });
 
-// ../../../../../node_modules/jsonc-parser/lib/esm/impl/format.js
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
 function format(documentText, range, options) {
   let initialIndentLevel;
   let formatText;
@@ -15877,7 +15877,7 @@ var init_format = __esm(() => {
   init_string_intern();
 });
 
-// ../../../../../node_modules/jsonc-parser/lib/esm/impl/parser.js
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
 function parse(text, errors = [], options = ParseOptions.DEFAULT) {
   let currentProperty = null;
   let currentParent = [];
@@ -16292,7 +16292,7 @@ var init_parser = __esm(() => {
   })(ParseOptions || (ParseOptions = {}));
 });
 
-// ../../../../../node_modules/jsonc-parser/lib/esm/impl/edit.js
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
 function setProperty(text, originalPath, value, options) {
   const path3 = originalPath.slice();
   const errors = [];
@@ -16440,7 +16440,7 @@ var init_edit = __esm(() => {
   init_parser();
 });
 
-// ../../../../../node_modules/jsonc-parser/lib/esm/main.js
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
 function modify(text, path3, value, options) {
   return setProperty(text, path3, value, options);
 }
@@ -29427,7 +29427,7 @@ var init_reconciliation = __esm(() => {
   init_plan();
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/date.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/date.js
 var DATE_TIME_RE, TomlDate;
 var init_date = __esm(() => {
   /*!
@@ -29549,7 +29549,7 @@ var init_date = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/error.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/error.js
 function getLineColFromPtr(string, ptr) {
   let lines = string.slice(0, ptr).split(/\r\n|\n|\r/g);
   return [lines.length, lines.pop().length + 1];
@@ -29621,7 +29621,7 @@ ${codeblock}`, options);
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/primitive.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/primitive.js
 function parseString(str, ptr) {
   let c = str[ptr++];
   let first = c;
@@ -29806,7 +29806,7 @@ var init_primitive = __esm(() => {
   LEADING_ZERO = /^[+-]?0[0-9_]/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/util.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/util.js
 function indexOfNewline(str, start = 0, end = str.length) {
   let idx = str.indexOf(`
 `, start);
@@ -29854,6 +29854,8 @@ function skipUntil(str, ptr, sep, end, banNewLines = false) {
     let c = str[i];
     if (c === "#") {
       i = indexOfNewline(str, i);
+      if (i < 0)
+        break;
     } else if (c === sep) {
       return i + 1;
     } else if (c === end || banNewLines && (c === `
@@ -29898,7 +29900,7 @@ var init_util = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/extract.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/extract.js
 function sliceAndTrimEndOf(str, startPtr, endPtr) {
   let value = str.slice(startPtr, endPtr);
   let commentIdx = value.indexOf("#");
@@ -29999,7 +30001,7 @@ var init_extract = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/struct.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/struct.js
 function parseKey(str, ptr, end = "=") {
   let dot = ptr - 1;
   let parsed = [];
@@ -30177,7 +30179,7 @@ var init_struct = __esm(() => {
   KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/parse.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/parse.js
 function peekTable(key, table, meta, type) {
   let t = table;
   let m = meta;
@@ -30324,7 +30326,7 @@ var init_parse = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/stringify.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/stringify.js
 var init_stringify = __esm(() => {
   /*!
    * Copyright (c) Squirrel Chat et al., All rights reserved.
@@ -30355,7 +30357,7 @@ var init_stringify = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.7.0/node_modules/smol-toml/dist/index.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/index.js
 var init_dist3 = __esm(() => {
   init_parse();
   init_stringify();
@@ -34740,9 +34742,9 @@ var init_profile = __esm(() => {
   };
 });
 
-// ../../../../../node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib/main.js
+// ../../node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib/main.js
 var require_main = __commonJS((exports, module) => {
-  var __dirname = "/Users/alex/Projects/safeword/node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib", __filename = "/Users/alex/Projects/safeword/node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib/main.js";
+  var __dirname = "/Users/alex/Projects/safeword/.claude/worktrees/pr-1685-quality-review-95d1ca/node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib", __filename = "/Users/alex/Projects/safeword/.claude/worktrees/pr-1685-quality-review-95d1ca/node_modules/.bun/esbuild@0.28.1/node_modules/esbuild/lib/main.js";
   var __defProp2 = Object.defineProperty;
   var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
   var __getOwnPropNames2 = Object.getOwnPropertyNames;
@@ -43566,13 +43568,13 @@ var require_structured_source = __commonJS((exports) => {
   exports.StructuredSource = StructuredSource;
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/helper/invariant.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/invariant.js
 function invariant(condition, message) {
   if (!condition)
     throw new Error(message);
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
 class SecretLintSourceCodeImpl {
   hasBOM;
   content;
@@ -43629,7 +43631,7 @@ var init_SecretLintSourceCodeImpl = __esm(() => {
   import_structured_source = __toESM(require_structured_source(), 1);
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
 class EventEmitter2 {
   #listeners = new Map;
   on(type, listener) {
@@ -43689,7 +43691,7 @@ class PromiseEventEmitter {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
 var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   if (typeof props !== "object" || props === null) {
     return messageHandler();
@@ -43750,7 +43752,7 @@ var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/RuleContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RuleContext.js
 var createContextEvents = () => {
   const contextEvents = new EventEmitter2;
   const REPORT_SYMBOL = Symbol("report");
@@ -43835,7 +43837,7 @@ var createContextEvents = () => {
 };
 var init_RuleContext = () => {};
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
 class SecretLintRule {
   ruleReportHandle;
   ruleCreator;
@@ -43949,7 +43951,7 @@ var init_node = __esm(() => {
   });
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/RunningEvents.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RunningEvents.js
 var createRunningEvents = () => {
   const contextEvents = new PromiseEventEmitter;
   const registerSet = new Set;
@@ -44006,7 +44008,7 @@ var init_RunningEvents = __esm(() => {
   init_node();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/RulePresetContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RulePresetContext.js
 var createRulePresetContext = ({ configRulePreset, sourceCode, runningEvents, contextEvents, sharedOptions, locale }) => {
   const presetRules = configRulePreset.rules || [];
   if (!Array.isArray(presetRules)) {
@@ -44054,7 +44056,7 @@ var init_RulePresetContext = __esm(() => {
   init_RuleContext();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
 function filterIgnoredMessages(options) {
   const reportedMessages = options.reportedMessages;
   const ignoreMessages = options.ignoredMessages;
@@ -44076,7 +44078,7 @@ var isContainedRange = (index, range) => {
   return start <= index && index <= end;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
 var createMessageProcessor = (processors) => {
   return {
     process(messages2) {
@@ -44091,7 +44093,7 @@ var createMessageProcessor = (processors) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
 function filterDuplicatedMessages(messages2 = []) {
   return messages2.filter((message, index) => {
     const restMessages = messages2.slice(index + 1);
@@ -44104,7 +44106,7 @@ var isEqualMessage = (aMessage, bMessage) => {
   return aMessage.range[0] === bMessage.range[0] && aMessage.range[1] === bMessage.range[1] && "severity" in aMessage && "severity" in bMessage && aMessage.severity === bMessage.severity && aMessage.message === bMessage.message;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/sort-messages-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/sort-messages-process.js
 function sortMessagesByLocation(messages2) {
   return messages2.sort(function(a, b) {
     const startIndexDiff = a.range[0] - b.range[0];
@@ -44116,7 +44118,7 @@ function sortMessagesByLocation(messages2) {
   });
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/filter-message-id.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-message-id.js
 var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   const disabledSet = new Set(allowMessageIds.map((allowMessage) => {
     return `${allowMessage.ruleId}--${allowMessage.messageId}`;
@@ -44126,7 +44128,7 @@ var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
 var deepMask = (object, handler) => {
   for (const key of Object.keys(object)) {
     if (typeof object[key] === "object") {
@@ -44168,7 +44170,7 @@ var deepMask = (object, handler) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/index.js
 var cleanupMessages = (options) => {
   const reportedMessages = filterIgnoredMessages(options);
   const reportedMessagesWithoutAllowMessageIds = filterByAllowMessageIds(reportedMessages, options.allowMessageIds);
@@ -44288,7 +44290,7 @@ var require_ms = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/debug@4.4.3+2b91fc17bf64bdfd/node_modules/debug/src/common.js
+// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/common.js
 var require_common = __commonJS((exports, module) => {
   function setup(env) {
     createDebug.debug = createDebug;
@@ -44463,7 +44465,7 @@ var require_common = __commonJS((exports, module) => {
   module.exports = setup;
 });
 
-// ../../node_modules/.bun/debug@4.4.3+2b91fc17bf64bdfd/node_modules/debug/src/browser.js
+// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/browser.js
 var require_browser = __commonJS((exports, module) => {
   exports.formatArgs = formatArgs;
   exports.save = save;
@@ -44623,7 +44625,7 @@ var require_browser = __commonJS((exports, module) => {
   };
 });
 
-// ../../node_modules/.bun/supports-color@10.2.2/node_modules/supports-color/index.js
+// ../../node_modules/.bun/supports-color@11.0.0/node_modules/supports-color/index.js
 var exports_supports_color = {};
 __export(exports_supports_color, {
   default: () => supports_color_default,
@@ -44651,7 +44653,10 @@ function envForceColor() {
   if (env.FORCE_COLOR.length === 0) {
     return 1;
   }
-  const level = Math.min(Number.parseInt(env.FORCE_COLOR, 10), 3);
+  if (!/^\d+$/v.test(env.FORCE_COLOR)) {
+    return;
+  }
+  const level = Math.min(Number(env.FORCE_COLOR), 3);
   if (![0, 1, 2, 3].includes(level)) {
     return;
   }
@@ -44685,6 +44690,9 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
       return 2;
     }
   }
+  if (forceColor !== undefined && /^\d+$/v.test(env.FORCE_COLOR)) {
+    return forceColor;
+  }
   if ("TF_BUILD" in env && "AGENT_NAME" in env) {
     return 1;
   }
@@ -44703,16 +44711,16 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
     return 1;
   }
   if ("CI" in env) {
-    if (["GITHUB_ACTIONS", "GITEA_ACTIONS", "CIRCLECI"].some((key) => (key in env))) {
+    if (["GITHUB_ACTIONS", "GITEA_ACTIONS", "CIRCLECI"].some((key) => Object.hasOwn(env, key))) {
       return 3;
     }
-    if (["TRAVIS", "APPVEYOR", "GITLAB_CI", "BUILDKITE", "DRONE"].some((sign) => (sign in env)) || env.CI_NAME === "codeship") {
+    if (["TRAVIS", "APPVEYOR", "GITLAB_CI", "BUILDKITE", "DRONE"].some((sign) => Object.hasOwn(env, sign)) || env.CI_NAME === "codeship") {
       return 1;
     }
     return min;
   }
   if ("TEAMCITY_VERSION" in env) {
-    return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
+    return /^(?:9\.0*[1-9]\d*\.|\d{2,}\.)/v.test(env.TEAMCITY_VERSION) ? 1 : 0;
   }
   if (env.COLORTERM === "truecolor") {
     return 3;
@@ -44727,7 +44735,7 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
     return 3;
   }
   if ("TERM_PROGRAM" in env) {
-    const version2 = Number.parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
+    const version2 = Number((env.TERM_PROGRAM_VERSION || "").split(".", 1)[0]);
     switch (env.TERM_PROGRAM) {
       case "iTerm.app": {
         return version2 >= 3 ? 3 : 2;
@@ -44737,10 +44745,10 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
       }
     }
   }
-  if (/-256(color)?$/i.test(env.TERM)) {
+  if (/-256(?:color)?$/iv.test(env.TERM)) {
     return 2;
   }
-  if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+  if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/iv.test(env.TERM)) {
     return 1;
   }
   if ("COLORTERM" in env) {
@@ -44770,7 +44778,7 @@ var init_supports_color = __esm(() => {
   supports_color_default = supportsColor;
 });
 
-// ../../node_modules/.bun/debug@4.4.3+2b91fc17bf64bdfd/node_modules/debug/src/node.js
+// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/node.js
 var require_node = __commonJS((exports, module) => {
   var tty2 = __require("tty");
   var util = __require("util");
@@ -44941,7 +44949,7 @@ var require_node = __commonJS((exports, module) => {
   };
 });
 
-// ../../node_modules/.bun/debug@4.4.3+2b91fc17bf64bdfd/node_modules/debug/src/index.js
+// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/index.js
 var require_src = __commonJS((exports, module) => {
   if (typeof process === "undefined" || process.type === "renderer" || false || process.__nwjs) {
     module.exports = require_browser();
@@ -44950,7 +44958,7 @@ var require_src = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/index.js
 var import_debug, debug, lintSource = ({ source, options }) => {
   secretLintProfiler.mark({
     type: "@core>lint::start",

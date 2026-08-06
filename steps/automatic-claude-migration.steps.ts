@@ -22,7 +22,6 @@ import {
 import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
-import { parse as parseJsonc } from 'jsonc-parser';
 
 import {
   migrateClaudeLegacyAutomatically,
@@ -62,6 +61,11 @@ const MARKER = CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2;
 const TRANSACTION = CLAUDE_MIGRATION_SCHEMA.paths.transaction;
 /** Migration's own state is the subject under test, never "unrelated bytes". */
 const MIGRATION_STATE = ['.safeword/claude-plugin'];
+/** Hook commands Safeword does not own and must never touch. */
+const UNKNOWN_HOOK_COMMANDS = [
+  'bun .safeword/hooks/edited-by-user.ts',
+  'bun ./scripts/third-party.ts',
+];
 
 interface MigrationWorld {
   project?: LegacyProject;
@@ -75,6 +79,7 @@ interface MigrationWorld {
   externalFile?: string;
   symlinked?: string;
   clock?: number;
+  acceptedEntry?: string;
   rawSettings?: string;
   expectedSettings?: string;
 }
@@ -236,7 +241,7 @@ Then(
         'a change the user made by hand\n',
       );
     }
-    const settings = parseJsonc(readProjectFile(project(this).root, '.claude/settings.json')) as {
+    const settings = JSON.parse(readProjectFile(project(this).root, '.claude/settings.json')) as {
       hooks: Record<string, unknown[]>;
     };
     assert.equal(settings.hooks.SessionStart?.length, 0, 'accepted hook was not removed');
@@ -281,6 +286,7 @@ Given(
 `,
     });
     // The one and only edit a correct rewrite may make.
+    this.acceptedEntry = accepted;
     this.rawSettings = readProjectFile(project(this).root, '.claude/settings.json');
     this.expectedSettings = this.rawSettings.replace(`[${accepted}]`, '[]');
     this.before = snapshotTree(project(this).root);
@@ -290,28 +296,29 @@ Given(
 Then(
   'only the accepted Safeword hook is removed from that settings file',
   function (this: MigrationWorld) {
-    const settings = parseJsonc(readProjectFile(project(this).root, '.claude/settings.json')) as {
-      hooks: Record<string, unknown[]>;
-    };
-    assert.equal(settings.hooks.SessionStart?.length, 0);
-    assert.equal(settings.hooks.PreToolUse?.length, 2);
+    // This fixture carries comments, so it is asserted as text: the root
+    // acceptance lane depends only on node builtins and cucumber, and byte
+    // claims are stronger than parsed ones here anyway.
+    const text = readProjectFile(project(this).root, '.claude/settings.json');
+    assert.ok(this.acceptedEntry);
+    assert.equal(occurrences(text, this.acceptedEntry), 0, 'the accepted hook survived');
+    assert.match(text, /"SessionStart": \[\]/u, text);
+    for (const command of UNKNOWN_HOOK_COMMANDS) {
+      assert.ok(text.includes(command), `an unknown hook was removed: ${command}`);
+    }
   },
 );
 
 Then(
   'the parsed values and array order of every modified, third-party, and unrelated settings entry are unchanged',
   function (this: MigrationWorld) {
-    const settings = parseJsonc(readProjectFile(project(this).root, '.claude/settings.json')) as {
-      hooks: Record<string, { hooks: { command: string }[] }[]>;
-      permissions: { allow: string[] };
-      model: string;
-    };
-    assert.deepEqual(
-      settings.hooks.PreToolUse?.map(entry => entry.hooks[0]?.command),
-      ['bun .safeword/hooks/edited-by-user.ts', 'bun ./scripts/third-party.ts'],
-    );
-    assert.deepEqual(settings.permissions, { allow: ['Bash(ls:*)', 'Read'] });
-    assert.equal(settings.model, 'opus');
+    const text = readProjectFile(project(this).root, '.claude/settings.json');
+    const [first, second] = UNKNOWN_HOOK_COMMANDS;
+    assert.ok(first && second);
+    // Both survive, still in their original relative order.
+    assert.ok(text.indexOf(first) > -1 && text.indexOf(first) < text.indexOf(second), text);
+    assert.ok(text.includes('"permissions": { "allow": ["Bash(ls:*)", "Read"] }'), text);
+    assert.ok(text.includes('"model": "opus"'), text);
   },
 );
 
@@ -1012,7 +1019,7 @@ When('automatic contraction completes', function (this: MigrationWorld) {
 });
 
 Then('the project declaration remains in Claude settings', function (this: MigrationWorld) {
-  const settings = parseJsonc(readProjectFile(project(this).root, '.claude/settings.json')) as {
+  const settings = JSON.parse(readProjectFile(project(this).root, '.claude/settings.json')) as {
     enabledPlugins: Record<string, boolean>;
     extraKnownMarketplaces: Record<string, unknown>;
   };
@@ -1026,7 +1033,7 @@ Then(
     for (const relative of project(this).installed) {
       assert.ok(!existsSync(nodePath.join(project(this).root, relative)), relative);
     }
-    const settings = parseJsonc(readProjectFile(project(this).root, '.claude/settings.json')) as {
+    const settings = JSON.parse(readProjectFile(project(this).root, '.claude/settings.json')) as {
       hooks?: Record<string, unknown[]>;
     };
     assert.equal(settings.hooks?.SessionStart?.length ?? 0, 0);
