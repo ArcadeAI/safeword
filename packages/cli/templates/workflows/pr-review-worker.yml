@@ -43,6 +43,7 @@ jobs:
       deployment: false
     permissions:
       contents: read
+      issues: read
       pull-requests: read
     steps:
       - name: Assemble exact-head evidence as JSON

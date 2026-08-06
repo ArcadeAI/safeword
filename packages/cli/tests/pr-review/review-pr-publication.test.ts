@@ -62,6 +62,10 @@ describe('review-pr publication command wiring', () => {
     expect(createComment).toHaveBeenCalledOnce();
     expect(createComment.mock.calls[0]?.[0]).toContain(RECEIPT_MARKER);
     expect(createComment.mock.calls[0]?.[0]).toContain('Route: looks ready');
+    expect(createComment.mock.calls[0]?.[0]).toContain('does not replace human review');
+    expect(createComment.mock.calls[0]?.[0]).toContain(
+      'not evidence that this pull request is safe to merge',
+    );
   });
 
   it('rewrites an existing receipt on a draft transition without creating one', async () => {

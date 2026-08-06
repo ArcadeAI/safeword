@@ -81,6 +81,7 @@ export function renderReceipt(receipt: ReceiptView): string {
   const outputTokens = receipt.tokenUsage.output ?? 'unknown';
 
   const summary = [
+    'Advisory only: this review can miss issues, does not replace human review, and is not evidence that this pull request is safe to merge.',
     `Reviewed revision: ${receipt.reviewedSha}`,
     `Run state: ${receipt.runState}`,
     ...(receipt.route

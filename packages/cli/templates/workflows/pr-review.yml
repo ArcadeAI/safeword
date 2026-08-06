@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: read
       pull-requests: read
     outputs:
       pull_numbers: ${{ steps.discover.outputs.pull_numbers }}

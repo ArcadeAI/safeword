@@ -60,7 +60,7 @@ describe('advisory PR review workflow contract', () => {
         inspect: {
           environment: { name: 'safeword-pr-review-model', deployment: false },
           if: '${{ inputs.inspect_requested }}',
-          permissions: { contents: 'read', 'pull-requests': 'read' },
+          permissions: { contents: 'read', issues: 'read', 'pull-requests': 'read' },
         },
         publish: {
           permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
