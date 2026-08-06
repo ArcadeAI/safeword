@@ -97,12 +97,28 @@ function retryCommand(kind: ReviewKind, targets: readonly string[]): string {
   return `safeword review run ${kind} ${targets.map(target => shellQuote(target)).join(' ')}`;
 }
 
+function agentName(agent: ReviewAgent): 'Claude' | 'Codex' {
+  return agent === 'codex' ? 'Codex' : 'Claude';
+}
+
 function recoveryDescription(reviewer: ReviewAgent, failure: ReviewFailure): string {
-  const name = reviewer === 'codex' ? 'Codex' : 'Claude';
+  const name = agentName(reviewer);
   if (failure === 'not_installed') return `Install ${name}, then retry the independent review.`;
   if (failure === 'not_authenticated')
     return `Sign in to ${name}, then retry the independent review.`;
   return 'Retry the independent review.';
+}
+
+function degradedDescription(
+  assignedReviewer: ReviewAgent,
+  actualReviewer: ReviewAgent,
+  failure: ReviewFailure,
+): string {
+  if (failure === 'not_installed') {
+    const assignedName = agentName(assignedReviewer);
+    return `${assignedName} is not installed. Install ${assignedName} for fully independent reviews; Safe Word continued with a ${agentName(actualReviewer)} review.`;
+  }
+  return 'The check ran, but it was not fully independent.';
 }
 
 function unsupportedAuthorResult(input: {
@@ -286,7 +302,7 @@ async function runDegradedFallback(input: {
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
-          description: `Restore the ${input.assignedReviewer === 'codex' ? 'Codex' : 'Claude'} reviewer, then retry the independent review.`,
+          description: `Restore the ${agentName(input.assignedReviewer)} reviewer, then retry the independent review.`,
           requiresHuman: true,
         },
       ],
@@ -308,7 +324,11 @@ async function runDegradedFallback(input: {
     findings: [
       {
         code: 'REVIEW_INDEPENDENCE_DEGRADED',
-        message: 'The check ran, but it was not fully independent.',
+        message: degradedDescription(
+          input.assignedReviewer,
+          completedOutput.reviewer_agent,
+          input.preferredFailure,
+        ),
         severity: 'warning',
       },
     ],
