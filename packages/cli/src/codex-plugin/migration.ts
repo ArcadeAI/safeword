@@ -57,7 +57,7 @@ export interface CodexMigrationFacts {
 
 export const CODEX_RESTART_GUIDANCE =
   'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.';
-export const CODEX_RESTART_INSTRUCTION =
+const CODEX_RESTART_INSTRUCTION =
   'Restart Codex, start a new task, then review the installed hooks with /hooks.';
 
 export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {

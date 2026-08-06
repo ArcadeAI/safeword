@@ -18,17 +18,17 @@ export type ClaudePluginScope = 'project' | 'user';
 
 export type JsonObject = Record<string, unknown>;
 
-export type ClaudeProfileHealth =
+type ClaudeProfileHealth =
   'current' | 'unsupported-host' | 'missing' | 'disabled' | 'wrong-version' | 'errored';
 
-export interface ClaudeProfileObservation {
+interface ClaudeProfileObservation {
   readonly health: ClaudeProfileHealth;
   readonly plugin?: JsonObject;
   readonly message?: string;
   readonly nextAction?: string;
 }
 
-export interface ClaudeScopedInstallationObservation {
+interface ClaudeScopedInstallationObservation {
   readonly scope: ClaudePluginScope;
   readonly health: ClaudeProfileHealth;
   readonly plugin: JsonObject;
@@ -671,21 +671,6 @@ export function observeApplicableClaudePlugins(cwd: string): ClaudeApplicablePlu
 }
 
 /** Backward-compatible single-installation view used by the legacy status flow. */
-export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
-  const observation = observeApplicableClaudePlugins(cwd);
-  if (observation.status !== 'observed') {
-    return {
-      health: observation.status,
-      message: observation.message,
-      nextAction: observation.nextAction,
-    };
-  }
-  const installation =
-    observation.installations.find(candidate => candidate.scope === 'project') ??
-    observation.installations.find(candidate => candidate.scope === 'user');
-  return installation ?? { health: 'missing' };
-}
-
 function observeInstalledPlugin(plugin: JsonObject | undefined): ClaudeProfileObservation {
   if (plugin === undefined) return { health: 'missing' };
   if (plugin.version !== SAFEWORD_SCHEMA.version) return { health: 'wrong-version', plugin };

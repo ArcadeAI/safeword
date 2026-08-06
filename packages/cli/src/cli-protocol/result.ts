@@ -15,13 +15,13 @@ interface ResultError {
   readonly detail?: string;
 }
 
-export interface CommandNextAction {
+interface CommandNextAction {
   readonly command: string;
   readonly mutates: boolean;
   readonly requiresHuman: boolean;
 }
 
-export interface HumanNextAction {
+interface HumanNextAction {
   readonly kind: 'human';
   readonly instruction: string;
   readonly mutates: false;

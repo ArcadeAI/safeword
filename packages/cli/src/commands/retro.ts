@@ -675,7 +675,7 @@ export interface RetroCommandOutput {
 
 type RelayRoute = NonNullable<RetroDependencies['relay']>;
 
-export interface RetroReadinessComposition {
+interface RetroReadinessComposition {
   buildCommit?: string;
   configuration?: () => Omit<RelayRoute, 'readiness'> | undefined;
   fetch?: typeof fetch;

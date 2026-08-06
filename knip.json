@@ -1,7 +1,9 @@
 {
   "ignore": [
     ".safeword/**",
+    "plugin/**",
     "packages/cli/templates/**",
+    "packages/cli/src/claude-plugin/runtime/dispatch.ts",
     "experiments/**",
     "packages/cli/vitest.live.config.ts",
     "packages/cli/vitest.release.config.ts",
@@ -19,12 +21,16 @@
     "rustfmt",
     "architecture",
     "boundary",
-    "test-plan",
     "setup",
     "check",
     "lint-gherkin",
     "lint-imports",
-    "feature-directories"
+    "feature-directories",
+    "cursor-agent",
+    "SessionStart",
+    "principles",
+    "project",
+    "UserPromptSubmit"
   ],
   "ignoreDependencies": [
     "safeword",
@@ -35,7 +41,11 @@
     "eslint-plugin-storybook",
     "eslint-plugin-turbo"
   ],
-  "ignoreUnresolved": ["\\.safeword/"],
+  "ignoreUnresolved": [
+    "\\.safeword/",
+    "scripts/check-claude-plugin-release.ts",
+    "scripts/parity-check.ts"
+  ],
   "ignoreIssues": {
     "packages/cli/src/presets/typescript/index.ts": ["duplicates"]
   }

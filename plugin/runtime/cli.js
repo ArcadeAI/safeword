@@ -31407,7 +31407,6 @@ var init_converge_setup = __esm(() => {
 // src/claude-plugin/profile.ts
 var exports_profile = {};
 __export(exports_profile, {
-  observeClaudeProfile: () => observeClaudeProfile,
   observeApplicableClaudePlugins: () => observeApplicableClaudePlugins,
   installClaudePlugin: () => installClaudePlugin,
   canonicalClaudeProjectRoot: () => canonicalClaudeProjectRoot
@@ -31879,18 +31878,6 @@ function observeApplicableClaudePlugins(cwd) {
     }))
   };
 }
-function observeClaudeProfile(cwd) {
-  const observation = observeApplicableClaudePlugins(cwd);
-  if (observation.status !== "observed") {
-    return {
-      health: observation.status,
-      message: observation.message,
-      nextAction: observation.nextAction
-    };
-  }
-  const installation = observation.installations.find((candidate) => candidate.scope === "project") ?? observation.installations.find((candidate) => candidate.scope === "user");
-  return installation ?? { health: "missing" };
-}
 function observeInstalledPlugin(plugin) {
   if (plugin === undefined)
     return { health: "missing" };
@@ -32286,7 +32273,6 @@ var init_status2 = __esm(() => {
 var exports_cleanup = {};
 __export(exports_cleanup, {
   recoverClaudeCleanup: () => recoverClaudeCleanup,
-  observeClaudeCleanupPlan: () => observeClaudeCleanupPlan,
   cleanupClaudeLegacy: () => cleanupClaudeLegacy
 });
 import { createHash as createHash11, randomUUID as randomUUID5 } from "crypto";
@@ -37911,13 +37897,13 @@ var require_structured_source = __commonJS((exports) => {
   exports.StructuredSource = StructuredSource;
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/helper/invariant.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/invariant.js
 function invariant(condition, message) {
   if (!condition)
     throw new Error(message);
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
 class SecretLintSourceCodeImpl {
   hasBOM;
   content;
@@ -37974,7 +37960,7 @@ var init_SecretLintSourceCodeImpl = __esm(() => {
   import_structured_source = __toESM(require_structured_source(), 1);
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
 class EventEmitter2 {
   #listeners = new Map;
   on(type, listener) {
@@ -38034,7 +38020,7 @@ class PromiseEventEmitter {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
 var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   if (typeof props !== "object" || props === null) {
     return messageHandler();
@@ -38095,7 +38081,7 @@ var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/RuleContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RuleContext.js
 var createContextEvents = () => {
   const contextEvents = new EventEmitter2;
   const REPORT_SYMBOL = Symbol("report");
@@ -38180,7 +38166,7 @@ var createContextEvents = () => {
 };
 var init_RuleContext = () => {};
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
 class SecretLintRule {
   ruleReportHandle;
   ruleCreator;
@@ -38294,7 +38280,7 @@ var init_node = __esm(() => {
   });
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/RunningEvents.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RunningEvents.js
 var createRunningEvents = () => {
   const contextEvents = new PromiseEventEmitter;
   const registerSet = new Set;
@@ -38351,7 +38337,7 @@ var init_RunningEvents = __esm(() => {
   init_node();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/RulePresetContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RulePresetContext.js
 var createRulePresetContext = ({ configRulePreset, sourceCode, runningEvents, contextEvents, sharedOptions, locale }) => {
   const presetRules = configRulePreset.rules || [];
   if (!Array.isArray(presetRules)) {
@@ -38399,7 +38385,7 @@ var init_RulePresetContext = __esm(() => {
   init_RuleContext();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
 function filterIgnoredMessages(options) {
   const reportedMessages = options.reportedMessages;
   const ignoreMessages = options.ignoredMessages;
@@ -38421,7 +38407,7 @@ var isContainedRange = (index, range) => {
   return start <= index && index <= end;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
 var createMessageProcessor = (processors) => {
   return {
     process(messages2) {
@@ -38436,7 +38422,7 @@ var createMessageProcessor = (processors) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
 function filterDuplicatedMessages(messages2 = []) {
   return messages2.filter((message, index) => {
     const restMessages = messages2.slice(index + 1);
@@ -38449,7 +38435,7 @@ var isEqualMessage = (aMessage, bMessage) => {
   return aMessage.range[0] === bMessage.range[0] && aMessage.range[1] === bMessage.range[1] && "severity" in aMessage && "severity" in bMessage && aMessage.severity === bMessage.severity && aMessage.message === bMessage.message;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/sort-messages-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/sort-messages-process.js
 function sortMessagesByLocation(messages2) {
   return messages2.sort(function(a, b) {
     const startIndexDiff = a.range[0] - b.range[0];
@@ -38461,7 +38447,7 @@ function sortMessagesByLocation(messages2) {
   });
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/filter-message-id.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-message-id.js
 var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   const disabledSet = new Set(allowMessageIds.map((allowMessage) => {
     return `${allowMessage.ruleId}--${allowMessage.messageId}`;
@@ -38471,7 +38457,7 @@ var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
 var deepMask = (object, handler) => {
   for (const key of Object.keys(object)) {
     if (typeof object[key] === "object") {
@@ -38513,7 +38499,7 @@ var deepMask = (object, handler) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/messages/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/index.js
 var cleanupMessages = (options) => {
   const reportedMessages = filterIgnoredMessages(options);
   const reportedMessagesWithoutAllowMessageIds = filterByAllowMessageIds(reportedMessages, options.allowMessageIds);
@@ -38633,7 +38619,7 @@ var require_ms = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/debug@4.4.3+2b91fc17bf64bdfd/node_modules/debug/src/common.js
+// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/common.js
 var require_common = __commonJS((exports, module) => {
   function setup(env) {
     createDebug.debug = createDebug;
@@ -38808,7 +38794,7 @@ var require_common = __commonJS((exports, module) => {
   module.exports = setup;
 });
 
-// ../../node_modules/.bun/debug@4.4.3+2b91fc17bf64bdfd/node_modules/debug/src/browser.js
+// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/browser.js
 var require_browser = __commonJS((exports, module) => {
   exports.formatArgs = formatArgs;
   exports.save = save;
@@ -38968,7 +38954,7 @@ var require_browser = __commonJS((exports, module) => {
   };
 });
 
-// ../../node_modules/.bun/supports-color@10.2.2/node_modules/supports-color/index.js
+// ../../node_modules/.bun/supports-color@11.0.0/node_modules/supports-color/index.js
 var exports_supports_color = {};
 __export(exports_supports_color, {
   default: () => supports_color_default,
@@ -38996,7 +38982,10 @@ function envForceColor() {
   if (env.FORCE_COLOR.length === 0) {
     return 1;
   }
-  const level = Math.min(Number.parseInt(env.FORCE_COLOR, 10), 3);
+  if (!/^\d+$/v.test(env.FORCE_COLOR)) {
+    return;
+  }
+  const level = Math.min(Number(env.FORCE_COLOR), 3);
   if (![0, 1, 2, 3].includes(level)) {
     return;
   }
@@ -39030,6 +39019,9 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
       return 2;
     }
   }
+  if (forceColor !== undefined && /^\d+$/v.test(env.FORCE_COLOR)) {
+    return forceColor;
+  }
   if ("TF_BUILD" in env && "AGENT_NAME" in env) {
     return 1;
   }
@@ -39048,16 +39040,16 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
     return 1;
   }
   if ("CI" in env) {
-    if (["GITHUB_ACTIONS", "GITEA_ACTIONS", "CIRCLECI"].some((key) => (key in env))) {
+    if (["GITHUB_ACTIONS", "GITEA_ACTIONS", "CIRCLECI"].some((key) => Object.hasOwn(env, key))) {
       return 3;
     }
-    if (["TRAVIS", "APPVEYOR", "GITLAB_CI", "BUILDKITE", "DRONE"].some((sign) => (sign in env)) || env.CI_NAME === "codeship") {
+    if (["TRAVIS", "APPVEYOR", "GITLAB_CI", "BUILDKITE", "DRONE"].some((sign) => Object.hasOwn(env, sign)) || env.CI_NAME === "codeship") {
       return 1;
     }
     return min;
   }
   if ("TEAMCITY_VERSION" in env) {
-    return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
+    return /^(?:9\.0*[1-9]\d*\.|\d{2,}\.)/v.test(env.TEAMCITY_VERSION) ? 1 : 0;
   }
   if (env.COLORTERM === "truecolor") {
     return 3;
@@ -39072,7 +39064,7 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
     return 3;
   }
   if ("TERM_PROGRAM" in env) {
-    const version2 = Number.parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
+    const version2 = Number((env.TERM_PROGRAM_VERSION || "").split(".", 1)[0]);
     switch (env.TERM_PROGRAM) {
       case "iTerm.app": {
         return version2 >= 3 ? 3 : 2;
@@ -39082,10 +39074,10 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
       }
     }
   }
-  if (/-256(color)?$/i.test(env.TERM)) {
+  if (/-256(?:color)?$/iv.test(env.TERM)) {
     return 2;
   }
-  if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+  if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/iv.test(env.TERM)) {
     return 1;
   }
   if ("COLORTERM" in env) {
@@ -39115,7 +39107,7 @@ var init_supports_color = __esm(() => {
   supports_color_default = supportsColor;
 });
 
-// ../../node_modules/.bun/debug@4.4.3+2b91fc17bf64bdfd/node_modules/debug/src/node.js
+// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/node.js
 var require_node = __commonJS((exports, module) => {
   var tty2 = __require("tty");
   var util = __require("util");
@@ -39286,7 +39278,7 @@ var require_node = __commonJS((exports, module) => {
   };
 });
 
-// ../../node_modules/.bun/debug@4.4.3+2b91fc17bf64bdfd/node_modules/debug/src/index.js
+// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/index.js
 var require_src = __commonJS((exports, module) => {
   if (typeof process === "undefined" || process.type === "renderer" || false || process.__nwjs) {
     module.exports = require_browser();
@@ -39295,7 +39287,7 @@ var require_src = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+2b91fc17bf64bdfd/node_modules/@secretlint/core/module/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/index.js
 var import_debug, debug, lintSource = ({ source, options }) => {
   secretLintProfiler.mark({
     type: "@core>lint::start",
