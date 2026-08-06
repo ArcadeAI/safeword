@@ -181,7 +181,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Unavailable evidence remains unknown instead of looking successful
 
 - [x] RED 98f595831
-- [ ] GREEN
+- [x] GREEN fb78482d8
 - [ ] REFACTOR
 
 ## Rule: Receipt findings are actionable without claiming approval or tested remedies
