@@ -70,10 +70,14 @@ var CodexMigrationError;
 var init_migration_error = __esm(() => {
   CodexMigrationError = class CodexMigrationError extends Error {
     code;
+    profileChanged;
+    recoveryCommand;
     constructor(code, message, options) {
       super(message, options);
       this.name = "CodexMigrationError";
       this.code = code;
+      this.profileChanged = options?.profileChanged === true;
+      this.recoveryCommand = options?.recoveryCommand;
     }
   };
 });
@@ -29285,7 +29289,13 @@ function replaceCodexMarketplaceWithStable(configured) {
   } catch (error2) {
     try {
       runCodexMarketplace(marketplaceAddArguments(source, configured.ref ?? "main"), "Could not restore the previous Safeword marketplace after stable enrollment failed");
-    } catch {}
+    } catch (restorationError) {
+      const restoreCommand = [
+        "codex plugin marketplace",
+        ...marketplaceAddArguments(source, configured.ref ?? "main").slice(0, -1)
+      ].join(" ");
+      throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error2)}. Restore error: ${String(restorationError)}`, { cause: error2, profileChanged: true, recoveryCommand: restoreCommand });
+    }
     throw error2;
   }
 }
@@ -29711,12 +29721,7 @@ function automaticallyMigrateLegacyCodex(cwd = process.cwd(), environment = proc
   const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
   if (!hasLegacy)
     return false;
-  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
-  const plannedEffects = finalizationEffects(cwd, plannedMutations);
-  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
   installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
-  assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, plannedMutations, plannedEffects, plannedInputs);
-  applyCodexFinalization(cwd, plannedMutations);
   return true;
 }
 async function migrateCodexPlugin(cwd = process.cwd(), options = {}) {
@@ -30891,12 +30896,9 @@ function checkProjectVersion(cwd, repairVersionMarker) {
   const projectVersion = marker.value;
   if (!isSafePackageVersion(projectVersion)) {
     if (repairVersionMarker) {
-      if (marker.replaceEntry) {
-        writeDurableFile(projectVersionPath, `${VERSION}
+      writeDurableFile(projectVersionPath, `${VERSION}
 `, { mode: 420 });
-        return { repaired: true };
-      }
-      return { repaired: false };
+      return { repaired: true };
     }
     const recoveryCommand = buildReplayCommand({
       command: "safeword setup --repair-version-marker",
@@ -31058,7 +31060,7 @@ function setupResult(input) {
     pythonSetup,
     namespaceMigration,
     completedEffects,
-    claudeProjectPluginEnabled
+    claudeProjectPluginEnrolled
   } = input;
   const files = uniqueEffects([
     ...packageJsonCreated ? [{ kind: "create", target: "package.json" }] : [],
@@ -31077,7 +31079,7 @@ function setupResult(input) {
     ...pythonFindings(pythonSetup)
   ];
   const actionRequired = findings.some((finding) => finding.severity !== "info");
-  const claudePluginConverged = claudeProjectPluginEnabled && !changed;
+  const claudePluginReloadEligible = claudeProjectPluginEnrolled && !changed;
   const resultFindings = [
     ...findings,
     ...actionRequired ? [] : [
@@ -31087,7 +31089,7 @@ function setupResult(input) {
         severity: "info"
       }
     ],
-    ...claudePluginConverged ? [
+    ...claudePluginReloadEligible ? [
       {
         code: "SETUP_CLAUDE_PLUGIN_PRESERVED",
         message: "The project-scoped Claude plugin remains enabled; reload plugins to activate any refreshed configuration.",
@@ -31100,7 +31102,7 @@ function setupResult(input) {
     state = "action_required";
   const nextAction2 = setupNextAction({
     actionRequired,
-    claudePluginConverged,
+    claudePluginReloadEligible,
     installCommand: installation.command
   });
   return createResult({
@@ -31120,12 +31122,12 @@ function setupNextAction(input) {
       requiresHuman: true
     };
   }
-  if (input.claudePluginConverged) {
+  if (input.claudePluginReloadEligible) {
     return { command: "/reload-plugins", mutates: false, requiresHuman: true };
   }
   return { command: "safeword claude install", mutates: true, requiresHuman: true };
 }
-function projectClaudePluginEnabled(cwd) {
+function projectClaudePluginEnrolled(cwd) {
   try {
     const settings = JSON.parse(readFileSync33(nodePath54.join(cwd, ".claude/settings.json"), "utf8"));
     return settings.enabledPlugins?.[CLAUDE_PLUGIN_ID] === true;
@@ -31197,8 +31199,8 @@ async function applySetup(cwd, input) {
       const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () => automaticallyMigrateLegacyCodex(cwd));
       if (migrated) {
         codexHandoffFindings.push({
-          code: "CODEX_PLUGIN_HANDOFF_COMPLETE",
-          message: "Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.",
+          code: "CODEX_PLUGIN_HANDOFF_STARTED",
+          message: "Codex installed the native profile plugin; legacy project protection remains until explicit finalization after the restarted app proves its hooks.",
           severity: "info"
         });
       }
@@ -31257,7 +31259,7 @@ async function applySetup(cwd, input) {
       pythonSetup,
       namespaceMigration,
       completedEffects,
-      claudeProjectPluginEnabled: projectClaudePluginEnabled(cwd)
+      claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd)
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
@@ -50952,9 +50954,10 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
     });
   }
   const partialInstall = /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(message);
+  const partialMarketplace = error2 instanceof CodexMigrationError && error2.profileChanged;
   return createResult({
     state: "failed",
-    changed: partialInstall || fileEffects.length > 0,
+    changed: partialInstall || partialMarketplace || fileEffects.length > 0,
     effects: {
       files: fileEffects,
       configuration: partialInstall ? [
@@ -50963,9 +50966,21 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
           target: "Safeword Codex profile plugin",
           operation: "enablement-unverified"
         }
+      ] : partialMarketplace ? [
+        {
+          kind: "remove",
+          target: "Safeword Codex marketplace",
+          operation: "restoration-failed"
+        }
       ] : []
     },
-    recovery: fileEffects.length > 0 ? [
+    recovery: partialMarketplace && error2.recoveryCommand !== undefined ? [
+      {
+        command: error2.recoveryCommand,
+        description: "Restore the Safeword marketplace removed by the failed replacement.",
+        requiresHuman: true
+      }
+    ] : fileEffects.length > 0 ? [
       {
         command: "safeword codex recover",
         description: "Retry recovery using the retained migration backup.",

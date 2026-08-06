@@ -14,10 +14,18 @@ export type CodexMigrationErrorCode =
 
 export class CodexMigrationError extends Error {
   readonly code: CodexMigrationErrorCode;
+  readonly profileChanged: boolean;
+  readonly recoveryCommand?: string;
 
-  constructor(code: CodexMigrationErrorCode, message: string, options?: ErrorOptions) {
+  constructor(
+    code: CodexMigrationErrorCode,
+    message: string,
+    options?: ErrorOptions & { profileChanged?: boolean; recoveryCommand?: string },
+  ) {
     super(message, options);
     this.name = 'CodexMigrationError';
     this.code = code;
+    this.profileChanged = options?.profileChanged === true;
+    this.recoveryCommand = options?.recoveryCommand;
   }
 }

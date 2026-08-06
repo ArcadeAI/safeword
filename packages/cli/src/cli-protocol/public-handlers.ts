@@ -991,9 +991,10 @@ function codexFailure(
     /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(
       message,
     );
+  const partialMarketplace = error instanceof CodexMigrationError && error.profileChanged;
   return createResult({
     state: 'failed',
-    changed: partialInstall || fileEffects.length > 0,
+    changed: partialInstall || partialMarketplace || fileEffects.length > 0,
     effects: {
       files: fileEffects,
       configuration: partialInstall
@@ -1004,10 +1005,26 @@ function codexFailure(
               operation: 'enablement-unverified',
             },
           ]
-        : [],
+        : partialMarketplace
+          ? [
+              {
+                kind: 'remove',
+                target: 'Safeword Codex marketplace',
+                operation: 'restoration-failed',
+              },
+            ]
+          : [],
     },
     recovery:
-      fileEffects.length > 0
+      partialMarketplace && error.recoveryCommand !== undefined
+        ? [
+            {
+              command: error.recoveryCommand,
+              description: 'Restore the Safeword marketplace removed by the failed replacement.',
+              requiresHuman: true,
+            },
+          ]
+        : fileEffects.length > 0
         ? [
             {
               command: 'safeword codex recover',

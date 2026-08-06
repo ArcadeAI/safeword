@@ -214,9 +214,16 @@ function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): v
         marketplaceAddArguments(source, configured.ref ?? 'main'),
         'Could not restore the previous Safeword marketplace after stable enrollment failed',
       );
-    } catch {
-      // Preserve the original stable-enrollment error. The profile lock keeps
-      // other tasks out while this best-effort restoration runs.
+    } catch (restorationError) {
+      const restoreCommand = [
+        'codex plugin marketplace',
+        ...marketplaceAddArguments(source, configured.ref ?? 'main').slice(0, -1),
+      ].join(' ');
+      throw new CodexMigrationError(
+        'PLUGIN_MARKETPLACE_FAILED',
+        `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error)}. Restore error: ${String(restorationError)}`,
+        { cause: error, profileChanged: true, recoveryCommand: restoreCommand },
+      );
     }
     throw error;
   }

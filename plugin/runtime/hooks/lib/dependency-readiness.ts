@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   statSync,
   writeFileSync,
   type Dirent,
@@ -11,7 +12,7 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
-import { commandWords, splitShellSegments } from './shell-segments.js';
+import { commandWords, parseShellCommandList, splitShellSegments } from './shell-segments.js';
 
 export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
@@ -155,9 +156,11 @@ function detectDependencyManager(
   projectDirectory: string,
   packageManager: string | undefined,
 ): DependencyManager | undefined {
-  const declared = parseDeclaredManager(packageManager);
-  if (declared !== undefined) {
-    return managerLockfilePresent(projectDirectory, declared) ? declared : undefined;
+  if (packageManager !== undefined && packageManager.trim().length > 0) {
+    const declared = parseDeclaredManager(packageManager);
+    return declared !== undefined && managerLockfilePresent(projectDirectory, declared)
+      ? declared
+      : undefined;
   }
 
   if (existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'))) {
@@ -168,7 +171,7 @@ function detectDependencyManager(
 }
 
 function parseDeclaredManager(packageManager: string | undefined): DependencyManager | undefined {
-  const match = packageManager?.match(/^(bun|pnpm|npm|yarn)@/);
+  const match = packageManager?.match(/^(bun|pnpm|npm|yarn)@.+/);
   return match ? (match[1] as DependencyManager) : undefined;
 }
 
@@ -276,8 +279,14 @@ export function dependencyInputFingerprint(projectDirectory: string, plan: Depen
   for (const inputPath of plan.inputPaths.toSorted()) {
     hash.update(inputPath);
     hash.update('\0');
+    const inputFilePath = nodePath.resolve(projectDirectory, inputPath);
+    if (!isProjectPathContained(projectDirectory, inputFilePath)) {
+      hash.update('<outside-project>');
+      hash.update('\0');
+      continue;
+    }
     try {
-      hash.update(readFileSync(nodePath.join(projectDirectory, inputPath)));
+      hash.update(readFileSync(inputFilePath));
     } catch {
       hash.update('<missing>');
     }
@@ -314,10 +323,15 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
   // survives content-preserving operations (rebase, checkout, clone, cp) that
   // bump input mtimes without changing input content. mtime is only a bootstrap
   // fallback for the first check after an install, before any hook has stamped
-  // the marker — so it is consulted only when the marker is absent or stale.
-  const markerFresh = readInstallMarker(projectDirectory, plan) === fingerprint;
+  // the marker. Once present, a mismatched marker is authoritative: a newer
+  // artifact mtime cannot prove that its contents match the dependency inputs.
+  const marker = readInstallMarker(projectDirectory, plan);
+  const markerMismatch = marker !== undefined && marker !== fingerprint;
 
-  if (!markerFresh && isInstallArtifactStale(projectDirectory, plan, artifactPath)) {
+  if (
+    markerMismatch ||
+    (marker === undefined && isInstallArtifactStale(projectDirectory, plan, artifactPath))
+  ) {
     return {
       status: 'stale',
       reason: 'install_artifact_stale',
@@ -398,7 +412,8 @@ const REPORT_ONLY_INSTALL_FLAGS = new Set(['--version', '-v', '--help', '-h']);
  * stale-readiness block even when the install is a mtime-preserving no-op (#380).
  */
 export function isDependencyInstallCommand(command: string): boolean {
-  return splitShellSegments(command).some(segment => isInstallSegment(segment));
+  const segments = parseShellCommandList(command);
+  return segments.length === 1 && isInstallSegment(segments[0]?.command ?? '');
 }
 
 function isInstallSegment(segment: string): boolean {
@@ -496,9 +511,11 @@ function dependencyRecoveryCommand(readiness: DependencyReadiness): string {
   // dependencies, so the install reports "no changes" and does not refresh the
   // marker — which would otherwise leave this stale check looping. No package
   // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
-  // chain the artifact touch that clears the check in that no-op case.
+  // remove the stale marker and touch the artifact after the install succeeds.
+  // This also works when the current app still has an older PostToolUse hook
+  // loaded and therefore cannot stamp the new fingerprint itself.
   if (status !== 'stale' || plan === undefined) return installCommand;
-  return `${installCommand} && touch ${plan.installArtifact}`;
+  return `${installCommand} && rm -f ${plan.installArtifact}/${INSTALL_MARKER_FILENAME} && touch ${plan.installArtifact}`;
 }
 
 export function formatDependencyRecovery(readiness: DependencyReadiness): string {
@@ -621,6 +638,14 @@ function normalizeWorkspacePattern(rawPattern: string): WorkspacePattern | undef
   const negated = pattern.startsWith('!');
   if (negated) pattern = pattern.slice(1);
 
+  if (
+    nodePath.posix.isAbsolute(pattern) ||
+    /^[A-Za-z]:\//.test(pattern) ||
+    pattern.split('/').includes('..')
+  ) {
+    return undefined;
+  }
+
   pattern = pattern.replace(/^\.?\//, '').replace(/\/+$/, '');
   if (pattern.length === 0) return undefined;
 
@@ -630,7 +655,11 @@ function normalizeWorkspacePattern(rawPattern: string): WorkspacePattern | undef
 function expandPositiveWorkspacePattern(projectDirectory: string, pattern: string): string[] {
   if (!hasGlobSyntax(pattern)) {
     const packageJsonPath = pattern.endsWith('/package.json') ? pattern : `${pattern}/package.json`;
-    return existsSync(nodePath.join(projectDirectory, packageJsonPath)) ? [packageJsonPath] : [];
+    const packageJsonFilePath = nodePath.resolve(projectDirectory, packageJsonPath);
+    return existsSync(packageJsonFilePath) &&
+      isProjectPathContained(projectDirectory, packageJsonFilePath)
+      ? [packageJsonPath]
+      : [];
   }
 
   return collectPackageJsonPathsUnder(
@@ -644,7 +673,9 @@ function collectPackageJsonPathsUnder(
   relativeBaseDirectory: string,
 ): string[] {
   const baseDirectory = nodePath.join(projectDirectory, relativeBaseDirectory);
-  if (!isDirectory(baseDirectory)) return [];
+  if (!isDirectory(baseDirectory) || !isProjectPathContained(projectDirectory, baseDirectory)) {
+    return [];
+  }
 
   const packageJsonPaths: string[] = [];
   const pendingDirectories = [baseDirectory];
@@ -676,6 +707,32 @@ function collectPackageJsonPathsUnder(
   }
 
   return packageJsonPaths;
+}
+
+function isProjectPathContained(projectDirectory: string, candidatePath: string): boolean {
+  const resolvedProjectDirectory = nodePath.resolve(projectDirectory);
+  const resolvedCandidatePath = nodePath.resolve(candidatePath);
+  if (!isPathWithin(resolvedProjectDirectory, resolvedCandidatePath)) return false;
+  if (!existsSync(resolvedCandidatePath)) return true;
+
+  try {
+    return isPathWithin(
+      realpathSync(resolvedProjectDirectory),
+      realpathSync(resolvedCandidatePath),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isPathWithin(parentPath: string, candidatePath: string): boolean {
+  const relativePath = nodePath.relative(parentPath, candidatePath);
+  return (
+    relativePath === '' ||
+    (!nodePath.isAbsolute(relativePath) &&
+      relativePath !== '..' &&
+      !relativePath.startsWith(`..${nodePath.sep}`))
+  );
 }
 
 function isExcludedWorkspacePackage(

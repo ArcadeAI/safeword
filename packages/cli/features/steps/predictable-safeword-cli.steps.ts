@@ -126,7 +126,11 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     {
       cwd,
       encoding: 'utf8',
-      env: { ...childEnvironment(), ...definition.fixture.environment },
+      env: {
+        ...childEnvironment(),
+        CODEX_HOME: join(cwd, '.codex'),
+        ...definition.fixture.environment,
+      },
     },
   );
   return {

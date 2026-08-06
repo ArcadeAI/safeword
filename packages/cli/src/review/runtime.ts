@@ -95,7 +95,7 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
 };
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
-const DEFAULT_REVIEW_TIMEOUT_MS = 10 * 60_000;
+export const DEFAULT_REVIEW_TIMEOUT_MS = 10 * 60_000;
 
 const REVIEW_RUBRICS: Readonly<Record<ReviewPacket['kind'], string>> = {
   'quality-review':
