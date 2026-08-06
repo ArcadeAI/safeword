@@ -189,7 +189,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: A consequential finding gives one evidence-bounded next action
 
 - [x] RED f83abeffa
-- [ ] GREEN
+- [x] GREEN d6ff731d7
 - [ ] REFACTOR
 
 ### Scenario: A clean current review creates no reassuring comment noise
