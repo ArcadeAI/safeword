@@ -33,7 +33,15 @@ export interface CodexMigrationResultV2 {
   legacy: { events: string[]; viable_events: string[]; assets: string[] };
   effects: { files: { path: string; action: 'create' | 'update' | 'remove' | 'restore' }[] };
   errors: { code: string; message: string; retryable: boolean }[];
-  next_actions: { command: string; mutates: boolean; requires_human: boolean }[];
+  next_actions: (
+    | { command: string; mutates: boolean; requires_human: boolean }
+    | {
+        kind: 'human';
+        instruction: string;
+        mutates: false;
+        requires_human: true;
+      }
+  )[];
 }
 
 export interface CodexMigrationFacts {
@@ -49,6 +57,8 @@ export interface CodexMigrationFacts {
 
 export const CODEX_RESTART_GUIDANCE =
   'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.';
+export const CODEX_RESTART_INSTRUCTION =
+  'Restart Codex, start a new task, then review the installed hooks with /hooks.';
 
 export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {
   // Older Codex clients may omit nullable catalog version metadata. In that
@@ -71,7 +81,7 @@ export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMig
   const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
   const protectedStatus = legacyProtection(facts, hasLegacy);
   const state = migrationState(facts, hasLegacy);
-  const nextCommand = nextAction(state);
+  const next = nextAction(state);
 
   return {
     schema_version: '2',
@@ -88,20 +98,7 @@ export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMig
     },
     effects: { files: [] },
     errors: [],
-    next_actions:
-      nextCommand === undefined
-        ? []
-        : [
-            {
-              command: nextCommand,
-              mutates:
-                state !== 'plugin_installed_app_restart_required' &&
-                state !== 'plugin_enabled_hook_unproven',
-              // Even the read-only status actions have a human prerequisite:
-              // restart Codex and review /hooks before checking proof again.
-              requires_human: true,
-            },
-          ],
+    next_actions: next === undefined ? [] : [next],
   };
 }
 
@@ -157,12 +154,12 @@ function legacyProtection(
   return facts.viableLegacyEvents.length === facts.legacyEvents.length ? 'protected' : 'partial';
 }
 
-const NEXT_ACTIONS = {
+const NEXT_COMMANDS = {
   recovery_required: 'safeword codex recover',
   compatibility: 'safeword codex migrate --finalize',
   plugin: undefined,
-  plugin_installed_app_restart_required: 'safeword codex status',
-  plugin_enabled_hook_unproven: 'safeword codex status',
+  plugin_installed_app_restart_required: undefined,
+  plugin_enabled_hook_unproven: undefined,
   plugin_setup_required: 'safeword codex migrate',
   plugin_disabled: 'safeword codex migrate',
   plugin_update_required: 'safeword codex migrate',
@@ -170,8 +167,22 @@ const NEXT_ACTIONS = {
   not_configured: 'safeword codex migrate',
 } as const satisfies Readonly<Record<CodexMigrationState, string | undefined>>;
 
-function nextAction(state: CodexMigrationState): string | undefined {
-  return NEXT_ACTIONS[state];
+function nextAction(
+  state: CodexMigrationState,
+): CodexMigrationResultV2['next_actions'][number] | undefined {
+  if (
+    state === 'plugin_installed_app_restart_required' ||
+    state === 'plugin_enabled_hook_unproven'
+  ) {
+    return {
+      kind: 'human',
+      instruction: CODEX_RESTART_INSTRUCTION,
+      mutates: false,
+      requires_human: true,
+    };
+  }
+  const command = NEXT_COMMANDS[state];
+  return command === undefined ? undefined : { command, mutates: true, requires_human: true };
 }
 
 export function renderCodexMigrationHuman(result: CodexMigrationResultV2): string {
@@ -185,7 +196,9 @@ export function renderCodexMigrationHuman(result: CodexMigrationResultV2): strin
     lines.push(CODEX_RESTART_GUIDANCE);
   }
   const next = result.next_actions[0];
-  if (next !== undefined) lines.push(`Next: ${next.command}`);
+  if (next !== undefined) {
+    lines.push(`Next: ${'command' in next ? next.command : next.instruction}`);
+  }
   return `${lines.join('\n')}\n`;
 }
 

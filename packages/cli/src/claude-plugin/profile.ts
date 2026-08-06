@@ -8,10 +8,10 @@ import { type CliResult, createResult, type Effect } from '../cli-protocol/resul
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
+import { CLAUDE_PLUGIN_ID } from './inventory.js';
 
 const MINIMUM_CLAUDE_VERSION = [2, 1, 170] as const;
 const MARKETPLACE_NAME = 'safeword';
-const PLUGIN_ID = 'safeword@safeword';
 const MARKETPLACE_BASE = 'https://github.com/ArcadeAI/safeword.git';
 
 export type ClaudePluginScope = 'project' | 'user';
@@ -375,13 +375,15 @@ function safewordPlugin(
   scope: ClaudePluginScope,
   cwd: string,
 ): JsonObject | undefined {
-  return entries.find(entry => entry.id === PLUGIN_ID && entryMatchesScope(entry, scope, cwd));
+  return entries.find(
+    entry => entry.id === CLAUDE_PLUGIN_ID && entryMatchesScope(entry, scope, cwd),
+  );
 }
 
 function applicableSafewordPlugins(entries: readonly JsonObject[], cwd: string): JsonObject[] {
   return entries.filter(
     entry =>
-      entry.id === PLUGIN_ID &&
+      entry.id === CLAUDE_PLUGIN_ID &&
       (entry.scope === 'user' ||
         (entry.scope === 'project' && canonicalDirectory(entry.projectPath) === cwd)),
   );
@@ -527,13 +529,13 @@ function assertConvergeablePluginVersion(plugin: JsonObject): void {
   if (typeof plugin.version !== 'string' || !isSafePackageVersion(plugin.version)) {
     throw new ClaudeProfileError(
       'CLAUDE_PLUGIN_METADATA_UNVERIFIED',
-      `Claude reported malformed ${PLUGIN_ID} version metadata in the selected scope.`,
+      `Claude reported malformed ${CLAUDE_PLUGIN_ID} version metadata in the selected scope.`,
     );
   }
   if (compareVersions(plugin.version, SAFEWORD_SCHEMA.version) > 0) {
     throw new ClaudeProfileError(
       'CLAUDE_PLUGIN_DOWNGRADE_REFUSED',
-      `Claude reported ${PLUGIN_ID} ${plugin.version}, which is newer than ${SAFEWORD_SCHEMA.version}; refusing an implicit downgrade.`,
+      `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${SAFEWORD_SCHEMA.version}; refusing an implicit downgrade.`,
     );
   }
 }
@@ -541,16 +543,16 @@ function assertConvergeablePluginVersion(plugin: JsonObject): void {
 function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
   const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
   if (plugin === undefined) {
-    runClaude(cwd, ['plugin', 'install', PLUGIN_ID, '--scope', scope], effects);
-    effects.push({ kind: 'install', target: PLUGIN_ID, operation: scope });
+    runClaude(cwd, ['plugin', 'install', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
+    effects.push({ kind: 'install', target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
     assertConvergeablePluginVersion(plugin);
     if (plugin.version !== SAFEWORD_SCHEMA.version) {
-      runClaude(cwd, ['plugin', 'update', PLUGIN_ID, '--scope', scope], effects);
-      effects.push({ kind: 'update', target: PLUGIN_ID, operation: scope });
+      runClaude(cwd, ['plugin', 'update', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
+      effects.push({ kind: 'update', target: CLAUDE_PLUGIN_ID, operation: scope });
     } else if (plugin.enabled !== true) {
-      runClaude(cwd, ['plugin', 'enable', PLUGIN_ID, '--scope', scope], effects);
-      effects.push({ kind: 'enable', target: PLUGIN_ID, operation: scope });
+      runClaude(cwd, ['plugin', 'enable', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
+      effects.push({ kind: 'enable', target: CLAUDE_PLUGIN_ID, operation: scope });
     }
   }
 }
@@ -739,7 +741,7 @@ function verifyPlugin(
   }
   throw new ClaudeProfileError(
     'CLAUDE_PLUGIN_UNVERIFIED',
-    `Claude did not report ${PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at ${scope} scope.`,
+    `Claude did not report ${CLAUDE_PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at ${scope} scope.`,
     effects,
   );
 }
@@ -763,7 +765,7 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
       nextActions: [{ command: '/reload-plugins', mutates: false, requiresHuman: true }],
       data: {
         command: 'claude install',
-        plugin: PLUGIN_ID,
+        plugin: CLAUDE_PLUGIN_ID,
         version: SAFEWORD_SCHEMA.version,
         scope,
         ...(overlap && { classification: 'scope-overlap' }),

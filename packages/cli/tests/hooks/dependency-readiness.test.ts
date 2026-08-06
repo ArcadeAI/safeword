@@ -461,7 +461,7 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
-  it('stale recovery documents the no-op escape so the gate cannot loop', () => {
+  it('stale recovery is one self-converging command even when the new PostToolUse hook is not loaded', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
@@ -478,9 +478,8 @@ describe('dependency readiness hook support', () => {
     expect(stale.status).toBe('stale');
 
     const recovery = formatDependencyRecovery(stale);
-    expect(recovery).toContain('bun ci');
-    expect(recovery).toContain('reports no changes');
-    expect(recovery).toContain('touch node_modules');
+    expect(recovery).toContain('bun ci && touch node_modules');
+    expect(recovery).not.toContain('If it reports no changes');
   });
 
   it('missing recovery installs for real, so it omits the touch escape', () => {

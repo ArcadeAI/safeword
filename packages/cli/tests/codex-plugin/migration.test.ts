@@ -169,7 +169,7 @@ describe('Codex migration result', () => {
       }),
       state: 'plugin_installed_app_restart_required',
       protection: 'protected',
-      next: 'safeword codex status',
+      next: 'Restart Codex, start a new task, then review the installed hooks with /hooks.',
     },
     {
       name: 'compatibility',
@@ -331,11 +331,13 @@ describe('Codex migration result', () => {
     ],
     ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin })],
   ] as const)(
-    'marks the status action as human-gated by its restart and review prerequisite for %s',
+    'represents the restart prerequisite as a human action rather than a status-command loop for %s',
     (_state, input) => {
       expect(deriveCodexMigrationResult(input).next_actions).toEqual([
         {
-          command: 'safeword codex status',
+          kind: 'human',
+          instruction:
+            'Restart Codex, start a new task, then review the installed hooks with /hooks.',
           mutates: false,
           requires_human: true,
         },

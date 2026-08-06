@@ -182,6 +182,13 @@ function requireStatus(world: ContinuityStatusWorld): CodexMigrationResultV2 {
   return world.codexStatus;
 }
 
+function nextActionText(
+  action: CodexMigrationResultV2['next_actions'][number] | undefined,
+): string | undefined {
+  if (action === undefined) return undefined;
+  return 'command' in action ? action.command : action.instruction;
+}
+
 Given(
   /^the repository and active profile derive the (.+) fixture$/u,
   function (this: ContinuityStatusWorld, fixture: string) {
@@ -304,7 +311,7 @@ Then(
     const status = requireStatus(this);
     assert.equal(status.state, state);
     assert.equal(status.protected, protection);
-    assert.equal(status.next_actions.at(-1)?.command, nextAction);
+    assert.equal(nextActionText(status.next_actions.at(-1)), nextAction);
     assert.ok(this.codexStatusOutput?.endsWith(`Next: ${nextAction}\n`));
   },
 );
@@ -323,7 +330,12 @@ Then(
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
-    assert.equal(status.next_actions[0]?.command, 'safeword codex status');
+    assert.deepEqual(status.next_actions[0], {
+      kind: 'human',
+      instruction: 'Restart Codex, start a new task, then review the installed hooks with /hooks.',
+      mutates: false,
+      requires_human: true,
+    });
   },
 );
 
@@ -332,7 +344,7 @@ Then(
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_update_required');
-    assert.equal(status.next_actions[0]?.command, 'safeword codex migrate');
+    assert.equal(nextActionText(status.next_actions[0]), 'safeword codex migrate');
   },
 );
 
@@ -430,7 +442,7 @@ Then(
     if (nextCommand === 'none') {
       assert.equal(status.next_actions.length, 0);
     } else {
-      assert.equal(status.next_actions[0]?.command, nextCommand);
+      assert.equal(nextActionText(status.next_actions[0]), nextCommand);
     }
     assert.equal(this.codexStatusExitCode, Number(exitCode));
   },

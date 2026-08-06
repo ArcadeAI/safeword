@@ -83,6 +83,32 @@ describe('CLI result protocol', () => {
     });
   });
 
+  it('distinguishes a human next action from an executable command', () => {
+    const result = createResult({
+      state: 'action_required',
+      nextActions: [
+        {
+          kind: 'human',
+          instruction: 'Restart the app, then open a new task.',
+          mutates: false,
+          requiresHuman: true,
+        },
+      ],
+    });
+
+    expect(JSON.parse(renderJsonResult(result))).toMatchObject({
+      next_actions: [
+        {
+          kind: 'human',
+          instruction: 'Restart the app, then open a new task.',
+          mutates: false,
+          requires_human: true,
+        },
+      ],
+    });
+    expect(renderHumanResult(result)).toContain('Next: Restart the app, then open a new task.');
+  });
+
   it('renders one human verdict, an explicit change statement, and one next action', () => {
     const output = renderHumanResult(
       createResult({

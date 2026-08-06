@@ -476,11 +476,20 @@ export function observeCodexMigration(
           ],
     errors: result.errors,
     nextActions: [
-      ...result.next_actions.map(action => ({
-        command: action.command,
-        mutates: action.mutates,
-        requiresHuman: action.requires_human,
-      })),
+      ...result.next_actions.map(action =>
+        'command' in action
+          ? {
+              command: action.command,
+              mutates: action.mutates,
+              requiresHuman: action.requires_human,
+            }
+          : {
+              kind: action.kind,
+              instruction: action.instruction,
+              mutates: action.mutates,
+              requiresHuman: action.requires_human,
+            },
+      ),
       ...(globalGuidance.nextAction === undefined ? [] : [globalGuidance.nextAction]),
     ],
     data: {

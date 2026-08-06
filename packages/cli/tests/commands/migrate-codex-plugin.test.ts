@@ -1020,6 +1020,15 @@ command = 'echo "keep this user hook"'
     expect(JSON.parse(result.stdout)).toMatchObject({
       schema_version: 1,
       state: 'action_required',
+      next_actions: [
+        {
+          kind: 'human',
+          instruction:
+            'Restart Codex, start a new task, then review the installed hooks with /hooks.',
+          mutates: false,
+          requires_human: true,
+        },
+      ],
       data: { migration_state: 'plugin_enabled_hook_unproven' },
     });
   });

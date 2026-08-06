@@ -2,6 +2,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from '
 import nodePath from 'node:path';
 
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
+import { CLAUDE_PLUGIN_ID } from '../claude-plugin/inventory.js';
 import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
 import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
@@ -517,6 +518,7 @@ interface SetupResultInput {
   readonly pythonSetup: PythonSetupResult;
   readonly namespaceMigration: NamespaceConvergence;
   readonly completedEffects: CompletedSetupEffects;
+  readonly claudeProjectPluginEnabled: boolean;
 }
 
 interface CompletedSetupEffects {
@@ -581,6 +583,7 @@ function setupResult(input: SetupResultInput): CliResult {
     pythonSetup,
     namespaceMigration,
     completedEffects,
+    claudeProjectPluginEnabled,
   } = input;
   const files = uniqueEffects([
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
@@ -610,19 +613,42 @@ function setupResult(input: SetupResultInput): CliResult {
           severity: 'info' as const,
         },
       ];
+  if (claudeProjectPluginEnabled) {
+    resultFindings.push({
+      code: 'SETUP_CLAUDE_PLUGIN_PRESERVED',
+      message:
+        'The project-scoped Claude plugin remains enabled; reload plugins to activate any refreshed configuration.',
+      severity: 'info' as const,
+    });
+  }
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
   const nextCommands = actionRequired
     ? [installation.command ?? 'safeword setup']
-    : ['safeword claude install'];
+    : [claudeProjectPluginEnabled ? '/reload-plugins' : 'safeword claude install'];
   return createResult({
     state,
     changed,
     effects: { files, packages, network },
     findings: resultFindings,
-    nextActions: nextCommands.map(command => ({ command, mutates: true, requiresHuman: true })),
+    nextActions: nextCommands.map(command => ({
+      command,
+      mutates: !command.startsWith('/'),
+      requiresHuman: true,
+    })),
     data: { configured: true, dependency_install: installation },
   });
+}
+
+function projectClaudePluginEnabled(cwd: string): boolean {
+  try {
+    const settings = JSON.parse(
+      readFileSync(nodePath.join(cwd, '.claude/settings.json'), 'utf8'),
+    ) as { enabledPlugins?: Record<string, unknown> };
+    return settings.enabledPlugins?.[CLAUDE_PLUGIN_ID] === true;
+  } catch {
+    return false;
+  }
 }
 
 function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
@@ -789,6 +815,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       pythonSetup,
       namespaceMigration,
       completedEffects,
+      claudeProjectPluginEnabled: projectClaudePluginEnabled(cwd),
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
