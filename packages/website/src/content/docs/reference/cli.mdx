@@ -151,6 +151,43 @@ For `project test-plan` and `retro signals` / `self-report`, the retained
 `--format json` option emits the command's legacy raw shape. Use the global
 `--json` option for the stable result envelope.
 
+## Compatibility routes
+
+These spellings remain executable indefinitely, but are excluded from the
+canonical quick path. Each invocation reports its replacement in structured
+compatibility metadata.
+
+| Retained route                        | Canonical replacement                              |
+| ------------------------------------- | -------------------------------------------------- |
+| bare `safeword`                       | `status`                                           |
+| `check`                               | `status`                                           |
+| `setup`                               | `install`                                          |
+| `claude install`                      | `install --agents=claude`                          |
+| `codex install`                       | `install --agents=codex`                           |
+| `upgrade`                             | `install`                                          |
+| `diff`                                | `plan`                                             |
+| `remove`                              | `uninstall --agents=none`                          |
+| `reset`                               | `uninstall --agents=none`                          |
+| `sync-config`                         | `project sync-config`                              |
+| `architecture`                        | `project architecture`                             |
+| `sync-learnings`                      | `project sync-learnings`                           |
+| `sync-tickets`                        | `project sync-tickets`                             |
+| `codify`                              | `project codify`                                   |
+| `test-plan`                           | `project test-plan`                                |
+| `lint-gherkin`                        | `project lint-gherkin`                             |
+| `sync-tracker`                        | `tracker sync`                                     |
+| `connect`                             | `tracker connect`                                  |
+| `self-report`                         | `retro signals`                                    |
+| `retro`                               | `retro run`                                        |
+| `retro-reconcile`                     | `retro reconcile`                                  |
+| `migrate codex-plugin`                | `codex migrate`                                    |
+| `project architecture --stage`        | `project architecture --from-index --stage-output` |
+| `project architecture --staged`       | `project architecture --from-index`                |
+| `codex migrate --remove-legacy-hooks` | `codex migrate --finalize`                         |
+
+`setup --yes` is also retained indefinitely. Because installation is
+non-destructive, `--yes` is redundant and does not grant additional consent.
+
 ## safeword project architecture
 
 Generate or verify Safeword's deterministic architecture state document.
@@ -245,6 +282,20 @@ New consumers use `data.migration.schema_version` and `data.migration.state`.
 `data.migration_state` remains a deprecated schema-1 compatibility field and
 retains its former value. New consumers should follow the canonical v2 state
 and restart the Codex application before checking activation again.
+
+### safeword codex clean-guidance
+
+Preview destructive deactivation of recognized legacy Safe Word profile
+guidance while preserving unrelated profile content and a recovery backup:
+
+```bash
+bunx safeword@latest codex clean-guidance
+# Then run the exact --yes --plan <plan-id> command returned by the preview.
+```
+
+The command never treats a backup as proof that guidance is inactive. It
+requires exact-plan confirmation, reports what is deactivated and preserved,
+and advertises `safeword codex recover` as the recovery path.
 
 ### safeword codex migrate
 
