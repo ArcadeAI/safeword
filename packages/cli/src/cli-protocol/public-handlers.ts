@@ -558,6 +558,38 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
   return runReview({ cwd: invocation.cwd, kind: rawKind, targets });
 }
 
+async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('review-pr inspect');
+  const inputPath = invocation.operands[0];
+  const outputPath = invocation.options.output;
+  if (typeof inputPath !== 'string' || typeof outputPath !== 'string') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PR_REVIEW_ARGUMENT_INVALID',
+          message: 'review-pr inspect requires an input path and --output path.',
+          retryable: false,
+        },
+      ],
+    });
+  }
+  const { inspectPullRequestCommand } = await import('../commands/review-pr.js');
+  const receipt = await inspectPullRequestCommand({
+    cwd: invocation.cwd,
+    inputPath,
+    outputPath,
+  });
+  return createResult({
+    state: 'changed',
+    effects: {
+      files: [{ kind: 'advisory-result', target: outputPath, operation: 'write' }],
+      network: [{ kind: 'model-review', target: 'OpenAI', operation: 'read-write' }],
+    },
+    data: { command: 'review-pr inspect', receipt },
+  });
+}
+
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeCodexMigration } = await import('../commands/migrate-codex-plugin.js');
   return observeCodexMigration(invocation.cwd);
@@ -1387,6 +1419,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
   'review run': reviewRunHandler,
+  'review-pr inspect': reviewPrInspectHandler,
   'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
   'retro reconcile': retroReconcileHandler,
