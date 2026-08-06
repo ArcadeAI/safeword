@@ -68,8 +68,9 @@ Unaffected:
   skipped or failed candidate leaves unused returns to the route, so the next
   candidate's share is recalculated from the time that actually remains.
 - **Cleanup budget** — the time allowed to stop a reviewer and its descendants
-  after an attempt ends: **5 seconds**, after which the run continues regardless.
-  Reviewers are launched in their own process group so descendants are included.
+  after an attempt ends: **25 milliseconds** on POSIX, **1 second** on Windows,
+  after which the run continues regardless. Reviewers are launched in their own
+  process group so descendants are included.
 - **Run bound** — **540 seconds**, and never more: the point after which no reviewer work is
   started or allowed to continue. The number comes from the caller, not from
   route arithmetic — every invocation is an agent running the command through a
@@ -77,6 +78,15 @@ Unaffected:
   be killed mid-flight with nothing to show. An answer already complete at the
   bound is still checked, and the command returns within one further cleanup
   budget.
+
+  Stated precisely: the bound governs **reviewer work**. Preparing the packet,
+  checking whether sources or the snapshot changed, writing and removing the
+  contract file, and stopping process trees all run outside it. Measured at the
+  largest legal packet (64 files, 1 MiB) that overhead is 18 ms per route plus
+  one cleanup budget per stopped reviewer — under a second in the worst legal
+  case, against 60 seconds of headroom below the caller's ceiling. The headroom
+  is what makes the guarantee hold, so it depends on the cleanup budget staying
+  small: raising it back to seconds would need this arithmetic redone.
 - **Route** — one independent way of getting a review: the reviewer agent on its
   default model, the reviewer agent on its configured alternate model, and last
   the author's own runtime. Each route gets its own attempt budget.
