@@ -40,6 +40,7 @@ export interface ReceiptView {
 }
 
 export interface ReceiptFindingView {
+  consequential?: boolean;
   consequence: string;
   evidence: string;
   line?: number;
@@ -58,8 +59,9 @@ function listOrNone(values: readonly string[]): string {
 
 function renderFinding(finding: ReceiptFindingView): string[] {
   const location = finding.line === undefined ? finding.path : `${finding.path}:${finding.line}`;
+  const consequenceLabel = finding.consequential === false ? ' (non-consequential)' : '';
   return [
-    `Finding: ${location}`,
+    `Finding${consequenceLabel}: ${location}`,
     `Evidence: ${finding.evidence}`,
     `Consequence: ${finding.consequence}`,
     `Next action: ${finding.nextAction}`,
