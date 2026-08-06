@@ -35,6 +35,7 @@ phase_anchors:
   - "scenario-gate: features/route-ready-prs-with-a-safe-advisory-review.feature"
   - "plan-implementation: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/impl-plan.md"
   - "implement: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/impl-plan.md"
+  - "verify: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
 created: 2026-08-05T14:38:52.499Z
 last_modified: 2026-08-06T03:46:00Z
 ---
