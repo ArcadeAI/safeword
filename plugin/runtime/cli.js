@@ -3858,7 +3858,7 @@ var init_historical_catalogue_generated = __esm(() => {
     schema_version: 1,
     current: {
       files: {
-        ".claude/agents/safeword-retro-filer.md": "56ae79a72b5947b5a2ed319685232aac55d42deaf74decac11499b7082f2804f",
+        ".claude/agents/safeword-retro-filer.md": "0f4bc744e55e6e404dee4258b6180b111828ec833b66997ade79b0d159f7e8d4",
         ".claude/skills/audit/SKILL.md": "784da329a70fe34b6e3a477b50caaee0d6bbfc1a3ed1d33b213fd9fb55346f4d",
         ".claude/skills/bdd/DISCOVERY.md": "057b81e87cf4857c780e01ebebdc278485d3179c249335fbc38264784f0587bb",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
@@ -3878,7 +3878,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/lint/SKILL.md": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66",
         ".claude/skills/quality-review/SKILL.md": "641a12f6df44413424e247501fb22030b095336361bea1df0f1bbcbf5a6ae9ae",
         ".claude/skills/refactor/SKILL.md": "ecfd1b594e9a4c18387e6b9bc84a5bd1ded6b0b3df40a69271ba779ce2b7f122",
-        ".claude/skills/retro-filer/SKILL.md": "85d200d86d8b20f17b99209b12de7a12cdd28713de98519e3febc3373d798519",
+        ".claude/skills/retro-filer/SKILL.md": "8e92f1a7579ba1dd70ced8e9815be0eeed3bc09d43c310a5646ff93c428412ff",
         ".claude/skills/retro/SKILL.md": "8e7b5912810c1e0fe596ff2367b5bc7d3890bd86db5719f49e3c0227b0fdd44a",
         ".claude/skills/review-spec/SKILL.md": "8aa2949e1f1197a77784770690a2b834acc0c95d30ef1adc61edd1bfd494eeed",
         ".claude/skills/self-review/SKILL.md": "51bccc782884dc2ef6171465909df2726875bb308d0004fd2bbed13e51208ffc",
@@ -39368,13 +39368,23 @@ function shellQuote2(value) {
 function retryCommand(kind, targets) {
   return `safeword review run ${kind} ${targets.map((target) => shellQuote2(target)).join(" ")}`;
 }
+function agentName(agent) {
+  return agent === "codex" ? "Codex" : "Claude";
+}
 function recoveryDescription(reviewer, failure) {
-  const name = reviewer === "codex" ? "Codex" : "Claude";
+  const name = agentName(reviewer);
   if (failure === "not_installed")
     return `Install ${name}, then retry the independent review.`;
   if (failure === "not_authenticated")
     return `Sign in to ${name}, then retry the independent review.`;
   return "Retry the independent review.";
+}
+function degradedDescription(assignedReviewer, actualReviewer, failure) {
+  if (failure === "not_installed") {
+    const assignedName = agentName(assignedReviewer);
+    return `${assignedName} is not installed. Install ${assignedName} for fully independent reviews; Safe Word continued with a ${agentName(actualReviewer)} review.`;
+  }
+  return "The check ran, but it was not fully independent.";
 }
 function unsupportedAuthorResult(input) {
   if (input.policy === "require") {
@@ -39534,7 +39544,7 @@ async function runDegradedFallback(input) {
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
-          description: `Restore the ${input.assignedReviewer === "codex" ? "Codex" : "Claude"} reviewer, then retry the independent review.`,
+          description: `Restore the ${agentName(input.assignedReviewer)} reviewer, then retry the independent review.`,
           requiresHuman: true
         }
       ],
@@ -39555,7 +39565,7 @@ async function runDegradedFallback(input) {
     findings: [
       {
         code: "REVIEW_INDEPENDENCE_DEGRADED",
-        message: "The check ran, but it was not fully independent.",
+        message: degradedDescription(input.assignedReviewer, completedOutput.reviewer_agent, input.preferredFailure),
         severity: "warning"
       }
     ],
@@ -39879,6 +39889,7 @@ __export(exports_self_report, {
   formatSelfReportSurfacing: () => formatSelfReportSurfacing,
   formatIssueDrafts: () => formatIssueDrafts,
   detectAgent: () => detectAgent,
+  captureRetroFilingFault: () => captureRetroFilingFault,
   captureGateEscalation: () => captureGateEscalation,
   captureBareDrain: () => captureBareDrain,
   buildRecord: () => buildRecord
@@ -40020,6 +40031,11 @@ function captureBareDrain(projectDirectory, sessionId) {
     return;
   recordSignal(projectDirectory, sessionId ?? "hook", { source: "retro-filing-gate", agent: detectAgent(), errorClass: "RetroBareDrain" }, readInstalledVersion(projectDirectory));
 }
+function captureRetroFilingFault(projectDirectory, sessionId) {
+  if (!readSelfReportConfig(projectDirectory).capture)
+    return;
+  recordSignal(projectDirectory, sessionId ?? "hook", { source: "retro-run", agent: detectAgent(), errorClass: "RetroFilingFault" }, readInstalledVersion(projectDirectory));
+}
 function captureGateEscalation(projectDirectory, sessionId, pattern) {
   if (!readSelfReportConfig(projectDirectory).capture)
     return;
@@ -40137,6 +40153,7 @@ var init_self_report = __esm(() => {
 var exports_retro_draft_spool = {};
 __export(exports_retro_draft_spool, {
   verifyDraftBody: () => verifyDraftBody,
+  spoolSiblingPath: () => spoolSiblingPath,
   spoolDrafts: () => spoolDrafts,
   recordFiledAck: () => recordFiledAck,
   readSpooledDrafts: () => readSpooledDrafts,
@@ -40151,10 +40168,15 @@ __export(exports_retro_draft_spool, {
 import { createHash as createHash18 } from "crypto";
 import nodePath79 from "path";
 function spoolName(sessionId) {
-  return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}.jsonl`;
+  return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
 }
 function draftSpoolPath(projectDirectory, sessionId) {
   return nodePath79.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+}
+function spoolSiblingPath(projectDirectory, sessionId, suffix) {
+  const spool = draftSpoolPath(projectDirectory, sessionId);
+  const base = spool.endsWith(SPOOL_EXTENSION) ? spool.slice(0, -SPOOL_EXTENSION.length) : spool;
+  return `${base}${suffix}`;
 }
 function toDraft(value) {
   if (typeof value !== "object" || value === null)
@@ -40219,7 +40241,7 @@ function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   } catch {}
 }
 function ackFilePath(projectDirectory, sessionId) {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, ".acks.jsonl");
+  return spoolSiblingPath(projectDirectory, sessionId, ".acks.jsonl");
 }
 function isFiledAck(value) {
   if (typeof value !== "object" || value === null)
@@ -40274,7 +40296,7 @@ async function fileSpooledDrafts(projectDirectory, sessionId, post) {
 function spoolDrafts(projectDirectory, sessionId, drafts) {
   appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), drafts.map((draft) => draftLine(draft)), MAX_DRAFTS_PER_SESSION);
 }
-var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR;
+var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl";
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
   SPOOL_DIR = nodePath79.join(".safeword", "retro-drafts");
@@ -49391,6 +49413,9 @@ async function executeRetroWithDependencies(options, dependencies) {
     output: dependencies.output,
     restTransportAvailable: dependencies.restTransportAvailable
   });
+  if (dependencies.restTransportAvailable && (outcome.result?.failed.length ?? 0) > 0) {
+    dependencies.captureFilingFault?.(dependencies.projectDirectory, dependencies.sessionId);
+  }
   return outcome;
 }
 function renderDropReport(drops) {
@@ -49556,6 +49581,7 @@ async function executeRetroCliCommand(options, cwd) {
   const restTransport = createRestTransport2(resolveGitHubToken2());
   const transport = restTransport ?? unavailableTransport();
   const outcome = await executeRetroWithDependencies(options, {
+    captureFilingFault: captureRetroFilingFault,
     environment: process14.env,
     extract,
     extractionSucceeded: () => extractionSucceeded,
@@ -49629,6 +49655,7 @@ var init_retro = __esm(() => {
   init_retro_debug();
   init_retro_draft_spool();
   init_retro_extract();
+  init_self_report();
   init_ledger();
   init_pipeline();
   init_reconcile2();

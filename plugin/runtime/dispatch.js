@@ -1749,7 +1749,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
   current: {
     files: {
       '.claude/agents/safeword-retro-filer.md':
-        '56ae79a72b5947b5a2ed319685232aac55d42deaf74decac11499b7082f2804f',
+        '0f4bc744e55e6e404dee4258b6180b111828ec833b66997ade79b0d159f7e8d4',
       '.claude/skills/audit/SKILL.md':
         '784da329a70fe34b6e3a477b50caaee0d6bbfc1a3ed1d33b213fd9fb55346f4d',
       '.claude/skills/bdd/DISCOVERY.md':
@@ -1789,7 +1789,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/refactor/SKILL.md':
         'ecfd1b594e9a4c18387e6b9bc84a5bd1ded6b0b3df40a69271ba779ce2b7f122',
       '.claude/skills/retro-filer/SKILL.md':
-        '85d200d86d8b20f17b99209b12de7a12cdd28713de98519e3febc3373d798519',
+        '8e92f1a7579ba1dd70ced8e9815be0eeed3bc09d43c310a5646ff93c428412ff',
       '.claude/skills/retro/SKILL.md':
         '8e7b5912810c1e0fe596ff2367b5bc7d3890bd86db5719f49e3c0227b0fdd44a',
       '.claude/skills/review-spec/SKILL.md':
