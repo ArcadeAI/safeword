@@ -1,5 +1,6 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { describe, expect, it } from 'vitest';
 
@@ -53,6 +54,29 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
   exec /bin/sleep 3
 fi
 exit 1
+`,
+    { mode: 0o755 },
+  );
+  chmodSync(executable, 0o755);
+  return bin;
+}
+
+function installDelayedMutator(directory: string): string {
+  const bin = nodePath.join(directory, 'delayed-mutator');
+  mkdirSync(bin, { recursive: true });
+  const executable = nodePath.join(bin, 'codex');
+  writeFileSync(
+    executable,
+    String.raw`#!/bin/sh
+set -eu
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  printf '%s\n' '${REVIEWER_CAPABILITIES.codex}'
+  exit 0
+fi
+printf 'delayed-mutator\n' >> "$SAFEWORD_REVIEW_CANDIDATE_LOG"
+trap '' TERM
+(trap '' TERM; /bin/sleep 0.5; printf 'late mutation\n' > "$SAFEWORD_REVIEW_DELAYED_MUTATION_TARGET") &
+wait
 `,
     { mode: 0o755 },
   );
@@ -141,6 +165,52 @@ describe('dividing a route between its candidates', () => {
 
     expect(result.timedOut).toBe(false);
     expect(readFileSync(candidateLog, 'utf8').trim()).toBe('working-after-probe');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { actual_reviewer: 'codex', independence: 'cross-agent' },
+    });
+  });
+
+  it('terminates a timed-out reviewer before a later candidate or integrity check continues', async () => {
+    const directory = createTemporaryDirectory();
+    const target = nodePath.join(directory, 'review-input.md');
+    const candidateLog = nodePath.join(directory, 'candidates.log');
+    writeFileSync(target, 'bounded review input\n');
+    const host = createTemporaryDirectory();
+    const stale = installDelayedMutator(host);
+    const working = installCandidate(host, 'working-after-mutator', 'answer');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${stale}:${working}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_CANDIDATE_LOG: candidateLog,
+          SAFEWORD_REVIEW_DELAYED_MUTATION_TARGET: target,
+          SAFEWORD_REVIEW_TIMEOUT_MS: '800',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+        timeout: 2000,
+      },
+    );
+
+    await delay(700);
+    expect(result.timedOut).toBe(false);
+    expect(readFileSync(candidateLog, 'utf8').trim().split('\n')).toEqual([
+      'delayed-mutator',
+      'working-after-mutator',
+    ]);
+    expect(readFileSync(target, 'utf8')).toBe('bounded review input\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       data: { actual_reviewer: 'codex', independence: 'cross-agent' },
     });
