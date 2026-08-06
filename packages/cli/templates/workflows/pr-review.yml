@@ -39,7 +39,7 @@ jobs:
           pull_numbers="$({
             gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" --paginate --jq '.[] | select(.draft | not) | [.number, .head.sha] | @tsv' |
               while IFS=$'\t' read -r pull_number head_sha; do
-                terminal="$(gh api "repos/$GITHUB_REPOSITORY/issues/$pull_number/comments?per_page=100" --jq "[.[] | select(.user.type == \"Bot\" and (.body | startswith(\"<!-- safeword:pr-review-receipt:v1 -->\")) and (.body | contains(\"Reviewed revision: $head_sha\")) and (.body | contains(\"\\nRoute:\")))] | length")"
+                terminal="$(gh api "repos/$GITHUB_REPOSITORY/issues/$pull_number/comments?per_page=100" --paginate --jq "[.[] | select(.user.type == \"Bot\" and (.body | startswith(\"<!-- safeword:pr-review-receipt:v1 -->\")) and (.body | contains(\"Reviewed revision: $head_sha\")) and (.body | contains(\"\\nRoute:\")))] | length" | awk '{ total += $1 } END { print total + 0 }')"
                 if [ "$terminal" = "0" ]; then echo "$pull_number"; fi
               done
           } | jq -cs 'map(tonumber)')"

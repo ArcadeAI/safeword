@@ -29,13 +29,22 @@ describe('review-pr publication command wiring', () => {
         inspectionAudit: {
           checkout: false,
           customerCodeExecution: false,
-          githubPermissions: { contents: 'read', pullRequests: 'read' },
+          githubPermissions: { contents: 'read', issues: 'read', pullRequests: 'read' },
           githubWriteCredential: false,
         },
         kind: 'receipt',
         receipt: {
           coverage: [{ path: 'src/change.ts', status: 'integrity_reviewed' }],
-          findings: [],
+          findings: [
+            {
+              consequential: false,
+              consequence: 'The name is harder to scan.',
+              evidence: 'The identifier changed to a longer spelling.',
+              line: 12,
+              nextAction: 'Consider a shorter name.',
+              path: 'src/change.ts',
+            },
+          ],
           missingEvidence: [],
           reviewableTextArtifacts: 1,
           reviewedSha: 'a'.repeat(40),
@@ -64,6 +73,9 @@ describe('review-pr publication command wiring', () => {
     expect(createComment).toHaveBeenCalledOnce();
     expect(createComment.mock.calls[0]?.[0]).toContain(RECEIPT_MARKER);
     expect(createComment.mock.calls[0]?.[0]).toContain('Route: looks ready');
+    expect(createComment.mock.calls[0]?.[0]).toContain(
+      'Finding (non-consequential): src/change.ts:12',
+    );
     expect(createComment.mock.calls[0]?.[0]).toContain('does not replace human review');
     expect(createComment.mock.calls[0]?.[0]).toContain(
       'not evidence that this pull request is safe to merge',
@@ -110,7 +122,7 @@ describe('review-pr publication command wiring', () => {
         inspectionAudit: {
           checkout: false,
           customerCodeExecution: false,
-          githubPermissions: { contents: 'read', pullRequests: 'read' },
+          githubPermissions: { contents: 'read', issues: 'read', pullRequests: 'read' },
           githubWriteCredential: false,
         },
         kind: 'receipt',

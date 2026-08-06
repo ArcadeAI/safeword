@@ -59,7 +59,7 @@ jobs:
           head_sha="$(jq -r .head.sha pull.json)"
           gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/check-runs" --jq .check_runs > check-runs.json
           gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/status" --jq .statuses > statuses.json
-          gh api "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments?per_page=100" > comments.json
+          gh api "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments?per_page=100" --paginate > comments.json
           jq -n --slurpfile files pull-files.json --slurpfile pull pull.json --slurpfile checks check-runs.json --slurpfile statuses statuses.json --slurpfile comments comments.json '
             ($pull[0]) as $pr |
             ([ $comments[0][] | select(.user.type == "Bot" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) ]) as $owned |

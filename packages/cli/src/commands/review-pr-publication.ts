@@ -202,6 +202,7 @@ function reviewedReceiptBody(
   runState: ReviewRunState,
 ): string {
   const findings = (receipt.findings ?? []).map((finding: AdvisoryFinding) => ({
+    consequential: finding.consequential,
     consequence: finding.consequence,
     evidence: finding.evidence ?? 'Evidence unavailable.',
     ...(finding.line !== undefined && { line: finding.line }),
@@ -211,8 +212,8 @@ function reviewedReceiptBody(
   return renderReceipt({
     checks: [],
     findingCounts: {
-      consequential: receipt.route === 'needs_human' ? findings.length : 0,
-      nonConsequential: receipt.route === 'looks_ready' ? findings.length : 0,
+      consequential: findings.filter(finding => finding.consequential !== false).length,
+      nonConsequential: findings.filter(finding => finding.consequential === false).length,
     },
     findings,
     reviewedSha: receipt.reviewedSha,
