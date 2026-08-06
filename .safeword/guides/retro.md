@@ -54,6 +54,12 @@ fresh context** that hasn't lived the session:
    - **Canonical titles.** Title by safeword's behavior ("Coverage gate message
      omits file and number"), not the customer's situation. Stable titles keep
      recurrences on one issue.
+   - **The agent filing lane is not evidence of friction by itself.** When drafts
+     remain queued, spool + filer is safeword's designed recovery path. Don't file
+     the handoff, its extra turn, or the subagent dispatch as a finding without
+     evidence that something misbehaved (#1900). A genuine filing fault — such as
+     an authenticated transport error, drafts lost, a draft filed twice, or a spool
+     that never drains — is still a finding.
    - **Don't hand-sanitize and don't pad.** Write plainly; the command redacts
      secrets/paths at egress. Do **not** paste customer code, paths, or output to
      "add context" — there is no schema field for it and it would be stripped.
