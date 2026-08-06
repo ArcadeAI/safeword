@@ -194,7 +194,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: A clean current review creates no reassuring comment noise
 
-- [ ] RED
+- [x] RED f7aba96cb
 - [ ] GREEN
 - [ ] REFACTOR
 
