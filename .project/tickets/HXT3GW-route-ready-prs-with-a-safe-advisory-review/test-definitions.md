@@ -214,7 +214,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: Missing audit evidence blocks publication
 
-- [ ] RED
+- [x] RED cb4946c93
 - [ ] GREEN
 - [ ] REFACTOR
 
