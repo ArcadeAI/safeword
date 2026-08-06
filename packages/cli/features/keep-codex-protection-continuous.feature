@@ -313,6 +313,18 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | current proof without legacy   | plugin                             | protected   | 0            | none                               | 0         |
         | no configuration               | not_configured                     | unprotected | 1            | safeword codex migrate             | 2         |
 
+    Scenario Outline: Next-action shape distinguishes a runnable command from a human step
+      Given the repository and active profile derive the <fixture> fixture
+      When Safe Word renders the prepared Codex status as JSON
+      Then the single next action is shaped as a <shape> action
+
+      Examples:
+        | fixture                        | shape   |
+        | restart pending without legacy | human   |
+        | unproven without legacy        | human   |
+        | disabled without legacy        | command |
+        | finalized without plugin       | command |
+
     Scenario: JSON finalization plan uses stable effect actions
       Given legacy Codex assets and current profile hook proof
       When an agent previews finalization with JSON output

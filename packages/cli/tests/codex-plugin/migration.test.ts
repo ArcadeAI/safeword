@@ -219,9 +219,7 @@ describe('Codex migration result', () => {
       state === 'plugin_installed_app_restart_required' ||
       state === 'plugin_enabled_hook_unproven'
     ) {
-      lines.push(
-        'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.',
-      );
+      lines.push('This Codex app may keep its loaded Safe Word catalogue.');
     }
     lines.push(`Next: ${next}`, '');
 
@@ -344,6 +342,20 @@ describe('Codex migration result', () => {
       ]);
     },
   );
+
+  it.each([
+    [
+      'plugin_installed_app_restart_required',
+      facts({ plugin: enabledPlugin, activationPending: true }),
+    ],
+    ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin })],
+  ] as const)('states the restart instruction exactly once for %s', (_state, input) => {
+    const output = renderCodexMigrationHuman(deriveCodexMigrationResult(input));
+
+    const occurrences = output.split('Restart Codex, start a new task').length - 1;
+    expect(occurrences).toBe(1);
+    expect(output).toContain('This Codex app may keep its loaded Safe Word catalogue.\n');
+  });
 
   it('points an unconfigured teammate to the finalized repository bootstrap', () => {
     const result = deriveCodexMigrationResult(facts({ finalized: true }));

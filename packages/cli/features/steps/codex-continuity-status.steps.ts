@@ -449,6 +449,20 @@ Then(
 );
 
 Then(
+  /^the single next action is shaped as an? (command|human) action$/u,
+  function (this: ContinuityStatusWorld, shape: string) {
+    const status = requireStatus(this);
+    assert.equal(status.next_actions.length, 1);
+    const action = status.next_actions[0];
+    assert.ok(action !== undefined);
+    // A restart is prose a person performs; a migrate is a command a runner can
+    // execute. Asserting only the text lets prose ship in the `command` field,
+    // where an automated caller would try to run an English sentence.
+    assert.equal('command' in action ? 'command' : 'human', shape);
+  },
+);
+
+Then(
   'status reports plugin_setup_required and protection unprotected',
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);

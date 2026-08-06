@@ -28584,7 +28584,7 @@ function renderCodexMigrationHuman(result) {
   if (result.state === "plugin_setup_required") {
     lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
   } else if (result.state === "plugin_installed_app_restart_required" || result.state === "plugin_enabled_hook_unproven") {
-    lines.push(CODEX_RESTART_GUIDANCE);
+    lines.push(CODEX_RESTART_CONTEXT);
   }
   const next = result.next_actions[0];
   if (next !== undefined) {
@@ -28599,11 +28599,10 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_GUIDANCE, MIGRATION_STATE_RULES, NEXT_COMMANDS;
+var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safe Word catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
-  CODEX_RESTART_GUIDANCE = `This Codex app may keep its loaded Safe Word catalogue. ${CODEX_RESTART_INSTRUCTION}`;
   MIGRATION_STATE_RULES = [
     { state: "recovery_required", matches: (facts) => facts.recoveryRequired },
     {
@@ -29759,7 +29758,7 @@ var init_operations = __esm(() => {
   init_project_bootstrap();
   CODEX_CONFIG_PATH2 = CODEX_MIGRATION_SCHEMA.paths.config;
   CODEX_MIGRATION_MESSAGES = {
-    plugin_installed_app_restart_required: CODEX_RESTART_GUIDANCE,
+    plugin_installed_app_restart_required: CODEX_RESTART_CONTEXT,
     compatibility: "Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.",
     plugin_enabled_hook_unproven: "Codex migration state: plugin_enabled_hook_unproven. Review /hooks in the restarted Codex app; when protection is confirmed, run safeword codex migrate --finalize.",
     recovery_required: "Codex migration state: recovery_required. Recovery is required before migration can continue."
@@ -31078,37 +31077,53 @@ function setupResult(input) {
     ...pythonFindings(pythonSetup)
   ];
   const actionRequired = findings.some((finding) => finding.severity !== "info");
-  const resultFindings = actionRequired ? findings : [
+  const claudePluginConverged = claudeProjectPluginEnabled && !changed;
+  const resultFindings = [
     ...findings,
-    {
-      code: "SETUP_CODEX_PLUGIN_HANDOFF",
-      message: "Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.",
-      severity: "info"
-    }
+    ...actionRequired ? [] : [
+      {
+        code: "SETUP_CODEX_PLUGIN_HANDOFF",
+        message: "Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.",
+        severity: "info"
+      }
+    ],
+    ...claudePluginConverged ? [
+      {
+        code: "SETUP_CLAUDE_PLUGIN_PRESERVED",
+        message: "The project-scoped Claude plugin remains enabled; reload plugins to activate any refreshed configuration.",
+        severity: "info"
+      }
+    ] : []
   ];
-  if (claudeProjectPluginEnabled) {
-    resultFindings.push({
-      code: "SETUP_CLAUDE_PLUGIN_PRESERVED",
-      message: "The project-scoped Claude plugin remains enabled; reload plugins to activate any refreshed configuration.",
-      severity: "info"
-    });
-  }
   let state = changed ? "changed" : "healthy";
   if (actionRequired)
     state = "action_required";
-  const nextCommands = actionRequired ? [installation.command ?? "safeword setup"] : [claudeProjectPluginEnabled ? "/reload-plugins" : "safeword claude install"];
+  const nextAction2 = setupNextAction({
+    actionRequired,
+    claudePluginConverged,
+    installCommand: installation.command
+  });
   return createResult({
     state,
     changed,
     effects: { files, packages, network },
     findings: resultFindings,
-    nextActions: nextCommands.map((command) => ({
-      command,
-      mutates: !command.startsWith("/"),
-      requiresHuman: true
-    })),
+    nextActions: [nextAction2],
     data: { configured: true, dependency_install: installation }
   });
+}
+function setupNextAction(input) {
+  if (input.actionRequired) {
+    return {
+      command: input.installCommand ?? "safeword setup",
+      mutates: true,
+      requiresHuman: true
+    };
+  }
+  if (input.claudePluginConverged) {
+    return { command: "/reload-plugins", mutates: false, requiresHuman: true };
+  }
+  return { command: "safeword claude install", mutates: true, requiresHuman: true };
 }
 function projectClaudePluginEnabled(cwd) {
   try {

@@ -35,7 +35,7 @@ import {
   observeLegacyGlobalGuidance,
 } from './legacy-global-guidance.js';
 import {
-  CODEX_RESTART_GUIDANCE,
+  CODEX_RESTART_CONTEXT,
   codexMigrationExitCode,
   type CodexMigrationResultV2,
   type CodexPluginObservation,
@@ -420,7 +420,7 @@ export function observeCodexMigrationResult(
 
 const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV2['state'], string>>> =
   {
-    plugin_installed_app_restart_required: CODEX_RESTART_GUIDANCE,
+    plugin_installed_app_restart_required: CODEX_RESTART_CONTEXT,
     compatibility:
       'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.',
     plugin_enabled_hook_unproven:

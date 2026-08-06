@@ -57,7 +57,13 @@ export interface CodexMigrationFacts {
 
 const CODEX_RESTART_INSTRUCTION =
   'Restart Codex, start a new task, then review the installed hooks with /hooks.';
-export const CODEX_RESTART_GUIDANCE = `This Codex app may keep its loaded Safe Word catalogue. ${CODEX_RESTART_INSTRUCTION}`;
+
+/**
+ * Why the app may still be stale. The instruction that resolves it travels as a
+ * typed human next action, so renderers must not repeat it here — a message and
+ * a `Next:` line carrying the same sentence reads as a stutter, not as emphasis.
+ */
+export const CODEX_RESTART_CONTEXT = 'This Codex app may keep its loaded Safe Word catalogue.';
 
 export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {
   // Older Codex clients may omit nullable catalog version metadata. In that
@@ -192,7 +198,7 @@ export function renderCodexMigrationHuman(result: CodexMigrationResultV2): strin
     result.state === 'plugin_installed_app_restart_required' ||
     result.state === 'plugin_enabled_hook_unproven'
   ) {
-    lines.push(CODEX_RESTART_GUIDANCE);
+    lines.push(CODEX_RESTART_CONTEXT);
   }
   const next = result.next_actions[0];
   if (next !== undefined) {

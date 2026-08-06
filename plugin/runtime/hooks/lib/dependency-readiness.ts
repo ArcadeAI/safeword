@@ -488,8 +488,20 @@ export function toDependencyReadinessState(
   };
 }
 
+function dependencyRecoveryCommand(readiness: DependencyReadiness): string {
+  const { installCommand, plan, status } = readiness;
+  if (installCommand === undefined) return 'install dependencies';
+
+  // A version-bump pull changes the input fingerprint without changing resolved
+  // dependencies, so the install reports "no changes" and does not refresh the
+  // marker — which would otherwise leave this stale check looping. No package
+  // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
+  // chain the artifact touch that clears the check in that no-op case.
+  if (status !== 'stale' || plan === undefined) return installCommand;
+  return `${installCommand} && touch ${plan.installArtifact}`;
+}
+
 export function formatDependencyRecovery(readiness: DependencyReadiness): string {
-  const installCommand = readiness.installCommand ?? 'install dependencies';
   const problem =
     readiness.status === 'stale'
       ? "the project's tool list changed since it was last set up, so safeword's checks may be out of date"
@@ -497,10 +509,11 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
 
   const lines = [
     `${problem}.`,
-    `Install them with this command from the project folder, then try again:`,
-    readiness.status === 'stale'
-      ? `  ${installCommand} && touch node_modules`
-      : `  ${installCommand}`,
+    // The recovery may end in a relative `touch`, so the folder has to be the
+    // project root — "the project folder" reads as "wherever you are" inside a
+    // monorepo package and quietly touches the wrong artifact.
+    `Install them with this command from the project root folder, then try again:`,
+    `  ${dependencyRecoveryCommand(readiness)}`,
   ];
 
   return lines.join('\n');

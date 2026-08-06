@@ -156,6 +156,37 @@ describe('convergent setup', () => {
     );
   });
 
+  it('still routes an enrolled project through install when the run delivered changes', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.claude'), { recursive: true });
+    // Enrollment is recorded before the first delivery, so this run both sees
+    // the plugin as enabled and rewrites files. `enabledPlugins` carries no
+    // version, so it cannot prove Claude already holds this build.
+    writeFileSync(
+      nodePath.join(directory, '.claude/settings.json'),
+      `${JSON.stringify({ enabledPlugins: { 'safeword@safeword': true } }, undefined, 2)}\n`,
+    );
+
+    const result = await runCliWithoutInstall(
+      ['setup', '--json', '--no-input', '--offline', '--cwd', directory, '--no-modify'],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      changed: boolean;
+      findings: { code: string }[];
+      next_actions: { command: string }[];
+    };
+    expect(envelope.changed).toBe(true);
+    expect(envelope.next_actions).toEqual([
+      { command: 'safeword claude install', mutates: true, requires_human: true },
+    ]);
+    expect(envelope.findings.map(finding => finding.code)).not.toContain(
+      'SETUP_CLAUDE_PLUGIN_PRESERVED',
+    );
+  });
+
   it('journals a completed workspace write when a later workspace update fails', async () => {
     const directory = createTemporaryDirectory();
     const packagePath = nodePath.join(directory, 'packages/a/package.json');

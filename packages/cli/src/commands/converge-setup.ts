@@ -602,42 +602,68 @@ function setupResult(input: SetupResultInput): CliResult {
     ...pythonFindings(pythonSetup),
   ];
   const actionRequired = findings.some(finding => finding.severity !== 'info');
-  const resultFindings = actionRequired
-    ? findings
-    : [
-        ...findings,
-        {
-          code: 'SETUP_CODEX_PLUGIN_HANDOFF',
-          message:
-            'Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.',
-          severity: 'info' as const,
-        },
-      ];
-  if (claudeProjectPluginEnabled) {
-    resultFindings.push({
-      code: 'SETUP_CLAUDE_PLUGIN_PRESERVED',
-      message:
-        'The project-scoped Claude plugin remains enabled; reload plugins to activate any refreshed configuration.',
-      severity: 'info' as const,
-    });
-  }
+  // `.claude/settings.json` records enrollment but not the enrolled version, so
+  // it can only prove "already converged" when this run changed nothing. A run
+  // that rewrote delivered files may have moved the templates past the version
+  // Claude installed, and `/reload-plugins` re-reads the old build — the
+  // install command is what actually converges that case.
+  const claudePluginConverged = claudeProjectPluginEnabled && !changed;
+  const resultFindings = [
+    ...findings,
+    ...(actionRequired
+      ? []
+      : [
+          {
+            code: 'SETUP_CODEX_PLUGIN_HANDOFF',
+            message:
+              'Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.',
+            severity: 'info' as const,
+          },
+        ]),
+    ...(claudePluginConverged
+      ? [
+          {
+            code: 'SETUP_CLAUDE_PLUGIN_PRESERVED',
+            message:
+              'The project-scoped Claude plugin remains enabled; reload plugins to activate any refreshed configuration.',
+            severity: 'info' as const,
+          },
+        ]
+      : []),
+  ];
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
-  const nextCommands = actionRequired
-    ? [installation.command ?? 'safeword setup']
-    : [claudeProjectPluginEnabled ? '/reload-plugins' : 'safeword claude install'];
+  const nextAction = setupNextAction({
+    actionRequired,
+    claudePluginConverged,
+    installCommand: installation.command,
+  });
   return createResult({
     state,
     changed,
     effects: { files, packages, network },
     findings: resultFindings,
-    nextActions: nextCommands.map(command => ({
-      command,
-      mutates: !command.startsWith('/'),
-      requiresHuman: true,
-    })),
+    nextActions: [nextAction],
     data: { configured: true, dependency_install: installation },
   });
+}
+
+function setupNextAction(input: {
+  readonly actionRequired: boolean;
+  readonly claudePluginConverged: boolean;
+  readonly installCommand?: string;
+}): { command: string; mutates: boolean; requiresHuman: boolean } {
+  if (input.actionRequired) {
+    return {
+      command: input.installCommand ?? 'safeword setup',
+      mutates: true,
+      requiresHuman: true,
+    };
+  }
+  if (input.claudePluginConverged) {
+    return { command: '/reload-plugins', mutates: false, requiresHuman: true };
+  }
+  return { command: 'safeword claude install', mutates: true, requiresHuman: true };
 }
 
 function projectClaudePluginEnabled(cwd: string): boolean {
