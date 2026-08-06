@@ -723,7 +723,7 @@ describe('cross-agent review public-command wiring', () => {
       state: 'action_required',
       recovery: [
         {
-          command: 'safeword review run quality-review review-input.md',
+          command: 'safeword review run quality-review -- review-input.md',
           description: 'Restore the Codex reviewer, then retry the independent review.',
         },
       ],
@@ -777,7 +777,7 @@ describe('cross-agent review public-command wiring', () => {
       state: 'action_required',
       recovery: [
         {
-          command: 'safeword review run quality-review review-input.md',
+          command: 'safeword review run quality-review -- review-input.md',
           description: 'Run the review again.',
         },
       ],

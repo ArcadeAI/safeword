@@ -139,7 +139,11 @@ function shellQuote(value: string): string {
 }
 
 function retryCommand(kind: ReviewKind, targets: readonly string[]): string {
-  return `safeword review run ${kind} ${targets.map(target => shellQuote(target)).join(' ')}`;
+  // `--` ends option parsing, so a reviewed file named `--help` or `-r` reaches
+  // the command as a target rather than as a flag. Shell quoting cannot do this:
+  // it is the argument parser, not the shell, that would misread the name.
+  const quoted = targets.map(target => shellQuote(target)).join(' ');
+  return `safeword review run ${kind} -- ${quoted}`;
 }
 
 /** How an agent is written for a reader: the product name, not the runtime id. */
