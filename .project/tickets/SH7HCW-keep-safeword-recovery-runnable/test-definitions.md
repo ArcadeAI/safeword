@@ -18,7 +18,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: shared classifier shipped in the prior slice; removing its metacharacter guard made five smuggling cases fail
 - [x] GREEN 82a149766
-- [ ] REFACTOR
+- [x] REFACTOR skip: table-driven adversarial cases share the existing classifier fixture without duplication
 
 ### Scenario: A newline cannot hide a guarded command after recovery
 
