@@ -88,12 +88,11 @@ describe('migrate codex-plugin command', () => {
     const configPath = nodePath.join(directory, '.codex/config.toml');
     writeFileSync(configPath, config);
 
-    const runtime = installFakeCodexRuntime(
-      directory,
+    const runtime = installFakeCodexRuntime(directory, {
       pluginEnabled,
       pluginInitiallyInstalled,
       pluginVersion,
-    );
+    });
     return {
       directory,
       configPath,

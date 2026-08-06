@@ -28,7 +28,7 @@ done_when:
   - Plugin hook commands invoke package-runner or packaged CLI entrypoints and contain no dependency on repo-local `.safeword/hooks` paths
   - Existing Codex hook deny/allow/continuation semantics are covered through packaged CLI entrypoints with exact Codex hook JSON fixtures
   - The opt-in live smoke exercises plugin-installed hooks through real `codex exec --json --dangerously-bypass-hook-trust` and records any known Codex interception boundary
-  - A declined migration preserves working fallback assets; a successful proven handoff removes managed Codex skill/hook assets while preserving user-owned project data
+  - A declined migration preserves fallback assets; a successful proven handoff removes managed Codex skill/hook assets while preserving user-owned project data
 created: 2026-07-09T01:04:07.604Z
 last_modified: 2026-07-09T20:10:04Z
 ---

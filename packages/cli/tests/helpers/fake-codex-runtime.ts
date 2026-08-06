@@ -9,6 +9,12 @@ export interface FakeCodexRuntime {
   logPath: string;
 }
 
+interface FakeCodexRuntimeOptions {
+  pluginEnabled: boolean;
+  pluginInitiallyInstalled: boolean;
+  pluginVersion?: string;
+}
+
 function writeExecutable(path: string, content: string): void {
   writeFileSync(path, content, { mode: 0o755 });
   chmodSync(path, 0o755);
@@ -16,9 +22,7 @@ function writeExecutable(path: string, content: string): void {
 
 export function installFakeCodexRuntime(
   directory: string,
-  pluginEnabled: boolean,
-  pluginInitiallyInstalled: boolean,
-  pluginVersion?: string,
+  { pluginEnabled, pluginInitiallyInstalled, pluginVersion }: FakeCodexRuntimeOptions,
 ): FakeCodexRuntime {
   const bin = nodePath.join(directory, 'bin');
   const codexHome = nodePath.join(directory, 'profile');

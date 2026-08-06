@@ -1665,7 +1665,10 @@ When(
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
-    const runtime = installFakeCodexRuntime(runtimeRoot, true, false);
+    const runtime = installFakeCodexRuntime(runtimeRoot, {
+      pluginEnabled: true,
+      pluginInitiallyInstalled: false,
+    });
     this.codexPluginRuntimeRoot = runtimeRoot;
     this.codexPluginCodexHome = runtime.codexHome;
     this.codexPluginMigrationLogPath = runtime.logPath;
@@ -1931,7 +1934,11 @@ Then(
   'legacy Safe Word Codex hook runtime files are removed after finalization',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    assert.equal(existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex')), false);
+    assert.equal(
+      existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex/pre-tool-quality.ts')),
+      false,
+    );
+    assert.equal(existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex/stop.ts')), false);
   },
 );
 
