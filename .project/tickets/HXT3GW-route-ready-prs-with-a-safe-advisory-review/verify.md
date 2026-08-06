@@ -3,7 +3,7 @@
 ## Verify Checklist
 
 **Test Suite:** ✓ 6613/6613 executed tests pass (5 explicitly skipped); 3/3 added provider contract tests pass
-**Gherkin:** ✅ Deterministic acceptance lane passes (1,016 scenarios and 38,576 steps passed; 3 scenarios/4 steps explicitly skipped). The selected live Flux scenario reaches the real OpenAI Responses boundary but is externally rate-limited as recorded below.
+**Gherkin:** ✅ Deterministic acceptance lane passes (1,016 scenarios and 38,576 steps passed; 3 scenarios/4 steps explicitly skipped); the selected live Flux scenario also passes against the real OpenAI Responses boundary (1 scenario, 39 steps).
 **Build:** ✅ Success (CLI declarations/build and website static build)
 **Lint:** ✅ Clean (ESLint, Prettier, TypeScript, and Astro diagnostics)
 **Scenarios:** All 106 scenarios marked complete
@@ -13,7 +13,7 @@
 **Reconcile:** ✅ No pattern deviation; default-off schema reconciliation, typed CLI discovery, and split-privilege publication follow existing project decisions
 **Experience:** ✅ No new friction for the receipt reader
 **Surface Evidence:** ✅ 2/2 affected surfaces have recorded deterministic proof; real GitHub runtime evidence remains release-limited below
-**Evidence limits:** ⚠️ Two 1Password-injected OpenAI credentials authenticate successfully (`GET /v1/models` returned 200), but live Responses calls returned HTTP 429 for both `gpt-5.2` and `gpt-5-mini`; the structured API error is `insufficient_quota` / `credit_balance_exhausted`. The model finding/route remains unproven until API credits are restored. The disposable GitHub environment-secret/concurrency/merge-neutral smoke remains the YC6JCC release gate.
+**Evidence limits:** ⚠️ The disposable GitHub environment-secret/concurrency/merge-neutral smoke remains the YC6JCC release gate; the live model boundary is proven.
 
 Audit passed — diff-scoped config/architecture checks found no violations; seven changed test files were reviewed with no test-quality errors; configured docs sources (`README.md` and `packages/website/src/content/docs`) were checked with none skipped.
 
@@ -33,7 +33,7 @@ Walked the Non-Technical Builder through ready PR → one current advisory recei
 - Full verification plan: 441 Vitest files; 6,613 passed and 5 skipped.
 - Full deterministic Gherkin lane: 1,019 scenarios; 1,016 passed and 3 skipped; 38,576 steps passed and 4 skipped.
 - HXT3GW deterministic lane: 60 scenarios and 2,336 steps passed.
-- Live HXT3GW lane: 1 scenario reached the production provider with 1Password-injected credentials. Both available credentials authenticated, but Responses returned HTTP 429 for `gpt-5.2`; `gpt-5-mini` returned the same result. A sanitized diagnostic identified `insufficient_quota` / `credit_balance_exhausted`, distinguishing the block from authentication, model access, or transient per-model rate limiting. The live runner also required the deterministic lane's existing `NODE_OPTIONS='--import tsx'` loader because the root live script currently omits it.
+- Live HXT3GW lane: 1 scenario and 39 steps passed against the production OpenAI provider with a 1Password-injected credential. The unfamiliar `.flux` access-control regression produced a path-bound finding and the published receipt routed to `needs_human`.
 - Website: Astro check reported 0 errors, 0 warnings, and 0 hints; static build produced 9 pages.
 - Supply chain: `bun audit` reported no vulnerabilities.
 - Architecture: dependency-cruiser reported no violations across 282 modules and 413 dependencies; generated architecture check is healthy.
@@ -41,5 +41,4 @@ Walked the Non-Technical Builder through ready PR → one current advisory recei
 
 ## Remaining Release Evidence
 
-1. Restore OpenAI API credits, rerun the live Flux scenario with the 1Password-injected credential, and record the access-control finding/`needs_human` result.
-2. Complete YC6JCC's disposable-repository smoke before enabling or releasing the workflow, proving environment-secret scoping, event/sweep serialization, and merge-neutral publication in GitHub Actions.
+1. Complete YC6JCC's disposable-repository smoke before enabling or releasing the workflow, proving environment-secret scoping, event/sweep serialization, and merge-neutral publication in GitHub Actions.

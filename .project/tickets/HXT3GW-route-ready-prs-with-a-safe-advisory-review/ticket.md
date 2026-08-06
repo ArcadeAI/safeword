@@ -48,6 +48,12 @@ last_modified: 2026-08-06T03:46:00Z
 
 ## Work Log
 
+- 2026-08-06T13:46:00Z Restored OpenAI API capacity and passed the selected
+  live Flux evaluation through the production provider: 1/1 scenario and 39/39
+  steps. The model returned a path-bound access-control finding for
+  `policies/access.flux`, and the ordinary-comment receipt routed to
+  `needs_human`. The live model boundary is now proven; only YC6JCC's disposable
+  GitHub runtime smoke remains as release evidence.
 - 2026-08-06T13:20:00Z Re-ran the selected live Flux scenario with two
   1Password-injected OpenAI credentials. Both credentials authenticated against
   `/v1/models`, while Responses returned HTTP 429 for `gpt-5.2`; the primary
