@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: A non-recovery package command remains guarded
 
-- [ ] RED
+- [x] RED skip: shared classifier shipped in the prior slice; removing its metacharacter guard made five smuggling cases fail
 - [ ] GREEN
 - [ ] REFACTOR
 
