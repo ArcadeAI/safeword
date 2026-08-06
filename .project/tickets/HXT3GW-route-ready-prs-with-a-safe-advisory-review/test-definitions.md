@@ -209,7 +209,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: An untrusted fork is reviewed as data without execution
 
 - [x] RED 358951843
-- [ ] GREEN
+- [x] GREEN 8ecaf6c3b
 - [ ] REFACTOR
 
 ### Scenario: Missing audit evidence blocks publication
