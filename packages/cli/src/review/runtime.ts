@@ -95,6 +95,7 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
 };
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
+const DEFAULT_REVIEW_TIMEOUT_MS = 10 * 60_000;
 
 const REVIEW_RUBRICS: Readonly<Record<ReviewPacket['kind'], string>> = {
   'quality-review':
@@ -117,7 +118,7 @@ export class ReviewRuntimeError extends Error {
 
 function timeoutMilliseconds(): number {
   const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : 120_000;
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
