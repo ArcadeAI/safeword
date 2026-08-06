@@ -54,7 +54,7 @@ interface StopContinuationOutput {
   reason: string;
 }
 
-interface PackagedHookResult {
+interface HookProcessResult {
   error?: Error;
   status?: number;
   stderr: string;
@@ -63,6 +63,7 @@ interface PackagedHookResult {
 
 const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
+const PRE_TOOL_QUALITY_HOOK_PATH = 'codex/pre-tool-quality.ts';
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
 const TEMPLATE_DIRECTORIES = [
@@ -329,7 +330,7 @@ function runHookFile(
   rawInput: string,
   projectDirectory: string,
   packagedContextPath = '',
-): PackagedHookResult {
+): HookProcessResult {
   const result = spawnSync('bun', [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
@@ -370,7 +371,7 @@ function runPackagedHook(
   relativePath: string,
   rawInput: string,
   projectDirectory: string,
-): PackagedHookResult {
+): HookProcessResult {
   const hookPath = resolvePackagedHook(relativePath);
   if (!hookPath) {
     return {
@@ -407,39 +408,47 @@ function runPackagedHook(
   }
 }
 
-function packagedHookFilesAreMissing(result: PackagedHookResult): boolean {
-  const detail = result.stderr.trim() || result.error?.message || '';
-  return (
-    detail.startsWith('Safe Word packaged hook is missing:') ||
-    (/ENOENT|Module not found|Cannot find module/iu.test(detail) &&
-      /[/\\]templates[/\\]hooks[/\\]/u.test(detail))
-  );
+interface PackagedHookSnapshot {
+  directory?: string;
+  error?: Error;
+  hookPath?: string;
 }
 
-function runPreToolQualityHook(rawInput: string, projectDirectory: string): PackagedHookResult {
-  const packagedResult = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
-  if (!packagedHookFilesAreMissing(packagedResult)) return packagedResult;
+function snapshotPackagedHook(relativePath: string): PackagedHookSnapshot {
+  const packagedHooksDirectory = findPackagedTemplate('hooks');
+  if (!packagedHooksDirectory) {
+    return { error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+  }
 
-  // Concurrent bunx hooks can replace their shared temporary package while this
-  // process is loading an entry point or import. The reconciled project copy is
-  // stable for the lifetime of the tool call and preserves the same gate.
-  const installedHookPath = nodePath.join(
-    projectDirectory,
-    '.safeword/hooks/codex/pre-tool-quality.ts',
+  const directory = mkdtempSync(
+    nodePath.join(tmpdir(), `safeword-codex-hook-snapshot-${process.pid}-`),
   );
-  return existsSync(installedHookPath)
-    ? runHookFile(installedHookPath, rawInput, projectDirectory)
-    : packagedResult;
+  const snapshotHooksDirectory = nodePath.join(directory, 'hooks');
+  try {
+    cpSync(packagedHooksDirectory, snapshotHooksDirectory, { recursive: true });
+    const hookPath = nodePath.join(snapshotHooksDirectory, relativePath);
+    return existsSync(hookPath)
+      ? { directory, hookPath }
+      : { directory, error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+  } catch (error) {
+    return {
+      directory,
+      error: error instanceof Error ? error : new Error(String(error)),
+    };
+  }
 }
 
-function denyForPackagedHookFailure(result: PackagedHookResult): never {
-  const detail =
-    result.stderr.trim() || result.error?.message || 'exited without a failure message';
+function hookFailureDetail(result: HookProcessResult): string {
+  return result.stderr.trim() || result.error?.message || 'exited without a failure message';
+}
+
+function denyForPackagedHookFailure(result: HookProcessResult): never {
+  const detail = hookFailureDetail(result);
   process.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}\n`);
   process.exit(2);
 }
 
-function emitPackagedPreToolResult(result: PackagedHookResult): boolean {
+function emitPackagedPreToolResult(result: HookProcessResult): boolean {
   if (result.error || result.status !== 0) denyForPackagedHookFailure(result);
   if (result.stdout.trim() === '') return false;
   process.stdout.write(result.stdout);
@@ -475,7 +484,7 @@ function currentTimestampContext(now = new Date()): string {
 }
 
 function packagedAdditionalContext(
-  result: PackagedHookResult,
+  result: HookProcessResult,
   hookEventName: AdditionalContextHookEvent,
 ): string | undefined {
   if (result.error || result.status !== 0 || result.stdout.trim() === '') return undefined;
@@ -518,8 +527,11 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
   return true;
 }
 
-function runEnrolledPreToolUse(rawInput: string, projectDirectory: string): void {
-  const qualityResult = runPreToolQualityHook(rawInput, projectDirectory);
+function runEnrolledPreToolUse(
+  rawInput: string,
+  projectDirectory: string,
+  qualityResult: HookProcessResult,
+): void {
   if (emitPackagedPreToolResult(qualityResult)) return;
 
   const input = parseCodexHookInput(rawInput);
@@ -544,10 +556,20 @@ function runEnrolledPreToolUse(rawInput: string, projectDirectory: string): void
 }
 
 async function runPreToolUse(): Promise<void> {
-  const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
   if (!hasSafewordProjectMarker(projectDirectory)) return;
-  runEnrolledPreToolUse(rawInput, projectDirectory);
+
+  // bunx uses a shared cache and can replace a package directory while another
+  // hook process is still alive. Snapshot the package-owned gate before waiting
+  // on stdin so every transitive import stays stable for this tool call.
+  const snapshot = snapshotPackagedHook(PRE_TOOL_QUALITY_HOOK_PATH);
+  const rawInput = await readStdin();
+  const qualityResult: HookProcessResult = snapshot.hookPath
+    ? runHookFile(snapshot.hookPath, rawInput, projectDirectory)
+    : { error: snapshot.error, stderr: '', stdout: '' };
+  if (snapshot.directory) rmSync(snapshot.directory, { recursive: true, force: true });
+
+  runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult);
 }
 
 async function runSessionStart(): Promise<void> {

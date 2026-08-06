@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   cpSync,
@@ -14,7 +14,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -61,6 +61,71 @@ describe('packagedNamespaceRootLabel', () => {
     writeFileSync(executable, `#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\n`);
     chmodSync(executable, 0o755);
     return { sourceFile, log };
+  }
+
+  function createPackagedCliFixture() {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    const packageDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-stale-package-'));
+    directories.push(projectDirectory, packageDirectory);
+    markSafewordProject(projectDirectory);
+    cpSync(
+      nodePath.resolve(import.meta.dirname, '../../templates'),
+      nodePath.join(packageDirectory, 'templates'),
+      {
+        recursive: true,
+      },
+    );
+    cpSync(
+      nodePath.resolve(import.meta.dirname, '../../dist'),
+      nodePath.join(packageDirectory, 'dist'),
+      { recursive: true },
+    );
+    cpSync(
+      nodePath.resolve(import.meta.dirname, '../../package.json'),
+      nodePath.join(packageDirectory, 'package.json'),
+    );
+    return { packageDirectory, projectDirectory };
+  }
+
+  async function waitForHookSnapshot(processId: number): Promise<void> {
+    const snapshotPrefix = `safeword-codex-hook-snapshot-${processId}-`;
+    await vi.waitFor(
+      () => {
+        expect(readdirSync(tmpdir()).some(entry => entry.startsWith(snapshotPrefix))).toBe(true);
+      },
+      { interval: 10, timeout: 5000 },
+    );
+  }
+
+  async function runHookWhilePackageIsReplaced(command: string) {
+    const { packageDirectory, projectDirectory } = createPackagedCliFixture();
+    const child = spawn(
+      'bun',
+      [nodePath.join(packageDirectory, 'dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
+      { cwd: projectDirectory, stdio: ['pipe', 'pipe', 'pipe'] },
+    );
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => (stdout += String(chunk)));
+    child.stderr.on('data', chunk => (stderr += String(chunk)));
+
+    if (child.pid === undefined) throw new Error('Packaged hook process did not start');
+    await waitForHookSnapshot(child.pid);
+    rmSync(nodePath.join(packageDirectory, 'templates'), { recursive: true, force: true });
+    child.stdin.end(
+      JSON.stringify({
+        session_id: 'stale-package-session',
+        tool_name: 'Bash',
+        tool_input: { command },
+      }),
+    );
+    const status = await new Promise<number | null>((resolve, reject) => {
+      child.once('error', reject);
+      child.once('close', resolve);
+    });
+    return { status, stderr, stdout };
   }
 
   function initializeCommittedProject(projectDirectory: string) {
@@ -727,54 +792,44 @@ command = "npx --yes safeword hook codex pre-tool-use"
     expect(result.stderr).toContain('Broad process kill blocked');
   });
 
-  it('recovers from a packaged PreToolUse hook lost from the bunx cache without bypassing gates', () => {
-    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
-    const packageDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-stale-package-'));
-    directories.push(projectDirectory, packageDirectory);
-    markSafewordProject(projectDirectory);
-    cpSync(
-      nodePath.resolve(import.meta.dirname, '../../templates/hooks'),
-      nodePath.join(projectDirectory, '.safeword/hooks'),
-      { recursive: true },
-    );
-    cpSync(
-      nodePath.resolve(import.meta.dirname, '../../dist'),
-      nodePath.join(packageDirectory, 'dist'),
-      { recursive: true },
-    );
-    cpSync(
-      nodePath.resolve(import.meta.dirname, '../../package.json'),
-      nodePath.join(packageDirectory, 'package.json'),
-    );
-    const packagedAdapter = nodePath.join(
-      packageDirectory,
-      'templates/hooks/codex/pre-tool-quality.ts',
-    );
-    mkdirSync(nodePath.dirname(packagedAdapter), { recursive: true });
-    writeFileSync(packagedAdapter, "import '../lib/namespace-root.ts';\n");
-
-    const runStalePackageHook = (command: string) =>
-      spawnSync(
-        'bun',
-        [nodePath.join(packageDirectory, 'dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
-        {
-          cwd: projectDirectory,
-          input: JSON.stringify({
-            session_id: 'stale-package-session',
-            tool_name: 'Bash',
-            tool_input: { command },
-          }),
-          encoding: 'utf8',
-        },
-      );
-
-    const allowed = runStalePackageHook("sed -n '1,20p' README.md");
+  it('allows a safe command after bunx replaces the packaged PreToolUse hook tree', async () => {
+    const allowed = await runHookWhilePackageIsReplaced("sed -n '1,20p' README.md");
     expect(allowed.status, allowed.stderr).toBe(0);
     expect(allowed.stdout).toBe('');
+  });
 
-    const denied = runStalePackageHook('pkill node');
+  it('preserves a structured denial after bunx replaces the packaged PreToolUse hook tree', async () => {
+    const denied = await runHookWhilePackageIsReplaced('pkill node');
     expect(denied.status, denied.stderr).toBe(0);
-    expect(denied.stdout).toContain('Broad process kill blocked');
+    const output = JSON.parse(denied.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: unknown; permissionDecisionReason?: unknown };
+    };
+    expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+    expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
+      'Broad process kill blocked',
+    );
+  });
+
+  it('fails closed when the packaged PreToolUse hook tree is already unavailable', () => {
+    const { packageDirectory, projectDirectory } = createPackagedCliFixture();
+    rmSync(nodePath.join(packageDirectory, 'templates'), { recursive: true, force: true });
+
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(packageDirectory, 'dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
+      {
+        cwd: projectDirectory,
+        input: JSON.stringify({
+          session_id: 'missing-package-session',
+          tool_name: 'Bash',
+          tool_input: { command: "sed -n '1,20p' README.md" },
+        }),
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Safe Word packaged PreToolUse hook failed');
   });
 
   it('fails PreToolUse visibly when Bun is unavailable', () => {
