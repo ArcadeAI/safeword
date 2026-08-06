@@ -307,10 +307,12 @@ function hasOnlyRepositorySelectorArguments(arguments_: string[]): boolean {
 
 function combineShellStatus(
   left: boolean | undefined,
-  operator: '&&' | '||' | ';' | undefined,
+  operator: '&&' | '||' | ';' | '&' | undefined,
   right: boolean | undefined,
 ): boolean | undefined {
-  if (operator === undefined || operator === ';') return right;
+  // `&` backgrounds the left list and runs the right one immediately, so the
+  // left status never gates it — same carry-nothing-forward shape as `;`.
+  if (operator === undefined || operator === ';' || operator === '&') return right;
   if (operator === '&&') {
     if (left === false || right === false) return false;
     return left === true && right === true ? true : undefined;
