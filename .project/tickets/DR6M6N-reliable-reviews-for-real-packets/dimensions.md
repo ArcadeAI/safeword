@@ -6,8 +6,8 @@ issue 1922, and domain knowledge of the existing coordinator.
 | Dimension                     | Partitions and boundaries                                                                                                       |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Packet size                   | small single file · representative five-file (~58 KB) · at the existing size bound                                              |
-| Reviewer answer timing        | answers quickly · answers after the old fixed 120 s but inside the derived budget · answers past the documented maximum · never answers |
-| Budget source                 | derived from packet size · explicitly configured override                                                                       |
+| Reviewer answer timing        | answers quickly · answers after the old fixed 120 s but inside the flat 300 s deadline · answers past the documented maximum · never answers |
+| Budget source                 | evidence-based flat deadline · explicitly configured shorter override                                                            |
 | Candidate set on `PATH`       | one compatible · incompatible first, compatible later · slow compatible first, compatible later · none compatible               |
 | Typed-output capability       | candidate advertises structured output · candidate does not                                                                     |
 | Reviewer answer conformance   | conforming · unsupported severity · extra field · not a result at all                                                           |

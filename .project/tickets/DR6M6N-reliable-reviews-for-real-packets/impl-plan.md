@@ -202,37 +202,34 @@ the executable twice to learn what one launch already tells us.
 
 ### Temporary contract file lifecycle
 
-**Two cleanup owners, never one.** A dispatch contains many attempts, so tying
-the contract file to attempt cleanup would delete it before a later candidate
-runs. Ownership is split:
+**Two cleanup owners, never one.** A route can contain many candidate attempts,
+so tying the contract file to candidate cleanup would delete it before a later
+candidate runs. Ownership is split:
 
 | Owner | Lifetime | Removes |
 | --- | --- | --- |
-| attempt cleanup | one candidate's launch → stop | that reviewer's processes and pipes |
-| dispatch cleanup | whole review run | the contract file and the temp root |
+| candidate cleanup | one candidate's launch → stop | that reviewer's processes and pipes |
+| route cleanup | one reviewer/model route | the contract file and its temp root |
 
-Attempt cleanup never touches the contract file. The file is written once at
-dispatch start with a unique name and owner-only permissions, in the temp root
-the packet already uses, and removed once when the run ends — on every exit
-path including crash and launch failure. A test asserts the second and third
-candidates still find the file present and unchanged after an earlier attempt
-timed out. Its path never reaches an explanation, which `NTB1.R2` already
-forbids for executable paths and launch arguments.
+Candidate cleanup never touches the contract file. For a Codex route,
+`runHeadlessReviewer` writes one file with a unique name and owner-only
+permissions before candidate discovery and removes it when that route ends — on
+every exit path including crash and launch failure. Every candidate in the same
+route receives that path; a later model or author route owns a fresh file. Its
+path never reaches an explanation, which `NTB1.R2` already forbids for
+executable paths and launch arguments.
 
 ### Worst-case timing arithmetic
 
-The run bound must survive the worst legal sequence, so the reserve is spent
-deliberately rather than assumed:
-
-- attempts: 3 routes × 300 s = 900 s — the whole of the three attempt budgets.
-- probes: bounded *inside* each candidate's share, so they add nothing.
-- candidate cleanups: 8 candidates × 3 routes × 5 s = 120 s worst case.
-- route transitions: 3 × negligible, budgeted at 5 s each = 15 s.
-- reserve: 300 s. Spend: 135 s. Headroom: 165 s.
-
-Invariant to hold in code and prove at the boundary: no sequence of probes,
-launches, candidate cleanups and route transitions pushes review work past
-20 minutes, and the command still returns within one further cleanup window.
+One absolute 540-second reviewer-work deadline governs the run. A route receives
+the smaller of its flat 300-second attempt deadline and the shared time
+remaining; capability probes are inside candidate shares, and earlier cleanup
+and route transitions consume the same clock. The default first timeout leaves
+240 seconds for the configured independent retry, above the 120-second route
+floor. That retry may consume the remainder, so the author fallback is skipped
+when the shared bound can no longer fund it. Final synchronous integrity work
+and one cleanup already in progress may finish after the deadline, as the spec
+states explicitly.
 
 ## Decisions
 
@@ -243,11 +240,10 @@ launches, candidate cleanups and route transitions pushes review work past
 | Model configuration | `.safeword/config.json` plus a `SAFEWORD_REVIEW_*` env override, no default | ship a default model per agent | Z4Q24Q forbids shipped model names — they rot each release and bind us to one vendor |
 | Contract delivery to Codex | temp file passed as `--output-schema` | inline schema in the prompt only | Codex takes a file path, not inline JSON; verified against 0.146.0 during intake |
 | Capability adapters | one adapter shape per runtime — Claude inline `--json-schema`, Codex `--output-schema` file | one shared required-flag list | a shared list skips capable candidates of the other runtime for lacking a flag they never had |
-| Test clock boundary | every deadline virtual, including cleanup; one untimed OS test for stop effects | all-virtual; all-real; real timers for short boundaries | all-virtual cannot prove signalling; all-real makes 300-second boundaries cost 300 seconds; real short timers reintroduce the flakiness the constraint forbids |
+| Test clock boundary | pure arithmetic tests plus shortened configured real deadlines and polled process outcomes | all-virtual; production-duration real timers | virtual time cannot prove OS signalling; production-duration tests would take minutes, while the public override exercises the same path at bounded test durations |
 | Run bound | 540 s | 20 min from route arithmetic | every caller invokes this through a tool capped at 600 s, so a longer bound is killed mid-flight rather than honoured |
 | Candidate allocation | route budget ÷ untried candidates, recalculated each turn | whole route budget per candidate | a hanging first candidate consumes everything — the defect this ticket exists to fix |
 | Process handling | a supervisor abstraction with POSIX group and Windows tree implementations | kill the child pid only; POSIX process groups everywhere | a bare pid kill leaves the reviewer's own children running, and process groups do not exist on Windows, which both affected surfaces support |
-| Clock | injected into the runtime | real timers with generous test tolerances | wall-clock tests at these durations are slow and flaky |
 
 ## Design alignment
 
@@ -311,8 +307,8 @@ documented timing bounds. Folded into the build order as a task at slice 8.
 
 - A reviewer CLI gains native typed-output negotiation, making the capability
   probe redundant.
-- Observed review latency shifts enough that 3 ms/byte no longer fits — the
-  derivation is one function and one table of examples.
+- Observed successful review latency approaches the flat 300-second attempt
+  deadline — the evidence-based bound must be recalibrated with new field data.
 - A third reviewer agent becomes eligible, which would turn the fixed route list
   into a configured one and force the run bound to be recomputed.
 - Safe Word gains persisted run history, which would make an adaptive budget

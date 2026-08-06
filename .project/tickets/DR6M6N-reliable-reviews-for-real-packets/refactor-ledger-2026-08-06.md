@@ -64,6 +64,11 @@ against current `main`.
   process group. Runtime errors now carry a terminal bit through candidate and
   route orchestration; a two-candidate regression proves no later reviewer starts
   after abandonment.
+- **Authoritative design drift:** dimensions, timing arithmetic, decisions, and
+  contract lifecycle still described superseded size-derived/20-minute/virtual
+  clock and dispatch-owned designs. Reconciled them to the flat 300-second
+  attempt, shared 540-second reviewer-work bound, shortened real process tests,
+  and one contract file per reviewer/model route.
 - **Customer timing wording:** configuration docs called nine minutes a complete
   command bound. They now identify it as the reviewer-work ceiling and disclose
   preparation plus final synchronous integrity/cleanup outside that deadline.
