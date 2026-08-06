@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: A recovery command remains available while dependencies are broken
 
 - [x] RED 08cc2f278
-- [ ] GREEN
+- [x] GREEN 849e93605
 - [ ] REFACTOR
 
 ## Rule: keep-safeword-recovery-runnable.TBU1.R2 — The recovery exception does not make unrelated package executors runnable
