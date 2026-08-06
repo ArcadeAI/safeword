@@ -2,6 +2,13 @@
 
 **Status:** implemented
 
+> **Fallback extension reopened.** The original coordinator work remains
+> implemented. The exhausted-route host fallback added on 2026-08-06 is not an
+> accepted implementation plan: quality review found that its requirement chose
+> a mechanism before the JTBD and surface scenarios were settled, and that its
+> static prose test did not prove host dispatch or isolation. Re-plan that
+> extension only after TBU4/NTB2 leave define-behavior.
+
 ## Approach
 
 **Riskiest assumption:** that asking the *same reviewer agent* to review again on
@@ -244,7 +251,6 @@ states explicitly.
 | Run bound | 540 s | 20 min from route arithmetic | every caller invokes this through a tool capped at 600 s, so a longer bound is killed mid-flight rather than honoured |
 | Candidate allocation | route budget ÷ untried candidates, recalculated each turn | whole route budget per candidate | a hanging first candidate consumes everything — the defect this ticket exists to fix |
 | Process handling | a supervisor abstraction with POSIX group and Windows tree implementations | kill the child pid only; POSIX process groups everywhere | a bare pid kill leaves the reviewer's own children running, and process groups do not exist on Windows, which both affected surfaces support |
-| Exhausted-route host fallback | one fresh-context, read-only leaf subagent dispatched by the active skill after `REVIEW_ROUTES_EXHAUSTED`; provenance is degraded | teach the CLI to spawn a host agent; add a hook; stop at human retry | the CLI has no portable access to foreground host tools, hooks differ by host, and a skill handoff is the smallest cross-host mechanism; the fallback cannot satisfy `require` |
 
 ## Design alignment
 
@@ -254,7 +260,6 @@ states explicitly.
 | 3. Add, never replace | the result envelope gains `reviewer_model` and keeps every existing field; an unconfigured project keeps unchanged route selection and is never given a model (TBU3.R3) | `packages/cli/features/reliable-reviews-for-real-packets.feature` | |
 | 5. Clarity before correctness | explanations are built only from Safe Word's own failure classification, never from reviewer output, so they stay readable and leak nothing (NTB1.R2) | `packages/cli/features/reliable-reviews-for-real-packets.feature` | |
 | 1. Structure enforces; instructions suggest | bounds are enforced by the runtime — attempt deadline, run bound, cleanup budget — rather than asked of the reviewer (TBU1.R2, TBU3.R5) | `packages/cli/features/reliable-reviews-for-real-packets.feature` | |
-| 1. Structure enforces; instructions suggest | the CLI enforces route exhaustion and policy; the skill suggests one host-native subagent only after the typed exhaustion code (TBU3.R7) | `packages/cli/tests/review/in-session-subagent-fallback.test.ts` | host dispatch remains model-mediated and is disclosed as soft enforcement |
 
 Architecture decisions honored: this extends the coordinator shipped by
 `QZAFT2-cross-agent-adversarial-reviews` without changing its trust boundaries —
@@ -262,13 +267,6 @@ packet bounds, reviewer isolation, provenance verification, and strict parsing
 all stay as recorded there.
 
 ## Known deviations
-
-**The final host dispatch is soft enforcement.** Claude, Cursor, and Codex expose
-agent delegation through host-owned tools rather than a shared CLI API. The
-shipped skills therefore request one leaf subagent after the coordinator's typed
-exhaustion result. Static parity tests prove the instruction reaches every
-surface; they cannot prove a model will obey it on every run. The CLI remains
-the hard boundary for `require`, packet limits, and route classification.
 
 **The reviewer agent may now be invoked twice in one run.** QZAFT2's model
 assumed one attempt per agent. Independence is unchanged — both attempts are the
@@ -326,5 +324,3 @@ documented timing bounds. Folded into the build order as a task at slice 8.
   tool limit, so a different invocation path would justify revisiting it.
 - A route grows several candidates that fail differently — only the last
   candidate's failure is reported today, which can mislead.
-- A host adds a portable, typed foreground-agent dispatch API; move the
-  exhausted fallback out of prose and into that enforceable boundary.

@@ -24,7 +24,6 @@
 - Collaborator-process fixtures use POSIX shell scripts. Windows command construction and bounded `taskkill` cleanup are covered, but their OS-level effect is not exercised by this Linux/macOS test lane.
 - The final full-suite attempts were not all-green for the unrelated and load-sensitive reasons above. Post-fix evidence is targeted to the affected review surfaces.
 - Route effects currently report coordinator requests, not a separately instrumented proof that a reviewer executable launched; `not_installed` can therefore retain a request effect.
-- In-session subagent dispatch is host-owned and model-mediated. The parity test proves every shipped skill carries the one-shot degraded fallback contract, but cannot deterministically prove the host model invokes its agent tool on every exhausted run.
 
 ## Scenario coverage — resolved
 
@@ -62,8 +61,6 @@ Findings discovered and resolved during the review loop:
   the representative acceptance fixture carry five files totaling roughly 58 KB
 - made cleanup abandonment terminal, retained every attempted route and fallback
   failure, and represented every coordinator request in the effect ledger
-- added one fresh-context, read-only leaf subagent fallback after typed CLI route
-  exhaustion; kept it degraded and ineligible for required cross-agent review
 
 ## Audit
 

@@ -31,6 +31,7 @@ const CAPABILITIES = {
 type Agent = keyof typeof CAPABILITIES;
 type Behaviour =
   | 'answers'
+  | 'fails'
   | 'never answers'
   | 'answers only with a model'
   | 'answers off contract'
@@ -90,6 +91,7 @@ printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text"
   const answer = `${body}\n${emit}`;
 
   if (behaviour === 'answers') return answer;
+  if (behaviour === 'fails') return "printf 'reviewer unavailable\\n' >&2\nexit 7";
   if (behaviour === 'never answers') return 'exec /bin/sleep 3600';
   if (behaviour === 'answers after termination') {
     return `${body}\non_term() {\n${emit}\n  exit 0\n}\ntrap on_term TERM INT\nwhile true; do /bin/sleep 5; done`;
@@ -349,12 +351,9 @@ Given("the reviewer agent's alternate model answers promptly", function (this: S
   state(this);
 });
 
-Given(
-  "neither the reviewer agent's default nor alternate model answers",
-  function (this: SafewordWorld) {
-    installReviewer(state(this), 'codex', 'never answers');
-  },
-);
+Given('both reviewer models fail promptly', function (this: SafewordWorld) {
+  installReviewer(state(this), 'codex', 'fails');
+});
 
 Given("the author's own runtime answers promptly", function (this: SafewordWorld) {
   installReviewer(state(this), 'claude', 'answers');

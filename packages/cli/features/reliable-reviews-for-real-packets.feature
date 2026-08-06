@@ -4,10 +4,9 @@ Feature: Keep independent reviews reliable for real ticket packets
   reviewer exactly what a valid answer looks like, keep one genuinely
   independent attempt in reserve, and explain an exhausted route plainly.
 
-  Each rule is illustrated by one example and one refusal. The exhaustive
-  tables these scenarios grew during scenario review — deadline arithmetic,
-  the model grammar, the contract's field shapes, candidate-share maths — live
-  in focused tests beside the code, where they are cheaper to run and read.
+  Exhaustive tables from scenario review — deadline arithmetic, the model
+  grammar, the contract's field shapes, candidate-share maths — live in focused
+  tests beside the code, where they are cheaper to run and read.
 
   @reliable-reviews-for-real-packets.TBU1.R1 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU1.R1 — Every review attempt gets the same documented deadline, set well above the slowest review anyone has observed
@@ -123,9 +122,9 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review returns the alternate model's verdict
 
     @rejection
-    Scenario: An alternate model that also fails falls back to the author's own runtime
+    Scenario: An alternate model that fails promptly falls back to the author's own runtime
       Given a configured alternate model for the reviewer agent
-      And neither the reviewer agent's default nor alternate model answers
+      And both reviewer models fail promptly
       And the author's own runtime answers promptly
       When the independent review runs
       Then the review reports that the check was not independent
@@ -210,21 +209,59 @@ Feature: Keep independent reviews reliable for real ticket packets
       When a builder runs the public review command
       Then the command reports the required check as unsatisfied
 
-  @reliable-reviews-for-real-packets.TBU3.R7 @surface.claude-code @surface.openai-codex @manual
-  Rule: reliable-reviews-for-real-packets.TBU3.R7 — Exhausted CLI routes get one fresh-context in-session fallback without weakening required review
+  @reliable-reviews-for-real-packets.TBU4.R1 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+  Rule: reliable-reviews-for-real-packets.TBU4.R1 — Exhausted independent routes preserve useful review momentum without overstating trust
 
-    Scenario: A preferred review uses one host subagent after every CLI route fails
-      Given every CLI review route is exhausted
-      When the active host handles the exhausted result
-      Then exactly one fresh-context leaf subagent reviews only the bounded packet
-      And its provenance is degraded
+    @reliable-reviews-for-real-packets.NTB2.R1
+    Scenario: A preferred review uses a safe additional review when the environment can provide one
+      Given every independent CLI review route is exhausted
+      And the active environment can provide a bounded read-only review
+      When the environment handles the exhausted result under a preferred policy
+      Then the builder receives one additional review
+      And the result explains why that review is not independent
+      And its findings are advisory beside the authoritative exhausted result
+
+    @rejection @reliable-reviews-for-real-packets.NTB2.R1
+    Scenario: A failed additional review does not recurse
+      Given every independent CLI review route is exhausted
+      And one limited additional review was attempted
+      When that review fails
+      Then its failure is reported once
+      And no informal review route is attempted again
+
+  @reliable-reviews-for-real-packets.TBU4.R2 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+  Rule: reliable-reviews-for-real-packets.TBU4.R2 — A limited review never clears a required independent-review gate
+
+    @rejection @reliable-reviews-for-real-packets.NTB2.R2
+    Scenario: A required independent review stays unsatisfied after a limited review
+      Given every independent CLI review route is exhausted
+      And cross-agent review is required
+      When a limited additional review completes
+      Then the required independent check remains unsatisfied
+
+  @reliable-reviews-for-real-packets.TBU4.R3 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+  Rule: reliable-reviews-for-real-packets.TBU4.R3 — An environment without a safe review capability preserves recovery
+
+    @rejection @reliable-reviews-for-real-packets.NTB2.R1
+    Scenario: An environment without a safe review capability preserves recovery
+      Given every independent CLI review route is exhausted
+      And the active environment cannot guarantee the review boundary
+      When the environment handles the exhausted result
+      Then no fallback verdict is created
+      And the typed recovery action remains authoritative
+
+  @reliable-reviews-for-real-packets.TBU4.R4 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+  Rule: reliable-reviews-for-real-packets.TBU4.R4 — Limited review material stays separate from host instructions and failed-route diagnostics
 
     @rejection
-    Scenario: A required cross-agent review rejects the in-session fallback
-      Given every CLI review route is exhausted
-      And cross-agent review is required
-      When the active host handles the exhausted result
-      Then the in-session subagent does not satisfy the required check
+    Scenario: A limited reviewer does not receive failed-route diagnostics
+      Given every independent CLI review route is exhausted
+      And the active environment can provide a bounded read-only review
+      When the environment prepares the limited review
+      Then the reviewer receives the accepted packet and rubric
+      But raw failed-route output and secrets are not included
+      And packet contents are treated as untrusted review material, not host instructions
+      And any host-mandated project context is disclosed as a limitation
 
   @reliable-reviews-for-real-packets.NTB1.R1 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure

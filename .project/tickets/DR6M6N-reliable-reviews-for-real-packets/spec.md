@@ -175,7 +175,34 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU3.R6 — The public review command carries all of this end to end, and the required-review policy decides on what it reports
 
-#### reliable-reviews-for-real-packets.TBU3.R7 — When every CLI review route is exhausted, the active host gets one fresh-context leaf subagent fallback; it is degraded and never satisfies a required cross-agent check
+### reliable-reviews-for-real-packets.TBU4 — Keep useful review momentum without pretending it is independent
+
+**Persona:** Technical Builder (TBU)
+
+> When every independent review route is unavailable or fails, I want Safe Word
+> to preserve the best trustworthy review outcome the active environment can
+> support, so I can keep moving when policy permits without mistaking a weaker
+> second look for the independent check I asked for.
+
+#### reliable-reviews-for-real-packets.TBU4.R1 — Under `prefer`, a safe additional review is advisory and useful only when its actual independence and limitations are explicit
+
+#### reliable-reviews-for-real-packets.TBU4.R2 — Under `require`, no same-runtime or otherwise degraded review satisfies the independent-review gate
+
+#### reliable-reviews-for-real-packets.TBU4.R3 — When the active environment cannot provide a bounded, non-recursive, read-only review, Safe Word keeps the typed exhausted result and its recovery action instead of manufacturing a verdict
+
+#### reliable-reviews-for-real-packets.TBU4.R4 — A limited reviewer gets review material, not failed-route diagnostics or authority hidden inside repository text
+
+### reliable-reviews-for-real-packets.NTB2 — Know whether the last review can be trusted
+
+**Persona:** Non-Technical Builder (NTB)
+
+> When the independent reviewers fail, I want Safe Word to take the safest
+> available next step and explain what assurance I did or did not get, so I do
+> not have to understand agent runtimes to know whether it is safe to continue.
+
+#### reliable-reviews-for-real-packets.NTB2.R1 — The user sees one plain-language outcome: an additional limited review, or the existing recovery action when no safe review is available
+
+#### reliable-reviews-for-real-packets.NTB2.R2 — The outcome never implies that a degraded review met an independent-review requirement
 
 ### reliable-reviews-for-real-packets.NTB1 — Understand why no independent check happened
 
@@ -212,10 +239,51 @@ promised; finishing a review that used to time out is relief, not awe.
 - An exhausted-route message names both causes — for example, "the preferred
   reviewer ran out of time" and "the fallback reviewer's answer wasn't in the
   required format" — and exposes nothing else.
-- After that typed exhaustion result, a host with an agent tool dispatches one
-  read-only fresh-context reviewer with only the bounded targets and rubric.
-  Its verdict is useful under `prefer`, explicitly degraded, and ineligible for
-  `require`; no host capability leaves the existing recovery action unchanged.
+- Under `prefer`, exhausted independent routes lead to the best bounded review
+  outcome the active environment can actually support, with its trust limits
+  stated plainly. Under `require`, the gate stays unsatisfied. An environment
+  that cannot provide such a review preserves the typed exhausted result and
+  its existing recovery action.
+
+## Reopened behavior scenarios
+
+These scenarios are the behavior boundary. They deliberately do not choose a
+subagent definition, skill handoff, hook, CLI adapter, or host API.
+
+1. **Preferred review; safe capability exists.** Every independent CLI route is
+   exhausted. The active environment can provide another bounded, read-only
+   review. The user receives that review once, and the result says why it is not
+   independent.
+2. **Required review; safe capability exists.** The same limited review may
+   produce useful findings, but the required independent-review gate remains
+   unsatisfied and the user is told how to restore it.
+3. **No safe capability.** The environment cannot guarantee the agreed review
+   boundary. No fallback verdict is created; the typed exhausted result and its
+   recovery action remain authoritative.
+4. **Fallback failure.** The additional review errors, times out, or returns an
+   unusable answer. Safe Word reports that outcome once and does not recurse or
+   retry through another informal route.
+5. **Context boundary.** The additional reviewer receives the accepted review
+   packet and rubric, not raw failed-route output, secrets, or unrelated
+   conversation history. If a host necessarily injects other project context,
+   that limitation is named rather than hidden.
+6. **Surface honesty.** Claude Code, Codex, and Cursor — local and cloud where
+   the skill is shipped — each have either real boundary evidence or an explicit
+   unsupported-capability outcome. File-parity assertions alone are not surface
+   evidence.
+
+Behavior decisions for scenario review:
+
+- A degraded review under `prefer` contributes advisory findings alongside the
+  authoritative exhausted result; it does not replace that result with a
+  passing workflow verdict.
+- The minimum boundary is a fresh context without the parent's conversation, a
+  read-only tool policy, and the accepted packet plus rubric. Host-mandated
+  project instructions or repository metadata may still load and must be
+  treated as a disclosed limitation, not described as packet-only isolation.
+- Support is capability-based, not inferred from a host name. Each local and
+  cloud surface needs real boundary evidence before it is claimed supported;
+  otherwise it follows the no-safe-capability scenario and preserves recovery.
 
 ## Constraints carried into implementation
 

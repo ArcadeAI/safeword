@@ -116,7 +116,7 @@ failing with the scenario undefined before its step existed.
 - [x] GREEN aec039245
 - [x] REFACTOR skip: no structural improvement needed
 
-### Scenario: An alternate model that also fails falls back to the author's own runtime
+### Scenario: An alternate model that fails promptly falls back to the author's own runtime
 
 - [x] RED skip: scenario reported undefined by the acceptance lane before its step definition existed
 - [x] GREEN aec039245
@@ -192,19 +192,43 @@ failing with the scenario undefined before its step existed.
 - [x] GREEN aec039245
 - [x] REFACTOR skip: no structural improvement needed
 
-## Rule: reliable-reviews-for-real-packets.TBU3.R7 — Exhausted CLI routes get one fresh-context in-session fallback without weakening required review
+## Rule: reliable-reviews-for-real-packets.TBU4.R1 — Exhausted independent routes preserve useful review momentum without overstating trust
 
-### Scenario: A preferred review uses one host subagent after every CLI route fails
+### Scenario: A preferred review uses a safe additional review when the environment can provide one
 
-- [x] RED b8b530510
-- [x] GREEN f79d273b6
-- [x] REFACTOR skip: one shared fallback contract is repeated locally at each fragile review handoff
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
-### Scenario: A required cross-agent review rejects the in-session fallback
+### Scenario: A failed additional review does not recurse
 
-- [x] RED b8b530510
-- [x] GREEN f79d273b6
-- [x] REFACTOR skip: the existing policy boundary remains the single source of truth
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: reliable-reviews-for-real-packets.TBU4.R2 — A limited review never clears a required independent-review gate
+
+### Scenario: A required independent review stays unsatisfied after a limited review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: reliable-reviews-for-real-packets.TBU4.R3 — An environment without a safe review capability preserves recovery
+
+### Scenario: An environment without a safe review capability preserves recovery
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: reliable-reviews-for-real-packets.TBU4.R4 — Limited review material stays separate from host instructions and failed-route diagnostics
+
+### Scenario: A limited reviewer does not receive failed-route diagnostics
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure
 
