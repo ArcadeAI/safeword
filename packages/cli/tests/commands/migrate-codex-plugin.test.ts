@@ -252,12 +252,12 @@ describe('migrate codex-plugin command', () => {
   // path where survival is least obvious and most worth pinning.
   it('preserves user-owned project data and authored skills through a successful handoff', () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
-    const userOwned = {
+    const userOwnedFiles = {
       '.project/tickets/ABC123/spec.md': '# Authored spec\n\nOwned by the user, not Safeword.\n',
       '.project/learnings/handoff-notes.md': '# Handoff notes\n\nDo not clobber authored notes.\n',
       '.agents/skills/company-workflow/SKILL.md': 'User-authored company workflow skill\n',
     };
-    for (const [relativePath, contents] of Object.entries(userOwned)) {
+    for (const [relativePath, contents] of Object.entries(userOwnedFiles)) {
       const absolutePath = nodePath.join(fixture.directory, relativePath);
       mkdirSync(nodePath.dirname(absolutePath), { recursive: true });
       writeFileSync(absolutePath, contents);
@@ -275,7 +275,7 @@ describe('migrate codex-plugin command', () => {
     expect(readFileSync(fixture.logPath, 'utf8')).toContain('plugin add safeword@safeword --json');
     expect(existsSync(safewordSkill)).toBe(false);
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
-    for (const [relativePath, contents] of Object.entries(userOwned)) {
+    for (const [relativePath, contents] of Object.entries(userOwnedFiles)) {
       expect(
         readFileSync(nodePath.join(fixture.directory, relativePath), 'utf8'),
         relativePath,
