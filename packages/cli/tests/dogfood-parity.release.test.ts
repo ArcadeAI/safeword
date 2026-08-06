@@ -12,8 +12,13 @@ import { describe, expect, it } from 'vitest';
 import { runParity } from '../src/parity.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../templates');
+const parityRecoveryCommand = 'bunx safeword install';
 
 describe('dogfood parity', () => {
+  it('points parity drift at the supported setup command', () => {
+    expect(parityRecoveryCommand).toBe('bunx safeword setup');
+  });
+
   it('should have dogfood files identical to their canonical templates', async () => {
     const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
@@ -27,7 +32,7 @@ describe('dogfood parity', () => {
 
     if (result.failures.length > 0) {
       expect.fail(
-        `Parity drift detected. Run \`bunx safeword install\` or copy templates to sync:\n  - ${result.failures
+        `Parity drift detected. Run \`${parityRecoveryCommand}\` or copy templates to sync:\n  - ${result.failures
           .map(f => f.message)
           .join('\n  - ')}`,
       );
