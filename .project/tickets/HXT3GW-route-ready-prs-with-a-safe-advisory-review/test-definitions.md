@@ -220,7 +220,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: Adversarial pull-request text cannot expand authority or suppress human routing
 
-- [ ] RED
+- [x] RED 042bd1a1e
 - [ ] GREEN
 - [ ] REFACTOR
 
