@@ -5,12 +5,85 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
+import { reconcile } from '../../src/reconcile.js';
 import type { ProjectContext } from '../../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../../templates/workflows');
 const routerPath = nodePath.join(templatesDirectory, 'pr-review.yml');
 const workerPath = nodePath.join(templatesDirectory, 'pr-review-worker.yml');
+const installedWorkflowPaths = [
+  '.github/workflows/safeword-pr-review.yml',
+  '.github/workflows/safeword-pr-review-worker.yml',
+] as const;
+
+const projectType = {
+  astro: false,
+  existingClippyConfig: undefined,
+  existingCucumberHarness: undefined,
+  existingEslintConfig: undefined,
+  existingFormatter: false,
+  existingGolangciConfig: undefined,
+  existingImportLinterConfig: false,
+  existingLinter: false,
+  existingMypyConfig: false,
+  existingPrettierConfig: false,
+  existingRuffConfig: undefined,
+  existingRustfmtConfig: undefined,
+  existingSqlfluffConfig: undefined,
+  hasJsSource: false,
+  legacyEslint: false,
+  nextjs: false,
+  playwright: false,
+  publishableLibrary: false,
+  react: false,
+  scaffoldBddLane: true,
+  shell: false,
+  tailwind: false,
+  tanstackQuery: false,
+  typescript: false,
+  vitest: false,
+};
+
+function projectContext(cwd: string): ProjectContext {
+  return {
+    cwd,
+    developmentDeps: {},
+    isGitRepo: false,
+    languages: { golang: false, javascript: true, python: false, rust: false, sql: false },
+    productionDeps: {},
+    projectType,
+  };
+}
+
+function workflowOnlySchema() {
+  return {
+    ...SAFEWORD_SCHEMA,
+    contracts: {},
+    deprecatedDirs: [],
+    deprecatedFiles: [],
+    deprecatedPackages: [],
+    jsonMerges: {},
+    legacyTextPatches: {},
+    managedFiles: Object.fromEntries(
+      installedWorkflowPaths.map(path => [path, SAFEWORD_SCHEMA.managedFiles[path]]),
+    ),
+    ownedDirs: [],
+    ownedFiles: {},
+    packages: { base: [], conditional: {} },
+    preservedDirs: [],
+    sharedDirs: [],
+    textPatches: {},
+  };
+}
+
+function writePrReviewConfig(projectDirectory: string, enabled: unknown): void {
+  mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+  writeFileSync(
+    nodePath.join(projectDirectory, '.safeword/config.json'),
+    JSON.stringify({ prReview: { enabled } }),
+  );
+}
 
 describe('advisory PR review workflow contract', () => {
   it('ships a router and a reusable worker with one per-PR privilege boundary', () => {
@@ -113,6 +186,75 @@ describe('advisory PR review workflow contract', () => {
       for (const definition of definitions) {
         expect(definition?.generator?.(context)).toContain('Safeword advisory PR review');
       }
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('installs exactly two workflows only for literal true and removes unmodified files when disabled', async () => {
+    const malformedEnabledValues: unknown[] = [undefined, false, 'true', 1, JSON.parse('null')];
+    for (const enabled of malformedEnabledValues) {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-'));
+      try {
+        if (enabled !== undefined) writePrReviewConfig(projectDirectory, enabled);
+        const result = await reconcile(
+          workflowOnlySchema(),
+          'install',
+          projectContext(projectDirectory),
+        );
+        expect(
+          result.created.filter(path => installedWorkflowPaths.includes(path as never)),
+        ).toEqual([]);
+      } finally {
+        rmSync(projectDirectory, { force: true, recursive: true });
+      }
+    }
+
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-'));
+    try {
+      writePrReviewConfig(projectDirectory, true);
+      const installed = await reconcile(
+        workflowOnlySchema(),
+        'install',
+        projectContext(projectDirectory),
+      );
+      expect(
+        installed.created.filter(path => installedWorkflowPaths.includes(path as never)),
+      ).toEqual([...installedWorkflowPaths]);
+
+      writePrReviewConfig(projectDirectory, false);
+      const disabled = await reconcile(
+        workflowOnlySchema(),
+        'upgrade',
+        projectContext(projectDirectory),
+      );
+      expect(disabled.removed).toEqual(expect.arrayContaining([...installedWorkflowPaths]));
+      for (const path of installedWorkflowPaths) {
+        expect(existsSync(nodePath.join(projectDirectory, path))).toBe(false);
+      }
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('preserves a customized workflow when PR review is disabled', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-'));
+    try {
+      writePrReviewConfig(projectDirectory, true);
+      await reconcile(workflowOnlySchema(), 'install', projectContext(projectDirectory));
+      const customizedPath = nodePath.join(projectDirectory, installedWorkflowPaths[0]);
+      writeFileSync(customizedPath, `${readFileSync(customizedPath, 'utf8')}\n# customer-owned\n`);
+
+      writePrReviewConfig(projectDirectory, false);
+      const disabled = await reconcile(
+        workflowOnlySchema(),
+        'upgrade',
+        projectContext(projectDirectory),
+      );
+
+      expect(existsSync(customizedPath)).toBe(true);
+      expect(disabled.removed).toContain(installedWorkflowPaths[1]);
+      expect(disabled.removed).not.toContain(installedWorkflowPaths[0]);
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
     }
