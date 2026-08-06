@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { runReview } from '../../src/review/coordinator.js';
+import { runCli } from '../helpers.js';
 
 /**
  * The recovery command is copy-pasted by a builder, so a reviewed file whose
@@ -60,5 +61,39 @@ describe('the recovery command Safe Word suggests', () => {
     const command = await recoveryCommandFor('review-input.md');
 
     expect(command).toBe('safeword review run quality-review -- review-input.md');
+  });
+
+  it('passes a flag-shaped target through the public command as a filename', async () => {
+    const directory = projectWithTarget('--help');
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+        '--',
+        '--help',
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: '/nonexistent-for-this-test',
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.stderr).not.toContain('Usage:');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      data: {
+        command: 'review run',
+        status: 'blocked',
+      },
+    });
   });
 });
