@@ -1,5 +1,5 @@
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
-import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
 import type {
   ReviewAgent,
   ReviewAuthor,
@@ -315,6 +315,22 @@ function changedReviewResult(input: {
   });
 }
 
+function alternateFailureData(
+  failure: string | undefined,
+): Record<string, never> | { readonly alternate_model_failure: string } {
+  return failure === undefined ? {} : { alternate_model_failure: failure };
+}
+
+function degradedNetworkEffects(
+  assignedReviewer: ReviewAgent,
+  author: ReviewAgent,
+  alternateAttempted: boolean,
+): readonly Effect[] {
+  const preferred = { kind: 'review', target: assignedReviewer, operation: 'request' } as const;
+  const fallback = { kind: 'review', target: author, operation: 'request' } as const;
+  return alternateAttempted ? [preferred, preferred, fallback] : [preferred, fallback];
+}
+
 async function runDegradedFallback(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -382,9 +398,7 @@ async function runDegradedFallback(input: {
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         preferred_failure: input.preferredFailure,
-        ...(input.alternateFailure !== undefined && {
-          alternate_model_failure: input.alternateFailure,
-        }),
+        ...alternateFailureData(input.alternateFailure),
         fallback_failure: assessment.failure,
         independence: 'none',
       },
@@ -404,10 +418,11 @@ async function runDegradedFallback(input: {
         },
       ],
       effects: {
-        network: [
-          { kind: 'review', target: input.assignedReviewer, operation: 'request' },
-          { kind: 'review', target: input.author, operation: 'request' },
-        ],
+        network: degradedNetworkEffects(
+          input.assignedReviewer,
+          input.author,
+          input.alternateFailure !== undefined,
+        ),
       },
       recovery: [
         {
@@ -423,6 +438,7 @@ async function runDegradedFallback(input: {
         assigned_reviewer: input.assignedReviewer,
         actual_reviewer: completedOutput.reviewer_agent,
         preferred_failure: input.preferredFailure,
+        ...alternateFailureData(input.alternateFailure),
         independence: 'degraded',
         reviewer_output: completedOutput,
       },
@@ -439,10 +455,11 @@ async function runDegradedFallback(input: {
       },
     ],
     effects: {
-      network: [
-        { kind: 'review', target: input.assignedReviewer, operation: 'request' },
-        { kind: 'review', target: input.author, operation: 'request' },
-      ],
+      network: degradedNetworkEffects(
+        input.assignedReviewer,
+        input.author,
+        input.alternateFailure !== undefined,
+      ),
     },
     data: {
       command: 'review run',
@@ -451,6 +468,7 @@ async function runDegradedFallback(input: {
       assigned_reviewer: input.assignedReviewer,
       actual_reviewer: completedOutput.reviewer_agent,
       preferred_failure: input.preferredFailure,
+      ...alternateFailureData(input.alternateFailure),
       independence: 'degraded',
       reviewer_output: completedOutput,
     },

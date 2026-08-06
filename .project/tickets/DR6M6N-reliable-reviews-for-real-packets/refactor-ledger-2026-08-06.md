@@ -50,6 +50,13 @@ against current `main`.
   run. It now states the actual invariant: the first timeout leaves 240 seconds
   for the configured independent retry, every route is capped by the shared run
   bound, and the author fallback can be skipped when no fundable time remains.
+- **Degraded-route ledger:** successful author fallback results omitted an
+  attempted alternate model's failure and represented only two of the three
+  reviewer requests. Both preferred and required-policy degraded envelopes now
+  retain that Safe Word-owned route fact and complete network-effect ledger.
+- **Customer timing wording:** configuration docs called nine minutes a complete
+  command bound. They now identify it as the reviewer-work ceiling and disclose
+  preparation plus final synchronous integrity/cleanup outside that deadline.
 
 ## Deliberately retained
 
