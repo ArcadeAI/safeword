@@ -36,6 +36,7 @@ const RUN_STATE_PRECEDENCE: Record<ReviewRunState, number> = {
 };
 
 export interface AdvisoryFinding {
+  consequential?: boolean;
   consequence: string;
   path: string;
 }
@@ -191,14 +192,12 @@ function deriveReviewedReceipt(
   const route = deriveRoute(runState, inspection);
 
   return {
-    ...((coverage || missingEvidence.length > 0 || reviewableTextArtifacts === 0) && {
-      coverage: coverage ?? [],
-      findings: inspection.findings ?? [],
-      missingEvidence,
-      reviewableTextArtifacts,
-      runState,
-      unknowns: inspection.unknowns,
-    }),
+    coverage: coverage ?? [],
+    findings: inspection.findings ?? [],
+    missingEvidence,
+    reviewableTextArtifacts,
+    runState,
+    unknowns: inspection.unknowns,
     reviewedSha,
     route,
   };

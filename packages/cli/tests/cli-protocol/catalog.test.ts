@@ -61,6 +61,8 @@ describe('CLI command catalog', () => {
       'ticket new',
       'review run',
       'review-pr inspect',
+      'review-pr invalidate',
+      'review-pr publish',
       'retro run',
       'retro signals',
       'retro reconcile',

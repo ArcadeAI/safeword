@@ -54,7 +54,7 @@ describe('review-pr inspect command wiring', () => {
       evidence: [{ content: 'allow *', path: 'policies/access.flux' }],
       model: 'gpt-test',
     });
-    expect(result).toMatchObject({ reviewedSha: 'a'.repeat(40), route: 'needs_human' });
+    expect(result.receipt).toMatchObject({ reviewedSha: 'a'.repeat(40), route: 'needs_human' });
     expect(JSON.parse(readFileSync(outputPath, 'utf8'))).toEqual(result);
   });
 
@@ -104,8 +104,8 @@ describe('review-pr inspect command wiring', () => {
 
       const serialized = readFileSync(outputPath, 'utf8');
       expect(serialized).not.toContain(credential);
-      expect(result).toMatchObject({ route: 'needs_human', runState: 'incomplete' });
-      expect(result).toMatchObject({ unknowns: ['credential-like value redacted'] });
+      expect(result.receipt).toMatchObject({ route: 'needs_human', runState: 'incomplete' });
+      expect(result.receipt).toMatchObject({ unknowns: ['credential-like value redacted'] });
     } finally {
       if (originalApiKey === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = originalApiKey;

@@ -612,6 +612,45 @@ async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<Cl
   });
 }
 
+async function reviewPrPublicationHandler(
+  stage: 'invalidate' | 'publish',
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired(`review-pr ${stage}`);
+  try {
+    const { createGitHubReviewBoundary, invalidatePullRequestCommand, publishPullRequestCommand } =
+      await import('../commands/review-pr-publication.js');
+    const github = createGitHubReviewBoundary();
+    const resultPath = invocation.operands[0];
+    if (stage === 'publish' && typeof resultPath !== 'string') {
+      throw new Error('review-pr publish requires a result path');
+    }
+    const outcome =
+      stage === 'publish' && typeof resultPath === 'string'
+        ? await publishPullRequestCommand(github, resultPath)
+        : await invalidatePullRequestCommand(github);
+    return createResult({
+      state: outcome.changed ? 'changed' : 'healthy',
+      changed: outcome.changed,
+      effects: {
+        network: [{ kind: 'ordinary-issue-comment', target: 'GitHub', operation: 'read-write' }],
+      },
+      data: { command: `review-pr ${stage}`, outcome },
+    });
+  } catch {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PR_REVIEW_PUBLICATION_FAILED',
+          message: `Pull-request ${stage} failed without changing merge eligibility.`,
+          retryable: false,
+        },
+      ],
+    });
+  }
+}
+
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeCodexMigration } = await import('../commands/migrate-codex-plugin.js');
   return observeCodexMigration(invocation.cwd);
@@ -1442,6 +1481,8 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket new': ticketNewHandler,
   'review run': reviewRunHandler,
   'review-pr inspect': reviewPrInspectHandler,
+  'review-pr invalidate': invocation => reviewPrPublicationHandler('invalidate', invocation),
+  'review-pr publish': invocation => reviewPrPublicationHandler('publish', invocation),
   'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
   'retro reconcile': retroReconcileHandler,

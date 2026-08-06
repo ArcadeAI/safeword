@@ -321,6 +321,13 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
+  command('review-pr invalidate', 'Remove an obsolete advisory route', 'mutate', {
+    networkPolicy: 'declared',
+  }),
+  command('review-pr publish', 'Publish a validated advisory result', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'publish <result>',
+  }),
   command('retro run', 'Extract and file session findings', 'mutate', {
     networkPolicy: 'declared',
     commandOptions: [

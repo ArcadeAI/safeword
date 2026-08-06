@@ -20,6 +20,17 @@ export interface InspectPullRequestCommandOptions {
   provider?: InspectionProvider;
 }
 
+export interface InspectionHandoff {
+  inspectionAudit: {
+    checkout: false;
+    customerCodeExecution: false;
+    githubPermissions: { contents: 'read'; pullRequests: 'read' };
+    githubWriteCredential: false;
+  };
+  receipt: PublishedReceipt;
+  schemaVersion: 1;
+}
+
 interface InspectionInput {
   artifacts: { content: string; path: string }[];
   headSha: string;
@@ -111,7 +122,9 @@ function parseReviewedReceipt(value: unknown): PublishedReceipt {
 function credentialValues(environment: NodeJS.ProcessEnv): string[] {
   return Object.entries(environment)
     .flatMap(([name, value]) =>
-      /(?:^|_)(?:KEY|SECRET|TOKEN)$/iu.test(name) && typeof value === 'string' && value.length >= 8
+      /KEY|SECRET|TOKEN|PAT|PASSWORD|CREDENTIAL/iu.test(name) &&
+      typeof value === 'string' &&
+      value.length >= 8
         ? [value]
         : [],
     )
@@ -142,7 +155,7 @@ const productionProvider: InspectionProvider = options => {
 
 export async function inspectPullRequestCommand(
   options: InspectPullRequestCommandOptions,
-): Promise<PublishedReceipt> {
+): Promise<InspectionHandoff> {
   const config = parseConfig(options.cwd);
   const input = parseInput(options.inputPath, config.maxTotalBytes);
   const findings = await (options.provider ?? productionProvider)({
@@ -179,6 +192,7 @@ export async function inspectPullRequestCommand(
         })),
         consequentialFindings: receiptFindings.filter(finding => finding.consequential).length,
         findings: receiptFindings.map(finding => ({
+          consequential: finding.consequential,
           consequence: finding.consequence,
           path: finding.path,
         })),
@@ -200,7 +214,17 @@ export async function inspectPullRequestCommand(
       }),
   });
 
-  const result = parseReviewedReceipt(published);
-  writeFileSync(options.outputPath, `${JSON.stringify(result)}\n`, { mode: 0o600 });
-  return result;
+  const receipt = parseReviewedReceipt(published);
+  const handoff: InspectionHandoff = {
+    inspectionAudit: {
+      checkout: false,
+      customerCodeExecution: false,
+      githubPermissions: { contents: 'read', pullRequests: 'read' },
+      githubWriteCredential: false,
+    },
+    receipt,
+    schemaVersion: 1,
+  };
+  writeFileSync(options.outputPath, `${JSON.stringify(handoff)}\n`, { mode: 0o600 });
+  return handoff;
 }

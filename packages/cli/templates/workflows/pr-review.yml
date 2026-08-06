@@ -32,7 +32,11 @@ jobs:
     steps:
       - id: discover
         name: Discover ready pull requests
-        run: echo 'pull_numbers=[]' >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pull_numbers="$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" --paginate --jq '[.[] | select(.draft | not) | .number] | @json')"
+          echo "pull_numbers=$pull_numbers" >> "$GITHUB_OUTPUT"
 
   scheduled-review:
     needs: discover-ready-pull-requests

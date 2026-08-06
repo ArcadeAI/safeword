@@ -27,8 +27,12 @@ jobs:
       issues: write
       pull-requests: read
     steps:
-      - name: Reserve the current receipt
-        run: 'true'
+      - name: Invalidate any obsolete advisory route
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ inputs.pull_number }}
+        run: npx --yes safeword@0.73.0 --no-input --json review-pr invalidate
 
   inspect:
     needs: invalidate
@@ -41,8 +45,27 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - name: Inspect the exact pull request head as data
-        run: 'true'
+      - name: Assemble exact-head evidence as JSON
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ inputs.pull_number }}
+        run: |
+          mkdir -p .safeword
+          gh api "repos/$GITHUB_REPOSITORY/contents/.safeword/config.json" --jq .content | base64 --decode > .safeword/config.json
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER/files" --paginate > pull-files.json
+          head_sha="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER" --jq .head.sha)"
+          jq --arg head_sha "$head_sha" '{schemaVersion: 1, headSha: $head_sha, artifacts: [.[] | select(.patch != null) | {path: .filename, content: .patch}]}' pull-files.json > inspection-input.json
+      - name: Inspect bounded evidence without GitHub write authority
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npx --yes safeword@0.73.0 --no-input --json review-pr inspect inspection-input.json --output advisory-result.json
+      - name: Upload the JSON-only advisory handoff
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: safeword-pr-review-${{ inputs.pull_number }}
+          path: advisory-result.json
+          if-no-files-found: error
 
   publish:
     needs: inspect
@@ -52,5 +75,13 @@ jobs:
       issues: write
       pull-requests: read
     steps:
-      - name: Publish the advisory receipt
-        run: 'true'
+      - name: Download the JSON-only advisory handoff
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: safeword-pr-review-${{ inputs.pull_number }}
+      - name: Publish one ordinary pull-request comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ inputs.pull_number }}
+        run: npx --yes safeword@0.73.0 --no-input --json review-pr publish advisory-result.json
