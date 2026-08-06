@@ -761,9 +761,9 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       );
       if (migrated) {
         codexHandoffFindings.push({
-          code: 'CODEX_PLUGIN_HANDOFF_COMPLETE',
+          code: 'CODEX_PLUGIN_HANDOFF_STARTED',
           message:
-            'Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.',
+            'Codex installed the native profile plugin; legacy project protection remains until explicit finalization after the restarted app proves its hooks.',
           severity: 'info',
         });
       }

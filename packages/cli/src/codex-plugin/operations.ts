@@ -867,22 +867,7 @@ export function automaticallyMigrateLegacyCodex(
   const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
   if (!hasLegacy) return false;
 
-  // Build and validate the complete cleanup transaction before touching the
-  // developer's shared profile. Ambiguous project state therefore leaves both
-  // delivery modes untouched.
-  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
-  const plannedEffects = finalizationEffects(cwd, plannedMutations);
-  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
-
   installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
-  assertCodexFinalizationPlanUnchanged(
-    cwd,
-    preparedLegacyHookRemoval,
-    plannedMutations,
-    plannedEffects,
-    plannedInputs,
-  );
-  applyCodexFinalization(cwd, plannedMutations);
   return true;
 }
 

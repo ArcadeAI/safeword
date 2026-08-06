@@ -313,7 +313,7 @@ describe('migrate codex-plugin command', () => {
     expect(calls).not.toContain('plugin add safeword@safeword');
   });
 
-  it('automatically installs the plugin and transactionally removes recognized legacy state', () => {
+  it('automatically installs the plugin without finalizing recognized legacy state', () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const legacySkill = nodePath.join(fixture.directory, '.agents/skills/audit/SKILL.md');
     mkdirSync(nodePath.dirname(legacySkill), { recursive: true });
@@ -327,16 +327,17 @@ describe('migrate codex-plugin command', () => {
 
     expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
 
-    const config = readFileSync(fixture.configPath, 'utf8');
-    expect(config).not.toContain('safeword hook codex');
-    expect(config).toContain('bunx --bun safeword@latest codex bootstrap');
-    expect(existsSync(legacySkill)).toBe(false);
-    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
+    expect(readFileSync(legacySkill, 'utf8')).toBe('legacy audit skill\n');
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).toContain('plugin marketplace add');
+    expect(calls).toContain('plugin add safeword@safeword');
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
     expect(
       existsSync(
         nodePath.join(fixture.directory, '.safeword/codex-migration-backup/manifest.json'),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('retains complete legacy state when automatic plugin installation fails', () => {
