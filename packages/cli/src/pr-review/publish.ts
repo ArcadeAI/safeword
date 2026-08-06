@@ -55,6 +55,17 @@ function listOrNone(values: readonly string[]): string {
   return values.length > 0 ? values.join(', ') : 'none';
 }
 
+function renderFinding(finding: ReceiptFindingView): string[] {
+  const location = finding.line === undefined ? finding.path : `${finding.path}:${finding.line}`;
+  return [
+    `Finding: ${location}`,
+    `Evidence: ${finding.evidence}`,
+    `Consequence: ${finding.consequence}`,
+    `Next action: ${finding.nextAction}`,
+    ...(finding.unverifiedRemedy ? [`Unverified remedy: ${finding.unverifiedRemedy}`] : []),
+  ];
+}
+
 export function renderReceipt(receipt: ReceiptView): string {
   const checks = receipt.checks.map(check => `${check.name}: ${check.status ?? 'unknown'}`);
   const inputTokens = receipt.tokenUsage.input ?? 'unknown';
@@ -70,16 +81,7 @@ export function renderReceipt(receipt: ReceiptView): string {
     `Token usage: ${inputTokens} input, ${outputTokens} output`,
     `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential`,
   ];
-  const findings = (receipt.findings ?? []).flatMap(finding => {
-    const location = finding.line === undefined ? finding.path : `${finding.path}:${finding.line}`;
-    return [
-      `Finding: ${location}`,
-      `Evidence: ${finding.evidence}`,
-      `Consequence: ${finding.consequence}`,
-      `Next action: ${finding.nextAction}`,
-      ...(finding.unverifiedRemedy ? [`Unverified remedy: ${finding.unverifiedRemedy}`] : []),
-    ];
-  });
+  const findings = (receipt.findings ?? []).flatMap(finding => renderFinding(finding));
 
   return [...summary, ...findings].join('\n');
 }
