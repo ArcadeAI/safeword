@@ -324,6 +324,33 @@ function resolvePackagedHook(relativePath: string): string | undefined {
   return findPackagedTemplate(nodePath.join('hooks', relativePath));
 }
 
+function runHookFile(
+  hookPath: string,
+  rawInput: string,
+  projectDirectory: string,
+  packagedContextPath = '',
+): PackagedHookResult {
+  const result = spawnSync('bun', [hookPath], {
+    cwd: projectDirectory,
+    input: rawInput,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath,
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  return {
+    error: result.error,
+    status: result.status ?? undefined,
+    stderr: result.stderr ?? '',
+    stdout: result.stdout ?? '',
+  };
+}
+
 export function normalizeNamespaceRootLabel(label: string): string | undefined {
   const normalizedLabel = label.replaceAll('\\', '/');
   return normalizedLabel === '.' ||
@@ -370,33 +397,39 @@ function runPackagedHook(
       executableHookPath = nodePath.join(temporaryHookDirectory, nodePath.basename(hookPath));
     }
 
-    const result = spawnSync('bun', [executableHookPath], {
-      cwd: projectDirectory,
-      input: rawInput,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        CLAUDE_PROJECT_DIR: projectDirectory,
-        SAFEWORD_AGENT_RUNTIME: 'codex',
-        // The copied dispatcher is observation-only and injects package-owned
-        // instructions rather than project-local text.
-        SAFEWORD_PACKAGED_CONTEXT_PATH:
-          relativePath === 'session-codex-start.ts'
-            ? (findPackagedTemplate('SAFEWORD.md') ?? '')
-            : '',
-      },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    return {
-      error: result.error,
-      status: result.status ?? undefined,
-      stderr: result.stderr ?? '',
-      stdout: result.stdout ?? '',
-    };
+    // The copied dispatcher is observation-only and injects package-owned
+    // instructions rather than project-local text.
+    const packagedContextPath =
+      relativePath === 'session-codex-start.ts' ? (findPackagedTemplate('SAFEWORD.md') ?? '') : '';
+    return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory) rmSync(temporaryHookDirectory, { recursive: true, force: true });
   }
+}
+
+function packagedHookFilesAreMissing(result: PackagedHookResult): boolean {
+  const detail = result.stderr.trim() || result.error?.message || '';
+  return (
+    detail.startsWith('Safe Word packaged hook is missing:') ||
+    (/ENOENT|Module not found|Cannot find module/iu.test(detail) &&
+      /[/\\]templates[/\\]hooks[/\\]/u.test(detail))
+  );
+}
+
+function runPreToolQualityHook(rawInput: string, projectDirectory: string): PackagedHookResult {
+  const packagedResult = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
+  if (!packagedHookFilesAreMissing(packagedResult)) return packagedResult;
+
+  // Concurrent bunx hooks can replace their shared temporary package while this
+  // process is loading an entry point or import. The reconciled project copy is
+  // stable for the lifetime of the tool call and preserves the same gate.
+  const installedHookPath = nodePath.join(
+    projectDirectory,
+    '.safeword/hooks/codex/pre-tool-quality.ts',
+  );
+  return existsSync(installedHookPath)
+    ? runHookFile(installedHookPath, rawInput, projectDirectory)
+    : packagedResult;
 }
 
 function denyForPackagedHookFailure(result: PackagedHookResult): never {
@@ -486,7 +519,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
 }
 
 function runEnrolledPreToolUse(rawInput: string, projectDirectory: string): void {
-  const qualityResult = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
+  const qualityResult = runPreToolQualityHook(rawInput, projectDirectory);
   if (emitPackagedPreToolResult(qualityResult)) return;
 
   const input = parseCodexHookInput(rawInput);
