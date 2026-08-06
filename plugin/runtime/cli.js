@@ -29277,8 +29277,11 @@ function marketplaceAddArguments(source, ref) {
     "--json"
   ];
 }
+function shellQuote(value) {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
 function exactVersionReference(ref) {
-  const version2 = ref.startsWith("v") ? ref.slice(1) : "";
+  const version2 = ref.startsWith("v") ? ref.slice(1) : ref;
   return isSafePackageVersion(version2) ? version2 : undefined;
 }
 function replaceCodexMarketplaceWithStable(configured) {
@@ -29291,9 +29294,11 @@ function replaceCodexMarketplaceWithStable(configured) {
       runCodexMarketplace(marketplaceAddArguments(source, configured.ref ?? "main"), "Could not restore the previous Safeword marketplace after stable enrollment failed");
     } catch (restorationError) {
       const restoreCommand = [
-        "codex plugin marketplace",
+        "codex",
+        "plugin",
+        "marketplace",
         ...marketplaceAddArguments(source, configured.ref ?? "main").slice(0, -1)
-      ].join(" ");
+      ].map((argument) => shellQuote(argument)).join(" ");
       throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error2)}. Restore error: ${String(restorationError)}`, { cause: error2, profileChanged: true, recoveryCommand: restoreCommand });
     }
     throw error2;
@@ -29327,6 +29332,9 @@ function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.e
     if (marketplace?.marketplaceSource?.sourceType === "git") {
       refreshOfficialGitMarketplace(marketplace, environment);
       return;
+    }
+    if (marketplace !== undefined) {
+      throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The configured Codex marketplace named safeword is not a Git marketplace. Safeword left it unchanged because replacing an unknown marketplace type is not safely reversible.");
     }
   }
   runCodexMarketplace([
@@ -35228,7 +35236,7 @@ var init_codify = __esm(() => {
 });
 
 // src/test-plan/render.ts
-function shellQuote(value) {
+function shellQuote2(value) {
   const escaped = value.replaceAll("'", String.raw`'\''`);
   return `'${escaped}'`;
 }
@@ -35237,7 +35245,7 @@ function renderShellPlan(entries) {
     return "";
   const lines = ["set -e"];
   for (const entry of entries) {
-    lines.push(entry.available ? `( cd ${shellQuote(entry.cwd)} && ${entry.command} )` : `echo "\u23ED\uFE0F Skipped \u2014 ${entry.runner} not installed"`);
+    lines.push(entry.available ? `( cd ${shellQuote2(entry.cwd)} && ${entry.command} )` : `echo "\u23ED\uFE0F Skipped \u2014 ${entry.runner} not installed"`);
   }
   return `${lines.join(`
 `)}
@@ -36111,18 +36119,35 @@ function appendBounded(current, currentBytes, chunk) {
     overflow: bytes > MAX_OUTPUT_BYTES
   };
 }
+function terminateReviewerProcessTree(child) {
+  if (child.pid === undefined)
+    return;
+  if (process.platform === "win32") {
+    spawnSync6("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true
+    });
+    return;
+  }
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    child.kill("SIGKILL");
+  }
+}
 function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
   return new Promise((resolve, reject) => {
     let timedOut = false;
     let overflow = false;
     const child = spawn(executable, ARGUMENTS[reviewer], {
       cwd,
+      detached: process.platform !== "win32",
       env: reviewerEnvironment(reviewer),
       stdio: ["pipe", "pipe", "pipe"]
     });
     const timeout = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGKILL");
+      terminateReviewerProcessTree(child);
     }, timeoutMs);
     let stdout = "";
     let stderr = "";
@@ -36136,7 +36161,7 @@ function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
       stdoutBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        child.kill("SIGKILL");
+        terminateReviewerProcessTree(child);
       }
     });
     child.stderr.on("data", (chunk) => {
@@ -36145,7 +36170,7 @@ function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
       stderrBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        child.kill("SIGKILL");
+        terminateReviewerProcessTree(child);
       }
     });
     child.stdin.on("error", () => {});
@@ -36352,14 +36377,14 @@ function assessFallback(outcome, reviewer, dispatchId) {
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code } : { kind: "completed", output: provenance.output };
 }
-function shellQuote2(value) {
+function shellQuote3(value) {
   if (/^[\w./-]+$/u.test(value))
     return value;
   const escaped = value.replaceAll("'", `'"'"'`);
   return `'${escaped}'`;
 }
 function retryCommand(kind, targets) {
-  return `safeword review run ${kind} ${targets.map((target) => shellQuote2(target)).join(" ")}`;
+  return `safeword review run ${kind} ${targets.map((target) => shellQuote3(target)).join(" ")}`;
 }
 function agentName(agent) {
   return agent === "codex" ? "Codex" : "Claude";
@@ -50668,7 +50693,7 @@ function cleanGuidanceRefusal(cleanup) {
     data: { command: "codex clean-guidance", cleanup }
   });
 }
-function shellQuote3(value) {
+function shellQuote4(value) {
   const escaped = (value ?? "").replaceAll("'", `'"'"'`);
   return `'${escaped}'`;
 }
@@ -50691,7 +50716,7 @@ function cleanGuidanceSuccess(cleanup) {
     },
     recovery: [
       {
-        command: `mv -- ${shellQuote3(cleanup.backupPath)} ${shellQuote3(cleanup.sourcePath)}`,
+        command: `mv -- ${shellQuote4(cleanup.backupPath)} ${shellQuote4(cleanup.sourcePath)}`,
         description: "Restore the backed-up profile guidance if it is still wanted.",
         requiresHuman: true
       }
@@ -50938,6 +50963,48 @@ function codexFailureCode(error2, message, name, isFinalization) {
     return name === "codex recover" ? "RECOVERY_FAILED" : "PLUGIN_INSTALL_FAILED";
   return /current plugin[- ]hook proof/i.test(message) ? "FINALIZATION_PROOF_REQUIRED" : "FINALIZATION_FAILED";
 }
+function codexFailureConfig(partialInstall, partialMarketplace) {
+  if (partialInstall) {
+    return [
+      {
+        kind: "install",
+        target: "Safeword Codex profile plugin",
+        operation: "enablement-unverified"
+      }
+    ];
+  }
+  if (partialMarketplace) {
+    return [
+      {
+        kind: "remove",
+        target: "Safeword Codex marketplace",
+        operation: "restoration-failed"
+      }
+    ];
+  }
+  return [];
+}
+function codexFailureRecovery(error2, partialMarketplace, fileEffects) {
+  if (partialMarketplace && error2 instanceof CodexMigrationError && error2.recoveryCommand !== undefined) {
+    return [
+      {
+        command: error2.recoveryCommand,
+        description: "Restore the Safeword marketplace removed by the failed replacement.",
+        requiresHuman: true
+      }
+    ];
+  }
+  if (fileEffects.length > 0) {
+    return [
+      {
+        command: "safeword codex recover",
+        description: "Retry recovery using the retained migration backup.",
+        requiresHuman: true
+      }
+    ];
+  }
+  return [];
+}
 function codexFailure(error2, name, isFinalization, fileEffects = []) {
   const message = error2 instanceof Error ? error2.message : String(error2);
   if (/finalization plan changed/iu.test(message)) {
@@ -50960,33 +51027,9 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
     changed: partialInstall || partialMarketplace || fileEffects.length > 0,
     effects: {
       files: fileEffects,
-      configuration: partialInstall ? [
-        {
-          kind: "install",
-          target: "Safeword Codex profile plugin",
-          operation: "enablement-unverified"
-        }
-      ] : partialMarketplace ? [
-        {
-          kind: "remove",
-          target: "Safeword Codex marketplace",
-          operation: "restoration-failed"
-        }
-      ] : []
+      configuration: codexFailureConfig(partialInstall, partialMarketplace)
     },
-    recovery: partialMarketplace && error2.recoveryCommand !== undefined ? [
-      {
-        command: error2.recoveryCommand,
-        description: "Restore the Safeword marketplace removed by the failed replacement.",
-        requiresHuman: true
-      }
-    ] : fileEffects.length > 0 ? [
-      {
-        command: "safeword codex recover",
-        description: "Retry recovery using the retained migration backup.",
-        requiresHuman: true
-      }
-    ] : [],
+    recovery: codexFailureRecovery(error2, partialMarketplace, fileEffects),
     errors: [
       {
         code: codexFailureCode(error2, message, name, isFinalization),

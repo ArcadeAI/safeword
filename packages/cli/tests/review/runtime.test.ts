@@ -1,7 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ReviewerOutput } from '../../src/review/contract.js';
-import { parseReviewerOutput } from '../../src/review/runtime.js';
+import { parseReviewerOutput, runHeadlessReviewer } from '../../src/review/runtime.js';
+
+const temporaryDirectories: string[] = [];
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  for (const directory of temporaryDirectories) rmSync(directory, { force: true, recursive: true });
+  temporaryDirectories.length = 0;
+});
+
+function temporaryDirectory(): string {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-runtime-'));
+  temporaryDirectories.push(directory);
+  return directory;
+}
 
 const output: ReviewerOutput = {
   schema_version: 1,
@@ -74,4 +92,53 @@ describe('headless reviewer output adapters', () => {
       'invalid reviewer output',
     );
   });
+
+  it.skipIf(process.platform === 'win32')(
+    'kills reviewer descendants after a timeout',
+    async () => {
+      const bin = temporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const childPidPath = nodePath.join(project, 'child.pid');
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
+  exit 0
+fi
+sleep 30 &
+echo $! > "$SAFEWORD_REVIEW_CHILD_PID"
+wait
+`,
+      );
+      chmodSync(executable, 0o755);
+      vi.stubEnv('PATH', `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`);
+      vi.stubEnv('SAFEWORD_REVIEW_TIMEOUT_MS', '1000');
+      vi.stubEnv('SAFEWORD_REVIEW_CHILD_PID', childPidPath);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'timeout-tree',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).rejects.toMatchObject({ failure: 'timed_out' });
+
+      const childPid = Number(readFileSync(childPidPath, 'utf8'));
+      await vi.waitFor(
+        () => {
+          expect(() => process.kill(childPid, 0)).toThrow();
+        },
+        { timeout: 2000 },
+      );
+    },
+  );
 });

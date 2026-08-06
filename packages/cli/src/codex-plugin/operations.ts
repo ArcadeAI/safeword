@@ -192,8 +192,12 @@ function marketplaceAddArguments(source: string, ref: string): string[] {
   ];
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\"'\"'")}'`;
+}
+
 function exactVersionReference(ref: string): string | undefined {
-  const version = ref.startsWith('v') ? ref.slice(1) : '';
+  const version = ref.startsWith('v') ? ref.slice(1) : ref;
   return isSafePackageVersion(version) ? version : undefined;
 }
 
@@ -216,9 +220,13 @@ function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): v
       );
     } catch (restorationError) {
       const restoreCommand = [
-        'codex plugin marketplace',
+        'codex',
+        'plugin',
+        'marketplace',
         ...marketplaceAddArguments(source, configured.ref ?? 'main').slice(0, -1),
-      ].join(' ');
+      ]
+        .map(argument => shellQuote(argument))
+        .join(' ');
       throw new CodexMigrationError(
         'PLUGIN_MARKETPLACE_FAILED',
         `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error)}. Restore error: ${String(restorationError)}`,
@@ -282,6 +290,12 @@ function refreshOrAddCodexMarketplace(
     if (marketplace?.marketplaceSource?.sourceType === 'git') {
       refreshOfficialGitMarketplace(marketplace, environment);
       return;
+    }
+    if (marketplace !== undefined) {
+      throw new CodexMigrationError(
+        'PLUGIN_MARKETPLACE_FAILED',
+        'The configured Codex marketplace named safeword is not a Git marketplace. Safeword left it unchanged because replacing an unknown marketplace type is not safely reversible.',
+      );
     }
   }
 

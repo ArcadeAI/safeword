@@ -967,6 +967,61 @@ function codexFailureCode(
     : 'FINALIZATION_FAILED';
 }
 
+function codexFailureConfig(
+  partialInstall: boolean,
+  partialMarketplace: boolean,
+): CliResult['effects']['configuration'] {
+  if (partialInstall) {
+    return [
+      {
+        kind: 'install',
+        target: 'Safeword Codex profile plugin',
+        operation: 'enablement-unverified',
+      },
+    ];
+  }
+  if (partialMarketplace) {
+    return [
+      {
+        kind: 'remove',
+        target: 'Safeword Codex marketplace',
+        operation: 'restoration-failed',
+      },
+    ];
+  }
+  return [];
+}
+
+function codexFailureRecovery(
+  error: unknown,
+  partialMarketplace: boolean,
+  fileEffects: CliResult['effects']['files'],
+): CliResult['recovery'] {
+  if (
+    partialMarketplace &&
+    error instanceof CodexMigrationError &&
+    error.recoveryCommand !== undefined
+  ) {
+    return [
+      {
+        command: error.recoveryCommand,
+        description: 'Restore the Safeword marketplace removed by the failed replacement.',
+        requiresHuman: true,
+      },
+    ];
+  }
+  if (fileEffects.length > 0) {
+    return [
+      {
+        command: 'safeword codex recover',
+        description: 'Retry recovery using the retained migration backup.',
+        requiresHuman: true,
+      },
+    ];
+  }
+  return [];
+}
+
 function codexFailure(
   error: unknown,
   name: CodexMutationName,
@@ -997,42 +1052,9 @@ function codexFailure(
     changed: partialInstall || partialMarketplace || fileEffects.length > 0,
     effects: {
       files: fileEffects,
-      configuration: partialInstall
-        ? [
-            {
-              kind: 'install',
-              target: 'Safeword Codex profile plugin',
-              operation: 'enablement-unverified',
-            },
-          ]
-        : partialMarketplace
-          ? [
-              {
-                kind: 'remove',
-                target: 'Safeword Codex marketplace',
-                operation: 'restoration-failed',
-              },
-            ]
-          : [],
+      configuration: codexFailureConfig(partialInstall, partialMarketplace),
     },
-    recovery:
-      partialMarketplace && error.recoveryCommand !== undefined
-        ? [
-            {
-              command: error.recoveryCommand,
-              description: 'Restore the Safeword marketplace removed by the failed replacement.',
-              requiresHuman: true,
-            },
-          ]
-        : fileEffects.length > 0
-        ? [
-            {
-              command: 'safeword codex recover',
-              description: 'Retry recovery using the retained migration backup.',
-              requiresHuman: true,
-            },
-          ]
-        : [],
+    recovery: codexFailureRecovery(error, partialMarketplace, fileEffects),
     errors: [
       {
         code: codexFailureCode(error, message, name, isFinalization),
