@@ -1661,7 +1661,7 @@ When(
 );
 
 When(
-  'the plugin migration handoff succeeds under an isolated Codex profile',
+  'the plugin migration upgrade runs with profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
@@ -1870,27 +1870,24 @@ Then(
   },
 );
 
-Then(
-  'the handoff installs the Safe Word plugin through the fake Codex boundary',
-  function (this: CodexPluginMigrationWorld) {
-    const result = this.codexPluginMigrationResult;
-    assert.ok(result, 'migration result was not captured');
-    assert.equal(result.exitCode, 0, `${result.stdout}\n${result.stderr}`);
-    assert.match(
-      readFileSync(requirePath(this.codexPluginMigrationLogPath, 'migration log'), 'utf8'),
-      /plugin add safeword@safeword --json/u,
-    );
-    assert.equal(
-      existsSync(
-        nodePath.join(
-          requirePath(this.codexPluginRepoRoot, 'repo root'),
-          '.safeword/codex-plugin.json',
-        ),
+Then('Safe Word is enrolled in the Codex profile', function (this: CodexPluginMigrationWorld) {
+  const result = this.codexPluginMigrationResult;
+  assert.ok(result, 'migration result was not captured');
+  assert.equal(result.exitCode, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(
+    readFileSync(requirePath(this.codexPluginMigrationLogPath, 'migration log'), 'utf8'),
+    /plugin add safeword@safeword --json/u,
+  );
+  assert.equal(
+    existsSync(
+      nodePath.join(
+        requirePath(this.codexPluginRepoRoot, 'repo root'),
+        '.safeword/codex-plugin.json',
       ),
-      true,
-    );
-  },
-);
+    ),
+    true,
+  );
+});
 
 Then(
   /^Safe Word keeps repo-local `\.agents\/skills` available during the compatibility window$/,

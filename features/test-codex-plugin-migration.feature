@@ -113,8 +113,8 @@ Feature: Test Codex plugin migration
       Given a repo installed with today's project-local Codex assets
       And the repo contains user-owned tickets and learnings under the namespace root
       And the repo contains a user-authored `.agents/skills/company-workflow/SKILL.md`
-      When the plugin migration handoff succeeds under an isolated Codex profile
-      Then the handoff installs the Safe Word plugin through the fake Codex boundary
+      When the plugin migration upgrade runs with profile enrollment available
+      Then Safe Word is enrolled in the Codex profile
       And the user-owned tickets and learnings remain byte-identical
       And the user-authored skill remains byte-identical
       And Safe Word-owned Codex skill files are removed after finalization
