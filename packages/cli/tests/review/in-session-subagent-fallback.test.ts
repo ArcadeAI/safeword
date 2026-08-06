@@ -29,7 +29,7 @@ describe('in-session review fallback guidance', () => {
     for (const guide of reviewGuides) {
       expect(guide).toContain('in-session subagent');
       expect(guide).toContain('`degraded`');
-      expect(guide).toContain('must not satisfy `crossAgentReview: require`');
+      expect(guide).toMatch(/must not satisfy\s+`crossAgentReview: require`/u);
     }
   });
 });
