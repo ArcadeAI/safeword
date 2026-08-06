@@ -70,8 +70,23 @@ interface InspectionConfig {
   requiredChecks?: { context: string }[];
 }
 
+type InspectionInputEnvelope = Record<string, unknown> & {
+  artifacts: unknown[];
+  checks: unknown[];
+  headSha: string;
+  markerReceiptExists: boolean;
+  pullState: InspectionInput['pullState'];
+  statuses: unknown[];
+};
+
+const PULL_STATES = new Set<InspectionInput['pullState']>(['closed', 'draft', 'merged', 'ready']);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isPullState(value: unknown): value is InspectionInput['pullState'] {
+  return typeof value === 'string' && PULL_STATES.has(value as InspectionInput['pullState']);
 }
 
 function validRequiredChecks(value: unknown): boolean {
@@ -84,11 +99,9 @@ function validRequiredChecks(value: unknown): boolean {
   );
 }
 
-function hasValidInputEnvelope(raw: Record<string, unknown>): boolean {
+function hasValidInputEnvelope(raw: Record<string, unknown>): raw is InspectionInputEnvelope {
   const validHead = typeof raw.headSha === 'string' && /^[a-f\d]{40,64}$/u.test(raw.headSha);
-  const validState =
-    typeof raw.pullState === 'string' &&
-    ['closed', 'draft', 'merged', 'ready'].includes(raw.pullState);
+  const validState = isPullState(raw.pullState);
   return (
     raw.schemaVersion === 1 &&
     validHead &&
@@ -134,7 +147,7 @@ function parseInput(inputPath: string): InspectionInput {
       (artifact.kind === 'non_text' || artifact.kind === 'unreadable_text') &&
       typeof artifact.path === 'string'
     ) {
-      return { kind: artifact.kind, path: artifact.path };
+      return { kind: artifact.kind, path: artifact.path } as const;
     }
     if (
       !isRecord(artifact) ||
@@ -173,7 +186,7 @@ function parseInput(inputPath: string): InspectionInput {
     checks,
     headSha: raw.headSha,
     markerReceiptExists: raw.markerReceiptExists,
-    pullState: raw.pullState as InspectionInput['pullState'],
+    pullState: raw.pullState,
     ...(typeof raw.reviewedReceiptSha === 'string' && {
       reviewedReceiptSha: raw.reviewedReceiptSha,
     }),
