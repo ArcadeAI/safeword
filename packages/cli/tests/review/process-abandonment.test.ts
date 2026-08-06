@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -36,7 +36,18 @@ describe('an uncleanable reviewer process group', () => {
     );
     chmodSync(executable, 0o755);
 
-    vi.stubEnv('PATH', `${bin}:/usr/bin:/bin`);
+    const fallbackHost = mkdtempSync(nodePath.join(tmpdir(), 'safeword-abandoned-fallback-'));
+    const fallbackBin = nodePath.join(fallbackHost, 'bin');
+    const fallbackLaunch = nodePath.join(fallbackHost, 'launched');
+    mkdirSync(fallbackBin);
+    writeFileSync(
+      nodePath.join(fallbackBin, 'codex'),
+      `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi\nprintf 'launched\\n' > '${fallbackLaunch}'\nexit 0\n`,
+      { mode: 0o755 },
+    );
+    chmodSync(nodePath.join(fallbackBin, 'codex'), 0o755);
+
+    vi.stubEnv('PATH', `${bin}:${fallbackBin}:/usr/bin:/bin`);
     vi.stubEnv('SAFEWORD_REVIEW_TIMEOUT_MS', '100');
     const realKill = process.kill.bind(process);
     let abandonedGroup: number | undefined;
@@ -55,9 +66,11 @@ describe('an uncleanable reviewer process group', () => {
         failure: 'process_failed',
         message: 'codex reviewer processes could not be stopped',
       });
+      expect(existsSync(fallbackLaunch)).toBe(false);
     } finally {
       rmSync(project, { recursive: true, force: true });
       rmSync(host, { recursive: true, force: true });
+      rmSync(fallbackHost, { recursive: true, force: true });
     }
   });
 });

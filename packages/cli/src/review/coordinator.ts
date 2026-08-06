@@ -82,13 +82,13 @@ async function executeReview(
 ): Promise<{
   outcome:
     | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
-    | { readonly kind: 'failed'; readonly failure: ReviewFailure };
+    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean };
   sourceChanged: boolean;
   snapshotChanged: boolean;
 }> {
   let outcome:
     | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
-    | { readonly kind: 'failed'; readonly failure: ReviewFailure };
+    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean };
   try {
     const output = await runHeadlessReviewer(
       reviewer,
@@ -103,7 +103,7 @@ async function executeReview(
       prepared.cleanup();
       throw error;
     }
-    outcome = { kind: 'failed', failure: error.failure };
+    outcome = { kind: 'failed', failure: error.failure, terminal: error.terminal };
   }
   try {
     return {
@@ -119,16 +119,16 @@ async function executeReview(
 function assessFallback(
   outcome:
     | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
-    | { readonly kind: 'failed'; readonly failure: ReviewFailure },
+    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean },
   reviewer: ReviewAgent,
   dispatchId: string,
 ):
   | { readonly kind: 'completed'; readonly output: ReviewerOutput }
-  | { readonly kind: 'failed'; readonly failure: string } {
+  | { readonly kind: 'failed'; readonly failure: string; readonly terminal: boolean } {
   if (outcome.kind === 'failed') return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   return provenance.kind === 'failed'
-    ? { kind: 'failed', failure: provenance.code }
+    ? { kind: 'failed', failure: provenance.code, terminal: false }
     : { kind: 'completed', output: provenance.output };
 }
 
@@ -512,7 +512,7 @@ async function runAlternateModelRoute(input: {
   readonly runDeadline: number;
 }): Promise<
   | { readonly kind: 'completed'; readonly result: CliResult }
-  | { readonly kind: 'failed'; readonly failure: string }
+  | { readonly kind: 'failed'; readonly failure: string; readonly terminal: boolean }
   | { readonly kind: 'skipped' }
 > {
   const model = readAlternateReviewerModel(input.cwd, input.reviewer);
@@ -536,7 +536,7 @@ async function runAlternateModelRoute(input: {
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
-  if (assessment.kind === 'failed') return { kind: 'failed', failure: assessment.failure };
+  if (assessment.kind === 'failed') return assessment;
   const output = assessment.output;
 
   const result = independentReviewResult({
@@ -576,6 +576,9 @@ async function runRemainingRoutes(input: {
   // An attempted-and-failed alternate model is part of the story; a skipped one
   // never happened and must not be reported as a route that failed.
   const alternateFailure = alternate.kind === 'failed' ? alternate.failure : undefined;
+  if (alternate.kind === 'failed' && alternate.terminal) {
+    return exhaustedRunResult({ ...input, alternateFailure });
+  }
   if (!canFundRoute(input.runDeadline)) return exhaustedRunResult({ ...input, alternateFailure });
   return runDegradedFallback({ ...input, alternateFailure });
 }
@@ -689,6 +692,14 @@ export async function runReview(input: {
   });
   if (changedResult !== undefined) return changedResult;
   if (outcome.kind === 'failed') {
+    if (outcome.terminal) {
+      return exhaustedRunResult({
+        ...input,
+        author: pair.author,
+        assignedReviewer: reviewer,
+        preferredFailure: outcome.failure,
+      });
+    }
     // Before settling for the author reviewing its own work, give the reviewer
     // agent one more attempt on a configured alternate model. It is still not
     // the author, so a completed review there is fully independent.

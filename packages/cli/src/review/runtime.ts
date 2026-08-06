@@ -151,6 +151,7 @@ export class ReviewRuntimeError extends Error {
   constructor(
     readonly failure: ReviewFailure,
     message: string,
+    readonly terminal = false,
   ) {
     super(message);
     this.name = 'ReviewRuntimeError';
@@ -515,6 +516,7 @@ async function stopReviewerOrThrow(
   throw new ReviewRuntimeError(
     'process_failed',
     `${reviewer} reviewer processes could not be stopped`,
+    true,
   );
 }
 
@@ -685,6 +687,7 @@ async function runReviewerCandidates(
       );
     } catch (error) {
       if (!(error instanceof ReviewRuntimeError)) throw error;
+      if (error.terminal) throw error;
       lastFailure = error;
     }
   }

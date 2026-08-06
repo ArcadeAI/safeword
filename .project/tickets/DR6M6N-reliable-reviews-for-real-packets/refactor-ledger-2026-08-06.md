@@ -59,6 +59,11 @@ against current `main`.
   exits. Terminal results now receive the complete ordered request ledger, with
   public tests asserting two-request alternate success and one-/three-request
   exhausted paths.
+- **Terminal abandonment:** cleanup failure initially reused the ordinary
+  `process_failed` retry path, so a later executable could conceal a still-live
+  process group. Runtime errors now carry a terminal bit through candidate and
+  route orchestration; a two-candidate regression proves no later reviewer starts
+  after abandonment.
 - **Customer timing wording:** configuration docs called nine minutes a complete
   command bound. They now identify it as the reviewer-work ceiling and disclose
   preparation plus final synchronous integrity/cleanup outside that deadline.
