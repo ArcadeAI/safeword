@@ -129,6 +129,12 @@ describe('alternate-model review route', () => {
       expect(result.exitCode, result.stdout).toBe(0);
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'healthy',
+        effects: {
+          network: [
+            { kind: 'review', target: reviewer, operation: 'request' },
+            { kind: 'review', target: reviewer, operation: 'request' },
+          ],
+        },
         data: {
           status: 'approved',
           author_agent: author,

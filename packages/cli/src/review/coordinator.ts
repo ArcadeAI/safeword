@@ -58,7 +58,7 @@ function independentReviewResult(input: {
       },
     ],
     effects: {
-      network: [{ kind: 'review', target: input.reviewer, operation: 'request' }],
+      network: independentNetworkEffects(input.reviewer, input.preferredFailure !== undefined),
     },
     data: {
       command: 'review run',
@@ -261,7 +261,11 @@ function changedReviewResult(input: {
   readonly targets: readonly string[];
   readonly sourceChanged: boolean;
   readonly snapshotChanged: boolean;
+  readonly network?: readonly Effect[];
 }): CliResult | undefined {
+  const network = input.network ?? [
+    { kind: 'review', target: input.reviewer, operation: 'request' },
+  ];
   if (input.snapshotChanged) {
     return createResult({
       state: 'failed',
@@ -274,7 +278,7 @@ function changedReviewResult(input: {
         },
       ],
       effects: {
-        network: [{ kind: 'review', target: input.reviewer, operation: 'request' }],
+        network,
       },
       data: {
         command: 'review run',
@@ -296,7 +300,7 @@ function changedReviewResult(input: {
       },
     ],
     effects: {
-      network: [{ kind: 'review', target: input.reviewer, operation: 'request' }],
+      network,
     },
     recovery: [
       {
@@ -331,6 +335,11 @@ function degradedNetworkEffects(
   return alternateAttempted ? [preferred, preferred, fallback] : [preferred, fallback];
 }
 
+function independentNetworkEffects(reviewer: ReviewAgent, retried: boolean): readonly Effect[] {
+  const request = { kind: 'review', target: reviewer, operation: 'request' } as const;
+  return retried ? [request, request] : [request];
+}
+
 async function runDegradedFallback(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -356,6 +365,11 @@ async function runDegradedFallback(input: {
     targets: input.targets,
     sourceChanged,
     snapshotChanged,
+    network: degradedNetworkEffects(
+      input.assignedReviewer,
+      input.author,
+      input.alternateFailure !== undefined,
+    ),
   });
   if (changedResult !== undefined) return changedResult;
   const assessment = assessFallback(outcome, input.author, prepared.packet.dispatch_id);
@@ -385,6 +399,13 @@ async function runDegradedFallback(input: {
           severity: 'warning',
         },
       ],
+      effects: {
+        network: degradedNetworkEffects(
+          input.assignedReviewer,
+          input.author,
+          input.alternateFailure !== undefined,
+        ),
+      },
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
@@ -511,6 +532,7 @@ async function runAlternateModelRoute(input: {
     targets: input.targets,
     sourceChanged,
     snapshotChanged,
+    network: independentNetworkEffects(input.reviewer, true),
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
@@ -591,6 +613,12 @@ function exhaustedRunResult(input: {
         severity: 'warning',
       },
     ],
+    effects: {
+      network: independentNetworkEffects(
+        input.assignedReviewer,
+        input.alternateFailure !== undefined,
+      ),
+    },
     recovery: [
       {
         command: retryCommand(input.kind, input.targets),
@@ -604,6 +632,7 @@ function exhaustedRunResult(input: {
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
       preferred_failure: input.preferredFailure,
+      ...alternateFailureData(input.alternateFailure),
       independence: 'none',
     },
   });

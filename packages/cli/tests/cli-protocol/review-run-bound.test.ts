@@ -49,7 +49,10 @@ while true; do /bin/sleep 5; done
 async function runWithBounds(bounds: {
   readonly attemptMs: string;
   readonly runBoundMs: string;
-}): Promise<{ routes: string[]; payload: { data: Record<string, unknown> } }> {
+}): Promise<{
+  routes: string[];
+  payload: { data: Record<string, unknown>; effects: { network: unknown[] } };
+}> {
   const directory = createTemporaryDirectory();
   const routeLog = nodePath.join(directory, 'routes.log');
   writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -87,7 +90,13 @@ async function runWithBounds(bounds: {
   const routes = existsSync(routeLog)
     ? readFileSync(routeLog, 'utf8').split('\n').filter(Boolean)
     : [];
-  return { routes, payload: JSON.parse(result.stdout) as { data: Record<string, unknown> } };
+  return {
+    routes,
+    payload: JSON.parse(result.stdout) as {
+      data: Record<string, unknown>;
+      effects: { network: unknown[] };
+    },
+  };
 }
 
 describe('the run bound across routes', () => {
@@ -100,6 +109,7 @@ describe('the run bound across routes', () => {
       'claude default', // last resort: the author's own runtime
     ]);
     expect(payload.data.independence).toBe('none');
+    expect(payload.effects.network).toHaveLength(3);
   });
 
   it('stops starting routes once the bound cannot fund another one', async () => {
@@ -108,5 +118,6 @@ describe('the run bound across routes', () => {
 
     expect(routes).toEqual(['codex default']);
     expect(payload.data.independence).toBe('none');
+    expect(payload.effects.network).toHaveLength(1);
   });
 });

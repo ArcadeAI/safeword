@@ -54,6 +54,11 @@ against current `main`.
   attempted alternate model's failure and represented only two of the three
   reviewer requests. Both preferred and required-policy degraded envelopes now
   retain that Safe Word-owned route fact and complete network-effect ledger.
+- **Terminal effect invariant:** the same under-reporting also affected
+  alternate success, exhausted-run, failed author-fallback, and source-change
+  exits. Terminal results now receive the complete ordered request ledger, with
+  public tests asserting two-request alternate success and one-/three-request
+  exhausted paths.
 - **Customer timing wording:** configuration docs called nine minutes a complete
   command bound. They now identify it as the reviewer-work ceiling and disclose
   preparation plus final synchronous integrity/cleanup outside that deadline.
