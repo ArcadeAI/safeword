@@ -117,11 +117,17 @@ Feature: Cloud retro filing — try-REST-then-agent-subagent transport
   Rule: Recovery handoffs report facts without hiding real faults
 
     @cloud-retro-filing.SM1.AC4 @surface.claude-code @surface.claude-code-cloud @surface.cursor @surface.openai-codex
-    Scenario: An unfiled-draft handoff does not diagnose why filing remains queued
+    Scenario Outline: An unfiled-draft handoff does not diagnose why filing remains queued
       Given sanitized drafts remain queued after the code-owned filing attempt
-      When a host builds its filing dispatch or boundary nudge
+      When the <handoff> is built
       Then the handoff names the queued drafts and recovery lane
       And the handoff makes no claim that authentication or transport failed
+
+      Examples:
+        | handoff                |
+        | Claude/Cursor dispatch |
+        | Codex dispatch         |
+        | boundary nudge         |
 
     @cloud-retro-filing.SM1.AC4 @surface.safeword-cli
     Scenario: An authenticated filing failure is captured for self-reporting
