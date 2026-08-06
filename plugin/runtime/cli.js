@@ -46534,15 +46534,17 @@ async function executeRetroCliCommand(options, cwd) {
     restTransportAvailable: restTransport !== undefined,
     transport
   });
-  if (restTransport !== undefined && (outcome.result?.failed.length ?? 0) > 0) {
-    const { captureRetroFilingFault: captureRetroFilingFault2 } = await Promise.resolve().then(() => (init_self_report(), exports_self_report));
-    captureRetroFilingFault2(projectDirectory, options.sessionId ?? process14.env.CLAUDE_SESSION_ID ?? options.transcript);
-  }
+  reportFilingFault(projectDirectory, options, restTransport !== undefined, outcome);
   return {
     outcome,
     extractionSucceeded,
     restTransportAvailable: restTransport !== undefined
   };
+}
+function reportFilingFault(projectDirectory, options, restTransportAvailable, outcome) {
+  if (!restTransportAvailable || (outcome.result?.failed.length ?? 0) === 0)
+    return;
+  captureRetroFilingFault(projectDirectory, options.sessionId ?? process14.env.CLAUDE_SESSION_ID ?? options.transcript);
 }
 function executeRetroCommand(options, target) {
   return typeof target === "object" && target !== null ? executeRetroWithDependencies(options, target) : executeRetroCliCommand(options, target);
@@ -46587,6 +46589,7 @@ var init_retro = __esm(() => {
   init_retro_debug();
   init_retro_draft_spool();
   init_retro_extract();
+  init_self_report();
   init_ledger();
   init_pipeline();
   init_reconcile2();
