@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 08cc2f278
 - [x] GREEN 849e93605
-- [ ] REFACTOR
+- [x] REFACTOR skip: strict classifier is already small and names the recovery boundary directly
 
 ## Rule: keep-safeword-recovery-runnable.TBU1.R2 — The recovery exception does not make unrelated package executors runnable
 
