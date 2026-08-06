@@ -216,7 +216,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED cb4946c93
 - [x] GREEN 02dd2fe74
-- [ ] REFACTOR
+- [x] REFACTOR skip: audit validation is already isolated into two narrow predicates
 
 ### Scenario: Adversarial pull-request text cannot expand authority or suppress human routing
 
