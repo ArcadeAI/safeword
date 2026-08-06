@@ -52,6 +52,7 @@ import {
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
 import { decideRetroFilingGate } from '../../templates/hooks/lib/retro-filing-gate.js';
+import { captureRetroFilingFault, readReports } from '../../templates/hooks/lib/self-report.js';
 import { readJsonlFile } from '../helpers.js';
 import { relayReadinessArtifact, validRelayReadinessManifest } from '../helpers/relay-readiness.js';
 
@@ -1213,6 +1214,63 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
       'Alpha friction',
       'Beta friction',
     ]);
+  });
+});
+
+describe('executeRetroCommand filing-fault capture (#1936)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-filing-fault-'));
+  });
+  afterEach(() => {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
+
+  class FailingGitHub extends FakeGitHub {
+    override createIssue(): Promise<IssueReference> {
+      return Promise.reject(new Error('500 Internal Server Error'));
+    }
+  }
+
+  async function executeWithTransportAvailability(restTransportAvailable: boolean) {
+    const transcript = nodePath.join(projectDirectory, 'transcript.jsonl');
+    writeFileSync(transcript, 'transcript content');
+    return executeRetroCommand(
+      { transcript },
+      {
+        captureFilingFault: captureRetroFilingFault,
+        environment: {},
+        extract: () => Promise.resolve([rawFinding()]),
+        extractionSucceeded: () => true,
+        harness: 'claude',
+        output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+        projectDirectory,
+        relay: { manifest: { ...validRelayReadinessManifest(), enabled: false } },
+        restTransportAvailable,
+        sessionId: 'sess-fault',
+        transport: new FailingGitHub(),
+      },
+    );
+  }
+
+  it('captures an authenticated filing failure through the command composition', async () => {
+    const outcome = await executeWithTransportAvailability(true);
+
+    expect(outcome.result?.failed).toHaveLength(1);
+    expect(readReports(projectDirectory)).toEqual([
+      expect.objectContaining({
+        errorClass: 'RetroFilingFault',
+        sessionId: 'sess-fault',
+        source: 'retro-run',
+      }),
+    ]);
+  });
+
+  it('does not capture the ordinary no-credential recovery lane', async () => {
+    const outcome = await executeWithTransportAvailability(false);
+
+    expect(outcome.result?.failed).toHaveLength(1);
+    expect(readReports(projectDirectory)).toEqual([]);
   });
 });
 

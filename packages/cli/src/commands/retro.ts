@@ -886,6 +886,7 @@ async function resolveRetroRelayRoute(input: {
 async function executeRetroWithDependencies(
   options: RetroCliOptions,
   dependencies: {
+    captureFilingFault?: (projectDirectory: string, sessionId: string) => void;
     environment: NodeJS.ProcessEnv;
     extract: FindingExtractor;
     extractionSucceeded: () => boolean;
@@ -929,6 +930,9 @@ async function executeRetroWithDependencies(
     output: dependencies.output,
     restTransportAvailable: dependencies.restTransportAvailable,
   });
+  if (dependencies.restTransportAvailable && (outcome.result?.failed.length ?? 0) > 0) {
+    dependencies.captureFilingFault?.(dependencies.projectDirectory, dependencies.sessionId);
+  }
   return outcome;
 }
 
@@ -1182,6 +1186,7 @@ async function executeRetroCliCommand(
   const transport = restTransport ?? unavailableTransport();
 
   const outcome = await executeRetroWithDependencies(options, {
+    captureFilingFault: captureRetroFilingFault,
     environment: process.env,
     extract,
     extractionSucceeded: () => extractionSucceeded,
@@ -1217,36 +1222,11 @@ async function executeRetroCliCommand(
     transport,
   });
 
-  reportFilingFault(projectDirectory, options, restTransport !== undefined, outcome);
-
   return {
     outcome,
     extractionSucceeded,
     restTransportAvailable: restTransport !== undefined,
   };
-}
-
-/**
- * #1936 — a credential WAS present and the write still failed: an authenticated
- * 5xx, a terminal 403/404/422, or the dedup enumeration exceeding its bound. That
- * is a real transport fault, not the ordinary "no credential in an agent session"
- * lane, which stays silent here.
- *
- * It reports through self-report rather than the handoff text because the dispatch
- * and nudge land in the transcript retro's own extractor mines and must stay
- * cause-neutral (#1900). Without this channel a genuine fault would be invisible.
- */
-function reportFilingFault(
-  projectDirectory: string,
-  options: RetroCliOptions,
-  restTransportAvailable: boolean,
-  outcome: RetroOutcome,
-): void {
-  if (!restTransportAvailable || (outcome.result?.failed.length ?? 0) === 0) return;
-  captureRetroFilingFault(
-    projectDirectory,
-    options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? options.transcript,
-  );
 }
 
 export function executeRetroCommand(
