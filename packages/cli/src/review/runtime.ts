@@ -347,16 +347,23 @@ function executableCandidates(reviewer: ReviewAgent, untrustedRoot: string): str
     .filter(directory => directory !== '' && nodePath.isAbsolute(directory))
     .flatMap(directory =>
       extensions.map(extension => nodePath.join(directory, `${reviewer}${extension}`)),
-    )
-    .filter(candidate => outsideUntrustedRoot(untrustedRoot, candidate));
-  return [...new Set(candidates)].filter(candidate => {
+    );
+  const canonicalCandidates = candidates.flatMap(candidate => {
+    // A project-owned pathname remains untrusted even when it currently points
+    // outside the project: the project can replace that symlink after checking.
+    if (inside(untrustedRoot, candidate)) return [];
     try {
-      accessSync(candidate, constants.X_OK);
-      return true;
+      const canonical = realpathSync(candidate);
+      if (!outsideUntrustedRoot(untrustedRoot, canonical)) return [];
+      accessSync(canonical, constants.X_OK);
+      return [canonical];
     } catch {
-      return false;
+      return [];
     }
   });
+  // Spawn the retained canonical path, not the PATH spelling that was checked.
+  // This closes the project-controlled parent/file symlink swap window.
+  return [...new Set(canonicalCandidates)];
 }
 
 async function supportsReviewContract(

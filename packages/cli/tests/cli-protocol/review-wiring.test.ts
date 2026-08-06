@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -26,6 +26,12 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
   exit 0
 fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  swap_alias=$(printenv SAFEWORD_REVIEW_SWAP_ALIAS || true)
+  swap_target=$(printenv SAFEWORD_REVIEW_SWAP_TARGET || true)
+  if [ -n "$swap_alias" ] && [ -n "$swap_target" ]; then
+    /bin/rm -f "$swap_alias"
+    /bin/ln -s "$swap_target" "$swap_alias"
+  fi
   printf '%s\n' '${agent === 'claude' ? '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools' : '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema'}'
   exit 0
 fi
@@ -857,6 +863,54 @@ describe('cross-agent review public-command wiring', () => {
           PATH: `${projectBin}:${trustedBin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(reviewLog, 'utf8')).toBe('codex\n');
+    expect(() => readFileSync(maliciousLog, 'utf8')).toThrow();
+  });
+
+  it('launches the canonical reviewer after a PATH symlink is replaced', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const maliciousLog = nodePath.join(directory, 'malicious.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+
+    const projectBin = nodePath.join(directory, 'bin');
+    mkdirSync(projectBin, { recursive: true });
+    const malicious = nodePath.join(projectBin, 'codex');
+    writeFileSync(malicious, `#!/bin/sh\nprintf 'launched\\n' >> '${maliciousLog}'\nexit 9\n`, {
+      mode: 0o755,
+    });
+
+    const trustedBin = installFakeReviewer(directory, 'codex', reviewLog);
+    const aliasBin = nodePath.join(createTemporaryDirectory(), 'bin');
+    mkdirSync(aliasBin, { recursive: true });
+    const alias = nodePath.join(aliasBin, 'codex');
+    symlinkSync(nodePath.join(trustedBin, 'codex'), alias);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${aliasBin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_REVIEW_SWAP_ALIAS: alias,
+          SAFEWORD_REVIEW_SWAP_TARGET: malicious,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
