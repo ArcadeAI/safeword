@@ -64,6 +64,9 @@ interface AdvisoryReviewWorld {
     githubWriteCredential: boolean;
   };
   maxTotalBytes?: number;
+  mergeEligibilityAfter?: string;
+  mergeEligibilityBefore?: string;
+  mergeEligibilityMutation?: boolean;
   nonConsequentialFinding?: {
     consequence: string;
     evidence: string;
@@ -92,6 +95,7 @@ interface AdvisoryReviewWorld {
   ready?: boolean;
   publicationBlocked?: boolean;
   publicationCalls?: string[];
+  publicationSurface?: string;
   publishedRoute?: 'looks_ready' | 'needs_human';
   githubWriteCalls?: number;
   receipts?: ObservableReceipt[];
@@ -497,6 +501,14 @@ Given(
 Given('deterministic evidence requires human judgment', function (this: AdvisoryReviewWorld) {
   this.evidenceState = 'incomplete';
 });
+
+Given(
+  'a pull request is subject to approval and required-check rules',
+  function (this: AdvisoryReviewWorld) {
+    this.mergeEligibilityBefore = 'approval required; build required';
+    this.mergeEligibilityAfter = this.mergeEligibilityBefore;
+  },
+);
 
 Given('a canonical bot-authored marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
   this.commentMutations = [];
@@ -1090,6 +1102,25 @@ When('Safeword derives and publishes the result', async function (this: Advisory
   });
 });
 
+When('Safeword publishes its current receipt', async function (this: AdvisoryReviewWorld) {
+  const audit = (await publishReceipt(
+    {
+      createComment: async () => {},
+      deleteComment: async () => {},
+      listComments: async () => [],
+      updateComment: async () => {},
+    },
+    'Route: looks ready',
+  )) as unknown as {
+    calls: string[];
+    mergeEligibilityMutation?: boolean;
+    surface?: string;
+  };
+  this.publicationCalls = audit.calls;
+  this.publicationSurface = audit.surface;
+  this.mergeEligibilityMutation = audit.mergeEligibilityMutation;
+});
+
 Then(
   "the publication audit records revision A's `stale` write before any fresh route for revision B",
   function (this: AdvisoryReviewWorld) {
@@ -1295,6 +1326,34 @@ Then(
     }
   },
 );
+
+Then(
+  'the receipt is an ordinary non-review conversation comment',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.publicationSurface, 'ordinary_issue_comment');
+  },
+);
+
+Then(
+  'it creates neither an approval nor a status or check conclusion',
+  function (this: AdvisoryReviewWorld) {
+    for (const forbiddenCall of ['review', 'status', 'check']) {
+      assert.equal(this.publicationCalls?.includes(forbiddenCall), false);
+    }
+  },
+);
+
+Then(
+  'the publication audit contains an issue-comment call but no review, status, or check call',
+  function (this: AdvisoryReviewWorld) {
+    assert.deepEqual(this.publicationCalls, ['issue_comment']);
+  },
+);
+
+Then('merge eligibility is unchanged', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.mergeEligibilityMutation, false);
+  assert.equal(this.mergeEligibilityAfter, this.mergeEligibilityBefore);
+});
 
 Then(
   'revision B requires a full fresh review before a current route is published',
