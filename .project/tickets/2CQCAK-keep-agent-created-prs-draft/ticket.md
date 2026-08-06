@@ -2,10 +2,10 @@
 id: 2CQCAK
 slug: keep-agent-created-prs-draft
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-08-06T21:05:20.272Z
-last_modified: 2026-08-06T22:12:05Z
+last_modified: 2026-08-06T23:23:35Z
 ---
 
 # Keep agent-created pull requests in draft until approved
@@ -37,3 +37,4 @@ last_modified: 2026-08-06T22:12:05Z
 - 2026-08-06T21:24:40Z Verified: 6,953 tests, 1,077 acceptance scenarios, build, lint, formatting, and typecheck passed. Dependency audit reported six pre-existing website/tooling advisories outside ticket scope.
 - 2026-08-06T21:57:34Z Isolated: moved the uncommitted feature from an unrelated detached branch onto `codex/keep-agent-created-prs-draft` from current `origin/main`; the feature diff now contains only its five scoped files.
 - 2026-08-06T22:12:05Z Verified: on the clean branch, 6,936 tests, 1,077 acceptance scenarios, build, lint, formatting, typecheck, and the diff-scoped audit passed. The dependency audit still reports the same six pre-existing advisories outside ticket scope.
+- 2026-08-06T23:23:35Z Done: User confirmed completion after the full Safe Word process; closed with verify and audit evidence recorded.
