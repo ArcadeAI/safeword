@@ -52,6 +52,7 @@ interface AdvisoryReviewWorld {
   protectedCommentBefore?: string;
   protectedCommentId?: number;
   renderedReceipt?: string;
+  receiptRunState?: 'complete' | 'failed' | 'incomplete' | 'stale';
   requiredPrerequisites?: string[];
   currentHead?: string;
   missingPrerequisite?: string;
@@ -70,6 +71,7 @@ interface AdvisoryReviewWorld {
   scheduledState?: 'closed' | 'draft' | 'merged';
   summary?: string;
   outputTokens?: number;
+  unresolvedCheck?: string;
 }
 
 function conditionState(condition: string): 'complete' | 'failed' | 'incomplete' | 'stale' {
@@ -376,6 +378,16 @@ Given(
 Given('required check `build` completed successfully', function (this: AdvisoryReviewWorld) {
   this.prerequisites = 'passed';
 });
+
+Given(
+  'a failed terminal review has unavailable token usage and one unresolved check',
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.prerequisites = 'pending';
+    this.receiptRunState = 'failed';
+    this.unresolvedCheck = 'build';
+  },
+);
 
 Given('a canonical bot-authored marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
   this.commentMutations = [];
@@ -795,15 +807,22 @@ When('Safeword publishes the current result', async function (this: AdvisoryRevi
 });
 
 When('Safeword publishes the current receipt', function (this: AdvisoryReviewWorld) {
+  const checkStatus =
+    this.prerequisites === 'passed' ? 'success' : this.unresolvedCheck ? undefined : 'unknown';
   this.renderedReceipt = renderReceipt({
-    checks: [{ name: 'build', status: this.prerequisites === 'passed' ? 'success' : 'unknown' }],
+    checks: [
+      {
+        name: this.unresolvedCheck ?? 'build',
+        status: checkStatus as 'success' | 'unknown',
+      },
+    ],
     findingCounts: { consequential: 0, nonConsequential: 0 },
     reviewedSha: this.currentHead ?? '',
     reviewers: ['openai'],
-    runState: 'complete',
+    runState: this.receiptRunState ?? 'complete',
     skippedChecks: [],
     tokenUsage: { input: this.inputTokens, output: this.outputTokens },
-    unknowns: [],
+    unknowns: this.unresolvedCheck ? [`check ${this.unresolvedCheck}`] : [],
   });
 });
 
@@ -888,6 +907,19 @@ Then(
     assert.match(this.renderedReceipt ?? '', /123 input/);
     assert.match(this.renderedReceipt ?? '', /45 output/);
     assert.match(this.renderedReceipt ?? '', /build: success/);
+  },
+);
+
+Then('token usage is reported as unknown rather than zero', function (this: AdvisoryReviewWorld) {
+  assert.match(this.renderedReceipt ?? '', /unknown input, unknown output/);
+  assert.doesNotMatch(this.renderedReceipt ?? '', /0 (?:input|output)/);
+});
+
+Then(
+  'the unresolved check is reported as unknown rather than successful',
+  function (this: AdvisoryReviewWorld) {
+    assert.match(this.renderedReceipt ?? '', /build: unknown/);
+    assert.doesNotMatch(this.renderedReceipt ?? '', /build: success/);
   },
 );
 
