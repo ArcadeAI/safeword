@@ -8,9 +8,11 @@ phase_anchors:
   - scenario-gate: packages/cli/features/reliable-reviews-for-real-packets.feature
   - plan-implementation: packages/cli/features/reliable-reviews-for-real-packets.feature
   - implement: .project/tickets/DR6M6N-reliable-reviews-for-real-packets/impl-plan.md
+  - done: .project/tickets/DR6M6N-reliable-reviews-for-real-packets/verify.md
 phase_skips:
   - scenario-gate: Re-entered define-behavior twice mid-implementation to correct scenarios that field evidence and an independent review proved wrong (the size-derived deadline, the candidate-share floor, the pre-launch capability claim). Each correction returned straight to implement rather than replaying the full gate, which had already run ten adversarial rounds over the same scenarios.
   - plan-implementation: The plan was reviewed independently four times before implementation began and reconciled at implement exit; the mid-flight returns to define-behavior did not change the design it records.
+  - verify: Verification was completed in the same closeout pass as the final implementation review; the full-suite, acceptance, lint, build, audit, and independent-review evidence is recorded in verify.md.
 status: done
 scope:
   - a size-aware review budget with a documented bounded maximum, honoring the existing explicit override
