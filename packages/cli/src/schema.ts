@@ -312,6 +312,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  */
 const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.safeword/retro-drafts/',
   '.safeword/self-reports/',
   '.safeword/boundary-audit.jsonl',
   ...['.project', '.safeword-project'].flatMap(root =>
@@ -784,6 +785,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/session-codex-start.ts': {
       template: 'hooks/session-codex-start.ts',
+      // Packaged by the CLI for native Codex dispatch, but no longer copied
+      // into projects. Existing copies are legacy migration inputs.
+      generator: (): undefined => undefined,
     },
     '.safeword/hooks/session-cursor-auto-upgrade.ts': {
       template: 'hooks/session-cursor-auto-upgrade.ts',
@@ -959,6 +963,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/templates/work-log-template.md': {
       template: 'doc-templates/work-log-template.md',
+    },
+    // Upstream-workaround tripwire scaffold (issue #1907) — header runbook +
+    // pinned-version test, emitted when a workaround's removal depends on
+    // someone else's release. See guides/testing-guide.md.
+    '.safeword/templates/tripwire-template.md': {
+      template: 'doc-templates/tripwire-template.md',
     },
     // Per-ticket spec.md scaffold (ticket Y2HCNJ). ticket-writer reads this
     // from the bundled templates dir when scaffolding a feature's spec.md;

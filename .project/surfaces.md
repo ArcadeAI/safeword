@@ -76,3 +76,12 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Examples:** `safeword setup`, `safeword upgrade`, `safeword check`, `safeword sync-config`, `safeword test-plan`, `safeword ticket new`, the managed-file reconcile contract, generated `INDEX.md`
 **Coverage notes:** Tag feature scenarios with `@surface.safeword-cli` when the behavior is the CLI tool's own — file scaffolding/reconciliation, config validation, index generation — rather than something that must work through a specific agent runtime.
 **Do not confuse with:** Claude Code / OpenAI Codex / Cursor — the agent runtimes that *invoke* safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
+
+## Railway Hosted Relay
+
+**Kind:** Hosted service
+**Description:** The Railway deployment surface for Safeword's retry-safe retro relay. It runs the transport-independent HTTP API and a single-host SQLite WAL store on a persistent Railway volume; production filing remains disabled until the checked-in readiness manifest passes.
+**Audience:** Safeword Maintainer (SWM)
+**Examples:** Railway service health checks, persistent volume mounting, relay environment configuration, deployment smoke tests
+**Coverage notes:** Tag feature scenarios with `@surface.railway-hosted-relay` when behavior depends on the hosted relay process, its persistent storage, or Railway deployment controls.
+**Do not confuse with:** Safeword CLI — the local command that prepares and delivers retro requests. The hosted relay accepts authorized requests and coordinates durable deduplication.

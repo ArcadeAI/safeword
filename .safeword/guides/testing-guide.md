@@ -441,6 +441,87 @@ await waitFor(() => expect(screen.getByText('Success')).toBeVisible());
 
 ---
 
+## Upstream Workaround Tripwires
+
+A workaround for someone else's bug is temporary by intent and permanent in
+practice. The usual safeguards fail quietly: a code comment only reaches
+someone already reading that file, a ticket ages out of triage, and a
+scheduled reminder is tied to something that ends — a PR, a session, a
+person. The workaround outlives its cause, and the next person to touch it
+sees pointless-looking indirection and "cleans it up," silently reintroducing
+the original bug.
+
+**Pattern:** when you write a workaround for an upstream bug, write a test
+that fails when the workaround becomes _removable_. The test asserts the
+dependency is still pinned at the last known-bad version. The next upgrade
+turns CI red, with a failure message naming exactly what to delete.
+
+It fires on the event that makes the workaround removable rather than on a
+clock or a memory. It survives the PR merging, the ticket closing, and the
+author leaving.
+
+### When A Tripwire Is Warranted
+
+Both must hold:
+
+| Condition                                 | Why                                                                     |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| Removal depends on someone else's release | Nothing in this repo will ever tell you the fix shipped                 |
+| The failure mode is silent                | Nobody notices the workaround rotting, or a cleanup reintroducing a bug |
+
+A workaround for something obvious and loud does not need one. Neither does
+one you can delete today.
+
+### Assert The Version, Not The Bug
+
+This inversion is the whole trick.
+
+A test that reproduces the bug goes **green** when upstream fixes it —
+silently, telling nobody, leaving the dead workaround behind. A test that
+asserts the pin goes **red** on the upgrade, in front of the person doing the
+upgrade, at the moment the decision is theirs to make.
+
+```ts
+// ❌ Asserts the bug — passes silently once upstream fixes it
+test('adapter still ships unoptimized images', () => {
+  expect(buildOutput.images.every(isOptimized)).toBe(false);
+});
+
+// ✅ Asserts the pin — fails on the upgrade that makes removal possible
+/** Newest @astrojs/cloudflare known to still need the workaround. */
+const PINNED_VERSION = '14.1.7';
+
+test(`adapter is still pinned to ${PINNED_VERSION} — see this file's header before changing`, () => {
+  expect(adapterPkg.version).toBe(PINNED_VERSION);
+});
+```
+
+### The Header Is The Deliverable
+
+The failure message wakes someone with no context. The file header is what
+they read next, so it carries the runbook:
+
+- **The bug** — what breaks, how it presents, and why it is silent
+- **The workaround** — what this repo does instead
+- **Fix shipped** — the exact files to delete, including this test
+- **Not fixed yet** — re-pin and bump `PINNED_VERSION`; a red test is the
+  check working
+- **Why the obvious cleanup is wrong** — when a plausible simplification
+  reintroduces the bug, say so where the person deleting it will read
+
+Scaffold: `.safeword/templates/tripwire-template.md`. Write it while the
+context is fresh — the header is the part that is easy to under-write and
+impossible to reconstruct later.
+
+### Cost And Lane
+
+A tripwire runs in the **static gate** lane: cheap, every CI run, fires on
+dependency change rather than on a schedule. When the fix is not in the next
+release the upgrader gets a red test, checks the upstream issue, and re-pins.
+That is correct behavior, not friction — they should be checking.
+
+---
+
 ## What Not to Test
 
 ❌ **Implementation details** - Private methods, CSS classes, internal state

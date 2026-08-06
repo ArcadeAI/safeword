@@ -20,6 +20,7 @@ import {
   codexPluginHookCommands,
   type CodexPluginHookEntry,
 } from '../../src/codex-plugin/hooks.ts';
+import { codexProjectBootstrapContent } from '../../src/codex-plugin/project-bootstrap.ts';
 import {
   assertPackedCodexPlugin,
   extractPackedCliPackage,
@@ -419,6 +420,13 @@ Then('the legacy Codex hooks remain unchanged', function (this: MigrationWorld) 
   assertLegacyHooksUnchanged(this);
 });
 
+Then(
+  'the legacy Codex hooks remain and the enrollment bootstrap is added',
+  function (this: MigrationWorld) {
+    assert.equal(codexConfig(this), codexProjectBootstrapContent(this.originalCodexConfig ?? ''));
+  },
+);
+
 Then('the legacy Safe Word hooks remain in the project', function (this: MigrationWorld) {
   assertLegacyHooksUnchanged(this);
 });
@@ -430,6 +438,13 @@ Then('the legacy Safe Word hooks remain unchanged', function (this: MigrationWor
 Then('the project has no Safe Word Codex hook configuration', function (this: MigrationWorld) {
   assert.equal(existsSync(codexConfigPath(this)), false);
 });
+
+Then(
+  'the project has only the Safe Word Codex enrollment bootstrap',
+  function (this: MigrationWorld) {
+    assert.equal(codexConfig(this), codexProjectBootstrapContent(''));
+  },
+);
 
 Then(
   'the project still has no Safe Word Codex hook configuration',
@@ -447,10 +462,10 @@ Then(
 );
 
 Then(
-  'Safe Word directs the builder to the Codex plugin install command',
+  'Safe Word reports that automatic Codex profile enrollment is installed',
   function (this: MigrationWorld) {
     assert.ok(
-      latestCommandOutput(this).includes('safeword codex install'),
+      latestCommandOutput(this).includes('Codex bootstrap is enrolled for this project'),
       latestCommandOutput(this),
     );
   },

@@ -11,7 +11,7 @@ import {
 } from './execute.js';
 import { isPlanIdentity } from './plan.js';
 import { createProgressReporter } from './policy.js';
-import { createResult, withDeprecation } from './result.js';
+import { type CliResult, createResult, withDeprecation } from './result.js';
 
 const FAMILY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   project: 'Manage project-local Safeword state',
@@ -61,6 +61,13 @@ function addDefinitionOptions(command: Command, definition: CommandDefinition): 
         }
         return value;
       });
+    } else if (option.valueKind === 'claude-plugin-scope') {
+      commanderOption.argParser(value => {
+        if (value !== 'project' && value !== 'user') {
+          throw new InvalidArgumentError('scope must be either project or user');
+        }
+        return value;
+      });
     }
     command.addOption(commanderOption);
   }
@@ -87,6 +94,24 @@ function definitionCommand(
   return parent.command(definition.registration.syntax, {
     hidden: definition.aliasFor !== undefined,
   });
+}
+
+function withCompatibilityDeprecation(result: CliResult, definition: CommandDefinition): CliResult {
+  if (definition.aliasFor !== undefined) {
+    if (definition.compatibility === undefined) {
+      throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
+    }
+    return withDeprecation(result, definition.name, definition.aliasFor, definition.compatibility);
+  }
+  if (definition.name !== 'retro run' || process.env.SAFEWORD_CLI_RETAINED_ALIAS !== 'retro') {
+    return result;
+  }
+
+  const alias = findCommandDefinition('retro');
+  if (alias.aliasFor === undefined || alias.compatibility === undefined) {
+    throw new Error('Missing compatibility policy for retained alias retro');
+  }
+  return withDeprecation(result, alias.name, alias.aliasFor, alias.compatibility);
 }
 
 async function executeDefinition(command: Command, definition: CommandDefinition): Promise<void> {
@@ -127,17 +152,7 @@ async function executeDefinition(command: Command, definition: CommandDefinition
   } finally {
     progress?.stop();
   }
-  if (definition.aliasFor !== undefined) {
-    if (definition.compatibility === undefined) {
-      throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
-    }
-    result = withDeprecation(
-      result,
-      definition.name,
-      definition.aliasFor,
-      definition.compatibility,
-    );
-  }
+  result = withCompatibilityDeprecation(result, definition);
   reportResult(result, globalOptions, definition.name);
 }
 
@@ -160,6 +175,10 @@ export function registerPublicCommandCatalog(program: Command): void {
   const families = registerFamilies(program);
   for (const definition of commandCatalog) {
     if (!definition.public) continue;
+    // A retained alias cannot share a name with a command family: attaching its
+    // action to the family makes Commander treat every subcommand as an excess
+    // argument. The family remains the public entry point for its children.
+    if (definition.aliasFor !== undefined && families.has(definition.name)) continue;
     addDefinitionAction(definitionCommand(program, families, definition), definition);
   }
 
