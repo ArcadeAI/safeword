@@ -23,7 +23,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A newline cannot hide a guarded command after recovery
 
 - [x] RED skip: the pre-existing shared shell splitter already treats newlines as command boundaries
-- [ ] GREEN
+- [x] GREEN 82a149766
 - [ ] REFACTOR
 
 ## Rule: keep-safeword-recovery-runnable.TBU1.R3 — Recovery guidance names a command that the current CLI supports
