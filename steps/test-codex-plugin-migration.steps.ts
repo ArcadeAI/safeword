@@ -16,6 +16,8 @@ import process from 'node:process';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { installFakeCodexRuntime } from '../packages/cli/tests/helpers/fake-codex-runtime.js';
+
 import type { CommandResult, SafewordWorld } from './world.js';
 
 const SAFEWORD_CODEX_PLUGIN_ROOT = nodePath.resolve(
@@ -56,6 +58,8 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginHookContractResults?: CodexHookContractResult[];
   codexPluginMalformedHookCommandName?: CodexHookCommandName;
   codexPluginMigrationResult?: CommandResult;
+  codexPluginMigrationLogPath?: string;
+  codexPluginRuntimeRoot?: string;
   codexPluginUserDataSnapshot?: Record<string, string>;
   codexPluginSelfReportSnapshot?: Record<string, string>;
   codexPluginUserSkillSnapshot?: string;
@@ -1367,6 +1371,22 @@ Given(
   },
 );
 
+Given(
+  /^the repo contains a user-authored `\.agents\/skills\/company-workflow\/SKILL\.md`$/,
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    const skillPath = nodePath.join(repoRoot, '.agents/skills/company-workflow/SKILL.md');
+    mkdirSync(nodePath.dirname(skillPath), { recursive: true });
+    writeFileSync(
+      skillPath,
+      ['---', 'name: company-workflow', '---', '', '# Company Workflow', 'Use local process.'].join(
+        '\n',
+      ),
+    );
+    this.codexPluginUserSkillSnapshot = readFileSync(skillPath, 'utf8');
+  },
+);
+
 When(
   "the packaged Codex PreToolUse entrypoint receives a supported edit payload for that ticket's `test-definitions.md`",
   function (this: CodexPluginMigrationWorld) {
@@ -1612,19 +1632,17 @@ When(
 );
 
 /**
- * Every scenario in this rule runs the upgrade with profile enrollment made
- * unavailable, and each one asserts the decline it produces (#1973). The
+ * Rejection scenarios in this rule run the upgrade with profile enrollment
+ * made unavailable, and each one asserts the decline it produces (#1973). The
  * decline is the point: it proves the upgrade ran, reached the Codex handoff,
  * and preserved the project on the way out. Without that assertion these
  * scenarios pass whether or not anything executed, because untouched files
  * look identical to files nothing reached.
  *
- * Enrollment stays unavailable on purpose rather than being made to succeed.
- * `installCodexPlugin` shells out to the real `bun` and `codex` binaries and
- * clones the `ArcadeAI/safeword` marketplace at ref `stable`; the automatic
- * migration path takes no local-source override. Succeeding here would mean a
- * network clone per scenario and mutating whatever Codex profile is ambient.
- * Hermetic coverage of a *successful* handoff is tracked separately.
+ * Enrollment stays unavailable in those cases so they cannot clone a network
+ * marketplace or mutate an ambient Codex profile. The successful case below
+ * crosses the same subprocess boundary through a temp-bin fake and isolated
+ * CODEX_HOME.
  */
 When(
   'the plugin migration upgrade runs without profile enrollment available',
@@ -1636,6 +1654,28 @@ When(
         // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
         PATH: '',
         SAFEWORD_SKIP_INSTALL: '1',
+      },
+      timeout: 120_000,
+    });
+  },
+);
+
+When(
+  'the plugin migration handoff succeeds under an isolated Codex profile',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
+    const runtime = installFakeCodexRuntime(runtimeRoot, true, false);
+    this.codexPluginRuntimeRoot = runtimeRoot;
+    this.codexPluginCodexHome = runtime.codexHome;
+    this.codexPluginMigrationLogPath = runtime.logPath;
+    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
+      cwd: repoRoot,
+      env: {
+        PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: runtime.logPath,
+        SAFEWORD_SKIP_INSTALL: '1',
+        CODEX_HOME: runtime.codexHome,
       },
       timeout: 120_000,
     });
@@ -1828,6 +1868,28 @@ Then(
 );
 
 Then(
+  'the handoff installs the Safe Word plugin through the fake Codex boundary',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginMigrationResult;
+    assert.ok(result, 'migration result was not captured');
+    assert.equal(result.exitCode, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(
+      readFileSync(requirePath(this.codexPluginMigrationLogPath, 'migration log'), 'utf8'),
+      /plugin add safeword@safeword --json/u,
+    );
+    assert.equal(
+      existsSync(
+        nodePath.join(
+          requirePath(this.codexPluginRepoRoot, 'repo root'),
+          '.safeword/codex-plugin.json',
+        ),
+      ),
+      true,
+    );
+  },
+);
+
+Then(
   /^Safe Word keeps repo-local `\.agents\/skills` available during the compatibility window$/,
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
@@ -1855,6 +1917,23 @@ Then('the user-authored skill remains byte-identical', function (this: CodexPlug
     this.codexPluginUserSkillSnapshot,
   );
 });
+
+Then(
+  'Safe Word-owned Codex skill files are removed after finalization',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/bdd/SKILL.md')), false);
+    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md')), false);
+  },
+);
+
+Then(
+  'legacy Safe Word Codex hook runtime files are removed after finalization',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.equal(existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex')), false);
+  },
+);
 
 Then(
   'Safe Word-owned Codex skill files remain beside the user-authored skill until finalization',
@@ -2130,6 +2209,7 @@ After(function (this: CodexPluginMigrationWorld) {
     this.codexPluginMarketplaceRoot,
     this.codexPluginPackageRoot,
     this.codexPluginDefaultVerificationReportRoot,
+    this.codexPluginRuntimeRoot,
   ]) {
     if (directory) rmSync(directory, { recursive: true, force: true });
   }

@@ -109,6 +109,17 @@ Feature: Test Codex plugin migration
       And Safe Word keeps repo-local `.agents/skills` available during the compatibility window
       And legacy Safe Word Codex hook runtime files remain until explicit handoff cleanup
 
+    Scenario: Successful handoff preserves authored project data while removing managed fallback
+      Given a repo installed with today's project-local Codex assets
+      And the repo contains user-owned tickets and learnings under the namespace root
+      And the repo contains a user-authored `.agents/skills/company-workflow/SKILL.md`
+      When the plugin migration handoff succeeds under an isolated Codex profile
+      Then the handoff installs the Safe Word plugin through the fake Codex boundary
+      And the user-owned tickets and learnings remain byte-identical
+      And the user-authored skill remains byte-identical
+      And Safe Word-owned Codex skill files are removed after finalization
+      And legacy Safe Word Codex hook runtime files are removed after finalization
+
     Scenario: User-authored Codex skills survive the migration
       Given an old project-local Codex install with a user-authored `.agents/skills/company-workflow/SKILL.md`
       When the plugin migration upgrade runs without profile enrollment available

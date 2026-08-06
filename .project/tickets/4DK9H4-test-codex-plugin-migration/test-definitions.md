@@ -76,13 +76,19 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 011cb21d
 - [x] REFACTOR skip: hook manifest is intentionally explicit per Codex event
 
-## Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data intact while removing or ignoring obsolete Safe Word implementation assets
+## Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and working fallback assets intact until an explicit proven handoff
 
-### Scenario: Old project-local Codex install migrates to plugin-backed Codex support
+### Scenario: Unavailable profile enrollment preserves an old project's authored data and fallback
 
 - [x] RED 76e61756
 - [x] GREEN d38dba27
 - [x] REFACTOR skip: migration cleanup is already file-scoped for shared skill dirs and source-only for legacy hook templates
+
+### Scenario: Successful handoff preserves authored project data while removing managed fallback
+
+- [x] RED #1989
+- [ ] GREEN pending
+- [x] REFACTOR 7352a6dcd
 
 ### Scenario: User-authored Codex skills survive the migration
 
@@ -90,7 +96,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ba64937a
 - [x] REFACTOR skip: deprecated file and empty-dir cleanup both derive from the canonical Codex skill list
 
-### Scenario: Customized Codex config is not clobbered while stale Safe Word hooks are removed
+### Scenario: Customized Codex config is not clobbered while stale Safe Word hooks await explicit migration
 
 - [x] RED eb760fa5
 - [x] GREEN cb6cc277
