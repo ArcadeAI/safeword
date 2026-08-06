@@ -35,6 +35,14 @@ type ObservableReceipt = PublishedReceipt & {
 };
 
 interface AdvisoryReviewWorld {
+  actionableFinding?: {
+    consequence: string;
+    evidence: string;
+    line: number;
+    nextAction: string;
+    path: string;
+    unverifiedRemedy: string;
+  };
   attempts?: number;
   binaryArtifactPath?: string;
   changedArtifactKind?: 'binary' | 'text';
@@ -388,6 +396,17 @@ Given(
     this.unresolvedCheck = 'build';
   },
 );
+
+Given('a current review has a consequential finding', function (this: AdvisoryReviewWorld) {
+  this.actionableFinding = {
+    consequence: 'An attacker could access another account.',
+    evidence: 'The changed handler accepts an unsigned session token.',
+    line: 12,
+    nextAction: 'Require signature verification before accepting the token.',
+    path: 'src/auth.ts',
+    unverifiedRemedy: 'Use the existing token verification helper.',
+  };
+});
 
 Given('a canonical bot-authored marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
   this.commentMutations = [];
@@ -826,6 +845,20 @@ When('Safeword publishes the current receipt', function (this: AdvisoryReviewWor
   });
 });
 
+When('Safeword renders the ordinary-comment receipt', function (this: AdvisoryReviewWorld) {
+  this.renderedReceipt = renderReceipt({
+    checks: [],
+    findingCounts: { consequential: 1, nonConsequential: 0 },
+    findings: this.actionableFinding ? [this.actionableFinding] : [],
+    reviewedSha: 'revision A',
+    reviewers: ['openai'],
+    runState: 'complete',
+    skippedChecks: [],
+    tokenUsage: {},
+    unknowns: [],
+  });
+});
+
 Then(
   "the publication audit records revision A's `stale` write before any fresh route for revision B",
   function (this: AdvisoryReviewWorld) {
@@ -922,6 +955,25 @@ Then(
     assert.doesNotMatch(this.renderedReceipt ?? '', /build: success/);
   },
 );
+
+Then(
+  'the finding names its path and location, evidence, consequence, and one next action',
+  function (this: AdvisoryReviewWorld) {
+    const receipt = this.renderedReceipt ?? '';
+    assert.match(receipt, /src\/auth\.ts:12/);
+    assert.match(receipt, /The changed handler accepts an unsigned session token\./);
+    assert.match(receipt, /An attacker could access another account\./);
+    assert.match(receipt, /Require signature verification before accepting the token\./);
+    assert.equal(receipt.match(/Next action:/gu)?.length, 1);
+  },
+);
+
+Then('any model-proposed remedy is labeled unverified', function (this: AdvisoryReviewWorld) {
+  assert.match(
+    this.renderedReceipt ?? '',
+    /Unverified remedy: Use the existing token verification helper\./,
+  );
+});
 
 Then(
   'revision B requires a full fresh review before a current route is published',
