@@ -37,3 +37,9 @@ test-definitions.md is the R/G/R ledger.
 ## Feature-level cross-scenario refactor
 
 - [x] cross-scenario skip: independent whole-diff review found no cross-loop cleanup worth making
+
+## Acceptance lane binding
+
+- [x] RED observed: `bun run test:bdd` reported all 22 recovery scenarios as undefined
+- [ ] GREEN
+- [ ] REFACTOR
