@@ -633,9 +633,9 @@ describe('cross-agent review public-command wiring', () => {
   });
 
   it.each([
-    { author: 'claude' as const, authorName: 'Claude', reviewerName: 'Codex' },
-    { author: 'codex' as const, authorName: 'Codex', reviewerName: 'Claude' },
-  ])(
+    { author: 'claude', authorName: 'Claude', reviewerName: 'Codex' },
+    { author: 'codex', authorName: 'Codex', reviewerName: 'Claude' },
+  ] as const)(
     'suggests installing missing $reviewerName without blocking the $authorName fallback',
     async ({ author, authorName, reviewerName }) => {
       const directory = createTemporaryDirectory();
