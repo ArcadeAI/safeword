@@ -432,14 +432,17 @@ function prReviewEnabled(cwd: string): boolean {
 }
 
 function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
+  const workflowContent = (): string =>
+    readFile(nodePath.join(getTemplatesDirectory(), templatePath))
+      .split('__SAFEWORD_VERSION__')
+      .join(VERSION);
+
   return {
     template: templatePath,
     generator: (ctx: ProjectContext): string | undefined =>
-      prReviewEnabled(ctx.cwd)
-        ? readFile(nodePath.join(getTemplatesDirectory(), templatePath))
-            .split('__SAFEWORD_VERSION__')
-            .join(VERSION)
-        : undefined,
+      prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
+    removeIfUnmodified: workflowContent,
+    removeWhenGeneratorOmitted: true,
   };
 }
 

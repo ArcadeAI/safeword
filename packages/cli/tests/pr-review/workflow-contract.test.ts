@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
 import { reconcile } from '../../src/reconcile.js';
-import type { ProjectContext } from '../../src/schema.js';
+import type { ProjectContext, SafewordSchema } from '../../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../../templates/workflows');
@@ -56,7 +56,15 @@ function projectContext(cwd: string): ProjectContext {
   };
 }
 
-function workflowOnlySchema() {
+function workflowOnlySchema(): SafewordSchema {
+  const managedFiles = Object.fromEntries(
+    installedWorkflowPaths.map(path => {
+      const definition = SAFEWORD_SCHEMA.managedFiles[path];
+      if (definition === undefined) throw new Error(`missing schema entry for ${path}`);
+      return [path, definition];
+    }),
+  );
+
   return {
     ...SAFEWORD_SCHEMA,
     contracts: {},
@@ -65,9 +73,7 @@ function workflowOnlySchema() {
     deprecatedPackages: [],
     jsonMerges: {},
     legacyTextPatches: {},
-    managedFiles: Object.fromEntries(
-      installedWorkflowPaths.map(path => [path, SAFEWORD_SCHEMA.managedFiles[path]]),
-    ),
+    managedFiles,
     ownedDirs: [],
     ownedFiles: {},
     packages: { base: [], conditional: {} },

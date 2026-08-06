@@ -8,7 +8,7 @@ parent: P0D6S2
 epic: trustworthy-advisory-pr-review
 depends_on: [HXT3GW]
 created: 2026-08-05T19:52:07.090Z
-last_modified: 2026-08-06T13:58:00Z
+last_modified: 2026-08-06T14:08:46Z
 ---
 
 # Prevent advisory workflow drift before release
@@ -44,6 +44,10 @@ freshness, inline findings, or customer-code execution. HXT3GW, Z7M7Y3, and
 
 ## Work Log
 
+- 2026-08-06T14:08:46Z Made opt-out reconciliation symmetric with opt-in:
+  enabling advisory review installs exactly both registered workflows; disabling
+  it removes only Safeword's exact scaffold bytes and preserves either customized
+  workflow. Targeted lint, typecheck, and all 4 workflow contract tests pass.
 - 2026-08-06T13:58:00Z Chose the smallest release proof after reviewing current
   GitHub contracts. Deterministic actionlint/reconciliation tests will bind the
   installed router and worker to their canonical templates. A purpose-built

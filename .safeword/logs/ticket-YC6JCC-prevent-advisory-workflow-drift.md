@@ -38,6 +38,10 @@
   green while the canonical workflow breaks. Mitigation: derive fixture YAML
   from the canonical templates, permit only explicit command/probe substitutions,
   and fail deterministic tests on any unaccounted structural difference.
+- [04:08] GREEN: conditional managed files now opt into safe disable-time
+  cleanup. Reconciliation removes exact Safeword workflow scaffolds while
+  preserving project customizations. ESLint and TypeScript pass; the targeted
+  workflow contract suite passes 4/4 tests.
 
 ## Sources
 

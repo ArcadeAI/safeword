@@ -311,6 +311,34 @@ function planConditionalManagedRemoval(
   return { actions, removed };
 }
 
+/**
+ * Conditional feature opt-out during upgrade: when a managed file's generator
+ * now omits it, remove only the exact scaffold Safeword would have installed.
+ * A customized file is project-owned and must survive the configuration change.
+ */
+function planOmittedManagedRemoval(
+  managedFiles: Record<string, ManagedFileDefinition>,
+  ctx: ProjectContext,
+): { actions: Action[]; removed: string[] } {
+  const actions: Action[] = [];
+  const removed: string[] = [];
+  for (const [filePath, definition] of Object.entries(managedFiles)) {
+    if (!definition.removeWhenGeneratorOmitted) continue;
+    if (definition.removeIfUnmodified === undefined) continue;
+    if (isConfigOverridden(definition, ctx.cwd)) continue;
+    if (resolveFileContent(definition, ctx) !== undefined) continue;
+
+    const fullPath = nodePath.join(ctx.cwd, filePath);
+    if (!exists(fullPath)) continue;
+    const expected = definition.removeIfUnmodified(ctx);
+    if (expected !== undefined && readFileSafe(fullPath) === expected) {
+      actions.push({ type: 'rm', path: filePath });
+      removed.push(filePath);
+    }
+  }
+  return { actions, removed };
+}
+
 function planExistingFilesRemoval(
   files: string[],
   cwd: string,
@@ -674,6 +702,7 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   const actions: Action[] = [];
   const wouldCreate: string[] = [];
   const wouldUpdate: string[] = [];
+  const wouldRemove: string[] = [];
 
   // 1. Ensure directories exist (skip .husky if not a git repo)
   const allDirectories = [...schema.ownedDirs, ...schema.sharedDirs, ...schema.preservedDirs];
@@ -692,10 +721,15 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   actions.push(...managedFilesResult.actions);
   wouldCreate.push(...managedFilesResult.created);
 
+  // 3b. Remove exact conditional scaffolds when their feature is disabled.
+  const omittedManagedFiles = planOmittedManagedRemoval(schema.managedFiles, ctx);
+  actions.push(...omittedManagedFiles.actions);
+  wouldRemove.push(...omittedManagedFiles.removed);
+
   // 4. Remove deprecated files (renamed or removed in newer versions)
   const deprecatedFiles = planExistingFilesRemoval(schema.deprecatedFiles, ctx.cwd);
   actions.push(...deprecatedFiles.actions);
-  const wouldRemove = deprecatedFiles.removed;
+  wouldRemove.push(...deprecatedFiles.removed);
 
   // 4b. Remove deprecated directories (no longer managed by safeword)
   const deprecatedDirectories = planExistingDirectoriesRemoval(schema.deprecatedDirs, ctx.cwd);
