@@ -412,7 +412,7 @@ async function supportsReviewContract(
       );
     });
   });
-  await stopReviewer(child);
+  await stopReviewerOrThrow(child, reviewer);
   child.stdout.destroy();
   child.stderr.destroy();
   child.unref();
@@ -457,17 +457,18 @@ function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
  * leads its own process group and the whole group is signalled; on Windows the
  * child tree is terminated instead, since process groups do not exist there.
  */
-const reviewerStops = new WeakMap<ReturnType<typeof spawn>, Promise<void>>();
+const reviewerStops = new WeakMap<ReturnType<typeof spawn>, Promise<boolean>>();
 
-function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Promise<void> {
+function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Promise<boolean> {
+  if (child.exitCode !== null) return Promise.resolve(true);
   return new Promise(resolve => {
     let settled = false;
-    const finish = (): void => {
+    const finish = (stopped: boolean): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
       child.kill('SIGKILL');
-      resolve();
+      resolve(stopped);
     };
     const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
       stdio: 'ignore',
@@ -475,14 +476,18 @@ function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Prom
     });
     const timeout = setTimeout(() => {
       killer.kill('SIGKILL');
-      finish();
+      finish(false);
     }, WINDOWS_CLEANUP_BUDGET_MS);
-    killer.on('error', finish);
-    killer.on('close', finish);
+    killer.on('error', () => {
+      finish(false);
+    });
+    killer.on('close', code => {
+      finish(code === 0);
+    });
   });
 }
 
-function stopReviewer(child: ReturnType<typeof spawn>): Promise<void> {
+function stopReviewer(child: ReturnType<typeof spawn>): Promise<boolean> {
   const existing = reviewerStops.get(child);
   if (existing !== undefined) return existing;
   const stopping = stopReviewerOnce(child);
@@ -490,12 +495,22 @@ function stopReviewer(child: ReturnType<typeof spawn>): Promise<void> {
   return stopping;
 }
 
-async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<void> {
+async function stopReviewerOrThrow(
+  child: ReturnType<typeof spawn>,
+  reviewer: ReviewAgent,
+): Promise<void> {
+  if (await stopReviewer(child)) return;
+  throw new ReviewRuntimeError(
+    'process_failed',
+    `${reviewer} reviewer processes could not be stopped`,
+  );
+}
+
+async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolean> {
   const pid = child.pid;
-  if (pid === undefined) return;
+  if (pid === undefined) return true;
   if (process.platform === 'win32') {
-    await stopWindowsReviewer(child, pid);
-    return;
+    return stopWindowsReviewer(child, pid);
   }
   const signalGroup = (signal: NodeJS.Signals): void => {
     try {
@@ -524,6 +539,7 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<void> 
       await new Promise(resolve => setTimeout(resolve, 5));
     }
   }
+  return !groupExists();
 }
 
 async function runCandidate(
@@ -627,7 +643,7 @@ async function runCandidate(
   } finally {
     // Do not let a timed-out reviewer or its descendants overlap integrity
     // checks, packet cleanup, or a later candidate.
-    await stopReviewer(child);
+    await stopReviewerOrThrow(child, reviewer);
   }
 }
 

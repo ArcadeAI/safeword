@@ -31,6 +31,7 @@ const CAPABILITIES = {
 type Agent = keyof typeof CAPABILITIES;
 type Behaviour =
   | 'answers'
+  | 'answers after delay'
   | 'never answers'
   | 'answers only with a model'
   | 'answers off contract'
@@ -46,6 +47,7 @@ interface ReviewScenario {
   project: string;
   binaries: string[];
   environment: Record<string, string>;
+  launchLog: string;
 }
 
 type ReviewWorld = SafewordWorld & { review?: ReviewScenario };
@@ -58,6 +60,7 @@ function state(world: SafewordWorld): ReviewScenario {
   world_.review = {
     project,
     binaries: [],
+    launchLog: nodePath.join(project, 'reviewer-launches.log'),
     environment: {
       SAFEWORD_AGENT_RUNTIME: 'claude',
       SAFEWORD_REVIEW_TIMEOUT_MS: '900',
@@ -86,6 +89,7 @@ printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text"
   const answer = `${body}\n${emit}`;
 
   if (behaviour === 'answers') return answer;
+  if (behaviour === 'answers after delay') return `/bin/sleep 1\n${answer}`;
   if (behaviour === 'never answers') return 'exec /bin/sleep 3600';
   if (behaviour === 'answers after termination') {
     return `${body}\non_term() {\n${emit}\n  exit 0\n}\ntrap on_term TERM INT\nwhile true; do /bin/sleep 5; done`;
@@ -121,6 +125,7 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
   printf '%s\n' '${capabilities}'
   exit 0
 fi
+printf '%s\t%s\n' '${label}' "$*" >> "$SAFEWORD_REVIEW_LAUNCH_LOG"
 ${behaviourScript(agent, behaviour)}
 `,
     { mode: 0o755 },
@@ -141,6 +146,7 @@ async function runReview(world: SafewordWorld): Promise<void> {
   const current = state(world);
   const environment: Record<string, string> = {
     ...current.environment,
+    SAFEWORD_REVIEW_LAUNCH_LOG: current.launchLog,
     PATH: [...current.binaries, '/usr/bin', '/bin'].join(':'),
     HOME: process.env.HOME ?? '',
   };
@@ -187,19 +193,15 @@ function payload(world: SafewordWorld): ReviewPayload {
   }
 }
 
-/** True when the run produced no verified cross-agent review, however it ended. */
-function reviewedIndependently(world: SafewordWorld): boolean {
-  try {
-    return payload(world).data.independence === 'cross-agent';
-  } catch {
-    return false;
-  }
-}
-
 function explanation(world: SafewordWorld): string {
   return payload(world)
     .findings.map(finding => finding.message)
     .join(' ');
+}
+
+function reviewerLaunches(world: SafewordWorld): string[] {
+  const launchLog = state(world).launchLog;
+  return existsSync(launchLog) ? readFileSync(launchLog, 'utf8').split('\n').filter(Boolean) : [];
 }
 
 After(function (this: SafewordWorld) {
@@ -224,7 +226,9 @@ Given('a review packet larger than the accepted maximum', function (this: Safewo
 });
 
 Given('an explicitly configured attempt deadline', function (this: SafewordWorld) {
-  state(this).environment.SAFEWORD_REVIEW_TIMEOUT_MS = '120000';
+  const current = state(this);
+  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '500';
+  installReviewer(current, 'codex', 'answers after delay');
 });
 
 Given('a reviewer that never answers', function (this: SafewordWorld) {
@@ -427,7 +431,6 @@ When('a builder runs the public review command', async function (this: SafewordW
 });
 
 When('the attempt deadline is derived', async function (this: SafewordWorld) {
-  installReviewer(state(this), 'codex', 'answers');
   await runReview(this);
 });
 
@@ -450,11 +453,12 @@ Then("the review returns the reviewer's verdict", function (this: SafewordWorld)
 });
 
 Then('no reviewer is asked to review it', function (this: SafewordWorld) {
-  assert.equal(reviewedIndependently(this), false);
+  assert.deepEqual(reviewerLaunches(this), []);
 });
 
 Then('the configured deadline is used', function (this: SafewordWorld) {
-  assert.equal(payload(this).data.independence, 'cross-agent');
+  assert.equal(payload(this).data.preferred_failure, 'timed_out');
+  assert.equal(reviewerLaunches(this).length, 1);
 });
 
 Then('the assigned reviewer route is reported as timed out', function (this: SafewordWorld) {
@@ -546,11 +550,15 @@ Then('the alternate model still receives its own attempt', function (this: Safew
 });
 
 Then('the routes were attempted in their fixed order', function (this: SafewordWorld) {
-  assert.equal(payload(this).data.independence, 'none');
+  const launches = reviewerLaunches(this);
+  assert.equal(launches.length, 3);
+  assert.match(launches[0] ?? '', /^codex\t(?!.*--model)/u);
+  assert.match(launches[1] ?? '', /^codex\t.*--model vendor-model-2(?:\s|$)/u);
+  assert.match(launches[2] ?? '', /^claude\t/u);
 });
 
 Then("the author's own runtime is never attempted", function (this: SafewordWorld) {
-  assert.equal(payload(this).data.independence, 'none');
+  assert.ok(reviewerLaunches(this).every(launch => !launch.startsWith('claude\t')));
 });
 
 Then('the command reports a full cross-agent check by Codex', function (this: SafewordWorld) {

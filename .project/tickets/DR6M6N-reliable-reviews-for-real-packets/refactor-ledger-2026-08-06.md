@@ -24,6 +24,14 @@ against current `main`.
   both used a reviewer that merely slept. The scenarios now create a real grouped
   descendant and emit a valid answer from the termination trap, then observe that
   the descendant is gone and the late output cannot change the timeout result.
+- **Cleanup outcome:** process-group cleanup previously returned normally after
+  its forced-kill budget even when the group still existed. Cleanup now returns
+  an observed stopped/abandoned outcome, and abandonment becomes a classified
+  route failure that cannot be hidden by a later successful candidate.
+- **Acceptance observations:** deadline, oversized-packet, route-order, and
+  author-fallback steps previously inferred behavior from broad result fields.
+  Reviewer launch logs now prove whether a process started, which route order ran,
+  and that a shortened public deadline changes the outcome.
 
 ## Deliberately retained
 
