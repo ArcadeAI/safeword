@@ -302,7 +302,7 @@ async function runDegradedFallback(input: {
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
-          description: `Restore the ${input.assignedReviewer === 'codex' ? 'Codex' : 'Claude'} reviewer, then retry the independent review.`,
+          description: `Restore the ${agentName(input.assignedReviewer)} reviewer, then retry the independent review.`,
           requiresHuman: true,
         },
       ],
