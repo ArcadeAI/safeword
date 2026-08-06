@@ -9,6 +9,7 @@
 
 import nodePath from 'node:path';
 
+import { acceptedHistoricalHookEntries } from './claude-plugin/historical-ownership.js';
 import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
@@ -1199,7 +1200,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
         for (const [event, newHooks] of Object.entries(SETTINGS_HOOKS)) {
           const eventHooks = mergedHooks[event] ?? [];
-          const nonSafewordHooks = filterOutSafewordHooks(eventHooks);
+          const nonSafewordHooks = filterOutSafewordHooks(eventHooks, [
+            ...newHooks,
+            ...acceptedHistoricalHookEntries(event),
+          ]);
           mergedHooks[event] = [...nonSafewordHooks, ...newHooks];
         }
 
@@ -1211,7 +1215,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         const cleanedHooks: Record<string, unknown[]> = {};
 
         for (const [event, eventHooks] of Object.entries(existingHooks)) {
-          const nonSafewordHooks = filterOutSafewordHooks(eventHooks);
+          const nonSafewordHooks = filterOutSafewordHooks(eventHooks, [
+            ...(SETTINGS_HOOKS[event as keyof typeof SETTINGS_HOOKS] ?? []),
+            ...acceptedHistoricalHookEntries(event),
+          ]);
           if (nonSafewordHooks.length > 0) {
             cleanedHooks[event] = nonSafewordHooks;
           }
@@ -1247,7 +1254,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         const hooks: Record<string, unknown[]> = { ...existingHooks };
         for (const [event, newHooks] of Object.entries(CURSOR_HOOKS)) {
           const eventHooks = hooks[event] ?? [];
-          const nonSafewordHooks = filterOutSafewordHooks(eventHooks);
+          const nonSafewordHooks = filterOutSafewordHooks(eventHooks, newHooks);
           hooks[event] = [...nonSafewordHooks, ...newHooks];
         }
         return {
@@ -1265,7 +1272,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         // with safeword, such as `sessionStart`.
         const hooks = Object.fromEntries(
           Object.entries(existingHooks)
-            .map(([name, eventHooks]) => [name, filterOutSafewordHooks(eventHooks)] as const)
+            .map(
+              ([name, eventHooks]) =>
+                [
+                  name,
+                  filterOutSafewordHooks(
+                    eventHooks,
+                    CURSOR_HOOKS[name as keyof typeof CURSOR_HOOKS] ?? [],
+                  ),
+                ] as const,
+            )
             .filter(([, eventHooks]) => eventHooks.length > 0),
         );
 

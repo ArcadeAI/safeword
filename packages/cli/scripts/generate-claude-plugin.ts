@@ -41,7 +41,12 @@ const assets = writeClaudePluginCatalogue(
   nodePath.join(repoRoot, 'plugin'),
 );
 const formattedPaths = assets
-  .filter(asset => asset.relativePath.endsWith('.md') || asset.relativePath.endsWith('.ts'))
+  .filter(
+    asset =>
+      asset.relativePath.endsWith('.md') ||
+      asset.relativePath.endsWith('.ts') ||
+      asset.relativePath === 'runtime/dispatch.js',
+  )
   .map(asset => nodePath.join(repoRoot, 'plugin', asset.relativePath));
 const prettier = spawnSync(
   nodePath.join(repoRoot, 'node_modules', '.bin', 'prettier'),

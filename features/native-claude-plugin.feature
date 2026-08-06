@@ -283,13 +283,13 @@ Feature: Ship Safeword as a native Claude Code plugin
         | proven with a stale version or digest                        | unproven          | 2    | /reload-plugins                         |
         | represented by a malformed proof record                      | unproven          | 2    | /reload-plugins                         |
         | proven from a different canonical installed cache path       | unproven          | 2    | /reload-plugins                         |
-        | valid proof with recognized and conflicting legacy content   | coexistence       | 2    | resolve reported legacy conflicts       |
+        | valid proof with recognized and conflicting legacy content   | cleanup-ready     | 2    | safeword claude cleanup                  |
 
     @rejection
-    Scenario Outline: Damaged plugin runtime writes no plugin proof
+    Scenario Outline: Damaged plugin runtime remains non-blocking and writes no plugin proof
       Given the installed plugin cache has <damage>
       When its generated UserPromptSubmit entrypoint executes
-      Then the hook rejects the damaged cache and writes no proof
+      Then the hook reports the damaged cache without blocking and writes no proof
       And viable legacy protection remains authoritative
 
       Examples:

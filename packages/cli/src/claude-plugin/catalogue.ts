@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { buildSync } from 'esbuild';
+
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
@@ -19,6 +21,7 @@ interface ClaudePluginCatalogueInput {
 }
 
 const GENERATED_DIRECTORIES = [
+  '.claude-plugin',
   'agents',
   'commands',
   'hooks',
@@ -28,7 +31,7 @@ const GENERATED_DIRECTORIES = [
 ] as const;
 const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
-const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.ts';
+const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
 
 function filesBeneath(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
@@ -70,12 +73,19 @@ function adaptPluginScriptReference(content: string): string {
 }
 
 function adaptPluginRuntime(content: string): string {
-  return adaptWorkflowReference(content)
+  const adapted = adaptWorkflowReference(content)
     .replaceAll(
       "['bunx', ['safeword@latest',",
       "['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli,",
     )
     .replaceAll('`bunx safeword@latest`', 'the bundled plugin CLI');
+  if (
+    adapted.includes('process.env.SAFEWORD_PLUGIN_CLI ?? localCli') &&
+    !/\b(?:const|let|var)\s+localCli\b/u.test(adapted)
+  ) {
+    throw new Error('Claude plugin runtime adaptation requires a localCli fallback binding.');
+  }
+  return adapted;
 }
 
 const PROJECT_FRAMEWORK_REFERENCE =
@@ -107,8 +117,11 @@ function assertUniqueInvocations(assets: readonly GeneratedClaudePluginAsset[]):
 function assertNoProjectFrameworkReferences(assets: readonly GeneratedClaudePluginAsset[]): void {
   for (const asset of assets) {
     if (
-      asset.relativePath === 'runtime/cli.js' ||
-      asset.relativePath === 'runtime/hooks/lib/cursor-run-identity.ts'
+      [
+        'runtime/cli.js',
+        'runtime/dispatch.js',
+        'runtime/hooks/lib/cursor-run-identity.ts',
+      ].includes(asset.relativePath)
     )
       continue;
     if (!/^(?:agents|commands|resources|runtime|skills)\//u.test(asset.relativePath)) continue;
@@ -138,7 +151,9 @@ function stripReferencePunctuation(value: string | undefined): string | undefine
 }
 
 function referencedPluginPaths(asset: GeneratedClaudePluginAsset): string[] {
-  if (asset.relativePath === 'runtime/cli.js') return [];
+  if (asset.relativePath === 'runtime/cli.js' || asset.relativePath === 'runtime/dispatch.js') {
+    return [];
+  }
   const references = asset.content
     .matchAll(PLUGIN_ROOT_REFERENCE)
     .map(match => stripReferencePunctuation(match[1]))
@@ -164,6 +179,7 @@ function resolveReference(
       .toArray();
   }
   if (reference.includes('*')) {
+    if (reference.indexOf('*') !== reference.lastIndexOf('*')) return [];
     const [prefix = '', suffix = ''] = reference.split('*', 2);
     return candidates
       .keys()
@@ -182,8 +198,9 @@ function resolveReference(
 function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
   return (
     /^(?:agents|commands|skills)\//u.test(asset.relativePath) ||
+    asset.relativePath === '.claude-plugin/plugin.json' ||
     asset.relativePath === 'hooks/hooks.json' ||
-    asset.relativePath === 'runtime/dispatch.ts' ||
+    asset.relativePath === 'runtime/dispatch.js' ||
     asset.relativePath === 'runtime/event-groups.json' ||
     asset.relativePath === 'runtime/cli.js' ||
     asset.relativePath === 'package.json'
@@ -374,6 +391,29 @@ function pluginInventory(assets: readonly GeneratedClaudePluginAsset[]): string 
   )}\n`;
 }
 
+function pluginManifest(): string {
+  // Keep arrays on one line to match the repository's Prettier output. The
+  // manifest is part of the sealed payload, so a later formatting pass must be
+  // byte-for-byte idempotent rather than invalidating the inventory.
+  const keywords = ['bdd', 'tdd', 'linting', 'quality-review', 'debugging', 'refactoring'];
+  const keywordsPlaceholder = '__SAFEWORD_PLUGIN_KEYWORDS__';
+  const formattedKeywords = `[${keywords.map(keyword => JSON.stringify(keyword)).join(', ')}]`;
+  return `${JSON.stringify(
+    {
+      name: 'safeword',
+      description:
+        'AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring. Start a new session to auto-install, or run /safeword:setup.',
+      author: { name: 'safeword' },
+      homepage: 'https://safeword.dev',
+      repository: 'https://github.com/ArcadeAI/safeword',
+      license: 'MIT',
+      keywords: keywordsPlaceholder,
+    },
+    undefined,
+    2,
+  ).replace(JSON.stringify(keywordsPlaceholder), () => formattedKeywords)}\n`;
+}
+
 function pluginIdentity(version: string, hookManifest: string, inventory: string): string {
   return `${JSON.stringify(
     {
@@ -387,6 +427,23 @@ function pluginIdentity(version: string, hookManifest: string, inventory: string
   )}\n`;
 }
 
+function bundledDispatcher(sourceRoot: string): string {
+  const result = buildSync({
+    absWorkingDir: sourceRoot,
+    entryPoints: ['claude-plugin/runtime/dispatch.ts'],
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    target: 'node18',
+    write: false,
+    legalComments: 'none',
+    mainFields: ['module', 'main'],
+  });
+  const output = result.outputFiles[0]?.text;
+  if (output === undefined) throw new Error('Claude plugin dispatcher bundle was not generated.');
+  return output;
+}
+
 export function generateClaudePluginAssets(
   input: ClaudePluginCatalogueInput,
 ): GeneratedClaudePluginAsset[] {
@@ -394,6 +451,10 @@ export function generateClaudePluginAssets(
   const hookManifest = pluginHookManifest();
   const eventGroups = pluginEventGroups();
   const candidateAssets = [
+    {
+      relativePath: '.claude-plugin/plugin.json',
+      content: pluginManifest(),
+    },
     {
       relativePath: 'package.json',
       content: `${JSON.stringify({ name: 'safeword', version, type: 'module' }, undefined, 2)}\n`,
@@ -420,7 +481,10 @@ export function generateClaudePluginAssets(
       'resources/templates',
       content => adaptWorkflowReference(stripTrailingWhitespace(content)),
     ),
-    ...directoryAssets(nodePath.join(sourceRoot, 'claude-plugin', 'runtime'), 'runtime'),
+    ...directoryAssets(nodePath.join(sourceRoot, 'claude-plugin', 'runtime'), 'runtime').filter(
+      asset => asset.relativePath !== 'runtime/dispatch.ts',
+    ),
+    { relativePath: 'runtime/dispatch.js', content: bundledDispatcher(sourceRoot) },
     { relativePath: nodePath.join('runtime', 'cli.js'), content: cliBundle },
     { relativePath: nodePath.join('runtime', 'event-groups.json'), content: eventGroups },
     { relativePath: nodePath.join('hooks', 'hooks.json'), content: hookManifest },

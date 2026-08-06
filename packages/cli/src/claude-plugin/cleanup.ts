@@ -4,13 +4,19 @@ import { createHash, randomUUID } from 'node:crypto';
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { type CliPlan, createPlan, toWirePlan } from '../cli-protocol/plan.js';
+import { applyEdits, modify, parse, visit } from 'jsonc-parser';
+
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { writeDurableFile } from '../codex-plugin/durable-write.js';
-import { filterOutSafewordHooks } from '../utils/hooks.js';
+import { writeDurableFile, writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
-import { canonicalClaudeProjectRoot } from './profile.js';
-import { observeClaudeStatus } from './status.js';
+import { type ClaudeLegacyObservation, observeClaudeLegacy } from './legacy-classifier.js';
+import {
+  advisoryStateDigest,
+  claudeWatchedSettingsDigest,
+  writeClaudeMigrationAttention,
+  writeClaudePluginMode,
+} from './migration-state.js';
+import { canonicalClaudeProjectRoot } from './project-root.js';
 
 interface CleanupEntry {
   readonly path: string;
@@ -27,6 +33,27 @@ interface CleanupTransaction {
   readonly transaction_id: string;
   readonly disposition: 'complete-forward' | 'restore-backup';
   readonly entries: CleanupEntry[];
+  readonly plugin_mode?: {
+    readonly plugin_version: string;
+    readonly hook_manifest_sha256: string;
+    readonly catalogue_sha256: string;
+    readonly unresolved_paths: readonly string[];
+    readonly advisory?: string;
+  };
+}
+
+export interface AutomaticClaudeMigrationOptions {
+  readonly pluginVersion: string;
+  readonly hookManifestSha256: string;
+  readonly catalogueSha256: string;
+  readonly deadline: number;
+  readonly now?: () => number;
+}
+
+export interface AutomaticClaudeMigrationResult {
+  readonly state: 'complete' | 'deferred' | 'attention';
+  readonly advisory?: string;
+  readonly unresolvedPaths: readonly string[];
 }
 
 function sha256(content: Buffer | string): string {
@@ -61,53 +88,65 @@ function assertSafeTarget(cwd: string, relative: string): string {
   return target;
 }
 
-function statusClassification(result: CliResult): string | undefined {
-  return (result.data as { classification?: string } | undefined)?.classification;
+function containsJsonComments(content: string): boolean {
+  let found = false;
+  visit(content, { onComment: () => (found = true) });
+  return found;
 }
 
-function recognizedPaths(status: CliResult): string[] {
-  return (
-    (status.data as { legacy?: { recognized?: string[] } } | undefined)?.legacy?.recognized ?? []
-  );
-}
-
-function settingsMutation(cwd: string): { path: string; content: string | null } | undefined {
+function settingsMutation(
+  cwd: string,
+  legacy: ClaudeLegacyObservation,
+): { path: string; content: string | null } | undefined {
   const relative = '.claude/settings.json';
   const path = nodePath.join(cwd, relative);
-  if (!existsSync(path)) return undefined;
-  const existing = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-  const hooks = (existing.hooks as Record<string, unknown[]> | undefined) ?? {};
-  const cleaned: Record<string, unknown[]> = {};
-  let removed = false;
-  for (const [event, entries] of Object.entries(hooks)) {
-    const retained = filterOutSafewordHooks(entries);
-    if (retained.length !== entries.length) removed = true;
-    if (retained.length > 0) cleaned[event] = retained;
+  if (!existsSync(path) || legacy.recognizedHooks.length === 0) return undefined;
+  const original = readFileSync(path, 'utf8');
+  const parsed = parse(original) as Record<string, unknown>;
+  const hooks = (parsed.hooks as Record<string, unknown[]> | undefined) ?? {};
+  const allHookValuesAreArrays = Object.values(hooks).every(entries => Array.isArray(entries));
+  const hookCount = Object.values(hooks).reduce(
+    (count, entries) => count + (Array.isArray(entries) ? entries.length : 0),
+    0,
+  );
+  const generatedHookOnlyFile =
+    Object.keys(parsed).length === 1 &&
+    allHookValuesAreArrays &&
+    hookCount === legacy.recognizedHooks.length &&
+    !containsJsonComments(original);
+  if (generatedHookOnlyFile) return { path: relative, content: null };
+
+  let content = original;
+  const references = legacy.recognizedHooks.toSorted((left, right) => {
+    const eventOrder = right.event.localeCompare(left.event);
+    return eventOrder === 0 ? right.index - left.index : eventOrder;
+  });
+  for (const reference of references) {
+    content = applyEdits(
+      content,
+      modify(content, ['hooks', reference.event, reference.index], undefined, {
+        formattingOptions: { insertSpaces: true, tabSize: 2 },
+      }),
+    );
   }
-  if (!removed) return undefined;
-  const output = { ...existing };
-  if (Object.keys(cleaned).length === 0) delete output.hooks;
-  else output.hooks = cleaned;
   return {
     path: relative,
-    content: Object.keys(output).length === 0 ? null : `${JSON.stringify(output, undefined, 2)}\n`,
+    content,
   };
 }
 
-function cleanupMutations(
-  cwd: string,
-  status: CliResult,
-): { path: string; content: string | null }[] {
-  const files: { path: string; content: string | null }[] = recognizedPaths(status).map(path => ({
+export function claudeLegacyMutations(cwd: string): { path: string; content: string | null }[] {
+  const legacy = observeClaudeLegacy(cwd);
+  const files: { path: string; content: string | null }[] = legacy.recognizedFiles.map(path => ({
     path,
     content: null,
   }));
-  const settings = settingsMutation(cwd);
+  const settings = settingsMutation(cwd, legacy);
   if (settings !== undefined) files.push(settings);
   return files;
 }
 
-function preconditionDigest(
+export function claudeCleanupPreconditionDigest(
   cwd: string,
   mutations: readonly { path: string; content: string | null }[],
 ): string {
@@ -121,35 +160,6 @@ function preconditionDigest(
   );
 }
 
-export function observeClaudeCleanupPlan(cwd: string): { plan: CliPlan; status: CliResult } {
-  const projectRoot = canonicalClaudeProjectRoot(cwd);
-  const status = observeClaudeStatus(projectRoot);
-  const classification = statusClassification(status);
-  const mutations = classification === 'cleanup-ready' ? cleanupMutations(projectRoot, status) : [];
-  const digest = preconditionDigest(projectRoot, mutations);
-  return {
-    status,
-    plan: createPlan({
-      command: 'claude cleanup',
-      preconditionDigest: digest,
-      effects: {
-        files: mutations.map(mutation => ({
-          kind: mutation.content === null ? 'delete' : 'update',
-          target: mutation.path,
-        })),
-        destructive: mutations.map(mutation => ({ kind: 'contract', target: mutation.path })),
-      },
-      requiresConfirmation: mutations.length > 0,
-      verification: [
-        {
-          description: 'Verify exact current Claude plugin proof.',
-          command: 'safeword claude status',
-        },
-      ],
-    }),
-  };
-}
-
 function transactionPath(cwd: string): string {
   return containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction);
 }
@@ -157,7 +167,9 @@ function transactionPath(cwd: string): string {
 function writeTransaction(cwd: string, transaction: CleanupTransaction): void {
   const path = transactionPath(cwd);
   mkdirSync(nodePath.dirname(path), { recursive: true, mode: 0o700 });
-  writeDurableFile(path, `${JSON.stringify(transaction, undefined, 2)}\n`, { mode: 0o600 });
+  writeDurableFileExclusive(path, `${JSON.stringify(transaction, undefined, 2)}\n`, {
+    mode: 0o600,
+  });
 }
 
 function entryFor(cwd: string, mutation: { path: string; content: string | null }): CleanupEntry {
@@ -189,14 +201,92 @@ function writeImage(path: string, content: string | null, mode: number | null): 
   chmodSync(path, mode ?? 0o644);
 }
 
-function applyEntries(cwd: string, entries: readonly CleanupEntry[]): void {
+function applyEntries(
+  cwd: string,
+  entries: readonly CleanupEntry[],
+  shouldDefer: () => boolean = () => false,
+): boolean {
   for (const entry of entries) {
+    if (shouldDefer()) return false;
     const path = assertSafeTarget(cwd, entry.path);
     if (observedSha(path) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
     writeImage(path, entry.after_base64, entry.after_mode);
   }
+  return true;
+}
+
+function writePluginModeMarker(cwd: string, transactionId: string): void {
+  const marker = containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
+  mkdirSync(nodePath.dirname(marker), { recursive: true });
+  writeDurableFile(
+    marker,
+    `${JSON.stringify({ schema_version: 1, mode: 'plugin', transaction_id: transactionId })}\n`,
+    { mode: 0o600 },
+  );
+}
+
+function unresolvedPaths(legacy: ClaudeLegacyObservation): string[] {
+  return [
+    ...legacy.conflictingFiles,
+    ...legacy.conflictingHooks.map(
+      hook => `.claude/settings.json#hooks.${hook.event}[${String(hook.index)}]`,
+    ),
+    ...(legacy.settingsError === undefined ? [] : ['.claude/settings.json']),
+  ];
+}
+
+function automaticAdvisory(paths: readonly string[]): string | undefined {
+  if (paths.length === 0) return undefined;
+  return `Safeword removed the old Claude integration it could verify, but preserved unrecognized content at ${paths.join(', ')}. Review those paths; your prompt was not blocked.`;
+}
+
+function recordAutomaticAttention(
+  cwd: string,
+  options: AutomaticClaudeMigrationOptions,
+  classification: string,
+  advisory: string,
+): void {
+  writeClaudeMigrationAttention(cwd, {
+    schema_version: 1,
+    state_digest: advisoryStateDigest(advisory),
+    plugin_version: options.pluginVersion,
+    catalogue_sha256: options.catalogueSha256,
+    watched_settings_sha256: claudeWatchedSettingsDigest(cwd),
+    classification,
+    advisory,
+  });
+}
+
+function waitForPluginMode(cwd: string, deadline: number, now: () => number): boolean {
+  const marker = containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2);
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  const maximumChecks = 25;
+  for (let checks = 0; checks < maximumChecks && now() < deadline; checks += 1) {
+    if (existsSync(marker)) return true;
+    const remaining = Math.max(1, deadline - now());
+    Atomics.wait(pause, 0, 0, Math.min(20, remaining));
+  }
+  return existsSync(marker);
+}
+
+function writeAutomaticPluginMode(cwd: string, transaction: CleanupTransaction): void {
+  const pluginMode = transaction.plugin_mode;
+  if (pluginMode === undefined) {
+    writePluginModeMarker(cwd, transaction.transaction_id);
+    return;
+  }
+  writeClaudePluginMode(cwd, {
+    schema_version: 2,
+    state: pluginMode.unresolved_paths.length === 0 ? 'clean' : 'unresolved',
+    plugin_version: pluginMode.plugin_version,
+    hook_manifest_sha256: pluginMode.hook_manifest_sha256,
+    catalogue_sha256: pluginMode.catalogue_sha256,
+    unresolved_paths: pluginMode.unresolved_paths,
+    advisory: pluginMode.advisory,
+    transaction_id: transaction.transaction_id,
+  });
 }
 
 function cleanupFailure(error: unknown, classification = 'coexistence'): CliResult {
@@ -208,65 +298,145 @@ function cleanupFailure(error: unknown, classification = 'coexistence'): CliResu
   });
 }
 
-export function cleanupClaudeLegacy(
+export function migrateClaudeLegacyAutomatically(
   cwd: string,
-  options: { assumeYes: boolean; plan?: string },
-): CliResult {
+  options: AutomaticClaudeMigrationOptions,
+): AutomaticClaudeMigrationResult {
+  const now = options.now ?? Date.now;
+  let projectRoot: string | undefined;
   try {
-    const projectRoot = canonicalClaudeProjectRoot(cwd);
-    const observed = observeClaudeCleanupPlan(projectRoot);
-    const classification = statusClassification(observed.status);
-    if (classification !== 'cleanup-ready') return observed.status;
-    if (!options.assumeYes || options.plan !== observed.plan.id) {
-      return createResult({
-        state: 'action_required',
-        findings: [
-          {
-            code: 'CLAUDE_CLEANUP_CONFIRMATION_REQUIRED',
-            message: 'Review and confirm the exact Claude cleanup plan.',
-            severity: 'warning',
-          },
-        ],
-        nextActions: [
-          {
-            command: `safeword claude cleanup --yes --plan ${observed.plan.id}`,
-            mutates: true,
-            requiresHuman: true,
-          },
-        ],
-        data: { command: 'claude cleanup', classification, plan: toWirePlan(observed.plan) },
-      });
-    }
-    const mutations = cleanupMutations(projectRoot, observed.status);
-    const transaction: CleanupTransaction = {
-      schema_version: 1,
-      transaction_id: randomUUID(),
-      disposition: 'complete-forward',
-      entries: mutations.map(mutation => entryFor(projectRoot, mutation)),
-    };
-    writeTransaction(projectRoot, transaction);
-    applyEntries(projectRoot, transaction.entries);
-    const marker = containedPath(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
-    mkdirSync(nodePath.dirname(marker), { recursive: true });
-    writeDurableFile(
-      marker,
-      `${JSON.stringify({ schema_version: 1, mode: 'plugin', transaction_id: transaction.transaction_id })}\n`,
-      { mode: 0o600 },
-    );
-    rmSync(transactionPath(projectRoot), { force: true });
-    return createResult({
-      state: 'changed',
-      effects: {
-        files: mutations.map(mutation => ({
-          kind: mutation.content === null ? 'delete' : 'update',
-          target: mutation.path,
-        })),
-      },
-      data: { command: 'claude cleanup', classification: 'plugin-mode' },
-    });
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+    return performAutomaticMigration(projectRoot, options, now);
   } catch (error) {
-    return cleanupFailure(error);
+    const advisory = `Safeword preserved the old Claude integration after cleanup could not finish: ${error instanceof Error ? error.message : String(error)} Your prompt was not blocked; run \`safeword claude recover\` to repair it.`;
+    if (projectRoot !== undefined) {
+      try {
+        recordAutomaticAttention(projectRoot, options, 'migration-error', advisory);
+      } catch {
+        // The prompt must remain successful even when durable attention cannot be recorded.
+      }
+    }
+    return {
+      state: 'attention',
+      advisory,
+      unresolvedPaths: [],
+    };
   }
+}
+
+function recoveredAutomaticResult(projectRoot: string): AutomaticClaudeMigrationResult {
+  const recovered = recoverClaudeCleanup(projectRoot);
+  if (recovered.state !== 'failed') return { state: 'complete', unresolvedPaths: [] };
+  return {
+    state: 'attention',
+    advisory:
+      recovered.errors?.[0]?.message ??
+      'Safeword preserved a concurrent Claude migration edit. Run safeword claude recover.',
+    unresolvedPaths: [],
+  };
+}
+
+function writeObservedPluginMode(
+  projectRoot: string,
+  options: AutomaticClaudeMigrationOptions,
+  unresolved: readonly string[],
+  advisory: string | undefined,
+): AutomaticClaudeMigrationResult {
+  writeClaudePluginMode(projectRoot, {
+    schema_version: 2,
+    state: unresolved.length === 0 ? 'clean' : 'unresolved',
+    plugin_version: options.pluginVersion,
+    hook_manifest_sha256: options.hookManifestSha256,
+    catalogue_sha256: options.catalogueSha256,
+    unresolved_paths: unresolved,
+    advisory,
+  });
+  return { state: 'complete', advisory, unresolvedPaths: unresolved };
+}
+
+function claimAutomaticTransaction(
+  projectRoot: string,
+  transaction: CleanupTransaction,
+  options: AutomaticClaudeMigrationOptions,
+  now: () => number,
+  unresolved: readonly string[],
+): AutomaticClaudeMigrationResult | undefined {
+  try {
+    writeTransaction(projectRoot, transaction);
+    return undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    if (waitForPluginMode(projectRoot, options.deadline, now)) {
+      return { state: 'complete', unresolvedPaths: unresolved };
+    }
+    return {
+      state: 'deferred',
+      advisory:
+        'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
+      unresolvedPaths: unresolved,
+    };
+  }
+}
+
+function performAutomaticMigration(
+  projectRoot: string,
+  options: AutomaticClaudeMigrationOptions,
+  now: () => number,
+): AutomaticClaudeMigrationResult {
+  if (now() >= options.deadline) {
+    return {
+      state: 'deferred',
+      advisory: 'Safeword deferred old Claude integration cleanup until the next prompt.',
+      unresolvedPaths: [],
+    };
+  }
+  if (existsSync(transactionPath(projectRoot))) {
+    const concurrentDeadline = Math.min(options.deadline, now() + 500);
+    if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
+      return { state: 'complete', unresolvedPaths: [] };
+    }
+    if (now() >= options.deadline) {
+      return {
+        state: 'deferred',
+        advisory:
+          'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
+        unresolvedPaths: [],
+      };
+    }
+    return recoveredAutomaticResult(projectRoot);
+  }
+  const legacy = observeClaudeLegacy(projectRoot);
+  const unresolved = unresolvedPaths(legacy);
+  const advisory = automaticAdvisory(unresolved);
+  const mutations = claudeLegacyMutations(projectRoot);
+  if (mutations.length === 0) {
+    return writeObservedPluginMode(projectRoot, options, unresolved, advisory);
+  }
+  const transaction: CleanupTransaction = {
+    schema_version: 1,
+    transaction_id: randomUUID(),
+    disposition: 'complete-forward',
+    entries: mutations.map(mutation => entryFor(projectRoot, mutation)),
+    plugin_mode: {
+      plugin_version: options.pluginVersion,
+      hook_manifest_sha256: options.hookManifestSha256,
+      catalogue_sha256: options.catalogueSha256,
+      unresolved_paths: unresolved,
+      advisory,
+    },
+  };
+  const contention = claimAutomaticTransaction(projectRoot, transaction, options, now, unresolved);
+  if (contention !== undefined) return contention;
+  if (!applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline)) {
+    return {
+      state: 'deferred',
+      advisory: 'Safeword will finish removing its old Claude integration on the next prompt.',
+      unresolvedPaths: unresolved,
+    };
+  }
+  writeAutomaticPluginMode(projectRoot, transaction);
+  rmSync(transactionPath(projectRoot), { force: true });
+  return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
 
 function parseTransaction(cwd: string): CleanupTransaction {
@@ -274,6 +444,55 @@ function parseTransaction(cwd: string): CleanupTransaction {
   if (value.schema_version !== 1 || !Array.isArray(value.entries))
     throw new Error('Claude cleanup transaction is malformed.');
   return value;
+}
+
+function pendingRecoveryEntries(
+  projectRoot: string,
+  transaction: CleanupTransaction,
+): CleanupEntry[] {
+  const forward = transaction.disposition === 'complete-forward';
+  const pending: CleanupEntry[] = [];
+  for (const entry of transaction.entries) {
+    const path = assertSafeTarget(projectRoot, entry.path);
+    const current = observedSha(path);
+    const source = forward ? entry.before_sha256 : entry.after_sha256;
+    const destination = forward ? entry.after_sha256 : entry.before_sha256;
+    if (current === destination) continue;
+    if (current !== source) throw new Error(`Claude recovery conflict at ${entry.path}`);
+    pending.push(entry);
+  }
+  return pending;
+}
+
+function applyRecoveryEntries(
+  projectRoot: string,
+  transaction: CleanupTransaction,
+  pending: readonly CleanupEntry[],
+): void {
+  const forward = transaction.disposition === 'complete-forward';
+  for (const entry of pending) {
+    const path = containedPath(projectRoot, entry.path);
+    writeImage(
+      path,
+      forward ? entry.after_base64 : entry.before_base64,
+      forward ? entry.after_mode : entry.before_mode,
+    );
+  }
+}
+
+function completedRecoveryResult(projectRoot: string, transaction: CleanupTransaction): CliResult {
+  if (transaction.disposition === 'complete-forward') {
+    writeAutomaticPluginMode(projectRoot, transaction);
+  }
+  rmSync(transactionPath(projectRoot), { force: true });
+  return createResult({
+    state: 'changed',
+    data: {
+      command: 'claude recover',
+      classification:
+        transaction.disposition === 'complete-forward' ? 'plugin-mode' : 'cleanup-ready',
+    },
+  });
 }
 
 export function recoverClaudeCleanup(cwd: string): CliResult {
@@ -291,28 +510,12 @@ export function recoverClaudeCleanup(cwd: string): CliResult {
   }
   try {
     const transaction = parseTransaction(projectRoot);
-    for (const entry of transaction.entries) {
-      const path = assertSafeTarget(projectRoot, entry.path);
-      const current = observedSha(path);
-      const expectedCurrent =
-        transaction.disposition === 'complete-forward' ? entry.before_sha256 : entry.after_sha256;
-      if (current !== expectedCurrent) throw new Error(`Claude recovery conflict at ${entry.path}`);
-    }
-    for (const entry of transaction.entries) {
-      const path = containedPath(projectRoot, entry.path);
-      if (transaction.disposition === 'complete-forward')
-        writeImage(path, entry.after_base64, entry.after_mode);
-      else writeImage(path, entry.before_base64, entry.before_mode);
-    }
-    rmSync(transactionPath(projectRoot), { force: true });
-    return createResult({
-      state: 'changed',
-      data: {
-        command: 'claude recover',
-        classification:
-          transaction.disposition === 'complete-forward' ? 'plugin-mode' : 'cleanup-ready',
-      },
-    });
+    applyRecoveryEntries(
+      projectRoot,
+      transaction,
+      pendingRecoveryEntries(projectRoot, transaction),
+    );
+    return completedRecoveryResult(projectRoot, transaction);
   } catch (error) {
     return createResult({
       state: 'failed',

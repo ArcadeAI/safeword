@@ -57,6 +57,30 @@ Stable publication is blocked until every check above passes. If Claude changes
 same-name replacement semantics, stop and change the installer rather than
 removing or weakening this gate.
 
+## Automatic legacy contraction and latency
+
+1. Create a fresh disposable project from the largest supported pre-plugin
+   fixture and preserve a byte snapshot of unrelated project state.
+2. Run the candidate through a real `UserPromptSubmit`. Confirm exact legacy
+   assets disappear, project marketplace/enablement declarations survive, and
+   a clean `plugin-mode-v2.json` is written without hook context noise.
+3. Repeat from a cold fixture five times. Record every duration; no run may
+   exceed 1,500 ms inside Safeword's 2,000 ms cooperative deadline.
+4. Repeat with modified and third-party settings content. Confirm it survives,
+   one understandable advisory appears in the session, and later prompts are
+   quiet. Change the watched settings and confirm one re-evaluation is allowed.
+5. Start two candidate processes against one fixture. Confirm one exclusive
+   transaction, safe before/after recovery, no third-image overwrite, and
+   eventual clean plugin mode.
+6. Upgrade the candidate mid-session and run `/reload-plugins`. Record hook
+   proof and skill-catalogue coherence separately: exact hook proof authorizes
+   contraction, while a new session remains the fallback if Claude retained an
+   older skill catalogue.
+7. Run a deliberately over-budget disposable hook and record whether Claude
+   preserves the user's prompt when the host terminates it. This observation is
+   evidence about Claude's lifecycle, not permission to stretch Safeword's
+   deadline.
+
 ## Dual-scope host matrix
 
 Before status or cleanup changes ship, use isolated `CLAUDE_CONFIG_DIR` values

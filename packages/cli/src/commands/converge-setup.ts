@@ -598,18 +598,28 @@ function setupResult(input: SetupResultInput): CliResult {
     ...namespaceMigration.findings,
     ...pythonFindings(pythonSetup),
   ];
-  const actionRequired = findings.some(finding => finding.severity !== 'info');
-  const resultFindings = actionRequired
-    ? findings
-    : [
-        ...findings,
-        {
-          code: 'SETUP_CODEX_PLUGIN_HANDOFF',
-          message:
-            'Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.',
-          severity: 'info' as const,
-        },
-      ];
+  // A failed automatic Codex handoff is intentionally advisory: the legacy
+  // project integration remains active and the SessionStart bootstrap retries
+  // enrollment for the next task/developer. Keep the warning loud without
+  // turning an otherwise successful setup into a blocking exit status.
+  const actionRequired = findings.some(
+    finding => finding.severity !== 'info' && finding.code !== 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+  );
+  const handoffDeferred = findings.some(
+    finding => finding.code === 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+  );
+  const resultFindings =
+    actionRequired || handoffDeferred
+      ? findings
+      : [
+          ...findings,
+          {
+            code: 'SETUP_CODEX_PLUGIN_HANDOFF',
+            message:
+              'Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.',
+            severity: 'info' as const,
+          },
+        ];
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
   const nextCommands = actionRequired
@@ -628,7 +638,9 @@ function setupResult(input: SetupResultInput): CliResult {
 function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
-    observeFileStage(cwd, ['.safeword'], completedEffects, () => installPack(packId, cwd));
+    observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
+      installPack(packId, cwd),
+    );
   }
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
     stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),

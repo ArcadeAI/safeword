@@ -36,9 +36,15 @@ bunx safeword@latest claude install
 bunx safeword@latest claude status
 ```
 
-Existing projects keep their working legacy Claude hooks until current plugin
-execution is proven. When status reports `cleanup-ready`, preview and explicitly
-confirm the exact project-only contraction:
+Existing projects keep their working legacy Claude hooks until the exact current
+plugin successfully handles a prompt. That prompt then retires every byte and
+hook entry Safeword can prove came from a supported release. Clean migration is
+silent; edited, third-party, symlinked, or otherwise unrecognized content stays
+untouched and produces one plain-language advisory per Claude session. The
+project-scoped marketplace and enablement declarations remain committed so the
+next trusted teammate is offered the plugin normally.
+
+The explicit commands remain available for diagnosis and recovery:
 
 ```bash
 bunx safeword@latest claude cleanup
@@ -47,9 +53,9 @@ bunx safeword@latest claude cleanup
 bunx safeword@latest claude recover
 ```
 
-Cleanup never installs, enables, reloads, or changes plugin trust. It preserves
-unknown and third-party Claude content and refuses stale proof or concurrent
-edits.
+Cleanup never installs, enables, reloads, or changes plugin trust. Automatic
+migration is bounded, never blocks a successful prompt, and resumes from a
+durable transaction after interruption or a competing developer process.
 
 For Codex, setup commits a small project-level `SessionStart` bootstrap. It
 enrolls each developer's Codex profile in the released `stable` channel the

@@ -104,10 +104,11 @@ Feature: Test Codex plugin migration
       Given a repo installed with today's project-local Codex assets
       And the repo contains user-owned tickets and learnings under the namespace root
       When the plugin migration upgrade runs without profile enrollment available
-      Then the upgrade reports profile enrollment failure loudly
+      Then the upgrade reports profile enrollment attention loudly without blocking
       And the user-owned tickets and learnings remain byte-identical
       And Safe Word keeps repo-local `.agents/skills` available during the compatibility window
       And legacy Safe Word Codex hook runtime files remain until explicit handoff cleanup
+      And the project bootstrap can enroll the next developer
 
     Scenario: User-authored Codex skills survive the migration
       Given an old project-local Codex install with a user-authored `.agents/skills/company-workflow/SKILL.md`

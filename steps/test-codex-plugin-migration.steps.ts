@@ -1613,29 +1613,28 @@ When(
 
 /**
  * Every scenario in this rule runs the upgrade with profile enrollment made
- * unavailable, and each one asserts the decline it produces (#1973). The
- * decline is the point: it proves the upgrade ran, reached the Codex handoff,
- * and preserved the project on the way out. Without that assertion these
+ * unavailable, and each one asserts the loud attention it produces (#1973).
+ * That signal proves the upgrade ran, reached the Codex handoff, and preserved
+ * the project on the way out without blocking work. Without it these
  * scenarios pass whether or not anything executed, because untouched files
  * look identical to files nothing reached.
  *
- * Enrollment stays unavailable on purpose rather than being made to succeed.
- * `installCodexPlugin` shells out to the real `bun` and `codex` binaries and
- * clones the `ArcadeAI/safeword` marketplace at ref `stable`; the automatic
- * migration path takes no local-source override. Succeeding here would mean a
- * network clone per scenario and mutating whatever Codex profile is ambient.
- * Hermetic coverage of a *successful* handoff is tracked separately.
+ * An invalid isolated CODEX_HOME makes enrollment fail without hiding the
+ * other process tools the upgrade needs or mutating the ambient Codex profile.
  */
 When(
   'the plugin migration upgrade runs without profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    const codexHomeRoot = createTemporaryDirectory('safeword-unavailable-codex-home-');
+    const unavailableCodexHome = nodePath.join(codexHomeRoot, 'not-a-directory');
+    writeFileSync(unavailableCodexHome, 'profile enrollment unavailable\n');
+    this.codexPluginCodexHome = codexHomeRoot;
     this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
       cwd: repoRoot,
       env: {
-        // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
-        PATH: '',
         SAFEWORD_SKIP_INSTALL: '1',
+        CODEX_HOME: unavailableCodexHome,
       },
       timeout: 120_000,
     });
@@ -1793,25 +1792,36 @@ Then(
  * reached the Codex handoff; a migration that never started leaves the same
  * files untouched and proves nothing.
  */
-function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
+function assertMigrationRanAndReportedAttention(world: CodexPluginMigrationWorld): void {
   const result = world.codexPluginMigrationResult;
   assert.ok(result, 'migration result was not captured');
   assert.equal(
     result.exitCode,
-    2,
-    `expected a declined migration: ${result.stdout}${result.stderr}`,
+    0,
+    `expected nonblocking migration attention: ${result.stdout}${result.stderr}`,
   );
   assert.match(
     `${result.stdout}\n${result.stderr}`,
-    /legacy project protection was retained/iu,
-    'upgrade did not reach the Codex handoff decline',
+    /Codex|plugin|profile/iu,
+    'upgrade did not report the unavailable Codex profile',
   );
 }
 
 Then(
-  'the upgrade reports profile enrollment failure loudly',
+  'the upgrade reports profile enrollment attention loudly without blocking',
   function (this: CodexPluginMigrationWorld) {
-    assertMigrationRanAndDeclined(this);
+    assertMigrationRanAndReportedAttention(this);
+  },
+);
+
+Then(
+  'the project bootstrap can enroll the next developer',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.match(
+      readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8'),
+      /bunx --bun safeword@latest codex bootstrap/u,
+    );
   },
 );
 
@@ -1859,7 +1869,7 @@ Then('the user-authored skill remains byte-identical', function (this: CodexPlug
 Then(
   'Safe Word-owned Codex skill files remain beside the user-authored skill until finalization',
   function (this: CodexPluginMigrationWorld) {
-    assertMigrationRanAndDeclined(this);
+    assertMigrationRanAndReportedAttention(this);
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
       'bdd',
@@ -1870,7 +1880,7 @@ Then(
 );
 
 Then('the user-authored Codex config entries remain', function (this: CodexPluginMigrationWorld) {
-  assertMigrationRanAndDeclined(this);
+  assertMigrationRanAndReportedAttention(this);
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
   const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
   const lines = config.split(/\r?\n/u);

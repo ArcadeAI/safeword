@@ -115,7 +115,7 @@ async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliRe
 }
 
 async function claudeCleanupHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { cleanupClaudeLegacy } = await import('../claude-plugin/cleanup.js');
+  const { cleanupClaudeLegacy } = await import('../claude-plugin/cleanup-command.js');
   return cleanupClaudeLegacy(invocation.cwd, {
     assumeYes: invocation.options.yes === true,
     plan: stringOption(invocation.options, 'plan'),
