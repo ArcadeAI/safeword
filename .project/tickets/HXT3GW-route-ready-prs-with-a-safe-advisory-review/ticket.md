@@ -2,7 +2,7 @@
 id: HXT3GW
 slug: route-ready-prs-with-a-safe-advisory-review
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 parent: P0D6S2
 epic: trustworthy-advisory-pr-review
@@ -36,7 +36,7 @@ phase_anchors:
   - "plan-implementation: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/impl-plan.md"
   - "implement: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/impl-plan.md"
 created: 2026-08-05T14:38:52.499Z
-last_modified: 2026-08-06T03:16:33Z
+last_modified: 2026-08-06T03:46:00Z
 ---
 
 # Route ready PRs with a safe advisory review
@@ -47,6 +47,14 @@ last_modified: 2026-08-06T03:16:33Z
 
 ## Work Log
 
+- 2026-08-06T03:46:00Z Advanced implement → verify after the final independent
+  Claude quality review approved the authored source, tests, workflows, docs,
+  and evidence packet. The generated runtime bundle exceeded the reviewer's
+  per-file size limit and was excluded from the packet; source-to-bundle parity
+  passed independently. HXT3GW remains in progress because this environment has
+  no `OPENAI_API_KEY` for the selected Flux evaluation and no disposable GitHub
+  fixture for the release smoke. Deferral of disable-time workflow removal and
+  reusable-workflow environment-secret proof to YC6JCC is intentional.
 - 2026-08-06T03:16:33Z Implemented the advisory-only MVP. The default-off
   GitHub workflow now routes ready exact-head PRs through read-only model
   inspection and a strict serialized handoff to ordinary-comment publication,
