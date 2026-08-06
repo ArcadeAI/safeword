@@ -47,6 +47,7 @@ interface ReviewScenario {
   binaries: string[];
   environment: Record<string, string>;
   launchLog: string;
+  targets: string[];
 }
 
 type ReviewWorld = SafewordWorld & { review?: ReviewScenario };
@@ -60,6 +61,7 @@ function state(world: SafewordWorld): ReviewScenario {
     project,
     binaries: [],
     launchLog: nodePath.join(project, 'reviewer-launches.log'),
+    targets: ['review-input.md'],
     environment: {
       SAFEWORD_AGENT_RUNTIME: 'claude',
       SAFEWORD_REVIEW_TIMEOUT_MS: '2000',
@@ -156,7 +158,7 @@ async function runReview(world: SafewordWorld): Promise<void> {
         'review',
         'run',
         'quality-review',
-        'review-input.md',
+        ...current.targets,
         '--json',
         '--no-input',
         '--cwd',
@@ -214,7 +216,12 @@ After(function (this: SafewordWorld) {
 // ---------------------------------------------------------------- Given
 
 Given('a reviewer that answers well inside its deadline', function (this: SafewordWorld) {
-  installReviewer(state(this), 'codex', 'answers');
+  const current = state(this);
+  current.targets = Array.from({ length: 5 }, (_value, index) => `ticket-part-${index + 1}.md`);
+  for (const target of current.targets) {
+    writeFileSync(nodePath.join(current.project, target), 'x'.repeat(11_800));
+  }
+  installReviewer(current, 'codex', 'answers');
 });
 
 Given('a review packet larger than the accepted maximum', function (this: SafewordWorld) {

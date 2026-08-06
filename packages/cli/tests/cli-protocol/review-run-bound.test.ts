@@ -101,7 +101,7 @@ async function runWithBounds(bounds: {
 
 describe('the run bound across routes', () => {
   it('tries every route in order when the bound allows it', async () => {
-    const { routes, payload } = await runWithBounds({ attemptMs: '700', runBoundMs: '6000' });
+    const { routes, payload } = await runWithBounds({ attemptMs: '1000', runBoundMs: '12000' });
 
     expect(routes).toEqual([
       'codex default', // the assigned reviewer on its usual model
@@ -114,7 +114,7 @@ describe('the run bound across routes', () => {
 
   it('stops starting routes once the bound cannot fund another one', async () => {
     // One attempt consumes the bound, leaving too little for a real second try.
-    const { routes, payload } = await runWithBounds({ attemptMs: '700', runBoundMs: '900' });
+    const { routes, payload } = await runWithBounds({ attemptMs: '2100', runBoundMs: '2500' });
 
     expect(routes).toEqual(['codex default']);
     expect(payload.data.independence).toBe('none');

@@ -69,6 +69,10 @@ against current `main`.
   clock and dispatch-owned designs. Reconciled them to the flat 300-second
   attempt, shared 540-second reviewer-work bound, shortened real process tests,
   and one contract file per reviewer/model route.
+- **Deadline start boundary:** the coordinator created the shared deadline before
+  initial packet sealing even though the public contract excludes preparation.
+  Deadline creation now follows the initial sealed packet, and the representative
+  acceptance fixture now carries five files totaling roughly 58 KB.
 - **Customer timing wording:** configuration docs called nine minutes a complete
   command bound. They now identify it as the reviewer-work ceiling and disclose
   preparation plus final synchronous integrity/cleanup outside that deadline.

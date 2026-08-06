@@ -673,9 +673,10 @@ export async function runReview(input: {
   }
   const { reviewer } = pair;
 
-  // One bound for the whole run, set before the first route starts.
-  const runDeadline = Date.now() + runBoundMs();
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  // One bound for reviewer work across the whole run. Initial packet sealing is
+  // deliberately outside it; later probes, routes, and cleanups share it.
+  const runDeadline = Date.now() + runBoundMs();
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     reviewer,
     prepared,
