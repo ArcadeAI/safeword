@@ -436,6 +436,8 @@ function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
     generator: (ctx: ProjectContext): string | undefined =>
       prReviewEnabled(ctx.cwd)
         ? readFile(nodePath.join(getTemplatesDirectory(), templatePath))
+            .split('__SAFEWORD_VERSION__')
+            .join(VERSION)
         : undefined,
   };
 }

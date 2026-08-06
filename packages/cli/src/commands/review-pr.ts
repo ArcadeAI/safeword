@@ -49,7 +49,9 @@ const INSPECTION_AUDIT: InspectionAudit = {
 
 interface InspectionInput {
   artifacts: (
-    { content: string; kind: 'text'; path: string } | { kind: 'non_text'; path: string }
+    | { content: string; kind: 'text'; path: string }
+    | { kind: 'non_text'; path: string }
+    | { kind: 'unreadable_text'; path: string }
   )[];
   checks: { conclusion: string | null; name: string; status: string }[];
   headSha: string;
@@ -127,8 +129,12 @@ function parseInput(inputPath: string): InspectionInput {
   }
 
   const artifacts = raw.artifacts.map(artifact => {
-    if (isRecord(artifact) && artifact.kind === 'non_text' && typeof artifact.path === 'string') {
-      return { kind: 'non_text' as const, path: artifact.path };
+    if (
+      isRecord(artifact) &&
+      (artifact.kind === 'non_text' || artifact.kind === 'unreadable_text') &&
+      typeof artifact.path === 'string'
+    ) {
+      return { kind: artifact.kind, path: artifact.path };
     }
     if (
       !isRecord(artifact) ||
@@ -341,7 +347,7 @@ export async function inspectPullRequestCommand(
                   kind: 'text' as const,
                   path: artifact.path,
                 }
-              : { kind: 'non_text' as const, path: artifact.path },
+              : { kind: artifact.kind, path: artifact.path },
           ),
           consequentialFindings: receiptFindings.filter(finding => finding.consequential).length,
           findings: receiptFindings,
@@ -358,7 +364,7 @@ export async function inspectPullRequestCommand(
                   kind: 'text' as const,
                   path: artifact.path,
                 }
-              : { kind: 'non_text' as const, path: artifact.path },
+              : { kind: artifact.kind, path: artifact.path },
           ),
           consequentialFindings: 0,
           maxTotalBytes: config.maxTotalBytes,

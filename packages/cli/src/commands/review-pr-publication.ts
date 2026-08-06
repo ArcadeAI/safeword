@@ -242,7 +242,8 @@ export async function invalidatePullRequestCommand(
   const facts = await github.readPullRequest();
   const comments = await github.publisher.listComments();
   const ownedComments = comments.filter(
-    comment => comment.authorType === 'Bot' && comment.body.includes(RECEIPT_MARKER),
+    comment =>
+      comment.authorType === 'Bot' && comment.body.split(/\r?\n/u).includes(RECEIPT_MARKER),
   );
   if (ownedComments.length === 0) {
     return { changed: false, reason: 'no marker-owned receipt to invalidate' };

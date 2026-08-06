@@ -50,6 +50,10 @@ export type ArtifactEvidence =
       path: string;
     }
   | {
+      kind: 'unreadable_text';
+      path: string;
+    }
+  | {
       byteLength: number;
       kind: 'text';
       path: string;
@@ -142,6 +146,10 @@ function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
   for (const artifact of artifacts) {
     if (artifact.kind === 'non_text') {
       coverage.push({ path: artifact.path, skipReason: 'non_text', status: 'skipped' });
+      continue;
+    }
+    if (artifact.kind === 'unreadable_text') {
+      missingEvidence.push(artifact.path);
       continue;
     }
 
