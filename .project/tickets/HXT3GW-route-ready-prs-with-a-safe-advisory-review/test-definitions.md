@@ -200,7 +200,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: A non-consequential finding remains visible on a looks-ready receipt
 
-- [ ] RED
+- [x] RED 14d0350b3
 - [ ] GREEN
 - [ ] REFACTOR
 
