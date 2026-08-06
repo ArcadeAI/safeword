@@ -36154,10 +36154,12 @@ function classifyExit(stderr, otherwise) {
   return /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr) ? "not_authenticated" : otherwise;
 }
 function stopWindowsReviewer(child, pid) {
-  if (child.exitCode !== null)
+  const childClosed = () => child.exitCode !== null && child.stdout?.closed === true && child.stderr?.closed === true;
+  if (childClosed())
     return Promise.resolve(true);
   return new Promise((resolve) => {
     let settled = false;
+    let taskkillSucceeded = false;
     const finish = (stopped) => {
       if (settled)
         return;
@@ -36172,13 +36174,24 @@ function stopWindowsReviewer(child, pid) {
     });
     const timeout = setTimeout(() => {
       killer.kill("SIGKILL");
-      finish(false);
+      finish(childClosed());
     }, WINDOWS_CLEANUP_BUDGET_MS);
+    child.on("close", () => {
+      if (taskkillSucceeded)
+        finish(true);
+    });
     killer.on("error", () => {
-      finish(false);
+      finish(childClosed());
     });
     killer.on("close", (code) => {
-      finish(code === 0);
+      if (code !== 0) {
+        finish(childClosed());
+        return;
+      }
+      taskkillSucceeded = true;
+      child.kill("SIGKILL");
+      if (childClosed())
+        finish(true);
     });
   });
 }
@@ -36193,7 +36206,7 @@ function stopReviewer(child) {
 async function stopReviewerOrThrow(child, reviewer) {
   if (await stopReviewer(child))
     return;
-  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`);
+  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`, true);
 }
 async function stopReviewerOnce(child) {
   const pid = child.pid;
@@ -36323,6 +36336,8 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
     } catch (error2) {
       if (!(error2 instanceof ReviewRuntimeError))
         throw error2;
+      if (error2.terminal)
+        throw error2;
       lastFailure = error2;
     }
   }
@@ -36364,7 +36379,7 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 300000, RUN_BOUND_MS = 540000, CLEANUP_BUDGET_MS = 25, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 300000, RUN_BOUND_MS = 540000, CLEANUP_BUDGET_MS = 250, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -36457,9 +36472,11 @@ var init_runtime = __esm(() => {
   };
   ReviewRuntimeError = class ReviewRuntimeError extends Error {
     failure;
-    constructor(failure, message) {
+    terminal;
+    constructor(failure, message, terminal = false) {
       super(message);
       this.failure = failure;
+      this.terminal = terminal;
       this.name = "ReviewRuntimeError";
     }
   };
@@ -36494,7 +36511,7 @@ function independentReviewResult(input) {
       }
     ],
     effects: {
-      network: [{ kind: "review", target: input.reviewer, operation: "request" }]
+      network: independentNetworkEffects(input.reviewer, input.preferredFailure !== undefined)
     },
     data: {
       command: "review run",
@@ -36519,7 +36536,7 @@ async function executeReview(reviewer, prepared, model, runDeadline) {
       prepared.cleanup();
       throw error2;
     }
-    outcome = { kind: "failed", failure: error2.failure };
+    outcome = { kind: "failed", failure: error2.failure, terminal: error2.terminal };
   }
   try {
     return {
@@ -36535,7 +36552,7 @@ function assessFallback(outcome, reviewer, dispatchId) {
   if (outcome.kind === "failed")
     return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
-  return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code } : { kind: "completed", output: provenance.output };
+  return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code, terminal: false } : { kind: "completed", output: provenance.output };
 }
 function shellQuote2(value) {
   if (/^[\w./-]+$/u.test(value))
@@ -36588,6 +36605,13 @@ function nextStepFor(reviewer, failure) {
     return `Sign in to ${name}, then run the review again.`;
   return "Run the review again.";
 }
+function degradedDescription(assignedReviewer, actualReviewer, failure) {
+  if (failure === "not_installed") {
+    const assignedName = agentName(assignedReviewer);
+    return `${assignedName} is not installed. Install ${assignedName} for fully independent reviews; Safe Word continued with a ${agentName(actualReviewer)} review.`;
+  }
+  return "The check ran, but it was not fully independent.";
+}
 function unsupportedAuthorResult(input) {
   if (input.policy === "require") {
     return createResult({
@@ -36632,6 +36656,9 @@ function unsupportedAuthorResult(input) {
   });
 }
 function changedReviewResult(input) {
+  const network = input.network ?? [
+    { kind: "review", target: input.reviewer, operation: "request" }
+  ];
   if (input.snapshotChanged) {
     return createResult({
       state: "failed",
@@ -36643,7 +36670,7 @@ function changedReviewResult(input) {
         }
       ],
       effects: {
-        network: [{ kind: "review", target: input.reviewer, operation: "request" }]
+        network
       },
       data: {
         command: "review run",
@@ -36666,7 +36693,7 @@ function changedReviewResult(input) {
       }
     ],
     effects: {
-      network: [{ kind: "review", target: input.reviewer, operation: "request" }]
+      network
     },
     recovery: [
       {
@@ -36684,6 +36711,18 @@ function changedReviewResult(input) {
     }
   });
 }
+function alternateFailureData(failure) {
+  return failure === undefined ? {} : { alternate_model_failure: failure };
+}
+function degradedNetworkEffects(assignedReviewer, author, alternateAttempted) {
+  const preferred = { kind: "review", target: assignedReviewer, operation: "request" };
+  const fallback = { kind: "review", target: author, operation: "request" };
+  return alternateAttempted ? [preferred, preferred, fallback] : [preferred, fallback];
+}
+function independentNetworkEffects(reviewer, retried) {
+  const request = { kind: "review", target: reviewer, operation: "request" };
+  return retried ? [request, request] : [request];
+}
 async function runDegradedFallback(input) {
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared, undefined, input.runDeadline);
@@ -36693,7 +36732,8 @@ async function runDegradedFallback(input) {
     kind: input.kind,
     targets: input.targets,
     sourceChanged,
-    snapshotChanged
+    snapshotChanged,
+    network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
   });
   if (changedResult !== undefined)
     return changedResult;
@@ -36722,6 +36762,9 @@ async function runDegradedFallback(input) {
           severity: "warning"
         }
       ],
+      effects: {
+        network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+      },
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
@@ -36735,9 +36778,7 @@ async function runDegradedFallback(input) {
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         preferred_failure: input.preferredFailure,
-        ...input.alternateFailure !== undefined && {
-          alternate_model_failure: input.alternateFailure
-        },
+        ...alternateFailureData(input.alternateFailure),
         fallback_failure: assessment.failure,
         independence: "none"
       }
@@ -36755,15 +36796,12 @@ async function runDegradedFallback(input) {
         }
       ],
       effects: {
-        network: [
-          { kind: "review", target: input.assignedReviewer, operation: "request" },
-          { kind: "review", target: input.author, operation: "request" }
-        ]
+        network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
       },
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
-          description: `Restore the ${input.assignedReviewer === "codex" ? "Codex" : "Claude"} reviewer, then retry the independent review.`,
+          description: `Restore the ${agentName(input.assignedReviewer)} reviewer, then retry the independent review.`,
           requiresHuman: true
         }
       ],
@@ -36774,6 +36812,7 @@ async function runDegradedFallback(input) {
         assigned_reviewer: input.assignedReviewer,
         actual_reviewer: completedOutput.reviewer_agent,
         preferred_failure: input.preferredFailure,
+        ...alternateFailureData(input.alternateFailure),
         independence: "degraded",
         reviewer_output: completedOutput
       }
@@ -36784,15 +36823,12 @@ async function runDegradedFallback(input) {
     findings: [
       {
         code: "REVIEW_INDEPENDENCE_DEGRADED",
-        message: "The check ran, but it was not fully independent.",
+        message: degradedDescription(input.assignedReviewer, completedOutput.reviewer_agent, input.preferredFailure),
         severity: "warning"
       }
     ],
     effects: {
-      network: [
-        { kind: "review", target: input.assignedReviewer, operation: "request" },
-        { kind: "review", target: input.author, operation: "request" }
-      ]
+      network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
     },
     data: {
       command: "review run",
@@ -36801,6 +36837,7 @@ async function runDegradedFallback(input) {
       assigned_reviewer: input.assignedReviewer,
       actual_reviewer: completedOutput.reviewer_agent,
       preferred_failure: input.preferredFailure,
+      ...alternateFailureData(input.alternateFailure),
       independence: "degraded",
       reviewer_output: completedOutput
     }
@@ -36818,13 +36855,14 @@ async function runAlternateModelRoute(input) {
     kind: input.kind,
     targets: input.targets,
     sourceChanged,
-    snapshotChanged
+    snapshotChanged,
+    network: independentNetworkEffects(input.reviewer, true)
   });
   if (changedResult !== undefined)
     return { kind: "completed", result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === "failed")
-    return { kind: "failed", failure: assessment.failure };
+    return assessment;
   const output = assessment.output;
   const result = independentReviewResult({
     author: input.author,
@@ -36848,6 +36886,9 @@ async function runRemainingRoutes(input) {
   if (alternate.kind === "completed")
     return alternate.result;
   const alternateFailure = alternate.kind === "failed" ? alternate.failure : undefined;
+  if (alternate.kind === "failed" && alternate.terminal) {
+    return exhaustedRunResult({ ...input, alternateFailure });
+  }
   if (!canFundRoute(input.runDeadline))
     return exhaustedRunResult({ ...input, alternateFailure });
   return runDegradedFallback({ ...input, alternateFailure });
@@ -36875,6 +36916,9 @@ function exhaustedRunResult(input) {
         severity: "warning"
       }
     ],
+    effects: {
+      network: independentNetworkEffects(input.assignedReviewer, input.alternateFailure !== undefined)
+    },
     recovery: [
       {
         command: retryCommand(input.kind, input.targets),
@@ -36888,6 +36932,7 @@ function exhaustedRunResult(input) {
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
       preferred_failure: input.preferredFailure,
+      ...alternateFailureData(input.alternateFailure),
       independence: "none"
     }
   });
@@ -36919,8 +36964,8 @@ async function runReview(input) {
     return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
   }
   const { reviewer } = pair;
-  const runDeadline = Date.now() + runBoundMs();
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const runDeadline = Date.now() + runBoundMs();
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared, undefined, runDeadline);
   const changedResult = changedReviewResult({
     author: pair.author,
@@ -36933,6 +36978,14 @@ async function runReview(input) {
   if (changedResult !== undefined)
     return changedResult;
   if (outcome.kind === "failed") {
+    if (outcome.terminal) {
+      return exhaustedRunResult({
+        ...input,
+        author: pair.author,
+        assignedReviewer: reviewer,
+        preferredFailure: outcome.failure
+      });
+    }
     return runRemainingRoutes({
       ...input,
       author: pair.author,
@@ -37162,6 +37215,7 @@ __export(exports_self_report, {
   formatSelfReportSurfacing: () => formatSelfReportSurfacing,
   formatIssueDrafts: () => formatIssueDrafts,
   detectAgent: () => detectAgent,
+  captureRetroFilingFault: () => captureRetroFilingFault,
   captureGateEscalation: () => captureGateEscalation,
   captureBareDrain: () => captureBareDrain,
   buildRecord: () => buildRecord
@@ -37303,6 +37357,11 @@ function captureBareDrain(projectDirectory, sessionId) {
     return;
   recordSignal(projectDirectory, sessionId ?? "hook", { source: "retro-filing-gate", agent: detectAgent(), errorClass: "RetroBareDrain" }, readInstalledVersion(projectDirectory));
 }
+function captureRetroFilingFault(projectDirectory, sessionId) {
+  if (!readSelfReportConfig(projectDirectory).capture)
+    return;
+  recordSignal(projectDirectory, sessionId ?? "hook", { source: "retro-run", agent: detectAgent(), errorClass: "RetroFilingFault" }, readInstalledVersion(projectDirectory));
+}
 function captureGateEscalation(projectDirectory, sessionId, pattern) {
   if (!readSelfReportConfig(projectDirectory).capture)
     return;
@@ -37420,6 +37479,7 @@ var init_self_report = __esm(() => {
 var exports_retro_draft_spool = {};
 __export(exports_retro_draft_spool, {
   verifyDraftBody: () => verifyDraftBody,
+  spoolSiblingPath: () => spoolSiblingPath,
   spoolDrafts: () => spoolDrafts,
   recordFiledAck: () => recordFiledAck,
   readSpooledDrafts: () => readSpooledDrafts,
@@ -37434,10 +37494,15 @@ __export(exports_retro_draft_spool, {
 import { createHash as createHash16 } from "crypto";
 import nodePath75 from "path";
 function spoolName(sessionId) {
-  return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}.jsonl`;
+  return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
 }
 function draftSpoolPath(projectDirectory, sessionId) {
   return nodePath75.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+}
+function spoolSiblingPath(projectDirectory, sessionId, suffix) {
+  const spool = draftSpoolPath(projectDirectory, sessionId);
+  const base = spool.endsWith(SPOOL_EXTENSION) ? spool.slice(0, -SPOOL_EXTENSION.length) : spool;
+  return `${base}${suffix}`;
 }
 function toDraft(value) {
   if (typeof value !== "object" || value === null)
@@ -37502,7 +37567,7 @@ function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   } catch {}
 }
 function ackFilePath(projectDirectory, sessionId) {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, ".acks.jsonl");
+  return spoolSiblingPath(projectDirectory, sessionId, ".acks.jsonl");
 }
 function isFiledAck(value) {
   if (typeof value !== "object" || value === null)
@@ -37557,7 +37622,7 @@ async function fileSpooledDrafts(projectDirectory, sessionId, post) {
 function spoolDrafts(projectDirectory, sessionId, drafts) {
   appendJsonlRecords(draftSpoolPath(projectDirectory, sessionId), drafts.map((draft) => draftLine(draft)), MAX_DRAFTS_PER_SESSION);
 }
-var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR;
+var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl";
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
   SPOOL_DIR = nodePath75.join(".safeword", "retro-drafts");
@@ -46668,6 +46733,9 @@ async function executeRetroWithDependencies(options, dependencies) {
     output: dependencies.output,
     restTransportAvailable: dependencies.restTransportAvailable
   });
+  if (dependencies.restTransportAvailable && (outcome.result?.failed.length ?? 0) > 0) {
+    dependencies.captureFilingFault?.(dependencies.projectDirectory, dependencies.sessionId);
+  }
   return outcome;
 }
 function renderDropReport(drops) {
@@ -46833,6 +46901,7 @@ async function executeRetroCliCommand(options, cwd) {
   const restTransport = createRestTransport2(resolveGitHubToken2());
   const transport = restTransport ?? unavailableTransport();
   const outcome = await executeRetroWithDependencies(options, {
+    captureFilingFault: captureRetroFilingFault,
     environment: process14.env,
     extract,
     extractionSucceeded: () => extractionSucceeded,
@@ -46906,6 +46975,7 @@ var init_retro = __esm(() => {
   init_retro_debug();
   init_retro_draft_spool();
   init_retro_extract();
+  init_self_report();
   init_ledger();
   init_pipeline();
   init_reconcile2();

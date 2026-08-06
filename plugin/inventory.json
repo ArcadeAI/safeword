@@ -3,7 +3,7 @@
   "assets": [
     {
       "path": "agents/safeword-retro-filer.md",
-      "sha256": "2d5f4474bac8c752e4eeeaec615b6b90723fe45842b0b997a38dd726dce6bbc3"
+      "sha256": "5860e847e31b74f1d8ba95bacab4aee9f7b778feecfbb0e13ca6cf754ff9f156"
     },
     {
       "path": "hooks/hooks.json",
@@ -51,11 +51,11 @@
     },
     {
       "path": "resources/guides/retro.md",
-      "sha256": "f3ccdfbadb7456fce9dffadfa29d50a35c6fc8cf5c272663fac937c5d1ebf14b"
+      "sha256": "33b58e29befdcca89a9c705c83183f2c2ef84e8189cf8940fa89f01a8d86071d"
     },
     {
       "path": "resources/guides/self-report-filing.md",
-      "sha256": "f506f55a24869ed2dee54b855440dcabc771c6ff8329ae4df2c484eb60e4a7e0"
+      "sha256": "3ed2e052366d21602f6a5b30897255d952bdf93ef3a56bc8bd34db59a732fd70"
     },
     {
       "path": "resources/guides/skill-eval-optimization-guide.md",
@@ -131,7 +131,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "27037de008acaae3dc3c01be90d071ec1cd0e970b39695f85a86aab62f147131"
+      "sha256": "c3ea6381599c2250419ce24a1939406d136ecad908fbe19e944900e33ab41a80"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -319,7 +319,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "07c60b19333e7df750635a6e558b198f53818ba5b94ce82ffd827c25c3bf991d"
+      "sha256": "c39b894596d0ec79b0ca6eef761d387bd96b3539d6d6ebadf6a2ceace1da9fb1"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
@@ -327,11 +327,11 @@
     },
     {
       "path": "runtime/hooks/lib/retro-filing-gate.ts",
-      "sha256": "11eeaab7132a9622e76779a151f3c124815a4f34c0effd7038fb86d620a27475"
+      "sha256": "357ab1b8f8bb90559846d806319fa12cc3d7e71f5f5f4373985b48a790d4bdde"
     },
     {
       "path": "runtime/hooks/lib/retro-nudge.ts",
-      "sha256": "b0205d7b3aca177a7d2f6b3694bf3519aa4127bd9875f0d265fc5226b5980a34"
+      "sha256": "58b19fb8dab130cb7080d1297d730e0093ee9d55ea4fa6773728db6c24311542"
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
@@ -359,7 +359,7 @@
     },
     {
       "path": "runtime/hooks/lib/self-report.ts",
-      "sha256": "7310f0e6fc32e38b211bbb03d5a17a81953c7461bbf74594b0e6e940ab136470"
+      "sha256": "d486caed51dd0afe5fdbe7e3dff0d0305b724cbe29200ea7838fc0a3ac132322"
     },
     {
       "path": "runtime/hooks/lib/shell-segments.ts",
@@ -451,7 +451,7 @@
     },
     {
       "path": "runtime/hooks/prompt-retro-nudge.ts",
-      "sha256": "0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a"
+      "sha256": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457"
     },
     {
       "path": "runtime/hooks/prompt-timestamp.ts",
@@ -535,7 +535,7 @@
     },
     {
       "path": "runtime/hooks/stop-retro-filing.ts",
-      "sha256": "89346f357126706623237a0c79c0ea5947b6b95493a7689b1aee5a4546e034de"
+      "sha256": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d"
     },
     {
       "path": "runtime/hooks/stop-retro.ts",
@@ -627,7 +627,7 @@
     },
     {
       "path": "skills/retro-filer/SKILL.md",
-      "sha256": "ab8ee614de58b92cb47a648e63fcc612b9b4d53ec984b8bbdf6ec0ac6efb61a0"
+      "sha256": "b8d260e76bcc8e1ea0791f3d54ba28674e3477fbeae374d24e1fe341fa4a81f7"
     },
     {
       "path": "skills/retro/SKILL.md",

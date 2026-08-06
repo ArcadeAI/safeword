@@ -205,6 +205,18 @@ function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
   return 'Run the review again.';
 }
 
+function degradedDescription(
+  assignedReviewer: ReviewAgent,
+  actualReviewer: ReviewAgent,
+  failure: ReviewFailure,
+): string {
+  if (failure === 'not_installed') {
+    const assignedName = agentName(assignedReviewer);
+    return `${assignedName} is not installed. Install ${assignedName} for fully independent reviews; Safe Word continued with a ${agentName(actualReviewer)} review.`;
+  }
+  return 'The check ran, but it was not fully independent.';
+}
+
 function unsupportedAuthorResult(input: {
   readonly author: ReviewAuthor;
   readonly policy: ReviewPolicy;
@@ -448,7 +460,7 @@ async function runDegradedFallback(input: {
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
-          description: `Restore the ${input.assignedReviewer === 'codex' ? 'Codex' : 'Claude'} reviewer, then retry the independent review.`,
+          description: `Restore the ${agentName(input.assignedReviewer)} reviewer, then retry the independent review.`,
           requiresHuman: true,
         },
       ],
@@ -471,7 +483,11 @@ async function runDegradedFallback(input: {
     findings: [
       {
         code: 'REVIEW_INDEPENDENCE_DEGRADED',
-        message: 'The check ran, but it was not fully independent.',
+        message: degradedDescription(
+          input.assignedReviewer,
+          completedOutput.reviewer_agent,
+          input.preferredFailure,
+        ),
         severity: 'warning',
       },
     ],
