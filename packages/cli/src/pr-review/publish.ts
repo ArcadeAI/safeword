@@ -28,6 +28,8 @@ export interface IssueCommentPublisher {
 
 export interface IssueCommentPublicationAudit {
   calls: ['issue_comment'];
+  mergeEligibilityMutation: false;
+  surface: 'ordinary_issue_comment';
 }
 
 export interface ReceiptView {
@@ -132,5 +134,9 @@ export async function publishReceipt(
     await publisher.deleteComment(duplicateCommentId);
   }
 
-  return { calls: ['issue_comment'] };
+  return {
+    calls: ['issue_comment'],
+    mergeEligibilityMutation: false,
+    surface: 'ordinary_issue_comment',
+  };
 }
