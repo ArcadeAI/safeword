@@ -33,3 +33,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED f672b5728
 - [x] GREEN 5402abcbe
 - [x] REFACTOR skip: formatter extraction already removed the duplicated failure-message assembly
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario skip: independent whole-diff review found no cross-loop cleanup worth making
