@@ -150,7 +150,7 @@ failing with the scenario undefined before its step existed.
 - [x] GREEN aec039245
 - [x] REFACTOR skip: no structural improvement needed
 
-## Rule: reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
+## Rule: reliable-reviews-for-real-packets.TBU3.R4 — The default first route leaves at least the 120-second floor for a configured independent retry; every later route remains capped by the shared run bound
 
 ### Scenario: A route that uses its whole budget still leaves the next route its own
 
@@ -158,7 +158,7 @@ failing with the scenario undefined before its step existed.
 - [x] GREEN aec039245
 - [x] REFACTOR skip: no structural improvement needed
 
-### Scenario: A route cannot borrow time from the next route's budget
+### Scenario: The preferred route leaves a fundable alternate-model retry
 
 - [x] RED skip: scenario reported undefined by the acceptance lane before its step definition existed
 - [x] GREEN aec039245

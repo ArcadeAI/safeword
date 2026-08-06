@@ -45,6 +45,11 @@ against current `main`.
   to the delivered flat evidence-based deadline, corrected the POSIX overrun to
   500 milliseconds, and removed the duplicate ticket-count heading introduced
   by index reconciliation.
+- **Route-budget wording:** the rule said every route had its own attempt budget,
+  which could be read as three guaranteed 300-second windows inside a 540-second
+  run. It now states the actual invariant: the first timeout leaves 240 seconds
+  for the configured independent retry, every route is capped by the shared run
+  bound, and the author fallback can be skipped when no fundable time remains.
 
 ## Deliberately retained
 

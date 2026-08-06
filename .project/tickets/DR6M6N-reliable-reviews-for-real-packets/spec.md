@@ -92,7 +92,11 @@ Unaffected:
   bound or a whole-command deadline.
 - **Route** — one independent way of getting a review: the reviewer agent on its
   default model, the reviewer agent on its configured alternate model, and last
-  the author's own runtime. Each route gets its own attempt budget.
+  the author's own runtime. A started route gets at most the 300-second attempt
+  deadline and never more than the shared run time remaining. The default first
+  route therefore leaves 240 seconds — twice the 120-second floor — for a
+  configured independent retry. That retry may consume the rest, in which case
+  the author's own runtime is honestly skipped at the run bound.
 - **Candidate** — one executable on `PATH` that might be a usable reviewer CLI.
 - **Candidate share** — a route's remaining deadline divided by the candidates
   it has not yet tried, recalculated before each one. A candidate that fails
@@ -165,7 +169,7 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU3.R3 — With no alternate model configured, routing is exactly what it is today, and Safe Word never supplies a model name of its own
 
-#### reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
+#### reliable-reviews-for-real-packets.TBU3.R4 — The default first route leaves at least the 120-second floor for a configured independent retry; every later route remains capped by the shared run bound
 
 #### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route whose reviewer has not exited with valid output before its deadline
 

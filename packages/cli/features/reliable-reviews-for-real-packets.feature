@@ -162,7 +162,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the reviewer is never asked for a review on an alternate model
 
   @reliable-reviews-for-real-packets.TBU3.R4 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
+  Rule: reliable-reviews-for-real-packets.TBU3.R4 — The default first route leaves at least the 120-second floor for a configured independent retry; every later route remains capped by the shared run bound
 
     Scenario: A route that uses its whole budget still leaves the next route its own
       Given a configured alternate model for the reviewer agent
@@ -172,7 +172,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review returns the alternate model's verdict
 
     @rejection
-    Scenario: A route cannot borrow time from the next route's budget
+    Scenario: The preferred route leaves a fundable alternate-model retry
       Given a configured alternate model for the reviewer agent
       And the reviewer agent's default model never answers
       When the independent review runs
