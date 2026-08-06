@@ -58,14 +58,8 @@ safeword review run scenario-gate feature-file ticket-spec [legacy-test-definiti
 
 The coordinator prefers the opposite headless agent, labels a permitted
 same-agent fallback as degraded, and blocks with one recovery action when no
-safe CLI route remains. If and only if it reports `REVIEW_ROUTES_EXHAUSTED`,
-dispatch exactly one fresh-context in-session subagent with only the phase
-artifacts and review rubric. It is a read-only leaf: no coordinator call and no
-further delegation. Record it as `degraded`; it may satisfy the default
-`prefer` policy, but it must not satisfy `crossAgentReview: require`. If the
-host cannot dispatch that fallback, follow the coordinator recovery action. On
-a result that satisfies the configured policy, record the returned provenance
-or the explicitly degraded in-session provenance in the stamp
+safe route remains. Do not bypass it with a private subagent. On a result that
+satisfies the configured policy, record the returned provenance in the stamp
 (substitute the four values from `data` in the coordinator result):
 
 ```bash

@@ -181,20 +181,8 @@ Each pass:
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
    provenance, preserves the exact preferred-route failure, and labels any
    permitted same-agent fallback as degraded. Treat its typed result as the
-   review verdict.
-
-   If and only if that result contains `REVIEW_ROUTES_EXHAUSTED`, use the
-   active host's agent tool to dispatch exactly one fresh-context subagent.
-   Give it only the named targets, this skill's review rubric, and the current
-   source evidence already gathered for the pass. Make it a read-only leaf: it
-   must not call `safeword review run` or delegate again. Do not pass rejected
-   reviewer output or broader conversation history. Treat its verdict as an
-   in-session subagent fallback with `degraded` provenance. It may complete the
-   advisory loop under the default `prefer` policy, but it must not satisfy
-   `crossAgentReview: require` or mint independent-review evidence. If the host
-   has no subagent capability or that one fallback fails, follow the
-   coordinator's recovery action. For every other blocking result, follow the
-   recovery action directly.
+   review verdict. If it blocks, follow its one recovery action; do not invent
+   a private subagent route or mint passing evidence yourself.
 
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
