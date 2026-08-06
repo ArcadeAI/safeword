@@ -78,6 +78,9 @@
   contracts pass 36/36, release contracts pass 4/4, and ESLint, TypeScript,
   Prettier, actionlint, and whitespace validation are clean. The release gate
   and evidence are ready for closure confirmation.
+- [07:12] CLOSED: user confirmed completion; ticket advanced from verify to
+  done. Final diff-scoped audit passed without findings; PR scope, acceptance
+  coverage, and clear-win refactoring were rechecked and recorded in verify.md.
 
 ## Sources
 

@@ -2,13 +2,13 @@
 id: YC6JCC
 slug: prevent-advisory-workflow-drift
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: P0D6S2
 epic: trustworthy-advisory-pr-review
 depends_on: [HXT3GW]
 created: 2026-08-05T19:52:07.090Z
-last_modified: 2026-08-06T16:12:45Z
+last_modified: 2026-08-06T17:12:45Z
 ---
 
 # Prevent advisory workflow drift before release
@@ -44,6 +44,10 @@ freshness, inline findings, or customer-code execution. HXT3GW, Z7M7Y3, and
 
 ## Work Log
 
+- 2026-08-06T17:12:45Z Complete: User confirmed closure after reviewing the
+  passing local contracts and live disposable-repository evidence. The final
+  diff-scoped audit reported no findings; PR scope, scenario coverage, and
+  cross-scenario refactoring were rechecked against `verify.md`.
 - 2026-08-06T16:12:45Z Final local verification passed: workflow and smoke
   contracts 6/6, schema contracts 36/36, and release contracts 4/4. The
   release workflow now fails closed on the environment-protected live smoke;
