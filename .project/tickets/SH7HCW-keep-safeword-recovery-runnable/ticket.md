@@ -5,9 +5,12 @@ type: feature
 phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1966
-anchors:
-  - scenario-gate: features/safeword-recovery-through-dependency-readiness.feature
-  - implement: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/impl-plan.md
+phase_anchors:
+  - 'define-behavior: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/spec.md'
+  - 'scenario-gate: features/safeword-recovery-through-dependency-readiness.feature'
+  - 'plan-implementation: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/impl-plan.md'
+  - 'implement: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/impl-plan.md'
+  - 'verify: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/test-definitions.md'
 scope:
   - Keep top-level Safeword setup and diagnostic commands reachable through the dependency-readiness PreToolUse hook.
   - Continue blocking dependency-backed package executors while project dependencies are missing or stale.
