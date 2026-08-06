@@ -103,3 +103,12 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Examples:** `pull_request_target`, reusable workflows, job-level `permissions`, GitHub environments, Actions artifacts, scheduled workflows
 **Coverage notes:** Tag scenarios with `@surface.github-actions-execution-sandbox` when the guarantee depends on job isolation, secret scope, token permissions, concurrency, checkout absence, or runtime execution behavior.
 **Do not confuse with:** GitHub Pull Request Conversation — that is the user-visible comment surface; the Actions sandbox is the runtime that produces and publishes the serialized result.
+
+## Railway Hosted Relay
+
+**Kind:** Hosted service
+**Description:** The Railway deployment surface for Safeword's retry-safe retro relay. It runs the transport-independent HTTP API and a single-host SQLite WAL store on a persistent Railway volume; production filing remains disabled until the checked-in readiness manifest passes.
+**Audience:** Safeword Maintainer (SWM)
+**Examples:** Railway service health checks, persistent volume mounting, relay environment configuration, deployment smoke tests
+**Coverage notes:** Tag feature scenarios with `@surface.railway-hosted-relay` when behavior depends on the hosted relay process, its persistent storage, or Railway deployment controls.
+**Do not confuse with:** Safeword CLI — the local command that prepares and delivers retro requests. The hosted relay accepts authorized requests and coordinates durable deduplication.

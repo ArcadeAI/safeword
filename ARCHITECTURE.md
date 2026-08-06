@@ -30,19 +30,20 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 
 ### Tech Stack
 
-| Category        | Choice                                             | Rationale                                                                                  |
-| --------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Runtime         | Node (published CLI), Bun (development and `bunx`) | The package declares exact supported Node lines; Bun keeps local TypeScript workflows fast |
-| Package Manager | npm, Bun, pnpm, Yarn                               | Reconciliation detects and preserves the host project's package-manager choice             |
-| JS Linting      | ESLint                                             | Industry standard, extensive rule set                                                      |
-| Python Linting  | Ruff                                               | Fast, replaces flake8/black/isort                                                          |
-| Go Linting      | golangci-lint                                      | Aggregates 100+ linters, fast                                                              |
-| Rust Linting    | clippy                                             | 750+ lints, pedantic by default                                                            |
-| Rust Formatting | rustfmt                                            | Deterministic, gofmt-style formatting                                                      |
-| SQL Linting     | SQLFluff                                           | dbt-aware, Jinja templater support                                                         |
-| Type Checking   | tsc / mypy                                         | Native type checkers for each language                                                     |
-| Arch Validation | dependency-cruiser                                 | Circular dep detection, layer rules (JS/TS)                                                |
-| Arch Validation | import-linter                                      | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack     |
+| Category        | Choice             | Rationale                                                                              |
+| --------------- | ------------------ | -------------------------------------------------------------------------------------- |
+| CLI Runtime     | Bun                | Fast startup, TypeScript native                                                        |
+| Relay Runtime   | Node 24 LTS        | Built-in SQLite support for the separately deployed relay without a native npm addon   |
+| Package Manager | npm/bun            | Standard for JS ecosystem                                                              |
+| JS Linting      | ESLint             | Industry standard, extensive rule set                                                  |
+| Python Linting  | Ruff               | Fast, replaces flake8/black/isort                                                      |
+| Go Linting      | golangci-lint      | Aggregates 100+ linters, fast                                                          |
+| Rust Linting    | clippy             | 750+ lints, pedantic by default                                                        |
+| Rust Formatting | rustfmt            | Deterministic, gofmt-style formatting                                                  |
+| SQL Linting     | SQLFluff           | dbt-aware, Jinja templater support                                                     |
+| Type Checking   | tsc / mypy         | Native type checkers for each language                                                 |
+| Arch Validation | dependency-cruiser | Circular dep detection, layer rules (JS/TS)                                            |
+| Arch Validation | import-linter      | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack |
 
 ---
 
@@ -51,16 +52,89 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 ```text
 packages/
 ├── cli/            # Main CLI tool + ESLint configs (bunx safeword)
+├── retro-relay/    # Private retry-safe GitHub filing service
 └── website/        # Documentation site (Astro/Starlight)
 plugin/             # Claude Code plugin (commands, hooks) — not a workspace package; distributed via .claude-plugin/marketplace.json
 ```
 
-| Package             | Purpose                                                 | Published As |
-| ------------------- | ------------------------------------------------------- | ------------ |
-| `packages/cli/`     | CLI + bundled ESLint configs (`safeword/eslint` export) | `safeword`   |
-| `packages/website/` | Documentation website                                   | Private      |
+| Package                 | Purpose                                                 | Published As |
+| ----------------------- | ------------------------------------------------------- | ------------ |
+| `packages/cli/`         | CLI + bundled ESLint configs (`safeword/eslint` export) | `safeword`   |
+| `packages/retro-relay/` | Durable, authenticated retro filing boundary            | Private      |
+| `packages/website/`     | Documentation website                                   | Private      |
 
 ESLint configs are bundled in the main package and accessed via `import safeword from "safeword/eslint"`.
+
+### Retro relay boundary
+
+`packages/retro-relay` is deliberately separate from the published CLI. The
+gated shared CLI core sends the same tenant/installation/repository/request ID
+identity from every harness surface; harness and subject are authorization and
+audit attributes only. Public relay routing remains compiled off until the
+readiness evidence below is satisfied.
+SQLite WAL is the smallest supported durable store for one active process on
+one host. Multi-host deployment or a network filesystem requires migration
+through the store boundary to PostgreSQL.
+The relay uses Node's built-in `node:sqlite` API, avoiding host compiler and
+native-addon prerequisites for contributors and deploys. A separate SQLite
+lock database holds an exclusive transaction for the process lifetime, so the
+operating system releases single-process ownership automatically after a crash
+without PID files or stale-reclaimer cleanup.
+
+The Railway deployment profile therefore fixes one replica and one persistent
+`/data` volume. Readiness must query SQLite's schema version. A random
+per-process boot ID proves that an in-place restart replaced the process;
+`RAILWAY_REPLICA_ID` identifies the hosted replica but may remain stable across
+that restart and is not a restart oracle.
+
+The relay stores request payloads only as AES-256-GCM envelopes and keeps
+GitHub App credentials server-side. Ambiguous create outcomes are quarantined
+until a privileged reconciliation route finds exactly one reserved marker in a
+complete raw REST issue-body scan. Sanitized MCP reads are never duplicate
+authority. The client supplies one absolute creation-plus-24-hour retry
+deadline, which the server persists and may shorten but never extend, followed
+by one-hour dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
+timed maintenance worker persists its retry schedule and terminal alert outbox
+in the same database.
+With #1474 and #1481 complete, canonical/legacy semantic adoption and
+cross-request aliasing remain unbuilt until the post-fix collision rates are
+remeasured and bound into the readiness evidence.
+
+Before transport, the CLI writes one immutable file containing the exact
+serialized request bytes and a UUIDv4 request ID. Relay routing requires an
+explicit absolute `SAFEWORD_RETRO_RELAY_OUTBOX` outside the project workspace;
+there is no inferred cross-provider cloud persistence. Claude, Codex, Cursor,
+and their cloud surfaces can claim and resend those bytes only when they share
+that operator-provided durable handoff. Without it, routing stays on the native
+path. The outbox is resolved physically so an external-looking symlink cannot
+alias back into the disposable project. Harness identity is never part of
+request identity. File contents, newly created spool-directory entries, and
+containing-directory mutations are synced before durable success is reported,
+and atomic rename fences concurrent claims. An
+atomic acknowledgement journal is authoritative before recoverable payload
+cleanup, so a crash cannot convert an unknown relay response into permission
+for native GitHub fallback. The immutable record carries its creation time and
+shared 24-hour retry deadline; expiry moves it to a visible local dead letter.
+Locally, a hashed session, delta-window boundary, and encounter slot correlates
+retries to that record while allowing later fires and unrelated findings to
+spool independently. It is stripped before transport and is never server-side
+semantic or duplicate authority.
+
+Production authentication requires separate repository-scoped `file`
+principals for Claude, Codex, and Cursor and a `reconcile`/`operate` principal
+for operators. Filing inputs have bounded bodies and fields, UUIDv4 request
+identity, ten-second inbound/GitHub timeouts, bounded GitHub concurrency and
+reconciliation scans, coalesced installation-token minting, and a per-principal
+filing/reconciliation rate limit. The single-principal
+Railway spike configuration is explicitly health-only. Relay routing is
+compiled fail-closed until parsed versioned metric evidence has a nonempty
+sample, immutable artifact hashes, and Git ancestry bind the evidence to the
+running build. Its drain-throughput evidence is a regression floor: at least
+300 queued requests, at least 80 ms relay latency, at least two acceptances in
+one bounded drain, and total drain duration below one second. #1474 and #1481
+are complete prerequisites; their resulting measurements still gate activation.
+Issue #834 remains active; #1495 gates readiness only if client credential
+helpers are reused.
 
 ---
 

@@ -131,7 +131,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "3395d0d01d3c433c29fbc271c5affbaf3c32ecedf4a86648a04dd7c862965810"
+      "sha256": "9549264abb328a09672c7dd3b42e5703179afb9983a090307682471dd2056921"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -539,7 +539,7 @@
     },
     {
       "path": "runtime/hooks/stop-retro.ts",
-      "sha256": "507b4f283e27bbf7ad76749627206b93e1c34c557146b02cc7aa84d41c331962"
+      "sha256": "fbe77a8fd6a98c046db356220df37fffc8efd4e85ec64a37d73fef77f764e061"
     },
     {
       "path": "runtime/hooks/stop-self-report.ts",
