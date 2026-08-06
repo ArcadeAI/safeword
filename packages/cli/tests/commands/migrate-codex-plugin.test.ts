@@ -369,6 +369,9 @@ describe('migrate codex-plugin command', () => {
 
     expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
 
+    expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).toContain(
+      'plugin add safeword@safeword --json',
+    );
     expect(existsSync(safewordSkill)).toBe(false);
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
     for (const [relativePath, contents] of Object.entries(userOwned)) {
