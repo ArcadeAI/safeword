@@ -632,6 +632,39 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
   });
 
+  it.each([
+    { author: 'claude' as const, authorName: 'Claude', reviewerName: 'Codex' },
+    { author: 'codex' as const, authorName: 'Codex', reviewerName: 'Claude' },
+  ])(
+    'suggests installing missing $reviewerName without blocking the $authorName fallback',
+    async ({ author, authorName, reviewerName }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, author, log);
+
+      const result = await runCli(
+        ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: author,
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(result.stdout).toContain('Healthy');
+      expect(result.stdout).toContain(
+        `${reviewerName} is not installed. Install ${reviewerName} for fully independent reviews; Safe Word continued with a ${authorName} review.`,
+      );
+      expect(readFileSync(log, 'utf8')).toBe(`${author}\n`);
+    },
+  );
+
   it('does not let a degraded fallback satisfy hard cross-agent enforcement', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
