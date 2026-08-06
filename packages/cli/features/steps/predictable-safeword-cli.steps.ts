@@ -120,24 +120,13 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
   const cwd = join(temporaryProject(world), 'public-fixture');
   rmSync(cwd, { recursive: true, force: true });
   mkdirSync(cwd, { recursive: true });
-  // These fixtures assert the CLI's own determinism, so they must not read the
-  // developer's real Codex profile. `codex status` embeds the hook-proof
-  // `recorded_at` values from `$CODEX_HOME/safeword/hook-proof-v2/`, and a live
-  // Codex app rewrites those on every tool call — so two runs of the same
-  // command disagreed for reasons that had nothing to do with the CLI. CI has
-  // no Codex app running, which is why this only ever failed locally. Rebuilt
-  // per invocation, like `cwd` above, so a mutating command cannot leak profile
-  // state from the first run into the second.
-  const codexHome = join(temporaryProject(world), 'public-fixture-codex-home');
-  rmSync(codexHome, { recursive: true, force: true });
-  mkdirSync(codexHome, { recursive: true });
   const completed = spawnSync(
     process.execPath,
     [CLI_PATH, ...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', cwd],
     {
       cwd,
       encoding: 'utf8',
-      env: { ...childEnvironment(), CODEX_HOME: codexHome, ...definition.fixture.environment },
+      env: { ...childEnvironment(), ...definition.fixture.environment },
     },
   );
   return {
