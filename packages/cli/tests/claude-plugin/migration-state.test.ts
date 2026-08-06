@@ -63,6 +63,25 @@ describe('Claude plugin mode v2', () => {
     expect([1, 2].map(() => claimClaudeMigrationAttempt(root, 'later'))).toEqual([true, false]);
   });
 
+  it('gives a later session one separate recovery launch', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-migration-recovery-attempts-'));
+    roots.push(root);
+    expect(claimClaudeMigrationAttempt(root, 'first')).toBe(true);
+    expect(claimClaudeMigrationAttempt(root, 'later')).toBe(true);
+    expect(claimClaudeMigrationAttempt(root, 'later')).toBe(false);
+    expect(claimClaudeMigrationAttempt(root, 'later', 'recovery')).toBe(true);
+    expect(claimClaudeMigrationAttempt(root, 'later', 'recovery')).toBe(false);
+  });
+
+  it('keeps recovery inside the initial session three-launch budget', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-initial-recovery-attempts-'));
+    roots.push(root);
+    expect(claimClaudeMigrationAttempt(root, 'initial')).toBe(true);
+    expect(claimClaudeMigrationAttempt(root, 'initial')).toBe(true);
+    expect(claimClaudeMigrationAttempt(root, 'initial', 'recovery')).toBe(true);
+    expect(claimClaudeMigrationAttempt(root, 'initial', 'recovery')).toBe(false);
+  });
+
   it('claims the same advisory only once per session', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-migration-advisory-'));
     roots.push(root);

@@ -100,6 +100,7 @@ function dispatchEvent(
   options: {
     readonly event: string;
     readonly homeDirectory?: string;
+    readonly omitProjectDirectory?: boolean;
     readonly pluginRoot?: string;
   },
 ) {
@@ -112,6 +113,7 @@ function dispatchEvent(
     CLAUDE_PROJECT_DIR: projectDirectory,
     HOME: options.homeDirectory ?? process.env.HOME,
   };
+  if (options.omitProjectDirectory === true) delete environment.CLAUDE_PROJECT_DIR;
   if (configDirectory === undefined) delete environment.CLAUDE_CONFIG_DIR;
   else environment.CLAUDE_CONFIG_DIR = configDirectory;
   return spawnSync(
@@ -121,7 +123,11 @@ function dispatchEvent(
       cwd: projectDirectory,
       env: environment,
       encoding: 'utf8',
-      input: JSON.stringify({ hook_event_name: event, session_id: sessionId }),
+      input: JSON.stringify({
+        cwd: projectDirectory,
+        hook_event_name: event,
+        session_id: sessionId,
+      }),
     },
   );
 }
@@ -210,6 +216,27 @@ describe('Claude plugin dispatcher', () => {
     );
     expect(settings.enabledPlugins).toEqual({ 'safeword@safeword': true });
     expect(settings.extraKnownMarketplaces.safeword).toEqual(marketplace);
+  });
+
+  it('uses the hook cwd when Claude omits CLAUDE_PROJECT_DIR', () => {
+    const projectDirectory = temporary('safeword-plugin-cwd-fallback-project-');
+    const pluginData = temporary('safeword-plugin-cwd-fallback-data-');
+    const configDirectory = temporary('safeword-plugin-cwd-fallback-config-');
+    const target = releasedAsset(projectDirectory);
+    promptSettings(projectDirectory, {
+      source: { source: 'github', repo: 'ArcadeAI/safeword' },
+    });
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'cwd-fallback', {
+      event: 'UserPromptSubmit',
+      omitProjectDirectory: true,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(target)).toBe(false);
+    expect(
+      existsSync(nodePath.join(projectDirectory, '.safeword/claude-plugin/plugin-mode-v2.json')),
+    ).toBe(true);
   });
 
   it('recognizes legacy hook authority in Claude JSONC settings', () => {

@@ -3,6 +3,7 @@ import nodePath from 'node:path';
 
 import { parse, type ParseError } from 'jsonc-parser';
 
+import { assertSafeClaudeCleanupTarget } from './cleanup-target.js';
 import {
   cataloguedClaudeLegacyPaths,
   isAcceptedHistoricalFile,
@@ -39,16 +40,15 @@ function observeFiles(
     const path = nodePath.join(cwd, relativePath);
     if (!existsSync(path)) continue;
     try {
-      const regular = lstatSync(path).isFile();
-      if (regular && isAcceptedHistoricalFile(relativePath, readFileSync(path))) {
+      const safePath = assertSafeClaudeCleanupTarget(cwd, relativePath);
+      const regular = lstatSync(safePath).isFile();
+      if (regular && isAcceptedHistoricalFile(relativePath, readFileSync(safePath))) {
         recognizedFiles.push(relativePath);
       } else {
         conflictingFiles.push(relativePath);
       }
     } catch {
-      // The path disappeared during observation; the transaction precondition
-      // will observe the next stable image.
-      continue;
+      if (existsSync(path)) conflictingFiles.push(relativePath);
     }
   }
   return { recognizedFiles, conflictingFiles };

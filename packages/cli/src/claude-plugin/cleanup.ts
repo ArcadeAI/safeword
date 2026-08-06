@@ -17,11 +17,13 @@ import { applyEdits, modify, parse, visit } from 'jsonc-parser';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile, writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
+import { assertSafeClaudeCleanupTarget, containedClaudeCleanupPath } from './cleanup-target.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import { type ClaudeLegacyObservation, observeClaudeLegacy } from './legacy-classifier.js';
 import {
   advisoryStateDigest,
   claudeWatchedSettingsDigest,
+  createClaudePluginMode,
   writeClaudeMigrationAttention,
   writeClaudePluginMode,
 } from './migration-state.js';
@@ -67,34 +69,6 @@ export interface AutomaticClaudeMigrationResult {
 
 function sha256(content: Buffer | string): string {
   return createHash('sha256').update(content).digest('hex');
-}
-
-function containedPath(cwd: string, relative: string): string {
-  if (relative === '' || nodePath.isAbsolute(relative) || relative.split(/[\\/]/u).includes('..')) {
-    throw new Error(`Unsafe Claude cleanup target: ${relative}`);
-  }
-  const root = nodePath.resolve(cwd);
-  const target = nodePath.resolve(root, relative);
-  if (!target.startsWith(`${root}${nodePath.sep}`)) {
-    throw new Error(`Unsafe Claude cleanup target: ${relative}`);
-  }
-  return target;
-}
-
-function assertSafeTarget(cwd: string, relative: string): string {
-  const target = containedPath(cwd, relative);
-  let cursor = nodePath.resolve(cwd);
-  for (const segment of relative.split(/[\\/]/u)) {
-    cursor = nodePath.join(cursor, segment);
-    if (!existsSync(cursor)) continue;
-    const metadata = lstatSync(cursor);
-    if (metadata.isSymbolicLink())
-      throw new Error(`Unsafe symlinked Claude cleanup target: ${relative}`);
-    if (cursor === target ? !metadata.isFile() : !metadata.isDirectory()) {
-      throw new Error(`Unsafe non-file Claude cleanup target: ${relative}`);
-    }
-  }
-  return target;
 }
 
 function containsJsonComments(content: string): boolean {
@@ -162,7 +136,7 @@ export function claudeCleanupPreconditionDigest(
   return sha256(
     JSON.stringify(
       mutations.map(mutation => {
-        const target = assertSafeTarget(cwd, mutation.path);
+        const target = assertSafeClaudeCleanupTarget(cwd, mutation.path);
         return [mutation.path, sha256(readFileSync(target)), mutation.content];
       }),
     ),
@@ -170,7 +144,7 @@ export function claudeCleanupPreconditionDigest(
 }
 
 function transactionPath(cwd: string): string {
-  return containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction);
+  return containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction);
 }
 
 function writeTransaction(cwd: string, transaction: CleanupTransaction): void {
@@ -182,7 +156,7 @@ function writeTransaction(cwd: string, transaction: CleanupTransaction): void {
 }
 
 function entryFor(cwd: string, mutation: { path: string; content: string | null }): CleanupEntry {
-  const path = assertSafeTarget(cwd, mutation.path);
+  const path = assertSafeClaudeCleanupTarget(cwd, mutation.path);
   const before = readFileSync(path);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
   return {
@@ -241,7 +215,7 @@ function applyEntries(
 ): boolean {
   for (const entry of entries) {
     if (shouldDefer()) return false;
-    const path = assertSafeTarget(cwd, entry.path);
+    const path = assertSafeClaudeCleanupTarget(cwd, entry.path);
     if (observedSha(path) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
@@ -251,7 +225,7 @@ function applyEntries(
 }
 
 function writePluginModeMarker(cwd: string, transactionId: string): void {
-  const marker = containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
+  const marker = containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
   mkdirSync(nodePath.dirname(marker), { recursive: true });
   writeDurableFile(
     marker,
@@ -293,7 +267,7 @@ function recordAutomaticAttention(
 }
 
 function waitForPluginMode(cwd: string, deadline: number, now: () => number): boolean {
-  const marker = containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2);
+  const marker = containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2);
   const pause = new Int32Array(new SharedArrayBuffer(4));
   const maximumChecks = 25;
   for (let checks = 0; checks < maximumChecks && now() < deadline; checks += 1) {
@@ -310,16 +284,17 @@ function writeAutomaticPluginMode(cwd: string, transaction: CleanupTransaction):
     writePluginModeMarker(cwd, transaction.transaction_id);
     return;
   }
-  writeClaudePluginMode(cwd, {
-    schema_version: 2,
-    state: pluginMode.unresolved_paths.length === 0 ? 'clean' : 'unresolved',
-    plugin_version: pluginMode.plugin_version,
-    hook_manifest_sha256: pluginMode.hook_manifest_sha256,
-    catalogue_sha256: pluginMode.catalogue_sha256,
-    unresolved_paths: pluginMode.unresolved_paths,
-    advisory: pluginMode.advisory,
-    transaction_id: transaction.transaction_id,
-  });
+  writeClaudePluginMode(
+    cwd,
+    createClaudePluginMode({
+      plugin_version: pluginMode.plugin_version,
+      hook_manifest_sha256: pluginMode.hook_manifest_sha256,
+      catalogue_sha256: pluginMode.catalogue_sha256,
+      unresolved_paths: pluginMode.unresolved_paths,
+      advisory: pluginMode.advisory,
+      transaction_id: transaction.transaction_id,
+    }),
+  );
 }
 
 function cleanupFailure(error: unknown, classification = 'coexistence'): CliResult {
@@ -375,15 +350,16 @@ function writeObservedPluginMode(
   unresolved: readonly string[],
   advisory: string | undefined,
 ): AutomaticClaudeMigrationResult {
-  writeClaudePluginMode(projectRoot, {
-    schema_version: 2,
-    state: unresolved.length === 0 ? 'clean' : 'unresolved',
-    plugin_version: options.pluginVersion,
-    hook_manifest_sha256: options.hookManifestSha256,
-    catalogue_sha256: options.catalogueSha256,
-    unresolved_paths: unresolved,
-    advisory,
-  });
+  writeClaudePluginMode(
+    projectRoot,
+    createClaudePluginMode({
+      plugin_version: options.pluginVersion,
+      hook_manifest_sha256: options.hookManifestSha256,
+      catalogue_sha256: options.catalogueSha256,
+      unresolved_paths: unresolved,
+      advisory,
+    }),
+  );
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
 
@@ -486,7 +462,7 @@ function pendingRecoveryEntries(
   const forward = transaction.disposition === 'complete-forward';
   const pending: CleanupEntry[] = [];
   for (const entry of transaction.entries) {
-    const path = assertSafeTarget(projectRoot, entry.path);
+    const path = assertSafeClaudeCleanupTarget(projectRoot, entry.path);
     const current = observedSha(path);
     const source = forward ? entry.before_sha256 : entry.after_sha256;
     const destination = forward ? entry.after_sha256 : entry.before_sha256;
@@ -504,7 +480,7 @@ function applyRecoveryEntries(
 ): void {
   const forward = transaction.disposition === 'complete-forward';
   for (const entry of pending) {
-    const path = containedPath(projectRoot, entry.path);
+    const path = containedClaudeCleanupPath(projectRoot, entry.path);
     writeImage(
       projectRoot,
       path,

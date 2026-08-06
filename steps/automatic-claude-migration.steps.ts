@@ -14,6 +14,7 @@ import {
   chmodSync,
   cpSync,
   existsSync,
+  mkdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -435,6 +436,32 @@ Then(
     assert.equal(after.files.get(target), this.before?.files.get(target));
   },
 );
+
+Given(
+  'a cleanup-ready legacy project whose transaction path cannot store a durable record',
+  function (this: MigrationWorld) {
+    this.project = createLegacyProject({ release: '0.72.0' });
+    mkdirSync(nodePath.join(project(this).root, TRANSACTION), { recursive: true });
+    this.before = snapshotTree(project(this).root, MIGRATION_STATE);
+  },
+);
+
+Then(
+  'every legacy byte remains unchanged and plugin mode is not written',
+  function (this: MigrationWorld) {
+    assert.ok(this.before);
+    assert.deepEqual(
+      changedPaths(this.before, snapshotTree(project(this).root, MIGRATION_STATE)),
+      [],
+    );
+    assert.ok(!existsSync(nodePath.join(project(this).root, MARKER)));
+  },
+);
+
+Then('the prompt continues with one recovery advisory', function (this: MigrationWorld) {
+  assert.equal(this.hook?.status, 0);
+  assertSingleAdvisory(advisory(this), 'Safeword preserved', ['safeword claude recover']);
+});
 
 Given(
   'a catalogued legacy path is a symlink to a file outside the canonical project',
@@ -886,6 +913,41 @@ Then(
   function (this: MigrationWorld) {
     const run = runPluginHook(project(this), { sessionId: 'next-prompt' });
     assert.equal(run.status, 0, run.stderr);
+    assert.equal(marker(this).state, 'clean');
+    assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
+    for (const relative of project(this).installed) {
+      assert.ok(!existsSync(nodePath.join(project(this).root, relative)));
+    }
+  },
+);
+
+Given(
+  'a later Claude session has spent its normal launch and a durable transaction remains',
+  function (this: MigrationWorld) {
+    this.project = createLegacyProject({ release: '0.72.0', assetLimit: 2 });
+    assert.ok(claimClaudeMigrationAttempt(project(this).root, 'initial-session'));
+    assert.ok(claimClaudeMigrationAttempt(project(this).root, 'later-session'));
+    let reads = 0;
+    const interrupted = migrateClaudeLegacyAutomatically(project(this).root, {
+      pluginVersion: '0.73.0',
+      hookManifestSha256: 'a'.repeat(64),
+      catalogueSha256: historicalCatalogueDigest(),
+      deadline: 5,
+      now: () => (reads++ === 0 ? 0 : 10),
+    });
+    assert.equal(interrupted.state, 'deferred');
+    assert.ok(existsSync(nodePath.join(project(this).root, TRANSACTION)));
+  },
+);
+
+When('another prompt succeeds in that later session', function (this: MigrationWorld) {
+  this.hook = runPluginHook(project(this), { sessionId: 'later-session' });
+  assert.equal(this.hook.status, 0, this.hook.stderr);
+});
+
+Then(
+  'its dedicated recovery launch completes the transaction and enters plugin mode',
+  function (this: MigrationWorld) {
     assert.equal(marker(this).state, 'clean');
     assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
     for (const relative of project(this).installed) {

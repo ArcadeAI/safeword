@@ -48,6 +48,13 @@ Feature: Migrate legacy Claude projects automatically
       And the durable transaction remains available for recovery without changing that target
 
     @rejection
+    Scenario: Legacy bytes never change before a durable transaction exists
+      Given a cleanup-ready legacy project whose transaction path cannot store a durable record
+      When its UserPromptSubmit event completes successfully
+      Then every legacy byte remains unchanged and plugin mode is not written
+      And the prompt continues with one recovery advisory
+
+    @rejection
     Scenario: A symlinked legacy path cannot escape automatic contraction
       Given a catalogued legacy path is a symlink to a file outside the canonical project
       When its UserPromptSubmit event completes successfully
@@ -119,6 +126,11 @@ Feature: Migrate legacy Claude projects automatically
       When the outer migration deadline expires
       Then the current prompt remains successful with one retry advisory
       And the next successful prompt completes the recorded transaction and enters plugin mode
+
+    Scenario: A later session can recover after spending its normal launch
+      Given a later Claude session has spent its normal launch and a durable transaction remains
+      When another prompt succeeds in that later session
+      Then its dedicated recovery launch completes the transaction and enters plugin mode
 
     Scenario: Repeated automatic attempts do not run migration on every prompt forever
       Given automatic migration has recorded three calls in one Claude session

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -93,5 +93,21 @@ describe('Claude legacy classifier', () => {
     mkdirSync(nodePath.dirname(settings), { recursive: true });
     writeFileSync(settings, '{ not JSONC');
     expect(observeClaudeLegacy(root).settingsError).toContain('could not be parsed');
+  });
+
+  it('classifies a historical file below a symlinked ancestor as a conflict', () => {
+    const root = fixture();
+    const external = fixture();
+    const installedPath = Object.keys(CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].files)[0];
+    if (installedPath === undefined) throw new Error('Historical fixture path is missing.');
+    const firstSegment = installedPath.split('/')[0];
+    if (firstSegment === undefined) throw new Error('Historical fixture ancestor is missing.');
+    mkdirSync(nodePath.join(external, nodePath.dirname(installedPath)), { recursive: true });
+    writeFileSync(nodePath.join(external, installedPath), 'external bytes\n');
+    symlinkSync(nodePath.join(external, firstSegment), nodePath.join(root, firstSegment));
+
+    const observation = observeClaudeLegacy(root);
+    expect(observation.recognizedFiles).not.toContain(installedPath);
+    expect(observation.conflictingFiles).toContain(installedPath);
   });
 });

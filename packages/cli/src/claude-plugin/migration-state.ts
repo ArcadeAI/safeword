@@ -17,6 +17,16 @@ export interface ClaudePluginModeV2 {
   readonly transaction_id?: string;
 }
 
+export function createClaudePluginMode(
+  marker: Omit<ClaudePluginModeV2, 'schema_version' | 'state'>,
+): ClaudePluginModeV2 {
+  return {
+    schema_version: 2,
+    state: marker.unresolved_paths.length === 0 ? 'clean' : 'unresolved',
+    ...marker,
+  };
+}
+
 interface InitialSessionV1 {
   readonly schema_version: 1;
   readonly session_digest: string;
@@ -66,10 +76,18 @@ function initialSessionDigest(cwd: string, sessionDigest: string): string {
 }
 
 /** Atomically claims one bounded automatic-migration launch for a Claude session. */
-export function claimClaudeMigrationAttempt(cwd: string, sessionId: string | undefined): boolean {
+export function claimClaudeMigrationAttempt(
+  cwd: string,
+  sessionId: string | undefined,
+  kind: 'migration' | 'recovery' = 'migration',
+): boolean {
   const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
-  const limit = initialSessionDigest(cwd, sessionDigest) === sessionDigest ? 3 : 1;
-  const directory = nodePath.join(attemptsPath(cwd), 'launches');
+  const initialSession = initialSessionDigest(cwd, sessionDigest) === sessionDigest;
+  const limit = initialSession ? 3 : 1;
+  const directory = nodePath.join(
+    attemptsPath(cwd),
+    kind === 'recovery' && !initialSession ? 'recoveries' : 'launches',
+  );
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   for (let slot = 1; slot <= limit; slot += 1) {
     if (
