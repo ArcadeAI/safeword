@@ -29,12 +29,22 @@ export interface IssueCommentPublisher {
 export interface ReceiptView {
   checks: { name: string; status?: 'failed' | 'pending' | 'success' | 'unknown' }[];
   findingCounts: { consequential: number; nonConsequential: number };
+  findings?: ReceiptFindingView[];
   reviewedSha: string;
   reviewers: string[];
   runState: 'complete' | 'failed' | 'incomplete' | 'stale';
   skippedChecks: string[];
   tokenUsage: { input?: number; output?: number };
   unknowns: string[];
+}
+
+export interface ReceiptFindingView {
+  consequence: string;
+  evidence: string;
+  line?: number;
+  nextAction: string;
+  path: string;
+  unverifiedRemedy?: string;
 }
 
 function hasExactReceiptMarker(body: string): boolean {
@@ -50,7 +60,7 @@ export function renderReceipt(receipt: ReceiptView): string {
   const inputTokens = receipt.tokenUsage.input ?? 'unknown';
   const outputTokens = receipt.tokenUsage.output ?? 'unknown';
 
-  return [
+  const summary = [
     `Reviewed revision: ${receipt.reviewedSha}`,
     `Run state: ${receipt.runState}`,
     `Reviewers: ${listOrNone(receipt.reviewers)}`,
@@ -59,7 +69,19 @@ export function renderReceipt(receipt: ReceiptView): string {
     `Unknowns: ${listOrNone(receipt.unknowns)}`,
     `Token usage: ${inputTokens} input, ${outputTokens} output`,
     `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential`,
-  ].join('\n');
+  ];
+  const findings = (receipt.findings ?? []).flatMap(finding => {
+    const location = finding.line === undefined ? finding.path : `${finding.path}:${finding.line}`;
+    return [
+      `Finding: ${location}`,
+      `Evidence: ${finding.evidence}`,
+      `Consequence: ${finding.consequence}`,
+      `Next action: ${finding.nextAction}`,
+      ...(finding.unverifiedRemedy ? [`Unverified remedy: ${finding.unverifiedRemedy}`] : []),
+    ];
+  });
+
+  return [...summary, ...findings].join('\n');
 }
 
 export function planReceiptPublication(
