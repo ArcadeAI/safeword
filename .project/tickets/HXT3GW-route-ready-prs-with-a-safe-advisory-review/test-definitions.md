@@ -215,7 +215,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 ### Scenario: Missing audit evidence blocks publication
 
 - [x] RED cb4946c93
-- [ ] GREEN
+- [x] GREEN 02dd2fe74
 - [ ] REFACTOR
 
 ### Scenario: Adversarial pull-request text cannot expand authority or suppress human routing
