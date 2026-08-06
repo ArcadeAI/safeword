@@ -44,6 +44,8 @@ interface AdvisoryReviewWorld {
     unverifiedRemedy: string;
   };
   attempts?: number;
+  auditAvailability?: 'empty' | 'missing';
+  auditRecord?: 'inspection audit' | 'publication audit';
   binaryArtifactPath?: string;
   changedArtifactKind?: 'binary' | 'text';
   changedArtifactPath?: string;
@@ -87,6 +89,8 @@ interface AdvisoryReviewWorld {
   outcome?: ReviewOutcome;
   prerequisites?: 'failed' | 'passed' | 'pending';
   ready?: boolean;
+  publicationBlocked?: boolean;
+  githubWriteCalls?: number;
   receipts?: ObservableReceipt[];
   receiptComments?: Array<{
     authorType: 'Bot' | 'User';
@@ -462,6 +466,19 @@ Given('model inspection has no GitHub write credential', function (this: Advisor
 Given('publication has only serialized advisory evidence', function (this: AdvisoryReviewWorld) {
   this.publicationAudit = undefined;
 });
+
+Given(
+  /^the (inspection audit|publication audit) is (missing|empty)$/,
+  function (
+    this: AdvisoryReviewWorld,
+    auditRecord: 'inspection audit' | 'publication audit',
+    availability: 'empty' | 'missing',
+  ) {
+    this.auditRecord = auditRecord;
+    this.auditAvailability = availability;
+    this.githubWriteCalls = 0;
+  },
+);
 
 Given('a canonical bot-authored marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
   this.commentMutations = [];
@@ -991,6 +1008,40 @@ When('Safeword reviews and publishes the result', async function (this: Advisory
   this.reviewedForkArtifacts = result.receipt.artifacts;
 });
 
+When('Safeword validates the split-privilege contract', async function (this: AdvisoryReviewWorld) {
+  const reviewModule =
+    (await import('../packages/cli/src/pr-review/review.ts')) as unknown as Record<string, unknown>;
+  const candidate = reviewModule.publishValidatedSplitPrivilegeEvidence;
+  assert.equal(typeof candidate, 'function', 'split-privilege publication gate is missing');
+  const publishValidatedSplitPrivilegeEvidence = candidate as (input: {
+    inspectionAudit?: unknown;
+    publicationAudit?: unknown;
+    publish(): Promise<void>;
+  }) => Promise<{ publicationBlocked: boolean }>;
+  const validInspectionAudit = {
+    checkout: false,
+    customerCodeExecution: false,
+    githubPermissions: { contents: 'read', pullRequests: 'read' },
+    githubWriteCredential: false,
+  };
+  const validPublicationAudit = {
+    executableArtifacts: [],
+    forkCodeInputs: [],
+    soleInput: 'serialized_advisory_evidence',
+  };
+  const unavailableAudit = this.auditAvailability === 'empty' ? {} : undefined;
+  const result = await publishValidatedSplitPrivilegeEvidence({
+    inspectionAudit:
+      this.auditRecord === 'inspection audit' ? unavailableAudit : validInspectionAudit,
+    publicationAudit:
+      this.auditRecord === 'publication audit' ? unavailableAudit : validPublicationAudit,
+    publish: async () => {
+      this.githubWriteCalls = (this.githubWriteCalls ?? 0) + 1;
+    },
+  });
+  this.publicationBlocked = result.publicationBlocked;
+});
+
 Then(
   "the publication audit records revision A's `stale` write before any fresh route for revision B",
   function (this: AdvisoryReviewWorld) {
@@ -1167,6 +1218,14 @@ Then(
     assert.deepEqual(this.publicationAudit?.executableArtifacts, []);
   },
 );
+
+Then('publication is blocked', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.publicationBlocked, true);
+});
+
+Then('no GitHub write call is made', function (this: AdvisoryReviewWorld) {
+  assert.equal(this.githubWriteCalls, 0);
+});
 
 Then(
   'revision B requires a full fresh review before a current route is published',
