@@ -196,7 +196,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED f7aba96cb
 - [x] GREEN de236bf1d
-- [ ] REFACTOR
+- [x] REFACTOR skip: route wording is a compact optional renderer field
 
 ### Scenario: A non-consequential finding remains visible on a looks-ready receipt
 
