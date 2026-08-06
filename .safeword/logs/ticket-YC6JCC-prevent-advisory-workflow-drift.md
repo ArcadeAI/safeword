@@ -52,6 +52,12 @@
   the reusable worker differs only at the three unpublished CLI call sites.
   Static checks now actionlint both canonical and smoke workflows. Fixture tests
   pass 2/2; ESLint and TypeScript pass.
+- [04:34] Disposable runner: create a uniquely named public base repository and
+  personal fork; inject a random environment-only sentinel; open a fork PR;
+  overlap event and scheduled-call probes; require serialization, two successful
+  JSON handoffs, one current issue comment, and byte-identical before/after
+  merge/review/check/status state; permanently delete both repositories unless
+  the explicit debug keep flag is set. ESLint and TypeScript pass.
 
 ## Sources
 
