@@ -7,6 +7,7 @@ import { buildSync } from 'esbuild';
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
+import { adaptHookValue, pluginHookManifest, pluginSessionStartEntries } from './hook-manifest.js';
 
 export interface GeneratedClaudePluginAsset {
   readonly relativePath: string;
@@ -29,9 +30,6 @@ const GENERATED_DIRECTORIES = [
   'runtime',
   'skills',
 ] as const;
-const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
-const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
-const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
 
 function filesBeneath(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
@@ -287,75 +285,6 @@ function claudeHookAssets(templatesRoot: string): GeneratedClaudePluginAsset[] {
     }));
 }
 
-function adaptHookValue(value: unknown): unknown {
-  if (typeof value === 'string') {
-    return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
-  }
-  if (Array.isArray(value)) return value.map(child => adaptHookValue(child));
-  if (typeof value !== 'object' || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [key, adaptHookValue(child)]),
-  );
-}
-
-function wrapHookCommands(value: unknown, event: string): unknown {
-  if (Array.isArray(value)) return value.map(child => wrapHookCommands(child, event));
-  if (typeof value !== 'object' || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [
-      key,
-      key === 'command' && typeof child === 'string'
-        ? `${PLUGIN_DISPATCH} ${event} -- ${child}`
-        : wrapHookCommands(child, event),
-    ]),
-  );
-}
-
-function pluginSessionStartEntries(adapted: Record<string, unknown>): unknown[] {
-  return Array.isArray(adapted.SessionStart)
-    ? adapted.SessionStart.filter(
-        entry => !JSON.stringify(entry).includes('session-auto-upgrade.ts'),
-      )
-    : [];
-}
-
-function pluginHookEntries(
-  event: string,
-  entries: unknown,
-  adapted: Record<string, unknown>,
-): unknown {
-  if (event === 'SessionStart') {
-    return wrapHookCommands(pluginSessionStartEntries(adapted), event);
-  }
-  if (event === 'UserPromptSubmit') {
-    return [
-      {
-        hooks: [
-          {
-            type: 'command',
-            command: `${PLUGIN_DISPATCH} ${event} --event-group`,
-          },
-        ],
-      },
-    ];
-  }
-  return wrapHookCommands(entries, event);
-}
-
-function pluginHooks(): Record<string, unknown> {
-  const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
-  const withSetup = {
-    ...adapted,
-    Setup: [{ matcher: 'init', hooks: [{ type: 'command', command: 'true' }] }],
-  };
-  return Object.fromEntries(
-    Object.entries(withSetup).map(([event, entries]) => [
-      event,
-      pluginHookEntries(event, entries, adapted),
-    ]),
-  );
-}
-
 function pluginEventGroups(): string {
   const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
   const sessionStart = pluginSessionStartEntries(adapted);
@@ -366,15 +295,6 @@ function pluginEventGroups(): string {
     ]),
   );
   return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
-}
-
-function pluginHookManifest(): string {
-  const hooks = pluginHooks();
-  return `${JSON.stringify({ hooks }, undefined, 2)}\n`;
-}
-
-export function currentClaudePluginHookManifestSha256(): string {
-  return createHash('sha256').update(pluginHookManifest()).digest('hex');
 }
 
 function pluginInventory(assets: readonly GeneratedClaudePluginAsset[]): string {

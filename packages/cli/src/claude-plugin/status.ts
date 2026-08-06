@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
-import { currentClaudePluginHookManifestSha256 } from './catalogue.js';
+import { currentClaudePluginHookManifestSha256 } from './hook-manifest.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import {
   type ClaudeLegacyObservation,

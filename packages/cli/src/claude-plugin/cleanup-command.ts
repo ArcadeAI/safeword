@@ -1,13 +1,13 @@
 import { type CliPlan, createPlan, toWirePlan } from '../cli-protocol/plan.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
-import { currentClaudePluginHookManifestSha256 } from './catalogue.js';
 import {
   claudeCleanupPreconditionDigest,
   claudeLegacyMutations,
   migrateClaudeLegacyAutomatically,
 } from './cleanup.js';
 import { historicalCatalogueDigest } from './historical-ownership.js';
+import { currentClaudePluginHookManifestSha256 } from './hook-manifest.js';
 import { canonicalClaudeProjectRoot } from './project-root.js';
 import { observeClaudeStatus } from './status.js';
 
