@@ -1,6 +1,14 @@
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -26,6 +34,8 @@ type Behaviour =
   | 'never answers'
   | 'answers only with a model'
   | 'answers off contract'
+  | 'answers after termination'
+  | 'leaves a grandchild'
   | 'no typed output'
   | 'emits a credential';
 
@@ -77,6 +87,13 @@ printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text"
 
   if (behaviour === 'answers') return answer;
   if (behaviour === 'never answers') return 'exec /bin/sleep 3600';
+  if (behaviour === 'answers after termination') {
+    return `${body}\non_term() {\n${emit}\n  exit 0\n}\ntrap on_term TERM INT\nwhile true; do /bin/sleep 5; done`;
+  }
+  if (behaviour === 'leaves a grandchild') {
+    return `/bin/sh -c 'printf "%s" "$$" > "$SAFEWORD_REVIEW_DESCENDANT_PID_FILE"; exec /bin/sleep 3600' &
+exec /bin/sleep 3600`;
+  }
   if (behaviour === 'answers only with a model') {
     return `if ! printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then\n  printf 'default model unavailable\\n' >&2\n  exit 7\nfi\n${answer}`;
   }
@@ -242,14 +259,19 @@ Given('two installed reviewer executables that never answer', function (this: Sa
 Given(
   'a reviewer that never answers and leaves a grandchild grouped with it',
   function (this: SafewordWorld) {
-    installReviewer(state(this), 'codex', 'never answers');
+    const current = state(this);
+    current.environment.SAFEWORD_REVIEW_DESCENDANT_PID_FILE = nodePath.join(
+      current.project,
+      'descendant.pid',
+    );
+    installReviewer(current, 'codex', 'leaves a grandchild');
   },
 );
 
 Given(
   'a reviewer that answers only after it was stopped for running out of time',
   function (this: SafewordWorld) {
-    installReviewer(state(this), 'codex', 'never answers');
+    installReviewer(state(this), 'codex', 'answers after termination');
   },
 );
 
@@ -445,8 +467,22 @@ Then("the review returns the second executable's verdict", function (this: Safew
 
 Then(
   'no process grouped with that reviewer is still running afterwards',
-  function (this: SafewordWorld) {
+  async function (this: SafewordWorld) {
     assert.equal(payload(this).data.independence, 'none');
+    const pidFile = state(this).environment.SAFEWORD_REVIEW_DESCENDANT_PID_FILE;
+    assert.ok(pidFile !== undefined && existsSync(pidFile));
+    const descendant = Number(readFileSync(pidFile, 'utf8').trim());
+    assert.ok(Number.isSafeInteger(descendant));
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline) {
+      try {
+        process.kill(descendant, 0);
+      } catch {
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    assert.fail(`reviewer descendant ${descendant} is still running`);
   },
 );
 

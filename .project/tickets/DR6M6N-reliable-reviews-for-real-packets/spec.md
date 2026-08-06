@@ -76,9 +76,9 @@ Unaffected:
   started or allowed to continue. The number comes from the caller, not from
   route arithmetic — every invocation is an agent running the command through a
   tool whose hard ceiling is 600 seconds, so a run that could outlast that would
-  be killed mid-flight with nothing to show. An answer already complete at the
-  bound is still checked, and the command returns within one further cleanup
-  budget.
+  be killed mid-flight with nothing to show. Valid output received when the
+  reviewer exits before the bound is still checked; output received during
+  cleanup is late and cannot change the result.
 
   Stated precisely: this is an absolute deadline shared by **reviewer work** and
   starts after packet preparation. Capability probes, contract-file handling,
@@ -167,7 +167,7 @@ Unaffected:
 
 #### reliable-reviews-for-real-packets.TBU3.R4 — Each attempted route gets its own attempt budget, so an exhausted first route cannot leave the retry with no time to run
 
-#### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route that has not answered yet, while an answer already complete when the bound fires still counts
+#### reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route whose reviewer has not exited with valid output before its deadline
 
 #### reliable-reviews-for-real-packets.TBU3.R6 — The public review command carries all of this end to end, and the required-review policy decides on what it reports
 

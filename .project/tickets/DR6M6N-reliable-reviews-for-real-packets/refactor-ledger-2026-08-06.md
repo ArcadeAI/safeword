@@ -15,6 +15,15 @@ against current `main`.
 - **Timing proof contract:** the spec still required controlled clocks everywhere
   after the implemented plan deliberately chose pure arithmetic tests plus real
   process-effect tests. Reconciled the constraint to the shipped proof strategy.
+- **Observable completion boundary:** the plan promised callback-order-independent
+  handling of an answer complete at the exact deadline, but the process API only
+  exposes a trustworthy complete answer after successful process close. Narrowed
+  the contract to that observable boundary instead of preserving an unprovable
+  tie claim.
+- **Acceptance fixture fidelity:** the descendant-cleanup and late-answer steps
+  both used a reviewer that merely slept. The scenarios now create a real grouped
+  descendant and emit a valid answer from the termination trap, then observe that
+  the descendant is gone and the late output cannot change the timeout result.
 
 ## Deliberately retained
 

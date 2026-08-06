@@ -96,13 +96,12 @@ Stop *effects* — signalling, process-tree termination, pipe closure — are pr
 by polling until the descendant process is genuinely gone, with no timing claim
 attached.
 
-**Ties are arbitrated by state, not by callback order.** A clock alone cannot
-make "the answer wins at the same instant" deterministic — whichever callback
-fires first would decide. So each attempt carries one completion state, settled
-once and never re-settled: a complete, parsed answer sets it to *answered*; a
-deadline sets it to *timed out* **only if the state is still unsettled**. Both
-callback orderings are driven in tests, for the attempt deadline and the run
-bound, and both must reach the same verdict.
+**Completion has one observable boundary.** A reviewer answer is complete only
+after the process exits successfully and its bounded stdout parses against the
+contract. Each attempt settles once: a successful close before the deadline is
+*answered*; the deadline is *timed out*; output that arrives during cleanup is
+late and cannot change the result. This avoids promising a same-instant ordering
+that the process API cannot observe independently of callback delivery.
 
 **Supervisor states carry the cleanup proofs.** Each guarantee maps to one
 observable state rather than to elapsed time: *stopping* (signal sent),
