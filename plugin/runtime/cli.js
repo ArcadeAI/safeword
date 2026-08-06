@@ -28599,10 +28599,11 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_GUIDANCE = "This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
+var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_GUIDANCE, MIGRATION_STATE_RULES, NEXT_COMMANDS;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
+  CODEX_RESTART_GUIDANCE = `This Codex app may keep its loaded Safe Word catalogue. ${CODEX_RESTART_INSTRUCTION}`;
   MIGRATION_STATE_RULES = [
     { state: "recovery_required", matches: (facts) => facts.recoveryRequired },
     {

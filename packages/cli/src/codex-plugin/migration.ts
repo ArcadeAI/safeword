@@ -55,10 +55,9 @@ export interface CodexMigrationFacts {
   activationPending: boolean;
 }
 
-export const CODEX_RESTART_GUIDANCE =
-  'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.';
 const CODEX_RESTART_INSTRUCTION =
   'Restart Codex, start a new task, then review the installed hooks with /hooks.';
+export const CODEX_RESTART_GUIDANCE = `This Codex app may keep its loaded Safe Word catalogue. ${CODEX_RESTART_INSTRUCTION}`;
 
 export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {
   // Older Codex clients may omit nullable catalog version metadata. In that
