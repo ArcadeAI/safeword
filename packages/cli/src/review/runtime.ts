@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { accessSync, constants, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -434,6 +434,7 @@ function appendBounded(
  * turn, not background work that may overlap the next route.
  */
 const CLEANUP_BUDGET_MS = 25;
+const WINDOWS_CLEANUP_BUDGET_MS = 1000;
 
 /**
  * A reviewer that could not authenticate says so on stderr; anything else keeps
@@ -454,6 +455,29 @@ function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
  */
 const reviewerStops = new WeakMap<ReturnType<typeof spawn>, Promise<void>>();
 
+function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Promise<void> {
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      child.kill('SIGKILL');
+      resolve();
+    };
+    const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    const timeout = setTimeout(() => {
+      killer.kill('SIGKILL');
+      finish();
+    }, WINDOWS_CLEANUP_BUDGET_MS);
+    killer.on('error', finish);
+    killer.on('close', finish);
+  });
+}
+
 function stopReviewer(child: ReturnType<typeof spawn>): Promise<void> {
   const existing = reviewerStops.get(child);
   if (existing !== undefined) return existing;
@@ -466,12 +490,7 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<void> 
   const pid = child.pid;
   if (pid === undefined) return;
   if (process.platform === 'win32') {
-    try {
-      spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true });
-    } catch {
-      // Nothing further to try; the direct kill below still applies.
-    }
-    child.kill('SIGKILL');
+    await stopWindowsReviewer(child, pid);
     return;
   }
   const signalGroup = (signal: NodeJS.Signals): void => {
