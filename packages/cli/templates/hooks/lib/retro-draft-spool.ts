@@ -1,10 +1,10 @@
 // Retro draft spool (ticket BNGK9W — cloud filing transport).
 //
 // The invisible retro extracts + sanitizes findings into code-assembled drafts,
-// then files them via the REST transport. In a Claude cloud container that REST
-// call 401s (GITHUB_TOKEN is the platform's, not a GitHub token; #568), so the
-// drafts are LOST. This spool persists the POST-EGRESS drafts to disk so a filing
-// failure doesn't lose them — the agent-filing path (PATH B) reads the spool and
+// then tries to file them via the REST transport. The spool persists POST-EGRESS
+// drafts before that attempt so anything unfiled survives a missing credential,
+// upstream failure, filing cap, or acknowledgement failure. The agent-filing path
+// (PATH B) reads the spool and
 // posts each draft verbatim via its inherited GitHub MCP, then marks them filed.
 //
 // Only the code-assembled draft ({signature, title, body, labels}) is written —
@@ -54,16 +54,40 @@ const MAX_DRAFTS_PER_SESSION = 20;
 /** Spool lives under the project's `.safeword/` so it travels with the install. */
 const SPOOL_DIR = nodePath.join('.safeword', 'retro-drafts');
 
+/** The extension every retro spool name carries and every sibling marker replaces. */
+const SPOOL_EXTENSION = '.jsonl';
+
 /** Collapse a session id to one safe filename component (no path escape).
  * FG6V57: the rule is pinned byte-identical with triage.ts and self-report.ts
  * by a parity contract. */
 function spoolName(sessionId: string): string {
-  return `${sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'}.jsonl`;
+  return `${sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'}${SPOOL_EXTENSION}`;
 }
 
 /** Absolute path of the per-session retro-draft spool file. */
 export function draftSpoolPath(projectDirectory: string, sessionId: string): string {
   return nodePath.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+}
+
+/**
+ * Path of a sibling file sharing the spool's session-derived basename — the acks
+ * ledger, the nudge marker, the filing-attempt marker. Three modules previously
+ * each did their own `draftSpoolPath(...).replace(/\.jsonl$/, ...)`; a regex that
+ * failed to match would silently no-op and hand back the SPOOL's own path, so the
+ * marker write would overwrite the drafts it exists to protect. Appending when the
+ * extension is absent makes that collision unrepresentable instead of relying on
+ * `spoolName` never changing.
+ */
+export function spoolSiblingPath(
+  projectDirectory: string,
+  sessionId: string,
+  suffix: string,
+): string {
+  const spool = draftSpoolPath(projectDirectory, sessionId);
+  const base = spool.endsWith(SPOOL_EXTENSION)
+    ? spool.slice(0, -SPOOL_EXTENSION.length)
+    : /* istanbul ignore next — unreachable while spoolName appends the extension */ spool;
+  return `${base}${suffix}`;
 }
 
 /** A parsed spool line is a draft only when the required code-assembled fields are present. */
@@ -178,7 +202,7 @@ export interface FiledAck {
 
 /** Ack file beside the spool: `<session>.acks.jsonl`, one FiledAck per line. */
 export function ackFilePath(projectDirectory: string, sessionId: string): string {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.acks.jsonl');
+  return spoolSiblingPath(projectDirectory, sessionId, '.acks.jsonl');
 }
 
 /** A filed ack names a non-empty signature and a meaningful tracker destination. */
