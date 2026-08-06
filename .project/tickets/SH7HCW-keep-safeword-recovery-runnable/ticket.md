@@ -2,11 +2,12 @@
 id: SH7HCW
 slug: keep-safeword-recovery-runnable
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1966
 anchors:
   - scenario-gate: features/safeword-recovery-through-dependency-readiness.feature
+  - implement: .project/tickets/SH7HCW-keep-safeword-recovery-runnable/impl-plan.md
 scope:
   - Keep top-level Safeword setup and diagnostic commands reachable through the dependency-readiness PreToolUse hook.
   - Continue blocking dependency-backed package executors while project dependencies are missing or stale.
@@ -44,3 +45,4 @@ last_modified: 2026-08-06T00:07:05.713Z
 - 2026-08-06T01:08:00Z Plan review rejected the enumerated shell-token design after identifying process substitution. Returned to scenario-gate and inverted the design: a strict positive recovery shape with all shell-evaluation metacharacters falling through to the guard. Added pinned-version and process-substitution scenarios; confirmed non-bunx Safeword invocations are already unguarded by the existing known-binary classifier.
 - 2026-08-06T01:13:00Z Strict-shape scenarios passed independent re-review with no blocking findings and were re-stamped. Returned to plan-implementation.
 - 2026-08-06T01:20:00Z Implementation plan approved by independent cross-agent review and stamped. Four build tasks across two existing code paths are below the split threshold; no ADR. Advanced to implement.
+- 2026-08-06T01:36:00Z Implemented the planned strict recovery classifier in canonical and dogfood hooks, added real PreToolUse wiring plus adversarial command-smuggling coverage, and corrected parity recovery guidance. Independent whole-diff quality review approved with no required changes. Plan reconciled with both decisions unchanged and no deviations; advanced to verify.

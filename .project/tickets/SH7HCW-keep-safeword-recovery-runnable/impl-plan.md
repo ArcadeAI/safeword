@@ -1,6 +1,6 @@
 # Impl Plan: Keep Safeword recovery runnable when dependencies are broken
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
