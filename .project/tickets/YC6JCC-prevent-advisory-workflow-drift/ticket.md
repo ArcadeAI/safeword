@@ -8,7 +8,7 @@ parent: P0D6S2
 epic: trustworthy-advisory-pr-review
 depends_on: [HXT3GW]
 created: 2026-08-05T19:52:07.090Z
-last_modified: 2026-08-06T14:08:46Z
+last_modified: 2026-08-06T14:11:39Z
 ---
 
 # Prevent advisory workflow drift before release
@@ -30,20 +30,25 @@ freshness, inline findings, or customer-code execution. HXT3GW, Z7M7Y3, and
 
 **Done When:**
 
-- [ ] CI validates the installed router and worker paths with a current GitHub Actions schema validator, including environment-secret syntax, reusable-workflow inputs/concurrency, matrix calls, and caller permission ceilings.
-- [ ] Reconciliation proves both workflows stay absent unless `prReview.enabled` is exactly `true`, then installs both together from their registered templates.
+- [x] CI validates the installed router and worker paths with a current GitHub Actions schema validator, including environment-secret syntax, reusable-workflow inputs/concurrency, matrix calls, and caller permission ceilings.
+- [x] Reconciliation proves both workflows stay absent unless `prReview.enabled` is exactly `true`, then installs both together from their registered templates.
 - [ ] The release lane fails closed unless a disposable-repository smoke proves event and scheduled calls serialize, model credentials remain confined to inspection, and publication creates only a merge-neutral issue comment.
 - [ ] Maintainer documentation names the required disposable fixture and explains how to refresh the compatibility evidence when GitHub Actions semantics change.
 
 **Tests:**
 
-- [ ] Integration: generated installed workflow files pass the pinned schema validator; a deliberately invalid fixture fails.
-- [ ] Reconciliation: missing, malformed, false, and true `prReview.enabled` values produce the expected zero-or-two workflow plan.
+- [x] Integration: generated installed workflow files pass the pinned schema validator; a deliberately invalid fixture fails.
+- [x] Reconciliation: missing, malformed, false, and true `prReview.enabled` values produce the expected zero-or-two workflow plan.
 - [ ] Release smoke: a fork PR and scheduled re-evaluation use the same per-PR concurrency group without exposing the model secret to a write-capable job.
 - [ ] Release smoke: the advisory receipt leaves approvals, checks, statuses, and merge eligibility unchanged.
 
 ## Work Log
 
+- 2026-08-06T14:11:39Z Added a pinned actionlint v1.7.12 CI gate with
+  checksum verification. The check renders the actual installed router and
+  worker through the schema, validates them together, and proves the validator
+  rejects a deliberately invalid permission fixture. Local actionlint, ESLint,
+  and TypeScript checks pass.
 - 2026-08-06T14:08:46Z Made opt-out reconciliation symmetric with opt-in:
   enabling advisory review installs exactly both registered workflows; disabling
   it removes only Safeword's exact scaffold bytes and preserves either customized

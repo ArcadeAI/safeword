@@ -42,6 +42,11 @@
   cleanup. Reconciliation removes exact Safeword workflow scaffolds while
   preserving project customizations. ESLint and TypeScript pass; the targeted
   workflow contract suite passes 4/4 tests.
+- [04:11] Static compatibility gate: CI downloads actionlint v1.7.12 from its
+  checksum-pinned release asset. The checker renders the two installed files
+  through the schema, validates them as a pair, then requires a deliberately
+  invalid permission fixture to fail. Local actionlint, ESLint, and TypeScript
+  checks pass.
 
 ## Sources
 
