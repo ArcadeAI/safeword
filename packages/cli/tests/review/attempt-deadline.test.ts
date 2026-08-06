@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { attemptDeadlineMs, runBoundMs } from '../../src/review/runtime.js';
+import { attemptDeadlineMs, minimumRouteMs, runBoundMs } from '../../src/review/runtime.js';
 
 const original = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
 
@@ -59,6 +59,14 @@ describe('attempt deadline', () => {
 describe('run bound', () => {
   it('defaults to the documented ceiling', () => {
     expect(withConfiguredBound(undefined)).toBe(540_000);
+  });
+
+  it('reserves enough default time to fund a route after one full attempt', () => {
+    const remainingAfterTimeout = withConfiguredBound(undefined) - withConfigured(undefined);
+
+    expect(minimumRouteMs()).toBe(120_000);
+    expect(remainingAfterTimeout).toBe(240_000);
+    expect(remainingAfterTimeout).toBeGreaterThanOrEqual(minimumRouteMs());
   });
 
   it('honours a shorter configured bound', () => {
