@@ -230,7 +230,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED dbbe6475b
 - [x] GREEN 97e490aed
-- [ ] REFACTOR
+- [x] REFACTOR skip: merge-neutrality is expressed in the existing publication audit type
 
 ---
 
