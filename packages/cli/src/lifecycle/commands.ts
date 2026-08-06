@@ -4,17 +4,14 @@ import { type AgentIntegration, parseAgentSelection } from '../cli-protocol/agen
 import type { CommandInvocation } from '../cli-protocol/handler.js';
 import { onlineRequired } from '../cli-protocol/online-required.js';
 import { type CliPlan, createPlan, toWirePlan } from '../cli-protocol/plan.js';
-import {
-  applyReconciliation,
-  createReconciliationPlan,
-  effectsForReconciliation,
-} from '../cli-protocol/reconciliation.js';
+import { createReconciliationPlan } from '../cli-protocol/reconciliation.js';
 import {
   type CliResult,
   combineEffects,
   createResult,
   type Effects,
 } from '../cli-protocol/result.js';
+import { removeProject } from '../commands/remove.js';
 import type { SafewordSchema } from '../schema.js';
 import { convergeSetup } from './project-install.js';
 import { projectLifecycleSchema } from './schema.js';
@@ -179,6 +176,8 @@ function agentInstallEffects(agent: AgentIntegration): Effects {
 interface PreparedUninstall {
   readonly agents: readonly AgentIntegration[];
   readonly projectSchema: SafewordSchema;
+  readonly projectPlan: CliPlan;
+  readonly full: boolean;
   readonly surfaces: readonly { readonly name: string; readonly effects: Effects }[];
   readonly plan: CliPlan;
 }
@@ -215,9 +214,14 @@ function plannedUninstallSurfaces(
 async function prepareUninstall(
   cwd: string,
   agents: readonly AgentIntegration[],
+  full = false,
 ): Promise<PreparedUninstall> {
   const projectSchema = projectLifecycleSchema(cwd, agents);
-  const project = await createReconciliationPlan(cwd, 'uninstall', projectSchema);
+  const project = await createReconciliationPlan(
+    cwd,
+    full ? 'uninstall-full' : 'uninstall',
+    projectSchema,
+  );
   const surfaces = plannedUninstallSurfaces(agents, project.plan.effects);
   const observations = await profilePreconditions(cwd, agents);
   const preconditionDigest = createHash('sha256')
@@ -226,6 +230,8 @@ async function prepareUninstall(
   return {
     agents,
     projectSchema,
+    projectPlan: project.plan,
+    full,
     surfaces,
     plan: createPlan({
       command: 'uninstall',
@@ -254,6 +260,8 @@ async function prepareInstall(
   return {
     agents,
     projectSchema,
+    projectPlan: project.plan,
+    full: false,
     surfaces,
     plan: createPlan({
       command: 'install',
@@ -270,6 +278,7 @@ function lifecyclePlanResult(
   prepared: PreparedUninstall,
 ): CliResult {
   const hasEffects = Object.values(prepared.plan.effects).some(effects => effects.length > 0);
+  const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
   return createResult({
     state: hasEffects ? 'action_required' : 'healthy',
     findings: hasEffects
@@ -286,8 +295,8 @@ function lifecyclePlanResult(
           {
             command:
               operation === 'install'
-                ? 'safeword install'
-                : `safeword uninstall --yes --plan ${prepared.plan.id}`,
+                ? `safeword install --agents=${selected}`
+                : `safeword uninstall --agents=${selected} --yes --plan ${prepared.plan.id}`,
             mutates: true,
             requiresHuman: operation === 'uninstall',
           },
@@ -374,16 +383,15 @@ async function applyPreparedUninstall(
   prepared: PreparedUninstall,
 ): Promise<CliResult> {
   const completed = await uninstallProfileSurfaces(cwd, prepared.agents);
-  const appliedProject = await applyReconciliation(cwd, 'uninstall', prepared.projectSchema);
-  const projectEffects = effectsForReconciliation(appliedProject, 'uninstall');
-  const projectChanged = projectEffects.destructive.length > 0 || projectEffects.files.length > 0;
+  const projectResult = await removeProject(cwd, {
+    full: prepared.full,
+    yes: true,
+    plan: prepared.projectPlan.id,
+    schema: prepared.projectSchema,
+  });
   completed.unshift({
     name: 'project',
-    result: createResult({
-      state: projectChanged ? 'changed' : 'healthy',
-      effects: projectEffects,
-      data: { command: 'project uninstall', removed: appliedProject.removed },
-    }),
+    result: projectResult,
   });
   if (prepared.agents.includes('cursor')) {
     completed.push({ name: 'cursor', result: createResult({ state: 'changed' }) });
@@ -412,6 +420,7 @@ async function applyPreparedUninstall(
 
 function uninstallPreview(prepared: PreparedUninstall): CliResult {
   const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
+  const fullFlag = prepared.full ? ' --full' : '';
   return createResult({
     state: 'action_required',
     findings: [
@@ -423,7 +432,7 @@ function uninstallPreview(prepared: PreparedUninstall): CliResult {
     ],
     nextActions: [
       {
-        command: `safeword uninstall --agents=${selected} --yes --plan ${prepared.plan.id}`,
+        command: `safeword uninstall --agents=${selected}${fullFlag} --yes --plan ${prepared.plan.id}`,
         mutates: true,
         requiresHuman: true,
       },
@@ -451,7 +460,9 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
       data: { command: 'uninstall' },
     });
   }
-  const prepared = await prepareUninstall(invocation.cwd, parsed.selection.agents);
+  const full = invocation.options.full === true;
+  if (invocation.offline && full) return onlineRequired('uninstall');
+  const prepared = await prepareUninstall(invocation.cwd, parsed.selection.agents, full);
   const suppliedPlan =
     typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
   if (invocation.options.yes === true && suppliedPlan !== undefined) {

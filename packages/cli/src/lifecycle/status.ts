@@ -102,10 +102,6 @@ function lifecycleState(surfaces: readonly LifecycleSurfaceObservation[]): CliRe
   return 'healthy';
 }
 
-function projectIsConfigured(result: CliResult): boolean {
-  return (result.data as { configured?: boolean } | undefined)?.configured === true;
-}
-
 export async function observeLifecycleSurfaces(
   cwd: string,
   agents: readonly AgentIntegration[],
@@ -113,7 +109,6 @@ export async function observeLifecycleSurfaces(
 ): Promise<readonly LifecycleSurfaceObservation[]> {
   const project = await observeStatus(cwd, agents, environment);
   const surfaces: LifecycleSurfaceObservation[] = [{ name: 'project', result: project }];
-  if (!projectIsConfigured(project)) return surfaces;
 
   if (agents.includes('claude')) {
     const { observeClaudeStatus } = await import('../claude-plugin/status.js');

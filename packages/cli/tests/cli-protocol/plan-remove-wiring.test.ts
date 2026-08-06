@@ -10,6 +10,26 @@ function configureMinimalProject(directory: string): void {
   writeFileSync(nodePath.join(directory, '.safeword', 'version'), '0.69.0\n');
 }
 
+function createMissingClaudeHost(directory: string): string {
+  const bin = nodePath.join(directory, 'bin');
+  mkdirSync(bin, { recursive: true });
+  const claude = nodePath.join(bin, 'claude');
+  writeFileSync(
+    claude,
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then',
+      String.raw`  printf '%s\n' '2.1.170'`,
+      'else',
+      String.raw`  printf '%s\n' '[]'`,
+      'fi',
+      '',
+    ].join('\n'),
+  );
+  chmodSync(claude, 0o755);
+  return bin;
+}
+
 describe('plan and remove wiring', () => {
   it('previews reconciliation without changing the project', async () => {
     const directory = createTemporaryDirectory();
@@ -144,6 +164,101 @@ describe('plan and remove wiring', () => {
 
     expect(applied.exitCode).toBe(0);
     expect(applied.stdout).toContain('Changed: yes');
+  });
+
+  it.each([
+    { agents: 'none', expected: '--agents=none' },
+    { agents: 'claude', expected: '--agents=claude' },
+    { agents: 'cursor', expected: '--agents=cursor' },
+  ])('preserves $agents selection in plan next actions', async ({ agents, expected }) => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const bin = createMissingClaudeHost(directory);
+    const environment = { PATH: `${bin}:${process.env.PATH ?? ''}` };
+
+    for (const operation of ['install', 'uninstall']) {
+      const preview = await runCli(
+        ['plan', operation, '--agents', agents, '--json', '--no-input', '--cwd', directory],
+        { cwd: directory, env: environment },
+      );
+      const envelope = JSON.parse(preview.stdout) as {
+        next_actions: { command: string }[];
+      };
+
+      expect(envelope.next_actions[0]?.command).toContain(expected);
+    }
+  });
+
+  it('previews and applies canonical full uninstall with its package effects', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', devDependencies: { safeword: '0.69.0' } }),
+    );
+    const bin = nodePath.join(directory, 'bin');
+    mkdirSync(bin);
+    const npm = nodePath.join(bin, 'npm');
+    writeFileSync(npm, '#!/bin/sh\nexit 0\n');
+    chmodSync(npm, 0o755);
+    const environment = { PATH: `${bin}:${process.env.PATH ?? ''}` };
+
+    const preview = await runCli(
+      ['uninstall', '--agents=none', '--full', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory, env: environment },
+    );
+    const envelope = JSON.parse(preview.stdout) as {
+      next_actions: { command: string }[];
+      data: { plan: { effects: { packages: { target: string }[] } } };
+    };
+    expect(envelope.data.plan.effects.packages).toContainEqual(
+      expect.objectContaining({ target: 'safeword' }),
+    );
+    const advertised = envelope.next_actions[0]?.command;
+    expect(advertised).toMatch(
+      /^safeword uninstall --agents=none --full --yes --plan [a-f\d]{64}$/,
+    );
+
+    const applied = await runCli(
+      [...(advertised?.split(' ').slice(1) ?? []), '--json', '--no-input'],
+      {
+        cwd: directory,
+        env: environment,
+      },
+    );
+    expect(applied.exitCode).toBe(0);
+    expect(JSON.parse(applied.stdout)).toMatchObject({
+      state: 'changed',
+      effects: { packages: expect.arrayContaining([{ kind: 'remove', target: 'safeword' }]) },
+    });
+  });
+
+  it('refuses canonical full uninstall offline before mutation', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const versionPath = nodePath.join(directory, '.safeword/version');
+    const before = readFileSync(versionPath, 'utf8');
+
+    const result = await runCli(
+      [
+        'uninstall',
+        '--agents=none',
+        '--full',
+        '--offline',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(readFileSync(versionPath, 'utf8')).toBe(before);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      effects: { files: [], packages: [], network: [], destructive: [] },
+    });
   });
 
   it('refuses a stale removal plan without mutation', async () => {
