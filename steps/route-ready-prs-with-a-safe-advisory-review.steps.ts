@@ -598,7 +598,11 @@ When('Safeword completes the advisory review', async function (this: AdvisoryRev
         this.binaryArtifactPath ??
         (this.changedArtifactKind === 'binary' ? this.changedArtifactPath : undefined);
       return {
-        artifacts: binaryPath ? [{ kind: 'non_text' as const, path: binaryPath }] : undefined,
+        artifacts: binaryPath
+          ? [{ kind: 'non_text' as const, path: binaryPath }]
+          : this.changedArtifactKind === 'text'
+            ? undefined
+            : [{ byteLength: 10, kind: 'text' as const, path: 'src/reviewed.ts' }],
         consequentialFindings: 0,
         coverage:
           this.changedArtifactKind === 'text' && this.changedArtifactPath
@@ -623,7 +627,12 @@ Then('the review attempt count for revision A is one', function (this: AdvisoryR
 });
 
 Then('exactly one current receipt exists for revision A', function (this: AdvisoryReviewWorld) {
-  assert.deepEqual(this.receipts, [{ reviewedSha: 'revision A', route: 'looks_ready' }]);
+  assert.equal(this.receipts?.length, 1);
+  assert.equal(this.receipts[0]?.reviewedSha, 'revision A');
+  assert.equal(
+    this.receipts[0] && 'route' in this.receipts[0] && this.receipts[0].route,
+    'looks_ready',
+  );
 });
 
 Then(
@@ -1538,7 +1547,11 @@ When(
       }),
       inspect: async () => {
         this.attempts = (this.attempts ?? 0) + 1;
-        return { consequentialFindings: 0, unknowns: [] };
+        return {
+          artifacts: [{ byteLength: 10, kind: 'text', path: 'src/reviewed.ts' }],
+          consequentialFindings: 0,
+          unknowns: [],
+        };
       },
       publish: async receipt => {
         this.receipts?.splice(0, this.receipts.length, receipt);
@@ -1556,7 +1569,12 @@ Then(
 );
 
 Then('it publishes the current receipt for revision A', function (this: AdvisoryReviewWorld) {
-  assert.deepEqual(this.receipts, [{ reviewedSha: 'revision A', route: 'looks_ready' }]);
+  assert.equal(this.receipts?.length, 1);
+  assert.equal(this.receipts[0]?.reviewedSha, 'revision A');
+  assert.equal(
+    this.receipts[0] && 'route' in this.receipts[0] && this.receipts[0].route,
+    'looks_ready',
+  );
 });
 
 When('another eligible trigger arrives for revision A', async function (this: AdvisoryReviewWorld) {
@@ -1675,7 +1693,11 @@ When('a later scheduled sweep evaluates revision A', async function (this: Advis
     }),
     inspect: async () => {
       this.attempts = (this.attempts ?? 0) + 1;
-      return { consequentialFindings: 0, unknowns: [] };
+      return {
+        artifacts: [{ byteLength: 10, kind: 'text', path: 'src/reviewed.ts' }],
+        consequentialFindings: 0,
+        unknowns: [],
+      };
     },
     publish: async (receipt, mode?: 'upsert_marker_owned') => {
       const markerIndex = this.receipts?.findIndex(candidate => candidate.markerOwned) ?? -1;

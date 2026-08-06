@@ -170,7 +170,7 @@ Feature: Route ready PRs with a safe advisory review
       Then the route is `needs a human`
       And the receipt associates the finding with that artifact
 
-    @evaluation @live-model @live-evidence
+    @evaluation @live @live-model @live-evidence
     Scenario: The unfamiliar Flux policy regression routes to a human
       Given a ready pull request changes an unfamiliar `.flux` policy from `allow admin` to `allow *`
       When the configured reviewer performs the technology-neutral integrity review
