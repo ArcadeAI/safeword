@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: A recovery command remains available while dependencies are broken
 
-- [ ] RED
+- [x] RED 08cc2f278
 - [ ] GREEN
 - [ ] REFACTOR
 
