@@ -652,29 +652,16 @@ export async function runReview(input: {
   }
   const provenance = verifyProvenance(outcome.output, reviewer, prepared.packet.dispatch_id);
   if (provenance.kind === 'failed') {
-    const provenanceError = provenance.code;
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: provenanceError,
-          message:
-            provenanceError === 'REVIEWER_PROVENANCE_MISSING'
-              ? 'The reviewer result did not identify the reviewer.'
-              : `The reviewer result contradicted the assigned ${reviewer} dispatch.`,
-          retryable: false,
-        },
-      ],
-      effects: {
-        network: [{ kind: 'review', target: reviewer, operation: 'request' }],
-      },
-      data: {
-        command: 'review run',
-        status: 'blocked',
-        author_agent: author,
-        assigned_reviewer: reviewer,
-        independence: 'none',
-      },
+    // Missing or contradictory provenance is invalid reviewer output: never
+    // accept it as evidence, but give the remaining bounded routes the same
+    // opportunity they receive after parse- or schema-invalid output.
+    return runRemainingRoutes({
+      ...input,
+      author: pair.author,
+      assignedReviewer: reviewer,
+      preferredFailure: 'invalid_output',
+      policy,
+      runDeadline,
     });
   }
   const output = provenance.output;

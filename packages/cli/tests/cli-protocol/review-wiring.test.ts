@@ -305,12 +305,9 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it.each([
-    { identity: 'missing', code: 'REVIEWER_PROVENANCE_MISSING' },
-    { identity: 'contradictory', code: 'REVIEWER_PROVENANCE_CONTRADICTORY' },
-  ])(
-    'rejects $identity reviewer provenance without passing evidence',
-    async ({ identity, code }) => {
+  it.each([{ identity: 'missing' }, { identity: 'contradictory' }])(
+    'rejects $identity reviewer provenance and continues through the bounded fallback routes',
+    async ({ identity }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -330,7 +327,7 @@ describe('cross-agent review public-command wiring', () => {
         {
           cwd: directory,
           env: {
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_IDENTITY: identity,
             SAFEWORD_REVIEW_LOG: log,
@@ -339,12 +336,17 @@ describe('cross-agent review public-command wiring', () => {
         },
       );
 
-      expect(result.exitCode).toBe(1);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        state: 'failed',
-        errors: [{ code }],
-        effects: { files: [] },
+      expect(result.exitCode).toBe(2);
+      const payload = JSON.parse(result.stdout);
+      expect(payload).toMatchObject({
+        state: 'action_required',
+        findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
+        data: {
+          preferred_failure: 'invalid_output',
+          independence: 'none',
+        },
       });
+      expect(payload.data).not.toHaveProperty('reviewer_output');
     },
   );
 
