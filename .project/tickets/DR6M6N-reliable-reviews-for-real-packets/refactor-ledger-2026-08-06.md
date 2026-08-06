@@ -37,6 +37,14 @@ against current `main`.
   Raised each TERM/KILL observation window to 250 milliseconds; the bound stays
   below Windows' one-second tree cleanup while preserving the explicit abandoned
   outcome when a group truly survives.
+- **Windows close observation:** successful `taskkill` completion previously
+  ended cleanup before the retained child handle proved that inherited pipes
+  closed. Windows cleanup now requires both a successful tree kill and the
+  child's `close` observation within the one-second budget.
+- **Ticket/index drift:** reconciled the ticket's stale size-aware scope wording
+  to the delivered flat evidence-based deadline, corrected the POSIX overrun to
+  500 milliseconds, and removed the duplicate ticket-count heading introduced
+  by index reconciliation.
 
 ## Deliberately retained
 

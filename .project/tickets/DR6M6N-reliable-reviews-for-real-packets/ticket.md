@@ -15,7 +15,7 @@ phase_skips:
   - verify: Verification was completed in the same closeout pass as the final implementation review; the full-suite, acceptance, lint, build, audit, and independent-review evidence is recorded in verify.md.
 status: done
 scope:
-  - a size-aware review budget with a documented bounded maximum, honoring the existing explicit override
+  - an evidence-based flat review deadline with a documented bounded maximum, honoring the existing explicit override
   - per-candidate time allocation so an earlier reviewer executable cannot starve later ones
   - Codex typed-output wiring that hands it the exact review result contract
   - capability-gated candidate selection that skips reviewers unable to honor that contract

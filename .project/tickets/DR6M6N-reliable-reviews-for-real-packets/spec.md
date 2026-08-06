@@ -85,7 +85,7 @@ Unaffected:
   and earlier cleanups consume its remaining time; they do not extend every
   route's allowance. Synchronous integrity checks and packet cleanup are not
   interrupted by the deadline, and one process-tree cleanup already in progress
-  may finish after it — up to 50 ms on POSIX or 1 second on Windows. At the
+  may finish after it — up to 500 ms on POSIX or 1 second on Windows. At the
   largest legal packet (64 files, 1 MiB), measured preparation and integrity
   overhead was 18 ms per route. That measurement supports the 60-second reserve
   below the caller's ceiling, but is not presented as a hard filesystem-latency

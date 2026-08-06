@@ -5,8 +5,6 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (465)
-
 ## Tickets (472)
 
 ### 001

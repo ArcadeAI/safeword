@@ -460,9 +460,12 @@ function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
 const reviewerStops = new WeakMap<ReturnType<typeof spawn>, Promise<boolean>>();
 
 function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Promise<boolean> {
-  if (child.exitCode !== null) return Promise.resolve(true);
+  const childClosed = (): boolean =>
+    child.exitCode !== null && child.stdout?.closed === true && child.stderr?.closed === true;
+  if (childClosed()) return Promise.resolve(true);
   return new Promise(resolve => {
     let settled = false;
+    let taskkillSucceeded = false;
     const finish = (stopped: boolean): void => {
       if (settled) return;
       settled = true;
@@ -476,13 +479,22 @@ function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Prom
     });
     const timeout = setTimeout(() => {
       killer.kill('SIGKILL');
-      finish(false);
+      finish(childClosed());
     }, WINDOWS_CLEANUP_BUDGET_MS);
+    child.on('close', () => {
+      if (taskkillSucceeded) finish(true);
+    });
     killer.on('error', () => {
-      finish(false);
+      finish(childClosed());
     });
     killer.on('close', code => {
-      finish(code === 0);
+      if (code !== 0) {
+        finish(childClosed());
+        return;
+      }
+      taskkillSucceeded = true;
+      child.kill('SIGKILL');
+      if (childClosed()) finish(true);
     });
   });
 }
