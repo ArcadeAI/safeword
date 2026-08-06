@@ -6,11 +6,10 @@
 @cloud-retro-filing-transport @manual
 Feature: Cloud retro filing — try-REST-then-agent-subagent transport
 
-  The invisible retro files directly via REST when a token works (silent), and in a
-  cloud container where the REST token 401s it spools the post-egress drafts and
-  lets the live agent file them via its GitHub MCP — so findings reach the tracker
-  where most real sessions run, without a mid-turn hijack and without leaking raw
-  text to disk.
+  The invisible retro spools post-egress drafts before trying its code-owned filing
+  path. Drafts that remain unfiled are handed to the live agent without guessing why
+  they remain, while authenticated filing failures are reported separately — so
+  findings reach the tracker without a mid-turn hijack or raw text leaking to disk.
 
   Rule: Transport selection files locally and defers in cloud
 
@@ -114,3 +113,30 @@ Feature: Cloud retro filing — try-REST-then-agent-subagent transport
       When it flows through the egress pipeline and its draft is spooled
       Then the spool file contains only the sanitized signature, title, body, and labels
       And the spool file contains neither "SW-LEAK-CANARY-9f3a" nor "/acme-corp/prod/secrets"
+
+  Rule: Recovery handoffs report facts without hiding real faults
+
+    @cloud-retro-filing.SM1.AC4 @surface.claude-code @surface.claude-code-cloud @surface.cursor @surface.openai-codex
+    Scenario Outline: An unfiled-draft handoff does not diagnose why filing remains queued
+      Given sanitized drafts remain queued after the code-owned filing attempt
+      When the <handoff> is built
+      Then the handoff names the queued drafts and recovery lane
+      And the handoff makes no claim that authentication or transport failed
+
+      Examples:
+        | handoff                |
+        | Claude/Cursor dispatch |
+        | Codex dispatch         |
+        | boundary nudge         |
+
+    @cloud-retro-filing.SM1.AC4 @surface.safeword-cli
+    Scenario: An authenticated filing failure is captured for self-reporting
+      Given the CLI has a GitHub credential and the filing transport rejects a draft
+      When the retro command completes its bounded filing attempt
+      Then one RetroFilingFault signal is recorded for that session
+
+    @cloud-retro-filing.SM1.AC4 @surface.safeword-cli
+    Scenario: A missing credential does not report the normal recovery lane as a fault
+      Given the CLI has no GitHub credential and a draft remains queued
+      When the retro command completes its bounded filing attempt
+      Then no RetroFilingFault signal is recorded for that session

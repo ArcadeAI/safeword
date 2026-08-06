@@ -329,6 +329,34 @@ export function captureBareDrain(projectDirectory: string, sessionId: string | u
 }
 
 /**
+ * Capture a retro filing fault (#1936): the code-owned filing path HELD a GitHub
+ * credential and the write still failed — an authenticated 5xx, a terminal
+ * 403/404/422, or the dedup enumeration exceeding its bound.
+ *
+ * This exists because the handoff wording is deliberately cause-neutral (#1900).
+ * The dispatch and nudge land in the transcript retro's own extractor mines, so
+ * they must not diagnose a cause; but that neutrality would otherwise make a real
+ * transport fault indistinguishable from the ordinary "no credential here" lane
+ * and leave it permanently invisible. Routing the fault through self-report keeps
+ * the transcript neutral while still reporting the defect.
+ *
+ * Not fired when no credential was available: that is the designed lane, not a
+ * fault. Best-effort and config-gated like every sibling; never affects filing.
+ */
+export function captureRetroFilingFault(
+  projectDirectory: string,
+  sessionId: string | undefined,
+): void {
+  if (!readSelfReportConfig(projectDirectory).capture) return;
+  recordSignal(
+    projectDirectory,
+    sessionId ?? 'hook',
+    { source: 'retro-run', agent: detectAgent(), errorClass: 'RetroFilingFault' },
+    readInstalledVersion(projectDirectory),
+  );
+}
+
+/**
  * Capture a gate-escalation signal: a safeword gate (`pattern`) has fired enough
  * times across sessions to escalate — a candidate for maintainer review (a
  * too-aggressive gate, OR a correct gate firing on a recurring problem; the
