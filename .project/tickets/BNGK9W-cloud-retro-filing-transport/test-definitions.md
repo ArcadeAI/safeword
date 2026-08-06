@@ -55,6 +55,26 @@ REST-partial and subagent-partial wiring scenarios consume.
 - [x] GREEN ffeb3b1 — empty spool → fileSpooledDrafts posts 0 + decideRetroNudge undefined
 - [x] REFACTOR ffeb3b1
 
+## Rule: Recovery handoffs report facts without hiding real faults
+
+### Scenario: An unfiled-draft handoff does not diagnose why filing remains queued
+
+- [ ] RED skip: post-hoc scenario capture of the already-green #1900 regression tests
+- [x] GREEN 2445188 — dispatch/nudge assert the banned diagnosis class and exact factual text
+- [x] REFACTOR bac864b — both host dispatches share one carrier-parameterized body
+
+### Scenario: An authenticated filing failure is captured for self-reporting
+
+- [ ] RED skip: post-hoc scenario capture after the #1936 implementation
+- [x] GREEN 2fd7363 — authenticated failures call the sanitized self-report recorder
+- [x] REFACTOR cdaeedf — real command composition, spool, triage, and self-report wiring proof
+
+### Scenario: A missing credential does not report the normal recovery lane as a fault
+
+- [ ] RED skip: post-hoc scenario capture after the #1936 implementation
+- [x] GREEN 2fd7363 — capture is gated on credential availability
+- [x] REFACTOR cdaeedf — paired negative wiring proof through the same command composition
+
 ## Rule: The cloud fallback stays near-invisible
 
 ### Scenario: Extraction and spooling add nothing to the conversation
