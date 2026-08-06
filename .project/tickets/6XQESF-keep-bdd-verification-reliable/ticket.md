@@ -6,7 +6,7 @@ subtype: bug-investigated
 phase: verify
 status: in_progress
 created: 2026-08-06T18:51:26.130Z
-last_modified: 2026-08-06T19:52:20Z
+last_modified: 2026-08-06T19:56:05Z
 scope: "Make the two existing full-BDD failures deterministic: preserve the relay proof hook's intended timeout despite step-import order, and isolate each public-command fixture's Codex profile state."
 out_of_scope: "Changing Cucumber's global scheduler or timeout defaults, relaxing machine JSON comparisons, and changing production proof timestamps or Codex status semantics."
 done_when:
@@ -14,6 +14,7 @@ done_when:
   - "The public-command machine-contract scenario compares outputs from an isolated Codex profile."
   - "Focused and full BDD verification pass on the implementation commit."
 external_issue: https://github.com/ArcadeAI/safeword/issues/2101
+external_prs: [https://github.com/ArcadeAI/safeword/pull/2110]
 ---
 
 # Keep BDD verification reliable for maintainers
@@ -62,6 +63,7 @@ Ruled out: an intrinsically slow relay proof (the direct proof completed in unde
 
 ## Work Log
 
+- 2026-08-06T19:56:05Z PR: Opened draft [#2110](https://github.com/ArcadeAI/safeword/pull/2110) to fix GitHub issues [#2101](https://github.com/ArcadeAI/safeword/issues/2101) and [#2102](https://github.com/ArcadeAI/safeword/issues/2102).
 - 2026-08-06T19:52:20Z Verified: Canonical verification and the diff-scoped audit passed. Build and type checks succeeded for both packages; Bun audit found no vulnerabilities. The audit found no dependency, architecture, or scope violations.
 - 2026-08-06T19:24:00Z Verified: `bun run test` passed on this branch. Retro Relay: 167 passed / 1 skipped. CLI: 441 files, 6,768 passed / 5 skipped; 716.69s.
 - 2026-08-06T19:11:00Z Verified: `bun run test:bdd` passed on this branch: 1,077 scenarios and 41,946 steps passed; 3 scenarios and 4 steps skipped; 9m 11.928s.
