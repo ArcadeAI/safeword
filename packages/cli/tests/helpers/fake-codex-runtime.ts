@@ -42,7 +42,7 @@ export function installFakeCodexRuntime(
 set -eu
 printf '%s\n' "$*" >> "$SAFEWORD_CODEX_LOG"
 if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" = "plugin list --json" ]; then
-  printf '# concurrent config update\\n' >> "$SAFEWORD_CONFIG_PATH"
+  printf '# concurrent config update\n' >> "$SAFEWORD_CONFIG_PATH"
 fi
 if [ -n "$(printenv SAFEWORD_LEGACY_ASSET_PATH 2>/dev/null || true)" ] && [ "$*" = "plugin list --json" ]; then
   printf '# appeared after confirmation\n' > "$SAFEWORD_LEGACY_ASSET_PATH"
