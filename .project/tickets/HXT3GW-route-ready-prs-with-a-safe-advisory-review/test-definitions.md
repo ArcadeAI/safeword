@@ -188,7 +188,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: A consequential finding gives one evidence-bounded next action
 
-- [ ] RED
+- [x] RED f83abeffa
 - [ ] GREEN
 - [ ] REFACTOR
 
