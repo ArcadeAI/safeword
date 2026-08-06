@@ -363,18 +363,50 @@ function supportsReviewContract(
   reviewer: ReviewAgent,
   executable: string,
   timeoutMs: number,
-): boolean {
-  const checked = spawnSync(executable, HELP_ARGUMENTS[reviewer], {
-    encoding: 'utf8',
-    env: reviewerEnvironment(reviewer),
-    timeout: timeoutMs,
+): Promise<boolean> {
+  return new Promise(resolve => {
+    let help = '';
+    let helpBytes = 0;
+    let settled = false;
+    const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
+      env: reviewerEnvironment(reviewer),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
+    });
+    const finish = (supported: boolean): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (!supported) {
+        stopReviewer(child);
+        child.stdout.destroy();
+        child.stderr.destroy();
+        child.unref();
+      }
+      resolve(supported);
+    };
+    const timeout = setTimeout(() => {
+      finish(false);
+    }, timeoutMs);
+    const capture = (chunk: Buffer): void => {
+      const appended = appendBounded(help, helpBytes, chunk.toString('utf8'));
+      help = appended.value;
+      helpBytes = appended.bytes;
+      if (appended.overflow) finish(false);
+    };
+    child.stdout.on('data', capture);
+    child.stderr.on('data', capture);
+    child.on('error', () => {
+      finish(false);
+    });
+    child.on('close', code => {
+      const advertisedFlags = new Set<string>();
+      for (const match of help.matchAll(/--[\w-]+/gu)) advertisedFlags.add(match[0]);
+      finish(
+        code === 0 && REQUIRED_CAPABILITIES[reviewer].every(flag => advertisedFlags.has(flag)),
+      );
+    });
   });
-  const help = `${checked.stdout ?? ''}\n${checked.stderr ?? ''}`;
-  const advertisedFlags = new Set<string>();
-  for (const match of help.matchAll(/--[\w-]+/gu)) advertisedFlags.add(match[0]);
-  return (
-    checked.status === 0 && REQUIRED_CAPABILITIES[reviewer].every(flag => advertisedFlags.has(flag))
-  );
 }
 
 function appendBounded(
@@ -553,16 +585,20 @@ async function runReviewerCandidates(
   let lastFailure: ReviewRuntimeError | undefined;
   for (const [index, candidate] of candidates.entries()) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
-    if (!supportsReviewContract(reviewer, candidate, Math.min(5000, remainingMs))) continue;
+    const untried = candidates.length - index;
+    const candidateDeadline = Date.now() + remainingMs / untried;
+    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
+    if (!(await supportsReviewContract(reviewer, candidate, probeBudget))) continue;
     foundCompatible = true;
     try {
-      // Each candidate gets an equal share of what is left, recalculated as the
-      // route proceeds — so a hanging executable is stopped at its own slice
-      // instead of consuming every later candidate's turn, and one that fails
-      // fast hands its unused time back to those that follow.
-      const untried = candidates.length - index;
-      const share = remainingReviewTime(deadline, reviewer, lastFailure) / untried;
-      return await runCandidate(candidate, attempt, share);
+      // The capability probe and review share one candidate deadline. A hanging
+      // probe therefore cannot spend the time reserved for later candidates,
+      // while a fast rejection returns its unused share to the route.
+      return await runCandidate(
+        candidate,
+        attempt,
+        remainingReviewTime(candidateDeadline, reviewer, lastFailure),
+      );
     } catch (error) {
       if (!(error instanceof ReviewRuntimeError)) throw error;
       lastFailure = error;
