@@ -46355,6 +46355,9 @@ async function executeRetroWithDependencies(options, dependencies) {
     output: dependencies.output,
     restTransportAvailable: dependencies.restTransportAvailable
   });
+  if (dependencies.restTransportAvailable && (outcome.result?.failed.length ?? 0) > 0) {
+    dependencies.captureFilingFault?.(dependencies.projectDirectory, dependencies.sessionId);
+  }
   return outcome;
 }
 function renderDropReport(drops) {
@@ -46520,6 +46523,7 @@ async function executeRetroCliCommand(options, cwd) {
   const restTransport = createRestTransport2(resolveGitHubToken2());
   const transport = restTransport ?? unavailableTransport();
   const outcome = await executeRetroWithDependencies(options, {
+    captureFilingFault: captureRetroFilingFault,
     environment: process14.env,
     extract,
     extractionSucceeded: () => extractionSucceeded,
@@ -46544,17 +46548,11 @@ async function executeRetroCliCommand(options, cwd) {
     restTransportAvailable: restTransport !== undefined,
     transport
   });
-  reportFilingFault(projectDirectory, options, restTransport !== undefined, outcome);
   return {
     outcome,
     extractionSucceeded,
     restTransportAvailable: restTransport !== undefined
   };
-}
-function reportFilingFault(projectDirectory, options, restTransportAvailable, outcome) {
-  if (!restTransportAvailable || (outcome.result?.failed.length ?? 0) === 0)
-    return;
-  captureRetroFilingFault(projectDirectory, options.sessionId ?? process14.env.CLAUDE_SESSION_ID ?? options.transcript);
 }
 function executeRetroCommand(options, target) {
   return typeof target === "object" && target !== null ? executeRetroWithDependencies(options, target) : executeRetroCliCommand(options, target);
