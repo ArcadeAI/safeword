@@ -35945,9 +35945,9 @@ var init_environment = __esm(() => {
 import { spawn, spawnSync as spawnSync6 } from "child_process";
 import { accessSync as accessSync2, constants as constants3, realpathSync as realpathSync6 } from "fs";
 import nodePath72 from "path";
-function reviewTimeoutMilliseconds(reviewer, env = process.env) {
+function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
   const configured = Number(env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS[reviewer];
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -36166,7 +36166,7 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   }
   return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
 }
-var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_REVIEW_TIMEOUT_MS;
+var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_REVIEW_TIMEOUT_MS = 600000;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA = JSON.stringify({
@@ -36262,10 +36262,6 @@ var init_runtime = __esm(() => {
       this.failure = failure;
       this.name = "ReviewRuntimeError";
     }
-  };
-  DEFAULT_REVIEW_TIMEOUT_MS = {
-    claude: 300000,
-    codex: 120000
   };
 });
 

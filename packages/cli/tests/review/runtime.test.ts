@@ -13,9 +13,8 @@ const output: ReviewerOutput = {
 };
 
 describe('headless reviewer timeout budgets', () => {
-  it('gives Claude a longer default budget without slowing Codex', () => {
-    expect(reviewTimeoutMilliseconds('claude', {})).toBe(300_000);
-    expect(reviewTimeoutMilliseconds('codex', {})).toBe(120_000);
+  it.each(['claude', 'codex'] as const)('gives %s a ten-minute default budget', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(600_000);
   });
 
   it.each(['claude', 'codex'] as const)('honors the explicit timeout override for %s', reviewer => {
