@@ -182,7 +182,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 - [x] RED 98f595831
 - [x] GREEN fb78482d8
-- [ ] REFACTOR
+- [x] REFACTOR skip: unknown normalization is a single renderer default
 
 ## Rule: Receipt findings are actionable without claiming approval or tested remedies
 
