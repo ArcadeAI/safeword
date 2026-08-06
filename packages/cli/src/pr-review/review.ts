@@ -186,16 +186,15 @@ function deriveReviewedReceipt(
   inspection: AdvisoryInspection,
 ): Extract<PublishedReceipt, { route: 'looks_ready' | 'needs_human' }> {
   const { coverage, missingEvidence } = resolveEvidence(inspection);
-  const reviewableTextArtifacts = coverage?.filter(
-    artifact => artifact.status === 'integrity_reviewed',
-  ).length;
+  const reviewableTextArtifacts =
+    coverage?.filter(artifact => artifact.status === 'integrity_reviewed').length ?? 0;
   const evidenceState =
     reviewableTextArtifacts === 0 || missingEvidence.length > 0 ? 'incomplete' : 'complete';
   const runState = deriveRunState(evidenceState, inspection);
   const route = deriveRoute(runState, inspection);
 
   return {
-    ...((coverage || missingEvidence.length > 0) && {
+    ...((coverage || missingEvidence.length > 0 || reviewableTextArtifacts === 0) && {
       coverage: coverage ?? [],
       findings: inspection.findings ?? [],
       missingEvidence,
