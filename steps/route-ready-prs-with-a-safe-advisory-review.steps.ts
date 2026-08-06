@@ -408,6 +408,14 @@ Given('a current review has a consequential finding', function (this: AdvisoryRe
   };
 });
 
+Given(
+  'a complete current review has no consequential finding or unresolved unknown',
+  function (this: AdvisoryReviewWorld) {
+    this.currentHead = 'revision A';
+    this.receiptComments = [];
+  },
+);
+
 Given('a canonical bot-authored marker-owned receipt exists', function (this: AdvisoryReviewWorld) {
   this.commentMutations = [];
   this.receiptComments = [
@@ -859,6 +867,43 @@ When('Safeword renders the ordinary-comment receipt', function (this: AdvisoryRe
   });
 });
 
+When('Safeword publishes the result', async function (this: AdvisoryReviewWorld) {
+  const receipt = {
+    checks: [],
+    findingCounts: { consequential: 0, nonConsequential: 0 },
+    reviewedSha: this.currentHead ?? '',
+    reviewers: ['openai'],
+    route: 'looks_ready',
+    runState: 'complete',
+    skippedChecks: [],
+    tokenUsage: {},
+    unknowns: [],
+  } as Parameters<typeof renderReceipt>[0] & { route: 'looks_ready' };
+  const renderedReceipt = renderReceipt(receipt);
+
+  await publishReceipt(
+    {
+      createComment: async body => {
+        this.receiptComments?.push({
+          authorType: 'Bot',
+          body,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          id: 1,
+        });
+      },
+      deleteComment: async id => {
+        this.receiptComments = this.receiptComments?.filter(comment => comment.id !== id);
+      },
+      listComments: async () => this.receiptComments ?? [],
+      updateComment: async (id, body) => {
+        const comment = this.receiptComments?.find(candidate => candidate.id === id);
+        if (comment) comment.body = body;
+      },
+    },
+    renderedReceipt,
+  );
+});
+
 Then(
   "the publication audit records revision A's `stale` write before any fresh route for revision B",
   function (this: AdvisoryReviewWorld) {
@@ -974,6 +1019,21 @@ Then('any model-proposed remedy is labeled unverified', function (this: Advisory
     /Unverified remedy: Use the existing token verification helper\./,
   );
 });
+
+Then('exactly one current receipt reports `looks ready`', function (this: AdvisoryReviewWorld) {
+  const currentReceipts = (this.receiptComments ?? []).filter(comment =>
+    comment.body.includes('Route: looks ready'),
+  );
+  assert.equal(currentReceipts.length, 1);
+});
+
+Then(
+  'no other comment claims the pull request is safe to merge',
+  function (this: AdvisoryReviewWorld) {
+    assert.equal(this.receiptComments?.length, 1);
+    assert.doesNotMatch(this.receiptComments?.[0]?.body ?? '', /safe to merge/iu);
+  },
+);
 
 Then(
   'revision B requires a full fresh review before a current route is published',
