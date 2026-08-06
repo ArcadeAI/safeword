@@ -32283,6 +32283,27 @@ function oppositeReviewPair(author) {
     return { author, reviewer: "claude" };
   return;
 }
+function readAlternateReviewerModel(cwd, reviewer) {
+  const sources = [
+    process.env[`SAFEWORD_REVIEW_ALTERNATE_MODEL_${reviewer.toUpperCase()}`],
+    readConfiguredAlternateModel(cwd, reviewer)
+  ];
+  return sources.find((value) => value !== undefined && MODEL_NAME.test(value));
+}
+function readConfiguredAlternateModel(cwd, reviewer) {
+  try {
+    const raw = JSON.parse(readFileSync39(nodePath64.join(cwd, ".safeword", "config.json"), "utf8"));
+    if (typeof raw !== "object" || raw === null)
+      return;
+    const models = raw.crossAgentReviewAlternateModel;
+    if (typeof models !== "object" || models === null)
+      return;
+    const value = models[reviewer];
+    return typeof value === "string" ? value : undefined;
+  } catch {
+    return;
+  }
+}
 function readReviewPolicy(cwd) {
   try {
     const raw = readFileSync39(nodePath64.join(cwd, ".safeword", "config.json"), "utf8");
@@ -32291,8 +32312,10 @@ function readReviewPolicy(cwd) {
     return "prefer";
   }
 }
+var MODEL_NAME;
 var init_policy = __esm(() => {
   init_review_ledger();
+  MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
 });
 
 // src/review/environment.ts
@@ -32354,12 +32377,33 @@ var init_environment = __esm(() => {
 });
 
 // src/review/runtime.ts
-import { spawn, spawnSync as spawnSync4 } from "child_process";
-import { accessSync, constants as constants2, realpathSync as realpathSync4 } from "fs";
+import { spawn } from "child_process";
+import { accessSync, constants as constants2, mkdtempSync as mkdtempSync4, realpathSync as realpathSync4, rmSync as rmSync6, writeFileSync as writeFileSync17 } from "fs";
+import { tmpdir as tmpdir3 } from "os";
 import nodePath65 from "path";
-function timeoutMilliseconds() {
-  const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : 120000;
+function reviewerArguments(reviewer, model, schemaPath) {
+  const base = [...ARGUMENTS[reviewer]];
+  const extra = [];
+  if (model !== undefined)
+    extra.push("--model", model);
+  if (reviewer === "codex" && schemaPath !== undefined)
+    extra.push("--output-schema", schemaPath);
+  if (extra.length === 0)
+    return base;
+  const stdinMarker = base.lastIndexOf("-");
+  return stdinMarker === -1 ? [...base, ...extra] : [...base.slice(0, stdinMarker), ...extra, ...base.slice(stdinMarker)];
+}
+function runBoundMs() {
+  const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, RUN_BOUND_MS) : RUN_BOUND_MS;
+}
+function minimumRouteMs() {
+  return Math.min(120000, attemptDeadlineMs());
+}
+function attemptDeadlineMs() {
+  const raw = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
+  const configured = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, RUN_BOUND_MS) : DEFAULT_ATTEMPT_DEADLINE_MS;
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -32448,28 +32492,67 @@ function remainingReviewTime(deadline, reviewer, lastFailure) {
 }
 function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
-  const candidates = (process.env.PATH ?? "").split(nodePath65.delimiter).filter((directory) => directory !== "" && nodePath65.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath65.join(directory, `${reviewer}${extension}`))).filter((candidate) => outsideUntrustedRoot(untrustedRoot, candidate));
-  return [...new Set(candidates)].filter((candidate) => {
+  const candidates = (process.env.PATH ?? "").split(nodePath65.delimiter).filter((directory) => directory !== "" && nodePath65.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath65.join(directory, `${reviewer}${extension}`)));
+  const canonicalCandidates = candidates.flatMap((candidate) => {
+    if (inside(untrustedRoot, candidate))
+      return [];
     try {
-      accessSync(candidate, constants2.X_OK);
-      return true;
+      const canonical = realpathSync4(candidate);
+      if (!outsideUntrustedRoot(untrustedRoot, canonical))
+        return [];
+      accessSync(canonical, constants2.X_OK);
+      return [canonical];
     } catch {
-      return false;
+      return [];
     }
   });
+  return [...new Set(canonicalCandidates)];
 }
-function supportsReviewContract(reviewer, executable, timeoutMs) {
-  const checked = spawnSync4(executable, HELP_ARGUMENTS[reviewer], {
-    encoding: "utf8",
+async function supportsReviewContract(reviewer, executable, cwd, timeoutMs) {
+  const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
+    cwd,
     env: reviewerEnvironment(reviewer),
-    timeout: timeoutMs
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32"
   });
-  const help = `${checked.stdout ?? ""}
-${checked.stderr ?? ""}`;
-  const advertisedFlags = new Set;
-  for (const match of help.matchAll(/--[\w-]+/gu))
-    advertisedFlags.add(match[0]);
-  return checked.status === 0 && REQUIRED_CAPABILITIES[reviewer].every((flag) => advertisedFlags.has(flag));
+  const supported = await new Promise((resolve) => {
+    let help = "";
+    let helpBytes = 0;
+    let settled = false;
+    const finish = (result) => {
+      if (settled)
+        return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = setTimeout(() => {
+      finish(false);
+    }, timeoutMs);
+    const capture = (chunk) => {
+      const appended = appendBounded(help, helpBytes, chunk.toString("utf8"));
+      help = appended.value;
+      helpBytes = appended.bytes;
+      if (appended.overflow)
+        finish(false);
+    };
+    child.stdout.on("data", capture);
+    child.stderr.on("data", capture);
+    child.on("error", () => {
+      finish(false);
+    });
+    child.on("close", (code) => {
+      const advertisedFlags = new Set;
+      for (const match of help.matchAll(/--[\w-]+/gu))
+        advertisedFlags.add(match[0]);
+      finish(code === 0 && REQUIRED_CAPABILITIES[reviewer].every((flag) => advertisedFlags.has(flag)));
+    });
+  });
+  await stopReviewer(child);
+  child.stdout.destroy();
+  child.stderr.destroy();
+  child.unref();
+  return supported;
 }
 function appendBounded(current, currentBytes, chunk) {
   const bytes = currentBytes + Buffer.byteLength(chunk);
@@ -32479,83 +32562,165 @@ function appendBounded(current, currentBytes, chunk) {
     overflow: bytes > MAX_OUTPUT_BYTES
   };
 }
-function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    let timedOut = false;
-    let overflow = false;
-    const child = spawn(executable, ARGUMENTS[reviewer], {
-      cwd,
-      env: reviewerEnvironment(reviewer),
-      stdio: ["pipe", "pipe", "pipe"]
+function classifyExit(stderr, otherwise) {
+  return /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr) ? "not_authenticated" : otherwise;
+}
+function stopWindowsReviewer(child, pid) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled)
+        return;
+      settled = true;
+      clearTimeout(timeout);
+      child.kill("SIGKILL");
+      resolve();
+    };
+    const killer = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true
     });
     const timeout = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGKILL");
-    }, timeoutMs);
-    let stdout = "";
-    let stderr = "";
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      const appended = appendBounded(stdout, stdoutBytes, chunk);
-      stdout = appended.value;
-      stdoutBytes = appended.bytes;
-      overflow ||= appended.overflow;
-      if (overflow) {
-        child.kill("SIGKILL");
-      }
-    });
-    child.stderr.on("data", (chunk) => {
-      const appended = appendBounded(stderr, stderrBytes, chunk);
-      stderr = appended.value;
-      stderrBytes = appended.bytes;
-      overflow ||= appended.overflow;
-      if (overflow) {
-        child.kill("SIGKILL");
-      }
-    });
-    child.stdin.on("error", () => {});
-    child.on("error", (error2) => {
-      clearTimeout(timeout);
-      reject(new ReviewRuntimeError("process_failed", error2.message));
-    });
-    child.on("close", (code) => {
-      clearTimeout(timeout);
-      if (timedOut) {
-        reject(new ReviewRuntimeError("timed_out", `${reviewer} review timed out`));
-        return;
-      }
-      if (overflow) {
-        const failure = /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr) ? "not_authenticated" : "invalid_output";
-        reject(new ReviewRuntimeError(failure, `${reviewer} exceeded its output limit`));
-        return;
-      }
-      if (code !== 0) {
-        const failure = /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr) ? "not_authenticated" : "process_failed";
-        reject(new ReviewRuntimeError(failure, `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
-        return;
-      }
-      try {
-        resolve(parseReviewerOutput(reviewer, stdout));
-      } catch {
-        reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
-      }
-    });
-    child.stdin.end(reviewPrompt(reviewer, packet));
+      killer.kill("SIGKILL");
+      finish();
+    }, WINDOWS_CLEANUP_BUDGET_MS);
+    killer.on("error", finish);
+    killer.on("close", finish);
   });
 }
-async function runReviewerCandidates(reviewer, packet, cwd, candidates, deadline) {
+function stopReviewer(child) {
+  const existing = reviewerStops.get(child);
+  if (existing !== undefined)
+    return existing;
+  const stopping = stopReviewerOnce(child);
+  reviewerStops.set(child, stopping);
+  return stopping;
+}
+async function stopReviewerOnce(child) {
+  const pid = child.pid;
+  if (pid === undefined)
+    return;
+  if (process.platform === "win32") {
+    await stopWindowsReviewer(child, pid);
+    return;
+  }
+  const signalGroup = (signal) => {
+    try {
+      process.kill(-pid, signal);
+    } catch {}
+  };
+  signalGroup("SIGTERM");
+  const groupExists = () => {
+    try {
+      process.kill(-pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const deadline = Date.now() + CLEANUP_BUDGET_MS;
+  while (groupExists() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  if (groupExists()) {
+    signalGroup("SIGKILL");
+    const forcedDeadline = Date.now() + CLEANUP_BUDGET_MS;
+    while (groupExists() && Date.now() < forcedDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  }
+}
+async function runCandidate(executable, attempt, timeoutMs) {
+  const { reviewer, packet, cwd, model, schemaPath } = attempt;
+  const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath), {
+    cwd,
+    env: reviewerEnvironment(reviewer),
+    stdio: ["pipe", "pipe", "pipe"],
+    detached: process.platform !== "win32"
+  });
+  try {
+    return await new Promise((resolve, reject) => {
+      let overflow = false;
+      let settled = false;
+      const settle = (finish) => {
+        if (settled)
+          return;
+        settled = true;
+        clearTimeout(timeout);
+        finish();
+      };
+      const timeout = setTimeout(() => {
+        settle(() => {
+          reject(new ReviewRuntimeError("timed_out", `${reviewer} review timed out`));
+        });
+      }, timeoutMs);
+      let stdout = "";
+      let stderr = "";
+      let stdoutBytes = 0;
+      let stderrBytes = 0;
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk) => {
+        const appended = appendBounded(stdout, stdoutBytes, chunk);
+        stdout = appended.value;
+        stdoutBytes = appended.bytes;
+        overflow ||= appended.overflow;
+        if (overflow) {
+          stopReviewer(child);
+        }
+      });
+      child.stderr.on("data", (chunk) => {
+        const appended = appendBounded(stderr, stderrBytes, chunk);
+        stderr = appended.value;
+        stderrBytes = appended.bytes;
+        overflow ||= appended.overflow;
+        if (overflow) {
+          stopReviewer(child);
+        }
+      });
+      child.stdin.on("error", () => {});
+      child.on("error", (error2) => {
+        settle(() => {
+          reject(new ReviewRuntimeError("process_failed", error2.message));
+        });
+      });
+      child.on("close", (code) => {
+        settle(() => {
+          if (overflow) {
+            reject(new ReviewRuntimeError(classifyExit(stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
+            return;
+          }
+          if (code !== 0) {
+            reject(new ReviewRuntimeError(classifyExit(stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
+            return;
+          }
+          try {
+            resolve(parseReviewerOutput(reviewer, stdout));
+          } catch {
+            reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
+          }
+        });
+      });
+      child.stdin.end(reviewPrompt(reviewer, packet));
+    });
+  } finally {
+    await stopReviewer(child);
+  }
+}
+async function runReviewerCandidates(attempt, candidates, deadline) {
+  const reviewer = attempt.reviewer;
   let foundCompatible = false;
   let lastFailure;
-  for (const candidate of candidates) {
+  for (const [index, candidate] of candidates.entries()) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
-    if (!supportsReviewContract(reviewer, candidate, Math.min(5000, remainingMs)))
+    const untried = candidates.length - index;
+    const candidateDeadline = Date.now() + remainingMs / untried;
+    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
+    if (!await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget))
       continue;
     foundCompatible = true;
     try {
-      return await runCandidate(candidate, reviewer, packet, cwd, remainingReviewTime(deadline, reviewer, lastFailure));
+      return await runCandidate(candidate, attempt, remainingReviewTime(candidateDeadline, reviewer, lastFailure));
     } catch (error2) {
       if (!(error2 instanceof ReviewRuntimeError))
         throw error2;
@@ -32570,31 +32735,53 @@ async function runReviewerCandidates(reviewer, packet, cwd, candidates, deadline
   }
   throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
 }
-async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = process.cwd()) {
-  const deadline = Date.now() + timeoutMilliseconds();
+async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = process.cwd(), options = {}) {
+  const { model, runDeadline } = options;
+  const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
   }
-  return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
+  let contract;
+  try {
+    contract = reviewer === "codex" ? writeContractFile() : undefined;
+  } catch {
+    throw new ReviewRuntimeError("process_failed", `The ${reviewer} review could not be prepared`);
+  }
+  try {
+    return await runReviewerCandidates({ reviewer, packet, cwd, model, schemaPath: contract?.path }, candidates, deadline);
+  } finally {
+    contract?.cleanup();
+  }
 }
-var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError;
+function writeContractFile() {
+  const directory = mkdtempSync4(nodePath65.join(tmpdir3(), "safeword-review-contract-"));
+  const path4 = nodePath65.join(directory, "review-result.schema.json");
+  writeFileSync17(path4, REVIEW_OUTPUT_SCHEMA, { mode: 384 });
+  return {
+    path: path4,
+    cleanup: () => {
+      rmSync6(directory, { recursive: true, force: true });
+    }
+  };
+}
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 300000, RUN_BOUND_MS = 540000, CLEANUP_BUDGET_MS = 25, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
-  REVIEW_OUTPUT_SCHEMA = JSON.stringify({
+  REVIEW_OUTPUT_SCHEMA_SHAPE = {
     type: "object",
     properties: {
-      schema_version: { const: 1 },
+      schema_version: { type: "integer", enum: [1] },
       dispatch_id: { type: "string" },
-      reviewer_agent: { enum: ["claude", "codex"] },
-      verdict: { enum: ["approve", "request_changes"] },
+      reviewer_agent: { type: "string", enum: ["claude", "codex"] },
+      verdict: { type: "string", enum: ["approve", "request_changes"] },
       summary: { type: "string" },
       findings: {
         type: "array",
         items: {
           type: "object",
           properties: {
-            severity: { enum: ["info", "warning", "error"] },
+            severity: { type: "string", enum: ["info", "warning", "error"] },
             message: { type: "string" }
           },
           required: ["severity", "message"],
@@ -32604,7 +32791,8 @@ var init_runtime = __esm(() => {
     },
     required: ["schema_version", "dispatch_id", "reviewer_agent", "verdict", "summary", "findings"],
     additionalProperties: false
-  });
+  };
+  REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
   ARGUMENTS = {
     claude: [
       "-p",
@@ -32658,7 +32846,8 @@ var init_runtime = __esm(() => {
       "--ignore-user-config",
       "--ignore-rules",
       "--disable",
-      "--config"
+      "--config",
+      "--output-schema"
     ]
   };
   MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -32675,6 +32864,7 @@ var init_runtime = __esm(() => {
       this.name = "ReviewRuntimeError";
     }
   };
+  reviewerStops = new WeakMap;
 });
 
 // src/review/coordinator.ts
@@ -32682,6 +32872,9 @@ var exports_coordinator = {};
 __export(exports_coordinator, {
   runReview: () => runReview
 });
+function canFundRoute(runDeadline) {
+  return runDeadline - Date.now() >= minimumRouteMs();
+}
 function verifyProvenance(output, assignedReviewer, dispatchId) {
   if (typeof output.reviewer_agent !== "string" || output.reviewer_agent === "") {
     return { kind: "failed", code: "REVIEWER_PROVENANCE_MISSING" };
@@ -32691,10 +32884,36 @@ function verifyProvenance(output, assignedReviewer, dispatchId) {
   }
   return { kind: "verified", output };
 }
-async function executeReview(reviewer, prepared) {
+function independentReviewResult(input) {
+  return createResult({
+    state: input.output.verdict === "approve" ? "healthy" : "action_required",
+    findings: [
+      {
+        code: "REVIEW_INDEPENDENCE",
+        message: "An independent agent checked the work.",
+        severity: "info"
+      }
+    ],
+    effects: {
+      network: [{ kind: "review", target: input.reviewer, operation: "request" }]
+    },
+    data: {
+      command: "review run",
+      status: input.output.verdict === "approve" ? "approved" : "changes_requested",
+      author_agent: input.author,
+      assigned_reviewer: input.reviewer,
+      actual_reviewer: input.output.reviewer_agent,
+      ...input.model !== undefined && { reviewer_model: input.model },
+      ...input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure },
+      independence: "cross-agent",
+      reviewer_output: input.output
+    }
+  });
+}
+async function executeReview(reviewer, prepared, model, runDeadline) {
   let outcome;
   try {
-    const output = await runHeadlessReviewer(reviewer, prepared.packet, prepared.workspace, prepared.sourceRoot);
+    const output = await runHeadlessReviewer(reviewer, prepared.packet, prepared.workspace, prepared.sourceRoot, { model, runDeadline });
     outcome = { kind: "completed", output };
   } catch (error2) {
     if (!(error2 instanceof ReviewRuntimeError)) {
@@ -32728,13 +32947,46 @@ function shellQuote2(value) {
 function retryCommand(kind, targets) {
   return `safeword review run ${kind} ${targets.map((target) => shellQuote2(target)).join(" ")}`;
 }
-function recoveryDescription(reviewer, failure) {
-  const name = reviewer === "codex" ? "Codex" : "Claude";
+function agentName(agent) {
+  return agent === "codex" ? "Codex" : "Claude";
+}
+function causePhrase(failure) {
+  switch (failure) {
+    case "timed_out": {
+      return "ran out of time";
+    }
+    case "not_installed": {
+      return "is not installed, or is too old to be used";
+    }
+    case "not_authenticated": {
+      return "is not signed in";
+    }
+    case "invalid_output": {
+      return "gave an answer that could not be accepted";
+    }
+    case "source_changed": {
+      return "was reviewing files that changed underneath it";
+    }
+    case "REVIEWER_PROVENANCE_MISSING":
+    case "REVIEWER_PROVENANCE_CONTRADICTORY": {
+      return "gave an answer that did not identify it as the reviewer";
+    }
+    default: {
+      return "could not be run";
+    }
+  }
+}
+function exhaustedExplanation(routes) {
+  const sentences = routes.map((route) => `The ${route.role} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`);
+  return [...sentences, "No independent check was recorded."].join(" ");
+}
+function nextStepFor(reviewer, failure) {
+  const name = agentName(reviewer);
   if (failure === "not_installed")
-    return `Install ${name}, then retry the independent review.`;
+    return `Install or update ${name}, then run the review again.`;
   if (failure === "not_authenticated")
-    return `Sign in to ${name}, then retry the independent review.`;
-  return "Retry the independent review.";
+    return `Sign in to ${name}, then run the review again.`;
+  return "Run the review again.";
 }
 function unsupportedAuthorResult(input) {
   if (input.policy === "require") {
@@ -32834,7 +33086,7 @@ function changedReviewResult(input) {
 }
 async function runDegradedFallback(input) {
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared, undefined, input.runDeadline);
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.author,
@@ -32852,14 +33104,28 @@ async function runDegradedFallback(input) {
       findings: [
         {
           code: "REVIEW_ROUTES_EXHAUSTED",
-          message: "The independent check did not run, and the fallback did not complete safely.",
+          message: exhaustedExplanation([
+            {
+              agent: input.assignedReviewer,
+              role: "independent reviewer",
+              failure: input.preferredFailure
+            },
+            ...input.alternateFailure === undefined ? [] : [
+              {
+                agent: input.assignedReviewer,
+                role: "same reviewer on its alternate model",
+                failure: input.alternateFailure
+              }
+            ],
+            { agent: input.author, role: "fallback review", failure: assessment.failure }
+          ]),
           severity: "warning"
         }
       ],
       recovery: [
         {
           command: retryCommand(input.kind, input.targets),
-          description: recoveryDescription(input.assignedReviewer, input.preferredFailure),
+          description: nextStepFor(input.assignedReviewer, input.preferredFailure),
           requiresHuman: true
         }
       ],
@@ -32869,6 +33135,9 @@ async function runDegradedFallback(input) {
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         preferred_failure: input.preferredFailure,
+        ...input.alternateFailure !== undefined && {
+          alternate_model_failure: input.alternateFailure
+        },
         fallback_failure: assessment.failure,
         independence: "none"
       }
@@ -32937,6 +33206,92 @@ async function runDegradedFallback(input) {
     }
   });
 }
+async function runAlternateModelRoute(input) {
+  const model = readAlternateReviewerModel(input.cwd, input.reviewer);
+  if (model === undefined || !canFundRoute(input.runDeadline))
+    return { kind: "skipped" };
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.reviewer, prepared, model, input.runDeadline);
+  const changedResult = changedReviewResult({
+    author: input.author,
+    reviewer: input.reviewer,
+    kind: input.kind,
+    targets: input.targets,
+    sourceChanged,
+    snapshotChanged
+  });
+  if (changedResult !== undefined)
+    return { kind: "completed", result: changedResult };
+  const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
+  if (assessment.kind === "failed")
+    return { kind: "failed", failure: assessment.failure };
+  const output = assessment.output;
+  const result = independentReviewResult({
+    author: input.author,
+    reviewer: input.reviewer,
+    output,
+    model,
+    preferredFailure: input.preferredFailure
+  });
+  return { kind: "completed", result };
+}
+async function runRemainingRoutes(input) {
+  const alternate = await runAlternateModelRoute({
+    cwd: input.cwd,
+    kind: input.kind,
+    targets: input.targets,
+    author: input.author,
+    reviewer: input.assignedReviewer,
+    preferredFailure: input.preferredFailure,
+    runDeadline: input.runDeadline
+  });
+  if (alternate.kind === "completed")
+    return alternate.result;
+  const alternateFailure = alternate.kind === "failed" ? alternate.failure : undefined;
+  if (!canFundRoute(input.runDeadline))
+    return exhaustedRunResult({ ...input, alternateFailure });
+  return runDegradedFallback({ ...input, alternateFailure });
+}
+function exhaustedRunResult(input) {
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "REVIEW_ROUTES_EXHAUSTED",
+        message: exhaustedExplanation([
+          {
+            agent: input.assignedReviewer,
+            role: "independent reviewer",
+            failure: input.preferredFailure
+          },
+          ...input.alternateFailure === undefined ? [] : [
+            {
+              agent: input.assignedReviewer,
+              role: "same reviewer on its alternate model",
+              failure: input.alternateFailure
+            }
+          ]
+        ]),
+        severity: "warning"
+      }
+    ],
+    recovery: [
+      {
+        command: retryCommand(input.kind, input.targets),
+        description: nextStepFor(input.assignedReviewer, input.preferredFailure),
+        requiresHuman: true
+      }
+    ],
+    data: {
+      command: "review run",
+      status: "blocked",
+      author_agent: input.author,
+      assigned_reviewer: input.assignedReviewer,
+      preferred_failure: input.preferredFailure,
+      independence: "none"
+    }
+  });
+}
 async function runReview(input) {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
@@ -32964,8 +33319,9 @@ async function runReview(input) {
     return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
   }
   const { reviewer } = pair;
+  const runDeadline = Date.now() + runBoundMs();
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared, undefined, runDeadline);
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -32977,61 +33333,28 @@ async function runReview(input) {
   if (changedResult !== undefined)
     return changedResult;
   if (outcome.kind === "failed") {
-    return runDegradedFallback({
+    return runRemainingRoutes({
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
       preferredFailure: outcome.failure,
-      policy
+      policy,
+      runDeadline
     });
   }
   const provenance = verifyProvenance(outcome.output, reviewer, prepared.packet.dispatch_id);
   if (provenance.kind === "failed") {
-    const provenanceError = provenance.code;
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: provenanceError,
-          message: provenanceError === "REVIEWER_PROVENANCE_MISSING" ? "The reviewer result did not identify the reviewer." : `The reviewer result contradicted the assigned ${reviewer} dispatch.`,
-          retryable: false
-        }
-      ],
-      effects: {
-        network: [{ kind: "review", target: reviewer, operation: "request" }]
-      },
-      data: {
-        command: "review run",
-        status: "blocked",
-        author_agent: author,
-        assigned_reviewer: reviewer,
-        independence: "none"
-      }
+    return runRemainingRoutes({
+      ...input,
+      author: pair.author,
+      assignedReviewer: reviewer,
+      preferredFailure: "invalid_output",
+      policy,
+      runDeadline
     });
   }
   const output = provenance.output;
-  return createResult({
-    state: output.verdict === "approve" ? "healthy" : "action_required",
-    findings: [
-      {
-        code: "REVIEW_INDEPENDENCE",
-        message: "An independent agent checked the work.",
-        severity: "info"
-      }
-    ],
-    effects: {
-      network: [{ kind: "review", target: reviewer, operation: "request" }]
-    },
-    data: {
-      command: "review run",
-      status: output.verdict === "approve" ? "approved" : "changes_requested",
-      author_agent: author,
-      assigned_reviewer: reviewer,
-      actual_reviewer: output.reviewer_agent,
-      independence: "cross-agent",
-      reviewer_output: output
-    }
-  });
+  return independentReviewResult({ author, reviewer, output });
 }
 var init_coordinator = __esm(() => {
   init_run_identity();
@@ -33058,11 +33381,11 @@ import {
   existsSync as existsSync33,
   lstatSync as lstatSync9,
   mkdirSync as mkdirSync9,
-  mkdtempSync as mkdtempSync4,
+  mkdtempSync as mkdtempSync5,
   readdirSync as readdirSync25,
   readFileSync as readFileSync40,
   rmdirSync as rmdirSync3,
-  rmSync as rmSync6
+  rmSync as rmSync7
 } from "fs";
 import nodePath66 from "path";
 async function resolveCodexFinalizationConfirmation(_options) {
@@ -33175,7 +33498,7 @@ function writeManifest(backupDirectory, manifest) {
 function applyMutation(cwd, mutation, after) {
   const path4 = assertSafeComponents(cwd, mutation.path);
   if (mutation.content === null) {
-    rmSync6(path4, { force: true });
+    rmSync7(path4, { force: true });
     return;
   }
   if (after.kind !== "file")
@@ -33186,7 +33509,7 @@ function applyMutation(cwd, mutation, after) {
 function restoreBeforeImage(cwd, backupDirectory, entry2) {
   const path4 = assertSafeComponents(cwd, entry2.path);
   if (entry2.before.kind === "absent") {
-    rmSync6(path4, { force: true });
+    rmSync7(path4, { force: true });
     return;
   }
   if (entry2.before.payload === undefined) {
@@ -33346,7 +33669,7 @@ function recoverCodexFinalization(cwd) {
   for (const entry2 of manifest.entries.toReversed()) {
     restoreBeforeImage(cwd, backupDirectory, entry2);
   }
-  rmSync6(backupDirectory, { recursive: true });
+  rmSync7(backupDirectory, { recursive: true });
   return true;
 }
 function observeCodexRecoveryPlan(cwd) {
@@ -33377,7 +33700,7 @@ function rollbackAppliedEntries(input) {
       }
       restoreBeforeImage(input.cwd, input.backupDirectory, entry2);
     }
-    rmSync6(input.backupDirectory, { recursive: true });
+    rmSync7(input.backupDirectory, { recursive: true });
   } catch (rollbackError) {
     throw new Error(`Codex finalization failed (${String(input.originalError)}) and rollback could not complete; recovery is required: ${String(rollbackError)}`, { cause: rollbackError });
   }
@@ -33386,7 +33709,7 @@ function prepareCodexFinalization(cwd, backupDirectory, mutations, beforePrepara
   const backupParent = nodePath66.dirname(backupDirectory);
   const backupParentExisted = pathEntryExists(backupParent);
   mkdirSync9(backupParent, { recursive: true, mode: 448 });
-  const stagingDirectory = mkdtempSync4(nodePath66.join(backupParent, ".codex-migration-backup-preparing-"));
+  const stagingDirectory = mkdtempSync5(nodePath66.join(backupParent, ".codex-migration-backup-preparing-"));
   try {
     mkdirSync9(nodePath66.join(stagingDirectory, "payloads"), {
       recursive: true,
@@ -33435,7 +33758,7 @@ function prepareCodexFinalization(cwd, backupDirectory, mutations, beforePrepara
     durableRename(stagingDirectory, backupDirectory);
     return { effectiveMutations, entries, manifest };
   } finally {
-    rmSync6(stagingDirectory, { recursive: true, force: true });
+    rmSync7(stagingDirectory, { recursive: true, force: true });
     if (!backupParentExisted && pathEntryExists(backupParent) && readdirSync25(backupParent).length === 0) {
       rmdirSync3(backupParent);
     }
@@ -35003,7 +35326,7 @@ var init_migration = __esm(() => {
 });
 
 // src/codex-plugin/host-process.ts
-import { spawnSync as spawnSync5 } from "child_process";
+import { spawnSync as spawnSync4 } from "child_process";
 function parseProcessRows(output) {
   return output.split(`
 `).flatMap((line) => {
@@ -35073,12 +35396,12 @@ function codexHostsFromProcessTable(output, parentPid, format = "posix") {
 }
 function observeCodexHostProcesses() {
   if (process.platform === "win32") {
-    const result2 = spawnSync5("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WINDOWS_PROCESS_COMMAND], { encoding: "utf8", timeout: 2000 });
+    const result2 = spawnSync4("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WINDOWS_PROCESS_COMMAND], { encoding: "utf8", timeout: 2000 });
     if (result2.status !== 0)
       return { available: false, running: [], current: null };
     return codexHostsFromProcessTable(result2.stdout, process.ppid, "windows");
   }
-  const result = spawnSync5("ps", ["-axo", "pid=,ppid=,lstart=,command="], {
+  const result = spawnSync4("ps", ["-axo", "pid=,ppid=,lstart=,command="], {
     encoding: "utf8",
     timeout: 2000
   });
@@ -35098,7 +35421,7 @@ var init_host_process = () => {};
 
 // src/codex-plugin/profile-proof.ts
 import { createHash as createHash13, randomUUID as randomUUID5 } from "crypto";
-import { existsSync as existsSync34, readFileSync as readFileSync43, rmSync as rmSync7 } from "fs";
+import { existsSync as existsSync34, readFileSync as readFileSync43, rmSync as rmSync8 } from "fs";
 import { homedir as homedir3 } from "os";
 import nodePath69 from "path";
 function codexProfileDirectory(environment = process.env) {
@@ -35157,14 +35480,14 @@ function writeCodexActivationMarker(environment = process.env, now = new Date, o
   };
   writeAtomicJson(path4, marker);
   for (const event of CODEX_PLUGIN_HOOK_EVENTS)
-    rmSync7(codexProofPath(environment, event), { force: true });
-  rmSync7(nodePath69.join(codexProfileDirectory(environment), "safeword/hook-proof-v1"), {
+    rmSync8(codexProofPath(environment, event), { force: true });
+  rmSync8(nodePath69.join(codexProfileDirectory(environment), "safeword/hook-proof-v1"), {
     recursive: true,
     force: true
   });
-  rmSync7(codexActivationReceiptPath(environment), { force: true });
-  rmSync7(legacyCodexActivationMarkerPath(environment), { force: true });
-  rmSync7(legacyCodexRestartMarkerPath(environment), { force: true });
+  rmSync8(codexActivationReceiptPath(environment), { force: true });
+  rmSync8(legacyCodexActivationMarkerPath(environment), { force: true });
+  rmSync8(legacyCodexRestartMarkerPath(environment), { force: true });
   return marker;
 }
 function hostObservationForOverride(current = null) {
@@ -35197,7 +35520,7 @@ function recordCodexHookProof(event, environment = process.env, now = new Date, 
     if (restartedReceipt !== null) {
       receipt = restartedReceipt;
       writeAtomicJson(codexActivationReceiptPath(environment), receipt);
-      rmSync7(codexActivationMarkerPath(environment), { force: true });
+      rmSync8(codexActivationMarkerPath(environment), { force: true });
     }
   }
   const proof = {
@@ -35357,12 +35680,12 @@ __export(exports_migrate_codex_plugin, {
   migrateCodexPlugin: () => migrateCodexPlugin,
   installCodexPlugin: () => installCodexPlugin
 });
-import { spawnSync as spawnSync6 } from "child_process";
+import { spawnSync as spawnSync5 } from "child_process";
 import { createHash as createHash14 } from "crypto";
 import { lstatSync as lstatSync12, readFileSync as readFileSync44 } from "fs";
 import nodePath70 from "path";
 function run(command, arguments_) {
-  const result = spawnSync6(command, arguments_, { encoding: "utf8" });
+  const result = spawnSync5(command, arguments_, { encoding: "utf8" });
   if (result.error)
     throw new Error(`${command} is required. Install it, then re-run this command.`);
   if (result.status !== 0) {
@@ -35833,7 +36156,7 @@ var init_migrate_codex_plugin = __esm(() => {
 });
 
 // templates/hooks/lib/jsonl-spool.ts
-import { appendFileSync, mkdirSync as mkdirSync10, readFileSync as readFileSync45, renameSync as renameSync6, writeFileSync as writeFileSync17 } from "fs";
+import { appendFileSync, mkdirSync as mkdirSync10, readFileSync as readFileSync45, renameSync as renameSync6, writeFileSync as writeFileSync18 } from "fs";
 import nodePath71 from "path";
 function* iterateJsonlEntries(text) {
   for (const line of text.split(`
@@ -35897,7 +36220,7 @@ function tryAppendJsonlRecords(filePath, lines, cap) {
 function atomicWriteFile(file, contents) {
   const temporary = `${file}.${process.pid}.tmp`;
   mkdirSync10(nodePath71.dirname(file), { recursive: true });
-  writeFileSync17(temporary, contents);
+  writeFileSync18(temporary, contents);
   renameSync6(temporary, file);
 }
 var init_jsonl_spool = () => {};
@@ -36411,7 +36734,7 @@ __export(exports_retro_extract, {
   DEFAULT_CLAUDE_RETRO_MODEL: () => DEFAULT_CLAUDE_RETRO_MODEL,
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
-import { readFileSync as readFileSync48, writeFileSync as writeFileSync18 } from "fs";
+import { readFileSync as readFileSync48, writeFileSync as writeFileSync19 } from "fs";
 import nodePath76 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
@@ -36584,7 +36907,7 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
       return { ok: false, failureReason: "empty_digest", findings: [] };
     const schemaPath = dependencies.schemaPath ?? nodePath76.join(dependencies.cwd, "schema.json");
     const outputPath = dependencies.outputPath ?? nodePath76.join(dependencies.cwd, "output.json");
-    const writeFile2 = dependencies.writeFile ?? writeFileSync18;
+    const writeFile2 = dependencies.writeFile ?? writeFileSync19;
     const readFile2 = dependencies.readFile ?? ((path4) => readFileSync48(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
     const argv = buildCodexExtractArgv({
@@ -43032,9 +43355,9 @@ __export(exports_retro, {
   buildProvenanceResolver: () => buildProvenanceResolver,
   buildAutoExtractor: () => buildAutoExtractor
 });
-import { spawnSync as spawnSync7 } from "child_process";
-import { mkdirSync as mkdirSync12, mkdtempSync as mkdtempSync5, readFileSync as readFileSync49, writeFileSync as writeFileSync19 } from "fs";
-import { tmpdir as tmpdir3 } from "os";
+import { spawnSync as spawnSync6 } from "child_process";
+import { mkdirSync as mkdirSync12, mkdtempSync as mkdtempSync6, readFileSync as readFileSync49, writeFileSync as writeFileSync20 } from "fs";
+import { tmpdir as tmpdir4 } from "os";
 import nodePath77 from "path";
 import process14 from "process";
 function buildProvenanceResolver(options) {
@@ -43103,7 +43426,7 @@ async function runRetro(options, dependencies) {
   return { ok: true, result, agentFilingNeeded, drops };
 }
 function spawnClaudeExtractor(argv, spawnOptions) {
-  const result = spawnSync7("claude", argv, {
+  const result = spawnSync6("claude", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -43113,7 +43436,7 @@ function spawnClaudeExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function spawnCodexExtractor(argv, spawnOptions) {
-  const result = spawnSync7("codex", argv, {
+  const result = spawnSync6("codex", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     stdio: spawnOptions.stdio,
@@ -43122,7 +43445,7 @@ function spawnCodexExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: "" });
 }
 function spawnCursorExtractor(argv, spawnOptions) {
-  const result = spawnSync7("cursor-agent", argv, {
+  const result = spawnSync6("cursor-agent", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -43132,16 +43455,16 @@ function spawnCursorExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function prepareCursorExtractionDirectory(directory) {
-  const gitInit = spawnSync7("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
+  const gitInit = spawnSync6("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath77.join(directory, ".cursor");
   mkdirSync12(cursorDirectory, { recursive: true });
-  writeFileSync19(nodePath77.join(cursorDirectory, "cli.json"), JSON.stringify({
+  writeFileSync20(nodePath77.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
   }));
-  writeFileSync19(nodePath77.join(cursorDirectory, "sandbox.json"), JSON.stringify({
+  writeFileSync20(nodePath77.join(cursorDirectory, "sandbox.json"), JSON.stringify({
     type: "workspace_readwrite",
     disableTmpWrite: true,
     networkPolicy: { default: "deny", allow: [] }
@@ -43159,13 +43482,13 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
   const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
-  const workDirectory = mkdtempSync5(nodePath77.join(tmpdir3(), "safeword-retro-"));
+  const workDirectory = mkdtempSync6(nodePath77.join(tmpdir4(), "safeword-retro-"));
   if (agent === "codex") {
     return async (transcript) => {
       const result = await runCodexHeadlessExtractionChecked2(transcript, {
         spawn: spawnCodex,
         writeFile: (path5, content) => {
-          writeFileSync19(path5, content);
+          writeFileSync20(path5, content);
         },
         readFile: (path5) => readFileSync49(path5, "utf8"),
         env: process14.env,
@@ -43212,7 +43535,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
       spawn: spawnClaude,
       writeDigest: (digest3) => {
         const path5 = nodePath77.join(workDirectory, "digest.txt");
-        writeFileSync19(path5, digest3);
+        writeFileSync20(path5, digest3);
         return path5;
       },
       env: process14.env,
@@ -43314,7 +43637,7 @@ async function executeRetroCommand(options, cwd) {
     projectDirectory,
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
-      runGit: () => spawnSync7("git", ["rev-parse", "--short", "HEAD"], {
+      runGit: () => spawnSync6("git", ["rev-parse", "--short", "HEAD"], {
         cwd: projectDirectory,
         encoding: "utf8",
         timeout: 1e4
@@ -44032,17 +44355,17 @@ __export(exports_codex_hook, {
   normalizeNamespaceRootLabel: () => normalizeNamespaceRootLabel,
   codexHook: () => codexHook
 });
-import { execFileSync as execFileSync9, spawnSync as spawnSync8 } from "child_process";
+import { execFileSync as execFileSync9, spawnSync as spawnSync7 } from "child_process";
 import {
   cpSync,
   existsSync as existsSync40,
   mkdirSync as mkdirSync14,
-  mkdtempSync as mkdtempSync6,
+  mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync51,
-  rmSync as rmSync8,
-  writeFileSync as writeFileSync20
+  rmSync as rmSync9,
+  writeFileSync as writeFileSync21
 } from "fs";
-import { tmpdir as tmpdir4 } from "os";
+import { tmpdir as tmpdir5 } from "os";
 import nodePath82 from "path";
 import process19 from "process";
 async function readStdin() {
@@ -44132,7 +44455,7 @@ function writeCodexIdentityCache(input) {
   try {
     const cachePath = nodePath82.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
     mkdirSync14(nodePath82.dirname(cachePath), { recursive: true });
-    writeFileSync20(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
+    writeFileSync21(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
 function rememberCodexRunIdentity(input) {
@@ -44258,12 +44581,12 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync6(nodePath82.join(tmpdir4(), "safeword-codex-hook-"));
+      temporaryHookDirectory = mkdtempSync7(nodePath82.join(tmpdir5(), "safeword-codex-hook-"));
       cpSync(nodePath82.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync20(nodePath82.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      writeFileSync21(nodePath82.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath82.join(temporaryHookDirectory, nodePath82.basename(hookPath));
     }
-    const result = spawnSync8("bun", [executableHookPath], {
+    const result = spawnSync7("bun", [executableHookPath], {
       cwd: projectDirectory,
       input: rawInput,
       encoding: "utf8",
@@ -44283,7 +44606,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
     };
   } finally {
     if (temporaryHookDirectory)
-      rmSync8(temporaryHookDirectory, { recursive: true, force: true });
+      rmSync9(temporaryHookDirectory, { recursive: true, force: true });
   }
 }
 function denyForPackagedHookFailure(result) {

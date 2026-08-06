@@ -32,7 +32,10 @@ function sha256(content: string | Buffer): string {
 }
 
 function git(arguments_: string[]): { status: number; stdout: Buffer; stderr: Buffer } {
-  const result = spawnSync('git', arguments_, { cwd: repoRoot });
+  const result = spawnSync('git', arguments_, {
+    cwd: repoRoot,
+    maxBuffer: 32 * 1024 * 1024,
+  });
   return {
     status: result.status ?? 1,
     stdout: result.stdout,
