@@ -8,7 +8,7 @@ import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 type ReviewAgent = 'claude' | 'codex';
 
-function installFakeReviewer(directory: string, agent: ReviewAgent, _log: string): string {
+function installFakeReviewer(directory: string, agent: ReviewAgent): string {
   const fixture = Buffer.from(directory).toString('hex');
   const bin = nodePath.join(
     tmpdir(),
@@ -100,7 +100,7 @@ describe('cross-agent review public-command wiring', () => {
       const target = nodePath.join(directory, 'review-input.md');
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(target, 'bounded review input\n');
-      const bin = installFakeReviewer(directory, reviewer, log);
+      const bin = installFakeReviewer(directory, reviewer);
 
       const result = await runCli(
         [
@@ -149,8 +149,8 @@ describe('cross-agent review public-command wiring', () => {
     const target = nodePath.join(directory, 'review-input.md');
     const log = nodePath.join(directory, 'review.log');
     writeFileSync(target, 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'claude', log);
-    installFakeReviewer(directory, 'codex', log);
+    const bin = installFakeReviewer(directory, 'claude');
+    installFakeReviewer(directory, 'codex');
 
     const result = await runCli(
       [
@@ -191,8 +191,8 @@ describe('cross-agent review public-command wiring', () => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-      const bin = installFakeReviewer(directory, 'codex', log);
-      installFakeReviewer(directory, 'claude', log);
+      const bin = installFakeReviewer(directory, 'codex');
+      installFakeReviewer(directory, 'claude');
 
       const result = await runCli(
         [
@@ -314,7 +314,7 @@ describe('cross-agent review public-command wiring', () => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-      const bin = installFakeReviewer(directory, 'codex', log);
+      const bin = installFakeReviewer(directory, 'codex');
 
       const result = await runCli(
         [
@@ -354,7 +354,7 @@ describe('cross-agent review public-command wiring', () => {
     const log = nodePath.join(directory, 'review.log');
     const original = 'bounded review input\n';
     writeFileSync(target, original);
-    const bin = installFakeReviewer(directory, 'codex', log);
+    const bin = installFakeReviewer(directory, 'codex');
 
     const result = await runCli(
       [
@@ -393,8 +393,8 @@ describe('cross-agent review public-command wiring', () => {
     const target = nodePath.join(directory, 'review-input.md');
     const log = nodePath.join(directory, 'review.log');
     writeFileSync(target, 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex', log);
-    installFakeReviewer(directory, 'claude', log);
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'claude');
 
     const result = await runCli(
       [
@@ -434,7 +434,7 @@ describe('cross-agent review public-command wiring', () => {
     const reviewLog = nodePath.join(directory, 'review.log');
     const environmentLog = nodePath.join(directory, 'environment.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex', reviewLog);
+    const bin = installFakeReviewer(directory, 'codex');
     const authorSecret = `sk-ant-${'a'.repeat(24)}`;
     const reviewerSecret = `sk-openai-${'b'.repeat(24)}`;
 
@@ -474,7 +474,7 @@ describe('cross-agent review public-command wiring', () => {
     const reviewLog = nodePath.join(directory, 'review.log');
     const environmentLog = nodePath.join(directory, 'environment.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'claude', reviewLog);
+    const bin = installFakeReviewer(directory, 'claude');
     const reviewerSecret = `sk-ant-${'c'.repeat(24)}`;
     const authorSecret = `sk-openai-${'d'.repeat(24)}`;
 
@@ -546,7 +546,7 @@ describe('cross-agent review public-command wiring', () => {
       );
       let bin = nodePath.join(directory, 'bin');
       mkdirSync(bin, { recursive: true });
-      if (failure !== 'not-installed') bin = installFakeReviewer(directory, 'codex', log);
+      if (failure !== 'not-installed') bin = installFakeReviewer(directory, 'codex');
 
       const result = await runCli(
         [
@@ -590,8 +590,8 @@ describe('cross-agent review public-command wiring', () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex', log);
-    installFakeReviewer(directory, 'claude', log);
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'claude');
 
     const result = await runCli(
       [
@@ -632,6 +632,38 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
   });
 
+  it.each([
+    { author: 'claude', authorName: 'Claude', reviewerName: 'Codex' },
+    { author: 'codex', authorName: 'Codex', reviewerName: 'Claude' },
+  ] as const)(
+    'suggests installing missing $reviewerName without blocking the $authorName fallback',
+    async ({ author, authorName, reviewerName }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, author);
+
+      const result = await runCli(
+        ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: author,
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(result.stdout).toContain(
+        `${reviewerName} is not installed. Install ${reviewerName} for fully independent reviews; Safe Word continued with a ${authorName} review.`,
+      );
+      expect(readFileSync(log, 'utf8')).toBe(`${author}\n`);
+    },
+  );
+
   it('does not let a degraded fallback satisfy hard cross-agent enforcement', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
@@ -641,8 +673,8 @@ describe('cross-agent review public-command wiring', () => {
       JSON.stringify({ crossAgentReview: 'require' }),
     );
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex', log);
-    installFakeReviewer(directory, 'claude', log);
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'claude');
 
     const result = await runCli(
       [
@@ -692,8 +724,8 @@ describe('cross-agent review public-command wiring', () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex', log);
-    installFakeReviewer(directory, 'claude', log);
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'claude');
     const startedAt = Date.now();
 
     const result = await runCli(
@@ -748,8 +780,8 @@ describe('cross-agent review public-command wiring', () => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-      const staleBin = installFakeReviewer(nodePath.join(directory, 'stale'), 'codex', log);
-      const currentBin = installFakeReviewer(nodePath.join(directory, 'current'), 'codex', log);
+      const staleBin = installFakeReviewer(nodePath.join(directory, 'stale'), 'codex');
+      const currentBin = installFakeReviewer(nodePath.join(directory, 'current'), 'codex');
 
       const result = await runCli(
         [
@@ -795,7 +827,7 @@ describe('cross-agent review public-command wiring', () => {
       'codex',
       incompatibleLog,
     );
-    const compatibleBin = installFakeReviewer(nodePath.join(directory, 'current'), 'codex', log);
+    const compatibleBin = installFakeReviewer(nodePath.join(directory, 'current'), 'codex');
 
     const result = await runCli(
       [
@@ -836,7 +868,7 @@ describe('cross-agent review public-command wiring', () => {
       `#!/bin/sh\nprintf 'launched\\n' >> '${maliciousLog}'\nprintf '%s\\n' '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config'\n`,
       { mode: 0o755 },
     );
-    const trustedBin = installFakeReviewer(directory, 'codex', reviewLog);
+    const trustedBin = installFakeReviewer(directory, 'codex');
 
     const result = await runCli(
       [
@@ -874,7 +906,7 @@ describe('cross-agent review public-command wiring', () => {
       JSON.stringify({ crossAgentReview: 'off' }),
     );
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex', log);
+    const bin = installFakeReviewer(directory, 'codex');
 
     const result = await runCli(
       [
@@ -941,8 +973,8 @@ describe('cross-agent review public-command wiring', () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex', log);
-    installFakeReviewer(directory, 'claude', log);
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'claude');
 
     const result = await runCli(
       ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
