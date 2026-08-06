@@ -180,7 +180,7 @@ _Selected live-model evaluation; excluded from deterministic CI._
 
 ### Scenario: Unavailable evidence remains unknown instead of looking successful
 
-- [ ] RED
+- [x] RED 98f595831
 - [ ] GREEN
 - [ ] REFACTOR
 
