@@ -30,6 +30,6 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Dogfood parity drift names the supported setup command
 
-- [ ] RED
+- [x] RED f672b5728
 - [ ] GREEN
 - [ ] REFACTOR
