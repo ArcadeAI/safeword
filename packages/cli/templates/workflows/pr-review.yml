@@ -14,12 +14,14 @@ jobs:
     permissions:
       contents: read
       issues: write
-      pull-requests: read
+      pull-requests: write
     uses: ./.github/workflows/safeword-pr-review-worker.yml
+    secrets: inherit
     with:
       pull_number: ${{ github.event.pull_request.number }}
       cancel_in_progress: ${{ github.event.action == 'converted_to_draft' }}
       inspect_requested: ${{ github.event.action != 'converted_to_draft' }}
+      write_requested: false
 
   discover-ready-pull-requests:
     if: github.event_name == 'schedule'
@@ -54,9 +56,11 @@ jobs:
     permissions:
       contents: read
       issues: write
-      pull-requests: read
+      pull-requests: write
     uses: ./.github/workflows/safeword-pr-review-worker.yml
+    secrets: inherit
     with:
       pull_number: ${{ matrix.pull_number }}
       cancel_in_progress: false
       inspect_requested: true
+      write_requested: true

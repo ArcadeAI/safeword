@@ -1156,6 +1156,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Default-off advisory PR review. Customers may customize managed workflow
     // files after setup; reconciliation updates only unchanged template content.
     '.github/workflows/safeword-pr-review.yml': prReviewWorkflowFile('workflows/pr-review.yml'),
+    '.github/workflows/safeword-pr-review-publisher.yml': prReviewWorkflowFile(
+      'workflows/pr-review-publisher.yml',
+    ),
     '.github/workflows/safeword-pr-review-worker.yml': prReviewWorkflowFile(
       'workflows/pr-review-worker.yml',
     ),

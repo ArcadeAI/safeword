@@ -11,9 +11,11 @@ import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../../templates/workflows');
 const routerPath = nodePath.join(templatesDirectory, 'pr-review.yml');
+const publisherPath = nodePath.join(templatesDirectory, 'pr-review-publisher.yml');
 const workerPath = nodePath.join(templatesDirectory, 'pr-review-worker.yml');
 const installedWorkflowPaths = [
   '.github/workflows/safeword-pr-review.yml',
+  '.github/workflows/safeword-pr-review-publisher.yml',
   '.github/workflows/safeword-pr-review-worker.yml',
 ] as const;
 
@@ -92,11 +94,13 @@ function writePrReviewConfig(projectDirectory: string, enabled: unknown): void {
 }
 
 describe('advisory PR review workflow contract', () => {
-  it('ships a router and a reusable worker with one per-PR privilege boundary', () => {
+  it('ships a router, fork-safe publisher, and reusable worker with one per-PR boundary', () => {
     expect(existsSync(routerPath), 'missing PR review router template').toBe(true);
+    expect(existsSync(publisherPath), 'missing trusted PR review publisher template').toBe(true);
     expect(existsSync(workerPath), 'missing reusable PR review worker template').toBe(true);
 
     const router = YAML.parse(readFileSync(routerPath, 'utf8')) as Record<string, unknown>;
+    const publisher = YAML.parse(readFileSync(publisherPath, 'utf8')) as Record<string, unknown>;
     const worker = YAML.parse(readFileSync(workerPath, 'utf8')) as Record<string, unknown>;
 
     expect(router).toMatchObject({
@@ -108,16 +112,19 @@ describe('advisory PR review workflow contract', () => {
       },
       jobs: {
         'event-review': {
-          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
+          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
+          secrets: 'inherit',
           uses: './.github/workflows/safeword-pr-review-worker.yml',
           with: {
             inspect_requested: "${{ github.event.action != 'converted_to_draft' }}",
+            write_requested: false,
           },
         },
         'scheduled-review': {
-          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
+          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
+          secrets: 'inherit',
           uses: './.github/workflows/safeword-pr-review-worker.yml',
-          with: { inspect_requested: true },
+          with: { inspect_requested: true, write_requested: true },
         },
       },
     });
@@ -128,6 +135,7 @@ describe('advisory PR review workflow contract', () => {
             pull_number: { required: true, type: 'number' },
             cancel_in_progress: { required: true, type: 'boolean' },
             inspect_requested: { required: true, type: 'boolean' },
+            write_requested: { required: true, type: 'boolean' },
           },
         },
       },
@@ -138,17 +146,42 @@ describe('advisory PR review workflow contract', () => {
       jobs: {
         inspect: {
           environment: { name: 'safeword-pr-review-model', deployment: false },
-          if: '${{ inputs.inspect_requested }}',
+          if: "${{ always() && inputs.inspect_requested && (needs.invalidate.result == 'success' || needs.invalidate.result == 'skipped') }}",
           permissions: { contents: 'read', issues: 'read', 'pull-requests': 'read' },
         },
         publish: {
-          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
+          permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
+        },
+      },
+    });
+    expect(publisher).toMatchObject({
+      on: {
+        workflow_run: { types: ['completed'], workflows: ['Safeword advisory PR review'] },
+      },
+      jobs: {
+        'discover-event-result': {
+          permissions: { actions: 'read', contents: 'read' },
+        },
+        'publish-event-result': {
+          concurrency: {
+            group: 'pr-review-${{ needs.discover-event-result.outputs.pull_number }}',
+            'cancel-in-progress': false,
+          },
+          permissions: {
+            actions: 'read',
+            contents: 'read',
+            issues: 'write',
+            'pull-requests': 'write',
+          },
         },
       },
     });
 
     const workerSource = readFileSync(workerPath, 'utf8');
-    expect(workerSource).not.toMatch(/actions\/checkout|gh pr checkout|git fetch/);
+    const publisherSource = readFileSync(publisherPath, 'utf8');
+    expect(`${workerSource}\n${publisherSource}`).not.toMatch(
+      /actions\/checkout|gh pr checkout|git fetch/,
+    );
     expect(workerSource).toContain('{kind: "non_text", path: .filename}');
     expect(workerSource).toContain('{kind: "unreadable_text", path: .filename}');
     expect(workerSource).toContain('png|jpe?g|gif|webp');
@@ -168,15 +201,15 @@ describe('advisory PR review workflow contract', () => {
     expect(SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review.yml']).toMatchObject({
       template: 'workflows/pr-review.yml',
     });
+    expect(
+      SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review-publisher.yml'],
+    ).toMatchObject({ template: 'workflows/pr-review-publisher.yml' });
   });
 
-  it('keeps both workflows absent until PR review is explicitly enabled', () => {
+  it('keeps all workflows absent until PR review is explicitly enabled', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-'));
     const context = { cwd: projectDirectory } as ProjectContext;
-    const definitions = [
-      SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review.yml'],
-      SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-pr-review-worker.yml'],
-    ];
+    const definitions = installedWorkflowPaths.map(path => SAFEWORD_SCHEMA.managedFiles[path]);
 
     try {
       for (const definition of definitions) {
@@ -197,7 +230,7 @@ describe('advisory PR review workflow contract', () => {
     }
   });
 
-  it('installs exactly two workflows only for literal true and removes unmodified files when disabled', async () => {
+  it('installs exactly three workflows only for literal true and safely removes them when disabled', async () => {
     const malformedEnabledValues: unknown[] = [undefined, false, 'true', 1, JSON.parse('null')];
     for (const enabled of malformedEnabledValues) {
       const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-'));

@@ -29,8 +29,11 @@ function namedStep(workflow: Workflow, job: string, name: string): Step {
 }
 
 describe('disposable advisory PR review fixture', () => {
-  it('derives from canonical workflows and limits drift to three bounded probes', () => {
+  it('derives from canonical workflows and limits drift to bounded command probes', () => {
     const templatesDirectory = getTemplatesDirectory();
+    const publisherSource = readFile(
+      nodePath.join(templatesDirectory, 'workflows/pr-review-publisher.yml'),
+    );
     const routerSource = readFile(nodePath.join(templatesDirectory, 'workflows/pr-review.yml'));
     const workerSource = readFile(
       nodePath.join(templatesDirectory, 'workflows/pr-review-worker.yml'),
@@ -54,6 +57,21 @@ describe('disposable advisory PR review fixture', () => {
       fixtureStep.env = canonicalStep.env;
     }
     expect(fixtureWorker).toEqual(canonicalWorker);
+
+    const canonicalPublisher = YAML.parse(
+      publisherSource.replaceAll('__SAFEWORD_VERSION__', '0.0.0-smoke'),
+    ) as Workflow;
+    const fixturePublisher = YAML.parse(fixture.publisher) as Workflow;
+    for (const name of [
+      'Invalidate any obsolete advisory route',
+      'Publish one ordinary pull-request comment',
+    ]) {
+      const canonicalStep = namedStep(canonicalPublisher, 'publish-event-result', name);
+      const fixtureStep = namedStep(fixturePublisher, 'publish-event-result', name);
+      fixtureStep.run = canonicalStep.run;
+      fixtureStep.env = canonicalStep.env;
+    }
+    expect(fixturePublisher).toEqual(canonicalPublisher);
   });
 
   it('projects the scheduled caller onto a manually dispatchable smoke sweep', () => {
@@ -67,11 +85,11 @@ describe('disposable advisory PR review fixture', () => {
     delete expected.needs;
     delete expected.if;
     delete expected.strategy;
-    expected.with.pull_number = '${{ inputs.pull_number }}';
+    expected.with.pull_number = '${{ fromJSON(inputs.pull_number) }}';
 
     expect(sweep.jobs['scheduled-review']).toEqual(expected);
     expect(sweep).toMatchObject({
-      on: { workflow_dispatch: { inputs: { pull_number: { type: 'number' } } } },
+      on: { workflow_dispatch: { inputs: { pull_number: { type: 'string' } } } },
     });
   });
 });

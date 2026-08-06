@@ -19,6 +19,12 @@ interface Job {
 interface Run {
   conclusion: string | undefined;
   id: number;
+  run_attempt: number;
+  status: string;
+}
+
+interface ConcurrencyMember {
+  run_id: number;
   status: string;
 }
 
@@ -50,7 +56,16 @@ function gh(arguments_: string[], options?: CommandOptions): string {
 }
 
 function ghJson(path: string): unknown {
-  return JSON.parse(gh(['api', path], { quiet: true })) as unknown;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return JSON.parse(gh(['api', path], { quiet: true })) as unknown;
+    } catch (error) {
+      lastError = error;
+      pause(attempt * 1000);
+    }
+  }
+  throw lastError;
 }
 
 function waitFor<T>(description: string, probe: () => T | undefined, seconds = 300): T {
@@ -72,6 +87,37 @@ function repoExists(repo: string): boolean {
   }
 }
 
+function serializedInConcurrencyGroup(
+  repo: string,
+  pullNumber: number,
+  eventRunId: number,
+  sweepRunId: number,
+): boolean {
+  try {
+    const group = JSON.parse(
+      gh(
+        [
+          'api',
+          '-H',
+          'X-GitHub-Api-Version: 2026-03-10',
+          `repos/${repo}/actions/concurrency_groups/pr-review-${pullNumber}`,
+        ],
+        { quiet: true },
+      ),
+    ) as { group_members: ConcurrencyMember[] };
+    const members = group.group_members.filter(member =>
+      [eventRunId, sweepRunId].includes(member.run_id),
+    );
+    return (
+      members.length === 2 &&
+      members.some(member => member.status === 'in_progress') &&
+      members.some(member => member.status === 'pending')
+    );
+  } catch {
+    return false;
+  }
+}
+
 function latestRun(repo: string, workflow: string, event: string): Run | undefined {
   const response = ghJson(
     `repos/${repo}/actions/workflows/${workflow}/runs?event=${event}&per_page=10`,
@@ -81,6 +127,7 @@ function latestRun(repo: string, workflow: string, event: string): Run | undefin
   return {
     conclusion: typeof run.conclusion === 'string' ? run.conclusion : undefined,
     id: Number(run.id),
+    run_attempt: Number(run.run_attempt),
     status: String(run.status),
   };
 }
@@ -90,20 +137,34 @@ function jobs(repo: string, runId: number): Job[] {
 }
 
 function waitForSuccess(repo: string, runId: number): void {
-  const run = waitFor(
-    `workflow run ${runId}`,
-    () => {
-      const value = ghJson(`repos/${repo}/actions/runs/${runId}`) as Run;
-      return value.status === 'completed' ? value : undefined;
-    },
-    600,
-  );
-  if (run.conclusion !== 'success') {
+  let minimumAttempt = 1;
+  for (let retry = 0; retry <= 1; retry += 1) {
+    const run = waitFor(
+      `workflow run ${runId}`,
+      () => {
+        const value = ghJson(`repos/${repo}/actions/runs/${runId}`) as Run;
+        return value.status === 'completed' && value.run_attempt >= minimumAttempt
+          ? value
+          : undefined;
+      },
+      600,
+    );
+    if (run.conclusion === 'success') return;
     const detail = gh(['run', 'view', String(runId), '--repo', repo, '--log-failed'], {
       quiet: true,
     });
+    const infrastructureFailure =
+      /Service Unavailable|Internal Server Error|Failed to resolve action download info/u.test(
+        detail,
+      );
+    if (retry === 0 && infrastructureFailure) {
+      minimumAttempt = run.run_attempt + 1;
+      gh(['run', 'rerun', String(runId), '--repo', repo, '--failed']);
+      continue;
+    }
     throw new Error(`workflow run ${runId} concluded ${run.conclusion}\n${detail}`);
   }
+  throw new Error(`workflow run ${runId} exhausted its infrastructure retry`);
 }
 
 function snapshot(repo: string, pullNumber: number, headSha: string): string {
@@ -134,6 +195,7 @@ function writeFixture(directory: string): void {
   const fixture = createPrReviewSmokeFixture('0.0.0-smoke');
   const files = new Map([
     ['.github/workflows/safeword-pr-review.yml', fixture.router],
+    ['.github/workflows/safeword-pr-review-publisher.yml', fixture.publisher],
     ['.github/workflows/safeword-pr-review-worker.yml', fixture.worker],
     ['.github/workflows/safeword-pr-review-smoke-sweep.yml', fixture.sweep],
     ['.safeword/config.json', fixture.config],
@@ -270,19 +332,23 @@ export function runPrReviewDisposableSmoke(): void {
     );
     const headSha = (ghJson(`repos/${baseRepo}/pulls/${pullNumber}`) as { head: { sha: string } })
       .head.sha;
-    const before = waitFor('stable initial mergeability', () => {
+
+    const eventRun = waitFor('fork pull_request_target run', () =>
+      latestRun(baseRepo, 'safeword-pr-review.yml', 'pull_request_target'),
+    );
+    waitForSuccess(baseRepo, eventRun.id);
+    const before = waitFor('stable pre-publication mergeability', () => {
       const value = snapshot(baseRepo, pullNumber, headSha);
       return (JSON.parse(value) as { mergeableState: string }).mergeableState === 'unknown'
         ? undefined
         : value;
     });
-
-    const eventRun = waitFor('fork pull_request_target run', () =>
-      latestRun(baseRepo, 'safeword-pr-review.yml', 'pull_request_target'),
+    const publisherRun = waitFor('trusted fork-event publisher', () =>
+      latestRun(baseRepo, 'safeword-pr-review-publisher.yml', 'workflow_run'),
     );
-    waitFor('event inspection job', () =>
-      jobs(baseRepo, eventRun.id).some(
-        job => job.name.endsWith('/ inspect') && job.status === 'in_progress',
+    waitFor('trusted publication job', () =>
+      jobs(baseRepo, publisherRun.id).some(
+        job => job.name === 'publish-event-result' && job.status === 'in_progress',
       )
         ? true
         : undefined,
@@ -302,16 +368,13 @@ export function runPrReviewDisposableSmoke(): void {
     const sweepRun = waitFor('manual scheduled-call projection', () =>
       latestRun(baseRepo, 'safeword-pr-review-smoke-sweep.yml', 'workflow_dispatch'),
     );
-    pause(5000);
-    const eventStillInspecting = jobs(baseRepo, eventRun.id).some(
-      job => job.name.endsWith('/ inspect') && job.status === 'in_progress',
+    waitFor('two serialized per-PR concurrency leases', () =>
+      serializedInConcurrencyGroup(baseRepo, pullNumber, publisherRun.id, sweepRun.id)
+        ? true
+        : undefined,
     );
-    const sweepStarted = jobs(baseRepo, sweepRun.id).some(job => job.status === 'in_progress');
-    if (!eventStillInspecting || sweepStarted) {
-      throw new Error('event and scheduled-call projection did not serialize on the per-PR group');
-    }
 
-    waitForSuccess(baseRepo, eventRun.id);
+    waitForSuccess(baseRepo, publisherRun.id);
     waitForSuccess(baseRepo, sweepRun.id);
     const comment = verifyResult(baseRepo, pullNumber, headSha, before, [eventRun.id, sweepRun.id]);
 
@@ -320,6 +383,7 @@ export function runPrReviewDisposableSmoke(): void {
         comment,
         eventRun: eventRun.id,
         forkPullRequest: pullUrl,
+        publisherRun: publisherRun.id,
         serialized: true,
         sweepRun: sweepRun.id,
       }),

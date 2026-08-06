@@ -21,6 +21,7 @@ interface Workflow extends Record<string, unknown> {
 
 export interface PrReviewSmokeFixture {
   config: string;
+  publisher: string;
   router: string;
   sweep: string;
   worker: string;
@@ -34,6 +35,9 @@ function namedStep(workflow: Workflow, job: string, name: string): Step {
 
 export function createPrReviewSmokeFixture(version: string): PrReviewSmokeFixture {
   const templatesDirectory = getTemplatesDirectory();
+  const publisherSource = readFile(
+    nodePath.join(templatesDirectory, 'workflows/pr-review-publisher.yml'),
+  );
   const routerSource = readFile(nodePath.join(templatesDirectory, 'workflows/pr-review.yml'));
   const workerSource = readFile(
     nodePath.join(templatesDirectory, 'workflows/pr-review-worker.yml'),
@@ -54,8 +58,6 @@ fi
     'inspect',
     'Inspect bounded evidence without GitHub write authority',
   );
-  inspect.env.SAFEWORD_SMOKE_HOLD_SECONDS =
-    "${{ github.event_name == 'pull_request_target' && '45' || '0' }}";
   inspect.run = `
 if [ -z "$OPENAI_API_KEY" ]; then
   echo '::error::inspection job did not receive its environment-scoped secret'
@@ -66,7 +68,6 @@ if gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/com
   echo '::error::read-only inspection token unexpectedly wrote an issue comment'
   exit 1
 fi
-sleep "$SAFEWORD_SMOKE_HOLD_SECONDS"
 jq -n '{secretScopedToInspection: true, inspectionWriteDenied: true}' > advisory-result.json
 `.trim();
 
@@ -88,6 +89,25 @@ else
 fi
 `.trim();
 
+  const publisher = YAML.parse(
+    publisherSource.split('__SAFEWORD_VERSION__').join(version),
+  ) as Workflow;
+  const trustedInvalidate = namedStep(
+    publisher,
+    'publish-event-result',
+    'Invalidate any obsolete advisory route',
+  );
+  trustedInvalidate.env.OPENAI_API_KEY = '${{ secrets.OPENAI_API_KEY }}';
+  trustedInvalidate.run = invalidate.run;
+  const trustedPublish = namedStep(
+    publisher,
+    'publish-event-result',
+    'Publish one ordinary pull-request comment',
+  );
+  trustedPublish.env.OPENAI_API_KEY = '${{ secrets.OPENAI_API_KEY }}';
+  trustedPublish.env.SAFEWORD_SMOKE_HOLD_SECONDS = '45';
+  trustedPublish.run = `sleep "$SAFEWORD_SMOKE_HOLD_SECONDS"\n${publish.run}`;
+
   const router = YAML.parse(routerSource) as Workflow;
   const scheduledReview = structuredClone(router.jobs['scheduled-review']);
   if (scheduledReview?.with === undefined) {
@@ -96,7 +116,7 @@ fi
   delete scheduledReview.needs;
   delete scheduledReview.if;
   delete scheduledReview.strategy;
-  scheduledReview.with.pull_number = '${{ inputs.pull_number }}';
+  scheduledReview.with.pull_number = '${{ fromJSON(inputs.pull_number) }}';
 
   const sweep: Workflow = {
     name: 'Safeword advisory PR review smoke sweep',
@@ -106,7 +126,7 @@ fi
           pull_number: {
             description: 'Disposable fixture pull request',
             required: true,
-            type: 'number',
+            type: 'string',
           },
         },
       },
@@ -117,6 +137,7 @@ fi
 
   return {
     config: `${JSON.stringify({ prReview: { enabled: true } }, undefined, 2)}\n`,
+    publisher: YAML.stringify(publisher, { lineWidth: 0 }),
     router: routerSource.split('__SAFEWORD_VERSION__').join(version),
     sweep: YAML.stringify(sweep, { lineWidth: 0 }),
     worker: YAML.stringify(worker, { lineWidth: 0 }),

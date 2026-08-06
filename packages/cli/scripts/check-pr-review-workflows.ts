@@ -9,6 +9,7 @@ import { SAFEWORD_SCHEMA } from '../src/schema.js';
 
 const installedPaths = [
   '.github/workflows/safeword-pr-review.yml',
+  '.github/workflows/safeword-pr-review-publisher.yml',
   '.github/workflows/safeword-pr-review-worker.yml',
 ] as const;
 
@@ -63,7 +64,8 @@ export function checkPrReviewWorkflows(
     const fixture = createPrReviewSmokeFixture('0.0.0-smoke');
     const sweepPath = '.github/workflows/safeword-pr-review-smoke-sweep.yml';
     writeFileSync(nodePath.join(projectDirectory, installedPaths[0]), fixture.router);
-    writeFileSync(nodePath.join(projectDirectory, installedPaths[1]), fixture.worker);
+    writeFileSync(nodePath.join(projectDirectory, installedPaths[1]), fixture.publisher);
+    writeFileSync(nodePath.join(projectDirectory, installedPaths[2]), fixture.worker);
     writeFileSync(nodePath.join(projectDirectory, sweepPath), fixture.sweep);
     if (runActionlint(executable, projectDirectory, [...installedPaths, sweepPath]) !== 0) {
       throw new Error('disposable advisory PR review fixture failed actionlint');
