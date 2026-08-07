@@ -385,11 +385,12 @@ Feature: Keep review available with the best supported fallback
 
     @rejection @review-with-the-best-available-agent.TBU1.R6
     Scenario: Reviewer approval with an error finding is rejected
-      Given a reviewer returns approval with an error finding
+      Given every available reviewer returns approval with an error finding
       When the CLI coordinator validates the reviewer output
-      Then the reviewer output is classified as invalid
+      Then every contradictory reviewer output is classified as invalid
       And the review is not reported healthy
-      And the remaining bounded routes may continue
+      And every bounded route is tried exactly once
+      And the builder receives REVIEW_ROUTES_EXHAUSTED without reviewer findings
 
     @review-with-the-best-available-agent.TBU1.R6
     Scenario: Typed route exhaustion starts the host-owned fallback
