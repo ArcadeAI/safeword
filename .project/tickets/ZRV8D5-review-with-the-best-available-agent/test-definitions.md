@@ -10,12 +10,6 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN c2ffdc88a
 - [x] REFACTOR skip: the generated Cursor command is a data-only catalogue entry
 
-### Scenario: The installed Claude plugin fallback is self-contained
-
-- [x] RED skip: the final independent review reproduced the project-local path in committed plugin assets
-- [x] GREEN 732965541
-- [x] REFACTOR 31f37d4c5
-
 ## Manual host runtime: Every advertised host enters fallback for typed exhaustion
 
 - [x] RED skip: agent behavior — host-native runtime invocation is not structurally executable from the local acceptance runner
@@ -27,6 +21,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED skip: agent behavior — host-native runtime invocation is not structurally executable from the local acceptance runner
 - [x] GREEN skip: agent behavior — Claude/Codex/Cursor cloud execution remained unavailable in this session
 - [x] REFACTOR skip: agent behavior — no runtime implementation changed; the shipped contract and evidence limit are explicit
+
+### Scenario: The installed Claude plugin fallback is self-contained
+
+- [x] RED skip: the final independent review reproduced the project-local path in committed plugin assets
+- [x] GREEN 732965541
+- [x] REFACTOR 31f37d4c5
 
 ## Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
 
