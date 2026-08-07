@@ -1,6 +1,6 @@
 # Impl Plan: Keep review available with the best supported fallback
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -80,11 +80,11 @@ Surface proof:
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Plain language distinguishes every assurance level and names how to restore independent review | Independent wording review and persona walkthrough in `verify.md` | |
-| 1. Structure enforces; instructions suggest | CLI routing/policy remain enforced; host continuation is explicitly best-effort and never mints independent evidence | Existing coordinator tests plus asset contracts and smoke evidence | explicit-conflict |
-| 2. Fire at boundaries, not every turn | Handoff appears only after typed exhaustion at the existing review boundary | Non-exhaustion pass-through contract plus the four rejection scenarios | |
-| 3. Add, never replace | New schema-owned assets reconcile without changing customer-authored agents or the coordinator contract | Schema/setup tests | |
-| 5. Clarity before correctness | One short workflow and one reviewer contract own the new behavior | Skill size, uniqueness, generation, and parity tests | |
+| Optimize for the NTB without constraining the TBU | Plain language distinguishes every assurance level and names how to restore independent review | `packages/cli/tests/review/finish-review-contract.test.ts` | |
+| 1. Structure enforces; instructions suggest | CLI routing/policy remain enforced; host continuation is explicitly best-effort and never mints independent evidence | `packages/cli/tests/review/finish-review-contract.test.ts` | explicit-conflict |
+| 2. Fire at boundaries, not every turn | Handoff appears only after typed exhaustion at the existing review boundary | `packages/cli/tests/review/surface-parity.test.ts` | |
+| 3. Add, never replace | New schema-owned assets reconcile without changing customer-authored agents or the coordinator contract | `packages/cli/tests/schema.test.ts` | |
+| 5. Clarity before correctness | One short workflow and one reviewer contract own the new behavior | `packages/cli/tests/review/finish-review-contract.test.ts` | |
 
 Architecture decisions honored: **Host-owned cross-agent adversarial review
 coordinator** remains the only source of packet provenance, process isolation,
@@ -93,7 +93,7 @@ agent workflows, where degraded feedback is additive to the original result.
 
 ## Known deviations
 
-**Structure enforces; instructions suggest:** no portable child process can
+**1. Structure enforces; instructions suggest:** no portable child process can
 invoke every foreground host's in-session agent tool or force the main model to
 continue. The new rungs are therefore best-effort instructions. Tests prove the
 assets are present, consistent, bounded in wording, and wired; live checks are
@@ -110,7 +110,10 @@ result discloses that host project instructions may have loaded.
 credentials and frame accepted targets as delimited, untrusted review material.
 Because the foreground handoff is model-mediated, tests can prove the supplied
 contract but cannot structurally prevent a host from adding other context. The
-assurance wording discloses that host-mandated project context may load.
+named reviewer exposes only its read tool and forbids paths outside the accepted
+set, but it still reads the live worktree. Assurance therefore discloses both
+that host-mandated project context may load and that source integrity was not
+revalidated.
 
 **Cloud evidence:** this session cannot launch Claude Code Cloud, Codex Cloud,
 or Cursor Cloud Agents. Asset/schema coverage proves delivery, not live cloud
