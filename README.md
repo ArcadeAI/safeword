@@ -464,15 +464,14 @@ trusted `workflow_run` publisher from the base branch; it never checks out pull
 request code and receives no model secret. GitHub currently requires
 `pull-requests: write` for an ordinary pull-request conversation comment, so the
 publisher is additionally constrained by Safeword's fixed issue-comment-only
-boundary and the release smoke verifies that it creates no review, check,
+boundary and the compatibility smoke verifies that it creates no review, check,
 status, or merge change.
 
-Deterministic release tests always validate the advisory workflow contract. A
-disposable-repository smoke test additionally blocks a release when that
-workflow or its compatibility harness changed since the last successful stable
-release. A daily canary and default-branch manual dispatch watch for GitHub
-environment-secret, fork-event, and concurrency drift between releases. Keep
-the customer workflow disabled until a live smoke passes where it will run.
+Deterministic release tests always validate the advisory workflow contract.
+Live GitHub compatibility is monitored separately so sandbox availability or
+credentials cannot block unrelated releases. A daily canary and default-branch
+manual dispatch watch for environment-secret, fork-event, and concurrency drift.
+Keep the customer workflow disabled until a live smoke passes where it will run.
 
 ### Maintainer compatibility proof
 
@@ -492,7 +491,7 @@ Run the same proof locally with:
 bun run --cwd packages/cli smoke:pr-review:disposable
 ```
 
-Each change-scoped release run, daily canary, or manual proof creates
+Each daily canary or manual proof creates
 `safeword-pr-review-smoke-<unique-id>` in both owners, exercises a real fork pull
 request plus the canonical scheduled-call projection, and then permanently
 deletes both repositories. Set
