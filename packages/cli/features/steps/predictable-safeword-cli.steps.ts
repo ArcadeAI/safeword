@@ -35,7 +35,7 @@ import {
   renderHumanResult,
   renderJsonResult,
 } from '../../src/cli-protocol/result.ts';
-import { convergeSetup } from '../../src/commands/converge-setup.ts';
+import { convergeSetup } from '../../src/lifecycle/project-install.ts';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
@@ -607,7 +607,7 @@ Given('a public command handler', function (this: PredictableCliWorld) {
 });
 
 When('it observes and plans an operation', async function (this: PredictableCliWorld) {
-  const { observeStatus } = await import('../../src/commands/status.ts');
+  const { observeStatus } = await import('../../src/lifecycle/status.ts');
   this.protocolResult = await observeStatus(temporaryProject(this));
 });
 

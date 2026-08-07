@@ -12,7 +12,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { convergeSetup } from '../../src/commands/converge-setup.js';
+import { convergeSetup } from '../../src/lifecycle/project-install.js';
 import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
 

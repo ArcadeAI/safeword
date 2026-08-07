@@ -80,19 +80,19 @@ function configCheckResult(inspection: ConfigInspection): CliResult {
 async function statusHandler(invocation: CommandInvocation): Promise<CliResult> {
   const parsed = parseAgentSelection(invocation.options.agents);
   if (!parsed.ok) return invalidAgentSelection('status', parsed.error);
-  const { observeLifecycleStatus } = await import('../commands/status.js');
+  const { observeLifecycleStatus } = await import('../lifecycle/status.js');
   return observeLifecycleStatus(invocation.cwd, parsed.selection.agents);
 }
 
 async function doctorHandler(invocation: CommandInvocation): Promise<CliResult> {
   const parsed = parseAgentSelection(invocation.options.agents);
   if (!parsed.ok) return invalidAgentSelection('doctor', parsed.error);
-  const { diagnoseLifecycle } = await import('../commands/doctor.js');
+  const { diagnoseLifecycle } = await import('../lifecycle/doctor.js');
   return diagnoseLifecycle(invocation.cwd, parsed.selection.agents);
 }
 
 async function installHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { installLifecycle } = await import('../commands/lifecycle.js');
+  const { installLifecycle } = await import('../lifecycle/commands.js');
   return installLifecycle(invocation, {
     installClaude: () => claudeInstallHandler(invocation),
     installCodex: () => codexMutationHandler('codex install', invocation),
@@ -124,7 +124,7 @@ async function claudeRecoverHandler(invocation: CommandInvocation): Promise<CliR
 }
 
 async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { planLifecycle } = await import('../commands/lifecycle.js');
+  const { planLifecycle } = await import('../lifecycle/commands.js');
   return planLifecycle(invocation);
 }
 
@@ -145,7 +145,7 @@ async function removeHandler(invocation: CommandInvocation): Promise<CliResult> 
 }
 
 async function uninstallHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { uninstallLifecycle } = await import('../commands/lifecycle.js');
+  const { uninstallLifecycle } = await import('../lifecycle/commands.js');
   return uninstallLifecycle(invocation);
 }
 
