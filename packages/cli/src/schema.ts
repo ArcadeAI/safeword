@@ -223,6 +223,8 @@ const CURSOR_SHARED_SKILL_FILES = [
   'elicit/SKILL.md',
   'explain/SKILL.md',
   'figure-it-out/SKILL.md',
+  'finish-review/SKILL.md',
+  'finish-review/REVIEWER.md',
   'lint/SKILL.md',
   'quality-review/SKILL.md',
   'refactor/SKILL.md',
@@ -935,6 +937,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // would keep `.cursor/` alive after reset.
     '.claude/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
     '.cursor/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
+    '.claude/agents/safeword-reviewer.md': { template: 'agents/safeword-reviewer.md' },
+    '.cursor/agents/safeword-reviewer.md': { template: 'agents/safeword-reviewer.md' },
 
     // Guides
     '.safeword/guides/architecture-guide.md': {
@@ -1056,6 +1060,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/quality-review/SKILL.md': {
       template: 'skills/quality-review/SKILL.md',
+    },
+    '.claude/skills/finish-review/SKILL.md': {
+      template: 'skills/finish-review/SKILL.md',
+    },
+    '.claude/skills/finish-review/REVIEWER.md': {
+      template: 'skills/finish-review/REVIEWER.md',
     },
     '.claude/skills/refactor/SKILL.md': {
       template: 'skills/refactor/SKILL.md',

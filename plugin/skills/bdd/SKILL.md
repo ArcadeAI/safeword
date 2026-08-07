@@ -56,9 +56,11 @@ and ticket scope; its typed verdict decides:
 safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions]
 ```
 
-The coordinator prefers the opposite headless agent, labels a permitted
-same-agent fallback as degraded, and blocks with one recovery action when no
-safe route remains. Do not bypass it with a private subagent. On a result that
+The coordinator prefers the opposite headless agent and labels a permitted
+same-agent fallback as degraded. Only when its typed result is
+`REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the original
+result and the same accepted targets. For every other result, return it
+unchanged; do not bypass it with another private subagent. On a result that
 satisfies the configured policy, record the returned provenance in the stamp
 (substitute the four values from `data` in the coordinator result):
 
