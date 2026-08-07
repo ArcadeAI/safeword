@@ -766,7 +766,7 @@ describe('cross-agent review public-command wiring', () => {
 
       expect(result.exitCode, result.stdout).toBe(0);
       expect(result.stdout).toContain(
-        `${reviewerName} is not installed. This review was not independent: the same agent (${authorName}) checked its own work in a separate headless process. Install ${reviewerName} for an independent review.`,
+        `${reviewerName} is not installed, or is too old to be used. This review was not independent: the same agent (${authorName}) checked its own work in a separate headless process. Install or update ${reviewerName}, then run the review again.`,
       );
       expect(readFileSync(log, 'utf8')).toBe(`${author}\n`);
     },

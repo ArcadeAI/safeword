@@ -215,11 +215,16 @@ function degradedDescription(
   actualReviewer: ReviewAgent,
   failure: ReviewFailure,
 ): string {
-  if (failure === 'not_installed') {
-    const assignedName = agentName(assignedReviewer);
-    return `${assignedName} is not installed. This review was not independent: the same agent (${agentName(actualReviewer)}) checked its own work in a separate headless process. Install ${assignedName} for an independent review.`;
-  }
-  return `This review was not independent: the same agent (${agentName(actualReviewer)}) checked its own work in a separate headless process.`;
+  // Every failure class earns its cause, not just a missing reviewer: a reader
+  // deciding whether to retry needs to know the assigned reviewer timed out
+  // rather than crashed. `causePhrase` already renders each class, and
+  // `nextStepFor` already picks the matching action.
+  return [
+    `${agentName(assignedReviewer)} ${causePhrase(failure)}.`,
+    `This review was not independent: the same agent (${agentName(actualReviewer)})`,
+    'checked its own work in a separate headless process.',
+    nextStepFor(assignedReviewer, failure),
+  ].join(' ');
 }
 
 function unsupportedAuthorResult(input: {
