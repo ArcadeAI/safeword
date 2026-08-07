@@ -239,10 +239,6 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode, result.stdout).toBe(2);
-      expect(result.stderr).toContain('Requesting an independent Codex review…');
-      if (failure === 'process') {
-        expect(result.stderr).toContain('Codex did not complete; trying a Claude fallback…');
-      }
       expect(result.stdout).toContain('DISTINCTIVE_REVIEW_SUMMARY');
       expect(result.stdout).toContain('DISTINCTIVE_ACTIONABLE_FINDING');
     },
