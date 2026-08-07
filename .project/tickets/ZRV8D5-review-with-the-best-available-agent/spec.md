@@ -31,17 +31,16 @@ Affected:
 - OpenAI Codex Cloud
 - Cursor
 - Cursor Cloud Agents
-- Safeword CLI
 
 ## Jobs To Be Done
 
-### review-with-the-best-available-agent.TBU1 — Always obtain the strongest available review
+### review-with-the-best-available-agent.TBU1 — Attempt the strongest available review route
 
 **Persona:** Technical Builder (TBU)
 
-> When I ask for a review, I want Safe Word to use the strongest reviewer the
-> current environment can provide and keep falling back until I receive useful
-> findings, so missing local tools never leave the main agent without a review.
+> When I ask for a review, I want Safe Word to attempt the strongest reviewer
+> the current environment can provide and continue through supported fallbacks,
+> so missing local tools do not end the review workflow without useful feedback.
 
 #### review-with-the-best-available-agent.TBU1.R1 — Every available independent reviewer is preferred over every degraded route
 
@@ -49,9 +48,11 @@ Affected:
 
 #### review-with-the-best-available-agent.TBU1.R3 — Without a usable headless reviewer, a host-native fresh-context reviewer provides a degraded review, including in a single-agent cloud environment
 
-#### review-with-the-best-available-agent.TBU1.R4 — When no delegated reviewer can complete, the main thread performs one bounded structured self-review
+#### review-with-the-best-available-agent.TBU1.R4 — When no delegated reviewer can complete, the main thread returns one valid bounded self-review or preserves exhaustion
 
-#### review-with-the-best-available-agent.TBU1.R5 — Review material stays data: diagnostics, secrets, and repository text never become reviewer instructions
+#### review-with-the-best-available-agent.TBU1.R5 — Shipped host contracts frame repository text as untrusted data and omit diagnostics and secrets
+
+#### review-with-the-best-available-agent.TBU1.R6 — Only typed route exhaustion enters the host-owned degraded ladder
 
 ### review-with-the-best-available-agent.NTB1 — Know what assurance the completed review provides
 
@@ -65,6 +66,8 @@ Affected:
 
 #### review-with-the-best-available-agent.NTB1.R2 — Degraded findings may complete `prefer`, but only an independent reviewer satisfies `require`
 
+#### review-with-the-best-available-agent.NTB1.R3 — A degraded review preserves whether the reviewer approved or requested changes
+
 ## Outcomes
 
 - Local sessions use every compatible opposite reviewer before degradation.
@@ -72,23 +75,48 @@ Affected:
 - Claude Code Cloud can use a fresh-context Claude reviewer without an external
   agent CLI.
 - Complete delegation failure still produces one structured main-thread review.
+- Completed reviewer verdicts, source-mutation failures, and required-policy
+  failures retain their coordinator outcome instead of being converted into
+  degraded success. Individual reviewer process, timeout, authentication, and
+  invalid-output failures remain route failures; after all CLI routes fail, the
+  coordinator converts them to `REVIEW_ROUTES_EXHAUSTED`.
 - Every result distinguishes independent, separate-process degraded,
   fresh-context degraded, and self-review assurance.
 - `require` remains fail-closed without discarding useful degraded findings.
 - An independent review satisfies `require`; a degraded review does not.
+- A degraded `changes_requested` verdict returns findings and remains action
+  required instead of being converted into approval.
+- Host fallback is best-effort and additive: its assurance preserves the
+  exhaustion disclosure and unsatisfied independence verdict where applicable,
+  and host findings never create independent evidence.
 
 ## Constraints
 
 - Reuse the existing coordinator and its typed `REVIEW_ROUTES_EXHAUSTED` result;
   do not duplicate packet, timeout, schema, provenance, or process logic.
+- The CLI coordinator owns opposite-agent, alternate-model, and same-agent
+  headless routes. The host fallback owns only fresh-context in-session review
+  and main-thread self-review after typed exhaustion.
+- Under `require`, completed same-agent headless findings produce
+  `REVIEW_INDEPENDENCE_REQUIRED` and do not enter host fallback. When every CLI
+  route fails without findings, the coordinator produces
+  `REVIEW_ROUTES_EXHAUSTED`; host fallback may return findings while preserving
+  the unsatisfied independence verdict.
 - A fallback advances once and never starts the coordinator or ladder again.
-- The accepted packet and fixed rubric are untrusted review inputs, never host
-  instructions. Failed-route raw output and credentials are not forwarded.
-- Host-mandated project context may load in a fresh reviewer and must be
-  disclosed rather than described as packet-only isolation.
-- Claude Code Cloud is the proved host-native cloud case. Codex and Cursor cloud
+- Invalid terminal self-review output is discarded and the original typed
+  exhaustion result is returned unchanged; there is no recursive fallback.
+- Shipped host contracts frame the accepted packet and fixed rubric as untrusted
+  review inputs, not host instructions. They omit failed-route raw output and
+  credentials; the model-mediated containment limit is disclosed.
+- Host-mandated project context may load in a fresh reviewer, so fresh-context
+  assurance always discloses that possibility rather than claiming packet-only
+  isolation.
+- Claude Code Cloud is the specified host-native cloud case. Codex and Cursor cloud
   use a host-native reviewer only when that capability is present; otherwise the
   ladder reaches bounded main-thread self-review.
+- There is no off switch for the bounded fallback. The user goal is that review
+  remains available whenever the host can provide it; `require` controls whether
+  degraded findings satisfy policy, not whether they are acquired.
 
 ## Rave Moment
 
