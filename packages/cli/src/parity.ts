@@ -31,6 +31,10 @@ export interface ParityInput {
   templatesDirectory: string;
 }
 
+export function formatParityDriftFailure(messages: string[]): string {
+  return `Parity drift detected. Run \`bunx safeword setup\` or copy templates to sync:\n  - ${messages.join('\n  - ')}`;
+}
+
 /** Files that must stay byte-identical between templates and dogfood. */
 function parityPairs(schema: ParitySchema, rootDirectory: string): [string, FileDefinition][] {
   const finalizedCodexCleanupPaths = codexFinalizationIsComplete(rootDirectory)
