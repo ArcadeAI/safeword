@@ -42,10 +42,14 @@ describe('best-available host review contract', () => {
     expect(combined).toMatch(/do not include.*credential/is);
     expect(combined).toContain('This review was not independent.');
     expect(combined).toContain('Host-mandated project context may have loaded');
+    expect(combined).toContain('source integrity was not revalidated');
     expect(combined).toContain('The main agent reviewed its own work in the same thread.');
     expect(combined).toMatch(/make an independent reviewer usable.*choose `prefer`/is);
     expect(combined).toMatch(/request_changes.*action required/is);
     expect(combined).toMatch(/approve.*not action required/is);
+    expect(skill).toContain('Coordinator: `REVIEW_ROUTES_EXHAUSTED`');
+    expect(skill).toContain('Policy:');
+    expect(skill).toContain('State:');
     expect(combined).not.toContain('write-review-stamp');
   });
 
@@ -54,7 +58,8 @@ describe('best-available host review contract', () => {
     const contract = read(contractPath);
 
     expect(agent).toContain('name: safeword-reviewer');
-    expect(agent).toMatch(/tools:.*Read.*Grep.*Glob/i);
+    expect(agent).toContain('tools: Read');
+    expect(agent).not.toMatch(/tools:.*(Grep|Glob)/i);
     expect(agent).toContain('.safeword/skills/finish-review/REVIEWER.md');
 
     expect(SAFEWORD_SCHEMA.ownedFiles['.safeword/skills/finish-review/SKILL.md']?.template).toBe(
@@ -79,6 +84,18 @@ describe('best-available host review contract', () => {
     expect(codex?.content).toBe(
       readFileSync(
         nodePath.resolve(import.meta.dirname, '../../codex-plugin/skills/finish-review/SKILL.md'),
+        'utf8',
+      ),
+    );
+    const codexContract = generateCodexPluginAssets(nodePath.join(templates, 'skills')).find(
+      asset => asset.relativePath === 'skills/finish-review/references/REVIEWER.md',
+    );
+    expect(codexContract?.content).toBe(
+      readFileSync(
+        nodePath.resolve(
+          import.meta.dirname,
+          '../../codex-plugin/skills/finish-review/references/REVIEWER.md',
+        ),
         'utf8',
       ),
     );
