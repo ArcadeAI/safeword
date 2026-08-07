@@ -35,20 +35,20 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "^13.2.0",
-    "@openai/codex": "0.145.0",
+    "@openai/codex": "0.146.0",
     "@types/node": "^26.1.2",
-    "dependency-cruiser": "^18.1.0",
+    "dependency-cruiser": "^18.1.1",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
-    "knip": "6.29.0",
-    "lint-staged": "^17.2.0",
+    "knip": "6.31.0",
+    "lint-staged": "^17.3.0",
     "markdownlint-cli2": "^0.23.2",
     "prettier": "^3.9.6",
     "prettier-plugin-sh": "^0.19.0",
     "safeword": "workspace:*",
-    "tsx": "^4.23.1"
+    "tsx": "^4.23.5"
   },
   "overrides": {
     "@felipecrs/decompress-tarxz": "5.0.6",
