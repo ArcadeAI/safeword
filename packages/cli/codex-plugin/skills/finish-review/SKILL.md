@@ -52,9 +52,10 @@ Attempt one fresh-context reviewer:
 
 The reviewer may not delegate, mutate files, run the coordinator, or invoke
 this workflow. Accept its response only when it is a single JSON object that
-matches `.safeword/skills/finish-review/references/REVIEWER.md`. Unavailable capability, invocation failure, runtime
-failure, or invalid output advances once to self-review. Never return failed or
-invalid reviewer output as completed review findings.
+matches `.safeword/skills/finish-review/references/REVIEWER.md`. Unavailable capability,
+invocation failure, host timeout, runtime failure, or invalid output advances
+once to self-review. Never return timed-out, failed, or invalid reviewer output
+as completed review findings.
 
 ## One main-thread self-review
 

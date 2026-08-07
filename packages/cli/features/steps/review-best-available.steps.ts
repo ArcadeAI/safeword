@@ -4,6 +4,8 @@ import nodePath from 'node:path';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
+import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import type { SafewordWorld } from './world.js';
 
 type ReviewSurface =
@@ -90,6 +92,26 @@ Then('it points to the shared finish-review contract', function (this: SafewordW
   assert.match(wiring.entryPoint, /(?:\/|\$safeword:)finish-review/u);
   assert.match(wiring.contract, /Finish Review After Route Exhaustion/u);
 });
+
+Then(
+  'its public entry point and continuation are schema-owned or generated for that host',
+  function (this: SafewordWorld) {
+    const wiring = reviewWiring(this);
+    const contractArtifact = artifactsBySurface[wiring.surface].contract;
+    if (wiring.surface.startsWith('OpenAI Codex')) {
+      const generated = generateCodexPluginAssets(nodePath.join(packageRoot, 'templates/skills'));
+      const generatedPaths = new Set(
+        generated.map(asset => `packages/cli/codex-plugin/${asset.relativePath}`),
+      );
+      assert.ok(generatedPaths.has(wiring.entryArtifact));
+      assert.ok(generatedPaths.has(contractArtifact));
+      return;
+    }
+
+    assert.ok(Object.hasOwn(SAFEWORD_SCHEMA.ownedFiles, wiring.entryArtifact));
+    assert.ok(Object.hasOwn(SAFEWORD_SCHEMA.ownedFiles, contractArtifact));
+  },
+);
 
 Then('it enters that contract only for REVIEW_ROUTES_EXHAUSTED', function (this: SafewordWorld) {
   const wiring = reviewWiring(this);

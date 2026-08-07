@@ -40,6 +40,8 @@ describe('best-available host review contract', () => {
     expect(skill).toContain('return the original coordinator result unchanged');
     expect(skill).toMatch(/one fresh-context reviewer/i);
     expect(skill).toMatch(/one main-thread self-review/i);
+    expect(skill).toContain('host timeout');
+    expect(skill).toContain('Never return timed-out, failed, or invalid reviewer output');
     expect(skill).toMatch(/never (restart|rerun).*coordinator/i);
     expect(skill.replaceAll(/\s+/gu, ' ')).toContain(
       'Invalid terminal output returns the original `REVIEW_ROUTES_EXHAUSTED` coordinator result unchanged.',

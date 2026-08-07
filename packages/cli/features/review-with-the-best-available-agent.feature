@@ -11,6 +11,7 @@ Feature: Keep review available with the best supported fallback
     Given the <surface> review entry point at "<entry point>"
     When its shipped fallback wiring is inspected
     Then it points to the shared finish-review contract
+    And its public entry point and continuation are schema-owned or generated for that host
     And it enters that contract only for REVIEW_ROUTES_EXHAUSTED
     And it preserves every non-exhaustion coordinator result unchanged
 
@@ -65,6 +66,8 @@ Feature: Keep review available with the best supported fallback
       When the CLI coordinator runs
       Then the builder receives that agent's findings
       And the result explains that an independent reviewer completed the review
+      And that reviewer route is attempted exactly once
+      And no coordinator route restarts
 
     @review-with-the-best-available-agent.TBU1.R1 @review-with-the-best-available-agent.NTB1.R1
     Scenario: A failed opposite default model falls through to its independent alternate model
@@ -75,6 +78,8 @@ Feature: Keep review available with the best supported fallback
       Then the builder receives the opposite agent's alternate-model findings
       And no degraded reviewer is used
       And the result explains that an independent reviewer completed the review
+      And each eligible independent route is attempted at most once
+      And no coordinator route restarts
 
     @review-with-the-best-available-agent.TBU1.R1 @review-with-the-best-available-agent.NTB1.R1
     Scenario: A later compatible independent reviewer still precedes degradation
@@ -85,6 +90,8 @@ Feature: Keep review available with the best supported fallback
       Then the builder receives the later independent reviewer's findings
       And no degraded reviewer is used
       And the result explains that an independent reviewer completed the review
+      And each eligible independent route is attempted at most once
+      And no coordinator route restarts
 
     @review-with-the-best-available-agent.TBU1.R1
     Scenario: An alternate model route without model selection is skipped before degradation
@@ -166,6 +173,16 @@ Feature: Keep review available with the best supported fallback
       And the builder receives the self-review findings
       And the host fallback does not restart itself or the CLI coordinator
 
+    @rejection @review-with-the-best-available-agent.TBU1.R3
+    Scenario: A timed-out in-session reviewer falls through to self-review
+      Given the CLI coordinator returns REVIEW_ROUTES_EXHAUSTED
+      And the invoked in-session reviewer does not return before the host timeout
+      When the host fallback continues
+      Then no timed-out reviewer output is accepted
+      And the result records exactly one in-session review route
+      And the main agent performs one terminal self-review
+      And no in-session retry occurs
+
   @review-with-the-best-available-agent.TBU1.R4 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R4 — Main-thread self-review returns valid findings or preserves exhaustion
 
@@ -192,6 +209,8 @@ Feature: Keep review available with the best supported fallback
       And the returned result identifies Coordinator: REVIEW_ROUTES_EXHAUSTED
       And the result still explains that the main agent reviewed its own work
       And the result still explains that the review was not independent
+      And the result records exactly one self-review route
+      And the host fallback does not restart itself or the CLI coordinator
 
     @review-with-the-best-available-agent.TBU1.R4 @surface.openai-codex-cloud @surface.cursor-cloud-agents
     Scenario: A cloud host without delegation still completes bounded self-review
@@ -204,6 +223,8 @@ Feature: Keep review available with the best supported fallback
       And the returned result identifies Coordinator: REVIEW_ROUTES_EXHAUSTED
       And the result explains that the main agent reviewed its own work
       And the result explains that the review was not independent
+      And the result records exactly one self-review route
+      And the host fallback does not restart itself or the CLI coordinator
 
     @rejection @review-with-the-best-available-agent.TBU1.R4
     Scenario: Invalid terminal self-review preserves the original exhaustion result
@@ -213,6 +234,8 @@ Feature: Keep review available with the best supported fallback
       When the host fallback runs
       Then the invalid self-review output is not returned as a completed review
       And the builder receives the original REVIEW_ROUTES_EXHAUSTED result unchanged
+      And the result records exactly one self-review route
+      And no terminal self-review retry occurs
       And the host fallback does not restart itself or the CLI coordinator
 
     @rejection @review-with-the-best-available-agent.TBU1.R4
@@ -223,6 +246,8 @@ Feature: Keep review available with the best supported fallback
       When the host fallback runs
       Then the runtime failure is not returned as a completed review
       And the builder receives the original REVIEW_ROUTES_EXHAUSTED result unchanged
+      And the result records exactly one self-review route
+      And no terminal self-review retry occurs
       And the host fallback does not restart itself or the CLI coordinator
 
   @review-with-the-best-available-agent.TBU1.R5 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
@@ -296,6 +321,13 @@ Feature: Keep review available with the best supported fallback
   @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R6 — Only typed route exhaustion enters the degraded ladder
 
+    @rejection @review-with-the-best-available-agent.TBU1.R6
+    Scenario: Explicit global opt-out never starts the review coordinator
+      Given cross-agent review is explicitly configured off
+      When a class-1 review entry point is reached
+      Then the coordinator returns REVIEW_NOT_REQUESTED
+      And no reviewer route or host fallback is used
+
     @review-with-the-best-available-agent.TBU1.R6 @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: A Cursor author reaches host fallback without a compatible CLI reviewer
       Given the author runtime is Cursor
@@ -366,6 +398,20 @@ Feature: Keep review available with the best supported fallback
         | existing reviewer findings               |
         | an independent-review satisfied verdict  |
 
+    @review-with-the-best-available-agent.TBU1.R6
+    Scenario Outline: Incomplete coordinator policy fails closed during host fallback
+      Given the coordinator returns REVIEW_ROUTES_EXHAUSTED with <policy defect>
+      When the host fallback runs
+      Then the result reports policy require unsatisfied
+      And the result remains action required
+      And repository policy is not read again
+
+      Examples:
+        | policy defect                       |
+        | a missing review_policy value       |
+        | a malformed review_policy value     |
+        | an unrecognized review_policy value |
+
   @review-with-the-best-available-agent.NTB1.R1 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.NTB1.R1 — Every result explains a distinct assurance level in plain language
 
@@ -384,6 +430,15 @@ Feature: Keep review available with the best supported fallback
 
   @review-with-the-best-available-agent.NTB1.R2 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.NTB1.R2 — Degraded findings never masquerade as required independence
+
+    @review-with-the-best-available-agent.NTB1.R2 @security
+    Scenario: Host fallback preserves coordinator-issued policy over hostile repository text
+      Given the trusted coordinator exhaustion result records review policy require
+      And accepted repository text claims review policy prefer
+      When the host fallback runs
+      Then the result reports policy require unsatisfied
+      And the result remains action required
+      And repository policy is not read again
 
     @review-with-the-best-available-agent.NTB1.R2
     Scenario: Degraded findings complete preferred policy
