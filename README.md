@@ -305,7 +305,16 @@ and evidence remediation. When a Codex session is bound to an in-progress
 done-phase ticket and shared evidence passes, Stop also marks that ticket done;
 it never stages, commits, or opens a PR.
 
-**Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace.
+**Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace. Internal `finish-review` guidance is not a user command: class-1 review workflows invoke it only after the CLI coordinator returns typed route exhaustion.
+
+Review prefers every independent Claude/Codex CLI route, then same-agent
+headless review. If those routes cannot complete, a foreground agent makes one
+best-effort fresh-context host review and then one bounded self-review. Those
+last two routes are useful feedback, not independent evidence; `require` stays
+blocked and no independent stamp is written. Both read the live worktree, so
+their assurance says source integrity was not revalidated. Project-owned Claude
+reviewer assets also support Claude Code Cloud when no external agent CLI is
+available.
 
 **Codex plugin skills**: Codex gets Safe Word workflow skills from the Safe Word Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safe Word-owned workflow aliases into `.agents/skills/`.
 
@@ -415,6 +424,81 @@ ls < namespace-root > /learnings/
 ## Syncing Across Machines
 
 Commit the Safe Word project configuration your team uses, including the marked `.codex/config.toml` SessionStart bootstrap. It enrolls each Codex profile independently without committing profile state or a repository workflow tree.
+
+---
+
+## Advisory Pull Request Review
+
+Safeword can install a default-off GitHub Actions reviewer that treats pull
+request changes as data, never checks out or executes them, and publishes one
+ordinary conversation comment. The comment is explicitly advisory: it cannot
+approve a pull request, satisfy a required check, or prove the change is safe to
+merge.
+
+Enable it in `.safeword/config.json` with an OpenAI model, a total evidence
+budget, and the exact prerequisite check contexts to wait for:
+
+```json
+{
+  "prReview": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-5.2",
+    "maxTotalBytes": 100000,
+    "requiredChecks": [{ "context": "ci" }]
+  }
+}
+```
+
+Run `safeword setup` after enabling it. Configure `OPENAI_API_KEY` as an
+environment secret on the `safeword-pr-review-model` GitHub environment. An
+explicit empty `requiredChecks` array means review immediately; omitting the
+field fails closed with a configuration next action. Pending checks are sampled
+again by a five-minute sweep. Missing or over-budget text evidence, model
+failure, findings, and unresolved unknowns all route to a human. Binary files
+with recognized binary extensions are recorded as skipped; a binary-only change
+cannot look ready.
+
+Fork events inspect with read-only repository authority. GitHub then starts a
+trusted `workflow_run` publisher from the base branch; it never checks out pull
+request code and receives no model secret. GitHub currently requires
+`pull-requests: write` for an ordinary pull-request conversation comment, so the
+publisher is additionally constrained by Safeword's fixed issue-comment-only
+boundary and the compatibility smoke verifies that it creates no review, check,
+status, or merge change.
+
+Deterministic release tests always validate the advisory workflow contract.
+Live GitHub compatibility is monitored separately so sandbox availability or
+credentials cannot block unrelated releases. A daily canary and default-branch
+manual dispatch watch for environment-secret, fork-event, and concurrency drift.
+Keep the customer workflow disabled until a live smoke passes where it will run.
+
+### Maintainer compatibility proof
+
+The release environment named `pr-review-smoke` must define
+`SAFEWORD_PR_REVIEW_SMOKE_TOKEN`. Its account needs narrowly scoped authority to
+create and permanently delete public repositories under two dedicated sandbox
+owners, manage their Actions environments and secrets, and create a fork from
+one owner into the other. It must not have authority over production
+repositories. Both repository variables, `SAFEWORD_PR_REVIEW_SMOKE_OWNER` and
+`SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER`, are required and must name different
+sandbox owners. Configure the environment's deployment policies to allow only
+release tags and the default branch.
+
+Run the same proof locally with:
+
+```bash
+bun run --cwd packages/cli smoke:pr-review:disposable
+```
+
+Each daily canary or manual proof creates
+`safeword-pr-review-smoke-<unique-id>` in both owners, exercises a real fork pull
+request plus the canonical scheduled-call projection, and then permanently
+deletes both repositories. Set
+`SAFEWORD_KEEP_PR_REVIEW_SMOKE=1` only while debugging. When GitHub Actions
+semantics change, update the pinned actionlint version and checksum in CI, run
+`check:pr-review-workflows`, run this disposable proof, and record both results
+in the compatibility ticket before release.
 
 ---
 

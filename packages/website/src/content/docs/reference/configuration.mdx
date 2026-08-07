@@ -135,15 +135,68 @@ Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 
 ```json
 {
-  "crossAgentReview": "prefer"
+  "crossAgentReview": "prefer",
+  "crossAgentReviewAlternateModel": {
+    "claude": "claude-sonnet-4-5-20250929",
+    "codex": "gpt-5-codex"
+  }
 }
 ```
 
-- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer is unavailable, Safe Word classifies the failure and may run a visibly `degraded` same-agent fallback.
-- `require` — the opposite-agent route must complete. Missing installation, sign-in, timeout, process failure, invalid output, or changed source blocks the gate with one concrete recovery action; degraded results and skips cannot satisfy it.
+- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer fails, Safe Word can retry that independent agent on its configured alternate model before running a visibly `degraded` same-agent headless fallback. If every CLI route fails, a foreground agent may add best-effort host-native or self-review findings; their actual verdict is preserved.
+- `require` — only an opposite-agent result satisfies the gate. A completed same-agent headless review returns the existing independence-required failure. If every CLI route fails, a foreground agent may still report useful host-native or self-review findings, but the result remains action required, recommends restoring an independent reviewer or explicitly choosing `prefer`, and never writes independent evidence.
 - `off` — retain the existing review route and do not create cross-agent evidence.
 
-Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs to keep the default route fully independent. Review results report the author, assigned and actual reviewer, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy. A model is recorded only when the executed reviewer supplies a verifiable identifier; Safe Word never invents a default model name.
+`crossAgentReviewAlternateModel` is optional and has no Safe Word-supplied default. Set `claude` and `codex` independently; environment variables `SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE` and `SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` override their matching configured values. Model identifiers must be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot begin with `-`. An unusable environment value falls through to the configured value.
+
+Each review attempt defaults to five minutes, with reviewer work across all routes bounded to nine minutes. Packet preparation happens before that shared reviewer-work deadline; final synchronous integrity checks and bounded process cleanup may finish after it. `SAFEWORD_REVIEW_TIMEOUT_MS` and `SAFEWORD_REVIEW_RUN_BOUND_MS` accept positive millisecond values when a caller needs shorter limits; neither can raise the nine-minute reviewer-work ceiling.
+
+Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs to keep the default route fully independent. Review results report the author, assigned and actual reviewer, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy. Safe Word records the configured alternate model only when that route actually runs and never invents a default model name.
+
+### Advisory pull request review
+
+The GitHub Actions advisory reviewer is default off. Enable it with a complete
+`prReview` block, then run `safeword setup` to generate the router and reusable
+worker workflows:
+
+```json
+{
+  "prReview": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-5.2",
+    "maxTotalBytes": 100000,
+    "requiredChecks": [{ "context": "ci" }]
+  }
+}
+```
+
+| Key              | Meaning                                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`        | Must be `true` before setup generates the workflows.                                                                                            |
+| `provider`       | Currently `openai`.                                                                                                                             |
+| `model`          | Non-empty OpenAI Responses model name.                                                                                                          |
+| `maxTotalBytes`  | Positive integer cap applied cumulatively in GitHub's file order. Text beyond the cap is reported as missing evidence and forces `needs_human`. |
+| `requiredChecks` | Exact check-run names or commit-status contexts. `[]` means no prerequisites; omission is an unconfigured, route-free result.                   |
+
+Create a GitHub environment named `safeword-pr-review-model` and store
+`OPENAI_API_KEY` there. Do not add deployment protection rules, a wait timer, or
+required reviewers: those controls would prevent the non-deployment inspection
+job from reading the secret. The inspection job is read-only and never checks
+out pull-request code; the separate publication jobs can only reconcile the
+ordinary issue comment and never receive the model secret.
+
+Each pull-request event samples prerequisites once. Pending or absent configured
+checks produce a visible non-run receipt and are reconsidered by the scheduled
+five-minute sweep; terminal prerequisite failure remains route-free. Every new
+head SHA is reviewed from scratch. Draft, closed, or merged state removes an
+existing route without creating a new receipt. A provider failure is terminal
+for that SHA and routes to a human; push a new SHA to request a fresh review.
+
+The workflow classifies recognized binary filename extensions as skipped. A
+missing GitHub patch for any other path is treated as unreadable text and fails
+closed. Runtime environment-secret scoping and event/sweep serialization remain
+a required disposable-repository release smoke before enabling this feature.
 
 ### Design approval gate
 
