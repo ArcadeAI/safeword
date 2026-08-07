@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
 import { historicalHookEntry } from '../../src/claude-plugin/historical-ownership.js';
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
@@ -183,7 +184,7 @@ describe('Claude plugin dispatcher', () => {
     );
 
     expect(result.stderr).not.toContain('Module not found');
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr).toBe(0);
     const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
     const proofPath = nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`);
     expect(existsSync(proofPath)).toBe(true);
@@ -459,7 +460,7 @@ describe('Claude plugin dispatcher', () => {
     expect(JSON.parse(readFileSync(currentMarker, 'utf8'))).toMatchObject({
       schema_version: 2,
       state: 'clean',
-      plugin_version: '0.73.0',
+      plugin_version: SAFEWORD_SCHEMA.version,
     });
     expect(existsSync(nodePath.join(markerDirectory, 'plugin-mode-v1.json'))).toBe(false);
   });
@@ -483,7 +484,7 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(markerDirectory, 'plugin-mode-v1.json'))).toBe(false);
     const currentMarkerPath = nodePath.join(markerDirectory, 'plugin-mode-v2.json');
     const currentMarker = JSON.parse(readFileSync(currentMarkerPath, 'utf8'));
-    expect(currentMarker).toMatchObject({ state: 'clean', plugin_version: '0.73.0' });
+    expect(currentMarker).toMatchObject({ state: 'clean', plugin_version: SAFEWORD_SCHEMA.version });
   });
 
   it('keeps prompts nonblocking when sibling hook outputs conflict', () => {

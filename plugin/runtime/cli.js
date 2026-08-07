@@ -70,10 +70,14 @@ var CodexMigrationError;
 var init_migration_error = __esm(() => {
   CodexMigrationError = class CodexMigrationError extends Error {
     code;
+    profileChanged;
+    recoveryCommand;
     constructor(code, message, options) {
       super(message, options);
       this.name = "CodexMigrationError";
       this.code = code;
+      this.profileChanged = options?.profileChanged === true;
+      this.recoveryCommand = options?.recoveryCommand;
     }
   };
 });
@@ -145,11 +149,16 @@ function toWireResult(result) {
       description,
       requires_human: requiresHuman
     })),
-    next_actions: result.nextActions.map(({ command, mutates, requiresHuman }) => ({
-      command,
-      mutates,
-      requires_human: requiresHuman
-    })),
+    next_actions: result.nextActions.map((action) => ("command" in action) ? {
+      command: action.command,
+      mutates: action.mutates,
+      requires_human: action.requiresHuman
+    } : {
+      kind: action.kind,
+      instruction: action.instruction,
+      mutates: action.mutates,
+      requires_human: action.requiresHuman
+    }),
     ...result.data !== undefined && { data: result.data }
   };
 }
@@ -199,6 +208,9 @@ function reviewIndependenceLine(data) {
 function optionalLine(value) {
   return value === undefined ? [] : [value];
 }
+function nextActionLabel(action) {
+  return "command" in action ? action.command : action.instruction;
+}
 function completedEffectLines(result) {
   const visibleCategories = [
     result.effects.files,
@@ -238,7 +250,7 @@ function renderHumanStreams(result, options = {}) {
   }
   const primaryAction = result.nextActions[0];
   if (primaryAction !== undefined)
-    lines.push(`Next: ${primaryAction.command}`);
+    lines.push(`Next: ${nextActionLabel(primaryAction)}`);
   const body = lines.join(`
 `);
   return result.state === "failed" ? { stdout: "", stderr: body } : { stdout: body, stderr: "" };
@@ -15149,7 +15161,7 @@ function claudeNativePayloadFiles(root) {
   visit(root, "");
   return files;
 }
-var CLAUDE_MIGRATION_SCHEMA, CLAUDE_NATIVE_REQUIRED_ASSETS, CLAUDE_NATIVE_METADATA_FILES, BENIGN_CACHE_METADATA_BASENAMES;
+var CLAUDE_PLUGIN_ID = "safeword@safeword", CLAUDE_MIGRATION_SCHEMA, CLAUDE_NATIVE_REQUIRED_ASSETS, CLAUDE_NATIVE_METADATA_FILES, BENIGN_CACHE_METADATA_BASENAMES;
 var init_inventory2 = __esm(() => {
   CLAUDE_MIGRATION_SCHEMA = {
     paths: {
@@ -31324,7 +31336,7 @@ function deriveCodexMigrationResult(facts) {
   const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
   const protectedStatus = legacyProtection(facts, hasLegacy);
   const state = migrationState(facts, hasLegacy);
-  const nextCommand = nextAction(state);
+  const next = nextAction(state);
   return {
     schema_version: "2",
     ok: state === "plugin",
@@ -31340,13 +31352,7 @@ function deriveCodexMigrationResult(facts) {
     },
     effects: { files: [] },
     errors: [],
-    next_actions: nextCommand === undefined ? [] : [
-      {
-        command: nextCommand,
-        mutates: state !== "plugin_installed_app_restart_required" && state !== "plugin_enabled_hook_unproven",
-        requires_human: true
-      }
-    ]
+    next_actions: next === undefined ? [] : [next]
   };
 }
 function migrationState(facts, hasLegacy) {
@@ -31360,18 +31366,28 @@ function legacyProtection(facts, hasLegacy) {
   return facts.viableLegacyEvents.length === facts.legacyEvents.length ? "protected" : "partial";
 }
 function nextAction(state) {
-  return NEXT_ACTIONS[state];
+  if (state === "plugin_installed_app_restart_required" || state === "plugin_enabled_hook_unproven") {
+    return {
+      kind: "human",
+      instruction: CODEX_RESTART_INSTRUCTION,
+      mutates: false,
+      requires_human: true
+    };
+  }
+  const command = NEXT_COMMANDS[state];
+  return command === undefined ? undefined : { command, mutates: true, requires_human: true };
 }
 function renderCodexMigrationHuman(result) {
   const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
   if (result.state === "plugin_setup_required") {
     lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
   } else if (result.state === "plugin_installed_app_restart_required" || result.state === "plugin_enabled_hook_unproven") {
-    lines.push(CODEX_RESTART_GUIDANCE);
+    lines.push(CODEX_RESTART_CONTEXT);
   }
   const next = result.next_actions[0];
-  if (next !== undefined)
-    lines.push(`Next: ${next.command}`);
+  if (next !== undefined) {
+    lines.push(`Next: ${"command" in next ? next.command : next.instruction}`);
+  }
   return `${lines.join(`
 `)}
 `;
@@ -31381,7 +31397,7 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_GUIDANCE = "This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.", MIGRATION_STATE_RULES, NEXT_ACTIONS;
+var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safe Word catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
@@ -31417,12 +31433,12 @@ var init_migration = __esm(() => {
     },
     { state: "legacy", matches: (_facts, hasLegacy) => hasLegacy }
   ];
-  NEXT_ACTIONS = {
+  NEXT_COMMANDS = {
     recovery_required: "safeword codex recover",
     compatibility: "safeword codex migrate --finalize",
     plugin: undefined,
-    plugin_installed_app_restart_required: "safeword codex status",
-    plugin_enabled_hook_unproven: "safeword codex status",
+    plugin_installed_app_restart_required: undefined,
+    plugin_enabled_hook_unproven: undefined,
     plugin_setup_required: "safeword codex migrate",
     plugin_disabled: "safeword codex migrate",
     plugin_update_required: "safeword codex migrate",
@@ -32042,8 +32058,8 @@ function configuredSafewordMarketplace(environment = process.env) {
     throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The Codex profile configuration is invalid TOML; the Safeword marketplace was not changed.", { cause: error2 });
   }
 }
-function marketplaceAddArguments(source, ref) {
-  return [
+function marketplaceAddArguments(source, ref, includeJson = true) {
+  const args = [
     "add",
     source,
     "--ref",
@@ -32051,12 +32067,15 @@ function marketplaceAddArguments(source, ref) {
     "--sparse",
     ".agents/plugins",
     "--sparse",
-    "packages/cli/codex-plugin",
-    "--json"
+    "packages/cli/codex-plugin"
   ];
+  return includeJson ? [...args, "--json"] : args;
+}
+function shellQuote(value) {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 function exactVersionReference(ref) {
-  const version2 = ref.startsWith("v") ? ref.slice(1) : "";
+  const version2 = ref.startsWith("v") ? ref.slice(1) : ref;
   return isSafePackageVersion(version2) ? version2 : undefined;
 }
 function replaceCodexMarketplaceWithStable(configured) {
@@ -32067,7 +32086,15 @@ function replaceCodexMarketplaceWithStable(configured) {
   } catch (error2) {
     try {
       runCodexMarketplace(marketplaceAddArguments(source, configured.ref ?? "main"), "Could not restore the previous Safeword marketplace after stable enrollment failed");
-    } catch {}
+    } catch (restorationError) {
+      const restoreCommand = [
+        "codex",
+        "plugin",
+        "marketplace",
+        ...marketplaceAddArguments(source, configured.ref ?? "main", false)
+      ].map((argument) => shellQuote(argument)).join(" ");
+      throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error2)}. Restore error: ${String(restorationError)}`, { cause: error2, profileChanged: true, recoveryCommand: restoreCommand });
+    }
     throw error2;
   }
 }
@@ -32100,6 +32127,9 @@ function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.e
       refreshOfficialGitMarketplace(marketplace, environment);
       return;
     }
+    if (marketplace !== undefined) {
+      throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The configured Codex marketplace named safeword is not a Git marketplace. Safeword left it unchanged because replacing an unknown marketplace type is not safely reversible.");
+    }
   }
   runCodexMarketplace([
     "add",
@@ -32129,7 +32159,7 @@ function verifyCodexPluginIsEnabled(options = {}) {
     throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.");
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
-    throw new Error(`Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`);
+    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`, { profileChanged: options.installationCompleted === true });
   }
 }
 function pathExistsIncludingDanglingSymlink(path4) {
@@ -32239,11 +32269,16 @@ function observeCodexMigration(cwd = process.cwd(), environment = process.env) {
     ],
     errors: result.errors,
     nextActions: [
-      ...result.next_actions.map((action) => ({
+      ...result.next_actions.map((action) => ("command" in action) ? {
         command: action.command,
         mutates: action.mutates,
         requiresHuman: action.requires_human
-      })),
+      } : {
+        kind: action.kind,
+        instruction: action.instruction,
+        mutates: action.mutates,
+        requiresHuman: action.requires_human
+      }),
       ...globalGuidance.nextAction === undefined ? [] : [globalGuidance.nextAction]
     ],
     data: {
@@ -32488,12 +32523,7 @@ function automaticallyMigrateLegacyCodex(cwd = process.cwd(), environment = proc
   const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
   if (!hasLegacy)
     return false;
-  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
-  const plannedEffects = finalizationEffects(cwd, plannedMutations);
-  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
   installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
-  assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, plannedMutations, plannedEffects, plannedInputs);
-  applyCodexFinalization(cwd, plannedMutations);
   return true;
 }
 async function migrateCodexPlugin(cwd = process.cwd(), options = {}) {
@@ -32535,7 +32565,7 @@ var init_operations = __esm(() => {
   init_project_bootstrap();
   CODEX_CONFIG_PATH2 = CODEX_MIGRATION_SCHEMA.paths.config;
   CODEX_MIGRATION_MESSAGES = {
-    plugin_installed_app_restart_required: CODEX_RESTART_GUIDANCE,
+    plugin_installed_app_restart_required: CODEX_RESTART_CONTEXT,
     compatibility: "Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.",
     plugin_enabled_hook_unproven: "Codex migration state: plugin_enabled_hook_unproven. Review /hooks in the restarted Codex app; when protection is confirmed, run safeword codex migrate --finalize.",
     recovery_required: "Codex migration state: recovery_required. Recovery is required before migration can continue."
@@ -33668,12 +33698,9 @@ function checkProjectVersion(cwd, repairVersionMarker) {
   const projectVersion = marker.value;
   if (!isSafePackageVersion(projectVersion)) {
     if (repairVersionMarker) {
-      if (marker.replaceEntry) {
-        writeDurableFile(projectVersionPath, `${VERSION}
+      writeDurableFile(projectVersionPath, `${VERSION}
 `, { mode: 420 });
-        return { repaired: true };
-      }
-      return { repaired: false };
+      return { repaired: true };
     }
     const recoveryCommand = buildReplayCommand({
       command: "safeword setup --repair-version-marker",
@@ -33834,7 +33861,8 @@ function setupResult(input) {
     guidanceFindings,
     pythonSetup,
     namespaceMigration,
-    completedEffects
+    completedEffects,
+    claudeProjectPluginEnrolled
   } = input;
   const files = uniqueEffects([
     ...packageJsonCreated ? [{ kind: "create", target: "package.json" }] : [],
@@ -33854,26 +33882,61 @@ function setupResult(input) {
   ];
   const actionRequired = findings.some((finding) => finding.severity !== "info" && finding.code !== "CODEX_PLUGIN_HANDOFF_DEFERRED");
   const handoffDeferred = findings.some((finding) => finding.code === "CODEX_PLUGIN_HANDOFF_DEFERRED");
-  const resultFindings = actionRequired || handoffDeferred ? findings : [
+  const claudePluginReloadEligible = claudeProjectPluginEnrolled && !changed;
+  const resultFindings = [
     ...findings,
-    {
-      code: "SETUP_CODEX_PLUGIN_HANDOFF",
-      message: "Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.",
-      severity: "info"
-    }
+    ...actionRequired || handoffDeferred ? [] : [
+      {
+        code: "SETUP_CODEX_PLUGIN_HANDOFF",
+        message: "Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.",
+        severity: "info"
+      }
+    ],
+    ...claudePluginReloadEligible ? [
+      {
+        code: "SETUP_CLAUDE_PLUGIN_PRESERVED",
+        message: "The project-scoped Claude plugin remains enabled; reload plugins to activate any refreshed configuration.",
+        severity: "info"
+      }
+    ] : []
   ];
   let state = changed ? "changed" : "healthy";
   if (actionRequired)
     state = "action_required";
-  const nextCommands = actionRequired ? [installation.command ?? "safeword setup"] : ["safeword claude install"];
+  const nextAction2 = setupNextAction({
+    actionRequired,
+    claudePluginReloadEligible,
+    installCommand: installation.command
+  });
   return createResult({
     state,
     changed,
     effects: { files, packages, network },
     findings: resultFindings,
-    nextActions: nextCommands.map((command) => ({ command, mutates: true, requiresHuman: true })),
+    nextActions: [nextAction2],
     data: { configured: true, dependency_install: installation }
   });
+}
+function setupNextAction(input) {
+  if (input.actionRequired) {
+    return {
+      command: input.installCommand ?? "safeword setup",
+      mutates: true,
+      requiresHuman: true
+    };
+  }
+  if (input.claudePluginReloadEligible) {
+    return { command: "/reload-plugins", mutates: false, requiresHuman: true };
+  }
+  return { command: "safeword claude install", mutates: true, requiresHuman: true };
+}
+function projectClaudePluginEnrolled(cwd) {
+  try {
+    const settings = JSON.parse(readFileSync34(nodePath58.join(cwd, ".claude/settings.json"), "utf8"));
+    return settings.enabledPlugins?.[CLAUDE_PLUGIN_ID] === true;
+  } catch {
+    return false;
+  }
 }
 function applyCompatibilityMigrations(cwd, completedEffects) {
   const missingPacks = getMissingPacks(cwd);
@@ -33939,8 +34002,8 @@ async function applySetup(cwd, input) {
       const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () => automaticallyMigrateLegacyCodex(cwd));
       if (migrated) {
         codexHandoffFindings.push({
-          code: "CODEX_PLUGIN_HANDOFF_COMPLETE",
-          message: "Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.",
+          code: "CODEX_PLUGIN_HANDOFF_STARTED",
+          message: "Codex installed the native profile plugin; legacy project protection remains until explicit finalization after the restarted app proves its hooks.",
           severity: "info"
         });
       }
@@ -33998,7 +34061,8 @@ async function applySetup(cwd, input) {
       ],
       pythonSetup,
       namespaceMigration,
-      completedEffects
+      completedEffects,
+      claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd)
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
@@ -34121,6 +34185,7 @@ function mergeEffects(...groups) {
 var DEFAULT_SETUP_ADAPTERS, SetupApplyError;
 var init_converge_setup = __esm(() => {
   init_delivery_schema();
+  init_inventory2();
   init_reconciliation();
   init_result();
   init_durable_write();
@@ -34197,7 +34262,6 @@ var init_project_root = () => {};
 // src/claude-plugin/profile.ts
 var exports_profile = {};
 __export(exports_profile, {
-  observeClaudeProfile: () => observeClaudeProfile,
   observeApplicableClaudePlugins: () => observeApplicableClaudePlugins,
   installClaudePlugin: () => installClaudePlugin,
   canonicalClaudeProjectRoot: () => canonicalClaudeProjectRoot
@@ -34434,10 +34498,10 @@ function safewordMarketplace(entries) {
   return entries.find((entry) => entry.name === MARKETPLACE_NAME);
 }
 function safewordPlugin(entries, scope, cwd) {
-  return entries.find((entry) => entry.id === PLUGIN_ID2 && entryMatchesScope(entry, scope, cwd));
+  return entries.find((entry) => entry.id === CLAUDE_PLUGIN_ID && entryMatchesScope(entry, scope, cwd));
 }
 function applicableSafewordPlugins(entries, cwd) {
-  return entries.filter((entry) => entry.id === PLUGIN_ID2 && (entry.scope === "user" || entry.scope === "project" && canonicalDirectory2(entry.projectPath) === cwd));
+  return entries.filter((entry) => entry.id === CLAUDE_PLUGIN_ID && (entry.scope === "user" || entry.scope === "project" && canonicalDirectory2(entry.projectPath) === cwd));
 }
 function failedResult(error2, scope) {
   let failure;
@@ -34540,26 +34604,26 @@ function ensureMarketplace(cwd, scope, effects) {
 }
 function assertConvergeablePluginVersion(plugin) {
   if (typeof plugin.version !== "string" || !isSafePackageVersion(plugin.version)) {
-    throw new ClaudeProfileError("CLAUDE_PLUGIN_METADATA_UNVERIFIED", `Claude reported malformed ${PLUGIN_ID2} version metadata in the selected scope.`);
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_METADATA_UNVERIFIED", `Claude reported malformed ${CLAUDE_PLUGIN_ID} version metadata in the selected scope.`);
   }
   if (compareVersions(plugin.version, SAFEWORD_SCHEMA.version) > 0) {
-    throw new ClaudeProfileError("CLAUDE_PLUGIN_DOWNGRADE_REFUSED", `Claude reported ${PLUGIN_ID2} ${plugin.version}, which is newer than ${SAFEWORD_SCHEMA.version}; refusing an implicit downgrade.`);
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_DOWNGRADE_REFUSED", `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${SAFEWORD_SCHEMA.version}; refusing an implicit downgrade.`);
   }
 }
 function convergePlugin(cwd, scope, effects) {
   const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
   if (plugin === undefined) {
-    runClaude(cwd, ["plugin", "install", PLUGIN_ID2, "--scope", scope], effects);
-    effects.push({ kind: "install", target: PLUGIN_ID2, operation: scope });
+    runClaude(cwd, ["plugin", "install", CLAUDE_PLUGIN_ID, "--scope", scope], effects);
+    effects.push({ kind: "install", target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
     assertConvergeablePluginVersion(plugin);
     if (plugin.version !== SAFEWORD_SCHEMA.version) {
-      runClaude(cwd, ["plugin", "update", PLUGIN_ID2, "--scope", scope], effects);
-      effects.push({ kind: "update", target: PLUGIN_ID2, operation: scope });
+      runClaude(cwd, ["plugin", "update", CLAUDE_PLUGIN_ID, "--scope", scope], effects);
+      effects.push({ kind: "update", target: CLAUDE_PLUGIN_ID, operation: scope });
     }
     if (plugin.enabled !== true) {
-      runClaude(cwd, ["plugin", "enable", PLUGIN_ID2, "--scope", scope], effects);
-      effects.push({ kind: "enable", target: PLUGIN_ID2, operation: scope });
+      runClaude(cwd, ["plugin", "enable", CLAUDE_PLUGIN_ID, "--scope", scope], effects);
+      effects.push({ kind: "enable", target: CLAUDE_PLUGIN_ID, operation: scope });
     }
   }
 }
@@ -34656,18 +34720,6 @@ function observeApplicableClaudePlugins(cwd) {
     }))
   };
 }
-function observeClaudeProfile(cwd) {
-  const observation = observeApplicableClaudePlugins(cwd);
-  if (observation.status !== "observed") {
-    return {
-      health: observation.status,
-      message: observation.message,
-      nextAction: observation.nextAction
-    };
-  }
-  const installation = observation.installations.find((candidate) => candidate.scope === "project") ?? observation.installations.find((candidate) => candidate.scope === "user");
-  return installation ?? { health: "missing" };
-}
 function observeInstalledPlugin(plugin) {
   if (plugin === undefined)
     return { health: "missing" };
@@ -34712,7 +34764,7 @@ function verifyPlugin(cwd, scope, effects) {
     assertNativePayload(plugin, effects);
     return entries;
   }
-  throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${PLUGIN_ID2} ${SAFEWORD_SCHEMA.version} as enabled at ${scope} scope.`, effects);
+  throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${CLAUDE_PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at ${scope} scope.`, effects);
 }
 function installClaudePlugin(cwd, scope = "project") {
   const effects = [];
@@ -34727,12 +34779,12 @@ function installClaudePlugin(cwd, scope = "project") {
       state: effects.length === 0 ? "healthy" : "changed",
       effects: {
         configuration: effects,
-        network: effects.filter((effect) => effect.target === MARKETPLACE_NAME && ["add", "update"].includes(effect.kind) || effect.target === PLUGIN_ID2 && ["install", "update"].includes(effect.kind)).map((effect) => ({ ...effect, target: "Claude plugin marketplace" }))
+        network: effects.filter((effect) => effect.target === MARKETPLACE_NAME && ["add", "update"].includes(effect.kind) || effect.target === CLAUDE_PLUGIN_ID && ["install", "update"].includes(effect.kind)).map((effect) => ({ ...effect, target: "Claude plugin marketplace" }))
       },
       nextActions: [{ command: "/reload-plugins", mutates: false, requiresHuman: true }],
       data: {
         command: "claude install",
-        plugin: PLUGIN_ID2,
+        plugin: CLAUDE_PLUGIN_ID,
         version: SAFEWORD_SCHEMA.version,
         scope,
         ...overlap && { classification: "scope-overlap" }
@@ -34742,7 +34794,7 @@ function installClaudePlugin(cwd, scope = "project") {
     return failedResult(error2, scope);
   }
 }
-var MINIMUM_CLAUDE_VERSION, MARKETPLACE_NAME = "safeword", PLUGIN_ID2 = "safeword@safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", ClaudeProfileError, DIAGNOSTIC_FAILURES;
+var MINIMUM_CLAUDE_VERSION, MARKETPLACE_NAME = "safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", ClaudeProfileError, DIAGNOSTIC_FAILURES;
 var init_profile = __esm(() => {
   init_main();
   init_result();
@@ -38250,7 +38302,7 @@ var init_codify = __esm(() => {
 });
 
 // src/test-plan/render.ts
-function shellQuote(value) {
+function shellQuote2(value) {
   const escaped = value.replaceAll("'", String.raw`'\''`);
   return `'${escaped}'`;
 }
@@ -38259,7 +38311,7 @@ function renderShellPlan(entries) {
     return "";
   const lines = ["set -e"];
   for (const entry of entries) {
-    lines.push(entry.available ? `( cd ${shellQuote(entry.cwd)} && ${entry.command} )` : `echo "\u23ED\uFE0F Skipped \u2014 ${entry.runner} not installed"`);
+    lines.push(entry.available ? `( cd ${shellQuote2(entry.cwd)} && ${entry.command} )` : `echo "\u23ED\uFE0F Skipped \u2014 ${entry.runner} not installed"`);
   }
   return `${lines.join(`
 `)}
@@ -39133,18 +39185,35 @@ function appendBounded(current, currentBytes, chunk) {
     overflow: bytes > MAX_OUTPUT_BYTES
   };
 }
+function terminateReviewerProcessTree(child) {
+  if (child.pid === undefined)
+    return;
+  if (process.platform === "win32") {
+    spawnSync7("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true
+    });
+    return;
+  }
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    child.kill("SIGKILL");
+  }
+}
 function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
   return new Promise((resolve, reject) => {
     let timedOut = false;
     let overflow = false;
     const child = spawn(executable, ARGUMENTS[reviewer], {
       cwd,
+      detached: process.platform !== "win32",
       env: reviewerEnvironment(reviewer),
       stdio: ["pipe", "pipe", "pipe"]
     });
     const timeout = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGKILL");
+      terminateReviewerProcessTree(child);
     }, timeoutMs);
     let stdout = "";
     let stderr = "";
@@ -39158,7 +39227,7 @@ function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
       stdoutBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        child.kill("SIGKILL");
+        terminateReviewerProcessTree(child);
       }
     });
     child.stderr.on("data", (chunk) => {
@@ -39167,7 +39236,7 @@ function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
       stderrBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        child.kill("SIGKILL");
+        terminateReviewerProcessTree(child);
       }
     });
     child.stdin.on("error", () => {});
@@ -39232,7 +39301,7 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   }
   return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
 }
-var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_REVIEW_TIMEOUT_MS = 300000;
+var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, DEFAULT_REVIEW_TIMEOUT_MS, REVIEW_RUBRICS, ReviewRuntimeError;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA = JSON.stringify({
@@ -39316,6 +39385,7 @@ var init_runtime = __esm(() => {
     ]
   };
   MAX_OUTPUT_BYTES = 1024 * 1024;
+  DEFAULT_REVIEW_TIMEOUT_MS = 10 * 60000;
   REVIEW_RUBRICS = {
     "quality-review": "Check correctness, edge cases, security, unnecessary complexity, and whether public wiring is proven through real collaborators.",
     "scenario-gate": "Try to falsify every scenario. Check vacuous passes, atomic/observable/deterministic/independent structure, negative cases, boundaries, failures, security, invariants, and public-surface wiring.",
@@ -39373,14 +39443,14 @@ function assessFallback(outcome, reviewer, dispatchId) {
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code } : { kind: "completed", output: provenance.output };
 }
-function shellQuote2(value) {
+function shellQuote3(value) {
   if (/^[\w./-]+$/u.test(value))
     return value;
   const escaped = value.replaceAll("'", `'"'"'`);
   return `'${escaped}'`;
 }
 function retryCommand(kind, targets) {
-  return `safeword review run ${kind} ${targets.map((target) => shellQuote2(target)).join(" ")}`;
+  return `safeword review run ${kind} ${targets.map((target) => shellQuote3(target)).join(" ")}`;
 }
 function agentName(agent) {
   return agent === "codex" ? "Codex" : "Claude";
@@ -49821,7 +49891,7 @@ var init_shell_segments = __esm(() => {
 });
 
 // templates/hooks/lib/dependency-readiness.ts
-var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
+var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, BUNX_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES, SAFEWORD_RECOVERY_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
 var init_dependency_readiness = __esm(() => {
   init_namespace_root();
   init_shell_segments();
@@ -49855,6 +49925,19 @@ var init_dependency_readiness = __esm(() => {
     "-w"
   ]);
   PACKAGE_SCRIPT_COMMANDS = new Set(["run", "test"]);
+  BUNX_BOOLEAN_OPTIONS = new Set(["--bun", "--no-install", "--silent", "--verbose"]);
+  SAFEWORD_GLOBAL_BOOLEAN_OPTIONS = new Set([
+    "--json",
+    "--no-input",
+    "--offline",
+    "--quiet",
+    "--verbose",
+    "--version",
+    "-V",
+    "-v"
+  ]);
+  SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES = new Set(["--cwd"]);
+  SAFEWORD_RECOVERY_COMMANDS = new Set(["doctor", "plan", "setup", "status"]);
   DEPENDENCY_BINARIES = new Set([
     "cypress",
     "dependency-cruiser",
@@ -53716,7 +53799,7 @@ function cleanGuidanceRefusal(cleanup) {
     data: { command: "codex clean-guidance", cleanup }
   });
 }
-function shellQuote3(value) {
+function shellQuote4(value) {
   const escaped = (value ?? "").replaceAll("'", `'"'"'`);
   return `'${escaped}'`;
 }
@@ -53739,7 +53822,7 @@ function cleanGuidanceSuccess(cleanup) {
     },
     recovery: [
       {
-        command: `mv -- ${shellQuote3(cleanup.backupPath)} ${shellQuote3(cleanup.sourcePath)}`,
+        command: `mv -- ${shellQuote4(cleanup.backupPath)} ${shellQuote4(cleanup.sourcePath)}`,
         description: "Restore the backed-up profile guidance if it is still wanted.",
         requiresHuman: true
       }
@@ -53986,6 +54069,48 @@ function codexFailureCode(error2, message, name, isFinalization) {
     return name === "codex recover" ? "RECOVERY_FAILED" : "PLUGIN_INSTALL_FAILED";
   return /current plugin[- ]hook proof/i.test(message) ? "FINALIZATION_PROOF_REQUIRED" : "FINALIZATION_FAILED";
 }
+function codexFailureConfig(partialInstall, partialMarketplace) {
+  if (partialInstall) {
+    return [
+      {
+        kind: "install",
+        target: "Safeword Codex profile plugin",
+        operation: "enablement-unverified"
+      }
+    ];
+  }
+  if (partialMarketplace) {
+    return [
+      {
+        kind: "remove",
+        target: "Safeword Codex marketplace",
+        operation: "restoration-failed"
+      }
+    ];
+  }
+  return [];
+}
+function codexFailureRecovery(error2, partialMarketplace, fileEffects) {
+  if (partialMarketplace && error2 instanceof CodexMigrationError && error2.recoveryCommand !== undefined) {
+    return [
+      {
+        command: error2.recoveryCommand,
+        description: "Restore the Safeword marketplace removed by the failed replacement.",
+        requiresHuman: true
+      }
+    ];
+  }
+  if (fileEffects.length > 0) {
+    return [
+      {
+        command: "safeword codex recover",
+        description: "Retry recovery using the retained migration backup.",
+        requiresHuman: true
+      }
+    ];
+  }
+  return [];
+}
 function codexFailure(error2, name, isFinalization, fileEffects = []) {
   const message = error2 instanceof Error ? error2.message : String(error2);
   if (/finalization plan changed/iu.test(message)) {
@@ -54002,26 +54127,15 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
     });
   }
   const partialInstall = /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(message);
+  const partialMarketplace = error2 instanceof CodexMigrationError && error2.profileChanged;
   return createResult({
     state: "failed",
-    changed: partialInstall || fileEffects.length > 0,
+    changed: partialInstall || partialMarketplace || fileEffects.length > 0,
     effects: {
       files: fileEffects,
-      configuration: partialInstall ? [
-        {
-          kind: "install",
-          target: "Safeword Codex profile plugin",
-          operation: "enablement-unverified"
-        }
-      ] : []
+      configuration: codexFailureConfig(partialInstall, partialMarketplace)
     },
-    recovery: fileEffects.length > 0 ? [
-      {
-        command: "safeword codex recover",
-        description: "Retry recovery using the retained migration backup.",
-        requiresHuman: true
-      }
-    ] : [],
+    recovery: codexFailureRecovery(error2, partialMarketplace, fileEffects),
     errors: [
       {
         code: codexFailureCode(error2, message, name, isFinalization),

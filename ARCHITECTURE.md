@@ -44,6 +44,7 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 | Type Checking   | tsc / mypy         | Native type checkers for each language                                                 |
 | Arch Validation | dependency-cruiser | Circular dep detection, layer rules (JS/TS)                                            |
 | Arch Validation | import-linter      | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack |
+| Docs Rendering  | Astro/Mermaid      | Starlight documentation with versioned diagrams                                        |
 
 ---
 

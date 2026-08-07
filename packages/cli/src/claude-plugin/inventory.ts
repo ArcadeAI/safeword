@@ -1,5 +1,6 @@
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
+export const CLAUDE_PLUGIN_ID = 'safeword@safeword';
 
 export const CLAUDE_MIGRATION_SCHEMA = {
   paths: {

@@ -16,6 +16,10 @@ import process from 'node:process';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import {
+  CODEX_PLUGIN_HOOK_EVENTS,
+  recordCodexHookProof,
+} from '../packages/cli/src/codex-plugin/profile-proof.js';
 import { installFakeCodexRuntime } from '../packages/cli/tests/helpers/fake-codex-runtime.js';
 
 import type { CommandResult, SafewordWorld } from './world.js';
@@ -1668,16 +1672,34 @@ When(
     this.codexPluginRuntimeRoot = runtimeRoot;
     this.codexPluginCodexHome = runtime.codexHome;
     this.codexPluginMigrationLogPath = runtime.logPath;
-    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
+    const environment = {
+      PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_CODEX_LOG: runtime.logPath,
+      SAFEWORD_SKIP_INSTALL: '1',
+      CODEX_HOME: runtime.codexHome,
+    };
+    const setupResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
       cwd: repoRoot,
-      env: {
-        PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: runtime.logPath,
-        SAFEWORD_SKIP_INSTALL: '1',
-        CODEX_HOME: runtime.codexHome,
-      },
+      env: environment,
       timeout: 120_000,
     });
+    assert.equal(setupResult.exitCode, 0, `${setupResult.stdout}\n${setupResult.stderr}`);
+
+    for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      recordCodexHookProof(event, environment);
+    }
+    const preview = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex', 'migrate', '--finalize', '--json'],
+      { cwd: repoRoot, env: environment, timeout: 120_000 },
+    );
+    assert.equal(preview.exitCode, 2, `${preview.stdout}\n${preview.stderr}`);
+    const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+    this.codexPluginMigrationResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex', 'migrate', '--finalize', '--yes', '--plan', planId, '--json'],
+      { cwd: repoRoot, env: environment, timeout: 120_000 },
+    );
   },
 );
 

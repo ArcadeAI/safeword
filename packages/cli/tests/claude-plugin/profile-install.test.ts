@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   installClaudePlugin,
   observeApplicableClaudePlugins,
-  observeClaudeProfile,
 } from '../../src/claude-plugin/profile.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
@@ -226,16 +225,12 @@ describe('Claude marketplace update enrollment', () => {
     ]);
   });
 
-  it('observes the real host-reported project installation through both public status views', () => {
+  it('observes the real host-reported project installation through the public status view', () => {
     const { project } = fixture(true);
 
     expect(observeApplicableClaudePlugins(project)).toMatchObject({
       status: 'observed',
       installations: [{ scope: 'project', health: 'current' }],
-    });
-    expect(observeClaudeProfile(project)).toMatchObject({
-      health: 'current',
-      plugin: { id: 'safeword@safeword', scope: 'project' },
     });
   });
 
@@ -249,7 +244,7 @@ describe('Claude marketplace update enrollment', () => {
       extraKnownMarketplaces: { safeword: { autoUpdate?: boolean } };
     };
 
-    expect(result.state).toBe('changed');
+    expect(result.state, JSON.stringify(result)).toBe('changed');
     expect(settings.unrelated).toEqual({ keep: true });
     expect(settings.env.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE).toBe('1');
     expect(settings.extraKnownMarketplaces.safeword.autoUpdate).toBe(true);
@@ -267,7 +262,7 @@ describe('Claude marketplace update enrollment', () => {
       env: Record<string, unknown>;
     };
 
-    expect(result.state).toBe('healthy');
+    expect(result.state, JSON.stringify(result)).toBe('healthy');
     expect(settings.env).toEqual({
       KEEP_ME: 'yes',
       CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '0',
@@ -280,7 +275,7 @@ describe('Claude marketplace update enrollment', () => {
 
     const result = installClaudePlugin(project);
 
-    expect(result.state).toBe('healthy');
+    expect(result.state, JSON.stringify(result)).toBe('healthy');
     expect(readFileSync(settingsPath, 'utf8')).toBe(before);
     expect(readFileSync(log, 'utf8')).not.toContain('plugin marketplace add');
   });
