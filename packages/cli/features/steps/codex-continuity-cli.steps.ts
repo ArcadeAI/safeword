@@ -796,6 +796,15 @@ Then(
   },
 );
 
+Then(
+  'the profile plugin records PostToolUse proof before yielding authority',
+  function (this: ContinuityCliWorld) {
+    const path = nodePath.join(requireProfile(this), 'safeword/hook-proof-v2/post-tool-use.json');
+    const proof = JSON.parse(readFileSync(path, 'utf8')) as { event?: string };
+    assert.equal(proof.event, 'post-tool-use');
+  },
+);
+
 Then('the packaged PostToolUse behavior executes once', function (this: ContinuityCliWorld) {
   assert.equal(this.logicalPluginExecutions, 1);
 });
@@ -1482,6 +1491,7 @@ Then(
   'JSON status exposes the schema 2 app-restart state and the schema 1 compatibility state',
   function (this: ContinuityCliWorld) {
     const status = JSON.parse(this.result.stdout) as {
+      state?: string;
       data?: {
         migration?: { schema_version?: string; state?: string };
         migration_state?: string;
@@ -1492,6 +1502,7 @@ Then(
       state: 'plugin_installed_app_restart_required',
     });
     assert.equal(status.data?.migration_state, 'plugin_installed_restart_required');
+    assert.equal(status.state, 'action_required');
   },
 );
 

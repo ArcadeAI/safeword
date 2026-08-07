@@ -221,6 +221,16 @@ Given('an enabled plugin with proof for only SessionStart', function (this: Cont
 });
 
 Given(
+  'an enabled unknown-version plugin with current proof and legacy protection',
+  function (this: ContinuityStatusWorld) {
+    this.codexFacts = completeLegacy({
+      plugin: { ...enabledPlugin, version: null, observation: 'unknown' },
+      proof: currentProof,
+    });
+  },
+);
+
+Given(
   'an unresolved migration backup and recognized legacy protection',
   function (this: ContinuityStatusWorld) {
     this.codexFacts = completeLegacy({ recoveryRequired: true });
@@ -381,6 +391,17 @@ Then(
       'user-prompt-submit',
       'stop',
     ]);
+  },
+);
+
+Then(
+  'status reports compatibility with protected coverage and unknown plugin observation',
+  function (this: ContinuityStatusWorld) {
+    const status = requireStatus(this);
+    assert.equal(status.state, 'compatibility');
+    assert.equal(status.protected, 'protected');
+    assert.equal(status.plugin.observation, 'unknown');
+    assert.equal(status.plugin.version, null);
   },
 );
 

@@ -93,6 +93,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Given current plugin proof and configured project and profile handlers for PostToolUse
       When Codex dispatches PostToolUse through both handlers
       Then the legacy PostToolUse behavior executes exactly once and the packaged plugin behavior does not execute
+      And the profile plugin records PostToolUse proof before yielding authority
 
     @rejection
     Scenario: Plugin covers an event missing from a partial legacy installation
@@ -273,6 +274,11 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Given an enabled plugin with proof for only SessionStart
       When Safe Word derives human Codex status from the fixture
       Then status reports partial proof and names the four missing hook events
+
+    Scenario: Older Codex clients with an unknown plugin version remain compatible
+      Given an enabled unknown-version plugin with current proof and legacy protection
+      When Safe Word derives human Codex status from the fixture
+      Then status reports compatibility with protected coverage and unknown plugin observation
 
     Scenario: Recovery state takes precedence over legacy protection
       Given an unresolved migration backup and recognized legacy protection
