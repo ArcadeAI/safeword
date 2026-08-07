@@ -428,6 +428,7 @@ describe('pre-tool architecture staging hook', () => {
 
   it.each([
     ['a short-circuited commit', 'false && git commit -am "remove billing"'],
+    ['a backgrounded add', 'git add -A & git commit -m "remove billing"'],
     [
       'a piped pathspec add',
       String.raw`printf "src/billing/index.ts\n" | git add --pathspec-from-file=- && git commit -m "remove billing"`,

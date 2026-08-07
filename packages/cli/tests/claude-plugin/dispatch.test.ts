@@ -37,7 +37,7 @@ describe('Claude plugin dispatcher', () => {
     );
 
     expect(result.stderr).not.toContain('Module not found');
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr).toBe(0);
     const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
     const proofPath = nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`);
     expect(existsSync(proofPath)).toBe(true);

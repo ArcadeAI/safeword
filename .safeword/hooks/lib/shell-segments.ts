@@ -6,7 +6,7 @@
 // tests/hooks/shell-segments.test.ts as well as by each gate's own tests.
 //
 // This is NOT a shell parser. It splits a command string on unquoted segment
-// boundaries (`;`, newline, `&&`, `||`, single `|`) and whitespace-splits
+// boundaries (`;`, newline, `&`, `&&`, `||`, single `|`) and whitespace-splits
 // each segment honoring quotes and backslash escapes. Backslash is literal
 // inside single quotes (POSIX); `>|` is a clobbering redirection operator,
 // not a pipe boundary. Expansions, substitutions, and redirections are left
@@ -14,7 +14,7 @@
 
 import nodePath from 'node:path';
 
-export type ShellControlOperator = '&&' | '||' | ';' | '|' | '|&';
+export type ShellControlOperator = '&' | '&&' | '||' | ';' | '|' | '|&';
 
 export interface ShellCommandSegment {
   command: string;
@@ -71,6 +71,14 @@ export function parseShellCommandList(command: string): ShellCommandSegment[] {
       pushCommandSegment(segments, current, char === '&' ? '&&' : '||');
       current = '';
       index += 1;
+      continue;
+    }
+    // A single `&` backgrounds the preceding pipeline. Keep file-descriptor
+    // redirections (`2>&1`, `<&3`, `&>log`) intact: their ampersand touches
+    // `<`/`>` or introduces `>`.
+    if (char === '&' && command[index - 1] !== '>' && command[index - 1] !== '<' && next !== '>') {
+      pushCommandSegment(segments, current, '&');
+      current = '';
       continue;
     }
     // A single `|` is a pipe boundary, and so is `|&` (bash's stdout+stderr

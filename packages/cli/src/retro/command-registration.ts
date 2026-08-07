@@ -13,7 +13,7 @@ async function defaultExecute(options: RetroCliOptions): Promise<void> {
  * Register the real `safeword retro` parser/action boundary. Tests can replace
  * only the action collaborator while executing the same Commander wiring.
  */
-export function registerRetroCommand(
+function registerRetroCommand(
   program: Command,
   execute: ExecuteRetroCommand = defaultExecute,
 ): void {

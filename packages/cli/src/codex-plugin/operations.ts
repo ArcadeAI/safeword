@@ -35,7 +35,7 @@ import {
   observeLegacyGlobalGuidance,
 } from './legacy-global-guidance.js';
 import {
-  CODEX_RESTART_GUIDANCE,
+  CODEX_RESTART_CONTEXT,
   codexMigrationExitCode,
   type CodexMigrationResultV2,
   type CodexPluginObservation,
@@ -178,8 +178,8 @@ function configuredSafewordMarketplace(
   }
 }
 
-function marketplaceAddArguments(source: string, ref: string): string[] {
-  return [
+function marketplaceAddArguments(source: string, ref: string, includeJson = true): string[] {
+  const args = [
     'add',
     source,
     '--ref',
@@ -188,12 +188,16 @@ function marketplaceAddArguments(source: string, ref: string): string[] {
     '.agents/plugins',
     '--sparse',
     'packages/cli/codex-plugin',
-    '--json',
   ];
+  return includeJson ? [...args, '--json'] : args;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\"'\"'")}'`;
 }
 
 function exactVersionReference(ref: string): string | undefined {
-  const version = ref.startsWith('v') ? ref.slice(1) : '';
+  const version = ref.startsWith('v') ? ref.slice(1) : ref;
   return isSafePackageVersion(version) ? version : undefined;
 }
 
@@ -214,9 +218,20 @@ function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): v
         marketplaceAddArguments(source, configured.ref ?? 'main'),
         'Could not restore the previous Safeword marketplace after stable enrollment failed',
       );
-    } catch {
-      // Preserve the original stable-enrollment error. The profile lock keeps
-      // other tasks out while this best-effort restoration runs.
+    } catch (restorationError) {
+      const restoreCommand = [
+        'codex',
+        'plugin',
+        'marketplace',
+        ...marketplaceAddArguments(source, configured.ref ?? 'main', false),
+      ]
+        .map(argument => shellQuote(argument))
+        .join(' ');
+      throw new CodexMigrationError(
+        'PLUGIN_MARKETPLACE_FAILED',
+        `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error)}. Restore error: ${String(restorationError)}`,
+        { cause: error, profileChanged: true, recoveryCommand: restoreCommand },
+      );
     }
     throw error;
   }
@@ -276,6 +291,12 @@ function refreshOrAddCodexMarketplace(
       refreshOfficialGitMarketplace(marketplace, environment);
       return;
     }
+    if (marketplace !== undefined) {
+      throw new CodexMigrationError(
+        'PLUGIN_MARKETPLACE_FAILED',
+        'The configured Codex marketplace named safeword is not a Git marketplace. Safeword left it unchanged because replacing an unknown marketplace type is not safely reversible.',
+      );
+    }
   }
 
   runCodexMarketplace(
@@ -326,8 +347,10 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
     );
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
-    throw new Error(
+    throw new CodexMigrationError(
+      'PLUGIN_ENABLEMENT_FAILED',
       `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`,
+      { profileChanged: options.installationCompleted === true },
     );
   }
 }
@@ -420,7 +443,7 @@ export function observeCodexMigrationResult(
 
 const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV2['state'], string>>> =
   {
-    plugin_installed_app_restart_required: CODEX_RESTART_GUIDANCE,
+    plugin_installed_app_restart_required: CODEX_RESTART_CONTEXT,
     compatibility:
       'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.',
     plugin_enabled_hook_unproven:
@@ -476,11 +499,20 @@ export function observeCodexMigration(
           ],
     errors: result.errors,
     nextActions: [
-      ...result.next_actions.map(action => ({
-        command: action.command,
-        mutates: action.mutates,
-        requiresHuman: action.requires_human,
-      })),
+      ...result.next_actions.map(action =>
+        'command' in action
+          ? {
+              command: action.command,
+              mutates: action.mutates,
+              requiresHuman: action.requires_human,
+            }
+          : {
+              kind: action.kind,
+              instruction: action.instruction,
+              mutates: action.mutates,
+              requiresHuman: action.requires_human,
+            },
+      ),
       ...(globalGuidance.nextAction === undefined ? [] : [globalGuidance.nextAction]),
     ],
     data: {
@@ -858,22 +890,7 @@ export function automaticallyMigrateLegacyCodex(
   const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
   if (!hasLegacy) return false;
 
-  // Build and validate the complete cleanup transaction before touching the
-  // developer's shared profile. Ambiguous project state therefore leaves both
-  // delivery modes untouched.
-  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
-  const plannedEffects = finalizationEffects(cwd, plannedMutations);
-  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
-
   installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
-  assertCodexFinalizationPlanUnchanged(
-    cwd,
-    preparedLegacyHookRemoval,
-    plannedMutations,
-    plannedEffects,
-    plannedInputs,
-  );
-  applyCodexFinalization(cwd, plannedMutations);
   return true;
 }
 

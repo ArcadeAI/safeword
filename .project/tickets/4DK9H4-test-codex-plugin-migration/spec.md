@@ -79,7 +79,7 @@ Unaffected:
 
 #### test-codex-plugin-migration.TB1.R3 — Safe Word Codex hooks execute the packaged CLI entrypoints and preserve the existing deny, allow, context, and continuation semantics
 
-#### test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data intact while removing or ignoring obsolete Safe Word implementation assets
+#### test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and fallback assets intact until an explicit proven handoff
 
 ### test-codex-plugin-migration.SM1 — Trust the migration through targeted evidence, not a fragile monolith
 
@@ -110,7 +110,7 @@ future change safe.
 - A maintainer can run an isolated local Codex plugin install test without mutating their real `~/.codex`.
 - A maintainer can run deterministic hook-entrypoint tests that fail before any live model run is needed.
 - A maintainer can opt into one live Codex smoke that proves Codex itself loads the plugin and invokes the hooks.
-- A technical builder upgrading from the old Codex install shape keeps project-owned data and no longer depends on bulky repo-local Safe Word implementation files.
+- A technical builder's authored project data survives both a declined handoff and a successful proven handoff; fallback assets remain until success, then managed assets are removed.
 
 ## Open Questions
 

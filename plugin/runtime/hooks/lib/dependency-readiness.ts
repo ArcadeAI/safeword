@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   statSync,
   writeFileSync,
   type Dirent,
@@ -11,7 +12,7 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
-import { commandWords, splitShellSegments } from './shell-segments.js';
+import { commandWords, parseShellCommandList, splitShellSegments } from './shell-segments.js';
 
 export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
@@ -88,6 +89,19 @@ const PACKAGE_MANAGER_OPTIONS_WITH_VALUES = new Set([
   '-w',
 ]);
 const PACKAGE_SCRIPT_COMMANDS = new Set(['run', 'test']);
+const BUNX_BOOLEAN_OPTIONS = new Set(['--bun', '--no-install', '--silent', '--verbose']);
+const SAFEWORD_GLOBAL_BOOLEAN_OPTIONS = new Set([
+  '--json',
+  '--no-input',
+  '--offline',
+  '--quiet',
+  '--verbose',
+  '--version',
+  '-V',
+  '-v',
+]);
+const SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES = new Set(['--cwd']);
+const SAFEWORD_RECOVERY_COMMANDS = new Set(['doctor', 'plan', 'setup', 'status']);
 const DEPENDENCY_BINARIES = new Set([
   'cypress',
   'dependency-cruiser',
@@ -155,9 +169,11 @@ function detectDependencyManager(
   projectDirectory: string,
   packageManager: string | undefined,
 ): DependencyManager | undefined {
-  const declared = parseDeclaredManager(packageManager);
-  if (declared !== undefined) {
-    return managerLockfilePresent(projectDirectory, declared) ? declared : undefined;
+  if (packageManager !== undefined && packageManager.trim().length > 0) {
+    const declared = parseDeclaredManager(packageManager);
+    return declared !== undefined && managerLockfilePresent(projectDirectory, declared)
+      ? declared
+      : undefined;
   }
 
   if (existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'))) {
@@ -168,7 +184,7 @@ function detectDependencyManager(
 }
 
 function parseDeclaredManager(packageManager: string | undefined): DependencyManager | undefined {
-  const match = packageManager?.match(/^(bun|pnpm|npm|yarn)@/);
+  const match = packageManager?.match(/^(bun|pnpm|npm|yarn)@.+/);
   return match ? (match[1] as DependencyManager) : undefined;
 }
 
@@ -276,8 +292,14 @@ export function dependencyInputFingerprint(projectDirectory: string, plan: Depen
   for (const inputPath of plan.inputPaths.toSorted()) {
     hash.update(inputPath);
     hash.update('\0');
+    const inputFilePath = nodePath.resolve(projectDirectory, inputPath);
+    if (!isProjectPathContained(projectDirectory, inputFilePath)) {
+      hash.update('<outside-project>');
+      hash.update('\0');
+      continue;
+    }
     try {
-      hash.update(readFileSync(nodePath.join(projectDirectory, inputPath)));
+      hash.update(readFileSync(inputFilePath));
     } catch {
       hash.update('<missing>');
     }
@@ -314,10 +336,15 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
   // survives content-preserving operations (rebase, checkout, clone, cp) that
   // bump input mtimes without changing input content. mtime is only a bootstrap
   // fallback for the first check after an install, before any hook has stamped
-  // the marker — so it is consulted only when the marker is absent or stale.
-  const markerFresh = readInstallMarker(projectDirectory, plan) === fingerprint;
+  // the marker. Once present, a mismatched marker is authoritative: a newer
+  // artifact mtime cannot prove that its contents match the dependency inputs.
+  const marker = readInstallMarker(projectDirectory, plan);
+  const markerMismatch = marker !== undefined && marker !== fingerprint;
 
-  if (!markerFresh && isInstallArtifactStale(projectDirectory, plan, artifactPath)) {
+  if (
+    markerMismatch ||
+    (marker === undefined && isInstallArtifactStale(projectDirectory, plan, artifactPath))
+  ) {
     return {
       status: 'stale',
       reason: 'install_artifact_stale',
@@ -369,17 +396,54 @@ export function isDependencyBackedCommand(command: string): boolean {
   return segments.some(segment => isDependencyBackedSegment(segment));
 }
 
+/**
+ * A stale-readiness recovery may run its retry in the same Bash call only when
+ * the recovery comes first and every following segment depends on its success.
+ * This preserves the pre-tool gate for `||`, `;`, and pipes, where a guarded
+ * command could otherwise run after a failed or concurrent recovery (#1763).
+ *
+ * A background `&` also breaks that guarantee: Bash ends the preceding list
+ * and runs it asynchronously. The shared tokenizer exposes it as its own
+ * control operator, so it cannot look like an all-`&&` recovery chain.
+ *
+ * Only the LEADING segment is classified. An intermediate segment that undoes
+ * the recovery (`bun ci && rm -rf node_modules && bun run test`) still passes:
+ * the gate stops an agent from running into a stale worktree by accident, not
+ * from dismantling its own recovery on purpose.
+ */
+export function isDependencyReadinessRecoveryCommand(
+  command: string,
+  status: DependencyReadinessStatus,
+): boolean {
+  const segments = parseShellCommandList(command);
+  const [first] = segments;
+  if (segments.length < 2 || first === undefined || !isRecoverySegment(first.command, status)) {
+    return false;
+  }
+  return segments.slice(0, -1).every(segment => segment.operatorAfter === '&&');
+}
+
 /** Package managers whose install/ci/i reconciles `node_modules` against the inputs. */
 const INSTALL_MANAGERS = new Set(['bun', 'pnpm', 'npm', 'yarn']);
 /** Subcommands that perform a dependency install (not `add`/`remove`, which change inputs). */
 const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
 /**
- * Flags that make an install update only the lockfile or report a plan WITHOUT
- * materializing `node_modules`. Stamping after these would mark deps ready while
- * `node_modules` stays stale — a sticky false-ready — so they disqualify the
- * command from post-install stamping.
+ * Flags that prevent an install from fully reconciling project dependencies.
+ * Some do not materialize `node_modules` at all; others omit dependencies or
+ * skip linking. Treating either as ready would let a recovery retry run with an
+ * incomplete tree and would let the post-tool hook stamp a sticky false-ready.
  */
-const NO_RECONCILE_FLAGS = new Set(['--dry-run', '--lockfile-only', '--package-lock-only']);
+const NON_RECONCILING_INSTALL_FLAGS = new Set([
+  '--dry-run',
+  '--lockfile-only',
+  '--package-lock-only',
+  '--production',
+  '--prod',
+  '-P',
+  '--no-dev',
+  '--no-optional',
+]);
+const NON_RECONCILING_INSTALL_OPTIONS = new Set(['--omit', '--only', '--mode']);
 /**
  * Flags that make any package manager print-and-exit instead of installing.
  * `bun install --help`, `npm ci --version`, and bare `yarn --version` all
@@ -398,7 +462,8 @@ const REPORT_ONLY_INSTALL_FLAGS = new Set(['--version', '-v', '--help', '-h']);
  * stale-readiness block even when the install is a mtime-preserving no-op (#380).
  */
 export function isDependencyInstallCommand(command: string): boolean {
-  return splitShellSegments(command).some(segment => isInstallSegment(segment));
+  const segments = parseShellCommandList(command);
+  return segments.length === 1 && isInstallSegment(segments[0]?.command ?? '');
 }
 
 function isInstallSegment(segment: string): boolean {
@@ -406,8 +471,7 @@ function isInstallSegment(segment: string): boolean {
   if (binary === undefined) return false;
   const base = nodePath.basename(binary);
   if (!INSTALL_MANAGERS.has(base)) return false;
-  // A lockfile-only / dry-run install never materializes node_modules.
-  if (args.some(arg => NO_RECONCILE_FLAGS.has(arg.split('=')[0] ?? arg))) return false;
+  if (hasNonReconcilingInstallOption(args)) return false;
   // A report-only flag (--help/--version) makes the manager print and exit
   // without installing — for every manager, not just classic bare yarn.
   if (args.some(arg => REPORT_ONLY_INSTALL_FLAGS.has(arg))) return false;
@@ -416,6 +480,33 @@ function isInstallSegment(segment: string): boolean {
   // Classic `yarn` with no subcommand installs.
   if (base === 'yarn' && subcommand === undefined) return true;
   return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
+}
+
+function hasNonReconcilingInstallOption(args: string[]): boolean {
+  return args.some(arg => {
+    const [flag] = arg.split('=', 1);
+    if (flag === undefined) return false;
+    return NON_RECONCILING_INSTALL_FLAGS.has(flag) || NON_RECONCILING_INSTALL_OPTIONS.has(flag);
+  });
+}
+
+/**
+ * `touch node_modules` is only offered as recovery for a STALE marker, and it
+ * only earns the exemption there. With `node_modules` missing, `touch` creates
+ * an empty regular FILE of that name and exits 0 — so the retry would run with
+ * nothing installed, readiness would stay `missing` forever (the path is not a
+ * directory), and the stray file would block the real install that follows.
+ */
+function isRecoverySegment(segment: string, status: DependencyReadinessStatus): boolean {
+  if (isInstallSegment(segment)) return true;
+  return status === 'stale' && isTouchNodeModulesSegment(segment);
+}
+
+function isTouchNodeModulesSegment(segment: string): boolean {
+  const [binary, ...args] = commandWords(segment);
+  return (
+    nodePath.basename(binary ?? '') === 'touch' && args.length === 1 && args[0] === 'node_modules'
+  );
 }
 
 export function getDependencyReadinessStatePath(projectDirectory: string): string {
@@ -488,8 +579,22 @@ export function toDependencyReadinessState(
   };
 }
 
+function dependencyRecoveryCommand(readiness: DependencyReadiness): string {
+  const { installCommand, plan, status } = readiness;
+  if (installCommand === undefined) return 'install dependencies';
+
+  // A version-bump pull changes the input fingerprint without changing resolved
+  // dependencies, so the install reports "no changes" and does not refresh the
+  // marker — which would otherwise leave this stale check looping. No package
+  // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
+  // remove the stale marker and touch the artifact after the install succeeds.
+  // This also works when the current app still has an older PostToolUse hook
+  // loaded and therefore cannot stamp the new fingerprint itself.
+  if (status !== 'stale' || plan === undefined) return installCommand;
+  return `${installCommand} && rm -f ${plan.installArtifact}/${INSTALL_MARKER_FILENAME} && touch ${plan.installArtifact}`;
+}
+
 export function formatDependencyRecovery(readiness: DependencyReadiness): string {
-  const installCommand = readiness.installCommand ?? 'install dependencies';
   const problem =
     readiness.status === 'stale'
       ? "the project's tool list changed since it was last set up, so safeword's checks may be out of date"
@@ -497,20 +602,12 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
 
   const lines = [
     `${problem}.`,
-    `Install them with this command from the project folder, then try again:`,
-    `  ${installCommand}`,
+    // The recovery may end in a relative `touch`, so the folder has to be the
+    // project root — "the project folder" reads as "wherever you are" inside a
+    // monorepo package and quietly touches the wrong artifact.
+    `Install them with this command from the project root folder, then try again:`,
+    `  ${dependencyRecoveryCommand(readiness)}`,
   ];
-
-  // A version-bump pull changes the input fingerprint without changing resolved
-  // dependencies, so the install reports "no changes" and does not refresh the
-  // marker — which would otherwise leave this stale check looping. No package
-  // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
-  // document the one-step escape for that no-op case.
-  if (readiness.status === 'stale') {
-    lines.push(
-      'If it reports no changes, the lockfile is already satisfied — run `touch node_modules` to clear this check.',
-    );
-  }
 
   return lines.join('\n');
 }
@@ -544,7 +641,7 @@ function readPnpmWorkspacePackages(projectDirectory: string): string[] {
   const patterns: string[] = [];
   let insidePackages = false;
   for (const rawLine of content.split('\n')) {
-    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    const line = stripYamlComment(rawLine);
     if (!insidePackages) {
       if (/^packages:\s*$/.test(line)) insidePackages = true;
       continue;
@@ -558,6 +655,25 @@ function readPnpmWorkspacePackages(projectDirectory: string): string[] {
     if (/^[^\s#-]/.test(line)) insidePackages = false;
   }
   return patterns;
+}
+
+function stripYamlComment(line: string): string {
+  let quote: "'" | '"' | undefined;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (quote !== undefined) {
+      if (character === quote && line[index - 1] !== '\\') quote = undefined;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === '#' && (index === 0 || /\s/u.test(line[index - 1] ?? ''))) {
+      return line.slice(0, index);
+    }
+  }
+  return line;
 }
 
 function stripYamlQuotes(value: string): string {
@@ -617,6 +733,14 @@ function normalizeWorkspacePattern(rawPattern: string): WorkspacePattern | undef
   const negated = pattern.startsWith('!');
   if (negated) pattern = pattern.slice(1);
 
+  if (
+    nodePath.posix.isAbsolute(pattern) ||
+    /^[A-Za-z]:\//.test(pattern) ||
+    pattern.split('/').includes('..')
+  ) {
+    return undefined;
+  }
+
   pattern = pattern.replace(/^\.?\//, '').replace(/\/+$/, '');
   if (pattern.length === 0) return undefined;
 
@@ -626,7 +750,11 @@ function normalizeWorkspacePattern(rawPattern: string): WorkspacePattern | undef
 function expandPositiveWorkspacePattern(projectDirectory: string, pattern: string): string[] {
   if (!hasGlobSyntax(pattern)) {
     const packageJsonPath = pattern.endsWith('/package.json') ? pattern : `${pattern}/package.json`;
-    return existsSync(nodePath.join(projectDirectory, packageJsonPath)) ? [packageJsonPath] : [];
+    const packageJsonFilePath = nodePath.resolve(projectDirectory, packageJsonPath);
+    return existsSync(packageJsonFilePath) &&
+      isProjectPathContained(projectDirectory, packageJsonFilePath)
+      ? [packageJsonPath]
+      : [];
   }
 
   return collectPackageJsonPathsUnder(
@@ -640,7 +768,9 @@ function collectPackageJsonPathsUnder(
   relativeBaseDirectory: string,
 ): string[] {
   const baseDirectory = nodePath.join(projectDirectory, relativeBaseDirectory);
-  if (!isDirectory(baseDirectory)) return [];
+  if (!isDirectory(baseDirectory) || !isProjectPathContained(projectDirectory, baseDirectory)) {
+    return [];
+  }
 
   const packageJsonPaths: string[] = [];
   const pendingDirectories = [baseDirectory];
@@ -674,6 +804,32 @@ function collectPackageJsonPathsUnder(
   return packageJsonPaths;
 }
 
+function isProjectPathContained(projectDirectory: string, candidatePath: string): boolean {
+  const resolvedProjectDirectory = nodePath.resolve(projectDirectory);
+  const resolvedCandidatePath = nodePath.resolve(candidatePath);
+  if (!isPathWithin(resolvedProjectDirectory, resolvedCandidatePath)) return false;
+  if (!existsSync(resolvedCandidatePath)) return true;
+
+  try {
+    return isPathWithin(
+      realpathSync(resolvedProjectDirectory),
+      realpathSync(resolvedCandidatePath),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isPathWithin(parentPath: string, candidatePath: string): boolean {
+  const relativePath = nodePath.relative(parentPath, candidatePath);
+  return (
+    relativePath === '' ||
+    (!nodePath.isAbsolute(relativePath) &&
+      relativePath !== '..' &&
+      !relativePath.startsWith(`..${nodePath.sep}`))
+  );
+}
+
 function isExcludedWorkspacePackage(
   packageJsonPath: string,
   negativePatterns: WorkspacePattern[],
@@ -692,6 +848,8 @@ function matchesWorkspacePattern(
     ? packageJsonPath
     : packageJsonPath.replace(/\/package\.json$/, '');
   const matcher = workspacePatternMatcher(pattern);
+  // Unsupported positive syntax errs toward fingerprinting too much, while
+  // unsupported exclusions never hide a package from readiness tracking.
   if (matcher === undefined) return unsupportedGlobDefault;
   return matcher.test(target);
 }
@@ -773,7 +931,7 @@ function isDependencyBackedSegment(segment: string): boolean {
     return isBunDependencyBackedCommand(args);
   }
 
-  if (basename === 'bunx') return true;
+  if (basename === 'bunx') return !isSafewordRecoverySegment(segment, args);
 
   if (basename === 'npx' || basename === 'pnpx' || basename === 'pnx') {
     return isKnownBinaryPackageExecutor(args);
@@ -788,6 +946,75 @@ function isDependencyBackedSegment(segment: string): boolean {
   }
 
   return DEPENDENCY_BINARIES.has(basename);
+}
+
+function isSafewordRecoverySegment(segment: string, args: string[]): boolean {
+  if (containsShellEvaluationSyntax(segment)) return false;
+
+  let packageIndex = 0;
+  while (BUNX_BOOLEAN_OPTIONS.has(args[packageIndex] ?? '')) packageIndex += 1;
+  if (args[packageIndex] === '--') packageIndex += 1;
+
+  const packageSpecifier = args[packageIndex];
+  if (packageSpecifier === undefined || !/^safeword(?:@[^/@\s]+)?$/.test(packageSpecifier)) {
+    return false;
+  }
+
+  const command = firstSafewordCommandArgument(args.slice(packageIndex + 1));
+  return command !== undefined && SAFEWORD_RECOVERY_COMMANDS.has(command);
+}
+
+function containsShellEvaluationSyntax(segment: string): boolean {
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (const char of segment) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (char === "'") {
+      if (quote === undefined) quote = char;
+      else if (quote === char) quote = undefined;
+      continue;
+    }
+    if (char === '"') {
+      if (quote === undefined) quote = char;
+      else if (quote === char) quote = undefined;
+      continue;
+    }
+    if (quote !== "'" && (char === '$' || char === '`')) return true;
+    if (quote === undefined && (char === '<' || char === '>' || char === '&')) return true;
+  }
+
+  return false;
+}
+
+// Deliberately not `firstCommandArgument`: that helper skips over options it
+// does not recognize, which would let an unknown flag carry an argument the
+// classifier then mistakes for a recovery verb. Here an unrecognized option
+// means "not a recovery shape", so the segment falls through to the guard.
+function firstSafewordCommandArgument(args: string[]): string | undefined {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === undefined) continue;
+
+    if (arg === '--') return args[index + 1];
+    if (!arg.startsWith('-') || arg === '-') return arg;
+
+    const option = arg.split('=')[0] ?? arg;
+    if (SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES.has(option)) {
+      if (!arg.includes('=')) index += 1;
+      continue;
+    }
+    if (!SAFEWORD_GLOBAL_BOOLEAN_OPTIONS.has(arg)) return undefined;
+  }
+
+  return undefined;
 }
 
 function isBunDependencyBackedCommand(args: string[]): boolean {

@@ -37,6 +37,7 @@ import {
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
+import { captureRetroFilingFault } from '../../templates/hooks/lib/self-report.js';
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
@@ -675,7 +676,7 @@ export interface RetroCommandOutput {
 
 type RelayRoute = NonNullable<RetroDependencies['relay']>;
 
-export interface RetroReadinessComposition {
+interface RetroReadinessComposition {
   buildCommit?: string;
   configuration?: () => Omit<RelayRoute, 'readiness'> | undefined;
   fetch?: typeof fetch;
@@ -885,6 +886,7 @@ async function resolveRetroRelayRoute(input: {
 async function executeRetroWithDependencies(
   options: RetroCliOptions,
   dependencies: {
+    captureFilingFault?: (projectDirectory: string, sessionId: string) => void;
     environment: NodeJS.ProcessEnv;
     extract: FindingExtractor;
     extractionSucceeded: () => boolean;
@@ -928,6 +930,9 @@ async function executeRetroWithDependencies(
     output: dependencies.output,
     restTransportAvailable: dependencies.restTransportAvailable,
   });
+  if (dependencies.restTransportAvailable && (outcome.result?.failed.length ?? 0) > 0) {
+    dependencies.captureFilingFault?.(dependencies.projectDirectory, dependencies.sessionId);
+  }
   return outcome;
 }
 
@@ -1181,6 +1186,7 @@ async function executeRetroCliCommand(
   const transport = restTransport ?? unavailableTransport();
 
   const outcome = await executeRetroWithDependencies(options, {
+    captureFilingFault: captureRetroFilingFault,
     environment: process.env,
     extract,
     extractionSucceeded: () => extractionSucceeded,
@@ -1215,6 +1221,7 @@ async function executeRetroCliCommand(
     restTransportAvailable: restTransport !== undefined,
     transport,
   });
+
   return {
     outcome,
     extractionSucceeded,

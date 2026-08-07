@@ -32,22 +32,34 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ff5d4270f
 - [x] REFACTOR skip: ordered state table is already the minimal precedence model
 
-### Scenario: Successful installation requires a Codex restart
+### Scenario: Enabled older plugin requires an update
+
+- [x] RED skip: version-aware observation arrived with the state-table regression
+- [x] GREEN b49622008
+- [x] REFACTOR skip: update-required is one ordered state-table row
+
+### Scenario: Successful installation requires an app restart
 
 - [x] RED 7ceb02372
 - [x] GREEN 240a0b432
 - [x] REFACTOR skip: durable profile writer is already isolated behind one function
 
-### Scenario: Plugin SessionStart clears restart-required state
+### Scenario: Plugin SessionStart from the installing app does not clear activation state
 
-- [x] RED 8757aee8e
-- [x] GREEN d8e9dc757
-- [x] REFACTOR skip: proof and marker writes already share one atomic JSON primitive
+- [x] RED skip: the earlier clearing expectation was invalidated by same-host catalogue evidence
+- [x] GREEN 1e7968133
+- [x] REFACTOR skip: host identity is checked at the single activation boundary
+
+### Scenario: Plugin SessionStart from a restarted app completes activation
+
+- [x] RED skip: the transition already had sibling-feature coverage but was missing from this ticket's contract
+- [x] GREEN 0d32a172c
+- [x] REFACTOR skip: both features reuse the same host-bound activation steps
 
 ### Scenario: Trusted plugin SessionStart records event-specific proof
 
-- [x] RED skip: complete proof is inseparable from safely clearing the restart marker
-- [x] GREEN d8e9dc757
+- [x] RED skip: proof identity shipped inseparably with activation-host validation
+- [x] GREEN 1e7968133
 - [x] REFACTOR skip: proof payload has one schema-owned writer
 
 ### Scenario: Interrupted proof write cannot become current
@@ -194,6 +206,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 03f146a37
 - [x] REFACTOR skip: status reuses the event-level compatibility authority predicate
 
+### Scenario: Partial hook proof names the events still required before finalization
+
+- [x] RED skip: partial proof existed in the result contract before ticket-level scenario coverage
+- [x] GREEN 0d32a172c
+- [x] REFACTOR skip: one proof fixture exposes the event-level boundary
+
+### Scenario: Older Codex clients with an unknown plugin version remain compatible
+
+- [x] RED skip: the compatibility behavior predated explicit older-client coverage
+- [x] GREEN 1cc5afa91
+- [x] REFACTOR skip: the observation field supplies the existing version-match predicate
+
 ### Scenario: Recovery state takes precedence over legacy protection
 
 - [x] RED skip: recovery precedence shipped with the transaction recovery gate
@@ -228,7 +252,19 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the versioned result type existed before exhaustive shape characterization
 - [x] GREEN dafac16e8
-- [x] REFACTOR skip: every state is emitted through the same schema-1 result constructor
+- [x] REFACTOR skip: every state is emitted through one schema-1 envelope with one nested schema-2 migration object
+
+### Scenario: Next-action shape distinguishes a runnable command from a human step
+
+- [x] RED skip: the tagged union and its characterization landed together during review correction
+- [x] GREEN f03c07d22
+- [x] REFACTOR skip: the tagged union is the minimal machine-readable distinction
+
+### Scenario: Restart status preserves the schema 1 compatibility state token
+
+- [x] RED skip: the compatibility alias already existed before explicit scenario coverage
+- [x] GREEN 0d32a172c
+- [x] REFACTOR skip: the assertion pins both views of the same derived state
 
 ### Scenario: JSON finalization plan uses stable effect actions
 
