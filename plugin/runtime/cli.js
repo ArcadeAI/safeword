@@ -41029,13 +41029,13 @@ var require_structured_source = __commonJS((exports) => {
   exports.StructuredSource = StructuredSource;
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/invariant.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/invariant.js
 function invariant(condition, message) {
   if (!condition)
     throw new Error(message);
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
 class SecretLintSourceCodeImpl {
   hasBOM;
   content;
@@ -41092,7 +41092,7 @@ var init_SecretLintSourceCodeImpl = __esm(() => {
   import_structured_source = __toESM(require_structured_source(), 1);
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
 class EventEmitter2 {
   #listeners = new Map;
   on(type, listener) {
@@ -41152,7 +41152,7 @@ class PromiseEventEmitter {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
 var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   if (typeof props !== "object" || props === null) {
     return messageHandler();
@@ -41213,7 +41213,7 @@ var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RuleContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RuleContext.js
 var createContextEvents = () => {
   const contextEvents = new EventEmitter2;
   const REPORT_SYMBOL = Symbol("report");
@@ -41298,7 +41298,7 @@ var createContextEvents = () => {
 };
 var init_RuleContext = () => {};
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
 class SecretLintRule {
   ruleReportHandle;
   ruleCreator;
@@ -41412,7 +41412,7 @@ var init_node = __esm(() => {
   });
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RunningEvents.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RunningEvents.js
 var createRunningEvents = () => {
   const contextEvents = new PromiseEventEmitter;
   const registerSet = new Set;
@@ -41469,7 +41469,7 @@ var init_RunningEvents = __esm(() => {
   init_node();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RulePresetContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RulePresetContext.js
 var createRulePresetContext = ({ configRulePreset, sourceCode, runningEvents, contextEvents, sharedOptions, locale }) => {
   const presetRules = configRulePreset.rules || [];
   if (!Array.isArray(presetRules)) {
@@ -41517,7 +41517,7 @@ var init_RulePresetContext = __esm(() => {
   init_RuleContext();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
 function filterIgnoredMessages(options) {
   const reportedMessages = options.reportedMessages;
   const ignoreMessages = options.ignoredMessages;
@@ -41539,7 +41539,7 @@ var isContainedRange = (index, range) => {
   return start <= index && index <= end;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
 var createMessageProcessor = (processors) => {
   return {
     process(messages2) {
@@ -41554,7 +41554,7 @@ var createMessageProcessor = (processors) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
 function filterDuplicatedMessages(messages2 = []) {
   return messages2.filter((message, index) => {
     const restMessages = messages2.slice(index + 1);
@@ -41567,7 +41567,7 @@ var isEqualMessage = (aMessage, bMessage) => {
   return aMessage.range[0] === bMessage.range[0] && aMessage.range[1] === bMessage.range[1] && "severity" in aMessage && "severity" in bMessage && aMessage.severity === bMessage.severity && aMessage.message === bMessage.message;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/sort-messages-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/sort-messages-process.js
 function sortMessagesByLocation(messages2) {
   return messages2.sort(function(a, b) {
     const startIndexDiff = a.range[0] - b.range[0];
@@ -41579,7 +41579,7 @@ function sortMessagesByLocation(messages2) {
   });
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-message-id.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-message-id.js
 var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   const disabledSet = new Set(allowMessageIds.map((allowMessage) => {
     return `${allowMessage.ruleId}--${allowMessage.messageId}`;
@@ -41589,7 +41589,7 @@ var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
 var deepMask = (object, handler) => {
   for (const key of Object.keys(object)) {
     if (typeof object[key] === "object") {
@@ -41631,7 +41631,7 @@ var deepMask = (object, handler) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/index.js
 var cleanupMessages = (options) => {
   const reportedMessages = filterIgnoredMessages(options);
   const reportedMessagesWithoutAllowMessageIds = filterByAllowMessageIds(reportedMessages, options.allowMessageIds);
@@ -41751,7 +41751,7 @@ var require_ms = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/common.js
+// ../../node_modules/.bun/debug@4.4.3/node_modules/debug/src/common.js
 var require_common = __commonJS((exports, module) => {
   function setup(env) {
     createDebug.debug = createDebug;
@@ -41926,7 +41926,7 @@ var require_common = __commonJS((exports, module) => {
   module.exports = setup;
 });
 
-// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/browser.js
+// ../../node_modules/.bun/debug@4.4.3/node_modules/debug/src/browser.js
 var require_browser = __commonJS((exports, module) => {
   exports.formatArgs = formatArgs;
   exports.save = save;
@@ -42239,7 +42239,7 @@ var init_supports_color = __esm(() => {
   supports_color_default = supportsColor;
 });
 
-// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/node.js
+// ../../node_modules/.bun/debug@4.4.3/node_modules/debug/src/node.js
 var require_node = __commonJS((exports, module) => {
   var tty2 = __require("tty");
   var util = __require("util");
@@ -42410,7 +42410,7 @@ var require_node = __commonJS((exports, module) => {
   };
 });
 
-// ../../node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/index.js
+// ../../node_modules/.bun/debug@4.4.3/node_modules/debug/src/index.js
 var require_src = __commonJS((exports, module) => {
   if (typeof process === "undefined" || process.type === "renderer" || false || process.__nwjs) {
     module.exports = require_browser();
@@ -42419,7 +42419,7 @@ var require_src = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/index.js
 var import_debug, debug, lintSource = ({ source, options }) => {
   secretLintProfiler.mark({
     type: "@core>lint::start",
@@ -50473,6 +50473,7 @@ import {
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync6,
   readFileSync as readFileSync54,
+  renameSync as renameSync7,
   rmSync as rmSync10,
   writeFileSync as writeFileSync21
 } from "fs";
@@ -50674,6 +50675,26 @@ function findPackagedTemplate(relativePath) {
 function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath89.join("hooks", relativePath));
 }
+function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
+  const result = spawnSync9("bun", [hookPath], {
+    cwd: projectDirectory,
+    input: rawInput,
+    encoding: "utf8",
+    env: {
+      ...process19.env,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+      SAFEWORD_AGENT_RUNTIME: "codex",
+      SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath
+    },
+    stdio: ["pipe", "pipe", "pipe"]
+  });
+  return {
+    error: result.error,
+    status: result.status ?? undefined,
+    stderr: result.stderr ?? "",
+    stdout: result.stdout ?? ""
+  };
+}
 function normalizeNamespaceRootLabel(label) {
   const normalizedLabel = label.replaceAll("\\", "/");
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
@@ -50699,31 +50720,38 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
       writeFileSync21(nodePath89.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath89.join(temporaryHookDirectory, nodePath89.basename(hookPath));
     }
-    const result = spawnSync9("bun", [executableHookPath], {
-      cwd: projectDirectory,
-      input: rawInput,
-      encoding: "utf8",
-      env: {
-        ...process19.env,
-        CLAUDE_PROJECT_DIR: projectDirectory,
-        SAFEWORD_AGENT_RUNTIME: "codex",
-        SAFEWORD_PACKAGED_CONTEXT_PATH: relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : ""
-      },
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    return {
-      error: result.error,
-      status: result.status ?? undefined,
-      stderr: result.stderr ?? "",
-      stdout: result.stdout ?? ""
-    };
+    const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
+    return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory)
       rmSync10(temporaryHookDirectory, { recursive: true, force: true });
   }
 }
+function snapshotPackagedHook(relativePath) {
+  const packagedHooksDirectory = findPackagedTemplate("hooks");
+  if (!packagedHooksDirectory) {
+    return { error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+  }
+  const directory = mkdtempSync6(nodePath89.join(tmpdir4(), `safeword-codex-hook-snapshot-${process19.pid}-`));
+  const stagingHooksDirectory = nodePath89.join(directory, "hooks-copying");
+  const snapshotHooksDirectory = nodePath89.join(directory, "hooks");
+  try {
+    cpSync(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
+    renameSync7(stagingHooksDirectory, snapshotHooksDirectory);
+    const hookPath = nodePath89.join(snapshotHooksDirectory, relativePath);
+    return existsSync45(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+  } catch (error2) {
+    return {
+      directory,
+      error: error2 instanceof Error ? error2 : new Error(String(error2))
+    };
+  }
+}
+function hookFailureDetail(result) {
+  return result.stderr.trim() || result.error?.message || "exited without a failure message";
+}
 function denyForPackagedHookFailure(result) {
-  const detail = result.stderr.trim() || result.error?.message || "exited without a failure message";
+  const detail = hookFailureDetail(result);
   process19.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}
 `);
   process19.exit(2);
@@ -50793,8 +50821,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   deny(`Cannot create test-definitions.md for ${ticketFolder} until ticket.md declares ${missing.join(", ")}.`);
   return true;
 }
-function runEnrolledPreToolUse(rawInput, projectDirectory) {
-  const qualityResult = runPackagedHook("codex/pre-tool-quality.ts", rawInput, projectDirectory);
+function runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult) {
   if (emitPackagedPreToolResult(qualityResult))
     return;
   const input = parseCodexHookInput(rawInput);
@@ -50817,11 +50844,15 @@ function runEnrolledPreToolUse(rawInput, projectDirectory) {
   }
 }
 async function runPreToolUse() {
-  const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
   if (!hasSafewordProjectMarker(projectDirectory))
     return;
-  runEnrolledPreToolUse(rawInput, projectDirectory);
+  const snapshot = snapshotPackagedHook(PRE_TOOL_QUALITY_HOOK_PATH);
+  const rawInput = await readStdin();
+  const qualityResult = snapshot.hookPath ? runHookFile(snapshot.hookPath, rawInput, projectDirectory) : { error: snapshot.error, stderr: "", stdout: "" };
+  if (snapshot.directory)
+    rmSync10(snapshot.directory, { recursive: true, force: true });
+  runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult);
 }
 async function runSessionStart() {
   const rawInput = await readStdin();
@@ -50960,7 +50991,7 @@ async function codexHook(event, options = {}) {
   }
   await CODEX_HOOK_RUNNERS[normalized]();
 }
-var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE = ` 
+var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE = ` 
 \r	\v\f`, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
   init_legacy_authority();

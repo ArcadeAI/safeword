@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import rootPackageJson from '../../../package.json' with { type: 'json' };
 import packageJson from '../package.json' with { type: 'json' };
 import {
+  normalizeClaudePluginCliBundle,
   sealClaudePluginCatalogue,
   writeClaudePluginCatalogue,
 } from '../src/claude-plugin/catalogue.js';
@@ -40,7 +41,7 @@ const cliBuild = await Bun.build({
 if (!cliBuild.success || cliBuild.outputs.length !== 1 || cliBuild.outputs[0] === undefined) {
   throw new Error(`Failed to bundle the Claude plugin CLI: ${cliBuild.logs.join('\n')}`);
 }
-const cliBundle = await cliBuild.outputs[0].text();
+const cliBundle = normalizeClaudePluginCliBundle(await cliBuild.outputs[0].text());
 const assets = writeClaudePluginCatalogue(
   {
     cliBundle,
