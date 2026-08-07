@@ -15,11 +15,20 @@ interface ResultError {
   readonly detail?: string;
 }
 
-export interface NextAction {
+interface CommandNextAction {
   readonly command: string;
   readonly mutates: boolean;
   readonly requiresHuman: boolean;
 }
+
+interface HumanNextAction {
+  readonly kind: 'human';
+  readonly instruction: string;
+  readonly mutates: false;
+  readonly requiresHuman: true;
+}
+
+export type NextAction = CommandNextAction | HumanNextAction;
 
 interface RecoveryAction {
   readonly command: string;
@@ -154,11 +163,20 @@ function toWireResult(result: CliResult): Record<string, unknown> {
       description,
       requires_human: requiresHuman,
     })),
-    next_actions: result.nextActions.map(({ command, mutates, requiresHuman }) => ({
-      command,
-      mutates,
-      requires_human: requiresHuman,
-    })),
+    next_actions: result.nextActions.map(action =>
+      'command' in action
+        ? {
+            command: action.command,
+            mutates: action.mutates,
+            requires_human: action.requiresHuman,
+          }
+        : {
+            kind: action.kind,
+            instruction: action.instruction,
+            mutates: action.mutates,
+            requires_human: action.requiresHuman,
+          },
+    ),
     ...(result.data !== undefined && { data: result.data }),
   };
 }
@@ -219,6 +237,10 @@ function reviewIndependenceLine(data: unknown): string | undefined {
 
 function optionalLine(value: string | undefined): readonly string[] {
   return value === undefined ? [] : [value];
+}
+
+function nextActionLabel(action: NextAction): string {
+  return 'command' in action ? action.command : action.instruction;
 }
 
 const EFFECT_LABELS: Readonly<Record<string, string>> = {
@@ -293,7 +315,7 @@ export function renderHumanStreams(
   }
 
   const primaryAction = result.nextActions[0];
-  if (primaryAction !== undefined) lines.push(`Next: ${primaryAction.command}`);
+  if (primaryAction !== undefined) lines.push(`Next: ${nextActionLabel(primaryAction)}`);
   const body = lines.join('\n');
   return result.state === 'failed' ? { stdout: '', stderr: body } : { stdout: body, stderr: '' };
 }

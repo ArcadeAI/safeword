@@ -117,10 +117,6 @@ export function observeRunningCodexHosts(): CodexHostProcessIdentity[] | null {
   return observation.available ? observation.running : null;
 }
 
-export function observeCurrentCodexHost(): CodexHostProcessIdentity | null {
-  return observeCodexHostProcesses().current;
-}
-
 export function sameCodexHost(
   left: CodexHostProcessIdentity,
   right: CodexHostProcessIdentity,
