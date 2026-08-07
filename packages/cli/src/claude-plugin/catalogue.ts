@@ -38,7 +38,7 @@ const BUN_INSTALL_INSTANCE_PATH =
  * generated plugin catalogue.
  */
 export function normalizeClaudePluginCliBundle(bundle: string): string {
-  return bundle.replace(BUN_INSTALL_INSTANCE_PATH, '$1$2');
+  return bundle.replaceAll(BUN_INSTALL_INSTANCE_PATH, '$1$2');
 }
 
 function filesBeneath(directory: string, prefix = ''): string[] {
