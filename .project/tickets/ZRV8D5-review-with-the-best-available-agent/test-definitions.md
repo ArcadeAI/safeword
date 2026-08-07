@@ -4,11 +4,23 @@ Feature source: `packages/cli/features/review-with-the-best-available-agent.feat
 
 test-definitions.md is the R/G/R ledger.
 
-## Feature wiring: Every advertised host ships the typed-exhaustion continuation
+## Feature wiring: Every advertised host installs a typed-exhaustion entry point
 
-- [x] RED 2abd9aa05
-- [x] GREEN 068b4d9c2
-- [x] REFACTOR aba4ab37f
+- [x] RED a005df2fa
+- [x] GREEN c2ffdc88a
+- [x] REFACTOR skip: the generated Cursor command is a data-only catalogue entry
+
+## Manual host runtime: Every advertised host enters fallback for typed exhaustion
+
+- [x] RED skip: agent behavior — host-native runtime invocation is not structurally executable from the local acceptance runner
+- [x] GREEN skip: agent behavior — Claude/Codex/Cursor cloud execution remained unavailable in this session
+- [x] REFACTOR skip: agent behavior — no runtime implementation changed; the shipped contract and evidence limit are explicit
+
+## Manual host runtime: Every advertised host preserves non-exhaustion outcomes
+
+- [x] RED skip: agent behavior — host-native runtime invocation is not structurally executable from the local acceptance runner
+- [x] GREEN skip: agent behavior — Claude/Codex/Cursor cloud execution remained unavailable in this session
+- [x] REFACTOR skip: agent behavior — no runtime implementation changed; the shipped contract and evidence limit are explicit
 
 ## Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
 
@@ -26,9 +38,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A later compatible independent reviewer still precedes degradation
 
-- [x] RED 16236851f
-- [x] GREEN 068b4d9c2
-- [x] REFACTOR aba4ab37f
+- [x] RED a005df2fa
+- [x] GREEN cea1c101a
+- [x] REFACTOR db8f9d124
+
+### Scenario: An alternate model route without model selection is skipped before degradation
+
+- [x] RED f4c9ece1c
+- [x] GREEN 9787062a2
+- [x] REFACTOR skip: capability selection remains centralized in the existing runtime probe
 
 ## Rule: review-with-the-best-available-agent.TBU1.R2 — Same-agent headless review is the first degraded route
 
@@ -64,6 +82,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 068b4d9c2
 - [x] REFACTOR aba4ab37f
 
+### Scenario: A timed-out in-session reviewer falls through to self-review
+
+- [x] RED 9787062a2
+- [x] GREEN c2ffdc88a
+- [x] REFACTOR skip: timeout is another terminal classification of the existing one-attempt route
+
 ## Rule: review-with-the-best-available-agent.TBU1.R4 — Main-thread self-review returns valid findings or preserves exhaustion
 
 ### Scenario: Every delegated route fails before the main thread reviews once
@@ -75,26 +99,26 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A clean terminal self-review returns no invented findings
 
 - [x] RED 16236851f
-- [x] GREEN 068b4d9c2
-- [x] REFACTOR aba4ab37f
+- [x] GREEN c2ffdc88a
+- [x] REFACTOR skip: the existing terminal route remains single-purpose
 
 ### Scenario: Invalid terminal self-review preserves the original exhaustion result
 
 - [x] RED 16236851f
-- [x] GREEN 068b4d9c2
-- [x] REFACTOR aba4ab37f
+- [x] GREEN c2ffdc88a
+- [x] REFACTOR skip: the existing terminal route remains single-purpose
 
 ### Scenario: A terminal self-review runtime failure preserves the original exhaustion result
 
-- [x] RED 16236851f
-- [x] GREEN 068b4d9c2
-- [x] REFACTOR aba4ab37f
+- [x] RED a005df2fa
+- [x] GREEN c2ffdc88a
+- [x] REFACTOR skip: the existing terminal route remains single-purpose
 
 ### Scenario: A cloud host without delegation still completes bounded self-review
 
 - [x] RED 16236851f
-- [x] GREEN 068b4d9c2
-- [x] REFACTOR aba4ab37f
+- [x] GREEN c2ffdc88a
+- [x] REFACTOR skip: the existing terminal route remains single-purpose
 
 ## Rule: review-with-the-best-available-agent.TBU1.R5 — Shipped host contracts frame review material as untrusted data
 
@@ -125,8 +149,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A degraded review cannot validate its own branch-owned control plane
 
 - [x] RED a005df2fa
-- [x] GREEN eb6eae6e0
-- [x] REFACTOR eb6eae6e0
+- [x] GREEN cea1c101a
+- [x] REFACTOR db8f9d124
 
 ## Rule: review-with-the-best-available-agent.NTB1.R3 — Degraded verdicts are preserved
 
@@ -143,6 +167,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] REFACTOR aba4ab37f
 
 ## Rule: review-with-the-best-available-agent.TBU1.R6 — Only typed route exhaustion enters the degraded ladder
+
+### Scenario: Explicit global opt-out never starts the review coordinator
+
+- [x] RED skip: characterization — the existing power-user override predates this fallback feature
+- [x] GREEN 5f12680e8
+- [x] REFACTOR skip: no implementation changed; the scenario reconciles the existing override boundary
+
+### Scenario: A Cursor author reaches host fallback without a compatible CLI reviewer
+
+- [x] RED db8f9d124
+- [x] GREEN 07b38e541
+- [x] REFACTOR skip: the unsupported-author branch is already a single typed-result projection
 
 ### Scenario: A reviewer rejection never starts a degraded review
 
@@ -176,9 +212,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Contradictory route exhaustion never starts host fallback
 
-- [x] RED a005df2fa
-- [x] GREEN eb6eae6e0
-- [x] REFACTOR eb6eae6e0
+- [x] RED db8f9d124
+- [x] GREEN 07b38e541
+- [x] REFACTOR skip: the entry predicate remains one cohesive trust-boundary check
+
+### Scenario: Incomplete coordinator policy fails closed during host fallback
+
+- [x] RED 9787062a2
+- [x] GREEN c2ffdc88a
+- [x] REFACTOR skip: fail-closed policy default remains within the existing entry gate
 
 ## Rule: review-with-the-best-available-agent.NTB1.R1 — Every result explains a distinct assurance level in plain language
 
@@ -189,6 +231,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] REFACTOR aba4ab37f
 
 ## Rule: review-with-the-best-available-agent.NTB1.R2 — Degraded findings never masquerade as required independence
+
+### Scenario: Host fallback preserves coordinator-issued policy over hostile repository text
+
+- [x] RED a005df2fa
+- [x] GREEN c2ffdc88a
+- [x] REFACTOR skip: trusted policy lookup remains a single envelope read
 
 ### Scenario: Degraded findings complete preferred policy
 

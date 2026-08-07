@@ -121,12 +121,20 @@ Affected:
   assurance always discloses that possibility rather than claiming packet-only
   isolation. Host reviewers read accepted paths from the live worktree, so the
   assurance also says source integrity was not revalidated.
+- "Bounded" means one attempt per degraded route with no recursion. A host
+  timeout while waiting for the fresh-context reviewer is an invocation failure
+  and advances once to terminal self-review. The terminal pass is the foreground
+  agent itself, so its lifetime is governed by the host session rather than a
+  second in-workflow timer.
 - Claude Code Cloud is the specified host-native cloud case. Codex and Cursor cloud
   use a host-native reviewer only when that capability is present; otherwise the
   ladder reaches bounded main-thread self-review.
-- There is no off switch for the bounded fallback. The user goal is that review
-  remains available whenever the host can provide it; `require` controls whether
-  degraded findings satisfy policy, not whether they are acquired.
+- There is no separate off switch after a requested review reaches typed route
+  exhaustion. The existing `crossAgentReview: off` power-user override prevents
+  the coordinator from starting and therefore cannot produce route exhaustion;
+  it remains authoritative. Once the coordinator does return
+  `REVIEW_ROUTES_EXHAUSTED`, `require` controls whether degraded findings satisfy
+  policy, not whether the bounded fallback attempts to acquire them.
 
 ## Rave Moment
 
