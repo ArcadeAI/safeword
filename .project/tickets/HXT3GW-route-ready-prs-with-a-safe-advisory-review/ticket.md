@@ -38,7 +38,7 @@ phase_anchors:
   - "verify: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
   - "done: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
 created: 2026-08-05T14:38:52.499Z
-last_modified: 2026-08-07T06:33:27Z
+last_modified: 2026-08-07T06:53:33Z
 ---
 
 # Route ready PRs with a safe advisory review
@@ -49,6 +49,12 @@ last_modified: 2026-08-07T06:33:27Z
 
 ## Work Log
 
+- 2026-08-07T06:53:33Z Merged current `main` again at 46ab12acc after upstream
+  PR #2019 landed. Advisory-review sources and scenarios still merged without
+  overlap; only generated Claude plugin hashes required regeneration. Plugin
+  integrity remains aligned and the focused lane still passes 64/64 scenarios
+  and 2,627/2,627 steps, so upstream does not change this feature's behavior or
+  scenario needs.
 - 2026-08-07T06:33:27Z Merged current `main` at a717778d3. No advisory-review
   source, scenario, ticket-scope, or schema file changed upstream. Regenerated
   the Claude plugin metadata for the combined 0.74.0 runtime; the plugin release

@@ -121,7 +121,7 @@ function preconditionDigest(
   );
 }
 
-export function observeClaudeCleanupPlan(cwd: string): { plan: CliPlan; status: CliResult } {
+function observeClaudeCleanupPlan(cwd: string): { plan: CliPlan; status: CliResult } {
   const projectRoot = canonicalClaudeProjectRoot(cwd);
   const status = observeClaudeStatus(projectRoot);
   const classification = statusClassification(status);

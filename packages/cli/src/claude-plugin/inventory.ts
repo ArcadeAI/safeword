@@ -1,3 +1,5 @@
+export const CLAUDE_PLUGIN_ID = 'safeword@safeword';
+
 export const CLAUDE_MIGRATION_SCHEMA = {
   paths: {
     proof: 'plugins/data/safeword-safeword/execution-proof-v1.json',
