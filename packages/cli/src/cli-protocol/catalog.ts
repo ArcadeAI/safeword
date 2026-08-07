@@ -36,7 +36,7 @@ export interface CommandDefinition {
       readonly flags: string;
       readonly description: string;
       readonly defaultValue?: string;
-      readonly valueKind?: 'plan-identity';
+      readonly valueKind?: 'claude-plugin-scope' | 'plan-identity';
       readonly compatibilityReplacement?: string;
     }[];
   };
@@ -102,11 +102,12 @@ function scopedInstallAlias(name: string, agent: 'claude' | 'codex'): CommandDef
     ...command(name, `Deprecated alias for install --agents=${agent}`, canonical.effectClass, {
       promptPolicy: canonical.promptPolicy,
       networkPolicy: canonical.networkPolicy,
-      handler: invocation =>
-        canonical.handler({
-          ...invocation,
-          options: { ...invocation.options, agents: agent },
-        }),
+      commandOptions: canonical.registration.options,
+      // The retained spelling keeps its shipped safety guarantee: profile-only
+      // installation that leaves the repository untouched (main's Rule
+      // codex-plugin-install.TBU1.R2). `install --agents=<agent>` is the
+      // canonical route that also reconciles project configuration.
+      handler: publicHandler(name),
     }),
     aliasFor: 'install',
     compatibility: {
@@ -131,6 +132,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
     commandOptions: [
       { flags: '--agents <agents>', description: 'claude, codex, cursor, or none' },
+      {
+        flags: '--scope <scope>',
+        description: 'Claude activation boundary: this project or the current user profile',
+        defaultValue: 'project',
+        valueKind: 'claude-plugin-scope',
+      },
       { flags: '--no-modify', description: 'Do not edit the project ESLint configuration' },
       {
         flags: '--migrate-namespace',
@@ -270,6 +277,9 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       ],
     },
   ),
+  command('codex bootstrap', 'Keep the project Codex plugin available', 'mutate', {
+    networkPolicy: 'declared',
+  }),
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
   command('claude status', 'Report Claude plugin and migration state', 'observe'),
   command(

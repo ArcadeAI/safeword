@@ -21,7 +21,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -145,6 +145,12 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
 
       expect(exitCode).toBe(0);
       expect(output).toContain(`${skill} ✓`);
+      expect(output).toContain(
+        `helper=${nodePath.join(
+          realpathSync(projectDirectory),
+          '.safeword/hooks/record-skill-invocation.ts',
+        )}`,
+      );
       // The recorded line is session-bound and in the gate-readable format.
       // Mirror the gate's parser (checkSkillInvocations): a gate-readable line
       // is `<timestamp> <session-id> <skill>`. Assert that exact 3-token shape,

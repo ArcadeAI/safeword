@@ -2,18 +2,18 @@
 Feature: Move Codex users to the Safe Word plugin
 
   @migrate-codex-to-plugin.TB1.R1
-  Rule: migrate-codex-to-plugin.TB1.R1 - Standard setup and upgrade never change a user's Codex profile or remove existing legacy hooks
+  Rule: migrate-codex-to-plugin.TB1.R1 - Standard setup and upgrade enroll profiles without removing ambiguous legacy hooks
 
     Scenario: Upgrade retains legacy hooks until explicit migration
       Given a Safe Word project has legacy Codex hooks
-      When the builder upgrades only the Safe Word project
-      Then the legacy Codex hooks remain unchanged
+      When the builder upgrades Safe Word
+      Then the legacy Codex hooks remain and the enrollment bootstrap is added
 
     @rejection
-    Scenario: Fresh setup does not create Safe Word Codex hooks
+    Scenario: Fresh setup creates only the non-blocking enrollment bootstrap
       Given a project has no Codex configuration
-      When the builder sets up only the Safe Word project
-      Then the project has no Safe Word Codex hook configuration
+      When the builder sets up Safe Word
+      Then the project has only the Safe Word Codex enrollment bootstrap
 
   @surface.safeword-cli @migrate-codex-to-plugin.TB1.R2
   Rule: migrate-codex-to-plugin.TB1.R2 - Explicit migration verifies the profile plugin and preserves Safe Word-owned project hooks until the reviewed handoff cleanup

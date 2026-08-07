@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { rememberCloseoutBinding } from '../templates/hooks/lib/closeout-binding.ts';
 import {
   applyCleanupPlan,
   buildCleanupPlan,
@@ -23,7 +24,9 @@ import {
   executeCleanupOperation,
   operationCommand,
   parseWorktrees,
+  POST_MERGE_VERIFICATION_KINDS,
   pullRequestIdentity,
+  resolveCloseoutBinding,
   resolveProtection,
   resolveRemoteRef as resolveRemoteReference,
   retroAgentForRuntime,
@@ -40,7 +43,8 @@ function normalizedCloseoutScript(path: string): string {
       /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
       "import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';",
     )
-    .replace('../../runtime/hooks/lib/retro-draft-spool.ts', '../hooks/lib/retro-draft-spool.ts');
+    .replace('../../runtime/hooks/lib/retro-draft-spool.ts', '../hooks/lib/retro-draft-spool.ts')
+    .replace('../../runtime/hooks/lib/run-identity.ts', '../hooks/lib/run-identity.ts');
 }
 
 function safeObservation(overrides: Partial<CloseoutObservation> = {}): CloseoutObservation {
@@ -95,6 +99,41 @@ function runGit(...arguments_: string[]): string {
 }
 
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
+  it('revalidates immutable merged code without rerunning mutable dependency intelligence', () => {
+    expect(POST_MERGE_VERIFICATION_KINDS).toEqual(['verify', 'build', 'typecheck', 'bdd']);
+    expect(POST_MERGE_VERIFICATION_KINDS).not.toContain('deps');
+  });
+
+  it('uses Codex Desktop thread identity when the one-shot hook bridge is unavailable', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-codex-desktop-'));
+    try {
+      mkdirSync(nodePath.join(root, '.safeword'));
+      writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# SafeWord\n');
+
+      expect(resolveCloseoutBinding(root, { CODEX_THREAD_ID: 'desktop-thread-42' })).toEqual({
+        runtime: 'codex',
+        id: 'desktop-thread-42',
+        projectRoot: realpathSync(root),
+      });
+      expect(resolveCloseoutBinding(root, {})).toBeUndefined();
+
+      rememberCloseoutBinding({
+        projectDirectory: root,
+        runtime: 'claude',
+        id: 'hook-session-42',
+        transcriptPath: '/exact/hook-session-42.jsonl',
+      });
+      expect(resolveCloseoutBinding(root, { CODEX_THREAD_ID: 'desktop-thread-42' })).toEqual({
+        runtime: 'claude',
+        id: 'hook-session-42',
+        projectRoot: realpathSync(root),
+        transcriptPath: '/exact/hook-session-42.jsonl',
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('selects the mandatory retro extractor from the bound host runtime', () => {
     expect(retroAgentForRuntime('claude')).toBe('claude');
     expect(retroAgentForRuntime('codex')).toBe('codex');

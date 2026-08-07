@@ -17,15 +17,19 @@ Safeword configures AI coding agents with proven development workflows:
 ### Recommended CLI lifecycle
 
 ```bash
-safeword install --agents=claude
+safeword claude install
+# Or, to enable Safeword across every project in this Claude profile:
+safeword claude install --scope user
 # In Claude Code:
 /reload-plugins
 safeword claude status
 ```
 
-The installer configures the project, pins the official Claude release at user
-scope, and verifies the installed cache payload. The scoped command leaves Codex
-and Cursor untouched; plain `safeword install` installs Claude and Codex by default.
+The installer pins the official release at project scope by default and records
+the declaration in `.claude/settings.json`. Explicit `--scope user` activation
+instead writes the Claude profile and leaves the repository unchanged. Status
+reports both installations as `scope-overlap` when they apply together; neither
+is removed automatically. Both modes verify the same Claude-owned cache payload.
 
 ### From GitHub
 
@@ -44,11 +48,12 @@ claude --plugin-dir /path/to/safeword/plugin
 
 After installing or updating, run `/reload-plugins` to make the plugin available
 in the current task. The next prompt records execution proof bound to the exact
-version, hook-manifest digest, and canonical installed cache path.
+version, hook-manifest digest, canonical installed cache path, and current
+canonical project root.
 
-The install command creates or reconciles project-owned state at the same time:
+Project state is still created explicitly:
 
-- `safeword install --agents=claude` — configure the project and install Claude support
+- `safeword setup` — create or reconcile project-owned state
 - `/safeword:bdd`, `/safeword:debug`, and the other namespaced skills — run native workflows
 
 For a legacy project, inspect migration state before removing anything:
@@ -68,7 +73,7 @@ Cleanup is project-only and preserves unrecognized or third-party Claude content
 - Claude Code 2.1.170 or newer
 - Bun (the installed plugin carries its exact bundled CLI runtime)
 
-## After installation
+## After setup
 
 Project-owned tickets, configuration, guides, and runtime state remain in the
 repository. Framework code executes from Claude's versioned installed plugin
@@ -78,7 +83,7 @@ cache; uninstalling the plugin removes that Claude delivery surface.
 
 - **Interactive trust**: Safeword never accepts plugin or workspace trust on your behalf.
 - **Live reload refusal**: If Claude refuses `/reload-plugins`, keep legacy protection and retry after resolving the host prompt.
-- **Cursor/other editors**: This plugin is Claude Code only. For Cursor support, run `bunx safeword@latest install --agents=cursor` explicitly.
+- **Cursor/other editors**: This plugin is Claude Code only. For Cursor support, use `bunx safeword@latest setup` directly.
 
 ## Learn more
 

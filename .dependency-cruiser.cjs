@@ -9,7 +9,32 @@ const generated = require('./.safeword/depcruise-config.cjs');
 
 module.exports = {
   forbidden: [
-    ...generated.forbidden,
+    ...generated.forbidden.map(rule =>
+      rule.name === 'no-orphans'
+        ? {
+            ...rule,
+            from: {
+              ...rule.from,
+              pathNot: [
+                ...rule.from.pathNot,
+                // Generated plugin hook entrypoints are invoked by
+                // event-groups.json, not imported through the module graph.
+                String.raw`^plugin/runtime/hooks/[^/]+\.ts$`,
+              ],
+            },
+          }
+        : rule,
+    ),
+
+    // The relay is an independently deployed package and cannot couple to
+    // CLI or website implementation internals.
+    {
+      name: 'retro-relay-package-isolated',
+      severity: 'error',
+      comment: 'The relay must remain deployable independently from CLI and website internals',
+      from: { path: '^packages/retro-relay/src/' },
+      to: { path: '^packages/(cli|website)/src/' },
+    },
 
     // === CLI PACKAGE ARCHITECTURE ===
 

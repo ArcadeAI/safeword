@@ -176,7 +176,11 @@ function initializeHosts(world: UnifiedInstallWorld): void {
   }
   for (const path of [claudeLog, codexLog, claudeFailure]) writeFileSync(path, '');
 
-  const officialClaudeSource = `https://github.com/ArcadeAI/safeword.git#v${SAFEWORD_SCHEMA.version}`;
+  const marketplaceUrl = 'https://github.com/ArcadeAI/safeword.git';
+  const marketplaceReference = SAFEWORD_SCHEMA.version.includes('-')
+    ? `v${SAFEWORD_SCHEMA.version}`
+    : 'stable';
+  const officialClaudeSource = `${marketplaceUrl}#${marketplaceReference}`;
   writeExecutable(
     nodePath.join(bin, 'claude'),
     `#!/bin/sh
@@ -195,17 +199,23 @@ case "$*" in
       echo '[]'
     fi
     ;;
-  'plugin marketplace add '*' --scope user') printf 'official' > "$SAFEWORD_CLAUDE_MARKETPLACE" ;;
-  'plugin install safeword@safeword --scope user'|'plugin update safeword@safeword --scope user'|'plugin enable safeword@safeword --scope user')
+  'plugin marketplace add '*' --scope project')
+    printf 'official' > "$SAFEWORD_CLAUDE_MARKETPLACE"
+    mkdir -p "$SAFEWORD_CLAUDE_PROJECT/.claude"
+    printf '{"extraKnownMarketplaces":{"safeword":{"source":{"source":"git","url":"%s","ref":"%s"}}}}\n' \
+      "$SAFEWORD_MARKETPLACE_URL" "$SAFEWORD_MARKETPLACE_REF" \
+      > "$SAFEWORD_CLAUDE_PROJECT/.claude/settings.json"
+    ;;
+  'plugin install safeword@safeword --scope project'|'plugin update safeword@safeword --scope project'|'plugin enable safeword@safeword --scope project')
     if [ -s "$SAFEWORD_CLAUDE_FAILURE" ]; then echo 'forced Claude failure' >&2; exit 3; fi
     printf 'enabled' > "$SAFEWORD_CLAUDE_STATE"
     ;;
-  'plugin uninstall safeword@safeword --scope user --keep-data')
+  'plugin uninstall safeword@safeword --scope project --keep-data')
     printf 'absent' > "$SAFEWORD_CLAUDE_STATE"
     ;;
   'plugin list --json')
     if [ "$(cat "$SAFEWORD_CLAUDE_STATE")" = 'enabled' ]; then
-      printf '[{"id":"safeword@safeword","version":"%s","enabled":true,"scope":"user","installPath":"%s"}]\n' "$SAFEWORD_VERSION" "$SAFEWORD_CLAUDE_PAYLOAD"
+      printf '[{"id":"safeword@safeword","version":"%s","enabled":true,"scope":"project","projectPath":"%s","installPath":"%s"}]\n' "$SAFEWORD_VERSION" "$SAFEWORD_CLAUDE_PROJECT" "$SAFEWORD_CLAUDE_PAYLOAD"
     else
       echo '[]'
     fi
@@ -270,6 +280,9 @@ esac
     SAFEWORD_CLAUDE_FAILURE: claudeFailure,
     SAFEWORD_CLAUDE_PAYLOAD: claudePayload,
     SAFEWORD_CLAUDE_SOURCE: officialClaudeSource,
+    SAFEWORD_CLAUDE_PROJECT: project,
+    SAFEWORD_MARKETPLACE_URL: marketplaceUrl,
+    SAFEWORD_MARKETPLACE_REF: marketplaceReference,
     SAFEWORD_CLAUDE_STATE: claudeState,
     SAFEWORD_CODEX_MARKETPLACE: codexMarketplace,
     SAFEWORD_CODEX_LOG: codexLog,
@@ -419,7 +432,9 @@ function assertScopedInstallCompatibility(world: UnifiedInstallWorld, alias: str
   const canonical = requiredPath(world.compatibilityCanonical, 'canonical route');
   assertCommandDidNotFail(world);
   const project = requiredPath(world.projectRoot, 'project root');
-  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
+  // The retained scoped spellings install the profile plugin only; reconciling
+  // the repository is the canonical `install --agents=<agent>` route.
+  assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), false);
   const selected = alias.startsWith('claude') ? 'claude' : 'codex';
   assert.equal(
     readFileSync(requiredPath(world.claudeState, 'Claude state'), 'utf8'),
@@ -723,13 +738,20 @@ Then(
   'backup and recovery actions are reported where required',
   function (this: UnifiedInstallWorld) {
     const envelope = JSON.parse(this.result.stdout) as { recovery?: { command?: string }[] };
+    const recovery = envelope.recovery?.map(action => action.command ?? '') ?? [];
+    // Claude's recovery names the scope it removed, so reinstalling restores
+    // the same activation boundary rather than silently changing it.
     assert.equal(
-      envelope.recovery?.some(action => action.command === 'safeword install --agents=claude'),
+      recovery.some(command =>
+        /^safeword install --agents=claude --scope (?:project|user)$/u.test(command),
+      ),
       true,
+      JSON.stringify(recovery),
     );
     assert.equal(
-      envelope.recovery?.some(action => action.command === 'safeword install --agents=codex'),
+      recovery.includes('safeword install --agents=codex'),
       true,
+      JSON.stringify(recovery),
     );
   },
 );

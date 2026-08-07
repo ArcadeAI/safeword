@@ -120,15 +120,11 @@ function commandSlot(hooks: Record<string, CodexPluginHookEntry[]>): { command: 
 }
 
 function runSetup(projectRoot: string) {
-  const result = spawnSync(
-    process.execPath,
-    [CLI_PATH, 'install', '--agents', 'none', '--no-modify'],
-    {
-      cwd: projectRoot,
-      encoding: 'utf8',
-      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1' },
-    },
-  );
+  const result = spawnSync(process.execPath, [CLI_PATH, 'setup', '--yes', '--no-modify'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1' },
+  });
   return {
     exitCode: result.status ?? 1,
     output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`,
@@ -174,20 +170,36 @@ Given('an empty project has no Safe Word workflow material', function (this: Wor
   this.projectDirectory = projectDirectory;
 });
 
-When('the builder installs only Safe Word project configuration', function (this: WorkflowWorld) {
+When('the builder sets up Safe Word for Codex', function (this: WorkflowWorld) {
   assert.ok(this.projectDirectory !== undefined, 'project fixture was not initialized');
   const result = runSetup(this.projectDirectory);
-  assert.equal(result.exitCode, 0, result.output);
+  // `setup` now routes through the unified install, which also installs Claude
+  // and Codex; pending host activation is action_required (exit 2), not failure.
+  assert.ok(
+    result.exitCode === 0 || result.exitCode === 2,
+    `exit ${result.exitCode}: ${result.output}`,
+  );
   this.result = { stdout: result.output, stderr: '', exitCode: result.exitCode };
 });
 
-Then('core assets are installed without any agent workflow tree', function (this: WorkflowWorld) {
-  assert.ok(this.projectDirectory !== undefined, 'project fixture was not initialized');
-  assertNoProjectWorkflowTree(this.projectDirectory);
-  assert.equal(existsSync(nodePath.join(this.projectDirectory, '.safeword/SAFEWORD.md')), true);
-  assert.equal(existsSync(nodePath.join(this.projectDirectory, '.safeword/skills')), false);
-  assert.equal(existsSync(nodePath.join(this.projectDirectory, '.cursor')), false);
-});
+Then(
+  'the project bootstrap will enroll each Codex profile automatically',
+  function (this: WorkflowWorld) {
+    assert.ok(
+      this.result.stdout.includes('Codex bootstrap is enrolled for this project'),
+      this.result.stdout,
+    );
+  },
+);
+
+Then(
+  'no Codex-owned workflow tree is written to .agents or .codex while shared Cursor skills remain available',
+  function (this: WorkflowWorld) {
+    assert.ok(this.projectDirectory !== undefined, 'project fixture was not initialized');
+    assertNoProjectWorkflowTree(this.projectDirectory);
+    assert.equal(existsSync(nodePath.join(this.projectDirectory, '.safeword/skills')), true);
+  },
+);
 
 Given(
   'a generated plugin writes Safe Word workflow material into the target project',

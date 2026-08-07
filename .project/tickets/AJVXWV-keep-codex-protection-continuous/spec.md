@@ -144,12 +144,17 @@ Safe Word derives status in this order:
 9. `not_configured` when neither plugin proof, finalized marker, nor recognized
    legacy protection exists.
 
-`plugin_installed_restart_required` is persisted in a profile-local,
-version-and-manifest-bound install marker after `codex migrate` installs or
-updates the plugin. Read-only status keeps reporting it until the marked
-profile-plugin SessionStart command executes. SessionStart atomically writes
-its event proof and removes the restart marker. Finalization readiness remains
-partial until every packaged hook event has recorded matching proof. If the plugin was enabled outside
+`plugin_installed_app_restart_required` is the schema-2 migration state derived
+from a profile-local, version-and-manifest-bound activation marker after
+`codex migrate` installs or updates the plugin. Read-only status keeps reporting
+it until a different Codex host executes the marked profile-plugin SessionStart
+command. Host identity is the observed `(pid, started_at)` pair for the Codex
+app-server ancestor; both values must match to count as the installing host, so
+PID reuse cannot satisfy the comparison. SessionStart from the installing host
+records proof but preserves the marker, because that app may still have the old
+catalogue loaded. SessionStart from a different host atomically writes its event
+proof and activation receipt, then removes the marker. Finalization readiness remains partial until every
+packaged hook event has recorded matching proof. If the plugin was enabled outside
 this migration path, or current proof later becomes stale without a matching
 install marker, status reports `plugin_enabled_hook_unproven`. All non-ready
 states exit `2`.
@@ -162,14 +167,15 @@ recognized events and assets, labels protection as partial, and recommends
 
 Every profile-plugin hook command carries an internal `--plugin-hook` marker
 that legacy project hooks never used. Each command writes a separate record at
-`${CODEX_HOME:-~/.codex}/safeword/hook-proof-v1/<event>.json`.
+`${CODEX_HOME:-~/.codex}/safeword/hook-proof-v2/<event>.json`.
 
 The atomic JSON record contains:
 
-- `schema_version: 1`
+- `schema_version: 2`
 - the normalized hook event;
 - the running Safe Word package version;
 - a SHA-256 digest of the exact packaged `codex-plugin/hooks.json` bytes;
+- the activation identifier when the proof belongs to a pending activation;
 - the UTC execution timestamp.
 
 Proof has no time-based expiry. It is current only while the schema, package
@@ -210,10 +216,10 @@ and `.safeword/` content is always outside the cleanup allowlist.
 The preferred command is `safeword codex migrate --finalize`.
 `--remove-legacy-hooks` remains a deprecated alias for two releases.
 
-- Interactive finalization shows the exact paths and config blocks, then asks
-  `Finalize shared repository cleanup? [y/N]`.
-- Non-interactive finalization requires `--finalize --yes`; otherwise it exits
-  without mutation.
+- Finalization preview shows the exact paths and config blocks and returns a
+  human-confirmed replay command bound to the preview's plan ID.
+- Non-interactive finalization requires replaying the exact preview with
+  `--finalize --yes --plan <id>`; otherwise it exits without mutation.
 - Current profile proof is required before either path.
 - Before mutation, Safe Word writes an exact backup manifest and copies every
   file it will remove under `.safeword/codex-migration-backup/`.
@@ -307,13 +313,18 @@ all other migration states map to `action_required`. Status exits `0`, `1`, or
 `2` respectively. Human output leads with protection state and ends with at
 most one `Next:` command.
 
-The shared schema-1 fields and effect categories are required. Codex data enums
-are:
+The shared envelope schema-1 fields and effect categories are required. The
+nested `data.migration` object is schema 2 and exposes the canonical domain
+state. The compatibility `data.migration_state` field retains the older
+`plugin_installed_restart_required` spelling while consumers migrate. Codex
+data enums are:
 
 - `data.migration_state`: `recovery_required | plugin_setup_required |
   plugin_disabled | plugin_update_required | legacy |
   plugin_installed_restart_required |
   plugin_enabled_hook_unproven | compatibility | plugin | not_configured`
+- `data.migration.state`: the same values except the restart state is
+  `plugin_installed_app_restart_required`
 - `data.protected`: `protected | partial | unprotected | uncertain`
 - `data.plugin.observation`: `observed | unknown`
 - `data.proof.status`: `current | partial | missing | stale | malformed`

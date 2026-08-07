@@ -36,6 +36,7 @@ import {
   renderJsonResult,
 } from '../../src/cli-protocol/result.ts';
 import { convergeSetup } from '../../src/lifecycle/project-install.ts';
+import { publicFixtureEnvironment } from './public-fixture-environment.js';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
@@ -119,21 +120,33 @@ function childEnvironment(): NodeJS.ProcessEnv {
 }
 
 function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinition): CommandRun {
-  // Give every command a fresh project so earlier fixtures cannot change the
-  // filesystem preconditions used to compute a later command's plan identity.
-  const cwd = mkdtempSync(join(temporaryProject(world), 'public-fixture-'));
+  // One directory per command, wiped before each run: distinct paths keep an
+  // earlier fixture from changing a later command's preconditions, while a
+  // stable path per command keeps plan identities repeatable across runs.
+  // A unique path per *run* would not — plan digests take in profile
+  // observations that name the project directory.
+  const cwd = join(
+    temporaryProject(world),
+    `public-fixture-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
+  );
+  rmSync(cwd, { recursive: true, force: true });
+  mkdirSync(cwd, { recursive: true });
   const completed = spawnSync(
     process.execPath,
     [CLI_PATH, ...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', cwd],
     {
       cwd,
       encoding: 'utf8',
-      env: { ...childEnvironment(), ...definition.fixture.environment },
+      env: publicFixtureEnvironment(cwd, definition.fixture.environment),
     },
   );
+  // Each run gets its own directory, so the path itself is not part of the
+  // contract: host tools echo it back inside messages. Normalize it away so a
+  // determinism comparison measures behaviour rather than the temp-dir name.
+  const normalize = (value: string): string => value.split(cwd).join('<fixture>');
   return {
-    stdout: completed.stdout,
-    stderr: completed.stderr,
+    stdout: normalize(completed.stdout),
+    stderr: normalize(completed.stderr),
     exitCode: completed.status ?? 1,
   };
 }

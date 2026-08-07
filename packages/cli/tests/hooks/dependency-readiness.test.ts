@@ -1,5 +1,13 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -12,6 +20,7 @@ import {
   getDependencyReadiness,
   isDependencyBackedCommand,
   isDependencyInstallCommand,
+  isDependencyReadinessRecoveryCommand,
   readDependencyBootstrapConfig,
   shouldBootstrapDependencies,
   writeInstallMarker,
@@ -35,6 +44,21 @@ const POST_TOOL_HOOK = path.resolve(
   import.meta.dirname,
   '../../templates/hooks/post-tool-dependency-readiness.ts',
 );
+
+const REPOSITORY_ROOT = path.resolve(import.meta.dirname, '../../../..');
+
+it('keeps the dogfood dependency-readiness helper identical to its source template', () => {
+  const template = readFileSync(
+    path.join(REPOSITORY_ROOT, 'packages/cli/templates/hooks/lib/dependency-readiness.ts'),
+    'utf8',
+  );
+  const dogfood = readFileSync(
+    path.join(REPOSITORY_ROOT, '.safeword/hooks/lib/dependency-readiness.ts'),
+    'utf8',
+  );
+
+  expect(dogfood).toBe(template);
+});
 
 describe('dependency readiness hook support', () => {
   let projectDirectory: string;
@@ -149,6 +173,20 @@ describe('dependency readiness hook support', () => {
     expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
     expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
   });
+
+  it.each(['deno@2.0.0', 'pnpm'])(
+    'abstains for unsupported packageManager declaration %s',
+    declaration => {
+      writeJson('package.json', {
+        name: 'explicit-unsupported-project',
+        packageManager: declaration,
+      });
+      writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+      expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+      expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
+    },
+  );
 
   it('detects a pnpm workspace and plans a frozen pnpm install (#323)', () => {
     writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0' });
@@ -283,6 +321,21 @@ describe('dependency readiness hook support', () => {
     ]);
   });
 
+  it('preserves hash characters inside quoted pnpm workspace globs', () => {
+    writeJson('package.json', { name: 'pnpm-ws', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(
+      projectDirectory,
+      'pnpm-workspace.yaml',
+      "packages:\n  - 'packages/#internal' # private package\n",
+    );
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeJson('packages/#internal/package.json', { name: '@ws/internal' });
+
+    expect(detectDependencyPlan(projectDirectory)?.inputPaths).toContain(
+      'packages/#internal/package.json',
+    );
+  });
+
   it('tracks package manifests matched by recursive workspace globs', () => {
     writeJson('package.json', {
       name: 'recursive-workspace-project',
@@ -305,6 +358,49 @@ describe('dependency readiness hook support', () => {
       'packages/cli/package.json',
       'packages/features/plugin/package.json',
     ]);
+  });
+
+  it('ignores workspace patterns that escape the project root', () => {
+    const outsideDirectory = createTemporaryDirectory();
+    try {
+      const outsidePattern = path
+        .relative(projectDirectory, outsideDirectory)
+        .replaceAll('\\', '/');
+      writeJson('package.json', {
+        name: 'contained-workspace-project',
+        packageManager: 'bun@1.3.14',
+        workspaces: [`${outsidePattern}/**`, `${outsideDirectory}/**`],
+      });
+      writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+      writeTestFile(outsideDirectory, 'nested/package.json', '{"name":"outside-project"}');
+
+      expect(
+        detectDependencyPlan(projectDirectory)?.inputPaths.toSorted((a, b) => a.localeCompare(b)),
+      ).toEqual(['bun.lock', 'package.json']);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
+  });
+
+  it('ignores workspace directories that resolve outside the project root', () => {
+    const outsideDirectory = createTemporaryDirectory();
+    try {
+      writeJson('package.json', {
+        name: 'contained-workspace-project',
+        packageManager: 'bun@1.3.14',
+        workspaces: ['packages/external'],
+      });
+      writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+      writeTestFile(outsideDirectory, 'package.json', '{"name":"outside-project"}');
+      mkdirSync(path.join(projectDirectory, 'packages'), { recursive: true });
+      symlinkSync(outsideDirectory, path.join(projectDirectory, 'packages', 'external'), 'dir');
+
+      expect(
+        detectDependencyPlan(projectDirectory)?.inputPaths.toSorted((a, b) => a.localeCompare(b)),
+      ).toEqual(['bun.lock', 'package.json']);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
   });
 
   it('excludes package manifests matched by negative workspace globs', () => {
@@ -430,7 +526,7 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 
-  it('reports stale when tracked input content changes, then ready once re-stamped', () => {
+  it('keeps a mismatched marker stale until a successful install is proven', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
@@ -447,13 +543,17 @@ describe('dependency readiness hook support', () => {
       reason: 'install_artifact_stale',
     });
 
-    // Reinstall bumps the artifact mtime (bun repoints symlinks); the mtime
-    // fallback then resolves ready and the hook re-stamps the new fingerprint.
+    // A newer artifact mtime cannot prove which inputs were installed. The
+    // mismatched content marker remains authoritative until an install succeeds.
     const future = new Date(Date.now() + 60_000);
     utimesSync(artifact, future, future);
     const reinstalled = getDependencyReadiness(projectDirectory);
-    expect(reinstalled.status).toBe('ready');
-    writeInstallMarker(projectDirectory, reinstalled);
+    expect(reinstalled.status).toBe('stale');
+    writeInstallMarker(projectDirectory, {
+      ...reinstalled,
+      status: 'ready',
+      reason: 'install_artifact_current',
+    });
 
     // A later rebase pushes the artifact mtime behind again, but the refreshed
     // marker still matches the current content, so it stays ready.
@@ -461,7 +561,7 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
-  it('stale recovery documents the no-op escape so the gate cannot loop', () => {
+  it('stale recovery is one self-converging command even when the new PostToolUse hook is not loaded', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
@@ -478,9 +578,30 @@ describe('dependency readiness hook support', () => {
     expect(stale.status).toBe('stale');
 
     const recovery = formatDependencyRecovery(stale);
-    expect(recovery).toContain('bun ci');
-    expect(recovery).toContain('reports no changes');
-    expect(recovery).toContain('touch node_modules');
+    expect(recovery).toContain(
+      'bun ci && rm -f node_modules/.safeword-deps-fingerprint && touch node_modules',
+    );
+    expect(recovery).not.toContain('If it reports no changes');
+  });
+
+  it('rendered stale recovery clears the block without a loaded PostToolUse hook', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const stale = getDependencyReadiness(projectDirectory);
+    const recovery = formatDependencyRecovery({ ...stale, installCommand: 'true' })
+      .split('\n')
+      .at(-1)
+      ?.trim();
+    expect(recovery).toBe(
+      'true && rm -f node_modules/.safeword-deps-fingerprint && touch node_modules',
+    );
+    expect(spawnSync('sh', ['-c', recovery ?? 'false'], { cwd: projectDirectory }).status).toBe(0);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
   it('missing recovery installs for real, so it omits the touch escape', () => {
@@ -556,6 +677,27 @@ describe('dependency readiness hook support', () => {
     ['command bun test'],
     ['( bun test )'],
     ['env -u FOO bun test'],
+    ['bunx safeword-tools setup'],
+    ['bunx @scope/safeword setup'],
+    ['bunx safeword'],
+    ['bunx safeword ticket list'],
+    ['bunx safeword setupx'],
+    ['bunx safeword --unknown-flag setup'],
+    ['bunx safeword --cwd setup'],
+    ['bunx safeword setup && bunx vitest run'],
+    ['bunx safeword setup; bunx vitest run'],
+    ['bunx safeword setup || bunx vitest run'],
+    ['bunx safeword setup | bunx vitest run'],
+    ['bunx safeword setup & bunx vitest run'],
+    ['bunx safeword setup $(bunx vitest run)'],
+    ['bunx safeword setup `bunx vitest run`'],
+    ['bunx safeword setup <(bunx vitest run)'],
+    ['bunx safeword setup >(bunx vitest run)'],
+    ['FOO=$(vitest) bunx safeword setup'],
+    ['FOO=bar BAR=$(vitest) bunx safeword setup'],
+    ['bunx vitest run && bunx safeword setup'],
+    ['bunx safeword --cwd "$(vitest)" setup'],
+    ['bunx safeword setup\nbunx vitest run'],
   ])('treats dependency-backed command "%s" as guarded', command => {
     expect(isDependencyBackedCommand(command)).toBe(true);
   });
@@ -573,6 +715,18 @@ describe('dependency readiness hook support', () => {
     ['corepack pnpm install --frozen-lockfile'],
     ['yarn install --immutable'],
     ['npx cowsay hello'],
+    ['bunx safeword@latest setup'],
+    ['bunx safeword@0.73.0 status'],
+    ['FOO=bar bunx safeword setup'],
+    ['bunx safeword status --json'],
+    ['bunx --bun safeword doctor'],
+    ['bunx safeword plan --offline'],
+    ['bunx safeword --cwd . setup'],
+    ['bunx safeword --cwd=. setup'],
+    ['bunx safeword --quiet doctor'],
+    ['bunx safeword setup && bunx safeword doctor'],
+    ['bunx safeword status benign-positional-argument'],
+    ['bunx safeword --cwd "a && b" setup'],
     // `>|` is a clobber redirect: `vitest` here is a target filename, not a
     // command — the pre-EDDABK private splitter treated it as one.
     ['echo cfg >| vitest'],
@@ -673,6 +827,156 @@ describe('dependency readiness hook support', () => {
       permissionDecision: 'deny',
     });
     expect(output.hookSpecificOutput.permissionDecisionReason).toContain('bun ci');
+  });
+
+  it('pre-tool hook allows an install followed by a guarded retry over &&', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'bun ci && bun run test',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook keeps safeword setup reachable when dependencies are missing', () => {
+    writeBunProject();
+    markSafewordProject();
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'bunx safeword@latest setup',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook allows the documented touch recovery followed by a guarded retry over &&', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'touch node_modules && bun run test',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook still blocks the touch recovery when node_modules is missing', () => {
+    writeBunProject();
+    markSafewordProject();
+    expect(getDependencyReadiness(projectDirectory).status).toBe('missing');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          // `touch` would create an empty regular FILE named node_modules and
+          // exit 0, so the retry would run with nothing installed.
+          command: 'touch node_modules && bun run test',
+        },
+      }),
+    );
+
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+  });
+
+  it('pre-tool hook allows an install and retry when node_modules is missing', () => {
+    writeBunProject();
+    markSafewordProject();
+    expect(getDependencyReadiness(projectDirectory).status).toBe('missing');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: { command: 'bun ci && bun run test' },
+      }),
+    );
+
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook allows a guarded retry that redirects with 2>&1', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          // `&` here duplicates a file descriptor; it does not background the
+          // list, so it must not cost the retry its exemption.
+          command: 'bun ci && bun run test > out.log 2>&1',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it.each([
+    'bun ci || bun run test',
+    'bun ci; bun run test',
+    'bun ci | bun run test',
+    // `&` ends the `&&` list: bash runs `(bun ci && bun run dev) &` and then
+    // `bun run test` at once, whether or not the install succeeded.
+    'bun ci && bun run dev & bun run test',
+    'touch node_modules && bun run dev & bun run test',
+  ])('pre-tool hook blocks a guarded retry when the recovery chain uses %s', command => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: { command },
+      }),
+    );
+
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
   });
 
   it('pre-tool hook allows unrelated Bash commands without output', () => {
@@ -857,12 +1161,32 @@ describe('dependency readiness hook support', () => {
       }
     });
 
+    it('ignores compound installs whose segment success is masked by the shell', () => {
+      for (const command of ['bun ci || true', 'npm ci; true', 'pnpm install || echo failed']) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
     it('ignores lockfile-only / dry-run installs (they do not materialize node_modules)', () => {
       for (const command of [
         'bun install --dry-run',
         'npm ci --dry-run',
         'pnpm install --lockfile-only',
         'npm install --package-lock-only',
+      ]) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
+    it('ignores installs that omit dependencies or skip Yarn linking', () => {
+      for (const command of [
+        'bun install --production',
+        'bun install --omit dev',
+        'npm ci --omit=dev',
+        'npm ci --only production',
+        'pnpm install --prod',
+        'pnpm install --no-optional',
+        'yarn install --mode=update-lockfile',
       ]) {
         expect(isDependencyInstallCommand(command), command).toBe(false);
       }
@@ -896,6 +1220,15 @@ describe('dependency readiness hook support', () => {
       expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
     });
 
+    it('does NOT stamp when a failed install is masked by a successful shell segment', () => {
+      makeStaleAfterNoopInstall();
+
+      runHook(POST_TOOL_HOOK, postInput('bun ci || true', { exit_code: 0, success: true }));
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    });
+
     it('does nothing for a non-install command', () => {
       makeStaleAfterNoopInstall();
 
@@ -904,5 +1237,66 @@ describe('dependency readiness hook support', () => {
       expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
       expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
     });
+  });
+});
+
+describe('isDependencyReadinessRecoveryCommand', () => {
+  // Unit pins for the shell-shape edges. The hook-process tests above pin the
+  // wiring; spawning a hook per edge case would cost seconds for no more signal.
+  it.each([
+    'bun ci && bun run test',
+    'pnpm install --frozen-lockfile && pnpm exec safeword doctor',
+    'yarn && yarn test',
+    'bun ci && bun run lint && bun run test',
+    'bun ci && bun run test > out.log 2>&1',
+  ])('exempts %s', command => {
+    expect(isDependencyReadinessRecoveryCommand(command, 'stale')).toBe(true);
+  });
+
+  it.each([
+    // The retry must be conditional on the recovery.
+    'bun ci || bun run test',
+    'bun ci; bun run test',
+    'bun ci | bun run test',
+    'bun ci && bun run dev & bun run test',
+    'bun ci & bun run test',
+    // The recovery must lead.
+    'bun run test && bun ci',
+    'cd packages/cli && bun ci && bun run test',
+    // A recovery that never materializes node_modules is not a recovery.
+    'bun install --dry-run && bun run test',
+    'bun install --help && bun run test',
+    'bun install --production && bun run test',
+    'npm ci --omit=dev && npm test',
+    'pnpm install --prod && pnpm test',
+    'yarn install --mode=update-lockfile && yarn test',
+    // Shell forms the tokenizer cannot resolve stay denied.
+    '( bun ci || true ) && bun run test',
+    '{ bun ci; } && bun run test',
+    'if bun ci; then bun run test; fi',
+  ])('denies %s', command => {
+    expect(isDependencyReadinessRecoveryCommand(command, 'stale')).toBe(false);
+  });
+
+  it('exempts the touch recovery only for a stale marker', () => {
+    expect(
+      isDependencyReadinessRecoveryCommand('touch node_modules && bun run test', 'stale'),
+    ).toBe(true);
+    expect(
+      isDependencyReadinessRecoveryCommand('touch node_modules && bun run test', 'missing'),
+    ).toBe(false);
+    // An install recovers either status.
+    expect(isDependencyReadinessRecoveryCommand('bun ci && bun run test', 'missing')).toBe(true);
+  });
+
+  it('matches only the exact documented touch recovery', () => {
+    for (const command of [
+      'touch node_modules/ && bun run test',
+      'touch ./node_modules && bun run test',
+      'touch -m node_modules && bun run test',
+      'touch node_modules other && bun run test',
+    ]) {
+      expect(isDependencyReadinessRecoveryCommand(command, 'stale')).toBe(false);
+    }
   });
 });

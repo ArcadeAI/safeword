@@ -116,7 +116,7 @@ export async function observeLifecycleSurfaces(
     surfaces.push({ name: 'claude', result: observeClaudeStatus(cwd) });
   }
   if (agents.includes('codex')) {
-    const { observeCodexMigration } = await import('../codex-plugin/installer.js');
+    const { observeCodexMigration } = await import('../codex-plugin/operations.js');
     surfaces.push({ name: 'codex', result: observeCodexMigration(cwd, environment) });
   }
   if (agents.includes('cursor')) {
@@ -145,6 +145,16 @@ export function lifecycleSurfaceSummaries(
   }));
 }
 
+/** The project surface's own observation keys, which callers read top-level. */
+export function projectObservationData(
+  surfaces: readonly LifecycleSurfaceObservation[],
+): Record<string, unknown> {
+  const project = surfaces.find(surface => surface.name === 'project')?.result.data;
+  return typeof project === 'object' && project !== null && !Array.isArray(project)
+    ? (project as Record<string, unknown>)
+    : {};
+}
+
 export function summarizeLifecycleStatus(
   agents: readonly AgentIntegration[],
   surfaces: readonly LifecycleSurfaceObservation[],
@@ -159,6 +169,7 @@ export function summarizeLifecycleStatus(
     recovery: results.flatMap(result => result.recovery),
     nextActions: results.flatMap(result => result.nextActions).slice(0, 1),
     data: {
+      ...projectObservationData(surfaces),
       command: 'status',
       operation: 'status',
       selected_agents: agents,

@@ -20,6 +20,7 @@ import {
   codexPluginHookCommands,
   type CodexPluginHookEntry,
 } from '../../src/codex-plugin/hooks.ts';
+import { codexProjectBootstrapContent } from '../../src/codex-plugin/project-bootstrap.ts';
 import {
   assertPackedCodexPlugin,
   extractPackedCliPackage,
@@ -314,44 +315,16 @@ Given('a Safe Word project can be upgraded', function (this: MigrationWorld) {
   createFixture(this, '');
 });
 
-When('the builder upgrades only the Safe Word project', function (this: MigrationWorld) {
-  this.migrationResult = runCli(
-    ['upgrade', '--agents', 'none', '--no-migrate-namespace'],
-    worldDirectory(this),
-    { SAFEWORD_SKIP_INSTALL: '1' },
-  );
+When('the builder upgrades Safe Word', function (this: MigrationWorld) {
+  this.migrationResult = runCli(['upgrade', '--no-migrate-namespace'], worldDirectory(this), {
+    SAFEWORD_SKIP_INSTALL: '1',
+  });
 });
 
-When('the builder sets up only the Safe Word project', function (this: MigrationWorld) {
-  this.migrationResult = runCli(
-    ['setup', '--agents', 'none', '--no-modify'],
-    worldDirectory(this),
-    { SAFEWORD_SKIP_INSTALL: '1' },
-  );
-});
-
-When('the builder upgrades Safe Word for Codex', function (this: MigrationWorld) {
-  this.migrationResult = runCli(
-    ['upgrade', '--agents', 'codex', '--no-migrate-namespace'],
-    worldDirectory(this),
-    {
-      PATH: `${this.migrationBin}:${process.env.PATH ?? ''}`,
-      CODEX_HOME: nodePath.join(worldDirectory(this), 'profile'),
-      SAFEWORD_SKIP_INSTALL: '1',
-    },
-  );
-});
-
-When('the builder installs Safe Word for Codex', function (this: MigrationWorld) {
-  this.migrationResult = runCli(
-    ['install', '--agents', 'codex', '--no-modify'],
-    worldDirectory(this),
-    {
-      PATH: `${this.migrationBin}:${process.env.PATH ?? ''}`,
-      CODEX_HOME: nodePath.join(worldDirectory(this), 'profile'),
-      SAFEWORD_SKIP_INSTALL: '1',
-    },
-  );
+When('the builder sets up Safe Word', function (this: MigrationWorld) {
+  this.migrationResult = runCli(['setup', '--yes', '--no-modify'], worldDirectory(this), {
+    SAFEWORD_SKIP_INSTALL: '1',
+  });
 });
 
 When('the builder installs the Safe Word Codex plugin', function (this: MigrationWorld) {
@@ -447,6 +420,13 @@ Then('the legacy Codex hooks remain unchanged', function (this: MigrationWorld) 
   assertLegacyHooksUnchanged(this);
 });
 
+Then(
+  'the legacy Codex hooks remain and the enrollment bootstrap is added',
+  function (this: MigrationWorld) {
+    assert.equal(codexConfig(this), codexProjectBootstrapContent(this.originalCodexConfig ?? ''));
+  },
+);
+
 Then('the legacy Safe Word hooks remain in the project', function (this: MigrationWorld) {
   assertLegacyHooksUnchanged(this);
 });
@@ -460,22 +440,34 @@ Then('the project has no Safe Word Codex hook configuration', function (this: Mi
 });
 
 Then(
+  'the project has only the Safe Word Codex enrollment bootstrap',
+  function (this: MigrationWorld) {
+    assert.equal(codexConfig(this), codexProjectBootstrapContent(''));
+  },
+);
+
+Then(
   'the project still has no Safe Word Codex hook configuration',
   function (this: MigrationWorld) {
     assert.equal(existsSync(codexConfigPath(this)), false);
   },
 );
 
-Then('the project has Safe Word core configuration', function (this: MigrationWorld) {
-  const safewordPath = nodePath.join(worldDirectory(this), '.safeword/SAFEWORD.md');
-  assert.equal(existsSync(safewordPath), true);
-});
-
 Then(
   'the builder is told to restart Codex before reviewing the installed plugin',
   function (this: MigrationWorld) {
     const output = migrationOutput(this);
     assert.match(output, /(Restart Codex|restarted Codex app).+review.+\/hooks/isu);
+  },
+);
+
+Then(
+  'Safe Word reports that automatic Codex profile enrollment is installed',
+  function (this: MigrationWorld) {
+    assert.ok(
+      latestCommandOutput(this).includes('Codex bootstrap is enrolled for this project'),
+      latestCommandOutput(this),
+    );
   },
 );
 

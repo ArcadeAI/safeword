@@ -7,6 +7,35 @@ import {
 } from '../../src/upstream-monitor/index.js';
 
 describe('upstream monitor issue reporting', () => {
+  it('keeps fenced upstream content inside its fence when the content has backticks', () => {
+    // Upstream changelogs are third-party text and routinely contain fenced
+    // code samples. The +/- prefix on every diff line is what keeps them from
+    // closing the block early — a markdown fence only closes at line start.
+    // Pinned here because a "cleaner" unprefixed diff would silently corrupt
+    // every filed issue whose upstream content contains a fence.
+    const payload = buildIssuePayload({
+      source: {
+        key: 'claude-code',
+        label: 'Claude Code',
+        url: 'https://example.test/CHANGELOG.md',
+        snapshotPath: '.github/changelog-snapshots/claude-code.txt',
+        platformEpic: '8R54HV',
+        normalize: text => text,
+      },
+      previous: 'old',
+      current: 'now documents ```bash\nnpm run x\n``` usage',
+    });
+
+    const fence = /^(?<fence>`+)diff$/m.exec(payload.body)?.groups?.fence;
+    expect(fence).toBeDefined();
+    const body = payload.body.slice(
+      payload.body.indexOf(`${fence}diff\n`) + `${fence}diff\n`.length,
+    );
+    const closingIndex = body.indexOf(`\n${fence}`);
+    // Everything the diff carries must sit before the closing fence.
+    expect(body.slice(0, closingIndex)).toContain('npm run x');
+  });
+
   it('builds an actionable bounded issue payload', () => {
     const payload = buildIssuePayload({
       source: {

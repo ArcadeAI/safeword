@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   appendFileSync,
@@ -12,6 +12,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -32,6 +33,7 @@ interface NativeClaudePluginWorld {
   lifecycle?: {
     root: string;
     project: string;
+    commandCwd?: string;
     configRoot?: string;
     statePath: string;
     projectSnapshot: string;
@@ -41,6 +43,14 @@ interface NativeClaudePluginWorld {
     completedSnapshot?: string;
     terminalClassification?: string;
     completedOperation?: string;
+    otherScopeSnapshot?: string;
+    otherScopeSettingsSnapshot?: string;
+    selectedScope?: 'project' | 'user';
+    overlapHealthSnapshot?: Record<string, string>;
+    selectedScopeUnrelatedSettingsSnapshot?: Record<string, unknown>;
+    profileFilesOutsideSettingsSnapshot?: string;
+    projectFilesOutsideSettingsSnapshot?: string;
+    projectSettingsSnapshot?: Record<string, unknown>;
     unrelatedProfile: unknown;
     result?: { status: number; output: string };
     sessionOutputs?: string[];
@@ -60,10 +70,15 @@ interface NativeClaudePluginWorld {
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
 const EXPECTED_VERSION = SAFEWORD_SCHEMA.version;
-const OFFICIAL_MARKETPLACE_SOURCE = `https://github.com/ArcadeAI/safeword.git#v${EXPECTED_VERSION}`;
+const OFFICIAL_MARKETPLACE_SOURCE = 'https://github.com/ArcadeAI/safeword.git#stable';
 
 function pluginCachePath(root: string): string {
   return nodePath.join(root, 'cache', 'safeword', EXPECTED_VERSION);
+}
+
+function executionProofV2Path(pluginData: string, project: string): string {
+  const digest = createHash('sha256').update(realpathSync(project)).digest('hex');
+  return nodePath.join(pluginData, 'execution-proofs-v2', `${digest}.json`);
 }
 
 After(function (this: NativeClaudePluginWorld) {
@@ -87,33 +102,6 @@ function filesBeneath(directory: string, prefix = ''): string[] {
   });
 }
 
-function assertProjectConfiguredWithoutChangingSentinel(
-  project: string,
-  sentinelSnapshot: string,
-): void {
-  assert.equal(readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'), sentinelSnapshot);
-  assert.ok(existsSync(nodePath.join(project, '.safeword/version')));
-}
-
-function failedClaudeInstallData(activationActions: readonly string[] = []): object {
-  return {
-    command: 'install',
-    operation: 'install',
-    selected_agents: ['claude'],
-    surfaces: [
-      { name: 'project', selected: true, state: 'changed' },
-      {
-        name: 'claude',
-        selected: true,
-        state: 'failed',
-        ...(activationActions.length > 0 && { activation_actions: activationActions }),
-      },
-      { name: 'codex', selected: false },
-      { name: 'cursor', selected: false },
-    ],
-  };
-}
-
 function snapshotDirectory(directory: string): string {
   if (!existsSync(directory)) return '[]';
   return JSON.stringify(
@@ -121,6 +109,78 @@ function snapshotDirectory(directory: string): string {
       path,
       readFileSync(nodePath.join(directory, path)).toString('base64'),
     ]),
+  );
+}
+
+function snapshotDirectoryExcept(directory: string, excludedPath: string): string {
+  if (!existsSync(directory)) return '[]';
+  return JSON.stringify(
+    filesBeneath(directory)
+      .filter(path => path !== excludedPath)
+      .map(path => [path, readFileSync(nodePath.join(directory, path)).toString('base64')]),
+  );
+}
+
+function fixtureSettingsPath(
+  lifecycle: NonNullable<NativeClaudePluginWorld['lifecycle']>,
+  scope: 'project' | 'user',
+): string {
+  return scope === 'project'
+    ? nodePath.join(lifecycle.project, '.claude/settings.json')
+    : nodePath.join(lifecycle.configRoot ?? '', 'settings.json');
+}
+
+function settingsBytes(
+  lifecycle: NonNullable<NativeClaudePluginWorld['lifecycle']>,
+  scope: 'project' | 'user',
+): string {
+  const path = fixtureSettingsPath(lifecycle, scope);
+  return existsSync(path) ? readFileSync(path, 'utf8') : '<absent>';
+}
+
+function unrelatedSettings(settings: string): Record<string, unknown> {
+  if (settings === '<absent>') return {};
+  const value = JSON.parse(settings) as Record<string, unknown> & {
+    enabledPlugins?: Record<string, unknown>;
+    extraKnownMarketplaces?: Record<string, unknown>;
+  };
+  delete value.extraKnownMarketplaces?.safeword;
+  delete value.enabledPlugins?.['safeword@safeword'];
+  if (typeof value.env === 'object' && value.env !== null) {
+    delete (value.env as Record<string, unknown>).CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE;
+    if (Object.keys(value.env).length === 0) delete value.env;
+  }
+  if (Object.keys(value.extraKnownMarketplaces ?? {}).length === 0) {
+    delete value.extraKnownMarketplaces;
+  }
+  if (Object.keys(value.enabledPlugins ?? {}).length === 0) delete value.enabledPlugins;
+  return value;
+}
+
+function captureScopedPreservation(world: NativeClaudePluginWorld): void {
+  assert.ok(world.lifecycle?.selectedScope);
+  const lifecycle = world.lifecycle;
+  const selectedScope = lifecycle.selectedScope;
+  const otherScope = selectedScope === 'project' ? 'user' : 'project';
+  const state = JSON.parse(readFileSync(lifecycle.statePath, 'utf8')) as {
+    marketplaceDeclarations: Record<string, unknown>[];
+    plugins: Record<string, unknown>[];
+  };
+  lifecycle.otherScopeSnapshot = JSON.stringify({
+    marketplaces: state.marketplaceDeclarations.filter(entry => entry.scope === otherScope),
+    plugins: state.plugins.filter(entry => entry.scope === otherScope),
+  });
+  lifecycle.otherScopeSettingsSnapshot = settingsBytes(lifecycle, otherScope);
+  lifecycle.selectedScopeUnrelatedSettingsSnapshot = unrelatedSettings(
+    settingsBytes(lifecycle, selectedScope),
+  );
+  lifecycle.projectFilesOutsideSettingsSnapshot = snapshotDirectoryExcept(
+    lifecycle.project,
+    '.claude/settings.json',
+  );
+  lifecycle.profileFilesOutsideSettingsSnapshot = snapshotDirectoryExcept(
+    lifecycle.configRoot ?? '',
+    'settings.json',
   );
 }
 
@@ -297,7 +357,7 @@ Then(
     assert.match(this.cacheFixture.result?.output ?? '', /Current time:/u);
     assert.ok(this.cacheFixture);
     const proof = JSON.parse(
-      readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
+      readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
     ) as { canonical_plugin_root?: string };
     assert.equal(proof.canonical_plugin_root, realpathSync(this.cacheFixture.plugin));
   },
@@ -307,7 +367,7 @@ Then(
   'execution proof is written beneath CLAUDE_PLUGIN_DATA',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.cacheFixture);
-    assert.ok(existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')));
+    assert.ok(existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)));
   },
 );
 
@@ -367,7 +427,7 @@ Then(
     assert.notEqual(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.ok(this.cacheFixture);
     assert.equal(
-      existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')),
+      existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)),
       false,
     );
   },
@@ -543,7 +603,7 @@ Then(
     assert.notEqual(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.ok(this.cacheFixture);
     assert.equal(
-      existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')),
+      existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)),
       false,
     );
   },
@@ -562,24 +622,61 @@ function writeFakeClaude(fakeBin: string): void {
     fakeClaude,
     `#!/usr/bin/env node
 const fs = require('node:fs');
+const path = require('node:path');
 const statePath = process.env.FAKE_CLAUDE_STATE;
 const args = process.argv.slice(2);
 const read = () => JSON.parse(fs.readFileSync(statePath, 'utf8'));
 const write = value => fs.writeFileSync(statePath, JSON.stringify(value, null, 2) + '\\n');
 const state = read();
 const operation = args.join(' ');
+const settingsPath = scope => scope === 'project'
+  ? path.join(state.projectPath, '.claude', 'settings.json')
+  : path.join(process.env.CLAUDE_CONFIG_DIR, 'settings.json');
+const updateSettings = (scope, update) => {
+  const target = settingsPath(scope);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const settings = fs.existsSync(target) ? JSON.parse(fs.readFileSync(target, 'utf8')) : {};
+  update(settings);
+  fs.writeFileSync(target, JSON.stringify(settings, null, 2) + '\\n');
+};
 if (args[0] === '--version') { console.log(state.hostVersion); process.exit(0); }
 if (state.failOperation && operation.startsWith(state.failOperation)) {
+  if ((state.failOperationAfter || 0) > 0) {
+    state.failOperationAfter -= 1;
+    write(state);
+  } else {
   console.error('simulated Claude failure: ' + state.failOperation); process.exit(70);
+  }
 }
 if (operation === 'plugin marketplace list --json') { console.log(JSON.stringify(state.marketplaces)); process.exit(0); }
 if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
   const [url, ref] = args[3].split('#');
-  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref }); write(state); process.exit(0);
+  const scope = args[args.indexOf('--scope') + 1];
+  const projectPath = scope === 'project' ? state.projectPath : undefined;
+  state.marketplaceDeclarations = (state.marketplaceDeclarations || []).filter(entry =>
+    entry.name !== 'safeword' || (entry.scope || 'user') !== scope ||
+      (scope === 'project' && entry.projectPath !== projectPath));
+  state.marketplaceDeclarations.push({ name: 'safeword', source: 'git', url, ref, scope, ...(projectPath && { projectPath }) });
+  state.marketplaces = state.marketplaces.filter(entry => entry.name !== 'safeword');
+  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref });
+  updateSettings(scope, settings => {
+    settings.extraKnownMarketplaces = settings.extraKnownMarketplaces || {};
+    settings.extraKnownMarketplaces.safeword = { source: { source: 'git', url, ref } };
+  });
+  write(state); process.exit(0);
 }
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
 if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
-  state.plugins = [{ id: 'safeword@safeword', version: '${EXPECTED_VERSION}', enabled: true, scope: 'user', installPath: state.installPath }];
+  const scope = args[args.indexOf('--scope') + 1];
+  const projectPath = scope === 'project' ? state.projectPath : undefined;
+  state.plugins = state.plugins.filter(entry =>
+    entry.id !== 'safeword@safeword' || (entry.scope || 'user') !== scope ||
+      (scope === 'project' && entry.projectPath !== projectPath));
+  state.plugins.push({ id: 'safeword@safeword', version: '${EXPECTED_VERSION}', enabled: true, scope, installPath: state.installPath, ...(projectPath && { projectPath }) });
+  updateSettings(scope, settings => {
+    settings.enabledPlugins = settings.enabledPlugins || {};
+    settings.enabledPlugins['safeword@safeword'] = true;
+  });
   write(state); process.exit(0);
 }
 console.error('unexpected fake claude command: ' + operation); process.exit(64);
@@ -588,12 +685,58 @@ console.error('unexpected fake claude command: ' + operation); process.exit(64);
   chmodSync(fakeClaude, 0o755);
 }
 
+function materializeScopedSettings(
+  project: string,
+  configRoot: string,
+  marketplaceDeclarations: readonly unknown[],
+  plugins: readonly unknown[],
+): void {
+  for (const scope of ['project', 'user'] as const) {
+    const scopedMarketplaces = (marketplaceDeclarations as Record<string, unknown>[]).filter(
+      entry => entry.scope === scope,
+    );
+    const scopedPlugins = (plugins as Record<string, unknown>[]).filter(
+      entry => entry.scope === scope,
+    );
+    if (scopedMarketplaces.length === 0 && scopedPlugins.length === 0) continue;
+    const settings: Record<string, unknown> = {};
+    const marketplace = scopedMarketplaces.find(entry => entry.name === 'safeword');
+    if (marketplace !== undefined) {
+      settings.extraKnownMarketplaces = {
+        safeword: {
+          source: {
+            source: marketplace.source,
+            url: marketplace.url,
+            ref: marketplace.ref,
+          },
+          ...(marketplace.ref === 'stable' && { autoUpdate: true }),
+        },
+      };
+      if (marketplace.ref === 'stable') {
+        settings.env = { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' };
+      }
+    }
+    const plugin = scopedPlugins.find(entry => entry.id === 'safeword@safeword');
+    if (plugin !== undefined) {
+      settings.enabledPlugins = { 'safeword@safeword': plugin.enabled };
+    }
+    const target =
+      scope === 'project'
+        ? nodePath.join(project, '.claude/settings.json')
+        : nodePath.join(configRoot, 'settings.json');
+    mkdirSync(nodePath.dirname(target), { recursive: true });
+    writeFileSync(target, `${JSON.stringify(settings, undefined, 2)}\n`);
+  }
+}
+
 function createLifecycleFixture(
   world: NativeClaudePluginWorld,
   overrides: Partial<{
     hostVersion: string;
     failOperation: string | null;
+    failOperationAfter: number;
     marketplaces: unknown[];
+    marketplaceDeclarations: unknown[];
     plugins: unknown[];
     installPath: string;
   }>,
@@ -601,14 +744,19 @@ function createLifecycleFixture(
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-lifecycle-'));
   const project = nodePath.join(root, 'project');
   const fakeBin = nodePath.join(root, 'bin');
+  const configRoot = nodePath.join(root, 'claude-config');
   const statePath = nodePath.join(root, 'claude-state.json');
   mkdirSync(project, { recursive: true });
   mkdirSync(fakeBin, { recursive: true });
+  mkdirSync(configRoot, { recursive: true });
   writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
   const state = {
     hostVersion: '2.1.170 (Claude Code)',
     failOperation: null as string | null,
+    failOperationAfter: 0,
     unrelated: { theme: 'dark', custom: ['preserve', 7] },
+    projectPath: project,
+    marketplaceDeclarations: [] as unknown[],
     marketplaces: [] as unknown[],
     plugins: [] as unknown[],
     installPath: pluginCachePath(root),
@@ -617,15 +765,69 @@ function createLifecycleFixture(
   cpSync(PLUGIN_ROOT, state.installPath, { recursive: true });
   const profileSnapshot = `${JSON.stringify(state, undefined, 2)}\n`;
   writeFileSync(statePath, profileSnapshot);
+  materializeScopedSettings(project, configRoot, state.marketplaceDeclarations, state.plugins);
   writeFakeClaude(fakeBin);
   world.lifecycle = {
     root,
     project,
+    configRoot,
     statePath,
     projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
     profileSnapshot,
     unrelatedProfile: state.unrelated,
   };
+}
+
+function createExactScopedFixture(world: NativeClaudePluginWorld, scope: 'project' | 'user'): void {
+  createLifecycleFixture(world, {});
+  assert.ok(world.lifecycle);
+  world.lifecycle.selectedScope = scope;
+  const state = JSON.parse(readFileSync(world.lifecycle.statePath, 'utf8')) as {
+    installPath: string;
+    marketplaceDeclarations: Record<string, unknown>[];
+    marketplaces: Record<string, unknown>[];
+    plugins: Record<string, unknown>[];
+    projectPath: string;
+  };
+  const projectIdentity = scope === 'project' ? { projectPath: state.projectPath } : {};
+  state.marketplaces = [
+    {
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: 'stable',
+    },
+  ];
+  state.marketplaceDeclarations = [
+    {
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: 'stable',
+      scope,
+      ...projectIdentity,
+    },
+  ];
+  state.plugins = [
+    {
+      id: 'safeword@safeword',
+      version: EXPECTED_VERSION,
+      enabled: true,
+      installPath: state.installPath,
+      scope,
+      ...projectIdentity,
+    },
+  ];
+  writeFileSync(world.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+  materializeScopedSettings(
+    world.lifecycle.project,
+    world.lifecycle.configRoot ?? '',
+    state.marketplaceDeclarations,
+    state.plugins,
+  );
+  world.lifecycle.profileSnapshot = readFileSync(world.lifecycle.statePath, 'utf8');
+  world.lifecycle.projectTreeSnapshot = snapshotDirectory(world.lifecycle.project);
+  world.lifecycle.configTreeSnapshot = snapshotDirectory(world.lifecycle.configRoot ?? '');
 }
 
 function writeCanonicalLegacy(project: string): string {
@@ -636,28 +838,34 @@ function writeCanonicalLegacy(project: string): string {
   return target;
 }
 
-function writeStatusProof(
+function writeStatusProofV2(
   configRoot: string,
+  project: string,
   installPath: string,
   overrides: Record<string, unknown> = {},
 ): void {
   const identity = JSON.parse(
     readFileSync(nodePath.join(installPath, 'identity.json'), 'utf8'),
   ) as { hook_manifest_sha256: string };
+  const canonicalProjectRoot = realpathSync(project);
+  const projectDigest = createHash('sha256').update(canonicalProjectRoot).digest('hex');
   const proofPath = nodePath.join(
     configRoot,
-    'plugins/data/safeword-safeword/execution-proof-v1.json',
+    'plugins/data/safeword-safeword/execution-proofs-v2',
+    `${projectDigest}.json`,
   );
   mkdirSync(nodePath.dirname(proofPath), { recursive: true });
   writeFileSync(
     proofPath,
     `${JSON.stringify(
       {
-        schema_version: 1,
-        event: 'UserPromptSubmit',
+        schema_version: 2,
+        project_root: canonicalProjectRoot,
         plugin_version: EXPECTED_VERSION,
         hook_manifest_sha256: identity.hook_manifest_sha256,
         canonical_plugin_root: realpathSync(installPath),
+        event: 'UserPromptSubmit',
+        session_id: 'current-project-proof',
         recorded_at: new Date(0).toISOString(),
         ...overrides,
       },
@@ -743,7 +951,7 @@ function createStatusFixture(
     if (stateDescription.includes('different canonical')) {
       overrides.canonical_plugin_root = nodePath.join(fixture.root, 'other-cache');
     }
-    writeStatusProof(configRoot, state.installPath, overrides);
+    writeStatusProofV2(configRoot, fixture.project, state.installPath, overrides);
   }
 
   if (stateDescription.includes('durable plugin-mode marker')) {
@@ -786,7 +994,7 @@ When('safeword claude status runs', function (this: NativeClaudePluginWorld) {
       '--json',
       '--no-input',
       '--cwd',
-      this.lifecycle.project,
+      this.lifecycle.commandCwd ?? this.lifecycle.project,
     ],
     {
       cwd: REPO_ROOT,
@@ -872,6 +1080,7 @@ Then(
 function runLifecycleCommand(
   world: NativeClaudePluginWorld,
   command: string[],
+  json = true,
 ): { status: number; output: string } {
   assert.ok(world.lifecycle);
   const result = spawnSync(
@@ -879,10 +1088,10 @@ function runLifecycleCommand(
     [
       nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
       ...command,
-      '--json',
+      ...(json ? ['--json'] : []),
       '--no-input',
       '--cwd',
-      world.lifecycle.project,
+      world.lifecycle.commandCwd ?? world.lifecycle.project,
     ],
     {
       cwd: REPO_ROOT,
@@ -989,38 +1198,33 @@ Given('a project that has never installed Safeword', function (this: NativeClaud
   createLifecycleFixture(this, {});
 });
 
-When(
-  'scoped Cursor setup runs alongside native Claude delivery',
-  function (this: NativeClaudePluginWorld) {
-    assert.ok(this.lifecycle);
-    const result = spawnSync(
-      'bun',
-      [
-        nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
-        'setup',
-        '--agents',
-        'cursor',
-        '--json',
-        '--no-input',
-        '--cwd',
-        this.lifecycle.project,
-      ],
-      {
-        cwd: REPO_ROOT,
-        env: {
-          ...process.env,
-          SAFEWORD_SKIP_INSTALL: '1',
-          SAFEWORD_SKIP_SKILLS: '1',
-        },
-        encoding: 'utf8',
+When('safeword setup runs for native Claude delivery', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  const result = spawnSync(
+    'bun',
+    [
+      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+      'setup',
+      '--json',
+      '--no-input',
+      '--cwd',
+      this.lifecycle.project,
+    ],
+    {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        SAFEWORD_SKIP_INSTALL: '1',
+        SAFEWORD_SKIP_SKILLS: '1',
       },
-    );
-    this.lifecycle.result = {
-      status: result.status ?? 1,
-      output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
-    };
-  },
-);
+      encoding: 'utf8',
+    },
+  );
+  this.lifecycle.result = {
+    status: result.status ?? 1,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
+});
 
 Then('project-owned Safeword state is created', function (this: NativeClaudePluginWorld) {
   assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
@@ -1045,13 +1249,13 @@ Then(
 );
 
 Then(
-  'the result leaves the Claude profile unchanged without another host action',
+  'the result recommends safeword claude install without changing the Claude profile',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
     const result = JSON.parse(this.lifecycle.result?.output ?? '') as {
       next_actions?: { command?: string }[];
     };
-    assert.deepEqual(result.next_actions, []);
+    assert.ok(result.next_actions?.some(action => action.command === 'safeword claude install'));
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
   },
 );
@@ -1202,15 +1406,13 @@ Given(
   },
 );
 
-When('scoped project-only setup upgrades the project', function (this: NativeClaudePluginWorld) {
+When('ordinary safeword setup upgrades the project', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
   const result = spawnSync(
     'bun',
     [
       nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
       'setup',
-      '--agents',
-      'none',
       '--json',
       '--no-input',
       '--cwd',
@@ -1243,14 +1445,17 @@ Then(
   },
 );
 
-Then('the result requires no host lifecycle command', function (this: NativeClaudePluginWorld) {
-  const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
-    next_actions?: { command?: string }[];
-  };
-  assert.deepEqual(result.next_actions, []);
-  assert.ok(this.lifecycle);
-  assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
-});
+Then(
+  'the result recommends the explicit Claude lifecycle command without invoking it',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.ok(result.next_actions?.some(action => action.command === 'safeword claude install'));
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
 
 function createAuthorityFixture(world: NativeClaudePluginWorld): void {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-authority-'));
@@ -1304,14 +1509,18 @@ Given(
     ) as { hook_manifest_sha256: string };
     mkdirSync(this.cacheFixture.data, { recursive: true });
     const proof = `${JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
+      project_root: realpathSync(this.cacheFixture.project),
       plugin_version: EXPECTED_VERSION,
       hook_manifest_sha256: identity.hook_manifest_sha256,
       canonical_plugin_root: realpathSync(this.cacheFixture.plugin),
       event: 'SessionStart',
+      session_id: 'prior-cleanup-proof',
       recorded_at: new Date(0).toISOString(),
     })}\n`;
-    writeFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), proof);
+    const proofPath = executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project);
+    mkdirSync(nodePath.dirname(proofPath), { recursive: true });
+    writeFileSync(proofPath, proof);
     this.cacheFixture.priorProof = proof;
   },
 );
@@ -1343,7 +1552,7 @@ Then(
     assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.ok(this.cacheFixture);
     assert.equal(
-      readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
+      readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
       this.cacheFixture.priorProof,
     );
   },
@@ -1370,7 +1579,7 @@ Then(
     assert.equal(readFileSync(this.cacheFixture?.effectLog ?? '', 'utf8'), 'plugin\n');
     assert.ok(this.cacheFixture);
     const proof = JSON.parse(
-      readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
+      readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
     ) as { event?: string; plugin_version?: string };
     assert.deepEqual([proof.event, proof.plugin_version], ['SessionStart', EXPECTED_VERSION]);
   },
@@ -1449,9 +1658,9 @@ function resultClassification(output: string): string | undefined {
 }
 
 Given(
-  /^(safeword install --agents=claude|safeword claude cleanup|safeword claude recover) has completed successfully$/u,
+  /^(safeword claude install|safeword claude cleanup|safeword claude recover) has completed successfully$/u,
   function (this: NativeClaudePluginWorld, operation: string) {
-    if (operation.includes('install')) {
+    if (operation.endsWith('install')) {
       createLifecycleFixture(this, {
         marketplaces: [
           {
@@ -1478,7 +1687,7 @@ Given(
       };
       state.plugins[0] = { ...state.plugins[0], installPath: state.installPath };
       writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
-      this.lifecycle.result = runLifecycleCommand(this, ['install', '--agents=claude']);
+      this.lifecycle.result = runLifecycleCommand(this, ['claude', 'install']);
     } else if (operation.endsWith('cleanup')) {
       createStatusFixture(this, 'valid proof and wholly recognized removable legacy', false);
       const preview = runLifecycleCommand(this, ['claude', 'cleanup']);
@@ -1508,7 +1717,7 @@ Given(
 );
 
 When(
-  /^the same (safeword install --agents=claude|safeword claude cleanup|safeword claude recover) runs again$/u,
+  /^the same (safeword claude install|safeword claude cleanup|safeword claude recover) runs again$/u,
   function (this: NativeClaudePluginWorld, operation: string) {
     this.lifecycle!.result = runLifecycleCommand(this, operation.split(' ').slice(1));
   },
@@ -1592,15 +1801,13 @@ Given(
   },
 );
 
-When('scoped Cursor setup runs again', function (this: NativeClaudePluginWorld) {
+When('safeword setup runs again', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
   const result = spawnSync(
     'bun',
     [
       nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
       'setup',
-      '--agents',
-      'cursor',
       '--json',
       '--no-input',
       '--cwd',
@@ -1656,6 +1863,62 @@ Given(
 );
 
 Given(
+  /^the active Claude profile maps the official marketplace in (flattened fields|packed string) form to (\S+)$/u,
+  function (this: NativeClaudePluginWorld, sourceShape: string, marketplaceTag: string) {
+    const marketplace =
+      sourceShape === 'packed string'
+        ? {
+            name: 'safeword',
+            source: `${OFFICIAL_MARKETPLACE_SOURCE.split('#')[0]}#${marketplaceTag}`,
+          }
+        : {
+            name: 'safeword',
+            source: 'git',
+            url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+            ref: marketplaceTag,
+          };
+    createLifecycleFixture(this, {
+      marketplaces: [marketplace],
+    });
+  },
+);
+
+Given(
+  /^a supported Claude profile uses the official marketplace in (flattened fields|packed string) form at (\S+) with plugin (\S+)$/u,
+  function (
+    this: NativeClaudePluginWorld,
+    sourceShape: string,
+    marketplaceTag: string,
+    pluginVersion: string,
+  ) {
+    const marketplace =
+      sourceShape === 'packed string'
+        ? {
+            name: 'safeword',
+            source: `${OFFICIAL_MARKETPLACE_SOURCE.split('#')[0]}#${marketplaceTag}`,
+          }
+        : {
+            name: 'safeword',
+            source: 'git',
+            url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+            ref: marketplaceTag,
+          };
+    createLifecycleFixture(this, {
+      marketplaces: [marketplace],
+      plugins: [
+        {
+          id: 'safeword@safeword',
+          version: pluginVersion,
+          enabled: true,
+          scope: 'user',
+          installPath: '/unused/stale-safeword-cache',
+        },
+      ],
+    });
+  },
+);
+
+Given(
   'the exact enabled plugin metadata points to a cache without native identity',
   function (this: NativeClaudePluginWorld) {
     const installPath = nodePath.join(tmpdir(), 'safeword-legacy-plugin-payload');
@@ -1694,15 +1957,19 @@ Given(
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-install-'));
     const project = nodePath.join(root, 'project');
     const fakeBin = nodePath.join(root, 'bin');
+    const configRoot = nodePath.join(root, 'claude-config');
     const statePath = nodePath.join(root, 'claude-state.json');
     mkdirSync(project, { recursive: true });
     mkdirSync(fakeBin, { recursive: true });
+    mkdirSync(configRoot, { recursive: true });
     writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
     const officialSource = OFFICIAL_MARKETPLACE_SOURCE;
     const state = {
       hostVersion: '2.1.170 (Claude Code)',
       failOperation: null,
       installPath: pluginCachePath(root),
+      projectPath: project,
+      marketplaceDeclarations: [],
       unrelated: { theme: 'dark', custom: ['preserve', 7] },
       marketplaces:
         initialState === 'no Safeword marketplace or plugin'
@@ -1712,7 +1979,10 @@ Given(
                 name: 'safeword',
                 source: 'git',
                 url: officialSource.split('#')[0],
-                ref: officialSource.split('#')[1],
+                ref:
+                  initialState === 'an enabled older official Safeword plugin version'
+                    ? 'v0.70.0'
+                    : officialSource.split('#')[1],
               },
             ],
       plugins:
@@ -1738,6 +2008,7 @@ Given(
     this.lifecycle = {
       root,
       project,
+      configRoot,
       statePath,
       projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
       profileSnapshot,
@@ -1746,14 +2017,765 @@ Given(
   },
 );
 
-When('safeword install for Claude runs', function (this: NativeClaudePluginWorld) {
+Given(
+  'the current project and Claude profile have no Safeword plugin declaration',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+  },
+);
+
+Given(
+  /^Safeword has an older official installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, selectedScope: string) {
+    const otherScope = selectedScope === 'project' ? 'user' : 'project';
+    const scoped = (scope: string, version: string): Record<string, unknown> => ({
+      scope,
+      ...(scope === 'project' && { projectPath: 'CURRENT_PROJECT' }),
+      version,
+    });
+    createLifecycleFixture(this, {
+      marketplaces: [
+        {
+          name: 'safeword',
+          source: 'git',
+          url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+          ref: `v${EXPECTED_VERSION}`,
+        },
+      ],
+      marketplaceDeclarations: [
+        {
+          name: 'safeword',
+          source: 'git',
+          url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+          ref: 'v0.70.0',
+          ...scoped(selectedScope, '0.70.0'),
+        },
+        {
+          name: 'safeword',
+          source: 'git',
+          url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+          ref: `v${EXPECTED_VERSION}`,
+          ...scoped(otherScope, EXPECTED_VERSION),
+        },
+      ],
+      plugins: [
+        {
+          id: 'safeword@safeword',
+          enabled: true,
+          installPath: '',
+          ...scoped(selectedScope, '0.70.0'),
+        },
+        {
+          id: 'safeword@safeword',
+          enabled: true,
+          installPath: '',
+          ...scoped(otherScope, EXPECTED_VERSION),
+        },
+      ],
+    });
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = selectedScope as 'project' | 'user';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    for (const entries of [state.marketplaceDeclarations, state.plugins]) {
+      for (const entry of entries) {
+        if (entry.projectPath === 'CURRENT_PROJECT') entry.projectPath = state.projectPath;
+        if ('installPath' in entry) entry.installPath = state.installPath;
+      }
+    }
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+  },
+);
+
+Given(
+  /^Safeword has no installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, selectedScope: string) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = selectedScope as 'project' | 'user';
+  },
+);
+
+Given(
+  /^Safeword has a disabled exact installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, selectedScope: string) {
+    const otherScope = selectedScope === 'project' ? 'user' : 'project';
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = selectedScope as 'project' | 'user';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    const scoped = (scope: string): Record<string, unknown> => ({
+      scope,
+      ...(scope === 'project' && { projectPath: state.projectPath }),
+    });
+    state.marketplaces = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: 'stable',
+      },
+    ];
+    state.marketplaceDeclarations = [selectedScope, otherScope].map(scope => ({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: `v${EXPECTED_VERSION}`,
+      ...scoped(scope),
+    }));
+    state.plugins = [
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: false,
+        installPath: state.installPath,
+        ...scoped(selectedScope),
+      },
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        installPath: state.installPath,
+        ...scoped(otherScope),
+      },
+    ];
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+  },
+);
+
+Given(
+  /^Safeword has (malformed plugin metadata|a newer official plugin version) at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, selectedState: string, selectedScope: string) {
+    const otherScope = selectedScope === 'project' ? 'user' : 'project';
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = selectedScope as 'project' | 'user';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    const scoped = (scope: string): Record<string, unknown> => ({
+      scope,
+      ...(scope === 'project' && { projectPath: state.projectPath }),
+    });
+    state.marketplaces = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: 'stable',
+      },
+    ];
+    state.marketplaceDeclarations = [selectedScope, otherScope].map(scope => ({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: 'stable',
+      ...scoped(scope),
+    }));
+    state.plugins = [
+      {
+        id: 'safeword@safeword',
+        version: selectedState === 'malformed plugin metadata' ? { invalid: true } : '999.0.0',
+        enabled: true,
+        installPath: state.installPath,
+        ...scoped(selectedScope),
+      },
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        installPath: state.installPath,
+        ...scoped(otherScope),
+      },
+    ];
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    captureScopedPreservation(this);
+  },
+);
+
+Given(
+  /^Safeword has an exact installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, otherScope: string) {
+    assert.ok(this.lifecycle);
+    assert.notEqual(otherScope, this.lifecycle.selectedScope);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    const projectIdentity = otherScope === 'project' ? { projectPath: state.projectPath } : {};
+    state.marketplaces = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+      },
+    ];
+    state.marketplaceDeclarations = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+        scope: otherScope,
+        ...projectIdentity,
+      },
+    ];
+    state.plugins = [
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        scope: otherScope,
+        installPath: state.installPath,
+        ...projectIdentity,
+      },
+    ];
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    this.lifecycle.otherScopeSnapshot = JSON.stringify({
+      marketplaces: state.marketplaceDeclarations,
+      plugins: state.plugins,
+    });
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+  },
+);
+
+Given(
+  /^the selected (project|user) installation reports the exact version from a damaged cache$/u,
+  function (this: NativeClaudePluginWorld, selectedScope: string) {
+    createExactScopedFixture(this, selectedScope as 'project' | 'user');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+    };
+    appendFileSync(nodePath.join(state.installPath, 'hooks/hooks.json'), ' ');
+  },
+);
+
+Given(
+  'an exact project installation is recorded at the canonical project root',
+  function (this: NativeClaudePluginWorld) {
+    createExactScopedFixture(this, 'project');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    state.projectPath = realpathSync(this.lifecycle.project);
+    for (const plugin of state.plugins) plugin.projectPath = state.projectPath;
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+  },
+);
+
+Given(
+  'the project is accessed through a filesystem alias',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const alias = nodePath.join(this.lifecycle.root, 'project-alias');
+    symlinkSync(this.lifecycle.project, alias, 'dir');
+    this.lifecycle.project = alias;
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(alias);
+  },
+);
+
+Given(
+  /^the profile contains (an exact project installation for the current project and no user installation|an exact user installation and no current-project entry|an exact user installation and another project's entry)$/u,
+  function (this: NativeClaudePluginWorld, installationState: string) {
+    const applicableScope = installationState.startsWith('an exact project') ? 'project' : 'user';
+    createExactScopedFixture(this, applicableScope);
+    assert.ok(this.lifecycle);
+    if (installationState.includes("another project's entry")) {
+      const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+        installPath: string;
+        plugins: Record<string, unknown>[];
+      };
+      const otherProject = nodePath.join(this.lifecycle.root, 'other-project');
+      mkdirSync(otherProject, { recursive: true });
+      state.plugins.push({
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        scope: 'project',
+        projectPath: otherProject,
+        installPath: state.installPath,
+      });
+      writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+      this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+      this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+      this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+    }
+  },
+);
+
+Given(
+  'neither the current project nor the Claude profile contains an applicable Safeword installation',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
+  /^the current project has applicable project and user installations with (the same exact version|different official versions|one disabled installation)$/u,
+  function (this: NativeClaudePluginWorld, overlapState: string) {
+    createExactScopedFixture(this, 'project');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    state.marketplaceDeclarations.push({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: `v${EXPECTED_VERSION}`,
+      scope: 'user',
+    });
+    const userHealth =
+      overlapState === 'different official versions'
+        ? 'wrong-version'
+        : overlapState === 'one disabled installation'
+          ? 'disabled'
+          : 'current';
+    state.plugins.push({
+      id: 'safeword@safeword',
+      version: userHealth === 'wrong-version' ? '0.70.0' : EXPECTED_VERSION,
+      enabled: userHealth !== 'disabled',
+      installPath: state.installPath,
+      scope: 'user',
+    });
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    this.lifecycle.overlapHealthSnapshot = { project: 'current', user: userHealth };
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
+  'the current project has applicable project and user installations',
+  function (this: NativeClaudePluginWorld) {
+    createExactScopedFixture(this, 'project');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    state.marketplaceDeclarations.push({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: `v${EXPECTED_VERSION}`,
+      scope: 'user',
+    });
+    state.plugins.push({
+      id: 'safeword@safeword',
+      version: EXPECTED_VERSION,
+      enabled: true,
+      scope: 'user',
+      installPath: state.installPath,
+    });
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    writeCanonicalLegacy(this.lifecycle.project);
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given('exact plugin execution proof exists', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+    installPath: string;
+  };
+  writeStatusProofV2(this.lifecycle.configRoot ?? '', this.lifecycle.project, state.installPath);
+  this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+});
+
+Given(
+  /^the current project has one exact proven Safeword installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, applicableScope: string) {
+    createExactScopedFixture(this, applicableScope as 'project' | 'user');
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+    };
+    writeStatusProofV2(this.lifecycle.configRoot ?? '', this.lifecycle.project, state.installPath);
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
+  /^the current project has one exact applicable Safeword installation at (project|user)$/u,
+  function (this: NativeClaudePluginWorld, applicableScope: string) {
+    createExactScopedFixture(this, applicableScope as 'project' | 'user');
+  },
+);
+
+Given('the command runs from a nested project directory', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  execFileSync('git', ['init', '--quiet', this.lifecycle.project]);
+  this.lifecycle.commandCwd = nodePath.join(this.lifecycle.project, 'packages/example');
+  mkdirSync(this.lifecycle.commandCwd, { recursive: true });
+  this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+});
+
+Given(
+  /^that installation has (proof recorded in another project|no plugin execution proof|stale plugin execution proof|self-consistently altered installed hook manifest)$/u,
+  function (this: NativeClaudePluginWorld, proofState: string) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+    };
+    if (proofState === 'proof recorded in another project') {
+      const otherProject = nodePath.join(this.lifecycle.root, 'proof-for-other-project');
+      mkdirSync(otherProject, { recursive: true });
+      writeStatusProofV2(this.lifecycle.configRoot ?? '', otherProject, state.installPath);
+    } else if (proofState === 'stale plugin execution proof') {
+      writeStatusProofV2(
+        this.lifecycle.configRoot ?? '',
+        this.lifecycle.project,
+        state.installPath,
+        {
+          plugin_version: '0.70.0',
+        },
+      );
+    } else if (proofState === 'self-consistently altered installed hook manifest') {
+      const manifestPath = nodePath.join(state.installPath, 'hooks/hooks.json');
+      const inventoryPath = nodePath.join(state.installPath, 'inventory.json');
+      const identityPath = nodePath.join(state.installPath, 'identity.json');
+      const manifest = `${JSON.stringify({ hooks: {}, altered: true }, undefined, 2)}\n`;
+      writeFileSync(manifestPath, manifest);
+      const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8')) as {
+        assets: { path: string; sha256: string }[];
+      };
+      const asset = inventory.assets.find(candidate => candidate.path === 'hooks/hooks.json');
+      assert.ok(asset);
+      asset.sha256 = createHash('sha256').update(manifest).digest('hex');
+      const inventoryContent = `${JSON.stringify(inventory, undefined, 2)}\n`;
+      writeFileSync(inventoryPath, inventoryContent);
+      const identity = JSON.parse(readFileSync(identityPath, 'utf8')) as {
+        hook_manifest_sha256: string;
+        inventory_sha256: string;
+      };
+      identity.hook_manifest_sha256 = asset.sha256;
+      identity.inventory_sha256 = createHash('sha256').update(inventoryContent).digest('hex');
+      writeFileSync(identityPath, `${JSON.stringify(identity, undefined, 2)}\n`);
+      writeStatusProofV2(
+        this.lifecycle.configRoot ?? '',
+        this.lifecycle.project,
+        state.installPath,
+      );
+    }
+    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  },
+);
+
+Given(
+  /^the (?:current )?project has wholly recognized removable legacy protection$/u,
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    writeCanonicalLegacy(this.lifecycle.project);
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+  },
+);
+
+Given(
+  'the other Claude scope has independent plugin state',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    const selectedScope = this.lifecycle.selectedScope;
+    const otherScope = selectedScope === 'project' ? 'user' : 'project';
+    this.lifecycle.otherScopeSnapshot = JSON.stringify({
+      marketplaces: state.marketplaceDeclarations.filter(entry => entry.scope === otherScope),
+      plugins: state.plugins.filter(entry => entry.scope === otherScope),
+    });
+  },
+);
+
+Given('arbitrary project and Claude profile state', function (this: NativeClaudePluginWorld) {
+  createLifecycleFixture(this, {
+    marketplaces: [{ name: 'third-party', source: 'directory', path: '/preserve' }],
+    plugins: [{ id: 'third-party@example', version: '1.2.3', enabled: false, scope: 'user' }],
+  });
+  assert.ok(this.lifecycle);
+  this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+});
+
+Given(
+  'the current project has user-authored and third-party Claude settings',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    const settings = {
+      env: { TEAM_MODE: 'careful' },
+      permissions: { allow: ['Read(./docs/**)'] },
+      extraKnownMarketplaces: {
+        community: {
+          source: {
+            source: 'git',
+            url: 'https://example.com/community.git',
+            ref: 'main',
+          },
+        },
+      },
+      enabledPlugins: { 'third-party@community': false },
+    };
+    const settingsPath = nodePath.join(this.lifecycle.project, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settingsPath), { recursive: true });
+    writeFileSync(settingsPath, `${JSON.stringify(settings, undefined, 2)}\n`);
+    writeFileSync(
+      nodePath.join(this.lifecycle.project, '.claude/README.md'),
+      'user-authored Claude documentation\n',
+    );
+    this.lifecycle.selectedScope = 'project';
+    this.lifecycle.projectSettingsSnapshot = settings;
+    this.lifecycle.projectFilesOutsideSettingsSnapshot = snapshotDirectoryExcept(
+      this.lifecycle.project,
+      '.claude/settings.json',
+    );
+  },
+);
+
+Given(
+  'Safeword has independent declarations at project and user scope',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+      projectPath: string;
+    };
+    const scoped = (scope: 'project' | 'user'): Record<string, unknown> => ({
+      scope,
+      ...(scope === 'project' && { projectPath: state.projectPath }),
+    });
+    state.marketplaces = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+      },
+    ];
+    state.marketplaceDeclarations = (['project', 'user'] as const).map(scope => ({
+      name: 'safeword',
+      source: 'git',
+      url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+      ref: `v${EXPECTED_VERSION}`,
+      ...scoped(scope),
+    }));
+    state.plugins = (['project', 'user'] as const).map(scope => ({
+      id: 'safeword@safeword',
+      version: EXPECTED_VERSION,
+      enabled: true,
+      installPath: state.installPath,
+      ...scoped(scope),
+    }));
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+  },
+);
+
+Given(
+  'the project-scope marketplace and plugin mutations will complete',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = 'project';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      installPath: string;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    state.marketplaces = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+      },
+    ];
+    state.marketplaceDeclarations = [
+      {
+        name: 'safeword',
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: `v${EXPECTED_VERSION}`,
+        scope: 'user',
+      },
+    ];
+    state.plugins = [
+      {
+        id: 'safeword@safeword',
+        version: EXPECTED_VERSION,
+        enabled: true,
+        installPath: state.installPath,
+        scope: 'user',
+      },
+    ];
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+  },
+);
+
+Given(
+  'observing the final project-scope installation will fail',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      failOperation: string | null;
+      failOperationAfter: number;
+    };
+    state.failOperation = 'plugin list';
+    state.failOperationAfter = 1;
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    captureScopedPreservation(this);
+  },
+);
+
+Given(
+  /^the selected (project|user) installation is prepared so (no mutation|marketplace registration) complete before (marketplace add|plugin update) fails$/u,
+  function (
+    this: NativeClaudePluginWorld,
+    selectedScope: string,
+    _completedEffects: string,
+    failingOperation: string,
+  ) {
+    assert.ok(this.lifecycle);
+    this.lifecycle.selectedScope = selectedScope as 'project' | 'user';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      failOperation: string | null;
+      marketplaceDeclarations: Record<string, unknown>[];
+      marketplaces: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    state.marketplaceDeclarations = state.marketplaceDeclarations.filter(
+      entry => entry.scope !== selectedScope,
+    );
+    if (failingOperation === 'plugin update') {
+      const plugin = state.plugins.find(entry => entry.scope === selectedScope);
+      assert.ok(plugin);
+      plugin.version = '0.70.0';
+    }
+    state.failOperation =
+      failingOperation === 'marketplace add' ? 'plugin marketplace add' : 'plugin update';
+    writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+    materializeScopedSettings(
+      this.lifecycle.project,
+      this.lifecycle.configRoot ?? '',
+      state.marketplaceDeclarations,
+      state.plugins,
+    );
+    this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
+    captureScopedPreservation(this);
+  },
+);
+
+When(
+  /^safeword claude install runs with (no scope option|--scope project|--scope user)$/u,
+  function (this: NativeClaudePluginWorld, scopeOption: string) {
+    assert.ok(this.lifecycle);
+    const scopeArguments =
+      scopeOption === 'no scope option' ? [] : ['--scope', scopeOption.split(' ').at(-1) ?? ''];
+    this.lifecycle.result = runLifecycleCommand(this, ['claude', 'install', ...scopeArguments]);
+  },
+);
+
+When(
+  /^safeword claude install runs with (--scope local|--scope invalid|--scope with no value)$/u,
+  function (this: NativeClaudePluginWorld, scopeOption: string) {
+    assert.ok(this.lifecycle);
+    const scopeArguments =
+      scopeOption === '--scope with no value'
+        ? ['--scope']
+        : ['--scope', scopeOption.split(' ').at(-1) ?? ''];
+    this.lifecycle.result = runLifecycleCommand(this, ['claude', 'install', ...scopeArguments]);
+  },
+);
+
+When('safeword claude install runs', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
   const result = spawnSync(
     'bun',
     [
       nodePath.join(REPO_ROOT, 'packages', 'cli', 'src', 'cli.ts'),
+      'claude',
       'install',
-      '--agents=claude',
       '--json',
       '--no-input',
       '--cwd',
@@ -1763,6 +2785,7 @@ When('safeword install for Claude runs', function (this: NativeClaudePluginWorld
       cwd: REPO_ROOT,
       env: {
         ...process.env,
+        CLAUDE_CONFIG_DIR: this.lifecycle.configRoot,
         FAKE_CLAUDE_STATE: this.lifecycle.statePath,
         PATH: `${nodePath.join(this.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
       },
@@ -1776,9 +2799,478 @@ When('safeword install for Claude runs', function (this: NativeClaudePluginWorld
 });
 
 Then(
-  'the official marketplace and exact enabled Safeword version exist at user scope',
+  /^the exact official Safeword plugin is enabled at (project|user)(?: scope)? for the current project$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    if (this.lifecycle === undefined) {
+      createExactScopedFixture(this, scope as 'project' | 'user');
+      return;
+    }
+    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    assert.ok(
+      state.plugins.some(
+        plugin =>
+          plugin.id === 'safeword@safeword' &&
+          plugin.version === EXPECTED_VERSION &&
+          plugin.enabled === true &&
+          plugin.scope === scope &&
+          (scope !== 'project' || plugin.projectPath === this.lifecycle?.project),
+      ),
+    );
+    assert.ok(
+      state.marketplaceDeclarations.some(
+        marketplace =>
+          marketplace.name === 'safeword' &&
+          marketplace.ref === 'stable' &&
+          marketplace.scope === scope &&
+          (scope !== 'project' || marketplace.projectPath === this.lifecycle?.project),
+      ),
+    );
+  },
+);
+
+Then(
+  'selected-scope plugin and marketplace state are byte-identical',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
+
+Then(
+  'unrelated project and profile state are byte-identical',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+    assert.equal(
+      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      this.lifecycle.configTreeSnapshot,
+    );
+  },
+);
+
+Then('the result reports no completed mutation', function (this: NativeClaudePluginWorld) {
+  assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+  const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+    changed?: boolean;
+    effects?: Record<string, unknown[]>;
+  };
+  assert.equal(result.changed, false);
+  assert.ok(Object.values(result.effects ?? {}).every(effects => effects.length === 0));
+});
+
+Then(
+  'installation fails as unverified without reporting a no-op',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 1, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      changed?: boolean;
+      errors?: { code?: string }[];
+      state?: string;
+    };
+    assert.equal(result.state, 'failed');
+    assert.equal(result.changed, false);
+    assert.equal(result.errors?.[0]?.code, 'CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED');
+  },
+);
+
+Then("the other scope's declaration is byte-identical", function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+    marketplaceDeclarations: Record<string, unknown>[];
+    plugins: Record<string, unknown>[];
+  };
+  const selectedScope = this.lifecycle.selectedScope;
+  const otherScope = selectedScope === 'project' ? 'user' : 'project';
+  assert.equal(
+    JSON.stringify({
+      marketplaces: state.marketplaceDeclarations.filter(entry => entry.scope === otherScope),
+      plugins: state.plugins.filter(entry => entry.scope === otherScope),
+    }),
+    this.lifecycle.otherScopeSnapshot,
+  );
+});
+
+Then(
+  /^the (project|user) installation is byte-identical$/u,
+  function (this: NativeClaudePluginWorld, otherScope: string) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    assert.equal(
+      JSON.stringify({
+        marketplaces: state.marketplaceDeclarations.filter(entry => entry.scope === otherScope),
+        plugins: state.plugins.filter(entry => entry.scope === otherScope),
+      }),
+      this.lifecycle.otherScopeSnapshot,
+    );
+  },
+);
+
+Then('the result reports scope-overlap', function (this: NativeClaudePluginWorld) {
+  const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+    data?: { classification?: string };
+  };
+  assert.equal(result.data?.classification, 'scope-overlap');
+});
+
+Then(
+  /^installation reports (unverified metadata|downgrade refused) without changing the selected installation$/u,
+  function (this: NativeClaudePluginWorld, classification: string) {
+    assert.equal(this.lifecycle?.result?.status, 1, this.lifecycle?.result?.output);
+    assert.ok(this.lifecycle);
+    const result = JSON.parse(this.lifecycle.result?.output ?? '') as {
+      data?: { classification?: string };
+    };
+    assert.equal(result.data?.classification, classification.replaceAll(' ', '-'));
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
+
+Then(
+  'only the official marketplace, failure fallback, and Safeword plugin declarations are added at project scope',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.ok(this.lifecycle);
+    const settings = JSON.parse(
+      readFileSync(nodePath.join(this.lifecycle.project, '.claude/settings.json'), 'utf8'),
+    ) as {
+      env?: Record<string, unknown>;
+      enabledPlugins?: Record<string, unknown>;
+      extraKnownMarketplaces?: Record<string, unknown>;
+    };
+    assert.deepEqual(settings.extraKnownMarketplaces?.safeword, {
+      autoUpdate: true,
+      source: {
+        source: 'git',
+        url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
+        ref: 'stable',
+      },
+    });
+    assert.equal(settings.env?.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE, '1');
+    assert.equal(settings.enabledPlugins?.['safeword@safeword'], true);
+  },
+);
+
+Then(
+  'every unrelated project setting value is preserved',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const settings = JSON.parse(
+      readFileSync(nodePath.join(this.lifecycle.project, '.claude/settings.json'), 'utf8'),
+    ) as Record<string, unknown> & {
+      enabledPlugins?: Record<string, unknown>;
+      extraKnownMarketplaces?: Record<string, unknown>;
+    };
+    delete settings.extraKnownMarketplaces?.safeword;
+    delete settings.enabledPlugins?.['safeword@safeword'];
+    delete (settings.env as Record<string, unknown> | undefined)
+      ?.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE;
+    assert.deepEqual(settings, this.lifecycle.projectSettingsSnapshot);
+  },
+);
+
+Then('every project file outside Claude settings is byte-identical', function () {
+  const world = this as NativeClaudePluginWorld;
+  assert.ok(world.lifecycle);
+  assert.equal(
+    snapshotDirectoryExcept(world.lifecycle.project, '.claude/settings.json'),
+    world.lifecycle.projectFilesOutsideSettingsSnapshot,
+  );
+});
+
+Then(
+  /^(?:the other scope's|the user-scope) declaration and unrelated state are byte-identical$/u,
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.ok(this.lifecycle.selectedScope);
+    const otherScope = this.lifecycle.selectedScope === 'project' ? 'user' : 'project';
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+      unrelated: unknown;
+    };
+    assert.equal(
+      JSON.stringify({
+        marketplaces: state.marketplaceDeclarations.filter(entry => entry.scope === otherScope),
+        plugins: state.plugins.filter(entry => entry.scope === otherScope),
+      }),
+      this.lifecycle.otherScopeSnapshot,
+    );
+    assert.deepEqual(state.unrelated, this.lifecycle.unrelatedProfile);
+    assert.equal(
+      settingsBytes(this.lifecycle, otherScope),
+      this.lifecycle.otherScopeSettingsSnapshot,
+    );
+    assert.deepEqual(
+      unrelatedSettings(settingsBytes(this.lifecycle, this.lifecycle.selectedScope)),
+      this.lifecycle.selectedScopeUnrelatedSettingsSnapshot,
+    );
+    assert.equal(
+      snapshotDirectoryExcept(this.lifecycle.project, '.claude/settings.json'),
+      this.lifecycle.projectFilesOutsideSettingsSnapshot,
+    );
+    assert.equal(
+      snapshotDirectoryExcept(this.lifecycle.configRoot ?? '', 'settings.json'),
+      this.lifecycle.profileFilesOutsideSettingsSnapshot,
+    );
+  },
+);
+
+Then(
+  'installation reports postcondition verification failure',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 1, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { classification?: string };
+      errors?: { code?: string }[];
+    };
+    assert.equal(result.data?.classification, 'postcondition-verification-failed');
+    assert.equal(result.errors?.[0]?.code, 'CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED');
+  },
+);
+
+Then(
+  'it reports the marketplace and plugin mutations as completed',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      effects?: { configuration?: unknown[] };
+    };
+    assert.deepEqual(result.effects?.configuration, [
+      { kind: 'update', target: 'safeword', operation: 'project' },
+      { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'project' },
+      {
+        kind: 'enable',
+        target: 'safeword last-known-good marketplace fallback',
+        operation: 'project',
+      },
+      { kind: 'install', target: 'safeword@safeword', operation: 'project' },
+    ]);
+  },
+);
+
+Then(
+  /^installation reports that (marketplace add|plugin update) failed$/u,
+  function (this: NativeClaudePluginWorld, failingOperation: string) {
+    assert.equal(this.lifecycle?.result?.status, 1, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      errors?: { message?: string }[];
+    };
+    const command =
+      failingOperation === 'marketplace add' ? 'plugin marketplace add' : 'plugin update';
+    assert.match(result.errors?.[0]?.message ?? '', new RegExp(command, 'u'));
+  },
+);
+
+Then(
+  /^it reports exactly (no mutation|marketplace registration) as completed$/u,
+  function (this: NativeClaudePluginWorld, completedEffects: string) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      effects?: { configuration?: unknown[] };
+    };
+    assert.deepEqual(
+      result.effects?.configuration,
+      completedEffects === 'no mutation'
+        ? []
+        : [
+            { kind: 'update', target: 'safeword', operation: 'user' },
+            { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'user' },
+            {
+              kind: 'enable',
+              target: 'safeword last-known-good marketplace fallback',
+              operation: 'user',
+            },
+          ],
+    );
+  },
+);
+
+Then(
+  /^the (project|user) plugin and marketplace declarations remain absent$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      marketplaceDeclarations: Record<string, unknown>[];
+      plugins: Record<string, unknown>[];
+    };
+    const appliesToScope = (entry: Record<string, unknown>): boolean =>
+      (entry.scope ?? 'user') === scope &&
+      (scope !== 'project' || entry.projectPath === this.lifecycle?.project);
+    assert.equal(state.marketplaceDeclarations.some(appliesToScope), false);
+    assert.equal(state.plugins.some(appliesToScope), false);
+  },
+);
+
+Then(
+  /^the result reports (project|user) as the selected scope$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { scope?: string };
+    };
+    assert.equal(result.data?.scope, scope);
+  },
+);
+
+Then(
+  /^status reports (project|user) as the applicable Safeword scope$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { applicable_scope?: string };
+    };
+    assert.equal(result.data?.applicable_scope, scope);
+  },
+);
+
+Then(
+  /^human status names (project|user) as the configured scope$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    const result = runLifecycleCommand(this, ['claude', 'status'], false);
+    assert.match(result.output, new RegExp(`configured at ${scope} scope`, 'u'));
+  },
+);
+
+Then(
+  'status reports that Safeword is not installed for the current project',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { applicable_scope?: string; classification?: string };
+    };
+    assert.equal(result.data?.classification, 'missing');
+    assert.equal(result.data?.applicable_scope, undefined);
+  },
+);
+
+Then(
+  'status reports scope-overlap and the identity and health of both installations',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: {
+        classification?: string;
+        installations?: { health?: string; scope?: string }[];
+      };
+    };
+    assert.equal(result.data?.classification, 'scope-overlap');
+    assert.deepEqual(
+      Object.fromEntries(
+        (result.data?.installations ?? []).map(installation => [
+          installation.scope,
+          installation.health,
+        ]),
+      ),
+      this.lifecycle?.overlapHealthSnapshot,
+    );
+  },
+);
+
+Then(
+  'it names explicit project-scope and user-scope resolution actions',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.deepEqual(
+      result.next_actions?.map(action => action.command),
+      [
+        'claude plugin uninstall safeword@safeword --scope project',
+        'claude plugin uninstall safeword@safeword --scope user',
+      ],
+    );
+  },
+);
+
+Then(
+  'human status explains both overlapping installations and both resolution choices',
+  function (this: NativeClaudePluginWorld) {
+    const result = runLifecycleCommand(this, ['claude', 'status'], false);
+    assert.match(result.output, /overlapping Claude installations/u);
+    assert.match(result.output, /project \(.+\).+user \(.+\)/u);
+    assert.match(result.output, /--scope project/u);
+    assert.match(result.output, /--scope user/u);
+  },
+);
+
+Then('only the recognized legacy protection is removed', function (this: NativeClaudePluginWorld) {
+  assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+  assert.ok(this.lifecycle);
+  assert.equal(
+    existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
+    false,
+  );
+});
+
+Then(
+  'cleanup reports unproven without removing legacy protection',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { classification?: string };
+    };
+    assert.equal(result.data?.classification, 'unproven');
+    assert.ok(this.lifecycle);
+    assert.equal(
+      existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
+      true,
+    );
+  },
+);
+
+Then(
+  'cleanup reports scope-overlap without removing legacy protection',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      data?: { classification?: string };
+    };
+    assert.equal(result.data?.classification, 'scope-overlap');
+    assert.ok(this.lifecycle);
+    assert.equal(
+      existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
+      true,
+    );
+  },
+);
+
+Then(
+  /^the (project|user) installation and unrelated state remain byte-identical$/u,
+  function (this: NativeClaudePluginWorld, _scope: string) {
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assert.equal(
+      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      this.lifecycle.configTreeSnapshot,
+    );
+  },
+);
+
+Then('installation rejects the unsupported scope', function (this: NativeClaudePluginWorld) {
+  assert.equal(this.lifecycle?.result?.status, 1, this.lifecycle?.result?.output);
+  const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+    state?: string;
+    errors?: unknown[];
+  };
+  assert.equal(result.state, 'failed');
+  assert.ok((result.errors?.length ?? 0) > 0);
+});
+
+Then('project and profile state remain byte-identical', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+});
+
+Then(
+  'the official marketplace and exact enabled Safeword version exist at user scope',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
     assert.ok(this.lifecycle);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
       marketplaces: { name: string; source: string }[];
@@ -1795,7 +3287,7 @@ Then(
         name: 'safeword',
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
-        ref: `v${EXPECTED_VERSION}`,
+        ref: 'stable',
       },
     ]);
     assert.deepEqual(state.plugins, [
@@ -1810,17 +3302,14 @@ Then(
   },
 );
 
-Then(
-  'project configuration is installed without changing unrelated project files',
-  function (this: NativeClaudePluginWorld) {
-    assert.ok(this.lifecycle);
-    assert.equal(
-      readFileSync(nodePath.join(this.lifecycle.project, 'keep.txt'), 'utf8'),
-      this.lifecycle.projectSnapshot,
-    );
-    assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/version')));
-  },
-);
+Then('every project file is byte-identical', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  assert.equal(
+    readFileSync(nodePath.join(this.lifecycle.project, 'keep.txt'), 'utf8'),
+    this.lifecycle.projectSnapshot,
+  );
+  assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
+});
 
 Then('unrelated profile state is byte-identical', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
@@ -1843,17 +3332,17 @@ Then(
 );
 
 Then(
-  'it returns unsupported-host after configuring the project without profile mutation',
+  'it returns unsupported-host with profile and project state byte-identical',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.lifecycle?.result?.status, 1);
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
-    assertProjectConfiguredWithoutChangingSentinel(
-      this.lifecycle.project,
-      this.lifecycle.projectSnapshot,
-    );
+    assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
     const result = JSON.parse(this.lifecycle.result?.output ?? '') as { data?: unknown };
-    assert.deepEqual(result.data, failedClaudeInstallData());
+    assert.deepEqual(result.data, {
+      command: 'claude install',
+      classification: 'unsupported-host',
+    });
   },
 );
 
@@ -1870,15 +3359,12 @@ Then(
 );
 
 Then(
-  'installation fails after configuring the project without changing the conflicting marketplace',
+  'installation fails without changing the project or the conflicting marketplace',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.lifecycle?.result?.status, 1);
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
-    assertProjectConfiguredWithoutChangingSentinel(
-      this.lifecycle.project,
-      this.lifecycle.projectSnapshot,
-    );
+    assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
   },
 );
 
@@ -1899,14 +3385,11 @@ Then(
 );
 
 Then(
-  'installation fails as unverified after configuring the project',
+  'installation fails as unverified without changing the project',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.lifecycle?.result?.status, 1);
     assert.ok(this.lifecycle);
-    assertProjectConfiguredWithoutChangingSentinel(
-      this.lifecycle.project,
-      this.lifecycle.projectSnapshot,
-    );
+    assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
     const result = JSON.parse(this.lifecycle.result?.output ?? '') as {
       errors?: { code?: string }[];
     };
@@ -1928,20 +3411,17 @@ Then(
 );
 
 Then(
-  'it returns errored after configuring the project without changing unrelated profile values',
+  'it returns errored without changing project files or unrelated profile values',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.lifecycle?.result?.status, 1);
     assert.ok(this.lifecycle);
-    assertProjectConfiguredWithoutChangingSentinel(
-      this.lifecycle.project,
-      this.lifecycle.projectSnapshot,
-    );
+    assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
       unrelated?: unknown;
     };
     assert.deepEqual(state.unrelated, this.lifecycle.unrelatedProfile);
     const result = JSON.parse(this.lifecycle.result?.output ?? '') as { data?: unknown };
-    assert.deepEqual(result.data, failedClaudeInstallData(['run /reload-plugins']));
+    assert.deepEqual(result.data, { command: 'claude install', classification: 'errored' });
   },
 );
 
@@ -1965,6 +3445,12 @@ Then(
     };
     assert.deepEqual(result.effects?.configuration, [
       { kind: 'add', target: 'safeword', operation: 'user' },
+      { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'user' },
+      {
+        kind: 'enable',
+        target: 'safeword last-known-good marketplace fallback',
+        operation: 'user',
+      },
     ]);
   },
 );
@@ -2017,7 +3503,7 @@ Then(
     assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.ok(this.cacheFixture);
     const proof = JSON.parse(
-      readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
+      readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
     ) as {
       event?: string;
       plugin_version?: string;
@@ -2040,6 +3526,6 @@ Then(
   'status observes current-task plugin proof without requiring a restart',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.cacheFixture);
-    assert.ok(existsSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json')));
+    assert.ok(existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)));
   },
 );

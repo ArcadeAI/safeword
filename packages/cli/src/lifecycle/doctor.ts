@@ -4,6 +4,7 @@ import {
   type LifecycleSurfaceObservation,
   lifecycleSurfaceSummaries,
   observeLifecycleSurfaces,
+  projectObservationData,
   summarizeLifecycleStatus,
 } from './status.js';
 
@@ -53,6 +54,7 @@ export async function diagnoseLifecycle(
     recovery: surfaces.flatMap(surface => surface.result.recovery),
     nextActions: surfaces.flatMap(surface => surface.result.nextActions),
     data: {
+      ...projectObservationData(surfaces),
       command: 'doctor',
       operation: 'doctor',
       selected_agents: agents,

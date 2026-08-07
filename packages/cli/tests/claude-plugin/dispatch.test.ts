@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -36,8 +37,9 @@ describe('Claude plugin dispatcher', () => {
     );
 
     expect(result.stderr).not.toContain('Module not found');
-    expect(result.status).toBe(0);
-    const proofPath = nodePath.join(pluginData, 'execution-proof-v1.json');
+    expect(result.status, result.stderr).toBe(0);
+    const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    const proofPath = nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`);
     expect(existsSync(proofPath)).toBe(true);
     expect(JSON.parse(readFileSync(proofPath, 'utf8'))).toMatchObject({
       event: 'SessionStart',

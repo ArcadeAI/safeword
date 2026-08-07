@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-null -- versioned JSON uses explicit null for unavailable values */
 
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -22,7 +22,7 @@ export interface CodexPluginIdentity {
   manifest_sha256: string;
 }
 
-export interface CodexHookProofV1 {
+interface CodexHookProofV1 {
   schema_version: 1;
   event: CodexPluginHookEvent;
   plugin_version: string;
@@ -39,7 +39,14 @@ export interface CodexHookProofV2 {
   recorded_at: string;
 }
 
-export interface CodexActivationMarkerV1 {
+interface CodexSessionProofV1 extends CodexPluginIdentity {
+  schema_version: 1;
+  project_directory: string;
+  session_id: string;
+  recorded_at: string;
+}
+
+interface CodexActivationMarkerV1 {
   schema_version: 1;
   plugin_version: string;
   manifest_sha256: string;
@@ -97,6 +104,30 @@ export function codexProofPath(
     codexProfileDirectory(environment),
     'safeword/hook-proof-v2',
     `${event}.json`,
+  );
+}
+
+function canonicalProjectDirectory(projectDirectory: string): string {
+  try {
+    return realpathSync(projectDirectory);
+  } catch {
+    return nodePath.resolve(projectDirectory);
+  }
+}
+
+function codexSessionProofPath(
+  projectDirectory: string,
+  sessionId: string,
+  environment: NodeJS.ProcessEnv,
+): string {
+  const project = canonicalProjectDirectory(projectDirectory);
+  const projectDigest = createHash('sha256').update(project).digest('hex');
+  const sessionDigest = createHash('sha256').update(sessionId).digest('hex');
+  return nodePath.join(
+    codexProfileDirectory(environment),
+    'safeword/session-proof-v1',
+    projectDigest,
+    `${sessionDigest}.json`,
   );
 }
 
@@ -187,6 +218,10 @@ export function writeCodexActivationMarker(
     recursive: true,
     force: true,
   });
+  rmSync(nodePath.join(codexProfileDirectory(environment), 'safeword/session-proof-v1'), {
+    recursive: true,
+    force: true,
+  });
   rmSync(codexActivationReceiptPath(environment), { force: true });
   rmSync(legacyCodexActivationMarkerPath(environment), { force: true });
   rmSync(legacyCodexRestartMarkerPath(environment), { force: true });
@@ -239,6 +274,8 @@ export function recordCodexHookProof(
     beforeRename?: () => void;
     currentHost?: CodexHostProcessIdentity | null;
     hostObservation?: CodexHostProcessObservation;
+    projectDirectory?: string;
+    sessionId?: string;
   } = {},
 ): CodexHookProofV2 {
   const identity = currentCodexPluginIdentity();
@@ -265,7 +302,42 @@ export function recordCodexHookProof(
     recorded_at: now.toISOString(),
   };
   writeAtomicJson(codexProofPath(environment, event), proof, writeOptions);
+  const sessionId = writeOptions.sessionId?.trim();
+  if (event === 'session-start' && writeOptions.projectDirectory !== undefined && sessionId) {
+    const projectDirectory = canonicalProjectDirectory(writeOptions.projectDirectory);
+    const sessionProof: CodexSessionProofV1 = {
+      schema_version: 1,
+      ...identity,
+      project_directory: projectDirectory,
+      session_id: sessionId,
+      recorded_at: now.toISOString(),
+    };
+    writeAtomicJson(codexSessionProofPath(projectDirectory, sessionId, environment), sessionProof);
+  }
   return proof;
+}
+
+export function codexSessionProofIsCurrent(
+  projectDirectory: string,
+  sessionId: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const canonicalProject = canonicalProjectDirectory(projectDirectory);
+  try {
+    const value = JSON.parse(
+      readFileSync(codexSessionProofPath(canonicalProject, sessionId, environment), 'utf8'),
+    ) as Partial<CodexSessionProofV1>;
+    return (
+      value.schema_version === 1 &&
+      value.project_directory === canonicalProject &&
+      value.session_id === sessionId &&
+      typeof value.recorded_at === 'string' &&
+      !Number.isNaN(Date.parse(value.recorded_at)) &&
+      matchesCodexPluginIdentity(value, currentCodexPluginIdentity())
+    );
+  } catch {
+    return false;
+  }
 }
 
 function writeAtomicJson(

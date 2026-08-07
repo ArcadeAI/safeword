@@ -19,7 +19,7 @@ vi.mock('../../src/claude-plugin/status.js', async () => {
   };
 });
 
-vi.mock('../../src/codex-plugin/installer.js', async () => {
+vi.mock('../../src/codex-plugin/operations.js', async () => {
   const { createResult } = await import('../../src/cli-protocol/result.js');
   return {
     observeCodexMigration: () =>
@@ -53,9 +53,9 @@ describe('lifecycle profile observation', () => {
     // No Cursor assets exist, so Cursor must not inherit any project verdict.
     expect(cursor?.result.state).toBe('action_required');
     expect(cursor?.result.findings.map(finding => finding.code)).toContain('CURSOR_ASSETS_MISSING');
-    expect(cursor?.result.nextActions.map(action => action.command)).toContain(
-      'safeword install --agents=cursor',
-    );
+    expect(
+      cursor?.result.nextActions.flatMap(action => ('command' in action ? [action.command] : [])),
+    ).toContain('safeword install --agents=cursor');
   });
 
   it('advises when a project carries Cursor assets the selection excludes', async () => {

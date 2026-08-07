@@ -2,47 +2,40 @@
 Feature: Install the Safe Word Codex plugin for new users
 
   @codex-plugin-install.TBU1.R1
-  Rule: codex-plugin-install.TBU1.R1 - New users install Codex through the unified project command
+  Rule: codex-plugin-install.TBU1.R1 - New-user setup enrolls each developer automatically
 
-    Scenario: Fresh scoped installation configures the project and installs Codex
-      Given a project has no Codex configuration
-      And the Safe Word Codex plugin can be installed and is enabled
-      When the builder installs Safe Word for Codex
-      Then the active Codex profile has the enabled Safe Word plugin
-      And the project has Safe Word core configuration
+    Scenario: Fresh setup enrolls automatic Codex plugin installation
+      Given an empty project has no Safe Word workflow material
+      When the builder sets up Safe Word for Codex
+      Then Safe Word reports that automatic Codex profile enrollment is installed
 
-    Scenario: The retained upgrade alias can perform a scoped Codex installation
+    Scenario: Upgrade enrolls automatic Codex plugin installation
       Given a Safe Word project can be upgraded
-      And the Safe Word Codex plugin can be installed and is enabled
-      When the builder upgrades Safe Word for Codex
-      Then the active Codex profile has the enabled Safe Word plugin
-      And the project has Safe Word core configuration
+      When the builder upgrades Safe Word
+      Then Safe Word reports that automatic Codex profile enrollment is installed
 
     @rejection
-    Scenario: Fresh installation does not direct builders to the legacy migration command
-      Given a project has no Codex configuration
-      And the Safe Word Codex plugin can be installed and is enabled
-      When the builder installs Safe Word for Codex
+    Scenario: Fresh setup does not direct builders to the legacy migration command
+      Given an empty project has no Safe Word workflow material
+      When the builder sets up Safe Word for Codex
       Then Safe Word does not direct the builder to the legacy Codex migration command
 
   @codex-plugin-install.TBU1.R2
-  Rule: codex-plugin-install.TBU1.R2 - The retained Codex alias uses unified project installation without project-local hooks
+  Rule: codex-plugin-install.TBU1.R2 - Profile installation leaves the project untouched
 
-    Scenario: Fresh Codex installation verifies the profile plugin and configures core assets
+    Scenario: Fresh Codex installation verifies the profile plugin without project configuration
       Given a project has no Codex configuration
       And the Safe Word Codex plugin can be installed and is enabled
       When the builder installs the Safe Word Codex plugin
       Then the active Codex profile has the enabled Safe Word plugin
-      And the project has Safe Word core configuration
       And the project has no Safe Word Codex hook configuration
       And the builder is told to restart Codex before reviewing the installed plugin
 
-    Scenario: Repeating Codex installation remains convergent
+    Scenario: Repeating Codex installation remains profile-only
       Given a project has no Codex configuration
       And the Safe Word Codex plugin can be installed and is enabled
       When the builder installs the Safe Word Codex plugin twice
       Then the active Codex profile has the enabled Safe Word plugin
-      And the project has Safe Word core configuration
       And the project has no Safe Word Codex hook configuration
 
     @rejection

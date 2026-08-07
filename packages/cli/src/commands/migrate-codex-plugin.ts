@@ -1,4 +1,10 @@
+/**
+ * Compatibility facade for callers that import the historical command module.
+ * Shared setup and bootstrap flows use the Codex operations module directly so
+ * command entry points never depend on one another.
+ */
 export {
+  automaticallyMigrateLegacyCodex,
   installCodexPlugin,
   migrateCodexPlugin,
   observeCodexFinalizationEffects,
@@ -8,5 +14,4 @@ export {
   type ObservedCodexFinalizationPlan,
   recoverCodexMigration,
   removeLegacyCodexHooks,
-  uninstallCodexPlugin,
-} from '../codex-plugin/installer.js';
+} from '../codex-plugin/operations.js';

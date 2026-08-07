@@ -9,6 +9,7 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { filterOutSafewordHooks } from '../utils/hooks.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
+import { canonicalClaudeProjectRoot } from './profile.js';
 import { observeClaudeStatus } from './status.js';
 
 interface CleanupEntry {
@@ -120,11 +121,12 @@ function preconditionDigest(
   );
 }
 
-export function observeClaudeCleanupPlan(cwd: string): { plan: CliPlan; status: CliResult } {
-  const status = observeClaudeStatus(cwd);
+function observeClaudeCleanupPlan(cwd: string): { plan: CliPlan; status: CliResult } {
+  const projectRoot = canonicalClaudeProjectRoot(cwd);
+  const status = observeClaudeStatus(projectRoot);
   const classification = statusClassification(status);
-  const mutations = classification === 'cleanup-ready' ? cleanupMutations(cwd, status) : [];
-  const digest = preconditionDigest(cwd, mutations);
+  const mutations = classification === 'cleanup-ready' ? cleanupMutations(projectRoot, status) : [];
+  const digest = preconditionDigest(projectRoot, mutations);
   return {
     status,
     plan: createPlan({
@@ -211,7 +213,8 @@ export function cleanupClaudeLegacy(
   options: { assumeYes: boolean; plan?: string },
 ): CliResult {
   try {
-    const observed = observeClaudeCleanupPlan(cwd);
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    const observed = observeClaudeCleanupPlan(projectRoot);
     const classification = statusClassification(observed.status);
     if (classification !== 'cleanup-ready') return observed.status;
     if (!options.assumeYes || options.plan !== observed.plan.id) {
@@ -234,23 +237,23 @@ export function cleanupClaudeLegacy(
         data: { command: 'claude cleanup', classification, plan: toWirePlan(observed.plan) },
       });
     }
-    const mutations = cleanupMutations(cwd, observed.status);
+    const mutations = cleanupMutations(projectRoot, observed.status);
     const transaction: CleanupTransaction = {
       schema_version: 1,
       transaction_id: randomUUID(),
       disposition: 'complete-forward',
-      entries: mutations.map(mutation => entryFor(cwd, mutation)),
+      entries: mutations.map(mutation => entryFor(projectRoot, mutation)),
     };
-    writeTransaction(cwd, transaction);
-    applyEntries(cwd, transaction.entries);
-    const marker = containedPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
+    writeTransaction(projectRoot, transaction);
+    applyEntries(projectRoot, transaction.entries);
+    const marker = containedPath(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
     mkdirSync(nodePath.dirname(marker), { recursive: true });
     writeDurableFile(
       marker,
       `${JSON.stringify({ schema_version: 1, mode: 'plugin', transaction_id: transaction.transaction_id })}\n`,
       { mode: 0o600 },
     );
-    rmSync(transactionPath(cwd), { force: true });
+    rmSync(transactionPath(projectRoot), { force: true });
     return createResult({
       state: 'changed',
       effects: {
@@ -274,28 +277,34 @@ function parseTransaction(cwd: string): CleanupTransaction {
 }
 
 export function recoverClaudeCleanup(cwd: string): CliResult {
-  if (!existsSync(transactionPath(cwd))) {
+  let projectRoot: string;
+  try {
+    projectRoot = canonicalClaudeProjectRoot(cwd);
+  } catch (error) {
+    return cleanupFailure(error, 'recovery-required');
+  }
+  if (!existsSync(transactionPath(projectRoot))) {
     return createResult({
       state: 'healthy',
       data: { command: 'claude recover', classification: 'plugin-mode' },
     });
   }
   try {
-    const transaction = parseTransaction(cwd);
+    const transaction = parseTransaction(projectRoot);
     for (const entry of transaction.entries) {
-      const path = assertSafeTarget(cwd, entry.path);
+      const path = assertSafeTarget(projectRoot, entry.path);
       const current = observedSha(path);
       const expectedCurrent =
         transaction.disposition === 'complete-forward' ? entry.before_sha256 : entry.after_sha256;
       if (current !== expectedCurrent) throw new Error(`Claude recovery conflict at ${entry.path}`);
     }
     for (const entry of transaction.entries) {
-      const path = containedPath(cwd, entry.path);
+      const path = containedPath(projectRoot, entry.path);
       if (transaction.disposition === 'complete-forward')
         writeImage(path, entry.after_base64, entry.after_mode);
       else writeImage(path, entry.before_base64, entry.before_mode);
     }
-    rmSync(transactionPath(cwd), { force: true });
+    rmSync(transactionPath(projectRoot), { force: true });
     return createResult({
       state: 'changed',
       data: {

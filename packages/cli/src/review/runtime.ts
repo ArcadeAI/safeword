@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { accessSync, constants, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -95,6 +95,7 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
 };
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
+export const DEFAULT_REVIEW_TIMEOUT_MS = 10 * 60_000;
 
 const REVIEW_RUBRICS: Readonly<Record<ReviewPacket['kind'], string>> = {
   'quality-review':
@@ -115,9 +116,12 @@ export class ReviewRuntimeError extends Error {
   }
 }
 
-function timeoutMilliseconds(): number {
-  const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : 120_000;
+export function reviewTimeoutMilliseconds(
+  _reviewer: ReviewAgent,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): number {
+  const configured = Number(env.SAFEWORD_REVIEW_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -305,6 +309,24 @@ function appendBounded(
   };
 }
 
+function terminateReviewerProcessTree(child: ChildProcess): void {
+  if (child.pid === undefined) return;
+
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    child.kill('SIGKILL');
+  }
+}
+
 function runCandidate(
   executable: string,
   reviewer: ReviewAgent,
@@ -317,12 +339,13 @@ function runCandidate(
     let overflow = false;
     const child = spawn(executable, ARGUMENTS[reviewer], {
       cwd,
+      detached: process.platform !== 'win32',
       env: reviewerEnvironment(reviewer),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     const timeout = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGKILL');
+      terminateReviewerProcessTree(child);
     }, timeoutMs);
     let stdout = '';
     let stderr = '';
@@ -336,7 +359,7 @@ function runCandidate(
       stdoutBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        child.kill('SIGKILL');
+        terminateReviewerProcessTree(child);
       }
     });
     child.stderr.on('data', (chunk: string) => {
@@ -345,7 +368,7 @@ function runCandidate(
       stderrBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        child.kill('SIGKILL');
+        terminateReviewerProcessTree(child);
       }
     });
     // Exit status and stderr own failure classification. EPIPE here commonly
@@ -440,7 +463,7 @@ export async function runHeadlessReviewer(
   cwd: string,
   untrustedRoot: string = process.cwd(),
 ): Promise<UnverifiedReviewerOutput> {
-  const deadline = Date.now() + timeoutMilliseconds();
+  const deadline = Date.now() + reviewTimeoutMilliseconds(reviewer);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError(

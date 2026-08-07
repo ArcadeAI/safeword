@@ -65,4 +65,37 @@ describe('formatRetroNudge (BNGK9W — a statement, never an imperative)', () =>
   it('is a single line', () => {
     expect(formatRetroNudge(1, '/proj/.safeword/retro-drafts/sess-1.jsonl')).not.toContain('\n');
   });
+
+  // #1900: this line lands in the transcript retro's own extractor mines, so
+  // diagnosing the spool as a transport failure made it auto-file a bug against a
+  // working subsystem. Pin the whole string — an exact-phrase `toContain` breaks on
+  // compliant rewording while still admitting a non-matching rephrasing of the very
+  // diagnosis it exists to forbid.
+  it('renders the exact nudge wording', () => {
+    expect(formatRetroNudge(2, '/proj/.safeword/retro-drafts/sess-1.jsonl')).toBe(
+      "Safeword's retro spooled 2 unfiled findings from this session at " +
+        '/proj/.safeword/retro-drafts/sess-1.jsonl; this boundary observed them queued for the ' +
+        "safeword-retro-filer subagent (or the live agent's GitHub access). This handoff uses " +
+        "safeword's normal recovery lane for unfiled drafts; the filing path re-reads the spool " +
+        'before reporting what ' +
+        'remains. The filing procedure is in .safeword/guides/self-report-filing.md.',
+    );
+  });
+
+  // The class of claim that is banned, not three literal spellings of it — the old
+  // guard let "its transport is unauthorized in this environment" through untouched.
+  it('makes no claim that the transport failed or was rejected', () => {
+    const line = formatRetroNudge(2, '/proj/.safeword/retro-drafts/sess-1.jsonl');
+    for (const diagnosis of [
+      /authenticat/i,
+      /unauthori[sz]ed/i,
+      /\b401\b/,
+      /\bbroken\b/i,
+      /\bfailed\b|\bfailure\b/i,
+      /\brejected\b/i,
+      /credential (error|problem|failure)/i,
+    ]) {
+      expect(diagnosis.test(line), `nudge must not assert: ${diagnosis}`).toBe(false);
+    }
+  });
 });

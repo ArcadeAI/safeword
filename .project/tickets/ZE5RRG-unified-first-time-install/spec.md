@@ -53,7 +53,10 @@ Unaffected:
 - **Canonical route:** The command form taught in help, quick starts, next actions, and machine capability metadata.
 - **Compatibility alias:** A retained command or option spelling that delegates to a canonical route, stays outside the primary quick path, and emits structured compatibility guidance. It is hidden where the CLI host supports hiding that form.
 - **Project configuration:** Repository-owned core Safe Word assets produced by reconciliation and intended to be committed.
-- **Profile plugin:** User-scoped Claude Code or Codex installation outside the repository.
+- **Agent integration:** A Claude Code or Codex plugin installation. Codex is
+  profile-scoped. Claude defaults to project scope, recording activation in
+  `.claude/settings.json` so the repository declares its dependency; `--scope
+  user` installs across the whole Claude profile (see ticket H87DZR).
 - **Cursor opt-in:** An explicit request to create or reconcile Cursor's project-local hooks, rules, and commands.
 - **Concise status:** A short aggregate health result with prioritized next actions.
 - **Deep diagnostics:** Doctor output that explains causes, coverage, and repair evidence beyond concise status.
@@ -147,7 +150,7 @@ keeping them in one exhaustive compatibility table.
 
 - `safeword install` becomes the documented first command for new users.
 - The command reconciles core repository assets without changing Cursor configuration.
-- The command installs the Claude Code and Codex profile plugins using their existing safety and proof contracts.
+- The command installs the Claude Code and Codex plugins using their existing safety and proof contracts, at each host's default scope.
 - The shared `--agents=` option accepts `claude`, `codex`, `cursor`, and project-only `none`; once supplied, unselected integrations remain untouched.
 - Users receive one per-agent summary with Claude reload and Codex restart/new-task guidance.
 - An NTB can use the completion summary to identify what is ready, what failed, and the one next action without understanding project/profile internals.

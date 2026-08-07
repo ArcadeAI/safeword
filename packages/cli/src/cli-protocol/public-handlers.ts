@@ -1,13 +1,13 @@
 import { existsSync, lstatSync, readFileSync, readlinkSync, type Stats } from 'node:fs';
 import nodePath from 'node:path';
 
-import type * as CodexMigration from '../codex-plugin/installer.js';
 import type {
   LegacyGlobalGuidanceCleanupResult,
   LegacyGlobalGuidanceDiagnostic,
   LegacyGlobalGuidanceObservation,
 } from '../codex-plugin/legacy-global-guidance.js';
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
+import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
@@ -101,8 +101,22 @@ async function installHandler(invocation: CommandInvocation): Promise<CliResult>
 
 async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline) return onlineRequired('claude install');
+  const requestedScope = invocation.options.scope ?? 'project';
+  if (requestedScope !== 'project' && requestedScope !== 'user') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: 'Claude plugin scope must be either project or user.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'claude install' },
+    });
+  }
   const { installClaudePlugin } = await import('../claude-plugin/profile.js');
-  return installClaudePlugin(invocation.cwd);
+  return installClaudePlugin(invocation.cwd, requestedScope);
 }
 
 async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -634,7 +648,7 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
 }
 
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { observeCodexMigration } = await import('../codex-plugin/installer.js');
+  const { observeCodexMigration } = await import('../codex-plugin/operations.js');
   return observeCodexMigration(invocation.cwd);
 }
 
@@ -1002,6 +1016,17 @@ function runCodexInstall(
   };
 }
 
+async function codexBootstrapHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { bootstrapCodexPlugin } = await import('../commands/codex-bootstrap.js');
+  let rawInput = '';
+  try {
+    rawInput = readFileSync(0, 'utf8');
+  } catch {
+    // A missing hook payload is reported as unverified, never as a blocker.
+  }
+  return bootstrapCodexPlugin(invocation.cwd, rawInput, { offline: invocation.offline });
+}
+
 function codexFailureCode(
   error: unknown,
   message: string,
@@ -1056,31 +1081,15 @@ function codexFailure(
     /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(
       message,
     );
+  const partialMarketplace = error instanceof CodexMigrationError && error.profileChanged;
   return createResult({
     state: 'failed',
-    changed: partialInstall || fileEffects.length > 0,
+    changed: partialInstall || partialMarketplace || fileEffects.length > 0,
     effects: {
       files: fileEffects,
-      configuration: partialInstall
-        ? [
-            {
-              kind: 'install',
-              target: 'Safeword Codex profile plugin',
-              operation: 'enablement-unverified',
-            },
-          ]
-        : [],
+      configuration: codexFailureConfig(partialInstall, partialMarketplace),
     },
-    recovery:
-      fileEffects.length > 0
-        ? [
-            {
-              command: 'safeword codex recover',
-              description: 'Retry recovery using the retained migration backup.',
-              requiresHuman: true,
-            },
-          ]
-        : [],
+    recovery: codexFailureRecovery(error, partialMarketplace, fileEffects),
     errors: [
       {
         code: codexFailureCode(error, message, name, isFinalization),
@@ -1089,6 +1098,61 @@ function codexFailure(
       },
     ],
   });
+}
+
+function codexFailureConfig(
+  partialInstall: boolean,
+  partialMarketplace: boolean,
+): CliResult['effects']['configuration'] {
+  if (partialInstall) {
+    return [
+      {
+        kind: 'install',
+        target: 'Safeword Codex profile plugin',
+        operation: 'enablement-unverified',
+      },
+    ];
+  }
+  if (partialMarketplace) {
+    return [
+      {
+        kind: 'remove',
+        target: 'Safeword Codex marketplace',
+        operation: 'restoration-failed',
+      },
+    ];
+  }
+  return [];
+}
+
+function codexFailureRecovery(
+  error: unknown,
+  partialMarketplace: boolean,
+  fileEffects: CliResult['effects']['files'],
+): CliResult['recovery'] {
+  if (
+    partialMarketplace &&
+    error instanceof CodexMigrationError &&
+    error.recoveryCommand !== undefined
+  ) {
+    return [
+      {
+        command: error.recoveryCommand,
+        description: 'Restore the Safeword marketplace removed by the failed replacement.',
+        requiresHuman: true,
+      },
+    ];
+  }
+  if (fileEffects.length > 0) {
+    return [
+      {
+        command: 'safeword codex recover',
+        description: 'Retry recovery using the retained migration backup.',
+        requiresHuman: true,
+      },
+    ];
+  }
+  return [];
 }
 
 type CodexMutationName = 'codex install' | 'codex migrate' | 'codex recover';
@@ -1205,7 +1269,7 @@ async function codexMutationHandler(
   if (invocation.offline && name !== 'codex recover') return onlineRequired(name);
   const isFinalization = isCodexFinalization(name, invocation);
   try {
-    const migration = await import('../codex-plugin/installer.js');
+    const migration = await import('../codex-plugin/operations.js');
     const preflight = await codexMutationPreflight(name, isFinalization, invocation, migration);
     if (preflight !== undefined) return preflight;
 
@@ -1443,6 +1507,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'tracker connect': invocation => trackerHandler('tracker connect', invocation),
   'codex migrate': invocation => codexMutationHandler('codex migrate', invocation),
   'codex install': invocation => codexMutationHandler('codex install', invocation),
+  'codex bootstrap': codexBootstrapHandler,
   'codex status': codexStatusHandler,
   'claude install': claudeInstallHandler,
   'claude status': claudeStatusHandler,

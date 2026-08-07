@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.72.0",
+  "version": "0.74.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -51,6 +51,7 @@
     "generate:claude-plugin": "bun scripts/generate-claude-plugin.ts",
     "check:claude-plugin": "bun scripts/check-claude-plugin-release.ts",
     "generate:cursor-wrappers": "bun scripts/generate-cursor-wrappers.ts",
+    "measure:relay-drain": "bun scripts/measure-relay-drain-throughput.ts",
     "parity:fix": "bun ../../scripts/parity-check.ts --fix",
     "pretest:watch": "tsup",
     "test:watch": "vitest",

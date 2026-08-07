@@ -16,6 +16,12 @@ import process from 'node:process';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import {
+  CODEX_PLUGIN_HOOK_EVENTS,
+  recordCodexHookProof,
+} from '../packages/cli/src/codex-plugin/profile-proof.js';
+import { installFakeCodexRuntime } from '../packages/cli/tests/helpers/fake-codex-runtime.js';
+
 import type { CommandResult, SafewordWorld } from './world.js';
 
 const SAFEWORD_CODEX_PLUGIN_ROOT = nodePath.resolve(
@@ -56,6 +62,8 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginHookContractResults?: CodexHookContractResult[];
   codexPluginMalformedHookCommandName?: CodexHookCommandName;
   codexPluginMigrationResult?: CommandResult;
+  codexPluginMigrationLogPath?: string;
+  codexPluginRuntimeRoot?: string;
   codexPluginUserDataSnapshot?: Record<string, string>;
   codexPluginSelfReportSnapshot?: Record<string, string>;
   codexPluginUserSkillSnapshot?: string;
@@ -134,6 +142,18 @@ function createIsolatedCodexMarketplace(): { codexHome: string; marketplaceRoot:
 function requirePath(value: string | undefined, label: string): string {
   assert.ok(value, `${label} was not initialized`);
   return value;
+}
+
+function writeCompanyWorkflowSkill(repoRoot: string): string {
+  const skillPath = nodePath.join(repoRoot, '.agents/skills/company-workflow/SKILL.md');
+  mkdirSync(nodePath.dirname(skillPath), { recursive: true });
+  writeFileSync(
+    skillPath,
+    ['---', 'name: company-workflow', '---', '', '# Company Workflow', 'Use local process.'].join(
+      '\n',
+    ),
+  );
+  return readFileSync(skillPath, 'utf8');
 }
 
 function runCommand(
@@ -1279,17 +1299,9 @@ Given(
   /^an old project-local Codex install with a user-authored `\.agents\/skills\/company-workflow\/SKILL\.md`$/,
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = createProjectLocalCodexInstallFixture();
-    const skillPath = nodePath.join(repoRoot, '.agents/skills/company-workflow/SKILL.md');
-    mkdirSync(nodePath.dirname(skillPath), { recursive: true });
-    writeFileSync(
-      skillPath,
-      ['---', 'name: company-workflow', '---', '', '# Company Workflow', 'Use local process.'].join(
-        '\n',
-      ),
-    );
 
     this.codexPluginRepoRoot = repoRoot;
-    this.codexPluginUserSkillSnapshot = readFileSync(skillPath, 'utf8');
+    this.codexPluginUserSkillSnapshot = writeCompanyWorkflowSkill(repoRoot);
   },
 );
 
@@ -1364,6 +1376,14 @@ Given(
       'user learning content\n',
     );
     this.codexPluginUserDataSnapshot = readUserDataSnapshot(repoRoot);
+  },
+);
+
+Given(
+  /^the repo contains a user-authored `\.agents\/skills\/company-workflow\/SKILL\.md`$/,
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    this.codexPluginUserSkillSnapshot = writeCompanyWorkflowSkill(repoRoot);
   },
 );
 
@@ -1611,20 +1631,77 @@ When(
   },
 );
 
-When('the plugin migration upgrade runs', function (this: CodexPluginMigrationWorld) {
-  const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-  this.codexPluginMigrationResult = runCommand(
-    process.execPath,
-    [SAFEWORD_CLI_PATH, 'upgrade', '--agents', 'none'],
-    {
+/**
+ * Rejection scenarios in this rule run setup with profile enrollment
+ * made unavailable, and each one asserts the decline it produces (#1973). The
+ * decline is the point: it proves setup ran, reached the Codex handoff,
+ * and preserved the project on the way out. Without that assertion these
+ * scenarios pass whether or not anything executed, because untouched files
+ * look identical to files nothing reached.
+ *
+ * Enrollment stays unavailable in those cases so they cannot clone a network
+ * marketplace or mutate an ambient Codex profile. The successful case below
+ * crosses the same subprocess boundary through a temp-bin fake and isolated
+ * CODEX_HOME.
+ */
+When(
+  'the plugin migration setup runs without profile enrollment available',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
       cwd: repoRoot,
       env: {
+        // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
+        PATH: '',
         SAFEWORD_SKIP_INSTALL: '1',
       },
       timeout: 120_000,
-    },
-  );
-});
+    });
+  },
+);
+
+When(
+  'the plugin migration setup runs with profile enrollment available',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
+    const runtime = installFakeCodexRuntime(runtimeRoot, {
+      pluginEnabled: true,
+      pluginInitiallyInstalled: false,
+    });
+    this.codexPluginRuntimeRoot = runtimeRoot;
+    this.codexPluginCodexHome = runtime.codexHome;
+    this.codexPluginMigrationLogPath = runtime.logPath;
+    const environment = {
+      PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_CODEX_LOG: runtime.logPath,
+      SAFEWORD_SKIP_INSTALL: '1',
+      CODEX_HOME: runtime.codexHome,
+    };
+    const setupResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
+      cwd: repoRoot,
+      env: environment,
+      timeout: 120_000,
+    });
+    assert.equal(setupResult.exitCode, 0, `${setupResult.stdout}\n${setupResult.stderr}`);
+
+    for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      recordCodexHookProof(event, environment);
+    }
+    const preview = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex', 'migrate', '--finalize', '--json'],
+      { cwd: repoRoot, env: environment, timeout: 120_000 },
+    );
+    assert.equal(preview.exitCode, 2, `${preview.stdout}\n${preview.stderr}`);
+    const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+    this.codexPluginMigrationResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex', 'migrate', '--finalize', '--yes', '--plan', planId, '--json'],
+      { cwd: repoRoot, env: environment, timeout: 120_000 },
+    );
+  },
+);
 
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
@@ -1771,18 +1848,61 @@ Then(
   },
 );
 
+/**
+ * Non-vacuity guard for every scenario under this rule (#1973). Survival
+ * assertions only mean something once the upgrade is known to have run and
+ * reached the Codex handoff; a migration that never started leaves the same
+ * files untouched and proves nothing.
+ */
+function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
+  const result = world.codexPluginMigrationResult;
+  assert.ok(result, 'migration result was not captured');
+  assert.equal(
+    result.exitCode,
+    2,
+    `expected a declined migration: ${result.stdout}${result.stderr}`,
+  );
+  assert.match(
+    `${result.stdout}\n${result.stderr}`,
+    /legacy project protection was retained/iu,
+    'upgrade did not reach the Codex handoff decline',
+  );
+}
+
+Then('setup reports profile enrollment failure loudly', function (this: CodexPluginMigrationWorld) {
+  assertMigrationRanAndDeclined(this);
+});
+
 Then(
   'the user-owned tickets and learnings remain byte-identical',
   function (this: CodexPluginMigrationWorld) {
     const result = this.codexPluginMigrationResult;
     assert.ok(result, 'migration result was not captured');
-    assert.equal(result.exitCode, 0, result.stderr);
     assert.deepEqual(
       readUserDataSnapshot(requirePath(this.codexPluginRepoRoot, 'repo root')),
       this.codexPluginUserDataSnapshot,
     );
   },
 );
+
+Then('Safe Word is enrolled in the Codex profile', function (this: CodexPluginMigrationWorld) {
+  const result = this.codexPluginMigrationResult;
+  assert.ok(result, 'migration result was not captured');
+  assert.equal(result.exitCode, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(
+    readFileSync(requirePath(this.codexPluginMigrationLogPath, 'migration log'), 'utf8'),
+    /plugin add safeword@safeword --json/u,
+  );
+  assert.equal(
+    existsSync(
+      nodePath.join(
+        requirePath(this.codexPluginRepoRoot, 'repo root'),
+        '.safeword/codex-plugin.json',
+      ),
+    ),
+    true,
+  );
+});
 
 Then(
   /^Safe Word keeps repo-local `\.agents\/skills` available during the compatibility window$/,
@@ -1814,8 +1934,30 @@ Then('the user-authored skill remains byte-identical', function (this: CodexPlug
 });
 
 Then(
+  'Safe Word-owned Codex skill files are removed after finalization',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/bdd/SKILL.md')), false);
+    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md')), false);
+  },
+);
+
+Then(
+  'legacy Safe Word Codex hook runtime files are removed after finalization',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.equal(
+      existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex/pre-tool-quality.ts')),
+      false,
+    );
+    assert.equal(existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex/stop.ts')), false);
+  },
+);
+
+Then(
   'Safe Word-owned Codex skill files remain beside the user-authored skill until finalization',
   function (this: CodexPluginMigrationWorld) {
+    assertMigrationRanAndDeclined(this);
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
       'bdd',
@@ -1826,6 +1968,7 @@ Then(
 );
 
 Then('the user-authored Codex config entries remain', function (this: CodexPluginMigrationWorld) {
+  assertMigrationRanAndDeclined(this);
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
   const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
   const lines = config.split(/\r?\n/u);
@@ -2085,6 +2228,7 @@ After(function (this: CodexPluginMigrationWorld) {
     this.codexPluginMarketplaceRoot,
     this.codexPluginPackageRoot,
     this.codexPluginDefaultVerificationReportRoot,
+    this.codexPluginRuntimeRoot,
   ]) {
     if (directory) rmSync(directory, { recursive: true, force: true });
   }

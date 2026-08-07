@@ -10,6 +10,7 @@ import {
   combineEffects,
   createResult,
   type Effects,
+  type NextAction,
 } from '../cli-protocol/result.js';
 import { removeProject } from '../commands/remove.js';
 import type { SafewordSchema } from '../schema.js';
@@ -61,13 +62,12 @@ function combineInstallResults(
     state: lifecycleState(results),
     changed: results.some(result => result.changed),
     effects,
-    findings: results
-      .flatMap(result => result.findings)
-      .filter(finding => finding.code !== 'SETUP_CODEX_PLUGIN_HANDOFF'),
+    findings: results.flatMap(result => result.findings),
     errors: results.flatMap(result => result.errors),
     recovery: results.flatMap(result => result.recovery),
     nextActions: surfaces.flatMap(surface =>
-      surface.result.nextActions.flatMap(action => {
+      surface.result.nextActions.flatMap((action): NextAction[] => {
+        if (!('command' in action)) return [action];
         const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
         if (profileInstall === null) return [action];
         if (surface.result.state !== 'failed' || surface.name !== profileInstall[1]) return [];
@@ -199,6 +199,7 @@ interface PreparedLifecycle {
   readonly projectSchema: SafewordSchema;
   readonly projectPlan: CliPlan;
   readonly full: boolean;
+  readonly scope: 'project' | 'user';
   readonly surfaces: readonly { readonly name: string; readonly effects: Effects }[];
   readonly plan: CliPlan;
 }
@@ -213,7 +214,7 @@ async function profilePreconditions(
     observations.push(['claude', observeClaudeProfile(cwd)]);
   }
   if (agents.includes('codex')) {
-    const { observeCodexMigrationResult } = await import('../codex-plugin/installer.js');
+    const { observeCodexMigrationResult } = await import('../codex-plugin/operations.js');
     observations.push(['codex', observeCodexMigrationResult(cwd)]);
   }
   return observations;
@@ -228,6 +229,7 @@ async function prepareLifecycle(
   operation: 'install' | 'uninstall',
   agents: readonly AgentIntegration[],
   full = false,
+  scope: 'project' | 'user' = 'project',
 ): Promise<PreparedLifecycle> {
   const uninstalling = operation === 'uninstall';
   const projectSchema = projectLifecycleSchema(cwd, agents);
@@ -251,6 +253,7 @@ async function prepareLifecycle(
     projectSchema,
     projectPlan: project.plan,
     full: uninstalling && full,
+    scope,
     surfaces,
     plan: createPlan({
       command: operation,
@@ -354,14 +357,15 @@ function staleUninstallPlan(plan: CliPlan): CliResult {
 async function uninstallProfileSurfaces(
   cwd: string,
   agents: readonly AgentIntegration[],
+  scope: 'project' | 'user',
 ): Promise<SurfaceResult[]> {
   const completed: SurfaceResult[] = [];
   if (agents.includes('claude')) {
     const { uninstallClaudePlugin } = await import('../claude-plugin/profile.js');
-    completed.push({ name: 'claude', result: uninstallClaudePlugin(cwd) });
+    completed.push({ name: 'claude', result: uninstallClaudePlugin(cwd, scope) });
   }
   if (agents.includes('codex')) {
-    const { uninstallCodexPlugin } = await import('../codex-plugin/installer.js');
+    const { uninstallCodexPlugin } = await import('../codex-plugin/operations.js');
     completed.push({ name: 'codex', result: uninstallCodexPlugin() });
   }
   return completed;
@@ -371,7 +375,7 @@ async function applyPreparedLifecycle(
   cwd: string,
   prepared: PreparedLifecycle,
 ): Promise<CliResult> {
-  const completed = await uninstallProfileSurfaces(cwd, prepared.agents);
+  const completed = await uninstallProfileSurfaces(cwd, prepared.agents, prepared.scope);
   const projectResult = await removeProject(cwd, {
     full: prepared.full,
     yes: true,
@@ -451,11 +455,13 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
   }
   const full = invocation.options.full === true;
   if (invocation.offline && full) return onlineRequired('uninstall');
+  const scope = invocation.options.scope === 'user' ? 'user' : 'project';
   const prepared = await prepareLifecycle(
     invocation.cwd,
     'uninstall',
     parsed.selection.agents,
     full,
+    scope,
   );
   const suppliedPlan =
     typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;

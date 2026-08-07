@@ -14,6 +14,9 @@ import {
   type Finding,
 } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
+import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
+import { automaticallyMigrateLegacyCodex } from '../codex-plugin/operations.js';
+import { installCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
 import {
   buildArchitecture,
   hasArchitectureDetected,
@@ -600,6 +603,17 @@ function setupResult(input: SetupResultInput): CliResult {
     ...pythonFindings(pythonSetup),
   ];
   const actionRequired = findings.some(finding => finding.severity !== 'info');
+  const resultFindings = actionRequired
+    ? findings
+    : [
+        ...findings,
+        {
+          code: 'SETUP_CODEX_PLUGIN_HANDOFF',
+          message:
+            'Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.',
+          severity: 'info' as const,
+        },
+      ];
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
   const nextCommands = actionRequired ? [installation.command ?? 'safeword install'] : [];
@@ -607,7 +621,7 @@ function setupResult(input: SetupResultInput): CliResult {
     state,
     changed,
     effects: { files, packages, network },
-    findings,
+    findings: resultFindings,
     nextActions: nextCommands.map(command => ({ command, mutates: true, requiresHuman: true })),
     data: { configured: true, dependency_install: installation },
   });
@@ -660,6 +674,46 @@ interface ApplySetupInput {
   readonly schema?: SafewordSchema;
 }
 
+/**
+ * Hand a legacy project-hook installation over to the native Codex plugin.
+ * A failure here is reported, never fatal: the legacy protection stays in
+ * place rather than leaving the project unguarded mid-setup.
+ */
+function migrateLegacyCodexDuringSetup(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+): Finding[] {
+  const codexMigrationTargets = [
+    CODEX_MIGRATION_SCHEMA.paths.config,
+    CODEX_MIGRATION_SCHEMA.paths.backupRoot,
+    CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
+    CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
+    ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
+  ];
+  try {
+    const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () =>
+      automaticallyMigrateLegacyCodex(cwd),
+    );
+    if (!migrated) return [];
+    return [
+      {
+        code: 'CODEX_PLUGIN_HANDOFF_COMPLETE',
+        message:
+          'Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.',
+        severity: 'info',
+      },
+    ];
+  } catch (error) {
+    return [
+      {
+        code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}`,
+        severity: 'warning',
+      },
+    ];
+  }
+}
+
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
   const {
     adapters,
@@ -681,6 +735,10 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
 
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
+    observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
+      installCodexProjectBootstrap(cwd),
+    );
+    const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects);
     const architectureEffects = observeFileStage(
       cwd,
       ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
@@ -741,7 +799,10 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       installation,
       eslintPolicy,
       gitInitialized: context.isGitRepo,
-      guidanceFindings: setupGuidanceFindings(context, result, architectureEffects),
+      guidanceFindings: [
+        ...setupGuidanceFindings(context, result, architectureEffects),
+        ...codexHandoffFindings,
+      ],
       pythonSetup,
       namespaceMigration,
       completedEffects,

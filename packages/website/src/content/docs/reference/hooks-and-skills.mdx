@@ -29,7 +29,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
 <Tabs syncKey="editor">
   <TabItem label="Claude Code">
-    Safeword's Claude Code support is plugin-backed. The default `safeword install` configures the project and installs the profile plugin; use `safeword install --agents=claude` to select only Claude. Then run `/reload-plugins` to activate the installed version in the current task.
+    Safeword's Claude Code support is plugin-backed. Run `safeword install`, then `/reload-plugins` to activate the project-scoped default in the current task. Use `--scope user` for intentional profile-wide activation. Project setup does not install the plugin payload.
 
     | When                    | What happens                                        |
     | ----------------------- | --------------------------------------------------- |
@@ -80,7 +80,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
   </TabItem>
   <TabItem label="Codex">
-    Safeword's Codex support is plugin-backed. The default `safeword install` configures the project and installs the profile plugin; use `safeword install --agents=codex` to select only Codex. Restart Codex after installation, start a new task, then review the installed plugin in `/hooks`. Installation does not write a project-local Codex configuration or workflow tree.
+    Safeword's Codex support is plugin-backed. Setup writes one project SessionStart bootstrap that enrolls each active Codex profile automatically; `safeword install --agents=codex` remains available for immediate manual enrollment. Restart Codex after a new installation and start a new task to load the plugin. Setup writes no repository workflow tree or mutation-event hook.
 
 | When                            | What happens                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------- |
@@ -98,7 +98,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     ### Hook trust
 
-    Codex hooks only run after you review and trust the plugin in Codex. Until then, Codex visibly reports that hooks need review and directs you to `/hooks`; Safe Word does not suppress that warning or bypass trust. After trusting the plugin, preview `safeword codex migrate --finalize`, review its exact paths and config blocks, then run the copyable `--yes --plan <plan-id>` action to remove only Safe Word-owned legacy project hooks. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
+    Codex hooks run only after the host trusts them; Safe Word never bypasses that boundary. Setup commits one project SessionStart bootstrap that enrolls the current profile and warns prominently until a later task has exact native proof. The warning never blocks edits or commands. Ordinary maintenance automatically backs up and removes a fully recognized legacy installation only after native installation succeeds; edited or unknown content is preserved. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
 
     Plugin skill files: bundled in the Safe Word package under `codex-plugin/skills/`
 
@@ -163,11 +163,21 @@ removes only the exact linked worktree, remote branch, and local branch—in tha
 order. Dirty, locked, protected, changed, default, main, ambiguous, or otherwise
 unverifiable targets are preserved and reported with recovery actions.
 
+The dependency audit is a delivery-readiness gate and must pass before merge.
+After merge, closeout rechecks the immutable head's verification, build,
+typecheck, and BDD lanes, but does not rerun mutable dependency intelligence
+that could make an already-merged head impossible to clean up later.
+
+Claude Code and Cursor bind closeout to the session captured by their hooks.
+Codex uses the same hook binding when available; in Codex Desktop it can use the
+authenticated `CODEX_THREAD_ID` supplied by the host when the one-shot hook
+bridge is unavailable. Missing or expired identity still fails closed.
+
 If cleanup is interrupted after removing the topic worktree, the guard can
 resume from a surviving worktree using a private verification receipt in Git's
-shared common directory. It creates that receipt only after every lane passes on
-a clean exact PR head, accepts it for 24 hours, and rejects stale, malformed,
-dirty-state, or wrong-head proof.
+shared common directory. It creates that receipt only after every applicable
+post-merge lane passes on a clean exact PR head, accepts it for 24 hours, and
+rejects stale, malformed, dirty-state, or wrong-head proof.
 
 | Skill             | Triggers on                                                                                                         |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------- |

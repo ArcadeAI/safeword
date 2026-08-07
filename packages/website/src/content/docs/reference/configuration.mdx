@@ -120,7 +120,7 @@ Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
 
 ## Hook Configuration
 
-Claude Code hooks run from the user-scoped Safe Word plugin installed by `safeword install`; Cursor hooks are configured only when Cursor is explicitly selected; Codex uses its profile-scoped plugin. Fresh installation does not create Safe Word-owned Claude hook settings. Existing legacy Claude settings remain authoritative until current plugin execution is proven and an explicit `safeword claude cleanup` plan removes only recognized Safeword entries. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
+Claude Code hooks run from the Safe Word plugin installed with `safeword install --agents=claude`. Project scope is the default and records activation in `.claude/settings.json`; `safeword install --agents=claude --scope user` activates it across projects. Cursor hooks are configured in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Fresh setup does not create legacy Safe Word-owned Claude hook settings. Existing legacy Claude settings remain authoritative until current plugin execution is proven and an explicit `safeword claude cleanup` plan removes only recognized Safeword entries. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
 
 To disable a specific hook, remove the safeword hook entry from that agent's config.
 
