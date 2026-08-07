@@ -45,4 +45,50 @@ describe('Claude plugin release contract', () => {
     expect(workflow).toContain('git push origin "$GITHUB_SHA:refs/heads/stable"');
     expect(workflow).not.toMatch(/git push[^\n]*(?:--force|-f\b)/u);
   });
+
+  it('blocks changed advisory surfaces on the disposable compatibility proof', () => {
+    const workflow = readFileSync(
+      nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
+      'utf8',
+    );
+    expect(workflow).toContain('advisory-pr-review-smoke:');
+    expect(workflow).toContain(
+      'advisory_smoke_required: ${{ steps.advisory-smoke-scope.outputs.required }}',
+    );
+    expect(workflow).toContain('git fetch origin refs/heads/stable:refs/remotes/origin/stable');
+    expect(workflow).toContain('git diff --quiet refs/remotes/origin/stable "$GITHUB_SHA"');
+    expect(workflow).toContain('packages/cli/src/pr-review');
+    expect(workflow).toContain("needs.build.outputs.advisory_smoke_required == 'true'");
+    expect(workflow).toContain('environment: pr-review-smoke');
+    expect(workflow).toContain('needs: [build, advisory-pr-review-smoke]');
+    expect(workflow).toContain("needs['advisory-pr-review-smoke'].result == 'skipped'");
+    expect(workflow).toContain("needs.build.outputs.advisory_smoke_required == 'false'");
+    expect(workflow).toContain('secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
+    expect(workflow).toContain('smoke:pr-review:disposable');
+  });
+
+  it('watches platform drift with a sandbox-only advisory canary', () => {
+    const canary = readFileSync(
+      nodePath.join(REPO_ROOT, '.github/workflows/advisory-pr-review-canary.yml'),
+      'utf8',
+    );
+    const runner = readFileSync(
+      nodePath.join(CLI_ROOT, 'scripts/run-pr-review-disposable-smoke.ts'),
+      'utf8',
+    );
+    const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');
+
+    expect(canary).toContain('workflow_dispatch:');
+    expect(canary).toContain("cron: '37 5 * * *'");
+    expect(canary).toContain("github.event_name == 'schedule'");
+    expect(canary).toContain('github.event.repository.default_branch');
+    expect(canary).toContain('environment: pr-review-smoke');
+    expect(canary).toContain('secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
+    expect(canary).toContain('smoke:pr-review:disposable');
+    expect(runner).toContain('must name two dedicated sandbox owners');
+    expect(readme).toContain('SAFEWORD_PR_REVIEW_SMOKE_OWNER');
+    expect(readme).toMatch(/must not have authority over production\s+repositories/u);
+    expect(readme).toContain('SAFEWORD_KEEP_PR_REVIEW_SMOKE=1');
+    expect(readme).toMatch(/permanently\s+deletes both repositories/u);
+  });
 });
