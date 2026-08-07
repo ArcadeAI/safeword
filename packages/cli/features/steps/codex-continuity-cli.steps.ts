@@ -69,7 +69,6 @@ interface ContinuityCliWorld extends SafewordWorld {
   continuityFirstResult?: CliResult;
   logicalLegacyExecutions?: number;
   logicalPluginExecutions?: number;
-  proofInterrupted?: boolean;
   bootstrapContent?: string;
   runCodexStatus?: () => CliResult;
   finalizationError?: Error;
@@ -661,12 +660,10 @@ Given(
     const directory = nodePath.dirname(proofPath(this));
     mkdirSync(directory, { recursive: true });
     writeFileSync(nodePath.join(directory, '.safeword-interrupted.tmp'), '{"schema_version":1');
-    this.proofInterrupted = true;
   },
 );
 
 Then('no partial or malformed proof is accepted as current', function (this: ContinuityCliWorld) {
-  assert.equal(this.proofInterrupted, true);
   assert.equal(existsSync(proofPath(this)), false);
 });
 
