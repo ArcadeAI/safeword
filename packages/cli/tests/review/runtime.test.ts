@@ -5,7 +5,11 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ReviewerOutput } from '../../src/review/contract.js';
-import { parseReviewerOutput, runHeadlessReviewer } from '../../src/review/runtime.js';
+import {
+  parseReviewerOutput,
+  reviewTimeoutMilliseconds,
+  runHeadlessReviewer,
+} from '../../src/review/runtime.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -29,6 +33,18 @@ const output: ReviewerOutput = {
   summary: 'reviewed',
   findings: [],
 };
+
+describe('headless reviewer timeout budgets', () => {
+  it.each(['claude', 'codex'] as const)('gives %s a ten-minute default budget', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(600_000);
+  });
+
+  it.each(['claude', 'codex'] as const)('honors the explicit timeout override for %s', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, { SAFEWORD_REVIEW_TIMEOUT_MS: '45000' })).toBe(
+      45_000,
+    );
+  });
+});
 
 describe('headless reviewer output adapters', () => {
   it('extracts a review result from the Claude JSON envelope', () => {
