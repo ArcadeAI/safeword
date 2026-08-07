@@ -482,15 +482,15 @@ That cannot fail deterministically.
 
 Use this default cadence unless the project has a stronger local convention.
 
-| Event             | Recommended Lanes                   |
-| ----------------- | ----------------------------------- |
-| During coding     | Focused                             |
-| Before handoff    | Focused + relevant static gates     |
-| Pull request      | Static gates + smoke + affected BDD |
-| Before release    | Release + migration + full smoke    |
-| Scheduled nightly | Slow/performance + broader matrices |
-| Manual high-risk  | Live-fire                           |
-| After deployment  | Smoke + selected live-fire health   |
+| Event             | Recommended Lanes                       |
+| ----------------- | --------------------------------------- |
+| During coding     | Focused                                 |
+| Before handoff    | Focused + relevant static gates + smoke |
+| Pull request      | Static gates + smoke + affected BDD     |
+| Before release    | Release + migration + full smoke        |
+| Scheduled nightly | Slow/performance + broader matrices     |
+| Manual high-risk  | Live-fire                               |
+| After deployment  | Smoke + selected live-fire health       |
 
 **Tie-breaker:** move a lane earlier only when the failure is cheap to diagnose
 there. Expensive checks that frequently fail for environmental reasons belong
