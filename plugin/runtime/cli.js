@@ -39566,8 +39566,23 @@ function changedReviewResult(input) {
     }
   });
 }
-async function runDegradedFallback(input) {
+function preparePrimaryReview(input, reviewer) {
+  const name = agentName(reviewer);
+  input.progress?.start(`Preparing the review packet for ${name}\u2026`);
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.start(`Requesting an independent ${name} review\u2026`);
+  input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
+  return prepared;
+}
+function prepareFallbackReview(input, assignedReviewer, author) {
+  const fallbackName = agentName(author);
+  input.progress?.start(`${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback\u2026`);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback\u2026`);
+  return prepared;
+}
+async function runDegradedFallback(input) {
+  const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared);
   const changedResult = changedReviewResult({
     author: input.author,
@@ -39698,7 +39713,7 @@ async function runReview(input) {
     return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
   }
   const { reviewer } = pair;
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = preparePrimaryReview(input, reviewer);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared);
   const changedResult = changedReviewResult({
     author: pair.author,
@@ -50991,8 +51006,7 @@ async function codexHook(event, options = {}) {
   }
   await CODEX_HOOK_RUNNERS[normalized]();
 }
-var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE = ` 
-\r	\v\f`, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, CODEX_HOOK_RUNNERS;
+var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
   init_legacy_authority();
   init_profile_proof();
@@ -51006,6 +51020,8 @@ var init_codex_hook = __esm(() => {
     nodePath89.resolve(MODULE_DIRECTORY, "../../templates")
   ];
   SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
+  SHELL_WHITESPACE = [" ", `
+`, "\r", "\t", "\v", "\f"].join("");
   SUPPORTED_CODEX_HOOK_EVENTS = new Set([
     "post-tool-use",
     "pre-tool-use",
@@ -53766,7 +53782,7 @@ async function reviewRunHandler(invocation) {
   }
   const targets = Array.isArray(rawTargets) ? rawTargets.filter((target) => typeof target === "string") : [];
   const { runReview: runReview2 } = await Promise.resolve().then(() => (init_coordinator(), exports_coordinator));
-  return runReview2({ cwd: invocation.cwd, kind: rawKind, targets });
+  return runReview2({ cwd: invocation.cwd, kind: rawKind, targets, progress: invocation.progress });
 }
 async function codexStatusHandler(invocation) {
   const { observeCodexMigration: observeCodexMigration2 } = await Promise.resolve().then(() => (init_migrate_codex_plugin(), exports_migrate_codex_plugin));
@@ -54942,22 +54958,45 @@ function assertEffectPolicy(definition, result, options) {
   }
 }
 var PROGRESS_ANNOUNCE_DELAY_MS = 100;
+var PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
+function resolveHeartbeatIntervalMs(environment = process.env) {
+  const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
+  if (!Number.isSafeInteger(override) || override < 1 || override > PROGRESS_HEARTBEAT_INTERVAL_MS) {
+    return PROGRESS_HEARTBEAT_INTERVAL_MS;
+  }
+  return override;
+}
 function createProgressReporter(adapters) {
-  let scheduledHandle;
+  let announcementHandle;
+  let heartbeatHandle;
+  const heartbeatIntervalMs = resolveHeartbeatIntervalMs();
+  function scheduleHeartbeat(message) {
+    heartbeatHandle = adapters.schedule(() => {
+      adapters.emit(message);
+      scheduleHeartbeat(message);
+    }, heartbeatIntervalMs);
+  }
   return {
     start(message) {
-      if (scheduledHandle !== undefined)
-        adapters.cancel(scheduledHandle);
-      scheduledHandle = adapters.schedule(() => {
+      if (announcementHandle !== undefined)
+        adapters.cancel(announcementHandle);
+      announcementHandle = adapters.schedule(() => {
         adapters.emit(message);
-        scheduledHandle = undefined;
+        announcementHandle = undefined;
       }, PROGRESS_ANNOUNCE_DELAY_MS);
     },
+    heartbeat(message) {
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      scheduleHeartbeat(message);
+    },
     stop() {
-      if (scheduledHandle === undefined)
-        return;
-      adapters.cancel(scheduledHandle);
-      scheduledHandle = undefined;
+      if (announcementHandle !== undefined)
+        adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      announcementHandle = undefined;
+      heartbeatHandle = undefined;
     }
   };
 }
