@@ -243,6 +243,9 @@ describe('migrate codex-plugin command', () => {
 
     expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
 
+    // Automatic migration installs the plugin but leaves legacy protection in
+    // place: removing it is an explicit `--finalize` decision, so an unattended
+    // setup must never drop the hooks that are currently protecting the repo.
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(readFileSync(legacySkill, 'utf8')).toBe('legacy audit skill\n');
     const calls = readFileSync(fixture.logPath, 'utf8');
@@ -256,9 +259,9 @@ describe('migrate codex-plugin command', () => {
     ).toBe(false);
   });
 
-  // The declining handoff is covered by the acceptance lane's TB1.R4 rule. The
-  // explicit, proof-backed finalization is where files actually move and get
-  // rewritten, so survival is least obvious and most worth pinning there.
+  // The declining handoff is covered by the acceptance lane's TB1.R4 rule. This
+  // pins the succeeding path through plugin installation and proof-backed
+  // finalization, where files actually move and get rewritten.
   it('preserves user-owned project data and authored skills through a successful handoff', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
       pluginInitiallyInstalled: false,
@@ -893,6 +896,9 @@ command = 'echo "keep this user hook"'
       SAFEWORD_MARKETPLACE_SOURCE_TYPE: 'local',
     });
 
+    // A same-named non-Git marketplace is someone else's entry. Adding over it
+    // would silently repoint their marketplace at Safeword, so this reports the
+    // conflict instead of writing through it.
     expect(result.exitCode).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'failed',
