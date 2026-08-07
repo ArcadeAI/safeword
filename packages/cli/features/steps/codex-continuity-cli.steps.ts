@@ -69,7 +69,6 @@ interface ContinuityCliWorld extends SafewordWorld {
   continuityFirstResult?: CliResult;
   logicalLegacyExecutions?: number;
   logicalPluginExecutions?: number;
-  proofInterrupted?: boolean;
   bootstrapContent?: string;
   runCodexStatus?: () => CliResult;
   finalizationError?: Error;
@@ -661,12 +660,10 @@ Given(
     const directory = nodePath.dirname(proofPath(this));
     mkdirSync(directory, { recursive: true });
     writeFileSync(nodePath.join(directory, '.safeword-interrupted.tmp'), '{"schema_version":1');
-    this.proofInterrupted = true;
   },
 );
 
 Then('no partial or malformed proof is accepted as current', function (this: ContinuityCliWorld) {
-  assert.equal(this.proofInterrupted, true);
   assert.equal(existsSync(proofPath(this)), false);
 });
 
@@ -693,6 +690,14 @@ Given('a project-local legacy SessionStart dispatcher', function (this: Continui
   initialize(this, { pluginState: 'enabled' });
 });
 
+Given('a Codex profile whose status observation fails', function (this: ContinuityCliWorld) {
+  initialize(this, { pluginState: 'enabled' });
+  this.continuityEnvironment = {
+    ...this.continuityEnvironment,
+    SAFEWORD_FAIL_PLUGIN_VERIFY: '1',
+  };
+});
+
 When('Codex invokes it without the plugin-hook marker', function (this: ContinuityCliWorld) {
   run(this, ['hook', 'codex', 'session-start'], {}, '{"hook_event_name":"SessionStart"}\n');
 });
@@ -710,7 +715,7 @@ Given(
       legacyRuntime: true,
     });
     recordCurrentProof(this);
-    this.logicalLegacyExecutions = 1;
+    rmSync(nodePath.join(requireProfile(this), 'safeword/hook-proof-v2/post-tool-use.json'));
   },
 );
 
@@ -767,13 +772,27 @@ command = 'npx --yes safeword hook codex post-tool-use'
 When('Codex dispatches PostToolUse through both handlers', function (this: ContinuityCliWorld) {
   const log = nodePath.join(this.continuityRoot ?? '', 'packaged-hooks.log');
   rmSync(log, { force: true });
+  assert.ok(this.continuityEnvironment);
+  const legacy = spawnSync(
+    'bun',
+    [nodePath.join(requireProject(this), '.safeword/hooks/codex/post-tool-quality.ts')],
+    {
+      cwd: requireProject(this),
+      encoding: 'utf8',
+      env: this.continuityEnvironment,
+    },
+  );
+  assert.equal(legacy.status, 0, legacy.stderr);
+  this.logicalLegacyExecutions = readFileSync(log, 'utf8').trim().split('\n').length;
+  const executionsBeforePlugin = this.logicalLegacyExecutions;
   run(
     this,
     ['hook', 'codex', 'post-tool-use', '--plugin-hook'],
     {},
     '{"hook_event_name":"PostToolUse","tool_name":"custom"}\n',
   );
-  this.logicalPluginExecutions = existsSync(log) ? 1 : 0;
+  const executionsAfterPlugin = readFileSync(log, 'utf8').trim().split('\n').length;
+  this.logicalPluginExecutions = executionsAfterPlugin - executionsBeforePlugin;
 });
 
 When('the profile-plugin PostToolUse dispatcher runs', function (this: ContinuityCliWorld) {
@@ -796,7 +815,16 @@ Then(
   },
 );
 
-Then('the packaged PostToolUse behavior executes once', function (this: ContinuityCliWorld) {
+Then(
+  'the profile plugin records PostToolUse proof while legacy remains authoritative',
+  function (this: ContinuityCliWorld) {
+    const path = nodePath.join(requireProfile(this), 'safeword/hook-proof-v2/post-tool-use.json');
+    const proof = JSON.parse(readFileSync(path, 'utf8')) as { event?: string };
+    assert.equal(proof.event, 'post-tool-use');
+  },
+);
+
+Then('the packaged PostToolUse behavior executes', function (this: ContinuityCliWorld) {
   assert.equal(this.logicalPluginExecutions, 1);
 });
 
@@ -831,9 +859,12 @@ When('the builder requests finalization', function (this: ContinuityCliWorld) {
   run(this, ['codex', 'migrate', '--finalize', '--yes']);
 });
 
-When('the builder declines the displayed finalization plan', function (this: ContinuityCliWorld) {
-  run(this, ['codex', 'migrate', '--finalize']);
-});
+When(
+  'the builder leaves the displayed finalization plan unconfirmed',
+  function (this: ContinuityCliWorld) {
+    run(this, ['codex', 'migrate', '--finalize']);
+  },
+);
 
 When('the builder confirms the displayed finalization plan', function (this: ContinuityCliWorld) {
   runPlannedFinalization(this);
@@ -933,7 +964,12 @@ Then(
   'the command reports failure without reporting recovery_required',
   function (this: ContinuityCliWorld) {
     assert.match(this.finalizationError?.message ?? '', /injected mutation failure/u);
-    assert.doesNotMatch(this.finalizationError?.message ?? '', /recovery is required/u);
+    assert.equal(
+      existsSync(nodePath.join(requireProject(this), '.safeword/codex-migration-backup')),
+      false,
+    );
+    const status = run(this, ['codex', 'status']);
+    assert.doesNotMatch(status.stdout, /recovery_required/u);
   },
 );
 
@@ -971,7 +1007,7 @@ Then('the command succeeds without changing repository files', function (this: C
 });
 
 Given(
-  /^the repository and active profile derive the (legacy|plugin_disabled|plugin_setup_required|plugin_installed_app_restart_required|plugin_enabled_hook_unproven|compatibility|not_configured) state$/u,
+  /^the repository and active profile derive the (legacy|plugin_disabled|plugin_setup_required|plugin_update_required|plugin_installed_app_restart_required|plugin_enabled_hook_unproven|compatibility|not_configured) state$/u,
   function (this: ContinuityCliWorld, state: string) {
     this.expectedState = state;
     switch (state) {
@@ -988,6 +1024,10 @@ Given(
         const finalized = runPlannedFinalization(this);
         assert.equal(finalized.exitCode, 0);
         writeFileSync(nodePath.join(requireProfile(this), 'plugin-state'), 'absent');
+        break;
+      }
+      case 'plugin_update_required': {
+        initialize(this, { pluginState: 'enabled', pluginVersion: '0.68.0' });
         break;
       }
       case 'plugin_installed_app_restart_required': {
@@ -1035,7 +1075,7 @@ Given(
   'a repository with an unresolved Codex migration backup',
   function (this: ContinuityCliWorld) {
     initializeFinalizationFixture(this);
-    createPreparedBackup(this);
+    createPreparedBackup(this, { applyFirstMutation: true });
     rememberBaseline(this);
   },
 );
@@ -1200,7 +1240,7 @@ Given(
 );
 
 When(
-  'an agent runs Codex migration with finalize and yes flags',
+  'an agent replays the previewed Codex finalization plan with finalize and yes flags',
   function (this: ContinuityCliWorld) {
     runPlannedFinalization(this);
   },
@@ -1260,6 +1300,23 @@ Then(
         ['create', 'update', 'remove', 'restore'].includes(file.kind),
       ),
     );
+  },
+);
+
+Then(
+  'the preview exposes a human-confirmed replay command bound to its plan id',
+  function (this: ContinuityCliWorld) {
+    const output = JSON.parse(this.result.stdout) as {
+      data: { plan: { id: string } };
+      next_actions: { command: string; mutates: boolean; requires_human: boolean }[];
+    };
+    assert.deepEqual(output.next_actions, [
+      {
+        command: `safeword codex migrate --finalize --yes --plan ${output.data.plan.id}`,
+        mutates: true,
+        requires_human: true,
+      },
+    ]);
   },
 );
 
@@ -1474,6 +1531,25 @@ Then(
   },
 );
 
+Then(
+  'JSON status exposes the schema 2 app-restart state and the schema 1 compatibility state',
+  function (this: ContinuityCliWorld) {
+    const status = JSON.parse(this.result.stdout) as {
+      state?: string;
+      data?: {
+        migration?: { schema_version?: string; state?: string };
+        migration_state?: string;
+      };
+    };
+    assert.deepEqual(status.data?.migration, {
+      schema_version: '2',
+      state: 'plugin_installed_app_restart_required',
+    });
+    assert.equal(status.data?.migration_state, 'plugin_installed_restart_required');
+    assert.equal(status.state, 'action_required');
+  },
+);
+
 Given(
   'a profile with app-restart activation pending for the installed plugin identity',
   function (this: ContinuityCliWorld) {
@@ -1522,7 +1598,7 @@ Then(
   function (this: ContinuityCliWorld) {
     assert.equal(existsSync(activationMarkerPath(this)), false);
     assert.equal(existsSync(proofPath(this)), true);
-    assert.notEqual(observeMigrationState(this), 'plugin_installed_app_restart_required');
+    assert.equal(observeMigrationState(this), 'plugin_enabled_hook_unproven');
   },
 );
 

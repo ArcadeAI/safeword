@@ -26,8 +26,7 @@ const LEGACY_SIGNATURES = [
   '~/.agents/coding/guides/',
 ] as const;
 
-export type LegacyGlobalGuidanceState =
-  'absent' | 'unrelated' | 'exact_legacy' | 'suspected_legacy';
+type LegacyGlobalGuidanceState = 'absent' | 'unrelated' | 'exact_legacy' | 'suspected_legacy';
 
 export interface LegacyGlobalGuidanceObservation {
   readonly state: LegacyGlobalGuidanceState;

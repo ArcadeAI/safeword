@@ -89,7 +89,9 @@ case "$*" in
     ;;
   'plugin add safeword@safeword --json')
     printf 'enabled' > '${pluginState}'
-    printf '${SAFEWORD_SCHEMA.version}' > '${pluginVersionState}'
+    installed_version="$(printenv SAFEWORD_FAKE_INSTALLED_PLUGIN_VERSION 2>/dev/null || true)"
+    if [ -z "$installed_version" ]; then installed_version='${SAFEWORD_SCHEMA.version}'; fi
+    printf '%s' "$installed_version" > '${pluginVersionState}'
     echo '{"pluginId":"safeword@safeword"}'
     ;;
   'plugin list --json')

@@ -19,6 +19,8 @@ interface ContinuityStatusWorld extends SafewordWorld {
   codexStatus?: CodexMigrationResultV2;
   codexStatusOutput?: string;
   codexStatusExitCode?: number;
+  codexProtocolOutput?: string;
+  codexProtocolStderr?: string;
   runCodexStatus?: () => { stdout: string; stderr: string; exitCode: number };
 }
 
@@ -40,6 +42,13 @@ const currentProof: CodexMigrationFacts['proof'] = {
   activation_id: null,
   events: ['session-start', 'pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
   missing_events: [],
+};
+
+const partialProof: CodexMigrationFacts['proof'] = {
+  ...currentProof,
+  status: 'partial',
+  events: ['session-start'],
+  missing_events: ['pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
 };
 
 const absentPlugin: CodexMigrationFacts['plugin'] = {
@@ -139,6 +148,9 @@ function fixtureFacts(name: string): CodexMigrationFacts {
     case 'disabled with partial legacy': {
       return partialLegacy({ plugin: { ...enabledPlugin, enabled: false } });
     }
+    case 'outdated plugin without legacy': {
+      return facts({ plugin: { ...enabledPlugin, version: '0.68.0' } });
+    }
     case 'restart pending without legacy': {
       return facts({ plugin: enabledPlugin, activationPending: true });
     }
@@ -182,6 +194,13 @@ function requireStatus(world: ContinuityStatusWorld): CodexMigrationResultV2 {
   return world.codexStatus;
 }
 
+function nextActionText(
+  action: CodexMigrationResultV2['next_actions'][number] | undefined,
+): string | undefined {
+  if (action === undefined) return undefined;
+  return 'command' in action ? action.command : action.instruction;
+}
+
 Given(
   /^the repository and active profile derive the (.+) fixture$/u,
   function (this: ContinuityStatusWorld, fixture: string) {
@@ -199,6 +218,20 @@ Given(
   },
 );
 
+Given('an enabled plugin with proof for only SessionStart', function (this: ContinuityStatusWorld) {
+  this.codexFacts = facts({ plugin: enabledPlugin, proof: partialProof });
+});
+
+Given(
+  'an enabled unknown-version plugin with current proof and legacy protection',
+  function (this: ContinuityStatusWorld) {
+    this.codexFacts = completeLegacy({
+      plugin: { ...enabledPlugin, version: null, observation: 'unknown' },
+      proof: currentProof,
+    });
+  },
+);
+
 Given(
   'an unresolved migration backup and recognized legacy protection',
   function (this: ContinuityStatusWorld) {
@@ -212,32 +245,6 @@ Given(
     this.codexFacts = facts({ plugin: enabledPlugin, proof: currentProof, finalized: true });
   },
 );
-
-Given('a migration state that needs action', function (this: ContinuityStatusWorld) {
-  this.codexFacts = facts();
-});
-
-Given('Codex profile status cannot be observed', function (this: ContinuityStatusWorld) {
-  this.codexFacts = facts({
-    plugin: {
-      installed: false,
-      enabled: null,
-      version: null,
-      observation: 'unknown',
-    },
-  });
-  this.codexStatus = {
-    ...deriveCodexMigrationResult(this.codexFacts),
-    ok: false,
-    errors: [
-      {
-        code: 'PLUGIN_OBSERVATION_FAILED',
-        message: 'profile observation failed',
-        retryable: true,
-      },
-    ],
-  };
-});
 
 Given(
   /^a finalized repository whose profile plugin is (absent|disabled)$/u,
@@ -257,6 +264,8 @@ function observeStatus(world: ContinuityStatusWorld): void {
   );
   assert.ok(world.runCodexStatus, 'A real Codex status runner must be initialized');
   const result = world.runCodexStatus();
+  world.codexProtocolOutput = result.stdout;
+  world.codexProtocolStderr = result.stderr;
   world.codexStatus = parseProtocolStatus(result.stdout);
   world.codexStatusOutput = renderCodexMigrationHuman(world.codexStatus);
   world.codexStatusExitCode = result.exitCode;
@@ -278,6 +287,14 @@ When('the teammate checks Codex status', function (this: ContinuityStatusWorld) 
   observeStatus(this);
 });
 
+When('the builder requests Codex status as JSON', function (this: ContinuityStatusWorld) {
+  assert.ok(this.runCodexStatus, 'A real Codex status runner must be initialized');
+  const result = this.runCodexStatus();
+  this.codexProtocolOutput = result.stdout;
+  this.codexProtocolStderr = result.stderr;
+  this.codexStatusExitCode = result.exitCode;
+});
+
 When(
   'Safe Word derives human Codex status from the fixture',
   function (this: ContinuityStatusWorld) {
@@ -287,9 +304,8 @@ When(
   },
 );
 
-When('Safe Word renders the prepared Codex status as JSON', function (this: ContinuityStatusWorld) {
+When('Safe Word derives the prepared Codex domain status', function (this: ContinuityStatusWorld) {
   this.codexStatus = derivePreparedStatus(this);
-  this.codexStatusOutput = `${JSON.stringify(this.codexStatus)}\n`;
   this.codexStatusExitCode = codexMigrationExitCode(this.codexStatus);
 });
 
@@ -304,7 +320,7 @@ Then(
     const status = requireStatus(this);
     assert.equal(status.state, state);
     assert.equal(status.protected, protection);
-    assert.equal(status.next_actions.at(-1)?.command, nextAction);
+    assert.equal(nextActionText(status.next_actions.at(-1)), nextAction);
     assert.ok(this.codexStatusOutput?.endsWith(`Next: ${nextAction}\n`));
   },
 );
@@ -323,7 +339,56 @@ Then(
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
-    assert.equal(status.next_actions[0]?.command, 'safeword codex status');
+    assert.deepEqual(status.next_actions[0], {
+      kind: 'human',
+      instruction: 'Restart Codex, start a new task, then review the installed hooks with /hooks.',
+      mutates: false,
+      requires_human: true,
+    });
+  },
+);
+
+Then(
+  'the public JSON envelope contains only the unproven migration status',
+  function (this: ContinuityStatusWorld) {
+    const output = this.codexProtocolOutput ?? '';
+    const envelope = JSON.parse(output) as {
+      schema_version: number;
+      state: string;
+      data: { migration: { schema_version: string; state: string } };
+    };
+    assert.equal(this.codexProtocolStderr, '');
+    assert.equal(output, `${JSON.stringify(envelope)}\n`);
+    assert.equal(envelope.schema_version, 1);
+    assert.equal(envelope.state, 'action_required');
+    assert.deepEqual(envelope.data.migration, {
+      schema_version: '2',
+      state: 'plugin_enabled_hook_unproven',
+    });
+  },
+);
+
+Then(
+  'the public JSON envelope reports PLUGIN_OBSERVATION_FAILED and exits 1',
+  function (this: ContinuityStatusWorld) {
+    const output = this.codexProtocolOutput ?? '';
+    const envelope = JSON.parse(output) as {
+      schema_version: number;
+      state: string;
+      errors: { code: string; message: string; retryable: boolean }[];
+    };
+    assert.equal(this.codexProtocolStderr, '');
+    assert.equal(output, `${JSON.stringify(envelope)}\n`);
+    assert.equal(envelope.schema_version, 1);
+    assert.equal(envelope.state, 'failed');
+    assert.deepEqual(envelope.errors, [
+      {
+        code: 'PLUGIN_OBSERVATION_FAILED',
+        message: 'profile observation failed',
+        retryable: true,
+      },
+    ]);
+    assert.equal(this.codexStatusExitCode, 1);
   },
 );
 
@@ -332,7 +397,7 @@ Then(
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_update_required');
-    assert.equal(status.next_actions[0]?.command, 'safeword codex migrate');
+    assert.equal(nextActionText(status.next_actions[0]), 'safeword codex migrate');
   },
 );
 
@@ -340,6 +405,32 @@ Then(
   'the output recommends restarting Codex and reviewing hooks',
   function (this: ContinuityStatusWorld) {
     assert.match(this.codexStatusOutput ?? '', /Restart Codex.+review.+\/hooks/isu);
+  },
+);
+
+Then(
+  'structured status reports plugin_enabled_hook_unproven with partial proof and names the four missing hook events',
+  function (this: ContinuityStatusWorld) {
+    const status = requireStatus(this);
+    assert.equal(status.state, 'plugin_enabled_hook_unproven');
+    assert.equal(status.proof.status, 'partial');
+    assert.deepEqual(status.proof.missing_events, [
+      'pre-tool-use',
+      'post-tool-use',
+      'user-prompt-submit',
+      'stop',
+    ]);
+  },
+);
+
+Then(
+  'status reports compatibility with protected coverage and unknown plugin observation',
+  function (this: ContinuityStatusWorld) {
+    const status = requireStatus(this);
+    assert.equal(status.state, 'compatibility');
+    assert.equal(status.protected, 'protected');
+    assert.equal(status.plugin.observation, 'unknown');
+    assert.equal(status.plugin.version, null);
   },
 );
 
@@ -355,43 +446,7 @@ Then(
 );
 
 Then(
-  /^stdout contains only the versioned(?: plugin)? status object and the command exits (\d+)$/u,
-  function (this: ContinuityStatusWorld, exitCode: string) {
-    const output = this.codexStatusOutput ?? '';
-    const parsed = JSON.parse(output) as CodexMigrationResultV2;
-    assert.equal(output, `${JSON.stringify(parsed)}\n`);
-    assert.equal(parsed.schema_version, '2');
-    assert.equal(this.codexStatusExitCode, Number(exitCode));
-  },
-);
-
-Then(
-  'stdout contains only the complete schema 1 object with a nonempty structured errors array',
-  function (this: ContinuityStatusWorld) {
-    const output = this.codexStatusOutput ?? '';
-    const parsed = JSON.parse(output) as CodexMigrationResultV2;
-    assert.equal(output, `${JSON.stringify(parsed)}\n`);
-    assert.equal(parsed.schema_version, '2');
-    assert.ok(parsed.errors.length > 0);
-  },
-);
-
-Then(
-  'the error code is PLUGIN_OBSERVATION_FAILED with message and retryable fields and the command exits 1',
-  function (this: ContinuityStatusWorld) {
-    assert.deepEqual(requireStatus(this).errors, [
-      {
-        code: 'PLUGIN_OBSERVATION_FAILED',
-        message: 'profile observation failed',
-        retryable: true,
-      },
-    ]);
-    assert.equal(this.codexStatusExitCode, 1);
-  },
-);
-
-Then(
-  /^the complete schema 1 object reports state ([a-z_]+) and protection ([a-z]+)$/u,
+  /^the complete migration schema 2 object reports state ([a-z_]+) and protection ([a-z]+)$/u,
   function (
     this: ContinuityStatusWorld,
     state: CodexMigrationResultV2['state'],
@@ -430,9 +485,24 @@ Then(
     if (nextCommand === 'none') {
       assert.equal(status.next_actions.length, 0);
     } else {
-      assert.equal(status.next_actions[0]?.command, nextCommand);
+      assert.equal(nextActionText(status.next_actions[0]), nextCommand);
     }
     assert.equal(this.codexStatusExitCode, Number(exitCode));
+  },
+);
+
+Then(
+  /^the single next action is shaped as an? (command|human) action$/u,
+  function (this: ContinuityStatusWorld, shape: string) {
+    const status = requireStatus(this);
+    assert.equal(status.next_actions.length, 1);
+    const action = status.next_actions[0];
+    assert.ok(action !== undefined);
+    // A restart is prose a person performs; a migrate is a command a runner can
+    // execute. Asserting only the text lets prose ship in the `command` field,
+    // where an automated caller would try to run an English sentence.
+    const isCommand = 'command' in action;
+    assert.equal(isCommand ? 'command' : 'human', shape);
   },
 );
 
