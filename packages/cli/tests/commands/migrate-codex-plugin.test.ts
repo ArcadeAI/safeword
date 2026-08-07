@@ -24,7 +24,12 @@ import {
 } from '../../src/codex-plugin/profile-proof.js';
 import { removeLegacyCodexHooks } from '../../src/commands/migrate-codex-plugin.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, runCli } from '../helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  runCli,
+  TIMEOUT_ACCEPTANCE_LANE,
+} from '../helpers';
 
 const LEGACY_HOOK_CONFIG = `# Safeword Codex project configuration.
 
@@ -668,27 +673,31 @@ command = 'echo "keep this user hook"'
     );
   });
 
-  it('does not install from stale metadata when marketplace refresh fails', async () => {
-    const fixture = createMigrationFixture('', true, true, '0.68.0');
+  it(
+    'does not install from stale metadata when marketplace refresh fails',
+    async () => {
+      const fixture = createMigrationFixture('', true, true, '0.68.0');
 
-    const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], {
-      SAFEWORD_FAIL_MARKETPLACE_UPGRADE: '1',
-    });
+      const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], {
+        SAFEWORD_FAIL_MARKETPLACE_UPGRADE: '1',
+      });
 
-    expect(result.exitCode).toBe(1);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'failed',
-      errors: [
-        {
-          code: 'PLUGIN_MARKETPLACE_FAILED',
-          message: expect.stringContaining('marketplace refresh failed'),
-        },
-      ],
-    });
-    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
-    expect(calls).toContain('plugin marketplace upgrade safeword --json');
-    expect(calls).not.toContain('plugin add safeword@safeword --json');
-  });
+      expect(result.exitCode).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [
+          {
+            code: 'PLUGIN_MARKETPLACE_FAILED',
+            message: expect.stringContaining('marketplace refresh failed'),
+          },
+        ],
+      });
+      const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+      expect(calls).toContain('plugin marketplace upgrade safeword --json');
+      expect(calls).not.toContain('plugin add safeword@safeword --json');
+    },
+    TIMEOUT_ACCEPTANCE_LANE,
+  );
 
   it('rejects a Git marketplace that reuses the Safeword name for another source', async () => {
     const fixture = createMigrationFixture('', true, true, '0.68.0');
