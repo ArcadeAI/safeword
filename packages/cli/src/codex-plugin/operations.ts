@@ -347,8 +347,10 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
     );
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
-    throw new Error(
+    throw new CodexMigrationError(
+      'PLUGIN_ENABLEMENT_FAILED',
       `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`,
+      { profileChanged: options.installationCompleted === true },
     );
   }
 }

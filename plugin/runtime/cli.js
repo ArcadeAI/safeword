@@ -29264,8 +29264,8 @@ function configuredSafewordMarketplace(environment = process.env) {
     throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The Codex profile configuration is invalid TOML; the Safeword marketplace was not changed.", { cause: error2 });
   }
 }
-function marketplaceAddArguments(source, ref) {
-  return [
+function marketplaceAddArguments(source, ref, includeJson = true) {
+  const args = [
     "add",
     source,
     "--ref",
@@ -29273,9 +29273,9 @@ function marketplaceAddArguments(source, ref) {
     "--sparse",
     ".agents/plugins",
     "--sparse",
-    "packages/cli/codex-plugin",
-    "--json"
+    "packages/cli/codex-plugin"
   ];
+  return includeJson ? [...args, "--json"] : args;
 }
 function shellQuote(value) {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
@@ -29297,7 +29297,7 @@ function replaceCodexMarketplaceWithStable(configured) {
         "codex",
         "plugin",
         "marketplace",
-        ...marketplaceAddArguments(source, configured.ref ?? "main").slice(0, -1)
+        ...marketplaceAddArguments(source, configured.ref ?? "main", false)
       ].map((argument) => shellQuote(argument)).join(" ");
       throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error2)}. Restore error: ${String(restorationError)}`, { cause: error2, profileChanged: true, recoveryCommand: restoreCommand });
     }
@@ -29365,7 +29365,7 @@ function verifyCodexPluginIsEnabled(options = {}) {
     throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.");
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
-    throw new Error(`Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`);
+    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`, { profileChanged: options.installationCompleted === true });
   }
 }
 function pathExistsIncludingDanglingSymlink(path4) {

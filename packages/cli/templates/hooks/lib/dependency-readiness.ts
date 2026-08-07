@@ -834,6 +834,8 @@ function matchesWorkspacePattern(
     ? packageJsonPath
     : packageJsonPath.replace(/\/package\.json$/, '');
   const matcher = workspacePatternMatcher(pattern);
+  // Unsupported positive syntax errs toward fingerprinting too much, while
+  // unsupported exclusions never hide a package from readiness tracking.
   if (matcher === undefined) return unsupportedGlobDefault;
   return matcher.test(target);
 }

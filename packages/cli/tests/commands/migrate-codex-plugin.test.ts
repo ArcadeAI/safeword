@@ -1293,6 +1293,29 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(marker.active_hosts).toEqual(expect.any(Array));
   });
 
+  it('reports a structured profile mutation when installed plugin verification mismatches', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+      pluginInitiallyInstalled: false,
+    });
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], {
+      SAFEWORD_FAKE_INSTALLED_PLUGIN_VERSION: '0.0.0',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: true,
+      errors: [
+        {
+          code: 'PLUGIN_ENABLEMENT_FAILED',
+          message: expect.stringContaining('0.0.0'),
+          retryable: true,
+        },
+      ],
+    });
+  });
+
   it('refuses finalization without current plugin-hook proof', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     const before = readFileSync(fixture.configPath, 'utf8');
