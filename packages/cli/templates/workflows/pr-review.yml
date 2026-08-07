@@ -1,0 +1,66 @@
+name: Safeword advisory PR review
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions: {}
+
+jobs:
+  event-review:
+    if: github.event_name == 'pull_request_target'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/safeword-pr-review-worker.yml
+    secrets: inherit
+    with:
+      pull_number: ${{ github.event.pull_request.number }}
+      cancel_in_progress: ${{ github.event.action == 'converted_to_draft' }}
+      inspect_requested: ${{ github.event.action != 'converted_to_draft' }}
+      write_requested: false
+
+  discover-ready-pull-requests:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      pull_numbers: ${{ steps.discover.outputs.pull_numbers }}
+    steps:
+      - id: discover
+        name: Discover ready pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pull_numbers="$({
+            gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" --paginate --jq '.[] | select(.draft | not) | [.number, .head.sha] | @tsv' |
+              while IFS=$'\t' read -r pull_number head_sha; do
+                terminal="$(gh api "repos/$GITHUB_REPOSITORY/issues/$pull_number/comments?per_page=100" --paginate --jq "[.[] | select(.user.type == \"Bot\" and (.body | startswith(\"<!-- safeword:pr-review-receipt:v1 -->\")) and (.body | contains(\"Reviewed revision: $head_sha\")) and (.body | contains(\"\\nRoute:\")))] | length" | awk '{ total += $1 } END { print total + 0 }')"
+                if [ "$terminal" = "0" ]; then echo "$pull_number"; fi
+              done
+          } | jq -cs 'map(tonumber)')"
+          echo "pull_numbers=$pull_numbers" >> "$GITHUB_OUTPUT"
+
+  scheduled-review:
+    needs: discover-ready-pull-requests
+    if: needs.discover-ready-pull-requests.outputs.pull_numbers != '[]'
+    strategy:
+      matrix:
+        pull_number: ${{ fromJSON(needs.discover-ready-pull-requests.outputs.pull_numbers) }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/safeword-pr-review-worker.yml
+    secrets: inherit
+    with:
+      pull_number: ${{ matrix.pull_number }}
+      cancel_in_progress: false
+      inspect_requested: true
+      write_requested: true

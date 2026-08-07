@@ -143,6 +143,11 @@ function stableMachineResult(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value).map(([key, child]) => {
       if (key !== 'recorded_at') return [key, stableMachineResult(child)];
+      // The observation schema declares `recorded_at: string | null`, and a
+      // missing hook proof legitimately reports null. Only a present value has
+      // to be a parseable timestamp.
+      // eslint-disable-next-line unicorn/no-null -- null is the schema's own absent-observation value
+      if (child === null) return [key, null];
       assert.equal(typeof child, 'string');
       assert.ok(!Number.isNaN(Date.parse(child)));
       return [key, '<valid-observation-time>'];

@@ -52,6 +52,8 @@
     "generate:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts",
     "check:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts --check",
     "check:claude-plugin": "bun scripts/check-claude-plugin-release.ts",
+    "check:pr-review-workflows": "bun scripts/check-pr-review-workflows.ts",
+    "smoke:pr-review:disposable": "bun scripts/run-pr-review-disposable-smoke.ts",
     "generate:cursor-wrappers": "bun scripts/generate-cursor-wrappers.ts",
     "measure:relay-drain": "bun scripts/measure-relay-drain-throughput.ts",
     "parity:fix": "bun ../../scripts/parity-check.ts --fix",

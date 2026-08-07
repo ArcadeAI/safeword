@@ -135,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "0fbf7955764154ce7e2e0b66d4105812aca8bcb6d27e7e649a7ca2af24dbf440"
+      "sha256": "e8f7243ae7aa45f06a802c1a1531102ce35db0fa420f185ce2ee4bec0ec581ce"
     },
     {
       "path": "runtime/dispatch.js",
@@ -267,7 +267,7 @@
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
-      "sha256": "c46623f4bbdee4935eefa85c7beabafa7fa05063caad728178c15febe9fb68bb"
+      "sha256": "6974d327e1ab8868098555161422f862bac723f26741f78c4679fad9ad8c4a80"
     },
     {
       "path": "runtime/hooks/lib/parse-annotation.ts",

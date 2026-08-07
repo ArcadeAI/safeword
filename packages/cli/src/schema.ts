@@ -44,7 +44,7 @@ import type {
 } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
-import { getTemplatesDirectory, readFile } from './utils/fs.js';
+import { getTemplatesDirectory, readFile, readFileSafe } from './utils/fs.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
@@ -423,6 +423,55 @@ function bddLaneFile(templatePath: string): FileDefinition {
       ctx.projectType.scaffoldBddLane
         ? readFile(nodePath.join(getTemplatesDirectory(), templatePath))
         : undefined,
+  };
+}
+
+function prReviewEnabled(cwd: string): boolean {
+  const content = readFileSafe(nodePath.join(cwd, '.safeword', 'config.json'));
+  if (content === undefined) return false;
+
+  try {
+    const config = JSON.parse(content) as { prReview?: { enabled?: unknown } };
+    return config.prReview?.enabled === true;
+  } catch {
+    return false;
+  }
+}
+
+function normalizePrReviewWorkflowVersionPins(content: string): string {
+  const commandPrefix = 'npx --yes safeword@';
+  const segments = content.split(commandPrefix);
+  return segments
+    .map((segment, index) => {
+      if (index === 0) return segment;
+      const end = segment.indexOf(' ');
+      if (end === -1) return segment;
+      const version = segment.slice(0, end);
+      const coreIdentifiers = version.split('-', 1)[0]?.split('.') ?? [];
+      const isSemver =
+        coreIdentifiers.length === 3 &&
+        coreIdentifiers.every(identifier => {
+          const numeric = Number(identifier);
+          return Number.isSafeInteger(numeric) && numeric >= 0 && String(numeric) === identifier;
+        });
+      return isSemver ? `__SAFEWORD_VERSION__${segment.slice(end)}` : segment;
+    })
+    .join(commandPrefix);
+}
+
+function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
+  const workflowContent = (): string =>
+    readFile(nodePath.join(getTemplatesDirectory(), templatePath))
+      .split('__SAFEWORD_VERSION__')
+      .join(VERSION);
+
+  return {
+    template: templatePath,
+    generator: (ctx: ProjectContext): string | undefined =>
+      prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
+    normalizeForUnmodifiedComparison: normalizePrReviewWorkflowVersionPins,
+    removeIfUnmodified: workflowContent,
+    removeWhenGeneratorOmitted: true,
   };
 }
 
@@ -1132,6 +1181,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     'features/safeword-lane.feature': bddLaneFile('cucumber/safeword-lane.feature'),
     'steps/world.ts': bddLaneFile('cucumber/world.ts'),
     'steps/shared.steps.ts': bddLaneFile('cucumber/shared.steps.ts'),
+
+    // Default-off advisory PR review. Customers may customize managed workflow
+    // files after setup; reconciliation updates only unchanged template content.
+    '.github/workflows/safeword-pr-review.yml': prReviewWorkflowFile('workflows/pr-review.yml'),
+    '.github/workflows/safeword-pr-review-publisher.yml': prReviewWorkflowFile(
+      'workflows/pr-review-publisher.yml',
+    ),
+    '.github/workflows/safeword-pr-review-worker.yml': prReviewWorkflowFile(
+      'workflows/pr-review-worker.yml',
+    ),
 
     // TypeScript/JavaScript managed files (ESLint, tsconfig, Knip, Prettier configs)
     ...typescriptManagedFiles,
