@@ -11,7 +11,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "44c13567262ae5bcd88a9243478d642cdfc2e170f2e1c8cd887b167b529bc629"
+      "sha256": "555b3604b4d67ece67e7675b0044dc03ba642c9b430bc846980ed9e846bb075a"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -131,7 +131,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "0ecb68ef64e3c7c0d29f93b153daac1c88200aa1c770a17a056fb9308593d333"
+      "sha256": "de7b46caf00844ee48ac14b6981bf81baffbadb581b02fe2be35177c51a86af9"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "2578c58d6ee7bbaf354f69a8690854bbc54ed80bd60308312083108bfc07b476"
+      "sha256": "ff356f104fc873e049aa4cbffc1f2053d5631c6b5273de1688b4ccfaca734f93"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",

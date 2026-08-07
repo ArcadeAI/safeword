@@ -1628,9 +1628,9 @@ When(
 );
 
 /**
- * Rejection scenarios in this rule run the upgrade with profile enrollment
+ * Rejection scenarios in this rule run setup with profile enrollment
  * made unavailable, and each one asserts the decline it produces (#1973). The
- * decline is the point: it proves the upgrade ran, reached the Codex handoff,
+ * decline is the point: it proves setup ran, reached the Codex handoff,
  * and preserved the project on the way out. Without that assertion these
  * scenarios pass whether or not anything executed, because untouched files
  * look identical to files nothing reached.
@@ -1641,10 +1641,10 @@ When(
  * CODEX_HOME.
  */
 When(
-  'the plugin migration upgrade runs without profile enrollment available',
+  'the plugin migration setup runs without profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
+    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
       cwd: repoRoot,
       env: {
         // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
@@ -1657,7 +1657,7 @@ When(
 );
 
 When(
-  'the plugin migration upgrade runs with profile enrollment available',
+  'the plugin migration setup runs with profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
@@ -1668,7 +1668,7 @@ When(
     this.codexPluginRuntimeRoot = runtimeRoot;
     this.codexPluginCodexHome = runtime.codexHome;
     this.codexPluginMigrationLogPath = runtime.logPath;
-    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
+    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
       cwd: repoRoot,
       env: {
         PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
@@ -1847,12 +1847,9 @@ function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
   );
 }
 
-Then(
-  'the upgrade reports profile enrollment failure loudly',
-  function (this: CodexPluginMigrationWorld) {
-    assertMigrationRanAndDeclined(this);
-  },
-);
+Then('setup reports profile enrollment failure loudly', function (this: CodexPluginMigrationWorld) {
+  assertMigrationRanAndDeclined(this);
+});
 
 Then(
   'the user-owned tickets and learnings remain byte-identical',

@@ -88,6 +88,19 @@ const PACKAGE_MANAGER_OPTIONS_WITH_VALUES = new Set([
   '-w',
 ]);
 const PACKAGE_SCRIPT_COMMANDS = new Set(['run', 'test']);
+const BUNX_BOOLEAN_OPTIONS = new Set(['--bun', '--no-install', '--silent', '--verbose']);
+const SAFEWORD_GLOBAL_BOOLEAN_OPTIONS = new Set([
+  '--json',
+  '--no-input',
+  '--offline',
+  '--quiet',
+  '--verbose',
+  '--version',
+  '-V',
+  '-v',
+]);
+const SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES = new Set(['--cwd']);
+const SAFEWORD_RECOVERY_COMMANDS = new Set(['doctor', 'plan', 'setup', 'status']);
 const DEPENDENCY_BINARIES = new Set([
   'cypress',
   'dependency-cruiser',
@@ -838,7 +851,7 @@ function isDependencyBackedSegment(segment: string): boolean {
     return isBunDependencyBackedCommand(args);
   }
 
-  if (basename === 'bunx') return true;
+  if (basename === 'bunx') return !isSafewordRecoverySegment(segment, args);
 
   if (basename === 'npx' || basename === 'pnpx' || basename === 'pnx') {
     return isKnownBinaryPackageExecutor(args);
@@ -853,6 +866,75 @@ function isDependencyBackedSegment(segment: string): boolean {
   }
 
   return DEPENDENCY_BINARIES.has(basename);
+}
+
+function isSafewordRecoverySegment(segment: string, args: string[]): boolean {
+  if (containsShellEvaluationSyntax(segment)) return false;
+
+  let packageIndex = 0;
+  while (BUNX_BOOLEAN_OPTIONS.has(args[packageIndex] ?? '')) packageIndex += 1;
+  if (args[packageIndex] === '--') packageIndex += 1;
+
+  const packageSpecifier = args[packageIndex];
+  if (packageSpecifier === undefined || !/^safeword(?:@[^/@\s]+)?$/.test(packageSpecifier)) {
+    return false;
+  }
+
+  const command = firstSafewordCommandArgument(args.slice(packageIndex + 1));
+  return command !== undefined && SAFEWORD_RECOVERY_COMMANDS.has(command);
+}
+
+function containsShellEvaluationSyntax(segment: string): boolean {
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (const char of segment) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (char === "'") {
+      if (quote === undefined) quote = char;
+      else if (quote === char) quote = undefined;
+      continue;
+    }
+    if (char === '"') {
+      if (quote === undefined) quote = char;
+      else if (quote === char) quote = undefined;
+      continue;
+    }
+    if (quote !== "'" && (char === '$' || char === '`')) return true;
+    if (quote === undefined && (char === '<' || char === '>' || char === '&')) return true;
+  }
+
+  return false;
+}
+
+// Deliberately not `firstCommandArgument`: that helper skips over options it
+// does not recognize, which would let an unknown flag carry an argument the
+// classifier then mistakes for a recovery verb. Here an unrecognized option
+// means "not a recovery shape", so the segment falls through to the guard.
+function firstSafewordCommandArgument(args: string[]): string | undefined {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === undefined) continue;
+
+    if (arg === '--') return args[index + 1];
+    if (!arg.startsWith('-') || arg === '-') return arg;
+
+    const option = arg.split('=')[0] ?? arg;
+    if (SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES.has(option)) {
+      if (!arg.includes('=')) index += 1;
+      continue;
+    }
+    if (!SAFEWORD_GLOBAL_BOOLEAN_OPTIONS.has(arg)) return undefined;
+  }
+
+  return undefined;
 }
 
 function isBunDependencyBackedCommand(args: string[]): boolean {

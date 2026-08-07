@@ -32,7 +32,9 @@ Walked the Non-Technical Builder through ready PR → one current advisory recei
 
 - Full verification plan: 441 Vitest files; 6,613 passed and 5 skipped.
 - Full deterministic Gherkin lane: 1,019 scenarios; 1,016 passed and 3 skipped; 38,576 steps passed and 4 skipped.
-- HXT3GW deterministic lane: 64 scenarios and 2,563 steps passed.
+- HXT3GW deterministic lane: 64 scenarios and 2,627 steps passed after merging
+  current `main`; the additional steps come from shared Cucumber hooks and do
+  not change the scenario set or outcomes.
 - Live HXT3GW lane: 1 scenario and 39 steps passed against the production OpenAI provider with a 1Password-injected credential. The unfamiliar `.flux` access-control regression produced a path-bound finding and the published receipt routed to `needs_human`.
 - Live GitHub lane: fork event 31116176245, trusted publisher 31116192147,
   and scheduled projection 31116229231 passed in disposable repositories. One

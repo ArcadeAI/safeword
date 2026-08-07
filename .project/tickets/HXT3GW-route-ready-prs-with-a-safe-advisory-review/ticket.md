@@ -38,7 +38,7 @@ phase_anchors:
   - "verify: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
   - "done: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
 created: 2026-08-05T14:38:52.499Z
-last_modified: 2026-08-07T03:19:56Z
+last_modified: 2026-08-07T06:33:27Z
 ---
 
 # Route ready PRs with a safe advisory review
@@ -49,6 +49,13 @@ last_modified: 2026-08-07T03:19:56Z
 
 ## Work Log
 
+- 2026-08-07T06:33:27Z Merged current `main` at a717778d3. No advisory-review
+  source, scenario, ticket-scope, or schema file changed upstream. Regenerated
+  the Claude plugin metadata for the combined 0.74.0 runtime; the plugin release
+  contract remains aligned. The feature still passes 64/64 scenarios; shared
+  Cucumber hooks from `main` increase the executed lane to 2,627/2,627 steps
+  without changing its behavior or scenario coverage. An eighth independent
+  scenario-gate pass approved the post-merge packet with no blocking findings.
 - 2026-08-07T03:19:56Z Re-ran the full scenario-quality gate after closure.
   Seven independent Claude rounds reviewed every applied change. Added
   empty-change-set coverage, explicit no-run assertions, complete two- and
@@ -56,7 +63,7 @@ last_modified: 2026-08-07T03:19:56Z
   binary skip evidence, explicit clean-text setup for the empty-prerequisite
   path, and consistent byte-budget vocabulary. Controlled mutations proved both
   post-hoc regressions fail for their intended defect; their scenarios remain
-  permanent CI guards. The final lane passes 64/64 scenarios and 2,563/2,563
+  permanent CI guards. The final lane passes 64/64 scenarios and 2,627/2,627
   steps; the final independent verdict is approved with no structural defects.
 - 2026-08-07T00:39:11Z Complete: Closed after the release-hardening child
   YC6JCC supplied the remaining disposable GitHub proof. Live fork, environment

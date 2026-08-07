@@ -35995,9 +35995,9 @@ var init_environment = __esm(() => {
 import { spawn, spawnSync as spawnSync6 } from "child_process";
 import { accessSync as accessSync2, constants as constants3, realpathSync as realpathSync6 } from "fs";
 import nodePath72 from "path";
-function timeoutMilliseconds() {
-  const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : 120000;
+function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
+  const configured = Number(env.SAFEWORD_REVIEW_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -36209,14 +36209,14 @@ async function runReviewerCandidates(reviewer, packet, cwd, candidates, deadline
   throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
 }
 async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = process.cwd()) {
-  const deadline = Date.now() + timeoutMilliseconds();
+  const deadline = Date.now() + reviewTimeoutMilliseconds(reviewer);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
   }
   return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
 }
-var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError;
+var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_REVIEW_TIMEOUT_MS = 300000;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA = JSON.stringify({
@@ -47685,7 +47685,7 @@ var init_shell_segments = __esm(() => {
 });
 
 // templates/hooks/lib/dependency-readiness.ts
-var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
+var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, BUNX_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES, SAFEWORD_RECOVERY_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
 var init_dependency_readiness = __esm(() => {
   init_namespace_root();
   init_shell_segments();
@@ -47719,6 +47719,19 @@ var init_dependency_readiness = __esm(() => {
     "-w"
   ]);
   PACKAGE_SCRIPT_COMMANDS = new Set(["run", "test"]);
+  BUNX_BOOLEAN_OPTIONS = new Set(["--bun", "--no-install", "--silent", "--verbose"]);
+  SAFEWORD_GLOBAL_BOOLEAN_OPTIONS = new Set([
+    "--json",
+    "--no-input",
+    "--offline",
+    "--quiet",
+    "--verbose",
+    "--version",
+    "-V",
+    "-v"
+  ]);
+  SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES = new Set(["--cwd"]);
+  SAFEWORD_RECOVERY_COMMANDS = new Set(["doctor", "plan", "setup", "status"]);
   DEPENDENCY_BINARIES = new Set([
     "cypress",
     "dependency-cruiser",

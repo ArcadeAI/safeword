@@ -2,7 +2,7 @@
 
 **Findings:** 0 must-fix, 0 should-strengthen, 37 looks-good.
 
-Independent cross-agent review ran seven times through the scenario-gate
+Independent cross-agent review ran eight times through the scenario-gate
 coordinator. Each requested change was applied and re-reviewed; the final Claude
 pass approved the complete packet rather than relying on an earlier verdict.
 
@@ -64,7 +64,9 @@ contract in both rules.
 All 37 scenario groups survive the vacuous-pass and constant-implementation
 lenses, remain atomic and deterministic, bind every affected surface, and cover
 negative, boundary, failure, security, persona, invariant, and real-entry-point
-wiring concerns. The selected Flux evaluation remains correctly isolated as
-`@live`; deterministic fixtures enforce its route contract in CI.
+wiring concerns. A post-merge pass against `main` at a717778d3 independently
+approved the unchanged scenario set. The selected Flux evaluation remains
+correctly isolated as `@live`; deterministic fixtures enforce its route contract
+in CI.
 
 **Next:** keep the strengthened scenario packet with PR #1917.

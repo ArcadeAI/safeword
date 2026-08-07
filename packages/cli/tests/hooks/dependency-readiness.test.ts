@@ -557,6 +557,27 @@ describe('dependency readiness hook support', () => {
     ['command bun test'],
     ['( bun test )'],
     ['env -u FOO bun test'],
+    ['bunx safeword-tools setup'],
+    ['bunx @scope/safeword setup'],
+    ['bunx safeword'],
+    ['bunx safeword ticket list'],
+    ['bunx safeword setupx'],
+    ['bunx safeword --unknown-flag setup'],
+    ['bunx safeword --cwd setup'],
+    ['bunx safeword setup && bunx vitest run'],
+    ['bunx safeword setup; bunx vitest run'],
+    ['bunx safeword setup || bunx vitest run'],
+    ['bunx safeword setup | bunx vitest run'],
+    ['bunx safeword setup & bunx vitest run'],
+    ['bunx safeword setup $(bunx vitest run)'],
+    ['bunx safeword setup `bunx vitest run`'],
+    ['bunx safeword setup <(bunx vitest run)'],
+    ['bunx safeword setup >(bunx vitest run)'],
+    ['FOO=$(vitest) bunx safeword setup'],
+    ['FOO=bar BAR=$(vitest) bunx safeword setup'],
+    ['bunx vitest run && bunx safeword setup'],
+    ['bunx safeword --cwd "$(vitest)" setup'],
+    ['bunx safeword setup\nbunx vitest run'],
   ])('treats dependency-backed command "%s" as guarded', command => {
     expect(isDependencyBackedCommand(command)).toBe(true);
   });
@@ -574,6 +595,18 @@ describe('dependency readiness hook support', () => {
     ['corepack pnpm install --frozen-lockfile'],
     ['yarn install --immutable'],
     ['npx cowsay hello'],
+    ['bunx safeword@latest setup'],
+    ['bunx safeword@0.73.0 status'],
+    ['FOO=bar bunx safeword setup'],
+    ['bunx safeword status --json'],
+    ['bunx --bun safeword doctor'],
+    ['bunx safeword plan --offline'],
+    ['bunx safeword --cwd . setup'],
+    ['bunx safeword --cwd=. setup'],
+    ['bunx safeword --quiet doctor'],
+    ['bunx safeword setup && bunx safeword doctor'],
+    ['bunx safeword status benign-positional-argument'],
+    ['bunx safeword --cwd "a && b" setup'],
     // `>|` is a clobber redirect: `vitest` here is a target filename, not a
     // command — the pre-EDDABK private splitter treated it as one.
     ['echo cfg >| vitest'],
@@ -683,13 +716,30 @@ describe('dependency readiness hook support', () => {
     const past = new Date(Date.now() - 60_000);
     utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
-
     const result = runHook(
       PRE_TOOL_HOOK,
       JSON.stringify({
         tool_name: 'Bash',
         tool_input: {
           command: 'bun ci && bun run test',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook keeps safeword setup reachable when dependencies are missing', () => {
+    writeBunProject();
+    markSafewordProject();
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'bunx safeword@latest setup',
         },
       }),
     );
