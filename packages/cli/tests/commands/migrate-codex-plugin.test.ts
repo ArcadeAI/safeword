@@ -1,5 +1,6 @@
 /* eslint-disable unicorn/no-null -- migration JSON uses null for unavailable profile facts */
 
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   lstatSync,
@@ -832,7 +833,8 @@ command = 'echo "keep this user hook"'
 
   it('shell-quotes an untrusted marketplace source in double-failure recovery', async () => {
     const fixture = createMigrationFixture('', { pluginVersion: '0.68.0' });
-    const hostileSource = "$(touch /tmp/safeword-should-not-run)'suffix";
+    const sentinel = nodePath.join(fixture.directory, 'should-not-run');
+    const hostileSource = `$(touch ${sentinel})'suffix`;
     writeFileSync(
       nodePath.join(fixture.directory, 'profile/config.toml'),
       `[marketplaces.safeword]\nsource = ${JSON.stringify(hostileSource)}\nref = "main"\n`,
@@ -843,8 +845,19 @@ command = 'echo "keep this user hook"'
     });
     const recovery = JSON.parse(result.stdout).recovery[0].command as string;
 
-    expect(recovery).toContain("'$(touch /tmp/safeword-should-not-run)'\"'\"'suffix'");
-    expect(recovery).not.toContain(' $(touch /tmp/safeword-should-not-run)');
+    expect(recovery).toContain(`'$(touch ${sentinel})'"'"'suffix'`);
+    const restored = spawnSync('sh', ['-c', recovery], {
+      cwd: fixture.directory,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: fixture.logPath,
+        CODEX_HOME: fixture.codexHome,
+      },
+    });
+    expect(restored.status).toBe(0);
+    expect(existsSync(sentinel)).toBe(false);
   });
 
   it.each(['v9.0.0', '9.0.0'])(
