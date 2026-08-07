@@ -135,6 +135,14 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     skill: 'figure-it-out',
   },
   {
+    name: 'safeword-finish-review',
+    alwaysApply: false,
+    description:
+      'Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.',
+    referencePath: '.safeword/skills/finish-review/SKILL.md',
+    skill: 'finish-review',
+  },
+  {
     name: 'safeword-quality-reviewing',
     alwaysApply: false,
     description:
