@@ -39,12 +39,13 @@ describe('OpenAI advisory review provider', () => {
               type: 'message',
             },
           ],
+          usage: { input_tokens: 123, output_tokens: 45 },
         },
         { headers: { 'content-type': 'application/json' }, status: 200 },
       );
     };
 
-    const findings = await reviewWithOpenAI({
+    const review = await reviewWithOpenAI({
       apiKey: 'test-key',
       evidence: [{ content: 'allow *', path: 'policies/access.flux' }],
       fetchImplementation,
@@ -65,16 +66,19 @@ describe('OpenAI advisory review provider', () => {
         },
       },
     });
-    expect(findings).toEqual([
-      {
-        consequential: true,
-        consequence: 'The wildcard grants access beyond administrators.',
-        evidence: 'The changed rule is `allow *`.',
-        line: 1,
-        nextAction: 'Restrict the rule to the intended administrator role.',
-        path: 'policies/access.flux',
-      },
-    ]);
+    expect(review).toEqual({
+      findings: [
+        {
+          consequential: true,
+          consequence: 'The wildcard grants access beyond administrators.',
+          evidence: 'The changed rule is `allow *`.',
+          line: 1,
+          nextAction: 'Restrict the rule to the intended administrator role.',
+          path: 'policies/access.flux',
+        },
+      ],
+      tokenUsage: { input: 123, output: 45 },
+    });
   });
 
   it('rejects findings whose path was not supplied as review evidence', async () => {

@@ -13099,11 +13099,30 @@ function prReviewEnabled(cwd) {
     return false;
   }
 }
+function normalizePrReviewWorkflowVersionPins(content) {
+  const commandPrefix = "npx --yes safeword@";
+  const segments = content.split(commandPrefix);
+  return segments.map((segment, index) => {
+    if (index === 0)
+      return segment;
+    const end = segment.indexOf(" ");
+    if (end === -1)
+      return segment;
+    const version = segment.slice(0, end);
+    const coreIdentifiers = version.split("-", 1)[0]?.split(".") ?? [];
+    const isSemver = coreIdentifiers.length === 3 && coreIdentifiers.every((identifier) => {
+      const numeric = Number(identifier);
+      return Number.isSafeInteger(numeric) && numeric >= 0 && String(numeric) === identifier;
+    });
+    return isSemver ? `__SAFEWORD_VERSION__${segment.slice(end)}` : segment;
+  }).join(commandPrefix);
+}
 function prReviewWorkflowFile(templatePath) {
   const workflowContent = () => readFile(nodePath20.join(getTemplatesDirectory(), templatePath)).split("__SAFEWORD_VERSION__").join(VERSION);
   return {
     template: templatePath,
     generator: (ctx) => prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
+    normalizeForUnmodifiedComparison: normalizePrReviewWorkflowVersionPins,
     removeIfUnmodified: workflowContent,
     removeWhenGeneratorOmitted: true
   };
@@ -14541,6 +14560,13 @@ function planExistingDirectoriesRemoval(directories, cwd) {
   }
   return { actions, removed };
 }
+function matchesUnmodifiedScaffold(definition, ctx, installed) {
+  const expected = definition.removeIfUnmodified?.(ctx);
+  if (expected === undefined)
+    return false;
+  const normalize = definition.normalizeForUnmodifiedComparison;
+  return normalize === undefined ? installed === expected : normalize(installed) === normalize(expected);
+}
 function planConditionalManagedRemoval(managedFiles, ctx) {
   const actions = [];
   const removed = [];
@@ -14552,8 +14578,8 @@ function planConditionalManagedRemoval(managedFiles, ctx) {
     const fullPath = nodePath27.join(ctx.cwd, filePath);
     if (!exists(fullPath))
       continue;
-    const expected = definition.removeIfUnmodified(ctx);
-    if (expected !== undefined && readFileSafe(fullPath) === expected) {
+    const installed = readFileSafe(fullPath);
+    if (installed !== undefined && matchesUnmodifiedScaffold(definition, ctx, installed)) {
       actions.push({ type: "rm", path: filePath });
       removed.push(filePath);
     }
@@ -14575,8 +14601,8 @@ function planOmittedManagedRemoval(managedFiles, ctx) {
     const fullPath = nodePath27.join(ctx.cwd, filePath);
     if (!exists(fullPath))
       continue;
-    const expected = definition.removeIfUnmodified(ctx);
-    if (expected !== undefined && readFileSafe(fullPath) === expected) {
+    const installed = readFileSafe(fullPath);
+    if (installed !== undefined && matchesUnmodifiedScaffold(definition, ctx, installed)) {
       actions.push({ type: "rm", path: filePath });
       removed.push(filePath);
     }
@@ -36845,7 +36871,18 @@ async function reviewWithOpenAI(options) {
   if (!response.ok)
     throw new Error(`OpenAI reviewer request failed (${response.status})`);
   const payload = await response.json();
-  return parseFindings(outputText(payload), new Set(options.evidence.map((item) => item.path)));
+  const usage = isRecord3(payload) && isRecord3(payload.usage) ? payload.usage : undefined;
+  return {
+    findings: parseFindings(outputText(payload), new Set(options.evidence.map((item) => item.path))),
+    tokenUsage: {
+      ...usage && Number.isSafeInteger(usage.input_tokens) && {
+        input: Number(usage.input_tokens)
+      },
+      ...usage && Number.isSafeInteger(usage.output_tokens) && {
+        output: Number(usage.output_tokens)
+      }
+    }
+  };
 }
 var FINDINGS_SCHEMA;
 var init_openai = __esm(() => {
@@ -36949,11 +36986,14 @@ function deriveReviewedReceipt(reviewedSha, inspection) {
   const runState = deriveRunState(evidenceState, inspection);
   const route = deriveRoute(runState, inspection);
   return {
+    checks: inspection.checks ?? [],
     coverage: coverage ?? [],
     findings: inspection.findings ?? [],
     missingEvidence,
     reviewableTextArtifacts,
     runState,
+    skippedChecks: inspection.skippedChecks ?? [],
+    tokenUsage: inspection.tokenUsage ?? {},
     unknowns: inspection.unknowns,
     reviewedSha,
     route
@@ -36976,13 +37016,6 @@ async function stopBeforeReview(dependencies, pullRequest) {
   if (pullRequest.reviewedReceiptSha === pullRequest.headSha) {
     await dependencies.summarize?.("suppressed");
     return { attempts: 0, result: "suppressed" };
-  }
-  if (pullRequest.reviewedReceiptSha) {
-    await dependencies.publish({
-      reviewedSha: pullRequest.reviewedReceiptSha,
-      route: "needs_human",
-      runState: "stale"
-    }, "upsert_marker_owned");
   }
   if (!pullRequest.prerequisitesConfigured) {
     await dependencies.publish({
@@ -37159,6 +37192,12 @@ function resolvePrerequisiteState(config, input) {
     state = "pending";
   return { missing, state };
 }
+function receiptChecks(config, input) {
+  return (config.requiredChecks ?? []).map((required) => {
+    const state = evaluatePrerequisite(required.context, input);
+    return { name: required.context, status: state === "passed" ? "success" : state };
+  });
+}
 function boundedTextEvidence(artifacts, maxTotalBytes) {
   let usedBytes = 0;
   return artifacts.flatMap((artifact) => {
@@ -37194,12 +37233,12 @@ async function inspectPullRequestCommand(options) {
     inspect: async () => {
       try {
         const textEvidence = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
-        const findings = textEvidence.length === 0 ? [] : await (options.provider ?? productionProvider)({
+        const review = textEvidence.length === 0 ? { findings: [], tokenUsage: {} } : await (options.provider ?? productionProvider)({
           apiKey: process11.env.OPENAI_API_KEY,
           evidence: textEvidence,
           model: config.model
         });
-        const receiptFindings = findings.map((finding) => {
+        const receiptFindings = review.findings.map((finding) => {
           const path4 = redactCredentials(finding.path, credentials);
           const consequence = redactCredentials(finding.consequence, credentials);
           const evidence = redactCredentials(finding.evidence, credentials);
@@ -37215,18 +37254,24 @@ async function inspectPullRequestCommand(options) {
         });
         return {
           artifacts: receiptEvidence(receiptArtifacts),
+          checks: receiptChecks(config, input),
           consequentialFindings: receiptFindings.filter((finding) => finding.consequential).length,
           findings: receiptFindings,
           maxTotalBytes: config.maxTotalBytes,
           runState: credentialRedacted ? "incomplete" : "complete",
+          skippedChecks: [],
+          tokenUsage: review.tokenUsage,
           unknowns: credentialRedacted ? ["credential-like value redacted"] : []
         };
       } catch {
         return {
           artifacts: receiptEvidence(receiptArtifacts),
+          checks: receiptChecks(config, input),
           consequentialFindings: 0,
           maxTotalBytes: config.maxTotalBytes,
           runState: "failed",
+          skippedChecks: [],
+          tokenUsage: {},
           unknowns: ["review provider failed"]
         };
       }
@@ -37307,14 +37352,21 @@ function renderFinding(finding) {
     `Finding${consequenceLabel}: ${location}`,
     `Evidence: ${finding.evidence}`,
     `Consequence: ${finding.consequence}`,
-    `Next action: ${finding.nextAction}`,
+    `Next action (model-proposed; unverified): ${finding.nextAction}`,
     ...finding.unverifiedRemedy ? [`Unverified remedy: ${finding.unverifiedRemedy}`] : []
   ];
+}
+function renderCoverage(entry2) {
+  if (entry2.status === "integrity_reviewed")
+    return `${entry2.path}: integrity-reviewed`;
+  const reason = entry2.skipReason === "non_text" ? "non-text" : "unknown";
+  return `${entry2.path}: skipped (${reason})`;
 }
 function renderReceipt(receipt) {
   const checks = receipt.checks.map((check) => `${check.name}: ${check.status ?? "unknown"}`);
   const inputTokens = receipt.tokenUsage.input ?? "unknown";
   const outputTokens = receipt.tokenUsage.output ?? "unknown";
+  const coverage = (receipt.coverage ?? []).map((entry2) => renderCoverage(entry2));
   const summary = [
     "Advisory only: this review can miss issues, does not replace human review, and is not evidence that this pull request is safe to merge.",
     `Reviewed revision: ${receipt.reviewedSha}`,
@@ -37323,6 +37375,9 @@ function renderReceipt(receipt) {
     `Reviewers: ${listOrNone(receipt.reviewers)}`,
     `Checks: ${listOrNone(checks)}`,
     `Skipped checks: ${listOrNone(receipt.skippedChecks)}`,
+    `Coverage: ${listOrNone(coverage)}`,
+    `Missing evidence: ${listOrNone(receipt.missingEvidence ?? [])}`,
+    `Reviewable text artifacts: ${receipt.reviewableTextArtifacts ?? "unknown"}`,
     `Unknowns: ${listOrNone(receipt.unknowns)}`,
     `Token usage: ${inputTokens} input, ${outputTokens} output`,
     `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential`
@@ -37367,6 +37422,7 @@ var RECEIPT_MARKER = "<!-- safeword:pr-review-receipt:v1 -->";
 // src/commands/review-pr-publication.ts
 var exports_review_pr_publication = {};
 __export(exports_review_pr_publication, {
+  renderReviewedReceipt: () => renderReviewedReceipt,
   publishPullRequestCommand: () => publishPullRequestCommand,
   invalidatePullRequestCommand: () => invalidatePullRequestCommand,
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
@@ -37386,14 +37442,34 @@ function hasExactKeys(value, expected) {
 function isSerializedFinding(value) {
   return isRecord5(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
 }
+function isSerializedCheck(value) {
+  return isRecord5(value) && hasExactKeys(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
+}
+function isSerializedCoverage(value) {
+  if (!isRecord5(value) || typeof value.path !== "string")
+    return false;
+  if (value.status === "integrity_reviewed")
+    return hasExactKeys(value, ["path", "status"]);
+  return value.status === "skipped" && value.skipReason === "non_text" && hasExactKeys(value, ["path", "skipReason", "status"]);
+}
+function isTokenUsage(value) {
+  if (isRecord5(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
+    return false;
+  }
+  if (!isRecord5(value)) {
+    return false;
+  }
+  return Object.values(value).every((tokens) => Number.isSafeInteger(tokens) && Number(tokens) >= 0);
+}
 function hasValidReceiptArrays(receipt) {
-  return Array.isArray(receipt.coverage) && Array.isArray(receipt.findings) && receipt.findings.every((finding) => isSerializedFinding(finding)) && Array.isArray(receipt.missingEvidence) && Array.isArray(receipt.unknowns);
+  return Array.isArray(receipt.checks) && receipt.checks.every((check) => isSerializedCheck(check)) && Array.isArray(receipt.coverage) && receipt.coverage.every((entry2) => isSerializedCoverage(entry2)) && Array.isArray(receipt.findings) && receipt.findings.every((finding) => isSerializedFinding(finding)) && Array.isArray(receipt.missingEvidence) && Array.isArray(receipt.skippedChecks) && Array.isArray(receipt.unknowns);
 }
 function hasValidReceiptScalars(receipt) {
-  return typeof receipt.reviewedSha === "string" && (receipt.route === "looks_ready" || receipt.route === "needs_human") && isReviewRunState(receipt.runState) && typeof receipt.reviewableTextArtifacts === "number";
+  return typeof receipt.reviewedSha === "string" && (receipt.route === "looks_ready" || receipt.route === "needs_human") && isReviewRunState(receipt.runState) && typeof receipt.reviewableTextArtifacts === "number" && isTokenUsage(receipt.tokenUsage);
 }
 function hasValidReceiptShape(receipt) {
   return hasExactKeys(receipt, [
+    "checks",
     "coverage",
     "findings",
     "missingEvidence",
@@ -37401,6 +37477,8 @@ function hasValidReceiptShape(receipt) {
     "reviewedSha",
     "route",
     "runState",
+    "skippedChecks",
+    "tokenUsage",
     "unknowns"
   ]) && hasValidReceiptArrays(receipt) && hasValidReceiptScalars(receipt);
 }
@@ -37467,7 +37545,7 @@ function parseReviewedReceipt(path4) {
     receipt
   };
 }
-function reviewedReceiptBody(receipt, runState) {
+function renderReviewedReceipt(receipt, runState) {
   const findings = (receipt.findings ?? []).map((finding) => ({
     consequential: finding.consequential,
     consequence: finding.consequence,
@@ -37477,24 +37555,27 @@ function reviewedReceiptBody(receipt, runState) {
     path: finding.path
   }));
   return renderReceipt({
-    checks: [],
+    checks: receipt.checks ?? [],
+    coverage: receipt.coverage ?? [],
     findingCounts: {
       consequential: findings.filter((finding) => finding.consequential !== false).length,
       nonConsequential: findings.filter((finding) => finding.consequential === false).length
     },
     findings,
+    missingEvidence: receipt.missingEvidence ?? [],
+    reviewableTextArtifacts: receipt.reviewableTextArtifacts,
     reviewedSha: receipt.reviewedSha,
     reviewers: ["OpenAI"],
     route: runState === "stale" ? "needs_human" : receipt.route,
     runState,
-    skippedChecks: [],
-    tokenUsage: {},
+    skippedChecks: receipt.skippedChecks ?? [],
+    tokenUsage: receipt.tokenUsage ?? {},
     unknowns: receipt.unknowns ?? []
   });
 }
 function receiptBody(receipt, current) {
   if ("route" in receipt) {
-    return reviewedReceiptBody(receipt, current ? receipt.runState ?? "incomplete" : "stale");
+    return renderReviewedReceipt(receipt, current ? receipt.runState ?? "incomplete" : "stale");
   }
   if (!current) {
     return `Reviewed revision: ${receipt.reviewedSha}
@@ -37633,9 +37714,10 @@ function createGitHubReviewBoundary() {
     }
   };
 }
-var REVIEW_RUN_STATES, NON_RUN_STATUSES;
+var REVIEW_RUN_STATES, RECEIPT_CHECK_STATUSES, NON_RUN_STATUSES;
 var init_review_pr_publication = __esm(() => {
   REVIEW_RUN_STATES = new Set(["complete", "failed", "incomplete", "stale"]);
+  RECEIPT_CHECK_STATUSES = new Set(["failed", "pending", "success", "unknown"]);
   NON_RUN_STATUSES = new Set([
     "not_ready",
     "prerequisites_failed",

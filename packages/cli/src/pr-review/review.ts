@@ -1,7 +1,4 @@
-export {
-  publishValidatedSplitPrivilegeEvidence,
-  runSplitPrivilegeReview,
-} from './split-privilege.js';
+export { publishValidatedSplitPrivilegeEvidence } from './split-privilege.js';
 
 export interface PullRequestReviewState {
   headSha: string;
@@ -17,13 +14,21 @@ export interface PullRequestReviewState {
 
 export interface AdvisoryInspection {
   artifacts?: ArtifactEvidence[];
+  checks?: ReceiptCheck[];
   consequentialFindings: number;
   coverage?: ArtifactCoverage[];
   findings?: AdvisoryFinding[];
   maxTotalBytes?: number;
   runConditions?: ReviewRunState[];
   runState?: ReviewRunState;
+  skippedChecks?: string[];
+  tokenUsage?: { input?: number; output?: number };
   unknowns: string[];
+}
+
+export interface ReceiptCheck {
+  name: string;
+  status: 'failed' | 'pending' | 'success' | 'unknown';
 }
 
 export type ReviewRunState = 'complete' | 'failed' | 'incomplete' | 'stale';
@@ -72,6 +77,7 @@ export type ArtifactCoverage =
 
 export type PublishedReceipt =
   | {
+      checks?: ReceiptCheck[];
       coverage?: ArtifactCoverage[];
       findings?: AdvisoryFinding[];
       missingEvidence?: string[];
@@ -79,6 +85,8 @@ export type PublishedReceipt =
       reviewedSha: string;
       route: 'looks_ready' | 'needs_human';
       runState?: ReviewRunState;
+      skippedChecks?: string[];
+      tokenUsage?: { input?: number; output?: number };
       unknowns?: string[];
     }
   | {
@@ -205,11 +213,14 @@ function deriveReviewedReceipt(
   const route = deriveRoute(runState, inspection);
 
   return {
+    checks: inspection.checks ?? [],
     coverage: coverage ?? [],
     findings: inspection.findings ?? [],
     missingEvidence,
     reviewableTextArtifacts,
     runState,
+    skippedChecks: inspection.skippedChecks ?? [],
+    tokenUsage: inspection.tokenUsage ?? {},
     unknowns: inspection.unknowns,
     reviewedSha,
     route,
@@ -240,17 +251,6 @@ async function stopBeforeReview(
   if (pullRequest.reviewedReceiptSha === pullRequest.headSha) {
     await dependencies.summarize?.('suppressed');
     return { attempts: 0, result: 'suppressed' };
-  }
-
-  if (pullRequest.reviewedReceiptSha) {
-    await dependencies.publish(
-      {
-        reviewedSha: pullRequest.reviewedReceiptSha,
-        route: 'needs_human',
-        runState: 'stale',
-      },
-      'upsert_marker_owned',
-    );
   }
 
   if (!pullRequest.prerequisitesConfigured) {

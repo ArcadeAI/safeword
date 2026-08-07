@@ -58,12 +58,47 @@ function isSerializedFinding(value: unknown): boolean {
   );
 }
 
+const RECEIPT_CHECK_STATUSES = new Set(['failed', 'pending', 'success', 'unknown']);
+
+function isSerializedCheck(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['name', 'status']) &&
+    typeof value.name === 'string' &&
+    RECEIPT_CHECK_STATUSES.has(String(value.status))
+  );
+}
+
+function isSerializedCoverage(value: unknown): boolean {
+  if (!isRecord(value) || typeof value.path !== 'string') return false;
+  if (value.status === 'integrity_reviewed') return hasExactKeys(value, ['path', 'status']);
+  return (
+    value.status === 'skipped' &&
+    value.skipReason === 'non_text' &&
+    hasExactKeys(value, ['path', 'skipReason', 'status'])
+  );
+}
+
+function isTokenUsage(value: unknown): boolean {
+  if (isRecord(value) && Object.keys(value).some(key => key !== 'input' && key !== 'output')) {
+    return false;
+  }
+  if (!isRecord(value)) {
+    return false;
+  }
+  return Object.values(value).every(tokens => Number.isSafeInteger(tokens) && Number(tokens) >= 0);
+}
+
 function hasValidReceiptArrays(receipt: Record<string, unknown>): boolean {
   return (
+    Array.isArray(receipt.checks) &&
+    receipt.checks.every(check => isSerializedCheck(check)) &&
     Array.isArray(receipt.coverage) &&
+    receipt.coverage.every(entry => isSerializedCoverage(entry)) &&
     Array.isArray(receipt.findings) &&
     receipt.findings.every(finding => isSerializedFinding(finding)) &&
     Array.isArray(receipt.missingEvidence) &&
+    Array.isArray(receipt.skippedChecks) &&
     Array.isArray(receipt.unknowns)
   );
 }
@@ -73,13 +108,15 @@ function hasValidReceiptScalars(receipt: Record<string, unknown>): boolean {
     typeof receipt.reviewedSha === 'string' &&
     (receipt.route === 'looks_ready' || receipt.route === 'needs_human') &&
     isReviewRunState(receipt.runState) &&
-    typeof receipt.reviewableTextArtifacts === 'number'
+    typeof receipt.reviewableTextArtifacts === 'number' &&
+    isTokenUsage(receipt.tokenUsage)
   );
 }
 
 function hasValidReceiptShape(receipt: Record<string, unknown>): boolean {
   return (
     hasExactKeys(receipt, [
+      'checks',
       'coverage',
       'findings',
       'missingEvidence',
@@ -87,6 +124,8 @@ function hasValidReceiptShape(receipt: Record<string, unknown>): boolean {
       'reviewedSha',
       'route',
       'runState',
+      'skippedChecks',
+      'tokenUsage',
       'unknowns',
     ]) &&
     hasValidReceiptArrays(receipt) &&
@@ -197,7 +236,7 @@ function parseReviewedReceipt(path: string): ParsedHandoff {
   };
 }
 
-function reviewedReceiptBody(
+export function renderReviewedReceipt(
   receipt: Extract<PublishedReceipt, { route: 'looks_ready' | 'needs_human' }>,
   runState: ReviewRunState,
 ): string {
@@ -210,25 +249,28 @@ function reviewedReceiptBody(
     path: finding.path,
   }));
   return renderReceipt({
-    checks: [],
+    checks: receipt.checks ?? [],
+    coverage: receipt.coverage ?? [],
     findingCounts: {
       consequential: findings.filter(finding => finding.consequential !== false).length,
       nonConsequential: findings.filter(finding => finding.consequential === false).length,
     },
     findings,
+    missingEvidence: receipt.missingEvidence ?? [],
+    reviewableTextArtifacts: receipt.reviewableTextArtifacts,
     reviewedSha: receipt.reviewedSha,
     reviewers: ['OpenAI'],
     route: runState === 'stale' ? 'needs_human' : receipt.route,
     runState,
-    skippedChecks: [],
-    tokenUsage: {},
+    skippedChecks: receipt.skippedChecks ?? [],
+    tokenUsage: receipt.tokenUsage ?? {},
     unknowns: receipt.unknowns ?? [],
   });
 }
 
 function receiptBody(receipt: PublishedReceipt, current: boolean): string {
   if ('route' in receipt) {
-    return reviewedReceiptBody(receipt, current ? (receipt.runState ?? 'incomplete') : 'stale');
+    return renderReviewedReceipt(receipt, current ? (receipt.runState ?? 'incomplete') : 'stale');
   }
   if (!current) {
     return `Reviewed revision: ${receipt.reviewedSha}\nRun state: stale\nRoute: needs a human`;

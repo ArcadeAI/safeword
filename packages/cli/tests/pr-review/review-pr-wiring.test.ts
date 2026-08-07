@@ -33,7 +33,7 @@ describe('review-pr inspect command wiring', () => {
           maxTotalBytes: 1024,
           model: 'gpt-test',
           provider: 'openai',
-          requiredChecks: [],
+          requiredChecks: [{ context: 'build' }],
         },
       }),
     );
@@ -43,7 +43,7 @@ describe('review-pr inspect command wiring', () => {
       inputPath,
       JSON.stringify({
         artifacts: [{ content: 'allow *', kind: 'text', path: 'policies/access.flux' }],
-        checks: [],
+        checks: [{ conclusion: 'success', name: 'build', status: 'completed' }],
         headSha: 'a'.repeat(40),
         markerReceiptExists: false,
         pullState: 'ready',
@@ -59,7 +59,9 @@ describe('review-pr inspect command wiring', () => {
       nextAction: 'Restrict access to the intended role.',
       path: 'policies/access.flux',
     };
-    const provider = vi.fn().mockResolvedValue([finding]);
+    const provider = vi
+      .fn()
+      .mockResolvedValue({ findings: [finding], tokenUsage: { input: 123, output: 45 } });
 
     const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
 
@@ -68,7 +70,12 @@ describe('review-pr inspect command wiring', () => {
       evidence: [{ content: 'allow *', path: 'policies/access.flux' }],
       model: 'gpt-test',
     });
-    expect(receiptOf(result)).toMatchObject({ reviewedSha: 'a'.repeat(40), route: 'needs_human' });
+    expect(receiptOf(result)).toMatchObject({
+      checks: [{ name: 'build', status: 'success' }],
+      reviewedSha: 'a'.repeat(40),
+      route: 'needs_human',
+      tokenUsage: { input: 123, output: 45 },
+    });
     expect(JSON.parse(readFileSync(outputPath, 'utf8'))).toEqual(result);
   });
 
@@ -105,7 +112,7 @@ describe('review-pr inspect command wiring', () => {
         statuses: [],
       }),
     );
-    const provider = vi.fn().mockResolvedValue([]);
+    const provider = vi.fn().mockResolvedValue({ findings: [], tokenUsage: {} });
 
     const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
 
@@ -162,15 +169,18 @@ describe('review-pr inspect command wiring', () => {
         inputPath,
         outputPath,
         provider: () =>
-          Promise.resolve([
-            {
-              consequential: false,
-              consequence: `Model echoed ${credential}`,
-              evidence: 'The changed line is present.',
-              nextAction: 'Review the changed line.',
-              path: 'src/change.ts',
-            },
-          ]),
+          Promise.resolve({
+            findings: [
+              {
+                consequential: false,
+                consequence: `Model echoed ${credential}`,
+                evidence: 'The changed line is present.',
+                nextAction: 'Review the changed line.',
+                path: 'src/change.ts',
+              },
+            ],
+            tokenUsage: {},
+          }),
       });
 
       const serialized = readFileSync(outputPath, 'utf8');

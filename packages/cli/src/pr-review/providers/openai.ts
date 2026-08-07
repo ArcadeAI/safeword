@@ -7,6 +7,11 @@ export interface ModelFinding {
   path: string;
 }
 
+export interface ModelReviewResult {
+  findings: ModelFinding[];
+  tokenUsage: { input?: number; output?: number };
+}
+
 export interface OpenAIReviewOptions {
   apiKey: string;
   evidence: { content: string; path: string }[];
@@ -104,7 +109,7 @@ function parseFindings(text: string, evidencePaths: Set<string>): ModelFinding[]
   });
 }
 
-export async function reviewWithOpenAI(options: OpenAIReviewOptions): Promise<ModelFinding[]> {
+export async function reviewWithOpenAI(options: OpenAIReviewOptions): Promise<ModelReviewResult> {
   const fetchImplementation = options.fetchImplementation ?? fetch;
   const response = await fetchImplementation('https://api.openai.com/v1/responses', {
     body: JSON.stringify({
@@ -149,5 +154,18 @@ export async function reviewWithOpenAI(options: OpenAIReviewOptions): Promise<Mo
 
   if (!response.ok) throw new Error(`OpenAI reviewer request failed (${response.status})`);
   const payload: unknown = await response.json();
-  return parseFindings(outputText(payload), new Set(options.evidence.map(item => item.path)));
+  const usage = isRecord(payload) && isRecord(payload.usage) ? payload.usage : undefined;
+  return {
+    findings: parseFindings(outputText(payload), new Set(options.evidence.map(item => item.path))),
+    tokenUsage: {
+      ...(usage &&
+        Number.isSafeInteger(usage.input_tokens) && {
+          input: Number(usage.input_tokens),
+        }),
+      ...(usage &&
+        Number.isSafeInteger(usage.output_tokens) && {
+          output: Number(usage.output_tokens),
+        }),
+    },
+  };
 }

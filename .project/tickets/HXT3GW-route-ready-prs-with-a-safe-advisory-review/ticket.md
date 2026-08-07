@@ -38,7 +38,7 @@ phase_anchors:
   - "verify: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
   - "done: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
 created: 2026-08-05T14:38:52.499Z
-last_modified: 2026-08-07T09:20:00Z
+last_modified: 2026-08-07T09:47:30Z
 ---
 
 # Route ready PRs with a safe advisory review
@@ -49,6 +49,16 @@ last_modified: 2026-08-07T09:20:00Z
 
 ## Work Log
 
+- 2026-08-07T09:47:30Z Reconciled the post-review scenarios with the customer-visible
+  ordinary comment. Production handoff and publication now preserve actual
+  prerequisite check outcomes, coverage/skips, missing evidence, reviewable-text
+  count, and OpenAI input/output usage; every model-proposed next action is
+  explicitly labeled unverified. Coverage and evidence scenarios now assert the
+  production renderer, and the fork scenario inspects the shipped worker and
+  publisher instead of the deleted test-only split-privilege runner. Intra-review
+  stale publication was removed because the workflow invalidation command owns
+  that state. All 64 scenarios and 2,627 steps pass; focused ESLint, TypeScript,
+  Gherkin, and plugin-generation contracts are clean.
 - 2026-08-07T09:20:00Z Fixed the post-review version-skew opt-out defect. The
   first regression run proved that disabling during an upgrade removed only the
   unversioned router and stranded the old worker/publisher. Managed-file removal

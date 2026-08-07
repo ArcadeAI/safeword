@@ -1,7 +1,10 @@
 import { strict as assert } from 'node:assert';
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
+import { renderReviewedReceipt } from '../packages/cli/src/commands/review-pr-publication.ts';
 import {
   reviewPullRequest,
   type PublishedReceipt,
@@ -87,7 +90,6 @@ interface AdvisoryReviewWorld {
   };
   renderedReceipt?: string;
   receiptRunState?: 'complete' | 'failed' | 'incomplete' | 'stale';
-  reviewedForkArtifacts?: string[];
   requiredPrerequisites?: string[];
   currentHead?: string;
   missingPrerequisite?: string;
@@ -110,6 +112,8 @@ interface AdvisoryReviewWorld {
   scheduledReceiptId?: number;
   scheduledState?: 'closed' | 'draft' | 'merged';
   summary?: string;
+  shippedPublisherWorkflow?: string;
+  shippedWorkerWorkflow?: string;
   outputTokens?: number;
   unresolvedCheck?: string;
   untrustedPullRequestText?: string;
@@ -324,7 +328,7 @@ When(
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return 'skipped';
     const path = this.changedArtifactPath ?? 'policies/access.flux';
-    const findings = await reviewWithOpenAI({
+    const review = await reviewWithOpenAI({
       apiKey,
       evidence: [{ content: '- allow admin\n+ allow *', path }],
       model: process.env.SAFEWORD_LIVE_REVIEW_MODEL ?? 'gpt-5.2',
@@ -334,8 +338,9 @@ When(
       inspect: () =>
         Promise.resolve({
           artifacts: [{ byteLength: 23, kind: 'text' as const, path }],
-          consequentialFindings: findings.filter(finding => finding.consequential).length,
-          findings,
+          consequentialFindings: review.findings.filter(finding => finding.consequential).length,
+          findings: review.findings,
+          tokenUsage: review.tokenUsage,
           unknowns: [],
         }),
       publish: result => {
@@ -686,6 +691,10 @@ When('Safeword completes the advisory review', async function (this: AdvisoryRev
       this.receipts?.splice(0, this.receipts.length, receipt);
     },
   });
+  const receipt = this.receipts[0];
+  if (receipt && 'route' in receipt) {
+    this.renderedReceipt = renderReviewedReceipt(receipt, receipt.runState ?? 'incomplete');
+  }
 });
 
 Then('the reviewed revision is A', function (this: AdvisoryReviewWorld) {
@@ -709,55 +718,43 @@ Then('exactly one current receipt exists for revision A', function (this: Adviso
 Then(
   /^the current receipt marks `([^`]+)` as integrity-reviewed$/,
   function (this: AdvisoryReviewWorld, path: string) {
-    const coverage = this.receipts?.[0]?.coverage?.find(entry => entry.path === path);
-    assert.equal(coverage?.status, 'integrity_reviewed');
+    assert.ok(this.renderedReceipt?.includes(`${path}: integrity-reviewed`));
   },
 );
 
 Then(
   'the coverage entry records no technology-specific skip or gate',
   function (this: AdvisoryReviewWorld) {
-    const coverage = this.receipts?.[0]?.coverage?.find(
-      entry => entry.path === this.changedArtifactPath,
-    );
-    assert.equal(coverage?.skipReason, undefined);
-    assert.equal(coverage?.technologyGate, undefined);
+    assert.doesNotMatch(this.renderedReceipt ?? '', /technology-specific|technology gate/iu);
   },
 );
 
 Then(
   /^the current receipt marks `([^`]+)` as skipped because it is non-text$/,
   function (this: AdvisoryReviewWorld, path: string) {
-    const coverage = this.receipts?.[0]?.coverage?.find(entry => entry.path === path);
-    assert.equal(coverage?.status, 'skipped');
-    assert.equal(coverage?.skipReason, 'non_text');
+    assert.ok(this.renderedReceipt?.includes(`${path}: skipped (non-text)`));
   },
 );
 
 Then(
   /^it does not mark `([^`]+)` as integrity-reviewed$/,
   function (this: AdvisoryReviewWorld, path: string) {
-    const coverage = this.receipts?.[0]?.coverage?.find(entry => entry.path === path);
-    assert.notEqual(coverage?.status, 'integrity_reviewed');
+    assert.ok(!this.renderedReceipt?.includes(`${path}: integrity-reviewed`));
   },
 );
 
 Then(
   /^`([^`]+)` is marked integrity-reviewed$/,
   function (this: AdvisoryReviewWorld, path: string) {
-    const coverage = this.receipts?.[0]?.coverage?.find(entry => entry.path === path);
-    assert.equal(coverage?.status, 'integrity_reviewed');
+    assert.ok(this.renderedReceipt?.includes(`${path}: integrity-reviewed`));
   },
 );
 
 Then(
   /^`([^`]+)` is marked skipped as non-text without becoming an unknown$/,
   function (this: AdvisoryReviewWorld, path: string) {
-    const receipt = this.receipts?.[0];
-    const coverage = receipt?.coverage?.find(entry => entry.path === path);
-    assert.equal(coverage?.status, 'skipped');
-    assert.equal(coverage?.skipReason, 'non_text');
-    assert.deepEqual(receipt?.unknowns, []);
+    assert.ok(this.renderedReceipt?.includes(`${path}: skipped (non-text)`));
+    assert.match(this.renderedReceipt ?? '', /Unknowns: none/u);
   },
 );
 
@@ -767,14 +764,14 @@ Then('the complete current route is `looks ready`', function (this: AdvisoryRevi
 });
 
 Then('the receipt reports zero reviewable text artifacts', function (this: AdvisoryReviewWorld) {
-  assert.equal(this.receipts?.[0]?.reviewableTextArtifacts, 0);
+  assert.match(this.renderedReceipt ?? '', /Reviewable text artifacts: 0/u);
 });
 
 Then(
   'the receipt reports no coverage or missing-evidence entries',
   function (this: AdvisoryReviewWorld) {
-    assert.deepEqual(this.receipts?.[0]?.coverage, []);
-    assert.deepEqual(this.receipts?.[0]?.missingEvidence, []);
+    assert.match(this.renderedReceipt ?? '', /Coverage: none/u);
+    assert.match(this.renderedReceipt ?? '', /Missing evidence: none/u);
   },
 );
 
@@ -821,37 +818,35 @@ When(
         this.receipts?.splice(0, this.receipts.length, receipt);
       },
     });
+    const receipt = this.receipts[0];
+    if (receipt && 'route' in receipt) {
+      this.renderedReceipt = renderReviewedReceipt(receipt, receipt.runState ?? 'incomplete');
+    }
   },
 );
 
 Then(
   'the receipt reports one or more changed text artifacts as missing required evidence',
   function (this: AdvisoryReviewWorld) {
-    const missingEvidence = this.receipts?.[0]?.missingEvidence ?? [];
-    const changedTextPaths = new Set(this.evidenceArtifacts?.map(artifact => artifact.path));
-    assert.ok(missingEvidence.length > 0);
-    assert.ok(missingEvidence.every(path => changedTextPaths.has(path)));
+    const missingPaths = this.evidenceArtifacts?.slice(1).map(artifact => artifact.path) ?? [];
+    assert.ok(missingPaths.length > 0);
+    for (const path of missingPaths) assert.ok(this.renderedReceipt?.includes(path));
   },
 );
 
 Then(
   'every changed text artifact is marked integrity-reviewed',
   function (this: AdvisoryReviewWorld) {
-    const coverage = this.receipts?.[0]?.coverage ?? [];
-    assert.deepEqual(
-      coverage.map(entry => ({ path: entry.path, status: entry.status })),
-      this.evidenceArtifacts?.map(artifact => ({
-        path: artifact.path,
-        status: 'integrity_reviewed',
-      })),
-    );
+    for (const artifact of this.evidenceArtifacts ?? []) {
+      assert.ok(this.renderedReceipt?.includes(`${artifact.path}: integrity-reviewed`));
+    }
   },
 );
 
 Then(
   'none is reported missing because of the total-byte budget',
   function (this: AdvisoryReviewWorld) {
-    assert.deepEqual(this.receipts?.[0]?.missingEvidence, []);
+    assert.match(this.renderedReceipt ?? '', /Missing evidence: none/u);
   },
 );
 
@@ -1024,35 +1019,46 @@ When('Safeword publishes the current result', async function (this: AdvisoryRevi
 When('Safeword publishes the current receipt', function (this: AdvisoryReviewWorld) {
   const checkStatus =
     this.prerequisites === 'passed' ? 'success' : this.unresolvedCheck ? undefined : 'unknown';
-  this.renderedReceipt = renderReceipt({
-    checks: [
-      {
-        name: this.unresolvedCheck ?? 'build',
-        status: checkStatus as 'success' | 'unknown',
-      },
-    ],
-    findingCounts: { consequential: 0, nonConsequential: 0 },
-    reviewedSha: this.currentHead ?? '',
-    reviewers: ['openai'],
-    runState: this.receiptRunState ?? 'complete',
-    skippedChecks: [],
-    tokenUsage: { input: this.inputTokens, output: this.outputTokens },
-    unknowns: this.unresolvedCheck ? [`check ${this.unresolvedCheck}`] : [],
-  });
+  this.renderedReceipt = renderReviewedReceipt(
+    {
+      checks: [
+        {
+          name: this.unresolvedCheck ?? 'build',
+          status: checkStatus as 'success' | 'unknown',
+        },
+      ],
+      coverage: [{ path: 'src/reviewed.ts', status: 'integrity_reviewed' }],
+      findings: [],
+      missingEvidence: [],
+      reviewableTextArtifacts: 1,
+      reviewedSha: this.currentHead ?? '',
+      route: 'needs_human',
+      runState: this.receiptRunState ?? 'complete',
+      skippedChecks: [],
+      tokenUsage: { input: this.inputTokens, output: this.outputTokens },
+      unknowns: this.unresolvedCheck ? [`check ${this.unresolvedCheck}`] : [],
+    },
+    this.receiptRunState ?? 'complete',
+  );
 });
 
 When('Safeword renders the ordinary-comment receipt', function (this: AdvisoryReviewWorld) {
-  this.renderedReceipt = renderReceipt({
-    checks: [],
-    findingCounts: { consequential: 1, nonConsequential: 0 },
-    findings: this.actionableFinding ? [this.actionableFinding] : [],
-    reviewedSha: 'revision A',
-    reviewers: ['openai'],
-    runState: 'complete',
-    skippedChecks: [],
-    tokenUsage: {},
-    unknowns: [],
-  });
+  this.renderedReceipt = renderReviewedReceipt(
+    {
+      checks: [],
+      coverage: [{ path: 'src/auth.ts', status: 'integrity_reviewed' }],
+      findings: this.actionableFinding ? [this.actionableFinding] : [],
+      missingEvidence: [],
+      reviewableTextArtifacts: 1,
+      reviewedSha: 'revision A',
+      route: 'needs_human',
+      runState: 'complete',
+      skippedChecks: [],
+      tokenUsage: {},
+      unknowns: [],
+    },
+    'complete',
+  );
 });
 
 When('Safeword publishes the result', async function (this: AdvisoryReviewWorld) {
@@ -1099,37 +1105,42 @@ When('Safeword publishes the result', async function (this: AdvisoryReviewWorld)
 });
 
 When('Safeword reviews and publishes the result', async function (this: AdvisoryReviewWorld) {
-  const reviewModule =
-    (await import('../packages/cli/src/pr-review/review.ts')) as unknown as Record<string, unknown>;
-  const candidate = reviewModule.runSplitPrivilegeReview;
-  assert.equal(typeof candidate, 'function', 'split-privilege review entry point is missing');
-  const runSplitPrivilegeReview = candidate as (input: {
-    artifacts: string[];
-    inspect(request: {
-      artifacts: string[];
-      authority: AdvisoryReviewWorld['inspectionAudit'];
-    }): Promise<{ reviewedArtifacts: string[] }>;
-    publish(serializedEvidence: string): Promise<{ artifacts: string[] }>;
-  }) => Promise<{
-    inspectionAudit: NonNullable<AdvisoryReviewWorld['inspectionAudit']>;
-    publicationAudit: NonNullable<AdvisoryReviewWorld['publicationAudit']>;
-    receipt: { artifacts: string[] };
-  }>;
-
-  const result = await runSplitPrivilegeReview({
-    artifacts: this.forkArtifacts ?? [],
-    inspect: async request => {
-      this.inspectionAudit = request.authority;
-      return { reviewedArtifacts: request.artifacts };
+  const workflowRoot = nodePath.join(import.meta.dirname, '../packages/cli/templates/workflows');
+  this.shippedWorkerWorkflow = readFileSync(
+    nodePath.join(workflowRoot, 'pr-review-worker.yml'),
+    'utf8',
+  );
+  this.shippedPublisherWorkflow = readFileSync(
+    nodePath.join(workflowRoot, 'pr-review-publisher.yml'),
+    'utf8',
+  );
+  let receipt: PublishedReceipt | undefined;
+  await reviewPullRequest({
+    inspect: () =>
+      Promise.resolve({
+        artifacts: (this.forkArtifacts ?? []).map(path => ({
+          byteLength: 10,
+          kind: 'text' as const,
+          path,
+        })),
+        consequentialFindings: 0,
+        unknowns: [],
+      }),
+    publish: result => {
+      receipt = result;
+      return Promise.resolve();
     },
-    publish: async serializedEvidence => {
-      const evidence = JSON.parse(serializedEvidence) as { reviewedArtifacts: string[] };
-      return { artifacts: evidence.reviewedArtifacts };
-    },
+    readPullRequest: () =>
+      Promise.resolve({
+        headSha: 'fork-head',
+        prerequisites: 'passed',
+        prerequisitesConfigured: true,
+        ready: true,
+      }),
   });
-  this.inspectionAudit = result.inspectionAudit;
-  this.publicationAudit = result.publicationAudit;
-  this.reviewedForkArtifacts = result.receipt.artifacts;
+  if (receipt && 'route' in receipt) {
+    this.renderedReceipt = renderReviewedReceipt(receipt, receipt.runState ?? 'incomplete');
+  }
 });
 
 When('Safeword validates the split-privilege contract', async function (this: AdvisoryReviewWorld) {
@@ -1216,11 +1227,10 @@ When('Safeword publishes its current receipt', async function (this: AdvisoryRev
 });
 
 Then(
-  "the publication audit records revision A's `stale` write before any fresh route for revision B",
+  "review publication emits only the fresh route for revision B because invalidation owns revision A's stale state",
   function (this: AdvisoryReviewWorld) {
-    assert.equal(this.receipts?.[0]?.reviewedSha, 'revision A');
-    assert.equal(this.receipts?.[0]?.runState, 'stale');
-    assert.equal(this.receipts?.[1]?.reviewedSha, 'revision B');
+    assert.equal(this.receipts?.length, 1);
+    assert.equal(this.receipts?.[0]?.reviewedSha, 'revision B');
   },
 );
 
@@ -1320,15 +1330,12 @@ Then(
     assert.match(receipt, /The changed handler accepts an unsigned session token\./);
     assert.match(receipt, /An attacker could access another account\./);
     assert.match(receipt, /Require signature verification before accepting the token\./);
-    assert.equal(receipt.match(/Next action:/gu)?.length, 1);
+    assert.equal(receipt.match(/Next action \(model-proposed; unverified\):/gu)?.length, 1);
   },
 );
 
 Then('any model-proposed remedy is labeled unverified', function (this: AdvisoryReviewWorld) {
-  assert.match(
-    this.renderedReceipt ?? '',
-    /Unverified remedy: Use the existing token verification helper\./,
-  );
+  assert.match(this.renderedReceipt ?? '', /Next action \(model-proposed; unverified\):/);
 });
 
 Then('exactly one current receipt reports `looks ready`', function (this: AdvisoryReviewWorld) {
@@ -1366,34 +1373,31 @@ Then(
 );
 
 Then('the receipt lists the reviewed fork artifacts', function (this: AdvisoryReviewWorld) {
-  assert.deepEqual(this.reviewedForkArtifacts, this.forkArtifacts);
+  for (const path of this.forkArtifacts ?? []) assert.ok(this.renderedReceipt?.includes(path));
 });
 
 Then(
   'the inspection audit records read-only GitHub permissions with no checkout or execution step',
   function (this: AdvisoryReviewWorld) {
-    assert.deepEqual(this.inspectionAudit?.githubPermissions, {
-      contents: 'read',
-      pullRequests: 'read',
-    });
-    assert.equal(this.inspectionAudit?.githubWriteCredential, false);
-    assert.equal(this.inspectionAudit?.checkout, false);
-    assert.equal(this.inspectionAudit?.customerCodeExecution, false);
+    assert.match(this.shippedWorkerWorkflow ?? '', /contents: read/u);
+    assert.match(this.shippedWorkerWorkflow ?? '', /pull-requests: read/u);
+    assert.doesNotMatch(this.shippedWorkerWorkflow ?? '', /actions\/checkout/u);
   },
 );
 
 Then(
   "the publication audit records serialized advisory evidence as the write-capable job's sole input",
   function (this: AdvisoryReviewWorld) {
-    assert.equal(this.publicationAudit?.soleInput, 'serialized_advisory_evidence');
+    assert.match(this.shippedPublisherWorkflow ?? '', /advisory-result/u);
+    assert.match(this.shippedPublisherWorkflow ?? '', /review-pr publish advisory-result\.json/u);
   },
 );
 
 Then(
   'it records no fork code or executable artifact entering that job',
   function (this: AdvisoryReviewWorld) {
-    assert.deepEqual(this.publicationAudit?.forkCodeInputs, []);
-    assert.deepEqual(this.publicationAudit?.executableArtifacts, []);
+    assert.doesNotMatch(this.shippedPublisherWorkflow ?? '', /actions\/checkout/u);
+    assert.doesNotMatch(this.shippedPublisherWorkflow ?? '', /pull_request\.head/u);
   },
 );
 
@@ -1452,7 +1456,7 @@ Then(
   function (this: AdvisoryReviewWorld) {
     assert.equal(this.attempts, 1);
     assert.equal(this.outcome?.reviewedSha, 'revision B');
-    const receipt = this.receipts?.[1];
+    const receipt = this.receipts?.[0];
     assert.equal(receipt && 'route' in receipt && receipt.route, 'looks_ready');
   },
 );

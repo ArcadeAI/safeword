@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { type ModelFinding, reviewWithOpenAI } from '../pr-review/providers/openai.js';
+import { type ModelReviewResult, reviewWithOpenAI } from '../pr-review/providers/openai.js';
 import {
   type AdvisoryInspection,
   type PublishedReceipt,
@@ -15,7 +15,7 @@ interface InspectionProviderOptions {
   model: string;
 }
 
-type InspectionProvider = (options: InspectionProviderOptions) => Promise<ModelFinding[]>;
+type InspectionProvider = (options: InspectionProviderOptions) => Promise<ModelReviewResult>;
 
 export interface InspectPullRequestCommandOptions {
   cwd: string;
@@ -299,6 +299,16 @@ function resolvePrerequisiteState(
   return { missing, state };
 }
 
+function receiptChecks(
+  config: InspectionConfig,
+  input: InspectionInput,
+): NonNullable<AdvisoryInspection['checks']> {
+  return (config.requiredChecks ?? []).map(required => {
+    const state = evaluatePrerequisite(required.context, input);
+    return { name: required.context, status: state === 'passed' ? 'success' : state };
+  });
+}
+
 function boundedTextEvidence(
   artifacts: InspectionInput['artifacts'],
   maxTotalBytes: number,
@@ -351,15 +361,15 @@ export async function inspectPullRequestCommand(
     inspect: async () => {
       try {
         const textEvidence = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
-        const findings =
+        const review =
           textEvidence.length === 0
-            ? []
+            ? { findings: [], tokenUsage: {} }
             : await (options.provider ?? productionProvider)({
                 apiKey: process.env.OPENAI_API_KEY,
                 evidence: textEvidence,
                 model: config.model,
               });
-        const receiptFindings = findings.map(finding => {
+        const receiptFindings = review.findings.map(finding => {
           const path = redactCredentials(finding.path, credentials);
           const consequence = redactCredentials(finding.consequence, credentials);
           const evidence = redactCredentials(finding.evidence, credentials);
@@ -376,18 +386,24 @@ export async function inspectPullRequestCommand(
         });
         return {
           artifacts: receiptEvidence(receiptArtifacts),
+          checks: receiptChecks(config, input),
           consequentialFindings: receiptFindings.filter(finding => finding.consequential).length,
           findings: receiptFindings,
           maxTotalBytes: config.maxTotalBytes,
           runState: credentialRedacted ? ('incomplete' as const) : ('complete' as const),
+          skippedChecks: [],
+          tokenUsage: review.tokenUsage,
           unknowns: credentialRedacted ? ['credential-like value redacted'] : [],
         };
       } catch {
         return {
           artifacts: receiptEvidence(receiptArtifacts),
+          checks: receiptChecks(config, input),
           consequentialFindings: 0,
           maxTotalBytes: config.maxTotalBytes,
           runState: 'failed' as const,
+          skippedChecks: [],
+          tokenUsage: {},
           unknowns: ['review provider failed'],
         };
       }

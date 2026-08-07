@@ -43,6 +43,15 @@ export interface ReceiptView {
   skippedChecks: string[];
   tokenUsage: { input?: number; output?: number };
   unknowns: string[];
+  coverage?: ReceiptCoverageView[];
+  missingEvidence?: string[];
+  reviewableTextArtifacts?: number;
+}
+
+export interface ReceiptCoverageView {
+  path: string;
+  skipReason?: 'non_text';
+  status: 'integrity_reviewed' | 'skipped';
 }
 
 export interface ReceiptFindingView {
@@ -74,15 +83,22 @@ function renderFinding(finding: ReceiptFindingView): string[] {
     `Finding${consequenceLabel}: ${location}`,
     `Evidence: ${finding.evidence}`,
     `Consequence: ${finding.consequence}`,
-    `Next action: ${finding.nextAction}`,
+    `Next action (model-proposed; unverified): ${finding.nextAction}`,
     ...(finding.unverifiedRemedy ? [`Unverified remedy: ${finding.unverifiedRemedy}`] : []),
   ];
+}
+
+function renderCoverage(entry: ReceiptCoverageView): string {
+  if (entry.status === 'integrity_reviewed') return `${entry.path}: integrity-reviewed`;
+  const reason = entry.skipReason === 'non_text' ? 'non-text' : 'unknown';
+  return `${entry.path}: skipped (${reason})`;
 }
 
 export function renderReceipt(receipt: ReceiptView): string {
   const checks = receipt.checks.map(check => `${check.name}: ${check.status ?? 'unknown'}`);
   const inputTokens = receipt.tokenUsage.input ?? 'unknown';
   const outputTokens = receipt.tokenUsage.output ?? 'unknown';
+  const coverage = (receipt.coverage ?? []).map(entry => renderCoverage(entry));
 
   const summary = [
     'Advisory only: this review can miss issues, does not replace human review, and is not evidence that this pull request is safe to merge.',
@@ -94,6 +110,9 @@ export function renderReceipt(receipt: ReceiptView): string {
     `Reviewers: ${listOrNone(receipt.reviewers)}`,
     `Checks: ${listOrNone(checks)}`,
     `Skipped checks: ${listOrNone(receipt.skippedChecks)}`,
+    `Coverage: ${listOrNone(coverage)}`,
+    `Missing evidence: ${listOrNone(receipt.missingEvidence ?? [])}`,
+    `Reviewable text artifacts: ${receipt.reviewableTextArtifacts ?? 'unknown'}`,
     `Unknowns: ${listOrNone(receipt.unknowns)}`,
     `Token usage: ${inputTokens} input, ${outputTokens} output`,
     `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential`,

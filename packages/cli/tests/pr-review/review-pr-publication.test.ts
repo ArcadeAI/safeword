@@ -34,6 +34,7 @@ describe('review-pr publication command wiring', () => {
         },
         kind: 'receipt',
         receipt: {
+          checks: [{ name: 'build', status: 'success' }],
           coverage: [{ path: 'src/change.ts', status: 'integrity_reviewed' }],
           findings: [
             {
@@ -50,6 +51,8 @@ describe('review-pr publication command wiring', () => {
           reviewedSha: 'a'.repeat(40),
           route: 'looks_ready',
           runState: 'complete',
+          skippedChecks: [],
+          tokenUsage: { input: 123, output: 45 },
           unknowns: [],
         },
         schemaVersion: 1,
@@ -73,9 +76,15 @@ describe('review-pr publication command wiring', () => {
     expect(createComment).toHaveBeenCalledOnce();
     expect(createComment.mock.calls[0]?.[0]).toContain(RECEIPT_MARKER);
     expect(createComment.mock.calls[0]?.[0]).toContain('Route: looks ready');
+    expect(createComment.mock.calls[0]?.[0]).toContain('Checks: build: success');
+    expect(createComment.mock.calls[0]?.[0]).toContain(
+      'Coverage: src/change.ts: integrity-reviewed',
+    );
+    expect(createComment.mock.calls[0]?.[0]).toContain('Token usage: 123 input, 45 output');
     expect(createComment.mock.calls[0]?.[0]).toContain(
       'Finding (non-consequential): src/change.ts:12',
     );
+    expect(createComment.mock.calls[0]?.[0]).toContain('Next action (model-proposed; unverified)');
     expect(createComment.mock.calls[0]?.[0]).toContain('does not replace human review');
     expect(createComment.mock.calls[0]?.[0]).toContain(
       'not evidence that this pull request is safe to merge',
@@ -127,6 +136,7 @@ describe('review-pr publication command wiring', () => {
         },
         kind: 'receipt',
         receipt: {
+          checks: [],
           coverage: [{ path: 'src/change.ts', status: 'integrity_reviewed' }],
           findings: [],
           missingEvidence: [],
@@ -134,6 +144,8 @@ describe('review-pr publication command wiring', () => {
           reviewedSha: 'f'.repeat(40),
           route: 'looks_ready',
           runState: 'complete',
+          skippedChecks: [],
+          tokenUsage: {},
           unknowns: [],
         },
         schemaVersion: 1,

@@ -259,7 +259,7 @@ Feature: Route ready PRs with a safe advisory review
       Given revision A has a current receipt
       And <timing> revision B becomes the pull request head
       When Safeword handles the change
-      Then the publication audit records revision A's `stale` write before any fresh route for revision B
+      Then review publication emits only the fresh route for revision B because invalidation owns revision A's stale state
       And revision B requires a full fresh review before a current route is published
 
       Examples:
