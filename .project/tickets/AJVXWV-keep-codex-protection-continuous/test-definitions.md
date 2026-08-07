@@ -212,6 +212,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 0d32a172c
 - [x] REFACTOR skip: one proof fixture exposes the event-level boundary
 
+### Scenario: Older Codex clients with an unknown plugin version remain compatible
+
+- [x] RED skip: the compatibility behavior predated explicit older-client coverage
+- [x] GREEN 1cc5afa91
+- [x] REFACTOR skip: the observation field supplies the existing version-match predicate
+
 ### Scenario: Recovery state takes precedence over legacy protection
 
 - [x] RED skip: recovery precedence shipped with the transaction recovery gate
