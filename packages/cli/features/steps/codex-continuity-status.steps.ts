@@ -510,7 +510,6 @@ Then(
     // where an automated caller would try to run an English sentence.
     const isCommand = 'command' in action;
     assert.equal(isCommand ? 'command' : 'human', shape);
-    assert.equal(isCommand, shape === 'command');
   },
 );
 
