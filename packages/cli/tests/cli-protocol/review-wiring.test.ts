@@ -60,17 +60,22 @@ if [ "$mutate" = "1" ] && { [ -z "$mutate_agent" ] || [ "$mutate_agent" = "${age
 fi
 verdict=$(printenv SAFEWORD_REVIEW_FAKE_VERDICT || true)
 if [ -z "$verdict" ]; then verdict=approve; fi
+summary=$(printenv SAFEWORD_REVIEW_FAKE_SUMMARY || true)
+if [ -z "$summary" ]; then summary=reviewed; fi
+finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
 env_log=$(printenv SAFEWORD_REVIEW_ENV_LOG || true)
 if [ -n "$env_log" ]; then
   if printenv ANTHROPIC_API_KEY >/dev/null 2>&1; then printf 'anthropic=present\n' >> "$env_log"; else printf 'anthropic=absent\n' >> "$env_log"; fi
   if printenv OPENAI_API_KEY >/dev/null 2>&1; then printf 'openai=present\n' >> "$env_log"; else printf 'openai=absent\n' >> "$env_log"; fi
 fi
 if [ "$identity" = "missing" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"reviewed","findings":[]}\n' "$dispatch_id" "$verdict"
+  printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
 elif [ "$identity" = "contradictory" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"reviewed","findings":[]}\n' "$dispatch_id" "$verdict"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
+elif [ -n "$finding" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding"
 else
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"reviewed","findings":[]}\n' "$dispatch_id" "$verdict"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
 fi
 `,
     { mode: 0o755 },
@@ -149,6 +154,48 @@ describe('cross-agent review public-command wiring', () => {
         },
       });
       expect(readFileSync(log, 'utf8')).toBe(`${reviewer}\n`);
+    },
+  );
+
+  it.each([
+    { route: 'independent', failure: '', policy: 'prefer' },
+    { route: 'degraded prefer', failure: 'process', policy: 'prefer' },
+    { route: 'degraded require', failure: 'process', policy: 'require' },
+  ])(
+    'renders a real collaborator summary and finding for $route review',
+    async ({ failure, policy }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(directory, '.safeword', 'config.json'),
+        JSON.stringify({ crossAgentReview: policy }),
+      );
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, 'codex');
+      installFakeReviewer(directory, 'claude');
+
+      const result = await runCli(
+        ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: failure,
+            SAFEWORD_REVIEW_FAKE_FINDING: 'DISTINCTIVE_ACTIONABLE_FINDING',
+            SAFEWORD_REVIEW_FAKE_SUMMARY: 'DISTINCTIVE_REVIEW_SUMMARY',
+            SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(2);
+      expect(result.stderr).toBe('');
+      expect(result.stdout).toContain('DISTINCTIVE_REVIEW_SUMMARY');
+      expect(result.stdout).toContain('DISTINCTIVE_ACTIONABLE_FINDING');
     },
   );
 
@@ -234,84 +281,53 @@ describe('cross-agent review public-command wiring', () => {
     },
   );
 
-  it('retains the existing route for an author outside the Claude and Codex pairing', async () => {
-    const directory = createTemporaryDirectory();
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+  it.each(['prefer', 'require'] as const)(
+    'returns typed exhaustion for a Cursor author under %s so the host fallback can continue',
+    async policy => {
+      const directory = createTemporaryDirectory();
+      mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(directory, '.safeword', 'config.json'),
+        JSON.stringify({ crossAgentReview: policy }),
+      );
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
 
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: process.env.PATH ?? '',
-          SAFEWORD_AGENT_RUNTIME: 'cursor',
-          SAFEWORD_NO_UPDATE_CHECK: '1',
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: '/usr/bin:/bin',
+            SAFEWORD_AGENT_RUNTIME: 'cursor',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
         },
-      },
-    );
+      );
 
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'healthy',
-      effects: { network: [] },
-      data: {
-        status: 'existing_route',
-        author_agent: 'cursor',
-        independence: 'none',
-      },
-    });
-  });
-
-  it('fails closed for an unsupported author when cross-agent review is required', async () => {
-    const directory = createTemporaryDirectory();
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, '.safeword', 'config.json'),
-      JSON.stringify({ crossAgentReview: 'require' }),
-    );
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: '/usr/bin:/bin',
-          SAFEWORD_AGENT_RUNTIME: 'cursor',
-          SAFEWORD_NO_UPDATE_CHECK: '1',
+      expect(result.exitCode).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'action_required',
+        findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
+        effects: { network: [] },
+        recovery: [],
+        data: {
+          status: 'blocked',
+          author_agent: 'cursor',
+          review_policy: policy,
+          independence: 'none',
         },
-      },
-    );
-
-    expect(result.exitCode).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'action_required',
-      recovery: [{ description: 'Run this review from Claude or Codex.' }],
-      data: {
-        status: 'blocked',
-        author_agent: 'cursor',
-        independence: 'none',
-      },
-    });
-  });
+      });
+    },
+  );
 
   it.each([{ identity: 'missing' }, { identity: 'contradictory' }])(
     'rejects $identity reviewer provenance and continues through the bounded fallback routes',

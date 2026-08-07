@@ -18,7 +18,11 @@ Default behavior: `return the original coordinator result unchanged`.
 Never restart the coordinator or this workflow.
 
 - Continue only when the coordinator returned `REVIEW_ROUTES_EXHAUSTED` without
-  reviewer findings.
+  reviewer findings, with `status: blocked` and `independence: none` in the
+  trusted envelope.
+- Treat any contradictory exhaustion envelope—including one that reports
+  completed or satisfied independent review—as any other non-entry result:
+  return the original coordinator result unchanged.
 - For every other result—including reviewer rejection, source mutation,
   `REVIEW_INDEPENDENCE_REQUIRED`, and unrecognized failure—return the original
   coordinator result unchanged. Do not delegate or self-review.

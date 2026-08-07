@@ -1,5 +1,5 @@
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
-import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
+import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
 import type {
   ReviewAgent,
   ReviewAuthor,
@@ -61,6 +61,7 @@ function independentReviewResult(input: {
         message: `A different agent (${agentName(input.reviewer)}) checked the work in a separate headless process.`,
         severity: 'info',
       },
+      ...reviewerFeedback(input.output),
     ],
     effects: {
       network: independentNetworkEffects(input.reviewer, input.preferredFailure !== undefined),
@@ -77,6 +78,22 @@ function independentReviewResult(input: {
       reviewer_output: input.output,
     },
   });
+}
+
+/** Project validated reviewer feedback into the public result as well as typed metadata. */
+function reviewerFeedback(output: ReviewerOutput): readonly Finding[] {
+  return [
+    {
+      code: 'REVIEWER_SUMMARY',
+      message: output.summary,
+      severity: 'info',
+    },
+    ...output.findings.map(finding => ({
+      code: 'REVIEWER_FINDING',
+      message: finding.message,
+      severity: finding.severity,
+    })),
+  ];
 }
 
 async function executeReview(
@@ -230,47 +247,21 @@ function degradedDescription(
 function unsupportedAuthorResult(input: {
   readonly author: ReviewAuthor;
   readonly policy: ReviewPolicy;
-  readonly kind: ReviewKind;
-  readonly targets: readonly string[];
 }): CliResult {
-  if (input.policy === 'require') {
-    return createResult({
-      state: 'action_required',
-      findings: [
-        {
-          code: 'REVIEW_AUTHOR_UNSUPPORTED',
-          message: 'A required opposite-agent review needs a Claude or Codex author identity.',
-          severity: 'warning',
-        },
-      ],
-      recovery: [
-        {
-          command: retryCommand(input.kind, input.targets),
-          description: 'Run this review from Claude or Codex.',
-          requiresHuman: true,
-        },
-      ],
-      data: {
-        command: 'review run',
-        status: 'blocked',
-        author_agent: input.author,
-        independence: 'none',
-      },
-    });
-  }
   return createResult({
-    state: 'healthy',
+    state: 'action_required',
     findings: [
       {
-        code: 'REVIEW_EXISTING_ROUTE',
-        message: 'An independent cross-agent check was not run for this author runtime.',
-        severity: 'info',
+        code: 'REVIEW_ROUTES_EXHAUSTED',
+        message: `No compatible independent CLI reviewer is configured for the ${input.author} author runtime. No independent check was recorded.`,
+        severity: 'warning',
       },
     ],
     data: {
       command: 'review run',
-      status: 'existing_route',
+      status: 'blocked',
       author_agent: input.author,
+      review_policy: input.policy,
       independence: 'none',
     },
   });
@@ -459,6 +450,7 @@ async function runDegradedFallback(input: {
           message: `This review was not independent: the same agent (${agentName(completedOutput.reviewer_agent)}) checked its own work in a separate headless process, so the cross-agent gate remains unsatisfied.`,
           severity: 'warning',
         },
+        ...reviewerFeedback(completedOutput),
       ],
       effects: {
         network: degradedNetworkEffects(
@@ -501,6 +493,7 @@ async function runDegradedFallback(input: {
         ),
         severity: 'warning',
       },
+      ...reviewerFeedback(completedOutput),
     ],
     effects: {
       network: degradedNetworkEffects(
@@ -698,7 +691,7 @@ export async function runReview(input: {
   }
   const pair = oppositeReviewPair(author);
   if (pair === undefined) {
-    return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
+    return unsupportedAuthorResult({ author, policy });
   }
   const { reviewer } = pair;
 

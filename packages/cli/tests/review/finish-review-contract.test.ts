@@ -20,10 +20,13 @@ function read(path: string): string {
 describe('best-available host review contract', () => {
   it('enters only for typed route exhaustion and advances each degraded route once', () => {
     const skill = read(skillPath);
+    const normalizedSkill = skill.replaceAll(/\s+/gu, ' ');
 
     expect(skill).toContain('user-invocable: false');
     expect(skill).toContain("allowed-tools: '*'");
     expect(skill).toContain('REVIEW_ROUTES_EXHAUSTED');
+    expect(skill).toContain('with `status: blocked` and `independence: none`');
+    expect(normalizedSkill).toContain('reports completed or satisfied independent review');
     expect(skill).toContain('return the original coordinator result unchanged');
     expect(skill).toMatch(/one fresh-context reviewer/i);
     expect(skill).toMatch(/one main-thread self-review/i);

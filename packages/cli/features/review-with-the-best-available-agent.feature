@@ -7,7 +7,7 @@ Feature: Keep review available with the best supported fallback
   review and then main-thread self-review.
 
   @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents
-  Scenario Outline: Every advertised host ships the typed-exhaustion continuation
+  Scenario Outline: Every advertised host installs a typed-exhaustion entry point
     Given the <surface> review entry point at "<entry point>"
     When its shipped fallback wiring is inspected
     Then it points to the shared finish-review contract
@@ -22,6 +22,39 @@ Feature: Keep review available with the best supported fallback
       | OpenAI Codex Cloud  | packages/cli/codex-plugin/skills/quality-review/SKILL.md       |
       | Cursor              | .cursor/rules/safeword-quality-reviewing.mdc                   |
       | Cursor Cloud Agents | .cursor/rules/safeword-quality-reviewing.mdc                   |
+
+  @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+  Scenario Outline: Every advertised host enters fallback for typed exhaustion at runtime
+    Given <surface> is running with its installed review entry point
+    And the coordinator returns REVIEW_ROUTES_EXHAUSTED without reviewer findings
+    When the review entry point handles that result
+    Then the host invokes the shared finish-review continuation exactly once
+
+    Examples:
+      | surface             |
+      | Claude Code         |
+      | Claude Code Cloud   |
+      | OpenAI Codex        |
+      | OpenAI Codex Cloud  |
+      | Cursor              |
+      | Cursor Cloud Agents |
+
+  @rejection @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+  Scenario Outline: Every advertised host preserves non-exhaustion outcomes at runtime
+    Given <surface> is running with its installed review entry point
+    And the coordinator returns a reviewer rejection
+    When the review entry point handles that result
+    Then the builder receives the original coordinator outcome
+    And the host does not invoke the finish-review continuation
+
+    Examples:
+      | surface             |
+      | Claude Code         |
+      | Claude Code Cloud   |
+      | OpenAI Codex        |
+      | OpenAI Codex Cloud  |
+      | Cursor              |
+      | Cursor Cloud Agents |
 
   @review-with-the-best-available-agent.TBU1.R1 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
@@ -80,6 +113,7 @@ Feature: Keep review available with the best supported fallback
       When the host fallback runs
       Then the builder receives the in-session review's findings
       And the result records exactly one in-session review route
+      And the returned result identifies Coordinator: REVIEW_ROUTES_EXHAUSTED
       And the result explains that the host reported a fresh-context review by the same agent
       And the result explains that the review was not independent
       And the main agent does not review its own work
@@ -94,6 +128,7 @@ Feature: Keep review available with the best supported fallback
       When the host fallback runs
       Then the builder receives the in-session review's findings
       And the result records exactly one in-session review route
+      And the returned result identifies Coordinator: REVIEW_ROUTES_EXHAUSTED
       And the result explains that the host reported a fresh-context review by the same agent
       And the result explains that the review was not independent
       And the main agent does not review its own work
@@ -132,6 +167,7 @@ Feature: Keep review available with the best supported fallback
       And the accepted packet has a requirement with no supporting proof
       When the host fallback runs
       Then the builder receives a missing-proof finding from the fixed rubric
+      And the returned result identifies Coordinator: REVIEW_ROUTES_EXHAUSTED
       And the result explains that the main agent reviewed its own work
       And the result explains that the review was not independent
       And the result records exactly one self-review route
@@ -144,6 +180,7 @@ Feature: Keep review available with the best supported fallback
       And the fixed rubric finds no issue in the accepted packet
       When the host fallback runs
       Then the builder receives an empty findings list
+      And the returned result identifies Coordinator: REVIEW_ROUTES_EXHAUSTED
       And the result still explains that the main agent reviewed its own work
       And the result still explains that the review was not independent
 
@@ -155,6 +192,7 @@ Feature: Keep review available with the best supported fallback
       When the host fallback runs
       Then the main agent performs one terminal self-review
       And the builder receives the self-review findings
+      And the returned result identifies Coordinator: REVIEW_ROUTES_EXHAUSTED
       And the result explains that the main agent reviewed its own work
       And the result explains that the review was not independent
 
@@ -248,6 +286,21 @@ Feature: Keep review available with the best supported fallback
 
   @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R6 — Only typed route exhaustion enters the degraded ladder
+
+    @review-with-the-best-available-agent.TBU1.R6 @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: A Cursor author reaches host fallback without a compatible CLI reviewer
+      Given the author runtime is Cursor
+      And review policy is <policy>
+      And no compatible independent CLI reviewer is configured for Cursor
+      When the CLI coordinator runs
+      Then the coordinator returns REVIEW_ROUTES_EXHAUSTED without reviewer findings
+      And the exhaustion result records trusted review policy <policy>
+      And the host-owned fallback is eligible to continue
+
+      Examples:
+        | policy  |
+        | prefer  |
+        | require |
 
     @rejection @review-with-the-best-available-agent.TBU1.R6
     Scenario: A reviewer rejection never starts a degraded review
