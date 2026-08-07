@@ -815,7 +815,7 @@ Then(
   },
 );
 
-Then('the packaged PostToolUse behavior executes once', function (this: ContinuityCliWorld) {
+Then('the packaged PostToolUse behavior executes', function (this: ContinuityCliWorld) {
   assert.equal(this.logicalPluginExecutions, 1);
 });
 
@@ -850,9 +850,12 @@ When('the builder requests finalization', function (this: ContinuityCliWorld) {
   run(this, ['codex', 'migrate', '--finalize', '--yes']);
 });
 
-When('the builder declines the displayed finalization plan', function (this: ContinuityCliWorld) {
-  run(this, ['codex', 'migrate', '--finalize']);
-});
+When(
+  'the builder leaves the displayed finalization plan unconfirmed',
+  function (this: ContinuityCliWorld) {
+    run(this, ['codex', 'migrate', '--finalize']);
+  },
+);
 
 When('the builder confirms the displayed finalization plan', function (this: ContinuityCliWorld) {
   runPlannedFinalization(this);

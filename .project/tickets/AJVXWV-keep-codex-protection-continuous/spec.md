@@ -216,8 +216,8 @@ and `.safeword/` content is always outside the cleanup allowlist.
 The preferred command is `safeword codex migrate --finalize`.
 `--remove-legacy-hooks` remains a deprecated alias for two releases.
 
-- Interactive finalization shows the exact paths and config blocks, then asks
-  `Finalize shared repository cleanup? [y/N]`.
+- Finalization preview shows the exact paths and config blocks and returns a
+  human-confirmed replay command bound to the preview's plan ID.
 - Non-interactive finalization requires replaying the exact preview with
   `--finalize --yes --plan <id>`; otherwise it exits without mutation.
 - Current profile proof is required before either path.

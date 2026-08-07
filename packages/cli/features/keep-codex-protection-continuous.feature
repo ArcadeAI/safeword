@@ -99,13 +99,13 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     Scenario: Plugin covers an event missing from a partial legacy installation
       Given current plugin proof and legacy protection without a PostToolUse handler
       When the profile-plugin PostToolUse dispatcher runs
-      Then the packaged PostToolUse behavior executes once
+      Then the packaged PostToolUse behavior executes
 
     @rejection
     Scenario Outline: Plugin covers a configured legacy event with a broken runtime
       Given current plugin proof and a recognized legacy PostToolUse handler whose runtime is <runtime_state>
       When the profile-plugin PostToolUse dispatcher runs
-      Then the packaged PostToolUse behavior executes once
+      Then the packaged PostToolUse behavior executes
 
       Examples:
         | runtime_state              |
@@ -123,9 +123,9 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Then finalization is rejected and every repository file remains unchanged
 
     @rejection
-    Scenario: Declined interactive finalization leaves the repository unchanged
+    Scenario: Unconfirmed finalization leaves the repository unchanged
       Given legacy Codex assets and current profile hook proof
-      When the builder declines the displayed finalization plan
+      When the builder leaves the displayed finalization plan unconfirmed
       Then every repository file remains unchanged
 
     Scenario: Confirmed finalization creates a recoverable plugin-only project
