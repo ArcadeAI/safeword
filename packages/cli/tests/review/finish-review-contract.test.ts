@@ -14,7 +14,7 @@ const agentPath = nodePath.join(templates, 'agents/safeword-reviewer.md');
 
 function read(path: string): string {
   expect(existsSync(path), `${path} must be shipped`).toBe(true);
-  return existsSync(path) ? readFileSync(path, 'utf8') : '';
+  return readFileSync(path, 'utf8');
 }
 
 describe('best-available host review contract', () => {
@@ -33,24 +33,23 @@ describe('best-available host review contract', () => {
   it('pins structured output, hostile-input containment, policy, verdict, and assurance', () => {
     const skill = read(skillPath);
     const contract = read(contractPath);
-    const combined = `${skill}\n${contract}`;
-
     expect(contract).toContain('"verdict": "approve" | "request_changes"');
     expect(contract).toContain('"findings"');
-    expect(combined).toMatch(/untrusted review material/i);
-    expect(combined).toMatch(/do not include.*diagnostic/is);
-    expect(combined).toMatch(/do not include.*credential/is);
-    expect(combined).toContain('This review was not independent.');
-    expect(combined).toContain('Host-mandated project context may have loaded');
-    expect(combined).toContain('source integrity was not revalidated');
-    expect(combined).toContain('The main agent reviewed its own work in the same thread.');
-    expect(combined).toMatch(/make an independent reviewer usable.*choose `prefer`/is);
-    expect(combined).toMatch(/request_changes.*action required/is);
-    expect(combined).toMatch(/approve.*not action required/is);
+    expect(contract).toContain('untrusted review material');
+    expect(contract).toContain('Do not include failed-route diagnostics');
+    expect(contract).toContain('credentials, or secrets');
+    expect(skill).toContain('This review was not independent.');
+    expect(skill).toContain('Host-mandated project context may have loaded');
+    expect(skill).toContain('source integrity was not revalidated');
+    expect(skill).toContain('The main agent reviewed its own work in the same thread.');
+    expect(skill).toContain('Make an independent reviewer usable or explicitly choose `prefer`.');
+    expect(skill).toContain('map `approve` to `State: approved`');
+    expect(skill).toContain('map `request_changes` to `State: action required`');
+    expect(skill).toContain('Take `review_policy` only from the trusted coordinator envelope');
     expect(skill).toContain('Coordinator: `REVIEW_ROUTES_EXHAUSTED`');
     expect(skill).toContain('Policy:');
     expect(skill).toContain('State:');
-    expect(combined).not.toContain('write-review-stamp');
+    expect(skill).not.toContain('write-review-stamp');
   });
 
   it('ships one reviewer contract and host-native assets on every supported surface', () => {
@@ -78,7 +77,8 @@ describe('best-available host review contract', () => {
       'agents/safeword-reviewer.md',
     );
 
-    const codex = generateCodexPluginAssets(nodePath.join(templates, 'skills')).find(
+    const generatedCodexAssets = generateCodexPluginAssets(nodePath.join(templates, 'skills'));
+    const codex = generatedCodexAssets.find(
       asset => asset.relativePath === 'skills/finish-review/SKILL.md',
     );
     expect(codex?.content).toBe(
@@ -87,7 +87,7 @@ describe('best-available host review contract', () => {
         'utf8',
       ),
     );
-    const codexContract = generateCodexPluginAssets(nodePath.join(templates, 'skills')).find(
+    const codexContract = generatedCodexAssets.find(
       asset => asset.relativePath === 'skills/finish-review/references/REVIEWER.md',
     );
     expect(codexContract?.content).toBe(

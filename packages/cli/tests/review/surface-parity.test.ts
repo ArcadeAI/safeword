@@ -47,9 +47,10 @@ describe('class-1 review surface parity', () => {
     expect(callers.length).toBeGreaterThan(0);
     for (const relativePath of callers) {
       const content = readFileSync(nodePath.join(skills, relativePath), 'utf8');
+      const normalized = content.replaceAll(/\s+/gu, ' ');
       expect(content, relativePath).toContain('REVIEW_ROUTES_EXHAUSTED');
       expect(content, relativePath).toContain('/finish-review');
-      expect(content, relativePath).toMatch(/only.*REVIEW_ROUTES_EXHAUSTED/is);
+      expect(normalized, relativePath).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
     }
   });
 });

@@ -351,6 +351,7 @@ describe('cross-agent review public-command wiring', () => {
         findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
         data: {
           preferred_failure: 'invalid_output',
+          review_policy: 'prefer',
           independence: 'none',
         },
       });
@@ -629,6 +630,7 @@ describe('cross-agent review public-command wiring', () => {
         data: {
           status: 'blocked',
           preferred_failure: classification,
+          review_policy: 'prefer',
           independence: 'none',
         },
       });
@@ -820,6 +822,7 @@ describe('cross-agent review public-command wiring', () => {
         assigned_reviewer: 'codex',
         actual_reviewer: 'claude',
         preferred_failure: 'process_failed',
+        review_policy: 'require',
         independence: 'degraded',
       },
     });
@@ -873,6 +876,7 @@ describe('cross-agent review public-command wiring', () => {
         status: 'blocked',
         preferred_failure: 'process_failed',
         fallback_failure: 'not_authenticated',
+        review_policy: 'prefer',
         independence: 'none',
       },
     });
