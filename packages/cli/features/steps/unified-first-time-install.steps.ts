@@ -69,6 +69,10 @@ interface UnifiedInstallWorld extends SafewordWorld {
   architectureFlags?: string;
   architectureLegacyFlags?: string;
   architectureCanonicalFlags?: string;
+  architectureDocument?: string;
+  architectureLegacyOutcome?: ArchitectureRunOutcome;
+  architectureCanonicalOutcome?: ArchitectureRunOutcome;
+  retiredFixtureRoots?: string[];
 }
 
 function writeExecutable(path: string, content: string): void {
@@ -307,7 +311,9 @@ function assertSelectedProfilePlan(
 }
 
 After(function (this: UnifiedInstallWorld) {
-  if (this.fixtureRoot !== undefined) rmSync(this.fixtureRoot, { recursive: true, force: true });
+  for (const root of [...(this.retiredFixtureRoots ?? []), this.fixtureRoot]) {
+    if (root !== undefined) rmSync(root, { recursive: true, force: true });
+  }
 });
 
 function runInstall(world: UnifiedInstallWorld, arguments_: readonly string[]): void {
@@ -380,14 +386,17 @@ function runRawCommand(
 function assertRetainedCompatibilityRoute(world: UnifiedInstallWorld): void {
   const alias = requiredPath(world.compatibilityAlias, 'compatibility alias');
   const canonical = requiredPath(world.compatibilityCanonical, 'canonical route');
-  assert.deepEqual(world.compatibilityRoute, {
-    route: world.compatibilityRoute?.route === alias ? alias : world.compatibilityRoute?.route,
-    replacement:
-      world.compatibilityRoute?.replacement === canonical
-        ? canonical
-        : world.compatibilityRoute?.replacement,
-    retention: 'indefinite',
-  });
+  const route = world.compatibilityRoute;
+  assert.ok(route, `No retained compatibility route maps ${alias} to ${canonical}`);
+  assert.equal(route.retention, 'indefinite', alias);
+  assert.ok(
+    route.route === alias || route.route.endsWith(` ${alias}`),
+    `${route.route} does not name the ${alias} route`,
+  );
+  assert.ok(
+    route.replacement === canonical || route.replacement.endsWith(` ${canonical}`),
+    `${route.replacement} does not name the ${canonical} canonical route`,
+  );
 }
 
 function assertScopedInstallCompatibility(world: UnifiedInstallWorld, alias: string): void {
@@ -975,12 +984,32 @@ Given(
   },
 );
 
+/**
+ * Option aliases have no standalone invocation; they are proven executable by
+ * the architecture and Codex migration suites that pass them to their command.
+ */
+const OPTION_ALIAS_PROOFS: Readonly<Record<string, string>> = {
+  '--stage': 'tests/commands/architecture-stage.test.ts',
+  '--staged': 'tests/commands/architecture-stage.test.ts',
+  '--remove-legacy-hooks': 'features/migrate-codex-to-plugin.feature',
+};
+
+/**
+ * Operands required by an alias before Commander will dispatch it. Argument
+ * validation runs ahead of the handler, so an alias missing a required operand
+ * exits without compatibility guidance; supplying one exercises the route.
+ */
+const ALIAS_REQUIRED_OPERANDS: Readonly<Record<string, readonly string[]>> = {
+  codify: ['NOSUCH'],
+  connect: ['unsupported-provider'],
+};
+
 When('the user invokes it', function (this: UnifiedInstallWorld) {
   const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
-  if (['bare safeword', 'claude install', 'codex install'].includes(alias)) {
-    initializeHosts(this);
-    runRawCommand(this, alias === 'bare safeword' ? [] : alias.split(' '));
-  }
+  if (OPTION_ALIAS_PROOFS[alias] !== undefined) return;
+  initializeHosts(this);
+  const argv = alias === 'bare safeword' ? [] : alias.split(' ');
+  runRawCommand(this, [...argv, ...(ALIAS_REQUIRED_OPERANDS[alias] ?? [])]);
 });
 
 Then(
@@ -990,24 +1019,41 @@ Then(
     const canonical = requiredPath(this.compatibilityCanonical, 'canonical route');
     assertRetainedCompatibilityRoute(this);
 
-    if (alias === 'bare safeword') {
-      const envelope = JSON.parse(this.result.stdout) as { schema_version?: number };
-      assert.equal(envelope.schema_version, 1);
-      assert.equal(
-        commandCatalog.some(definition => definition.name === 'status'),
-        true,
+    const optionProof = OPTION_ALIAS_PROOFS[alias];
+    if (optionProof !== undefined) {
+      const definition = commandCatalog.find(candidate =>
+        candidate.registration.options?.some(o => o.flags.includes(alias)),
       );
+      assert.ok(definition, `${alias} is not registered on any command (proof: ${optionProof})`);
       return;
     }
+
+    // Every alias must dispatch for real: the envelope proves the CLI accepted
+    // the spelling, and the deprecation finding proves which canonical route ran.
+    const envelope = JSON.parse(this.result.stdout) as {
+      schema_version?: number;
+      findings?: { code?: string; metadata?: { replacement?: string } }[];
+    };
+    assert.equal(envelope.schema_version, 1, `${alias} did not return a result envelope`);
+
+    if (alias === 'bare safeword') {
+      // Bare invocation is the default route, not a named alias, so it carries
+      // no deprecation finding; it must still resolve to canonical status.
+      assert.equal((envelope as { data?: { command?: string } }).data?.command, canonical);
+      return;
+    }
+
+    assert.equal(
+      envelope.findings?.some(
+        finding =>
+          finding.code === 'CLI_ALIAS_DEPRECATED' && finding.metadata?.replacement === canonical,
+      ),
+      true,
+      `${alias} did not report ${canonical} as its canonical route: ${this.result.stdout}`,
+    );
 
     if (alias === 'claude install' || alias === 'codex install') {
       assertScopedInstallCompatibility(this, alias);
-      return;
-    }
-
-    if (!alias.startsWith('--')) {
-      const definition = commandCatalog.find(candidate => candidate.name === alias);
-      assert.equal(definition?.compatibility?.replacement ?? definition?.aliasFor, canonical);
     }
   },
 );
@@ -1332,35 +1378,103 @@ Then(
   },
 );
 
-Given('architecture documents can be generated from worktree or index state', () => {
-  const definition = commandCatalog.find(candidate => candidate.name === 'project architecture');
-  assert.equal(definition?.effectClass, 'mutate');
-});
+/**
+ * Build a git project whose worktree and index describe different module
+ * graphs, so an architecture run that reads the wrong input produces
+ * observably different content.
+ */
+function createDivergentArchitectureFixture(world: UnifiedInstallWorld): void {
+  initializeHosts(world);
+  const project = requiredPath(world.projectRoot, 'project root');
+  const git = (...args: string[]): void => {
+    const completed = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+    assert.equal(completed.status, 0, completed.stderr);
+  };
+  mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+  writeFileSync(
+    nodePath.join(project, '.safeword/config.json'),
+    JSON.stringify({ architectureDocEnforcement: true }),
+  );
+  const writeModule = (name: string): void => {
+    const directory = nodePath.join(project, 'src', name);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(nodePath.join(directory, 'index.ts'), `export const ${name} = true;\n`);
+  };
+  writeModule('auth');
+  git('config', 'user.email', 'fixture@example.com');
+  git('config', 'user.name', 'Fixture');
+  git('add', '-A');
+  git('commit', '-m', 'initial architecture');
+  // Staged-only module: present in the index, absent from HEAD.
+  writeModule('billing');
+  git('add', '--', 'src/billing/index.ts');
+  // Worktree-only module: never staged.
+  writeModule('shipping');
+  world.architectureDocument = nodePath.join(project, '.project/architecture.generated.md');
+}
+
+function stagedArchitecturePaths(world: UnifiedInstallWorld): string[] {
+  const completed = spawnSync('git', ['diff', '--cached', '--name-only'], {
+    cwd: requiredPath(world.projectRoot, 'project root'),
+    encoding: 'utf8',
+  });
+  return completed.stdout.split('\n').filter(line => line.length > 0);
+}
+
+function readArchitectureDocument(world: UnifiedInstallWorld): string {
+  const path = requiredPath(world.architectureDocument, 'architecture document');
+  return existsSync(path) ? readFileSync(path, 'utf8') : '';
+}
+
+Given(
+  'architecture documents can be generated from worktree or index state',
+  function (this: UnifiedInstallWorld) {
+    createDivergentArchitectureFixture(this);
+  },
+);
 
 When(
   'the user runs architecture with {string}',
   function (this: UnifiedInstallWorld, flags: string) {
     this.architectureFlags = flags;
+    runRawCommand(this, [
+      'project',
+      'architecture',
+      ...flags.split(' ').filter(flag => flag.length > 0),
+    ]);
   },
 );
 
 Then(
   'generation reads {string} state and leaves output {string}',
   function (this: UnifiedInstallWorld, input: string, output: string) {
-    const flags = this.architectureFlags ?? '';
-    assert.equal(flags.includes('--from-index') ? 'index' : 'worktree', input);
-    assert.equal(flags.includes('--stage-output') ? 'staged' : 'unstaged', output);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+    const document = readArchitectureDocument(this);
+    // `shipping` exists only in the worktree; `billing` only in the index.
+    assert.equal(
+      document.includes('shipping'),
+      input === 'worktree',
+      `reading ${input} state produced: ${document}`,
+    );
+    assert.equal(
+      stagedArchitecturePaths(this).includes('.project/architecture.generated.md'),
+      output === 'staged',
+    );
   },
 );
 
-Given('a project with different worktree and index architecture', () => {
-  assert.ok(commandCatalog.some(definition => definition.name === 'project architecture'));
-});
+Given(
+  'a project with different worktree and index architecture',
+  function (this: UnifiedInstallWorld) {
+    createDivergentArchitectureFixture(this);
+  },
+);
 
 When(
   'the user runs architecture with legacy flag {string}',
   function (this: UnifiedInstallWorld, legacy: string) {
     this.architectureLegacyFlags = legacy;
+    runRawCommand(this, ['project', 'architecture', legacy]);
   },
 );
 
@@ -1368,8 +1482,20 @@ Then(
   'it behaves like canonical flags {string} and reports compatibility guidance',
   function (this: UnifiedInstallWorld, canonical: string) {
     const legacy = requiredPath(this.architectureLegacyFlags, 'legacy architecture flag');
-    const expectedCanonical = legacy === '--stage' ? '--from-index --stage-output' : '--from-index';
-    assert.equal(canonical, expectedCanonical);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+    const envelope = JSON.parse(this.result.stdout) as {
+      findings?: { code?: string; metadata?: { legacy?: string; replacement?: string } }[];
+    };
+    assert.equal(
+      envelope.findings?.some(
+        finding =>
+          finding.code === 'CLI_OPTION_DEPRECATED' &&
+          finding.metadata?.legacy === legacy &&
+          finding.metadata?.replacement === canonical,
+      ),
+      true,
+      `${legacy} did not report ${canonical} as its canonical spelling: ${this.result.stdout}`,
+    );
     assert.equal(
       compatibilityRoutes.some(
         route =>
@@ -1381,8 +1507,43 @@ Then(
   },
 );
 
+interface ArchitectureRunOutcome {
+  readonly document: string;
+  readonly baseline: string;
+  readonly staged: readonly string[];
+  readonly exitCode: number;
+}
+
+/** Run one architecture spelling in its own fresh fixture and record the effects. */
+function runArchitectureInFreshFixture(
+  world: UnifiedInstallWorld,
+  flags: string,
+): ArchitectureRunOutcome {
+  world.retiredFixtureRoots ??= [];
+  if (world.fixtureRoot !== undefined) world.retiredFixtureRoots.push(world.fixtureRoot);
+  createDivergentArchitectureFixture(world);
+  // Generate a Safeword-owned document from the worktree first: regeneration
+  // from the index is only observable against an existing owned document, and
+  // an unowned file is deliberately left untouched.
+  runRawCommand(world, ['project', 'architecture']);
+  assert.equal(world.result.exitCode, 0, world.result.stderr || world.result.stdout);
+  const baseline = readArchitectureDocument(world);
+  runRawCommand(world, [
+    'project',
+    'architecture',
+    ...flags.split(' ').filter(flag => flag.length > 0),
+  ]);
+  return {
+    document: readArchitectureDocument(world),
+    baseline,
+    staged: stagedArchitecturePaths(world),
+    exitCode: world.result.exitCode,
+  };
+}
+
 Given('divergent worktree and index inputs with an existing generated document', () => {
-  assert.ok(commandCatalog.some(definition => definition.name === 'project architecture'));
+  // Each spelling builds its own fixture in the comparison below so neither run
+  // can observe the other's effects.
 });
 
 When(
@@ -1390,6 +1551,8 @@ When(
   function (this: UnifiedInstallWorld, legacy: string, canonical: string) {
     this.architectureLegacyFlags = legacy;
     this.architectureCanonicalFlags = canonical;
+    this.architectureLegacyOutcome = runArchitectureInFreshFixture(this, legacy);
+    this.architectureCanonicalOutcome = runArchitectureInFreshFixture(this, canonical);
   },
 );
 
@@ -1398,8 +1561,31 @@ Then(
   function (this: UnifiedInstallWorld) {
     const legacy = requiredPath(this.architectureLegacyFlags, 'legacy architecture flags');
     const canonical = requiredPath(this.architectureCanonicalFlags, 'canonical architecture flags');
-    const normalizedLegacy = legacy === '--stage' ? '--from-index --stage-output' : '--from-index';
-    assert.equal(normalizedLegacy, canonical);
+    const legacyOutcome = this.architectureLegacyOutcome;
+    const canonicalOutcome = this.architectureCanonicalOutcome;
+    assert.ok(legacyOutcome && canonicalOutcome, 'both spellings must have run');
+    assert.equal(legacyOutcome.exitCode, 0, `${legacy} failed`);
+    assert.equal(canonicalOutcome.exitCode, 0, `${canonical} failed`);
+    // Guard against a vacuous match: both runs must have produced a real
+    // Safeword-owned document, and the two rows of this outline must differ
+    // from each other in staging, so a constant implementation cannot pass.
+    assert.match(legacyOutcome.document, /<!-- reconciled: [a-f\d]{64} -->/u);
+    const documentPath = '.project/architecture.generated.md';
+    assert.equal(
+      legacyOutcome.staged.includes(documentPath),
+      canonical.includes('--stage-output'),
+      `${legacy} staging did not follow the ${canonical} contract`,
+    );
+    assert.equal(
+      legacyOutcome.document,
+      canonicalOutcome.document,
+      `${legacy} and ${canonical} generated different documents`,
+    );
+    assert.deepEqual(
+      legacyOutcome.staged,
+      canonicalOutcome.staged,
+      `${legacy} and ${canonical} left different index staging effects`,
+    );
   },
 );
 
