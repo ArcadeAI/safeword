@@ -117,10 +117,34 @@ describe('Stop review on long agentic turns (V8Z1NP)', () => {
     expect(block.reason).toContain('implement');
   });
 
+  it('reviews an edit turn longer than the former 400-line boundary cap', () => {
+    const transcriptPath = writeTranscript(state.projectDirectory, editThenToolCalls(220));
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    const block = parseBlock(result.stdout);
+    expect(block.decision).toBe('block');
+    expect(block.reason).toContain('implement');
+  });
+
   it('stays silent on a long turn that edited nothing', () => {
     const transcriptPath = writeTranscript(state.projectDirectory, [
       userPrompt('Walk me through how the parser resolves precedence.'),
       ...bashRounds(12, 'read'),
+      assistantText('Precedence is resolved by the climbing loop in parse_expr.'),
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('stays silent on a non-edit turn longer than the former 400-line boundary cap', () => {
+    const transcriptPath = writeTranscript(state.projectDirectory, [
+      userPrompt('Walk me through how the parser resolves precedence.'),
+      ...bashRounds(220, 'read'),
       assistantText('Precedence is resolved by the climbing loop in parse_expr.'),
     ]);
 
