@@ -30,6 +30,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       And no current profile hook proof exists
       When the builder checks Codex status
       Then status reports plugin_enabled_hook_unproven and recommends hook review in the restarted app
+      And the public JSON envelope contains only the unproven migration status
 
     @rejection
     Scenario: Enabled older plugin requires an update
@@ -272,7 +273,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     @rejection
     Scenario: Partial hook proof names the events still required before finalization
       Given an enabled plugin with proof for only SessionStart
-      When Safe Word renders the prepared Codex status as JSON
+      When Safe Word derives the prepared Codex domain status
       Then structured status reports plugin_enabled_hook_unproven with partial proof and names the four missing hook events
 
     Scenario: Older Codex clients with an unknown plugin version remain compatible
@@ -291,26 +292,14 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Then status reports plugin, names protection as protected, and contains no Next line
 
     @rejection
-    Scenario: JSON status separates machine output from diagnostics
-      Given a migration state that needs action
-      When Safe Word renders the prepared Codex status as JSON
-      Then stdout contains only the versioned status object and the command exits 2
-
-    Scenario: Plugin-only JSON status exits successfully
-      Given current profile proof and a finalized project without legacy assets
-      When Safe Word renders the prepared Codex status as JSON
-      Then stdout contains only the versioned plugin status object and the command exits 0
-
-    @rejection
     Scenario: Status execution error has stable machine semantics
-      Given Codex profile status cannot be observed
-      When Safe Word renders the prepared Codex status as JSON
-      Then stdout contains only the complete schema 1 object with a nonempty structured errors array
-      And the error code is PLUGIN_OBSERVATION_FAILED with message and retryable fields and the command exits 1
+      Given a Codex profile whose status observation fails
+      When the builder requests Codex status as JSON
+      Then the public JSON envelope reports PLUGIN_OBSERVATION_FAILED and exits 1
 
-    Scenario Outline: JSON status uses state-specific complete schema
+    Scenario Outline: Domain status uses state-specific complete schema
       Given the repository and active profile derive the <fixture> fixture
-      When Safe Word renders the prepared Codex status as JSON
+      When Safe Word derives the prepared Codex domain status
       Then the complete migration schema 2 object reports state <state> and protection <protection>
       And it has <next_actions> next actions naming <next_command> and the command exits <exit_code>
 
@@ -335,7 +324,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Next-action shape distinguishes a runnable command from a human step
       Given the repository and active profile derive the <fixture> fixture
-      When Safe Word renders the prepared Codex status as JSON
+      When Safe Word derives the prepared Codex domain status
       Then the single next action is shaped as a <shape> action
 
       Examples:

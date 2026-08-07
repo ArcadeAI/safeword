@@ -19,6 +19,8 @@ interface ContinuityStatusWorld extends SafewordWorld {
   codexStatus?: CodexMigrationResultV2;
   codexStatusOutput?: string;
   codexStatusExitCode?: number;
+  codexProtocolOutput?: string;
+  codexProtocolStderr?: string;
   runCodexStatus?: () => { stdout: string; stderr: string; exitCode: number };
 }
 
@@ -244,32 +246,6 @@ Given(
   },
 );
 
-Given('a migration state that needs action', function (this: ContinuityStatusWorld) {
-  this.codexFacts = facts();
-});
-
-Given('Codex profile status cannot be observed', function (this: ContinuityStatusWorld) {
-  this.codexFacts = facts({
-    plugin: {
-      installed: false,
-      enabled: null,
-      version: null,
-      observation: 'unknown',
-    },
-  });
-  this.codexStatus = {
-    ...deriveCodexMigrationResult(this.codexFacts),
-    ok: false,
-    errors: [
-      {
-        code: 'PLUGIN_OBSERVATION_FAILED',
-        message: 'profile observation failed',
-        retryable: true,
-      },
-    ],
-  };
-});
-
 Given(
   /^a finalized repository whose profile plugin is (absent|disabled)$/u,
   function (this: ContinuityStatusWorld, pluginState: string) {
@@ -288,6 +264,8 @@ function observeStatus(world: ContinuityStatusWorld): void {
   );
   assert.ok(world.runCodexStatus, 'A real Codex status runner must be initialized');
   const result = world.runCodexStatus();
+  world.codexProtocolOutput = result.stdout;
+  world.codexProtocolStderr = result.stderr;
   world.codexStatus = parseProtocolStatus(result.stdout);
   world.codexStatusOutput = renderCodexMigrationHuman(world.codexStatus);
   world.codexStatusExitCode = result.exitCode;
@@ -309,6 +287,14 @@ When('the teammate checks Codex status', function (this: ContinuityStatusWorld) 
   observeStatus(this);
 });
 
+When('the builder requests Codex status as JSON', function (this: ContinuityStatusWorld) {
+  assert.ok(this.runCodexStatus, 'A real Codex status runner must be initialized');
+  const result = this.runCodexStatus();
+  this.codexProtocolOutput = result.stdout;
+  this.codexProtocolStderr = result.stderr;
+  this.codexStatusExitCode = result.exitCode;
+});
+
 When(
   'Safe Word derives human Codex status from the fixture',
   function (this: ContinuityStatusWorld) {
@@ -318,9 +304,8 @@ When(
   },
 );
 
-When('Safe Word renders the prepared Codex status as JSON', function (this: ContinuityStatusWorld) {
+When('Safe Word derives the prepared Codex domain status', function (this: ContinuityStatusWorld) {
   this.codexStatus = derivePreparedStatus(this);
-  this.codexStatusOutput = `${JSON.stringify(this.codexStatus)}\n`;
   this.codexStatusExitCode = codexMigrationExitCode(this.codexStatus);
 });
 
@@ -360,6 +345,50 @@ Then(
       mutates: false,
       requires_human: true,
     });
+  },
+);
+
+Then(
+  'the public JSON envelope contains only the unproven migration status',
+  function (this: ContinuityStatusWorld) {
+    const output = this.codexProtocolOutput ?? '';
+    const envelope = JSON.parse(output) as {
+      schema_version: number;
+      state: string;
+      data: { migration: { schema_version: string; state: string } };
+    };
+    assert.equal(this.codexProtocolStderr, '');
+    assert.equal(output, `${JSON.stringify(envelope)}\n`);
+    assert.equal(envelope.schema_version, 1);
+    assert.equal(envelope.state, 'action_required');
+    assert.deepEqual(envelope.data.migration, {
+      schema_version: '2',
+      state: 'plugin_enabled_hook_unproven',
+    });
+  },
+);
+
+Then(
+  'the public JSON envelope reports PLUGIN_OBSERVATION_FAILED and exits 1',
+  function (this: ContinuityStatusWorld) {
+    const output = this.codexProtocolOutput ?? '';
+    const envelope = JSON.parse(output) as {
+      schema_version: number;
+      state: string;
+      errors: { code: string; message: string; retryable: boolean }[];
+    };
+    assert.equal(this.codexProtocolStderr, '');
+    assert.equal(output, `${JSON.stringify(envelope)}\n`);
+    assert.equal(envelope.schema_version, 1);
+    assert.equal(envelope.state, 'failed');
+    assert.deepEqual(envelope.errors, [
+      {
+        code: 'PLUGIN_OBSERVATION_FAILED',
+        message: 'profile observation failed',
+        retryable: true,
+      },
+    ]);
+    assert.equal(this.codexStatusExitCode, 1);
   },
 );
 
@@ -413,42 +442,6 @@ Then(
     assert.equal(status.protected, 'protected');
     assert.equal(status.next_actions.length, 0);
     assert.doesNotMatch(this.codexStatusOutput ?? '', /^Next:/mu);
-  },
-);
-
-Then(
-  /^stdout contains only the versioned(?: plugin)? status object and the command exits (\d+)$/u,
-  function (this: ContinuityStatusWorld, exitCode: string) {
-    const output = this.codexStatusOutput ?? '';
-    const parsed = JSON.parse(output) as CodexMigrationResultV2;
-    assert.equal(output, `${JSON.stringify(parsed)}\n`);
-    assert.equal(parsed.schema_version, '2');
-    assert.equal(this.codexStatusExitCode, Number(exitCode));
-  },
-);
-
-Then(
-  'stdout contains only the complete schema 1 object with a nonempty structured errors array',
-  function (this: ContinuityStatusWorld) {
-    const output = this.codexStatusOutput ?? '';
-    const parsed = JSON.parse(output) as CodexMigrationResultV2;
-    assert.equal(output, `${JSON.stringify(parsed)}\n`);
-    assert.equal(parsed.schema_version, '2');
-    assert.ok(parsed.errors.length > 0);
-  },
-);
-
-Then(
-  'the error code is PLUGIN_OBSERVATION_FAILED with message and retryable fields and the command exits 1',
-  function (this: ContinuityStatusWorld) {
-    assert.deepEqual(requireStatus(this).errors, [
-      {
-        code: 'PLUGIN_OBSERVATION_FAILED',
-        message: 'profile observation failed',
-        retryable: true,
-      },
-    ]);
-    assert.equal(this.codexStatusExitCode, 1);
   },
 );
 

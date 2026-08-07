@@ -690,6 +690,14 @@ Given('a project-local legacy SessionStart dispatcher', function (this: Continui
   initialize(this, { pluginState: 'enabled' });
 });
 
+Given('a Codex profile whose status observation fails', function (this: ContinuityCliWorld) {
+  initialize(this, { pluginState: 'enabled' });
+  this.continuityEnvironment = {
+    ...this.continuityEnvironment,
+    SAFEWORD_FAIL_PLUGIN_VERIFY: '1',
+  };
+});
+
 When('Codex invokes it without the plugin-hook marker', function (this: ContinuityCliWorld) {
   run(this, ['hook', 'codex', 'session-start'], {}, '{"hook_event_name":"SessionStart"}\n');
 });
