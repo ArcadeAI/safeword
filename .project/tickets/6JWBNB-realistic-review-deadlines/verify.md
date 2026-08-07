@@ -1,17 +1,17 @@
 ## Verify Checklist
 
-**Test Suite:** ✓ 46/46 current-head focused runtime and CLI wiring tests pass, including the bounded `timed_out` path. The persistent full run on the immediately preceding ten-minute head also captured relay: 167 passed/1 skipped; CLI: 440 files, 6,771 passed/5 skipped.
-**Gherkin:** ❌ Failed — direct full lane: 1,080 scenarios (1,069 passed, 3 skipped, 8 failed). Seven `operate-retry-safe-retro-relay` scenarios timed out in a shared Before hook; one `predictable-safeword-cli` scenario compared different `recorded_at` timestamps.
-**Build:** ✅ Success — both packages built successfully after the BDD lane, on the current five-minute head.
-**Lint:** ✅ Clean — root ESLint, Prettier, and TypeScript checks passed; package lint passed before the final format pass.
+**Test Suite:** ✅ Success — exact head `4b331742a7bf18eea2e434759b042cf18b4b5a3c`: relay 167 passed/1 skipped across 8 files; CLI 6,809 passed/5 skipped across 441 files. The focused review runtime and CLI wiring suite remains 46/46.
+**Gherkin:** ✅ Success — direct full lane: 1,081 scenarios (1,078 passed, 3 skipped) and 41,994 steps (41,990 passed, 4 skipped).
+**Build:** ✅ Success — retro relay and CLI production builds completed on the exact head.
+**Lint:** ✅ Clean — ESLint, Gherkin lint, Prettier, and TypeScript checks passed on the exact head.
 **Scenarios:** ⏭️ Skipped — task ticket has no BDD scenarios.
-**PR Scope:** ✅ Diff matches ticket scope — the timeout policy, its unit test, and regenerated Claude-plugin assets are all required by realistic-review-deadlines.
-**Dep Drift:** ✅ Clean — no dependency declarations changed.
+**PR Scope:** ✅ Diff matches delivery scope — the timeout policy, unit test, and regenerated Claude-plugin assets implement realistic-review-deadlines; the compatible dependency updates resolve the mandatory pre-merge audit without changing runtime architecture.
+**Dep Drift:** ✅ Clean — `mermaid` 11.16.1 and the `js-yaml` 4.3.1 override replace vulnerable compatible versions; `bun audit` reports no vulnerabilities and no architectural dependency was added.
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation — the existing per-invocation deadline and explicit environment override remain in place.
 **Experience:** ⏭️ N/A — internal review-runtime plumbing, not persona-facing.
 **Surface Evidence:** ✅ 2/2 affected surfaces have recorded proof — CLI runtime and wiring: `bun run test tests/review/runtime.test.ts tests/cli-protocol/review-wiring.test.ts` (46/46); shipped Claude plugin: `bun run check:claude-plugin` (passed).
-**Evidence limits:** ⚠️ The branch advanced from the ten-minute predecessor during the persistent full run, so the full unit count is not exact-head evidence; current focused coverage is 46/46. The separate direct BDD failure is a real repository failure outside this ticket's scope and must be resolved or isolated before closeout.
+**Evidence limits:** ✅ None — every required lane completed locally on the clean exact head.
 
 ## Quality Review
 
@@ -31,4 +31,4 @@
 - (verified: Node.js child-process documentation) — fetched this session.
 - (verified: Google SRE cascading-failures guidance) — fetched this session.
 
-**Next:** Resolve or isolate the unrelated BDD failures, then re-run the full workspace test and BDD lanes on the current head before marking the ticket done.
+**Next:** Push the verified head, require exact-head CI to pass, then admin-merge PR #2063.
