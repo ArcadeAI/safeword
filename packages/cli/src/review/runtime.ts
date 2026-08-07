@@ -280,7 +280,7 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
   }
   // Dispatch and reviewer identity are deliberately validated by the
   // coordinator so it can distinguish missing from contradictory provenance.
-  return value.findings.every(
+  const findingsAreValid = value.findings.every(
     finding =>
       isRecord(finding) &&
       Object.keys(finding).length === 2 &&
@@ -288,6 +288,11 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
       Object.hasOwn(finding, 'message') &&
       ['info', 'warning', 'error'].includes(String(finding.severity)) &&
       typeof finding.message === 'string',
+  );
+  if (!findingsAreValid) return false;
+  return (
+    value.verdict !== 'approve' ||
+    value.findings.every(finding => isRecord(finding) && finding.severity !== 'error')
   );
 }
 

@@ -1,0 +1,45 @@
+name: Advisory PR review compatibility canary
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub can delay scheduled work at the top of the hour. Use an odd minute.
+    - cron: '37 5 * * *'
+
+permissions: {}
+
+concurrency:
+  group: safeword-advisory-pr-review-canary
+  cancel-in-progress: false
+
+jobs:
+  compatibility-canary:
+    name: Prove current GitHub advisory semantics
+    # Manual runs from arbitrary branches must not gain the smoke environment.
+    if: >-
+      ${{ github.event_name == 'schedule' ||
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: pr-review-smoke
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies without repository authority
+        run: bun install --frozen-lockfile
+
+      - name: Prove fork-event and scheduled advisory semantics
+        run: bun run --cwd packages/cli smoke:pr-review:disposable
+        env:
+          GH_TOKEN: ${{ secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN }}
+          SAFEWORD_PR_REVIEW_SMOKE_OWNER: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_OWNER }}
+          SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER }}

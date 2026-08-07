@@ -427,6 +427,82 @@ Commit the Safe Word project configuration your team uses, including the marked 
 
 ---
 
+## Advisory Pull Request Review
+
+Safeword can install a default-off GitHub Actions reviewer that treats pull
+request changes as data, never checks out or executes them, and publishes one
+ordinary conversation comment. The comment is explicitly advisory: it cannot
+approve a pull request, satisfy a required check, or prove the change is safe to
+merge.
+
+Enable it in `.safeword/config.json` with an OpenAI model, a total evidence
+budget, and the exact prerequisite check contexts to wait for:
+
+```json
+{
+  "prReview": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-5.2",
+    "maxTotalBytes": 100000,
+    "requiredChecks": [{ "context": "ci" }]
+  }
+}
+```
+
+Run `safeword setup` after enabling it. Configure `OPENAI_API_KEY` as an
+environment secret on the `safeword-pr-review-model` GitHub environment. An
+explicit empty `requiredChecks` array means review immediately; omitting the
+field fails closed with a configuration next action. Pending checks are sampled
+again by a five-minute sweep. Missing or over-budget text evidence, model
+failure, findings, and unresolved unknowns all route to a human. Binary files
+with recognized binary extensions are recorded as skipped; a binary-only change
+cannot look ready.
+
+Fork events inspect with read-only repository authority. GitHub then starts a
+trusted `workflow_run` publisher from the base branch; it never checks out pull
+request code and receives no model secret. GitHub currently requires
+`pull-requests: write` for an ordinary pull-request conversation comment, so the
+publisher is additionally constrained by Safeword's fixed issue-comment-only
+boundary and the release smoke verifies that it creates no review, check,
+status, or merge change.
+
+Deterministic release tests always validate the advisory workflow contract. A
+disposable-repository smoke test additionally blocks a release when that
+workflow or its compatibility harness changed since the last successful stable
+release. A daily canary and default-branch manual dispatch watch for GitHub
+environment-secret, fork-event, and concurrency drift between releases. Keep
+the customer workflow disabled until a live smoke passes where it will run.
+
+### Maintainer compatibility proof
+
+The release environment named `pr-review-smoke` must define
+`SAFEWORD_PR_REVIEW_SMOKE_TOKEN`. Its account needs narrowly scoped authority to
+create and permanently delete public repositories under two dedicated sandbox
+owners, manage their Actions environments and secrets, and create a fork from
+one owner into the other. It must not have authority over production
+repositories. Both repository variables, `SAFEWORD_PR_REVIEW_SMOKE_OWNER` and
+`SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER`, are required and must name different
+sandbox owners. Configure the environment's deployment policies to allow only
+release tags and the default branch.
+
+Run the same proof locally with:
+
+```bash
+bun run --cwd packages/cli smoke:pr-review:disposable
+```
+
+Each change-scoped release run, daily canary, or manual proof creates
+`safeword-pr-review-smoke-<unique-id>` in both owners, exercises a real fork pull
+request plus the canonical scheduled-call projection, and then permanently
+deletes both repositories. Set
+`SAFEWORD_KEEP_PR_REVIEW_SMOKE=1` only while debugging. When GitHub Actions
+semantics change, update the pinned actionlint version and checksum in CI, run
+`check:pr-review-workflows`, run this disposable proof, and record both results
+in the compatibility ticket before release.
+
+---
+
 ## Customizing File Locations
 
 Safeword reads project-level information from the project namespace root: `paths.projectRoot` when configured, `.project/` by default, or legacy `.safeword-project/` when that directory already exists. If you already maintain these docs elsewhere, point safeword at your existing files via the optional `paths` block in `.safeword/config.json`:

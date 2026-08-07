@@ -24,6 +24,7 @@ interface ReviewWiring {
 }
 
 const wiringByWorld = new WeakMap<SafewordWorld, ReviewWiring>();
+const installedPluginFallbackByWorld = new WeakMap<SafewordWorld, string[]>();
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
 
@@ -63,6 +64,34 @@ function reviewWiring(world: SafewordWorld): ReviewWiring {
   assert.ok(wiring, 'review wiring must be selected and inspected first');
   return wiring;
 }
+
+Given(
+  'a project uses the installed Claude plugin without project-local Safe Word setup',
+  function (this: SafewordWorld) {
+    installedPluginFallbackByWorld.set(this, []);
+  },
+);
+
+When('the installed Claude fallback assets are inspected', function (this: SafewordWorld) {
+  installedPluginFallbackByWorld.set(
+    this,
+    ['plugin/skills/finish-review/SKILL.md', 'plugin/agents/safeword-reviewer.md'].map(path =>
+      readFileSync(nodePath.join(repoRoot, path), 'utf8'),
+    ),
+  );
+});
+
+Then(
+  'the fallback skill and reviewer load their contract from the installed plugin',
+  function (this: SafewordWorld) {
+    const assets = installedPluginFallbackByWorld.get(this);
+    assert.ok(assets, 'installed plugin fallback assets must be inspected first');
+    for (const asset of assets) {
+      assert.match(asset, /"\$\{CLAUDE_PLUGIN_ROOT\}"\/skills\/finish-review\/REVIEWER\.md/u);
+      assert.doesNotMatch(asset, /\.safeword\/skills\/finish-review\/REVIEWER\.md/u);
+    }
+  },
+);
 
 Given(
   /^the (Claude Code(?: Cloud)?|OpenAI Codex(?: Cloud)?|Cursor(?: Cloud Agents)?) review entry point at "([^"]+)"$/,

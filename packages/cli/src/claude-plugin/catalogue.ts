@@ -70,7 +70,11 @@ function adaptWorkflowReference(content: string): string {
     .replaceAll('"$PROJECT_DIR/.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}/resources/scripts/')
     .replaceAll('$PROJECT_DIR/.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/')
     .replaceAll('./.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/')
-    .replaceAll('.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/');
+    .replaceAll('.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/')
+    .replaceAll('"$PROJECT_DIR/.safeword/skills/', '"${CLAUDE_PLUGIN_ROOT}/skills/')
+    .replaceAll('$PROJECT_DIR/.safeword/skills/', '"${CLAUDE_PLUGIN_ROOT}"/skills/')
+    .replaceAll('./.safeword/skills/', '"${CLAUDE_PLUGIN_ROOT}"/skills/')
+    .replaceAll('.safeword/skills/', '"${CLAUDE_PLUGIN_ROOT}"/skills/');
 }
 
 function adaptPluginScriptReference(content: string): string {
@@ -90,7 +94,7 @@ function adaptPluginRuntime(content: string): string {
 }
 
 const PROJECT_FRAMEWORK_REFERENCE =
-  /(?:\.\/)?\.safeword\/(?:hooks|guides|scripts|templates)\/[^\s)`'"<>]*/u;
+  /(?:\.\/)?\.safeword\/(?:hooks|guides|scripts|skills|templates)\/[^\s)`'"<>]*/u;
 
 function invocationName(asset: GeneratedClaudePluginAsset): string | undefined {
   const skillDirectory = /^skills\/([^/]+)\/SKILL\.md$/u.exec(asset.relativePath)?.[1];

@@ -8,6 +8,7 @@ export const SAFEWORD_PATHS: readonly string[] = [
   '.dprint.json',
   '.dprint.jsonc',
   '.gitattributes',
+  '.github/',
   '.gitignore',
   '.golangci.yml',
   '.husky/',

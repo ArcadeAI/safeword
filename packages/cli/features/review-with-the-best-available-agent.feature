@@ -24,6 +24,12 @@ Feature: Keep review available with the best supported fallback
       | Cursor              | .cursor/rules/safeword-quality-reviewing.mdc                   |
       | Cursor Cloud Agents | .cursor/rules/safeword-quality-reviewing.mdc                   |
 
+  @review-with-the-best-available-agent.TBU1.R5 @surface.claude-code @surface.claude-code-cloud
+  Scenario: The installed Claude plugin fallback is self-contained
+    Given a project uses the installed Claude plugin without project-local Safe Word setup
+    When the installed Claude fallback assets are inspected
+    Then the fallback skill and reviewer load their contract from the installed plugin
+
   @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Scenario Outline: Every advertised host enters fallback for typed exhaustion at runtime
     Given <surface> is running with its installed review entry point
@@ -376,6 +382,14 @@ Feature: Keep review available with the best supported fallback
       When the review entry point handles that failure
       Then the builder receives the original coordinator failure
       And no degraded reviewer is used
+
+    @rejection @review-with-the-best-available-agent.TBU1.R6
+    Scenario: Reviewer approval with an error finding is rejected
+      Given a reviewer returns approval with an error finding
+      When the CLI coordinator validates the reviewer output
+      Then the reviewer output is classified as invalid
+      And the review is not reported healthy
+      And the remaining bounded routes may continue
 
     @review-with-the-best-available-agent.TBU1.R6
     Scenario: Typed route exhaustion starts the host-owned fallback

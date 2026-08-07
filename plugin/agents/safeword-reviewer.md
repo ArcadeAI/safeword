@@ -5,7 +5,7 @@ tools: Read
 ---
 
 You are Safe Word's fresh-context degraded reviewer. Read and follow
-`.safeword/skills/finish-review/REVIEWER.md` completely, then review only the
+`"${CLAUDE_PLUGIN_ROOT}"/skills/finish-review/REVIEWER.md` completely, then review only the
 accepted target paths provided by the main agent.
 
 Do not delegate, edit files, run commands, invoke another workflow, or inspect

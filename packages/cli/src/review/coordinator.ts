@@ -1,4 +1,5 @@
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
+import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
 import type {
   ReviewAgent,
@@ -12,6 +13,16 @@ import type {
 import { prepareReviewPacket } from './packet.js';
 import { oppositeReviewPair, readAlternateReviewerModel, readReviewPolicy } from './policy.js';
 import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
+
+/** The command runner owns reporter shutdown; review routing only updates it. */
+type ReviewProgress = Pick<ProgressReporter, 'start' | 'heartbeat'>;
+
+type ReviewRunInput = {
+  readonly cwd: string;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly progress?: ReviewProgress;
+};
 
 /**
  * Whether a route can still be funded. Below the minimum a route cannot produce
@@ -353,18 +364,43 @@ function independentNetworkEffects(reviewer: ReviewAgent, retried: boolean): rea
   return retried ? [request, request] : [request];
 }
 
-async function runDegradedFallback(input: {
-  readonly cwd: string;
-  readonly kind: ReviewKind;
-  readonly targets: readonly string[];
-  readonly author: ReviewAgent;
-  readonly assignedReviewer: ReviewAgent;
-  readonly preferredFailure: ReviewFailure;
-  readonly policy: ReviewPolicy;
-  readonly runDeadline: number;
-  readonly alternateFailure?: string;
-}): Promise<CliResult> {
+function preparePrimaryReview(
+  input: ReviewRunInput,
+  reviewer: ReviewAgent,
+): ReturnType<typeof prepareReviewPacket> {
+  const name = agentName(reviewer);
+  input.progress?.start(`Preparing the review packet for ${name}…`);
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.start(`Requesting an independent ${name} review…`);
+  input.progress?.heartbeat?.(`Still waiting for a response from ${name}…`);
+  return prepared;
+}
+
+function prepareFallbackReview(
+  input: ReviewRunInput,
+  assignedReviewer: ReviewAgent,
+  author: ReviewAgent,
+): ReturnType<typeof prepareReviewPacket> {
+  const fallbackName = agentName(author);
+  input.progress?.start(
+    `${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback…`,
+  );
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback…`);
+  return prepared;
+}
+
+async function runDegradedFallback(
+  input: ReviewRunInput & {
+    readonly author: ReviewAgent;
+    readonly assignedReviewer: ReviewAgent;
+    readonly preferredFailure: ReviewFailure;
+    readonly policy: ReviewPolicy;
+    readonly runDeadline: number;
+    readonly alternateFailure?: string;
+  },
+): Promise<CliResult> {
+  const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     input.author,
     prepared,
@@ -522,15 +558,14 @@ async function runDegradedFallback(input: {
  * verifiable review, leaving the caller to fall back to the author's own
  * runtime exactly as before.
  */
-async function runAlternateModelRoute(input: {
-  readonly cwd: string;
-  readonly kind: ReviewKind;
-  readonly targets: readonly string[];
-  readonly author: ReviewAgent;
-  readonly reviewer: ReviewAgent;
-  readonly preferredFailure: ReviewFailure;
-  readonly runDeadline: number;
-}): Promise<
+async function runAlternateModelRoute(
+  input: ReviewRunInput & {
+    readonly author: ReviewAgent;
+    readonly reviewer: ReviewAgent;
+    readonly preferredFailure: ReviewFailure;
+    readonly runDeadline: number;
+  },
+): Promise<
   | { readonly kind: 'completed'; readonly result: CliResult }
   | { readonly kind: 'failed'; readonly failure: string; readonly terminal: boolean }
   | { readonly kind: 'skipped' }
@@ -538,7 +573,13 @@ async function runAlternateModelRoute(input: {
   const model = readAlternateReviewerModel(input.cwd, input.reviewer);
   if (model === undefined || !canFundRoute(input.runDeadline)) return { kind: 'skipped' };
 
+  input.progress?.start(
+    `Trying ${agentName(input.reviewer)} again with the configured alternate model…`,
+  );
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.heartbeat?.(
+    `Still waiting for ${agentName(input.reviewer)} on the alternate model…`,
+  );
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     input.reviewer,
     prepared,
@@ -579,16 +620,15 @@ async function runAlternateModelRoute(input: {
  * Everything after the assigned reviewer failed: the alternate model, then the
  * author's own runtime, each only while the run bound can still fund it.
  */
-async function runRemainingRoutes(input: {
-  readonly cwd: string;
-  readonly kind: ReviewKind;
-  readonly targets: readonly string[];
-  readonly author: ReviewAgent;
-  readonly assignedReviewer: ReviewAgent;
-  readonly preferredFailure: ReviewFailure;
-  readonly policy: ReviewPolicy;
-  readonly runDeadline: number;
-}): Promise<CliResult> {
+async function runRemainingRoutes(
+  input: ReviewRunInput & {
+    readonly author: ReviewAgent;
+    readonly assignedReviewer: ReviewAgent;
+    readonly preferredFailure: ReviewFailure;
+    readonly policy: ReviewPolicy;
+    readonly runDeadline: number;
+  },
+): Promise<CliResult> {
   const alternate = await runAlternateModelRoute({
     cwd: input.cwd,
     kind: input.kind,
@@ -669,11 +709,7 @@ function exhaustedRunResult(input: {
   });
 }
 
-export async function runReview(input: {
-  readonly cwd: string;
-  readonly kind: ReviewKind;
-  readonly targets: readonly string[];
-}): Promise<CliResult> {
+export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
   if (policy === 'off') {
@@ -701,7 +737,7 @@ export async function runReview(input: {
   }
   const { reviewer } = pair;
 
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = preparePrimaryReview(input, reviewer);
   // One bound for reviewer work across the whole run. Initial packet sealing is
   // deliberately outside it; later probes, routes, and cleanups share it.
   const runDeadline = Date.now() + runBoundMs();

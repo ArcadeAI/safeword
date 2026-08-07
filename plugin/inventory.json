@@ -7,7 +7,7 @@
     },
     {
       "path": "agents/safeword-reviewer.md",
-      "sha256": "5cc17d5cec1a6df812770cf80667673279bf1acc1bb961ebe458f8c5b58bdc1a"
+      "sha256": "ade07c38cb24631a5beb541dbf1320b9665be90b5d24eaaf1752b34eac9f5b5e"
     },
     {
       "path": "hooks/hooks.json",
@@ -135,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "99a5bb9ed797c497f91d8adce7ab0ae6eb0871487dc5e886c37426951cb0bf1f"
+      "sha256": "e138747ba3a54b1a95d65b5cc63cb6013e13055bfc1b9df97a60a9a51598e6b8"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -267,7 +267,7 @@
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
-      "sha256": "c46623f4bbdee4935eefa85c7beabafa7fa05063caad728178c15febe9fb68bb"
+      "sha256": "6974d327e1ab8868098555161422f862bac723f26741f78c4679fad9ad8c4a80"
     },
     {
       "path": "runtime/hooks/lib/parse-annotation.ts",
@@ -623,7 +623,7 @@
     },
     {
       "path": "skills/finish-review/SKILL.md",
-      "sha256": "b6008584dec90f5bac4860dce057d6c799aa074686cef42c0cb3405bf73c00ea"
+      "sha256": "b53fcc672928e4a3e1ab8ac49be3c8bf546a6bab4b603b73bb528dad9963c7cc"
     },
     {
       "path": "skills/lint/SKILL.md",

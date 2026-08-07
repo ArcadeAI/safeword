@@ -106,6 +106,10 @@ describe('headless reviewer output adapters', () => {
       'extra finding property',
       { ...output, findings: [{ severity: 'info', message: 'noted', unexpected: true }] },
     ],
+    [
+      'approval with an error finding',
+      { ...output, findings: [{ severity: 'error', message: 'must be resolved' }] },
+    ],
   ])('rejects structurally invalid output: %s', (_label, invalidOutput) => {
     expect(() => parseReviewerOutput('claude', JSON.stringify(invalidOutput))).toThrow(
       'invalid reviewer output',

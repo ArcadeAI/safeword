@@ -71,11 +71,38 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 ## Safeword CLI
 
 **Kind:** CLI
-**Description:** The `safeword` command-line tool itself — the harness-agnostic engine that installs and maintains the process layer. Runs setup/upgrade to scaffold and reconcile managed files (personas.md, surfaces.md, glossary.md, hooks, skills), and check/sync-config/test-plan/ticket to validate and drive the workflow. Operates on the project's real filesystem independent of which agent (if any) invokes it.
+**Description:** The `safeword` command-line tool itself — the harness-agnostic engine that installs and maintains the process layer. Runs setup/upgrade to scaffold and reconcile managed files (personas.md, surfaces.md, glossary.md, hooks, skills), check/sync-config/test-plan/ticket to validate and drive the workflow, and review-pr to inspect and publish advisory PR evidence. Operates on the project's real filesystem independent of which agent (if any) invokes it.
 **Audience:** Technical Builder (TB), Safeword Maintainer (SM)
-**Examples:** `safeword setup`, `safeword upgrade`, `safeword check`, `safeword sync-config`, `safeword test-plan`, `safeword ticket new`, the managed-file reconcile contract, generated `INDEX.md`
+**Examples:** `safeword setup`, `safeword upgrade`, `safeword check`, `safeword sync-config`, `safeword test-plan`, `safeword ticket new`, `safeword review-pr`, the managed-file reconcile contract, generated `INDEX.md`
 **Coverage notes:** Tag feature scenarios with `@surface.safeword-cli` when the behavior is the CLI tool's own — file scaffolding/reconciliation, config validation, index generation — rather than something that must work through a specific agent runtime.
 **Do not confuse with:** Claude Code / OpenAI Codex / Cursor — the agent runtimes that *invoke* safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
+
+## GitHub Pull Request Conversation
+
+**Kind:** Collaboration surface
+**Description:** The ordinary issue-comment timeline on a GitHub pull request, where Safeword maintains one marker-owned advisory receipt without creating a review, approval, check, or status.
+**Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
+**Examples:** Pull-request Conversation tab, issue comment REST endpoints, the `<!-- safeword:pr-review-receipt:v1 -->` marker
+**Coverage notes:** Tag scenarios with `@surface.github-pull-request-conversation` when receipt wording, uniqueness, ownership, or merge-neutral publication is observable in the ordinary conversation.
+**Do not confuse with:** GitHub Pull Request Review — inline review comments and approvals use a separate API and can participate in merge policy.
+
+## GitHub Pull Request Review
+
+**Kind:** Collaboration surface
+**Description:** GitHub's review/inline-comment surface, including review threads, review states, and approvals. HXT3GW deliberately does not publish through this surface; later finding-lifecycle work owns it.
+**Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
+**Examples:** Files changed review threads, pending reviews, approve/request-changes states, pull-request review REST endpoints
+**Coverage notes:** Tag scenarios with `@surface.github-pull-request-review` when behavior depends on inline location, review lifecycle, or approval semantics, including proof that an advisory workflow does not call this surface.
+**Do not confuse with:** GitHub Pull Request Conversation — ordinary comments cannot approve a pull request or satisfy a required review.
+
+## GitHub Actions Execution Sandbox
+
+**Kind:** CI runtime
+**Description:** GitHub-hosted workflow jobs, their permissions, environments, secrets, artifacts, concurrency groups, and executable steps. It is the authority boundary for Safeword's split inspection/publication workflow.
+**Audience:** Technical Builder (TBU), Safeword Maintainer (SWM)
+**Examples:** `pull_request_target`, reusable workflows, job-level `permissions`, GitHub environments, Actions artifacts, scheduled workflows
+**Coverage notes:** Tag scenarios with `@surface.github-actions-execution-sandbox` when the guarantee depends on job isolation, secret scope, token permissions, concurrency, checkout absence, or runtime execution behavior.
+**Do not confuse with:** GitHub Pull Request Conversation — that is the user-visible comment surface; the Actions sandbox is the runtime that produces and publishes the serialized result.
 
 ## Railway Hosted Relay
 

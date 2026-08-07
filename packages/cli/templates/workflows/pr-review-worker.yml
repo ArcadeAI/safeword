@@ -1,0 +1,135 @@
+name: Safeword advisory PR review worker
+
+on:
+  workflow_call:
+    inputs:
+      pull_number:
+        required: true
+        type: number
+      cancel_in_progress:
+        required: true
+        type: boolean
+      inspect_requested:
+        required: true
+        type: boolean
+      write_requested:
+        required: true
+        type: boolean
+
+concurrency:
+  group: pr-review-${{ inputs.pull_number }}
+  cancel-in-progress: ${{ inputs.cancel_in_progress }}
+
+permissions: {}
+
+jobs:
+  invalidate:
+    if: ${{ inputs.write_requested }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Invalidate any obsolete advisory route
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ inputs.pull_number }}
+        run: npx --yes safeword@__SAFEWORD_VERSION__ --no-input --json review-pr invalidate
+
+  inspect:
+    needs: invalidate
+    if: ${{ always() && inputs.inspect_requested && (needs.invalidate.result == 'success' || needs.invalidate.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: safeword-pr-review-model
+      deployment: false
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Assemble exact-head evidence as JSON
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ inputs.pull_number }}
+        run: |
+          mkdir -p .safeword
+          gh api "repos/$GITHUB_REPOSITORY/contents/.safeword/config.json" --jq .content | base64 --decode > .safeword/config.json
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER/files" --paginate > pull-files.json
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER" > pull.json
+          head_sha="$(jq -r .head.sha pull.json)"
+          gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/check-runs" --jq .check_runs > check-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/status" --jq .statuses > statuses.json
+          gh api "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments?per_page=100" --paginate > comments.json
+          jq -n --slurpfile files pull-files.json --slurpfile pull pull.json --slurpfile checks check-runs.json --slurpfile statuses statuses.json --slurpfile comments comments.json '
+            ($pull[0]) as $pr |
+            ([ $comments[0][] | select(.user.type == "Bot" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) ]) as $owned |
+            {
+              schemaVersion: 1,
+              headSha: $pr.head.sha,
+              pullState: (if $pr.merged then "merged" elif $pr.state == "closed" then "closed" elif $pr.draft then "draft" else "ready" end),
+              markerReceiptExists: ($owned | length > 0),
+              reviewedReceiptSha: ([$owned[].body | select(contains("\nRoute:")) | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha] | first // null),
+              artifacts: [$files[0][] |
+                if .patch != null then
+                  {kind: "text", path: .filename, content: .patch}
+                elif (.filename | test("\\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|bz2|xz|7z|woff2?|ttf|otf|mp3|mp4|mov|avi|webm|wav|ogg|wasm|class|jar|exe|dll|so|dylib|bin)$"; "i")) then
+                  {kind: "non_text", path: .filename}
+                else
+                  {kind: "unreadable_text", path: .filename}
+                end
+              ],
+              checks: [$checks[0][] | {name, status, conclusion}],
+              statuses: [$statuses[0][] | {context, state}]
+            }
+          ' > inspection-input.json
+      - name: Inspect bounded evidence without GitHub write authority
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npx --yes safeword@__SAFEWORD_VERSION__ --no-input --json review-pr inspect inspection-input.json --output advisory-result.json
+      - name: Upload the JSON-only advisory handoff
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: safeword-pr-review-${{ inputs.pull_number }}
+          path: advisory-result.json
+          if-no-files-found: error
+
+  event-context:
+    if: ${{ !inputs.write_requested && !inputs.inspect_requested }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Write non-executable pull-request context
+        env:
+          SAFEWORD_PR_NUMBER: ${{ inputs.pull_number }}
+        run: |
+          jq -n --argjson pullNumber "$SAFEWORD_PR_NUMBER" '{pullNumber: $pullNumber}' > event-context.json
+      - name: Upload the JSON-only event context
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: safeword-pr-review-context-${{ inputs.pull_number }}
+          path: event-context.json
+          if-no-files-found: error
+
+  publish:
+    needs: inspect
+    if: ${{ inputs.write_requested }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Download the JSON-only advisory handoff
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: safeword-pr-review-${{ inputs.pull_number }}
+      - name: Publish one ordinary pull-request comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ inputs.pull_number }}
+        run: npx --yes safeword@__SAFEWORD_VERSION__ --no-input --json review-pr publish advisory-result.json

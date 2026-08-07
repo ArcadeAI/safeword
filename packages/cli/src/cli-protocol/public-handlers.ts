@@ -555,7 +555,100 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
   const { runReview } = await import('../review/coordinator.js');
-  return runReview({ cwd: invocation.cwd, kind: rawKind, targets });
+  return runReview({ cwd: invocation.cwd, kind: rawKind, targets, progress: invocation.progress });
+}
+
+async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('review-pr inspect');
+  const inputPath = invocation.operands[0];
+  const outputPath = invocation.options.output;
+  if (typeof inputPath !== 'string' || typeof outputPath !== 'string') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PR_REVIEW_ARGUMENT_INVALID',
+          message: 'review-pr inspect requires an input path and --output path.',
+          retryable: false,
+        },
+      ],
+    });
+  }
+  const { inspectPullRequestCommand } = await import('../commands/review-pr.js');
+  let receipt;
+  try {
+    receipt = await inspectPullRequestCommand({
+      cwd: invocation.cwd,
+      inputPath,
+      outputPath,
+    });
+  } catch {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PR_REVIEW_INSPECT_FAILED',
+          message: 'Pull-request inspection failed before a publishable handoff was produced.',
+          retryable: false,
+        },
+      ],
+      recovery: [
+        {
+          command:
+            'Check .safeword/config.json, the input artifact, and OPENAI_API_KEY, then retry.',
+          description: 'Correct the inspection prerequisite that failed.',
+          requiresHuman: true,
+        },
+      ],
+    });
+  }
+  return createResult({
+    state: 'changed',
+    effects: {
+      files: [{ kind: 'advisory-result', target: outputPath, operation: 'write' }],
+      network: [{ kind: 'model-review', target: 'OpenAI', operation: 'read-write' }],
+    },
+    data: { command: 'review-pr inspect', receipt },
+  });
+}
+
+async function reviewPrPublicationHandler(
+  stage: 'invalidate' | 'publish',
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired(`review-pr ${stage}`);
+  try {
+    const { createGitHubReviewBoundary, invalidatePullRequestCommand, publishPullRequestCommand } =
+      await import('../commands/review-pr-publication.js');
+    const github = createGitHubReviewBoundary();
+    const resultPath = invocation.operands[0];
+    if (stage === 'publish' && typeof resultPath !== 'string') {
+      throw new Error('review-pr publish requires a result path');
+    }
+    const outcome =
+      stage === 'publish' && typeof resultPath === 'string'
+        ? await publishPullRequestCommand(github, resultPath)
+        : await invalidatePullRequestCommand(github);
+    return createResult({
+      state: outcome.changed ? 'changed' : 'healthy',
+      changed: outcome.changed,
+      effects: {
+        network: [{ kind: 'ordinary-issue-comment', target: 'GitHub', operation: 'read-write' }],
+      },
+      data: { command: `review-pr ${stage}`, outcome },
+    });
+  } catch {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PR_REVIEW_PUBLICATION_FAILED',
+          message: `Pull-request ${stage} failed without changing merge eligibility.`,
+          retryable: false,
+        },
+      ],
+    });
+  }
 }
 
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -1426,6 +1519,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
   'review run': reviewRunHandler,
+  'review-pr inspect': reviewPrInspectHandler,
+  'review-pr invalidate': invocation => reviewPrPublicationHandler('invalidate', invocation),
+  'review-pr publish': invocation => reviewPrPublicationHandler('publish', invocation),
   'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
   'retro reconcile': retroReconcileHandler,

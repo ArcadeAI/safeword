@@ -89,6 +89,10 @@ Affected:
 - Host fallback is best-effort and additive: its assurance preserves the
   exhaustion disclosure and unsatisfied independence verdict where applicable,
   and host findings never create independent evidence.
+- The installed Claude plugin resolves its fallback reviewer contract from the
+  plugin bundle even when the project has no project-local Safe Word setup.
+- A reviewer cannot approve while also reporting an error finding; contradictory
+  output is invalid and can never produce a healthy review result.
 
 ## Constraints
 

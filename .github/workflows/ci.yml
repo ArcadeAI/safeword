@@ -167,6 +167,22 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install pinned actionlint
+        run: |
+          mkdir -p /tmp/safeword-actionlint
+          curl --fail --location --silent --show-error \
+            --output /tmp/safeword-actionlint/actionlint.tar.gz \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  /tmp/safeword-actionlint/actionlint.tar.gz' \
+            | sha256sum --check
+          tar --extract --gzip --file /tmp/safeword-actionlint/actionlint.tar.gz \
+            --directory /tmp/safeword-actionlint actionlint
+
+      - name: Validate installed advisory PR review workflows
+        run: bun run --cwd packages/cli check:pr-review-workflows
+        env:
+          SAFEWORD_ACTIONLINT: /tmp/safeword-actionlint/actionlint
+
       - name: Lockfile sync check
         # --frozen-lockfile catches resolved-version drift, but lets
         # cosmetic constraint-mirror drift slip through (e.g. package.json

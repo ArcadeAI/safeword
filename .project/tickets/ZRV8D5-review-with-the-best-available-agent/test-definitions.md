@@ -10,6 +10,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN c2ffdc88a
 - [x] REFACTOR skip: the generated Cursor command is a data-only catalogue entry
 
+### Scenario: The installed Claude plugin fallback is self-contained
+
+- [x] RED pending: committed plugin assets resolve the contract through a project-local path
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Manual host runtime: Every advertised host enters fallback for typed exhaustion
 
 - [x] RED skip: agent behavior — host-native runtime invocation is not structurally executable from the local acceptance runner
@@ -203,6 +209,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 2abd9aa05
 - [x] GREEN 068b4d9c2
 - [x] REFACTOR aba4ab37f
+
+### Scenario: Reviewer approval with an error finding is rejected
+
+- [x] RED pending: the strict shape parser accepts a contradictory approval
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Typed route exhaustion starts the host-owned fallback
 
