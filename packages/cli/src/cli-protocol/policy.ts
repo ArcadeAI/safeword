@@ -1,4 +1,5 @@
 import type { CommandDefinition } from './catalog.js';
+import type { ProgressReporter } from './handler.js';
 import type { CliResult, Effects } from './result.js';
 
 function firstNonEmptyEffect(effects: Effects): keyof Effects | undefined {
@@ -54,24 +55,37 @@ interface ProgressAdapters {
 
 /** Operations finishing faster than this are not worth announcing. */
 const PROGRESS_ANNOUNCE_DELAY_MS = 100;
+/** A long wait needs proof that the coordinator is still responsive. */
+const PROGRESS_HEARTBEAT_INTERVAL_MS = 30_000;
 
-export function createProgressReporter(adapters: ProgressAdapters): {
-  start: (message: string) => void;
-  stop: () => void;
-} {
-  let scheduledHandle: unknown;
+export function createProgressReporter(adapters: ProgressAdapters): ProgressReporter {
+  let announcementHandle: unknown;
+  let heartbeatHandle: unknown;
+
+  function scheduleHeartbeat(message: string): void {
+    heartbeatHandle = adapters.schedule(() => {
+      adapters.emit(message);
+      scheduleHeartbeat(message);
+    }, PROGRESS_HEARTBEAT_INTERVAL_MS);
+  }
+
   return {
     start(message: string): void {
-      if (scheduledHandle !== undefined) adapters.cancel(scheduledHandle);
-      scheduledHandle = adapters.schedule(() => {
+      if (announcementHandle !== undefined) adapters.cancel(announcementHandle);
+      announcementHandle = adapters.schedule(() => {
         adapters.emit(message);
-        scheduledHandle = undefined;
+        announcementHandle = undefined;
       }, PROGRESS_ANNOUNCE_DELAY_MS);
     },
+    heartbeat(message: string): void {
+      if (heartbeatHandle !== undefined) adapters.cancel(heartbeatHandle);
+      scheduleHeartbeat(message);
+    },
     stop(): void {
-      if (scheduledHandle === undefined) return;
-      adapters.cancel(scheduledHandle);
-      scheduledHandle = undefined;
+      if (announcementHandle !== undefined) adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined) adapters.cancel(heartbeatHandle);
+      announcementHandle = undefined;
+      heartbeatHandle = undefined;
     },
   };
 }

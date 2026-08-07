@@ -231,16 +231,41 @@ function changedReviewResult(input: {
   });
 }
 
-async function runDegradedFallback(input: {
+type ReviewProgress = {
+  readonly start: (message: string) => void;
+  readonly heartbeat?: (message: string) => void;
+};
+
+type ReviewRunInput = {
   readonly cwd: string;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
-  readonly author: ReviewAgent;
-  readonly assignedReviewer: ReviewAgent;
-  readonly preferredFailure: ReviewFailure;
-  readonly policy: ReviewPolicy;
-}): Promise<CliResult> {
+  readonly progress?: ReviewProgress;
+};
+
+function preparePrimaryReview(input: ReviewRunInput, reviewer: ReviewAgent) {
+  input.progress?.start(`Preparing the review packet for ${agentName(reviewer)}…`);
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.start(`Requesting an independent ${agentName(reviewer)} review…`);
+  input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(reviewer)}…`);
+  return prepared;
+}
+
+async function runDegradedFallback(
+  input: ReviewRunInput & {
+    readonly author: ReviewAgent;
+    readonly assignedReviewer: ReviewAgent;
+    readonly preferredFailure: ReviewFailure;
+    readonly policy: ReviewPolicy;
+  },
+): Promise<CliResult> {
+  input.progress?.start(
+    `${agentName(input.assignedReviewer)} did not complete; trying a ${agentName(input.author)} fallback…`,
+  );
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.heartbeat?.(
+    `Still waiting for a response from the ${agentName(input.author)} fallback…`,
+  );
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared);
   const changedResult = changedReviewResult({
     author: input.author,
@@ -351,11 +376,7 @@ async function runDegradedFallback(input: {
   });
 }
 
-export async function runReview(input: {
-  readonly cwd: string;
-  readonly kind: ReviewKind;
-  readonly targets: readonly string[];
-}): Promise<CliResult> {
+export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
   if (policy === 'off') {
@@ -383,7 +404,7 @@ export async function runReview(input: {
   }
   const { reviewer } = pair;
 
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = preparePrimaryReview(input, reviewer);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared);
   const changedResult = changedReviewResult({
     author: pair.author,

@@ -76,4 +76,31 @@ describe('CLI execution policy', () => {
     expect(emit).toHaveBeenCalledWith('Applying the confirmed plan…');
     progress.stop();
   });
+
+  it('keeps a long-running operation visibly alive without claiming completion progress', () => {
+    const scheduled = new Map<number, () => void>();
+    const delays = new Map<number, number>();
+    const emit = vi.fn();
+    const cancel = vi.fn();
+    let nextHandle = 0;
+    const progress = createProgressReporter({
+      schedule: (callback, delay) => {
+        nextHandle += 1;
+        scheduled.set(nextHandle, callback);
+        delays.set(nextHandle, delay);
+        return nextHandle;
+      },
+      cancel,
+      emit,
+    });
+
+    progress.heartbeat?.('Still waiting for a response from Codex…');
+    expect(delays.get(1)).toBe(30_000);
+    scheduled.get(1)?.();
+    expect(emit).toHaveBeenCalledWith('Still waiting for a response from Codex…');
+    expect(delays.get(2)).toBe(30_000);
+
+    progress.stop();
+    expect(cancel).toHaveBeenCalledWith(2);
+  });
 });

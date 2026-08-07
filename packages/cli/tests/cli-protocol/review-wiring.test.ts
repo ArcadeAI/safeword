@@ -33,12 +33,14 @@ printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
 failure=$(printenv SAFEWORD_REVIEW_FAKE_FAILURE_${agent.toUpperCase()} || printenv SAFEWORD_REVIEW_FAKE_FAILURE || true)
 failure_agent=$(printenv SAFEWORD_REVIEW_FAKE_FAILURE_AGENT || true)
 failure_path=$(printenv SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS || true)
+delay_agent=$(printenv SAFEWORD_REVIEW_FAKE_DELAY_AGENT || true)
 if [ "$failure" = "auth" ] && { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "$failure_path" ] || printf '%s' "$0" | /usr/bin/grep -q "$failure_path"; }; then
   printf 'not logged in\n' >&2
   exit 1
 fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+if [ "$delay_agent" = "${agent}" ]; then /bin/sleep 1; fi
 if { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "$failure_path" ] || printf '%s' "$0" | /usr/bin/grep -q "$failure_path"; }; then
   if [ "$failure" = "process" ]; then printf 'review crashed\n' >&2; exit 7; fi
   if [ "$failure" = "timeout" ]; then /bin/sleep 1; fi
@@ -772,6 +774,56 @@ describe('cross-agent review public-command wiring', () => {
     });
     expect(output.data).not.toHaveProperty('reviewer_output');
     expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+  });
+
+  it('reports the assigned reviewer while a long independent check is running', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const log = nodePath.join(directory, 'review.log');
+    const bin = installFakeReviewer(directory, 'codex');
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).toContain('Requesting an independent Codex review…');
+  });
+
+  it('reports when an unavailable independent reviewer moves to a fallback', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const log = nodePath.join(directory, 'review.log');
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
+          SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'claude',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).toContain('Codex did not complete; trying a Claude fallback…');
   });
 
   it.each(['process', 'auth'])(
