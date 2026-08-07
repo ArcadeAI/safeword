@@ -431,6 +431,27 @@ function prReviewEnabled(cwd: string): boolean {
   }
 }
 
+function normalizePrReviewWorkflowVersionPins(content: string): string {
+  const commandPrefix = 'npx --yes safeword@';
+  const segments = content.split(commandPrefix);
+  return segments
+    .map((segment, index) => {
+      if (index === 0) return segment;
+      const end = segment.indexOf(' ');
+      if (end === -1) return segment;
+      const version = segment.slice(0, end);
+      const coreIdentifiers = version.split('-', 1)[0]?.split('.') ?? [];
+      const isSemver =
+        coreIdentifiers.length === 3 &&
+        coreIdentifiers.every(identifier => {
+          const numeric = Number(identifier);
+          return Number.isSafeInteger(numeric) && numeric >= 0 && String(numeric) === identifier;
+        });
+      return isSemver ? `__SAFEWORD_VERSION__${segment.slice(end)}` : segment;
+    })
+    .join(commandPrefix);
+}
+
 function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
   const workflowContent = (): string =>
     readFile(nodePath.join(getTemplatesDirectory(), templatePath))
@@ -441,6 +462,7 @@ function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
     template: templatePath,
     generator: (ctx: ProjectContext): string | undefined =>
       prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
+    normalizeForUnmodifiedComparison: normalizePrReviewWorkflowVersionPins,
     removeIfUnmodified: workflowContent,
     removeWhenGeneratorOmitted: true,
   };

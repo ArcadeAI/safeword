@@ -284,6 +284,19 @@ function planExistingDirectoriesRemoval(
   return { actions, removed };
 }
 
+function matchesUnmodifiedScaffold(
+  definition: ManagedFileDefinition,
+  ctx: ProjectContext,
+  installed: string,
+): boolean {
+  const expected = definition.removeIfUnmodified?.(ctx);
+  if (expected === undefined) return false;
+  const normalize = definition.normalizeForUnmodifiedComparison;
+  return normalize === undefined
+    ? installed === expected
+    : normalize(installed) === normalize(expected);
+}
+
 /** Plan rm actions for files that exist */
 /**
  * Conditional managed-file removal on DEFAULT reset (ticket V4MATC): entries
@@ -302,8 +315,8 @@ function planConditionalManagedRemoval(
     if (isConfigOverridden(definition, ctx.cwd)) continue;
     const fullPath = nodePath.join(ctx.cwd, filePath);
     if (!exists(fullPath)) continue;
-    const expected = definition.removeIfUnmodified(ctx);
-    if (expected !== undefined && readFileSafe(fullPath) === expected) {
+    const installed = readFileSafe(fullPath);
+    if (installed !== undefined && matchesUnmodifiedScaffold(definition, ctx, installed)) {
       actions.push({ type: 'rm', path: filePath });
       removed.push(filePath);
     }
@@ -330,8 +343,8 @@ function planOmittedManagedRemoval(
 
     const fullPath = nodePath.join(ctx.cwd, filePath);
     if (!exists(fullPath)) continue;
-    const expected = definition.removeIfUnmodified(ctx);
-    if (expected !== undefined && readFileSafe(fullPath) === expected) {
+    const installed = readFileSafe(fullPath);
+    if (installed !== undefined && matchesUnmodifiedScaffold(definition, ctx, installed)) {
       actions.push({ type: 'rm', path: filePath });
       removed.push(filePath);
     }

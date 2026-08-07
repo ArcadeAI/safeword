@@ -8,6 +8,7 @@ import YAML from 'yaml';
 import { reconcile } from '../../src/reconcile.js';
 import type { ProjectContext, SafewordSchema } from '../../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { VERSION } from '../../src/version.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../../templates/workflows');
 const routerPath = nodePath.join(templatesDirectory, 'pr-review.yml');
@@ -282,7 +283,10 @@ describe('advisory PR review workflow contract', () => {
       writePrReviewConfig(projectDirectory, true);
       await reconcile(workflowOnlySchema(), 'install', projectContext(projectDirectory));
       const customizedPath = nodePath.join(projectDirectory, installedWorkflowPaths[0]);
-      writeFileSync(customizedPath, `${readFileSync(customizedPath, 'utf8')}\n# customer-owned\n`);
+      const previousReleaseCustomization = readFileSync(customizedPath, 'utf8')
+        .replaceAll(`safeword@${VERSION}`, 'safeword@0.0.1')
+        .concat('\n# customer-owned\n');
+      writeFileSync(customizedPath, previousReleaseCustomization);
 
       writePrReviewConfig(projectDirectory, false);
       const disabled = await reconcile(
@@ -294,6 +298,37 @@ describe('advisory PR review workflow contract', () => {
       expect(existsSync(customizedPath)).toBe(true);
       expect(disabled.removed).toContain(installedWorkflowPaths[1]);
       expect(disabled.removed).not.toContain(installedWorkflowPaths[0]);
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('removes unmodified workflows when disabled during a version upgrade', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-'));
+    try {
+      writePrReviewConfig(projectDirectory, true);
+      await reconcile(workflowOnlySchema(), 'install', projectContext(projectDirectory));
+
+      for (const path of installedWorkflowPaths) {
+        const installedPath = nodePath.join(projectDirectory, path);
+        const previousRelease = readFileSync(installedPath, 'utf8').replaceAll(
+          `safeword@${VERSION}`,
+          'safeword@0.0.1',
+        );
+        writeFileSync(installedPath, previousRelease);
+      }
+
+      writePrReviewConfig(projectDirectory, false);
+      const disabled = await reconcile(
+        workflowOnlySchema(),
+        'upgrade',
+        projectContext(projectDirectory),
+      );
+
+      expect(disabled.removed).toEqual(expect.arrayContaining([...installedWorkflowPaths]));
+      for (const path of installedWorkflowPaths) {
+        expect(existsSync(nodePath.join(projectDirectory, path))).toBe(false);
+      }
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
     }

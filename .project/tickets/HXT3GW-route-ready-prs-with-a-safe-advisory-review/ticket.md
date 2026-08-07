@@ -38,7 +38,7 @@ phase_anchors:
   - "verify: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
   - "done: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
 created: 2026-08-05T14:38:52.499Z
-last_modified: 2026-08-07T06:53:33Z
+last_modified: 2026-08-07T09:20:00Z
 ---
 
 # Route ready PRs with a safe advisory review
@@ -49,6 +49,13 @@ last_modified: 2026-08-07T06:53:33Z
 
 ## Work Log
 
+- 2026-08-07T09:20:00Z Fixed the post-review version-skew opt-out defect. The
+  first regression run proved that disabling during an upgrade removed only the
+  unversioned router and stranded the old worker/publisher. Managed-file removal
+  now canonicalizes only Safeword's semver command pins before comparing the
+  whole scaffold, so old unmodified workflows are removed while any other
+  customer edit survives. Focused workflow/reconciliation/reset coverage passes
+  92/92, with ESLint and TypeScript clean.
 - 2026-08-07T06:53:33Z Merged current `main` again at 46ab12acc after upstream
   PR #2019 landed. Advisory-review sources and scenarios still merged without
   overlap; only generated Claude plugin hashes required regeneration. Plugin
