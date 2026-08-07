@@ -387,6 +387,48 @@ function claimAutomaticTransaction(
   }
 }
 
+/** Defers to whichever process already claimed the cleanup transaction. */
+function concurrentMigrationResult(
+  projectRoot: string,
+  options: AutomaticClaudeMigrationOptions,
+  now: () => number,
+): AutomaticClaudeMigrationResult {
+  const concurrentDeadline = Math.min(options.deadline, now() + 500);
+  if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
+    return { state: 'complete', unresolvedPaths: [] };
+  }
+  if (now() >= options.deadline) {
+    return {
+      state: 'deferred',
+      advisory:
+        'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
+      unresolvedPaths: [],
+    };
+  }
+  return recoveredAutomaticResult(projectRoot);
+}
+
+/**
+ * Reads the before-images for a planned contraction.
+ *
+ * Planning happens before the exclusive transaction claim, so a process that
+ * loses the race can be part-way through reading files the winner is already
+ * deleting. That is an ordinary lost race, not a failure to report: returning
+ * undefined routes it to the same deferral path as an already-claimed
+ * transaction, instead of surfacing an ENOENT as a repair advisory.
+ */
+function planCleanupEntries(
+  projectRoot: string,
+  mutations: readonly { path: string; content: string | null }[],
+): CleanupEntry[] | undefined {
+  try {
+    return mutations.map(mutation => entryFor(projectRoot, mutation));
+  } catch (error) {
+    if (existsSync(transactionPath(projectRoot))) return undefined;
+    throw error;
+  }
+}
+
 function performAutomaticMigration(
   projectRoot: string,
   options: AutomaticClaudeMigrationOptions,
@@ -399,21 +441,8 @@ function performAutomaticMigration(
       unresolvedPaths: [],
     };
   }
-  if (existsSync(transactionPath(projectRoot))) {
-    const concurrentDeadline = Math.min(options.deadline, now() + 500);
-    if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
-      return { state: 'complete', unresolvedPaths: [] };
-    }
-    if (now() >= options.deadline) {
-      return {
-        state: 'deferred',
-        advisory:
-          'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
-        unresolvedPaths: [],
-      };
-    }
-    return recoveredAutomaticResult(projectRoot);
-  }
+  if (existsSync(transactionPath(projectRoot)))
+    return concurrentMigrationResult(projectRoot, options, now);
   const legacy = observeClaudeLegacy(projectRoot);
   const unresolved = unresolvedPaths(legacy);
   const advisory = automaticAdvisory(unresolved);
@@ -421,11 +450,13 @@ function performAutomaticMigration(
   if (mutations.length === 0) {
     return writeObservedPluginMode(projectRoot, options, unresolved, advisory);
   }
+  const entries = planCleanupEntries(projectRoot, mutations);
+  if (entries === undefined) return concurrentMigrationResult(projectRoot, options, now);
   const transaction: CleanupTransaction = {
     schema_version: 1,
     transaction_id: randomUUID(),
     disposition: 'complete-forward',
-    entries: mutations.map(mutation => entryFor(projectRoot, mutation)),
+    entries,
     plugin_mode: {
       plugin_version: options.pluginVersion,
       hook_manifest_sha256: options.hookManifestSha256,

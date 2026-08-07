@@ -35399,6 +35399,29 @@ function claimAutomaticTransaction(projectRoot, transaction, options, now, unres
     };
   }
 }
+function concurrentMigrationResult(projectRoot, options, now) {
+  const concurrentDeadline = Math.min(options.deadline, now() + 500);
+  if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
+    return { state: "complete", unresolvedPaths: [] };
+  }
+  if (now() >= options.deadline) {
+    return {
+      state: "deferred",
+      advisory: "Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.",
+      unresolvedPaths: []
+    };
+  }
+  return recoveredAutomaticResult(projectRoot);
+}
+function planCleanupEntries(projectRoot, mutations) {
+  try {
+    return mutations.map((mutation) => entryFor(projectRoot, mutation));
+  } catch (error2) {
+    if (existsSync34(transactionPath(projectRoot)))
+      return;
+    throw error2;
+  }
+}
 function performAutomaticMigration(projectRoot, options, now) {
   if (now() >= options.deadline) {
     return {
@@ -35407,20 +35430,8 @@ function performAutomaticMigration(projectRoot, options, now) {
       unresolvedPaths: []
     };
   }
-  if (existsSync34(transactionPath(projectRoot))) {
-    const concurrentDeadline = Math.min(options.deadline, now() + 500);
-    if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
-      return { state: "complete", unresolvedPaths: [] };
-    }
-    if (now() >= options.deadline) {
-      return {
-        state: "deferred",
-        advisory: "Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.",
-        unresolvedPaths: []
-      };
-    }
-    return recoveredAutomaticResult(projectRoot);
-  }
+  if (existsSync34(transactionPath(projectRoot)))
+    return concurrentMigrationResult(projectRoot, options, now);
   const legacy = observeClaudeLegacy(projectRoot);
   const unresolved = unresolvedPaths(legacy);
   const advisory = automaticAdvisory(unresolved);
@@ -35428,11 +35439,14 @@ function performAutomaticMigration(projectRoot, options, now) {
   if (mutations.length === 0) {
     return writeObservedPluginMode(projectRoot, options, unresolved, advisory);
   }
+  const entries = planCleanupEntries(projectRoot, mutations);
+  if (entries === undefined)
+    return concurrentMigrationResult(projectRoot, options, now);
   const transaction = {
     schema_version: 1,
     transaction_id: randomUUID5(),
     disposition: "complete-forward",
-    entries: mutations.map((mutation) => entryFor(projectRoot, mutation)),
+    entries,
     plugin_mode: {
       plugin_version: options.pluginVersion,
       hook_manifest_sha256: options.hookManifestSha256,
