@@ -130,6 +130,7 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
   const precedingAdds: GitInvocation[] = [];
   let directory = baseDirectory;
   for (const segment of parseShellCommandList(command)) {
+    if (segment.operatorAfter === '&') return undefined;
     const words = parseShellWords(segment.command);
     const commandIndex = commandWordIndex(words);
     const commandWords = words.slice(commandIndex);
@@ -177,10 +178,16 @@ function unsupportedCommitPlan(command: string, baseDirectory: string): GitCommi
 
   let directory = baseDirectory;
   let listStatus: boolean | undefined;
-  let operatorBefore: '&&' | '||' | ';' | undefined;
+  let operatorBefore: '&&' | '||' | ';' | '&' | undefined;
   let dominatingAdds: GitInvocation[] = [];
   for (const segment of parseShellCommandList(command)) {
-    if (segment.operatorAfter === '|' || segment.operatorAfter === '|&') return undefined;
+    if (
+      segment.operatorAfter === '|' ||
+      segment.operatorAfter === '|&' ||
+      segment.operatorAfter === '&'
+    ) {
+      return undefined;
+    }
 
     const words = parseShellWords(segment.command);
     const commandIndex = commandWordIndex(words);
@@ -300,10 +307,12 @@ function hasOnlyRepositorySelectorArguments(arguments_: string[]): boolean {
 
 function combineShellStatus(
   left: boolean | undefined,
-  operator: '&&' | '||' | ';' | undefined,
+  operator: '&&' | '||' | ';' | '&' | undefined,
   right: boolean | undefined,
 ): boolean | undefined {
-  if (operator === undefined || operator === ';') return right;
+  // `&` backgrounds the left list and runs the right one immediately, so the
+  // left status never gates it — same carry-nothing-forward shape as `;`.
+  if (operator === undefined || operator === ';' || operator === '&') return right;
   if (operator === '&&') {
     if (left === false || right === false) return false;
     return left === true && right === true ? true : undefined;

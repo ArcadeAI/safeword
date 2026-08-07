@@ -14,9 +14,7 @@
 // bash-ledger-writes.ts: close the low-friction accident path, not every
 // adversarial path. Undetected forms (all deliberate, adversarial-path) include
 // targets materialized at runtime (`p=node; killall "$p"`), scripts that embed
-// the kill, `xargs killall`, a lone `&` backgrounding the kill
-// (`sleep 1 & killall node` — `&` is not a segment boundary, same as the ledger
-// gate), `env -S 'killall node'` (GNU split-string is not re-tokenized), and
+// the kill, `xargs killall`, `env -S 'killall node'` (GNU split-string is not re-tokenized), and
 // sudo compositions where a skippable prefix follows sudo (`sudo env killall
 // node`, `sudo -u <user> killall node` — commandWordIndex does not model sudo or
 // its option values, so only a leading `sudo` run is stripped, after prefix
