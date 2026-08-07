@@ -181,8 +181,12 @@ Each pass:
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
    provenance, preserves the exact preferred-route failure, and labels any
    permitted same-agent fallback as degraded. Treat its typed result as the
-   review verdict. If it blocks, follow its one recovery action; do not invent
-   a private subagent route or mint passing evidence yourself.
+   review verdict. Only when the typed result is
+   `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the
+   original result and the same accepted targets. For every other result,
+   return it unchanged. The canonical fallback may use one host-native
+   subagent, but do not invent another private route or mint independent
+   evidence yourself.
 
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.

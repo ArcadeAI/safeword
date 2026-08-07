@@ -53,24 +53,36 @@ function filesBeneath(directory: string, prefix = ''): string[] {
     .toSorted((left, right) => left.localeCompare(right));
 }
 
-function adaptWorkflowReference(content: string): string {
+function adaptProjectFrameworkDirectory(
+  content: string,
+  projectDirectory: string,
+  pluginDirectory: string,
+): string {
   return content
-    .replaceAll('"$PROJECT_DIR/.safeword/hooks/', '"${CLAUDE_PLUGIN_ROOT}/runtime/hooks/')
-    .replaceAll('$PROJECT_DIR/.safeword/hooks/', '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/')
-    .replaceAll('./.safeword/hooks/', '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/')
-    .replaceAll('.safeword/hooks/', '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/')
-    .replaceAll('"$PROJECT_DIR/.safeword/guides/', '"${CLAUDE_PLUGIN_ROOT}/resources/guides/')
-    .replaceAll('$PROJECT_DIR/.safeword/guides/', '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/')
-    .replaceAll('./.safeword/guides/', '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/')
-    .replaceAll('.safeword/guides/', '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/')
-    .replaceAll('"$PROJECT_DIR/.safeword/templates/', '"${CLAUDE_PLUGIN_ROOT}/resources/templates/')
-    .replaceAll('$PROJECT_DIR/.safeword/templates/', '"${CLAUDE_PLUGIN_ROOT}"/resources/templates/')
-    .replaceAll('./.safeword/templates/', '"${CLAUDE_PLUGIN_ROOT}"/resources/templates/')
-    .replaceAll('.safeword/templates/', '"${CLAUDE_PLUGIN_ROOT}"/resources/templates/')
-    .replaceAll('"$PROJECT_DIR/.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}/resources/scripts/')
-    .replaceAll('$PROJECT_DIR/.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/')
-    .replaceAll('./.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/')
-    .replaceAll('.safeword/scripts/', '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/');
+    .replaceAll(
+      `"$PROJECT_DIR/.safeword/${projectDirectory}/`,
+      () => `"\${CLAUDE_PLUGIN_ROOT}/${pluginDirectory}/`,
+    )
+    .replaceAll(
+      `$PROJECT_DIR/.safeword/${projectDirectory}/`,
+      () => `"\${CLAUDE_PLUGIN_ROOT}"/${pluginDirectory}/`,
+    )
+    .replaceAll(
+      `./.safeword/${projectDirectory}/`,
+      () => `"\${CLAUDE_PLUGIN_ROOT}"/${pluginDirectory}/`,
+    )
+    .replaceAll(
+      `.safeword/${projectDirectory}/`,
+      () => `"\${CLAUDE_PLUGIN_ROOT}"/${pluginDirectory}/`,
+    );
+}
+
+function adaptWorkflowReference(content: string): string {
+  let adapted = adaptProjectFrameworkDirectory(content, 'hooks', 'runtime/hooks');
+  adapted = adaptProjectFrameworkDirectory(adapted, 'guides', 'resources/guides');
+  adapted = adaptProjectFrameworkDirectory(adapted, 'templates', 'resources/templates');
+  adapted = adaptProjectFrameworkDirectory(adapted, 'scripts', 'resources/scripts');
+  return adaptProjectFrameworkDirectory(adapted, 'skills', 'skills');
 }
 
 function adaptPluginScriptReference(content: string): string {
@@ -90,7 +102,7 @@ function adaptPluginRuntime(content: string): string {
 }
 
 const PROJECT_FRAMEWORK_REFERENCE =
-  /(?:\.\/)?\.safeword\/(?:hooks|guides|scripts|templates)\/[^\s)`'"<>]*/u;
+  /(?:\.\/)?\.safeword\/(?:hooks|guides|scripts|skills|templates)\/[^\s)`'"<>]*/u;
 
 function invocationName(asset: GeneratedClaudePluginAsset): string | undefined {
   const skillDirectory = /^skills\/([^/]+)\/SKILL\.md$/u.exec(asset.relativePath)?.[1];
