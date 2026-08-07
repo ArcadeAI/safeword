@@ -180,6 +180,23 @@ export interface ManagedFileDefinition extends FileDefinition {
    * means "cannot determine the expected scaffold here" → never remove.
    */
   removeIfUnmodified?: (ctx: ProjectContext) => string | undefined;
+
+  /**
+   * Optional canonicalization applied to both the installed file and expected
+   * scaffold before the unmodified comparison. Use only for framework-owned
+   * substitutions whose old rendered values remain safe to remove, such as a
+   * version pin from an earlier Safeword release.
+   */
+  normalizeForUnmodifiedComparison?: (content: string) => string;
+
+  /**
+   * Remove an unmodified managed file during upgrade when its generator now
+   * returns undefined. This is the opt-out counterpart to a conditional
+   * scaffold: turning the feature off removes Safeword's exact bytes, while a
+   * customized file survives. Requires `removeIfUnmodified` so omission can
+   * never authorize a blind delete.
+   */
+  removeWhenGeneratorOmitted?: boolean;
 }
 
 export interface JsonMergeDefinition {
