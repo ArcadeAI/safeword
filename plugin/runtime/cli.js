@@ -36800,6 +36800,7 @@ async function runDegradedFallback(input) {
         preferred_failure: input.preferredFailure,
         ...alternateFailureData(input.alternateFailure),
         fallback_failure: assessment.failure,
+        review_policy: input.policy,
         independence: "none"
       }
     });
@@ -36833,6 +36834,7 @@ async function runDegradedFallback(input) {
         actual_reviewer: completedOutput.reviewer_agent,
         preferred_failure: input.preferredFailure,
         ...alternateFailureData(input.alternateFailure),
+        review_policy: input.policy,
         independence: "degraded",
         reviewer_output: completedOutput
       }
@@ -36953,6 +36955,7 @@ function exhaustedRunResult(input) {
       assigned_reviewer: input.assignedReviewer,
       preferred_failure: input.preferredFailure,
       ...alternateFailureData(input.alternateFailure),
+      review_policy: input.policy,
       independence: "none"
     }
   });
@@ -37003,7 +37006,8 @@ async function runReview(input) {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredFailure: outcome.failure
+        preferredFailure: outcome.failure,
+        policy
       });
     }
     return runRemainingRoutes({

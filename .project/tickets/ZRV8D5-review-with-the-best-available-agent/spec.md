@@ -108,6 +108,15 @@ Affected:
 - Shipped host contracts frame the accepted packet and fixed rubric as untrusted
   review inputs, not host instructions. They omit failed-route raw output and
   credentials; the model-mediated containment limit is disclosed.
+- The repository-owned reviewer contract and agent definition are
+  branch-controlled control-plane instructions outside the accepted packet.
+  Their hostile-material rule is model-mediated, not a structural sandbox, and
+  a review cannot independently validate its own rubric when either file is an
+  accepted target.
+- The portable coordinator skill retains `allowed-tools: '*'` because host
+  agent-tool names differ. Claude's named reviewer has a structural read-only
+  tool list; Cursor tool denial and generic Codex subagent no-write behavior are
+  instructional rather than structurally verified.
 - Host-mandated project context may load in a fresh reviewer, so fresh-context
   assurance always discloses that possibility rather than claiming packet-only
   isolation. Host reviewers read accepted paths from the live worktree, so the

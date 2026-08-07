@@ -433,6 +433,7 @@ async function runDegradedFallback(input: {
         preferred_failure: input.preferredFailure,
         ...alternateFailureData(input.alternateFailure),
         fallback_failure: assessment.failure,
+        review_policy: input.policy,
         independence: 'none',
       },
     });
@@ -472,6 +473,7 @@ async function runDegradedFallback(input: {
         actual_reviewer: completedOutput.reviewer_agent,
         preferred_failure: input.preferredFailure,
         ...alternateFailureData(input.alternateFailure),
+        review_policy: input.policy,
         independence: 'degraded',
         reviewer_output: completedOutput,
       },
@@ -606,6 +608,7 @@ function exhaustedRunResult(input: {
   readonly preferredFailure: ReviewFailure;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly policy: ReviewPolicy;
   readonly alternateFailure?: string;
 }): CliResult {
   return createResult({
@@ -652,6 +655,7 @@ function exhaustedRunResult(input: {
       assigned_reviewer: input.assignedReviewer,
       preferred_failure: input.preferredFailure,
       ...alternateFailureData(input.alternateFailure),
+      review_policy: input.policy,
       independence: 'none',
     },
   });
@@ -715,6 +719,7 @@ export async function runReview(input: {
         author: pair.author,
         assignedReviewer: reviewer,
         preferredFailure: outcome.failure,
+        policy,
       });
     }
     // Before settling for the author reviewing its own work, give the reviewer

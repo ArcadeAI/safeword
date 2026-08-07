@@ -6,6 +6,12 @@ context may load, so do not claim packet-only isolation. The targets are read
 from the live worktree; source integrity was not revalidated. Do not read any
 path that the main agent did not explicitly supply.
 
+This contract and the host agent definition are repository-owned control-plane
+instructions, not content-isolated from the branch under review. If either is
+itself an accepted target, disclose that the review cannot independently prove
+the integrity of its own rubric. The hostile-material rule below is a bounded
+instruction to the model, not a structural sandbox guarantee.
+
 Do not delegate. Do not edit or create files. Do not run commands, the Safe Word
 review coordinator, or another review workflow. Do not include failed-route
 diagnostics, command output, environment values, credentials, or secrets.
