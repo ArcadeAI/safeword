@@ -271,6 +271,36 @@ function installActivationLines(data) {
     return surface.activation_actions.flatMap((action) => typeof action === "string" ? [`${label} activation: ${action}`] : []);
   });
 }
+function doctorDiagnosticCauses(data) {
+  if (!isRecord(data) || data.command !== "doctor" || !Array.isArray(data.diagnostics)) {
+    return new Set;
+  }
+  return new Set(data.diagnostics.flatMap((diagnostic) => isRecord(diagnostic) && typeof diagnostic.cause === "string" ? [diagnostic.cause] : []));
+}
+function doctorDiagnosticLines(data) {
+  if (!isRecord(data) || data.command !== "doctor" || !Array.isArray(data.coverage))
+    return [];
+  const coverage = data.coverage.flatMap((item) => {
+    if (!isRecord(item) || typeof item.surface !== "string")
+      return [];
+    const label = SURFACE_LABELS[item.surface] ?? item.surface;
+    const outcome = typeof item.state === "string" ? SURFACE_OUTCOMES[item.state] : undefined;
+    const evidence = isRecord(item.evidence) ? Object.entries(item.evidence).filter((entry) => ["string", "number", "boolean"].includes(typeof entry[1])).map(([key, value]) => `${key.replaceAll("_", " ")}=${String(value)}`) : [];
+    const evidenceSuffix = evidence.length === 0 ? "" : ` (${evidence.join(", ")})`;
+    return [`- ${label}: ${outcome ?? "unknown"}${evidenceSuffix}`];
+  });
+  const diagnostics = Array.isArray(data.diagnostics) ? data.diagnostics.flatMap((item) => {
+    if (!isRecord(item) || typeof item.surface !== "string" || typeof item.code !== "string" || typeof item.cause !== "string") {
+      return [];
+    }
+    const label = SURFACE_LABELS[item.surface] ?? item.surface;
+    return [`- ${label} [${item.code}]: ${item.cause}`];
+  }) : [];
+  return [
+    ...coverage.length === 0 ? [] : ["Diagnostic coverage:", ...coverage],
+    ...diagnostics.length === 0 ? [] : ["Causes:", ...diagnostics]
+  ];
+}
 function reviewIndependenceLine(data) {
   if (!isRecord(data) || data.command !== "review run")
     return;
@@ -307,13 +337,15 @@ function renderHumanStreams(result, options = {}) {
   if (suppressHumanOutput(result, options))
     return { stdout: "", stderr: "" };
   const independenceLine = reviewIndependenceLine(result.data);
-  const messages = uniqueMessages(result).filter((message) => message !== independenceLine);
+  const diagnosticCauses = doctorDiagnosticCauses(result.data);
+  const messages = uniqueMessages(result).filter((message) => message !== independenceLine && !diagnosticCauses.has(message));
   const lines = [
     ...optionalLine(independenceLine),
     VERDICTS[result.state],
     `Changed: ${result.changed ? "yes" : "no"}`,
     ...installSurfaceLines(result.data),
     ...installActivationLines(result.data),
+    ...doctorDiagnosticLines(result.data),
     ...messages,
     ...plannedEffectLines(result.data)
   ];
@@ -29962,14 +29994,9 @@ function lifecycleState(surfaces) {
     return "changed";
   return "healthy";
 }
-function projectIsConfigured(result) {
-  return result.data?.configured === true;
-}
 async function observeLifecycleSurfaces(cwd, agents, environment = process.env) {
   const project = await observeStatus(cwd, agents, environment);
   const surfaces = [{ name: "project", result: project }];
-  if (!projectIsConfigured(project))
-    return surfaces;
   if (agents.includes("claude")) {
     const { observeClaudeStatus: observeClaudeStatus2 } = await Promise.resolve().then(() => (init_status(), exports_status));
     surfaces.push({ name: "claude", result: observeClaudeStatus2(cwd) });
@@ -31863,6 +31890,208 @@ var init_project_install = __esm(() => {
   };
 });
 
+// src/commands/remove.ts
+var exports_remove = {};
+__export(exports_remove, {
+  removeProject: () => removeProject
+});
+import { existsSync as existsSync29, readFileSync as readFileSync34 } from "fs";
+import nodePath55 from "path";
+function snapshotPackageFiles(cwd) {
+  const snapshot = new Map;
+  for (const target of PACKAGE_MANAGER_FILES) {
+    const path4 = nodePath55.join(cwd, target);
+    if (existsSync29(path4))
+      snapshot.set(target, readFileSync34(path4).toString("base64"));
+  }
+  return snapshot;
+}
+function combinedFileEffects(...groups) {
+  const effects = new Map;
+  for (const effect of groups.flat())
+    effects.set(`${effect.kind}\x00${effect.target}`, effect);
+  return effects.values().toArray();
+}
+function confirmationRequired(plan, full) {
+  const fullFlag = full ? " --full" : "";
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "CONFIRMATION_REQUIRED",
+        message: "Review and confirm the exact removal plan.",
+        severity: "warning"
+      }
+    ],
+    nextActions: [
+      {
+        command: `safeword remove${fullFlag} --yes --plan ${plan.id}`,
+        mutates: true,
+        requiresHuman: true
+      }
+    ],
+    data: { plan: toWirePlan(plan) }
+  });
+}
+function stalePlan(plan) {
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "PLAN_STALE",
+        message: "The project changed after this removal plan was created.",
+        severity: "warning"
+      }
+    ],
+    nextActions: [{ command: "safeword remove", mutates: false, requiresHuman: true }],
+    data: { plan: toWirePlan(plan) }
+  });
+}
+function packageUninstallFailure(applied, packageRemoval, mode, packageFileEffects) {
+  const completed = effectsForReconciliation(applied, mode);
+  const files = combinedFileEffects(completed.files, packageFileEffects);
+  return createResult({
+    state: "failed",
+    changed: completed.destructive.length > 0 || files.length > 0,
+    effects: {
+      ...completed,
+      files,
+      network: packageRemoval.attempted ? [
+        {
+          kind: "package-registry",
+          target: packageRemoval.command ?? "Safeword packages",
+          operation: "uninstall-failed"
+        }
+      ] : []
+    },
+    errors: [
+      {
+        code: "PACKAGE_UNINSTALL_FAILED",
+        message: packageRemoval.error ?? "Safeword package removal failed.",
+        retryable: true
+      }
+    ],
+    recovery: [
+      {
+        command: packageRemoval.command ?? "safeword remove --full",
+        description: "Complete the package removal, then re-run Safeword status.",
+        requiresHuman: true
+      }
+    ]
+  });
+}
+async function applyRemoval(cwd, mode, full, schema) {
+  const applied = await applyReconciliation(cwd, mode, schema);
+  const packageFilesBefore = snapshotPackageFiles(cwd);
+  const packageRemoval = full ? uninstallDependencies(cwd, applied.packagesToRemove, { report: false }) : { attempted: false, installed: false };
+  const packageFileEffects = diffFileSnapshots(packageFilesBefore, snapshotPackageFiles(cwd));
+  if (packageRemoval.attempted && !packageRemoval.installed) {
+    return packageUninstallFailure(applied, packageRemoval, mode, packageFileEffects);
+  }
+  const completed = effectsForReconciliation(applied, mode);
+  const packageEffects = packageRemoval.installed ? applied.packagesToRemove.map((target) => ({ kind: "remove", target })) : [];
+  const files = combinedFileEffects(completed.files, packageFileEffects);
+  return createResult({
+    state: completed.destructive.length === 0 && packageEffects.length === 0 && files.length === 0 ? "healthy" : "changed",
+    effects: {
+      ...completed,
+      files,
+      packages: packageEffects,
+      network: packageRemoval.installed ? packageEffects.map((effect) => ({
+        kind: "package-registry",
+        target: effect.target,
+        operation: "uninstall"
+      })) : []
+    },
+    data: { removed: applied.removed }
+  });
+}
+function partialRemovalEffects(removeError) {
+  if (!(removeError instanceof ReconcileExecutionError))
+    return;
+  return {
+    files: [
+      ...removeError.partial.created.map((target) => ({ kind: "create", target })),
+      ...removeError.partial.updated.map((target) => ({ kind: "update", target }))
+    ],
+    packages: [],
+    configuration: [],
+    network: [],
+    destructive: removeError.partial.removed.map((target) => ({
+      kind: "remove",
+      target
+    }))
+  };
+}
+function hasPartialRemovalEffects(partial) {
+  return (partial?.destructive.length ?? 0) !== 0 || (partial?.files?.length ?? 0) !== 0;
+}
+async function removeProject(cwd, options) {
+  if (options.plan !== undefined && !isPlanIdentity(options.plan)) {
+    return malformedPlanIdentity("remove");
+  }
+  if (!existsSync29(nodePath55.join(cwd, ".safeword"))) {
+    return createResult({
+      state: "healthy",
+      findings: [
+        {
+          code: "PROJECT_NOT_CONFIGURED",
+          message: "Safeword is not configured; there is nothing to remove.",
+          severity: "info"
+        }
+      ],
+      data: { removed: [] }
+    });
+  }
+  const mode = options.full === true ? "uninstall-full" : "uninstall";
+  try {
+    const { plan } = await createReconciliationPlan(cwd, mode, options.schema);
+    if (options.yes !== true || options.plan === undefined) {
+      return confirmationRequired(plan, options.full === true);
+    }
+    if (options.plan !== plan.id)
+      return stalePlan(plan);
+    return await applyRemoval(cwd, mode, options.full === true, options.schema);
+  } catch (removeError) {
+    const partial = partialRemovalEffects(removeError);
+    return createResult({
+      state: "failed",
+      changed: hasPartialRemovalEffects(partial),
+      effects: partial,
+      errors: [
+        {
+          code: "REMOVE_FAILED",
+          message: removeError instanceof Error ? removeError.message : String(removeError),
+          retryable: true
+        }
+      ],
+      recovery: [
+        {
+          command: "safeword status --verbose",
+          description: "Inspect the effects that completed before retrying.",
+          requiresHuman: true
+        }
+      ]
+    });
+  }
+}
+var PACKAGE_MANAGER_FILES;
+var init_remove = __esm(() => {
+  init_plan();
+  init_reconciliation();
+  init_result();
+  init_reconcile();
+  init_install();
+  PACKAGE_MANAGER_FILES = [
+    "package.json",
+    "bun.lock",
+    "bun.lockb",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock"
+  ];
+});
+
 // src/lifecycle/commands.ts
 import { createHash as createHash10 } from "crypto";
 function lifecycleState2(results) {
@@ -32013,15 +32242,17 @@ function plannedUninstallSurfaces(agents, projectEffects) {
   }
   return surfaces;
 }
-async function prepareUninstall(cwd, agents) {
+async function prepareUninstall(cwd, agents, full = false) {
   const projectSchema = projectLifecycleSchema(cwd, agents);
-  const project = await createReconciliationPlan(cwd, "uninstall", projectSchema);
+  const project = await createReconciliationPlan(cwd, full ? "uninstall-full" : "uninstall", projectSchema);
   const surfaces = plannedUninstallSurfaces(agents, project.plan.effects);
   const observations = await profilePreconditions(cwd, agents);
   const preconditionDigest3 = createHash10("sha256").update(JSON.stringify([project.plan.preconditionDigest, agents, observations])).digest("hex");
   return {
     agents,
     projectSchema,
+    projectPlan: project.plan,
+    full,
     surfaces,
     plan: createPlan({
       command: "uninstall",
@@ -32044,6 +32275,8 @@ async function prepareInstall(cwd, agents) {
   return {
     agents,
     projectSchema,
+    projectPlan: project.plan,
+    full: false,
     surfaces,
     plan: createPlan({
       command: "install",
@@ -32056,6 +32289,7 @@ async function prepareInstall(cwd, agents) {
 }
 function lifecyclePlanResult(operation, prepared) {
   const hasEffects = Object.values(prepared.plan.effects).some((effects) => effects.length > 0);
+  const selected = prepared.agents.length === 0 ? "none" : prepared.agents.join(",");
   return createResult({
     state: hasEffects ? "action_required" : "healthy",
     findings: hasEffects ? [
@@ -32067,7 +32301,7 @@ function lifecyclePlanResult(operation, prepared) {
     ] : [],
     nextActions: hasEffects ? [
       {
-        command: operation === "install" ? "safeword install" : `safeword uninstall --yes --plan ${prepared.plan.id}`,
+        command: operation === "install" ? `safeword install --agents=${selected}` : `safeword uninstall --agents=${selected} --yes --plan ${prepared.plan.id}`,
         mutates: true,
         requiresHuman: operation === "uninstall"
       }
@@ -32140,16 +32374,15 @@ async function uninstallProfileSurfaces(cwd, agents) {
 }
 async function applyPreparedUninstall(cwd, prepared) {
   const completed = await uninstallProfileSurfaces(cwd, prepared.agents);
-  const appliedProject = await applyReconciliation(cwd, "uninstall", prepared.projectSchema);
-  const projectEffects = effectsForReconciliation(appliedProject, "uninstall");
-  const projectChanged = projectEffects.destructive.length > 0 || projectEffects.files.length > 0;
+  const projectResult = await removeProject(cwd, {
+    full: prepared.full,
+    yes: true,
+    plan: prepared.projectPlan.id,
+    schema: prepared.projectSchema
+  });
   completed.unshift({
     name: "project",
-    result: createResult({
-      state: projectChanged ? "changed" : "healthy",
-      effects: projectEffects,
-      data: { command: "project uninstall", removed: appliedProject.removed }
-    })
+    result: projectResult
   });
   if (prepared.agents.includes("cursor")) {
     completed.push({ name: "cursor", result: createResult({ state: "changed" }) });
@@ -32177,6 +32410,7 @@ async function applyPreparedUninstall(cwd, prepared) {
 }
 function uninstallPreview(prepared) {
   const selected = prepared.agents.length === 0 ? "none" : prepared.agents.join(",");
+  const fullFlag = prepared.full ? " --full" : "";
   return createResult({
     state: "action_required",
     findings: [
@@ -32188,7 +32422,7 @@ function uninstallPreview(prepared) {
     ],
     nextActions: [
       {
-        command: `safeword uninstall --agents=${selected} --yes --plan ${prepared.plan.id}`,
+        command: `safeword uninstall --agents=${selected}${fullFlag} --yes --plan ${prepared.plan.id}`,
         mutates: true,
         requiresHuman: true
       }
@@ -32215,7 +32449,10 @@ async function uninstallLifecycle(invocation) {
       data: { command: "uninstall" }
     });
   }
-  const prepared = await prepareUninstall(invocation.cwd, parsed.selection.agents);
+  const full = invocation.options.full === true;
+  if (invocation.offline && full)
+    return onlineRequired("uninstall");
+  const prepared = await prepareUninstall(invocation.cwd, parsed.selection.agents, full);
   const suppliedPlan = typeof invocation.options.plan === "string" ? invocation.options.plan : undefined;
   if (invocation.options.yes === true && suppliedPlan !== undefined) {
     if (suppliedPlan !== prepared.plan.id)
@@ -32230,6 +32467,7 @@ var init_commands = __esm(() => {
   init_plan();
   init_reconciliation();
   init_result();
+  init_remove();
   init_project_install();
   init_schema2();
 });
@@ -32253,28 +32491,28 @@ __export(exports_cleanup, {
   cleanupClaudeLegacy: () => cleanupClaudeLegacy
 });
 import { createHash as createHash11, randomUUID as randomUUID4 } from "crypto";
-import { chmodSync as chmodSync3, existsSync as existsSync29, lstatSync as lstatSync10, mkdirSync as mkdirSync6, readFileSync as readFileSync34, rmSync as rmSync5 } from "fs";
-import nodePath55 from "path";
+import { chmodSync as chmodSync3, existsSync as existsSync30, lstatSync as lstatSync10, mkdirSync as mkdirSync6, readFileSync as readFileSync35, rmSync as rmSync5 } from "fs";
+import nodePath56 from "path";
 function sha2563(content) {
   return createHash11("sha256").update(content).digest("hex");
 }
 function containedPath2(cwd, relative) {
-  if (relative === "" || nodePath55.isAbsolute(relative) || relative.split(/[\\/]/u).includes("..")) {
+  if (relative === "" || nodePath56.isAbsolute(relative) || relative.split(/[\\/]/u).includes("..")) {
     throw new Error(`Unsafe Claude cleanup target: ${relative}`);
   }
-  const root = nodePath55.resolve(cwd);
-  const target = nodePath55.resolve(root, relative);
-  if (!target.startsWith(`${root}${nodePath55.sep}`)) {
+  const root = nodePath56.resolve(cwd);
+  const target = nodePath56.resolve(root, relative);
+  if (!target.startsWith(`${root}${nodePath56.sep}`)) {
     throw new Error(`Unsafe Claude cleanup target: ${relative}`);
   }
   return target;
 }
 function assertSafeTarget(cwd, relative) {
   const target = containedPath2(cwd, relative);
-  let cursor = nodePath55.resolve(cwd);
+  let cursor = nodePath56.resolve(cwd);
   for (const segment of relative.split(/[\\/]/u)) {
-    cursor = nodePath55.join(cursor, segment);
-    if (!existsSync29(cursor))
+    cursor = nodePath56.join(cursor, segment);
+    if (!existsSync30(cursor))
       continue;
     const metadata = lstatSync10(cursor);
     if (metadata.isSymbolicLink())
@@ -32293,10 +32531,10 @@ function recognizedPaths(status) {
 }
 function settingsMutation(cwd) {
   const relative = ".claude/settings.json";
-  const path4 = nodePath55.join(cwd, relative);
-  if (!existsSync29(path4))
+  const path4 = nodePath56.join(cwd, relative);
+  if (!existsSync30(path4))
     return;
-  const existing = JSON.parse(readFileSync34(path4, "utf8"));
+  const existing = JSON.parse(readFileSync35(path4, "utf8"));
   const hooks = existing.hooks ?? {};
   const cleaned = {};
   let removed = false;
@@ -32333,7 +32571,7 @@ function cleanupMutations(cwd, status) {
 function preconditionDigest3(cwd, mutations) {
   return sha2563(JSON.stringify(mutations.map((mutation) => {
     const target = assertSafeTarget(cwd, mutation.path);
-    return [mutation.path, sha2563(readFileSync34(target)), mutation.content];
+    return [mutation.path, sha2563(readFileSync35(target)), mutation.content];
   })));
 }
 function observeClaudeCleanupPlan(cwd) {
@@ -32368,13 +32606,13 @@ function transactionPath(cwd) {
 }
 function writeTransaction(cwd, transaction) {
   const path4 = transactionPath(cwd);
-  mkdirSync6(nodePath55.dirname(path4), { recursive: true, mode: 448 });
+  mkdirSync6(nodePath56.dirname(path4), { recursive: true, mode: 448 });
   writeDurableFile(path4, `${JSON.stringify(transaction, undefined, 2)}
 `, { mode: 384 });
 }
 function entryFor(cwd, mutation) {
   const path4 = assertSafeTarget(cwd, mutation.path);
-  const before = readFileSync34(path4);
+  const before = readFileSync35(path4);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
   return {
     path: mutation.path,
@@ -32387,14 +32625,14 @@ function entryFor(cwd, mutation) {
   };
 }
 function observedSha(path4) {
-  return existsSync29(path4) ? sha2563(readFileSync34(path4)) : null;
+  return existsSync30(path4) ? sha2563(readFileSync35(path4)) : null;
 }
 function writeImage(path4, content, mode) {
   if (content === null) {
     rmSync5(path4, { force: true });
     return;
   }
-  mkdirSync6(nodePath55.dirname(path4), { recursive: true });
+  mkdirSync6(nodePath56.dirname(path4), { recursive: true });
   writeDurableFile(path4, Buffer.from(content, "base64"), { mode: mode ?? 420 });
   chmodSync3(path4, mode ?? 420);
 }
@@ -32451,7 +32689,7 @@ function cleanupClaudeLegacy(cwd, options) {
     writeTransaction(cwd, transaction);
     applyEntries(cwd, transaction.entries);
     const marker = containedPath2(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
-    mkdirSync6(nodePath55.dirname(marker), { recursive: true });
+    mkdirSync6(nodePath56.dirname(marker), { recursive: true });
     writeDurableFile(marker, `${JSON.stringify({ schema_version: 1, mode: "plugin", transaction_id: transaction.transaction_id })}
 `, { mode: 384 });
     rmSync5(transactionPath(cwd), { force: true });
@@ -32470,13 +32708,13 @@ function cleanupClaudeLegacy(cwd, options) {
   }
 }
 function parseTransaction(cwd) {
-  const value = JSON.parse(readFileSync34(transactionPath(cwd), "utf8"));
+  const value = JSON.parse(readFileSync35(transactionPath(cwd), "utf8"));
   if (value.schema_version !== 1 || !Array.isArray(value.entries))
     throw new Error("Claude cleanup transaction is malformed.");
   return value;
 }
 function recoverClaudeCleanup(cwd) {
-  if (!existsSync29(transactionPath(cwd))) {
+  if (!existsSync30(transactionPath(cwd))) {
     return createResult({
       state: "healthy",
       data: { command: "claude recover", classification: "plugin-mode" }
@@ -32523,208 +32761,6 @@ var init_cleanup = __esm(() => {
   init_durable_write();
   init_inventory2();
   init_status();
-});
-
-// src/commands/remove.ts
-var exports_remove = {};
-__export(exports_remove, {
-  removeProject: () => removeProject
-});
-import { existsSync as existsSync30, readFileSync as readFileSync35 } from "fs";
-import nodePath56 from "path";
-function snapshotPackageFiles(cwd) {
-  const snapshot = new Map;
-  for (const target of PACKAGE_MANAGER_FILES) {
-    const path4 = nodePath56.join(cwd, target);
-    if (existsSync30(path4))
-      snapshot.set(target, readFileSync35(path4).toString("base64"));
-  }
-  return snapshot;
-}
-function combinedFileEffects(...groups) {
-  const effects = new Map;
-  for (const effect of groups.flat())
-    effects.set(`${effect.kind}\x00${effect.target}`, effect);
-  return effects.values().toArray();
-}
-function confirmationRequired(plan, full) {
-  const fullFlag = full ? " --full" : "";
-  return createResult({
-    state: "action_required",
-    findings: [
-      {
-        code: "CONFIRMATION_REQUIRED",
-        message: "Review and confirm the exact removal plan.",
-        severity: "warning"
-      }
-    ],
-    nextActions: [
-      {
-        command: `safeword remove${fullFlag} --yes --plan ${plan.id}`,
-        mutates: true,
-        requiresHuman: true
-      }
-    ],
-    data: { plan: toWirePlan(plan) }
-  });
-}
-function stalePlan(plan) {
-  return createResult({
-    state: "action_required",
-    findings: [
-      {
-        code: "PLAN_STALE",
-        message: "The project changed after this removal plan was created.",
-        severity: "warning"
-      }
-    ],
-    nextActions: [{ command: "safeword remove", mutates: false, requiresHuman: true }],
-    data: { plan: toWirePlan(plan) }
-  });
-}
-function packageUninstallFailure(applied, packageRemoval, mode, packageFileEffects) {
-  const completed = effectsForReconciliation(applied, mode);
-  const files = combinedFileEffects(completed.files, packageFileEffects);
-  return createResult({
-    state: "failed",
-    changed: completed.destructive.length > 0 || files.length > 0,
-    effects: {
-      ...completed,
-      files,
-      network: packageRemoval.attempted ? [
-        {
-          kind: "package-registry",
-          target: packageRemoval.command ?? "Safeword packages",
-          operation: "uninstall-failed"
-        }
-      ] : []
-    },
-    errors: [
-      {
-        code: "PACKAGE_UNINSTALL_FAILED",
-        message: packageRemoval.error ?? "Safeword package removal failed.",
-        retryable: true
-      }
-    ],
-    recovery: [
-      {
-        command: packageRemoval.command ?? "safeword remove --full",
-        description: "Complete the package removal, then re-run Safeword status.",
-        requiresHuman: true
-      }
-    ]
-  });
-}
-async function applyRemoval(cwd, mode, full) {
-  const applied = await applyReconciliation(cwd, mode);
-  const packageFilesBefore = snapshotPackageFiles(cwd);
-  const packageRemoval = full ? uninstallDependencies(cwd, applied.packagesToRemove, { report: false }) : { attempted: false, installed: false };
-  const packageFileEffects = diffFileSnapshots(packageFilesBefore, snapshotPackageFiles(cwd));
-  if (packageRemoval.attempted && !packageRemoval.installed) {
-    return packageUninstallFailure(applied, packageRemoval, mode, packageFileEffects);
-  }
-  const completed = effectsForReconciliation(applied, mode);
-  const packageEffects = packageRemoval.installed ? applied.packagesToRemove.map((target) => ({ kind: "remove", target })) : [];
-  const files = combinedFileEffects(completed.files, packageFileEffects);
-  return createResult({
-    state: completed.destructive.length === 0 && packageEffects.length === 0 && files.length === 0 ? "healthy" : "changed",
-    effects: {
-      ...completed,
-      files,
-      packages: packageEffects,
-      network: packageRemoval.installed ? packageEffects.map((effect) => ({
-        kind: "package-registry",
-        target: effect.target,
-        operation: "uninstall"
-      })) : []
-    },
-    data: { removed: applied.removed }
-  });
-}
-function partialRemovalEffects(removeError) {
-  if (!(removeError instanceof ReconcileExecutionError))
-    return;
-  return {
-    files: [
-      ...removeError.partial.created.map((target) => ({ kind: "create", target })),
-      ...removeError.partial.updated.map((target) => ({ kind: "update", target }))
-    ],
-    packages: [],
-    configuration: [],
-    network: [],
-    destructive: removeError.partial.removed.map((target) => ({
-      kind: "remove",
-      target
-    }))
-  };
-}
-function hasPartialRemovalEffects(partial) {
-  return (partial?.destructive.length ?? 0) !== 0 || (partial?.files?.length ?? 0) !== 0;
-}
-async function removeProject(cwd, options) {
-  if (options.plan !== undefined && !isPlanIdentity(options.plan)) {
-    return malformedPlanIdentity("remove");
-  }
-  if (!existsSync30(nodePath56.join(cwd, ".safeword"))) {
-    return createResult({
-      state: "healthy",
-      findings: [
-        {
-          code: "PROJECT_NOT_CONFIGURED",
-          message: "Safeword is not configured; there is nothing to remove.",
-          severity: "info"
-        }
-      ],
-      data: { removed: [] }
-    });
-  }
-  const mode = options.full === true ? "uninstall-full" : "uninstall";
-  try {
-    const { plan } = await createReconciliationPlan(cwd, mode);
-    if (options.yes !== true || options.plan === undefined) {
-      return confirmationRequired(plan, options.full === true);
-    }
-    if (options.plan !== plan.id)
-      return stalePlan(plan);
-    return await applyRemoval(cwd, mode, options.full === true);
-  } catch (removeError) {
-    const partial = partialRemovalEffects(removeError);
-    return createResult({
-      state: "failed",
-      changed: hasPartialRemovalEffects(partial),
-      effects: partial,
-      errors: [
-        {
-          code: "REMOVE_FAILED",
-          message: removeError instanceof Error ? removeError.message : String(removeError),
-          retryable: true
-        }
-      ],
-      recovery: [
-        {
-          command: "safeword status --verbose",
-          description: "Inspect the effects that completed before retrying.",
-          requiresHuman: true
-        }
-      ]
-    });
-  }
-}
-var PACKAGE_MANAGER_FILES;
-var init_remove = __esm(() => {
-  init_plan();
-  init_reconciliation();
-  init_result();
-  init_reconcile();
-  init_install();
-  PACKAGE_MANAGER_FILES = [
-    "package.json",
-    "bun.lock",
-    "bun.lockb",
-    "package-lock.json",
-    "pnpm-lock.yaml",
-    "yarn.lock"
-  ];
 });
 
 // src/utils/toml.ts
