@@ -401,6 +401,51 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
+  it('skips the review prompt when the user follow-up leads with a task notification', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }],
+          },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'edit-1' }] },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: '<task-notification>Background task completed.</task-notification>',
+              },
+              { type: 'text', text: 'Explain that in plain English.' },
+            ],
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'It makes the hook quieter.' }],
+          },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
   it('shows quality review when active ticket at implement phase', () => {
     createStopHookTicket(state.projectDirectory, {
       id: '099',
