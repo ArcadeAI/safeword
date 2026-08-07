@@ -63,6 +63,12 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
     skillPath: 'quality-review/SKILL.md',
   },
   {
+    name: 'finish-review',
+    description:
+      'Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.',
+    skillPath: 'finish-review/SKILL.md',
+  },
+  {
     name: 'audit',
     description: 'Run comprehensive code audit for architecture, dead code, and test quality',
     skillPath: 'audit/SKILL.md',
@@ -133,6 +139,14 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
       'Explore and debate options with fresh documentation and research before committing. Use when facing a real decision with multiple plausible approaches — library/framework choice, architecture call, API or schema design, algorithm selection. Looks up current docs and recent research, weighs options on correctness and elegance, and resists bloat.',
     referencePath: '.safeword/skills/figure-it-out/SKILL.md',
     skill: 'figure-it-out',
+  },
+  {
+    name: 'safeword-finish-review',
+    alwaysApply: false,
+    description:
+      'Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.',
+    referencePath: '.safeword/skills/finish-review/SKILL.md',
+    skill: 'finish-review',
   },
   {
     name: 'safeword-quality-reviewing',

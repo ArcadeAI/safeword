@@ -35,8 +35,11 @@ const output: ReviewerOutput = {
 };
 
 describe('headless reviewer timeout budgets', () => {
-  it.each(['claude', 'codex'] as const)('gives %s a ten-minute default budget', reviewer => {
-    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(600_000);
+  // 91 real review runs put successful reviews at 47s median, 75s slowest, so
+  // 300s is four times the observed ceiling — see runtime.ts's
+  // DEFAULT_ATTEMPT_DEADLINE_MS for the full evidence trail.
+  it.each(['claude', 'codex'] as const)('gives %s a five-minute default budget', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(300_000);
   });
 
   it.each(['claude', 'codex'] as const)('honors the explicit timeout override for %s', reviewer => {
@@ -102,6 +105,10 @@ describe('headless reviewer output adapters', () => {
     [
       'extra finding property',
       { ...output, findings: [{ severity: 'info', message: 'noted', unexpected: true }] },
+    ],
+    [
+      'approval with an error finding',
+      { ...output, findings: [{ severity: 'error', message: 'must be resolved' }] },
     ],
   ])('rejects structurally invalid output: %s', (_label, invalidOutput) => {
     expect(() => parseReviewerOutput('claude', JSON.stringify(invalidOutput))).toThrow(
