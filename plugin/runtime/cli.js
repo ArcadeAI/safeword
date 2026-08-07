@@ -36430,8 +36430,17 @@ function changedReviewResult(input) {
     }
   });
 }
-async function runDegradedFallback(input) {
+function preparePrimaryReview(input, reviewer) {
+  input.progress?.start(`Preparing the review packet for ${agentName(reviewer)}\u2026`);
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.start(`Requesting an independent ${agentName(reviewer)} review\u2026`);
+  input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(reviewer)}\u2026`);
+  return prepared;
+}
+async function runDegradedFallback(input) {
+  input.progress?.start(`${agentName(input.assignedReviewer)} did not complete; trying a ${agentName(input.author)} fallback\u2026`);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.heartbeat?.(`Still waiting for a response from the ${agentName(input.author)} fallback\u2026`);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared);
   const changedResult = changedReviewResult({
     author: input.author,
@@ -36562,7 +36571,7 @@ async function runReview(input) {
     return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
   }
   const { reviewer } = pair;
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = preparePrimaryReview(input, reviewer);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared);
   const changedResult = changedReviewResult({
     author: pair.author,
@@ -50580,7 +50589,7 @@ async function reviewRunHandler(invocation) {
   }
   const targets = Array.isArray(rawTargets) ? rawTargets.filter((target) => typeof target === "string") : [];
   const { runReview: runReview2 } = await Promise.resolve().then(() => (init_coordinator(), exports_coordinator));
-  return runReview2({ cwd: invocation.cwd, kind: rawKind, targets });
+  return runReview2({ cwd: invocation.cwd, kind: rawKind, targets, progress: invocation.progress });
 }
 async function codexStatusHandler(invocation) {
   const { observeCodexMigration: observeCodexMigration2 } = await Promise.resolve().then(() => (init_migrate_codex_plugin(), exports_migrate_codex_plugin));
@@ -51725,22 +51734,37 @@ function assertEffectPolicy(definition, result, options) {
   }
 }
 var PROGRESS_ANNOUNCE_DELAY_MS = 100;
+var PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
 function createProgressReporter(adapters) {
-  let scheduledHandle;
+  let announcementHandle;
+  let heartbeatHandle;
+  function scheduleHeartbeat(message) {
+    heartbeatHandle = adapters.schedule(() => {
+      adapters.emit(message);
+      scheduleHeartbeat(message);
+    }, PROGRESS_HEARTBEAT_INTERVAL_MS);
+  }
   return {
     start(message) {
-      if (scheduledHandle !== undefined)
-        adapters.cancel(scheduledHandle);
-      scheduledHandle = adapters.schedule(() => {
+      if (announcementHandle !== undefined)
+        adapters.cancel(announcementHandle);
+      announcementHandle = adapters.schedule(() => {
         adapters.emit(message);
-        scheduledHandle = undefined;
+        announcementHandle = undefined;
       }, PROGRESS_ANNOUNCE_DELAY_MS);
     },
+    heartbeat(message) {
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      scheduleHeartbeat(message);
+    },
     stop() {
-      if (scheduledHandle === undefined)
-        return;
-      adapters.cancel(scheduledHandle);
-      scheduledHandle = undefined;
+      if (announcementHandle !== undefined)
+        adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      announcementHandle = undefined;
+      heartbeatHandle = undefined;
     }
   };
 }
