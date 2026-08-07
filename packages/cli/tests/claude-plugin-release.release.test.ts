@@ -62,25 +62,15 @@ describe('Claude plugin release contract', () => {
     expect(workflow).not.toMatch(/git push[^\n]*(?:--force|-f\b)/u);
   });
 
-  it('blocks changed advisory surfaces on the disposable compatibility proof', () => {
+  it('does not block publication on the live advisory compatibility proof', () => {
     const workflow = readFileSync(
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
       'utf8',
     );
-    expect(workflow).toContain('advisory-pr-review-smoke:');
-    expect(workflow).toContain(
-      'advisory_smoke_required: ${{ steps.advisory-smoke-scope.outputs.required }}',
-    );
-    expect(workflow).toContain('git fetch origin refs/heads/stable:refs/remotes/origin/stable');
-    expect(workflow).toContain('git diff --quiet refs/remotes/origin/stable "$GITHUB_SHA"');
-    expect(workflow).toContain('packages/cli/src/pr-review');
-    expect(workflow).toContain("needs.build.outputs.advisory_smoke_required == 'true'");
-    expect(workflow).toContain('environment: pr-review-smoke');
-    expect(workflow).toContain('needs: [build, advisory-pr-review-smoke]');
-    expect(workflow).toContain("needs['advisory-pr-review-smoke'].result == 'skipped'");
-    expect(workflow).toContain("needs.build.outputs.advisory_smoke_required == 'false'");
-    expect(workflow).toContain('secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
-    expect(workflow).toContain('smoke:pr-review:disposable');
+    expect(workflow).toContain('publish:\n    name: Publish to npm\n    needs: build');
+    expect(workflow).not.toContain('advisory-pr-review-smoke:');
+    expect(workflow).not.toContain('pr-review-smoke');
+    expect(workflow).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
   });
 
   it('watches platform drift with a sandbox-only advisory canary', () => {
