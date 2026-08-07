@@ -1,7 +1,7 @@
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: focused package-lock contract passes 11/11. Full Vitest: 6,865 passed, 3 unrelated failures, 5 skipped (one Cucumber fixture configuration and two real-git timeouts).
-**Gherkin:** ⚠️ Local environment limitation: the ticket's targeted relay scenario passed (1 scenario, 43 steps, 6.3 seconds); the full direct lane was stopped after a nested package test waited behind another worktree's active global test lock.
+**Test Suite:** ✅ Full suite passed: retro relay 167 passed / 1 skipped; CLI 463 files, 7,007 passed / 5 skipped. Focused package-lock contract passed 13/13, including live-aged-owner and simultaneous stale-recovery regressions.
+**Gherkin:** ✅ Affected relay scenario passed in isolation (1 scenario, 44 steps, 6.4 seconds). The complete lane passed 1,225 scenarios and had one environment-limited failure when the affected scenario's nested Vitest proof exhausted its 180-second hook timeout behind another worktree's active global lease; it passed immediately after contention cleared.
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** ⏭️ Skipped — patch ticket has no test-definitions.md
@@ -11,6 +11,6 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⏭️ N/A — internal test-runner plumbing
 **Surface Evidence:** ⏭️ N/A — no affected user surface
-**Evidence limits:** ⚠️ Shared-machine test contention affected full-suite BDD evidence; affected failures are not product evidence until reproduced outside the limit.
+**Evidence limits:** ⚠️ Shared-machine contention prevented an all-green single invocation of the complete BDD lane. The sole failed scenario was re-run without contention and passed; all 50,245 other executed steps passed in the complete lane.
 
-Audit passed — diff scope found no dependency-cruiser, agent-config, learning, domain, documentation, or principle-trace issue.
+Audit passed — diff scope found no dependency-cruiser error, agent-config, learning, domain, documentation, security-boundary, or principle-trace issue. Dependency-cruiser retained one current-main orphan warning. `bun audit` retained one moderate DOMPurify advisory from current main; the PR has no dependency changes.

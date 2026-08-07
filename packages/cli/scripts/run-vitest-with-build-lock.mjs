@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import console from 'node:console';
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -44,8 +45,10 @@ const lockDirectory = process.env.SAFEWORD_TEST_LOCK_DIR
   ? nodePath.resolve(process.env.SAFEWORD_TEST_LOCK_DIR)
   : nodePath.join(lockParent, `${lockName}.lock`);
 const ownerPath = nodePath.join(lockDirectory, 'owner.json');
+const transitionDirectory = `${lockDirectory}.transition`;
 const checkoutRoot = nodePath.resolve(cliRoot, '..', '..');
 const minimumLockStatusIntervalMilliseconds = 50;
+const maximumTransitionWaitMilliseconds = 30_000;
 
 function resolveSafeIntegerEnvironmentVariable(name, fallback, minimum, allowZero = true) {
   const raw = process.env[name];
@@ -123,6 +126,12 @@ function removeStaleLock() {
     return true;
   }
 
+  // A usable live PID is authoritative. Wall-clock age cannot prove that the
+  // owner stopped running, and reaping it would allow concurrent test runs.
+  if (isUsableOwnerPid(owner.pid)) {
+    return false;
+  }
+
   if (
     hasUsableOwnerTimestamp(owner.createdAt) &&
     Date.now() - Date.parse(owner.createdAt) > 6 * 60 * 60 * 1000
@@ -160,7 +169,7 @@ function reportLockWait(waitedMilliseconds) {
   );
 }
 
-function createLock() {
+function createLock(token) {
   mkdirSync(lockDirectory);
   writeFileSync(
     ownerPath,
@@ -169,6 +178,7 @@ function createLock() {
         createdAt: new Date().toISOString(),
         checkoutRoot,
         pid: process.pid,
+        token,
       },
       undefined,
       2,
@@ -176,8 +186,51 @@ function createLock() {
   );
 }
 
+function tryEnterLockTransition() {
+  try {
+    mkdirSync(transitionDirectory);
+    return true;
+  } catch (error) {
+    if (error?.code === 'EEXIST') {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function leaveLockTransition() {
+  rmSync(transitionDirectory, { force: true, recursive: true });
+}
+
+function tryAcquireLock(token) {
+  if (!tryEnterLockTransition()) {
+    return false;
+  }
+
+  try {
+    try {
+      createLock(token);
+      return true;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') {
+        throw error;
+      }
+    }
+
+    if (!removeStaleLock()) {
+      return false;
+    }
+
+    createLock(token);
+    return true;
+  } finally {
+    leaveLockTransition();
+  }
+}
+
 function acquireLock() {
   mkdirSync(nodePath.dirname(lockDirectory), { recursive: true });
+  const token = randomUUID();
 
   let waitedMilliseconds = 0;
   let nextStatusAtMilliseconds = Math.min(
@@ -185,20 +238,8 @@ function acquireLock() {
     lockStatusIntervalMilliseconds,
   );
   for (;;) {
-    let mkdirError;
-    try {
-      createLock();
-      return true;
-    } catch (error) {
-      mkdirError = error;
-    }
-
-    if (mkdirError?.code !== 'EEXIST') {
-      throw mkdirError;
-    }
-
-    if (removeStaleLock()) {
-      continue;
+    if (tryAcquireLock(token)) {
+      return token;
     }
 
     if (waitedMilliseconds >= maximumLockWaitMilliseconds) {
@@ -223,8 +264,37 @@ function acquireLock() {
   }
 }
 
-function releaseLock() {
-  rmSync(lockDirectory, { force: true, recursive: true });
+function releaseLock(token) {
+  let waitedMilliseconds = 0;
+  while (!tryEnterLockTransition()) {
+    if (waitedMilliseconds >= maximumTransitionWaitMilliseconds) {
+      console.error(
+        'Could not safely release the safeword package test lock; the lock was left in place.',
+      );
+      return false;
+    }
+    const nextSleepMilliseconds = Math.min(
+      50,
+      maximumTransitionWaitMilliseconds - waitedMilliseconds,
+    );
+    sleep(nextSleepMilliseconds);
+    waitedMilliseconds += nextSleepMilliseconds;
+  }
+
+  try {
+    const { owner } = readOwner();
+    // eslint-disable-next-line security/detect-possible-timing-attacks -- UUID ownership identifiers are not secrets.
+    if (owner.token !== token) {
+      console.error(
+        'Could not safely release the safeword package test lock because its ownership changed; the lock was left in place.',
+      );
+      return false;
+    }
+    rmSync(lockDirectory, { force: true, recursive: true });
+    return true;
+  } finally {
+    leaveLockTransition();
+  }
 }
 
 function run(command, args) {
@@ -247,19 +317,19 @@ function run(command, args) {
   return result.status ?? 1;
 }
 
-let acquiredLock = false;
+let lockToken;
 let status = 1;
 try {
-  acquiredLock = acquireLock();
-  if (acquiredLock) {
+  lockToken = acquireLock();
+  if (lockToken) {
     status = run('bun', ['run', 'build']);
     if (status === 0) {
       status = run('vitest', ['run', ...vitestArguments]);
     }
   }
 } finally {
-  if (acquiredLock) {
-    releaseLock();
+  if (lockToken && !releaseLock(lockToken)) {
+    status = 1;
   }
 }
 
