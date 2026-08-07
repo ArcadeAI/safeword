@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -54,7 +55,7 @@ interface StopContinuationOutput {
   reason: string;
 }
 
-interface PackagedHookResult {
+interface HookProcessResult {
   error?: Error;
   status?: number;
   stderr: string;
@@ -63,6 +64,7 @@ interface PackagedHookResult {
 
 const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
+const PRE_TOOL_QUALITY_HOOK_PATH = 'codex/pre-tool-quality.ts';
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
 const TEMPLATE_DIRECTORIES = [
@@ -324,6 +326,33 @@ function resolvePackagedHook(relativePath: string): string | undefined {
   return findPackagedTemplate(nodePath.join('hooks', relativePath));
 }
 
+function runHookFile(
+  hookPath: string,
+  rawInput: string,
+  projectDirectory: string,
+  packagedContextPath = '',
+): HookProcessResult {
+  const result = spawnSync('bun', [hookPath], {
+    cwd: projectDirectory,
+    input: rawInput,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath,
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  return {
+    error: result.error,
+    status: result.status ?? undefined,
+    stderr: result.stderr ?? '',
+    stdout: result.stdout ?? '',
+  };
+}
+
 export function normalizeNamespaceRootLabel(label: string): string | undefined {
   const normalizedLabel = label.replaceAll('\\', '/');
   return normalizedLabel === '.' ||
@@ -343,7 +372,7 @@ function runPackagedHook(
   relativePath: string,
   rawInput: string,
   projectDirectory: string,
-): PackagedHookResult {
+): HookProcessResult {
   const hookPath = resolvePackagedHook(relativePath);
   if (!hookPath) {
     return {
@@ -370,43 +399,59 @@ function runPackagedHook(
       executableHookPath = nodePath.join(temporaryHookDirectory, nodePath.basename(hookPath));
     }
 
-    const result = spawnSync('bun', [executableHookPath], {
-      cwd: projectDirectory,
-      input: rawInput,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        CLAUDE_PROJECT_DIR: projectDirectory,
-        SAFEWORD_AGENT_RUNTIME: 'codex',
-        // The copied dispatcher is observation-only and injects package-owned
-        // instructions rather than project-local text.
-        SAFEWORD_PACKAGED_CONTEXT_PATH:
-          relativePath === 'session-codex-start.ts'
-            ? (findPackagedTemplate('SAFEWORD.md') ?? '')
-            : '',
-      },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    return {
-      error: result.error,
-      status: result.status ?? undefined,
-      stderr: result.stderr ?? '',
-      stdout: result.stdout ?? '',
-    };
+    // The copied dispatcher is observation-only and injects package-owned
+    // instructions rather than project-local text.
+    const packagedContextPath =
+      relativePath === 'session-codex-start.ts' ? (findPackagedTemplate('SAFEWORD.md') ?? '') : '';
+    return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory) rmSync(temporaryHookDirectory, { recursive: true, force: true });
   }
 }
 
-function denyForPackagedHookFailure(result: PackagedHookResult): never {
-  const detail =
-    result.stderr.trim() || result.error?.message || 'exited without a failure message';
+interface PackagedHookSnapshot {
+  directory?: string;
+  error?: Error;
+  hookPath?: string;
+}
+
+function snapshotPackagedHook(relativePath: string): PackagedHookSnapshot {
+  const packagedHooksDirectory = findPackagedTemplate('hooks');
+  if (!packagedHooksDirectory) {
+    return { error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+  }
+
+  const directory = mkdtempSync(
+    nodePath.join(tmpdir(), `safeword-codex-hook-snapshot-${process.pid}-`),
+  );
+  const stagingHooksDirectory = nodePath.join(directory, 'hooks-copying');
+  const snapshotHooksDirectory = nodePath.join(directory, 'hooks');
+  try {
+    cpSync(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
+    renameSync(stagingHooksDirectory, snapshotHooksDirectory);
+    const hookPath = nodePath.join(snapshotHooksDirectory, relativePath);
+    return existsSync(hookPath)
+      ? { directory, hookPath }
+      : { directory, error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+  } catch (error) {
+    return {
+      directory,
+      error: error instanceof Error ? error : new Error(String(error)),
+    };
+  }
+}
+
+function hookFailureDetail(result: HookProcessResult): string {
+  return result.stderr.trim() || result.error?.message || 'exited without a failure message';
+}
+
+function denyForPackagedHookFailure(result: HookProcessResult): never {
+  const detail = hookFailureDetail(result);
   process.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}\n`);
   process.exit(2);
 }
 
-function emitPackagedPreToolResult(result: PackagedHookResult): boolean {
+function emitPackagedPreToolResult(result: HookProcessResult): boolean {
   if (result.error || result.status !== 0) denyForPackagedHookFailure(result);
   if (result.stdout.trim() === '') return false;
   process.stdout.write(result.stdout);
@@ -442,7 +487,7 @@ function currentTimestampContext(now = new Date()): string {
 }
 
 function packagedAdditionalContext(
-  result: PackagedHookResult,
+  result: HookProcessResult,
   hookEventName: AdditionalContextHookEvent,
 ): string | undefined {
   if (result.error || result.status !== 0 || result.stdout.trim() === '') return undefined;
@@ -485,8 +530,11 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
   return true;
 }
 
-function runEnrolledPreToolUse(rawInput: string, projectDirectory: string): void {
-  const qualityResult = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
+function runEnrolledPreToolUse(
+  rawInput: string,
+  projectDirectory: string,
+  qualityResult: HookProcessResult,
+): void {
   if (emitPackagedPreToolResult(qualityResult)) return;
 
   const input = parseCodexHookInput(rawInput);
@@ -511,10 +559,20 @@ function runEnrolledPreToolUse(rawInput: string, projectDirectory: string): void
 }
 
 async function runPreToolUse(): Promise<void> {
-  const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
   if (!hasSafewordProjectMarker(projectDirectory)) return;
-  runEnrolledPreToolUse(rawInput, projectDirectory);
+
+  // bunx uses a shared cache and can replace a package directory while another
+  // hook process is still alive. Snapshot the package-owned gate before waiting
+  // on stdin so every transitive import stays stable for this tool call.
+  const snapshot = snapshotPackagedHook(PRE_TOOL_QUALITY_HOOK_PATH);
+  const rawInput = await readStdin();
+  const qualityResult: HookProcessResult = snapshot.hookPath
+    ? runHookFile(snapshot.hookPath, rawInput, projectDirectory)
+    : { error: snapshot.error, stderr: '', stdout: '' };
+  if (snapshot.directory) rmSync(snapshot.directory, { recursive: true, force: true });
+
+  runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult);
 }
 
 async function runSessionStart(): Promise<void> {
