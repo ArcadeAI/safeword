@@ -36185,6 +36185,9 @@ function parseCodexOutput(stdout) {
   }
   return parseJson(stdout);
 }
+function reviewerVerdictMatchesFindings(verdict, findings) {
+  return verdict !== "approve" || findings.every((finding) => isRecord2(finding) && finding.severity !== "error");
+}
 function hasValidReviewerOutputBody(value) {
   if (!isRecord2(value))
     return false;
@@ -36202,7 +36205,7 @@ function hasValidReviewerOutputBody(value) {
   const findingsAreValid = value.findings.every((finding) => isRecord2(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && ["info", "warning", "error"].includes(String(finding.severity)) && typeof finding.message === "string");
   if (!findingsAreValid)
     return false;
-  return value.verdict !== "approve" || value.findings.every((finding) => isRecord2(finding) && finding.severity !== "error");
+  return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
 function parseReviewerOutput(reviewer, stdout) {
   const output = reviewer === "claude" ? parseClaudeOutput(stdout) : parseCodexOutput(stdout);

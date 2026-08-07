@@ -259,6 +259,13 @@ function parseCodexOutput(stdout: string): unknown {
   return parseJson(stdout);
 }
 
+function reviewerVerdictMatchesFindings(verdict: unknown, findings: readonly unknown[]): boolean {
+  return (
+    verdict !== 'approve' ||
+    findings.every(finding => isRecord(finding) && finding.severity !== 'error')
+  );
+}
+
 function hasValidReviewerOutputBody(value: unknown): boolean {
   if (!isRecord(value)) return false;
   const allowedOutputKeys = new Set([
@@ -290,10 +297,7 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
       typeof finding.message === 'string',
   );
   if (!findingsAreValid) return false;
-  return (
-    value.verdict !== 'approve' ||
-    value.findings.every(finding => isRecord(finding) && finding.severity !== 'error')
-  );
+  return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
 
 export function parseReviewerOutput(
