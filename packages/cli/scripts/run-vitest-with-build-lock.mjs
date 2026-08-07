@@ -203,7 +203,7 @@ function acquireLock() {
 
     if (waitedMilliseconds >= maximumLockWaitMilliseconds) {
       console.error(
-        `Proceeding without safeword package test lock after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}.`,
+        `Could not acquire safeword package test lock after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started.`,
       );
       return false;
     }
@@ -248,12 +248,14 @@ function run(command, args) {
 }
 
 let acquiredLock = false;
-let status;
+let status = 1;
 try {
   acquiredLock = acquireLock();
-  status = run('bun', ['run', 'build']);
-  if (status === 0) {
-    status = run('vitest', ['run', ...vitestArguments]);
+  if (acquiredLock) {
+    status = run('bun', ['run', 'build']);
+    if (status === 0) {
+      status = run('vitest', ['run', ...vitestArguments]);
+    }
   }
 } finally {
   if (acquiredLock) {

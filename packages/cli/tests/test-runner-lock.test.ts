@@ -216,7 +216,7 @@ describe('package test runner lock (379)', () => {
     }
   });
 
-  it('reports the complete bounded periodic status sequence for the owning checkout', async () => {
+  it('reports the complete bounded periodic status sequence before failing', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory, 500);
     const firstRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-a');
@@ -241,7 +241,7 @@ describe('package test runner lock (379)', () => {
     const [ownerResult, waiterResult] = await Promise.all([ownerRun, waiterRun]);
 
     expect(ownerResult.status).toBe(0);
-    expect(waiterResult.status).toBe(0);
+    expect(waiterResult.status).toBe(1);
     const waitStatuses = waitStatusLines(waiterResult.stderr);
     expect(owner.checkoutRoot).toMatch(/checkout-a$/);
     expect(waitStatuses).toEqual([
@@ -251,7 +251,7 @@ describe('package test runner lock (379)', () => {
       `Waiting for safeword package test lock (200ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
     ]);
     expect(waiterResult.stderr).toContain(
-      'Proceeding without safeword package test lock after waiting 250ms.',
+      'Could not acquire safeword package test lock after waiting 250ms; no test was started.',
     );
   });
 
@@ -273,11 +273,11 @@ describe('package test runner lock (379)', () => {
         SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '100',
       });
 
-      expect(result.status).toBe(0);
+      expect(result.status).toBe(1);
       expect(result.stderr).toContain(expectedOwnerDetail);
       expect(result.stderr).toContain('checkout unavailable');
       expect(result.stderr).toContain(
-        'Proceeding without safeword package test lock after waiting 220ms.',
+        'Could not acquire safeword package test lock after waiting 220ms; no test was started.',
       );
     }
   });
@@ -324,7 +324,7 @@ describe('package test runner lock (379)', () => {
     });
 
     const unsafeStatuses = waitStatusLines(unsafeInterval.stderr);
-    expect(unsafeInterval.status).toBe(0);
+    expect(unsafeInterval.status).toBe(1);
     expect(unsafeStatuses).toHaveLength(2);
 
     await seedOwnerFile(lockDirectory, owner);
@@ -340,7 +340,7 @@ describe('package test runner lock (379)', () => {
       },
     );
 
-    expect(malformedInterval.status).toBe(0);
+    expect(malformedInterval.status).toBe(1);
     expect(waitStatusLines(malformedInterval.stderr)).toHaveLength(0);
 
     await seedOwnerFile(lockDirectory, owner);
@@ -352,7 +352,7 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '0',
     });
 
-    expect(zeroInterval.status).toBe(0);
+    expect(zeroInterval.status).toBe(1);
     expect(waitStatusLines(zeroInterval.stderr)).toHaveLength(0);
   });
 
@@ -430,7 +430,7 @@ describe('package test runner lock (379)', () => {
     }
   });
 
-  it('proceeds with a warning after the configured wait cap', async () => {
+  it('fails without starting a test after the configured wait cap', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
@@ -443,15 +443,10 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
     });
 
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      'Proceeding without safeword package test lock after waiting 0ms.',
+      'Could not acquire safeword package test lock after waiting 0ms; no test was started.',
     );
-    expect(readEvents(logPath)).toEqual([
-      expect.stringMatching(/^build:start:/),
-      expect.stringMatching(/^build:end:/),
-      expect.stringMatching(/^vitest:start:.*:run,tests\/wait-cap\.test\.ts$/),
-      expect.stringMatching(/^vitest:end:/),
-    ]);
+    expect(existsSync(logPath)).toBe(false);
   });
 });
