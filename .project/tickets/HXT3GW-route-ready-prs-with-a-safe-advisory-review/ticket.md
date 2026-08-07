@@ -38,7 +38,7 @@ phase_anchors:
   - "verify: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
   - "done: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
 created: 2026-08-05T14:38:52.499Z
-last_modified: 2026-08-07T09:47:30Z
+last_modified: 2026-08-07T09:54:11Z
 ---
 
 # Route ready PRs with a safe advisory review
@@ -49,6 +49,11 @@ last_modified: 2026-08-07T09:47:30Z
 
 ## Work Log
 
+- 2026-08-07T09:54:11Z Merged current `main` at 8221acc3d after PR #2204
+  landed. Its review-progress changes overlap only the shared public-handler
+  dispatch surface and merge cleanly with advisory inspection/publication.
+  Regenerated the Claude plugin metadata; TypeScript, plugin integrity, and all
+  64 advisory scenarios (2,627 steps) remain clean.
 - 2026-08-07T09:47:30Z Reconciled the post-review scenarios with the customer-visible
   ordinary comment. Production handoff and publication now preserve actual
   prerequisite check outcomes, coverage/skips, missing evidence, reviewable-text
