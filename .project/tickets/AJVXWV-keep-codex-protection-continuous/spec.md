@@ -218,8 +218,8 @@ The preferred command is `safeword codex migrate --finalize`.
 
 - Interactive finalization shows the exact paths and config blocks, then asks
   `Finalize shared repository cleanup? [y/N]`.
-- Non-interactive finalization requires `--finalize --yes`; otherwise it exits
-  without mutation.
+- Non-interactive finalization requires replaying the exact preview with
+  `--finalize --yes --plan <id>`; otherwise it exits without mutation.
 - Current profile proof is required before either path.
 - Before mutation, Safe Word writes an exact backup manifest and copies every
   file it will remove under `.safeword/codex-migration-backup/`.

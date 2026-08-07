@@ -230,9 +230,9 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Then known legacy assets are backed up and removed while custom content remains
       And the repository records plugin mode and provides the setup bootstrap
 
-    Scenario: Explicit non-interactive finalization succeeds
+    Scenario: Explicit non-interactive finalization replays the confirmed plan
       Given legacy Codex assets and current profile hook proof in a non-interactive shell
-      When an agent runs Codex migration with finalize and yes flags
+      When an agent replays the previewed Codex finalization plan with finalize and yes flags
       Then known legacy assets are backed up and removed and status reports plugin
 
   @codex-continuity.NTB1.R1

@@ -1226,7 +1226,7 @@ Given(
 );
 
 When(
-  'an agent runs Codex migration with finalize and yes flags',
+  'an agent replays the previewed Codex finalization plan with finalize and yes flags',
   function (this: ContinuityCliWorld) {
     runPlannedFinalization(this);
   },
