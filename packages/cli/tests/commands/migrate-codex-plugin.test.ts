@@ -232,7 +232,7 @@ describe('migrate codex-plugin command', () => {
     expect(calls).not.toContain('plugin add safeword@safeword');
   });
 
-  it('automatically installs the plugin and transactionally removes recognized legacy state', () => {
+  it('automatically installs the plugin without finalizing recognized legacy state', () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
       pluginInitiallyInstalled: false,
     });
@@ -243,25 +243,30 @@ describe('migrate codex-plugin command', () => {
 
     expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
 
-    const config = readFileSync(fixture.configPath, 'utf8');
-    expect(config).not.toContain('safeword hook codex');
-    expect(config).toContain('bunx --bun safeword@latest codex bootstrap');
-    expect(existsSync(legacySkill)).toBe(false);
-    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
+    // Automatic migration installs the plugin but leaves legacy protection in
+    // place: removing it is an explicit `--finalize` decision, so an unattended
+    // setup must never drop the hooks that are currently protecting the repo.
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
+    expect(readFileSync(legacySkill, 'utf8')).toBe('legacy audit skill\n');
+    const calls = readFileSync(fixture.logPath, 'utf8');
+    expect(calls).toContain('plugin marketplace add');
+    expect(calls).toContain('plugin add safeword@safeword');
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
     expect(
       existsSync(
         nodePath.join(fixture.directory, '.safeword/codex-migration-backup/manifest.json'),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  // The declining handoff is covered by the acceptance lane's TB1.R4 rule. The
-  // succeeding one is where files actually move and get rewritten, so it is the
-  // path where survival is least obvious and most worth pinning.
-  it('preserves user-owned project data and authored skills through a successful handoff', () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
-      pluginInitiallyInstalled: false,
-    });
+  // The declining handoff is covered by the acceptance lane's TB1.R4 rule. This
+  // pins the succeeding one, where files actually move and get rewritten, so it
+  // targets explicit finalization: automatic migration deliberately no longer
+  // rewrites the tree, so running this against it would assert survival in a
+  // repo nothing had touched.
+  it('preserves user-owned project data and authored skills through a successful handoff', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
     const userOwnedFiles = {
       '.project/tickets/ABC123/spec.md': '# Authored spec\n\nOwned by the user, not Safeword.\n',
       '.project/learnings/handoff-notes.md': '# Handoff notes\n\nDo not clobber authored notes.\n',
@@ -278,11 +283,10 @@ describe('migrate codex-plugin command', () => {
     const safewordSkill = nodePath.join(fixture.directory, '.agents/skills/audit/SKILL.md');
     mkdirSync(nodePath.dirname(safewordSkill), { recursive: true });
     writeFileSync(safewordSkill, 'legacy audit skill\n');
-    const environment = stubAutomaticMigrationEnvironment(fixture);
 
-    expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
+    const result = await finalizeCodex(fixture);
 
-    expect(readFileSync(fixture.logPath, 'utf8')).toContain('plugin add safeword@safeword --json');
+    expect(result.exitCode).toBe(0);
     expect(existsSync(safewordSkill)).toBe(false);
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
     for (const [relativePath, contents] of Object.entries(userOwnedFiles)) {
@@ -817,16 +821,29 @@ command = 'echo "keep this user hook"'
     expect(calls).not.toContain('plugin add safeword@safeword --json');
   });
 
-  it('uses the supported add fallback for a configured non-Git marketplace', async () => {
+  it('fails closed for a configured non-Git marketplace with the same name', async () => {
     const fixture = createMigrationFixture('', { pluginInitiallyInstalled: false });
 
-    const result = await runCodexCommand(fixture, ['codex', 'install'], {
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], {
       SAFEWORD_MARKETPLACE_SOURCE_TYPE: 'local',
     });
 
-    expect(result.exitCode).toBe(2);
+    // A same-named non-Git marketplace is someone else's entry. Adding over it
+    // would silently repoint their marketplace at Safeword, so this reports the
+    // conflict instead of writing through it.
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [
+        {
+          code: 'PLUGIN_MARKETPLACE_FAILED',
+          message: expect.stringContaining('not a Git marketplace'),
+        },
+      ],
+    });
     const calls = readFileSync(fixture.logPath, 'utf8');
-    expect(calls).toContain('plugin marketplace add ArcadeAI/safeword');
+    expect(calls).not.toContain('plugin marketplace add ArcadeAI/safeword');
     expect(calls).not.toContain('plugin marketplace upgrade safeword --json');
   });
 
