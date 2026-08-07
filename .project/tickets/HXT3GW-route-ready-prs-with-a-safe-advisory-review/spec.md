@@ -45,6 +45,7 @@ Unaffected:
 - **Run-state precedence:** When conditions overlap, `stale` overrides `failed`, which overrides `incomplete`, which overrides `complete`.
 - **Unresolved unknown:** An explicitly observed uncertainty remaining after every required evidence source completed; the run may be `complete` but must route to a human.
 - **Missing required evidence:** A required source that could not be acquired or completed; the run is `incomplete` and must route to a human.
+- **Evidence budget:** `maxTotalBytes` is the cumulative changed-text budget for this MVP; per-file and file-count caps are outside this slice.
 - **Non-run reporting:** A ready revision with pending, missing, or terminally failed prerequisites creates or updates the sole receipt with a non-run reason and no advisory route. An always-draft pull request creates no receipt; converting a reviewed pull request to draft rewrites its existing receipt to `not ready (draft)` and removes the route.
 - **Never-settling prerequisite:** A configured check identity that remains missing or pending stays conservatively `prerequisites pending`; the sole receipt names it and tells the builder to verify the check or configuration. Safeword never guesses success or invokes the model for that head.
 - **Ineligible scheduled candidate:** A scheduled candidate revalidated as draft, closed, or merged performs no prerequisite/model work. It rewrites an existing marker-owned receipt to `not ready (draft|closed|merged)` with no route, and creates no receipt if none exists.

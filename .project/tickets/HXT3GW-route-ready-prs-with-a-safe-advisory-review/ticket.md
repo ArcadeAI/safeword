@@ -38,7 +38,7 @@ phase_anchors:
   - "verify: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
   - "done: .project/tickets/HXT3GW-route-ready-prs-with-a-safe-advisory-review/verify.md"
 created: 2026-08-05T14:38:52.499Z
-last_modified: 2026-08-07T00:39:11Z
+last_modified: 2026-08-07T03:19:56Z
 ---
 
 # Route ready PRs with a safe advisory review
@@ -49,6 +49,15 @@ last_modified: 2026-08-07T00:39:11Z
 
 ## Work Log
 
+- 2026-08-07T03:19:56Z Re-ran the full scenario-quality gate after closure.
+  Seven independent Claude rounds reviewed every applied change. Added
+  empty-change-set coverage, explicit no-run assertions, complete two- and
+  three-condition state precedence, aligned forbidden publication calls,
+  binary skip evidence, explicit clean-text setup for the empty-prerequisite
+  path, and consistent byte-budget vocabulary. Controlled mutations proved both
+  post-hoc regressions fail for their intended defect; their scenarios remain
+  permanent CI guards. The final lane passes 64/64 scenarios and 2,563/2,563
+  steps; the final independent verdict is approved with no structural defects.
 - 2026-08-07T00:39:11Z Complete: Closed after the release-hardening child
   YC6JCC supplied the remaining disposable GitHub proof. Live fork, environment
   secret, shared-concurrency, trusted publication, and merge-neutral behavior

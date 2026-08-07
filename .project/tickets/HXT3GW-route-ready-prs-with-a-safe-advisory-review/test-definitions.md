@@ -98,6 +98,12 @@ Each scenario follows RED → GREEN → REFACTOR during implementation.
 - [x] GREEN 50a9830d4
 - [x] REFACTOR skip: GREEN already extracted reviewed-receipt derivation from orchestration
 
+### Scenario: An empty change set cannot look complete or ready
+
+- [x] RED skip: post-hoc regression accepted as a controlled-mutation substitute; removing the zero-artifact incomplete guard failed with `complete` instead of `incomplete` on 2026-08-07, and this scenario remains a deterministic CI guard
+- [x] GREEN 7e1f2626be
+- [x] REFACTOR skip: empty evidence uses the existing reviewed-receipt derivation without a new branch
+
 ### Scenario: Evidence over budget cannot look complete or ready
 
 - [x] RED 77fab4030
@@ -137,6 +143,12 @@ _Selected live-model evaluation; excluded from deterministic CI._
 - [x] RED a15e81048
 - [x] GREEN 5ead5a9fc
 - [x] REFACTOR 6ffbe01f4
+
+### Scenario: Stale wins when incomplete and failed conditions overlap
+
+- [x] RED skip: post-hoc regression accepted as a controlled-mutation substitute; a three-condition truncation failed with `failed` instead of `stale` on 2026-08-07, and this scenario remains a deterministic CI guard
+- [x] GREEN 5ead5a9fc
+- [x] REFACTOR skip: the shared precedence reducer already handles arbitrary condition counts
 
 ## Rule: Every new head invalidates the old conclusion and requires a fresh review
 

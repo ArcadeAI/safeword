@@ -6,7 +6,7 @@
 **Gherkin:** ✅ Deterministic acceptance lane passes (1,016 scenarios and 38,576 steps passed; 3 scenarios/4 steps explicitly skipped); the selected live Flux scenario also passes against the real OpenAI Responses boundary (1 scenario, 39 steps).
 **Build:** ✅ Success (CLI declarations/build and website static build)
 **Lint:** ✅ Clean (ESLint, Prettier, TypeScript, and Astro diagnostics)
-**Scenarios:** All 106 scenarios marked complete
+**Scenarios:** All 112 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope; sibling behavior is represented only by the accepted epic split and follow-up ticket packets
 **Dep Drift:** ✅ Clean (no new runtime dependency)
 **Parent Epic:** P0D6S2 (siblings: 2/4 done)
@@ -22,7 +22,7 @@ Audit passed — diff-scoped config/architecture checks found no violations; sev
 | Affected surface | Proof | Result |
 | --- | --- | --- |
 | Safeword CLI | Full Vitest suite; `review-pr` wiring/provider/publication tests; root TypeScript check | Pass — real config/result parsers and public handlers run with only model/network boundaries substituted |
-| GitHub pull request conversation | Workflow-contract and public GitHub-boundary publication tests; 60-scenario HXT3GW feature lane; YC6JCC disposable GitHub event, publisher, and scheduled runs | Pass — exact marker reconciliation, route wording, permissions, shared concurrency, secret isolation, and merge-neutral ordinary-comment publication are proven |
+| GitHub pull request conversation | Workflow-contract and public GitHub-boundary publication tests; 64-scenario HXT3GW feature lane; YC6JCC disposable GitHub event, publisher, and scheduled runs | Pass — exact marker reconciliation, route wording, permissions, shared concurrency, secret isolation, and merge-neutral ordinary-comment publication are proven |
 
 ## Persona Walkthrough
 
@@ -32,7 +32,7 @@ Walked the Non-Technical Builder through ready PR → one current advisory recei
 
 - Full verification plan: 441 Vitest files; 6,613 passed and 5 skipped.
 - Full deterministic Gherkin lane: 1,019 scenarios; 1,016 passed and 3 skipped; 38,576 steps passed and 4 skipped.
-- HXT3GW deterministic lane: 60 scenarios and 2,336 steps passed.
+- HXT3GW deterministic lane: 64 scenarios and 2,563 steps passed.
 - Live HXT3GW lane: 1 scenario and 39 steps passed against the production OpenAI provider with a 1Password-injected credential. The unfamiliar `.flux` access-control regression produced a path-bound finding and the published receipt routed to `needs_human`.
 - Live GitHub lane: fork event 31116176245, trusted publisher 31116192147,
   and scheduled projection 31116229231 passed in disposable repositories. One

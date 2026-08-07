@@ -238,6 +238,13 @@ Given(
 );
 
 Given(
+  /^it changes clean reviewable text at `([^`]+)`$/,
+  function (this: AdvisoryReviewWorld, path: string) {
+    this.evidenceArtifacts = [{ byteLength: 10, path }];
+  },
+);
+
+Given(
   /^a ready pull request changes only binary `([^`]+)`$/,
   function (this: AdvisoryReviewWorld, path: string) {
     this.changedArtifactKind = 'binary';
@@ -248,8 +255,15 @@ Given(
   },
 );
 
+Given('a ready pull request has no changed artifacts', function (this: AdvisoryReviewWorld) {
+  this.currentHead = 'revision A';
+  this.evidenceArtifacts = [];
+  this.prerequisites = 'passed';
+  this.ready = true;
+});
+
 Given(
-  "a ready pull request's changed text exceeds `maxTotalBytes`",
+  "a ready pull request's readable changed text exceeds `maxTotalBytes`",
   function (this: AdvisoryReviewWorld) {
     this.currentHead = 'revision A';
     this.evidenceArtifacts = [
@@ -756,6 +770,14 @@ Then('the receipt reports zero reviewable text artifacts', function (this: Advis
   assert.equal(this.receipts?.[0]?.reviewableTextArtifacts, 0);
 });
 
+Then(
+  'the receipt reports no coverage or missing-evidence entries',
+  function (this: AdvisoryReviewWorld) {
+    assert.deepEqual(this.receipts?.[0]?.coverage, []);
+    assert.deepEqual(this.receipts?.[0]?.missingEvidence, []);
+  },
+);
+
 Then('the published state is `incomplete`', function (this: AdvisoryReviewWorld) {
   assert.equal(this.receipts?.[0]?.runState, 'incomplete');
 });
@@ -803,9 +825,12 @@ When(
 );
 
 Then(
-  'the receipt names the over-budget artifacts as missing required evidence',
+  'the receipt reports one or more changed text artifacts as missing required evidence',
   function (this: AdvisoryReviewWorld) {
-    assert.deepEqual(this.receipts?.[0]?.missingEvidence, ['src/over-budget.ts']);
+    const missingEvidence = this.receipts?.[0]?.missingEvidence ?? [];
+    const changedTextPaths = new Set(this.evidenceArtifacts?.map(artifact => artifact.path));
+    assert.ok(missingEvidence.length > 0);
+    assert.ok(missingEvidence.every(path => changedTextPaths.has(path)));
   },
 );
 
@@ -870,13 +895,16 @@ When('Safeword derives the advisory route', async function (this: AdvisoryReview
       else if (state.includes('no longer current')) runState = 'stale';
 
       return {
-        artifacts: [
-          {
-            byteLength: state === 'missing required evidence' ? 101 : 10,
-            kind: 'text' as const,
-            path: 'src/current.ts',
-          },
-        ],
+        artifacts:
+          state === 'zero reviewable text artifacts'
+            ? []
+            : [
+                {
+                  byteLength: state === 'missing required evidence' ? 101 : 10,
+                  kind: 'text' as const,
+                  path: 'src/current.ts',
+                },
+              ],
         consequentialFindings: state === 'complete with a consequential finding' ? 1 : 0,
         findings: state.includes('finding')
           ? [
@@ -1414,13 +1442,6 @@ Then(
   },
 );
 
-Then(
-  'the publication audit contains an issue-comment call but no review, status, or check call',
-  function (this: AdvisoryReviewWorld) {
-    assert.deepEqual(this.publicationCalls, ['issue_comment']);
-  },
-);
-
 Then('merge eligibility is unchanged', function (this: AdvisoryReviewWorld) {
   assert.equal(this.mergeEligibilityMutation, false);
   assert.equal(this.mergeEligibilityAfter, this.mergeEligibilityBefore);
@@ -1483,13 +1504,18 @@ Then('the receipt associates the finding with that artifact', function (this: Ad
 
 When('Safeword evaluates review eligibility', async function (this: AdvisoryReviewWorld) {
   this.attempts = 0;
+  this.prerequisiteSamples = 0;
   this.receipts = [];
   this.summary = undefined;
+  const world = this;
   const dependencies = {
     readPullRequest: async () => ({
       headSha: this.currentHead ?? '',
       prerequisitesConfigured: this.prerequisitesConfigured ?? true,
-      prerequisites: this.prerequisites ?? 'pending',
+      get prerequisites() {
+        world.prerequisiteSamples = (world.prerequisiteSamples ?? 0) + 1;
+        return world.prerequisites ?? ('pending' as const);
+      },
       ready: this.ready ?? false,
     }),
     inspect: async () => {
@@ -1610,7 +1636,9 @@ When(
       inspect: async () => {
         this.attempts = (this.attempts ?? 0) + 1;
         return {
-          artifacts: [{ byteLength: 10, kind: 'text', path: 'src/reviewed.ts' }],
+          artifacts: (this.evidenceArtifacts ?? [{ byteLength: 10, path: 'src/reviewed.ts' }]).map(
+            artifact => ({ ...artifact, kind: 'text' as const }),
+          ),
           consequentialFindings: 0,
           unknowns: [],
         };

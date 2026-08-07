@@ -22,6 +22,7 @@ Feature: Route ready PRs with a safe advisory review
       Then no `looks ready` or `needs a human` route is published
       And the workflow run summary reports `not ready (draft)`
       And no receipt is created or updated
+      And no prerequisite sampling or model review runs
 
     @rejection
     Scenario: A pending prerequisite publishes a visible non-run receipt
@@ -62,17 +63,21 @@ Feature: Route ready PRs with a safe advisory review
     Scenario: Missing prerequisite configuration gives one concrete next action
       Given a ready pull request has no `prReview.requiredChecks` configuration
       When Safeword evaluates review eligibility
-      Then no advisory route is published
+      Then no `looks ready` or `needs a human` route is published
       And the current receipt reports `prerequisites unconfigured`
       And it tells the builder to set `prReview.requiredChecks` explicitly
       And exactly one marker-owned receipt comment exists on the pull request
+      And no prerequisite sampling or model review runs
 
     Scenario: An explicit empty prerequisite list proceeds immediately
       Given a ready pull request explicitly configures no required prerequisites
+      And it changes clean reviewable text at `src/reviewed.ts`
       And its current head is revision A
       When the same triggered run evaluates eligibility and performs the advisory review
       Then the same triggered run completes the advisory review for revision A
       And it publishes the current receipt for revision A
+      And the published state is complete
+      And the route is `looks ready`
 
     @rejection
     Scenario: A repeated trigger cannot produce another review attempt
@@ -145,14 +150,24 @@ Feature: Route ready PRs with a safe advisory review
       Given a ready pull request changes only binary `assets/logo.png`
       When Safeword completes the advisory review
       Then the receipt reports zero reviewable text artifacts
+      And `assets/logo.png` is marked skipped as non-text without becoming an unknown
+      And the published state is `incomplete`
+      And the route is `needs a human`
+
+    @rejection
+    Scenario: An empty change set cannot look complete or ready
+      Given a ready pull request has no changed artifacts
+      When Safeword assembles the bounded integrity evidence
+      Then the receipt reports zero reviewable text artifacts
+      And the receipt reports no coverage or missing-evidence entries
       And the published state is `incomplete`
       And the route is `needs a human`
 
     @rejection
     Scenario: Evidence over budget cannot look complete or ready
-      Given a ready pull request's changed text exceeds `maxTotalBytes`
+      Given a ready pull request's readable changed text exceeds `maxTotalBytes`
       When Safeword assembles the bounded integrity evidence
-      Then the receipt names the over-budget artifacts as missing required evidence
+      Then the receipt reports one or more changed text artifacts as missing required evidence
       And the published state is `incomplete`
       And the route is `needs a human`
 
@@ -192,6 +207,7 @@ Feature: Route ready PRs with a safe advisory review
         | complete with only a non-consequential finding | complete | `looks ready` |
         | complete with a consequential finding | complete | `needs a human` |
         | complete with an unresolved unknown | complete | `needs a human` |
+        | zero reviewable text artifacts | incomplete | `needs a human` |
         | missing required evidence | incomplete | `needs a human` |
         | interrupted by a reviewer or tool error | failed | `needs a human` |
         | completed for a head that is no longer current | stale | `needs a human` |
@@ -207,6 +223,7 @@ Feature: Route ready PRs with a safe advisory review
       Examples:
         | lower-condition | higher-condition | published-state |
         | a complete consequential finding | the reviewed head is no longer current | stale |
+        | a complete non-consequential finding | the reviewed head is no longer current | stale |
         | an unresolved unknown | the reviewed head is no longer current | stale |
         | a reviewer or tool error | the reviewed head is no longer current | stale |
         | missing required evidence | the reviewed head is no longer current | stale |
@@ -217,6 +234,15 @@ Feature: Route ready PRs with a safe advisory review
         | a complete non-consequential finding | required evidence is missing | incomplete |
         | a complete consequential finding | required evidence is missing | incomplete |
         | an unresolved unknown | required evidence is missing | incomplete |
+
+    @rejection
+    Scenario: Stale wins when incomplete and failed conditions overlap
+      Given a review has missing required evidence
+      And a reviewer or tool error also occurs
+      And the reviewed head is no longer current also occurs
+      When Safeword derives the advisory route
+      Then the published state is stale
+      And the route is `needs a human`
 
   @safe-advisory-core.TBU1.R4 @surface.safeword-cli @surface.github-pull-request-conversation
   Rule: safe-advisory-core.TBU1.R4 — Every new head invalidates the old conclusion and requires a fresh review
@@ -356,5 +382,5 @@ Feature: Route ready PRs with a safe advisory review
       When Safeword publishes its current receipt
       Then the receipt is an ordinary non-review conversation comment
       And it creates neither an approval nor a status or check conclusion
-      And the publication audit contains an issue-comment call but no review, status, or check call
+      And the publication audit contains an issue-comment call but no review, merge, status, check, or content-write call
       And merge eligibility is unchanged
