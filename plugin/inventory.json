@@ -71,7 +71,7 @@
     },
     {
       "path": "resources/guides/verification-lanes-guide.md",
-      "sha256": "4a2e5cdc98f55a022e4888eb98e9ed6f63ed3e3ec8dd0934f3e118249d85fa78"
+      "sha256": "139dfff44444e7e13aa90cfbbd1acf2a9375fdb12222d31152eac3377ce1a385"
     },
     {
       "path": "resources/guides/zombie-process-cleanup.md",
@@ -671,7 +671,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "4de3ce6df69d23b5abbcda93785b2eff432f889c0f09bd0a6c7ecdb8c2a44342"
+      "sha256": "a39c2d67f90588aefb820f58a9aad718e7baa972ae257a33747c99eac9dabe82"
     }
   ]
 }
