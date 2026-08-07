@@ -29,6 +29,17 @@ const GENERATED_DIRECTORIES = [
 const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
 const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.ts';
+const BUN_INSTALL_INSTANCE_PATH =
+  /([/\\]node_modules[/\\]\.bun[/\\][^/\\\r\n]+)\+[0-9a-f]{16}([/\\]node_modules[/\\])/giu;
+
+/**
+ * Bun includes content-addressed install instance suffixes in bundle source comments.
+ * They vary between otherwise equivalent installs, so remove them before sealing the
+ * generated plugin catalogue.
+ */
+export function normalizeClaudePluginCliBundle(bundle: string): string {
+  return bundle.replace(BUN_INSTALL_INSTANCE_PATH, '$1$2');
+}
 
 function filesBeneath(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
