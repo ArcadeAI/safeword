@@ -20,6 +20,9 @@ export interface CommandDefinition {
   readonly promptPolicy: PromptPolicy;
   readonly networkPolicy: NetworkPolicy;
   readonly schemaVersions: readonly [1];
+  readonly exitPolicy?: {
+    readonly actionRequiredAsSuccessOption: string;
+  };
   readonly fixture: {
     readonly argv: readonly string[];
     readonly environment: Readonly<Record<string, string>>;
@@ -54,6 +57,7 @@ function command(
       syntax: string;
       commandOptions: CommandDefinition['registration']['options'];
       handler: CommandHandler;
+      exitPolicy: NonNullable<CommandDefinition['exitPolicy']>;
     }
   > = {},
 ): CommandDefinition {
@@ -65,6 +69,7 @@ function command(
     promptPolicy: options.promptPolicy ?? 'never',
     networkPolicy: options.networkPolicy ?? 'never',
     schemaVersions: [1],
+    ...(options.exitPolicy !== undefined && { exitPolicy: options.exitPolicy }),
     handler: options.handler ?? publicHandler(name),
     registration: {
       syntax: options.syntax ?? name.split(' ').at(-1) ?? name,
@@ -300,6 +305,13 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('review run', 'Run an independent adversarial review', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'run <kind> <targets...>',
+    commandOptions: [
+      {
+        flags: '--agent-handoff',
+        description: 'Treat action-required output as a successful author-agent handoff',
+      },
+    ],
+    exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
     fixture: {
       argv: ['review', 'run', 'quality-review', 'fixture'],
       environment: MACHINE_ENVIRONMENT,

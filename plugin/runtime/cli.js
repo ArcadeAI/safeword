@@ -3883,11 +3883,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "784da329a70fe34b6e3a477b50caaee0d6bbfc1a3ed1d33b213fd9fb55346f4d",
         ".claude/skills/bdd/DISCOVERY.md": "057b81e87cf4857c780e01ebebdc278485d3179c249335fbc38264784f0587bb",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "25643762cae499a802939df5d833f1f6bec502bc3c5b31156e8001646733d858",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "cb5fd5ecd897e8aaa51a59e548b327fd37c30647e224df39fc31c15fcc5a91c2",
         ".claude/skills/bdd/SCENARIOS.md": "2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d",
-        ".claude/skills/bdd/SKILL.md": "c80750fc562dd99f0d5a9fff31b772e36d4da6710c25be9ea3df0b958342b8b5",
+        ".claude/skills/bdd/SKILL.md": "ec82db67adaa26f852779687b205b0fbcbc143e257d81cdc527ab320d4b0b756",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "ddc1afadbd231fa0731503491f155f7b067e7fa4fb1a6858adbbb9e51ceddeff",
+        ".claude/skills/bdd/TDD.md": "bf3584cc9cb5ff8f7f582398ef6356d3cb2f401414524596add64cf5a7221907",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -3899,11 +3899,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/REVIEWER.md": "1fdbcc909088278f39f69bb77efe49cf422333210e5b393f3a2a247e898e7efa",
         ".claude/skills/finish-review/SKILL.md": "b6be07deb9c444a9956a0fc1ac863d83727869c4377ca7a569ac43e480ed6618",
         ".claude/skills/lint/SKILL.md": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66",
-        ".claude/skills/quality-review/SKILL.md": "a244e013878d55fc20dcba1bfbbd8107306a5dce7c0018fd9bd5538d05bc70c1",
+        ".claude/skills/quality-review/SKILL.md": "a8fdfedf58abbb5bb1ecb63fd0a722bdcdf7b82d3b896cfc63221f671fa4657b",
         ".claude/skills/refactor/SKILL.md": "ecfd1b594e9a4c18387e6b9bc84a5bd1ded6b0b3df40a69271ba779ce2b7f122",
         ".claude/skills/retro-filer/SKILL.md": "8e92f1a7579ba1dd70ced8e9815be0eeed3bc09d43c310a5646ff93c428412ff",
         ".claude/skills/retro/SKILL.md": "8e7b5912810c1e0fe596ff2367b5bc7d3890bd86db5719f49e3c0227b0fdd44a",
-        ".claude/skills/review-spec/SKILL.md": "c16e547a95777665ac10984e2b798ba61200ba289de465b715c9b9d569b4ed7a",
+        ".claude/skills/review-spec/SKILL.md": "4188d2cf86c63c19622149eabbbd93391b6740b67735a8c0891df366accbc38d",
         ".claude/skills/self-review/SKILL.md": "51bccc782884dc2ef6171465909df2726875bb308d0004fd2bbed13e51208ffc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "f49a7e07dea7a62f39e9919c0c4251ede4ec2dec72b9892e7e0c42205d510e6f",
@@ -56070,6 +56070,7 @@ function command(name, description, effectClass, options = {}) {
     promptPolicy: options.promptPolicy ?? "never",
     networkPolicy: options.networkPolicy ?? "never",
     schemaVersions: [1],
+    ...options.exitPolicy !== undefined && { exitPolicy: options.exitPolicy },
     handler: options.handler ?? publicHandler(name),
     registration: {
       syntax: options.syntax ?? name.split(" ").at(-1) ?? name,
@@ -56297,6 +56298,13 @@ var CANONICAL_COMMANDS = [
   command("review run", "Run an independent adversarial review", "mutate", {
     networkPolicy: "declared",
     syntax: "run <kind> <targets...>",
+    commandOptions: [
+      {
+        flags: "--agent-handoff",
+        description: "Treat action-required output as a successful author-agent handoff"
+      }
+    ],
+    exitPolicy: { actionRequiredAsSuccessOption: "agentHandoff" },
     fixture: {
       argv: ["review", "run", "quality-review", "fixture"],
       environment: MACHINE_ENVIRONMENT
@@ -56564,7 +56572,7 @@ function readGlobalOptions(command2) {
 function readCommandOptions(command2) {
   return Object.fromEntries(Object.entries(command2.optsWithGlobals()).filter(([name]) => !GLOBAL_OPTION_KEYS.has(name)));
 }
-function reportResult(result, options, commandName) {
+function reportResult(result, options, commandName, delivery) {
   let reportableResult = result;
   if (commandName !== undefined) {
     try {
@@ -56601,7 +56609,7 @@ function reportResult(result, options, commandName) {
       process17.stderr.write(`${rendered.stderr}
 `);
   }
-  process17.exitCode = exitStatusFor(reportableResult);
+  process17.exitCode = delivery?.actionRequiredAsSuccess === true && reportableResult.state === "action_required" ? 0 : exitStatusFor(reportableResult);
 }
 
 // src/cli-protocol/machine-output.ts
@@ -56704,6 +56712,7 @@ function withCompatibilityDeprecation(result, definition) {
 }
 async function executeDefinition(command2, definition) {
   const globalOptions = readGlobalOptions(command2);
+  const commandOptions = readCommandOptions(command2);
   const progress = globalOptions.json || globalOptions.quiet ? undefined : createProgressReporter({
     schedule: (callback, delay) => setTimeout(callback, delay),
     cancel: (handle) => {
@@ -56719,7 +56728,7 @@ async function executeDefinition(command2, definition) {
         cwd: globalOptions.cwd,
         noInput: globalOptions.noInput,
         offline: globalOptions.offline,
-        options: readCommandOptions(command2),
+        options: commandOptions,
         operands: command2.processedArgs,
         progress
       });
@@ -56739,7 +56748,10 @@ async function executeDefinition(command2, definition) {
     progress?.stop();
   }
   result = withCompatibilityDeprecation(result, definition);
-  reportResult(result, globalOptions, definition.name);
+  const actionRequiredAsSuccessOption = definition.exitPolicy?.actionRequiredAsSuccessOption;
+  reportResult(result, globalOptions, definition.name, {
+    actionRequiredAsSuccess: actionRequiredAsSuccessOption !== undefined && commandOptions[actionRequiredAsSuccessOption] === true
+  });
 }
 function addDefinitionAction(command2, definition) {
   addGlobalOptions(command2);
