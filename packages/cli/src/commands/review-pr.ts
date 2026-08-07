@@ -195,7 +195,12 @@ function parseInput(inputPath: string): InspectionInput {
   };
 }
 
-function parseReviewedReceipt(value: unknown): PublishedReceipt {
+/**
+ * Shape-checks the receipt this command just derived. The publisher re-parses
+ * the same artifact far more strictly (`review-pr-publication.ts`), because
+ * there it is untrusted input crossing a privilege boundary.
+ */
+function parseOwnReceipt(value: unknown): PublishedReceipt {
   if (
     !isRecord(value) ||
     typeof value.reviewedSha !== 'string' ||
@@ -406,7 +411,7 @@ export async function inspectPullRequestCommand(
     writeFileSync(options.outputPath, `${JSON.stringify(handoff)}\n`, { mode: 0o600 });
     return handoff;
   }
-  const receipt = parseReviewedReceipt(published);
+  const receipt = parseOwnReceipt(published);
   const handoff: InspectionHandoff = {
     inspectionAudit: INSPECTION_AUDIT,
     kind: 'receipt',
