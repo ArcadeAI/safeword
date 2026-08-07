@@ -16725,9 +16725,9 @@ import { homedir as homedir2 } from "os";
 import nodePath25 from "path";
 function createClaudePluginMode(marker) {
   return {
+    ...marker,
     schema_version: 2,
-    state: marker.unresolved_paths.length === 0 ? "clean" : "unresolved",
-    ...marker
+    state: marker.unresolved_paths.length === 0 ? "clean" : "unresolved"
   };
 }
 function digest(value) {

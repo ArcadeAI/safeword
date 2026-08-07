@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   claimClaudeMigrationAdvisory,
   claimClaudeMigrationAttempt,
+  createClaudePluginMode,
   pluginModeIsTerminal,
   readClaudePluginMode,
   writeClaudePluginMode,
@@ -80,6 +81,23 @@ describe('Claude plugin mode v2', () => {
     expect(claimClaudeMigrationAttempt(root, 'initial')).toBe(true);
     expect(claimClaudeMigrationAttempt(root, 'initial', 'recovery')).toBe(true);
     expect(claimClaudeMigrationAttempt(root, 'initial', 'recovery')).toBe(false);
+  });
+
+  it('derives plugin-mode state even when a caller spreads a stale marker in', () => {
+    // Spreading an existing marker compiles — TypeScript's excess-property
+    // check does not apply to spreads — so the factory has to win regardless.
+    const clean = {
+      schema_version: 2 as const,
+      state: 'clean' as const,
+      plugin_version: '0.73.0',
+      hook_manifest_sha256: digest,
+      catalogue_sha256: digest,
+      unresolved_paths: [] as readonly string[],
+    };
+    expect(
+      createClaudePluginMode({ ...clean, unresolved_paths: ['.claude/skills/bdd/SKILL.md'] }).state,
+    ).toBe('unresolved');
+    expect(createClaudePluginMode({ ...clean, unresolved_paths: [] }).state).toBe('clean');
   });
 
   it('claims the same advisory only once per session', () => {

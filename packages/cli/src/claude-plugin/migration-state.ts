@@ -17,13 +17,21 @@ export interface ClaudePluginModeV2 {
   readonly transaction_id?: string;
 }
 
+/**
+ * Derives plugin mode so `state` can never disagree with `unresolved_paths`.
+ *
+ * The spread comes FIRST on purpose. TypeScript's excess-property check does
+ * not apply to spreads, so `createClaudePluginMode({ ...existingMarker, ... })`
+ * compiles — and with the spread last it would overwrite the derived state with
+ * a stale one, defeating the only thing this factory exists to guarantee.
+ */
 export function createClaudePluginMode(
   marker: Omit<ClaudePluginModeV2, 'schema_version' | 'state'>,
 ): ClaudePluginModeV2 {
   return {
+    ...marker,
     schema_version: 2,
     state: marker.unresolved_paths.length === 0 ? 'clean' : 'unresolved',
-    ...marker,
   };
 }
 

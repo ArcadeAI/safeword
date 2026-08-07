@@ -3286,9 +3286,9 @@ import { homedir } from 'node:os';
 import nodePath5 from 'node:path';
 function createClaudePluginMode(marker) {
   return {
+    ...marker,
     schema_version: 2,
     state: marker.unresolved_paths.length === 0 ? 'clean' : 'unresolved',
-    ...marker,
   };
 }
 function digest(value) {
