@@ -55,7 +55,11 @@ export interface ReceiptFindingView {
   unverifiedRemedy?: string;
 }
 
-function hasExactReceiptMarker(body: string): boolean {
+/**
+ * A receipt is Safeword-owned only when the exact marker occupies its own line.
+ * A comment that merely mentions the marker inline stays user-owned.
+ */
+export function hasExactReceiptMarker(body: string): boolean {
   return body.split(/\r?\n/u).includes(RECEIPT_MARKER);
 }
 

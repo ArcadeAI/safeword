@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
 import {
+  hasExactReceiptMarker,
   type IssueComment,
   type IssueCommentPublisher,
   publishReceipt,
-  RECEIPT_MARKER,
   renderReceipt,
 } from '../pr-review/publish.js';
 import type { AdvisoryFinding, PublishedReceipt, ReviewRunState } from '../pr-review/review.js';
@@ -243,8 +243,7 @@ export async function invalidatePullRequestCommand(
   const facts = await github.readPullRequest();
   const comments = await github.publisher.listComments();
   const ownedComments = comments.filter(
-    comment =>
-      comment.authorType === 'Bot' && comment.body.split(/\r?\n/u).includes(RECEIPT_MARKER),
+    comment => comment.authorType === 'Bot' && hasExactReceiptMarker(comment.body),
   );
   if (ownedComments.length === 0) {
     return { changed: false, reason: 'no marker-owned receipt to invalidate' };
