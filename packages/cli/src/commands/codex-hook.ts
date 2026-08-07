@@ -81,7 +81,7 @@ const WRITE_REVIEW_STAMP_SCRIPT = '.safeword/hooks/write-review-stamp.ts';
 const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 const SHELL_SEPARATORS = ';&|';
-const SHELL_WHITESPACE = String.raw` \n\r\t\v\f`;
+const SHELL_WHITESPACE = [' ', '\n', '\r', '\t', '\v', '\f'].join('');
 const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
   'post-tool-use',
   'pre-tool-use',
