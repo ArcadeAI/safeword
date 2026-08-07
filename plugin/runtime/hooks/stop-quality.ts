@@ -81,12 +81,18 @@ const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const MAX_MESSAGES_FOR_TOOLS = 5;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
 /**
- * A complete system block the harness injects into a user message. A genuine
- * prompt routinely carries one ahead of the human's own text (SessionStart
- * project instructions, UserPromptSubmit hook output), so the boundary check
- * removes these before asking whether any human text is left.
+ * A complete reminder block the harness injects into a user message. Claude Code
+ * wraps hook context in a system reminder and inserts it where the hook fired, so
+ * a genuine prompt routinely carries one ahead of the human's own text
+ * (SessionStart project instructions, UserPromptSubmit hook output). The boundary
+ * check removes these before asking whether any human text is left.
+ *
+ * Deliberately narrower than TRANSCRIPT_SYSTEM_MESSAGE_PATTERN: a
+ * `<task-notification>` is never stripped, so callers that classify a message by
+ * its notification tag still see it. Stripping it here would erase a
+ * notification-only message to the empty string and hide the tag from them.
  */
-const TRANSCRIPT_SYSTEM_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[\s\S]*?<\/\1>/gi;
+const TRANSCRIPT_REMINDER_BLOCK_PATTERN = /<(system-reminder)\b[\s\S]*?<\/\1>/gi;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
@@ -480,9 +486,10 @@ function normalizeContentItems(content: ContentItem[] | string | undefined): Con
 }
 
 /**
- * The human's own text in a user message, with injected system blocks removed.
+ * The human's own text in a user message, with injected reminder blocks removed.
  * Empty for a pure tool-result message and for a message that is nothing but a
- * system block.
+ * reminder. A message classified by its own tag — a task notification — keeps
+ * that tag, so use this only to ask "did a human write anything here".
  */
 function humanPromptText(message: TranscriptMessage): string {
   if (message.type !== 'user' || message.isMeta) return '';
@@ -491,7 +498,7 @@ function humanPromptText(message: TranscriptMessage): string {
     .filter((item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text)
     .map(item => item.text)
     .join('\n')
-    .replace(TRANSCRIPT_SYSTEM_BLOCK_PATTERN, '')
+    .replace(TRANSCRIPT_REMINDER_BLOCK_PATTERN, '')
     .trim();
 }
 
