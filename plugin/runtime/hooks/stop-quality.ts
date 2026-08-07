@@ -79,15 +79,6 @@ interface TranscriptMessage {
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 /** How many recent assistant messages to scan for edit tool usage. */
 const MAX_MESSAGES_FOR_TOOLS = 5;
-/**
- * How many transcript lines to walk back looking for the current turn's user
- * prompt. Counting assistant messages instead (MAX_MESSAGES_FOR_TOOLS) made the
- * boundary unfindable on any turn with more tool rounds than the window, so an
- * edit made earlier in that same turn fell outside the fallback scan and the
- * review was skipped on the largest turns (ticket V8Z1NP). Bounded by lines so
- * the walk stays cheap on a long transcript while covering a realistic turn.
- */
-const MAX_LINES_FOR_TURN_BOUNDARY = 400;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
 /**
  * A background-task completion the harness injects as a user-role message. It
@@ -460,16 +451,16 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
 /**
  * Stop at whatever started this turn — a human prompt, or a background-task
  * notification that re-invoked the agent — but not at the user-role tool-result
- * message Claude emits while completing that same turn. Returns undefined when
- * the bounded scan finds no boundary, so callers preserve the existing
- * fail-closed behavior.
+ * message Claude emits while completing that same turn. The transcript is
+ * already resident in memory, so walk to the actual boundary instead of using
+ * a line cap that can recreate the missed-edit bug on sufficiently large turns.
+ * Returns undefined only when the available transcript has no turn boundary,
+ * so callers preserve the existing fallback for truncated transcripts.
  */
 function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
-  let scanned = 0;
-  for (let i = transcriptLines.length - 1; i >= 0 && scanned < MAX_LINES_FOR_TURN_BOUNDARY; i--) {
-    scanned++;
+  for (let i = transcriptLines.length - 1; i >= 0; i--) {
     // An unparseable line is skipped, not a boundary: preserve the legacy
-    // bounded scan when no turn start is found.
+    // fallback when no turn start is found.
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
     if (startsNewTurn(message)) return false;
