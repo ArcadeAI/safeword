@@ -561,6 +561,7 @@ describe('dependency readiness hook support', () => {
     ['bunx safeword'],
     ['bunx safeword ticket list'],
     ['bunx safeword setupx'],
+    ['bunx safeword --unknown-flag setup'],
     ['bunx safeword setup && bunx vitest run'],
     ['bunx safeword setup; bunx vitest run'],
     ['bunx safeword setup || bunx vitest run'],
@@ -594,6 +595,9 @@ describe('dependency readiness hook support', () => {
     ['bunx safeword status --json'],
     ['bunx --bun safeword doctor'],
     ['bunx safeword plan --offline'],
+    ['bunx safeword --cwd . setup'],
+    ['bunx safeword --cwd=. setup'],
+    ['bunx safeword --quiet doctor'],
     // `>|` is a clobber redirect: `vitest` here is a target filename, not a
     // command — the pre-EDDABK private splitter treated it as one.
     ['echo cfg >| vitest'],

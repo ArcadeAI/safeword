@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "88899cd1212957c3fb912c9624100685906de512f83a20993fe98154fa59029f"
+      "sha256": "2755169ef08cf1c17121f9b1e14b0861910e9818855000b3d080d2ee9e500068"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",

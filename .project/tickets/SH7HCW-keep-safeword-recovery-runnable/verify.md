@@ -12,7 +12,7 @@
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction
-**Surface Evidence:** ✅ 1/1 affected surfaces have recorded proof
+**Surface Evidence:** ✅ 2/2 affected surfaces have recorded proof
 **Evidence limits:** ✅ None
 
 Audit passed — diff scope; 0 errors and 0 warnings.
@@ -21,7 +21,8 @@ Audit passed — diff scope; 0 errors and 0 warnings.
 
 | Affected surface | Proof | Result |
 | --- | --- | --- |
-| Safeword CLI dependency-readiness hook | `NODE_OPTIONS='--import tsx' ./node_modules/.bin/cucumber-js features/safeword-recovery-through-dependency-readiness.feature` | 22/22 scenarios passed against the real PreToolUse hook |
+| Claude Code — `pre-tool-dependency-readiness.ts` PreToolUse hook | `NODE_OPTIONS='--import tsx' ./node_modules/.bin/cucumber-js features/safeword-recovery-through-dependency-readiness.feature` | 27/27 hook scenarios passed against the real PreToolUse process |
+| Safeword CLI — release parity recovery guidance | Same lane, `Dogfood parity drift names the supported setup command` | 1/1 scenario passed against the real `formatParityDriftFailure` reporter |
 
 ## Experience Walk
 
@@ -45,3 +46,7 @@ removed without adding a bypass or prompt.
 - Post-rebase validation on current main: 144 dependency-readiness tests, 22
   recovery scenarios, and 5 release/parity tests passed; the Claude-plugin
   release contract and both TypeScript package checks passed.
+- Post-review validation: 28 recovery scenarios / 1,094 steps pass; template,
+  dogfood, and generated Claude-plugin hook copies are byte-identical
+  (241 pairs and 8 contracts in sync); Claude-plugin release contract aligned;
+  Gherkin lint, ESLint, and `tsc --noEmit` clean.

@@ -21,16 +21,21 @@ weakening the guard for project tooling.
 ## Personas
 
 - Technical Builder (TBU)
-- Non-Technical Builder (NTB)
+
+The Non-Technical Builder is not a persona here: the blocked commands are typed
+by a builder who reads the guard's denial message, and no NTB-triggered rule
+distinguishes their experience.
 
 ## Surfaces
 
 Affected:
 
-- Safeword CLI
+- Claude Code — the dependency-readiness PreToolUse hook that classifies the command.
+- Safeword CLI — the release parity check's recovery guidance.
 
 Unaffected:
 
+- OpenAI Codex, Cursor — neither wires the dependency-readiness PreToolUse hook, so there is no guard to exempt.
 - Cursor Cloud Agents — the contract belongs to the installed command guard, not cloud lifecycle setup.
 
 ## Vocabulary

@@ -17,6 +17,7 @@ const PRE_TOOL_DEPENDENCY_READINESS = nodePath.join(
 
 interface DependencyRecoveryWorld extends SafewordWorld {
   projectDirectory?: string;
+  driftedFile?: string;
   parityMessage?: string;
 }
 
@@ -92,12 +93,21 @@ Then(
   },
 );
 
-Given("Safeword's installed dogfood files differ from their canonical templates", function () {
-  // The concrete drift is supplied to the real release-message formatter below.
+Given(
+  'the release parity check found drift in {string}',
+  function (this: DependencyRecoveryWorld, driftedFile: string) {
+    this.driftedFile = driftedFile;
+  },
+);
+
+When('it reports that drift to the maintainer', function (this: DependencyRecoveryWorld) {
+  assert.ok(this.driftedFile, 'no parity drift was recorded');
+  this.parityMessage = formatParityDriftFailure([`${this.driftedFile} differs from its template`]);
 });
 
-When('the release parity check reports the drift', function (this: DependencyRecoveryWorld) {
-  this.parityMessage = formatParityDriftFailure(['hook drift']);
+Then('the report names the drifted file', function (this: DependencyRecoveryWorld) {
+  assert.ok(this.driftedFile, 'no parity drift was recorded');
+  assert.ok((this.parityMessage ?? '').includes(this.driftedFile));
 });
 
 Then(

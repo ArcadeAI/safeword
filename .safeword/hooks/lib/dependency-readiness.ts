@@ -884,6 +884,10 @@ function isSafewordRecoverySegment(segment: string, args: string[]): boolean {
   return command !== undefined && SAFEWORD_RECOVERY_COMMANDS.has(command);
 }
 
+// Deliberately not `firstCommandArgument`: that helper skips over options it
+// does not recognize, which would let an unknown flag carry an argument the
+// classifier then mistakes for a recovery verb. Here an unrecognized option
+// means "not a recovery shape", so the segment falls through to the guard.
 function firstSafewordCommandArgument(args: string[]): string | undefined {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
