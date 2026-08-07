@@ -380,7 +380,7 @@ Then(
 );
 
 Then(
-  'status reports plugin_enabled_hook_unproven with partial proof and names the four missing hook events',
+  'structured status reports plugin_enabled_hook_unproven with partial proof and names the four missing hook events',
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
