@@ -710,7 +710,6 @@ Given(
       legacyRuntime: true,
     });
     recordCurrentProof(this);
-    this.logicalLegacyExecutions = 1;
   },
 );
 
@@ -767,13 +766,27 @@ command = 'npx --yes safeword hook codex post-tool-use'
 When('Codex dispatches PostToolUse through both handlers', function (this: ContinuityCliWorld) {
   const log = nodePath.join(this.continuityRoot ?? '', 'packaged-hooks.log');
   rmSync(log, { force: true });
+  assert.ok(this.continuityEnvironment);
+  const legacy = spawnSync(
+    'bun',
+    [nodePath.join(requireProject(this), '.safeword/hooks/codex/post-tool-quality.ts')],
+    {
+      cwd: requireProject(this),
+      encoding: 'utf8',
+      env: this.continuityEnvironment,
+    },
+  );
+  assert.equal(legacy.status, 0, legacy.stderr);
+  this.logicalLegacyExecutions = readFileSync(log, 'utf8').trim().split('\n').length;
+  const executionsBeforePlugin = this.logicalLegacyExecutions;
   run(
     this,
     ['hook', 'codex', 'post-tool-use', '--plugin-hook'],
     {},
     '{"hook_event_name":"PostToolUse","tool_name":"custom"}\n',
   );
-  this.logicalPluginExecutions = existsSync(log) ? 1 : 0;
+  const executionsAfterPlugin = readFileSync(log, 'utf8').trim().split('\n').length;
+  this.logicalPluginExecutions = executionsAfterPlugin - executionsBeforePlugin;
 });
 
 When('the profile-plugin PostToolUse dispatcher runs', function (this: ContinuityCliWorld) {
