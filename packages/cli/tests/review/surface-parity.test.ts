@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -7,6 +7,15 @@ const templates = nodePath.resolve(import.meta.dirname, '../../templates');
 
 function readTemplate(relativePath: string): string {
   return readFileSync(nodePath.join(templates, relativePath), 'utf8');
+}
+
+function markdownFiles(directory: string, prefix = ''): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const relativePath = nodePath.join(prefix, entry.name);
+    const absolutePath = nodePath.join(directory, entry.name);
+    if (entry.isDirectory()) return markdownFiles(absolutePath, relativePath);
+    return entry.isFile() && entry.name.endsWith('.md') ? [relativePath] : [];
+  });
 }
 
 describe('class-1 review surface parity', () => {
@@ -27,5 +36,20 @@ describe('class-1 review surface parity', () => {
     'skills/refactor/SKILL.md',
   ])('%s stays outside the class-1 coordinator', relativePath => {
     expect(readTemplate(relativePath), relativePath).not.toContain('safeword review run');
+  });
+
+  it('wires every canonical coordinator caller to the same typed-exhaustion continuation', () => {
+    const skills = nodePath.join(templates, 'skills');
+    const callers = markdownFiles(skills).filter(relativePath =>
+      readFileSync(nodePath.join(skills, relativePath), 'utf8').includes('safeword review run'),
+    );
+
+    expect(callers.length).toBeGreaterThan(0);
+    for (const relativePath of callers) {
+      const content = readFileSync(nodePath.join(skills, relativePath), 'utf8');
+      expect(content, relativePath).toContain('REVIEW_ROUTES_EXHAUSTED');
+      expect(content, relativePath).toContain('/finish-review');
+      expect(content, relativePath).toMatch(/only.*REVIEW_ROUTES_EXHAUSTED/is);
+    }
   });
 });
