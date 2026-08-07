@@ -52987,6 +52987,7 @@ function command(name, description, effectClass, options = {}) {
     promptPolicy: options.promptPolicy ?? "never",
     networkPolicy: options.networkPolicy ?? "never",
     schemaVersions: [1],
+    ...options.exitPolicy !== undefined && { exitPolicy: options.exitPolicy },
     handler: options.handler ?? publicHandler(name),
     registration: {
       syntax: options.syntax ?? name.split(" ").at(-1) ?? name,
@@ -53214,6 +53215,13 @@ var CANONICAL_COMMANDS = [
   command("review run", "Run an independent adversarial review", "mutate", {
     networkPolicy: "declared",
     syntax: "run <kind> <targets...>",
+    commandOptions: [
+      {
+        flags: "--agent-handoff",
+        description: "Treat action-required output as a successful author-agent handoff"
+      }
+    ],
+    exitPolicy: { actionRequiredAsSuccessOption: "agentHandoff" },
     fixture: {
       argv: ["review", "run", "quality-review", "fixture"],
       environment: MACHINE_ENVIRONMENT
@@ -53481,7 +53489,7 @@ function readGlobalOptions(command2) {
 function readCommandOptions(command2) {
   return Object.fromEntries(Object.entries(command2.optsWithGlobals()).filter(([name]) => !GLOBAL_OPTION_KEYS.has(name)));
 }
-function reportResult(result, options, commandName) {
+function reportResult(result, options, commandName, delivery) {
   let reportableResult = result;
   if (commandName !== undefined) {
     try {
@@ -53518,7 +53526,7 @@ function reportResult(result, options, commandName) {
       process17.stderr.write(`${rendered.stderr}
 `);
   }
-  process17.exitCode = exitStatusFor(reportableResult);
+  process17.exitCode = delivery?.actionRequiredAsSuccess === true && reportableResult.state === "action_required" ? 0 : exitStatusFor(reportableResult);
 }
 
 // src/cli-protocol/machine-output.ts
@@ -53621,6 +53629,7 @@ function withCompatibilityDeprecation(result, definition) {
 }
 async function executeDefinition(command2, definition) {
   const globalOptions = readGlobalOptions(command2);
+  const commandOptions = readCommandOptions(command2);
   const progress = globalOptions.json || globalOptions.quiet ? undefined : createProgressReporter({
     schedule: (callback, delay) => setTimeout(callback, delay),
     cancel: (handle) => {
@@ -53636,7 +53645,7 @@ async function executeDefinition(command2, definition) {
         cwd: globalOptions.cwd,
         noInput: globalOptions.noInput,
         offline: globalOptions.offline,
-        options: readCommandOptions(command2),
+        options: commandOptions,
         operands: command2.processedArgs,
         progress
       });
@@ -53656,7 +53665,10 @@ async function executeDefinition(command2, definition) {
     progress?.stop();
   }
   result = withCompatibilityDeprecation(result, definition);
-  reportResult(result, globalOptions, definition.name);
+  const actionRequiredAsSuccessOption = definition.exitPolicy?.actionRequiredAsSuccessOption;
+  reportResult(result, globalOptions, definition.name, {
+    actionRequiredAsSuccess: actionRequiredAsSuccessOption !== undefined && commandOptions[actionRequiredAsSuccessOption] === true
+  });
 }
 function addDefinitionAction(command2, definition) {
   addGlobalOptions(command2);
