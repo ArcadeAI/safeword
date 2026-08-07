@@ -39011,9 +39011,9 @@ var init_environment = __esm(() => {
 import { spawn, spawnSync as spawnSync7 } from "child_process";
 import { accessSync as accessSync2, constants as constants3, realpathSync as realpathSync7 } from "fs";
 import nodePath77 from "path";
-function timeoutMilliseconds() {
-  const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : 120000;
+function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
+  const configured = Number(env.SAFEWORD_REVIEW_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -39225,14 +39225,14 @@ async function runReviewerCandidates(reviewer, packet, cwd, candidates, deadline
   throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
 }
 async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = process.cwd()) {
-  const deadline = Date.now() + timeoutMilliseconds();
+  const deadline = Date.now() + reviewTimeoutMilliseconds(reviewer);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
   }
   return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
 }
-var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError;
+var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_REVIEW_TIMEOUT_MS = 300000;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA = JSON.stringify({

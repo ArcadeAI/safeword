@@ -1628,9 +1628,9 @@ When(
 );
 
 /**
- * Rejection scenarios in this rule run the upgrade with profile enrollment
+ * Rejection scenarios in this rule run setup with profile enrollment
  * made unavailable, and each one asserts the decline it produces (#1973). The
- * decline is the point: it proves the upgrade ran, reached the Codex handoff,
+ * decline is the point: it proves setup ran, reached the Codex handoff,
  * and preserved the project on the way out. Without that assertion these
  * scenarios pass whether or not anything executed, because untouched files
  * look identical to files nothing reached.
@@ -1641,18 +1641,15 @@ When(
  * CODEX_HOME.
  */
 When(
-  'the plugin migration upgrade runs without profile enrollment available',
+  'the plugin migration setup runs without profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    const codexHomeRoot = createTemporaryDirectory('safeword-unavailable-codex-home-');
-    const unavailableCodexHome = nodePath.join(codexHomeRoot, 'not-a-directory');
-    writeFileSync(unavailableCodexHome, 'profile enrollment unavailable\n');
-    this.codexPluginCodexHome = codexHomeRoot;
-    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
+    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
       cwd: repoRoot,
       env: {
+        // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
+        PATH: '',
         SAFEWORD_SKIP_INSTALL: '1',
-        CODEX_HOME: unavailableCodexHome,
       },
       timeout: 120_000,
     });
@@ -1660,7 +1657,7 @@ When(
 );
 
 When(
-  'the plugin migration upgrade runs with profile enrollment available',
+  'the plugin migration setup runs with profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
@@ -1671,7 +1668,7 @@ When(
     this.codexPluginRuntimeRoot = runtimeRoot;
     this.codexPluginCodexHome = runtime.codexHome;
     this.codexPluginMigrationLogPath = runtime.logPath;
-    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
+    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
       cwd: repoRoot,
       env: {
         PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
@@ -1835,6 +1832,21 @@ Then(
  * reached the Codex handoff; a migration that never started leaves the same
  * files untouched and proves nothing.
  */
+function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
+  const result = world.codexPluginMigrationResult;
+  assert.ok(result, 'migration result was not captured');
+  assert.equal(
+    result.exitCode,
+    2,
+    `expected a declined migration: ${result.stdout}${result.stderr}`,
+  );
+  assert.match(
+    `${result.stdout}\n${result.stderr}`,
+    /legacy project protection was retained/iu,
+    'upgrade did not reach the Codex handoff decline',
+  );
+}
+
 function assertMigrationRanAndReportedAttention(world: CodexPluginMigrationWorld): void {
   const result = world.codexPluginMigrationResult;
   assert.ok(result, 'migration result was not captured');
@@ -1846,25 +1858,17 @@ function assertMigrationRanAndReportedAttention(world: CodexPluginMigrationWorld
   assert.match(
     `${result.stdout}\n${result.stderr}`,
     /Codex|plugin|profile/iu,
-    'upgrade did not report the unavailable Codex profile',
+    'setup did not report the unavailable Codex profile',
   );
 }
 
+// Setup keeps its zero exit here on purpose: converge-setup treats a deferred
+// Codex handoff as advisory so the legacy project integration stays active and
+// SessionStart retries enrollment for the next developer.
 Then(
-  'the upgrade reports profile enrollment attention loudly without blocking',
+  'setup reports profile enrollment attention loudly without blocking',
   function (this: CodexPluginMigrationWorld) {
     assertMigrationRanAndReportedAttention(this);
-  },
-);
-
-Then(
-  'the project bootstrap can enroll the next developer',
-  function (this: CodexPluginMigrationWorld) {
-    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    assert.match(
-      readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8'),
-      /bunx --bun safeword@latest codex bootstrap/u,
-    );
   },
 );
 
