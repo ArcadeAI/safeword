@@ -8,19 +8,20 @@ Feature: Keep review available with the best supported fallback
 
   @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents
   Scenario Outline: Every advertised host ships the typed-exhaustion continuation
-    Given the <surface> review entry point
+    Given the <surface> review entry point at "<entry point>"
     When its shipped fallback wiring is inspected
     Then it points to the shared finish-review contract
     And it enters that contract only for REVIEW_ROUTES_EXHAUSTED
+    And it preserves every non-exhaustion coordinator result unchanged
 
     Examples:
-      | surface             |
-      | Claude Code         |
-      | Claude Code Cloud   |
-      | OpenAI Codex        |
-      | OpenAI Codex Cloud  |
-      | Cursor              |
-      | Cursor Cloud Agents |
+      | surface             | entry point                                                    |
+      | Claude Code         | .claude/skills/quality-review/SKILL.md                         |
+      | Claude Code Cloud   | .claude/skills/quality-review/SKILL.md                         |
+      | OpenAI Codex        | packages/cli/codex-plugin/skills/quality-review/SKILL.md       |
+      | OpenAI Codex Cloud  | packages/cli/codex-plugin/skills/quality-review/SKILL.md       |
+      | Cursor              | .cursor/rules/safeword-quality-reviewing.mdc                   |
+      | Cursor Cloud Agents | .cursor/rules/safeword-quality-reviewing.mdc                   |
 
   @review-with-the-best-available-agent.TBU1.R1 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
@@ -78,6 +79,7 @@ Feature: Keep review available with the best supported fallback
       And a fresh-context read-only Claude reviewer is available in the session
       When the host fallback runs
       Then the builder receives the in-session review's findings
+      And the result records exactly one in-session review route
       And the result explains that the host reported a fresh-context review by the same agent
       And the result explains that the review was not independent
       And the main agent does not review its own work
@@ -91,6 +93,7 @@ Feature: Keep review available with the best supported fallback
       And a fresh-context in-session reviewer can complete it
       When the host fallback runs
       Then the builder receives the in-session review's findings
+      And the result records exactly one in-session review route
       And the result explains that the host reported a fresh-context review by the same agent
       And the result explains that the review was not independent
       And the main agent does not review its own work
@@ -102,6 +105,7 @@ Feature: Keep review available with the best supported fallback
       And the in-session reviewer returns findings outside the fixed contract
       When the host fallback runs
       Then the invalid in-session findings are not returned as a completed review
+      And the result records exactly one in-session review route
       And the main agent performs one terminal self-review
       And the builder receives the self-review findings
       And the result explains that the main agent reviewed its own work
@@ -113,6 +117,7 @@ Feature: Keep review available with the best supported fallback
       And the in-session reviewer is invoked and fails at runtime
       When the host fallback runs
       Then the runtime failure is not returned as a completed review
+      And the result records exactly one in-session review route
       And the main agent performs one terminal self-review
       And the builder receives the self-review findings
       And the host fallback does not restart itself or the CLI coordinator
@@ -186,7 +191,7 @@ Feature: Keep review available with the best supported fallback
       When the fresh-context in-session reviewer performs the review
       Then the reviewer receives the packet as untrusted review material
       And PACKET_LITERAL_TOKEN remains in the accepted review material
-      But ROUTE_DIAGNOSTIC and ROUTE_SECRET_TOKEN are not included
+      But the exact in-session reviewer request contains neither ROUTE_DIAGNOSTIC nor ROUTE_SECRET_TOKEN
       And the result validates against the fixed contract
       And the result contains the rubric-derived missing-proof finding
       But the result contains no INJECTED_OK finding
@@ -211,6 +216,7 @@ Feature: Keep review available with the best supported fallback
       When the main agent performs the terminal self-review
       Then the hostile packet text is treated only as review material
       And PACKET_LITERAL_TOKEN remains in the accepted review material
+      But the exact self-review request contains neither ROUTE_DIAGNOSTIC nor ROUTE_SECRET_TOKEN
       And the result validates against the fixed contract
       And the result contains the rubric-derived missing-proof finding
       But the result contains no INJECTED_OK finding
@@ -225,6 +231,20 @@ Feature: Keep review available with the best supported fallback
       Then the packet text does not alter the assurance explanation
       And the result explains that the review was not independent
       And the independent-review requirement remains unsatisfied
+
+    @rejection @review-with-the-best-available-agent.TBU1.R5
+    Scenario Outline: A degraded review cannot validate its own branch-owned control plane
+      Given the accepted targets include the branch-owned <control plane>
+      And the coordinator returns REVIEW_ROUTES_EXHAUSTED
+      When the host fallback reports degraded findings
+      Then the result discloses that the review cannot independently prove its own rubric integrity
+      And the result explains that the review was not independent
+      And the result does not claim the <control plane> is independently validated
+
+      Examples:
+        | control plane             |
+        | reviewer contract         |
+        | reviewer agent definition |
 
   @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R6 — Only typed route exhaustion enters the degraded ladder
@@ -270,6 +290,19 @@ Feature: Keep review available with the best supported fallback
       When the review entry point handles that result
       Then the builder receives the in-session review's findings
       And the result explains that the review was not independent
+
+    @rejection @review-with-the-best-available-agent.TBU1.R6
+    Scenario Outline: Contradictory route exhaustion never starts host fallback
+      Given the coordinator returns REVIEW_ROUTES_EXHAUSTED with <contradiction>
+      And a fresh-context in-session reviewer is available
+      When the review entry point handles that result
+      Then the builder receives the original coordinator outcome
+      And no degraded reviewer is used
+
+      Examples:
+        | contradiction                            |
+        | existing reviewer findings               |
+        | an independent-review satisfied verdict  |
 
   @review-with-the-best-available-agent.NTB1.R1 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.NTB1.R1 — Every result explains a distinct assurance level in plain language

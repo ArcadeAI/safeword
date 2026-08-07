@@ -4,7 +4,6 @@ import nodePath from 'node:path';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
-import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import type { SafewordWorld } from './world.js';
 
 type ReviewSurface =
@@ -17,21 +16,51 @@ type ReviewSurface =
 
 interface ReviewWiring {
   contract: string;
+  entryArtifact: string;
   entryPoint: string;
   surface: ReviewSurface;
 }
 
 const wiringByWorld = new WeakMap<SafewordWorld, ReviewWiring>();
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
+const repoRoot = nodePath.resolve(packageRoot, '../..');
+
+const artifactsBySurface: Record<ReviewSurface, { contract: string; entryPoint: string }> = {
+  'Claude Code': {
+    contract: '.claude/skills/finish-review/SKILL.md',
+    entryPoint: '.claude/skills/quality-review/SKILL.md',
+  },
+  'Claude Code Cloud': {
+    contract: '.claude/skills/finish-review/SKILL.md',
+    entryPoint: '.claude/skills/quality-review/SKILL.md',
+  },
+  Cursor: {
+    contract: '.cursor/rules/safeword-finish-review.mdc',
+    entryPoint: '.cursor/rules/safeword-quality-reviewing.mdc',
+  },
+  'Cursor Cloud Agents': {
+    contract: '.cursor/rules/safeword-finish-review.mdc',
+    entryPoint: '.cursor/rules/safeword-quality-reviewing.mdc',
+  },
+  'OpenAI Codex': {
+    contract: 'packages/cli/codex-plugin/skills/finish-review/SKILL.md',
+    entryPoint: 'packages/cli/codex-plugin/skills/quality-review/SKILL.md',
+  },
+  'OpenAI Codex Cloud': {
+    contract: 'packages/cli/codex-plugin/skills/finish-review/SKILL.md',
+    entryPoint: 'packages/cli/codex-plugin/skills/quality-review/SKILL.md',
+  },
+};
 
 function readPackageFile(relativePath: string): string {
   return readFileSync(nodePath.join(packageRoot, relativePath), 'utf8');
 }
 
 Given(
-  /^the (Claude Code(?: Cloud)?|OpenAI Codex(?: Cloud)?|Cursor(?: Cloud Agents)?) review entry point$/,
-  function (this: SafewordWorld, surface: ReviewSurface) {
-    wiringByWorld.set(this, { contract: '', entryPoint: '', surface });
+  /^the (Claude Code(?: Cloud)?|OpenAI Codex(?: Cloud)?|Cursor(?: Cloud Agents)?) review entry point at "([^"]+)"$/,
+  function (this: SafewordWorld, surface: ReviewSurface, entryArtifact: string) {
+    assert.equal(entryArtifact, artifactsBySurface[surface].entryPoint);
+    wiringByWorld.set(this, { contract: '', entryArtifact, entryPoint: '', surface });
   },
 );
 
@@ -39,32 +68,16 @@ When('its shipped fallback wiring is inspected', function (this: SafewordWorld) 
   const wiring = wiringByWorld.get(this);
   assert.ok(wiring, 'review surface must be selected first');
 
-  if (wiring.surface.startsWith('Claude Code')) {
-    assert.equal(
-      SAFEWORD_SCHEMA.ownedFiles['.claude/skills/quality-review/SKILL.md']?.template,
-      'skills/quality-review/SKILL.md',
-    );
-    assert.equal(
-      SAFEWORD_SCHEMA.ownedFiles['.claude/skills/finish-review/SKILL.md']?.template,
-      'skills/finish-review/SKILL.md',
-    );
+  const artifacts = artifactsBySurface[wiring.surface];
+  wiring.entryPoint = readFileSync(nodePath.join(repoRoot, wiring.entryArtifact), 'utf8');
+  wiring.contract = readFileSync(nodePath.join(repoRoot, artifacts.contract), 'utf8');
+
+  if (wiring.surface.startsWith('Cursor')) {
+    assert.match(wiring.entryPoint, /@\.safeword\/skills\/quality-review\/SKILL\.md/u);
+    assert.match(wiring.contract, /@\.safeword\/skills\/finish-review\/SKILL\.md/u);
     wiring.entryPoint = readPackageFile('templates/skills/quality-review/SKILL.md');
     wiring.contract = readPackageFile('templates/skills/finish-review/SKILL.md');
-    return;
   }
-
-  if (wiring.surface.startsWith('OpenAI Codex')) {
-    wiring.entryPoint = readPackageFile('codex-plugin/skills/quality-review/SKILL.md');
-    wiring.contract = readPackageFile('codex-plugin/skills/finish-review/SKILL.md');
-    return;
-  }
-
-  const cursorEntryPoint = readPackageFile('templates/cursor/rules/safeword-quality-reviewing.mdc');
-  const cursorContract = readPackageFile('templates/cursor/rules/safeword-finish-review.mdc');
-  assert.match(cursorEntryPoint, /@\.safeword\/skills\/quality-review\/SKILL\.md/u);
-  assert.match(cursorContract, /@\.safeword\/skills\/finish-review\/SKILL\.md/u);
-  wiring.entryPoint = readPackageFile('templates/skills/quality-review/SKILL.md');
-  wiring.contract = readPackageFile('templates/skills/finish-review/SKILL.md');
 });
 
 Then('it points to the shared finish-review contract', function (this: SafewordWorld) {
@@ -84,3 +97,14 @@ Then('it enters that contract only for REVIEW_ROUTES_EXHAUSTED', function (this:
   assert.match(wiring.contract, /Continue only when.*REVIEW_ROUTES_EXHAUSTED/su);
   assert.match(wiring.contract, /For every other result[\s\S]*return the original/u);
 });
+
+Then(
+  'it preserves every non-exhaustion coordinator result unchanged',
+  function (this: SafewordWorld) {
+    const wiring = wiringByWorld.get(this);
+    assert.ok(wiring, 'review wiring must be inspected first');
+    const normalized = `${wiring.entryPoint} ${wiring.contract}`.replaceAll(/\s+/gu, ' ');
+    assert.match(normalized, /For every other result[^.]*return the original[^.]*unchanged/iu);
+    assert.match(normalized, /Do not delegate or self-review/iu);
+  },
+);

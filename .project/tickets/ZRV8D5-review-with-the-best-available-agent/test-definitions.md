@@ -122,6 +122,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 068b4d9c2
 - [x] REFACTOR aba4ab37f
 
+### Scenario: A degraded review cannot validate its own branch-owned control plane
+
+- [x] RED a005df2fa
+- [x] GREEN eb6eae6e0
+- [x] REFACTOR eb6eae6e0
+
 ## Rule: review-with-the-best-available-agent.NTB1.R3 — Degraded verdicts are preserved
 
 ### Scenario: Degraded approval remains approved
@@ -167,6 +173,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 2abd9aa05
 - [x] GREEN 068b4d9c2
 - [x] REFACTOR aba4ab37f
+
+### Scenario: Contradictory route exhaustion never starts host fallback
+
+- [x] RED a005df2fa
+- [x] GREEN eb6eae6e0
+- [x] REFACTOR eb6eae6e0
 
 ## Rule: review-with-the-best-available-agent.NTB1.R1 — Every result explains a distinct assurance level in plain language
 
