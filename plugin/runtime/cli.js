@@ -47492,6 +47492,26 @@ function findPackagedTemplate(relativePath) {
 function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath84.join("hooks", relativePath));
 }
+function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
+  const result = spawnSync8("bun", [hookPath], {
+    cwd: projectDirectory,
+    input: rawInput,
+    encoding: "utf8",
+    env: {
+      ...process19.env,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+      SAFEWORD_AGENT_RUNTIME: "codex",
+      SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath
+    },
+    stdio: ["pipe", "pipe", "pipe"]
+  });
+  return {
+    error: result.error,
+    status: result.status ?? undefined,
+    stderr: result.stderr ?? "",
+    stdout: result.stdout ?? ""
+  };
+}
 function normalizeNamespaceRootLabel(label) {
   const normalizedLabel = label.replaceAll("\\", "/");
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
@@ -47517,31 +47537,36 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
       writeFileSync21(nodePath84.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath84.join(temporaryHookDirectory, nodePath84.basename(hookPath));
     }
-    const result = spawnSync8("bun", [executableHookPath], {
-      cwd: projectDirectory,
-      input: rawInput,
-      encoding: "utf8",
-      env: {
-        ...process19.env,
-        CLAUDE_PROJECT_DIR: projectDirectory,
-        SAFEWORD_AGENT_RUNTIME: "codex",
-        SAFEWORD_PACKAGED_CONTEXT_PATH: relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : ""
-      },
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    return {
-      error: result.error,
-      status: result.status ?? undefined,
-      stderr: result.stderr ?? "",
-      stdout: result.stdout ?? ""
-    };
+    const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
+    return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory)
       rmSync9(temporaryHookDirectory, { recursive: true, force: true });
   }
 }
+function snapshotPackagedHook(relativePath) {
+  const packagedHooksDirectory = findPackagedTemplate("hooks");
+  if (!packagedHooksDirectory) {
+    return { error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+  }
+  const directory = mkdtempSync6(nodePath84.join(tmpdir4(), `safeword-codex-hook-snapshot-${process19.pid}-`));
+  const snapshotHooksDirectory = nodePath84.join(directory, "hooks");
+  try {
+    cpSync(packagedHooksDirectory, snapshotHooksDirectory, { recursive: true });
+    const hookPath = nodePath84.join(snapshotHooksDirectory, relativePath);
+    return existsSync42(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+  } catch (error2) {
+    return {
+      directory,
+      error: error2 instanceof Error ? error2 : new Error(String(error2))
+    };
+  }
+}
+function hookFailureDetail(result) {
+  return result.stderr.trim() || result.error?.message || "exited without a failure message";
+}
 function denyForPackagedHookFailure(result) {
-  const detail = result.stderr.trim() || result.error?.message || "exited without a failure message";
+  const detail = hookFailureDetail(result);
   process19.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}
 `);
   process19.exit(2);
@@ -47611,8 +47636,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   deny(`Cannot create test-definitions.md for ${ticketFolder} until ticket.md declares ${missing.join(", ")}.`);
   return true;
 }
-function runEnrolledPreToolUse(rawInput, projectDirectory) {
-  const qualityResult = runPackagedHook("codex/pre-tool-quality.ts", rawInput, projectDirectory);
+function runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult) {
   if (emitPackagedPreToolResult(qualityResult))
     return;
   const input = parseCodexHookInput(rawInput);
@@ -47635,11 +47659,15 @@ function runEnrolledPreToolUse(rawInput, projectDirectory) {
   }
 }
 async function runPreToolUse() {
-  const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
   if (!hasSafewordProjectMarker(projectDirectory))
     return;
-  runEnrolledPreToolUse(rawInput, projectDirectory);
+  const snapshot = snapshotPackagedHook(PRE_TOOL_QUALITY_HOOK_PATH);
+  const rawInput = await readStdin();
+  const qualityResult = snapshot.hookPath ? runHookFile(snapshot.hookPath, rawInput, projectDirectory) : { error: snapshot.error, stderr: "", stdout: "" };
+  if (snapshot.directory)
+    rmSync9(snapshot.directory, { recursive: true, force: true });
+  runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult);
 }
 async function runSessionStart() {
   const rawInput = await readStdin();
@@ -47778,7 +47806,7 @@ async function codexHook(event, options = {}) {
   }
   await CODEX_HOOK_RUNNERS[normalized]();
 }
-var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE = ` 
+var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE = ` 
 \r	\v\f`, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
   init_legacy_authority();
