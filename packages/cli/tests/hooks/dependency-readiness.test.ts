@@ -298,6 +298,21 @@ describe('dependency readiness hook support', () => {
     ]);
   });
 
+  it('preserves hash characters inside quoted pnpm workspace globs', () => {
+    writeJson('package.json', { name: 'pnpm-ws', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(
+      projectDirectory,
+      'pnpm-workspace.yaml',
+      "packages:\n  - 'packages/#internal' # private package\n",
+    );
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeJson('packages/#internal/package.json', { name: '@ws/internal' });
+
+    expect(detectDependencyPlan(projectDirectory)?.inputPaths).toContain(
+      'packages/#internal/package.json',
+    );
+  });
+
   it('tracks package manifests matched by recursive workspace globs', () => {
     writeJson('package.json', {
       name: 'recursive-workspace-project',
