@@ -472,10 +472,7 @@ function isInstallSegment(segment: string): boolean {
 function hasNonReconcilingInstallOption(args: string[]): boolean {
   return args.some(arg => {
     const [flag] = arg.split('=', 1);
-    return (
-      NON_RECONCILING_INSTALL_FLAGS.has(flag ?? arg) ||
-      NON_RECONCILING_INSTALL_OPTIONS.has(flag ?? arg)
-    );
+    return NON_RECONCILING_INSTALL_FLAGS.has(flag) || NON_RECONCILING_INSTALL_OPTIONS.has(flag);
   });
 }
 
