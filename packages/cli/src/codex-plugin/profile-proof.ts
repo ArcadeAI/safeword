@@ -22,7 +22,7 @@ export interface CodexPluginIdentity {
   manifest_sha256: string;
 }
 
-export interface CodexHookProofV1 {
+interface CodexHookProofV1 {
   schema_version: 1;
   event: CodexPluginHookEvent;
   plugin_version: string;
@@ -46,7 +46,7 @@ interface CodexSessionProofV1 extends CodexPluginIdentity {
   recorded_at: string;
 }
 
-export interface CodexActivationMarkerV1 {
+interface CodexActivationMarkerV1 {
   schema_version: 1;
   plugin_version: string;
   manifest_sha256: string;

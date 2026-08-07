@@ -29,6 +29,17 @@ const GENERATED_DIRECTORIES = [
 const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
 const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.ts';
+const BUN_INSTALL_INSTANCE_PATH =
+  /([/\\]node_modules[/\\]\.bun[/\\][^/\\\r\n]+)\+[0-9a-f]{16}([/\\]node_modules[/\\])/giu;
+
+/**
+ * Bun includes content-addressed install instance suffixes in bundle source comments.
+ * They vary between otherwise equivalent installs, so remove them before sealing the
+ * generated plugin catalogue.
+ */
+export function normalizeClaudePluginCliBundle(bundle: string): string {
+  return bundle.replaceAll(BUN_INSTALL_INSTANCE_PATH, '$1$2');
+}
 
 function filesBeneath(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
@@ -448,31 +459,6 @@ export function generateClaudePluginAssets(
     throw new Error(`Duplicate generated Claude plugin asset: ${duplicate.relativePath}`);
   }
   return assets.toSorted((left, right) => left.relativePath.localeCompare(right.relativePath));
-}
-
-export function assertClaudePluginCatalogue(
-  input: ClaudePluginCatalogueInput,
-  pluginRoot: string,
-): void {
-  const expectedAssets = generateClaudePluginAssets(input);
-  for (const asset of expectedAssets) {
-    const path = nodePath.join(pluginRoot, asset.relativePath);
-    if (!existsSync(path))
-      throw new Error(`Claude plugin is missing expected asset: ${asset.relativePath}`);
-    if (readFileSync(path, 'utf8') !== asset.content) {
-      throw new Error(`Claude plugin asset differs from canonical source: ${asset.relativePath}`);
-    }
-  }
-  const expectedPaths = new Set(expectedAssets.map(asset => asset.relativePath));
-  for (const directory of GENERATED_DIRECTORIES) {
-    const generatedDirectory = nodePath.join(pluginRoot, directory);
-    const actualPaths = filesBeneath(generatedDirectory, directory);
-    for (const relativePath of actualPaths) {
-      if (!expectedPaths.has(relativePath)) {
-        throw new Error(`Claude plugin has unexpected generated asset: ${relativePath}`);
-      }
-    }
-  }
 }
 
 export function writeClaudePluginCatalogue(

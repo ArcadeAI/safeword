@@ -4,26 +4,18 @@ import nodePath from 'node:path';
 import rootPackageJson from '../../../package.json' with { type: 'json' };
 import packageJson from '../package.json' with { type: 'json' };
 import {
+  normalizeClaudePluginCliBundle,
   sealClaudePluginCatalogue,
   writeClaudePluginCatalogue,
 } from '../src/claude-plugin/catalogue.js';
+import { requirePinnedBunVersion } from './bun-version.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
 
-const expectedBunVersion = /^bun@(.+)$/.exec(rootPackageJson.packageManager)?.[1];
-if (expectedBunVersion === undefined) {
-  throw new Error('Root package.json must pin Bun with `"packageManager": "bun@<version>"`.');
-}
 // @ts-expect-error -- this production generator executes under Bun; the CLI's
 // Node-targeted tsconfig intentionally does not expose Bun globals elsewhere.
-const actualBunVersion = Bun.version;
-if (actualBunVersion !== expectedBunVersion) {
-  throw new Error(
-    `Claude plugin generation requires Bun ${expectedBunVersion} from root package.json; ` +
-      `found ${actualBunVersion}. Install the pinned version and ensure it is first on PATH.`,
-  );
-}
+requirePinnedBunVersion(rootPackageJson.packageManager, Bun.version);
 
 // `plugin/runtime/cli.js` comes out of Bun.build below, so its bytes depend on
 // the Bun version. Check before writing any generated or sealed plugin files.
@@ -40,7 +32,7 @@ const cliBuild = await Bun.build({
 if (!cliBuild.success || cliBuild.outputs.length !== 1 || cliBuild.outputs[0] === undefined) {
   throw new Error(`Failed to bundle the Claude plugin CLI: ${cliBuild.logs.join('\n')}`);
 }
-const cliBundle = await cliBuild.outputs[0].text();
+const cliBundle = normalizeClaudePluginCliBundle(await cliBuild.outputs[0].text());
 const assets = writeClaudePluginCatalogue(
   {
     cliBundle,

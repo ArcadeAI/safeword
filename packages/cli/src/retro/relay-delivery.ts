@@ -27,7 +27,7 @@ export interface RelayDraftRequest {
 
 export const DEFAULT_RELAY_REQUEST_DEADLINE_MS = 500;
 export const RELAY_OVERALL_HEADROOM_MS = 250;
-export const RELAY_CLEANUP_RESERVE_MS = 100;
+const RELAY_CLEANUP_RESERVE_MS = 100;
 const RELAY_RETRY_BACKOFF_MS = 60_000;
 const MAX_RELAY_RETRY_BACKOFF_MS = 60 * 60 * 1000;
 const RELAY_API_VERSION = '1';
