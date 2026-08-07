@@ -555,7 +555,7 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
   const { runReview } = await import('../review/coordinator.js');
-  return runReview({ cwd: invocation.cwd, kind: rawKind, targets });
+  return runReview({ cwd: invocation.cwd, kind: rawKind, targets, progress: invocation.progress });
 }
 
 async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<CliResult> {
