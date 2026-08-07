@@ -1,4 +1,5 @@
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
+import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import type {
   ReviewAgent,
@@ -231,10 +232,11 @@ function changedReviewResult(input: {
   });
 }
 
-type ReviewProgress = {
-  readonly start: (message: string) => void;
-  readonly heartbeat?: (message: string) => void;
-};
+/**
+ * The coordinator announces and keeps a wait visible, but never ends the
+ * reporter — the command runner owns `stop()` in its `finally`.
+ */
+type ReviewProgress = Pick<ProgressReporter, 'start' | 'heartbeat'>;
 
 type ReviewRunInput = {
   readonly cwd: string;
@@ -243,11 +245,37 @@ type ReviewRunInput = {
   readonly progress?: ReviewProgress;
 };
 
-function preparePrimaryReview(input: ReviewRunInput, reviewer: ReviewAgent) {
-  input.progress?.start(`Preparing the review packet for ${agentName(reviewer)}…`);
+/**
+ * Prepare the primary reviewer's packet while narrating the wait.
+ *
+ * The dispatch announcement supersedes the preparation one: the reporter emits
+ * only an announcement still pending after 100ms, so packet preparation is
+ * announced when it is slow enough to matter and stays silent otherwise.
+ */
+function preparePrimaryReview(
+  input: ReviewRunInput,
+  reviewer: ReviewAgent,
+): ReturnType<typeof prepareReviewPacket> {
+  const name = agentName(reviewer);
+  input.progress?.start(`Preparing the review packet for ${name}…`);
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  input.progress?.start(`Requesting an independent ${agentName(reviewer)} review…`);
-  input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(reviewer)}…`);
+  input.progress?.start(`Requesting an independent ${name} review…`);
+  input.progress?.heartbeat?.(`Still waiting for a response from ${name}…`);
+  return prepared;
+}
+
+/** Narrate the fallback the same way, so both routes read identically. */
+function prepareFallbackReview(
+  input: ReviewRunInput,
+  assignedReviewer: ReviewAgent,
+  author: ReviewAgent,
+): ReturnType<typeof prepareReviewPacket> {
+  const fallbackName = agentName(author);
+  input.progress?.start(
+    `${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback…`,
+  );
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback…`);
   return prepared;
 }
 
@@ -259,13 +287,7 @@ async function runDegradedFallback(
     readonly policy: ReviewPolicy;
   },
 ): Promise<CliResult> {
-  input.progress?.start(
-    `${agentName(input.assignedReviewer)} did not complete; trying a ${agentName(input.author)} fallback…`,
-  );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  input.progress?.heartbeat?.(
-    `Still waiting for a response from the ${agentName(input.author)} fallback…`,
-  );
+  const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared);
   const changedResult = changedReviewResult({
     author: input.author,

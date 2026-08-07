@@ -58,15 +58,32 @@ const PROGRESS_ANNOUNCE_DELAY_MS = 100;
 /** A long wait needs proof that the coordinator is still responsive. */
 const PROGRESS_HEARTBEAT_INTERVAL_MS = 30_000;
 
+/**
+ * Shorten the heartbeat so a test can observe a real one without waiting 30
+ * seconds. Internal: a value outside 1ms..30s is ignored.
+ */
+export function resolveHeartbeatIntervalMs(environment: NodeJS.ProcessEnv = process.env): number {
+  const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
+  if (
+    !Number.isSafeInteger(override) ||
+    override < 1 ||
+    override > PROGRESS_HEARTBEAT_INTERVAL_MS
+  ) {
+    return PROGRESS_HEARTBEAT_INTERVAL_MS;
+  }
+  return override;
+}
+
 export function createProgressReporter(adapters: ProgressAdapters): ProgressReporter {
   let announcementHandle: unknown;
   let heartbeatHandle: unknown;
+  const heartbeatIntervalMs = resolveHeartbeatIntervalMs();
 
   function scheduleHeartbeat(message: string): void {
     heartbeatHandle = adapters.schedule(() => {
       adapters.emit(message);
       scheduleHeartbeat(message);
-    }, PROGRESS_HEARTBEAT_INTERVAL_MS);
+    }, heartbeatIntervalMs);
   }
 
   return {

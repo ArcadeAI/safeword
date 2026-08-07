@@ -826,6 +826,69 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.stderr).toContain('Codex did not complete; trying a Claude fallback…');
   });
 
+  it('repeats a waiting heartbeat while the independent reviewer has not answered', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const log = nodePath.join(directory, 'review.log');
+    const bin = installFakeReviewer(directory, 'codex');
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+          SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const heartbeats = result.stderr
+      .split('\n')
+      .filter(line => line.includes('Still waiting for a response from Codex…'));
+    expect(heartbeats.length).toBeGreaterThan(1);
+  });
+
+  it('stays silent on stderr when the caller asked for machine output', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const log = nodePath.join(directory, 'review.log');
+    const bin = installFakeReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+          SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).not.toContain('Requesting an independent Codex review…');
+    expect(result.stderr).not.toContain('Still waiting for a response from Codex…');
+  });
+
   it.each(['process', 'auth'])(
     'skips a reviewer candidate that fails with %s and runs the next compatible installation',
     async failure => {
