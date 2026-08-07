@@ -56,6 +56,12 @@ function readPackageFile(relativePath: string): string {
   return readFileSync(nodePath.join(packageRoot, relativePath), 'utf8');
 }
 
+function reviewWiring(world: SafewordWorld): ReviewWiring {
+  const wiring = wiringByWorld.get(world);
+  assert.ok(wiring, 'review wiring must be selected and inspected first');
+  return wiring;
+}
+
 Given(
   /^the (Claude Code(?: Cloud)?|OpenAI Codex(?: Cloud)?|Cursor(?: Cloud Agents)?) review entry point at "([^"]+)"$/,
   function (this: SafewordWorld, surface: ReviewSurface, entryArtifact: string) {
@@ -65,8 +71,7 @@ Given(
 );
 
 When('its shipped fallback wiring is inspected', function (this: SafewordWorld) {
-  const wiring = wiringByWorld.get(this);
-  assert.ok(wiring, 'review surface must be selected first');
+  const wiring = reviewWiring(this);
 
   const artifacts = artifactsBySurface[wiring.surface];
   wiring.entryPoint = readFileSync(nodePath.join(repoRoot, wiring.entryArtifact), 'utf8');
@@ -81,15 +86,13 @@ When('its shipped fallback wiring is inspected', function (this: SafewordWorld) 
 });
 
 Then('it points to the shared finish-review contract', function (this: SafewordWorld) {
-  const wiring = wiringByWorld.get(this);
-  assert.ok(wiring, 'review wiring must be inspected first');
+  const wiring = reviewWiring(this);
   assert.match(wiring.entryPoint, /(?:\/|\$safeword:)finish-review/u);
   assert.match(wiring.contract, /Finish Review After Route Exhaustion/u);
 });
 
 Then('it enters that contract only for REVIEW_ROUTES_EXHAUSTED', function (this: SafewordWorld) {
-  const wiring = wiringByWorld.get(this);
-  assert.ok(wiring, 'review wiring must be inspected first');
+  const wiring = reviewWiring(this);
   assert.match(
     wiring.entryPoint.replaceAll(/\s+/gu, ' '),
     /Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u,
@@ -101,8 +104,7 @@ Then('it enters that contract only for REVIEW_ROUTES_EXHAUSTED', function (this:
 Then(
   'it preserves every non-exhaustion coordinator result unchanged',
   function (this: SafewordWorld) {
-    const wiring = wiringByWorld.get(this);
-    assert.ok(wiring, 'review wiring must be inspected first');
+    const wiring = reviewWiring(this);
     const normalized = `${wiring.entryPoint} ${wiring.contract}`.replaceAll(/\s+/gu, ' ');
     assert.match(normalized, /For every other result[^.]*return the original[^.]*unchanged/iu);
     assert.match(normalized, /Do not delegate or self-review/iu);
