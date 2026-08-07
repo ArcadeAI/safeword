@@ -212,7 +212,9 @@ Deep review that checks your code against latest research using web search.
 
 Your agent will check against official library docs, look for known security issues, and verify you're using current versions.
 
-Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. It snapshots only the named files, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records whether the result was fully `cross-agent`, a permitted `degraded` fallback, or `none`. The default `crossAgentReview: "prefer"` policy keeps work moving with a labeled fallback; `"require"` blocks until the opposite reviewer works; `"off"` retains the existing route. See [Configuration](/reference/configuration#review-gates).
+Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. It snapshots only the named files, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records whether the result was fully `cross-agent`, a permitted `degraded` fallback, or `none`.
+
+The coordinator tries the opposite agent's default and configured alternate model before same-agent headless review. If every CLI route fails, foreground agent workflows can continue once through the internal `finish-review` skill: first one host-native fresh-context reviewer, then one bounded main-thread self-review. This continuation is best-effort because only the foreground host can invoke its session agent. Both results prominently say they are not independent and that live-worktree source integrity was not revalidated; they never create an independent stamp and cannot satisfy `crossAgentReview: "require"`. Project-owned Claude assets make the fresh-context route available in Claude Code Cloud even when no external agent CLI is installed. See [Configuration](/reference/configuration#review-gates).
 
 ### Refactoring
 

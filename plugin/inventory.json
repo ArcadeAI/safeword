@@ -6,12 +6,16 @@
       "sha256": "5860e847e31b74f1d8ba95bacab4aee9f7b778feecfbb0e13ca6cf754ff9f156"
     },
     {
+      "path": "agents/safeword-reviewer.md",
+      "sha256": "ade07c38cb24631a5beb541dbf1320b9665be90b5d24eaaf1752b34eac9f5b5e"
+    },
+    {
       "path": "hooks/hooks.json",
       "sha256": "e2919a15d4ab1838c26d5679dd0167a119960a74752b1dd1a3f404d6e500fef0"
     },
     {
       "path": "package.json",
-      "sha256": "555b3604b4d67ece67e7675b0044dc03ba642c9b430bc846980ed9e846bb075a"
+      "sha256": "c0c62ab94e73779aac74babf0a571460e62386b0a00ef69fae177ce6b85ab5bb"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -131,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9aa2859f164d21817442fa9624b0a08019e7ad47426045af4c6a9517e31c692a"
+      "sha256": "32da5ae390d1e53eb4ca065bd5f001329cdc94e455070563c6e28dc449dac74b"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -563,7 +567,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "020b817c6c5f5e7cd956216ab0e58166bb67dcc3eecf437d8b9e9ac139a37c00"
+      "sha256": "5df75d0c70005dd1a19421baa467302780a2e2a58616f1f4bea925ff1d1cb466"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -571,7 +575,7 @@
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "d11cdd384480d37912a0a53981b1a322ab884cc0698f0ea4685b9a55b9a94552"
+      "sha256": "464b1aa25279a7501dd5435922cb78c76dbe418b48b666eb921c0ed36444b456"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -579,7 +583,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "938d791ca66b916ffd4ff3421ddb9358349d3f06fc7c2c143e866754e3144e0c"
+      "sha256": "fa3438e4f3b913223b74610f0e518d8c61f2272d7da286d91bc75c531e585a89"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -614,12 +618,20 @@
       "sha256": "4552275007b0161037a1791233722a89dac16f963f55aab80fc7a9b6b37f67d4"
     },
     {
+      "path": "skills/finish-review/REVIEWER.md",
+      "sha256": "1fdbcc909088278f39f69bb77efe49cf422333210e5b393f3a2a247e898e7efa"
+    },
+    {
+      "path": "skills/finish-review/SKILL.md",
+      "sha256": "b53fcc672928e4a3e1ab8ac49be3c8bf546a6bab4b603b73bb528dad9963c7cc"
+    },
+    {
       "path": "skills/lint/SKILL.md",
       "sha256": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66"
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "aa6682a8fa4c26fe3944df572e58c5e4dea8895fd561ec729e3b17584e2110a7"
+      "sha256": "bb3c4edd27ecb9376cd686e55ca90b6b964a3e55f8672fbb1f81accecdb985b8"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -635,7 +647,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "b9f4612d81730226d2c187973756706392ae059510775b1eeb2a51367deafe2d"
+      "sha256": "df58af149c583df31cfeeba250d057a15d784081e85b021438003de0dfcd2a06"
     },
     {
       "path": "skills/self-review/SKILL.md",

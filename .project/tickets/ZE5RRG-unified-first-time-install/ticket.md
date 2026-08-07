@@ -55,7 +55,7 @@ done_when:
   - verification records an NTB walkthrough that identifies ready, failed, and next-action states without code knowledge, plus a TBU walkthrough that exposes exact evidence, selected scope, and a targeted retry without losing control
   - the implementation plan divides the work into independently testable slices with an objective proof command for each slice
 created: 2026-08-04T05:33:38.572Z
-last_modified: 2026-08-07T16:06:15.000Z
+last_modified: 2026-08-07T17:36:16.000Z
 ---
 
 # Give users one coherent Safe Word command model
@@ -116,3 +116,4 @@ Ruled out:
 - 2026-08-06T21:05:00.000Z Expanded review attempt: Reran the realistic five-file independent quality review twice with `SAFEWORD_REVIEW_TIMEOUT_MS=300000`. Neither run timed out; both preferred Claude routes ended earlier as `process_failed`, and both Codex fallbacks remained `invalid_output`. Updated `verify.md` with the corrected evidence and retained issue #1922 as the review-runtime fix.
 - 2026-08-07T01:19:11.000Z In-session review and final verification: With the user's explicit approval, replaced the unavailable external verdict with three fresh-context advisory reviews covering code/architecture, behavior/UX, and tests/regressions. Implemented every requested change, including scoped plan replay, full uninstall, complete status/doctor surfaces, diagnostic doctor output, reference coverage, literal compatibility fixtures, deterministic test isolation, closeout error handling, and narrow dependency security updates. Final evidence: 6,562 Vitest tests and 1,007 Cucumber scenarios passed; lint, typecheck, dependency boundaries, architecture, principle trace, and audit passed. The advisory reviews are recorded as useful evidence, not cross-model approval.
 - 2026-08-07T16:06:15.000Z Main catch-up investigation: Reproduced the current merge conflict and traced it to complementary edits in the shared human-result renderer. Recorded the source-level composition required to preserve both review-assurance explanations and lifecycle/doctor output; generated plugin conflicts will be rebuilt from the resolved source.
+- 2026-08-07T17:36:16.000Z Main catch-up resolved: Merged current `origin/main`, preserved both renderer contracts, regenerated the Claude plugin bundle, and aligned stale native-Claude and Codex acceptance fixtures with canonical `install --agents=...` behavior while keeping Cursor unselected. Post-merge verification passed 7,189 Vitest tests and 1,323 Cucumber scenarios (55,524 steps), with only the intentional skips; lint, typecheck, dependency, security, architecture, principle-trace, generated-artifact, and website-build gates also passed.

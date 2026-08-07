@@ -33,10 +33,12 @@ safeword review run scenario-gate feature-file ticket-spec [legacy-test-definiti
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and
-independence level are authoritative. If it blocks, follow its one recovery
-action; never substitute a surface-private reviewer or hand-written passing
-evidence. Use the checks below as the scenario-gate rubric and to triage the
-returned findings.
+independence level are authoritative. Only when the typed result is
+`REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the original
+result and the same accepted targets. For every other result, return it
+unchanged. Never substitute another surface-private reviewer or hand-written
+independent evidence. Use the checks below as the scenario-gate rubric and to
+triage the returned findings.
 
 ## Vacuous-pass test
 

@@ -34,6 +34,7 @@ import {
   extractPackedCliPackage,
   packCliPackage,
 } from '../../tests/helpers/codex-plugin-package.ts';
+import { installFakeCodexRuntime } from '../../tests/helpers/fake-codex-runtime.ts';
 import { captureContractError } from './contracts.ts';
 import type { SafewordWorld } from './world.js';
 
@@ -119,12 +120,26 @@ function commandSlot(hooks: Record<string, CodexPluginHookEntry[]>): { command: 
   throw new Error('plugin hook manifest contains no commands');
 }
 
-function runSetup(projectRoot: string) {
-  const result = spawnSync(process.execPath, [CLI_PATH, 'setup', '--yes', '--no-modify'], {
-    cwd: projectRoot,
-    encoding: 'utf8',
-    env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1' },
+function runCodexInstall(projectRoot: string, runtimeRoot: string) {
+  const runtime = installFakeCodexRuntime(runtimeRoot, {
+    pluginEnabled: true,
+    pluginInitiallyInstalled: false,
   });
+  const result = spawnSync(
+    process.execPath,
+    [CLI_PATH, 'install', '--agents=codex', '--no-modify'],
+    {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+        CODEX_HOME: runtime.codexHome,
+        SAFEWORD_CODEX_LOG: runtime.logPath,
+        SAFEWORD_SKIP_INSTALL: '1',
+      },
+    },
+  );
   return {
     exitCode: result.status ?? 1,
     output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`,
@@ -170,15 +185,13 @@ Given('an empty project has no Safe Word workflow material', function (this: Wor
   this.projectDirectory = projectDirectory;
 });
 
-When('the builder sets up Safe Word for Codex', function (this: WorkflowWorld) {
+When('the builder installs Safe Word for Codex', function (this: WorkflowWorld) {
   assert.ok(this.projectDirectory !== undefined, 'project fixture was not initialized');
-  const result = runSetup(this.projectDirectory);
-  // `setup` now routes through the unified install, which also installs Claude
-  // and Codex; pending host activation is action_required (exit 2), not failure.
-  assert.ok(
-    result.exitCode === 0 || result.exitCode === 2,
-    `exit ${result.exitCode}: ${result.output}`,
+  const result = runCodexInstall(
+    this.projectDirectory,
+    nodePath.join(fixtureRoot(this), 'codex-runtime'),
   );
+  assert.equal(result.exitCode, 2, `exit ${result.exitCode}: ${result.output}`);
   this.result = { stdout: result.output, stderr: '', exitCode: result.exitCode };
 });
 

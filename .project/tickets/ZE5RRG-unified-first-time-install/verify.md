@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6562/6567 tests pass (5 intentional skips)
-**Gherkin:** ✅ Acceptance lane passes (1007/1010 scenarios; 3 intentional skips)
+**Test Suite:** ✓ 7189/7195 tests pass (6 intentional skips)
+**Gherkin:** ✅ Acceptance lane passes (1323/1326 scenarios; 3 intentional skips; 55,524/55,528 steps pass with 4 intentional skips)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 48 scenarios marked complete
@@ -14,6 +14,12 @@
 **Experience:** ✅ Walked both audiences through mixed install outcomes. The non-technical summary says `Project setup: updated`, `Claude: needs attention`, and `Next: /reload-plugins` without architecture jargon. JSON gives the technical builder the selected agents, each surface state, and the exact retry `safeword install --agents=claude`. Worst step = the host-required reload/restart; new CLI selection steps vs the default flow = 0.
 **Surface Evidence:** ✅ 4/4 affected surfaces have recorded boundary proof
 **Evidence limits:** ⚠️ The external independent quality reviewer returned no valid verdict. The original preferred route timed out; two user-directed runs with the budget expanded from 120 to 300 seconds instead ended early as `process_failed`, while the fallback returned `invalid_output`. The prescribed retry is exhausted and review reliability is tracked by [GitHub issue #1922](https://github.com/ArcadeAI/safeword/issues/1922). With the user's explicit approval, three fresh-context in-session reviewers separately audited code/architecture, behavior/UX, and tests/regressions. All requested changes were implemented and verified, but those advisory subprocess reviews are not represented as cross-model approval.
+
+**Main catch-up:** ✅ Merged current `origin/main`, composed both sides of the
+shared result renderer, regenerated plugin artifacts, and updated stale
+acceptance coverage to the canonical install selectors. The post-merge full
+Vitest and Cucumber lanes, lint, typecheck, dependency, security, architecture,
+principle-trace, generated-artifact, and website-build gates pass.
 
 Audit passed for branch-owned architecture and dependency boundaries. Dependency
 Cruiser reports zero errors and one pre-existing orphan warning for
