@@ -13,10 +13,12 @@ Prove a ticket meets its criteria. Works with or without an active ticket.
 
 ## Closing Check, Not Fast Feedback
 
-`$safeword:verify` is the closing gate: it resolves and runs the authoritative test plan,
-not a fast subset. While implementing, use focused tests and relevant static
-checks; before handing work back, run the project's smoke lane when it has one.
-Do not substitute smoke for `$safeword:verify` when proving ticket completion.
+`$safeword:verify` is the closing gate: it prefers the project's authoritative suite over
+a fast subset. If the project exposes only `test:done`, record that limited
+evidence rather than calling it a full run. While implementing, use focused
+tests and relevant static checks; before handing work back, run the project's
+smoke lane when it has one. Do not substitute smoke for `$safeword:verify` when proving
+ticket completion.
 
 ## Invocation log
 
