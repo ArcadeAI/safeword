@@ -56,7 +56,6 @@ interface UnifiedInstallWorld extends SafewordWorld {
   canonicalCommand?: string;
   historicalCommand?: string;
   humanInstallSummary?: boolean;
-  mixedInstallSummary?: boolean;
   compatibilityAlias?: string;
   compatibilityCanonical?: string;
   compatibilityRoute?: CompatibilityRoute;
@@ -352,7 +351,7 @@ function runJsonCommand(world: UnifiedInstallWorld, command: string): Record<str
       SAFEWORD_SKIP_INSTALL: '1',
     },
   });
-  assert.notEqual(completed.status, 1, completed.stderr || completed.stdout);
+  assert.equal(completed.status, 0, completed.stderr || completed.stdout);
   return JSON.parse(completed.stdout) as Record<string, unknown>;
 }
 
@@ -383,6 +382,18 @@ function runRawCommand(
   };
 }
 
+/**
+ * A lifecycle command completed without failing. Exit 0 is healthy or changed;
+ * exit 2 is `action_required` — a real outcome (a plan awaiting confirmation, a
+ * pending host activation), not an error. Exit 1 and anything else are failures.
+ */
+function assertCommandDidNotFail(world: UnifiedInstallWorld): void {
+  assert.ok(
+    world.result.exitCode === 0 || world.result.exitCode === 2,
+    `exit ${world.result.exitCode}: ${world.result.stderr || world.result.stdout}`,
+  );
+}
+
 function assertRetainedCompatibilityRoute(world: UnifiedInstallWorld): void {
   const alias = requiredPath(world.compatibilityAlias, 'compatibility alias');
   const canonical = requiredPath(world.compatibilityCanonical, 'canonical route');
@@ -401,7 +412,7 @@ function assertRetainedCompatibilityRoute(world: UnifiedInstallWorld): void {
 
 function assertScopedInstallCompatibility(world: UnifiedInstallWorld, alias: string): void {
   const canonical = requiredPath(world.compatibilityCanonical, 'canonical route');
-  assert.notEqual(world.result.exitCode, 1, world.result.stderr || world.result.stdout);
+  assert.equal(world.result.exitCode, 0, world.result.stderr || world.result.stdout);
   const project = requiredPath(world.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
   const selected = alias.startsWith('claude') ? 'claude' : 'codex';
@@ -460,7 +471,7 @@ When(
 Then(
   'core project configuration and both profile plugins are installed',
   function (this: UnifiedInstallWorld) {
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const project = requiredPath(this.projectRoot, 'project root');
     assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
     assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
@@ -513,7 +524,7 @@ When(
 );
 
 Then('core project configuration is installed', function (this: UnifiedInstallWorld) {
-  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   const project = requiredPath(this.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
 });
@@ -555,7 +566,7 @@ When(
 Then(
   'core project configuration and Cursor assets are installed without a network effect',
   function (this: UnifiedInstallWorld) {
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const project = requiredPath(this.projectRoot, 'project root');
     assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
     assert.notEqual(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
@@ -574,7 +585,7 @@ Given(
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     runInstall(this, ['--agents', 'none']);
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   },
 );
 
@@ -600,7 +611,13 @@ Then(
 );
 
 Given('the public command catalogue and handlers', () => {
-  // The executable catalogue is exercised by the command comparison below.
+  const status = commandCatalog.find(candidate => candidate.name === 'status');
+  const doctor = commandCatalog.find(candidate => candidate.name === 'doctor');
+  assert.ok(status && doctor, 'status and doctor must both be canonical commands');
+  assert.equal(status.aliasFor, undefined, 'status must not be an alias');
+  assert.equal(doctor.aliasFor, undefined, 'doctor must not be an alias');
+  assert.notEqual(status.handler, doctor.handler, 'status and doctor share one handler');
+  assert.notDeepEqual(status.fixture, doctor.fixture, 'status and doctor share one fixture');
 });
 
 When('command contracts are validated', function (this: UnifiedInstallWorld) {
@@ -612,14 +629,23 @@ When('command contracts are validated', function (this: UnifiedInstallWorld) {
 Then(
   'status and doctor have distinct executable fixtures and observable output',
   function (this: UnifiedInstallWorld) {
-    assert.notDeepEqual(this.statusEnvelope, this.doctorEnvelope);
+    // Not merely "not deepEqual": doctor must carry the diagnostics and
+    // coverage that make it a different command, and status must not.
+    const statusData = this.statusEnvelope?.data as Record<string, unknown> | undefined;
+    const doctorData = this.doctorEnvelope?.data as Record<string, unknown> | undefined;
+    assert.equal(statusData?.command, 'status');
+    assert.equal(doctorData?.command, 'doctor');
+    assert.equal(statusData?.diagnostics, undefined);
+    assert.equal(statusData?.coverage, undefined);
+    assert.ok(Array.isArray(doctorData?.diagnostics));
+    assert.ok(Array.isArray(doctorData?.coverage));
   },
 );
 
 Given('a default unified installation', function (this: UnifiedInstallWorld) {
   initializeHosts(this);
   runInstall(this, []);
-  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   this.fixtureBefore = fixtureEffectDigest(this);
 });
 
@@ -651,7 +677,7 @@ Given(
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     runInstall(this, []);
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const project = requiredPath(this.projectRoot, 'project root');
     writeFileSync(nodePath.join(project, 'CUSTOM.md'), 'customer project content\n');
     const profilePath = nodePath.join(
@@ -773,7 +799,7 @@ When(
 Then(
   'project profile network destructive and manual effects are declared when applicable',
   function (this: UnifiedInstallWorld) {
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const envelope = JSON.parse(this.result.stdout) as LifecyclePlanEnvelope;
     assert.equal(envelope.data.plan.command, this.lifecycleOperation);
     assert.deepEqual(
@@ -861,7 +887,7 @@ When('the user installs without input', function (this: UnifiedInstallWorld) {
 });
 
 Then('the selected installation completes without prompting', function (this: UnifiedInstallWorld) {
-  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   assert.doesNotMatch(this.result.stderr, /\?/u);
 });
 
@@ -921,6 +947,15 @@ Then(
   'Safe Word Cursor entries are reconciled without replacing unrelated content',
   function (this: UnifiedInstallWorld) {
     const project = requiredPath(this.projectRoot, 'project root');
+    // The positive half of the claim: a no-op install would preserve both
+    // files below and prove nothing, so require the owned entries too.
+    const owned = Object.keys(SAFEWORD_SCHEMA.ownedFiles).filter(path =>
+      path.startsWith('.cursor/'),
+    );
+    assert.ok(owned.length > 0, 'schema declares no Safe Word-owned Cursor files');
+    for (const path of owned) {
+      assert.equal(existsSync(nodePath.join(project, path)), true, path);
+    }
     assert.equal(
       readFileSync(nodePath.join(project, '.cursor/customer.json'), 'utf8'),
       '{"ownedBy":"customer"}\n',
@@ -946,7 +981,7 @@ When('the user runs setup with yes', function (this: UnifiedInstallWorld) {
 Then(
   'unified installation runs without inferring additional consent',
   function (this: UnifiedInstallWorld) {
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
     assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
   },
@@ -1186,7 +1221,7 @@ When(
       return;
     }
     runInstall(this, ['--agents', 'none']);
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     this.fixtureBefore = fixtureEffectDigest(this);
     runRawCommand(this, [alias]);
   },
@@ -1196,7 +1231,7 @@ Then(
   'the observable contract remains {string}',
   function (this: UnifiedInstallWorld, invariant: string) {
     const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assertCommandDidNotFail(this);
     const assertInvariant = compatibilityInvariantAssertions[invariant];
     assert.ok(assertInvariant, `Unhandled compatibility invariant: ${invariant}`);
     assertInvariant(this, alias);
@@ -1222,16 +1257,34 @@ When('CLI reference and capability fixtures are validated', function (this: Unif
   this.referenceCapabilities = runJsonCommand(this, 'capabilities');
 });
 
-Then('both commands are listed with their executable syntax and effect policy', () => {
-  for (const [name, effectClass] of [
-    ['review run', 'mutate'],
-    ['codex clean-guidance', 'destructive'],
-  ] as const) {
-    const definition = commandCatalog.find(candidate => candidate.name === name);
-    assert.equal(definition?.effectClass, effectClass);
-    assert.equal(typeof definition?.handler, 'function');
-  }
-});
+Then(
+  'both commands are listed with their executable syntax and effect policy',
+  function (this: UnifiedInstallWorld) {
+    const help = requiredPath(this.referenceHelp, 'CLI reference help');
+    const capabilities = this.referenceCapabilities?.data as
+      { commands?: { name?: string; effect_class?: string }[] } | undefined;
+    for (const [name, effectClass] of [
+      ['review run', 'mutate'],
+      ['codex clean-guidance', 'destructive'],
+    ] as const) {
+      const definition = commandCatalog.find(candidate => candidate.name === name);
+      assert.equal(definition?.effectClass, effectClass, name);
+      assert.equal(typeof definition?.handler, 'function', name);
+      // The fixtures gathered by the When must actually carry the command.
+      assert.ok(
+        help.includes(name.split(' ', 1)[0] ?? name),
+        `${name} is absent from the CLI reference help`,
+      );
+      assert.equal(
+        capabilities?.commands?.some(
+          entry => entry.name === name && entry.effect_class === effectClass,
+        ),
+        true,
+        `${name} is absent from capabilities with effect class ${effectClass}`,
+      );
+    }
+  },
+);
 
 Then('codex clean-guidance is described as destructive deactivation', () => {
   const definition = commandCatalog.find(candidate => candidate.name === 'codex clean-guidance');
@@ -1283,7 +1336,7 @@ Then(
 Given('uninstall and legacy cleanup commands', function (this: UnifiedInstallWorld) {
   initializeHosts(this);
   runInstall(this, ['--agents', 'none']);
-  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   createLegacyGuidanceFixture(this);
 });
 
@@ -1617,7 +1670,7 @@ Given(
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     runInstall(this, []);
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const environment = this.hostEnvironment ?? {};
     const codexHome = requiredPath(environment.CODEX_HOME, 'Codex home');
     rmSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'), { force: true });
@@ -1628,7 +1681,7 @@ Given(
     };
     const planId = requiredPath(preview.data?.plan?.id, 'Codex finalization plan');
     runRawCommand(this, ['codex', 'migrate', '--finalize', '--yes', '--plan', planId]);
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const finalization = JSON.parse(this.result.stdout) as { state?: string };
     assert.equal(finalization.state, 'changed', this.result.stdout);
     const project = requiredPath(this.projectRoot, 'project root');
@@ -1683,7 +1736,7 @@ Given(
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     runInstall(this, []);
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const project = requiredPath(this.projectRoot, 'project root');
     rmSync(nodePath.join(project, '.safeword/SAFEWORD.md'));
     writeFileSync(requiredPath(this.codexState, 'Codex state'), 'absent');
@@ -1804,7 +1857,7 @@ When('the user runs the reported Claude retry', function (this: UnifiedInstallWo
 });
 
 Then('Claude converges to healthy', function (this: UnifiedInstallWorld) {
-  assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
 });
 
@@ -1821,7 +1874,7 @@ Given(
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     runInstall(this, ['--agents', 'none']);
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const project = requiredPath(this.projectRoot, 'project root');
     const managedPath = nodePath.join(project, '.safeword/templates/work-log-template.md');
     this.unplannedContent = readFileSync(managedPath, 'utf8');
@@ -1965,7 +2018,6 @@ Given(
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
-    this.mixedInstallSummary = true;
   },
 );
 
@@ -2005,7 +2057,7 @@ Given(
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     runInstall(this, []);
-    assert.notEqual(this.result.exitCode, 1, this.result.stderr || this.result.stdout);
+    assertCommandDidNotFail(this);
   },
 );
 

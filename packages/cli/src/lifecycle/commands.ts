@@ -22,6 +22,14 @@ interface LifecycleInstallAdapters {
   readonly installCodex: () => Promise<CliResult>;
 }
 
+/** Reporting order for install surfaces: project first, then each integration. */
+const LIFECYCLE_SURFACE_ORDER: readonly ('project' | AgentIntegration)[] = [
+  'project',
+  'claude',
+  'codex',
+  'cursor',
+];
+
 interface SurfaceResult {
   readonly name: string;
   readonly result: CliResult;
@@ -70,7 +78,7 @@ function combineInstallResults(
       command: 'install',
       operation: 'install',
       selected_agents: agents,
-      surfaces: ['project', 'claude', 'codex', 'cursor'].map(name => {
+      surfaces: LIFECYCLE_SURFACE_ORDER.map(name => {
         const surface = surfaceByName.get(name);
         if (surface === undefined) return { name, selected: false };
         const activationActions = activationActionsFor(surface);

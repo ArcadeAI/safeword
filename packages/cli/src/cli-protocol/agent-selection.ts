@@ -1,7 +1,7 @@
 export type AgentIntegration = 'claude' | 'codex' | 'cursor';
 
+/** Project configuration is always in scope; `agents` names the integrations. */
 export interface AgentSelection {
-  readonly project: true;
   readonly agents: readonly AgentIntegration[];
 }
 
@@ -19,7 +19,7 @@ const DEFAULT_AGENTS: readonly AgentIntegration[] = ['claude', 'codex'];
 
 export function parseAgentSelection(value: unknown): AgentSelectionResult {
   if (value === undefined) {
-    return { ok: true, selection: { project: true, agents: DEFAULT_AGENTS } };
+    return { ok: true, selection: { agents: DEFAULT_AGENTS } };
   }
   if (typeof value !== 'string') return invalidSelection();
 
@@ -30,7 +30,7 @@ export function parseAgentSelection(value: unknown): AgentSelectionResult {
   if (values.length === 0) return invalidSelection();
   if (values.includes('none')) {
     return values.length === 1
-      ? { ok: true, selection: { project: true, agents: [] } }
+      ? { ok: true, selection: { agents: [] } }
       : {
           ok: false,
           error: {
@@ -45,10 +45,7 @@ export function parseAgentSelection(value: unknown): AgentSelectionResult {
   }
   return {
     ok: true,
-    selection: {
-      project: true,
-      agents: [...new Set(values as AgentIntegration[])],
-    },
+    selection: { agents: [...new Set(values as AgentIntegration[])] },
   };
 }
 
