@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -423,9 +424,11 @@ function snapshotPackagedHook(relativePath: string): PackagedHookSnapshot {
   const directory = mkdtempSync(
     nodePath.join(tmpdir(), `safeword-codex-hook-snapshot-${process.pid}-`),
   );
+  const stagingHooksDirectory = nodePath.join(directory, 'hooks-copying');
   const snapshotHooksDirectory = nodePath.join(directory, 'hooks');
   try {
-    cpSync(packagedHooksDirectory, snapshotHooksDirectory, { recursive: true });
+    cpSync(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
+    renameSync(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath.join(snapshotHooksDirectory, relativePath);
     return existsSync(hookPath)
       ? { directory, hookPath }

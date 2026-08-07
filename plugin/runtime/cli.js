@@ -47401,6 +47401,7 @@ import {
   mkdirSync as mkdirSync15,
   mkdtempSync as mkdtempSync6,
   readFileSync as readFileSync53,
+  renameSync as renameSync7,
   rmSync as rmSync9,
   writeFileSync as writeFileSync21
 } from "fs";
@@ -47660,9 +47661,11 @@ function snapshotPackagedHook(relativePath) {
     return { error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
   }
   const directory = mkdtempSync6(nodePath84.join(tmpdir4(), `safeword-codex-hook-snapshot-${process19.pid}-`));
+  const stagingHooksDirectory = nodePath84.join(directory, "hooks-copying");
   const snapshotHooksDirectory = nodePath84.join(directory, "hooks");
   try {
-    cpSync(packagedHooksDirectory, snapshotHooksDirectory, { recursive: true });
+    cpSync(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
+    renameSync7(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath84.join(snapshotHooksDirectory, relativePath);
     return existsSync42(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
   } catch (error2) {

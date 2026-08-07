@@ -91,7 +91,13 @@ describe('packagedNamespaceRootLabel', () => {
     const snapshotPrefix = `safeword-codex-hook-snapshot-${processId}-`;
     await vi.waitFor(
       () => {
-        expect(readdirSync(tmpdir()).some(entry => entry.startsWith(snapshotPrefix))).toBe(true);
+        expect(
+          readdirSync(tmpdir()).some(
+            entry =>
+              entry.startsWith(snapshotPrefix) &&
+              existsSync(nodePath.join(tmpdir(), entry, 'hooks')),
+          ),
+        ).toBe(true);
       },
       { interval: 10, timeout: 5000 },
     );
