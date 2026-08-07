@@ -59,7 +59,6 @@ credentials to the review input.
 Do not delegate this terminal pass. If its output is invalid, return the
 original `REVIEW_ROUTES_EXHAUSTED` coordinator result unchanged. There is no
 route below it and no retry.
-Invalid terminal output returns the original coordinator result unchanged.
 
 ## Report the result
 
@@ -70,7 +69,8 @@ For valid fresh-context output, say exactly:
 Assurance sentence: `This review was not independent.`
 
 > Host reported a fresh-context review by the same agent. This review was not
-> independent. Host-mandated project context may have loaded; this is not
+> independent. The reviewer used live worktree content; source integrity was
+> not revalidated. Host-mandated project context may have loaded; this is not
 > packet-only isolation.
 
 For valid main-thread output, say exactly:
@@ -79,12 +79,25 @@ Self-review sentence:
 `The main agent reviewed its own work in the same thread.`
 
 > The main agent reviewed its own work in the same thread. This review was not
-> independent.
+> independent. The reviewer used live worktree content; source integrity was
+> not revalidated.
 
-Then report the review verdict, summary, and findings without changing their
-meaning. An `approve` verdict is not action required under `prefer`; a
-`request_changes` verdict remains action required and must never be reported as
-approval. An empty findings list is valid and must stay empty.
+Then emit these fields in order, without copying raw route diagnostics:
+
+- `Coordinator: \`REVIEW_ROUTES_EXHAUSTED\``
+- `Assurance:` the exact fresh-context or self-review assurance above
+- `Policy:` `prefer complete` or `require unsatisfied`
+- `State:` `approved` or `action required`
+- `Verdict:` `approve` or `request_changes`
+- `Summary:` the reviewer's summary without changing its meaning
+- `Findings:` every reviewer finding without changing its meaning; preserve an
+  empty list
+
+Under `prefer`, map `approve` to `State: approved` and `request_changes` to
+`State: action required`. Under `require`, always use
+`Policy: require unsatisfied` and `State: action required`, regardless of the
+degraded verdict. A `request_changes` verdict must never be reported as
+approval.
 
 Read `crossAgentReview` from `.safeword/config.json`; an absent value means
 `prefer`.

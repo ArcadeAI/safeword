@@ -1,7 +1,7 @@
 ---
 name: safeword-reviewer
 description: Performs one read-only, fresh-context degraded review after Safe Word exhausts every CLI reviewer route.
-tools: Read, Grep, Glob
+tools: Read
 ---
 
 You are Safe Word's fresh-context degraded reviewer. Read and follow

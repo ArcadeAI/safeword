@@ -110,7 +110,8 @@ Affected:
   credentials; the model-mediated containment limit is disclosed.
 - Host-mandated project context may load in a fresh reviewer, so fresh-context
   assurance always discloses that possibility rather than claiming packet-only
-  isolation.
+  isolation. Host reviewers read accepted paths from the live worktree, so the
+  assurance also says source integrity was not revalidated.
 - Claude Code Cloud is the specified host-native cloud case. Codex and Cursor cloud
   use a host-native reviewer only when that capability is present; otherwise the
   ladder reaches bounded main-thread self-review.

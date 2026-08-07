@@ -7,7 +7,7 @@
     },
     {
       "path": "agents/safeword-reviewer.md",
-      "sha256": "32a14827517c93242e18a656871fd08bf1b34ed5c50fc41329d38a14ebe233a4"
+      "sha256": "5cc17d5cec1a6df812770cf80667673279bf1acc1bb961ebe458f8c5b58bdc1a"
     },
     {
       "path": "hooks/hooks.json",
@@ -619,11 +619,11 @@
     },
     {
       "path": "skills/finish-review/REVIEWER.md",
-      "sha256": "cccca4f21bf68bf98f6728ee4bf55eee74f92692e26d90132ff4030c021b0de3"
+      "sha256": "1d5e009e31a634d1707bccd86c25d25a8e69968dd0088ea0acfbe2f4b7416bc7"
     },
     {
       "path": "skills/finish-review/SKILL.md",
-      "sha256": "b03ad4383ee59bc300c589125109c422912ef20ad06416f2fe8ab24ab43ea424"
+      "sha256": "ee7db6928c886a275be7b8153dcfa151dd2b6d6b0213ede6dda7bdd853b659c6"
     },
     {
       "path": "skills/lint/SKILL.md",

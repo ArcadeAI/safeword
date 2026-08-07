@@ -311,8 +311,10 @@ Review prefers every independent Claude/Codex CLI route, then same-agent
 headless review. If those routes cannot complete, a foreground agent makes one
 best-effort fresh-context host review and then one bounded self-review. Those
 last two routes are useful feedback, not independent evidence; `require` stays
-blocked and no independent stamp is written. Project-owned Claude reviewer
-assets also support Claude Code Cloud when no external agent CLI is available.
+blocked and no independent stamp is written. Both read the live worktree, so
+their assurance says source integrity was not revalidated. Project-owned Claude
+reviewer assets also support Claude Code Cloud when no external agent CLI is
+available.
 
 **Codex plugin skills**: Codex gets Safe Word workflow skills from the Safe Word Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safe Word-owned workflow aliases into `.agents/skills/`.
 
