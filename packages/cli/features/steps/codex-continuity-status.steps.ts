@@ -380,7 +380,7 @@ Then(
 );
 
 Then(
-  'status reports partial proof and names the four missing hook events',
+  'status reports plugin_enabled_hook_unproven with partial proof and names the four missing hook events',
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
@@ -508,7 +508,9 @@ Then(
     // A restart is prose a person performs; a migrate is a command a runner can
     // execute. Asserting only the text lets prose ship in the `command` field,
     // where an automated caller would try to run an English sentence.
-    assert.equal('command' in action ? 'command' : 'human', shape);
+    const isCommand = 'command' in action;
+    assert.equal(isCommand ? 'command' : 'human', shape);
+    assert.equal(isCommand, shape === 'command');
   },
 );
 

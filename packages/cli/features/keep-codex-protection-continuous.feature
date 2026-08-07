@@ -273,7 +273,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     Scenario: Partial hook proof names the events still required before finalization
       Given an enabled plugin with proof for only SessionStart
       When Safe Word derives human Codex status from the fixture
-      Then status reports partial proof and names the four missing hook events
+      Then status reports plugin_enabled_hook_unproven with partial proof and names the four missing hook events
 
     Scenario: Older Codex clients with an unknown plugin version remain compatible
       Given an enabled unknown-version plugin with current proof and legacy protection

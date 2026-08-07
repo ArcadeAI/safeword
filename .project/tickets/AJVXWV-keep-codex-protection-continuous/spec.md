@@ -148,10 +148,12 @@ Safe Word derives status in this order:
 from a profile-local, version-and-manifest-bound activation marker after
 `codex migrate` installs or updates the plugin. Read-only status keeps reporting
 it until a different Codex host executes the marked profile-plugin SessionStart
-command. SessionStart from the installing host records proof but preserves the
-marker, because that app may still have the old catalogue loaded. SessionStart
-from a different host atomically writes its event proof and activation receipt,
-then removes the marker. Finalization readiness remains partial until every
+command. Host identity is the observed `(pid, started_at)` pair for the Codex
+app-server ancestor; both values must match to count as the installing host, so
+PID reuse cannot satisfy the comparison. SessionStart from the installing host
+records proof but preserves the marker, because that app may still have the old
+catalogue loaded. SessionStart from a different host atomically writes its event
+proof and activation receipt, then removes the marker. Finalization readiness remains partial until every
 packaged hook event has recorded matching proof. If the plugin was enabled outside
 this migration path, or current proof later becomes stale without a matching
 install marker, status reports `plugin_enabled_hook_unproven`. All non-ready
