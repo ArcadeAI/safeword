@@ -47152,7 +47152,7 @@ var init_shell_segments = __esm(() => {
 });
 
 // templates/hooks/lib/dependency-readiness.ts
-var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
+var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, BUNX_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES, SAFEWORD_RECOVERY_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
 var init_dependency_readiness = __esm(() => {
   init_namespace_root();
   init_shell_segments();
@@ -47186,6 +47186,19 @@ var init_dependency_readiness = __esm(() => {
     "-w"
   ]);
   PACKAGE_SCRIPT_COMMANDS = new Set(["run", "test"]);
+  BUNX_BOOLEAN_OPTIONS = new Set(["--bun", "--no-install", "--silent", "--verbose"]);
+  SAFEWORD_GLOBAL_BOOLEAN_OPTIONS = new Set([
+    "--json",
+    "--no-input",
+    "--offline",
+    "--quiet",
+    "--verbose",
+    "--version",
+    "-V",
+    "-v"
+  ]);
+  SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES = new Set(["--cwd"]);
+  SAFEWORD_RECOVERY_COMMANDS = new Set(["doctor", "plan", "setup", "status"]);
   DEPENDENCY_BINARIES = new Set([
     "cypress",
     "dependency-cruiser",
