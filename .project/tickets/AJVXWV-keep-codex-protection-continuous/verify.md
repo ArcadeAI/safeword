@@ -1,7 +1,7 @@
 ## Verify Checklist
 
-**Test Suite:** ✅ 6,826/6,826 executed CLI tests pass locally (5 skipped); the clean full-suite rerun covered 441 files
-**Gherkin:** ✅ Local acceptance lane passes (1,087 passed, 3 skipped; 42,335 executed steps pass, 4 skipped)
+**Test Suite:** ✅ 6,860/6,860 executed CLI tests pass locally (5 skipped), plus 167/167 relay tests (1 skipped); the clean full-suite rerun covered 449 files
+**Gherkin:** ✅ Local acceptance lane passes (1,123 passed, 3 skipped; 44,831 executed steps pass, 4 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 148 scenarios marked complete
@@ -17,8 +17,9 @@ Audit passed with warnings — 0 unresolved errors. The mandatory post-refactor 
 
 ## Evidence
 
-- Safeword resolver-driven local verification: 441 Vitest files; 6,826 passing tests; 5 skipped. A first full run exposed one load-sensitive lock-runner failure; the exact case and its complete 11-test file passed in isolation, and a second clean full run passed in full.
-- Root local acceptance lane: 1,090 scenarios total; 1,087 passed and 3 intentionally skipped; 42,335 passing steps and 4 skipped.
+- Safeword resolver-driven local verification: 441 CLI Vitest files with 6,860 passing tests and 5 skipped, plus 8 relay files with 167 passing tests and 1 skipped. A pre-merge full run exposed one load-sensitive lock-runner failure; the exact case and its complete 11-test file passed in isolation, and subsequent clean full runs passed in full.
+- Root local acceptance lane: 1,126 scenarios total; 1,123 passed and 3 intentionally skipped; 44,831 passing steps and 4 skipped.
+- Main synchronization: merged `a717778d3`, regenerated the Claude plugin inventory after its dependency-readiness runtime changed, and reran the five integrity/profile tests plus the complete unit and acceptance lanes successfully.
 - CLI build, documentation-site build, TypeScript, ESLint, Gherkin lint, Markdown lint, dependency-cruiser, and Knip all passed with no errors.
 - `bun audit`: no vulnerabilities.
 - Acceptance traceability: all 148 test-definition checkboxes are complete.
