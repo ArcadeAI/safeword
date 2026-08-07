@@ -1,5 +1,6 @@
-import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { accessSync, constants, realpathSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { accessSync, constants, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import type {
@@ -10,20 +11,27 @@ import type {
 } from './contract.js';
 import { reviewerEnvironment } from './environment.js';
 
-const REVIEW_OUTPUT_SCHEMA = JSON.stringify({
+/**
+ * The exact shape `parseReviewerOutput` enforces, expressed as JSON Schema so a
+ * reviewer can be told it up front instead of guessing. Every property carries
+ * a type and closed enums — Codex's structured-output mode rejects a bare
+ * `const`, and its natural vocabulary (high/medium severities, path/title/
+ * recommendation fields) is otherwise what comes back and gets refused.
+ */
+const REVIEW_OUTPUT_SCHEMA_SHAPE = {
   type: 'object',
   properties: {
-    schema_version: { const: 1 },
+    schema_version: { type: 'integer', enum: [1] },
     dispatch_id: { type: 'string' },
-    reviewer_agent: { enum: ['claude', 'codex'] },
-    verdict: { enum: ['approve', 'request_changes'] },
+    reviewer_agent: { type: 'string', enum: ['claude', 'codex'] },
+    verdict: { type: 'string', enum: ['approve', 'request_changes'] },
     summary: { type: 'string' },
     findings: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
-          severity: { enum: ['info', 'warning', 'error'] },
+          severity: { type: 'string', enum: ['info', 'warning', 'error'] },
           message: { type: 'string' },
         },
         required: ['severity', 'message'],
@@ -33,7 +41,9 @@ const REVIEW_OUTPUT_SCHEMA = JSON.stringify({
   },
   required: ['schema_version', 'dispatch_id', 'reviewer_agent', 'verdict', 'summary', 'findings'],
   additionalProperties: false,
-});
+} as const;
+
+const REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
 
 const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: [
@@ -67,6 +77,37 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   ],
 };
 
+/**
+ * Codex reads its prompt from stdin via a trailing `-`, so a model flag has to
+ * land before it. Claude takes the prompt on stdin with no positional marker,
+ * so appending is safe there.
+ */
+function reviewerArguments(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  schemaPath: string | undefined,
+): string[] {
+  const base = [...ARGUMENTS[reviewer]];
+  const extra: string[] = [];
+  if (model !== undefined) extra.push('--model', model);
+  if (reviewer === 'codex' && schemaPath !== undefined) extra.push('--output-schema', schemaPath);
+  if (extra.length === 0) return base;
+  const stdinMarker = base.lastIndexOf('-');
+  return stdinMarker === -1
+    ? [...base, ...extra]
+    : [...base.slice(0, stdinMarker), ...extra, ...base.slice(stdinMarker)];
+}
+
+/** One reviewer dispatch: who reviews, what they read, and on which model. */
+interface ReviewAttempt {
+  readonly reviewer: ReviewAgent;
+  readonly packet: ReviewPacket;
+  readonly cwd: string;
+  readonly model: string | undefined;
+  /** Written once per dispatch; owned by the dispatch, never by an attempt. */
+  readonly schemaPath: string | undefined;
+}
+
 const HELP_ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: ['--help'],
   codex: ['exec', '--help'],
@@ -91,11 +132,11 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
     '--ignore-rules',
     '--disable',
     '--config',
+    '--output-schema',
   ],
 };
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
-export const DEFAULT_REVIEW_TIMEOUT_MS = 10 * 60_000;
 
 const REVIEW_RUBRICS: Readonly<Record<ReviewPacket['kind'], string>> = {
   'quality-review':
@@ -110,18 +151,68 @@ export class ReviewRuntimeError extends Error {
   constructor(
     readonly failure: ReviewFailure,
     message: string,
+    readonly terminal = false,
   ) {
     super(message);
     this.name = 'ReviewRuntimeError';
   }
 }
 
+/**
+ * How long one review attempt may take. Flat, not derived from packet size:
+ * across 91 real review runs, successful reviews finished in 47 seconds at the
+ * median and 75 at the slowest, and duration tracked how much the reviewer
+ * wrote rather than how much it read — so there was no size signal to model.
+ */
+const DEFAULT_ATTEMPT_DEADLINE_MS = 300_000;
+
+/**
+ * The ceiling on any single attempt. Every caller reaches this command through
+ * an agent tool capped at 600 seconds, so a longer deadline would be killed
+ * mid-flight instead of honoured — leaving a dead process and no verdict.
+ */
+const RUN_BOUND_MS = 540_000;
+
+/**
+ * The absolute reviewer-work deadline shared by every route. Packet preparation
+ * happens before this clock starts; synchronous integrity checks and the final
+ * bounded cleanup may finish after it. The override can shorten this deadline
+ * for tests, but cannot extend it beyond the caller-derived ceiling.
+ */
+export function runBoundMs(): number {
+  const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);
+  // Shorter is allowed; longer is not. The ceiling is what makes "the command
+  // returns before its caller gives up" a guarantee rather than a default.
+  return Number.isFinite(configured) && configured > 0
+    ? Math.min(configured, RUN_BOUND_MS)
+    : RUN_BOUND_MS;
+}
+
+/**
+ * The least time worth starting a route with. Below this a route cannot produce
+ * a real review, so it is honestly reported as not attempted rather than
+ * launched to fail. It tracks the attempt deadline so a shortened deadline does
+ * not make every later route unfundable.
+ */
+export function minimumRouteMs(): number {
+  return Math.min(120_000, attemptDeadlineMs());
+}
+
 export function reviewTimeoutMilliseconds(
   _reviewer: ReviewAgent,
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): number {
-  const configured = Number(env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
+  const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
+  // `Number('')` and `Number('  ')` are 0, and `Number('90s')` is NaN — both
+  // fall through to the default rather than silently shortening a review.
+  const configured = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(configured) && configured > 0
+    ? Math.min(configured, RUN_BOUND_MS)
+    : DEFAULT_ATTEMPT_DEADLINE_MS;
+}
+
+export function attemptDeadlineMs(): number {
+  return reviewTimeoutMilliseconds('claude');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -168,6 +259,13 @@ function parseCodexOutput(stdout: string): unknown {
   return parseJson(stdout);
 }
 
+function reviewerVerdictMatchesFindings(verdict: unknown, findings: readonly unknown[]): boolean {
+  return (
+    verdict !== 'approve' ||
+    findings.every(finding => isRecord(finding) && finding.severity !== 'error')
+  );
+}
+
 function hasValidReviewerOutputBody(value: unknown): boolean {
   if (!isRecord(value)) return false;
   const allowedOutputKeys = new Set([
@@ -189,7 +287,7 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
   }
   // Dispatch and reviewer identity are deliberately validated by the
   // coordinator so it can distinguish missing from contradictory provenance.
-  return value.findings.every(
+  const findingsAreValid = value.findings.every(
     finding =>
       isRecord(finding) &&
       Object.keys(finding).length === 2 &&
@@ -198,6 +296,8 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
       ['info', 'warning', 'error'].includes(String(finding.severity)) &&
       typeof finding.message === 'string',
   );
+  if (!findingsAreValid) return false;
+  return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
 
 export function parseReviewerOutput(
@@ -266,34 +366,77 @@ function executableCandidates(reviewer: ReviewAgent, untrustedRoot: string): str
     .filter(directory => directory !== '' && nodePath.isAbsolute(directory))
     .flatMap(directory =>
       extensions.map(extension => nodePath.join(directory, `${reviewer}${extension}`)),
-    )
-    .filter(candidate => outsideUntrustedRoot(untrustedRoot, candidate));
-  return [...new Set(candidates)].filter(candidate => {
+    );
+  const canonicalCandidates = candidates.flatMap(candidate => {
+    // A project-owned pathname remains untrusted even when it currently points
+    // outside the project: the project can replace that symlink after checking.
+    if (inside(untrustedRoot, candidate)) return [];
     try {
-      accessSync(candidate, constants.X_OK);
-      return true;
+      const canonical = realpathSync(candidate);
+      if (!outsideUntrustedRoot(untrustedRoot, canonical)) return [];
+      accessSync(canonical, constants.X_OK);
+      return [canonical];
     } catch {
-      return false;
+      return [];
     }
   });
+  // Spawn the retained canonical path, not the PATH spelling that was checked.
+  // This closes the project-controlled parent/file symlink swap window.
+  return [...new Set(canonicalCandidates)];
 }
 
-function supportsReviewContract(
+async function supportsReviewContract(
   reviewer: ReviewAgent,
   executable: string,
+  cwd: string,
   timeoutMs: number,
-): boolean {
-  const checked = spawnSync(executable, HELP_ARGUMENTS[reviewer], {
-    encoding: 'utf8',
+  model: string | undefined,
+): Promise<boolean> {
+  const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
+    cwd,
     env: reviewerEnvironment(reviewer),
-    timeout: timeoutMs,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: process.platform !== 'win32',
   });
-  const help = `${checked.stdout ?? ''}\n${checked.stderr ?? ''}`;
-  const advertisedFlags = new Set<string>();
-  for (const match of help.matchAll(/--[\w-]+/gu)) advertisedFlags.add(match[0]);
-  return (
-    checked.status === 0 && REQUIRED_CAPABILITIES[reviewer].every(flag => advertisedFlags.has(flag))
-  );
+  const supported = await new Promise<boolean>(resolve => {
+    let help = '';
+    let helpBytes = 0;
+    let settled = false;
+    const finish = (result: boolean): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = setTimeout(() => {
+      finish(false);
+    }, timeoutMs);
+    const capture = (chunk: Buffer): void => {
+      const appended = appendBounded(help, helpBytes, chunk.toString('utf8'));
+      help = appended.value;
+      helpBytes = appended.bytes;
+      if (appended.overflow) finish(false);
+    };
+    child.stdout.on('data', capture);
+    child.stderr.on('data', capture);
+    child.on('error', () => {
+      finish(false);
+    });
+    child.on('close', code => {
+      const advertisedFlags = new Set<string>();
+      for (const match of help.matchAll(/--[\w-]+/gu)) advertisedFlags.add(match[0]);
+      const requiredCapabilities =
+        model === undefined
+          ? REQUIRED_CAPABILITIES[reviewer]
+          : [...REQUIRED_CAPABILITIES[reviewer], '--model'];
+      finish(code === 0 && requiredCapabilities.every(flag => advertisedFlags.has(flag)));
+    });
+  });
+  await stopReviewerOrThrow(child, reviewer);
+  child.stdout.destroy();
+  child.stderr.destroy();
+  child.unref();
+  return supported;
 }
 
 function appendBounded(
@@ -309,139 +452,264 @@ function appendBounded(
   };
 }
 
-function terminateReviewerProcessTree(child: ChildProcess): void {
-  if (child.pid === undefined) return;
+/**
+ * The time allowed for a reviewer process group to stop politely before it is
+ * forced. This remains small because cleanup is part of the candidate's bounded
+ * turn, not background work that may overlap the next route.
+ */
+const CLEANUP_BUDGET_MS = 250;
+const WINDOWS_CLEANUP_BUDGET_MS = 1000;
 
-  if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+/**
+ * A reviewer that could not authenticate says so on stderr; anything else keeps
+ * the caller's classification.
+ */
+function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
+  return /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr)
+    ? 'not_authenticated'
+    : otherwise;
+}
+
+/**
+ * Stops a reviewer and everything it started. A reviewer's own children inherit
+ * its pipes, so killing only the direct process leaves them running and the
+ * output streams open — the run then waits on a corpse. On POSIX the child
+ * leads its own process group and the whole group is signalled; on Windows the
+ * child tree is terminated instead, since process groups do not exist there.
+ */
+const reviewerStops = new WeakMap<ReturnType<typeof spawn>, Promise<boolean>>();
+
+function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Promise<boolean> {
+  const childClosed = (): boolean =>
+    child.exitCode !== null && child.stdout?.closed === true && child.stderr?.closed === true;
+  if (childClosed()) return Promise.resolve(true);
+  return new Promise(resolve => {
+    let settled = false;
+    let taskkillSucceeded = false;
+    const finish = (stopped: boolean): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      child.kill('SIGKILL');
+      resolve(stopped);
+    };
+    const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
       stdio: 'ignore',
       windowsHide: true,
     });
-    return;
-  }
-
-  try {
-    process.kill(-child.pid, 'SIGKILL');
-  } catch {
-    child.kill('SIGKILL');
-  }
-}
-
-function runCandidate(
-  executable: string,
-  reviewer: ReviewAgent,
-  packet: ReviewPacket,
-  cwd: string,
-  timeoutMs: number,
-): Promise<UnverifiedReviewerOutput> {
-  return new Promise((resolve, reject) => {
-    let timedOut = false;
-    let overflow = false;
-    const child = spawn(executable, ARGUMENTS[reviewer], {
-      cwd,
-      detached: process.platform !== 'win32',
-      env: reviewerEnvironment(reviewer),
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
     const timeout = setTimeout(() => {
-      timedOut = true;
-      terminateReviewerProcessTree(child);
-    }, timeoutMs);
-    let stdout = '';
-    let stderr = '';
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => {
-      const appended = appendBounded(stdout, stdoutBytes, chunk);
-      stdout = appended.value;
-      stdoutBytes = appended.bytes;
-      overflow ||= appended.overflow;
-      if (overflow) {
-        terminateReviewerProcessTree(child);
-      }
+      killer.kill('SIGKILL');
+      finish(childClosed());
+    }, WINDOWS_CLEANUP_BUDGET_MS);
+    child.on('close', () => {
+      if (taskkillSucceeded) finish(true);
     });
-    child.stderr.on('data', (chunk: string) => {
-      const appended = appendBounded(stderr, stderrBytes, chunk);
-      stderr = appended.value;
-      stderrBytes = appended.bytes;
-      overflow ||= appended.overflow;
-      if (overflow) {
-        terminateReviewerProcessTree(child);
-      }
+    killer.on('error', () => {
+      finish(childClosed());
     });
-    // Exit status and stderr own failure classification. EPIPE here commonly
-    // means the reviewer exited early before consuming a large packet.
-    child.stdin.on('error', () => {
-      // The close handler classifies the reviewer exit.
-    });
-    child.on('error', error => {
-      clearTimeout(timeout);
-      reject(new ReviewRuntimeError('process_failed', error.message));
-    });
-    child.on('close', code => {
-      clearTimeout(timeout);
-      if (timedOut) {
-        reject(new ReviewRuntimeError('timed_out', `${reviewer} review timed out`));
-        return;
-      }
-      if (overflow) {
-        const failure =
-          /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr)
-            ? 'not_authenticated'
-            : 'invalid_output';
-        reject(new ReviewRuntimeError(failure, `${reviewer} exceeded its output limit`));
-        return;
-      }
+    killer.on('close', code => {
       if (code !== 0) {
-        const failure =
-          /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr)
-            ? 'not_authenticated'
-            : 'process_failed';
-        reject(
-          new ReviewRuntimeError(
-            failure,
-            `${reviewer} review failed (${code ?? 'signal'}): ${stderr.trim()}`,
-          ),
-        );
+        finish(childClosed());
         return;
       }
-      try {
-        resolve(parseReviewerOutput(reviewer, stdout));
-      } catch {
-        reject(
-          new ReviewRuntimeError('invalid_output', `${reviewer} returned invalid review output`),
-        );
-      }
+      taskkillSucceeded = true;
+      child.kill('SIGKILL');
+      if (childClosed()) finish(true);
     });
-    child.stdin.end(reviewPrompt(reviewer, packet));
   });
 }
 
-async function runReviewerCandidates(
+function stopReviewer(child: ReturnType<typeof spawn>): Promise<boolean> {
+  const existing = reviewerStops.get(child);
+  if (existing !== undefined) return existing;
+  const stopping = stopReviewerOnce(child);
+  reviewerStops.set(child, stopping);
+  return stopping;
+}
+
+async function stopReviewerOrThrow(
+  child: ReturnType<typeof spawn>,
   reviewer: ReviewAgent,
-  packet: ReviewPacket,
-  cwd: string,
+): Promise<void> {
+  if (await stopReviewer(child)) return;
+  throw new ReviewRuntimeError(
+    'process_failed',
+    `${reviewer} reviewer processes could not be stopped`,
+    true,
+  );
+}
+
+async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolean> {
+  const pid = child.pid;
+  if (pid === undefined) return true;
+  if (process.platform === 'win32') {
+    return stopWindowsReviewer(child, pid);
+  }
+  const signalGroup = (signal: NodeJS.Signals): void => {
+    try {
+      process.kill(-pid, signal);
+    } catch {
+      // Already gone, or never became a group leader.
+    }
+  };
+  signalGroup('SIGTERM');
+  const groupExists = (): boolean => {
+    try {
+      process.kill(-pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const deadline = Date.now() + CLEANUP_BUDGET_MS;
+  while (groupExists() && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  if (groupExists()) {
+    signalGroup('SIGKILL');
+    const forcedDeadline = Date.now() + CLEANUP_BUDGET_MS;
+    while (groupExists() && Date.now() < forcedDeadline) {
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+  }
+  return !groupExists();
+}
+
+async function runCandidate(
+  executable: string,
+  attempt: ReviewAttempt,
+  timeoutMs: number,
+): Promise<UnverifiedReviewerOutput> {
+  const { reviewer, packet, cwd, model, schemaPath } = attempt;
+  const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath), {
+    cwd,
+    env: reviewerEnvironment(reviewer),
+    stdio: ['pipe', 'pipe', 'pipe'],
+    // Its own process group, so cleanup can reach descendants.
+    detached: process.platform !== 'win32',
+  });
+  try {
+    return await new Promise((resolve, reject) => {
+      let overflow = false;
+      // One outcome per attempt, settled once. A late answer arriving after a
+      // deadline never changes a verdict that is already decided.
+      let settled = false;
+      const settle = (finish: () => void): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        finish();
+      };
+      const timeout = setTimeout(() => {
+        settle(() => {
+          reject(new ReviewRuntimeError('timed_out', `${reviewer} review timed out`));
+        });
+      }, timeoutMs);
+      let stdout = '';
+      let stderr = '';
+      let stdoutBytes = 0;
+      let stderrBytes = 0;
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+      child.stdout.on('data', (chunk: string) => {
+        const appended = appendBounded(stdout, stdoutBytes, chunk);
+        stdout = appended.value;
+        stdoutBytes = appended.bytes;
+        overflow ||= appended.overflow;
+        if (overflow) {
+          void stopReviewer(child);
+        }
+      });
+      child.stderr.on('data', (chunk: string) => {
+        const appended = appendBounded(stderr, stderrBytes, chunk);
+        stderr = appended.value;
+        stderrBytes = appended.bytes;
+        overflow ||= appended.overflow;
+        if (overflow) {
+          void stopReviewer(child);
+        }
+      });
+      // Exit status and stderr own failure classification. EPIPE here commonly
+      // means the reviewer exited early before consuming a large packet.
+      child.stdin.on('error', () => {
+        // The close handler classifies the reviewer exit.
+      });
+      child.on('error', error => {
+        settle(() => {
+          reject(new ReviewRuntimeError('process_failed', error.message));
+        });
+      });
+      child.on('close', code => {
+        settle(() => {
+          if (overflow) {
+            reject(
+              new ReviewRuntimeError(
+                classifyExit(stderr, 'invalid_output'),
+                `${reviewer} exceeded its output limit`,
+              ),
+            );
+            return;
+          }
+          if (code !== 0) {
+            reject(
+              new ReviewRuntimeError(
+                classifyExit(stderr, 'process_failed'),
+                `${reviewer} review failed (${code ?? 'signal'}): ${stderr.trim()}`,
+              ),
+            );
+            return;
+          }
+          try {
+            resolve(parseReviewerOutput(reviewer, stdout));
+          } catch {
+            reject(
+              new ReviewRuntimeError(
+                'invalid_output',
+                `${reviewer} returned invalid review output`,
+              ),
+            );
+          }
+        });
+      });
+      child.stdin.end(reviewPrompt(reviewer, packet));
+    });
+  } finally {
+    // Do not let a timed-out reviewer or its descendants overlap integrity
+    // checks, packet cleanup, or a later candidate.
+    await stopReviewerOrThrow(child, reviewer);
+  }
+}
+
+async function runReviewerCandidates(
+  attempt: ReviewAttempt,
   candidates: readonly string[],
   deadline: number,
 ): Promise<UnverifiedReviewerOutput> {
+  const reviewer = attempt.reviewer;
   let foundCompatible = false;
   let lastFailure: ReviewRuntimeError | undefined;
-  for (const candidate of candidates) {
+  for (const [index, candidate] of candidates.entries()) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
-    if (!supportsReviewContract(reviewer, candidate, Math.min(5000, remainingMs))) continue;
+    const untried = candidates.length - index;
+    const candidateDeadline = Date.now() + remainingMs / untried;
+    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
+    if (
+      !(await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, attempt.model))
+    )
+      continue;
     foundCompatible = true;
     try {
+      // The capability probe and review share one candidate deadline. A hanging
+      // probe therefore cannot spend the time reserved for later candidates,
+      // while a fast rejection returns its unused share to the route.
       return await runCandidate(
         candidate,
-        reviewer,
-        packet,
-        cwd,
-        remainingReviewTime(deadline, reviewer, lastFailure),
+        attempt,
+        remainingReviewTime(candidateDeadline, reviewer, lastFailure),
       );
     } catch (error) {
       if (!(error instanceof ReviewRuntimeError)) throw error;
+      if (error.terminal) throw error;
       lastFailure = error;
     }
   }
@@ -462,8 +730,11 @@ export async function runHeadlessReviewer(
   packet: ReviewPacket,
   cwd: string,
   untrustedRoot: string = process.cwd(),
+  options: { readonly model?: string; readonly runDeadline?: number } = {},
 ): Promise<UnverifiedReviewerOutput> {
-  const deadline = Date.now() + reviewTimeoutMilliseconds(reviewer);
+  const { model, runDeadline } = options;
+  // A route never outlives the run: whichever bound arrives first wins.
+  const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError(
@@ -471,5 +742,41 @@ export async function runHeadlessReviewer(
       `No compatible ${reviewer} reviewer is installed`,
     );
   }
-  return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
+  // The contract file belongs to the dispatch, not to an attempt: several
+  // candidates and routes read it, so attempt cleanup must never remove it.
+  // A reviewer we cannot hand the contract to is never asked to review, and the
+  // underlying filesystem error stays out of the message — it would carry the
+  // temporary path.
+  let contract: ContractFile | undefined;
+  try {
+    contract = reviewer === 'codex' ? writeContractFile() : undefined;
+  } catch {
+    throw new ReviewRuntimeError('process_failed', `The ${reviewer} review could not be prepared`);
+  }
+  try {
+    return await runReviewerCandidates(
+      { reviewer, packet, cwd, model, schemaPath: contract?.path },
+      candidates,
+      deadline,
+    );
+  } finally {
+    contract?.cleanup();
+  }
+}
+
+interface ContractFile {
+  readonly path: string;
+  readonly cleanup: () => void;
+}
+
+function writeContractFile(): ContractFile {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-contract-'));
+  const path = nodePath.join(directory, 'review-result.schema.json');
+  writeFileSync(path, REVIEW_OUTPUT_SCHEMA, { mode: 0o600 });
+  return {
+    path,
+    cleanup: () => {
+      rmSync(directory, { recursive: true, force: true });
+    },
+  };
 }

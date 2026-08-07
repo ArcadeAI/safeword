@@ -32,6 +32,22 @@ describe('Claude plugin release contract', () => {
     expect(runbook).toContain('Stable publication is blocked');
   });
 
+  it('keeps fallback review self-contained in the committed plugin', () => {
+    const skill = readFileSync(
+      nodePath.join(REPO_ROOT, 'plugin/skills/finish-review/SKILL.md'),
+      'utf8',
+    );
+    const reviewer = readFileSync(
+      nodePath.join(REPO_ROOT, 'plugin/agents/safeword-reviewer.md'),
+      'utf8',
+    );
+
+    for (const asset of [skill, reviewer]) {
+      expect(asset).toContain('"${CLAUDE_PLUGIN_ROOT}"/skills/finish-review/REVIEWER.md');
+      expect(asset).not.toContain('.safeword/skills/finish-review/REVIEWER.md');
+    }
+  });
+
   it('promotes one monotonic stable channel only after stable publication', () => {
     const workflow = readFileSync(
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
