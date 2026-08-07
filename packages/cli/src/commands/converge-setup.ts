@@ -605,7 +605,9 @@ function setupResult(input: SetupResultInput): CliResult {
   const actionRequired = findings.some(
     finding => finding.severity !== 'info' && finding.code !== 'CODEX_PLUGIN_HANDOFF_DEFERRED',
   );
-  const handoffDeferred = findings.some(finding => finding.code === 'CODEX_PLUGIN_HANDOFF_DEFERRED');
+  const handoffDeferred = findings.some(
+    finding => finding.code === 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+  );
   // `.claude/settings.json` records enrollment but not the enrolled version, so
   // it can only prove "already converged" when this run changed nothing. A run
   // that rewrote delivered files may have moved the templates past the version

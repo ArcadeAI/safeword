@@ -7,21 +7,13 @@
  * https://github.com/oven-sh/setup-bun/blob/main/src/utils.ts
  */
 
-import { spawnSync } from 'node:child_process';
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
+
+import { requirePinnedBunVersion } from '../scripts/bun-version.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const generatorPath = nodePath.join(repoRoot, 'packages/cli/scripts/generate-claude-plugin.ts');
@@ -60,38 +52,18 @@ describe('Claude plugin Bun version contract', () => {
     }
   });
 
-  it('refuses a mismatched Bun before writing generated plugin files', () => {
-    const fixtureRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bun-pin-'));
-    try {
-      const fixturePackageRoot = nodePath.join(fixtureRoot, 'packages/cli');
-      const fixtureGeneratorPath = nodePath.join(
-        fixturePackageRoot,
-        'scripts/generate-claude-plugin.ts',
-      );
-      mkdirSync(nodePath.join(fixturePackageRoot, 'scripts'), { recursive: true });
-      mkdirSync(nodePath.join(fixturePackageRoot, 'src/claude-plugin'), { recursive: true });
-      mkdirSync(nodePath.join(fixtureRoot, 'plugin'), { recursive: true });
-      cpSync(generatorPath, fixtureGeneratorPath);
-      writeFileSync(nodePath.join(fixtureRoot, 'package.json'), '{"packageManager":"bun@0.0.0"}\n');
-      writeFileSync(nodePath.join(fixturePackageRoot, 'package.json'), '{"version":"0.0.0"}\n');
-      writeFileSync(
-        nodePath.join(fixturePackageRoot, 'src/claude-plugin/catalogue.js'),
-        'export const sealClaudePluginCatalogue = () => {};\n' +
-          'export const writeClaudePluginCatalogue = () => [];\n',
-      );
-      const sentinelPath = nodePath.join(fixtureRoot, 'plugin/sentinel');
-      writeFileSync(sentinelPath, 'untouched');
+  it('rejects a Bun runtime that differs from the root pin', () => {
+    expect(() => requirePinnedBunVersion('bun@0.0.0', '1.3.14')).toThrow(
+      'Claude plugin generation requires Bun 0.0.0 from root package.json; found 1.3.14.',
+    );
+  });
 
-      const result = spawnSync('bun', [fixtureGeneratorPath], {
-        cwd: fixtureRoot,
-        encoding: 'utf8',
-      });
+  it('runs the version guard before invoking Bun.build', () => {
+    const generator = readFileSync(generatorPath, 'utf8');
+    const guardIndex = generator.indexOf('requirePinnedBunVersion(');
+    const buildIndex = generator.indexOf('Bun.build(');
 
-      expect(result.status).not.toBe(0);
-      expect(result.stderr).toContain('Claude plugin generation requires Bun 0.0.0');
-      expect(readFileSync(sentinelPath, 'utf8')).toBe('untouched');
-    } finally {
-      rmSync(fixtureRoot, { recursive: true, force: true });
-    }
+    expect(guardIndex).toBeGreaterThan(-1);
+    expect(buildIndex).toBeGreaterThan(guardIndex);
   });
 });

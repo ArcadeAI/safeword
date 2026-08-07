@@ -484,7 +484,10 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(markerDirectory, 'plugin-mode-v1.json'))).toBe(false);
     const currentMarkerPath = nodePath.join(markerDirectory, 'plugin-mode-v2.json');
     const currentMarker = JSON.parse(readFileSync(currentMarkerPath, 'utf8'));
-    expect(currentMarker).toMatchObject({ state: 'clean', plugin_version: SAFEWORD_SCHEMA.version });
+    expect(currentMarker).toMatchObject({
+      state: 'clean',
+      plugin_version: SAFEWORD_SCHEMA.version,
+    });
   });
 
   it('keeps prompts nonblocking when sibling hook outputs conflict', () => {
