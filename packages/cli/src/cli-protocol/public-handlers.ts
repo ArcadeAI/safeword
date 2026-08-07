@@ -91,22 +91,6 @@ async function doctorHandler(invocation: CommandInvocation): Promise<CliResult> 
   return diagnoseLifecycle(invocation.cwd, parsed.selection.agents);
 }
 
-async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
-  if (invocation.offline && process.env.SAFEWORD_SKIP_INSTALL === undefined) {
-    return onlineRequired('setup');
-  }
-  const { convergeSetup } = await import('../lifecycle/project-install.js');
-  return convergeSetup(invocation.cwd, {
-    noModify: invocation.options.modify === false,
-    repairVersionMarker: invocation.options.repairVersionMarker === true,
-    migrateNamespace:
-      typeof invocation.options.migrateNamespace === 'boolean'
-        ? invocation.options.migrateNamespace
-        : undefined,
-    progress: invocation.progress,
-  });
-}
-
 async function installHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { installLifecycle } = await import('../commands/lifecycle.js');
   return installLifecycle(invocation, {
@@ -1444,7 +1428,6 @@ async function retroReconcileHandler(invocation: CommandInvocation): Promise<Cli
 const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   status: statusHandler,
   install: installHandler,
-  setup: setupHandler,
   plan: planHandler,
   doctor: doctorHandler,
   uninstall: uninstallHandler,
