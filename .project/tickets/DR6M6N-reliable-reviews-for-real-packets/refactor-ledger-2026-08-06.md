@@ -59,6 +59,19 @@ against current `main`.
   exits. Terminal results now receive the complete ordered request ledger, with
   public tests asserting two-request alternate success and one-/three-request
   exhausted paths.
+- **Main progress integration:** caught the branch up to current `main` and
+  retained its user-visible review progress without duplicating route logic.
+  Primary, alternate-model, and author fallback messages now flow through the
+  shared `ProgressReporter`; packet preparation plus progress setup are isolated
+  in two small helpers.
+- **Plugin fallback reference boundary:** extended the existing Claude plugin
+  workflow-reference adapter and its residual-reference gate to cover skills.
+  This keeps installed-plugin path translation centralized instead of adding a
+  finish-review-only generator exception.
+- **Reviewer verdict consistency:** kept the `approve` plus error-finding
+  invariant at the existing strict output parser, before provenance and routing.
+  No coordinator branch can accidentally reinterpret contradictory output as a
+  healthy review.
 - **Terminal abandonment:** cleanup failure initially reused the ordinary
   `process_failed` retry path, so a later executable could conceal a still-live
   process group. Runtime errors now carry a terminal bit through candidate and

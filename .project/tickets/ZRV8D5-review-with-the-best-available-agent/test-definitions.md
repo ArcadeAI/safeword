@@ -12,9 +12,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The installed Claude plugin fallback is self-contained
 
-- [x] RED pending: committed plugin assets resolve the contract through a project-local path
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the final independent review reproduced the project-local path in committed plugin assets
+- [x] GREEN 732965541
+- [x] REFACTOR skip: the existing workflow-reference adapter remains the single generation boundary
 
 ## Manual host runtime: Every advertised host enters fallback for typed exhaustion
 
@@ -212,9 +212,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Reviewer approval with an error finding is rejected
 
-- [x] RED pending: the strict shape parser accepts a contradictory approval
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the final independent review reproduced healthy exit for contradictory reviewer output
+- [x] GREEN 732965541
+- [x] REFACTOR skip: semantic consistency remains inside the existing strict output parser
 
 ### Scenario: Typed route exhaustion starts the host-owned fallback
 
