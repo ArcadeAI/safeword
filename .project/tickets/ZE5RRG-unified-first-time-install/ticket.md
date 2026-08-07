@@ -54,7 +54,7 @@ done_when:
   - verification records an NTB walkthrough that identifies ready, failed, and next-action states without code knowledge, plus a TBU walkthrough that exposes exact evidence, selected scope, and a targeted retry without losing control
   - the implementation plan divides the work into independently testable slices with an objective proof command for each slice
 created: 2026-08-04T05:33:38.572Z
-last_modified: 2026-08-06T21:05:00.000Z
+last_modified: 2026-08-07T01:19:11.000Z
 ---
 
 # Give users one coherent Safe Word command model
@@ -87,3 +87,4 @@ last_modified: 2026-08-06T21:05:00.000Z
 - 2026-08-04T15:07:30.000Z Implement entry: No design approval gate is configured, so advanced autonomously to outside-in TDD with the unified default-install CLI wiring scenario first.
 - 2026-08-05T19:45:00.000Z Verification, audit, and refactor complete: 6,550 Vitest tests passed with 5 intentional skips; 1,007 BDD scenarios passed with 3 intentional skips; build, lint, typecheck, dependency audit, architecture enforcement, and principle trace passed. Applied audit/refactor findings by restoring domain boundaries, centralizing shared lifecycle projections/effects, hardening large-bundle closeout verification, and reconciling architecture prose. The final independent quality-review routes produced no valid verdict after the one prescribed retry, so `verify.md` records that evidence limitation without inferring approval.
 - 2026-08-06T21:05:00.000Z Expanded review attempt: Reran the realistic five-file independent quality review twice with `SAFEWORD_REVIEW_TIMEOUT_MS=300000`. Neither run timed out; both preferred Claude routes ended earlier as `process_failed`, and both Codex fallbacks remained `invalid_output`. Updated `verify.md` with the corrected evidence and retained issue #1922 as the review-runtime fix.
+- 2026-08-07T01:19:11.000Z In-session review and final verification: With the user's explicit approval, replaced the unavailable external verdict with three fresh-context advisory reviews covering code/architecture, behavior/UX, and tests/regressions. Implemented every requested change, including scoped plan replay, full uninstall, complete status/doctor surfaces, diagnostic doctor output, reference coverage, literal compatibility fixtures, deterministic test isolation, closeout error handling, and narrow dependency security updates. Final evidence: 6,562 Vitest tests and 1,007 Cucumber scenarios passed; lint, typecheck, dependency boundaries, architecture, principle trace, and audit passed. The advisory reviews are recorded as useful evidence, not cross-model approval.
