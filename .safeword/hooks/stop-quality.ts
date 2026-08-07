@@ -493,7 +493,15 @@ function normalizeContentItems(content: ContentItem[] | string | undefined): Con
 function humanPromptText(message: TranscriptMessage): string {
   if (message.type !== 'user' || message.isMeta) return '';
 
-  return normalizeContentItems(message.message?.content)
+  const content = normalizeContentItems(message.message?.content);
+
+  // A message that answers a tool call belongs to the turn already running, even
+  // when text follows the results — the API allows that ordering and the harness
+  // uses it to append notes to tool output. Reading such a note as a human prompt
+  // would end the turn early and skip the review on a turn that did edit files.
+  if (content.some(item => item.type === 'tool_result')) return '';
+
+  return content
     .filter((item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text)
     .map(item => item.text)
     .join('\n')
