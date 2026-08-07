@@ -11,6 +11,10 @@ import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+// installClaudePlugin's officialMarketplaceSource() falls back to a version tag instead of the 'stable' branch for a prerelease version, so this fixture's fake host has to expect whichever ref production code actually emits.
+const OFFICIAL_MARKETPLACE_REF = SAFEWORD_SCHEMA.version.includes('-')
+  ? `v${SAFEWORD_SCHEMA.version}`
+  : 'stable';
 const directories: string[] = [];
 const originalPath = process.env.PATH;
 const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
@@ -101,7 +105,7 @@ case "$*" in
       echo '[]'
     fi
     ;;
-  'plugin marketplace add https://github.com/ArcadeAI/safeword.git#stable --scope project') ${persistMarketplace} ;;
+  'plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project') ${persistMarketplace} ;;
   'plugin list --json')
     if [ -f ${JSON.stringify(installedState)} ]; then
       plugin_version=$(cat ${JSON.stringify(installedState)})
@@ -201,7 +205,7 @@ describe('Claude marketplace update enrollment', () => {
 
     expect(result.state).toBe('changed');
     expect(readFileSync(log, 'utf8')).toContain(
-      'plugin marketplace add https://github.com/ArcadeAI/safeword.git#stable --scope project',
+      `plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project`,
     );
   });
 
@@ -281,7 +285,7 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('does not migrate a stale marketplace while native auto-update is explicitly disabled', () => {
-    const { log, project, settingsPath } = fixture(false, `v${SAFEWORD_SCHEMA.version}`);
+    const { log, project, settingsPath } = fixture(false, 'v0.0.0');
     const before = readFileSync(settingsPath, 'utf8');
 
     const result = installClaudePlugin(project);
