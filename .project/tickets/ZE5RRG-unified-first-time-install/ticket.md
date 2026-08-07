@@ -2,6 +2,7 @@
 id: ZE5RRG
 slug: unified-first-time-install
 type: feature
+subtype: bug-investigated
 phase: implement
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1925
@@ -54,7 +55,7 @@ done_when:
   - verification records an NTB walkthrough that identifies ready, failed, and next-action states without code knowledge, plus a TBU walkthrough that exposes exact evidence, selected scope, and a targeted retry without losing control
   - the implementation plan divides the work into independently testable slices with an objective proof command for each slice
 created: 2026-08-04T05:33:38.572Z
-last_modified: 2026-08-07T01:19:11.000Z
+last_modified: 2026-08-07T16:06:15.000Z
 ---
 
 # Give users one coherent Safe Word command model
@@ -62,6 +63,32 @@ last_modified: 2026-08-07T01:19:11.000Z
 **Goal:** Give users one predictable CLI vocabulary for installing, inspecting, planning, and removing Safe Word across projects and agent integrations without breaking existing aliases.
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Root Cause
+
+The catch-up conflict exists because `main` and this branch independently
+changed the same human-result rendering block for two valid contracts. `main`
+extracted `resultBodyLines` and made review independence text reuse the
+coordinator's cause-specific primary message. This branch added install-surface
+outcomes, activation steps, doctor coverage, and diagnostic-cause deduplication
+inside the original renderer. Git cannot compose those overlapping edits, even
+though the behaviors are complementary.
+
+Confirmed by a fresh `git merge-tree --write-tree` against current `main`: the
+only hand-written conflict is `packages/cli/src/cli-protocol/result.ts`; the
+other three conflicts are generated plugin runtime/inventory artifacts. The
+source diffs and their separate regression tests show that the correct merge
+must retain both contracts in the extracted `resultBodyLines` function.
+
+Ruled out:
+
+- Stale GitHub mergeability state: the fresh local merge-tree reproduces the
+  conflict against the fetched remote heads.
+- Generated plugin metadata as the cause: those files derive from the CLI
+  source and will reconcile once the source merge is rebuilt.
+- Taking either branch wholesale: `main`'s review-rendering tests require its
+  cause-specific message path, while this ticket's result tests and BDD require
+  lifecycle surfaces and doctor diagnostics.
 
 ## Work Log
 
@@ -88,3 +115,4 @@ last_modified: 2026-08-07T01:19:11.000Z
 - 2026-08-05T19:45:00.000Z Verification, audit, and refactor complete: 6,550 Vitest tests passed with 5 intentional skips; 1,007 BDD scenarios passed with 3 intentional skips; build, lint, typecheck, dependency audit, architecture enforcement, and principle trace passed. Applied audit/refactor findings by restoring domain boundaries, centralizing shared lifecycle projections/effects, hardening large-bundle closeout verification, and reconciling architecture prose. The final independent quality-review routes produced no valid verdict after the one prescribed retry, so `verify.md` records that evidence limitation without inferring approval.
 - 2026-08-06T21:05:00.000Z Expanded review attempt: Reran the realistic five-file independent quality review twice with `SAFEWORD_REVIEW_TIMEOUT_MS=300000`. Neither run timed out; both preferred Claude routes ended earlier as `process_failed`, and both Codex fallbacks remained `invalid_output`. Updated `verify.md` with the corrected evidence and retained issue #1922 as the review-runtime fix.
 - 2026-08-07T01:19:11.000Z In-session review and final verification: With the user's explicit approval, replaced the unavailable external verdict with three fresh-context advisory reviews covering code/architecture, behavior/UX, and tests/regressions. Implemented every requested change, including scoped plan replay, full uninstall, complete status/doctor surfaces, diagnostic doctor output, reference coverage, literal compatibility fixtures, deterministic test isolation, closeout error handling, and narrow dependency security updates. Final evidence: 6,562 Vitest tests and 1,007 Cucumber scenarios passed; lint, typecheck, dependency boundaries, architecture, principle trace, and audit passed. The advisory reviews are recorded as useful evidence, not cross-model approval.
+- 2026-08-07T16:06:15.000Z Main catch-up investigation: Reproduced the current merge conflict and traced it to complementary edits in the shared human-result renderer. Recorded the source-level composition required to preserve both review-assurance explanations and lifecycle/doctor output; generated plugin conflicts will be rebuilt from the resolved source.
