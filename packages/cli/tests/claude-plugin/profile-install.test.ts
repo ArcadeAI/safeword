@@ -73,7 +73,7 @@ describe('Claude marketplace update enrollment', () => {
       extraKnownMarketplaces: { safeword: { autoUpdate?: boolean } };
     };
 
-    expect(result.state).toBe('changed');
+    expect(result.state, JSON.stringify(result)).toBe('changed');
     expect(settings.unrelated).toEqual({ keep: true });
     expect(settings.env.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE).toBe('1');
     expect(settings.extraKnownMarketplaces.safeword.autoUpdate).toBe(true);
@@ -91,7 +91,7 @@ describe('Claude marketplace update enrollment', () => {
       env: Record<string, unknown>;
     };
 
-    expect(result.state).toBe('healthy');
+    expect(result.state, JSON.stringify(result)).toBe('healthy');
     expect(settings.env).toEqual({
       KEEP_ME: 'yes',
       CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '0',
@@ -104,7 +104,7 @@ describe('Claude marketplace update enrollment', () => {
 
     const result = installClaudePlugin(project);
 
-    expect(result.state).toBe('healthy');
+    expect(result.state, JSON.stringify(result)).toBe('healthy');
     expect(readFileSync(settingsPath, 'utf8')).toBe(before);
     expect(readFileSync(log, 'utf8')).not.toContain('plugin marketplace add');
   });
