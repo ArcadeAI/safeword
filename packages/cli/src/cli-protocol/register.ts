@@ -116,6 +116,7 @@ function withCompatibilityDeprecation(result: CliResult, definition: CommandDefi
 
 async function executeDefinition(command: Command, definition: CommandDefinition): Promise<void> {
   const globalOptions = readGlobalOptions(command);
+  const commandOptions = readCommandOptions(command);
   const progress =
     globalOptions.json || globalOptions.quiet
       ? undefined
@@ -133,7 +134,7 @@ async function executeDefinition(command: Command, definition: CommandDefinition
         cwd: globalOptions.cwd,
         noInput: globalOptions.noInput,
         offline: globalOptions.offline,
-        options: readCommandOptions(command),
+        options: commandOptions,
         operands: command.processedArgs,
         progress,
       });
@@ -153,7 +154,12 @@ async function executeDefinition(command: Command, definition: CommandDefinition
     progress?.stop();
   }
   result = withCompatibilityDeprecation(result, definition);
-  reportResult(result, globalOptions, definition.name);
+  const actionRequiredAsSuccessOption = definition.exitPolicy?.actionRequiredAsSuccessOption;
+  reportResult(result, globalOptions, definition.name, {
+    actionRequiredAsSuccess:
+      actionRequiredAsSuccessOption !== undefined &&
+      commandOptions[actionRequiredAsSuccessOption] === true,
+  });
 }
 
 function addDefinitionAction(command: Command, definition: CommandDefinition): void {

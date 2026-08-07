@@ -374,6 +374,73 @@ describe('cross-agent review public-command wiring', () => {
     },
   );
 
+  it('delivers route exhaustion as a successful agent handoff without changing the envelope', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--agent-handoff',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: '/usr/bin:/bin',
+          SAFEWORD_AGENT_RUNTIME: 'cursor',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
+      data: {
+        command: 'review run',
+        status: 'blocked',
+        independence: 'none',
+      },
+    });
+    expect(result.stderr).toBe('');
+  });
+
+  it('keeps genuine review command failures nonzero during an agent handoff', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'not-a-review-kind',
+        'review-input.md',
+        '--agent-handoff',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: { SAFEWORD_NO_UPDATE_CHECK: '1' },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_KIND_INVALID' }],
+    });
+  });
+
   it.each([{ identity: 'missing' }, { identity: 'contradictory' }])(
     'rejects $identity reviewer provenance and continues through the bounded fallback routes',
     async ({ identity }) => {
