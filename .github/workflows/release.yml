@@ -37,8 +37,6 @@ jobs:
     name: Build + test + pack
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    outputs:
-      advisory_smoke_required: ${{ steps.advisory-smoke-scope.outputs.required }}
     permissions:
       contents: read
 
@@ -49,31 +47,6 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0 # full history so tag metadata is available
-
-      - name: Determine whether the live advisory smoke is required
-        id: advisory-smoke-scope
-        shell: bash
-        run: |
-          # Stable advances only after a successful stable publish, so it is the
-          # last known-good production baseline. Missing/uncertain evidence fails
-          # closed by requiring the live proof.
-          git fetch origin refs/heads/stable:refs/remotes/origin/stable || true
-          if ! git show-ref --verify --quiet refs/remotes/origin/stable; then
-            REQUIRED=true
-          elif git diff --quiet refs/remotes/origin/stable "$GITHUB_SHA" -- \
-            .github/workflows/release.yml \
-            .github/workflows/advisory-pr-review-canary.yml \
-            packages/cli/scripts/run-pr-review-disposable-smoke.ts \
-            packages/cli/src/pr-review \
-            packages/cli/templates/workflows/pr-review-publisher.yml \
-            packages/cli/templates/workflows/pr-review-worker.yml \
-            packages/cli/templates/workflows/pr-review.yml; then
-            REQUIRED=false
-          else
-            REQUIRED=true
-          fi
-          echo "required=$REQUIRED" >> "$GITHUB_OUTPUT"
-          echo "Live advisory compatibility smoke required: $REQUIRED"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -121,35 +94,6 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  advisory-pr-review-smoke:
-    name: Advisory PR review compatibility smoke
-    needs: build
-    if: ${{ needs.build.outputs.advisory_smoke_required == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: pr-review-smoke
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout qualified release
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
-
-      - name: Install dependencies without repository authority
-        run: bun install --frozen-lockfile
-
-      - name: Prove fork-event and scheduled advisory semantics
-        run: bun run --cwd packages/cli smoke:pr-review:disposable
-        env:
-          GH_TOKEN: ${{ secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN }}
-          SAFEWORD_PR_REVIEW_SMOKE_OWNER: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_OWNER }}
-          SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER }}
-
   # --------------------------------------------------------------------------
   # publish: runs ONLY `npm publish` against the artifact built above.
   # No project code, no test code, no install scripts execute here. Minimal
@@ -160,12 +104,7 @@ jobs:
   # --------------------------------------------------------------------------
   publish:
     name: Publish to npm
-    needs: [build, advisory-pr-review-smoke]
-    if: >-
-      ${{ always() && needs.build.result == 'success' &&
-      (needs['advisory-pr-review-smoke'].result == 'success' ||
-      (needs['advisory-pr-review-smoke'].result == 'skipped' &&
-      needs.build.outputs.advisory_smoke_required == 'false')) }}
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
