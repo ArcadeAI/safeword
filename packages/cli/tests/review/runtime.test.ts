@@ -108,7 +108,9 @@ describe('headless reviewer output adapters', () => {
       'invalid reviewer output',
     );
   });
+});
 
+describe('headless reviewer process lifecycle', () => {
   it.skipIf(process.platform === 'win32')(
     'kills reviewer descendants after a timeout',
     async () => {

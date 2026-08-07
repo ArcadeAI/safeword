@@ -131,7 +131,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "2e1ba694537c0287a7d37519abf6218964ef046e5bf25c257dcba3972ad2f216"
+      "sha256": "c99d9da1ecc42e96756b2ec1a78199915427cbaa7f43bcdc3eaa9474c6c2a556"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "9637c24f6a5c9df934baf608b4fa0af0b1f37cb87992cf448214416ebcbacadf"
+      "sha256": "a98d2374f784f50a71fa2e80841c9808a57fcd67dae3818ec7cd21340a66a4d2"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",

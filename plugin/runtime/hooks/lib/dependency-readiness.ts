@@ -630,7 +630,7 @@ function readPnpmWorkspacePackages(projectDirectory: string): string[] {
   const patterns: string[] = [];
   let insidePackages = false;
   for (const rawLine of content.split('\n')) {
-    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    const line = stripYamlComment(rawLine);
     if (!insidePackages) {
       if (/^packages:\s*$/.test(line)) insidePackages = true;
       continue;
@@ -644,6 +644,25 @@ function readPnpmWorkspacePackages(projectDirectory: string): string[] {
     if (/^[^\s#-]/.test(line)) insidePackages = false;
   }
   return patterns;
+}
+
+function stripYamlComment(line: string): string {
+  let quote: "'" | '"' | undefined;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (quote !== undefined) {
+      if (character === quote && line[index - 1] !== '\\') quote = undefined;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === '#' && (index === 0 || /\s/u.test(line[index - 1] ?? ''))) {
+      return line.slice(0, index);
+    }
+  }
+  return line;
 }
 
 function stripYamlQuotes(value: string): string {
