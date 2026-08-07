@@ -135,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "bed95b30b191ee6baa286b5ac29cea6a2d76f5721a0b2397bfd4608707310017"
+      "sha256": "932aa7f5f6b1b6f707c3990bd99f6b690f1c64f766ff80bcce47bc51074e3cb5"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -567,7 +567,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "5df75d0c70005dd1a19421baa467302780a2e2a58616f1f4bea925ff1d1cb466"
+      "sha256": "9d774a49f6f60171f7aef678b948279ea147509b2fb85beccd6f68492a56505e"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -575,7 +575,7 @@
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "464b1aa25279a7501dd5435922cb78c76dbe418b48b666eb921c0ed36444b456"
+      "sha256": "5807f69b643ba6fb0831dd9cf3bab190fa3eb6716ec2b3920777b640563aa45b"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -583,7 +583,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "14e57518c9445c1872e906109cc178462a78fc4337d8bddd0528b1184138dfbe"
+      "sha256": "1f726891c412579d5a2e0411c40f9ded83b66ccceddf172f38f692f244138619"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "bb3c4edd27ecb9376cd686e55ca90b6b964a3e55f8672fbb1f81accecdb985b8"
+      "sha256": "c1a5a0f2235464e50e0d0c38a2e8e1c0330b0161d81e7401231e86c2159689ee"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -647,7 +647,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "df58af149c583df31cfeeba250d057a15d784081e85b021438003de0dfcd2a06"
+      "sha256": "5a1865b2b2d8dd6ae08798f81b6414c730c75465edd691f347d2c124f5f7cbec"
     },
     {
       "path": "skills/self-review/SKILL.md",

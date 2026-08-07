@@ -32,7 +32,7 @@ Run the adversarial judgment through the shared coordinator, passing the
 feature, ticket scope, and any legacy scenario source as bounded targets:
 
 ```bash
-safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions]
+safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and

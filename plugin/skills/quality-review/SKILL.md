@@ -169,7 +169,7 @@ Each pass:
    and scope to the host-owned coordinator:
 
    ```bash
-   safeword review run quality-review changed-file [more-changed-files...]
+   safeword review run quality-review changed-file [more-changed-files...] --agent-handoff --json
    ```
 
    Claude-authored work prefers headless Codex; Codex-authored work prefers
