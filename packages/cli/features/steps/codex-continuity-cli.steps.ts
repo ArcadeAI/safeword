@@ -707,6 +707,7 @@ Given(
       legacyRuntime: true,
     });
     recordCurrentProof(this);
+    rmSync(nodePath.join(requireProfile(this), 'safeword/hook-proof-v2/post-tool-use.json'));
   },
 );
 
@@ -1061,7 +1062,7 @@ Given(
   'a repository with an unresolved Codex migration backup',
   function (this: ContinuityCliWorld) {
     initializeFinalizationFixture(this);
-    createPreparedBackup(this);
+    createPreparedBackup(this, { applyFirstMutation: true });
     rememberBaseline(this);
   },
 );
