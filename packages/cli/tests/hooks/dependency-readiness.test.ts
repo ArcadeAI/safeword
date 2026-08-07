@@ -1,5 +1,13 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -36,6 +44,21 @@ const POST_TOOL_HOOK = path.resolve(
   import.meta.dirname,
   '../../templates/hooks/post-tool-dependency-readiness.ts',
 );
+
+const REPOSITORY_ROOT = path.resolve(import.meta.dirname, '../../../..');
+
+it('keeps the dogfood dependency-readiness helper identical to its source template', () => {
+  const template = readFileSync(
+    path.join(REPOSITORY_ROOT, 'packages/cli/templates/hooks/lib/dependency-readiness.ts'),
+    'utf8',
+  );
+  const dogfood = readFileSync(
+    path.join(REPOSITORY_ROOT, '.safeword/hooks/lib/dependency-readiness.ts'),
+    'utf8',
+  );
+
+  expect(dogfood).toBe(template);
+});
 
 describe('dependency readiness hook support', () => {
   let projectDirectory: string;
