@@ -119,9 +119,9 @@ function childEnvironment(): NodeJS.ProcessEnv {
 }
 
 function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinition): CommandRun {
-  const cwd = join(temporaryProject(world), 'public-fixture');
-  rmSync(cwd, { recursive: true, force: true });
-  mkdirSync(cwd, { recursive: true });
+  // Give every command a fresh project so earlier fixtures cannot change the
+  // filesystem preconditions used to compute a later command's plan identity.
+  const cwd = mkdtempSync(join(temporaryProject(world), 'public-fixture-'));
   const completed = spawnSync(
     process.execPath,
     [CLI_PATH, ...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', cwd],
@@ -749,6 +749,8 @@ Then(
     };
     assert.deepEqual(data.surfaces, [
       { name: 'project', selected: true, state: 'action_required' },
+      { name: 'claude', selected: true, state: 'action_required' },
+      { name: 'codex', selected: true, state: 'action_required' },
     ]);
     assert.equal(process.cwd(), this.parentCwd);
   },
