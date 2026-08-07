@@ -26,7 +26,7 @@ done_when:
   - `bunx vitest run` and chained commands that contain it remain guarded.
   - Dogfood parity failures direct maintainers to `bunx safeword setup`, not the removed `install` command.
 created: 2026-08-06T00:07:05.713Z
-last_modified: 2026-08-06T01:55:43Z
+last_modified: 2026-08-07T00:22:02Z
 ---
 
 # Keep Safeword recovery runnable when dependencies are broken
@@ -52,3 +52,4 @@ last_modified: 2026-08-06T01:55:43Z
 - 2026-08-06T01:36:00Z Implemented the planned strict recovery classifier in canonical and dogfood hooks, added real PreToolUse wiring plus adversarial command-smuggling coverage, and corrected parity recovery guidance. Independent whole-diff quality review approved with no required changes. Plan reconciled with both decisions unchanged and no deviations; advanced to verify.
 - 2026-08-06T01:55:43Z Verification complete: full unit, acceptance, build, lint, typecheck, and dependency-audit lanes passed. Added the missing executable Cucumber bindings discovered by the first full lane; all 22 recovery scenarios now run against the real hook. Diff audit passed with no errors or warnings.
 - 2026-08-06T01:55:43Z Closed: recovery commands remain runnable through dependency readiness while unrelated package execution stays guarded.
+- 2026-08-07T00:22:02Z Revalidated: rebased onto current main, preserving its separate safe install-and-retry recovery for issue #1763. Main added a generated Claude-plugin hook copy, so regenerated the plugin to carry this ticket's command-aware recovery exception across template, dogfood, and shipped runtime surfaces. The 22-scenario recovery feature passes; focused Vitest verification was delayed by sustained shared-lock contention across other worktrees.

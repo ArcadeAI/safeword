@@ -29,6 +29,13 @@ Build order:
 4. Run Gherkin lint, template parity, typecheck, and the focused hook/release
    tests.
 
+Rebase reconciliation: current `main` added a generated Claude-plugin runtime
+copy of the dependency-readiness hook while independently implementing safe
+install-and-retry chains for issue #1763. Preserve that recovery path, apply
+the Safeword-command exception to the shared canonical classifier, and
+regenerate the plugin so template, dogfood, and shipped runtime copies remain
+identical.
+
 ## Decisions
 
 | Decision | Choice | Alternatives considered | Rejected because |
