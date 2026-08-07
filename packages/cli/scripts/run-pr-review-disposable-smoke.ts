@@ -259,9 +259,13 @@ function verifyResult(
 }
 
 export function runPrReviewDisposableSmoke(): void {
-  const login = gh(['api', 'user', '--jq', '.login'], { quiet: true });
-  const baseOwner = process.env.SAFEWORD_PR_REVIEW_SMOKE_OWNER || 'ArcadeAI';
-  const forkOwner = process.env.SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER || login;
+  const baseOwner = (process.env.SAFEWORD_PR_REVIEW_SMOKE_OWNER || '').trim();
+  const forkOwner = (process.env.SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER || '').trim();
+  if (!baseOwner || !forkOwner) {
+    throw new Error(
+      'SAFEWORD_PR_REVIEW_SMOKE_OWNER and SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER must name two dedicated sandbox owners',
+    );
+  }
   if (baseOwner.toLowerCase() === forkOwner.toLowerCase()) {
     throw new Error('base and fork owners must differ to prove pull_request_target fork behavior');
   }

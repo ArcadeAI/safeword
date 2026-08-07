@@ -8,7 +8,7 @@ parent: P0D6S2
 epic: trustworthy-advisory-pr-review
 depends_on: [HXT3GW]
 created: 2026-08-05T19:52:07.090Z
-last_modified: 2026-08-06T17:12:45Z
+last_modified: 2026-08-07T09:10:15Z
 ---
 
 # Prevent advisory workflow drift before release
@@ -20,9 +20,9 @@ last_modified: 2026-08-06T17:12:45Z
 **Type:** Improvement
 
 **Scope:** Turn the advisory workflow's manual syntax and runtime checks into
-deterministic CI and a release-gated disposable-repository smoke. Preserve the
-current opt-in installation and split-privilege contracts as permanent
-regressions.
+deterministic CI, a change-scoped release-blocking disposable smoke, and a
+scheduled/manual canary for platform drift. Preserve the current opt-in
+installation and split-privilege contracts as permanent regressions.
 
 **Out of Scope:** Prerequisite reduction, model inspection, receipt rendering,
 freshness, inline findings, or customer-code execution. HXT3GW, Z7M7Y3, and
@@ -32,7 +32,8 @@ freshness, inline findings, or customer-code execution. HXT3GW, Z7M7Y3, and
 
 - [x] CI validates the installed router, worker, and trusted publisher paths with a current GitHub Actions schema validator, including environment-secret syntax, reusable-workflow inputs/concurrency, matrix calls, and caller permission ceilings.
 - [x] Reconciliation proves all three workflows stay absent unless `prReview.enabled` is exactly `true`, then installs them together from their registered templates.
-- [x] The release lane fails closed unless a disposable-repository smoke proves event and scheduled calls serialize, model credentials remain confined to inspection, and publication creates only a merge-neutral issue comment.
+- [x] When the advisory workflow or compatibility harness changed since the last successful stable release, the release lane fails closed unless a disposable-repository smoke proves event and scheduled calls serialize, model credentials remain confined to inspection, and publication creates only a merge-neutral issue comment.
+- [x] A scheduled/default-branch manual canary detects GitHub platform drift between releases without granting arbitrary branches access to the smoke environment.
 - [x] Maintainer documentation names the required disposable fixture and explains how to refresh the compatibility evidence when GitHub Actions semantics change.
 
 **Tests:**
@@ -44,6 +45,13 @@ freshness, inline findings, or customer-code execution. HXT3GW, Z7M7Y3, and
 
 ## Work Log
 
+- 2026-08-07T09:10:15Z Strengthened the release proof after PR review. Stable is
+  now the last-known-good comparison point: deterministic contracts run on every
+  release, the destructive live smoke blocks only when advisory production or
+  harness surfaces changed, and a daily/default-branch canary detects GitHub
+  drift between releases. Both owner variables now require distinct dedicated
+  sandboxes, and the token is documented without production-repository
+  authority. Actionlint and the focused release contract pass.
 - 2026-08-06T17:12:45Z Complete: User confirmed closure after reviewing the
   passing local contracts and live disposable-repository evidence. The final
   diff-scoped audit reported no findings; PR scope, scenario coverage, and

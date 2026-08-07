@@ -458,19 +458,24 @@ publisher is additionally constrained by Safeword's fixed issue-comment-only
 boundary and the release smoke verifies that it creates no review, check,
 status, or merge change.
 
-The workflow is release-gated on a disposable-repository smoke test for GitHub
-environment-secret scoping and concurrency. Keep it disabled until that smoke
-passes in the repository where it will run.
+Deterministic release tests always validate the advisory workflow contract. A
+disposable-repository smoke test additionally blocks a release when that
+workflow or its compatibility harness changed since the last successful stable
+release. A daily canary and default-branch manual dispatch watch for GitHub
+environment-secret, fork-event, and concurrency drift between releases. Keep
+the customer workflow disabled until a live smoke passes where it will run.
 
 ### Maintainer compatibility proof
 
 The release environment named `pr-review-smoke` must define
 `SAFEWORD_PR_REVIEW_SMOKE_TOKEN`. Its account needs narrowly scoped authority to
-create and permanently delete public repositories under the base owner, manage
-their Actions environments and secrets, and create a fork under a different
-owner. Repository variables may set `SAFEWORD_PR_REVIEW_SMOKE_OWNER` (defaults
-to `ArcadeAI`) and `SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER` (defaults to the token's
-login).
+create and permanently delete public repositories under two dedicated sandbox
+owners, manage their Actions environments and secrets, and create a fork from
+one owner into the other. It must not have authority over production
+repositories. Both repository variables, `SAFEWORD_PR_REVIEW_SMOKE_OWNER` and
+`SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER`, are required and must name different
+sandbox owners. Configure the environment's deployment policies to allow only
+release tags and the default branch.
 
 Run the same proof locally with:
 
@@ -478,9 +483,10 @@ Run the same proof locally with:
 bun run --cwd packages/cli smoke:pr-review:disposable
 ```
 
-Each run creates `safeword-pr-review-smoke-<unique-id>` in both owners, exercises
-a real fork pull request plus the canonical scheduled-call projection, and then
-permanently deletes both repositories. Set
+Each change-scoped release run, daily canary, or manual proof creates
+`safeword-pr-review-smoke-<unique-id>` in both owners, exercises a real fork pull
+request plus the canonical scheduled-call projection, and then permanently
+deletes both repositories. Set
 `SAFEWORD_KEEP_PR_REVIEW_SMOKE=1` only while debugging. When GitHub Actions
 semantics change, update the pinned actionlint version and checksum in CI, run
 `check:pr-review-workflows`, run this disposable proof, and record both results
