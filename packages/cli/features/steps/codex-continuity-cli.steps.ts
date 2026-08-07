@@ -1554,7 +1554,7 @@ Then(
   function (this: ContinuityCliWorld) {
     assert.equal(existsSync(activationMarkerPath(this)), false);
     assert.equal(existsSync(proofPath(this)), true);
-    assert.notEqual(observeMigrationState(this), 'plugin_installed_app_restart_required');
+    assert.equal(observeMigrationState(this), 'plugin_enabled_hook_unproven');
   },
 );
 
