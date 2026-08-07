@@ -30,6 +30,17 @@ describe('CLI result protocol', () => {
         data: { plan: { id: 'plan-1' } },
       }),
       createResult({
+        state: 'action_required',
+        nextActions: [
+          {
+            kind: 'human',
+            instruction: 'Restart the app, then open a new task.',
+            mutates: false,
+            requiresHuman: true,
+          },
+        ],
+      }),
+      createResult({
         state: 'failed',
         errors: [{ code: 'BROKEN', message: 'The operation failed.', retryable: true }],
         recovery: [
@@ -81,6 +92,32 @@ describe('CLI result protocol', () => {
       recovery: [],
       next_actions: [{ command: 'safeword plan', mutates: false, requires_human: false }],
     });
+  });
+
+  it('distinguishes a human next action from an executable command', () => {
+    const result = createResult({
+      state: 'action_required',
+      nextActions: [
+        {
+          kind: 'human',
+          instruction: 'Restart the app, then open a new task.',
+          mutates: false,
+          requiresHuman: true,
+        },
+      ],
+    });
+
+    expect(JSON.parse(renderJsonResult(result))).toMatchObject({
+      next_actions: [
+        {
+          kind: 'human',
+          instruction: 'Restart the app, then open a new task.',
+          mutates: false,
+          requires_human: true,
+        },
+      ],
+    });
+    expect(renderHumanResult(result)).toContain('Next: Restart the app, then open a new task.');
   });
 
   it('renders one human verdict, an explicit change statement, and one next action', () => {

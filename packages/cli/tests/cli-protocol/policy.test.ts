@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { commandCatalog } from '../../src/cli-protocol/catalog.js';
-import { assertEffectPolicy, createProgressReporter } from '../../src/cli-protocol/policy.js';
+import {
+  assertEffectPolicy,
+  createProgressReporter,
+  resolveHeartbeatIntervalMs,
+} from '../../src/cli-protocol/policy.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 
 function definition(name: string) {
@@ -75,5 +79,62 @@ describe('CLI execution policy', () => {
     scheduled?.();
     expect(emit).toHaveBeenCalledWith('Applying the confirmed plan…');
     progress.stop();
+  });
+
+  it('keeps a long-running operation visibly alive without claiming completion progress', () => {
+    const scheduled = new Map<number, () => void>();
+    const delays = new Map<number, number>();
+    const emit = vi.fn();
+    const cancel = vi.fn();
+    let nextHandle = 0;
+    const progress = createProgressReporter({
+      schedule: (callback, delay) => {
+        nextHandle += 1;
+        scheduled.set(nextHandle, callback);
+        delays.set(nextHandle, delay);
+        return nextHandle;
+      },
+      cancel,
+      emit,
+    });
+
+    progress.heartbeat?.('Still waiting for a response from Codex…');
+    expect(delays.get(1)).toBe(30_000);
+    scheduled.get(1)?.();
+    expect(emit).toHaveBeenCalledWith('Still waiting for a response from Codex…');
+    expect(delays.get(2)).toBe(30_000);
+
+    progress.stop();
+    expect(cancel).toHaveBeenCalledWith(2);
+  });
+
+  it('cancels a pending announcement as well as the heartbeat when the command ends', () => {
+    const emit = vi.fn();
+    const cancel = vi.fn();
+    let nextHandle = 0;
+    const progress = createProgressReporter({
+      schedule: () => {
+        nextHandle += 1;
+        return nextHandle;
+      },
+      cancel,
+      emit,
+    });
+
+    progress.start('Requesting an independent Codex review…');
+    progress.heartbeat?.('Still waiting for a response from Codex…');
+    progress.stop();
+
+    expect(cancel).toHaveBeenCalledWith(1);
+    expect(cancel).toHaveBeenCalledWith(2);
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('ignores a heartbeat interval override that is not a positive value under the default', () => {
+    for (const value of ['0', '-5', 'soon', '', '30001', '1.5']) {
+      expect(resolveHeartbeatIntervalMs({ SAFEWORD_PROGRESS_HEARTBEAT_MS: value })).toBe(30_000);
+    }
+    expect(resolveHeartbeatIntervalMs({})).toBe(30_000);
+    expect(resolveHeartbeatIntervalMs({ SAFEWORD_PROGRESS_HEARTBEAT_MS: '250' })).toBe(250);
   });
 });

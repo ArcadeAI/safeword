@@ -367,6 +367,29 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command(
+    'review-pr inspect',
+    'Inspect bounded pull-request evidence as untrusted data',
+    'mutate',
+    {
+      networkPolicy: 'declared',
+      syntax: 'inspect <input>',
+      commandOptions: [
+        { flags: '--output <path>', description: 'Write the validated advisory result artifact' },
+      ],
+      fixture: {
+        argv: ['review-pr', 'inspect', 'fixture', '--output', 'fixture-output'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('review-pr invalidate', 'Remove an obsolete advisory route', 'mutate', {
+    networkPolicy: 'declared',
+  }),
+  command('review-pr publish', 'Publish a validated advisory result', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'publish <result>',
+  }),
   command('retro run', 'Extract and file session findings', 'mutate', {
     networkPolicy: 'declared',
     commandOptions: [

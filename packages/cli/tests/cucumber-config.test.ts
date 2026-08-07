@@ -34,6 +34,15 @@ async function loadConfigModule(relativePath: string): Promise<CucumberConfigMod
 }
 
 describe('Cucumber config targeted path handling', () => {
+  it('loads TypeScript step definitions in both deterministic and live dogfood lanes', () => {
+    const packageJson = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, 'package.json'), 'utf8'),
+    ) as { scripts?: Record<string, string> };
+
+    expect(packageJson.scripts?.['test:bdd']).toContain("NODE_OPTIONS='--import tsx'");
+    expect(packageJson.scripts?.['test:bdd:live']).toContain("NODE_OPTIONS='--import tsx'");
+  });
+
   it.each(CONFIG_SURFACES)(
     '%s includes workspace feature globs when no CLI path is passed',
     async (_label, relativePath) => {

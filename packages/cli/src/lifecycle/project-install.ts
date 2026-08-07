@@ -2,6 +2,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from '
 import nodePath from 'node:path';
 
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
+import { CLAUDE_PLUGIN_ID } from '../claude-plugin/inventory.js';
 import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
 import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
@@ -379,11 +380,8 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
   const projectVersion = marker.value;
   if (!isSafePackageVersion(projectVersion)) {
     if (repairVersionMarker) {
-      if (marker.replaceEntry) {
-        writeDurableFile(projectVersionPath, `${VERSION}\n`, { mode: 0o644 });
-        return { repaired: true };
-      }
-      return { repaired: false };
+      writeDurableFile(projectVersionPath, `${VERSION}\n`, { mode: 0o644 });
+      return { repaired: true };
     }
     const recoveryCommand = buildReplayCommand({
       command: 'safeword install --repair-version-marker',
@@ -521,6 +519,7 @@ interface SetupResultInput {
   readonly pythonSetup: PythonSetupResult;
   readonly namespaceMigration: NamespaceConvergence;
   readonly completedEffects: CompletedSetupEffects;
+  readonly claudeProjectPluginEnrolled: boolean;
 }
 
 interface CompletedSetupEffects {
@@ -585,6 +584,7 @@ function setupResult(input: SetupResultInput): CliResult {
     pythonSetup,
     namespaceMigration,
     completedEffects,
+    claudeProjectPluginEnrolled,
   } = input;
   const files = uniqueEffects([
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
@@ -603,28 +603,79 @@ function setupResult(input: SetupResultInput): CliResult {
     ...pythonFindings(pythonSetup),
   ];
   const actionRequired = findings.some(finding => finding.severity !== 'info');
-  const resultFindings = actionRequired
-    ? findings
-    : [
-        ...findings,
-        {
-          code: 'SETUP_CODEX_PLUGIN_HANDOFF',
-          message:
-            'Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.',
-          severity: 'info' as const,
-        },
-      ];
+  // `.claude/settings.json` records enrollment but not the enrolled version, so
+  // it can only prove "already converged" when this run changed nothing. A run
+  // that rewrote delivered files may have moved the templates past the version
+  // Claude installed, and `/reload-plugins` re-reads the old build — the
+  // install command is what actually converges that case.
+  const claudePluginReloadEligible = claudeProjectPluginEnrolled && !changed;
+  const resultFindings = [
+    ...findings,
+    ...(actionRequired
+      ? []
+      : [
+          {
+            code: 'SETUP_CODEX_PLUGIN_HANDOFF',
+            message:
+              'Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.',
+            severity: 'info' as const,
+          },
+        ]),
+    ...(claudePluginReloadEligible
+      ? [
+          {
+            code: 'SETUP_CLAUDE_PLUGIN_PRESERVED',
+            message:
+              'The project-scoped Claude plugin remains enabled; reload plugins to activate any refreshed configuration.',
+            severity: 'info' as const,
+          },
+        ]
+      : []),
+  ];
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
-  const nextCommands = actionRequired ? [installation.command ?? 'safeword install'] : [];
+  const nextAction = setupNextAction({
+    actionRequired,
+    claudePluginReloadEligible,
+    installCommand: installation.command,
+  });
   return createResult({
     state,
     changed,
     effects: { files, packages, network },
     findings: resultFindings,
-    nextActions: nextCommands.map(command => ({ command, mutates: true, requiresHuman: true })),
+    nextActions: [nextAction],
     data: { configured: true, dependency_install: installation },
   });
+}
+
+function setupNextAction(input: {
+  readonly actionRequired: boolean;
+  readonly claudePluginReloadEligible: boolean;
+  readonly installCommand?: string;
+}): { command: string; mutates: boolean; requiresHuman: boolean } {
+  if (input.actionRequired) {
+    return {
+      command: input.installCommand ?? 'safeword install',
+      mutates: true,
+      requiresHuman: true,
+    };
+  }
+  if (input.claudePluginReloadEligible) {
+    return { command: '/reload-plugins', mutates: false, requiresHuman: true };
+  }
+  return { command: 'safeword install --agents=claude', mutates: true, requiresHuman: true };
+}
+
+function projectClaudePluginEnrolled(cwd: string): boolean {
+  try {
+    const settings = JSON.parse(
+      readFileSync(nodePath.join(cwd, '.claude/settings.json'), 'utf8'),
+    ) as { enabledPlugins?: Record<string, unknown> };
+    return settings.enabledPlugins?.[CLAUDE_PLUGIN_ID] === true;
+  } catch {
+    return false;
+  }
 }
 
 function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
@@ -806,6 +857,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       pythonSetup,
       namespaceMigration,
       completedEffects,
+      claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd),
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),

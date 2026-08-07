@@ -74,6 +74,31 @@ Project verification runs automatically after `install`; use `doctor` directly
 for CI health gates and debugging. The retained `upgrade` alias follows the
 same path indefinitely.
 
+### safeword review-pr
+
+`review-pr` exposes the three machine-facing stages used by Safeword's generated
+GitHub Actions workflow:
+
+```bash
+safeword review-pr invalidate
+safeword review-pr inspect inspection-input.json --output advisory-result.json
+safeword review-pr publish advisory-result.json
+```
+
+`invalidate` removes an obsolete route from the marker-owned ordinary comment.
+`inspect` validates configuration and bounded pull-request evidence, samples
+configured prerequisite checks, calls the configured OpenAI model only when the
+exact head is eligible, and writes a strict JSON handoff. `publish` validates
+that handoff again, rechecks the current head and pull-request state, and updates
+the sole marker-owned issue comment.
+
+The generated workflow deliberately separates authority: inspection has model
+credentials and read-only GitHub permissions; invalidation/publication have
+ordinary issue-comment write access but receive no model secret or executable
+pull-request checkout. Non-run results have no advisory route. Reviewed results
+are only `looks_ready` or `needs_human`, and every receipt says it is advisory,
+may miss issues, and is not merge-safety evidence.
+
 ### What gets installed
 
 | What                 | Action                                             | Purpose                                               |

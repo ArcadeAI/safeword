@@ -51,6 +51,18 @@ function activationActionsFor(surface: SurfaceResult): string[] {
   return [];
 }
 
+/** One entry per distinct action: surfaces can independently suggest the same next step. */
+function uniqueNextActions(actions: readonly NextAction[]): NextAction[] {
+  const seen = new Set<string>();
+  return actions.filter(action => {
+    const identity =
+      'command' in action ? `command:${action.command}` : `human:${action.instruction}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
 function combineInstallResults(
   agents: readonly string[],
   surfaces: readonly SurfaceResult[],
@@ -65,14 +77,26 @@ function combineInstallResults(
     findings: results.flatMap(result => result.findings),
     errors: results.flatMap(result => result.errors),
     recovery: results.flatMap(result => result.recovery),
-    nextActions: surfaces.flatMap(surface =>
-      surface.result.nextActions.flatMap((action): NextAction[] => {
-        if (!('command' in action)) return [action];
-        const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
-        if (profileInstall === null) return [action];
-        if (surface.result.state !== 'failed' || surface.name !== profileInstall[1]) return [];
-        return [{ ...action, command: `safeword install --agents=${surface.name}` }];
-      }),
+    nextActions: uniqueNextActions(
+      surfaces.flatMap(surface =>
+        surface.result.nextActions.flatMap((action): NextAction[] => {
+          if (!('command' in action)) return [action];
+          // The project surface computes its next action before the agent
+          // surfaces run, so it can suggest installing an agent this very run
+          // already handled. Drop that: the agent's own activation action is
+          // the accurate next step, and repeating the install is not.
+          const unifiedInstall = /^safeword install --agents=(claude|codex)$/u.exec(action.command);
+          if (unifiedInstall !== null && surface.name === 'project') {
+            const target = surfaceByName.get(unifiedInstall[1] ?? '');
+            if (target !== undefined && target.result.state !== 'failed') return [];
+            return [action];
+          }
+          const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
+          if (profileInstall === null) return [action];
+          if (surface.result.state !== 'failed' || surface.name !== profileInstall[1]) return [];
+          return [{ ...action, command: `safeword install --agents=${surface.name}` }];
+        }),
+      ),
     ),
     data: {
       command: 'install',

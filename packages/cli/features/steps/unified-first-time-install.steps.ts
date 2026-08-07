@@ -181,6 +181,40 @@ function initializeHosts(world: UnifiedInstallWorld): void {
     ? `v${SAFEWORD_SCHEMA.version}`
     : 'stable';
   const officialClaudeSource = `${marketplaceUrl}#${marketplaceReference}`;
+  // Claude records project-scope state in the project's .claude/settings.json.
+  // Merge rather than overwrite: Safe Word writes its own keys there too
+  // (marketplace auto-update, last-known-good fallback), and clobbering them
+  // makes every install re-enable them, so a repeat install never converges.
+  const mergeSettings = nodePath.join(bin, 'safeword-merge-claude-settings');
+  writeExecutable(
+    mergeSettings,
+    String.raw`#!/bin/sh
+exec "${process.execPath}" -e '
+const fs = require("node:fs");
+const path = require("node:path");
+const file = path.join(process.env.SAFEWORD_CLAUDE_PROJECT, ".claude/settings.json");
+let settings = {};
+try { settings = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+if (process.argv[1] === "marketplace") {
+  settings.extraKnownMarketplaces = {
+    ...settings.extraKnownMarketplaces,
+    safeword: {
+      source: {
+        source: "git",
+        url: process.env.SAFEWORD_MARKETPLACE_URL,
+        ref: process.env.SAFEWORD_MARKETPLACE_REF,
+      },
+    },
+  };
+} else {
+  settings.enabledPlugins = { ...settings.enabledPlugins, "safeword@safeword": true };
+}
+fs.mkdirSync(path.dirname(file), { recursive: true });
+fs.writeFileSync(file, JSON.stringify(settings, undefined, 2) + "\n");
+' "$@"
+`,
+  );
+
   writeExecutable(
     nodePath.join(bin, 'claude'),
     `#!/bin/sh
@@ -201,14 +235,12 @@ case "$*" in
     ;;
   'plugin marketplace add '*' --scope project')
     printf 'official' > "$SAFEWORD_CLAUDE_MARKETPLACE"
-    mkdir -p "$SAFEWORD_CLAUDE_PROJECT/.claude"
-    printf '{"extraKnownMarketplaces":{"safeword":{"source":{"source":"git","url":"%s","ref":"%s"}}}}\n' \
-      "$SAFEWORD_MARKETPLACE_URL" "$SAFEWORD_MARKETPLACE_REF" \
-      > "$SAFEWORD_CLAUDE_PROJECT/.claude/settings.json"
+    "$SAFEWORD_MERGE_SETTINGS" marketplace
     ;;
   'plugin install safeword@safeword --scope project'|'plugin update safeword@safeword --scope project'|'plugin enable safeword@safeword --scope project')
     if [ -s "$SAFEWORD_CLAUDE_FAILURE" ]; then echo 'forced Claude failure' >&2; exit 3; fi
     printf 'enabled' > "$SAFEWORD_CLAUDE_STATE"
+    "$SAFEWORD_MERGE_SETTINGS" enable
     ;;
   'plugin uninstall safeword@safeword --scope project --keep-data')
     printf 'absent' > "$SAFEWORD_CLAUDE_STATE"
@@ -281,6 +313,7 @@ esac
     SAFEWORD_CLAUDE_PAYLOAD: claudePayload,
     SAFEWORD_CLAUDE_SOURCE: officialClaudeSource,
     SAFEWORD_CLAUDE_PROJECT: project,
+    SAFEWORD_MERGE_SETTINGS: mergeSettings,
     SAFEWORD_MARKETPLACE_URL: marketplaceUrl,
     SAFEWORD_MARKETPLACE_REF: marketplaceReference,
     SAFEWORD_CLAUDE_STATE: claudeState,
@@ -1868,7 +1901,10 @@ Given(
     runInstall(this, []);
     assert.equal(this.result.exitCode, 1);
     writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), '');
-    this.projectBefore = directoryDigest(requiredPath(this.projectRoot, 'project root'));
+    this.projectBefore = directoryDigest(
+      requiredPath(this.projectRoot, 'project root'),
+      new Set(['.claude']),
+    );
     writeFileSync(requiredPath(this.claudeLog, 'Claude log'), '');
     writeFileSync(requiredPath(this.codexLog, 'Codex log'), '');
   },
@@ -1889,7 +1925,11 @@ Then('Claude converges to healthy', function (this: UnifiedInstallWorld) {
 });
 
 Then('core and Codex are not installed again', function (this: UnifiedInstallWorld) {
-  assert.equal(directoryDigest(requiredPath(this.projectRoot, 'project root')), this.projectBefore);
+  // `.claude` is the Claude surface's own state, which the retry does rewrite.
+  assert.equal(
+    directoryDigest(requiredPath(this.projectRoot, 'project root'), new Set(['.claude'])),
+    this.projectBefore,
+  );
   assert.doesNotMatch(
     readFileSync(requiredPath(this.codexLog, 'Codex log'), 'utf8'),
     /plugin (?:marketplace|add)/u,
