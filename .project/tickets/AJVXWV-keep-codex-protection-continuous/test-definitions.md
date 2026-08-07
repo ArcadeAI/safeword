@@ -50,6 +50,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 1e7968133
 - [x] REFACTOR skip: host identity is checked at the single activation boundary
 
+### Scenario: Plugin SessionStart from a restarted app completes activation
+
+- [x] RED skip: the transition already had sibling-feature coverage but was missing from this ticket's contract
+- [x] GREEN 0d32a172c
+- [x] REFACTOR skip: both features reuse the same host-bound activation steps
+
 ### Scenario: Trusted plugin SessionStart records event-specific proof
 
 - [x] RED skip: proof identity shipped inseparably with activation-host validation
@@ -200,6 +206,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 03f146a37
 - [x] REFACTOR skip: status reuses the event-level compatibility authority predicate
 
+### Scenario: Partial hook proof names the events still required before finalization
+
+- [x] RED skip: partial proof existed in the result contract before ticket-level scenario coverage
+- [x] GREEN 0d32a172c
+- [x] REFACTOR skip: one proof fixture exposes the event-level boundary
+
 ### Scenario: Recovery state takes precedence over legacy protection
 
 - [x] RED skip: recovery precedence shipped with the transaction recovery gate
@@ -238,9 +250,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Next-action shape distinguishes a runnable command from a human step
 
-- [x] RED f03c07d22
+- [x] RED skip: the tagged union and its characterization landed together during review correction
 - [x] GREEN f03c07d22
 - [x] REFACTOR skip: the tagged union is the minimal machine-readable distinction
+
+### Scenario: Restart status preserves the schema 1 compatibility state token
+
+- [x] RED skip: the compatibility alias already existed before explicit scenario coverage
+- [x] GREEN 0d32a172c
+- [x] REFACTOR skip: the assertion pins both views of the same derived state
 
 ### Scenario: JSON finalization plan uses stable effect actions
 
