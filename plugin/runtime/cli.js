@@ -188,10 +188,11 @@ function plannedEffectLines(data) {
 function reviewIndependenceLine(data) {
   if (!isRecord(data) || data.command !== "review run")
     return;
+  const reviewer = typeof data.actual_reviewer === "string" ? `${data.actual_reviewer.charAt(0).toUpperCase()}${data.actual_reviewer.slice(1)}` : "another agent";
   if (data.independence === "cross-agent")
-    return "An independent agent checked the work.";
+    return `A different agent (${reviewer}) checked the work in a separate headless process.`;
   if (data.independence === "degraded")
-    return "The check ran, but it was not fully independent.";
+    return `This review was not independent: the same agent (${reviewer}) checked its own work in a separate headless process.`;
   if (data.cross_agent_review === "not_requested")
     return "An independent agent check was not requested.";
   return "The independent check did not run.";
@@ -36512,7 +36513,7 @@ function canFundRoute(runDeadline) {
   return runDeadline - Date.now() >= minimumRouteMs();
 }
 function verifyProvenance(output, assignedReviewer, dispatchId) {
-  if (typeof output.reviewer_agent !== "string" || output.reviewer_agent === "") {
+  if (typeof output.reviewer_agent !== "string" || output.reviewer_agent === "" || typeof output.dispatch_id !== "string" || output.dispatch_id === "") {
     return { kind: "failed", code: "REVIEWER_PROVENANCE_MISSING" };
   }
   if (output.reviewer_agent !== assignedReviewer || output.dispatch_id !== dispatchId) {
@@ -36526,7 +36527,7 @@ function independentReviewResult(input) {
     findings: [
       {
         code: "REVIEW_INDEPENDENCE",
-        message: "An independent agent checked the work.",
+        message: `A different agent (${agentName(input.reviewer)}) checked the work in a separate headless process.`,
         severity: "info"
       }
     ],
@@ -36628,9 +36629,9 @@ function nextStepFor(reviewer, failure) {
 function degradedDescription(assignedReviewer, actualReviewer, failure) {
   if (failure === "not_installed") {
     const assignedName = agentName(assignedReviewer);
-    return `${assignedName} is not installed. Install ${assignedName} for fully independent reviews; Safe Word continued with a ${agentName(actualReviewer)} review.`;
+    return `${assignedName} is not installed. This review was not independent: the same agent (${agentName(actualReviewer)}) checked its own work in a separate headless process. Install ${assignedName} for an independent review.`;
   }
-  return "The check ran, but it was not fully independent.";
+  return `This review was not independent: the same agent (${agentName(actualReviewer)}) checked its own work in a separate headless process.`;
 }
 function unsupportedAuthorResult(input) {
   if (input.policy === "require") {
@@ -36812,7 +36813,7 @@ async function runDegradedFallback(input) {
       findings: [
         {
           code: "REVIEW_INDEPENDENCE_REQUIRED",
-          message: "The check ran, but it was not fully independent, so the cross-agent gate remains unsatisfied.",
+          message: `This review was not independent: the same agent (${agentName(completedOutput.reviewer_agent)}) checked its own work in a separate headless process, so the cross-agent gate remains unsatisfied.`,
           severity: "warning"
         }
       ],
@@ -37031,7 +37032,7 @@ async function runReview(input) {
     });
   }
   const output = provenance.output;
-  return independentReviewResult({ author, reviewer, output });
+  return independentReviewResult({ author: pair.author, reviewer, output });
 }
 var init_coordinator = __esm(() => {
   init_run_identity();

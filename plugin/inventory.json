@@ -135,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "483c35c516bf83c66927c6e7fcc57e794f720a319bc075653aff1053a9a8dd6d"
+      "sha256": "e21f2acbaf2d179032b648897b1daf3ff4cf24de1f4fe466b5161d6aa4e76d19"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -623,7 +623,7 @@
     },
     {
       "path": "skills/finish-review/SKILL.md",
-      "sha256": "81f503b68b47b724961d8181c062d356054e4b447f46f37c5fa3b7871eb9c7d7"
+      "sha256": "b6008584dec90f5bac4860dce057d6c799aa074686cef42c0cb3405bf73c00ea"
     },
     {
       "path": "skills/lint/SKILL.md",

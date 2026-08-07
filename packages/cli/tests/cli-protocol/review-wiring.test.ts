@@ -766,7 +766,7 @@ describe('cross-agent review public-command wiring', () => {
 
       expect(result.exitCode, result.stdout).toBe(0);
       expect(result.stdout).toContain(
-        `${reviewerName} is not installed. Install ${reviewerName} for fully independent reviews; Safe Word continued with a ${authorName} review.`,
+        `${reviewerName} is not installed. This review was not independent: the same agent (${authorName}) checked its own work in a separate headless process. Install ${reviewerName} for an independent review.`,
       );
       expect(readFileSync(log, 'utf8')).toBe(`${author}\n`);
     },
@@ -1110,14 +1110,15 @@ describe('cross-agent review public-command wiring', () => {
     {
       outcome: 'cross-agent',
       environment: {},
-      firstLine: 'An independent agent checked the work.',
+      firstLine: 'A different agent (Codex) checked the work in a separate headless process.',
     },
     {
       outcome: 'degraded',
       environment: {
         SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
       },
-      firstLine: 'The check ran, but it was not fully independent.',
+      firstLine:
+        'This review was not independent: the same agent (Claude) checked its own work in a separate headless process.',
     },
     {
       outcome: 'blocked',

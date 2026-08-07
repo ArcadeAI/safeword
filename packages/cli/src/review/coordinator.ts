@@ -32,7 +32,12 @@ function verifyProvenance(
       readonly kind: 'failed';
       readonly code: 'REVIEWER_PROVENANCE_MISSING' | 'REVIEWER_PROVENANCE_CONTRADICTORY';
     } {
-  if (typeof output.reviewer_agent !== 'string' || output.reviewer_agent === '') {
+  if (
+    typeof output.reviewer_agent !== 'string' ||
+    output.reviewer_agent === '' ||
+    typeof output.dispatch_id !== 'string' ||
+    output.dispatch_id === ''
+  ) {
     return { kind: 'failed', code: 'REVIEWER_PROVENANCE_MISSING' };
   }
   if (output.reviewer_agent !== assignedReviewer || output.dispatch_id !== dispatchId) {
@@ -53,7 +58,7 @@ function independentReviewResult(input: {
     findings: [
       {
         code: 'REVIEW_INDEPENDENCE',
-        message: 'An independent agent checked the work.',
+        message: `A different agent (${agentName(input.reviewer)}) checked the work in a separate headless process.`,
         severity: 'info',
       },
     ],
@@ -212,9 +217,9 @@ function degradedDescription(
 ): string {
   if (failure === 'not_installed') {
     const assignedName = agentName(assignedReviewer);
-    return `${assignedName} is not installed. Install ${assignedName} for fully independent reviews; Safe Word continued with a ${agentName(actualReviewer)} review.`;
+    return `${assignedName} is not installed. This review was not independent: the same agent (${agentName(actualReviewer)}) checked its own work in a separate headless process. Install ${assignedName} for an independent review.`;
   }
-  return 'The check ran, but it was not fully independent.';
+  return `This review was not independent: the same agent (${agentName(actualReviewer)}) checked its own work in a separate headless process.`;
 }
 
 function unsupportedAuthorResult(input: {
@@ -446,8 +451,7 @@ async function runDegradedFallback(input: {
       findings: [
         {
           code: 'REVIEW_INDEPENDENCE_REQUIRED',
-          message:
-            'The check ran, but it was not fully independent, so the cross-agent gate remains unsatisfied.',
+          message: `This review was not independent: the same agent (${agentName(completedOutput.reviewer_agent)}) checked its own work in a separate headless process, so the cross-agent gate remains unsatisfied.`,
           severity: 'warning',
         },
       ],
@@ -750,5 +754,5 @@ export async function runReview(input: {
   }
   const output = provenance.output;
 
-  return independentReviewResult({ author, reviewer, output });
+  return independentReviewResult({ author: pair.author, reviewer, output });
 }

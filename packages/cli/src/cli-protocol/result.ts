@@ -210,8 +210,14 @@ function plannedEffectLines(data: unknown): string[] {
 
 function reviewIndependenceLine(data: unknown): string | undefined {
   if (!isRecord(data) || data.command !== 'review run') return undefined;
-  if (data.independence === 'cross-agent') return 'An independent agent checked the work.';
-  if (data.independence === 'degraded') return 'The check ran, but it was not fully independent.';
+  const reviewer =
+    typeof data.actual_reviewer === 'string'
+      ? `${data.actual_reviewer.charAt(0).toUpperCase()}${data.actual_reviewer.slice(1)}`
+      : 'another agent';
+  if (data.independence === 'cross-agent')
+    return `A different agent (${reviewer}) checked the work in a separate headless process.`;
+  if (data.independence === 'degraded')
+    return `This review was not independent: the same agent (${reviewer}) checked its own work in a separate headless process.`;
   if (data.cross_agent_review === 'not_requested')
     return 'An independent agent check was not requested.';
   return 'The independent check did not run.';
