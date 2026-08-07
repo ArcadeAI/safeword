@@ -245,7 +245,7 @@ describe('migrate codex-plugin command', () => {
 
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(readFileSync(legacySkill, 'utf8')).toBe('legacy audit skill\n');
-    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    const calls = readFileSync(fixture.logPath, 'utf8');
     expect(calls).toContain('plugin marketplace add');
     expect(calls).toContain('plugin add safeword@safeword');
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
@@ -867,7 +867,6 @@ command = 'echo "keep this user hook"'
       expect(calls).not.toContain('plugin add safeword@safeword');
     },
   );
-
   it.each([
     ['failed', { SAFEWORD_FAIL_MARKETPLACE_LIST: '1' }],
     ['malformed', { SAFEWORD_MALFORMED_MARKETPLACE_LIST: '1' }],
