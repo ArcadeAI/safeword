@@ -115,9 +115,14 @@ export class ReviewRuntimeError extends Error {
   }
 }
 
-function timeoutMilliseconds(): number {
-  const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
-  return Number.isFinite(configured) && configured > 0 ? configured : 120_000;
+const DEFAULT_REVIEW_TIMEOUT_MS = 300_000;
+
+export function reviewTimeoutMilliseconds(
+  _reviewer: ReviewAgent,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): number {
+  const configured = Number(env.SAFEWORD_REVIEW_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -440,7 +445,7 @@ export async function runHeadlessReviewer(
   cwd: string,
   untrustedRoot: string = process.cwd(),
 ): Promise<UnverifiedReviewerOutput> {
-  const deadline = Date.now() + timeoutMilliseconds();
+  const deadline = Date.now() + reviewTimeoutMilliseconds(reviewer);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError(
