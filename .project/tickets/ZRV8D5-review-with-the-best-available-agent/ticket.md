@@ -2,13 +2,14 @@
 id: ZRV8D5
 slug: review-with-the-best-available-agent
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 related: [DR6M6N]
 phase_anchors:
   - define-behavior: .project/tickets/ZRV8D5-review-with-the-best-available-agent/spec.md
   - scenario-gate: packages/cli/features/review-with-the-best-available-agent.feature
   - implement: .project/tickets/ZRV8D5-review-with-the-best-available-agent/impl-plan.md
+  - verify: .project/tickets/ZRV8D5-review-with-the-best-available-agent/verify.md
 scope:
   - try every usable independent local reviewer before any degraded route
   - fall through to same-agent headless, host-native fresh-context, then bounded main-thread self-review
@@ -73,3 +74,4 @@ last_modified: 2026-08-06T23:26:18.179Z
 - 2026-08-07T06:03:00.000Z Quality/refactor: degraded review requested changes because the host reads live paths and final result fields were prose-only. Restricted the named reviewer to `Read`, disclosed that source integrity is not revalidated, pinned coordinator/policy/state/verdict fields, and added generated sibling-contract parity. Rejected a CI claim that could force foreground delegation because no host exposes that programmatic boundary.
 - 2026-08-07T06:31:00.000Z Final independent review: Claude requested changes for repository policy re-read, branch-controlled rubric trust, and prose tests overstated as deterministic workflow evidence. Added `review_policy` to the typed coordinator envelope, made the host skill consume only that trusted value, disclosed the control-plane and prompt-containment limits, pinned portable `allowed-tools: '*'` plus unverified Cursor tool denial, and relabeled workflow prose checks as asset-contract evidence with live Codex smoke point-in-time and hostile/cloud branches manual and unproven locally.
 - 2026-08-07T07:10:00.000Z Phase: implement → verify; final full regression passed 7061 tests with six intentional skips, all 1110 executable Gherkin scenarios were green, audit passed with documented host/cloud evidence limits, and a fresh-context in-session reviewer approved the final tree with no findings as explicitly degraded same-agent evidence.
+- 2026-08-07T07:15:00.000Z Phase: verify → done; verification reconciled every done-when outcome, recorded the independent-review timeout and degraded live approval honestly, and retained cloud/host enforcement as explicit manual evidence limits.
