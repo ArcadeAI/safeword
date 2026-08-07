@@ -42,3 +42,6 @@ removed without adding a bypass or prompt.
 - `bun audit`: no vulnerabilities found.
 - Documentation coverage: configured README and website sources checked; the
   internal classifier change does not invalidate their public claims.
+- Post-rebase validation on current main: 144 dependency-readiness tests, 22
+  recovery scenarios, and 5 release/parity tests passed; the Claude-plugin
+  release contract and both TypeScript package checks passed.
