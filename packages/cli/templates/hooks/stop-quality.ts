@@ -87,12 +87,11 @@ const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notifica
  * (SessionStart project instructions, UserPromptSubmit hook output). The boundary
  * check removes these before asking whether any human text is left.
  *
- * Deliberately narrower than TRANSCRIPT_SYSTEM_MESSAGE_PATTERN: a
- * `<task-notification>` is never stripped, so callers that classify a message by
- * its notification tag still see it. Stripping it here would erase a
- * notification-only message to the empty string and hide the tag from them.
+ * Task notifications are injected blocks too. Remove complete blocks here so a
+ * notification followed by human text still establishes a turn boundary. Code
+ * that needs to classify the raw notification must inspect the original content.
  */
-const TRANSCRIPT_REMINDER_BLOCK_PATTERN = /<(system-reminder)\b[\s\S]*?<\/\1>/gi;
+const TRANSCRIPT_REMINDER_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[\s\S]*?<\/\1>/gi;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
@@ -488,8 +487,8 @@ function normalizeContentItems(content: ContentItem[] | string | undefined): Con
 /**
  * The human's own text in a user message, with injected reminder blocks removed.
  * Empty for a pure tool-result message and for a message that is nothing but a
- * reminder. A message classified by its own tag — a task notification — keeps
- * that tag, so use this only to ask "did a human write anything here".
+ * reminder or task notification. Use this only to ask "did a human write
+ * anything here"; notification classification must use the original content.
  */
 function humanPromptText(message: TranscriptMessage): string {
   if (message.type !== 'user' || message.isMeta) return '';
