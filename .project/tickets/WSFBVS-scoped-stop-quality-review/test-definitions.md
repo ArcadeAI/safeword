@@ -5,6 +5,7 @@ Source: [user-stories.md](./user-stories.md)
 | Scenario | Given | When | Then |
 | --- | --- | --- | --- |
 | Conversational follow-up | An earlier assistant edit and its tool result | A later user text prompt requests an explanation | The stop hook emits no review continuation |
+| Reminder-prefixed follow-up | An earlier assistant edit and its tool result | A later user text prompt begins with a complete system-reminder block | The stop hook emits no review continuation |
 | String-form follow-up | An earlier assistant edit | A later real-envelope user record has string `content` | The stop hook emits no review continuation |
 | Injected metadata | An assistant edit | An `isMeta: true` user record occurs before stop | The hook retains its quality-review continuation |
 | System notification | An assistant edit | A system-reminder or task-notification record occurs before stop | The hook retains its quality-review continuation |

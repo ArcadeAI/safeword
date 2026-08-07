@@ -95,6 +95,13 @@ const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notifica
  * `<system-reminder>`, which rides along inside a turn that is still running.
  */
 const TRANSCRIPT_TURN_START_NOTIFICATION_PATTERN = /^\s*<task-notification\b/i;
+/**
+ * A complete system block the harness injects into a user message. A genuine
+ * prompt routinely carries one ahead of the human's own text (SessionStart
+ * project instructions, UserPromptSubmit hook output), so the boundary check
+ * removes these before asking whether any human text is left.
+ */
+const TRANSCRIPT_SYSTEM_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[\s\S]*?<\/\1>/gi;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
@@ -489,8 +496,16 @@ function userMessageText(message: TranscriptMessage): string {
     .trim();
 }
 
+/** User text with complete harness-injected system blocks removed. */
+function humanPromptText(message: TranscriptMessage): string {
+  return userMessageText(message).replace(TRANSCRIPT_SYSTEM_BLOCK_PATTERN, '').trim();
+}
+
 function isGenuineUserPrompt(message: TranscriptMessage): boolean {
-  const text = userMessageText(message);
+  const text = humanPromptText(message);
+
+  // The leading-tag check still guards a system block that arrives unclosed or
+  // truncated, which the block pattern cannot strip.
   return text.length > 0 && !TRANSCRIPT_SYSTEM_MESSAGE_PATTERN.test(text);
 }
 

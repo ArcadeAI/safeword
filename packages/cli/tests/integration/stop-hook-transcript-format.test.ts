@@ -352,6 +352,55 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
+  it('skips the review prompt when the user follow-up leads with a system reminder', () => {
+    // The harness prepends reminder blocks to a real prompt (SessionStart
+    // project instructions, UserPromptSubmit hook output). The turn boundary
+    // must still be found, or the scan reaches into the previous turn and
+    // demands a review for a turn that edited nothing.
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }],
+          },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'edit-1' }] },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: '<system-reminder>\nProject instructions.\n</system-reminder>',
+              },
+              { type: 'text', text: 'Explain that in plain English.' },
+            ],
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'It makes the hook quieter.' }],
+          },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
   it('shows quality review when active ticket at implement phase', () => {
     createStopHookTicket(state.projectDirectory, {
       id: '099',
