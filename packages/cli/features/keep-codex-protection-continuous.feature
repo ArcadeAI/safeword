@@ -127,7 +127,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     Scenario: Unconfirmed finalization leaves the repository unchanged
       Given legacy Codex assets and current profile hook proof
       When the builder leaves the displayed finalization plan unconfirmed
-      Then every repository file remains unchanged
+      Then the command exits without changing the repository
 
     Scenario: Confirmed finalization creates a recoverable plugin-only project
       Given legacy Codex assets, custom Codex content, and current profile hook proof

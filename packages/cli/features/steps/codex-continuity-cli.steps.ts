@@ -964,7 +964,12 @@ Then(
   'the command reports failure without reporting recovery_required',
   function (this: ContinuityCliWorld) {
     assert.match(this.finalizationError?.message ?? '', /injected mutation failure/u);
-    assert.doesNotMatch(this.finalizationError?.message ?? '', /recovery is required/u);
+    assert.equal(
+      existsSync(nodePath.join(requireProject(this), '.safeword/codex-migration-backup')),
+      false,
+    );
+    const status = run(this, ['codex', 'status']);
+    assert.doesNotMatch(status.stdout, /recovery_required/u);
   },
 );
 
