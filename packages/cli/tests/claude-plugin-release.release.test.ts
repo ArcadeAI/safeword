@@ -55,7 +55,7 @@ describe('Claude plugin release contract', () => {
     );
 
     expect(skill).toContain(
-      '!`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/record-skill-invocation.ts "$CLAUDE_PROJECT_DIR" quality-review',
+      '!`bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" quality-review',
     );
     expect(skill).not.toContain('$(git rev-parse');
   });
