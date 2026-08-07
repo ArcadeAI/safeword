@@ -36431,16 +36431,22 @@ function changedReviewResult(input) {
   });
 }
 function preparePrimaryReview(input, reviewer) {
-  input.progress?.start(`Preparing the review packet for ${agentName(reviewer)}\u2026`);
+  const name = agentName(reviewer);
+  input.progress?.start(`Preparing the review packet for ${name}\u2026`);
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  input.progress?.start(`Requesting an independent ${agentName(reviewer)} review\u2026`);
-  input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(reviewer)}\u2026`);
+  input.progress?.start(`Requesting an independent ${name} review\u2026`);
+  input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
+  return prepared;
+}
+function prepareFallbackReview(input, assignedReviewer, author) {
+  const fallbackName = agentName(author);
+  input.progress?.start(`${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback\u2026`);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback\u2026`);
   return prepared;
 }
 async function runDegradedFallback(input) {
-  input.progress?.start(`${agentName(input.assignedReviewer)} did not complete; trying a ${agentName(input.author)} fallback\u2026`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  input.progress?.heartbeat?.(`Still waiting for a response from the ${agentName(input.author)} fallback\u2026`);
+  const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared);
   const changedResult = changedReviewResult({
     author: input.author,
@@ -51735,14 +51741,22 @@ function assertEffectPolicy(definition, result, options) {
 }
 var PROGRESS_ANNOUNCE_DELAY_MS = 100;
 var PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
+function resolveHeartbeatIntervalMs(environment = process.env) {
+  const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
+  if (!Number.isSafeInteger(override) || override < 1 || override > PROGRESS_HEARTBEAT_INTERVAL_MS) {
+    return PROGRESS_HEARTBEAT_INTERVAL_MS;
+  }
+  return override;
+}
 function createProgressReporter(adapters) {
   let announcementHandle;
   let heartbeatHandle;
+  const heartbeatIntervalMs = resolveHeartbeatIntervalMs();
   function scheduleHeartbeat(message) {
     heartbeatHandle = adapters.schedule(() => {
       adapters.emit(message);
       scheduleHeartbeat(message);
-    }, PROGRESS_HEARTBEAT_INTERVAL_MS);
+    }, heartbeatIntervalMs);
   }
   return {
     start(message) {
