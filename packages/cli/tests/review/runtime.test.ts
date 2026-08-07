@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -150,6 +150,12 @@ wait
         ),
       ).rejects.toMatchObject({ failure: 'timed_out' });
 
+      await vi.waitFor(
+        () => {
+          expect(existsSync(childPidPath)).toBe(true);
+        },
+        { timeout: 2000 },
+      );
       const childPid = Number(readFileSync(childPidPath, 'utf8'));
       await vi.waitFor(
         () => {
