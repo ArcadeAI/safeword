@@ -36,6 +36,7 @@ import {
   renderJsonResult,
 } from '../../src/cli-protocol/result.ts';
 import { convergeSetup } from '../../src/commands/converge-setup.ts';
+import { publicFixtureEnvironment } from './public-fixture-environment.js';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
@@ -126,11 +127,7 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     {
       cwd,
       encoding: 'utf8',
-      env: {
-        ...childEnvironment(),
-        CODEX_HOME: join(cwd, '.codex'),
-        ...definition.fixture.environment,
-      },
+      env: publicFixtureEnvironment(cwd, definition.fixture.environment),
     },
   );
   return {
