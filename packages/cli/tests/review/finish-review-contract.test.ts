@@ -4,7 +4,12 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
-import { CURSOR_RULE_WRAPPERS, renderCursorRuleWrapper } from '../../src/cursor-wrappers.js';
+import {
+  CURSOR_COMMAND_WRAPPERS,
+  CURSOR_RULE_WRAPPERS,
+  renderCursorCommandWrapper,
+  renderCursorRuleWrapper,
+} from '../../src/cursor-wrappers.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const templates = nodePath.resolve(import.meta.dirname, '../../templates');
@@ -15,6 +20,11 @@ const agentPath = nodePath.join(templates, 'agents/safeword-reviewer.md');
 function read(path: string): string {
   expect(existsSync(path), `${path} must be shipped`).toBe(true);
   return readFileSync(path, 'utf8');
+}
+
+function required<T>(value: T | undefined, message: string): T {
+  if (value === undefined) throw new Error(message);
+  return value;
 }
 
 describe('best-available host review contract', () => {
@@ -122,6 +132,17 @@ describe('best-available host review contract', () => {
     expect(
       readFileSync(nodePath.join(templates, 'cursor/rules/safeword-finish-review.mdc'), 'utf8'),
     ).toBe(renderCursorRuleWrapper({ wrapper: cursor }));
+    const cursorCommand = required(
+      CURSOR_COMMAND_WRAPPERS.find(command => command.name === 'finish-review'),
+      'missing finish-review Cursor command',
+    );
+    expect(cursorCommand).toBeDefined();
+    expect(SAFEWORD_SCHEMA.ownedFiles['.cursor/commands/finish-review.md']?.template).toBe(
+      'commands/finish-review.md',
+    );
+    expect(read(nodePath.join(templates, 'commands/finish-review.md'))).toBe(
+      renderCursorCommandWrapper({ wrapper: cursorCommand }),
+    );
     expect(contract).toContain('Do not delegate');
   });
 });

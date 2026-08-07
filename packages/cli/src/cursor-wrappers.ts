@@ -63,6 +63,12 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
     skillPath: 'quality-review/SKILL.md',
   },
   {
+    name: 'finish-review',
+    description:
+      'Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.',
+    skillPath: 'finish-review/SKILL.md',
+  },
+  {
     name: 'audit',
     description: 'Run comprehensive code audit for architecture, dead code, and test quality',
     skillPath: 'audit/SKILL.md',

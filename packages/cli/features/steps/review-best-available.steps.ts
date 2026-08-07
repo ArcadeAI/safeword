@@ -35,11 +35,11 @@ const artifactsBySurface: Record<ReviewSurface, { contract: string; entryPoint: 
     entryPoint: '.claude/skills/quality-review/SKILL.md',
   },
   Cursor: {
-    contract: '.cursor/rules/safeword-finish-review.mdc',
+    contract: '.cursor/commands/finish-review.md',
     entryPoint: '.cursor/rules/safeword-quality-reviewing.mdc',
   },
   'Cursor Cloud Agents': {
-    contract: '.cursor/rules/safeword-finish-review.mdc',
+    contract: '.cursor/commands/finish-review.md',
     entryPoint: '.cursor/rules/safeword-quality-reviewing.mdc',
   },
   'OpenAI Codex': {
@@ -79,7 +79,7 @@ When('its shipped fallback wiring is inspected', function (this: SafewordWorld) 
 
   if (wiring.surface.startsWith('Cursor')) {
     assert.match(wiring.entryPoint, /@\.safeword\/skills\/quality-review\/SKILL\.md/u);
-    assert.match(wiring.contract, /@\.safeword\/skills\/finish-review\/SKILL\.md/u);
+    assert.match(wiring.contract, /\.safeword\/skills\/finish-review\/SKILL\.md/u);
     wiring.entryPoint = readPackageFile('templates/skills/quality-review/SKILL.md');
     wiring.contract = readPackageFile('templates/skills/finish-review/SKILL.md');
   }
