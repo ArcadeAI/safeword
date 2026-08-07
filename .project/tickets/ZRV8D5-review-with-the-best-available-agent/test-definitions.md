@@ -4,6 +4,12 @@ Feature source: `packages/cli/features/review-with-the-best-available-agent.feat
 
 test-definitions.md is the R/G/R ledger.
 
+## Feature wiring: Every advertised host ships the typed-exhaustion continuation
+
+- [x] RED 2abd9aa05
+- [x] GREEN 068b4d9c2
+- [x] REFACTOR aba4ab37f
+
 ## Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
 
 ### Scenario: The first available opposite local agent completes the review
@@ -13,6 +19,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] REFACTOR aba4ab37f
 
 ### Scenario: A failed opposite default model falls through to its independent alternate model
+
+- [x] RED 16236851f
+- [x] GREEN 068b4d9c2
+- [x] REFACTOR aba4ab37f
+
+### Scenario: A later compatible independent reviewer still precedes degradation
 
 - [x] RED 16236851f
 - [x] GREEN 068b4d9c2
@@ -72,6 +84,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 068b4d9c2
 - [x] REFACTOR aba4ab37f
 
+### Scenario: A terminal self-review runtime failure preserves the original exhaustion result
+
+- [x] RED 16236851f
+- [x] GREEN 068b4d9c2
+- [x] REFACTOR aba4ab37f
+
 ### Scenario: A cloud host without delegation still completes bounded self-review
 
 - [x] RED 16236851f
@@ -92,6 +110,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN aba4ab37f
 - [x] REFACTOR 7367f2710
 
+### Scenario: Main-thread self-review treats hostile packet text as data
+
+- [x] RED 16236851f
+- [x] GREEN 068b4d9c2
+- [x] REFACTOR aba4ab37f
+
+### Scenario: Hostile packet text cannot forge independent assurance
+
+- [x] RED 16236851f
+- [x] GREEN 068b4d9c2
+- [x] REFACTOR aba4ab37f
+
 ## Rule: review-with-the-best-available-agent.NTB1.R3 — Degraded verdicts are preserved
 
 ### Scenario: Degraded approval remains approved
@@ -101,18 +131,6 @@ test-definitions.md is the R/G/R ledger.
 - [x] REFACTOR aba4ab37f
 
 ### Scenario: Degraded changes requested remains action required
-
-- [x] RED 16236851f
-- [x] GREEN 068b4d9c2
-- [x] REFACTOR aba4ab37f
-
-### Scenario: Main-thread self-review treats hostile packet text as data
-
-- [x] RED 16236851f
-- [x] GREEN 068b4d9c2
-- [x] REFACTOR aba4ab37f
-
-### Scenario: Hostile packet text cannot forge independent assurance
 
 - [x] RED 16236851f
 - [x] GREEN 068b4d9c2
