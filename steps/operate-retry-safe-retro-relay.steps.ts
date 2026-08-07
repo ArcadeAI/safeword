@@ -3,12 +3,12 @@ import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 
-import { Before, defineStep, setDefaultTimeout } from '@cucumber/cucumber';
+import { Before, defineStep } from '@cucumber/cucumber';
 
 import type { SafewordWorld } from './world.js';
 
 const execFileAsync = promisify(execFile);
-setDefaultTimeout(180_000);
+const RELAY_PROOF_TIMEOUT_MS = 180_000;
 
 type ScenarioProof = { packageDirectory: string; pattern: string; testFile: string };
 
@@ -248,7 +248,7 @@ async function runProof(
 }
 
 Before(
-  { tags: '@operate-retry-safe-retro-relay' },
+  { tags: '@operate-retry-safe-retro-relay', timeout: RELAY_PROOF_TIMEOUT_MS },
   async function (this: SafewordWorld, scenario: { pickle: { name: string } }) {
     const scenarioName = scenario.pickle.name;
     proofCache.set(scenarioName, proofCache.get(scenarioName) ?? runProof(scenarioName));
