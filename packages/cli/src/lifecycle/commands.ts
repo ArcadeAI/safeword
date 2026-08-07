@@ -143,6 +143,14 @@ export async function installLifecycle(
   return combineInstallResults(agents, [{ name: 'project', result: projectResult }, ...surfaces]);
 }
 
+const EMPTY_SURFACE_EFFECTS: Effects = {
+  files: [],
+  packages: [],
+  configuration: [],
+  network: [],
+  destructive: [],
+};
+
 function profileUninstallEffects(agent: 'claude' | 'codex'): Effects {
   const label = agent === 'claude' ? 'Claude profile plugin' : 'Codex profile plugin';
   return {
@@ -173,7 +181,7 @@ function agentInstallEffects(agent: AgentIntegration): Effects {
   };
 }
 
-interface PreparedUninstall {
+interface PreparedLifecycle {
   readonly agents: readonly AgentIntegration[];
   readonly projectSchema: SafewordSchema;
   readonly projectPlan: CliPlan;
@@ -198,60 +206,28 @@ async function profilePreconditions(
   return observations;
 }
 
-function plannedUninstallSurfaces(
-  agents: readonly AgentIntegration[],
-  projectEffects: Effects,
-): { name: string; effects: Effects }[] {
-  const surfaces = [{ name: 'project', effects: projectEffects }];
-  for (const agent of agents) {
-    if (agent === 'cursor') {
-      surfaces.push({ name: agent, effects: createResult({ state: 'healthy' }).effects });
-    } else surfaces.push({ name: agent, effects: profileUninstallEffects(agent) });
-  }
-  return surfaces;
+function agentUninstallEffects(agent: AgentIntegration): Effects {
+  return agent === 'cursor' ? EMPTY_SURFACE_EFFECTS : profileUninstallEffects(agent);
 }
 
-async function prepareUninstall(
+async function prepareLifecycle(
   cwd: string,
+  operation: 'install' | 'uninstall',
   agents: readonly AgentIntegration[],
   full = false,
-): Promise<PreparedUninstall> {
+): Promise<PreparedLifecycle> {
+  const uninstalling = operation === 'uninstall';
   const projectSchema = projectLifecycleSchema(cwd, agents);
+  const uninstallOperation = full ? 'uninstall-full' : 'uninstall';
   const project = await createReconciliationPlan(
     cwd,
-    full ? 'uninstall-full' : 'uninstall',
+    uninstalling ? uninstallOperation : 'upgrade',
     projectSchema,
   );
-  const surfaces = plannedUninstallSurfaces(agents, project.plan.effects);
-  const observations = await profilePreconditions(cwd, agents);
-  const preconditionDigest = createHash('sha256')
-    .update(JSON.stringify([project.plan.preconditionDigest, agents, observations]))
-    .digest('hex');
-  return {
-    agents,
-    projectSchema,
-    projectPlan: project.plan,
-    full,
-    surfaces,
-    plan: createPlan({
-      command: 'uninstall',
-      preconditionDigest,
-      effects: combineEffects(surfaces.map(surface => surface.effects)),
-      requiresConfirmation: true,
-      verification: [{ description: 'Re-run safeword status', command: 'safeword status' }],
-    }),
-  };
-}
-
-async function prepareInstall(
-  cwd: string,
-  agents: readonly AgentIntegration[],
-): Promise<PreparedUninstall> {
-  const projectSchema = projectLifecycleSchema(cwd, agents);
-  const project = await createReconciliationPlan(cwd, 'upgrade', projectSchema);
+  const agentEffects = uninstalling ? agentUninstallEffects : agentInstallEffects;
   const surfaces = [
     { name: 'project', effects: project.plan.effects },
-    ...agents.map(agent => ({ name: agent, effects: agentInstallEffects(agent) })),
+    ...agents.map(agent => ({ name: agent, effects: agentEffects(agent) })),
   ];
   const observations = await profilePreconditions(cwd, agents);
   const preconditionDigest = createHash('sha256')
@@ -261,13 +237,13 @@ async function prepareInstall(
     agents,
     projectSchema,
     projectPlan: project.plan,
-    full: false,
+    full: uninstalling && full,
     surfaces,
     plan: createPlan({
-      command: 'install',
+      command: operation,
       preconditionDigest,
       effects: combineEffects(surfaces.map(surface => surface.effects)),
-      requiresConfirmation: false,
+      requiresConfirmation: uninstalling,
       verification: [{ description: 'Re-run safeword status', command: 'safeword status' }],
     }),
   };
@@ -275,7 +251,7 @@ async function prepareInstall(
 
 function lifecyclePlanResult(
   operation: 'install' | 'uninstall',
-  prepared: PreparedUninstall,
+  prepared: PreparedLifecycle,
 ): CliResult {
   const hasEffects = Object.values(prepared.plan.effects).some(effects => effects.length > 0);
   const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
@@ -342,8 +318,8 @@ export async function planLifecycle(invocation: CommandInvocation): Promise<CliR
   }
   const prepared =
     operation === 'install'
-      ? await prepareInstall(invocation.cwd, parsed.selection.agents)
-      : await prepareUninstall(invocation.cwd, parsed.selection.agents);
+      ? await prepareLifecycle(invocation.cwd, 'install', parsed.selection.agents)
+      : await prepareLifecycle(invocation.cwd, 'uninstall', parsed.selection.agents);
   return lifecyclePlanResult(operation, prepared);
 }
 
@@ -378,9 +354,9 @@ async function uninstallProfileSurfaces(
   return completed;
 }
 
-async function applyPreparedUninstall(
+async function applyPreparedLifecycle(
   cwd: string,
-  prepared: PreparedUninstall,
+  prepared: PreparedLifecycle,
 ): Promise<CliResult> {
   const completed = await uninstallProfileSurfaces(cwd, prepared.agents);
   const projectResult = await removeProject(cwd, {
@@ -418,7 +394,7 @@ async function applyPreparedUninstall(
   });
 }
 
-function uninstallPreview(prepared: PreparedUninstall): CliResult {
+function uninstallPreview(prepared: PreparedLifecycle): CliResult {
   const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
   const fullFlag = prepared.full ? ' --full' : '';
   return createResult({
@@ -462,12 +438,17 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
   }
   const full = invocation.options.full === true;
   if (invocation.offline && full) return onlineRequired('uninstall');
-  const prepared = await prepareUninstall(invocation.cwd, parsed.selection.agents, full);
+  const prepared = await prepareLifecycle(
+    invocation.cwd,
+    'uninstall',
+    parsed.selection.agents,
+    full,
+  );
   const suppliedPlan =
     typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
   if (invocation.options.yes === true && suppliedPlan !== undefined) {
     if (suppliedPlan !== prepared.plan.id) return staleUninstallPlan(prepared.plan);
-    return applyPreparedUninstall(invocation.cwd, prepared);
+    return applyPreparedLifecycle(invocation.cwd, prepared);
   }
   return uninstallPreview(prepared);
 }
