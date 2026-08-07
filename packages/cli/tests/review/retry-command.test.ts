@@ -30,15 +30,20 @@ function projectWithTarget(name: string): string {
 
 async function recoveryCommandFor(name: string): Promise<string> {
   const directory = projectWithTarget(name);
-  // No reviewer on PATH, so every route fails and the result carries recovery.
+  // Pin the author identity rather than inheriting the host test runner. No
+  // reviewer is on PATH, so every route fails and the result carries recovery.
   const originalPath = process.env.PATH;
+  const originalRuntime = process.env.SAFEWORD_AGENT_RUNTIME;
   process.env.PATH = '/nonexistent-for-this-test';
+  process.env.SAFEWORD_AGENT_RUNTIME = 'claude';
   try {
     const result = await runReview({ cwd: directory, kind: 'quality-review', targets: [name] });
     return result.recovery?.[0]?.command ?? '';
   } finally {
     if (originalPath === undefined) delete process.env.PATH;
     else process.env.PATH = originalPath;
+    if (originalRuntime === undefined) delete process.env.SAFEWORD_AGENT_RUNTIME;
+    else process.env.SAFEWORD_AGENT_RUNTIME = originalRuntime;
   }
 }
 
