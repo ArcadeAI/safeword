@@ -13,6 +13,7 @@ import {
 } from '../cli-protocol/result.js';
 import { removeProject } from '../commands/remove.js';
 import type { SafewordSchema } from '../schema.js';
+import { observeCursorProject } from './cursor.js';
 import { convergeSetup } from './project-install.js';
 import { projectLifecycleSchema } from './schema.js';
 
@@ -102,6 +103,7 @@ async function installProjectSurface(
 }
 
 async function installAgentSurfaces(
+  cwd: string,
   agents: readonly string[],
   projectResult: CliResult,
   adapters: LifecycleInstallAdapters,
@@ -114,9 +116,12 @@ async function installAgentSurfaces(
     surfaces.push({ name: 'codex', result: await adapters.installCodex() });
   }
   if (agents.includes('cursor')) {
+    // Cursor has no host process; its outcome is read back from the assets the
+    // project reconciliation just wrote, never mirrored from the project state.
+    const observed = observeCursorProject(cwd, projectLifecycleSchema(cwd, agents));
     surfaces.push({
       name: 'cursor',
-      result: createResult({ state: projectResult.state, changed: projectResult.changed }),
+      result: { ...observed, changed: projectResult.changed },
     });
   }
   return surfaces;
@@ -139,7 +144,7 @@ export async function installLifecycle(
   if (invocation.offline && requiresProfileNetwork) return onlineRequired('install');
 
   const projectResult = await installProjectSurface(invocation, agents);
-  const surfaces = await installAgentSurfaces(agents, projectResult, adapters);
+  const surfaces = await installAgentSurfaces(invocation.cwd, agents, projectResult, adapters);
   return combineInstallResults(agents, [{ name: 'project', result: projectResult }, ...surfaces]);
 }
 

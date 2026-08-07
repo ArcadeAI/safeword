@@ -13,6 +13,7 @@ import {
 import { checkHealth } from '../health.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
+import { observeCursorProject, unselectedCursorFinding } from './cursor.js';
 import { projectLifecycleSchema } from './schema.js';
 
 function healthFindings(
@@ -121,10 +122,7 @@ export async function observeLifecycleSurfaces(
   if (agents.includes('cursor')) {
     surfaces.push({
       name: 'cursor',
-      result: createResult({
-        state: project.state,
-        data: { command: 'cursor status', coverage: 'project-owned Cursor assets' },
-      }),
+      result: observeCursorProject(cwd, projectLifecycleSchema(cwd, agents)),
     });
   }
   return surfaces;
@@ -204,7 +202,8 @@ async function observeProjectStatus(
   agents: readonly AgentIntegration[],
 ): Promise<CliResult> {
   try {
-    const health = await checkHealth(cwd, { schema: projectLifecycleSchema(cwd, agents) });
+    const schema = projectLifecycleSchema(cwd, agents);
+    const health = await checkHealth(cwd, { schema });
     if (!health.configured) {
       return createResult({
         state: 'action_required',
@@ -248,6 +247,7 @@ async function observeProjectStatus(
         ? []
         : [versionGuidance.finding]),
       ...healthFindings(health.advisories, 'PROJECT_ADVISORY', 'info'),
+      ...unselectedCursorFinding(cwd, agents),
     ];
     const nextActions = statusNextActions(blockingFindings, versionGuidance.nextAction);
 

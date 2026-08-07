@@ -1434,7 +1434,7 @@ const CURSOR_PROJECT_PATHS = new Set([
   '.safeword/hooks/session-cursor-auto-upgrade.ts',
 ]);
 
-function isCursorProjectPath(path: string): boolean {
+export function isCursorProjectPath(path: string): boolean {
   return (
     path === '.cursor' ||
     path.startsWith('.cursor/') ||
