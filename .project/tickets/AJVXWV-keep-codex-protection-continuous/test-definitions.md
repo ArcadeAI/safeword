@@ -32,22 +32,28 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ff5d4270f
 - [x] REFACTOR skip: ordered state table is already the minimal precedence model
 
-### Scenario: Successful installation requires a Codex restart
+### Scenario: Enabled older plugin requires an update
+
+- [x] RED skip: version-aware observation arrived with the state-table regression
+- [x] GREEN b49622008
+- [x] REFACTOR skip: update-required is one ordered state-table row
+
+### Scenario: Successful installation requires an app restart
 
 - [x] RED 7ceb02372
 - [x] GREEN 240a0b432
 - [x] REFACTOR skip: durable profile writer is already isolated behind one function
 
-### Scenario: Plugin SessionStart clears restart-required state
+### Scenario: Plugin SessionStart from the installing app does not clear activation state
 
-- [x] RED 8757aee8e
-- [x] GREEN d8e9dc757
-- [x] REFACTOR skip: proof and marker writes already share one atomic JSON primitive
+- [x] RED skip: the earlier clearing expectation was invalidated by same-host catalogue evidence
+- [x] GREEN 1e7968133
+- [x] REFACTOR skip: host identity is checked at the single activation boundary
 
 ### Scenario: Trusted plugin SessionStart records event-specific proof
 
-- [x] RED skip: complete proof is inseparable from safely clearing the restart marker
-- [x] GREEN d8e9dc757
+- [x] RED skip: proof identity shipped inseparably with activation-host validation
+- [x] GREEN 1e7968133
 - [x] REFACTOR skip: proof payload has one schema-owned writer
 
 ### Scenario: Interrupted proof write cannot become current
@@ -228,7 +234,13 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the versioned result type existed before exhaustive shape characterization
 - [x] GREEN dafac16e8
-- [x] REFACTOR skip: every state is emitted through the same schema-1 result constructor
+- [x] REFACTOR skip: every state is emitted through one schema-1 envelope with one nested schema-2 migration object
+
+### Scenario: Next-action shape distinguishes a runnable command from a human step
+
+- [x] RED f03c07d22
+- [x] GREEN f03c07d22
+- [x] REFACTOR skip: the tagged union is the minimal machine-readable distinction
 
 ### Scenario: JSON finalization plan uses stable effect actions
 

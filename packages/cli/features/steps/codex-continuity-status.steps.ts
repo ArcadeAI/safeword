@@ -42,6 +42,13 @@ const currentProof: CodexMigrationFacts['proof'] = {
   missing_events: [],
 };
 
+const partialProof: CodexMigrationFacts['proof'] = {
+  ...currentProof,
+  status: 'partial',
+  events: ['session-start'],
+  missing_events: ['pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
+};
+
 const absentPlugin: CodexMigrationFacts['plugin'] = {
   installed: false,
   enabled: false,
@@ -139,6 +146,9 @@ function fixtureFacts(name: string): CodexMigrationFacts {
     case 'disabled with partial legacy': {
       return partialLegacy({ plugin: { ...enabledPlugin, enabled: false } });
     }
+    case 'outdated plugin without legacy': {
+      return facts({ plugin: { ...enabledPlugin, version: '0.68.0' } });
+    }
     case 'restart pending without legacy': {
       return facts({ plugin: enabledPlugin, activationPending: true });
     }
@@ -205,6 +215,10 @@ Given(
         : facts({ plugin: enabledPlugin });
   },
 );
+
+Given('an enabled plugin with proof for only SessionStart', function (this: ContinuityStatusWorld) {
+  this.codexFacts = facts({ plugin: enabledPlugin, proof: partialProof });
+});
 
 Given(
   'an unresolved migration backup and recognized legacy protection',
@@ -356,6 +370,21 @@ Then(
 );
 
 Then(
+  'status reports partial proof and names the four missing hook events',
+  function (this: ContinuityStatusWorld) {
+    const status = requireStatus(this);
+    assert.equal(status.state, 'plugin_enabled_hook_unproven');
+    assert.equal(status.proof.status, 'partial');
+    assert.deepEqual(status.proof.missing_events, [
+      'pre-tool-use',
+      'post-tool-use',
+      'user-prompt-submit',
+      'stop',
+    ]);
+  },
+);
+
+Then(
   'status reports plugin, names protection as protected, and contains no Next line',
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
@@ -403,7 +432,7 @@ Then(
 );
 
 Then(
-  /^the complete schema 1 object reports state ([a-z_]+) and protection ([a-z]+)$/u,
+  /^the complete migration schema 2 object reports state ([a-z_]+) and protection ([a-z]+)$/u,
   function (
     this: ContinuityStatusWorld,
     state: CodexMigrationResultV2['state'],

@@ -49,6 +49,11 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       When Codex invokes the marked profile-plugin SessionStart dispatcher
       Then same-host proof preserves the activation marker and status still requires an app restart
 
+    Scenario: Plugin SessionStart from a restarted app completes activation
+      Given a profile with app-restart activation pending for the installed plugin identity
+      When a restarted Codex app invokes the installed profile-plugin SessionStart dispatcher
+      Then restart-bound proof replaces the pending marker and status no longer requires an app restart
+
     Scenario: Trusted plugin SessionStart records event-specific proof
       Given the Safe Word profile-plugin SessionStart dispatcher is trusted
       When Codex invokes it with the plugin-hook marker
@@ -157,6 +162,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | legacy                        | plugin_installed_app_restart_required |
         | plugin_disabled               | plugin_installed_app_restart_required |
         | plugin_setup_required         | plugin_installed_app_restart_required |
+        | plugin_update_required        | plugin_installed_app_restart_required |
         | plugin_installed_app_restart_required | plugin_installed_app_restart_required |
         | plugin_enabled_hook_unproven  | plugin_enabled_hook_unproven    |
         | compatibility                 | compatibility                  |
@@ -243,6 +249,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled plugin without legacy | plugin_disabled   | unprotected | safeword codex migrate           |
         | disabled plugin with complete legacy | plugin_disabled | protected | safeword codex migrate         |
         | disabled plugin with partial legacy | plugin_disabled | partial | safeword codex migrate             |
+        | outdated plugin without legacy | plugin_update_required | unprotected | safeword codex migrate          |
         | restart pending without legacy | plugin_installed_app_restart_required | unprotected | Restart Codex, start a new task, then review the installed hooks with /hooks. |
         | restart pending with complete legacy | plugin_installed_app_restart_required | protected | Restart Codex, start a new task, then review the installed hooks with /hooks. |
         | restart pending with partial legacy | plugin_installed_app_restart_required | partial | Restart Codex, start a new task, then review the installed hooks with /hooks. |
@@ -260,6 +267,12 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | legacy_fixture                | protection |
         | recognized legacy protection  | protected  |
         | no recognized legacy protection | unprotected |
+
+    @rejection
+    Scenario: Partial hook proof names the events still required before finalization
+      Given an enabled plugin with proof for only SessionStart
+      When Safe Word derives human Codex status from the fixture
+      Then status reports partial proof and names the four missing hook events
 
     Scenario: Recovery state takes precedence over legacy protection
       Given an unresolved migration backup and recognized legacy protection
@@ -292,7 +305,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     Scenario Outline: JSON status uses state-specific complete schema
       Given the repository and active profile derive the <fixture> fixture
       When Safe Word renders the prepared Codex status as JSON
-      Then the complete schema 1 object reports state <state> and protection <protection>
+      Then the complete migration schema 2 object reports state <state> and protection <protection>
       And it has <next_actions> next actions naming <next_command> and the command exits <exit_code>
 
       Examples:
@@ -302,6 +315,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled without legacy        | plugin_disabled                    | unprotected | 1            | safeword codex migrate             | 2         |
         | disabled with complete legacy  | plugin_disabled                    | protected   | 1            | safeword codex migrate             | 2         |
         | disabled with partial legacy   | plugin_disabled                    | partial     | 1            | safeword codex migrate             | 2         |
+        | outdated plugin without legacy | plugin_update_required             | unprotected | 1            | safeword codex migrate             | 2         |
         | restart pending without legacy | plugin_installed_app_restart_required  | unprotected | 1            | Restart Codex, start a new task, then review the installed hooks with /hooks. | 2         |
         | restart pending with complete legacy | plugin_installed_app_restart_required | protected | 1            | Restart Codex, start a new task, then review the installed hooks with /hooks. | 2         |
         | restart pending with partial legacy | plugin_installed_app_restart_required | partial | 1            | Restart Codex, start a new task, then review the installed hooks with /hooks. | 2         |
@@ -324,6 +338,11 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | unproven without legacy        | human   |
         | disabled without legacy        | command |
         | finalized without plugin       | command |
+
+    Scenario: Restart status preserves the schema 1 compatibility state token
+      Given the released Safeword plugin is installed but Codex has not restarted
+      When the builder checks the Codex plugin activation status
+      Then JSON status exposes the schema 2 app-restart state and the schema 1 compatibility state
 
     Scenario: JSON finalization plan uses stable effect actions
       Given legacy Codex assets and current profile hook proof

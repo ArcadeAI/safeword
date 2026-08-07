@@ -971,7 +971,7 @@ Then('the command succeeds without changing repository files', function (this: C
 });
 
 Given(
-  /^the repository and active profile derive the (legacy|plugin_disabled|plugin_setup_required|plugin_installed_app_restart_required|plugin_enabled_hook_unproven|compatibility|not_configured) state$/u,
+  /^the repository and active profile derive the (legacy|plugin_disabled|plugin_setup_required|plugin_update_required|plugin_installed_app_restart_required|plugin_enabled_hook_unproven|compatibility|not_configured) state$/u,
   function (this: ContinuityCliWorld, state: string) {
     this.expectedState = state;
     switch (state) {
@@ -988,6 +988,10 @@ Given(
         const finalized = runPlannedFinalization(this);
         assert.equal(finalized.exitCode, 0);
         writeFileSync(nodePath.join(requireProfile(this), 'plugin-state'), 'absent');
+        break;
+      }
+      case 'plugin_update_required': {
+        initialize(this, { pluginState: 'enabled', pluginVersion: '0.68.0' });
         break;
       }
       case 'plugin_installed_app_restart_required': {
@@ -1471,6 +1475,23 @@ Then(
     });
     const human = run(this, ['codex', 'status']);
     assert.match(human.stdout, /Restart Codex.+new task.+review.+hooks/isu);
+  },
+);
+
+Then(
+  'JSON status exposes the schema 2 app-restart state and the schema 1 compatibility state',
+  function (this: ContinuityCliWorld) {
+    const status = JSON.parse(this.result.stdout) as {
+      data?: {
+        migration?: { schema_version?: string; state?: string };
+        migration_state?: string;
+      };
+    };
+    assert.deepEqual(status.data?.migration, {
+      schema_version: '2',
+      state: 'plugin_installed_app_restart_required',
+    });
+    assert.equal(status.data?.migration_state, 'plugin_installed_restart_required');
   },
 );
 
