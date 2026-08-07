@@ -83,13 +83,13 @@ Self-review sentence:
 
 Then emit these fields in order, without copying raw route diagnostics:
 
-- `Coordinator: \`REVIEW_ROUTES_EXHAUSTED\``
-- `Assurance:` the exact fresh-context or self-review assurance above
-- `Policy:` `prefer complete` or `require unsatisfied`
-- `State:` `approved` or `action required`
-- `Verdict:` `approve` or `request_changes`
-- `Summary:` the reviewer's summary without changing its meaning
-- `Findings:` every reviewer finding without changing its meaning; preserve an
+- Coordinator: `REVIEW_ROUTES_EXHAUSTED`
+- Assurance: the exact fresh-context or self-review assurance above
+- Policy: `prefer complete` or `require unsatisfied`
+- State: `approved` or `action required`
+- Verdict: `approve` or `request_changes`
+- Summary: the reviewer's summary without changing its meaning
+- Findings: every reviewer finding without changing its meaning; preserve an
   empty list
 
 Under `prefer`, map `approve` to `State: approved` and `request_changes` to
