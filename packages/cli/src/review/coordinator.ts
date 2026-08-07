@@ -556,7 +556,13 @@ async function runAlternateModelRoute(input: {
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
-  if (assessment.kind === 'failed') return assessment;
+  if (assessment.kind === 'failed') {
+    // A configured model is not a usable route when no installed candidate
+    // advertises model selection. Capability rejection is a skip, not a review
+    // attempt or failure, so it must not displace the funded fallback route.
+    if (assessment.failure === 'not_installed') return { kind: 'skipped' };
+    return assessment;
+  }
   const output = assessment.output;
 
   const result = independentReviewResult({

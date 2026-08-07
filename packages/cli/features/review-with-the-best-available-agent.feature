@@ -86,6 +86,15 @@ Feature: Keep review available with the best supported fallback
       And no degraded reviewer is used
       And the result explains that an independent reviewer completed the review
 
+    @review-with-the-best-available-agent.TBU1.R1
+    Scenario: An alternate model route without model selection is skipped before degradation
+      Given the opposite default reviewer fails
+      And its configured alternate reviewer does not support explicit model selection
+      And the author's headless CLI can review the accepted packet
+      When the CLI coordinator runs
+      Then the unsupported alternate route consumes no review attempt
+      And the builder receives the headless review's findings
+
   @review-with-the-best-available-agent.TBU1.R2 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R2 — Same-agent headless review is the first degraded route
 

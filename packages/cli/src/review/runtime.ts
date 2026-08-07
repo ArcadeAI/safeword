@@ -381,6 +381,7 @@ async function supportsReviewContract(
   executable: string,
   cwd: string,
   timeoutMs: number,
+  model: string | undefined,
 ): Promise<boolean> {
   const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
     cwd,
@@ -415,9 +416,11 @@ async function supportsReviewContract(
     child.on('close', code => {
       const advertisedFlags = new Set<string>();
       for (const match of help.matchAll(/--[\w-]+/gu)) advertisedFlags.add(match[0]);
-      finish(
-        code === 0 && REQUIRED_CAPABILITIES[reviewer].every(flag => advertisedFlags.has(flag)),
-      );
+      const requiredCapabilities =
+        model === undefined
+          ? REQUIRED_CAPABILITIES[reviewer]
+          : [...REQUIRED_CAPABILITIES[reviewer], '--model'];
+      finish(code === 0 && requiredCapabilities.every(flag => advertisedFlags.has(flag)));
     });
   });
   await stopReviewerOrThrow(child, reviewer);
@@ -681,7 +684,10 @@ async function runReviewerCandidates(
     const untried = candidates.length - index;
     const candidateDeadline = Date.now() + remainingMs / untried;
     const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
-    if (!(await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget))) continue;
+    if (
+      !(await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, attempt.model))
+    )
+      continue;
     foundCompatible = true;
     try {
       // The capability probe and review share one candidate deadline. A hanging
