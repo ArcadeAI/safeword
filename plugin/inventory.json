@@ -6,12 +6,16 @@
       "sha256": "5860e847e31b74f1d8ba95bacab4aee9f7b778feecfbb0e13ca6cf754ff9f156"
     },
     {
+      "path": "agents/safeword-reviewer.md",
+      "sha256": "32a14827517c93242e18a656871fd08bf1b34ed5c50fc41329d38a14ebe233a4"
+    },
+    {
       "path": "hooks/hooks.json",
       "sha256": "e2919a15d4ab1838c26d5679dd0167a119960a74752b1dd1a3f404d6e500fef0"
     },
     {
       "path": "package.json",
-      "sha256": "44c13567262ae5bcd88a9243478d642cdfc2e170f2e1c8cd887b167b529bc629"
+      "sha256": "555b3604b4d67ece67e7675b0044dc03ba642c9b430bc846980ed9e846bb075a"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -131,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "c3ea6381599c2250419ce24a1939406d136ecad908fbe19e944900e33ab41a80"
+      "sha256": "2ee3b495878dc69c2d4857c51f3634713620c08786923f14ab844d162c192b38"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -171,7 +175,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "10e0e007395432d608c48dc5a7bdb4a97965ecbb8b9c92f528b57cb9db51eacd"
+      "sha256": "52422979a303cf8079d380ca156f7c06cb6e5485a538d0c9b897f18eecc07994"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -199,7 +203,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "d596c5a5e3bac89248f43bc350c7ac3f6c844af7c6320ec9a96a1d5992f079f6"
+      "sha256": "2578c58d6ee7bbaf354f69a8690854bbc54ed80bd60308312083108bfc07b476"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",
@@ -283,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
-      "sha256": "711f6e78f249fa352b5614234c83daa8fd8906d6a2e38a99bfe3b6b761a9abf9"
+      "sha256": "e7bf036f0f1971da1c51afc996f75e2941ee0d024d9a5b208e6f96709ed1c193"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -363,7 +367,7 @@
     },
     {
       "path": "runtime/hooks/lib/shell-segments.ts",
-      "sha256": "d086d7cded4248bc1f5450f7717bf053fa41fb9dc43e662106419ca8d57889d1"
+      "sha256": "25cdd693bce7ba599f2a45c3a42826308398626e8d6d6a1aecde823847b3ffd9"
     },
     {
       "path": "runtime/hooks/lib/skill-invocation-log.ts",
@@ -423,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "29d6d9e22a9966cad5463de751b8e5cea848ba711285b0ee6e52d5ed4dfb1d10"
+      "sha256": "d3d32019ed8729a73541b9c48429725ee6aaaebefbd6b08736401af9cb600a89"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
@@ -431,7 +435,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a"
+      "sha256": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8"
     },
     {
       "path": "runtime/hooks/pre-tool-git-bare-fix.sh",
@@ -563,7 +567,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "020b817c6c5f5e7cd956216ab0e58166bb67dcc3eecf437d8b9e9ac139a37c00"
+      "sha256": "5df75d0c70005dd1a19421baa467302780a2e2a58616f1f4bea925ff1d1cb466"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -571,7 +575,7 @@
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "d11cdd384480d37912a0a53981b1a322ab884cc0698f0ea4685b9a55b9a94552"
+      "sha256": "464b1aa25279a7501dd5435922cb78c76dbe418b48b666eb921c0ed36444b456"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -579,7 +583,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "8789658cf9c427319bb702e37a62160ac805ec216c2c6e8e3655cfaeed8e6c7f"
+      "sha256": "14e57518c9445c1872e906109cc178462a78fc4337d8bddd0528b1184138dfbe"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -614,12 +618,20 @@
       "sha256": "4552275007b0161037a1791233722a89dac16f963f55aab80fc7a9b6b37f67d4"
     },
     {
+      "path": "skills/finish-review/REVIEWER.md",
+      "sha256": "cccca4f21bf68bf98f6728ee4bf55eee74f92692e26d90132ff4030c021b0de3"
+    },
+    {
+      "path": "skills/finish-review/SKILL.md",
+      "sha256": "b03ad4383ee59bc300c589125109c422912ef20ad06416f2fe8ab24ab43ea424"
+    },
+    {
       "path": "skills/lint/SKILL.md",
       "sha256": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66"
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "aa6682a8fa4c26fe3944df572e58c5e4dea8895fd561ec729e3b17584e2110a7"
+      "sha256": "bb3c4edd27ecb9376cd686e55ca90b6b964a3e55f8672fbb1f81accecdb985b8"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -635,7 +647,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "b9f4612d81730226d2c187973756706392ae059510775b1eeb2a51367deafe2d"
+      "sha256": "df58af149c583df31cfeeba250d057a15d784081e85b021438003de0dfcd2a06"
     },
     {
       "path": "skills/self-review/SKILL.md",

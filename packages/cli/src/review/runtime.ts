@@ -198,14 +198,21 @@ export function minimumRouteMs(): number {
   return Math.min(120_000, attemptDeadlineMs());
 }
 
-export function attemptDeadlineMs(): number {
-  const raw = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
+export function reviewTimeoutMilliseconds(
+  _reviewer: ReviewAgent,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): number {
+  const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
   // `Number('')` and `Number('  ')` are 0, and `Number('90s')` is NaN — both
   // fall through to the default rather than silently shortening a review.
   const configured = raw === undefined ? NaN : Number(raw);
   return Number.isFinite(configured) && configured > 0
     ? Math.min(configured, RUN_BOUND_MS)
     : DEFAULT_ATTEMPT_DEADLINE_MS;
+}
+
+export function attemptDeadlineMs(): number {
+  return reviewTimeoutMilliseconds('claude');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

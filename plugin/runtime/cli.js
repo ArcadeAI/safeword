@@ -12775,6 +12775,13 @@ var init_cursor_wrappers = __esm(() => {
       skill: "figure-it-out"
     },
     {
+      name: "safeword-finish-review",
+      alwaysApply: false,
+      description: "Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.",
+      referencePath: ".safeword/skills/finish-review/SKILL.md",
+      skill: "finish-review"
+    },
+    {
       name: "safeword-quality-reviewing",
       alwaysApply: false,
       description: "Deep quality review of any work-product \u2014 code, docs, specs, plans, decisions \u2014 with web research. Use when explicitly verifying against latest docs ('double check against latest', 'verify versions', 'check security'), pressure-testing correctness and elegance, or needing deeper analysis beyond the automatic hook. Fetches current sources, checks versions and claims, and weighs alternatives.",
@@ -13149,6 +13156,8 @@ var init_schema = __esm(() => {
     "elicit/SKILL.md",
     "explain/SKILL.md",
     "figure-it-out/SKILL.md",
+    "finish-review/SKILL.md",
+    "finish-review/REVIEWER.md",
     "lint/SKILL.md",
     "quality-review/SKILL.md",
     "refactor/SKILL.md",
@@ -13561,6 +13570,8 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".claude/agents/safeword-retro-filer.md": { template: "agents/safeword-retro-filer.md" },
       ".cursor/agents/safeword-retro-filer.md": { template: "agents/safeword-retro-filer.md" },
+      ".claude/agents/safeword-reviewer.md": { template: "agents/safeword-reviewer.md" },
+      ".cursor/agents/safeword-reviewer.md": { template: "agents/safeword-reviewer.md" },
       ".safeword/guides/architecture-guide.md": {
         template: "guides/architecture-guide.md"
       },
@@ -13660,6 +13671,12 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".claude/skills/quality-review/SKILL.md": {
         template: "skills/quality-review/SKILL.md"
+      },
+      ".claude/skills/finish-review/SKILL.md": {
+        template: "skills/finish-review/SKILL.md"
+      },
+      ".claude/skills/finish-review/REVIEWER.md": {
+        template: "skills/finish-review/REVIEWER.md"
       },
       ".claude/skills/refactor/SKILL.md": {
         template: "skills/refactor/SKILL.md"
@@ -35988,10 +36005,13 @@ function runBoundMs() {
 function minimumRouteMs() {
   return Math.min(120000, attemptDeadlineMs());
 }
-function attemptDeadlineMs() {
-  const raw = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
+function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
+  const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
   const configured = raw === undefined ? NaN : Number(raw);
   return Number.isFinite(configured) && configured > 0 ? Math.min(configured, RUN_BOUND_MS) : DEFAULT_ATTEMPT_DEADLINE_MS;
+}
+function attemptDeadlineMs() {
+  return reviewTimeoutMilliseconds("claude");
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -47127,7 +47147,7 @@ var init_shell_segments = __esm(() => {
 });
 
 // templates/hooks/lib/dependency-readiness.ts
-var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NO_RECONCILE_FLAGS, REPORT_ONLY_INSTALL_FLAGS;
+var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
 var init_dependency_readiness = __esm(() => {
   init_namespace_root();
   init_shell_segments();
@@ -47181,7 +47201,17 @@ var init_dependency_readiness = __esm(() => {
   ]);
   INSTALL_MANAGERS = new Set(["bun", "pnpm", "npm", "yarn"]);
   INSTALL_SUBCOMMANDS = new Set(["install", "i", "ci"]);
-  NO_RECONCILE_FLAGS = new Set(["--dry-run", "--lockfile-only", "--package-lock-only"]);
+  NON_RECONCILING_INSTALL_FLAGS = new Set([
+    "--dry-run",
+    "--lockfile-only",
+    "--package-lock-only",
+    "--production",
+    "--prod",
+    "-P",
+    "--no-dev",
+    "--no-optional"
+  ]);
+  NON_RECONCILING_INSTALL_OPTIONS = new Set(["--omit", "--only", "--mode"]);
   REPORT_ONLY_INSTALL_FLAGS = new Set(["--version", "-v", "--help", "-h"]);
 });
 // templates/hooks/lib/test-runner.ts

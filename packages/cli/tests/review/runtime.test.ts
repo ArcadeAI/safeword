@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ReviewerOutput } from '../../src/review/contract.js';
-import { parseReviewerOutput } from '../../src/review/runtime.js';
+import { parseReviewerOutput, reviewTimeoutMilliseconds } from '../../src/review/runtime.js';
 
 const output: ReviewerOutput = {
   schema_version: 1,
@@ -11,6 +11,18 @@ const output: ReviewerOutput = {
   summary: 'reviewed',
   findings: [],
 };
+
+describe('headless reviewer timeout budgets', () => {
+  it.each(['claude', 'codex'] as const)('gives %s a five-minute default budget', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(300_000);
+  });
+
+  it.each(['claude', 'codex'] as const)('honors the explicit timeout override for %s', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, { SAFEWORD_REVIEW_TIMEOUT_MS: '45000' })).toBe(
+      45_000,
+    );
+  });
+});
 
 describe('headless reviewer output adapters', () => {
   it('extracts a review result from the Claude JSON envelope', () => {
