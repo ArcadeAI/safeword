@@ -3,7 +3,11 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { type ModelFinding, reviewWithOpenAI } from '../pr-review/providers/openai.js';
-import { type PublishedReceipt, reviewPullRequest } from '../pr-review/review.js';
+import {
+  type AdvisoryInspection,
+  type PublishedReceipt,
+  reviewPullRequest,
+} from '../pr-review/review.js';
 
 interface InspectionProviderOptions {
   apiKey?: string;
@@ -309,6 +313,25 @@ function boundedTextEvidence(
   });
 }
 
+/**
+ * Project the parsed artifacts onto the receipt's evidence shape. Both the
+ * reviewed and the provider-failure path report the same artifact inventory —
+ * only the run state differs.
+ */
+function receiptEvidence(
+  artifacts: InspectionInput['artifacts'],
+): NonNullable<AdvisoryInspection['artifacts']> {
+  return artifacts.map(artifact =>
+    artifact.kind === 'text'
+      ? {
+          byteLength: Buffer.byteLength(artifact.content, 'utf8'),
+          kind: 'text' as const,
+          path: artifact.path,
+        }
+      : { kind: artifact.kind, path: artifact.path },
+  );
+}
+
 export async function inspectPullRequestCommand(
   options: InspectPullRequestCommandOptions,
 ): Promise<InspectionHandoff> {
@@ -352,15 +375,7 @@ export async function inspectPullRequestCommand(
           };
         });
         return {
-          artifacts: receiptArtifacts.map(artifact =>
-            artifact.kind === 'text'
-              ? {
-                  byteLength: Buffer.byteLength(artifact.content, 'utf8'),
-                  kind: 'text' as const,
-                  path: artifact.path,
-                }
-              : { kind: artifact.kind, path: artifact.path },
-          ),
+          artifacts: receiptEvidence(receiptArtifacts),
           consequentialFindings: receiptFindings.filter(finding => finding.consequential).length,
           findings: receiptFindings,
           maxTotalBytes: config.maxTotalBytes,
@@ -369,15 +384,7 @@ export async function inspectPullRequestCommand(
         };
       } catch {
         return {
-          artifacts: receiptArtifacts.map(artifact =>
-            artifact.kind === 'text'
-              ? {
-                  byteLength: Buffer.byteLength(artifact.content, 'utf8'),
-                  kind: 'text' as const,
-                  path: artifact.path,
-                }
-              : { kind: artifact.kind, path: artifact.path },
-          ),
+          artifacts: receiptEvidence(receiptArtifacts),
           consequentialFindings: 0,
           maxTotalBytes: config.maxTotalBytes,
           runState: 'failed' as const,
