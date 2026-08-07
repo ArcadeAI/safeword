@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the final independent review reproduced the project-local path in committed plugin assets
 - [x] GREEN 732965541
-- [x] REFACTOR skip: the existing workflow-reference adapter remains the single generation boundary
+- [x] REFACTOR 31f37d4c5
 
 ## Manual host runtime: Every advertised host enters fallback for typed exhaustion
 
@@ -214,7 +214,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the final independent review reproduced healthy exit for contradictory reviewer output
 - [x] GREEN 732965541
-- [x] REFACTOR skip: semantic consistency remains inside the existing strict output parser
+- [x] REFACTOR 90887191c
 
 ### Scenario: Typed route exhaustion starts the host-owned fallback
 
