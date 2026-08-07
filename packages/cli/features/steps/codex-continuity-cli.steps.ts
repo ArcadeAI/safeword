@@ -1276,6 +1276,23 @@ Then(
   },
 );
 
+Then(
+  'the preview exposes a human-confirmed replay command bound to its plan id',
+  function (this: ContinuityCliWorld) {
+    const output = JSON.parse(this.result.stdout) as {
+      data: { plan: { id: string } };
+      next_actions: { command: string; mutates: boolean; requires_human: boolean }[];
+    };
+    assert.deepEqual(output.next_actions, [
+      {
+        command: `safeword codex migrate --finalize --yes --plan ${output.data.plan.id}`,
+        mutates: true,
+        requires_human: true,
+      },
+    ]);
+  },
+);
+
 Given(
   'current profile proof and legacy Codex assets in a non-interactive shell',
   function (this: ContinuityCliWorld) {

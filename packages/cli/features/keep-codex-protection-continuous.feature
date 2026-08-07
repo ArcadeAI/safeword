@@ -355,6 +355,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       When an agent previews finalization with JSON output
       Then file effects include config update, legacy removal, plugin-marker creation, and bootstrap creation
       And every listed action is create, update, remove, or restore
+      And the preview exposes a human-confirmed replay command bound to its plan id
 
     Scenario Outline: Finalized project setup state overrides disabled-profile detail
       Given a finalized repository whose profile plugin is <plugin_state>
