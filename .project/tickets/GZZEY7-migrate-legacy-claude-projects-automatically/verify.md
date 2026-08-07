@@ -1,6 +1,8 @@
 ## Verify Checklist
 
 **Test Suite:** ✅ PR-review focus is green: 145/145 dispatcher, migration, classifier, retry-budget, and relay tests passed together; the added recovery-advisory regression passed 1/1 on the exact final source. The earlier rebased full run reached 6,795 passing tests and 5 intentionally skipped tests before its two remediated failures; fresh full-matrix CI will run after push.
+**Re-verified on `b2ec69855`:** ✅ The review pass after this checklist was written added one commit (a plugin-mode factory fix plus its regression test). On that head: claude-plugin suite 114/114, the automatic-migration lane 29/29 scenarios, `bun run lint` (eslint + Gherkin lint + `tsc --noEmit`) clean, and the regenerated plugin bundle reproduces with no drift. The evidence below was recorded one commit earlier and otherwise stands.
+
 **Gherkin:** ✅ The exact final automatic-migration lane passes 29/29 scenarios and 1,166/1,166 steps. The earlier rebased full run reached 1,092 passing scenarios and 3 intentional skips before 12 shared-lock contention failures; its affected lanes passed in isolation.
 **Build:** ✅ Success
 **Lint:** ✅ Clean

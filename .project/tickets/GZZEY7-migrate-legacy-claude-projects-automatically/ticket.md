@@ -3,7 +3,7 @@ id: GZZEY7
 slug: migrate-legacy-claude-projects-automatically
 type: feature
 phase: implement
-status: in_progress
+status: done
 phase_skips:
   - 'intake: The maintainer approved the scope and migration outcome before this ticket snapshot was first committed; ticket.md and spec.md preserve that intake evidence.'
   - 'define-behavior: The rules, dimensions, and executable scenarios were completed and reviewed before this ticket snapshot was first committed.'
