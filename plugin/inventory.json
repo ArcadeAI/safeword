@@ -75,7 +75,7 @@
     },
     {
       "path": "resources/guides/verification-lanes-guide.md",
-      "sha256": "4a2e5cdc98f55a022e4888eb98e9ed6f63ed3e3ec8dd0934f3e118249d85fa78"
+      "sha256": "139dfff44444e7e13aa90cfbbd1acf2a9375fdb12222d31152eac3377ce1a385"
     },
     {
       "path": "resources/guides/zombie-process-cleanup.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "60f7f2048dfc891d1fe5c3a0fbcac7afaa0b1ce1af57ff17afeb970eb547372b"
+      "sha256": "6426f30b5edac0bbea9a22c49686f778613577f8ec2ca69340b2f5ecdfaeba12"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "7eb5f1722aa09e0f5ae2d8f3faed598dcfa6467149248aa115a2c5d0ed61ceee"
+      "sha256": "15ad2af9b1d5a00322e6a8272af2ddc50f5d7171e35bc05c6dccfe7bf3cdfbc7"
     },
     {
       "path": "runtime/event-groups.json",
@@ -675,7 +675,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "4de3ce6df69d23b5abbcda93785b2eff432f889c0f09bd0a6c7ecdb8c2a44342"
+      "sha256": "a39c2d67f90588aefb820f58a9aad718e7baa972ae257a33747c99eac9dabe82"
     }
   ]
 }
