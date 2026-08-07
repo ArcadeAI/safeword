@@ -93,7 +93,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Given current plugin proof and configured project and profile handlers for PostToolUse
       When Codex dispatches PostToolUse through both handlers
       Then the legacy PostToolUse behavior executes exactly once and the packaged plugin behavior does not execute
-      And the profile plugin records PostToolUse proof before yielding authority
+      And the profile plugin records PostToolUse proof while legacy remains authoritative
 
     @rejection
     Scenario: Plugin covers an event missing from a partial legacy installation

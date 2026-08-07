@@ -797,7 +797,7 @@ Then(
 );
 
 Then(
-  'the profile plugin records PostToolUse proof before yielding authority',
+  'the profile plugin records PostToolUse proof while legacy remains authoritative',
   function (this: ContinuityCliWorld) {
     const path = nodePath.join(requireProfile(this), 'safeword/hook-proof-v2/post-tool-use.json');
     const proof = JSON.parse(readFileSync(path, 'utf8')) as { event?: string };
