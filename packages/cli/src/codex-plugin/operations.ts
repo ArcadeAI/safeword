@@ -178,8 +178,8 @@ function configuredSafewordMarketplace(
   }
 }
 
-function marketplaceAddArguments(source: string, ref: string): string[] {
-  return [
+function marketplaceAddArguments(source: string, ref: string, includeJson = true): string[] {
+  const args = [
     'add',
     source,
     '--ref',
@@ -188,8 +188,8 @@ function marketplaceAddArguments(source: string, ref: string): string[] {
     '.agents/plugins',
     '--sparse',
     'packages/cli/codex-plugin',
-    '--json',
   ];
+  return includeJson ? [...args, '--json'] : args;
 }
 
 function shellQuote(value: string): string {
@@ -223,7 +223,7 @@ function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): v
         'codex',
         'plugin',
         'marketplace',
-        ...marketplaceAddArguments(source, configured.ref ?? 'main').slice(0, -1),
+        ...marketplaceAddArguments(source, configured.ref ?? 'main', false),
       ]
         .map(argument => shellQuote(argument))
         .join(' ');
