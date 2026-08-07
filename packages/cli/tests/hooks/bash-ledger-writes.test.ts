@@ -100,6 +100,7 @@ describe('detectLedgerWrite', () => {
         detectLedgerWrite(`git status && echo '- [x] RED' >> ${LEDGER}; echo done`),
       ).toBeDefined();
       expect(detectLedgerWrite(`echo '- [x] RED' | tee ${LEDGER} | head -1`)).toBeDefined();
+      expect(detectLedgerWrite(`echo background & sed -i 's/a/b/' ${LEDGER}`)).toBeDefined();
     });
 
     it('Scenario: redirecting ledger contents to another file is allowed', () => {

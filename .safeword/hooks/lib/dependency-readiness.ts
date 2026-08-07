@@ -11,7 +11,7 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
-import { commandWords, splitShellSegments } from './shell-segments.js';
+import { commandWords, parseShellCommandList, splitShellSegments } from './shell-segments.js';
 
 export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
@@ -369,17 +369,54 @@ export function isDependencyBackedCommand(command: string): boolean {
   return segments.some(segment => isDependencyBackedSegment(segment));
 }
 
+/**
+ * A stale-readiness recovery may run its retry in the same Bash call only when
+ * the recovery comes first and every following segment depends on its success.
+ * This preserves the pre-tool gate for `||`, `;`, and pipes, where a guarded
+ * command could otherwise run after a failed or concurrent recovery (#1763).
+ *
+ * A background `&` also breaks that guarantee: Bash ends the preceding list
+ * and runs it asynchronously. The shared tokenizer exposes it as its own
+ * control operator, so it cannot look like an all-`&&` recovery chain.
+ *
+ * Only the LEADING segment is classified. An intermediate segment that undoes
+ * the recovery (`bun ci && rm -rf node_modules && bun run test`) still passes:
+ * the gate stops an agent from running into a stale worktree by accident, not
+ * from dismantling its own recovery on purpose.
+ */
+export function isDependencyReadinessRecoveryCommand(
+  command: string,
+  status: DependencyReadinessStatus,
+): boolean {
+  const segments = parseShellCommandList(command);
+  const [first] = segments;
+  if (segments.length < 2 || first === undefined || !isRecoverySegment(first.command, status)) {
+    return false;
+  }
+  return segments.slice(0, -1).every(segment => segment.operatorAfter === '&&');
+}
+
 /** Package managers whose install/ci/i reconciles `node_modules` against the inputs. */
 const INSTALL_MANAGERS = new Set(['bun', 'pnpm', 'npm', 'yarn']);
 /** Subcommands that perform a dependency install (not `add`/`remove`, which change inputs). */
 const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
 /**
- * Flags that make an install update only the lockfile or report a plan WITHOUT
- * materializing `node_modules`. Stamping after these would mark deps ready while
- * `node_modules` stays stale — a sticky false-ready — so they disqualify the
- * command from post-install stamping.
+ * Flags that prevent an install from fully reconciling project dependencies.
+ * Some do not materialize `node_modules` at all; others omit dependencies or
+ * skip linking. Treating either as ready would let a recovery retry run with an
+ * incomplete tree and would let the post-tool hook stamp a sticky false-ready.
  */
-const NO_RECONCILE_FLAGS = new Set(['--dry-run', '--lockfile-only', '--package-lock-only']);
+const NON_RECONCILING_INSTALL_FLAGS = new Set([
+  '--dry-run',
+  '--lockfile-only',
+  '--package-lock-only',
+  '--production',
+  '--prod',
+  '-P',
+  '--no-dev',
+  '--no-optional',
+]);
+const NON_RECONCILING_INSTALL_OPTIONS = new Set(['--omit', '--only', '--mode']);
 /**
  * Flags that make any package manager print-and-exit instead of installing.
  * `bun install --help`, `npm ci --version`, and bare `yarn --version` all
@@ -406,8 +443,7 @@ function isInstallSegment(segment: string): boolean {
   if (binary === undefined) return false;
   const base = nodePath.basename(binary);
   if (!INSTALL_MANAGERS.has(base)) return false;
-  // A lockfile-only / dry-run install never materializes node_modules.
-  if (args.some(arg => NO_RECONCILE_FLAGS.has(arg.split('=')[0] ?? arg))) return false;
+  if (hasNonReconcilingInstallOption(args)) return false;
   // A report-only flag (--help/--version) makes the manager print and exit
   // without installing — for every manager, not just classic bare yarn.
   if (args.some(arg => REPORT_ONLY_INSTALL_FLAGS.has(arg))) return false;
@@ -416,6 +452,35 @@ function isInstallSegment(segment: string): boolean {
   // Classic `yarn` with no subcommand installs.
   if (base === 'yarn' && subcommand === undefined) return true;
   return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
+}
+
+function hasNonReconcilingInstallOption(args: string[]): boolean {
+  return args.some(arg => {
+    const [flag] = arg.split('=', 1);
+    return (
+      NON_RECONCILING_INSTALL_FLAGS.has(flag ?? arg) ||
+      NON_RECONCILING_INSTALL_OPTIONS.has(flag ?? arg)
+    );
+  });
+}
+
+/**
+ * `touch node_modules` is only offered as recovery for a STALE marker, and it
+ * only earns the exemption there. With `node_modules` missing, `touch` creates
+ * an empty regular FILE of that name and exits 0 — so the retry would run with
+ * nothing installed, readiness would stay `missing` forever (the path is not a
+ * directory), and the stray file would block the real install that follows.
+ */
+function isRecoverySegment(segment: string, status: DependencyReadinessStatus): boolean {
+  if (isInstallSegment(segment)) return true;
+  return status === 'stale' && isTouchNodeModulesSegment(segment);
+}
+
+function isTouchNodeModulesSegment(segment: string): boolean {
+  const [binary, ...args] = commandWords(segment);
+  return (
+    nodePath.basename(binary ?? '') === 'touch' && args.length === 1 && args[0] === 'node_modules'
+  );
 }
 
 export function getDependencyReadinessStatePath(projectDirectory: string): string {

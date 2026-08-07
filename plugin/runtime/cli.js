@@ -49821,7 +49821,7 @@ var init_shell_segments = __esm(() => {
 });
 
 // templates/hooks/lib/dependency-readiness.ts
-var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NO_RECONCILE_FLAGS, REPORT_ONLY_INSTALL_FLAGS;
+var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
 var init_dependency_readiness = __esm(() => {
   init_namespace_root();
   init_shell_segments();
@@ -49875,7 +49875,17 @@ var init_dependency_readiness = __esm(() => {
   ]);
   INSTALL_MANAGERS = new Set(["bun", "pnpm", "npm", "yarn"]);
   INSTALL_SUBCOMMANDS = new Set(["install", "i", "ci"]);
-  NO_RECONCILE_FLAGS = new Set(["--dry-run", "--lockfile-only", "--package-lock-only"]);
+  NON_RECONCILING_INSTALL_FLAGS = new Set([
+    "--dry-run",
+    "--lockfile-only",
+    "--package-lock-only",
+    "--production",
+    "--prod",
+    "-P",
+    "--no-dev",
+    "--no-optional"
+  ]);
+  NON_RECONCILING_INSTALL_OPTIONS = new Set(["--omit", "--only", "--mode"]);
   REPORT_ONLY_INSTALL_FLAGS = new Set(["--version", "-v", "--help", "-h"]);
 });
 // templates/hooks/lib/test-runner.ts
