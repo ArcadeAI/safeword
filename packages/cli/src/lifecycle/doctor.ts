@@ -2,22 +2,34 @@ import type { AgentIntegration } from '../cli-protocol/agent-selection.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
   type LifecycleSurfaceObservation,
+  lifecycleSurfaceSummaries,
   observeLifecycleSurfaces,
   summarizeLifecycleStatus,
 } from './status.js';
 
-function diagnostics(surfaces: readonly LifecycleSurfaceObservation[]): readonly object[] {
+interface LifecycleDiagnostic {
+  readonly surface: string;
+  readonly kind: 'finding' | 'error';
+  readonly code: string;
+  readonly cause: string;
+  readonly severity?: string;
+  readonly retryable?: boolean;
+}
+
+function diagnostics(
+  surfaces: readonly LifecycleSurfaceObservation[],
+): readonly LifecycleDiagnostic[] {
   return surfaces.flatMap(surface => [
     ...surface.result.findings.map(finding => ({
       surface: surface.name,
-      kind: 'finding',
+      kind: 'finding' as const,
       code: finding.code,
       cause: finding.message,
       severity: finding.severity,
     })),
     ...surface.result.errors.map(error => ({
       surface: surface.name,
-      kind: 'error',
+      kind: 'error' as const,
       code: error.code,
       cause: error.message,
       retryable: error.retryable,
@@ -44,7 +56,7 @@ export async function diagnoseLifecycle(
       command: 'doctor',
       operation: 'doctor',
       selected_agents: agents,
-      surfaces: (summary.data as { surfaces: readonly object[] }).surfaces,
+      surfaces: lifecycleSurfaceSummaries(surfaces),
       coverage: surfaces.map(surface => ({
         surface: surface.name,
         state: surface.result.state,

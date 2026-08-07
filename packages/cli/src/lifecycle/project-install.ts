@@ -7,6 +7,7 @@ import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
 import {
   type CliResult,
+  combineEffects,
   createResult,
   type Effect,
   type Effects,
@@ -868,12 +869,13 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
   });
 }
 
-function mergeEffects(...groups: readonly Partial<Effects>[]): Partial<Effects> {
-  const categories = ['files', 'packages', 'configuration', 'network', 'destructive'] as const;
-  return Object.fromEntries(
-    categories.map(category => [
-      category,
-      uniqueEffects(groups.flatMap(group => group[category] ?? [])),
-    ]),
-  );
+function mergeEffects(...groups: readonly Partial<Effects>[]): Effects {
+  const combined = combineEffects(groups);
+  return {
+    files: uniqueEffects(combined.files),
+    packages: uniqueEffects(combined.packages),
+    configuration: uniqueEffects(combined.configuration),
+    network: uniqueEffects(combined.network),
+    destructive: uniqueEffects(combined.destructive),
+  };
 }

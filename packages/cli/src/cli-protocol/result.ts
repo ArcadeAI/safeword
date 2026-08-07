@@ -78,11 +78,14 @@ const EMPTY_EFFECTS: Effects = {
   destructive: [],
 };
 
-export function combineEffects(groups: readonly Effects[]): Effects {
-  const categories = ['files', 'packages', 'configuration', 'network', 'destructive'] as const;
-  return Object.fromEntries(
-    categories.map(category => [category, groups.flatMap(effects => effects[category])]),
-  ) as unknown as Effects;
+export function combineEffects(groups: readonly Partial<Effects>[]): Effects {
+  return {
+    files: groups.flatMap(effects => effects.files ?? []),
+    packages: groups.flatMap(effects => effects.packages ?? []),
+    configuration: groups.flatMap(effects => effects.configuration ?? []),
+    network: groups.flatMap(effects => effects.network ?? []),
+    destructive: groups.flatMap(effects => effects.destructive ?? []),
+  };
 }
 
 export function createResult(input: ResultInput): CliResult {
@@ -246,12 +249,21 @@ const SURFACE_OUTCOMES: Readonly<Record<string, string>> = {
   failed: 'failed',
 };
 
-function installSurfaceLines(data: unknown): string[] {
-  if (!isRecord(data) || data.command !== 'install' || !Array.isArray(data.surfaces)) return [];
+/** Labelled surfaces of a `command`-tagged result payload, or [] when it is not that command. */
+function labelledSurfaces(
+  data: unknown,
+  command: string,
+): { readonly label: string; readonly surface: Record<string, unknown> }[] {
+  if (!isRecord(data) || data.command !== command || !Array.isArray(data.surfaces)) return [];
   return data.surfaces.flatMap(surface => {
     if (!isRecord(surface) || typeof surface.name !== 'string') return [];
     const label = SURFACE_LABELS[surface.name];
-    if (label === undefined) return [];
+    return label === undefined ? [] : [{ label, surface }];
+  });
+}
+
+function installSurfaceLines(data: unknown): string[] {
+  return labelledSurfaces(data, 'install').flatMap(({ label, surface }) => {
     if (surface.selected === false) return [`${label}: not selected`];
     const outcome = typeof surface.state === 'string' ? SURFACE_OUTCOMES[surface.state] : undefined;
     return outcome === undefined ? [] : [`${label}: ${outcome}`];
@@ -259,11 +271,8 @@ function installSurfaceLines(data: unknown): string[] {
 }
 
 function installActivationLines(data: unknown): string[] {
-  if (!isRecord(data) || data.command !== 'install' || !Array.isArray(data.surfaces)) return [];
-  return data.surfaces.flatMap(surface => {
-    if (!isRecord(surface) || typeof surface.name !== 'string') return [];
-    const label = SURFACE_LABELS[surface.name];
-    if (label === undefined || !Array.isArray(surface.activation_actions)) return [];
+  return labelledSurfaces(data, 'install').flatMap(({ label, surface }) => {
+    if (!Array.isArray(surface.activation_actions)) return [];
     return surface.activation_actions.flatMap(action =>
       typeof action === 'string' ? [`${label} activation: ${action}`] : [],
     );

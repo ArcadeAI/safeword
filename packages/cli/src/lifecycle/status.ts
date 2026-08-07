@@ -130,6 +130,23 @@ export async function observeLifecycleSurfaces(
   return surfaces;
 }
 
+export interface LifecycleSurfaceSummary {
+  readonly name: string;
+  readonly selected: true;
+  readonly state: CliResult['state'];
+}
+
+/** Per-surface outcomes shared by the status summary and doctor diagnostics. */
+export function lifecycleSurfaceSummaries(
+  surfaces: readonly LifecycleSurfaceObservation[],
+): readonly LifecycleSurfaceSummary[] {
+  return surfaces.map(surface => ({
+    name: surface.name,
+    selected: true,
+    state: surface.result.state,
+  }));
+}
+
 export function summarizeLifecycleStatus(
   agents: readonly AgentIntegration[],
   surfaces: readonly LifecycleSurfaceObservation[],
@@ -147,11 +164,7 @@ export function summarizeLifecycleStatus(
       command: 'status',
       operation: 'status',
       selected_agents: agents,
-      surfaces: surfaces.map(surface => ({
-        name: surface.name,
-        selected: true,
-        state: surface.result.state,
-      })),
+      surfaces: lifecycleSurfaceSummaries(surfaces),
     },
   });
 }
