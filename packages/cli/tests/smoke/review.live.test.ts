@@ -3,12 +3,16 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_REVIEW_TIMEOUT_MS } from '../../src/review/runtime.js';
+import { reviewTimeoutMilliseconds } from '../../src/review/runtime.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 const CAN_RUN = process.env.SAFEWORD_RUN_CROSS_AGENT_LIVE === '1';
 const SKIP_ACKNOWLEDGED = process.env.SAFEWORD_LIVE_ALLOW_SKIP === '1';
-const LIVE_TEST_TIMEOUT_MS = DEFAULT_REVIEW_TIMEOUT_MS + 60_000;
+// Derive from the runtime's own budget rather than restating it: the live route
+// must be allowed to reach its timeout and still report, so this stays one
+// minute above whatever the runtime currently allows.
+const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds('claude', {});
+const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
 
 describe('live smoke: opposite headless reviewer routing', () => {
   it('gate: both live reviewer routes run, or the omission is explicit', () => {
@@ -53,7 +57,7 @@ describe('live smoke: opposite headless reviewer routing', () => {
             cwd: directory,
             env: {
               SAFEWORD_AGENT_RUNTIME: author,
-              SAFEWORD_REVIEW_TIMEOUT_MS: String(DEFAULT_REVIEW_TIMEOUT_MS),
+              SAFEWORD_REVIEW_TIMEOUT_MS: String(REVIEW_TIMEOUT_MS),
               SAFEWORD_NO_UPDATE_CHECK: '1',
             },
             timeout: LIVE_TEST_TIMEOUT_MS,

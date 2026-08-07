@@ -1,25 +1,7 @@
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import nodePath from 'node:path';
-
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { ReviewerOutput } from '../../src/review/contract.js';
-import { parseReviewerOutput, runHeadlessReviewer } from '../../src/review/runtime.js';
-
-const temporaryDirectories: string[] = [];
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-  for (const directory of temporaryDirectories) rmSync(directory, { force: true, recursive: true });
-  temporaryDirectories.length = 0;
-});
-
-function temporaryDirectory(): string {
-  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-runtime-'));
-  temporaryDirectories.push(directory);
-  return directory;
-}
+import { parseReviewerOutput, reviewTimeoutMilliseconds } from '../../src/review/runtime.js';
 
 const output: ReviewerOutput = {
   schema_version: 1,
@@ -29,6 +11,18 @@ const output: ReviewerOutput = {
   summary: 'reviewed',
   findings: [],
 };
+
+describe('headless reviewer timeout budgets', () => {
+  it.each(['claude', 'codex'] as const)('gives %s a five-minute default budget', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(300_000);
+  });
+
+  it.each(['claude', 'codex'] as const)('honors the explicit timeout override for %s', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, { SAFEWORD_REVIEW_TIMEOUT_MS: '45000' })).toBe(
+      45_000,
+    );
+  });
+});
 
 describe('headless reviewer output adapters', () => {
   it('extracts a review result from the Claude JSON envelope', () => {
@@ -92,53 +86,4 @@ describe('headless reviewer output adapters', () => {
       'invalid reviewer output',
     );
   });
-
-  it.skipIf(process.platform === 'win32')(
-    'kills reviewer descendants after a timeout',
-    async () => {
-      const bin = temporaryDirectory();
-      const project = temporaryDirectory();
-      const untrustedRoot = temporaryDirectory();
-      const childPidPath = nodePath.join(project, 'child.pid');
-      const executable = nodePath.join(bin, 'claude');
-      writeFileSync(
-        executable,
-        `#!/bin/sh
-if [ "\${1:-}" = "--help" ]; then
-  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
-  exit 0
-fi
-sleep 30 &
-echo $! > "$SAFEWORD_REVIEW_CHILD_PID"
-wait
-`,
-      );
-      chmodSync(executable, 0o755);
-      vi.stubEnv('PATH', `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`);
-      vi.stubEnv('SAFEWORD_REVIEW_TIMEOUT_MS', '1000');
-      vi.stubEnv('SAFEWORD_REVIEW_CHILD_PID', childPidPath);
-
-      await expect(
-        runHeadlessReviewer(
-          'claude',
-          {
-            schema_version: 1,
-            dispatch_id: 'timeout-tree',
-            kind: 'quality-review',
-            logical_files: [],
-          },
-          project,
-          untrustedRoot,
-        ),
-      ).rejects.toMatchObject({ failure: 'timed_out' });
-
-      const childPid = Number(readFileSync(childPidPath, 'utf8'));
-      await vi.waitFor(
-        () => {
-          expect(() => process.kill(childPid, 0)).toThrow();
-        },
-        { timeout: 2000 },
-      );
-    },
-  );
 });

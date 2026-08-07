@@ -35997,8 +35997,8 @@ var init_environment = __esm(() => {
 import { spawn, spawnSync as spawnSync6 } from "child_process";
 import { accessSync as accessSync2, constants as constants3, realpathSync as realpathSync6 } from "fs";
 import nodePath72 from "path";
-function timeoutMilliseconds() {
-  const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
+function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
+  const configured = Number(env.SAFEWORD_REVIEW_TIMEOUT_MS);
   return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REVIEW_TIMEOUT_MS;
 }
 function isRecord2(value) {
@@ -36119,35 +36119,18 @@ function appendBounded(current, currentBytes, chunk) {
     overflow: bytes > MAX_OUTPUT_BYTES
   };
 }
-function terminateReviewerProcessTree(child) {
-  if (child.pid === undefined)
-    return;
-  if (process.platform === "win32") {
-    spawnSync6("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
-      stdio: "ignore",
-      windowsHide: true
-    });
-    return;
-  }
-  try {
-    process.kill(-child.pid, "SIGKILL");
-  } catch {
-    child.kill("SIGKILL");
-  }
-}
 function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
   return new Promise((resolve, reject) => {
     let timedOut = false;
     let overflow = false;
     const child = spawn(executable, ARGUMENTS[reviewer], {
       cwd,
-      detached: process.platform !== "win32",
       env: reviewerEnvironment(reviewer),
       stdio: ["pipe", "pipe", "pipe"]
     });
     const timeout = setTimeout(() => {
       timedOut = true;
-      terminateReviewerProcessTree(child);
+      child.kill("SIGKILL");
     }, timeoutMs);
     let stdout = "";
     let stderr = "";
@@ -36161,7 +36144,7 @@ function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
       stdoutBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        terminateReviewerProcessTree(child);
+        child.kill("SIGKILL");
       }
     });
     child.stderr.on("data", (chunk) => {
@@ -36170,7 +36153,7 @@ function runCandidate(executable, reviewer, packet, cwd, timeoutMs) {
       stderrBytes = appended.bytes;
       overflow ||= appended.overflow;
       if (overflow) {
-        terminateReviewerProcessTree(child);
+        child.kill("SIGKILL");
       }
     });
     child.stdin.on("error", () => {});
@@ -36228,14 +36211,14 @@ async function runReviewerCandidates(reviewer, packet, cwd, candidates, deadline
   throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
 }
 async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = process.cwd()) {
-  const deadline = Date.now() + timeoutMilliseconds();
+  const deadline = Date.now() + reviewTimeoutMilliseconds(reviewer);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
     throw new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
   }
   return runReviewerCandidates(reviewer, packet, cwd, candidates, deadline);
 }
-var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, DEFAULT_REVIEW_TIMEOUT_MS, REVIEW_RUBRICS, ReviewRuntimeError;
+var REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_REVIEW_TIMEOUT_MS = 300000;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA = JSON.stringify({
@@ -36319,7 +36302,6 @@ var init_runtime = __esm(() => {
     ]
   };
   MAX_OUTPUT_BYTES = 1024 * 1024;
-  DEFAULT_REVIEW_TIMEOUT_MS = 10 * 60000;
   REVIEW_RUBRICS = {
     "quality-review": "Check correctness, edge cases, security, unnecessary complexity, and whether public wiring is proven through real collaborators.",
     "scenario-gate": "Try to falsify every scenario. Check vacuous passes, atomic/observable/deterministic/independent structure, negative cases, boundaries, failures, security, invariants, and public-surface wiring.",

@@ -58,7 +58,7 @@
     "esbuild": "^0.28.1",
     "file-type": "^21.3.2",
     "fast-uri": "3.1.5",
-    "js-yaml": "^4.3.0",
+    "js-yaml": "^4.3.1",
     "markdown-it": "^14.2.0",
     "postcss": "8.5.23",
     "turbo": "2.9.18",
