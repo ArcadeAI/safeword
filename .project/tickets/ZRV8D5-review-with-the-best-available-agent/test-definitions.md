@@ -213,8 +213,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Reviewer approval with an error finding is rejected
 
 - [x] RED skip: the final independent review reproduced healthy exit for contradictory reviewer output
-- [x] GREEN 732965541
-- [x] REFACTOR 90887191c
+- [x] GREEN 3390bc350
+- [x] REFACTOR skip: the invariant helper was already isolated before the acceptance wording was tightened
 
 ### Scenario: Typed route exhaustion starts the host-owned fallback
 
