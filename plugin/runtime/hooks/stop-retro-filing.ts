@@ -2,7 +2,7 @@
 // Safeword: retro filing gate (Stop) — issue #628, ticket GH628F.
 //
 // The async stop-retro extraction spools post-egress drafts that the REST
-// transport cannot file in cloud (401). The muted UserPromptSubmit nudge proved
+// code-owned filing leaves drafts queued. The muted UserPromptSubmit nudge proved
 // unreliable (#628), so this SYNC Stop hook uses Claude's sanctioned continuation
 // channel — `{decision:"block", reason}` — to request ONE action: dispatch the
 // shipped safeword-retro-filer subagent with the spool path. The subagent files

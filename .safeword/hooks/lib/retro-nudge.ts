@@ -1,8 +1,8 @@
 // Retro cloud-filing nudge decision (ticket BNGK9W, issue #568).
 //
-// PATH B: in a cloud container the retro's REST transport 401s, so the sanitized
-// drafts stay SPOOLED (lib/retro-draft-spool.ts) and the live agent must file them
-// via its inherited GitHub MCP. The async Stop hook that spools them is backgrounded
+// PATH B: sanitized drafts that remain after the code-owned filing attempt stay
+// SPOOLED (lib/retro-draft-spool.ts), and the live agent can file them via its
+// inherited GitHub access. The async Stop hook that spools them is backgrounded
 // and surfaces nothing (ZFGWS1), so a SEPARATE surfacing-capable boundary hook
 // (SessionStart / UserPromptSubmit) checks for unfiled drafts and emits ONE factual
 // line — a system-reminder the model reads, invisible to the user in chat.
@@ -20,11 +20,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { atomicWriteFile } from './jsonl-spool.js';
-import { draftSpoolPath, readSpooledDrafts } from './retro-draft-spool.js';
+import { draftSpoolPath, readSpooledDrafts, spoolSiblingPath } from './retro-draft-spool.js';
 
 /** The per-session marker recording the last unfiled batch already surfaced. */
 function nudgeMarkerPath(projectDirectory: string, sessionId: string): string {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.nudged');
+  return spoolSiblingPath(projectDirectory, sessionId, '.nudged');
 }
 
 /** Stable key for an unfiled batch — order-independent over its signatures. Shared with the filing gate. */
@@ -56,13 +56,18 @@ function writeNudgeMarker(projectDirectory: string, sessionId: string, key: stri
  * The factual, single-line nudge: names how many unfiled drafts there are and
  * where they sit, and points at the filing procedure — with NO imperative marker
  * (run / file / please / you must / should) so the model treats it as context.
+ *
+ * Like the Stop dispatch, it must NOT diagnose the spool as a transport failure
+ * (#1900): retro's extractor mines the transcript this line lands in, so the old
+ * "REST transport could not authenticate" clause came back as an auto-filed bug
+ * against a subsystem working as designed.
  */
 export function formatRetroNudge(count: number, spoolPath: string): string {
   const plural = count === 1 ? '' : 's';
   return (
     `Safeword's retro spooled ${count} unfiled finding${plural} from this session at ${spoolPath}; ` +
-    `its GitHub REST transport could not authenticate them into the tracker. This boundary ` +
-    `observed them queued for the safeword-retro-filer subagent (or the live agent's GitHub access); ` +
+    `this boundary observed them queued for the safeword-retro-filer subagent (or the live ` +
+    `agent's GitHub access). This handoff uses safeword's normal recovery lane for unfiled drafts; ` +
     `the filing path re-reads the spool before reporting what remains. ` +
     `The filing procedure is in .safeword/guides/self-report-filing.md.`
   );

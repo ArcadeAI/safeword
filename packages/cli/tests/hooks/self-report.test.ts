@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   buildRecord,
   captureGateEscalation,
+  captureRetroFilingFault,
   detectAgent,
   formatIssueDrafts,
   formatSelfReportSurfacing,
@@ -577,6 +578,31 @@ describe('self-report capture (QYYC5Y)', () => {
         JSON.stringify({ selfReport: { capture: false } }),
       );
       captureGateEscalation(projectDirectory, 's', 'loc');
+      expect(readReports(projectDirectory)).toHaveLength(0);
+    });
+  });
+
+  // #1936 — the dispatch and nudge stay cause-neutral because retro's extractor
+  // mines them (#1900), so this signal is the only thing that keeps a genuine
+  // filing fault visible. It must NOT fire for the ordinary no-credential lane;
+  // a signal that fires on normal operation reports nothing.
+  describe('captureRetroFilingFault (#1936)', () => {
+    it('records a RetroFilingFault signal attributed to the retro run', () => {
+      captureRetroFilingFault(projectDirectory, 's');
+      const records = readReports(projectDirectory);
+      expect(records).toHaveLength(1);
+      expect(records[0]?.errorClass).toBe('RetroFilingFault');
+      expect(records[0]?.source).toBe('retro-run');
+      expect(summarizeReports(records)[0]?.signature).toContain('RetroFilingFault');
+    });
+
+    it('is suppressed when selfReport.capture is false', () => {
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(projectDirectory, '.safeword', 'config.json'),
+        JSON.stringify({ selfReport: { capture: false } }),
+      );
+      captureRetroFilingFault(projectDirectory, 's');
       expect(readReports(projectDirectory)).toHaveLength(0);
     });
   });

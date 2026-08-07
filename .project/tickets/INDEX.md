@@ -5,6 +5,8 @@
 
 <!-- prettier-ignore-start -->
 
+## Tickets (465)
+
 ## Tickets (472)
 
 ### 001
@@ -947,6 +949,10 @@
 - **Pre-commit auto-resync of template/install pairs after formatter pass (168)** (in_progress, epic: —)
   Make the lint-staged formatter step transparent to dogfood parity — if it touches a template, the paired install copy automatically catches up before commit lands.
   → `.project/tickets/168-pre-commit-template-install-resync`
+- **Deploy the retro relay automatically after main changes (1748)** (done, epic: —)
+  Deploy the private Retro Relay to its existing Railway service when a
+  external PRs: https://github.com/ArcadeAI/safeword/pull/1522
+  → `.project/tickets/1748-deploy-retro-relay-automatically`
 - **Keep BDD evidence honest for user-visible scenarios (1698)** (done, epic: —)
   Prevent implementation-level tests from being reported as proof of a
   external issue: https://github.com/ArcadeAI/safeword/issues/1698
@@ -1093,6 +1099,9 @@
 - **Eliminate ambiguous smoke ticket ID warning (7VEYAY)** (in_progress, epic: —)
   Remove or intentionally isolate the duplicate `7K9M3P` fixture warning from smoke-fast output.
   → `.project/tickets/7VEYAY-eliminate-ambiguous-smoke-ticket-id-warning`
+- **Prove the retro relay on Railway (81P5QH)** (in_progress, epic: —)
+  Deploy one disposable, single-instance retro relay with persistent SQLite storage and prove health and restart durability.
+  → `.project/tickets/81P5QH-deploy-retro-relay-spike`
 - **Make GitHub transport regressions easier to isolate (84GNG0)** (in_progress, epic: —)
   Separate transport pagination and authentication tests into focused suites
   → `.project/tickets/84GNG0-split-github-rest-transport-tests`
@@ -1136,6 +1145,9 @@
   Match recurring retro findings to their canonical GitHub issue despite model-derived metadata drift.
   external issue: https://github.com/ArcadeAI/safeword/issues/1032
   → `.project/tickets/A8NNZV-prevent-retro-duplicate-issues`
+- **Deliver retry-safe retro findings across every harness (A9J9M8)** (in_progress, epic: —)
+  Route Claude, Cursor, and Codex through one bounded durable relay operation with production lifecycle enforcement and safe local fallback.
+  → `.project/tickets/A9J9M8-operate-retry-safe-retro-relay`
 - **Keep Codex protection continuous while teams migrate to the profile plugin (AJVXWV)** (in_progress, epic: —)
   Keep repository protection continuously available while each teammate migrates from legacy Codex assets to the profile plugin.
   external issue: https://github.com/ArcadeAI/safeword/issues/1572
@@ -1447,6 +1459,10 @@
 - **Audit checks namespace domain docs for emptiness and drift (N0W5KG)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/N0W5KG-audit-domain-docs-freshness`
+- **Prove the retry-safe retro relay foundation across harness adapters (N30CKR)** (done, epic: —)
+  Build the durable relay slice that production harness routing can adopt without changing request identity.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1479
+  → `.project/tickets/N30CKR-retry-safe-retro-filing`
 - **Reuse monorepo topology during architecture healing (N3JTV5)** (done, epic: —)
   Build one monorepo model per architecture operation and reuse it for root and leaf work without changing output.
   external issue: https://github.com/ArcadeAI/safeword/issues/1667

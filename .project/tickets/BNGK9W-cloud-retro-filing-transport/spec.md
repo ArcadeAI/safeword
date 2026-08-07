@@ -100,6 +100,14 @@ preserved, not regressed.
 A draft filed via either path is marked filed so it is neither re-nudged nor
 re-filed; signature dedupe still guards recurrences.
 
+#### cloud-retro-filing.SM1.AC4 — Recovery handoffs report facts without hiding faults
+
+The transcript-visible handoff names the queued drafts and recovery lane without
+claiming why the code-owned filing attempt left them unfiled. When a GitHub
+credential was present and filing still failed, the CLI records a sanitized
+`RetroFilingFault` through self-report; the ordinary no-credential lane records no
+fault.
+
 ### cloud-retro-filing.TB1 — The cloud fallback stays near-invisible
 
 **Persona:** Technical Builder (TB)
@@ -146,6 +154,8 @@ bugs still got filed."*
 - A **local** session with a valid token files directly via REST and surfaces
   **no** additionalContext (zero footprint); a test asserts the silent path.
 - A filed draft is marked filed (spool drains); no re-nudge, no double-file.
+- The handoff stays cause-neutral; authenticated filing failures remain observable
+  through self-report, while a missing credential remains normal operation.
 - Extraction + spool never break Stop and add nothing to the conversation.
 
 ## Open Questions

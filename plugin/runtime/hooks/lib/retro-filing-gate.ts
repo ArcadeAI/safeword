@@ -24,7 +24,12 @@
 import { readFileSync } from 'node:fs';
 
 import { atomicWriteFile } from './jsonl-spool.js';
-import { draftSpoolPath, readAcks, readSpooledDrafts } from './retro-draft-spool.js';
+import {
+  draftSpoolPath,
+  readAcks,
+  readSpooledDrafts,
+  spoolSiblingPath,
+} from './retro-draft-spool.js';
 import { batchKey } from './retro-nudge.js';
 import { captureBareDrain, readSelfReportConfig } from './self-report.js';
 
@@ -39,7 +44,7 @@ export const CODEX_FILER_SKILL_NAME = 'safeword:retro-filer';
 
 /** The per-session marker recording filing attempts for the current batch. */
 function attemptMarkerPath(projectDirectory: string, sessionId: string): string {
-  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.filing-attempts');
+  return spoolSiblingPath(projectDirectory, sessionId, '.filing-attempts');
 }
 
 interface AttemptMarker {
@@ -57,8 +62,27 @@ function readAttemptMarker(projectDirectory: string, sessionId: string): Attempt
     const raw = JSON.parse(
       readFileSync(attemptMarkerPath(projectDirectory, sessionId), 'utf8'),
     ) as Record<string, unknown>;
-    if (typeof raw.key !== 'string' || typeof raw.attempts !== 'number') return undefined;
-    const marker: AttemptMarker = { key: raw.key, attempts: raw.attempts };
+    if (typeof raw.key !== 'string') return undefined;
+    // Sanitize an unusable count instead of dropping the whole marker. `signatures`
+    // is what arms the bare-drain tripwire, and discarding it would disable that
+    // telemetry for the rest of the session: after a drain the spool is empty, and
+    // that path returns before any rewrite, so nothing ever repairs the marker.
+    //
+    // JSON cannot carry NaN (`{"attempts":NaN}` fails to parse), but `1e999` parses
+    // to Infinity, and a hand-edited marker can hold a negative, fractional, or
+    // oversized count. Any value above the only values this gate can write makes
+    // `attempts >= FILING_ATTEMPT_CAP` true forever and strands the drafts unfiled;
+    // a negative silently widens the budget. Clamp to 0 so the cap re-binds from a
+    // known state — re-dispatching is the safe direction here (the filer dedups),
+    // stranding findings is not.
+    const attempts =
+      typeof raw.attempts === 'number' &&
+      Number.isInteger(raw.attempts) &&
+      raw.attempts >= 0 &&
+      raw.attempts <= FILING_ATTEMPT_CAP
+        ? raw.attempts
+        : 0;
+    const marker: AttemptMarker = { key: raw.key, attempts };
     if (
       Array.isArray(raw.signatures) &&
       raw.signatures.every((v): v is string => typeof v === 'string')
@@ -85,38 +109,71 @@ function writeAttemptMarker(
   }
 }
 
+/** How one harness's carrier is named; everything else in the dispatch is shared. */
+interface FilingCarrier {
+  /** Names the carrier and how it is invoked, e.g. `the X subagent (foreground) with`. */
+  invocation: string;
+  /** The sole draining authority, e.g. `the X` / `the X workflow`. */
+  drainAuthority: string;
+  /** Forbids this carrier's inline alternative. */
+  inlineProhibition: string;
+  /** Carrier noun for the unavailable clause, e.g. `subagent` / `skill`. */
+  noun: string;
+}
+
 /**
- * The Claude/Cursor one-action dispatch. Imperative ON PURPOSE: this text
- * travels only through the harnesses' sanctioned continuation channels (Stop
- * decision:"block" reason / followup_message), which are documented to carry
- * instructions — unlike the muted context-channel nudge. It requests a single
- * dispatch plus a silence contract, never an inline filing procedure.
+ * The one dispatch body. Both carriers share every clause except how the carrier
+ * is named — keeping them as two hand-maintained strings meant an edit to the
+ * shared wording could land in only one (the #1900 reframing had to be applied
+ * twice by hand, which is exactly that drift risk).
+ *
+ * Imperative ON PURPOSE: this text travels only through the harnesses' sanctioned
+ * continuation channels (Stop decision:"block" reason / followup_message), which
+ * are documented to carry instructions — unlike the muted context-channel nudge.
+ * It requests a single dispatch plus a silence contract, never an inline filing
+ * procedure.
+ *
+ * The text must NOT diagnose the spool as a transport failure (#1900). This is the
+ * only account of the handoff in the transcript, and retro's own extractor mines
+ * that transcript — so the old "its REST transport cannot authenticate" clause came
+ * back as an auto-filed bug against a subsystem working as designed, once per cloud
+ * session. Spool presence proves only that sanitized drafts remain queued: the
+ * code-owned path may lack a credential, hit its cap, fail upstream, or be unable
+ * to persist an acknowledgement. Keep the emitted text neutral about cause while
+ * naming spool + filer as the designed recovery lane.
  */
-export function formatFilingDispatch(count: number, spoolPath: string): string {
+function formatDispatch(count: number, spoolPath: string, carrier: FilingCarrier): string {
   const plural = count === 1 ? '' : 's';
   return (
     `Safeword's retro spooled ${count} sanitized finding${plural} for its own upstream tracker at ` +
-    `${spoolPath}, and its REST transport cannot authenticate in this environment. ` +
-    `Invoke the ${FILER_AGENT_NAME} subagent (foreground) with that spool path so it files them ` +
-    `through your GitHub access, then end the turn. Only the ${FILER_AGENT_NAME} drains the ` +
-    `spool. Do not file them inline yourself, and do not ` +
-    `narrate or summarize the filing in this or later responses. If the subagent or write access ` +
-    `to ArcadeAI/safeword is unavailable, state that in one line and stop.`
+    `${spoolPath}. They remain queued for filing through your GitHub access. This handoff uses ` +
+    `safeword's normal recovery lane for unfiled drafts. ` +
+    `Invoke ${carrier.invocation} that spool path so it files them through your GitHub access, ` +
+    `then end the turn. Only ${carrier.drainAuthority} drains the spool. ` +
+    `${carrier.inlineProhibition}, and do not narrate or summarize the filing in this or later ` +
+    `responses. If the ${carrier.noun} or write access to ArcadeAI/safeword is unavailable, ` +
+    `state that in one line and stop.`
   );
+}
+
+/** The Claude/Cursor one-action dispatch, routed through the shipped filer subagent. */
+export function formatFilingDispatch(count: number, spoolPath: string): string {
+  return formatDispatch(count, spoolPath, {
+    invocation: `the ${FILER_AGENT_NAME} subagent (foreground) with`,
+    drainAuthority: `the ${FILER_AGENT_NAME}`,
+    inlineProhibition: 'Do not file them inline yourself',
+    noun: 'subagent',
+  });
 }
 
 /** The Codex one-action dispatch, routed through the packaged filing skill. */
 export function formatCodexFilingDispatch(count: number, spoolPath: string): string {
-  const plural = count === 1 ? '' : 's';
-  return (
-    `Safeword's retro spooled ${count} sanitized finding${plural} for its own upstream tracker at ` +
-    `${spoolPath}, and its REST transport cannot authenticate in this environment. ` +
-    `Invoke the ${CODEX_FILER_SKILL_NAME} skill with that spool path so it files them through ` +
-    `your GitHub access, then end the turn. Only the ${CODEX_FILER_SKILL_NAME} workflow drains ` +
-    `the spool. Do not file them outside that workflow, and do not narrate or summarize the filing ` +
-    `in this or later responses. If the skill or write access to ArcadeAI/safeword is unavailable, ` +
-    `state that in one line and stop.`
-  );
+  return formatDispatch(count, spoolPath, {
+    invocation: `the ${CODEX_FILER_SKILL_NAME} skill with`,
+    drainAuthority: `the ${CODEX_FILER_SKILL_NAME} workflow`,
+    inlineProhibition: 'Do not file them outside that workflow',
+    noun: 'skill',
+  });
 }
 
 /** Injectable seams for `decideRetroFilingGate`. */

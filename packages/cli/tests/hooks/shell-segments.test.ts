@@ -31,16 +31,22 @@ describe('parseShellCommandList', () => {
       { command: 'printf x', operatorAfter: '|&' },
       { command: 'git add --pathspec-from-file=-' },
     ]);
+    expect(parseShellCommandList('bun ci && start & bun run test')).toEqual([
+      { command: 'bun ci', operatorAfter: '&&' },
+      { command: 'start', operatorAfter: '&' },
+      { command: 'bun run test' },
+    ]);
   });
 });
 
 describe('splitShellSegments', () => {
-  it('Scenario: `;`, newline, `&&`, `||`, and single `|` are segment boundaries', () => {
+  it('Scenario: `;`, newline, `&`, `&&`, `||`, and single `|` are segment boundaries', () => {
     expect(splitShellSegments('echo a; echo b')).toEqual(['echo a', 'echo b']);
     expect(splitShellSegments('echo a\necho b')).toEqual(['echo a', 'echo b']);
     expect(splitShellSegments('bun ci && bun run test')).toEqual(['bun ci', 'bun run test']);
     expect(splitShellSegments('command -v bun || npm ci')).toEqual(['command -v bun', 'npm ci']);
     expect(splitShellSegments('ps aux | grep node')).toEqual(['ps aux', 'grep node']);
+    expect(splitShellSegments('sleep 1 & pkill node')).toEqual(['sleep 1', 'pkill node']);
   });
 
   it('Scenario: `||` yields exactly two segments, no empty middle segment', () => {
@@ -57,6 +63,12 @@ describe('splitShellSegments', () => {
     expect(splitShellSegments('cat foo >| bar; pkill node')).toEqual([
       'cat foo >| bar',
       'pkill node',
+    ]);
+  });
+
+  it('Scenario: redirection ampersands are not background boundaries', () => {
+    expect(splitShellSegments('bun run test 2>&1 &>out.log <&3')).toEqual([
+      'bun run test 2>&1 &>out.log <&3',
     ]);
   });
 
