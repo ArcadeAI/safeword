@@ -42,6 +42,10 @@ describe('detectBroadProcessKill', () => {
         command: 'pkill',
         target: 'node',
       });
+      expect(detectBroadProcessKill('sleep 1 & pkill -9 node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
       expect(detectBroadProcessKill('env killall node')).toEqual({
         command: 'killall',
         target: 'node',
@@ -161,6 +165,7 @@ describe('requiresFailClosedShellGate (cursor routing)', () => {
   it('Scenario: a broad process kill routes to the delegated gate', () => {
     expect(requiresFailClosedShellGate({ command: 'killall node' })).toBe(true);
     expect(requiresFailClosedShellGate({ command: 'pkill -9 node' })).toBe(true);
+    expect(requiresFailClosedShellGate({ command: 'sleep 1 & pkill node' })).toBe(true);
   });
 
   it('Scenario: a scoped kill does not force the delegated gate', () => {

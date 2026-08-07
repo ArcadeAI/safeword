@@ -51,6 +51,19 @@ The runtime image resolves its exact `gosu` package from a dated Debian
 snapshot, so the pinned package cannot disappear when the mutable Bookworm
 archive rotates.
 
+### Recovering an incompatible Railway volume
+
+If startup reports that the SQLite schema is partial or incompatible, leave the
+affected volume intact. Do not delete database files or selectively restore
+SQLite, WAL, or spool files: the relay's receipts are its duplicate-prevention
+authority.
+
+For a health-only `spike`, retain and detach the failed volume, then attach a
+[new empty persistent volume](https://docs.railway.com/volumes) at `/data` and
+redeploy. Confirm `GET /health` returns 200 and `POST /v1/retro-filings` returns 503. For `production`, do not resume routing on a blank replacement volume.
+Keep filing disabled and restore the complete compatible volume (or follow an
+explicit, reviewed migration and recovery plan) before allowing requests again.
+
 Node 22 documents `node:sqlite` as active development and Node 24 documents it
 as release candidate. The relay keeps the API behind `src/sqlite.ts`, qualifies
 the built artifact on the deployed runtime, and may emit Node's experimental

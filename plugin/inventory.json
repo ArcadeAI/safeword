@@ -131,7 +131,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "014e3f479698e8aee1823f32b7a4a0a308d7d6d7adb5e934199dfb0c8306a0ef"
+      "sha256": "e8cd19a08fa96e3d43e11d4d1122f8ca3ae9df21687070af77440d81c7a69d2a"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -171,7 +171,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "10e0e007395432d608c48dc5a7bdb4a97965ecbb8b9c92f528b57cb9db51eacd"
+      "sha256": "52422979a303cf8079d380ca156f7c06cb6e5485a538d0c9b897f18eecc07994"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "d596c5a5e3bac89248f43bc350c7ac3f6c844af7c6320ec9a96a1d5992f079f6"
+      "sha256": "2578c58d6ee7bbaf354f69a8690854bbc54ed80bd60308312083108bfc07b476"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",
@@ -283,7 +283,7 @@
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
-      "sha256": "711f6e78f249fa352b5614234c83daa8fd8906d6a2e38a99bfe3b6b761a9abf9"
+      "sha256": "e7bf036f0f1971da1c51afc996f75e2941ee0d024d9a5b208e6f96709ed1c193"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -363,7 +363,7 @@
     },
     {
       "path": "runtime/hooks/lib/shell-segments.ts",
-      "sha256": "d086d7cded4248bc1f5450f7717bf053fa41fb9dc43e662106419ca8d57889d1"
+      "sha256": "25cdd693bce7ba599f2a45c3a42826308398626e8d6d6a1aecde823847b3ffd9"
     },
     {
       "path": "runtime/hooks/lib/skill-invocation-log.ts",
@@ -423,7 +423,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "29d6d9e22a9966cad5463de751b8e5cea848ba711285b0ee6e52d5ed4dfb1d10"
+      "sha256": "d3d32019ed8729a73541b9c48429725ee6aaaebefbd6b08736401af9cb600a89"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
@@ -431,7 +431,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a"
+      "sha256": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8"
     },
     {
       "path": "runtime/hooks/pre-tool-git-bare-fix.sh",
