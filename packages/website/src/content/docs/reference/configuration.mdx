@@ -143,8 +143,8 @@ Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 }
 ```
 
-- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer fails, Safe Word can retry that independent agent on its configured alternate model before running a visibly `degraded` same-agent fallback.
-- `require` — the opposite-agent route must complete. Missing installation, sign-in, timeout, process failure, invalid output, or changed source blocks the gate with one concrete recovery action; degraded results and skips cannot satisfy it.
+- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer fails, Safe Word can retry that independent agent on its configured alternate model before running a visibly `degraded` same-agent headless fallback. If every CLI route fails, a foreground agent may add best-effort host-native or self-review findings; their actual verdict is preserved.
+- `require` — only an opposite-agent result satisfies the gate. A completed same-agent headless review returns the existing independence-required failure. If every CLI route fails, a foreground agent may still report useful host-native or self-review findings, but the result remains action required, recommends restoring an independent reviewer or explicitly choosing `prefer`, and never writes independent evidence.
 - `off` — retain the existing review route and do not create cross-agent evidence.
 
 `crossAgentReviewAlternateModel` is optional and has no Safe Word-supplied default. Set `claude` and `codex` independently; environment variables `SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE` and `SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` override their matching configured values. Model identifiers must be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot begin with `-`. An unusable environment value falls through to the configured value.
