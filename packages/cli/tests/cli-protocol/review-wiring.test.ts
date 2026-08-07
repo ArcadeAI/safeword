@@ -1118,7 +1118,7 @@ describe('cross-agent review public-command wiring', () => {
         SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
       },
       firstLine:
-        'This review was not independent: the same agent (Claude) checked its own work in a separate headless process.',
+        'Codex could not be run. This review was not independent: the same agent (Claude) checked its own work in a separate headless process. Run the review again.',
     },
     {
       outcome: 'blocked',
@@ -1126,7 +1126,8 @@ describe('cross-agent review public-command wiring', () => {
         SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
         SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE: 'auth',
       },
-      firstLine: 'The independent check did not run.',
+      firstLine:
+        'The independent reviewer (Codex) could not be run. The fallback review (Claude) is not signed in. No independent check was recorded.',
     },
   ])('leads a $outcome human result with its independence status', async testCase => {
     const directory = createTemporaryDirectory();
@@ -1134,21 +1135,35 @@ describe('cross-agent review public-command wiring', () => {
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const bin = installFakeReviewer(directory, 'codex');
     installFakeReviewer(directory, 'claude');
+    const env = {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'claude',
+      SAFEWORD_REVIEW_LOG: log,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+      ...testCase.environment,
+    };
+    const args = [
+      'review',
+      'run',
+      'quality-review',
+      'review-input.md',
+      '--no-input',
+      '--cwd',
+      directory,
+    ];
 
-    const result = await runCli(
-      ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-          ...testCase.environment,
-        },
-      },
-    );
+    const humanResult = await runCli(args, { cwd: directory, env });
+    const jsonResult = await runCli([...args, '--json'], { cwd: directory, env });
+    const payload = JSON.parse(jsonResult.stdout) as {
+      findings: { message: string }[];
+      errors: { message: string }[];
+    };
+    const firstLine = humanResult.stdout.split('\n', 1)[0];
 
-    expect(result.stdout.split('\n', 1)[0]).toBe(testCase.firstLine);
+    expect(firstLine).toBe(testCase.firstLine);
+    // The human first line and the JSON primary message must be the exact
+    // same string — a second renderer re-deriving its own copy of this
+    // sentence is what let the two drift apart once already.
+    expect(firstLine).toBe(payload.findings[0]?.message ?? payload.errors[0]?.message);
   });
 });

@@ -226,8 +226,20 @@ function plannedEffectLines(data: unknown): string[] {
   return lines.length === 0 ? [] : ['Planned effects:', ...lines];
 }
 
-function reviewIndependenceLine(data: unknown): string | undefined {
+/**
+ * The review's own primary finding or error already carries the complete,
+ * cause-specific explanation — coordinator.ts builds it once, per failure
+ * class. Reusing it here (instead of re-deriving a second copy from raw
+ * `data` fields) is what keeps this line from silently drifting back to a
+ * generic sentence whenever a coordinator branch adds detail the other copy
+ * doesn't know about — exactly what happened here once already.
+ */
+function reviewIndependenceLine(
+  data: unknown,
+  primaryMessage: string | undefined,
+): string | undefined {
   if (!isRecord(data) || data.command !== 'review run') return undefined;
+  if (primaryMessage !== undefined) return primaryMessage;
   const reviewer =
     typeof data.actual_reviewer === 'string'
       ? `${data.actual_reviewer.charAt(0).toUpperCase()}${data.actual_reviewer.slice(1)}`
@@ -290,19 +302,11 @@ export interface HumanResultStreams {
   readonly stderr: string;
 }
 
-export function renderHumanStreams(
-  result: CliResult,
-  options: { quiet?: boolean; verbose?: boolean } = {},
-): HumanResultStreams {
-  if (result.presentation?.kind === 'raw') {
-    return {
-      stdout: result.presentation.body.replace(/\n$/, ''),
-      stderr: options.quiet === true ? '' : uniqueMessages(result).join('\n'),
-    };
-  }
-  if (suppressHumanOutput(result, options)) return { stdout: '', stderr: '' };
-
-  const independenceLine = reviewIndependenceLine(result.data);
+function resultBodyLines(result: CliResult, options: { verbose?: boolean }): string[] {
+  // Whatever would print first in `messages` below is also the right primary
+  // line — findings take precedence over errors, matching uniqueMessages.
+  const primaryMessage = result.findings[0]?.message ?? result.errors[0]?.message;
+  const independenceLine = reviewIndependenceLine(result.data, primaryMessage);
   const messages = uniqueMessages(result).filter(message => message !== independenceLine);
   const lines = [
     ...optionalLine(independenceLine),
@@ -319,6 +323,22 @@ export function renderHumanStreams(
     ].filter((detail): detail is string => detail !== undefined);
     lines.push(...completedEffectLines(result), ...details);
   }
+  return lines;
+}
+
+export function renderHumanStreams(
+  result: CliResult,
+  options: { quiet?: boolean; verbose?: boolean } = {},
+): HumanResultStreams {
+  if (result.presentation?.kind === 'raw') {
+    return {
+      stdout: result.presentation.body.replace(/\n$/, ''),
+      stderr: options.quiet === true ? '' : uniqueMessages(result).join('\n'),
+    };
+  }
+  if (suppressHumanOutput(result, options)) return { stdout: '', stderr: '' };
+
+  const lines = resultBodyLines(result, options);
 
   const primaryAction = result.nextActions[0];
   if (primaryAction !== undefined) lines.push(`Next: ${nextActionLabel(primaryAction)}`);
