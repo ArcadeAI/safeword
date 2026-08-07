@@ -57,7 +57,7 @@ Unaffected:
 
 #### keep-safeword-recovery-runnable.TBU1.R2 — The recovery exception does not make unrelated package executors runnable
 
-#### keep-safeword-recovery-runnable.TBU1.R3 — Recovery guidance names a command that the current CLI supports
+#### keep-safeword-recovery-runnable.TBU1.R3 — Parity recovery guidance names a command that the current CLI supports
 
 ## Rave Moment
 
@@ -68,6 +68,13 @@ skip: table-stakes — recovery from an installation failure should simply work.
 - A builder can run setup or inspect Safeword health while project dependencies are broken.
 - Project tests and other dependency-backed executables remain blocked until dependencies are repaired.
 - A parity failure points to a real recovery command.
+
+## Boundary
+
+This slice changes only `bunx`, whose existing classifier guarded every package.
+Equivalent Safeword invocations through `npx`, `pnpm dlx`, or `yarn dlx` remain
+unclassified by this dependency-readiness guard and are outside this recovery
+exception; this ticket neither allows nor denies them.
 
 ## Open Questions
 

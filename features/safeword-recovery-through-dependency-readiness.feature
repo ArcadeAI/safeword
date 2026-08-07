@@ -21,6 +21,9 @@ Feature: Safeword recovery through dependency readiness
         | missing   | bunx safeword --cwd . setup   |
         | stale     | bunx safeword --cwd=. setup   |
         | stale     | bunx safeword --quiet doctor  |
+        | stale     | bunx safeword setup && bunx safeword doctor |
+        | missing   | bunx safeword status benign-positional-argument |
+        | missing   | bunx safeword --cwd 'a && b' setup |
 
   @keep-safeword-recovery-runnable.TBU1.R2
   Rule: keep-safeword-recovery-runnable.TBU1.R2 — The recovery exception does not make unrelated package executors runnable
@@ -36,10 +39,12 @@ Feature: Safeword recovery through dependency readiness
         | missing   | bunx vitest run                        |
         | stale     | bunx vitest run                        |
         | missing   | bunx safeword-tools setup              |
+        | missing   | bunx @scope/safeword setup             |
         | missing   | bunx safeword                          |
         | missing   | bunx safeword ticket list              |
         | stale     | bunx safeword setupx                   |
         | missing   | bunx safeword --unknown-flag setup     |
+        | missing   | bunx safeword --cwd setup              |
         | stale     | bunx safeword setup && bunx vitest run |
         | missing   | bunx safeword setup; bunx vitest run   |
         | stale     | bunx safeword setup \|\| bunx vitest run |
@@ -49,6 +54,9 @@ Feature: Safeword recovery through dependency readiness
         | stale     | bunx safeword setup `bunx vitest run`  |
         | missing   | bunx safeword setup <(bunx vitest run) |
         | stale     | bunx safeword setup >(bunx vitest run) |
+        | missing   | FOO=$(vitest) bunx safeword setup |
+        | stale     | FOO=bar BAR=$(vitest) bunx safeword setup |
+        | missing   | bunx vitest run && bunx safeword setup |
 
     @rejection @surface.claude-code
     Scenario: A newline cannot hide a guarded command after recovery
@@ -61,7 +69,7 @@ Feature: Safeword recovery through dependency readiness
       Then the dependency-readiness guard denies the command with its install recovery
 
   @keep-safeword-recovery-runnable.TBU1.R3
-  Rule: keep-safeword-recovery-runnable.TBU1.R3 — Recovery guidance names a command that the current CLI supports
+  Rule: keep-safeword-recovery-runnable.TBU1.R3 — Parity recovery guidance names a command that the current CLI supports
 
     @rejection @surface.safeword-cli
     Scenario: Dogfood parity drift names the supported setup command

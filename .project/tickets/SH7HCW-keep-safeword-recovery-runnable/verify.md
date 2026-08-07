@@ -6,7 +6,7 @@
 **Gherkin:** ✅ Acceptance lane passes
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 16 scenarios marked complete
+**Scenarios:** All 36 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -21,7 +21,7 @@ Audit passed — diff scope; 0 errors and 0 warnings.
 
 | Affected surface | Proof | Result |
 | --- | --- | --- |
-| Claude Code — `pre-tool-dependency-readiness.ts` PreToolUse hook | `NODE_OPTIONS='--import tsx' ./node_modules/.bin/cucumber-js features/safeword-recovery-through-dependency-readiness.feature` | 27/27 hook scenarios passed against the real PreToolUse process |
+| Claude Code — `pre-tool-dependency-readiness.ts` PreToolUse hook | `NODE_OPTIONS='--import tsx' ./node_modules/.bin/cucumber-js features/safeword-recovery-through-dependency-readiness.feature` | 35/35 hook scenarios passed against the real PreToolUse process |
 | Safeword CLI — release parity recovery guidance | Same lane, `Dogfood parity drift names the supported setup command` | 1/1 scenario passed against the real `formatParityDriftFailure` reporter |
 
 ## Experience Walk
@@ -46,7 +46,15 @@ removed without adding a bypass or prompt.
 - Post-rebase validation on current main: 144 dependency-readiness tests, 22
   recovery scenarios, and 5 release/parity tests passed; the Claude-plugin
   release contract and both TypeScript package checks passed.
-- Post-review validation: 28 recovery scenarios / 1,094 steps pass; template,
+- Post-review validation: 36 recovery scenarios / 1,406 steps pass; template,
   dogfood, and generated Claude-plugin hook copies are byte-identical
   (241 pairs and 8 contracts in sync); Claude-plugin release contract aligned;
   Gherkin lint, ESLint, and `tsc --noEmit` clean.
+- Mutation evidence: removing only the strict metacharacter guard made all six
+  argument- and environment-substitution scenarios fail (29 passed, 6 failed);
+  restoring it returned the full 35-scenario lane to green.
+- Segment evidence: restricting classification to the first shell segment made
+  five list-separator rows plus newline fail (28 passed, 6 failed); restoring
+  all-segment classification returned the full lane to green.
+- Final focused contract: 157/157 dependency-readiness tests pass, including
+  quoted literal metacharacters and quoted command substitution.

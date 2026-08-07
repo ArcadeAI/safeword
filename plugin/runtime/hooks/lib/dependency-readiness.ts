@@ -869,7 +869,7 @@ function isDependencyBackedSegment(segment: string): boolean {
 }
 
 function isSafewordRecoverySegment(segment: string, args: string[]): boolean {
-  if (/[$`<>&]/.test(segment)) return false;
+  if (containsShellEvaluationSyntax(segment)) return false;
 
   let packageIndex = 0;
   while (BUNX_BOOLEAN_OPTIONS.has(args[packageIndex] ?? '')) packageIndex += 1;
@@ -882,6 +882,36 @@ function isSafewordRecoverySegment(segment: string, args: string[]): boolean {
 
   const command = firstSafewordCommandArgument(args.slice(packageIndex + 1));
   return command !== undefined && SAFEWORD_RECOVERY_COMMANDS.has(command);
+}
+
+function containsShellEvaluationSyntax(segment: string): boolean {
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (const char of segment) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (char === "'") {
+      if (quote === undefined) quote = char;
+      else if (quote === char) quote = undefined;
+      continue;
+    }
+    if (char === '"') {
+      if (quote === undefined) quote = char;
+      else if (quote === char) quote = undefined;
+      continue;
+    }
+    if (quote !== "'" && (char === '$' || char === '`')) return true;
+    if (quote === undefined && (char === '<' || char === '>' || char === '&')) return true;
+  }
+
+  return false;
 }
 
 // Deliberately not `firstCommandArgument`: that helper skips over options it

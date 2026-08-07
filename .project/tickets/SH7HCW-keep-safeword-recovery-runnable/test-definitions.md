@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: A non-recovery package command remains guarded
 
-- [x] RED skip: shared classifier shipped in the prior slice; removing its metacharacter guard made five smuggling cases fail
+- [x] RED skip: shared classifier shipped in the prior slice; 2026-08-07 UTC mutation replays made all six substitution scenarios fail when the metacharacter guard was removed (29 passed, 6 failed) and made five list-separator rows plus newline fail when classification was restricted to the first segment (28 passed, 6 failed)
 - [x] GREEN b08fdb171
 - [x] REFACTOR skip: table-driven adversarial cases share the existing classifier fixture without duplication
 
@@ -26,7 +26,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN b08fdb171
 - [x] REFACTOR skip: newline coverage belongs in the existing command matrix and needs no separate fixture
 
-## Rule: keep-safeword-recovery-runnable.TBU1.R3 — Recovery guidance names a command that the current CLI supports
+## Rule: keep-safeword-recovery-runnable.TBU1.R3 — Parity recovery guidance names a command that the current CLI supports
 
 ### Scenario: Dogfood parity drift names the supported setup command
 

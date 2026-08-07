@@ -75,6 +75,6 @@ are the maintained user-facing contract for this slice.
 ## Assessment triggers
 
 Revisit the allowlist if setup/status/doctor/plan are renamed, if a new
-dependency-repair command is added, or if Bun changes `bunx` package/version
-argument syntax. Reconsider the classifier boundary if recovery moves to a
-non-`bunx` entry point.
+dependency-repair command or pre-verb global CLI option is added, or if Bun
+changes `bunx` package/version argument syntax. Reconsider the classifier
+boundary if recovery moves to a non-`bunx` entry point.

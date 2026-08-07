@@ -558,10 +558,12 @@ describe('dependency readiness hook support', () => {
     ['( bun test )'],
     ['env -u FOO bun test'],
     ['bunx safeword-tools setup'],
+    ['bunx @scope/safeword setup'],
     ['bunx safeword'],
     ['bunx safeword ticket list'],
     ['bunx safeword setupx'],
     ['bunx safeword --unknown-flag setup'],
+    ['bunx safeword --cwd setup'],
     ['bunx safeword setup && bunx vitest run'],
     ['bunx safeword setup; bunx vitest run'],
     ['bunx safeword setup || bunx vitest run'],
@@ -571,6 +573,10 @@ describe('dependency readiness hook support', () => {
     ['bunx safeword setup `bunx vitest run`'],
     ['bunx safeword setup <(bunx vitest run)'],
     ['bunx safeword setup >(bunx vitest run)'],
+    ['FOO=$(vitest) bunx safeword setup'],
+    ['FOO=bar BAR=$(vitest) bunx safeword setup'],
+    ['bunx vitest run && bunx safeword setup'],
+    ['bunx safeword --cwd "$(vitest)" setup'],
     ['bunx safeword setup\nbunx vitest run'],
   ])('treats dependency-backed command "%s" as guarded', command => {
     expect(isDependencyBackedCommand(command)).toBe(true);
@@ -598,6 +604,9 @@ describe('dependency readiness hook support', () => {
     ['bunx safeword --cwd . setup'],
     ['bunx safeword --cwd=. setup'],
     ['bunx safeword --quiet doctor'],
+    ['bunx safeword setup && bunx safeword doctor'],
+    ['bunx safeword status benign-positional-argument'],
+    ['bunx safeword --cwd "a && b" setup'],
     // `>|` is a clobber redirect: `vitest` here is a target filename, not a
     // command — the pre-EDDABK private splitter treated it as one.
     ['echo cfg >| vitest'],
