@@ -1,5 +1,13 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -36,6 +44,21 @@ const POST_TOOL_HOOK = path.resolve(
   import.meta.dirname,
   '../../templates/hooks/post-tool-dependency-readiness.ts',
 );
+
+const REPOSITORY_ROOT = path.resolve(import.meta.dirname, '../../../..');
+
+it('keeps the dogfood dependency-readiness helper identical to its source template', () => {
+  const template = readFileSync(
+    path.join(REPOSITORY_ROOT, 'packages/cli/templates/hooks/lib/dependency-readiness.ts'),
+    'utf8',
+  );
+  const dogfood = readFileSync(
+    path.join(REPOSITORY_ROOT, '.safeword/hooks/lib/dependency-readiness.ts'),
+    'utf8',
+  );
+
+  expect(dogfood).toBe(template);
+});
 
 describe('dependency readiness hook support', () => {
   let projectDirectory: string;
@@ -150,6 +173,20 @@ describe('dependency readiness hook support', () => {
     expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
     expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
   });
+
+  it.each(['deno@2.0.0', 'pnpm'])(
+    'abstains for unsupported packageManager declaration %s',
+    declaration => {
+      writeJson('package.json', {
+        name: 'explicit-unsupported-project',
+        packageManager: declaration,
+      });
+      writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+      expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+      expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
+    },
+  );
 
   it('detects a pnpm workspace and plans a frozen pnpm install (#323)', () => {
     writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0' });
@@ -284,6 +321,21 @@ describe('dependency readiness hook support', () => {
     ]);
   });
 
+  it('preserves hash characters inside quoted pnpm workspace globs', () => {
+    writeJson('package.json', { name: 'pnpm-ws', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(
+      projectDirectory,
+      'pnpm-workspace.yaml',
+      "packages:\n  - 'packages/#internal' # private package\n",
+    );
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeJson('packages/#internal/package.json', { name: '@ws/internal' });
+
+    expect(detectDependencyPlan(projectDirectory)?.inputPaths).toContain(
+      'packages/#internal/package.json',
+    );
+  });
+
   it('tracks package manifests matched by recursive workspace globs', () => {
     writeJson('package.json', {
       name: 'recursive-workspace-project',
@@ -306,6 +358,49 @@ describe('dependency readiness hook support', () => {
       'packages/cli/package.json',
       'packages/features/plugin/package.json',
     ]);
+  });
+
+  it('ignores workspace patterns that escape the project root', () => {
+    const outsideDirectory = createTemporaryDirectory();
+    try {
+      const outsidePattern = path
+        .relative(projectDirectory, outsideDirectory)
+        .replaceAll('\\', '/');
+      writeJson('package.json', {
+        name: 'contained-workspace-project',
+        packageManager: 'bun@1.3.14',
+        workspaces: [`${outsidePattern}/**`, `${outsideDirectory}/**`],
+      });
+      writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+      writeTestFile(outsideDirectory, 'nested/package.json', '{"name":"outside-project"}');
+
+      expect(
+        detectDependencyPlan(projectDirectory)?.inputPaths.toSorted((a, b) => a.localeCompare(b)),
+      ).toEqual(['bun.lock', 'package.json']);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
+  });
+
+  it('ignores workspace directories that resolve outside the project root', () => {
+    const outsideDirectory = createTemporaryDirectory();
+    try {
+      writeJson('package.json', {
+        name: 'contained-workspace-project',
+        packageManager: 'bun@1.3.14',
+        workspaces: ['packages/external'],
+      });
+      writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+      writeTestFile(outsideDirectory, 'package.json', '{"name":"outside-project"}');
+      mkdirSync(path.join(projectDirectory, 'packages'), { recursive: true });
+      symlinkSync(outsideDirectory, path.join(projectDirectory, 'packages', 'external'), 'dir');
+
+      expect(
+        detectDependencyPlan(projectDirectory)?.inputPaths.toSorted((a, b) => a.localeCompare(b)),
+      ).toEqual(['bun.lock', 'package.json']);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
   });
 
   it('excludes package manifests matched by negative workspace globs', () => {
@@ -431,7 +526,7 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 
-  it('reports stale when tracked input content changes, then ready once re-stamped', () => {
+  it('keeps a mismatched marker stale until a successful install is proven', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
@@ -448,13 +543,17 @@ describe('dependency readiness hook support', () => {
       reason: 'install_artifact_stale',
     });
 
-    // Reinstall bumps the artifact mtime (bun repoints symlinks); the mtime
-    // fallback then resolves ready and the hook re-stamps the new fingerprint.
+    // A newer artifact mtime cannot prove which inputs were installed. The
+    // mismatched content marker remains authoritative until an install succeeds.
     const future = new Date(Date.now() + 60_000);
     utimesSync(artifact, future, future);
     const reinstalled = getDependencyReadiness(projectDirectory);
-    expect(reinstalled.status).toBe('ready');
-    writeInstallMarker(projectDirectory, reinstalled);
+    expect(reinstalled.status).toBe('stale');
+    writeInstallMarker(projectDirectory, {
+      ...reinstalled,
+      status: 'ready',
+      reason: 'install_artifact_current',
+    });
 
     // A later rebase pushes the artifact mtime behind again, but the refreshed
     // marker still matches the current content, so it stays ready.
@@ -462,7 +561,7 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
-  it('stale recovery documents the no-op escape so the gate cannot loop', () => {
+  it('stale recovery is one self-converging command even when the new PostToolUse hook is not loaded', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
@@ -479,9 +578,30 @@ describe('dependency readiness hook support', () => {
     expect(stale.status).toBe('stale');
 
     const recovery = formatDependencyRecovery(stale);
-    expect(recovery).toContain('bun ci');
-    expect(recovery).toContain('reports no changes');
-    expect(recovery).toContain('touch node_modules');
+    expect(recovery).toContain(
+      'bun ci && rm -f node_modules/.safeword-deps-fingerprint && touch node_modules',
+    );
+    expect(recovery).not.toContain('If it reports no changes');
+  });
+
+  it('rendered stale recovery clears the block without a loaded PostToolUse hook', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const stale = getDependencyReadiness(projectDirectory);
+    const recovery = formatDependencyRecovery({ ...stale, installCommand: 'true' })
+      .split('\n')
+      .at(-1)
+      ?.trim();
+    expect(recovery).toBe(
+      'true && rm -f node_modules/.safeword-deps-fingerprint && touch node_modules',
+    );
+    expect(spawnSync('sh', ['-c', recovery ?? 'false'], { cwd: projectDirectory }).status).toBe(0);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
   it('missing recovery installs for real, so it omits the touch escape', () => {
@@ -1041,6 +1161,12 @@ describe('dependency readiness hook support', () => {
       }
     });
 
+    it('ignores compound installs whose segment success is masked by the shell', () => {
+      for (const command of ['bun ci || true', 'npm ci; true', 'pnpm install || echo failed']) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
     it('ignores lockfile-only / dry-run installs (they do not materialize node_modules)', () => {
       for (const command of [
         'bun install --dry-run',
@@ -1089,6 +1215,15 @@ describe('dependency readiness hook support', () => {
       makeStaleAfterNoopInstall();
 
       runHook(POST_TOOL_HOOK, postInput('bun ci', { exit_code: 1, success: false }));
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    });
+
+    it('does NOT stamp when a failed install is masked by a successful shell segment', () => {
+      makeStaleAfterNoopInstall();
+
+      runHook(POST_TOOL_HOOK, postInput('bun ci || true', { exit_code: 0, success: true }));
 
       expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
       expect(getDependencyReadiness(projectDirectory).status).toBe('stale');

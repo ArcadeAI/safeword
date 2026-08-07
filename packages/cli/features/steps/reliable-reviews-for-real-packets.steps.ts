@@ -14,9 +14,16 @@ import nodePath from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 
-import { After, Given, Then, When } from '@cucumber/cucumber';
+import { After, Given, setDefaultTimeout, Then, When } from '@cucumber/cucumber';
 
 import type { SafewordWorld } from './world.js';
+
+// Cucumber's built-in step timeout is 5000ms. A route-exhaustion scenario can
+// legitimately wait through three sequential real subprocess timeouts (up to
+// SAFEWORD_REVIEW_TIMEOUT_MS each) before the run bound settles it — 3 × 2000ms
+// alone already exceeds the default, before process-spawn and cleanup
+// overhead. This is real subprocess wall-clock time, not a hang to tighten.
+setDefaultTimeout(20_000);
 
 const execFileAsync = promisify(execFile);
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');

@@ -61,6 +61,132 @@ describe('convergent setup', () => {
     expect(manifest.scripts?.['lint:eslint']).toBeUndefined();
   });
 
+  it('converges after a project-scoped Claude install records plugin enrollment', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.claude'), { recursive: true });
+    mkdirSync(nodePath.join(directory, 'packages/a'), { recursive: true });
+    mkdirSync(nodePath.join(directory, 'packages/b'), { recursive: true });
+    mkdirSync(nodePath.join(directory, 'packages/c'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'pnpm-workspace',
+        private: true,
+        packageManager: 'pnpm@11.7.0',
+        workspaces: ['packages/*'],
+      }),
+    );
+    writeFileSync(nodePath.join(directory, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
+    for (const name of ['a', 'b', 'c']) {
+      writeFileSync(
+        nodePath.join(directory, `packages/${name}/package.json`),
+        JSON.stringify({ name: `workspace-${name}`, private: true }),
+      );
+    }
+    // A 0.71-style project has legacy Claude hooks, so setup retains that
+    // delivery until the explicit cleanup transaction completes.
+    writeFileSync(
+      nodePath.join(directory, '.claude/settings.json'),
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: 'Bash',
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/pre-tool-quality.ts',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    const arguments_ = [
+      'setup',
+      '--json',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      directory,
+      '--no-modify',
+    ];
+
+    const upgraded = await runCliWithoutInstall(arguments_, { cwd: directory });
+    expect(upgraded.exitCode).toBe(0);
+
+    // Claude records project-scope enrollment in the same settings file while
+    // preserving the existing legacy hook block.
+    const settingsPath = nodePath.join(directory, '.claude/settings.json');
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(
+      settingsPath,
+      `${JSON.stringify(
+        {
+          ...settings,
+          enabledPlugins: { 'safeword@safeword': true },
+          extraKnownMarketplaces: {
+            safeword: {
+              source: {
+                source: 'git',
+                url: 'https://github.com/ArcadeAI/safeword.git',
+                ref: 'stable',
+              },
+            },
+          },
+        },
+        undefined,
+        2,
+      )}\n`,
+    );
+
+    const converged = await runCliWithoutInstall(arguments_, { cwd: directory });
+    expect(converged.exitCode).toBe(0);
+    const envelope = JSON.parse(converged.stdout) as {
+      findings: { code: string }[];
+    } & Record<string, unknown>;
+    expect(envelope).toMatchObject({
+      state: 'healthy',
+      changed: false,
+      next_actions: [{ command: '/reload-plugins', mutates: false, requires_human: true }],
+    });
+    expect(envelope.findings).toContainEqual(
+      expect.objectContaining({ code: 'SETUP_CLAUDE_PLUGIN_PRESERVED' }),
+    );
+  });
+
+  it('still routes an enrolled project through install when the run delivered changes', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.claude'), { recursive: true });
+    // Enrollment is recorded before the first delivery, so this run both sees
+    // the plugin as enabled and rewrites files. `enabledPlugins` carries no
+    // version, so it cannot prove Claude already holds this build.
+    writeFileSync(
+      nodePath.join(directory, '.claude/settings.json'),
+      `${JSON.stringify({ enabledPlugins: { 'safeword@safeword': true } }, undefined, 2)}\n`,
+    );
+
+    const result = await runCliWithoutInstall(
+      ['setup', '--json', '--no-input', '--offline', '--cwd', directory, '--no-modify'],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      changed: boolean;
+      findings: { code: string }[];
+      next_actions: { command: string }[];
+    };
+    expect(envelope.changed).toBe(true);
+    expect(envelope.next_actions).toEqual([
+      { command: 'safeword claude install', mutates: true, requires_human: true },
+    ]);
+    expect(envelope.findings.map(finding => finding.code)).not.toContain(
+      'SETUP_CLAUDE_PLUGIN_PRESERVED',
+    );
+  });
+
   it('journals a completed workspace write when a later workspace update fails', async () => {
     const directory = createTemporaryDirectory();
     const packagePath = nodePath.join(directory, 'packages/a/package.json');

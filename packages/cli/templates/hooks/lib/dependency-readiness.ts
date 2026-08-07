@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   statSync,
   writeFileSync,
   type Dirent,
@@ -168,9 +169,11 @@ function detectDependencyManager(
   projectDirectory: string,
   packageManager: string | undefined,
 ): DependencyManager | undefined {
-  const declared = parseDeclaredManager(packageManager);
-  if (declared !== undefined) {
-    return managerLockfilePresent(projectDirectory, declared) ? declared : undefined;
+  if (packageManager !== undefined && packageManager.trim().length > 0) {
+    const declared = parseDeclaredManager(packageManager);
+    return declared !== undefined && managerLockfilePresent(projectDirectory, declared)
+      ? declared
+      : undefined;
   }
 
   if (existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'))) {
@@ -181,7 +184,7 @@ function detectDependencyManager(
 }
 
 function parseDeclaredManager(packageManager: string | undefined): DependencyManager | undefined {
-  const match = packageManager?.match(/^(bun|pnpm|npm|yarn)@/);
+  const match = packageManager?.match(/^(bun|pnpm|npm|yarn)@.+/);
   return match ? (match[1] as DependencyManager) : undefined;
 }
 
@@ -289,8 +292,14 @@ export function dependencyInputFingerprint(projectDirectory: string, plan: Depen
   for (const inputPath of plan.inputPaths.toSorted()) {
     hash.update(inputPath);
     hash.update('\0');
+    const inputFilePath = nodePath.resolve(projectDirectory, inputPath);
+    if (!isProjectPathContained(projectDirectory, inputFilePath)) {
+      hash.update('<outside-project>');
+      hash.update('\0');
+      continue;
+    }
     try {
-      hash.update(readFileSync(nodePath.join(projectDirectory, inputPath)));
+      hash.update(readFileSync(inputFilePath));
     } catch {
       hash.update('<missing>');
     }
@@ -327,10 +336,15 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
   // survives content-preserving operations (rebase, checkout, clone, cp) that
   // bump input mtimes without changing input content. mtime is only a bootstrap
   // fallback for the first check after an install, before any hook has stamped
-  // the marker — so it is consulted only when the marker is absent or stale.
-  const markerFresh = readInstallMarker(projectDirectory, plan) === fingerprint;
+  // the marker. Once present, a mismatched marker is authoritative: a newer
+  // artifact mtime cannot prove that its contents match the dependency inputs.
+  const marker = readInstallMarker(projectDirectory, plan);
+  const markerMismatch = marker !== undefined && marker !== fingerprint;
 
-  if (!markerFresh && isInstallArtifactStale(projectDirectory, plan, artifactPath)) {
+  if (
+    markerMismatch ||
+    (marker === undefined && isInstallArtifactStale(projectDirectory, plan, artifactPath))
+  ) {
     return {
       status: 'stale',
       reason: 'install_artifact_stale',
@@ -448,7 +462,8 @@ const REPORT_ONLY_INSTALL_FLAGS = new Set(['--version', '-v', '--help', '-h']);
  * stale-readiness block even when the install is a mtime-preserving no-op (#380).
  */
 export function isDependencyInstallCommand(command: string): boolean {
-  return splitShellSegments(command).some(segment => isInstallSegment(segment));
+  const segments = parseShellCommandList(command);
+  return segments.length === 1 && isInstallSegment(segments[0]?.command ?? '');
 }
 
 function isInstallSegment(segment: string): boolean {
@@ -470,10 +485,8 @@ function isInstallSegment(segment: string): boolean {
 function hasNonReconcilingInstallOption(args: string[]): boolean {
   return args.some(arg => {
     const [flag] = arg.split('=', 1);
-    return (
-      NON_RECONCILING_INSTALL_FLAGS.has(flag ?? arg) ||
-      NON_RECONCILING_INSTALL_OPTIONS.has(flag ?? arg)
-    );
+    if (flag === undefined) return false;
+    return NON_RECONCILING_INSTALL_FLAGS.has(flag) || NON_RECONCILING_INSTALL_OPTIONS.has(flag);
   });
 }
 
@@ -566,8 +579,22 @@ export function toDependencyReadinessState(
   };
 }
 
+function dependencyRecoveryCommand(readiness: DependencyReadiness): string {
+  const { installCommand, plan, status } = readiness;
+  if (installCommand === undefined) return 'install dependencies';
+
+  // A version-bump pull changes the input fingerprint without changing resolved
+  // dependencies, so the install reports "no changes" and does not refresh the
+  // marker — which would otherwise leave this stale check looping. No package
+  // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
+  // remove the stale marker and touch the artifact after the install succeeds.
+  // This also works when the current app still has an older PostToolUse hook
+  // loaded and therefore cannot stamp the new fingerprint itself.
+  if (status !== 'stale' || plan === undefined) return installCommand;
+  return `${installCommand} && rm -f ${plan.installArtifact}/${INSTALL_MARKER_FILENAME} && touch ${plan.installArtifact}`;
+}
+
 export function formatDependencyRecovery(readiness: DependencyReadiness): string {
-  const installCommand = readiness.installCommand ?? 'install dependencies';
   const problem =
     readiness.status === 'stale'
       ? "the project's tool list changed since it was last set up, so safeword's checks may be out of date"
@@ -575,20 +602,12 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
 
   const lines = [
     `${problem}.`,
-    `Install them with this command from the project folder, then try again:`,
-    `  ${installCommand}`,
+    // The recovery may end in a relative `touch`, so the folder has to be the
+    // project root — "the project folder" reads as "wherever you are" inside a
+    // monorepo package and quietly touches the wrong artifact.
+    `Install them with this command from the project root folder, then try again:`,
+    `  ${dependencyRecoveryCommand(readiness)}`,
   ];
-
-  // A version-bump pull changes the input fingerprint without changing resolved
-  // dependencies, so the install reports "no changes" and does not refresh the
-  // marker — which would otherwise leave this stale check looping. No package
-  // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
-  // document the one-step escape for that no-op case.
-  if (readiness.status === 'stale') {
-    lines.push(
-      'If it reports no changes, the lockfile is already satisfied — run `touch node_modules` to clear this check.',
-    );
-  }
 
   return lines.join('\n');
 }
@@ -622,7 +641,7 @@ function readPnpmWorkspacePackages(projectDirectory: string): string[] {
   const patterns: string[] = [];
   let insidePackages = false;
   for (const rawLine of content.split('\n')) {
-    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    const line = stripYamlComment(rawLine);
     if (!insidePackages) {
       if (/^packages:\s*$/.test(line)) insidePackages = true;
       continue;
@@ -636,6 +655,25 @@ function readPnpmWorkspacePackages(projectDirectory: string): string[] {
     if (/^[^\s#-]/.test(line)) insidePackages = false;
   }
   return patterns;
+}
+
+function stripYamlComment(line: string): string {
+  let quote: "'" | '"' | undefined;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (quote !== undefined) {
+      if (character === quote && line[index - 1] !== '\\') quote = undefined;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === '#' && (index === 0 || /\s/u.test(line[index - 1] ?? ''))) {
+      return line.slice(0, index);
+    }
+  }
+  return line;
 }
 
 function stripYamlQuotes(value: string): string {
@@ -695,6 +733,14 @@ function normalizeWorkspacePattern(rawPattern: string): WorkspacePattern | undef
   const negated = pattern.startsWith('!');
   if (negated) pattern = pattern.slice(1);
 
+  if (
+    nodePath.posix.isAbsolute(pattern) ||
+    /^[A-Za-z]:\//.test(pattern) ||
+    pattern.split('/').includes('..')
+  ) {
+    return undefined;
+  }
+
   pattern = pattern.replace(/^\.?\//, '').replace(/\/+$/, '');
   if (pattern.length === 0) return undefined;
 
@@ -704,7 +750,11 @@ function normalizeWorkspacePattern(rawPattern: string): WorkspacePattern | undef
 function expandPositiveWorkspacePattern(projectDirectory: string, pattern: string): string[] {
   if (!hasGlobSyntax(pattern)) {
     const packageJsonPath = pattern.endsWith('/package.json') ? pattern : `${pattern}/package.json`;
-    return existsSync(nodePath.join(projectDirectory, packageJsonPath)) ? [packageJsonPath] : [];
+    const packageJsonFilePath = nodePath.resolve(projectDirectory, packageJsonPath);
+    return existsSync(packageJsonFilePath) &&
+      isProjectPathContained(projectDirectory, packageJsonFilePath)
+      ? [packageJsonPath]
+      : [];
   }
 
   return collectPackageJsonPathsUnder(
@@ -718,7 +768,9 @@ function collectPackageJsonPathsUnder(
   relativeBaseDirectory: string,
 ): string[] {
   const baseDirectory = nodePath.join(projectDirectory, relativeBaseDirectory);
-  if (!isDirectory(baseDirectory)) return [];
+  if (!isDirectory(baseDirectory) || !isProjectPathContained(projectDirectory, baseDirectory)) {
+    return [];
+  }
 
   const packageJsonPaths: string[] = [];
   const pendingDirectories = [baseDirectory];
@@ -752,6 +804,32 @@ function collectPackageJsonPathsUnder(
   return packageJsonPaths;
 }
 
+function isProjectPathContained(projectDirectory: string, candidatePath: string): boolean {
+  const resolvedProjectDirectory = nodePath.resolve(projectDirectory);
+  const resolvedCandidatePath = nodePath.resolve(candidatePath);
+  if (!isPathWithin(resolvedProjectDirectory, resolvedCandidatePath)) return false;
+  if (!existsSync(resolvedCandidatePath)) return true;
+
+  try {
+    return isPathWithin(
+      realpathSync(resolvedProjectDirectory),
+      realpathSync(resolvedCandidatePath),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isPathWithin(parentPath: string, candidatePath: string): boolean {
+  const relativePath = nodePath.relative(parentPath, candidatePath);
+  return (
+    relativePath === '' ||
+    (!nodePath.isAbsolute(relativePath) &&
+      relativePath !== '..' &&
+      !relativePath.startsWith(`..${nodePath.sep}`))
+  );
+}
+
 function isExcludedWorkspacePackage(
   packageJsonPath: string,
   negativePatterns: WorkspacePattern[],
@@ -770,6 +848,8 @@ function matchesWorkspacePattern(
     ? packageJsonPath
     : packageJsonPath.replace(/\/package\.json$/, '');
   const matcher = workspacePatternMatcher(pattern);
+  // Unsupported positive syntax errs toward fingerprinting too much, while
+  // unsupported exclusions never hide a package from readiness tracking.
   if (matcher === undefined) return unsupportedGlobDefault;
   return matcher.test(target);
 }

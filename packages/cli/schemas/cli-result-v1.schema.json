@@ -113,6 +113,12 @@
       }
     },
     "nextAction": {
+      "oneOf": [
+        { "$ref": "#/definitions/commandNextAction" },
+        { "$ref": "#/definitions/humanNextAction" }
+      ]
+    },
+    "commandNextAction": {
       "type": "object",
       "additionalProperties": false,
       "required": ["command", "mutates", "requires_human"],
@@ -120,6 +126,17 @@
         "command": { "type": "string", "minLength": 1 },
         "mutates": { "type": "boolean" },
         "requires_human": { "type": "boolean" }
+      }
+    },
+    "humanNextAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "instruction", "mutates", "requires_human"],
+      "properties": {
+        "kind": { "const": "human" },
+        "instruction": { "type": "string", "minLength": 1 },
+        "mutates": { "const": false },
+        "requires_human": { "const": true }
       }
     }
   }
