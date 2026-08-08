@@ -229,16 +229,17 @@ Key directories created in your project:
 
 **Purpose**: Fillable structures for feature documentation
 
-| Template                        | Purpose                                                     | Used By             |
-| ------------------------------- | ----------------------------------------------------------- | ------------------- |
-| **feature-spec-template.md**    | Feature spec (user stories + constraints)                   | planning-guide.md   |
-| **task-spec-template.md**       | Bug, improvement, refactor, or internal task                | planning-guide.md   |
-| **test-definitions-feature.md** | BDD scenarios (Rule + Scenario + G/W/T + R/G/R)             | planning-guide.md   |
-| **design-doc-template.md**      | Design doc structure (architecture, components)             | design-doc-guide.md |
-| **architecture-template.md**    | Living architecture decision structure                      | planning-guide.md   |
-| **ticket-template.md**          | Context anchor for complex/multi-step work                  | SAFEWORD.md         |
-| **work-log-template.md**        | Scratch pad and working memory during execution             | SAFEWORD.md         |
-| **tripwire-template.md**        | Upstream-workaround tripwire (header + pinned-version test) | testing-guide.md    |
+| Template                        | Purpose                                                                   | Used By             |
+| ------------------------------- | ------------------------------------------------------------------------- | ------------------- |
+| **spec-template.md**            | Feature spec (JTBD + Numbered Rules) — scaffolded automatically at intake | SAFEWORD.md         |
+| **feature-spec-template.md**    | Legacy manual feature spec (user stories); superseded by spec-template.md | planning-guide.md   |
+| **task-spec-template.md**       | Bug, improvement, refactor, or internal task                              | planning-guide.md   |
+| **test-definitions-feature.md** | BDD scenarios (Rule + Scenario + G/W/T + R/G/R)                           | planning-guide.md   |
+| **design-doc-template.md**      | Design doc structure (architecture, components)                           | design-doc-guide.md |
+| **architecture-template.md**    | Living architecture decision structure                                    | planning-guide.md   |
+| **ticket-template.md**          | Context anchor for complex/multi-step work                                | SAFEWORD.md         |
+| **work-log-template.md**        | Scratch pad and working memory during execution                           | SAFEWORD.md         |
+| **tripwire-template.md**        | Upstream-workaround tripwire (header + pinned-version test)               | testing-guide.md    |
 
 ---
 
@@ -300,13 +301,14 @@ unreviewed or changed plugin hooks and directs the builder to `/hooks`. Use
 `safeword codex status` to see which implementation currently protects the
 repository and one safe next action. It also reports active profile-level
 `AGENTS.md` guidance that matches or resembles retired Safeword instructions.
-For an exact registered historical revision, preview
-`safeword codex clean-guidance`, then apply its exact `--yes --plan <plan-id>`
-action to move the file to a recoverable backup. Edited variants are warning-only
-and remain untouched. During ordinary maintenance, a completely recognized
-legacy installation is backed up and retired automatically only after native
-installation succeeds. Edited or unknown content remains untouched. The
-explicit migration and recovery commands remain available for diagnosis. Codex
+If Codex finds an old, unmodified Safeword install, `safeword codex
+clean-guidance` shows exactly what it plans to remove before touching
+anything — run the `--yes --plan <plan-id>` command it prints to back it up.
+If you've edited that file yourself, Safeword leaves it alone and just warns
+you. During ordinary upgrades, Safeword backs up and retires a fully
+recognized legacy installation automatically, but only after the native
+plugin installs successfully; anything edited or unrecognized stays untouched.
+The explicit migration and recovery commands remain available for diagnosis. Codex
 edit-gate coverage is
 limited to the documented PreToolUse tool calls Safeword configures (`Bash`,
 `apply_patch` edit payloads, and file-editing tools). Live Codex runs can also
@@ -472,9 +474,9 @@ failure, findings, and unresolved unknowns all route to a human. Binary files
 with recognized binary extensions are recorded as skipped; a binary-only change
 cannot look ready.
 
-Fork events inspect with read-only repository authority. GitHub then starts a
-trusted `workflow_run` publisher from the base branch; it never checks out pull
-request code and receives no model secret. GitHub currently requires
+Safeword inspects fork pull requests with read-only access only. GitHub then
+runs a trusted `workflow_run` publisher from the base branch, which never
+checks out the PR code and never receives the model secret. GitHub currently requires
 `pull-requests: write` for an ordinary pull-request conversation comment, so the
 publisher is additionally constrained by Safeword's fixed issue-comment-only
 boundary and the compatibility smoke verifies that it creates no review, check,

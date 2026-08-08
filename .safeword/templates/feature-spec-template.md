@@ -1,5 +1,10 @@
 # Feature Spec: [Feature Name] (Issue #[number])
 
+**Legacy manual template.** The intake flow scaffolds `spec.md` from
+`.safeword/templates/spec-template.md` (JTBD + Numbered Rules) automatically.
+Use this file only if you're writing a feature spec by hand in the older
+user-story format.
+
 **Guide**: `.safeword/guides/planning-guide.md` - Best practices, INVEST criteria, and examples
 **Template**: `.safeword/templates/feature-spec-template.md`
 

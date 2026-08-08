@@ -148,4 +148,4 @@ The spec takes 30 seconds to write and prevents hours of scope creep.
 | **Task Spec (task)**       | Bug, improvement, internal, refactor    | Task spec with inline tests          |
 | **Task Spec (patch)**      | Typo, config, trivial                   | Minimal task spec, existing tests    |
 
-For features, use: `.safeword/templates/feature-spec-template.md`
+For features, use: `.safeword/templates/spec-template.md`

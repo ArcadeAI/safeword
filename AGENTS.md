@@ -76,7 +76,7 @@ Claude Code has three mechanisms for controlling agent behavior. Understanding t
 
 **Hooks** execute commands at lifecycle events (PreToolUse, PostToolUse, Stop, and others). They provide deterministic enforcement where the host event is blockable:
 
-- Exit code 2 blocks blockable events such as PreToolUse and Stop; post-event hooks can only report because the action already happened
+- Exit code 2 blocks blockable events such as PreToolUse and Stop; PostToolUse (and other after-the-fact events) can only report, since the action already happened — not every event supports blocking, so check the current hooks reference for a given event before relying on it to stop something
 - Run at app level, not relying on Claude to decide
 - Use structured output when the host needs a typed allow/deny/context decision
 
