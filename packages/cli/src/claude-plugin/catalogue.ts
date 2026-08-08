@@ -368,6 +368,7 @@ function pluginManifest(): string {
       homepage: 'https://safeword.dev',
       repository: 'https://github.com/ArcadeAI/safeword',
       license: 'MIT',
+      skills: ['./skills'],
       keywords: keywordsPlaceholder,
     },
     undefined,
