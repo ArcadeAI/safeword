@@ -11,6 +11,11 @@ import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+// The fake host must expect the same prerelease-aware marketplace ref as
+// installClaudePlugin's officialMarketplaceSource().
+const OFFICIAL_MARKETPLACE_REF = SAFEWORD_SCHEMA.version.includes('-')
+  ? `v${SAFEWORD_SCHEMA.version}`
+  : 'stable';
 const directories: string[] = [];
 const originalPath = process.env.PATH;
 const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
@@ -56,9 +61,6 @@ function fixture(
   const bin = nodePath.join(root, 'bin');
   const log = nodePath.join(root, 'claude.log');
   const settingsPath = nodePath.join(project, '.claude/settings.json');
-  const currentMarketplaceReference = SAFEWORD_SCHEMA.version.includes('-')
-    ? `v${SAFEWORD_SCHEMA.version}`
-    : 'stable';
   directories.push(root);
   mkdirSync(nodePath.dirname(settingsPath), { recursive: true });
   mkdirSync(bin);
@@ -83,7 +85,7 @@ function fixture(
         source: {
           source: 'git',
           url: 'https://github.com/ArcadeAI/safeword.git',
-          ref: currentMarketplaceReference,
+          ref: OFFICIAL_MARKETPLACE_REF,
         },
       },
     },
@@ -91,7 +93,7 @@ function fixture(
   const persistMarketplace =
     state.marketplaceAddPersists === false
       ? ':'
-      : `printf '%s\\n' ${JSON.stringify(currentMarketplaceReference)} > ${JSON.stringify(marketplaceState)}\nprintf '%s\\n' ${JSON.stringify(persistedMarketplaceSettings)} > ${JSON.stringify(settingsPath)}`;
+      : `printf '%s\\n' ${JSON.stringify(OFFICIAL_MARKETPLACE_REF)} > ${JSON.stringify(marketplaceState)}\nprintf '%s\\n' ${JSON.stringify(persistedMarketplaceSettings)} > ${JSON.stringify(settingsPath)}`;
   const executable = nodePath.join(bin, 'claude');
   writeFileSync(
     executable,
@@ -108,7 +110,7 @@ case "$*" in
       echo '[]'
     fi
     ;;
-  'plugin marketplace add https://github.com/ArcadeAI/safeword.git#${currentMarketplaceReference} --scope project') ${persistMarketplace} ;;
+  'plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project') ${persistMarketplace} ;;
   'plugin list --json')
     if [ -f ${JSON.stringify(installedState)} ]; then
       plugin_version=$(cat ${JSON.stringify(installedState)})
@@ -205,13 +207,9 @@ describe('Claude marketplace update enrollment', () => {
     });
 
     const result = installClaudePlugin(project);
-    const expectedMarketplaceReference = SAFEWORD_SCHEMA.version.includes('-')
-      ? `v${SAFEWORD_SCHEMA.version}`
-      : 'stable';
-
     expect(result.state).toBe('action_required');
     expect(readFileSync(log, 'utf8')).toContain(
-      `plugin marketplace add https://github.com/ArcadeAI/safeword.git#${expectedMarketplaceReference} --scope project`,
+      `plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project`,
     );
   });
 
