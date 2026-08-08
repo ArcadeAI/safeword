@@ -20,6 +20,9 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { CLAUDE_HISTORICAL_CATALOGUE } from '../packages/cli/src/claude-plugin/historical-catalogue.generated.js';
+import { historicalHookEntry } from '../packages/cli/src/claude-plugin/historical-ownership.js';
+
 import {
   assertClaudePluginAssetClosure,
   assertClaudePluginAssetReferences,
@@ -600,9 +603,10 @@ When(
 );
 
 Then(
-  'the hook rejects the damaged cache and writes no proof',
+  'the hook reports the damaged cache without blocking and writes no proof',
   function (this: NativeClaudePluginWorld) {
-    assert.notEqual(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.match(this.cacheFixture?.result?.output ?? '', /damaged native plugin cache/u);
     assert.ok(this.cacheFixture);
     assert.equal(
       existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)),
@@ -957,9 +961,19 @@ function createStatusFixture(
   }
 
   if (stateDescription.includes('durable plugin-mode marker')) {
-    const marker = nodePath.join(fixture.project, '.safeword/claude-plugin/plugin-mode-v1.json');
+    const marker = nodePath.join(fixture.project, '.safeword/claude-plugin/plugin-mode-v2.json');
     mkdirSync(nodePath.dirname(marker), { recursive: true });
-    writeFileSync(marker, '{"schema_version":1}\n');
+    writeFileSync(
+      marker,
+      `${JSON.stringify({
+        schema_version: 2,
+        state: 'clean',
+        plugin_version: EXPECTED_VERSION,
+        hook_manifest_sha256: '0'.repeat(64),
+        catalogue_sha256: '0'.repeat(64),
+        unresolved_paths: [],
+      })}\n`,
+    );
   }
   if (stateDescription.includes('recognized and conflicting legacy content')) {
     const conflict = nodePath.join(fixture.project, '.claude/skills/quality-review/SKILL.md');
@@ -1160,7 +1174,7 @@ Then(
     );
     assert.ok(
       existsSync(
-        nodePath.join(this.lifecycle.project, '.safeword/claude-plugin/plugin-mode-v1.json'),
+        nodePath.join(this.lifecycle.project, '.safeword/claude-plugin/plugin-mode-v2.json'),
       ),
     );
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
@@ -1244,10 +1258,19 @@ Then(
 
 Given(
   /^a cleanup-ready project with (the current accepted|a historical accepted) Safeword assets and mixed user and third-party Claude settings$/u,
-  function (this: NativeClaudePluginWorld, _fingerprint: string) {
+  function (this: NativeClaudePluginWorld, acceptedFingerprint: string) {
     createStatusFixture(this, 'valid proof and wholly recognized removable legacy', false);
     assert.ok(this.lifecycle);
     const settings = nodePath.join(this.lifecycle.project, '.claude/settings.json');
+    const release =
+      acceptedFingerprint === 'the current accepted'
+        ? CLAUDE_HISTORICAL_CATALOGUE.current
+        : CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'];
+    const fingerprint = release.hooks.PreToolUse.find(candidate =>
+      JSON.stringify(historicalHookEntry(candidate)).includes('pre-tool-quality'),
+    );
+    assert.ok(fingerprint, 'catalogue has no accepted pre-tool-quality hook');
+    const acceptedHook = historicalHookEntry(fingerprint);
     mkdirSync(nodePath.dirname(settings), { recursive: true });
     writeFileSync(
       settings,
@@ -1256,7 +1279,7 @@ Given(
           theme: 'user-owned',
           hooks: {
             PreToolUse: [
-              { hooks: [{ type: 'command', command: 'bun .safeword/hooks/pre-tool-quality.ts' }] },
+              acceptedHook,
               { hooks: [{ type: 'command', command: 'third-party protect' }] },
             ],
           },
@@ -1458,7 +1481,7 @@ function runAuthorityHook(world: NativeClaudePluginWorld, event: string): void {
   const result = spawnSync(
     'bun',
     [
-      nodePath.join(world.cacheFixture.plugin, 'runtime/dispatch.ts'),
+      nodePath.join(world.cacheFixture.plugin, 'runtime/dispatch.js'),
       event,
       '--',
       'bash',
@@ -2369,7 +2392,7 @@ Given(
 );
 
 Given(
-  'the current project has applicable project and user installations',
+  'the current project has incompatible project and user installations',
   function (this: NativeClaudePluginWorld) {
     createExactScopedFixture(this, 'project');
     assert.ok(this.lifecycle);
@@ -2387,7 +2410,7 @@ Given(
     });
     state.plugins.push({
       id: 'safeword@safeword',
-      version: EXPECTED_VERSION,
+      version: '0.72.0',
       enabled: true,
       scope: 'user',
       installPath: state.installPath,
@@ -3088,7 +3111,6 @@ Then(
 Then(
   /^status reports (project|user) as the applicable Safeword scope$/u,
   function (this: NativeClaudePluginWorld, scope: string) {
-    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
     const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
       data?: { applicable_scope?: string };
     };
@@ -3446,7 +3468,7 @@ When(
     assert.ok(this.cacheFixture);
     const result = spawnSync(
       'bun',
-      [nodePath.join(this.cacheFixture.plugin, 'runtime', 'dispatch.ts'), 'UserPromptSubmit'],
+      [nodePath.join(this.cacheFixture.plugin, 'runtime', 'dispatch.js'), 'UserPromptSubmit'],
       {
         cwd: REPO_ROOT,
         env: {

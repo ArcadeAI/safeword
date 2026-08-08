@@ -1,10 +1,11 @@
 {
   "name": "safeword",
   "description": "AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring. Start a new session to auto-install, or run /safeword:setup.",
-  "author": { "name": "safeword" },
+  "author": {
+    "name": "safeword"
+  },
   "homepage": "https://safeword.dev",
   "repository": "https://github.com/ArcadeAI/safeword",
   "license": "MIT",
-  "skills": ["./skills"],
   "keywords": ["bdd", "tdd", "linting", "quality-review", "debugging", "refactoring"]
 }

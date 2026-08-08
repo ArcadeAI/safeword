@@ -138,12 +138,12 @@ safeword install --agents=claude --scope user
 /reload-plugins
 safeword claude status
 
-# Legacy projects only: preview, then run the exact --yes --plan command returned
+# Optional diagnostics or repair for a legacy project that still needs attention
 safeword claude cleanup
 safeword claude recover # only when status reports recovery-required
 ```
 
-`claude install` selects and verifies the official stable plugin at project scope by default, preserving unrelated settings and an explicit native-update opt-out. Pass `--scope user` for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next prompt records proof bound to the installed version and bundled hook manifest. `claude status` is read-only. Cleanup never installs, updates, enables, reloads, or trusts a plugin: it removes only recognized legacy Safeword project assets after exact plugin proof and explicit plan confirmation, preserving custom and third-party content.
+`claude install` selects and verifies the official stable plugin at project scope by default, preserving unrelated settings and an explicit native-update opt-out. Pass `--scope user` for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next successful prompt records proof bound to the installed version and bundled hook manifest, then automatically retires exact catalogued legacy Safeword files and settings entries. Modified, malformed, unknown, and third-party content is preserved with a non-blocking advisory. `claude status` is read-only; `claude cleanup` remains an explicit diagnostic/repair path. Neither path installs, updates, enables, reloads, or trusts a plugin.
 
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 

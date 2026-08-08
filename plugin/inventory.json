@@ -2,6 +2,10 @@
   "schema_version": 1,
   "assets": [
     {
+      "path": ".claude-plugin/plugin.json",
+      "sha256": "1eeaf0c786c1146a09c5207e0d67c177122a27e59c71d8825bb5d0daa8121d89"
+    },
+    {
       "path": "agents/safeword-retro-filer.md",
       "sha256": "5860e847e31b74f1d8ba95bacab4aee9f7b778feecfbb0e13ca6cf754ff9f156"
     },
@@ -11,7 +15,7 @@
     },
     {
       "path": "hooks/hooks.json",
-      "sha256": "e2919a15d4ab1838c26d5679dd0167a119960a74752b1dd1a3f404d6e500fef0"
+      "sha256": "ea53d65130d73a4a438d8e9040a17462db52fa3c23e2a0331ed87268543644f4"
     },
     {
       "path": "package.json",
@@ -135,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "d2e16726f507e20dd1056f1b03c2925b284e2ed6feca3f69608b89b4c853d85f"
+      "sha256": "41587655f75ff073db587f5d753a4e2a6f6def01425c559ed6cede3202543d5e"
     },
     {
-      "path": "runtime/dispatch.ts",
-      "sha256": "7ae850c6da5a3c3815818de802688ae4af6b71d055eeca8f8f5ceb8371fb3973"
+      "path": "runtime/dispatch.js",
+      "sha256": "5b250703af353f6f40460a32c66ebca0a82a3827f5701eaddfd82925d3fd76b2"
     },
     {
       "path": "runtime/event-groups.json",

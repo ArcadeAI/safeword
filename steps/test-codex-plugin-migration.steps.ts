@@ -1632,12 +1632,11 @@ When(
 );
 
 /**
- * Rejection scenarios in this rule run setup with profile enrollment
- * made unavailable, and each one asserts the decline it produces (#1973). The
- * decline is the point: it proves setup ran, reached the Codex handoff,
- * and preserved the project on the way out. Without that assertion these
- * scenarios pass whether or not anything executed, because untouched files
- * look identical to files nothing reached.
+ * Rejection scenarios run the unified Codex install with profile enrollment
+ * unavailable. They assert the nonblocking advisory it emits: that proves
+ * install reached the handoff while preserving the working legacy integration.
+ * Without that assertion these scenarios pass whether or not anything ran,
+ * because untouched files look identical to files nothing reached.
  *
  * Enrollment stays unavailable in those cases so they cannot clone a network
  * marketplace or mutate an ambient Codex profile. The successful case below
@@ -1873,10 +1872,28 @@ function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
   );
 }
 
+function assertMigrationRanAndReportedAttention(world: CodexPluginMigrationWorld): void {
+  const result = world.codexPluginMigrationResult;
+  assert.ok(result, 'migration result was not captured');
+  assert.equal(
+    result.exitCode,
+    0,
+    `expected nonblocking migration attention: ${result.stdout}${result.stderr}`,
+  );
+  assert.match(
+    `${result.stdout}\n${result.stderr}`,
+    /Codex|plugin|profile/iu,
+    'install did not report the unavailable Codex profile',
+  );
+}
+
+// Install keeps its zero exit here on purpose: a deferred Codex handoff is an
+// advisory, so the legacy project integration stays active and SessionStart
+// retries enrollment for the next developer.
 Then(
-  'install reports profile enrollment failure loudly',
+  'install reports profile enrollment attention loudly without blocking',
   function (this: CodexPluginMigrationWorld) {
-    assertMigrationRanAndDeclined(this);
+    assertMigrationRanAndReportedAttention(this);
   },
 );
 
@@ -1964,7 +1981,7 @@ Then(
 Then(
   'Safe Word-owned Codex skill files remain beside the user-authored skill until finalization',
   function (this: CodexPluginMigrationWorld) {
-    assertMigrationRanAndDeclined(this);
+    assertMigrationRanAndReportedAttention(this);
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
       'bdd',
@@ -1975,7 +1992,7 @@ Then(
 );
 
 Then('the user-authored Codex config entries remain', function (this: CodexPluginMigrationWorld) {
-  assertMigrationRanAndDeclined(this);
+  assertMigrationRanAndReportedAttention(this);
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
   const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
   const lines = config.split(/\r?\n/u);

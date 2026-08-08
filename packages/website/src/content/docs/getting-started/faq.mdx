@@ -92,7 +92,7 @@ Yes. Run `bunx safeword remove --full` to preview the removal, then run the exac
 
 ### What if I only want some of the features?
 
-Claude Code uses the project-scoped Safe Word plugin by default with `safeword install --agents=claude`; choose `--scope user` to activate it across projects. Cursor hooks remain in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Existing custom or third-party Claude settings remain yours, and Safeword removes recognized legacy entries only through an explicitly approved `safeword claude cleanup` plan. See [Configuration](/reference/configuration) for details.
+Claude Code uses the project-scoped Safe Word plugin by default with `safeword install --agents=claude`; choose `--scope user` to activate it across projects. Cursor hooks remain in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. After the exact current plugin proves it handled a prompt, Safeword automatically retires only recognized legacy Claude entries. Existing custom, modified, malformed, or third-party settings remain yours and are reported without blocking the prompt. See [Configuration](/reference/configuration) for details.
 
 <footer class="docs-footer">
 
