@@ -60,6 +60,19 @@ describe('Claude plugin release contract', () => {
     expect(skill).not.toMatch(/^!`[^`\n]*\$\(/mu);
   });
 
+  it('declares the packaged skills directory to the native Claude host', () => {
+    const manifest = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, 'plugin/.claude-plugin/plugin.json'), 'utf8'),
+    ) as { skills?: unknown };
+    const marketplace = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, '.claude-plugin/marketplace.json'), 'utf8'),
+    ) as { plugins?: { name?: unknown; skills?: unknown }[] };
+    const safeword = marketplace.plugins?.find(plugin => plugin.name === 'safeword');
+
+    expect(manifest.skills).toEqual(['./skills']);
+    expect(safeword?.skills).toEqual(['./skills']);
+  });
+
   it('promotes one monotonic stable channel only after stable publication', () => {
     const workflow = readFileSync(
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
