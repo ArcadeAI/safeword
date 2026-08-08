@@ -10,6 +10,7 @@ phase_anchors:
   - 'define-behavior: .project/tickets/ZE5RRG-unified-first-time-install/spec.md'
   - 'scenario-gate: packages/cli/features/unified-first-time-install.feature'
   - 'implement: .project/tickets/ZE5RRG-unified-first-time-install/impl-plan.md'
+  - 'done: .project/tickets/ZE5RRG-unified-first-time-install/verify.md'
 scope:
   - establish one documented canonical command model for installation, health, planning, diagnostics, and removal while preserving all existing aliases as compatibility routes outside the canonical quick path
   - add `safeword install` as the beginner-facing command that reconciles core project configuration and, by default, installs the Claude and Codex profile plugins
