@@ -36026,6 +36026,9 @@ __export(exports_commands, {
   installLifecycle: () => installLifecycle
 });
 import { createHash as createHash13 } from "crypto";
+function codexLegacyHandoffDeferred(result) {
+  return result.findings.some((finding) => finding.code === "CODEX_PLUGIN_HANDOFF_DEFERRED");
+}
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -36122,7 +36125,11 @@ async function installAgentSurfaces(cwd, agents, projectResult, adapters) {
     surfaces.push({ name: "claude", result: await adapters.installClaude() });
   }
   if (agents.includes("codex")) {
-    surfaces.push({ name: "codex", result: await adapters.installCodex() });
+    if (codexLegacyHandoffDeferred(projectResult)) {
+      surfaces.push({ name: "codex", result: createResult({ state: "healthy" }) });
+    } else {
+      surfaces.push({ name: "codex", result: await adapters.installCodex() });
+    }
   }
   if (agents.includes("cursor")) {
     const observed = observeCursorProject(cwd, projectLifecycleSchema(cwd, agents));
