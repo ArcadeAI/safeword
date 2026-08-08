@@ -3,6 +3,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { compatibilityRoutes } from '../../src/cli-protocol/catalog.js';
+
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const CUSTOMER_GUIDANCE_SURFACES = [
   ['README.md', ''],
@@ -110,5 +112,26 @@ describe('public CLI documentation', () => {
       expect(content, file).not.toContain('⚠ stale');
       expect(content, file).not.toContain('⚠ orphaned');
     }
+  });
+
+  it('publishes the exhaustive lifecycle and compatibility reference', () => {
+    const reference = readFileSync(
+      nodePath.join(REPO_ROOT, 'packages/website/src/content/docs/reference/cli.mdx'),
+      'utf8',
+    );
+    const compatibilitySection = reference
+      .split('## Compatibility routes', 2)[1]
+      ?.split('\n## ', 1)[0];
+
+    expect(compatibilitySection).toBeDefined();
+    for (const { route, replacement } of compatibilityRoutes) {
+      const displayedRoute = route === 'bare safeword' ? 'bare `safeword`' : `\`${route}\``;
+      expect(compatibilitySection, route).toContain(`| ${displayedRoute}`);
+      expect(compatibilitySection, replacement).toContain(`\`${replacement}\``);
+    }
+    expect(reference).toContain('safeword review run <kind> <targets...>');
+    expect(reference).toContain('### safeword codex clean-guidance');
+    expect(reference).toContain('destructive deactivation');
+    expect(reference).toContain('Creates or merges only with `--agents=cursor`');
   });
 });

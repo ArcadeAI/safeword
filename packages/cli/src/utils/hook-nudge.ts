@@ -64,10 +64,10 @@ To adopt one, husky is the lightest path:
 
   npm install -D husky && npx husky init
 
-then re-run \`safeword setup\` to install the boundary-gate shims.`;
+then re-run \`safeword install\` to install the boundary-gate shims.`;
 
 const HUSKY_UNINITIALIZED_NUDGE = `Boundary gate: husky is in your dependencies but .husky/ does not exist yet.
-Run \`npx husky init\`, then re-run \`safeword setup\` to install the boundary-gate shims.`;
+Run \`npx husky init\`, then re-run \`safeword install\` to install the boundary-gate shims.`;
 
 /** True when any of the world's config files already invokes the gate. */
 function configAlreadyIntegrates(cwd: string, configNames: string[]): boolean {
@@ -93,7 +93,7 @@ function repoRootNote(cwd: string): string | undefined {
   const top = gitToplevel(cwd);
   return top === undefined || nodePath.resolve(top) === nodePath.resolve(cwd)
     ? undefined
-    : `Boundary gate: git hooks belong at the repository root (${top}). Run \`safeword setup\` there to install the boundary gate.`;
+    : `Boundary gate: git hooks belong at the repository root (${top}). Run \`safeword install\` there to install the boundary gate.`;
 }
 
 function worldNudge(ctx: ProjectContext): string | undefined {

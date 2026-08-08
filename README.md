@@ -12,27 +12,43 @@
 
 ## Quick Start (30 seconds)
 
-**1. Install in your project:**
+**1. Install in your project and native agent profiles:**
 
 ```bash
 cd /path/to/your/project
-bunx safeword@latest setup
+bunx safeword@latest install
 ```
 
-**2. Verify installation:**
+By default, this configures the project and installs both the Claude Code and
+Codex plugins. Cursor stays untouched unless you explicitly select it:
+
+```bash
+bunx safeword@latest install --agents=cursor
+# Or install every integration:
+bunx safeword@latest install --agents=claude,codex,cursor
+```
+
+**2. Activate the installed profile plugins:**
+
+```bash
+# In Claude Code, run: /reload-plugins
+# Restart Codex and start a new task, then review: /hooks
+```
+
+**3. Verify installation:**
 
 ```bash
 bunx safeword@latest doctor
 ```
 
-**3. Enable native agent plugins:**
+**Claude activation scope.** `install` records Claude activation for this
+project in `.claude/settings.json`, so the repository declares its dependency
+and collaborators are prompted to install it after trusting the folder. Add
+`--scope user` to activate Safe Word across every project in your Claude
+profile instead:
 
 ```bash
-# Claude Code 2.1.170+: installs the exact release for this project by default
-# and records activation in .claude/settings.json. Add --scope user to enable
-# it across every project in this Claude profile.
-bunx safeword@latest claude install
-# In Claude Code, run: /reload-plugins
+bunx safeword@latest install --agents=claude --scope user
 bunx safeword@latest claude status
 ```
 
@@ -51,14 +67,10 @@ Cleanup never installs, enables, reloads, or changes plugin trust. It preserves
 unknown and third-party Claude content and refuses stale proof or concurrent
 edits.
 
-For Codex, setup commits a small project-level `SessionStart` bootstrap. It
-enrolls each developer's Codex profile in the released `stable` channel the
-first time they open the repository:
-
-```bash
-# Optional immediate enrollment for the current profile.
-bunx safeword@latest codex install
-```
+**Codex enrollment.** Installing also commits a small project-level
+`SessionStart` bootstrap. It enrolls each developer's Codex profile in the
+released `stable` channel the first time they open the repository, so teammates
+need no extra command.
 
 The running Codex app cannot load a newly installed plugin into a task that has
 already started. The bootstrap therefore prints a loud startup warning and one
@@ -72,10 +84,10 @@ legacy content is preserved and reported instead.
 
 - `.safeword/SAFEWORD.md` - Global patterns and workflows
 - `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
-- `.safeword/skills/` - Canonical project-local skill references retained for Cursor
+- `.safeword/skills/` - Canonical project-local skill references when Cursor is selected
 - `.safeword/hooks/` - Auto-linting, quality review hooks
 - `.claude/settings.json` - Project-scoped Safe Word Claude activation by default
-- Safe Word Claude plugin - Native workflows and hooks cached by Claude; use `safeword claude install --scope user` for profile-wide activation
+- Safe Word Claude plugin - Native workflows and hooks cached by Claude; use `safeword install --agents=claude --scope user` for profile-wide activation
 - `.codex/config.toml` - Project bootstrap that enrolls each Codex profile at task start
 - Safe Word Codex plugin - Profile-scoped skills and hooks following the verified `stable` channel
 - `.cursor/hooks.json` - Hook configuration for Cursor
@@ -90,11 +102,11 @@ legacy content is preserved and reported instead.
 
 **Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.
 
-**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex setup merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Setup does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
+**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
-**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run during normal human development. In repos that already use husky, setup appends one warn-only line to `pre-commit`/`pre-push` (the boundary evidence check — it reports, never blocks, and `safeword remove` removes it); safeword never installs a hook manager or blocks a commit.
+**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run during normal human development. In repos that already use husky, install appends one warn-only line to `pre-commit`/`pre-push` (the boundary evidence check — it reports, never blocks, and `safeword remove` removes it); safeword never installs a hook manager or blocks a commit.
 
 **Use in CI if you want** — Safeword adds `lint`, `format`, and `test:bdd` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 
@@ -278,10 +290,10 @@ Key directories created in your project:
 
 Codex hooks live in the Safe Word plugin and run from the package with
 `bunx --bun safeword@<plugin-version> hook codex <event>`. Install and verify
-the profile-scoped plugin immediately with `safeword codex install`; setup also
+the profile-scoped plugin immediately with `safeword install --agents=codex`; install also
 creates one non-blocking project-level SessionStart enrollment hook, never an
 edit or shell-command interception hook. The plugin does not
-implicitly enroll repositories: until `safeword setup` creates
+implicitly enroll repositories: until `safeword install` creates
 `.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
 `.project/` or other project state. Codex visibly skips
 unreviewed or changed plugin hooks and directs the builder to `/hooks`. Use
@@ -318,7 +330,7 @@ available.
 
 **Codex plugin skills**: Codex gets Safe Word workflow skills from the Safe Word Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safe Word-owned workflow aliases into `.agents/skills/`.
 
-**Language coding-skills** (auto-installed per language): when safeword detects a Go, Python, TypeScript, or Rust project, `setup` installs a small third-party coding-skill for that language (via `npx skills`, into `.claude/skills/` and, where supported by the agent, `.agents/skills/`). These are third-party language helpers, not Safe Word Codex workflow files. The Claude Code on-edit nudge points the agent at the matching skill the first time you edit that language in a scenario; Cursor's adapter is dormant pending platform bug #534. Best-effort — a missing network or installer error degrades to a warning, never blocks setup. Note: frontier models already write most core idioms unaided, so this is a light nudge, not a transformation.
+**Language coding-skills** (auto-installed per language): when safeword detects a Go, Python, TypeScript, or Rust project, `install` installs a small third-party coding-skill for that language (via `npx skills`, into `.claude/skills/` and, where supported by the agent, `.agents/skills/`). These are third-party language helpers, not Safe Word Codex workflow files. The Claude Code on-edit nudge points the agent at the matching skill the first time you edit that language in a scenario; Cursor's adapter is dormant pending platform bug #534. Best-effort — a missing network or installer error degrades to a warning, never blocks install. Note: frontier models already write most core idioms unaided, so this is a light nudge, not a transformation.
 
 **Commands**: Cursor gets explicit command files in `.cursor/commands/`; Claude Code exposes slash-command behavior through skills. Codex uses plugin-scoped skills such as `safeword:bdd` rather than repo-scoped command files.
 
@@ -360,8 +372,8 @@ bunx safeword@latest status
 bunx safeword@latest doctor
 bunx safeword@latest plan
 
-# Converge Safeword in the current project
-bunx safeword@latest setup
+# Converge Safeword in the current project and selected integrations
+bunx safeword@latest install
 
 # Project and tracker workflows
 bunx safeword@latest project sync-config
@@ -369,7 +381,7 @@ bunx safeword@latest project architecture
 bunx safeword@latest tracker sync
 
 # Preview removal, then run the exact confirmation command Safeword prints
-bunx safeword@latest remove
+bunx safeword@latest uninstall
 
 # Discover the stable agent interface
 bunx safeword@latest capabilities --json --no-input
@@ -378,7 +390,8 @@ bunx safeword@latest capabilities --json --no-input
 Global `--json`, `--no-input`, `--cwd`, `--quiet`, `--offline`, and
 `--verbose` options work before or after public commands. The former `check`,
 `upgrade`, `diff`, `reset`, `sync-config`, and related top-level names remain
-hidden deprecated aliases through the 0.71 release line.
+hidden compatibility aliases indefinitely. New documentation and automation use
+the canonical commands above.
 
 ### Publishing (maintainers)
 
@@ -450,7 +463,7 @@ budget, and the exact prerequisite check contexts to wait for:
 }
 ```
 
-Run `safeword setup` after enabling it. Configure `OPENAI_API_KEY` as an
+Run `safeword install` after enabling it. Configure `OPENAI_API_KEY` as an
 environment secret on the `safeword-pr-review-model` GitHub environment. An
 explicit empty `requiredChecks` array means review immediately; omitting the
 field fails closed with a configuration next action. Pending checks are sampled
@@ -533,8 +546,8 @@ Safeword reads project-level information from the project namespace root: `paths
 - All `paths.*` keys are optional. Unset per-file keys fall back to `<namespace-root>/<key>.md`.
 - Relative paths resolve against project root (the directory containing `.safeword/config.json`).
 - Absolute paths are used verbatim — useful for shared monorepo setups where the file lives outside this project's tree.
-- `principles.md`, `personas.md`, and `surfaces.md` are project-owned knowledge. Setup scaffolds each default only when absent and preserves authored content byte-for-byte.
-- When a `paths.principles`, `paths.personas`, or `paths.surfaces` override is set, setup does not scaffold that default-location file; the configured file is the live source.
+- `principles.md`, `personas.md`, and `surfaces.md` are project-owned knowledge. Install scaffolds each default only when absent and preserves authored content byte-for-byte.
+- When a `paths.principles`, `paths.personas`, or `paths.surfaces` override is set, install does not scaffold that default-location file; the configured file is the live source.
 - `safeword doctor` fails non-zero when a configured knowledge file is missing, with a key-specific error such as `principles-path:`. If the configured file and its default both exist, doctor emits a zero-exit orphan advisory naming both paths. Cleanup stays explicit: Safeword never deletes user-authored knowledge.
 
 Tickets and learnings derive from `paths.projectRoot`. Principles, personas, glossary, surfaces, and architecture can also be redirected individually with their own `paths.*` keys.
@@ -586,7 +599,7 @@ No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.ox
 No. Commit the Safe Word project configuration your team uses, including the Claude declaration and Codex SessionStart bootstrap. Claude keeps each user's payload cache locally. The Codex bootstrap enrolls every teammate's separate profile automatically and warns loudly until a new task loads the plugin; it never blocks their work. The linting devDependencies install automatically with `npm install` / `bun install`.
 
 **Will it interfere with my development workflow?**
-No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, setup appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword remove` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, install appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword remove` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
 
 **What Claude Code permissions does safeword need?**
 Safeword's feature-ticket done-gate verifies that `/verify` and `/audit` were actually invoked by reading a session-scoped log written via bash injection at the top of each skill. If Claude Code denies that bash injection, feature tickets hard-block at done-phase.
@@ -641,7 +654,7 @@ Without these binaries, the scripts print a message and skip.
 **Editing Source Templates:**
 
 1. Edit in `packages/cli/templates/` (source of truth)
-2. Run `bunx safeword setup` to sync to `.safeword/`
+2. Run `bunx safeword install` to sync to `.safeword/`
 3. Test changes
 
 **Running Tests:**
@@ -684,7 +697,7 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 1. Edit canonical workflow templates in `packages/cli/templates/skills/` and Cursor rules in `packages/cli/templates/cursor/rules/`
 2. Run `bun run --cwd packages/cli generate:codex-plugin` to regenerate the checked-in Codex plugin catalogue
 3. Run the catalogue, package, cache, and parity tests
-4. Run `bunx safeword setup` to sync Claude Code and Cursor project assets; Codex users update through their profile plugin installation
+4. Run `bunx safeword install` to sync the project plus Claude Code and Codex; add `--agents=claude,codex,cursor` when explicitly testing Cursor assets
 
 ---
 

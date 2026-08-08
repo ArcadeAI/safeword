@@ -114,7 +114,7 @@ describe('Test Suite 10: Diff', () => {
       expect(JSON.parse(result.stdout)).toMatchObject({
         schema_version: 1,
         state: 'action_required',
-        data: { plan: { schema_version: 1, command: 'setup' } },
+        data: { plan: { schema_version: 1, command: 'install' } },
       });
     });
 
@@ -129,7 +129,7 @@ describe('Test Suite 10: Diff', () => {
 
       expect(result.exitCode).toBe(2);
       expect(result.stdout).not.toContain('999.0.0');
-      expect(result.stdout).toContain('Next: safeword setup');
+      expect(result.stdout).toContain('Next: safeword install');
     });
 
     it('does not let cached registry metadata change the local plan', async () => {
@@ -144,7 +144,7 @@ describe('Test Suite 10: Diff', () => {
 
       expect(result.exitCode).toBe(2);
       expect(result.stdout).not.toContain('999.0.0');
-      expect(result.stdout).toContain('Next: safeword setup');
+      expect(result.stdout).toContain('Next: safeword install');
     });
 
     it('still produces a local plan when project config is newer than the CLI', async () => {
@@ -157,7 +157,7 @@ describe('Test Suite 10: Diff', () => {
       });
 
       expect(result.exitCode).toBe(2);
-      expect(result.stdout).toContain('Next: safeword setup');
+      expect(result.stdout).toContain('Next: safeword install');
       expect(result.stdout).not.toContain('bunx');
     });
   });
@@ -189,7 +189,7 @@ describe('Test Suite 10: Diff', () => {
 
       expect(result.exitCode).toBe(2);
       expect(result.stdout).toContain('Planned effects:');
-      expect(result.stdout).toContain('Next: safeword setup');
+      expect(result.stdout).toContain('Next: safeword install');
     });
   });
 });

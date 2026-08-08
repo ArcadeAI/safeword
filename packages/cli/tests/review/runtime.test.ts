@@ -133,13 +133,13 @@ if [ "\${1:-}" = "--help" ]; then
   echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
   exit 0
 fi
-sleep 30 &
+/bin/sleep 30 &
 echo $! > "$SAFEWORD_REVIEW_CHILD_PID"
 wait
 `,
       );
       chmodSync(executable, 0o755);
-      vi.stubEnv('PATH', `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`);
+      vi.stubEnv('PATH', bin);
       vi.stubEnv('SAFEWORD_REVIEW_TIMEOUT_MS', '1000');
       vi.stubEnv('SAFEWORD_REVIEW_CHILD_PID', childPidPath);
 

@@ -2,7 +2,12 @@ import process from 'node:process';
 
 import { type Command, InvalidArgumentError, Option } from 'commander';
 
-import { commandCatalog, type CommandDefinition, findCommandDefinition } from './catalog.js';
+import {
+  commandCatalog,
+  type CommandDefinition,
+  compatibilityRoutes,
+  findCommandDefinition,
+} from './catalog.js';
 import {
   addGlobalOptions,
   readCommandOptions,
@@ -96,12 +101,24 @@ function definitionCommand(
   });
 }
 
-function withCompatibilityDeprecation(result: CliResult, definition: CommandDefinition): CliResult {
+function withCompatibilityDeprecation(
+  result: CliResult,
+  definition: CommandDefinition,
+  commandOptions: Readonly<Record<string, unknown>> = {},
+): CliResult {
   if (definition.aliasFor !== undefined) {
     if (definition.compatibility === undefined) {
       throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
     }
-    return withDeprecation(result, definition.name, definition.aliasFor, definition.compatibility);
+    // `replacement` names the scoped canonical route (`install --agents=claude`)
+    // where the alias maps to more than the bare canonical command name.
+    return withDeprecation(
+      result,
+      definition.name,
+      definition.compatibility.replacement ?? definition.aliasFor,
+      definition.compatibility,
+      commandOptions,
+    );
   }
   if (definition.name !== 'retro run' || process.env.SAFEWORD_CLI_RETAINED_ALIAS !== 'retro') {
     return result;
@@ -111,7 +128,13 @@ function withCompatibilityDeprecation(result: CliResult, definition: CommandDefi
   if (alias.aliasFor === undefined || alias.compatibility === undefined) {
     throw new Error('Missing compatibility policy for retained alias retro');
   }
-  return withDeprecation(result, alias.name, alias.aliasFor, alias.compatibility);
+  return withDeprecation(
+    result,
+    alias.name,
+    alias.compatibility.replacement ?? alias.aliasFor,
+    alias.compatibility,
+    commandOptions,
+  );
 }
 
 async function executeDefinition(command: Command, definition: CommandDefinition): Promise<void> {
@@ -153,7 +176,7 @@ async function executeDefinition(command: Command, definition: CommandDefinition
   } finally {
     progress?.stop();
   }
-  result = withCompatibilityDeprecation(result, definition);
+  result = withCompatibilityDeprecation(result, definition, commandOptions);
   const actionRequiredAsSuccessOption = definition.exitPolicy?.actionRequiredAsSuccessOption;
   reportResult(result, globalOptions, definition.name, {
     actionRequiredAsSuccess:
@@ -187,6 +210,14 @@ export function registerPublicCommandCatalog(program: Command): void {
     if (definition.aliasFor !== undefined && families.has(definition.name)) continue;
     addDefinitionAction(definitionCommand(program, families, definition), definition);
   }
+
+  const compatibilityHelp = compatibilityRoutes
+    .map(({ route, replacement }) => `  ${route} -> ${replacement}`)
+    .join('\n');
+  program.addHelpText(
+    'after',
+    `\nCompatibility routes (retained indefinitely):\n${compatibilityHelp}\n`,
+  );
 
   program.action(async () => {
     const definition = findCommandDefinition('status');

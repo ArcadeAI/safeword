@@ -6,13 +6,13 @@ Feature: Let projects track feature surfaces during BDD
     @feature-surfaces-bdd.TB1.AC1
     Scenario: Fresh setup creates a starter surfaces file
       Given a customer project with no namespace root
-      When safeword setup reconciles the project
+      When safeword setup reconciles only the project state
       Then the resolved namespace root contains surfaces.md with starter guidance
 
     @feature-surfaces-bdd.SM1.AC1
     Scenario: Configured namespace root receives the starter surfaces file on upgrade
       Given a customer project whose safeword config sets paths.projectRoot
-      When safeword upgrade reconciles the project
+      When safeword upgrade reconciles only the project state
       Then surfaces.md is created under the configured namespace root
 
   @feature-surfaces-bdd.TB1.AC2 @feature-surfaces-bdd.SM1.AC1 @surface.safeword-cli
@@ -21,13 +21,13 @@ Feature: Let projects track feature surfaces during BDD
     @feature-surfaces-bdd.TB1.AC2
     Scenario: Existing surface inventory survives setup byte-identical
       Given a customer project with an authored surfaces.md
-      When safeword setup reconciles the project
+      When safeword setup reconciles only the project state
       Then the authored surfaces.md content is unchanged
 
     @feature-surfaces-bdd.SM1.AC1
     Scenario: Configured surfaces path suppresses the default scaffold
       Given a customer project whose safeword config sets paths.surfaces
-      When safeword upgrade reconciles the project
+      When safeword upgrade reconciles only the project state
       Then the default namespace-root surfaces.md is not created
 
   @feature-surfaces-bdd.TB1.AC3 @feature-surfaces-bdd.NTB1.AC1 @surface.claude-code @surface.openai-codex @surface.cursor

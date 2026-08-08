@@ -39,12 +39,14 @@ Feature: Ship Safeword as a native Claude Code plugin
         | packed string    | v0.70.0         | 0.70.0        |
         | flattened fields | v0.71.0         | 0.71.0        |
 
-    Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
+    Scenario: Fresh setup installs the project-scoped plugin without writing legacy Claude assets
       Given a project that has never installed Safeword
       When safeword setup runs for native Claude delivery
       Then project-owned Safeword state is created
+      And the exact official Safeword plugin is enabled at project scope for the current project
       And no Claude-only legacy hooks, skills, commands, or agents are materialized
-      And the result recommends safeword claude install without changing the Claude profile
+      And no Cursor configuration is materialized
+      And the result names /reload-plugins as the sole immediate action
 
     @rejection
     Scenario Outline: Install refuses an unsupported Claude host before profile mutation
@@ -132,7 +134,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Given an existing project has viable legacy Claude protection and arbitrary profile state
       When ordinary safeword setup upgrades the project
       Then every viable legacy asset and the complete Claude profile are byte-identical
-      And the result recommends the explicit Claude lifecycle command without invoking it
+      And the result recommends the canonical Claude install command without invoking it
 
   @native-claude-plugin.TBU1.R3 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R3 — Framework code executes from the installed versioned plugin while project state remains in the repository
@@ -189,8 +191,8 @@ Feature: Ship Safeword as a native Claude Code plugin
     Scenario: Setup in plugin mode never recreates retired Claude legacy assets
       Given a successfully cleaned project carries its durable plugin-mode marker
       When safeword setup runs again
-      Then no retired Claude hook, skill, command, agent, or settings entry is recreated
-      And project-owned and Cursor-shared assets remain reconciled
+      Then no retired Claude hook, skill, command, or agent is recreated
+      And project-owned assets remain reconciled while Cursor stays unselected
 
   @native-claude-plugin.TBU1.R5 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R5 — Installed, enabled, or updated plugin behavior becomes available in the current Claude task through supported live reload whenever the host permits it
@@ -275,9 +277,9 @@ Feature: Ship Safeword as a native Claude Code plugin
         | accompanied by an incomplete transaction                   | recovery-required | 2    | safeword claude recover                 |
         | hosted by Claude Code older than 2.1.170                    | unsupported-host  | 2    | update Claude Code                      |
         | hosted by an unparseable Claude executable                 | unsupported-host  | 2    | reinstall Claude Code                   |
-        | not installed                                               | missing           | 2    | safeword claude install                 |
-        | installed but disabled                                      | disabled          | 2    | safeword claude install                 |
-        | installed at a different version                            | wrong-version     | 2    | safeword claude install                 |
+        | not installed                                               | missing           | 2    | safeword install --agents=claude        |
+        | installed but disabled                                      | disabled          | 2    | safeword install --agents=claude        |
+        | installed at a different version                            | wrong-version     | 2    | safeword install --agents=claude        |
         | reported unhealthy by Claude                                | errored           | 1    | repair the reported Claude plugin error |
         | enabled without execution proof                              | unproven          | 2    | /reload-plugins                         |
         | proven with a stale version or digest                        | unproven          | 2    | /reload-plugins                         |

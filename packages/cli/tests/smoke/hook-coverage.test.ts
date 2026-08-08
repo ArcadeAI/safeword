@@ -92,7 +92,7 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'post-tool-dependency-readiness.ts':
     'PostToolUse install-stamp hook, no deny path; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
   'pre-tool-architecture-stage.ts':
-    'PreToolUse git-commit hook; shells to `safeword architecture --stage` whose regenerate-and-stage behavior is covered by tests/commands/architecture-stage.test.ts',
+    'PreToolUse git-commit hook; shells to `safeword architecture --from-index --stage-output` whose regenerate-and-stage behavior is covered by tests/commands/architecture-stage.test.ts',
   'pre-tool-stale-main.ts':
     'warn-only PreToolUse checkout/switch hook, no deny path; deterministic coverage in tests/hooks/branch-staleness.test.ts',
   'stop-quality.ts':

@@ -393,6 +393,32 @@ function warnIfDistributionStale(): void {
   }
 }
 
+function projectFixtureArguments(args: string[]): string[] {
+  // Most suites use setup/upgrade only to prepare project files. Keep those fixtures
+  // independent of installed hosts; unified-install scenarios invoke the CLI directly.
+  const hasAgentSelection = args.some(
+    argument => argument === '--agents' || argument.startsWith('--agents='),
+  );
+  const projectLifecycleCommands = [
+    'setup',
+    'upgrade',
+    'check',
+    'status',
+    'doctor',
+    'diff',
+    'plan',
+  ];
+  return projectLifecycleCommands.includes(args[0] ?? '') && !hasAgentSelection
+    ? [...args, '--agents', 'none']
+    : args;
+}
+
+interface RunCliOptions {
+  cwd?: string;
+  env?: Record<string, string>;
+  timeout?: number;
+}
+
 /**
  * Runs the CLI with the given arguments in the specified directory
  * Uses built CLI (dist/cli.js)
@@ -402,19 +428,12 @@ function warnIfDistributionStale(): void {
  * @param options.env
  * @param options.timeout
  */
-export async function runCli(
-  args: string[],
-  options: {
-    cwd?: string;
-    env?: Record<string, string>;
-    timeout?: number;
-  } = {},
-): Promise<CliResult> {
+async function executeCli(cliArguments: string[], options: RunCliOptions): Promise<CliResult> {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_BUN_INSTALL } = options;
   warnIfDistributionStale();
 
   try {
-    const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_PATH, ...args], {
+    const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_PATH, ...cliArguments], {
       cwd,
       env: { ...process.env, ...env },
       timeout,
@@ -440,6 +459,18 @@ export async function runCli(
   }
 }
 
+export function runCli(args: string[], options: RunCliOptions = {}): Promise<CliResult> {
+  return executeCli(projectFixtureArguments(args), options);
+}
+
+/** Runs the exact argv supplied by a catalogue or parser contract. */
+export function runCliWithLiteralArguments(
+  args: string[],
+  options: RunCliOptions = {},
+): Promise<CliResult> {
+  return executeCli(args, options);
+}
+
 /**
  * Run the CLI while explicitly disabling dependency installation.
  *
@@ -458,7 +489,14 @@ export async function runCliWithoutInstall(
   } = {},
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  return runner(args, {
+  const hasAgentSelection = args.some(
+    argument => argument === '--agents' || argument.startsWith('--agents='),
+  );
+  const fixtureArguments =
+    ['setup', 'upgrade', 'install'].includes(args[0] ?? '') && !hasAgentSelection
+      ? [...args, '--agents', 'none']
+      : args;
+  return runner(fixtureArguments, {
     ...options,
     env: {
       ...options.env,
@@ -499,9 +537,10 @@ export function runCliSync(
   } = {},
 ): CliResult {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_SYNC } = options;
+  const cliArguments = projectFixtureArguments(args);
   warnIfDistributionStale();
 
-  const command = `${process.execPath} ${CLI_PATH} ${args.join(' ')}`;
+  const command = `${process.execPath} ${CLI_PATH} ${cliArguments.join(' ')}`;
 
   try {
     const stdout = execSync(command, {
@@ -682,7 +721,7 @@ export async function runFixtureUpgradeWithoutInstall(
   cwd: string,
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  const result = await runner(['upgrade'], { cwd, env: SKIP_INSTALL_ENV });
+  const result = await runner(['upgrade', '--agents', 'none'], { cwd, env: SKIP_INSTALL_ENV });
   if (result.exitCode !== 0) {
     throw new Error(
       `Fixture upgrade failed (exit ${result.exitCode}) in ${cwd}.\n` +
@@ -707,6 +746,8 @@ export async function runFixtureUpgradeWithoutInstall(
  * isolation and on uncontended CI. A non-zero *exit* is a genuine failure and fails
  * fast/loud with no retry, so a real setup regression is never masked.
  * @param projectDirectory
+ * Project fixtures explicitly select no agent hosts so their setup result is not
+ * activation-pending. Host installation tests invoke the unified default directly.
  * @param setupArgs CLI args including the command (default: ['setup', '--yes'])
  */
 export async function setupOrThrow(
@@ -718,7 +759,10 @@ export async function setupOrThrow(
   // a subprocess. Production callers never pass this.
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  const label = `safeword ${setupArguments.join(' ')}`;
+  const fixtureArguments = setupArguments.includes('--agents')
+    ? setupArguments
+    : [...setupArguments, '--agents', 'none'];
+  const label = `safeword ${fixtureArguments.join(' ')}`;
   // One retry (2 attempts). A transient contention spike usually clears by the
   // second attempt; a persistent timeout across both attempts is a real hang and
   // surfaces as a distinct, diagnosable error below.
@@ -726,7 +770,7 @@ export async function setupOrThrow(
   let lastResult: CliResult | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const result = await runner(setupArguments, {
+    const result = await runner(fixtureArguments, {
       cwd: projectDirectory,
       ...cliOptions,
       env: { ...SKIP_INSTALL_ENV, ...cliOptions.env },

@@ -14,11 +14,11 @@ import { formatParityDriftFailure, runParity } from '../src/parity.js';
 const templatesDirectory = nodePath.join(import.meta.dirname, '../templates');
 
 describe('dogfood parity', () => {
-  it('points parity drift at the supported setup command', () => {
+  it('points parity drift at the canonical install command', () => {
     const message = formatParityDriftFailure(['hook drift']);
 
-    expect(message).toContain('Run `bunx safeword setup`');
-    expect(message).not.toContain('bunx safeword install');
+    expect(message).toContain('Run `bunx safeword install`');
+    expect(message).not.toContain('bunx safeword setup');
   });
 
   it('should have dogfood files identical to their canonical templates', async () => {

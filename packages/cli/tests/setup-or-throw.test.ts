@@ -89,7 +89,7 @@ describe('runCliWithoutInstall', () => {
 
     expect(calls).toEqual([
       {
-        args: ['setup', '--yes'],
+        args: ['setup', '--yes', '--agents', 'none'],
         options: {
           cwd: '/fake/project',
           env: {

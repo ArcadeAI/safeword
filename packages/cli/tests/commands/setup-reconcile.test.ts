@@ -198,7 +198,7 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex'))).toBe(false);
     });
 
-    it('tells users that Codex profiles enroll automatically after setup', async () => {
+    it('enrolls Codex automatically and teaches only the canonical route', async () => {
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
@@ -213,6 +213,8 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(`${result.stdout}\n${result.stderr}`).toContain(
         'each developer profile is checked automatically at task start',
       );
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('codex install');
+      expect(result.stdout).toContain('`setup` is deprecated; use `install`.');
     });
 
     it('should preserve existing AGENTS.md without prepending safeword text', async () => {

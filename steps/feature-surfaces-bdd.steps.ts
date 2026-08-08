@@ -169,6 +169,21 @@ Given(
   },
 );
 
+When('safeword setup reconciles only the project state', function (this: FeatureSurfacesWorld) {
+  this.result = runSafeword(this.temporaryDirectory, ['setup', '--yes', '--agents', 'none']);
+  assertCommandSucceeded(this.result);
+});
+
+When('safeword upgrade reconciles only the project state', function (this: FeatureSurfacesWorld) {
+  this.result = runSafeword(this.temporaryDirectory, [
+    'upgrade',
+    '--agents',
+    'none',
+    '--no-migrate-namespace',
+  ]);
+  assertCommandSucceeded(this.result);
+});
+
 Then(
   'the resolved namespace root contains surfaces.md with starter guidance',
   function (this: FeatureSurfacesWorld) {
@@ -203,7 +218,9 @@ Given(
   'an in-progress feature that affects Claude Code and OpenAI Codex',
   function (this: FeatureSurfacesWorld) {
     this.temporaryDirectory = createCustomerProject('safeword-surfaces-check-');
-    assertCommandSucceeded(runSafeword(this.temporaryDirectory, ['setup', '--yes']));
+    assertCommandSucceeded(
+      runSafeword(this.temporaryDirectory, ['setup', '--yes', '--agents', 'none']),
+    );
     markSafewordDevDependenciesInstalled(this.temporaryDirectory);
 
     const ticketRoot = nodePath.join(this.temporaryDirectory, '.project/tickets/SUR001-demo');
@@ -254,7 +271,7 @@ Given(
 
 When('safeword check runs', function (this: FeatureSurfacesWorld) {
   assert.ok(this.temporaryDirectory, 'customer project was not created');
-  this.result = runSafeword(this.temporaryDirectory, ['check', '--offline']);
+  this.result = runSafeword(this.temporaryDirectory, ['check', '--agents', 'none', '--offline']);
 });
 
 Then(

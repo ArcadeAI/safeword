@@ -1645,23 +1645,27 @@ When(
  * CODEX_HOME.
  */
 When(
-  'the plugin migration setup runs without profile enrollment available',
+  'the plugin migration install runs without profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
-      cwd: repoRoot,
-      env: {
-        // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
-        PATH: '',
-        SAFEWORD_SKIP_INSTALL: '1',
+    this.codexPluginMigrationResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'install', '--agents=codex'],
+      {
+        cwd: repoRoot,
+        env: {
+          // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
+          PATH: '',
+          SAFEWORD_SKIP_INSTALL: '1',
+        },
+        timeout: 120_000,
       },
-      timeout: 120_000,
-    });
+    );
   },
 );
 
 When(
-  'the plugin migration setup runs with profile enrollment available',
+  'the plugin migration install runs with profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
@@ -1678,12 +1682,12 @@ When(
       SAFEWORD_SKIP_INSTALL: '1',
       CODEX_HOME: runtime.codexHome,
     };
-    const setupResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
-      cwd: repoRoot,
-      env: environment,
-      timeout: 120_000,
-    });
-    assert.equal(setupResult.exitCode, 0, `${setupResult.stdout}\n${setupResult.stderr}`);
+    const installResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'install', '--agents=codex'],
+      { cwd: repoRoot, env: environment, timeout: 120_000 },
+    );
+    assert.equal(installResult.exitCode, 2, `${installResult.stdout}\n${installResult.stderr}`);
 
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
       recordCodexHookProof(event, environment);
@@ -1859,7 +1863,7 @@ function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
   assert.ok(result, 'migration result was not captured');
   assert.equal(
     result.exitCode,
-    2,
+    1,
     `expected a declined migration: ${result.stdout}${result.stderr}`,
   );
   assert.match(
@@ -1869,9 +1873,12 @@ function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
   );
 }
 
-Then('setup reports profile enrollment failure loudly', function (this: CodexPluginMigrationWorld) {
-  assertMigrationRanAndDeclined(this);
-});
+Then(
+  'install reports profile enrollment failure loudly',
+  function (this: CodexPluginMigrationWorld) {
+    assertMigrationRanAndDeclined(this);
+  },
+);
 
 Then(
   'the user-owned tickets and learnings remain byte-identical',

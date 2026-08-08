@@ -31,7 +31,7 @@ import {
 
 const HEALTHY_LINE = 'Configuration is healthy';
 const UPDATE_CHECK_PATTERN = /Checking for updates|Update available/;
-const RUN_SETUP_HINT = 'Run `safeword setup`';
+const RUN_SETUP_HINT = 'Run `safeword install`';
 
 /** personas.md with a duplicate short code — a config-health issue reconcile
  * never repairs (user content), producing a real broken postcondition. */
@@ -350,7 +350,7 @@ describe('3293WH: docs demote check (TB2.AC1)', () => {
   it('TB2.AC1.docs_present_check_as_automatic_first', () => {
     const cliMdx = readFileSync(surfaces[2] ?? '', 'utf8');
     // Pinned automatic-after phrase (gate review: literal fixed at RED).
-    expect(cliMdx).toContain('runs automatically after `setup`');
+    expect(cliMdx).toContain('runs automatically after `install`');
     expect(cliMdx).toMatch(/CI|debugging/);
 
     // No surface instructs running check as a routine step.
