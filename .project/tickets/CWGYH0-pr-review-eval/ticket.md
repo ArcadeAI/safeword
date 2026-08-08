@@ -2,24 +2,29 @@
 id: CWGYH0
 slug: pr-review-eval
 type: task
-phase: intake
+phase: implement
 status: in_progress
 scope:
-  - Corpus: `ArcadeAI/monorepo` PRs that a human APPROVED and merged with ZERO inline comments (21 of 25 recent PRs qualify — the corpus is free).
-  - Metrics decoupled, no composite headline (GEPA's no-F1 lesson): actionable rate, coverage, false-certainty.
-  - The bar is RECORDED BEFORE the corpus is triaged, and triage is done by ARCADE ENGINEERS — not by the agent that built the reviewer.
-  - A certified-clean fixture proving silence, which the safeword shadow probe never tested.
+  - Freeze approximately 20–30 post-model-cutoff `diff → finding → acted on?` pairs from existing local Claude sessions and repository history, with durable provenance and no outcome leakage into the review input.
+  - Run two deliberately different, versioned PR-review prompts against the same frozen inputs and preserve every raw output.
+  - Score with asymmetric labels: acted-on or explicitly useful findings are strong positives; a clean merge is only a weak negative and can never, by itself, lower a finding's score.
+  - Compare both prompt rankings with Nate's recorded 10-PR triage and the PR 2118 exchange, reporting uncertainty and false certainty separately.
+  - Manually spot-check sampled SZZ links using already-available evidence before making a go/kill decision.
 out_of_scope:
-  - The reviewer skill — G5337S. The workflow — 36EEMY.
-  - Scoring by the authoring agent. Greptile's postmortem: an LLM's judgment of its own output was "nearly random".
+  - Tuning either prompt on the held-out corpus or revealing a log's eventual outcome to the reviewer being graded.
+  - Treating an LLM jury as the gate; it may only pre-filter evidence for deterministic or human-recorded adjudication.
+  - Mining beyond the bounded 20–30-pair falsification sample before the go/kill decision.
+  - Requesting new engineer review time or treating the shipped runner as validated by hand-run prompt evidence.
 done_when:
-  - The five judgment-bound Rules split out of the runner on 2026-07-19 — R19 (work type), R20 (test coverage), TB2.R1 (review depth), TB2.R3 (author request) — are scored eval cases here. They live verbatim in `features/autonomous-pr-review.feature` under `@eval-bound` as a holding pen; each Given describes code shape and each Then asserts the model's judgment about it, so a stubbed runner test would only assert its own fixture. Until they are scored here, nothing proves them.
-  - A bar exists in git before any verdict does.
-  - Arcade engineers have triaged the corpus, and the result is honoured — a failed bar kills or reshapes the epic rather than licensing a prompt-tuning loop until it passes.
-  - False-certainty count is reported separately and can veto a ship on its own.
+  - Frozen examples, provenance, prompt versions, raw outputs, and scoring code are reproducible from the repository.
+  - The metric has an executable guard proving a clean merge alone cannot penalize a finding.
+  - Both prompt rankings and the recorded-human ranking are reported with uncertainty and false certainty separated from useful-finding recall.
+  - SZZ links receive documented manual spot checks using existing evidence.
+  - A clear go/kill decision is recorded before any larger miner is built.
 parent: WAWQA6
+external_issue: https://github.com/ArcadeAI/safeword/issues/1910
 created: 2026-07-15T14:24:45.773Z
-last_modified: 2026-07-15T14:24:45.773Z
+last_modified: 2026-08-08T01:12:00Z
 ---
 
 # pr-review-eval
@@ -30,10 +35,9 @@ last_modified: 2026-07-15T14:24:45.773Z
 
 **The risk this ticket owns:** the safeword 10-PR triage from 2026-07-15 is STILL outstanding. If arcade engineers are too underwater to triage 20 findings, that is itself the answer to whether they would read the reviewer's output — and it is cheaper to learn here than after building.
 
-**Why:** {One sentence: why does this matter?}
-
 ## Work Log
 
+- 2026-08-08T01:12:00Z Resumed as GitHub issue #1910 after #1909 closed. Reconciled the issue's asymmetric-label and falsification-first contract with this existing experiment rather than creating a duplicate ticket. Inspected a real local Claude JSONL: top-level event records carry session/cwd/git metadata; assistant/user messages nest typed content blocks; tool results are user events. Next: freeze a durable 20–30-pair manifest without outcome leakage.
 - 2026-07-15T14:24:45.773Z Started: Created ticket CWGYH0
 
 ## Probe run 2026-07-15 — 10 arcade PRs, all human-APPROVED and merged with ZERO inline comments

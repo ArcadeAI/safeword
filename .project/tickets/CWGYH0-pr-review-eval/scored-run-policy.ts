@@ -1,0 +1,110 @@
+const RETRYABLE_HTTP_STATUSES = new Set([408, 429]);
+const RETRYABLE_NETWORK_CODES = new Set([
+	"EAI_AGAIN",
+	"ECONNRESET",
+	"ENETDOWN",
+	"ENETUNREACH",
+	"ENOTFOUND",
+	"ETIMEDOUT",
+	"UND_ERR_CONNECT_TIMEOUT",
+	"UND_ERR_SOCKET",
+]);
+
+type ErrorLike = {
+	cause?: unknown;
+	code?: unknown;
+	message?: unknown;
+	name?: unknown;
+	status?: unknown;
+};
+
+export type RetriedResult<T> =
+	| {
+			attempts: 1 | 2;
+			infrastructureErrors: string[];
+			status: "completed";
+			value: T;
+	  }
+	| { attempts: 2; infrastructureErrors: string[]; status: "exclude-case" };
+
+function isErrorLike(value: unknown): value is ErrorLike {
+	return typeof value === "object" && value !== null;
+}
+
+function errorSummary(error: unknown): string {
+	return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+
+/**
+ * The benchmark retries only failures external to reviewer judgment. Provider
+ * shape failures, parser failures, budget exhaustion, and ordinary 4xx errors
+ * are scored as-is and never get a second chance.
+ */
+export function isInfrastructureError(error: unknown): boolean {
+	if (isErrorLike(error) && error.name === "SchemaViolationError") return false;
+
+	let current: unknown = error;
+	for (let depth = 0; depth < 8 && isErrorLike(current); depth += 1) {
+		if (current.name === "ProviderRequestError" && typeof current.status === "number") {
+			return (
+				RETRYABLE_HTTP_STATUSES.has(current.status) ||
+				(current.status >= 500 && current.status <= 599)
+			);
+		}
+		if (
+			typeof current.code === "string" &&
+			RETRYABLE_NETWORK_CODES.has(current.code)
+		) {
+			return true;
+		}
+		current = current.cause;
+	}
+	return false;
+}
+
+export async function executeWithInfrastructureRetry<T>(
+	execute: () => Promise<T>,
+): Promise<RetriedResult<T>> {
+	const infrastructureErrors: string[] = [];
+	for (const attempts of [1, 2] as const) {
+		try {
+			return {
+				attempts,
+				infrastructureErrors,
+				status: "completed",
+				value: await execute(),
+			};
+		} catch (error) {
+			if (!isInfrastructureError(error)) throw error;
+			infrastructureErrors.push(errorSummary(error));
+			if (attempts === 2) {
+				return { attempts, infrastructureErrors, status: "exclude-case" };
+			}
+		}
+	}
+	throw new Error("unreachable retry state");
+}
+
+function frozenRandom(seed: number): () => number {
+	let state = seed >>> 0;
+	return () => {
+		state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+		return state / 0x1_0000_0000;
+	};
+}
+
+export function shuffleFrozen<T>(values: readonly T[], seed: number): T[] {
+	const next = frozenRandom(seed);
+	const result = [...values];
+	for (let index = result.length - 1; index > 0; index -= 1) {
+		const swap = Math.floor(next() * (index + 1));
+		const current = result[index];
+		const replacement = result[swap];
+		if (current === undefined || replacement === undefined) {
+			throw new Error("shuffle selected an impossible array index");
+		}
+		result[index] = replacement;
+		result[swap] = current;
+	}
+	return result;
+}
