@@ -33330,9 +33330,7 @@ function agentInstallEffects(agent, scope) {
   return {
     files: [],
     packages: [],
-    configuration: [
-      { kind: "activate", target: label, operation }
-    ],
+    configuration: [{ kind: "activate", target: label, operation }],
     network: [{ kind: "plugin-marketplace", target: label, operation: "install" }],
     destructive: []
   };
