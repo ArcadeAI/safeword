@@ -80,7 +80,9 @@ function runSafeword(
       env: environment,
       encoding: 'utf8',
     });
-  let result = run([command]);
+  const lifecycleArguments =
+    command === 'setup' || command === 'upgrade' ? [command, '--agents', 'none'] : [command];
+  let result = run(lifecycleArguments);
   if (command === 'reset') {
     const preview = run(['reset', '--json', '--no-input']);
     const envelope = JSON.parse(preview.stdout) as { data?: { plan?: { id?: string } } };

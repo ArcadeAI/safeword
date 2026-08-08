@@ -80,7 +80,8 @@ function prepareFixture(current: PersonaCodeState): void {
 
 function installAndReadAssets(current: PersonaCodeState): void {
   assert.ok(current.projectRoot);
-  const setup = spawnSync('bun', [cliPath, 'setup', '--yes', '--no-modify'], {
+  const agents = current.surface === 'OpenAI Codex' ? 'none' : 'cursor';
+  const setup = spawnSync('bun', [cliPath, 'install', '--agents', agents, '--no-modify'], {
     cwd: current.projectRoot,
     encoding: 'utf8',
     env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },

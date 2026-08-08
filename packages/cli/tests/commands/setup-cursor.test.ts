@@ -13,10 +13,17 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCliWithoutInstall,
+  runCliWithoutInstall as runCliWithoutInstallBase,
   runConfirmedRemoval,
   writeTestFile,
 } from '../helpers';
+
+function runCliWithoutInstall(
+  args: string[],
+  options: { cwd?: string; env?: Record<string, string>; timeout?: number },
+) {
+  return runCliWithoutInstallBase([...args, '--agents', 'cursor'], options);
+}
 
 describe('Test Suite: Setup - Cursor IDE Support', () => {
   let temporaryDirectory: string;

@@ -99,7 +99,7 @@ describe('sync-tracker orchestrator', () => {
   it('is a friendly no-op when provider is none', async () => {
     const result = await syncTracker(makeDependencies({ config: { provider: 'none' } }));
     expect(result.exitCode).toBe(0);
-    expect(messages.join('\n')).toMatch(/safeword setup/);
+    expect(messages.join('\n')).toMatch(/safeword install/);
     expect(writers.github.creates).toHaveLength(0);
   });
 

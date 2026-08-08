@@ -84,7 +84,7 @@ ${generateClippyThresholds()}
 
     return `# Safeword clippy config - merged with project config
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
-# Re-run \`safeword setup\` to regenerate after project config changes.
+# Re-run \`safeword install\` to regenerate after project config changes.
 #
 # NOTE: Your thresholds are preserved. Safeword only fills gaps.
 

@@ -2,11 +2,11 @@
 Feature: Install the Safe Word Codex plugin for new users
 
   @codex-plugin-install.TBU1.R1
-  Rule: codex-plugin-install.TBU1.R1 - New-user setup enrolls each developer automatically
+  Rule: codex-plugin-install.TBU1.R1 - New-user installation enrolls each developer automatically
 
-    Scenario: Fresh setup enrolls automatic Codex plugin installation
+    Scenario: Fresh Codex installation enrolls automatic profile installation
       Given an empty project has no Safe Word workflow material
-      When the builder sets up Safe Word for Codex
+      When the builder installs Safe Word for Codex
       Then Safe Word reports that automatic Codex profile enrollment is installed
 
     Scenario: Upgrade enrolls automatic Codex plugin installation
@@ -15,9 +15,9 @@ Feature: Install the Safe Word Codex plugin for new users
       Then Safe Word reports that automatic Codex profile enrollment is installed
 
     @rejection
-    Scenario: Fresh setup does not direct builders to the legacy migration command
+    Scenario: Fresh Codex installation does not direct builders to the legacy migration command
       Given an empty project has no Safe Word workflow material
-      When the builder sets up Safe Word for Codex
+      When the builder installs Safe Word for Codex
       Then Safe Word does not direct the builder to the legacy Codex migration command
 
   @codex-plugin-install.TBU1.R2

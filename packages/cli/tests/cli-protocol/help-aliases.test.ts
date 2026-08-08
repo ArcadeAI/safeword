@@ -11,10 +11,10 @@ describe('canonical help and compatibility aliases', () => {
 
     for (const canonical of [
       'status',
-      'setup',
+      'install',
       'plan',
       'doctor',
-      'remove',
+      'uninstall',
       'project',
       'tracker',
       'codex',
@@ -25,15 +25,24 @@ describe('canonical help and compatibility aliases', () => {
       expect(result.stdout).toContain(canonical);
     }
     const helpLines = result.stdout.split('\n').map(line => line.trimStart());
-    for (const hidden of ['check', 'diff', 'reset', 'boundary', 'codex-hook']) {
-      expect(helpLines.some(line => line === hidden || line.startsWith(`${hidden} `))).toBe(false);
+    for (const hidden of ['setup', 'check', 'diff', 'reset', 'boundary', 'codex-hook']) {
+      expect(
+        helpLines.some(
+          line => (line === hidden || line.startsWith(`${hidden} `)) && !line.includes(' -> '),
+        ),
+      ).toBe(false);
     }
+    expect(result.stdout).toContain('Compatibility routes (retained indefinitely):');
+    expect(result.stdout).toContain('claude install -> install --agents=claude');
+    expect(result.stdout).toContain(
+      'project architecture --stage -> project architecture --from-index --stage-output',
+    );
   });
 
   it.each([
     ['check', 'status'],
     ['diff', 'plan'],
-    ['reset', 'remove'],
+    ['reset', 'uninstall --agents=none'],
     ['retro', 'retro run'],
   ])('runs %s as a JSON-compatible alias for %s', async (legacy, replacement) => {
     const directory = createTemporaryDirectory();
@@ -64,7 +73,7 @@ describe('canonical help and compatibility aliases', () => {
       findings: { code: string }[];
     };
     expect(envelope.state).toBe('action_required');
-    expect(envelope.findings.map(finding => finding.code)).toContain('RECONCILIATION_AVAILABLE');
+    expect(envelope.findings.map(finding => finding.code)).toContain('LIFECYCLE_EFFECTS_PLANNED');
   });
 
   it('accepts reset -y safely without applying an unbound destructive plan', async () => {

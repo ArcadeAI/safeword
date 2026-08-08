@@ -7,8 +7,9 @@ import type {
   LegacyGlobalGuidanceObservation,
 } from '../codex-plugin/legacy-global-guidance.js';
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
-import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
+import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
+import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { numericOption, stringOption } from './option-values.js';
@@ -32,7 +33,15 @@ function notConfigured(command: string): CliResult {
         severity: 'warning',
       },
     ],
-    nextActions: [{ command: 'safeword setup', mutates: true, requiresHuman: false }],
+    nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: false }],
+    data: { command },
+  });
+}
+
+function invalidAgentSelection(command: string, error: AgentSelectionError): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ ...error, retryable: false }],
     data: { command },
   });
 }
@@ -69,23 +78,24 @@ function configCheckResult(inspection: ConfigInspection): CliResult {
 }
 
 async function statusHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { observeStatus } = await import('../commands/status.js');
-  return observeStatus(invocation.cwd);
+  const parsed = parseAgentSelection(invocation.options.agents);
+  if (!parsed.ok) return invalidAgentSelection('status', parsed.error);
+  const { observeLifecycleStatus } = await import('../lifecycle/status.js');
+  return observeLifecycleStatus(invocation.cwd, parsed.selection.agents);
 }
 
-async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
-  if (invocation.offline && process.env.SAFEWORD_SKIP_INSTALL === undefined) {
-    return onlineRequired('setup');
-  }
-  const { convergeSetup } = await import('../commands/converge-setup.js');
-  return convergeSetup(invocation.cwd, {
-    noModify: invocation.options.modify === false,
-    repairVersionMarker: invocation.options.repairVersionMarker === true,
-    migrateNamespace:
-      typeof invocation.options.migrateNamespace === 'boolean'
-        ? invocation.options.migrateNamespace
-        : undefined,
-    progress: invocation.progress,
+async function doctorHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const parsed = parseAgentSelection(invocation.options.agents);
+  if (!parsed.ok) return invalidAgentSelection('doctor', parsed.error);
+  const { diagnoseLifecycle } = await import('../lifecycle/doctor.js');
+  return diagnoseLifecycle(invocation.cwd, parsed.selection.agents);
+}
+
+async function installHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { installLifecycle } = await import('../lifecycle/commands.js');
+  return installLifecycle(invocation, {
+    installClaude: () => claudeInstallHandler(invocation),
+    installCodex: () => codexMutationHandler('codex install', invocation),
   });
 }
 
@@ -128,8 +138,8 @@ async function claudeRecoverHandler(invocation: CommandInvocation): Promise<CliR
 }
 
 async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { observePlan } = await import('../commands/plan.js');
-  return observePlan(invocation.cwd);
+  const { planLifecycle } = await import('../lifecycle/commands.js');
+  return planLifecycle(invocation);
 }
 
 async function removeHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -146,6 +156,11 @@ async function removeHandler(invocation: CommandInvocation): Promise<CliResult> 
     yes: invocation.options.yes === true,
     plan: suppliedPlan,
   });
+}
+
+async function uninstallHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { uninstallLifecycle } = await import('../lifecycle/commands.js');
+  return uninstallLifecycle(invocation);
 }
 
 async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -244,7 +259,7 @@ function architectureCheckResult(
         : [
             {
               code: 'ARCHITECTURE_DRIFT',
-              message: `Architecture documents are stale (${stale.join(', ')}). Run \`safeword project architecture\` for the current worktree, or \`safeword project architecture --staged\` to reproduce the staged tree, then commit the result.`,
+              message: `Architecture documents are stale (${stale.join(', ')}). Run \`safeword project architecture\` for the current worktree, or \`safeword project architecture --from-index\` to reproduce the staged tree, then commit the result.`,
               severity: 'warning',
             },
             ...advisories,
@@ -339,6 +354,43 @@ async function runArchitectureStagedTreeMode(
   });
 }
 
+interface ArchitectureCliMode {
+  readonly fromIndex: boolean;
+  readonly stageOutput: boolean;
+  readonly legacy?: '--stage' | '--staged';
+}
+
+function architectureCliMode(options: Readonly<Record<string, unknown>>): ArchitectureCliMode {
+  let legacy: ArchitectureCliMode['legacy'];
+  if (options.stage === true) legacy = '--stage';
+  else if (options.staged === true) legacy = '--staged';
+  return {
+    fromIndex: options.fromIndex === true || legacy !== undefined,
+    stageOutput: options.stageOutput === true || legacy === '--stage',
+    ...(legacy !== undefined && { legacy }),
+  };
+}
+
+function withArchitectureOptionCompatibility(
+  result: CliResult,
+  legacy: ArchitectureCliMode['legacy'],
+): CliResult {
+  if (legacy === undefined) return result;
+  const replacement = legacy === '--stage' ? '--from-index --stage-output' : '--from-index';
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: 'CLI_OPTION_DEPRECATED',
+        message: `${legacy} is deprecated; use ${replacement}.`,
+        severity: 'warning',
+        metadata: { legacy, replacement, retention: 'indefinite' },
+      },
+    ],
+  };
+}
+
 async function architectureHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { isWouldChangeAction, planSelfHealProject, selfHealProject } =
     await import('../utils/architecture-document.js');
@@ -347,17 +399,33 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
   const { isArchitectureDocumentEnforcementEnabled } = await import('../utils/configured-paths.js');
 
   const enforcementEnabled = isArchitectureDocumentEnforcementEnabled(invocation.cwd);
-  if (!enforcementEnabled && (invocation.options.check || invocation.options.stage)) {
+  const mode = architectureCliMode(invocation.options);
+  if (mode.stageOutput && !mode.fromIndex) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'ARCHITECTURE_INPUT_REQUIRED',
+          message:
+            '--stage-output requires --from-index so staged output has a reproducible source.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'project architecture' },
+    });
+  }
+  if (!enforcementEnabled && (invocation.options.check || mode.stageOutput)) {
     return architectureEnforcementDisabledResult(
       architectureAdvisories(discoverUnreadableWorkspaces(invocation.cwd)),
     );
   }
 
-  if (invocation.options.stage === true) {
-    return runArchitectureStagedTreeMode(invocation, 'stage');
-  }
-  if (invocation.options.staged === true) {
-    return runArchitectureStagedTreeMode(invocation, 'staged');
+  if (mode.fromIndex) {
+    const result = await runArchitectureStagedTreeMode(
+      invocation,
+      mode.stageOutput ? 'stage' : 'staged',
+    );
+    return withArchitectureOptionCompatibility(result, mode.legacy);
   }
 
   const snapshot = extractMonorepoArchitectureSnapshot(invocation.cwd);
@@ -446,7 +514,7 @@ function architectureHealResult(input: {
     nextActions: staleStaging
       ? [
           {
-            command: 'safeword project architecture --stage',
+            command: 'safeword project architecture --from-index --stage-output',
             mutates: true,
             requiresHuman: false,
           },
@@ -520,11 +588,32 @@ async function codifyHandler(invocation: CommandInvocation): Promise<CliResult> 
 
 async function testPlanHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeTestPlan } = await import('../commands/test-plan.js');
-  return observeTestPlan(
+  const result = await observeTestPlan(
     invocation.cwd,
     invocation.operands[0] as string | undefined,
     invocation.options,
   );
+  return withLegacyRawJsonGuidance(result, invocation.options, 'project test-plan');
+}
+
+function withLegacyRawJsonGuidance(
+  result: CliResult,
+  options: Readonly<Record<string, unknown>>,
+  command: string,
+): CliResult {
+  if (options.format !== 'json') return result;
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: 'CLI_RAW_JSON_DEPRECATED',
+        message: `The legacy raw JSON format for \`${command}\` remains available; use global \`--json\` for the canonical versioned envelope.`,
+        severity: 'warning',
+        metadata: { replacement: '--json', retention: 'indefinite' },
+      },
+    ],
+  };
 }
 
 async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -652,7 +741,7 @@ async function reviewPrPublicationHandler(
 }
 
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { observeCodexMigration } = await import('../commands/migrate-codex-plugin.js');
+  const { observeCodexMigration } = await import('../codex-plugin/operations.js');
   return observeCodexMigration(invocation.cwd);
 }
 
@@ -678,7 +767,8 @@ function cleanGuidanceConfirmation(
       ...(diagnostic.finding === undefined ? [] : [diagnostic.finding]),
       {
         code: 'CODEX_GUIDANCE_CLEANUP_CONFIRMATION_REQUIRED',
-        message: 'Review and confirm the exact legacy profile-guidance cleanup.',
+        message:
+          'Review and confirm deactivation of the exact legacy profile guidance; unrelated content is preserved and the move creates a recoverable backup.',
         severity: 'warning',
       },
     ],
@@ -743,7 +833,7 @@ function cleanGuidanceSuccess(cleanup: LegacyGlobalGuidanceCleanupResult): CliRe
     findings: [
       {
         code: 'CODEX_LEGACY_GLOBAL_GUIDANCE_BACKED_UP',
-        message: `Moved the exact historical guidance to ${cleanup.backupPath}.`,
+        message: `Deactivated the exact historical guidance by moving it to the recovery backup at ${cleanup.backupPath}; unrelated guidance was preserved.`,
         severity: 'info',
       },
     ],
@@ -994,7 +1084,7 @@ function runCodexInstall(
   migration: typeof CodexMigration,
 ): CliResult {
   const before = migration.observeCodexMigrationResult(invocation.cwd);
-  if (before.plugin.enabled === true && before.state !== 'plugin_update_required') {
+  if (!migration.codexInstallRequiresMutation(before)) {
     return migration.observeCodexMigration(invocation.cwd);
   }
   migration.installCodexPlugin({
@@ -1197,13 +1287,13 @@ function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
       {
         code: 'PLUGIN_UPDATE_REQUIRED',
         message:
-          'Finalization requires the packaged Safe Word plugin version. Run safeword codex install, restart Codex, start a new task, and review /hooks.',
+          'Finalization requires the packaged Safe Word plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.',
         retryable: true,
       },
     ],
     nextActions: [
       {
-        command: 'safeword codex install',
+        command: 'safeword install --agents=codex',
         mutates: true,
         requiresHuman: false,
       },
@@ -1272,7 +1362,7 @@ async function codexMutationHandler(
   if (invocation.offline && name !== 'codex recover') return onlineRequired(name);
   const isFinalization = isCodexFinalization(name, invocation);
   try {
-    const migration = await import('../commands/migrate-codex-plugin.js');
+    const migration = await import('../codex-plugin/operations.js');
     const preflight = await codexMutationPreflight(name, isFinalization, invocation, migration);
     if (preflight !== undefined) return preflight;
 
@@ -1329,7 +1419,7 @@ async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliRe
       break;
     }
   }
-  return createResult({
+  const result = createResult({
     state: 'healthy',
     presentation,
     data: {
@@ -1339,6 +1429,7 @@ async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliRe
       ...(format === 'issue' && { issues: formatIssueDrafts(records) }),
     },
   });
+  return withLegacyRawJsonGuidance(result, invocation.options, 'retro signals');
 }
 
 function retroFailure(message: string): CliResult {
@@ -1493,9 +1584,10 @@ async function retroReconcileHandler(invocation: CommandInvocation): Promise<Cli
 
 const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   status: statusHandler,
-  setup: setupHandler,
+  install: installHandler,
   plan: planHandler,
-  doctor: statusHandler,
+  doctor: doctorHandler,
+  uninstall: uninstallHandler,
   remove: removeHandler,
   'project sync-config': syncConfigHandler,
   'project architecture': architectureHandler,

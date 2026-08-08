@@ -73,7 +73,9 @@ describe('Claude marketplace update enrollment', () => {
       extraKnownMarketplaces: { safeword: { autoUpdate?: boolean } };
     };
 
-    expect(result.state, JSON.stringify(result)).toBe('changed');
+    // Installing leaves activation pending until the user runs /reload-plugins,
+    // which ZE5RRG Rule NTB1.R2 reports as action_required rather than done.
+    expect(result.state, JSON.stringify(result)).toBe('action_required');
     expect(settings.unrelated).toEqual({ keep: true });
     expect(settings.env.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE).toBe('1');
     expect(settings.extraKnownMarketplaces.safeword.autoUpdate).toBe(true);
@@ -92,6 +94,7 @@ describe('Claude marketplace update enrollment', () => {
     };
 
     expect(result.state, JSON.stringify(result)).toBe('healthy');
+    expect(result.nextActions).toEqual([]);
     expect(settings.env).toEqual({
       KEEP_ME: 'yes',
       CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '0',
@@ -105,6 +108,7 @@ describe('Claude marketplace update enrollment', () => {
     const result = installClaudePlugin(project);
 
     expect(result.state, JSON.stringify(result)).toBe('healthy');
+    expect(result.nextActions).toEqual([]);
     expect(readFileSync(settingsPath, 'utf8')).toBe(before);
     expect(readFileSync(log, 'utf8')).not.toContain('plugin marketplace add');
   });

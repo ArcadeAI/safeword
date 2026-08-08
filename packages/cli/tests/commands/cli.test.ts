@@ -32,15 +32,18 @@ describe('Test Suite 1: Version and Help', () => {
       expect(result.exitCode).toBe(0);
 
       const output = result.stdout;
+      const quickPath = output.split('Compatibility routes (retained indefinitely):', 1)[0] ?? '';
 
       // Canonical commands are listed; retained aliases stay hidden.
-      expect(output).toContain('setup');
-      expect(output).toContain('status');
-      expect(output).toContain('plan');
-      expect(output).not.toContain('  check');
-      expect(output).not.toContain('  upgrade');
-      expect(output).not.toContain('  diff');
-      expect(output).not.toContain('  reset');
+      expect(quickPath).toContain('install');
+      expect(quickPath).toContain('status');
+      expect(quickPath).toContain('plan');
+      expect(quickPath).not.toContain('  setup');
+      expect(quickPath).not.toContain('  check');
+      expect(quickPath).not.toContain('  upgrade');
+      expect(quickPath).not.toContain('  diff');
+      expect(quickPath).not.toContain('  reset');
+      expect(output).toContain('setup -> install');
     });
 
     it('should display all global flags', async () => {
@@ -76,7 +79,7 @@ describe('Test Suite 1: Version and Help', () => {
 
       expect(bareResult.exitCode).toBe(2);
       expect(bareResult.stdout).toContain('Needs attention');
-      expect(bareResult.stdout).toContain('safeword setup');
+      expect(bareResult.stdout).toContain('safeword install');
     });
   });
 });

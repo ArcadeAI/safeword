@@ -4,7 +4,7 @@
 
 ## Harness availability check (entry)
 
-Before the first RED, confirm the project's test harness actually runs — judge from existing signals (a `test` script in the project manifest, the scaffolded acceptance lane under `features/`, the project's conventional test directory). `safeword setup` scaffolds a runnable lane into every project, so absence is the exception (pre-existing installs, projects using their own runner like pytest-bdd, brownfield repos).
+Before the first RED, confirm the project's test harness actually runs — judge from existing signals (a `test` script in the project manifest, the scaffolded acceptance lane under `features/`, the project's conventional test directory). `safeword install` scaffolds a runnable lane into every project, so absence is the exception (pre-existing installs, projects using their own runner like pytest-bdd, brownfield repos).
 
 **Harness present** → standard loop below, no ceremony.
 
