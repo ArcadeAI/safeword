@@ -19,7 +19,7 @@ describe('Claude plugin release contract', () => {
     expect(result.status).toBe(0);
   });
 
-  it('keeps the real-host upgrade gate in the maintainer release path', () => {
+  it('documents the real-host upgrade gate in the maintainer release path', () => {
     const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');
     const runbookPath = nodePath.join(CLI_ROOT, 'tests/smoke/claude-plugin-manual-acceptance.md');
     const runbook = readFileSync(runbookPath, 'utf8');
