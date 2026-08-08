@@ -444,6 +444,18 @@ function canonicalOptions(name: string): CommandDefinition['registration']['opti
   return definition.registration.options;
 }
 
+function projectOnlyUninstallAlias(name: 'remove' | 'reset'): CommandDefinition {
+  return {
+    ...alias(name, 'uninstall'),
+    handler: publicHandler('remove'),
+    compatibility: { ...RETAINED_ALIAS, replacement: 'uninstall --agents=none' },
+    registration: {
+      syntax: name,
+      options: canonicalOptions('uninstall').filter(option => !option.flags.includes('--agents')),
+    },
+  };
+}
+
 const ALIASES: readonly CommandDefinition[] = [
   alias('check', 'status'),
   scopedInstallAlias('claude install', 'claude'),
@@ -468,24 +480,8 @@ const ALIASES: readonly CommandDefinition[] = [
     ...alias('diff', 'plan'),
     registration: { syntax: 'diff [operation]', options: canonicalOptions('plan') },
   },
-  {
-    ...alias('remove', 'uninstall'),
-    handler: publicHandler('remove'),
-    compatibility: { ...RETAINED_ALIAS, replacement: 'uninstall --agents=none' },
-    registration: {
-      syntax: 'remove',
-      options: canonicalOptions('uninstall').filter(option => !option.flags.includes('--agents')),
-    },
-  },
-  {
-    ...alias('reset', 'uninstall'),
-    handler: publicHandler('remove'),
-    compatibility: { ...RETAINED_ALIAS, replacement: 'uninstall --agents=none' },
-    registration: {
-      syntax: 'reset',
-      options: canonicalOptions('uninstall').filter(option => !option.flags.includes('--agents')),
-    },
-  },
+  projectOnlyUninstallAlias('remove'),
+  projectOnlyUninstallAlias('reset'),
   alias('sync-config', 'project sync-config'),
   alias('architecture', 'project architecture'),
   alias('sync-learnings', 'project sync-learnings'),
