@@ -65,6 +65,52 @@ var __export = (target, all) => {
 var __esm = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
 var __require = import.meta.require;
 
+// src/cli-protocol/agent-selection.ts
+function parseAgentSelection(value) {
+  if (value === undefined) {
+    return { ok: true, selection: { agents: DEFAULT_AGENT_INTEGRATIONS } };
+  }
+  if (typeof value !== "string")
+    return invalidSelection();
+  const values = value.split(",").map((agent) => agent.trim().toLowerCase()).filter((agent) => agent !== "");
+  if (values.length === 0)
+    return invalidSelection();
+  if (values.includes("none")) {
+    return values.length === 1 ? { ok: true, selection: { agents: [] } } : {
+      ok: false,
+      error: {
+        code: "AGENT_SELECTION_INVALID",
+        message: "`none` must be used alone; supported values are claude, codex, cursor, or none."
+      }
+    };
+  }
+  if (values.some((agent) => !SUPPORTED_AGENT_INTEGRATIONS.includes(agent))) {
+    return invalidSelection();
+  }
+  return {
+    ok: true,
+    selection: { agents: [...new Set(values)] }
+  };
+}
+function invalidSelection() {
+  return {
+    ok: false,
+    error: {
+      code: "AGENT_SELECTION_INVALID",
+      message: "Supported agent values are claude, codex, cursor, or none."
+    }
+  };
+}
+var SUPPORTED_AGENT_INTEGRATIONS, DEFAULT_AGENT_INTEGRATIONS, AGENT_SELECTION_DESCRIPTION;
+var init_agent_selection = __esm(() => {
+  SUPPORTED_AGENT_INTEGRATIONS = ["claude", "codex", "cursor"];
+  DEFAULT_AGENT_INTEGRATIONS = Object.freeze([
+    "claude",
+    "codex"
+  ]);
+  AGENT_SELECTION_DESCRIPTION = `${SUPPORTED_AGENT_INTEGRATIONS.join(", ")}, or none`;
+});
+
 // src/codex-plugin/migration-error.ts
 var CodexMigrationError;
 var init_migration_error = __esm(() => {
@@ -82,48 +128,6 @@ var init_migration_error = __esm(() => {
   };
 });
 
-// src/cli-protocol/agent-selection.ts
-function parseAgentSelection(value) {
-  if (value === undefined) {
-    return { ok: true, selection: { agents: DEFAULT_AGENTS } };
-  }
-  if (typeof value !== "string")
-    return invalidSelection();
-  const values = value.split(",").map((agent) => agent.trim().toLowerCase()).filter((agent) => agent !== "");
-  if (values.length === 0)
-    return invalidSelection();
-  if (values.includes("none")) {
-    return values.length === 1 ? { ok: true, selection: { agents: [] } } : {
-      ok: false,
-      error: {
-        code: "AGENT_SELECTION_INVALID",
-        message: "`none` must be used alone; supported values are claude, codex, cursor, or none."
-      }
-    };
-  }
-  if (values.some((agent) => !SUPPORTED_AGENTS.includes(agent))) {
-    return invalidSelection();
-  }
-  return {
-    ok: true,
-    selection: { agents: [...new Set(values)] }
-  };
-}
-function invalidSelection() {
-  return {
-    ok: false,
-    error: {
-      code: "AGENT_SELECTION_INVALID",
-      message: "Supported agent values are claude, codex, cursor, or none."
-    }
-  };
-}
-var SUPPORTED_AGENTS, DEFAULT_AGENTS;
-var init_agent_selection = __esm(() => {
-  SUPPORTED_AGENTS = ["claude", "codex", "cursor"];
-  DEFAULT_AGENTS = ["claude", "codex"];
-});
-
 // src/cli-protocol/result.ts
 function combineEffects(groups) {
   return {
@@ -133,6 +137,15 @@ function combineEffects(groups) {
     network: groups.flatMap((effects) => effects.network ?? []),
     destructive: groups.flatMap((effects) => effects.destructive ?? [])
   };
+}
+function combinedResultState(results) {
+  if (results.some((result) => result.state === "failed"))
+    return "failed";
+  if (results.some((result) => result.state === "action_required"))
+    return "action_required";
+  if (results.some((result) => result.state === "changed"))
+    return "changed";
+  return "healthy";
 }
 function createResult(input) {
   return {
@@ -30957,19 +30970,9 @@ function projectVersionFinding(cwd, projectVersion, cliVersion) {
     }
   };
 }
-async function observeStatus(cwd, agents = ["claude", "codex"], environment = process.env) {
+async function observeStatus(cwd, agents = DEFAULT_AGENT_INTEGRATIONS, environment = process.env) {
   const result = await observeProjectStatus(cwd, agents);
   return withGlobalGuidance(result, environment);
-}
-function lifecycleState(surfaces) {
-  const states = new Set(surfaces.map((surface) => surface.result.state));
-  if (states.has("failed"))
-    return "failed";
-  if (states.has("action_required"))
-    return "action_required";
-  if (states.has("changed"))
-    return "changed";
-  return "healthy";
 }
 async function observeLifecycleSurfaces(cwd, agents, environment = process.env) {
   const project = await observeStatus(cwd, agents, environment);
@@ -31004,7 +31007,7 @@ function projectObservationData(surfaces) {
 function summarizeLifecycleStatus(agents, surfaces) {
   const results = surfaces.map((surface) => surface.result);
   return createResult({
-    state: lifecycleState(surfaces),
+    state: combinedResultState(results),
     changed: results.some((result) => result.changed),
     effects: combineEffects(surfaces.map((surface) => surface.result.effects)),
     findings: results.flatMap((result) => result.findings),
@@ -31116,6 +31119,7 @@ async function observeProjectStatus(cwd, agents) {
   }
 }
 var init_status2 = __esm(() => {
+  init_agent_selection();
   init_result();
   init_legacy_global_guidance();
   init_health();
@@ -33148,15 +33152,6 @@ __export(exports_commands, {
   installLifecycle: () => installLifecycle
 });
 import { createHash as createHash11 } from "crypto";
-function lifecycleState2(results) {
-  if (results.some((result) => result.state === "failed"))
-    return "failed";
-  if (results.some((result) => result.state === "action_required"))
-    return "action_required";
-  if (results.some((result) => result.state === "changed"))
-    return "changed";
-  return "healthy";
-}
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -33175,34 +33170,37 @@ function uniqueNextActions(actions) {
     return true;
   });
 }
+function normalizedInstallNextActions(surface, surfaceByName) {
+  return surface.result.nextActions.flatMap((action) => {
+    if (!("command" in action))
+      return [action];
+    const unifiedInstall = /^safeword install --agents=(claude|codex)$/u.exec(action.command);
+    if (unifiedInstall !== null && surface.name === "project") {
+      const target = surfaceByName.get(unifiedInstall[1] ?? "");
+      if (target !== undefined && target.result.state !== "failed")
+        return [];
+      return [action];
+    }
+    const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
+    if (profileInstall === null)
+      return [action];
+    if (surface.result.state !== "failed" || surface.name !== profileInstall[1])
+      return [];
+    return [{ ...action, command: `safeword install --agents=${surface.name}` }];
+  });
+}
 function combineInstallResults(agents, surfaces) {
   const results = surfaces.map((surface) => surface.result);
   const effects = combineEffects(results.map((result) => result.effects));
   const surfaceByName = new Map(surfaces.map((surface) => [surface.name, surface]));
   return createResult({
-    state: lifecycleState2(results),
+    state: combinedResultState(results),
     changed: results.some((result) => result.changed),
     effects,
     findings: results.flatMap((result) => result.findings),
     errors: results.flatMap((result) => result.errors),
     recovery: results.flatMap((result) => result.recovery),
-    nextActions: uniqueNextActions(surfaces.flatMap((surface) => surface.result.nextActions.flatMap((action) => {
-      if (!("command" in action))
-        return [action];
-      const unifiedInstall = /^safeword install --agents=(claude|codex)$/u.exec(action.command);
-      if (unifiedInstall !== null && surface.name === "project") {
-        const target = surfaceByName.get(unifiedInstall[1] ?? "");
-        if (target !== undefined && target.result.state !== "failed")
-          return [];
-        return [action];
-      }
-      const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
-      if (profileInstall === null)
-        return [action];
-      if (surface.result.state !== "failed" || surface.name !== profileInstall[1])
-        return [];
-      return [{ ...action, command: `safeword install --agents=${surface.name}` }];
-    }))),
+    nextActions: uniqueNextActions(surfaces.flatMap((surface) => normalizedInstallNextActions(surface, surfaceByName))),
     data: {
       command: "install",
       operation: "install",
@@ -33439,7 +33437,7 @@ async function applyPreparedLifecycle(cwd, prepared) {
   }
   const results = completed.map((surface) => surface.result);
   return createResult({
-    state: lifecycleState2(results),
+    state: combinedResultState(results),
     changed: results.some((result) => result.changed),
     effects: combineEffects(results.map((result) => result.effects)),
     findings: results.flatMap((result) => result.findings),
@@ -52345,6 +52343,9 @@ function useColor() {
 // ../../node_modules/.bun/commander@15.0.0/node_modules/commander/index.js
 var program = new Command;
 
+// src/cli-protocol/catalog.ts
+init_agent_selection();
+
 // src/cli-protocol/public-handlers.ts
 init_migration_error();
 init_agent_selection();
@@ -53980,14 +53981,17 @@ function hidden(name) {
     public: false
   };
 }
+function agentSelectionOption() {
+  return { flags: "--agents <agents>", description: AGENT_SELECTION_DESCRIPTION };
+}
 var CANONICAL_COMMANDS = [
   command("status", "Report project health and the next action", "observe", {
-    commandOptions: [{ flags: "--agents <agents>", description: "claude, codex, cursor, or none" }]
+    commandOptions: [agentSelectionOption()]
   }),
   command("install", "Install Safeword for this project and selected agents", "mutate", {
     networkPolicy: "declared",
     commandOptions: [
-      { flags: "--agents <agents>", description: "claude, codex, cursor, or none" },
+      agentSelectionOption(),
       {
         flags: "--scope <scope>",
         description: "Claude activation boundary: this project or the current user profile",
@@ -54008,16 +54012,16 @@ var CANONICAL_COMMANDS = [
   }),
   command("plan", "Preview reconciliation effects", "plan", {
     syntax: "plan [operation]",
-    commandOptions: [{ flags: "--agents <agents>", description: "claude, codex, cursor, or none" }]
+    commandOptions: [agentSelectionOption()]
   }),
   command("doctor", "Diagnose project configuration", "observe", {
-    commandOptions: [{ flags: "--agents <agents>", description: "claude, codex, cursor, or none" }]
+    commandOptions: [agentSelectionOption()]
   }),
   command("uninstall", "Deactivate selected Safe Word project and agent state; preserve authored content; reinstall to recover", "destructive", {
     promptPolicy: "confirm",
     networkPolicy: "declared",
     commandOptions: [
-      { flags: "--agents <agents>", description: "claude, codex, cursor, or none" },
+      agentSelectionOption(),
       { flags: "-y, --yes", description: "Confirm the supplied plan identity" },
       {
         flags: "--plan <id>",
@@ -54259,6 +54263,17 @@ function canonicalOptions(name) {
   const definition = canonicalDefinition(name);
   return definition.registration.options;
 }
+function projectOnlyUninstallAlias(name) {
+  return {
+    ...alias(name, "uninstall"),
+    handler: publicHandler("remove"),
+    compatibility: { ...RETAINED_ALIAS, replacement: "uninstall --agents=none" },
+    registration: {
+      syntax: name,
+      options: canonicalOptions("uninstall").filter((option) => !option.flags.includes("--agents"))
+    }
+  };
+}
 var ALIASES = [
   alias("check", "status"),
   scopedInstallAlias("claude install", "claude"),
@@ -54283,24 +54298,8 @@ var ALIASES = [
     ...alias("diff", "plan"),
     registration: { syntax: "diff [operation]", options: canonicalOptions("plan") }
   },
-  {
-    ...alias("remove", "uninstall"),
-    handler: publicHandler("remove"),
-    compatibility: { ...RETAINED_ALIAS, replacement: "uninstall --agents=none" },
-    registration: {
-      syntax: "remove",
-      options: canonicalOptions("uninstall").filter((option) => !option.flags.includes("--agents"))
-    }
-  },
-  {
-    ...alias("reset", "uninstall"),
-    handler: publicHandler("remove"),
-    compatibility: { ...RETAINED_ALIAS, replacement: "uninstall --agents=none" },
-    registration: {
-      syntax: "reset",
-      options: canonicalOptions("uninstall").filter((option) => !option.flags.includes("--agents"))
-    }
-  },
+  projectOnlyUninstallAlias("remove"),
+  projectOnlyUninstallAlias("reset"),
   alias("sync-config", "project sync-config"),
   alias("architecture", "project architecture"),
   alias("sync-learnings", "project sync-learnings"),
