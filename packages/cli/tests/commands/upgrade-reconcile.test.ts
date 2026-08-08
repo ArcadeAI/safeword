@@ -503,7 +503,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(readFileSync(legacySkillPath, 'utf8')).toBe(legacySkill);
     });
 
-    it('tells users that Codex profiles enroll automatically after upgrade', async () => {
+    it('enrolls Codex automatically and teaches only the canonical route', async () => {
       createConfiguredProject('0.5.0');
 
       const result = await runCli(['upgrade', '--no-migrate-namespace'], {
@@ -515,6 +515,8 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(`${result.stdout}\n${result.stderr}`).toContain(
         'each developer profile is checked automatically at task start',
       );
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('codex install');
+      expect(result.stdout).toContain('`upgrade` is deprecated; use `install`.');
     });
 
     it('should preserve customer .prettierignore entries and append idempotently', async () => {
@@ -607,7 +609,7 @@ statusMessage = "Checking safeword PreToolUse gates"
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Complete');
-      expect(result.stdout).toContain('`upgrade` is deprecated; use `setup`.');
+      expect(result.stdout).toContain('`upgrade` is deprecated; use `install`.');
     });
 
     it('should refuse downgrade when project is newer', async () => {

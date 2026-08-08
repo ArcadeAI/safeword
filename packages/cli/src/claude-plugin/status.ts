@@ -136,9 +136,9 @@ function legacyObservation(cwd: string): LegacyObservation {
 const ACTIONS: Readonly<Record<ClaudeStatusClassification, string | undefined>> = {
   'recovery-required': 'safeword claude recover',
   'unsupported-host': undefined,
-  missing: 'safeword claude install',
-  disabled: 'safeword claude install',
-  'wrong-version': 'safeword claude install',
+  missing: 'safeword install --agents=claude',
+  disabled: 'safeword install --agents=claude',
+  'wrong-version': 'safeword install --agents=claude',
   errored: 'repair the reported Claude plugin error',
   unproven: '/reload-plugins',
   'scope-overlap': undefined,

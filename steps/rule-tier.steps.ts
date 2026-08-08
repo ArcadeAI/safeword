@@ -78,7 +78,7 @@ function featureWithScenarios(
 const R1_RULE_LINE = 'Rule: demo.TB2.R1 — failed deliveries retry on backoff';
 
 function runSafewordSetup(project: string): void {
-  const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes'], {
+  const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes', '--agents', 'none'], {
     cwd: project,
     env: {
       ...process.env,

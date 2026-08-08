@@ -41,7 +41,7 @@ No global Safeword install is required. Commit the Safe Word project configurati
 
 ### Will it interfere with my development workflow?
 
-No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run when you code normally. In repos that already use husky, setup appends one warn-only line to `pre-commit`/`pre-push` — the boundary evidence check. It reports, never blocks a commit, and `safeword remove` removes it; safeword never installs a hook manager. Safeword also adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run when you code normally. In repos that already use husky, install appends one warn-only line to `pre-commit`/`pre-push` — the boundary evidence check. It reports, never blocks a commit, and `safeword remove` removes it; safeword never installs a hook manager. Safeword also adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
 
 ### Some lint rules are wrong for my project type
 
@@ -92,7 +92,7 @@ Yes. Run `bunx safeword remove --full` to preview the removal, then run the exac
 
 ### What if I only want some of the features?
 
-Claude Code uses the project-scoped Safe Word plugin by default with `safeword claude install`; choose `--scope user` to activate it across projects. Cursor hooks remain in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Existing custom or third-party Claude settings remain yours, and Safeword removes recognized legacy entries only through an explicitly approved `safeword claude cleanup` plan. See [Configuration](/reference/configuration) for details.
+Claude Code uses the project-scoped Safe Word plugin by default with `safeword install --agents=claude`; choose `--scope user` to activate it across projects. Cursor hooks remain in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Existing custom or third-party Claude settings remain yours, and Safeword removes recognized legacy entries only through an explicitly approved `safeword claude cleanup` plan. See [Configuration](/reference/configuration) for details.
 
 <footer class="docs-footer">
 

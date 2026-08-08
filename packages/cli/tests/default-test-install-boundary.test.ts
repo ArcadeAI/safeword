@@ -4,6 +4,8 @@ import nodePath from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { runCliWithoutInstall } from './helpers.js';
+
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
 // Explicit by design: every suite in this reviewed config-only migration must
 // stay protected even if its no-install helper import is removed entirely.
@@ -130,6 +132,21 @@ describe('default test install boundary', () => {
     );
 
     expect(existsSync(proofPath)).toBe(true);
+  });
+
+  it.each([
+    ['separate tokens', ['install', '--agents', 'cursor']],
+    ['equals syntax', ['install', '--agents=cursor']],
+  ])('preserves an explicit agent selection written with %s', async (_name, arguments_) => {
+    let observedArguments: string[] | undefined;
+    const runner = (args: string[]) => {
+      observedArguments = args;
+      return Promise.resolve({ stdout: '', stderr: '', exitCode: 0, timedOut: false });
+    };
+
+    await runCliWithoutInstall(arguments_, {}, runner);
+
+    expect(observedArguments).toEqual(arguments_);
   });
 
   it('runs the focused physical-install proof in CI', () => {

@@ -521,9 +521,17 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
     const [command, args] =
       pluginCli === undefined
         ? existsSync(localCli)
-          ? ['bun', [localCli, 'architecture', '--stage']]
-          : ['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli, 'architecture', '--stage']]
-        : ['bun', [pluginCli, 'architecture', '--stage']];
+          ? ['bun', [localCli, 'architecture', '--from-index', '--stage-output']]
+          : [
+              'bun',
+              [
+                process.env.SAFEWORD_PLUGIN_CLI ?? localCli,
+                'architecture',
+                '--from-index',
+                '--stage-output',
+              ],
+            ]
+        : ['bun', [pluginCli, 'architecture', '--from-index', '--stage-output']];
 
     spawnSync(command as string, args as string[], {
       cwd: projectDir,
@@ -644,7 +652,7 @@ function unmodeledCommitNeedsAdvice(command: string, baseDirectory: string): boo
 
 function writeUnmodeledCommitAdvisory(): void {
   const message =
-    'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword project architecture --stage.';
+    'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword project architecture --from-index --stage-output.';
   process.stdout.write(
     `${JSON.stringify({
       systemMessage: message,

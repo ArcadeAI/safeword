@@ -461,7 +461,9 @@ describe('pre-tool architecture staging hook', () => {
       systemMessage?: string;
     };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
-    expect(output.systemMessage).toContain('run safeword project architecture --stage');
+    expect(output.systemMessage).toContain(
+      'run safeword project architecture --from-index --stage-output',
+    );
     expect(output.hookSpecificOutput).toEqual({
       additionalContext: output.systemMessage,
       hookEventName: 'PreToolUse',

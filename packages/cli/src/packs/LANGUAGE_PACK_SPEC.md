@@ -286,7 +286,7 @@ export function detectLanguages(cwd: string): Languages {
 }
 ```
 
-### 6. Setup Convergence (`src/commands/converge-setup.ts`)
+### 6. Setup Convergence (`src/lifecycle/project-install.ts`)
 
 Integrate language setup into the main flow:
 

@@ -90,6 +90,66 @@ afterEach(() => {
 });
 
 describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () => {
+  it('uses independent canonical flags for index input and staged output', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record initial architecture');
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
+
+    const fromIndex = await runCli(['architecture', '--from-index'], {
+      cwd: context.directory,
+    });
+
+    expect(fromIndex.exitCode).toBe(0);
+    expect(readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8')).toContain(
+      'billing',
+    );
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+
+    const stageOutput = await runCli(['architecture', '--from-index', '--stage-output'], {
+      cwd: context.directory,
+    });
+
+    expect(stageOutput.exitCode).toBe(0);
+    expect(stagedFiles(context.directory)).toContain(DOC_RELATIVE);
+  });
+
+  it('refuses staged output without reproducible index input', async () => {
+    const result = await runCli(['architecture', '--stage-output', '--json'], {
+      cwd: context.directory,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'ARCHITECTURE_INPUT_REQUIRED' }],
+    });
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+  });
+
+  it.each([
+    ['--staged', '--from-index'],
+    ['--stage', '--from-index --stage-output'],
+  ])('retains %s with explicit compatibility guidance', async (legacy, replacement) => {
+    const result = await runCli(['architecture', legacy, '--json'], {
+      cwd: context.directory,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      findings: expect.arrayContaining([
+        expect.objectContaining({
+          code: 'CLI_OPTION_DEPRECATED',
+          metadata: { legacy, replacement, retention: 'indefinite' },
+        }),
+      ]),
+    });
+  });
+
   it('creates and stages a doc carrying the current fingerprint when none exists', async () => {
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 

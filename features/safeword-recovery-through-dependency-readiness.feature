@@ -72,9 +72,9 @@ Feature: Safeword recovery through dependency readiness
   Rule: keep-safeword-recovery-runnable.TBU1.R3 — Parity recovery guidance names a command that the current CLI supports
 
     @rejection @surface.safeword-cli
-    Scenario: Dogfood parity drift names the supported setup command
+    Scenario: Dogfood parity drift names the canonical install command
       Given the release parity check found drift in "hooks/lib/dependency-readiness.ts"
       When it reports that drift to the maintainer
       Then the report names the drifted file
-      And its recovery guidance names "bunx safeword setup"
-      And its recovery guidance does not name "bunx safeword install"
+      And its recovery guidance names "bunx safeword install"
+      And its recovery guidance does not name "bunx safeword setup"

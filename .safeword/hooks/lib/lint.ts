@@ -233,7 +233,7 @@ function warnMissingSafewordConfig(
   toolWarnings.add(warningKey);
   warnings.push(
     `${packName} Safeword config is missing — linting with ${tool} defaults, not Safeword rules. ` +
-      'Run `safeword setup` to install it.',
+      'Run `safeword install` to install it.',
   );
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   commandCatalog,
+  compatibilityRoutes,
   createCapabilitiesResult,
   publicCommands,
 } from '../../src/cli-protocol/catalog.js';
@@ -34,10 +35,10 @@ describe('CLI command catalog', () => {
       .map(definition => definition.name);
     expect(canonicalNames).toEqual([
       'status',
-      'setup',
+      'install',
       'plan',
       'doctor',
-      'remove',
+      'uninstall',
       'project sync-config',
       'project architecture',
       'project sync-learnings',
@@ -48,10 +49,8 @@ describe('CLI command catalog', () => {
       'tracker sync',
       'tracker connect',
       'codex migrate',
-      'codex install',
       'codex bootstrap',
       'codex status',
-      'claude install',
       'claude status',
       'claude cleanup',
       'claude recover',
@@ -83,8 +82,12 @@ describe('CLI command catalog', () => {
     const aliases = commandCatalog.filter(command => command.aliasFor !== undefined);
     expect(aliases.map(alias => alias.name)).toEqual([
       'check',
+      'claude install',
+      'codex install',
+      'setup',
       'upgrade',
       'diff',
+      'remove',
       'reset',
       'sync-config',
       'architecture',
@@ -101,12 +104,13 @@ describe('CLI command catalog', () => {
       'migrate codex-plugin',
     ]);
     for (const alias of aliases) {
-      expect(alias.compatibility).toEqual({
-        introducedIn: '0.70',
-        retainedThrough: '0.71',
-        removalEligibleAfter: '0.71',
-      });
+      expect(alias.compatibility).toEqual(
+        expect.objectContaining({ introducedIn: expect.any(String), retention: 'indefinite' }),
+      );
+      expect(alias.compatibility).not.toHaveProperty('retainedThrough');
+      expect(alias.compatibility).not.toHaveProperty('removalEligibleAfter');
     }
+    expect(aliases.find(alias => alias.name === 'setup')?.compatibility?.introducedIn).toBe('0.72');
 
     const hidden = commandCatalog.filter(command => !command.public);
     expect(hidden.map(command => command.name)).toEqual([
@@ -122,7 +126,14 @@ describe('CLI command catalog', () => {
       string,
       unknown
     >;
-    const data = envelope.data as { commands: Record<string, unknown>[] };
+    const data = envelope.data as {
+      commands: Record<string, unknown>[];
+      machine_output: { canonical_option: string; schema_version: number };
+    };
+
+    expect(data.machine_output).toEqual(
+      expect.objectContaining({ canonical_option: '--json', schema_version: 1 }),
+    );
 
     expect(data.commands).toHaveLength(publicCommands.length);
     expect(data.commands.some(command => command.name === 'boundary')).toBe(false);
@@ -142,14 +153,53 @@ describe('CLI command catalog', () => {
     for (const definition of publicCommands) {
       const published = data.commands.find(command => command.name === definition.name);
       expect(published?.options).toEqual(
-        definition.registration.options.map(({ flags, description, defaultValue, valueKind }) => ({
-          flags,
-          description,
-          ...(defaultValue !== undefined && { default_value: defaultValue }),
-          ...(valueKind !== undefined && { value_kind: valueKind }),
-        })),
+        definition.registration.options.map(
+          ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
+            flags,
+            description,
+            ...(defaultValue !== undefined && { default_value: defaultValue }),
+            ...(valueKind !== undefined && { value_kind: valueKind }),
+            ...(compatibilityReplacement !== undefined && {
+              compatibility: {
+                replacement: compatibilityReplacement,
+                retention: 'indefinite',
+              },
+            }),
+          }),
+        ),
       );
     }
+
+    expect(compatibilityRoutes).toEqual(
+      expect.arrayContaining([
+        { route: 'bare safeword', replacement: 'status', retention: 'indefinite' },
+        {
+          route: 'claude install',
+          replacement: 'install --agents=claude',
+          retention: 'indefinite',
+        },
+        {
+          route: 'codex install',
+          replacement: 'install --agents=codex',
+          retention: 'indefinite',
+        },
+        {
+          route: 'project architecture --stage',
+          replacement: 'project architecture --from-index --stage-output',
+          retention: 'indefinite',
+        },
+      ]),
+    );
+
+    const setup = data.commands.find(command => command.name === 'setup');
+    expect(setup?.compatibility).toEqual(
+      expect.objectContaining({
+        introduced_in: '0.72',
+        retention: 'indefinite',
+        redundant_options: [{ flag: '--yes', replacement: 'install' }],
+      }),
+    );
+    expect(setup?.compatibility).not.toHaveProperty('removal_eligible_after');
 
     const remove = data.commands.find(command => command.name === 'remove');
     expect(remove?.options).toEqual(
@@ -161,6 +211,10 @@ describe('CLI command catalog', () => {
         },
       ]),
     );
+    const projectOnlyOptions = remove?.options as { flags: string }[];
+    const projectOnlyFlags = projectOnlyOptions.map(option => option.flags);
+    expect(projectOnlyFlags).not.toContain('--agents <agents>');
+    expect(projectOnlyFlags).not.toContain('--scope <scope>');
     const trackerSync = data.commands.find(command => command.name === 'tracker sync');
     expect(trackerSync?.options).toEqual(
       expect.arrayContaining([
@@ -170,5 +224,18 @@ describe('CLI command catalog', () => {
         },
       ]),
     );
+  });
+
+  it('describes destructive operations as deactivation with preservation and recovery', () => {
+    const destructiveDescriptions = Object.fromEntries(
+      publicCommands
+        .filter(definition => definition.effectClass === 'destructive')
+        .map(definition => [definition.name, definition.description]),
+    );
+    expect(destructiveDescriptions.uninstall).toMatch(/Deactivate.*preserve.*recover/iu);
+    expect(destructiveDescriptions['codex clean-guidance']).toMatch(
+      /Deactivate.*preserve.*recovery backup/iu,
+    );
+    expect(destructiveDescriptions['claude cleanup']).toMatch(/Deactivate.*recoverable backup/iu);
   });
 });

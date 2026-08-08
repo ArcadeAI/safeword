@@ -698,7 +698,7 @@ When(
   'the maintainer runs the real safeword setup CLI entry point',
   function (this: SpikeWorkflowWorld) {
     assert.ok(this.projectDirectory);
-    const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes'], {
+    const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes', '--agents', 'cursor'], {
       cwd: this.projectDirectory,
       encoding: 'utf8',
       env: {

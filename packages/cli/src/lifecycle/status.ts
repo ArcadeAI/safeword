@@ -1,5 +1,11 @@
 import {
+  type AgentIntegration,
+  DEFAULT_AGENT_INTEGRATIONS,
+} from '../cli-protocol/agent-selection.js';
+import {
   type CliResult,
+  combinedResultState,
+  combineEffects,
   createResult,
   type Finding,
   type NextAction,
@@ -11,6 +17,8 @@ import {
 import { checkHealth } from '../health.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
+import { observeCursorProject, unselectedCursorFinding } from './cursor.js';
+import { projectLifecycleSchema } from './schema.js';
 
 function healthFindings(
   values: readonly string[],
@@ -54,15 +62,15 @@ function projectVersionFinding(
         message: `Project config v${projectVersion} can be upgraded to v${cliVersion}.`,
         severity: 'info',
       },
-      nextAction: { command: 'safeword setup', mutates: true, requiresHuman: false },
+      nextAction: { command: 'safeword install', mutates: true, requiresHuman: false },
     };
   }
   if (comparison <= 0) return {};
   const packageManager = detectPackageManager(cwd);
   const runUpgrade =
     packageManager === 'bun' || packageManager === 'yarn'
-      ? `${packageManager} run safeword setup`
-      : `${packageManager} exec safeword setup`;
+      ? `${packageManager} run safeword install`
+      : `${packageManager} exec safeword install`;
   return {
     finding: {
       code: 'CLI_OLDER_THAN_PROJECT',
@@ -79,10 +87,99 @@ function projectVersionFinding(
 
 export async function observeStatus(
   cwd: string,
+  agents: readonly AgentIntegration[] = DEFAULT_AGENT_INTEGRATIONS,
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<CliResult> {
-  const result = await observeProjectStatus(cwd);
+  const result = await observeProjectStatus(cwd, agents);
   return withGlobalGuidance(result, environment);
+}
+
+export interface LifecycleSurfaceObservation {
+  readonly name: 'project' | AgentIntegration;
+  readonly result: CliResult;
+}
+
+export async function observeLifecycleSurfaces(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<readonly LifecycleSurfaceObservation[]> {
+  const project = await observeStatus(cwd, agents, environment);
+  const surfaces: LifecycleSurfaceObservation[] = [{ name: 'project', result: project }];
+
+  if (agents.includes('claude')) {
+    const { observeClaudeStatus } = await import('../claude-plugin/status.js');
+    surfaces.push({ name: 'claude', result: observeClaudeStatus(cwd) });
+  }
+  if (agents.includes('codex')) {
+    const { observeCodexMigration } = await import('../codex-plugin/operations.js');
+    surfaces.push({ name: 'codex', result: observeCodexMigration(cwd, environment) });
+  }
+  if (agents.includes('cursor')) {
+    surfaces.push({
+      name: 'cursor',
+      result: observeCursorProject(cwd, projectLifecycleSchema(cwd, agents)),
+    });
+  }
+  return surfaces;
+}
+
+export interface LifecycleSurfaceSummary {
+  readonly name: string;
+  readonly selected: true;
+  readonly state: CliResult['state'];
+}
+
+/** Per-surface outcomes shared by the status summary and doctor diagnostics. */
+export function lifecycleSurfaceSummaries(
+  surfaces: readonly LifecycleSurfaceObservation[],
+): readonly LifecycleSurfaceSummary[] {
+  return surfaces.map(surface => ({
+    name: surface.name,
+    selected: true,
+    state: surface.result.state,
+  }));
+}
+
+/** The project surface's own observation keys, which callers read top-level. */
+export function projectObservationData(
+  surfaces: readonly LifecycleSurfaceObservation[],
+): Record<string, unknown> {
+  const project = surfaces.find(surface => surface.name === 'project')?.result.data;
+  return typeof project === 'object' && project !== null && !Array.isArray(project)
+    ? (project as Record<string, unknown>)
+    : {};
+}
+
+export function summarizeLifecycleStatus(
+  agents: readonly AgentIntegration[],
+  surfaces: readonly LifecycleSurfaceObservation[],
+): CliResult {
+  const results = surfaces.map(surface => surface.result);
+  return createResult({
+    state: combinedResultState(results),
+    changed: results.some(result => result.changed),
+    effects: combineEffects(surfaces.map(surface => surface.result.effects)),
+    findings: results.flatMap(result => result.findings),
+    errors: results.flatMap(result => result.errors),
+    recovery: results.flatMap(result => result.recovery),
+    nextActions: results.flatMap(result => result.nextActions).slice(0, 1),
+    data: {
+      ...projectObservationData(surfaces),
+      command: 'status',
+      operation: 'status',
+      selected_agents: agents,
+      surfaces: lifecycleSurfaceSummaries(surfaces),
+    },
+  });
+}
+
+export async function observeLifecycleStatus(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<CliResult> {
+  return summarizeLifecycleStatus(agents, await observeLifecycleSurfaces(cwd, agents, environment));
 }
 
 function withGlobalGuidance(result: CliResult, environment: NodeJS.ProcessEnv): CliResult {
@@ -107,9 +204,13 @@ function withGlobalGuidance(result: CliResult, environment: NodeJS.ProcessEnv): 
   };
 }
 
-async function observeProjectStatus(cwd: string): Promise<CliResult> {
+async function observeProjectStatus(
+  cwd: string,
+  agents: readonly AgentIntegration[],
+): Promise<CliResult> {
   try {
-    const health = await checkHealth(cwd);
+    const schema = projectLifecycleSchema(cwd, agents);
+    const health = await checkHealth(cwd, { schema });
     if (!health.configured) {
       return createResult({
         state: 'action_required',
@@ -120,7 +221,7 @@ async function observeProjectStatus(cwd: string): Promise<CliResult> {
             severity: 'warning',
           },
         ],
-        nextActions: [{ command: 'safeword setup', mutates: true, requiresHuman: false }],
+        nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: false }],
         data: { configured: false, cli_version: health.cliVersion },
       });
     }
@@ -153,6 +254,7 @@ async function observeProjectStatus(cwd: string): Promise<CliResult> {
         ? []
         : [versionGuidance.finding]),
       ...healthFindings(health.advisories, 'PROJECT_ADVISORY', 'info'),
+      ...unselectedCursorFinding(cwd, agents),
     ];
     const nextActions = statusNextActions(blockingFindings, versionGuidance.nextAction);
 
