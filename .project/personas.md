@@ -11,7 +11,7 @@ packages/cli/templates/personas-template.md.
 
 **Role:** A developer who runs an AI coding agent (Claude Code, Cursor, or Codex) on a real project and installs safeword to keep that agent test-first, design-validated, and consistent.
 
-**Context:** Stack-agnostic and harness-agnostic — safeword is a process layer, not a framework opinion, so this persona ships Next, Django, Gin, anything across Claude Code, Cursor, or Codex. Doesn't want to learn safeword's internals; expects it to feel like an experienced teammate that "just does things well." Guardrails fire only during agent sessions, never blocking their own hand-written commits. Drives the agent across many sessions and leans on tickets, gates, and BDD/TDD to stay oriented and to get unblocked when a gate fires. Can read the diff and unblock themselves with technical reasoning when a gate fires.
+**Context:** Stack-agnostic and harness-agnostic — safeword is a process layer, not a framework opinion, so this persona ships Next, Django, Gin, anything across Claude Code, Cursor, or Codex. Doesn't want to learn safeword's internals; expects it to feel like an experienced teammate that "just does things well." Guardrails fire only during agent sessions, never blocking their own hand-written commits. Drives the agent across many sessions, leaning on tickets, gates, and BDD/TDD to stay oriented; when a gate fires, can read the diff and unblock themselves with technical reasoning.
 
 ## Non-Technical Builder (NTB)
 

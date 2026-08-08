@@ -39,7 +39,7 @@ const CURSOR_ACTION_SKILLS = [
 
 // Shared verbatim by a skill's command wrapper and its rule wrapper.
 const DEBUG_DESCRIPTION =
-  "Four-phase debugging framework that ensures root cause identification before fixes. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').";
+  "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').";
 
 const REFACTOR_DESCRIPTION =
   "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change → test → commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.";
@@ -59,13 +59,13 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
   {
     name: 'quality-review',
     description:
-      "Deep code review with web research. USE WHEN user says 'double check against latest', 'verify versions', 'check security'. Complements automatic quality hook with ecosystem verification.",
+      "Deep code review with web research. Use when the user says 'double check against latest', 'verify versions', or 'check security'. Adds live research on top of the automatic quality hook — confirms you're using current library versions and APIs, not stale ones.",
     skillPath: 'quality-review/SKILL.md',
   },
   {
     name: 'finish-review',
     description:
-      'Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.',
+      "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
     skillPath: 'finish-review/SKILL.md',
   },
   {
@@ -76,7 +76,7 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
   {
     name: 'closeout',
     description:
-      'Close a completed local delivery safely after verification. Use when wrapping up a finished coding session, merging with explicit authority, running retro, and cleaning the exact merged branch and worktree.',
+      "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session: merging only when you've been explicitly told to merge, running the retro, and cleaning up the exact merged branch and worktree.",
     skillPath: 'closeout/SKILL.md',
   },
   {
@@ -87,13 +87,13 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
   {
     name: 'retro',
     description:
-      'Run a safeword retrospective on the current session on demand — mine the transcript for friction (bugs / rough edges / gaps) and file it behind the egress guard. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
+      'Run a safeword retrospective on the current session on demand — mine the transcript for friction (bugs / rough edges / gaps) and submit it through the outbound safety check before filing upstream. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
     skillPath: 'retro/SKILL.md',
   },
   {
     name: 'spike',
     description:
-      'Run a bounded disposable experiment to resolve one build-only technical uncertainty before production planning. Manual invocation only.',
+      'Run a quick, throwaway experiment to answer one open technical question before committing to the real build. Only runs when you ask for it directly.',
     skillPath: 'spike/SKILL.md',
   },
   {
@@ -144,7 +144,7 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'safeword-finish-review',
     alwaysApply: false,
     description:
-      'Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.',
+      "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
     referencePath: '.safeword/skills/finish-review/SKILL.md',
     skill: 'finish-review',
   },
@@ -192,7 +192,7 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'safeword-retro-filer',
     alwaysApply: false,
     description:
-      "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+      "Files safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted safeword Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
     referencePath: '.safeword/skills/retro-filer/SKILL.md',
     skill: 'retro-filer',
   },

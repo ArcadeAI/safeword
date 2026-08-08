@@ -11,7 +11,13 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Gate
 
-**Definition:** A checkpoint that blocks workflow progress until its condition is met. Safeword has several, each with a distinct trigger: the **phase gate** (can't create `test-definitions.md` without `scope`/`out_of_scope`/`done_when`; can't start TDD without `test-definitions.md`), the **phase-provenance gate** (a feature ticket must be born at `phase: intake` and advance one canonical step at a time; skipping a phase requires a per-phase `phase_skips` justification in frontmatter), the **LOC gate** (commit roughly every 400 lines of project code), the **done gate** (can't close a ticket without `verify.md`), and the **AC gate** (acceptance-criteria checks routed from `spec.md`).
+**Definition:** A checkpoint that blocks workflow progress until its condition is met. Safeword has several, each with a distinct trigger:
+
+- **phase gate** — can't create `test-definitions.md` without `scope`/`out_of_scope`/`done_when`; can't start TDD without `test-definitions.md`
+- **phase-provenance gate** — a feature ticket must be born at `phase: intake` and advance one canonical step at a time; skipping a phase requires a per-phase `phase_skips` justification in frontmatter
+- **LOC gate** — commit roughly every 400 lines of project code
+- **done gate** — can't close a ticket without `verify.md`
+- **AC gate** — acceptance-criteria checks routed from `spec.md`
 
 **Do not confuse with:** "the gate" unqualified — each fires on a different condition, so always name which one.
 
@@ -135,7 +141,17 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Phase Anchor
 
-**Definition:** The repo-relative path of a phase's exit artifact, recorded in ticket frontmatter (`phase_anchors`, one `- <phase-entered>: <path>` entry per forward advance; latest entry wins on a re-advance) — evidence tying the transition to the work it shipped. Verified against the tree at the deliverable boundary (existence + shape, never git history), so anchors survive amend, rebase, squash-merge, and shallow clones. Canonical map: define-behavior ← spec.md · scenario-gate ← feature source · implement ← impl-plan.md · verify ← test-definitions.md · done ← verify.md. Redesigned by HGYGND from #809's commit-SHA grammar (hex anchors on old tickets are grandfathered at rest).
+**Definition:** The repo-relative path of a phase's exit artifact, recorded in ticket frontmatter (`phase_anchors`, one `- <phase-entered>: <path>` entry per forward advance; latest entry wins on a re-advance) — evidence tying the transition to the work it shipped.
+
+Canonical map of phase to its anchor file:
+
+- define-behavior ← `spec.md`
+- scenario-gate ← feature source
+- implement ← `impl-plan.md`
+- verify ← `test-definitions.md`
+- done ← `verify.md`
+
+It's verified against the tree at the deliverable boundary (existence + shape, never git history), so anchors survive amend, rebase, squash-merge, and shallow clones. Redesigned by HGYGND from #809's commit-SHA grammar (hex anchors on old tickets are grandfathered at rest).
 
 **Do not confuse with:** a ticket's role as "execution anchor" — the ticket anchors working context across sessions; a phase anchor evidences one specific transition.
 
