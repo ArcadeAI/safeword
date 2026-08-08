@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "b5b336464436f40eece199872aa0ae224c40952ec0322186d7fe3ac36823493b"
+      "sha256": "ff5b582d80d501edc76a7d520be238097c9e6e23ba0c3088f27f853d99aac208"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -535,7 +535,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "6b22fbfa200dd19ab455e8b26a58950f65de46ddca8451285481ea3f249f785d"
+      "sha256": "6252b2fdb95df75c03b9932341057d2a7f1cf35e1e0803e492ab229d659f0b4c"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",

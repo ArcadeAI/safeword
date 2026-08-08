@@ -8,6 +8,9 @@ import { createTemporaryDirectory, runCli } from '../helpers.js';
 import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+const CURRENT_MARKETPLACE_REF = SAFEWORD_SCHEMA.version.includes('-')
+  ? `v${SAFEWORD_SCHEMA.version}`
+  : 'stable';
 
 function configureMinimalProject(directory: string): void {
   mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -55,7 +58,7 @@ function createUserScopedClaudeHost(
             source: {
               source: 'git',
               url: 'https://github.com/ArcadeAI/safeword.git',
-              ref: `v${SAFEWORD_SCHEMA.version}`,
+              ref: CURRENT_MARKETPLACE_REF,
             },
             autoUpdate,
           },
@@ -72,7 +75,7 @@ printf '%s\n' "$*" >> ${JSON.stringify(log)}
 case "$*" in
   '--version') echo '2.1.170' ;;
   'plugin marketplace list --json')
-    ${marketplaceCurrent ? `echo '[{"name":"safeword","source":{"url":"https://github.com/ArcadeAI/safeword.git","ref":"v${SAFEWORD_SCHEMA.version}"}}]'` : "echo '[]'"}
+    ${marketplaceCurrent ? `echo '[{"name":"safeword","source":{"url":"https://github.com/ArcadeAI/safeword.git","ref":"${CURRENT_MARKETPLACE_REF}"}}]'` : "echo '[]'"}
     ;;
   'plugin list --json')
     if [ -f ${JSON.stringify(removed)} ]; then
