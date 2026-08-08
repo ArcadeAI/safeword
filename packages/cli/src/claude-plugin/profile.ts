@@ -420,7 +420,7 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
     failure = new ClaudeProfileError('CLAUDE_PLUGIN_INSTALL_FAILED', message);
   }
   let classification = 'errored';
-  let nextAction = 'safeword claude install';
+  let nextAction = 'safeword install --agents=claude';
   let nextActionMutates = true;
   const diagnostic = DIAGNOSTIC_FAILURES[failure.code];
   if (diagnostic !== undefined) {
@@ -762,6 +762,49 @@ function verifyPlugin(
   );
 }
 
+/**
+ * The Claude installation that applies to this project: a project-scoped one
+ * when present, otherwise a user-scoped one. Used by lifecycle preconditions.
+ */
+export function observeClaudeProfile(
+  cwd: string,
+  scope?: ClaudePluginScope,
+): ClaudeProfileObservation {
+  const observation = observeApplicableClaudePlugins(cwd);
+  if (observation.status !== 'observed') {
+    return {
+      health: observation.status,
+      message: observation.message,
+      nextAction: observation.nextAction,
+    };
+  }
+  const installation =
+    scope === undefined
+      ? (observation.installations.find(candidate => candidate.scope === 'project') ??
+        observation.installations.find(candidate => candidate.scope === 'user'))
+      : observation.installations.find(candidate => candidate.scope === scope);
+  return installation ?? { health: 'missing' };
+}
+
+export function claudeInstallRequiresMutation(cwd: string, scope: ClaudePluginScope): boolean {
+  try {
+    if (observeClaudeProfile(cwd, scope).health !== 'current') return true;
+    const marketplace = observeMarketplace(cwd, scope, []);
+    if (!marketplaceIsCurrent(marketplace)) return true;
+    const settings = readScopedSettings(cwd, scope);
+    const declaration = marketplace.declaration;
+    if (!isJsonObject(settings) || declaration === undefined) return true;
+    const autoUpdatePreference = marketplaceAutoUpdatePreference(declaration, scope);
+    if (autoUpdatePreference === false) return false;
+    const failurePolicy = marketplaceFailurePolicy(settings, scope);
+    return autoUpdatePreference !== true || !failurePolicy.configured;
+  } catch {
+    // Planning must remain conservative when the host or settings cannot be
+    // observed: the real install may still need marketplace/profile effects.
+    return true;
+  }
+}
+
 export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'project'): CliResult {
   const effects: Effect[] = [];
   try {
@@ -773,7 +816,8 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
     const overlap = applicableSafewordPlugins(plugins, projectRoot).length > 1;
 
     return createResult({
-      state: effects.length === 0 ? 'healthy' : 'changed',
+      state: effects.length === 0 ? 'healthy' : 'action_required',
+      changed: effects.length > 0,
       effects: {
         configuration: effects,
         network: effects
@@ -784,7 +828,10 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
           )
           .map(effect => ({ ...effect, target: 'Claude plugin marketplace' })),
       },
-      nextActions: [{ command: '/reload-plugins', mutates: false, requiresHuman: true }],
+      nextActions:
+        effects.length === 0
+          ? []
+          : [{ command: '/reload-plugins', mutates: false, requiresHuman: true }],
       data: {
         command: 'claude install',
         plugin: CLAUDE_PLUGIN_ID,
@@ -795,5 +842,69 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
     });
   } catch (error) {
     return failedResult(error, scope);
+  }
+}
+
+export function uninstallClaudePlugin(
+  cwd: string,
+  scope: ClaudePluginScope = 'project',
+): CliResult {
+  const effects: Effect[] = [];
+  try {
+    // Project-scope matching compares a realpath'd projectPath, so resolve the
+    // same canonical root install used before looking the plugin up.
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    assertSupportedHost(projectRoot);
+    if (safewordPlugin(pluginEntries(projectRoot, effects), scope, projectRoot) === undefined) {
+      return createResult({
+        state: 'healthy',
+        data: { command: 'claude uninstall', plugin: CLAUDE_PLUGIN_ID, scope },
+      });
+    }
+    runClaude(
+      projectRoot,
+      ['plugin', 'uninstall', CLAUDE_PLUGIN_ID, '--scope', scope, '--keep-data'],
+      effects,
+    );
+    effects.push({ kind: 'remove', target: CLAUDE_PLUGIN_ID, operation: scope });
+    if (safewordPlugin(pluginEntries(projectRoot, effects), scope, projectRoot) !== undefined) {
+      throw new ClaudeProfileError(
+        'CLAUDE_PLUGIN_UNINSTALL_UNVERIFIED',
+        `Claude still reports ${CLAUDE_PLUGIN_ID} after uninstall.`,
+        effects,
+      );
+    }
+    return createResult({
+      state: 'changed',
+      effects: { destructive: effects },
+      recovery: [
+        {
+          command: `safeword install --agents=claude --scope ${scope}`,
+          description: 'Reinstall the Claude plugin if this removal must be reversed.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'claude uninstall', plugin: CLAUDE_PLUGIN_ID, scope, data_preserved: true },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const failure =
+      error instanceof ClaudeProfileError
+        ? error
+        : new ClaudeProfileError('CLAUDE_PLUGIN_UNINSTALL_FAILED', message, effects);
+    return createResult({
+      state: 'failed',
+      changed: failure.effects.length > 0,
+      effects: { destructive: failure.effects },
+      errors: [{ code: failure.code, message: failure.message, retryable: true }],
+      recovery: [
+        {
+          command: `safeword install --agents=claude --scope ${scope}`,
+          description: 'Repair or restore the Claude plugin.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'claude uninstall', plugin: CLAUDE_PLUGIN_ID, scope },
+    });
   }
 }

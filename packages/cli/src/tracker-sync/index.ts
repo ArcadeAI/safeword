@@ -180,7 +180,7 @@ export async function syncTracker(
   // AC1 — none (or anything unsupported) is a friendly no-op.
   const provider = supportedProvider(config.provider);
   if (provider === undefined) {
-    log('No tracker configured; run `safeword setup` to add one.');
+    log('No tracker configured; run `safeword install` to add one.');
     return { exitCode: 0 };
   }
 

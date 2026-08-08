@@ -193,6 +193,48 @@ describe('CLI result protocol', () => {
     );
   });
 
+  it('renders doctor coverage and causes in ordinary human output', () => {
+    const output = renderHumanResult(
+      createResult({
+        state: 'action_required',
+        findings: [
+          {
+            code: 'PROJECT_NOT_CONFIGURED',
+            message: 'Safeword is not configured in this project.',
+            severity: 'warning',
+          },
+        ],
+        data: {
+          command: 'doctor',
+          coverage: [
+            {
+              surface: 'project',
+              state: 'action_required',
+              evidence: { configured: false, cli_version: '0.72.0' },
+            },
+          ],
+          diagnostics: [
+            {
+              surface: 'project',
+              kind: 'finding',
+              code: 'PROJECT_NOT_CONFIGURED',
+              cause: 'Safeword is not configured in this project.',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(output).toContain('Diagnostic coverage:');
+    expect(output).toContain(
+      '- Project setup: needs attention (configured=false, cli version=0.72.0)',
+    );
+    expect(output).toContain(
+      '- Project setup [PROJECT_NOT_CONFIGURED]: Safeword is not configured in this project.',
+    );
+    expect(output.match(/Safeword is not configured in this project\./gu)).toHaveLength(1);
+  });
+
   it('renders the exact proposed plan without treating it as completed effects', () => {
     const output = renderHumanResult(
       createResult({

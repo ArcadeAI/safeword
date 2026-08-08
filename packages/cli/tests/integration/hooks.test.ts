@@ -54,7 +54,7 @@ beforeAll(async () => {
   shared.projectDirectory = createTemporaryDirectory();
   createTypeScriptPackageJson(shared.projectDirectory);
   initGitRepo(shared.projectDirectory);
-  await setupOrThrow(shared.projectDirectory, ['setup', '--yes'], {
+  await setupOrThrow(shared.projectDirectory, ['setup', '--yes', '--agents', 'cursor'], {
     env: INSTALL_DEPENDENCIES_ENV,
   });
 });
@@ -1555,7 +1555,7 @@ describe('Cursor auto-upgrade lock', () => {
       try {
         createTypeScriptPackageJson(projectDirectory);
         initGitRepo(projectDirectory);
-        await setupOrThrow(projectDirectory);
+        await setupOrThrow(projectDirectory, ['setup', '--agents', 'cursor']);
 
         const lockPath = acquireAutoUpgradeLock({ projectDir: projectDirectory });
         expect(lockPath).toBeDefined();

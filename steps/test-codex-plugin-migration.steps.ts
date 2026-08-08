@@ -1632,12 +1632,11 @@ When(
 );
 
 /**
- * Rejection scenarios in this rule run setup with profile enrollment
- * made unavailable, and each one asserts the decline it produces (#1973). The
- * decline is the point: it proves setup ran, reached the Codex handoff,
- * and preserved the project on the way out. Without that assertion these
- * scenarios pass whether or not anything executed, because untouched files
- * look identical to files nothing reached.
+ * Rejection scenarios run the unified Codex install with profile enrollment
+ * unavailable. They assert the nonblocking advisory it emits: that proves
+ * install reached the handoff while preserving the working legacy integration.
+ * Without that assertion these scenarios pass whether or not anything ran,
+ * because untouched files look identical to files nothing reached.
  *
  * Enrollment stays unavailable in those cases so they cannot clone a network
  * marketplace or mutate an ambient Codex profile. The successful case below
@@ -1645,23 +1644,27 @@ When(
  * CODEX_HOME.
  */
 When(
-  'the plugin migration setup runs without profile enrollment available',
+  'the plugin migration install runs without profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
-      cwd: repoRoot,
-      env: {
-        // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
-        PATH: '',
-        SAFEWORD_SKIP_INSTALL: '1',
+    this.codexPluginMigrationResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'install', '--agents=codex'],
+      {
+        cwd: repoRoot,
+        env: {
+          // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
+          PATH: '',
+          SAFEWORD_SKIP_INSTALL: '1',
+        },
+        timeout: 120_000,
       },
-      timeout: 120_000,
-    });
+    );
   },
 );
 
 When(
-  'the plugin migration setup runs with profile enrollment available',
+  'the plugin migration install runs with profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
@@ -1678,12 +1681,12 @@ When(
       SAFEWORD_SKIP_INSTALL: '1',
       CODEX_HOME: runtime.codexHome,
     };
-    const setupResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'setup'], {
-      cwd: repoRoot,
-      env: environment,
-      timeout: 120_000,
-    });
-    assert.equal(setupResult.exitCode, 0, `${setupResult.stdout}\n${setupResult.stderr}`);
+    const installResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'install', '--agents=codex'],
+      { cwd: repoRoot, env: environment, timeout: 120_000 },
+    );
+    assert.equal(installResult.exitCode, 2, `${installResult.stdout}\n${installResult.stderr}`);
 
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
       recordCodexHookProof(event, environment);
@@ -1859,7 +1862,7 @@ function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
   assert.ok(result, 'migration result was not captured');
   assert.equal(
     result.exitCode,
-    2,
+    1,
     `expected a declined migration: ${result.stdout}${result.stderr}`,
   );
   assert.match(
@@ -1880,15 +1883,15 @@ function assertMigrationRanAndReportedAttention(world: CodexPluginMigrationWorld
   assert.match(
     `${result.stdout}\n${result.stderr}`,
     /Codex|plugin|profile/iu,
-    'setup did not report the unavailable Codex profile',
+    'install did not report the unavailable Codex profile',
   );
 }
 
-// Setup keeps its zero exit here on purpose: converge-setup treats a deferred
-// Codex handoff as advisory so the legacy project integration stays active and
-// SessionStart retries enrollment for the next developer.
+// Install keeps its zero exit here on purpose: a deferred Codex handoff is an
+// advisory, so the legacy project integration stays active and SessionStart
+// retries enrollment for the next developer.
 Then(
-  'setup reports profile enrollment attention loudly without blocking',
+  'install reports profile enrollment attention loudly without blocking',
   function (this: CodexPluginMigrationWorld) {
     assertMigrationRanAndReportedAttention(this);
   },

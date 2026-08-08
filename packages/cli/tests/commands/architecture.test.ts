@@ -60,7 +60,7 @@ describe('architecture --check — CI staleness backstop (FPV0E4 Slice 2)', () =
 
     expect(result.exitCode).not.toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toContain(
-      'safeword project architecture --staged',
+      'safeword project architecture --from-index',
     );
   });
 

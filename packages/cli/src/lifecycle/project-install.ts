@@ -8,6 +8,7 @@ import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
 import {
   type CliResult,
+  combineEffects,
   createResult,
   type Effect,
   type Effects,
@@ -17,6 +18,12 @@ import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
 import { automaticallyMigrateLegacyCodex } from '../codex-plugin/operations.js';
 import { installCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
+import {
+  buildArchitecture,
+  hasArchitectureDetected,
+  inspectConfig,
+  syncConfigCore,
+} from '../commands/sync-config.js';
 import { checkHealth, type HealthStatus } from '../health.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
@@ -29,6 +36,7 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
+import type { SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
@@ -49,12 +57,6 @@ import {
 } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
-import {
-  buildArchitecture,
-  hasArchitectureDetected,
-  inspectConfig,
-  syncConfigCore,
-} from './sync-config.js';
 
 function ensurePackageJson(cwd: string): boolean {
   const packageJsonPath = nodePath.join(cwd, 'package.json');
@@ -152,6 +154,7 @@ export async function convergeSetup(
       readonly stop: () => void;
     };
     adapters?: Partial<SetupAdapters>;
+    schema?: SafewordSchema;
   },
 ): Promise<CliResult> {
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
@@ -195,6 +198,7 @@ export async function convergeSetup(
       namespaceMigration,
       preliminaryFileEffects: versionMarkerEffects,
       adapters,
+      schema: options.schema,
     });
   } catch (setupError) {
     return setupFailure(setupError, {
@@ -243,7 +247,7 @@ function convergeNamespace(
               {
                 code: 'NAMESPACE_MIGRATION_AVAILABLE',
                 message:
-                  'This project still uses .safeword-project; run `safeword setup --migrate-namespace` to move it to .project.',
+                  'This project still uses .safeword-project; run `safeword install --migrate-namespace` to move it to .project.',
                 severity: 'info',
               },
             ],
@@ -339,7 +343,7 @@ function readProjectVersionMarker(
     };
   }
   const recoveryCommand = buildReplayCommand({
-    command: 'safeword setup --repair-version-marker',
+    command: 'safeword install --repair-version-marker',
     cwd,
   });
   return {
@@ -380,7 +384,7 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
       return { repaired: true };
     }
     const recoveryCommand = buildReplayCommand({
-      command: 'safeword setup --repair-version-marker',
+      command: 'safeword install --repair-version-marker',
       cwd,
     });
     return versionRefusal(
@@ -663,7 +667,7 @@ function setupNextAction(input: {
 }): { command: string; mutates: boolean; requiresHuman: boolean } {
   if (input.actionRequired) {
     return {
-      command: input.installCommand ?? 'safeword setup',
+      command: input.installCommand ?? 'safeword install',
       mutates: true,
       requiresHuman: true,
     };
@@ -671,7 +675,7 @@ function setupNextAction(input: {
   if (input.claudePluginReloadEligible) {
     return { command: '/reload-plugins', mutates: false, requiresHuman: true };
   }
-  return { command: 'safeword claude install', mutates: true, requiresHuman: true };
+  return { command: 'safeword install --agents=claude', mutates: true, requiresHuman: true };
 }
 
 function projectClaudePluginEnrolled(cwd: string): boolean {
@@ -731,6 +735,47 @@ interface ApplySetupInput {
   readonly namespaceMigration: NamespaceConvergence;
   readonly preliminaryFileEffects: readonly Effect[];
   readonly adapters: SetupAdapters;
+  readonly schema?: SafewordSchema;
+}
+
+/**
+ * Hand a legacy project-hook installation over to the native Codex plugin.
+ * A failure here is reported, never fatal: the legacy protection stays in
+ * place rather than leaving the project unguarded mid-setup.
+ */
+function migrateLegacyCodexDuringSetup(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+): Finding[] {
+  const codexMigrationTargets = [
+    CODEX_MIGRATION_SCHEMA.paths.config,
+    CODEX_MIGRATION_SCHEMA.paths.backupRoot,
+    CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
+    CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
+    ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
+  ];
+  try {
+    const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () =>
+      automaticallyMigrateLegacyCodex(cwd),
+    );
+    if (!migrated) return [];
+    return [
+      {
+        code: 'CODEX_PLUGIN_HANDOFF_COMPLETE',
+        message:
+          'Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.',
+        severity: 'info',
+      },
+    ];
+  } catch (error) {
+    return [
+      {
+        code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}`,
+        severity: 'warning',
+      },
+    ];
+  }
 }
 
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
@@ -744,7 +789,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   } = input;
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
-  const setupSchema = schemaForClaudeDelivery(cwd);
+  const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
   const result = await reconcile(setupSchema, operation, context);
   const completedEffects: CompletedSetupEffects = {
     files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],
@@ -757,33 +802,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
       installCodexProjectBootstrap(cwd),
     );
-    const codexHandoffFindings: Finding[] = [];
-    const codexMigrationTargets = [
-      CODEX_MIGRATION_SCHEMA.paths.config,
-      CODEX_MIGRATION_SCHEMA.paths.backupRoot,
-      CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
-      CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
-      ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
-    ];
-    try {
-      const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () =>
-        automaticallyMigrateLegacyCodex(cwd),
-      );
-      if (migrated) {
-        codexHandoffFindings.push({
-          code: 'CODEX_PLUGIN_HANDOFF_STARTED',
-          message:
-            'Codex installed the native profile plugin; legacy project protection remains until explicit finalization after the restarted app proves its hooks.',
-          severity: 'info',
-        });
-      }
-    } catch (error) {
-      codexHandoffFindings.push({
-        code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
-        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}`,
-        severity: 'warning',
-      });
-    }
+    const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects);
     const architectureEffects = observeFileStage(
       cwd,
       ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
@@ -976,12 +995,13 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
   });
 }
 
-function mergeEffects(...groups: readonly Partial<Effects>[]): Partial<Effects> {
-  const categories = ['files', 'packages', 'configuration', 'network', 'destructive'] as const;
-  return Object.fromEntries(
-    categories.map(category => [
-      category,
-      uniqueEffects(groups.flatMap(group => group[category] ?? [])),
-    ]),
-  );
+function mergeEffects(...groups: readonly Partial<Effects>[]): Effects {
+  const combined = combineEffects(groups);
+  return {
+    files: uniqueEffects(combined.files),
+    packages: uniqueEffects(combined.packages),
+    configuration: uniqueEffects(combined.configuration),
+    network: uniqueEffects(combined.network),
+    destructive: uniqueEffects(combined.destructive),
+  };
 }

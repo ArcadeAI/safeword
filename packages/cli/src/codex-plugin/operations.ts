@@ -53,6 +53,8 @@ import {
 } from './profile-proof.js';
 import { preparedCodexProjectBootstrap } from './project-bootstrap.js';
 
+export { codexInstallRequiresMutation } from './migration.js';
+
 const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
 const PLUGIN_ID = 'safeword@safeword';
 const CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;
@@ -349,7 +351,7 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
     throw new CodexMigrationError(
       'PLUGIN_ENABLEMENT_FAILED',
-      `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`,
+      `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`,
       { profileChanged: options.installationCompleted === true },
     );
   }
@@ -667,6 +669,54 @@ function finalizationEffects(
   });
 }
 
+export function uninstallCodexPlugin(): CliResult {
+  try {
+    if (!observeCodexPlugin().installed) {
+      return createResult({
+        state: 'healthy',
+        data: { command: 'codex uninstall', plugin: PLUGIN_ID },
+      });
+    }
+    run('codex', ['plugin', 'remove', PLUGIN_ID, '--json']);
+    if (observeCodexPlugin().installed) {
+      throw new Error(`Codex still reports ${PLUGIN_ID} after uninstall.`);
+    }
+    return createResult({
+      state: 'changed',
+      effects: {
+        destructive: [{ kind: 'remove', target: PLUGIN_ID, operation: 'profile' }],
+      },
+      recovery: [
+        {
+          command: 'safeword install --agents=codex',
+          description: 'Reinstall the Codex profile plugin if this removal must be reversed.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'codex uninstall', plugin: PLUGIN_ID },
+    });
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CODEX_PLUGIN_UNINSTALL_FAILED',
+          message: error instanceof Error ? error.message : String(error),
+          retryable: true,
+        },
+      ],
+      recovery: [
+        {
+          command: 'safeword install --agents=codex',
+          description: 'Repair or restore the Codex profile plugin.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'codex uninstall', plugin: PLUGIN_ID },
+    });
+  }
+}
+
 export function observeCodexFinalizationEffects(
   cwd: string,
 ): CodexMigrationResultV2['effects']['files'] {
@@ -895,8 +945,9 @@ export function automaticallyMigrateLegacyCodex(
 }
 
 /**
- * Compatibility facade for the pre-`codex install` command shape. New users
- * should use `safeword codex install`; existing scripts retain their behavior.
+ * Compatibility facade for the pre-`install --agents=codex` command shape. New
+ * users should use `safeword install --agents=codex`; existing scripts retain
+ * their behavior.
  */
 export async function migrateCodexPlugin(
   cwd = process.cwd(),

@@ -72,7 +72,7 @@ const documentation = [
   readFileSync(nodePath.join(pluginRoot, 'README.md'), 'utf8'),
 ].join('\n');
 for (const command of [
-  'safeword claude install',
+  'safeword install --agents=claude',
   'safeword claude status',
   'safeword claude cleanup',
   '/reload-plugins',

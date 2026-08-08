@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "f2e7c8022d02292f7e3a403608ac38934af9b3d25e2740d5bf57999eb6331cb3"
+      "sha256": "b5b336464436f40eece199872aa0ae224c40952ec0322186d7fe3ac36823493b"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9ca1dd174cc6e8a71e3e237f8c934f7e6bd5aa0474a882a5528dc594c7f2d022"
+      "sha256": "41587655f75ff073db587f5d753a4e2a6f6def01425c559ed6cede3202543d5e"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a0d75a7ee7991ed74325f3488b409fba2c13e5dd7e33b8205b10c15cce4ecbe1"
+      "sha256": "5b250703af353f6f40460a32c66ebca0a82a3827f5701eaddfd82925d3fd76b2"
     },
     {
       "path": "runtime/event-groups.json",
@@ -263,7 +263,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "5150936bbc783a951eaaf1587038f67f6469d6b642baa090a4403d5569188489"
+      "sha256": "2ae7f5f94c145572509b431972188f1be348542fb5026d9b68c215e632e7d1e6"
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
@@ -271,7 +271,7 @@
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
-      "sha256": "6974d327e1ab8868098555161422f862bac723f26741f78c4679fad9ad8c4a80"
+      "sha256": "bec99b5766f7c07477cb527f6030a13d1a1e93152806e8c6a0886a2c5b3d17cc"
     },
     {
       "path": "runtime/hooks/lib/parse-annotation.ts",
@@ -431,7 +431,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "d3d32019ed8729a73541b9c48429725ee6aaaebefbd6b08736401af9cb600a89"
+      "sha256": "c5f88c575efcf1694bf98b6b272d7da67dfab2840bc972e873af834217b213ae"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
@@ -559,7 +559,7 @@
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "7cd41e819a8bc372c86526b588c1434bb080f1cadf63a9b6d86ddeed09b169b6"
+      "sha256": "dd9e73adc108072a1d1ff50669e0861af37c51e147286f4888aeb03948b435f2"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
@@ -587,7 +587,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "1f726891c412579d5a2e0411c40f9ded83b66ccceddf172f38f692f244138619"
+      "sha256": "4764baffc194c310051ebcd462f6e3580b9dbc6dc91b6f02dd2fbf3c4004bba4"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -635,7 +635,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "c1a5a0f2235464e50e0d0c38a2e8e1c0330b0161d81e7401231e86c2159689ee"
+      "sha256": "154c4587a4388b916a775afc1f18a476d688a77a399d258f6fcb0c76c8fe44f8"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -655,7 +655,7 @@
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "eb3c417c7a4e218efc92d58e60e32d077eb4556803a1aed5c0d32af86817c060"
+      "sha256": "0e10e88553bca93ffc15f798ee8c6642dc65a9045296208d759afb9984279bf1"
     },
     {
       "path": "skills/spike/SKILL.md",
@@ -675,7 +675,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "a39c2d67f90588aefb820f58a9aad718e7baa972ae257a33747c99eac9dabe82"
+      "sha256": "762012f71db24e177ecca779c23c77f642e875d95a7d1cf1e2e7aeb6b77b47c2"
     }
   ]
 }

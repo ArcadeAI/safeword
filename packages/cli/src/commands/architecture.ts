@@ -12,12 +12,12 @@
  * when ANY node is stale (a would-change action), so a silently-wrong doc cannot
  * reach the main branch.
  *
- * `--stage` is the commit-time auto-fix: export the staged git index, regenerate
+ * `--from-index --stage-output` is the commit-time auto-fix: export the staged Git index, regenerate
  * every stale node from that deterministic tree, and `git add` each into the
  * in-flight commit, so unrelated worktree changes cannot contaminate it. Never
- * blocks (always exits zero). `--staged` exposes the same deterministic source
+ * blocks (always exits zero). `--from-index` exposes the same deterministic source
  * without automatically adding the generated docs. The commit and CI gates
- * (`--stage` and `--check`) honor the per-project opt-out
+ * (`--stage-output` and `--check`) honor the per-project opt-out
  * (`architectureDocEnforcement: false`); explicit generation modes still run.
  */
 
@@ -78,19 +78,45 @@ export interface ArchitectureModeOutcome {
 
 const defaultReporter: ArchitectureReporter = { success, warn, error };
 
+interface ArchitectureOptions {
+  readonly check?: boolean;
+  readonly fromIndex?: boolean;
+  readonly stageOutput?: boolean;
+  readonly stage?: boolean;
+  readonly staged?: boolean;
+}
+
+function architectureMode(options: ArchitectureOptions): {
+  readonly check: boolean;
+  readonly fromIndex: boolean;
+  readonly stageOutput: boolean;
+} {
+  return {
+    check: options.check === true,
+    fromIndex: options.fromIndex === true || options.stage === true || options.staged === true,
+    stageOutput: options.stageOutput === true || options.stage === true,
+  };
+}
+
 export async function architecture(
   cwd: string = process.cwd(),
-  options: { check?: boolean; stage?: boolean; staged?: boolean } = {},
+  options: ArchitectureOptions = {},
 ): Promise<void> {
-  if (options.check) {
+  const mode = architectureMode(options);
+  if (mode.check) {
     await architectureCheck(cwd);
     return;
   }
-  if (options.stage) {
+  if (mode.stageOutput && !mode.fromIndex) {
+    error('--stage-output requires --from-index so staged output has a reproducible source.');
+    process.exitCode = 1;
+    return;
+  }
+  if (mode.stageOutput) {
     await architectureStage(cwd);
     return;
   }
-  if (options.staged) {
+  if (mode.fromIndex) {
     await architectureStaged(cwd);
     return;
   }

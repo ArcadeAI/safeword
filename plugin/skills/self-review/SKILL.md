@@ -26,7 +26,7 @@ content** and appends it to `skill-invocations.log` under the project namespace 
 per-asset gate reads it back. Invoking this skill is what writes the stamp —
 hand-editing the log is the gameable floor this tier deliberately accepts.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/write-review-stamp.ts" spec`
+!`CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/write-review-stamp.ts" spec`
 
 If no `[skill-invocation-log] ... ✓` line appears above, run this fallback before stopping:
 

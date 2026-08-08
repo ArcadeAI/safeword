@@ -2,10 +2,10 @@
 Feature: One predictable Safeword CLI
 
   Rule: predictable-safeword-cli.TBU1.R1 — The default command reports project health without changing the project
-    Scenario: Bare Safeword reports a healthy project
-      Given a configured healthy project
+    Scenario: Bare Safeword remains read-only after project-only installation
+      Given a configured project without native profile plugins
       When the user runs Safeword with no command
-      Then the result reports healthy state and no changes
+      Then the result reports action required without changes
 
     Scenario: Bare Safeword recommends planning drift
       Given a configured project with managed drift
@@ -172,10 +172,10 @@ Feature: One predictable Safeword CLI
       When the user requests ordinary help
       Then canonical command families are visible and internal helpers are hidden
 
-    Scenario Outline: Replaced commands remain compatible aliases for two release lines
+    Scenario Outline: Replaced commands remain compatible aliases indefinitely
       Given the legacy command "<legacy>"
       When the user invokes it in retained release line <release_line>
-      Then canonical behavior runs with a deprecation finding and removal eligibility metadata
+      Then canonical behavior runs with indefinite-retention compatibility metadata
       Examples:
         | legacy          | release_line |
         | check           | 1            |

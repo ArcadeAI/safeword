@@ -54,7 +54,7 @@ canonical project root.
 
 Project state is still created explicitly:
 
-- `safeword setup` — create or reconcile project-owned state
+- `safeword install` — create or reconcile project-owned state and install Claude and Codex
 - `/safeword:bdd`, `/safeword:debug`, and the other namespaced skills — run native workflows
 
 For a legacy project, the first successful `UserPromptSubmit` handled by the
@@ -84,7 +84,7 @@ identity files; installation trust remains Claude Code's responsibility.
 - Claude Code 2.1.170 or newer
 - Bun (the installed plugin carries its exact bundled CLI runtime)
 
-## After setup
+## After install
 
 Project-owned tickets, configuration, guides, and runtime state remain in the
 repository. Framework code executes from Claude's versioned installed plugin
@@ -94,7 +94,7 @@ cache; uninstalling the plugin removes that Claude delivery surface.
 
 - **Interactive trust**: Safeword never accepts plugin or workspace trust on your behalf.
 - **Live reload refusal**: If Claude refuses `/reload-plugins`, keep legacy protection and retry after resolving the host prompt.
-- **Cursor/other editors**: This plugin is Claude Code only. For Cursor support, use `bunx safeword@latest setup` directly.
+- **Cursor/other editors**: This plugin is Claude Code only. For Cursor support, use `bunx safeword@latest install --agents=cursor` directly.
 
 ## Learn more
 

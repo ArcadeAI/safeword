@@ -571,7 +571,16 @@ Given(
     const projectDirectory = buildReplyFormatProject();
     const setup = spawnSync(
       'bun',
-      [SAFEWORD_CLI, 'setup', '--yes', '--no-modify', '--cwd', projectDirectory],
+      [
+        SAFEWORD_CLI,
+        'setup',
+        '--yes',
+        '--agents',
+        'none',
+        '--no-modify',
+        '--cwd',
+        projectDirectory,
+      ],
       { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60_000 },
     );
     assert.equal(setup.status, 0, setup.stderr || setup.stdout);
@@ -679,7 +688,16 @@ Given('an installed hook differs from its canonical template', function (this: S
   );
   const setup = spawnSync(
     'bun',
-    [SAFEWORD_CLI, 'setup', '--yes', '--no-modify', '--cwd', state.projectDirectory],
+    [
+      SAFEWORD_CLI,
+      'setup',
+      '--yes',
+      '--agents',
+      'none',
+      '--no-modify',
+      '--cwd',
+      state.projectDirectory,
+    ],
     { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60_000 },
   );
   assert.equal(setup.status, 0, setup.stderr || setup.stdout);
@@ -692,7 +710,16 @@ When('the setup reconciliation runs', function (this: SafewordWorld) {
   assert.ok(state.projectDirectory);
   const result = spawnSync(
     'bun',
-    [SAFEWORD_CLI, 'setup', '--yes', '--no-modify', '--cwd', state.projectDirectory],
+    [
+      SAFEWORD_CLI,
+      'setup',
+      '--yes',
+      '--agents',
+      'none',
+      '--no-modify',
+      '--cwd',
+      state.projectDirectory,
+    ],
     { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60_000 },
   );
   state.validatorExit = result.status ?? 1;

@@ -69,7 +69,7 @@ describe('predictable CLI wiring', () => {
         network: [],
         destructive: [],
       },
-      next_actions: [{ command: 'safeword setup', mutates: true, requires_human: false }],
+      next_actions: [{ command: 'safeword install', mutates: true, requires_human: false }],
     });
   });
 

@@ -55,6 +55,10 @@ export interface CodexMigrationFacts {
   activationPending: boolean;
 }
 
+export function codexInstallRequiresMutation(observation: CodexMigrationResultV2): boolean {
+  return observation.plugin.enabled !== true || observation.state === 'plugin_update_required';
+}
+
 const CODEX_RESTART_INSTRUCTION =
   'Restart Codex, start a new task, then review the installed hooks with /hooks.';
 
