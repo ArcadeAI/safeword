@@ -56,6 +56,9 @@ function fixture(
   const bin = nodePath.join(root, 'bin');
   const log = nodePath.join(root, 'claude.log');
   const settingsPath = nodePath.join(project, '.claude/settings.json');
+  const currentMarketplaceReference = SAFEWORD_SCHEMA.version.includes('-')
+    ? `v${SAFEWORD_SCHEMA.version}`
+    : 'stable';
   directories.push(root);
   mkdirSync(nodePath.dirname(settingsPath), { recursive: true });
   mkdirSync(bin);
@@ -77,14 +80,18 @@ function fixture(
   const persistedMarketplaceSettings = JSON.stringify({
     extraKnownMarketplaces: {
       safeword: {
-        source: { source: 'git', url: 'https://github.com/ArcadeAI/safeword.git', ref: 'stable' },
+        source: {
+          source: 'git',
+          url: 'https://github.com/ArcadeAI/safeword.git',
+          ref: currentMarketplaceReference,
+        },
       },
     },
   });
   const persistMarketplace =
     state.marketplaceAddPersists === false
       ? ':'
-      : `printf 'stable\\n' > ${JSON.stringify(marketplaceState)}\nprintf '%s\\n' ${JSON.stringify(persistedMarketplaceSettings)} > ${JSON.stringify(settingsPath)}`;
+      : `printf '%s\\n' ${JSON.stringify(currentMarketplaceReference)} > ${JSON.stringify(marketplaceState)}\nprintf '%s\\n' ${JSON.stringify(persistedMarketplaceSettings)} > ${JSON.stringify(settingsPath)}`;
   const executable = nodePath.join(bin, 'claude');
   writeFileSync(
     executable,
@@ -101,7 +108,7 @@ case "$*" in
       echo '[]'
     fi
     ;;
-  'plugin marketplace add https://github.com/ArcadeAI/safeword.git#stable --scope project') ${persistMarketplace} ;;
+  'plugin marketplace add https://github.com/ArcadeAI/safeword.git#${currentMarketplaceReference} --scope project') ${persistMarketplace} ;;
   'plugin list --json')
     if [ -f ${JSON.stringify(installedState)} ]; then
       plugin_version=$(cat ${JSON.stringify(installedState)})
@@ -158,7 +165,7 @@ describe('Claude marketplace update enrollment', () => {
 
     const result = installClaudePlugin(project);
 
-    expect(result.state).toBe('changed');
+    expect(result.state).toBe('action_required');
     expect(readFileSync(log, 'utf8')).toContain('plugin install safeword@safeword --scope project');
   });
 
@@ -171,7 +178,7 @@ describe('Claude marketplace update enrollment', () => {
     const result = installClaudePlugin(project);
     const commands = readFileSync(log, 'utf8');
 
-    expect(result.state).toBe('changed');
+    expect(result.state).toBe('action_required');
     expect(commands).toContain('plugin update safeword@safeword --scope project');
     expect(commands).toContain('plugin enable safeword@safeword --scope project');
     expect(result.effects?.network).toEqual([
@@ -198,10 +205,13 @@ describe('Claude marketplace update enrollment', () => {
     });
 
     const result = installClaudePlugin(project);
+    const expectedMarketplaceReference = SAFEWORD_SCHEMA.version.includes('-')
+      ? `v${SAFEWORD_SCHEMA.version}`
+      : 'stable';
 
-    expect(result.state).toBe('changed');
+    expect(result.state).toBe('action_required');
     expect(readFileSync(log, 'utf8')).toContain(
-      'plugin marketplace add https://github.com/ArcadeAI/safeword.git#stable --scope project',
+      `plugin marketplace add https://github.com/ArcadeAI/safeword.git#${expectedMarketplaceReference} --scope project`,
     );
   });
 
