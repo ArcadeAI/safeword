@@ -3,8 +3,8 @@ id: ZE5RRG
 slug: unified-first-time-install
 type: feature
 subtype: bug-investigated
-phase: implement
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1925
 phase_anchors:
   - 'define-behavior: .project/tickets/ZE5RRG-unified-first-time-install/spec.md'
@@ -146,3 +146,4 @@ Ruled out:
 - 2026-08-08T07:05:00.000Z Release-tip refactor and final verification: Confirmed the merge preserved both parents, committed a green baseline, then centralized lifecycle result precedence, install-action normalization, project-only uninstall aliases, and supported-agent defaults/help metadata. Regenerated the Claude plugin runtime and completed a clean diff audit. Final local evidence: 7,195 tests pass with 6 intentional skips; 1,323 Cucumber scenarios and 55,524 steps pass with only the known skips; lint, typecheck, Gherkin lint, release contracts, and generated artifacts pass. Dependency boundaries have zero errors and one unchanged external-entry warning.
 - 2026-08-08T07:10:00.000Z Current-source security re-review: A same-day registry refresh exposed newly published/updated advisories in transitive DOMPurify 3.4.12 and Nano ID 3.3.16. Added exact root overrides to patched 3.4.13 and 3.3.17, refreshed the lockfile, and restored `bun audit` to zero vulnerabilities. Website typecheck/build, root lint/typecheck, release contracts, release tests, and focused CLI tests pass after the dependency-only fix.
 - 2026-08-08T08:25:00.000Z Final lifecycle review and release verification: Resolved every independent in-session review finding by binding plans and uninstall to exact Claude scope, rejecting irrelevant scope, deriving agent effects from production convergence observations, preserving explicit Claude update opt-outs, suppressing stale reload advice, and reporting Cursor removal from observed assets. Canonicalized remaining operative `setup` guidance while retaining all aliases. Both final re-reviews approved. Final evidence: 7,205 unit tests pass with 6 intentional skips; 1,325/1,328 BDD scenarios and 55,607/55,611 steps pass with only intentional skips; lint/typecheck, dependency/security, generated-plugin, 35 release tests, and website typecheck/build pass.
+- 2026-08-08T08:30:00.000Z Delivery complete: Marked the fully verified ticket done so the ready PR carries its closure state, satisfying the ready-PR ticket gate before merge.
