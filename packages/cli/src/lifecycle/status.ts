@@ -1,6 +1,7 @@
 import type { AgentIntegration } from '../cli-protocol/agent-selection.js';
 import {
   type CliResult,
+  combinedResultState,
   combineEffects,
   createResult,
   type Finding,
@@ -95,14 +96,6 @@ export interface LifecycleSurfaceObservation {
   readonly result: CliResult;
 }
 
-function lifecycleState(surfaces: readonly LifecycleSurfaceObservation[]): CliResult['state'] {
-  const states = new Set(surfaces.map(surface => surface.result.state));
-  if (states.has('failed')) return 'failed';
-  if (states.has('action_required')) return 'action_required';
-  if (states.has('changed')) return 'changed';
-  return 'healthy';
-}
-
 export async function observeLifecycleSurfaces(
   cwd: string,
   agents: readonly AgentIntegration[],
@@ -161,7 +154,7 @@ export function summarizeLifecycleStatus(
 ): CliResult {
   const results = surfaces.map(surface => surface.result);
   return createResult({
-    state: lifecycleState(surfaces),
+    state: combinedResultState(results),
     changed: results.some(result => result.changed),
     effects: combineEffects(surfaces.map(surface => surface.result.effects)),
     findings: results.flatMap(result => result.findings),

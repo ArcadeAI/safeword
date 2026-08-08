@@ -7,6 +7,7 @@ import { type CliPlan, createPlan, toWirePlan } from '../cli-protocol/plan.js';
 import { createReconciliationPlan } from '../cli-protocol/reconciliation.js';
 import {
   type CliResult,
+  combinedResultState,
   combineEffects,
   createResult,
   type Effects,
@@ -34,13 +35,6 @@ const LIFECYCLE_SURFACE_ORDER: readonly ('project' | AgentIntegration)[] = [
 interface SurfaceResult {
   readonly name: string;
   readonly result: CliResult;
-}
-
-function lifecycleState(results: readonly CliResult[]): CliResult['state'] {
-  if (results.some(result => result.state === 'failed')) return 'failed';
-  if (results.some(result => result.state === 'action_required')) return 'action_required';
-  if (results.some(result => result.state === 'changed')) return 'changed';
-  return 'healthy';
 }
 
 function activationActionsFor(surface: SurfaceResult): string[] {
@@ -71,7 +65,7 @@ function combineInstallResults(
   const effects = combineEffects(results.map(result => result.effects));
   const surfaceByName = new Map(surfaces.map(surface => [surface.name, surface]));
   return createResult({
-    state: lifecycleState(results),
+    state: combinedResultState(results),
     changed: results.some(result => result.changed),
     effects,
     findings: results.flatMap(result => result.findings),
@@ -415,7 +409,7 @@ async function applyPreparedLifecycle(
   }
   const results = completed.map(surface => surface.result);
   return createResult({
-    state: lifecycleState(results),
+    state: combinedResultState(results),
     changed: results.some(result => result.changed),
     effects: combineEffects(results.map(result => result.effects)),
     findings: results.flatMap(result => result.findings),

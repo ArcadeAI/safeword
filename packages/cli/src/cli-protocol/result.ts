@@ -97,6 +97,14 @@ export function combineEffects(groups: readonly Partial<Effects>[]): Effects {
   };
 }
 
+/** Aggregate state precedence shared by commands that combine several results. */
+export function combinedResultState(results: readonly CliResult[]): CliResult['state'] {
+  if (results.some(result => result.state === 'failed')) return 'failed';
+  if (results.some(result => result.state === 'action_required')) return 'action_required';
+  if (results.some(result => result.state === 'changed')) return 'changed';
+  return 'healthy';
+}
+
 export function createResult(input: ResultInput): CliResult {
   return {
     schemaVersion: 1,
