@@ -86,6 +86,24 @@ function adaptWorkflowReference(content: string): string {
   return adaptProjectFrameworkDirectory(adapted, 'skills', 'skills');
 }
 
+/**
+ * Claude Code evaluates a skill's `!` command before it expands it. Recent
+ * clients reject command substitution there, so the host-neutral project-root
+ * fallback (`$(git rev-parse … || pwd)`) never reaches the proof helper.
+ * Native Claude plugin sessions always provide CLAUDE_PROJECT_DIR; rewrite only
+ * inline skill commands to use that host contract directly.
+ */
+function adaptClaudeSkill(content: string): string {
+  const adapted = adaptWorkflowReference(content).replaceAll(
+    '!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && ',
+    '!`',
+  );
+  return adapted.replaceAll(
+    /^!`([^`\n]*)`$/gmu,
+    (_line, command: string) => `!\`${command.replaceAll('$PROJECT_DIR', '$CLAUDE_PROJECT_DIR')}\``,
+  );
+}
+
 function adaptPluginScriptReference(content: string): string {
   return adaptWorkflowReference(content).replaceAll(
     "from '../hooks/",
@@ -402,7 +420,7 @@ export function generateClaudePluginAssets(
       relativePath: 'package.json',
       content: `${JSON.stringify({ name: 'safeword', version, type: 'module' }, undefined, 2)}\n`,
     },
-    ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptWorkflowReference),
+    ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptClaudeSkill),
     ...directoryAssets(nodePath.join(templatesRoot, 'agents'), 'agents', adaptWorkflowReference),
     ...claudeHookAssets(templatesRoot),
     {
