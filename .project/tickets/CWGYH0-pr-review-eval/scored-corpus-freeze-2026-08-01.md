@@ -140,9 +140,21 @@ scratch clones live in a fresh temporary holder.
 run_holder=$(mktemp -d /private/tmp/cwgyh0-scored-run-XXXXXX)
 op run --env-file=/Users/alex/.env.op.zshrc-migration -- \
   env CWGYH0_SCRATCH_ROOT="$run_holder/scratch" \
-  CWGYH0_OUTPUT_ROOT="/Users/alex/.codex/worktrees/1fb8/safeword/.project/tickets/CWGYH0-pr-review-eval/scored-run-2026-08-01-raw" \
+  CWGYH0_OUTPUT_ROOT="$PWD/.project/tickets/CWGYH0-pr-review-eval/scored-run-2026-08-01-raw" \
   bun .project/tickets/CWGYH0-pr-review-eval/scored-live-run.ts
 ```
+
+## Recovery refreeze — 2026-08-07
+
+No scored-corpus model call had occurred. After restoring the exact pinned
+adapter commit, Bun 1.3.14 no longer resolved its extensionless absolute
+TypeScript import. The runner now names the `.ts` file explicitly and derives
+the ticket root from `import.meta.dir` instead of the original disposable
+worktree path. Corpus, prompts, graders, thresholds, and adapter commit are
+byte-identical to the original freeze.
+
+- Recovered runner SHA-256:
+  `a88c12eef8ad2ed1b5112144a8f0fa464130c63aa2afa868f8548a44150218b7`.
 
 The runner refuses an existing scratch or output directory and refuses any
 manifest, prompt, or adapter hash drift.

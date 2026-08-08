@@ -876,3 +876,16 @@
   synthetic grader/fixed commits reproducible instead of relying on Git's grace
   period for unreachable objects. Trial repositories still fetch exactly one
   selected source SHA and prove the forbidden refs' objects absent.
+- 2026-08-07 resumed for issue #1910 after #1909 closed. Recovered the frozen
+  30-primary/10-reserve benchmark commit from an unmerged local branch and
+  transplanted it onto current main. The six corpus/prompt hashes still match;
+  21 policy and statistical tests pass.
+- Recovery exposed two environment-decay failures before any model call: the
+  pinned adapter worktree had been cleaned, and Bun 1.3.14 no longer resolved
+  its extensionless absolute TypeScript import. Restored the exact adapter
+  commit, linked its already-installed workspace dependencies, changed only the
+  import extension and ticket-root discovery, and recorded the recovery runner
+  hash. Corpus, prompts, graders, thresholds, and adapter commit are unchanged.
+- The full no-model isolation preflight is running against all 80 buggy/fixed
+  snapshots. The scored run remains intentionally stopped: its preregistered
+  ceiling is $1,000 and requires an explicit spend decision.

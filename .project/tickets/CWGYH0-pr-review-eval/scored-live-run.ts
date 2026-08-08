@@ -12,14 +12,13 @@ import {
 	type DevelopmentReviewInput,
 	type DevelopmentVariant,
 	loadDevelopmentManifest,
-} from "/private/tmp/cwgyh0-pr-review-adapter-PxYDro/tools/pr-review/src/eval/development-benchmark";
+} from "/private/tmp/cwgyh0-pr-review-adapter-PxYDro/tools/pr-review/src/eval/development-benchmark.ts";
 import {
 	executeWithInfrastructureRetry,
 	shuffleFrozen,
 } from "./scored-run-policy";
 
-const ticketRoot =
-	"/Users/alex/.codex/worktrees/1fb8/safeword/.project/tickets/CWGYH0-pr-review-eval";
+const ticketRoot = import.meta.dir;
 const sourceRepository = "/Users/alex/Projects/arcade-monorepo";
 const adapterRoot = "/private/tmp/cwgyh0-pr-review-adapter-PxYDro";
 const primaryManifestPath = join(
