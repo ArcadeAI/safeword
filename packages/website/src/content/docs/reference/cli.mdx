@@ -126,7 +126,7 @@ may miss issues, and is not merge-safety evidence.
 
 Install auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 
-Claude Code delivery is separate from project setup. `safeword install --agents=claude` defaults to project scope and records Claude's marketplace and plugin activation in `.claude/settings.json`; `--scope user` activates the same cached plugin across projects. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh setup does not create legacy Safe Word-owned Claude hooks or skills.
+Claude Code delivery is separate from project reconciliation. `safeword install --agents=claude` defaults to project scope and records Claude's marketplace and plugin activation in `.claude/settings.json`; `--scope user` activates the same cached plugin across projects. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh install does not create legacy Safe Word-owned Claude hooks or skills.
 
 ## Claude Code plugin
 
@@ -269,7 +269,7 @@ Safeword manages two types of files:
 
 ### safeword install --agents=codex
 
-Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled from the verified `stable` channel. This explicit command is useful for immediate enrollment; ordinary setup also commits a project SessionStart bootstrap that performs the same profile-only enrollment for each collaborator. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue.
+Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled from the verified `stable` channel. This explicit command is useful for immediate enrollment; ordinary install also commits a project SessionStart bootstrap that performs the same profile-only enrollment for each collaborator. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue.
 
 ```bash
 bunx safeword@latest install --agents=codex
@@ -333,7 +333,7 @@ bunx safeword@latest codex migrate
 ```
 
 This explicit flow remains available for diagnosis and recovery. Ordinary
-setup or upgrade now handles a fully recognized, unmodified legacy installation
+install or upgrade now handles a fully recognized, unmodified legacy installation
 automatically: it installs the profile plugin first, creates the SessionStart
 bootstrap, then transactionally backs up and removes the recognized legacy
 assets. If installation fails, the complete legacy installation remains.
@@ -370,7 +370,7 @@ Recovery first returns an exact plan and copyable `--yes --plan <plan-id>`
 command. It refuses to overwrite files edited after finalization and names the
 conflicting path. Resolve that edit before retrying.
 
-These commands require Bun. Normal `setup` creates or merges one marked
+These commands require Bun. Normal `install` creates or merges one marked
 `[[hooks.SessionStart]]` bootstrap in `.codex/config.toml`; it installs no
 PreToolUse or command-interception hook. At task start the bootstrap exits
 successfully and is silent only when exact profile, project, version, and task

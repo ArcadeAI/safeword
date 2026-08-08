@@ -1,7 +1,7 @@
 export type AgentIntegration = 'claude' | 'codex' | 'cursor';
 
 /** Project configuration is always in scope; `agents` names the integrations. */
-export interface AgentSelection {
+interface AgentSelection {
   readonly agents: readonly AgentIntegration[];
 }
 
@@ -14,7 +14,7 @@ export type AgentSelectionResult =
   | { readonly ok: true; readonly selection: AgentSelection }
   | { readonly ok: false; readonly error: AgentSelectionError };
 
-export const SUPPORTED_AGENT_INTEGRATIONS = ['claude', 'codex', 'cursor'] as const;
+const SUPPORTED_AGENT_INTEGRATIONS = ['claude', 'codex', 'cursor'] as const;
 export const DEFAULT_AGENT_INTEGRATIONS: readonly AgentIntegration[] = Object.freeze([
   'claude',
   'codex',

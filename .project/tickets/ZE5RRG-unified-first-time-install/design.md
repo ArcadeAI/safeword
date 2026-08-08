@@ -279,4 +279,3 @@ No persistent agent-selection setting is introduced. Omitted selection always me
 - `packages/cli/src/reconcile.ts` and `packages/cli/src/schema.ts`
 - [Command Line Interface Guidelines](https://clig.dev/)
 - [Commander 15.0.0 documentation](https://github.com/tj/commander.js/blob/v15.0.0/Readme.md)
-

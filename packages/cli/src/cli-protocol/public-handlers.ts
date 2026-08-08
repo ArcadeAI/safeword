@@ -1084,7 +1084,7 @@ function runCodexInstall(
   migration: typeof CodexMigration,
 ): CliResult {
   const before = migration.observeCodexMigrationResult(invocation.cwd);
-  if (before.plugin.enabled === true && before.state !== 'plugin_update_required') {
+  if (!migration.codexInstallRequiresMutation(before)) {
     return migration.observeCodexMigration(invocation.cwd);
   }
   migration.installCodexPlugin({

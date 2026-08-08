@@ -211,6 +211,10 @@ describe('CLI command catalog', () => {
         },
       ]),
     );
+    const projectOnlyOptions = remove?.options as { flags: string }[];
+    const projectOnlyFlags = projectOnlyOptions.map(option => option.flags);
+    expect(projectOnlyFlags).not.toContain('--agents <agents>');
+    expect(projectOnlyFlags).not.toContain('--scope <scope>');
     const trackerSync = data.commands.find(command => command.name === 'tracker sync');
     expect(trackerSync?.options).toEqual(
       expect.arrayContaining([

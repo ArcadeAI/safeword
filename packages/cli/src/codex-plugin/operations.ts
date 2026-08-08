@@ -53,6 +53,8 @@ import {
 } from './profile-proof.js';
 import { preparedCodexProjectBootstrap } from './project-bootstrap.js';
 
+export { codexInstallRequiresMutation } from './migration.js';
+
 const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
 const PLUGIN_ID = 'safeword@safeword';
 const CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;

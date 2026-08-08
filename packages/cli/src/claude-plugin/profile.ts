@@ -735,7 +735,10 @@ function verifyPlugin(
  * The Claude installation that applies to this project: a project-scoped one
  * when present, otherwise a user-scoped one. Used by lifecycle preconditions.
  */
-export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
+export function observeClaudeProfile(
+  cwd: string,
+  scope?: ClaudePluginScope,
+): ClaudeProfileObservation {
   const observation = observeApplicableClaudePlugins(cwd);
   if (observation.status !== 'observed') {
     return {
@@ -745,9 +748,30 @@ export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
     };
   }
   const installation =
-    observation.installations.find(candidate => candidate.scope === 'project') ??
-    observation.installations.find(candidate => candidate.scope === 'user');
+    scope === undefined
+      ? (observation.installations.find(candidate => candidate.scope === 'project') ??
+        observation.installations.find(candidate => candidate.scope === 'user'))
+      : observation.installations.find(candidate => candidate.scope === scope);
   return installation ?? { health: 'missing' };
+}
+
+export function claudeInstallRequiresMutation(cwd: string, scope: ClaudePluginScope): boolean {
+  try {
+    if (observeClaudeProfile(cwd, scope).health !== 'current') return true;
+    const marketplace = observeMarketplace(cwd, scope, []);
+    if (!marketplaceIsCurrent(marketplace)) return true;
+    const settings = readScopedSettings(cwd, scope);
+    const declaration = marketplace.declaration;
+    if (!isJsonObject(settings) || declaration === undefined) return true;
+    const autoUpdatePreference = marketplaceAutoUpdatePreference(declaration, scope);
+    if (autoUpdatePreference === false) return false;
+    const failurePolicy = marketplaceFailurePolicy(settings, scope);
+    return autoUpdatePreference !== true || !failurePolicy.configured;
+  } catch {
+    // Planning must remain conservative when the host or settings cannot be
+    // observed: the real install may still need marketplace/profile effects.
+    return true;
+  }
 }
 
 export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'project'): CliResult {
@@ -767,7 +791,10 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
         configuration: effects,
         network: effects.map(effect => ({ ...effect, target: 'Claude plugin marketplace' })),
       },
-      nextActions: [{ command: '/reload-plugins', mutates: false, requiresHuman: true }],
+      nextActions:
+        effects.length === 0
+          ? []
+          : [{ command: '/reload-plugins', mutates: false, requiresHuman: true }],
       data: {
         command: 'claude install',
         plugin: CLAUDE_PLUGIN_ID,

@@ -15,7 +15,7 @@ import {
 } from '../cli-protocol/result.js';
 import { removeProject } from '../commands/remove.js';
 import type { SafewordSchema } from '../schema.js';
-import { observeCursorProject } from './cursor.js';
+import { hasCursorProjectAssets, observeCursorProject } from './cursor.js';
 import { convergeSetup } from './project-install.js';
 import { projectLifecycleSchema } from './schema.js';
 
@@ -57,27 +57,58 @@ function uniqueNextActions(actions: readonly NextAction[]): NextAction[] {
   });
 }
 
+function projectReloadSuperseded(
+  command: string,
+  surface: SurfaceResult,
+  surfaceByName: ReadonlyMap<string, SurfaceResult>,
+): boolean {
+  if (command !== '/reload-plugins' || surface.name !== 'project') return false;
+  return surfaceByName.has('claude');
+}
+
+function normalizedProjectInstallAction(
+  action: Extract<NextAction, { readonly command: string }>,
+  surface: SurfaceResult,
+  surfaceByName: ReadonlyMap<string, SurfaceResult>,
+): NextAction[] | undefined {
+  // The project surface computes its next action before the agent surfaces
+  // run, so it can suggest installing an agent this very run already handled.
+  // Drop that: the agent's own activation action is the accurate next step,
+  // and repeating the install is not.
+  const unifiedInstall = /^safeword install --agents=(claude|codex)$/u.exec(action.command);
+  if (unifiedInstall === null || surface.name !== 'project') return undefined;
+  const target = surfaceByName.get(unifiedInstall[1] ?? '');
+  return target !== undefined && target.result.state !== 'failed' ? [] : [action];
+}
+
+function normalizedProfileInstallAction(
+  action: Extract<NextAction, { readonly command: string }>,
+  surface: SurfaceResult,
+): NextAction[] {
+  const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
+  if (profileInstall === null) return [action];
+  if (surface.result.state !== 'failed' || surface.name !== profileInstall[1]) return [];
+  return [{ ...action, command: `safeword install --agents=${surface.name}` }];
+}
+
+function normalizedInstallNextAction(
+  action: NextAction,
+  surface: SurfaceResult,
+  surfaceByName: ReadonlyMap<string, SurfaceResult>,
+): NextAction[] {
+  if (!('command' in action)) return [action];
+  if (projectReloadSuperseded(action.command, surface, surfaceByName)) return [];
+  const projectAction = normalizedProjectInstallAction(action, surface, surfaceByName);
+  return projectAction ?? normalizedProfileInstallAction(action, surface);
+}
+
 function normalizedInstallNextActions(
   surface: SurfaceResult,
   surfaceByName: ReadonlyMap<string, SurfaceResult>,
 ): NextAction[] {
-  return surface.result.nextActions.flatMap((action): NextAction[] => {
-    if (!('command' in action)) return [action];
-    // The project surface computes its next action before the agent surfaces
-    // run, so it can suggest installing an agent this very run already handled.
-    // Drop that: the agent's own activation action is the accurate next step,
-    // and repeating the install is not.
-    const unifiedInstall = /^safeword install --agents=(claude|codex)$/u.exec(action.command);
-    if (unifiedInstall !== null && surface.name === 'project') {
-      const target = surfaceByName.get(unifiedInstall[1] ?? '');
-      if (target !== undefined && target.result.state !== 'failed') return [];
-      return [action];
-    }
-    const profileInstall = /^safeword (claude|codex) install$/u.exec(action.command);
-    if (profileInstall === null) return [action];
-    if (surface.result.state !== 'failed' || surface.name !== profileInstall[1]) return [];
-    return [{ ...action, command: `safeword install --agents=${surface.name}` }];
-  });
+  return surface.result.nextActions.flatMap(action =>
+    normalizedInstallNextAction(action, surface, surfaceByName),
+  );
 }
 
 function combineInstallResults(
@@ -171,6 +202,8 @@ export async function installLifecycle(
     });
   }
   const { agents } = parsed.selection;
+  const scope = lifecycleScope(invocation.options.scope, 'install', agents);
+  if (!scope.ok) return scope.result;
   const requiresProfileNetwork = agents.some(agent => agent === 'claude' || agent === 'codex');
   if (invocation.offline && requiresProfileNetwork) return onlineRequired('install');
 
@@ -187,32 +220,37 @@ const EMPTY_SURFACE_EFFECTS: Effects = {
   destructive: [],
 };
 
-function profileUninstallEffects(agent: 'claude' | 'codex'): Effects {
-  const label = agent === 'claude' ? 'Claude profile plugin' : 'Codex profile plugin';
+function profileUninstallEffects(agent: 'claude' | 'codex', scope: 'project' | 'user'): Effects {
+  let label = 'Codex profile plugin';
+  if (agent === 'claude') {
+    label = scope === 'project' ? 'Claude project plugin' : 'Claude profile plugin';
+  }
+  const operation = agent === 'claude' && scope === 'project' ? 'project' : 'profile';
   return {
     files: [],
     packages: [],
-    configuration: [{ kind: 'deactivate', target: label, operation: 'profile' }],
+    configuration: [{ kind: 'deactivate', target: label, operation }],
     network: [],
-    destructive: [{ kind: 'remove', target: label, operation: 'profile' }],
+    destructive: [{ kind: 'remove', target: label, operation }],
   };
 }
 
-function agentInstallEffects(agent: AgentIntegration): Effects {
+function agentInstallEffects(
+  agent: Exclude<AgentIntegration, 'cursor'>,
+  scope: 'project' | 'user',
+): Effects {
   const labels: Readonly<Record<AgentIntegration, string>> = {
-    claude: 'Claude profile plugin',
+    claude: scope === 'project' ? 'Claude project plugin' : 'Claude profile plugin',
     codex: 'Codex profile plugin',
     cursor: 'Cursor project integration',
   };
   const label = labels[agent];
-  const profile = agent === 'claude' || agent === 'codex';
+  const operation = agent === 'claude' && scope === 'project' ? 'project' : 'profile';
   return {
     files: [],
     packages: [],
-    configuration: [
-      { kind: 'activate', target: label, operation: profile ? 'profile' : 'project' },
-    ],
-    network: profile ? [{ kind: 'plugin-marketplace', target: label, operation: 'install' }] : [],
+    configuration: [{ kind: 'activate', target: label, operation }],
+    network: [{ kind: 'plugin-marketplace', target: label, operation: 'install' }],
     destructive: [],
   };
 }
@@ -227,24 +265,82 @@ interface PreparedLifecycle {
   readonly plan: CliPlan;
 }
 
+interface ProfilePrecondition {
+  readonly agent: 'claude' | 'codex';
+  readonly observation: unknown;
+}
+
 async function profilePreconditions(
   cwd: string,
   agents: readonly AgentIntegration[],
-): Promise<unknown[]> {
-  const observations: unknown[] = [];
+  scope: 'project' | 'user',
+  operation: 'install' | 'uninstall',
+): Promise<ProfilePrecondition[]> {
+  const observations: ProfilePrecondition[] = [];
   if (agents.includes('claude')) {
-    const { observeClaudeProfile } = await import('../claude-plugin/profile.js');
-    observations.push(['claude', observeClaudeProfile(cwd)]);
+    const { claudeInstallRequiresMutation, observeClaudeProfile } =
+      await import('../claude-plugin/profile.js');
+    observations.push({
+      agent: 'claude',
+      observation: {
+        ...observeClaudeProfile(cwd, scope),
+        ...(operation === 'install' && {
+          installRequired: claudeInstallRequiresMutation(cwd, scope),
+        }),
+      },
+    });
   }
   if (agents.includes('codex')) {
-    const { observeCodexMigrationResult } = await import('../codex-plugin/operations.js');
-    observations.push(['codex', observeCodexMigrationResult(cwd)]);
+    const { codexInstallRequiresMutation, observeCodexMigrationResult } =
+      await import('../codex-plugin/operations.js');
+    const observation = observeCodexMigrationResult(cwd);
+    observations.push({
+      agent: 'codex',
+      observation: {
+        ...observation,
+        ...(operation === 'install' && {
+          installRequired: codexInstallRequiresMutation(observation),
+        }),
+      },
+    });
   }
   return observations;
 }
 
-function agentUninstallEffects(agent: AgentIntegration): Effects {
-  return agent === 'cursor' ? EMPTY_SURFACE_EFFECTS : profileUninstallEffects(agent);
+function observedAgentEffects(
+  operation: 'install' | 'uninstall',
+  agent: AgentIntegration,
+  observation: unknown,
+  scope: 'project' | 'user',
+): Effects {
+  if (agent === 'cursor') return EMPTY_SURFACE_EFFECTS;
+  if (agent === 'claude') {
+    const observed = observation as {
+      readonly health?: string;
+      readonly installRequired?: boolean;
+      readonly plugin?: unknown;
+    };
+    if (operation === 'install') {
+      return observed.installRequired === false
+        ? EMPTY_SURFACE_EFFECTS
+        : agentInstallEffects(agent, scope);
+    }
+    return observed.plugin === undefined
+      ? EMPTY_SURFACE_EFFECTS
+      : profileUninstallEffects(agent, scope);
+  }
+  const observed = observation as {
+    readonly installRequired?: boolean;
+    readonly plugin?: { readonly installed?: boolean };
+  };
+  if (operation === 'install') {
+    return observed.installRequired === false
+      ? EMPTY_SURFACE_EFFECTS
+      : agentInstallEffects(agent, scope);
+  }
+  return observed.plugin?.installed === true
+    ? profileUninstallEffects(agent, scope)
+    : EMPTY_SURFACE_EFFECTS;
 }
 
 async function prepareLifecycle(
@@ -262,14 +358,24 @@ async function prepareLifecycle(
     uninstalling ? uninstallOperation : 'upgrade',
     projectSchema,
   );
-  const agentEffects = uninstalling ? agentUninstallEffects : agentInstallEffects;
+  const observations = await profilePreconditions(cwd, agents, scope, operation);
+  const observationByAgent = new Map(
+    observations.map(observation => [observation.agent, observation.observation]),
+  );
   const surfaces = [
     { name: 'project', effects: project.plan.effects },
-    ...agents.map(agent => ({ name: agent, effects: agentEffects(agent) })),
+    ...agents.map(agent => ({
+      name: agent,
+      effects: observedAgentEffects(
+        operation,
+        agent,
+        agent === 'cursor' ? undefined : observationByAgent.get(agent),
+        scope,
+      ),
+    })),
   ];
-  const observations = await profilePreconditions(cwd, agents);
   const preconditionDigest = createHash('sha256')
-    .update(JSON.stringify([project.plan.preconditionDigest, agents, observations]))
+    .update(JSON.stringify([project.plan.preconditionDigest, agents, scope, observations]))
     .digest('hex');
   return {
     agents,
@@ -294,6 +400,7 @@ function lifecyclePlanResult(
 ): CliResult {
   const hasEffects = Object.values(prepared.plan.effects).some(effects => effects.length > 0);
   const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
+  const scopeFlag = prepared.agents.includes('claude') ? ` --scope=${prepared.scope}` : '';
   return createResult({
     state: hasEffects ? 'action_required' : 'healthy',
     findings: hasEffects
@@ -310,8 +417,8 @@ function lifecyclePlanResult(
           {
             command:
               operation === 'install'
-                ? `safeword install --agents=${selected}`
-                : `safeword uninstall --agents=${selected} --yes --plan ${prepared.plan.id}`,
+                ? `safeword install --agents=${selected}${scopeFlag}`
+                : `safeword uninstall --agents=${selected}${scopeFlag} --yes --plan ${prepared.plan.id}`,
             mutates: true,
             requiresHuman: operation === 'uninstall',
           },
@@ -329,6 +436,35 @@ function lifecyclePlanResult(
       plan: toWirePlan(prepared.plan),
     },
   });
+}
+
+function lifecycleScope(
+  value: unknown,
+  command: 'install' | 'plan' | 'uninstall',
+  agents: readonly AgentIntegration[],
+):
+  | { readonly ok: true; readonly value: 'project' | 'user' }
+  | { readonly ok: false; readonly result: CliResult } {
+  if (value === undefined || value === 'project') return { ok: true, value: 'project' };
+  if (value === 'user' && agents.includes('claude')) return { ok: true, value: 'user' };
+  const message =
+    value === 'user'
+      ? 'User scope requires Claude in the selected agents.'
+      : 'Claude plugin scope must be either project or user.';
+  return {
+    ok: false,
+    result: createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message,
+          retryable: false,
+        },
+      ],
+      data: { command },
+    }),
+  };
 }
 
 export async function planLifecycle(invocation: CommandInvocation): Promise<CliResult> {
@@ -355,10 +491,24 @@ export async function planLifecycle(invocation: CommandInvocation): Promise<CliR
       data: { command: 'plan' },
     });
   }
+  const scope = lifecycleScope(invocation.options.scope, 'plan', parsed.selection.agents);
+  if (!scope.ok) return scope.result;
   const prepared =
     operation === 'install'
-      ? await prepareLifecycle(invocation.cwd, 'install', parsed.selection.agents)
-      : await prepareLifecycle(invocation.cwd, 'uninstall', parsed.selection.agents);
+      ? await prepareLifecycle(
+          invocation.cwd,
+          'install',
+          parsed.selection.agents,
+          false,
+          scope.value,
+        )
+      : await prepareLifecycle(
+          invocation.cwd,
+          'uninstall',
+          parsed.selection.agents,
+          false,
+          scope.value,
+        );
   return lifecyclePlanResult(operation, prepared);
 }
 
@@ -398,6 +548,8 @@ async function applyPreparedLifecycle(
   cwd: string,
   prepared: PreparedLifecycle,
 ): Promise<CliResult> {
+  const cursorSelected = prepared.agents.includes('cursor');
+  const cursorHadAssets = cursorSelected && hasCursorProjectAssets(cwd, prepared.projectSchema);
   const completed = await uninstallProfileSurfaces(cwd, prepared.agents, prepared.scope);
   const projectResult = await removeProject(cwd, {
     full: prepared.full,
@@ -409,8 +561,12 @@ async function applyPreparedLifecycle(
     name: 'project',
     result: projectResult,
   });
-  if (prepared.agents.includes('cursor')) {
-    completed.push({ name: 'cursor', result: createResult({ state: 'changed' }) });
+  if (cursorSelected) {
+    const cursorRemoved = cursorHadAssets && !hasCursorProjectAssets(cwd, prepared.projectSchema);
+    completed.push({
+      name: 'cursor',
+      result: createResult({ state: cursorRemoved ? 'changed' : 'healthy' }),
+    });
   }
   const results = completed.map(surface => surface.result);
   return createResult({
@@ -437,6 +593,7 @@ async function applyPreparedLifecycle(
 function uninstallPreview(prepared: PreparedLifecycle): CliResult {
   const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
   const fullFlag = prepared.full ? ' --full' : '';
+  const scopeFlag = prepared.agents.includes('claude') ? ` --scope=${prepared.scope}` : '';
   return createResult({
     state: 'action_required',
     findings: [
@@ -448,7 +605,7 @@ function uninstallPreview(prepared: PreparedLifecycle): CliResult {
     ],
     nextActions: [
       {
-        command: `safeword uninstall --agents=${selected}${fullFlag} --yes --plan ${prepared.plan.id}`,
+        command: `safeword uninstall --agents=${selected}${scopeFlag}${fullFlag} --yes --plan ${prepared.plan.id}`,
         mutates: true,
         requiresHuman: true,
       },
@@ -478,13 +635,14 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
   }
   const full = invocation.options.full === true;
   if (invocation.offline && full) return onlineRequired('uninstall');
-  const scope = invocation.options.scope === 'user' ? 'user' : 'project';
+  const scope = lifecycleScope(invocation.options.scope, 'uninstall', parsed.selection.agents);
+  if (!scope.ok) return scope.result;
   const prepared = await prepareLifecycle(
     invocation.cwd,
     'uninstall',
     parsed.selection.agents,
     full,
-    scope,
+    scope.value,
   );
   const suppliedPlan =
     typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;

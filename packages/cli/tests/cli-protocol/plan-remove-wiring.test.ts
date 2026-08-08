@@ -3,7 +3,11 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
+
+const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 
 function configureMinimalProject(directory: string): void {
   mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -28,6 +32,64 @@ function createMissingClaudeHost(directory: string): string {
   );
   chmodSync(claude, 0o755);
   return bin;
+}
+
+function createUserScopedClaudeHost(
+  directory: string,
+  marketplaceCurrent = true,
+  autoUpdate = true,
+): { bin: string; claudeConfig: string; log: string } {
+  const bin = nodePath.join(directory, 'bin');
+  const claudeConfig = nodePath.join(directory, 'claude-config');
+  const log = nodePath.join(directory, 'claude.log');
+  const removed = nodePath.join(directory, 'claude.removed');
+  mkdirSync(bin, { recursive: true });
+  mkdirSync(claudeConfig, { recursive: true });
+  if (marketplaceCurrent) {
+    writeFileSync(
+      nodePath.join(claudeConfig, 'settings.json'),
+      `${JSON.stringify({
+        env: { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
+        extraKnownMarketplaces: {
+          safeword: {
+            source: {
+              source: 'git',
+              url: 'https://github.com/ArcadeAI/safeword.git',
+              ref: `v${SAFEWORD_SCHEMA.version}`,
+            },
+            autoUpdate,
+          },
+        },
+      })}\n`,
+    );
+  }
+  const claude = nodePath.join(bin, 'claude');
+  writeFileSync(
+    claude,
+    `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> ${JSON.stringify(log)}
+case "$*" in
+  '--version') echo '2.1.170' ;;
+  'plugin marketplace list --json')
+    ${marketplaceCurrent ? `echo '[{"name":"safeword","source":{"url":"https://github.com/ArcadeAI/safeword.git","ref":"v${SAFEWORD_SCHEMA.version}"}}]'` : "echo '[]'"}
+    ;;
+  'plugin list --json')
+    if [ -f ${JSON.stringify(removed)} ]; then
+      echo '[]'
+    else
+      echo '[{"id":"safeword@safeword","scope":"user","version":"${SAFEWORD_SCHEMA.version}","enabled":true,"installPath":${JSON.stringify(nodePath.join(REPO_ROOT, 'plugin'))}}]'
+    fi
+    ;;
+  'plugin uninstall safeword@safeword --scope user --keep-data')
+    touch ${JSON.stringify(removed)}
+    ;;
+  *) exit 97 ;;
+esac
+`,
+  );
+  chmodSync(claude, 0o755);
+  return { bin, claudeConfig, log };
 }
 
 describe('plan and remove wiring', () => {
@@ -187,6 +249,330 @@ describe('plan and remove wiring', () => {
 
       expect(envelope.next_actions[0]?.command).toContain(expected);
     }
+  });
+
+  it('binds install plans to the requested Claude scope and its observed state', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const { bin, claudeConfig } = createUserScopedClaudeHost(directory);
+    const environment = {
+      CLAUDE_CONFIG_DIR: claudeConfig,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+    };
+
+    const preview = await runCli(
+      [
+        'plan',
+        'install',
+        '--agents=claude',
+        '--scope=user',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    const envelope = JSON.parse(preview.stdout) as {
+      next_actions: { command: string }[];
+      data: { plan: { effects: { configuration: { target: string }[] } } };
+    };
+
+    expect(preview.exitCode).toBe(2);
+    expect(envelope.next_actions[0]?.command).toContain('--scope=user');
+    expect(envelope.data.plan.effects.configuration).not.toContainEqual(
+      expect.objectContaining({ target: 'Claude profile plugin' }),
+    );
+  });
+
+  it('plans Claude convergence when the plugin is current but its marketplace is missing', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const { bin, claudeConfig } = createUserScopedClaudeHost(directory, false);
+    const environment = {
+      CLAUDE_CONFIG_DIR: claudeConfig,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+    };
+
+    const preview = await runCli(
+      [
+        'plan',
+        'install',
+        '--agents=claude',
+        '--scope=user',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    const envelope = JSON.parse(preview.stdout) as {
+      data: {
+        plan: {
+          effects: {
+            configuration: { target: string }[];
+            network: { target: string }[];
+          };
+        };
+      };
+    };
+
+    expect(envelope.data.plan.effects.configuration).toContainEqual(
+      expect.objectContaining({ target: 'Claude profile plugin' }),
+    );
+    expect(envelope.data.plan.effects.network).toContainEqual(
+      expect.objectContaining({ target: 'Claude profile plugin' }),
+    );
+  });
+
+  it('preserves an explicit Claude native-update opt-out without planning effects', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const { bin, claudeConfig } = createUserScopedClaudeHost(directory, true, false);
+    const environment = {
+      CLAUDE_CONFIG_DIR: claudeConfig,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+    };
+
+    const preview = await runCli(
+      [
+        'plan',
+        'install',
+        '--agents=claude',
+        '--scope=user',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    const effects = (
+      JSON.parse(preview.stdout) as {
+        data: {
+          plan: {
+            effects: {
+              configuration: { target: string }[];
+              network: { target: string }[];
+            };
+          };
+        };
+      }
+    ).data.plan.effects;
+
+    expect(effects.configuration).not.toContainEqual(
+      expect.objectContaining({ target: 'Claude profile plugin' }),
+    );
+    expect(effects.network).not.toContainEqual(
+      expect.objectContaining({ target: 'Claude profile plugin' }),
+    );
+  });
+
+  it('does not plan Codex installation effects while activation is pending', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const runtime = installFakeCodexRuntime(directory, {
+      pluginEnabled: true,
+      pluginInitiallyInstalled: true,
+      pluginVersion: SAFEWORD_SCHEMA.version,
+    });
+    const marker = nodePath.join(runtime.codexHome, 'safeword/activation-pending-v2.json');
+    mkdirSync(nodePath.dirname(marker), { recursive: true });
+    writeFileSync(marker, '{"schema_version":');
+    const environment = {
+      CODEX_HOME: runtime.codexHome,
+      SAFEWORD_CODEX_LOG: runtime.logPath,
+      PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+    };
+
+    const preview = await runCli(
+      ['plan', 'install', '--agents=codex', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory, env: environment },
+    );
+    const effects = (
+      JSON.parse(preview.stdout) as {
+        data: {
+          plan: {
+            effects: {
+              configuration: { target: string }[];
+              network: { target: string }[];
+            };
+          };
+        };
+      }
+    ).data.plan.effects;
+
+    expect(effects.configuration).not.toContainEqual(
+      expect.objectContaining({ target: 'Codex profile plugin' }),
+    );
+    expect(effects.network).not.toContainEqual(
+      expect.objectContaining({ target: 'Codex profile plugin' }),
+    );
+  });
+
+  it('omits Claude removal effects when the requested scope is absent', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const bin = createMissingClaudeHost(directory);
+    const environment = { PATH: `${bin}:${process.env.PATH ?? ''}` };
+
+    const preview = await runCli(
+      [
+        'plan',
+        'uninstall',
+        '--agents=claude',
+        '--scope=user',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    const envelope = JSON.parse(preview.stdout) as {
+      next_actions: { command: string }[];
+      data: { plan: { effects: { destructive: { target: string }[] } } };
+    };
+
+    expect(envelope.next_actions[0]?.command).toContain('--scope=user');
+    expect(envelope.data.plan.effects.destructive).not.toContainEqual(
+      expect.objectContaining({ target: 'Claude profile plugin' }),
+    );
+  });
+
+  it('previews and removes the exact requested Claude scope', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const { bin, claudeConfig, log } = createUserScopedClaudeHost(directory);
+    const environment = {
+      CLAUDE_CONFIG_DIR: claudeConfig,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+    };
+
+    const preview = await runCli(
+      ['uninstall', '--agents=claude', '--scope=user', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory, env: environment },
+    );
+    const envelope = JSON.parse(preview.stdout) as { next_actions: { command: string }[] };
+    const advertised = envelope.next_actions[0]?.command;
+    expect(advertised).toMatch(
+      /^safeword uninstall --agents=claude --scope=user --yes --plan [a-f\d]{64}$/,
+    );
+
+    const applied = await runCli(
+      [...(advertised?.split(' ').slice(1) ?? []), '--json', '--no-input', '--cwd', directory],
+      { cwd: directory, env: environment },
+    );
+
+    expect(applied.exitCode).toBe(0);
+    expect(readFileSync(log, 'utf8')).toContain(
+      'plugin uninstall safeword@safeword --scope user --keep-data',
+    );
+  });
+
+  it('rejects user scope when Claude is not selected', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+
+    for (const arguments_ of [
+      ['install', '--agents=codex', '--scope=user'],
+      ['plan', 'uninstall', '--agents=codex', '--scope=user'],
+      ['uninstall', '--agents=none', '--scope=user'],
+    ]) {
+      const result = await runCli([...arguments_, '--json', '--no-input', '--cwd', directory], {
+        cwd: directory,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [
+          {
+            code: 'CLI_ARGUMENT_INVALID',
+            message: 'User scope requires Claude in the selected agents.',
+          },
+        ],
+      });
+    }
+  });
+
+  it('rejects invalid install scope even when Claude is not selected', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli(
+      ['install', '--agents=none', '--scope=bogus', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: expect.stringMatching(/scope must be either project or user/u),
+        },
+      ],
+    });
+  });
+
+  it('does not report an absent Cursor surface as changed during uninstall', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+
+    const preview = await runCli(
+      ['uninstall', '--agents=cursor', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory },
+    );
+    const advertised = (JSON.parse(preview.stdout) as { next_actions: { command: string }[] })
+      .next_actions[0]?.command;
+    const applied = await runCli(
+      [...(advertised?.split(' ').slice(1) ?? []), '--json', '--no-input', '--cwd', directory],
+      { cwd: directory },
+    );
+    const envelope = JSON.parse(applied.stdout) as {
+      data: { surfaces: { name: string; state: string }[] };
+    };
+
+    expect(applied.exitCode).toBe(0);
+    expect(envelope.data.surfaces).toContainEqual({
+      name: 'cursor',
+      selected: true,
+      state: 'healthy',
+    });
+  });
+
+  it('reports Cursor changed when selected Cursor assets are removed', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const cursorCommand = nodePath.join(directory, '.cursor/commands/explain.md');
+    mkdirSync(nodePath.dirname(cursorCommand), { recursive: true });
+    writeFileSync(
+      cursorCommand,
+      readFileSync(nodePath.join(REPO_ROOT, 'packages/cli/templates/commands/explain.md')),
+    );
+
+    const preview = await runCli(
+      ['uninstall', '--agents=cursor', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory },
+    );
+    const advertised = (JSON.parse(preview.stdout) as { next_actions: { command: string }[] })
+      .next_actions[0]?.command;
+    const applied = await runCli(
+      [...(advertised?.split(' ').slice(1) ?? []), '--json', '--no-input', '--cwd', directory],
+      { cwd: directory },
+    );
+    const envelope = JSON.parse(applied.stdout) as {
+      data: { surfaces: { name: string; selected: boolean; state: string }[] };
+    };
+
+    expect(applied.exitCode).toBe(0);
+    expect(envelope.data.surfaces).toContainEqual({
+      name: 'cursor',
+      selected: true,
+      state: 'changed',
+    });
   });
 
   it('previews and applies canonical full uninstall with its package effects', async () => {

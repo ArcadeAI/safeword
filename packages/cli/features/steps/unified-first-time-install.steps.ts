@@ -334,7 +334,12 @@ interface LifecyclePlanEnvelope {
   data: {
     plan: {
       command: string;
-      effects: { configuration: unknown[]; network: unknown[]; destructive: unknown[] };
+      effects: {
+        files: unknown[];
+        configuration: unknown[];
+        network: unknown[];
+        destructive: { target?: string }[];
+      };
     };
     surfaces: { name: string }[];
   };
@@ -347,12 +352,22 @@ function assertSelectedProfilePlan(
 ): void {
   if (selectedAgents.length === 0) return;
   const profileSelected = selectedAgents.some(agent => agent === 'claude' || agent === 'codex');
-  if (operation === 'uninstall' && !profileSelected) return;
   const effects = envelope.data.plan.effects;
-  assert.ok(effects.configuration.length > 0);
-  if (!profileSelected) return;
-  const selectedEffects = operation === 'install' ? effects.network : effects.destructive;
-  assert.ok(selectedEffects.length > 0);
+  if (operation === 'install') {
+    assert.ok(effects.files.length + effects.configuration.length > 0);
+    if (profileSelected) assert.ok(effects.network.length > 0);
+    return;
+  }
+  // The fixture starts with no installed profile plugins. An exact uninstall
+  // plan must not fabricate destructive profile effects for absent state.
+  if (profileSelected) {
+    assert.equal(
+      effects.destructive.some(effect =>
+        /(?:Claude|Codex) profile plugin/u.test(effect.target ?? ''),
+      ),
+      false,
+    );
+  }
 }
 
 After(function (this: UnifiedInstallWorld) {
@@ -873,6 +888,29 @@ Then(
 Then('no effect is applied', function (this: UnifiedInstallWorld) {
   assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
 });
+
+When('the user previews user-scoped Claude uninstall', function (this: UnifiedInstallWorld) {
+  this.fixtureBefore = fixtureEffectDigest(this);
+  runRawCommand(this, ['plan', 'uninstall', '--agents=claude', '--scope=user']);
+});
+
+Then(
+  'the plan preserves user scope and excludes project-scoped Claude removal',
+  function (this: UnifiedInstallWorld) {
+    assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
+    const envelope = JSON.parse(this.result.stdout) as {
+      next_actions?: { command?: string }[];
+      data?: { plan?: { effects?: { destructive?: { target?: string }[] } } };
+    };
+    assert.match(envelope.next_actions?.[0]?.command ?? '', /--scope=user/u);
+    assert.equal(
+      envelope.data?.plan?.effects?.destructive?.some(
+        effect => effect.target === 'Claude profile plugin',
+      ),
+      false,
+    );
+  },
+);
 
 Given('an unconfigured project', function (this: UnifiedInstallWorld) {
   initializeHosts(this);
@@ -1761,6 +1799,7 @@ Then(
     const envelope = JSON.parse(this.result.stdout) as {
       changed?: boolean;
       state?: string;
+      next_actions?: unknown[];
       data?: { surfaces?: { selected?: boolean; state?: string }[] };
     };
     const project = requiredPath(this.projectRoot, 'project root');
@@ -1774,6 +1813,7 @@ Then(
     );
     assert.equal(envelope.state, 'healthy', JSON.stringify(envelope));
     assert.equal(envelope.changed, false);
+    assert.deepEqual(envelope.next_actions, []);
     assert.equal(
       envelope.data?.surfaces
         ?.filter(surface => surface.selected !== false)
@@ -1841,6 +1881,17 @@ Given(
   },
 );
 
+Given(
+  'an enrolled project whose Claude plugin is missing and cannot reinstall',
+  function (this: UnifiedInstallWorld) {
+    initializeHosts(this);
+    runInstall(this, []);
+    assertCommandDidNotFail(this);
+    writeFileSync(requiredPath(this.claudeState, 'Claude state'), 'absent');
+    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+  },
+);
+
 When('the user runs the default install', function (this: UnifiedInstallWorld) {
   if (this.humanInstallSummary === true) runRawCommand(this, ['install'], false);
   else runInstall(this, []);
@@ -1890,6 +1941,10 @@ Then('Claude is the only failed surface offered for retry', function (this: Unif
   assert.deepEqual(
     retryActions?.map(action => action.command),
     ['safeword install --agents=claude'],
+  );
+  assert.equal(
+    envelope.next_actions?.some(action => action.command === '/reload-plugins'),
+    false,
   );
 });
 

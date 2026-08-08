@@ -134,6 +134,15 @@ function agentSelectionOption(): CommandDefinition['registration']['options'][nu
   return { flags: '--agents <agents>', description: AGENT_SELECTION_DESCRIPTION };
 }
 
+function claudeScopeOption(): CommandDefinition['registration']['options'][number] {
+  return {
+    flags: '--scope <scope>',
+    description: 'Claude activation boundary: this project or the current user profile',
+    defaultValue: 'project',
+    valueKind: 'claude-plugin-scope',
+  };
+}
+
 const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('status', 'Report project health and the next action', 'observe', {
     commandOptions: [agentSelectionOption()],
@@ -142,12 +151,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
     commandOptions: [
       agentSelectionOption(),
-      {
-        flags: '--scope <scope>',
-        description: 'Claude activation boundary: this project or the current user profile',
-        defaultValue: 'project',
-        valueKind: 'claude-plugin-scope',
-      },
+      claudeScopeOption(),
       { flags: '--no-modify', description: 'Do not edit the project ESLint configuration' },
       {
         flags: '--migrate-namespace',
@@ -162,7 +166,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('plan', 'Preview reconciliation effects', 'plan', {
     syntax: 'plan [operation]',
-    commandOptions: [agentSelectionOption()],
+    commandOptions: [agentSelectionOption(), claudeScopeOption()],
   }),
   command('doctor', 'Diagnose project configuration', 'observe', {
     commandOptions: [agentSelectionOption()],
@@ -176,6 +180,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       networkPolicy: 'declared',
       commandOptions: [
         agentSelectionOption(),
+        claudeScopeOption(),
         { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
         {
           flags: '--plan <id>',
@@ -456,7 +461,9 @@ function projectOnlyUninstallAlias(name: 'remove' | 'reset'): CommandDefinition 
     compatibility: { ...RETAINED_ALIAS, replacement: 'uninstall --agents=none' },
     registration: {
       syntax: name,
-      options: canonicalOptions('uninstall').filter(option => !option.flags.includes('--agents')),
+      options: canonicalOptions('uninstall').filter(
+        option => !option.flags.includes('--agents') && !option.flags.includes('--scope'),
+      ),
     },
   };
 }

@@ -115,12 +115,12 @@ Both tools coexist cleanly — ESLint handles code analysis (bugs, security, com
 
 Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
 
-- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers entirely: setup skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored. Adopting `prettier-plugin-sql` in a repo that already has safeword-generated SQLFluff configs? Delete `.sqlfluff` and `.safeword/sqlfluff.cfg`; upgrades won't recreate them.
+- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers entirely: install skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored. Adopting `prettier-plugin-sql` in a repo that already has safeword-generated SQLFluff configs? Delete `.sqlfluff` and `.safeword/sqlfluff.cfg`; upgrades won't recreate them.
 - **Otherwise**, safeword lints SQL with SQLFluff: the edit-time hook runs `sqlfluff lint` and reports violations to the agent. In-place rewriting is opt-in — set `"sql": { "fix": true }` in `.safeword/config.json` to have the hook run `sqlfluff fix` on edited files. SQLFluff honors `.sqlfluffignore`, so you can exclude files (e.g. applied migrations) from rewriting.
 
 ## Hook Configuration
 
-Claude Code hooks run from the Safe Word plugin installed with `safeword install --agents=claude`. Project scope is the default and records activation in `.claude/settings.json`; `safeword install --agents=claude --scope user` activates it across projects. Cursor hooks are configured in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Fresh setup does not create legacy Safe Word-owned Claude hook settings. Existing legacy Claude settings remain authoritative until current plugin execution is proven and an explicit `safeword claude cleanup` plan removes only recognized Safeword entries. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
+Claude Code hooks run from the Safe Word plugin installed with `safeword install --agents=claude`. Project scope is the default and records activation in `.claude/settings.json`; `safeword install --agents=claude --scope user` activates it across projects. Cursor hooks are configured in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Fresh install does not create legacy Safe Word-owned Claude hook settings. Existing legacy Claude settings remain authoritative until current plugin execution is proven and an explicit `safeword claude cleanup` plan removes only recognized Safeword entries. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
 
 To disable a specific hook, remove the safeword hook entry from that agent's config.
 
@@ -156,7 +156,7 @@ Desktop and managed cloud sessions reuse each CLI's existing authenticated profi
 ### Advisory pull request review
 
 The GitHub Actions advisory reviewer is default off. Enable it with a complete
-`prReview` block, then run `safeword setup` to generate the router and reusable
+`prReview` block, then run `safeword install` to generate the router and reusable
 worker workflows:
 
 ```json
@@ -173,7 +173,7 @@ worker workflows:
 
 | Key              | Meaning                                                                                                                                         |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enabled`        | Must be `true` before setup generates the workflows.                                                                                            |
+| `enabled`        | Must be `true` before install generates the workflows.                                                                                          |
 | `provider`       | Currently `openai`.                                                                                                                             |
 | `model`          | Non-empty OpenAI Responses model name.                                                                                                          |
 | `maxTotalBytes`  | Positive integer cap applied cumulatively in GitHub's file order. Text beyond the cap is reported as missing evidence and forces `needs_human`. |
@@ -257,7 +257,7 @@ The `paths` object also supports per-file overrides — `principles`, `personas`
 
 Persona headers may carry an explicit short code, for example `## Platform Operator (PO)`. Automatic codes use **3–4 letters** (`Platform Operator` → `PLO`); explicit overrides may use **2–4 letters**. Carry the resolved code unchanged through JTBD ids and Gherkin lineage (`oauth-flow.PO1.R1`). Safeword still accepts existing explicit 5–6 character codes and resolves former derived aliases, so upgrading does not require renaming historical specs or scenarios.
 
-Two directory keys, `features` and `steps`, point the BDD acceptance lane at relocated (or host-owned) directories. Unlike the per-file overrides they **augment** the defaults rather than replace them: `safeword project codify`, `safeword project lint-gherkin`, and the `safeword doctor` spec gate read the configured `features` directory _in addition to_ root `features/` and the workspace-package conventions, and the scaffolded `cucumber.mjs` runner reads both keys (`steps` matters only to the runner, for relocated TypeScript step definitions). Set them when your acceptance suite lives elsewhere (e.g. `tests/behaviors` + `tests/steps`), including when setup detected an existing cucumber harness and skipped the starter lane:
+Two directory keys, `features` and `steps`, point the BDD acceptance lane at relocated (or host-owned) directories. Unlike the per-file overrides they **augment** the defaults rather than replace them: `safeword project codify`, `safeword project lint-gherkin`, and the `safeword doctor` spec gate read the configured `features` directory _in addition to_ root `features/` and the workspace-package conventions, and the scaffolded `cucumber.mjs` runner reads both keys (`steps` matters only to the runner, for relocated TypeScript step definitions). Set them when your acceptance suite lives elsewhere (e.g. `tests/behaviors` + `tests/steps`), including when install detected an existing cucumber harness and skipped the starter lane:
 
 ```json
 {

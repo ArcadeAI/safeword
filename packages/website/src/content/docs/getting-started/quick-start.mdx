@@ -106,7 +106,7 @@ Safeword added a few folders to your project:
 | `.cursor/commands/`     | Slash commands for Cursor                                       |
 | `.safeword/`            | Project configuration, guides, and templates                    |
 
-Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache and follows the verified stable channel unless native updates were explicitly disabled. Codex setup commits one non-blocking SessionStart bootstrap, and each collaborator's first task enrolls only that collaborator's profile. Until a later task records exact native proof, the bootstrap warns that work is unprotected but permits it to continue. Each repository is enrolled with `safeword install`, which creates the project namespace before plugin hooks write project state.
+Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache and follows the verified stable channel unless native updates were explicitly disabled. Codex install commits one non-blocking SessionStart bootstrap, and each collaborator's first task enrolls only that collaborator's profile. Until a later task records exact native proof, the bootstrap warns that work is unprotected but permits it to continue. Each repository is enrolled with `safeword install`, which creates the project namespace before plugin hooks write project state.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 

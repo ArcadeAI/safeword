@@ -121,6 +121,11 @@ Feature: One coherent Safe Word command model
       Then successful core and Codex effects remain recorded
       And Claude is the only failed surface offered for retry
 
+    Scenario: An enrolled project does not hide a failed Claude retry behind reload advice
+      Given an enrolled project whose Claude plugin is missing and cannot reinstall
+      When the user runs the default install
+      Then Claude is the only failed surface offered for retry
+
     Scenario: Targeted retry converges only the surface that previously failed
       Given core and Codex succeeded while Claude failed on the prior install
       When the user runs the reported Claude retry
@@ -163,6 +168,12 @@ Feature: One coherent Safe Word command model
         | uninstall | claude,codex        |
         | uninstall | cursor              |
         | uninstall | claude,codex,cursor |
+
+    Scenario: A user-scoped Claude plan observes only the user profile
+      Given a default unified installation
+      When the user previews user-scoped Claude uninstall
+      Then the plan preserves user scope and excludes project-scoped Claude removal
+      And no effect is applied
 
     @rejection
     Scenario: A lifecycle effect absent from its plan blocks apply

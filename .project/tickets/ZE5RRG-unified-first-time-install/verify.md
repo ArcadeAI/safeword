@@ -2,24 +2,34 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 7189/7195 tests pass (6 intentional skips)
-**Gherkin:** ✅ Acceptance lane passes (1323/1326 scenarios; 3 intentional skips; 55,524/55,528 steps pass with 4 intentional skips)
+**Test Suite:** ✅ 7,205 tests pass (6 intentional skips)
+**Gherkin:** ✅ Acceptance lane passes (1325/1328 scenarios; 3 intentional skips; 55,607/55,611 steps pass with 4 intentional skips)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 48 scenarios marked complete
+**Scenarios:** All 50 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean; deliberate development-tool updates are recorded in the audit notes
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ Walked both audiences through mixed install outcomes. The non-technical summary says `Project setup: updated`, `Claude: needs attention`, and `Next: /reload-plugins` without architecture jargon. JSON gives the technical builder the selected agents, each surface state, and the exact retry `safeword install --agents=claude`. Worst step = the host-required reload/restart; new CLI selection steps vs the default flow = 0.
 **Surface Evidence:** ✅ 4/4 affected surfaces have recorded boundary proof
-**Evidence limits:** ⚠️ The external independent quality reviewer returned no valid verdict. The original preferred route timed out; two user-directed runs with the budget expanded from 120 to 300 seconds instead ended early as `process_failed`, while the fallback returned `invalid_output`. The prescribed retry is exhausted and review reliability is tracked by [GitHub issue #1922](https://github.com/ArcadeAI/safeword/issues/1922). With the user's explicit approval, three fresh-context in-session reviewers separately audited code/architecture, behavior/UX, and tests/regressions. All requested changes were implemented and verified, but those advisory subprocess reviews are not represented as cross-model approval.
+**Evidence limits:** ⚠️ The external independent quality reviewer returned no valid verdict. The original preferred route timed out; two user-directed runs with the budget expanded from 120 to 300 seconds instead ended early as `process_failed`, while the fallback returned `invalid_output`. The prescribed retry is exhausted and review reliability is tracked by [GitHub issue #1922](https://github.com/ArcadeAI/safeword/issues/1922). With the user's explicit approval, fresh-context in-session reviewers audited code/architecture, behavior/UX, tests/regressions, and the final scope-sensitive plan fixes. Every finding was resolved and both final re-reviews approved the worktree, but those advisory subprocess reviews are not represented as cross-model approval.
 
 **Main catch-up:** ✅ Merged current `origin/main`, composed both sides of the
 shared result renderer, regenerated plugin artifacts, and updated stale
 acceptance coverage to the canonical install selectors. The post-merge full
 Vitest and Cucumber lanes, lint, typecheck, dependency, security, architecture,
 principle-trace, generated-artifact, and website-build gates pass.
+
+**Release-tip revalidation:** ✅ Merged `origin/main` at `198a23ae4`
+(`v0.74.3-rc.2`) with no semantic loss, fixed the reviewer process-tree test's
+ambient-PATH isolation, applied four behavior-preserving lifecycle refactors,
+and regenerated the Claude plugin runtime. Final evidence: 7,205 tests
+pass with 6 intentional skips; 1,325/1,328 Cucumber
+scenarios and 55,607/55,611 steps pass with only the known skips; lint,
+typecheck, Gherkin lint, release contracts, and generated artifacts pass.
+Dependency Cruiser reports zero errors and the unchanged, pre-existing
+`codex-plugin/hooks.ts` external-entry warning.
 
 Audit passed for branch-owned architecture and dependency boundaries. Dependency
 Cruiser reports zero errors and one pre-existing orphan warning for
@@ -28,7 +38,9 @@ generated plugin integration rather than a statically visible import. Repository
 baseline noise outside this feature; the stale branch-owned Knip exclusion and
 all five new dependency-boundary violations were removed. `bun audit` reports no
 vulnerabilities after narrow compatible updates to Mermaid 11.16.1 and js-yaml
-4.3.1.
+4.3.1, plus exact transitive overrides for the August 7 advisories fixed by
+DOMPurify 3.4.13 and Nano ID 3.3.17. The post-fix website typecheck/build,
+root lint/typecheck, release contract, release tests, and focused CLI tests pass.
 
 ## Surface evidence
 
@@ -58,6 +70,19 @@ vulnerabilities after narrow compatible updates to Mermaid 11.16.1 and js-yaml
 - Increased only the stale-metadata marketplace acceptance timeout to 120
   seconds after the complete file passed in isolation and the case exceeded the
   former 60-second ceiling only under full-suite load.
+- Centralized aggregate result-state precedence for install, uninstall, and
+  status; named install next-action normalization without changing its regexes
+  or order; shared the project-only `remove`/`reset` alias constructor; and made
+  supported-agent help/default metadata single-source while keeping Cursor
+  opt-in.
+- Bound Claude plan/uninstall identities to the exact requested scope, rejected
+  irrelevant user scope, and kept project-only aliases free of ignored scope
+  options.
+- Made lifecycle plans derive Claude and Codex effects from the same convergence
+  predicates as apply, including current marketplace policy, explicit native
+  update opt-outs, and Codex activation-pending states.
+- Removed phantom reload and Cursor-change reporting, with complementary real
+  subprocess/filesystem cases for healthy, failed, absent, and removed states.
 
 ## Current-source checks
 
