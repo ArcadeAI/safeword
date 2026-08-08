@@ -358,7 +358,9 @@ function pluginManifest(): string {
   // byte-for-byte idempotent rather than invalidating the inventory.
   const keywords = ['bdd', 'tdd', 'linting', 'quality-review', 'debugging', 'refactoring'];
   const keywordsPlaceholder = '__SAFEWORD_PLUGIN_KEYWORDS__';
+  const skillsPlaceholder = '__SAFEWORD_PLUGIN_SKILLS__';
   const formattedKeywords = `[${keywords.map(keyword => JSON.stringify(keyword)).join(', ')}]`;
+  const formattedSkills = '["./skills"]';
   return `${JSON.stringify(
     {
       name: 'safeword',
@@ -368,11 +370,14 @@ function pluginManifest(): string {
       homepage: 'https://safeword.dev',
       repository: 'https://github.com/ArcadeAI/safeword',
       license: 'MIT',
+      skills: skillsPlaceholder,
       keywords: keywordsPlaceholder,
     },
     undefined,
     2,
-  ).replace(JSON.stringify(keywordsPlaceholder), () => formattedKeywords)}\n`;
+  )
+    .replace(JSON.stringify(skillsPlaceholder), () => formattedSkills)
+    .replace(JSON.stringify(keywordsPlaceholder), () => formattedKeywords)}\n`;
 }
 
 function pluginIdentity(version: string, hookManifest: string, inventory: string): string {
