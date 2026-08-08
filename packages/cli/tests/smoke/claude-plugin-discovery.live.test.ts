@@ -108,6 +108,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Claude packaged skill discovery', () => {
           typeof assetPath === 'string' && /^skills\/[^/]+\/SKILL\.md$/u.test(assetPath),
       )
       .map(assetPath => assetPath.split('/', 2)[1])
+      .filter((skill): skill is string => skill !== undefined)
       .toSorted(compareStrings);
     const skillsLine = details.stdout
       .split('\n')
