@@ -177,7 +177,12 @@ async function executeDefinition(command: Command, definition: CommandDefinition
     progress?.stop();
   }
   result = withCompatibilityDeprecation(result, definition, commandOptions);
-  reportResult(result, globalOptions, definition.name);
+  const actionRequiredAsSuccessOption = definition.exitPolicy?.actionRequiredAsSuccessOption;
+  reportResult(result, globalOptions, definition.name, {
+    actionRequiredAsSuccess:
+      actionRequiredAsSuccessOption !== undefined &&
+      commandOptions[actionRequiredAsSuccessOption] === true,
+  });
 }
 
 function addDefinitionAction(command: Command, definition: CommandDefinition): void {

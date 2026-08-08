@@ -80,6 +80,18 @@ const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 /** How many recent assistant messages to scan for edit tool usage. */
 const MAX_MESSAGES_FOR_TOOLS = 5;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
+/**
+ * A complete reminder block the harness injects into a user message. Claude Code
+ * wraps hook context in a system reminder and inserts it where the hook fired, so
+ * a genuine prompt routinely carries one ahead of the human's own text
+ * (SessionStart project instructions, UserPromptSubmit hook output). The boundary
+ * check removes these before asking whether any human text is left.
+ *
+ * Task notifications are injected blocks too. Remove complete blocks here so a
+ * notification followed by human text still establishes a turn boundary. Code
+ * that needs to classify the raw notification must inspect the original content.
+ */
+const TRANSCRIPT_REMINDER_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[\s\S]*?<\/\1>/gi;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
@@ -472,15 +484,28 @@ function normalizeContentItems(content: ContentItem[] | string | undefined): Con
   return Array.isArray(content) ? content : [];
 }
 
-function isGenuineUserPrompt(message: TranscriptMessage): boolean {
-  if (message.type !== 'user' || message.isMeta) return false;
+/**
+ * The human's own text in a user message, with injected reminder blocks removed.
+ * Empty for a pure tool-result message and for a message that is nothing but a
+ * reminder or task notification. Use this only to ask "did a human write
+ * anything here"; notification classification must use the original content.
+ */
+function humanPromptText(message: TranscriptMessage): string {
+  if (message.type !== 'user' || message.isMeta) return '';
 
-  const text = normalizeContentItems(message.message?.content)
+  return normalizeContentItems(message.message?.content)
     .filter((item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text)
     .map(item => item.text)
     .join('\n')
+    .replace(TRANSCRIPT_REMINDER_BLOCK_PATTERN, '')
     .trim();
+}
 
+function isGenuineUserPrompt(message: TranscriptMessage): boolean {
+  const text = humanPromptText(message);
+
+  // The leading-tag check still guards a system block that arrives unclosed or
+  // truncated, which the block pattern cannot strip.
   return text.length > 0 && !TRANSCRIPT_SYSTEM_MESSAGE_PATTERN.test(text);
 }
 

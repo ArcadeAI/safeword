@@ -70,7 +70,9 @@ interface NativeClaudePluginWorld {
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
 const EXPECTED_VERSION = SAFEWORD_SCHEMA.version;
-const OFFICIAL_MARKETPLACE_SOURCE = 'https://github.com/ArcadeAI/safeword.git#stable';
+const OFFICIAL_MARKETPLACE_REF = EXPECTED_VERSION.includes('-') ? `v${EXPECTED_VERSION}` : 'stable';
+const OFFICIAL_MARKETPLACE_SOURCE = `https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF}`;
+const MARKETPLACE_REGISTRATION_KIND = EXPECTED_VERSION.includes('-') ? 'add' : 'update';
 
 function pluginCachePath(root: string): string {
   return nodePath.join(root, 'cache', 'safeword', EXPECTED_VERSION);
@@ -2791,7 +2793,7 @@ Then(
       state.marketplaceDeclarations.some(
         marketplace =>
           marketplace.name === 'safeword' &&
-          marketplace.ref === 'stable' &&
+          marketplace.ref === OFFICIAL_MARKETPLACE_REF &&
           marketplace.scope === scope &&
           (scope !== 'project' || marketplace.projectPath === this.lifecycle?.project),
       ),
@@ -2916,7 +2918,7 @@ Then(
       source: {
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-        ref: 'stable',
+        ref: OFFICIAL_MARKETPLACE_REF,
       },
     });
     assert.equal(settings.env?.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE, '1');
@@ -3009,7 +3011,7 @@ Then(
       effects?: { configuration?: unknown[] };
     };
     assert.deepEqual(result.effects?.configuration, [
-      { kind: 'update', target: 'safeword', operation: 'project' },
+      { kind: MARKETPLACE_REGISTRATION_KIND, target: 'safeword', operation: 'project' },
       { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'project' },
       {
         kind: 'enable',
@@ -3045,7 +3047,7 @@ Then(
       completedEffects === 'no mutation'
         ? []
         : [
-            { kind: 'update', target: 'safeword', operation: 'user' },
+            { kind: MARKETPLACE_REGISTRATION_KIND, target: 'safeword', operation: 'user' },
             { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'user' },
             {
               kind: 'enable',
@@ -3253,7 +3255,7 @@ Then(
         name: 'safeword',
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
-        ref: 'stable',
+        ref: OFFICIAL_MARKETPLACE_REF,
       },
     ]);
     assert.deepEqual(state.plugins, [

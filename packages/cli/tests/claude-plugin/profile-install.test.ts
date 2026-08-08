@@ -112,7 +112,7 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('does not migrate a stale marketplace while native auto-update is explicitly disabled', () => {
-    const { log, project, settingsPath } = fixture(false, `v${SAFEWORD_SCHEMA.version}`);
+    const { log, project, settingsPath } = fixture(false, 'v0.0.0');
     const before = readFileSync(settingsPath, 'utf8');
 
     const result = installClaudePlugin(project);

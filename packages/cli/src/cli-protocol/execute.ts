@@ -64,6 +64,7 @@ export function reportResult(
   result: CliResult,
   options: GlobalCliOptions,
   commandName?: string,
+  delivery?: { readonly actionRequiredAsSuccess: boolean },
 ): void {
   let reportableResult = result;
   if (commandName !== undefined) {
@@ -96,5 +97,8 @@ export function reportResult(
     if (rendered.stdout !== '') process.stdout.write(`${rendered.stdout}\n`);
     if (rendered.stderr !== '') process.stderr.write(`${rendered.stderr}\n`);
   }
-  process.exitCode = exitStatusFor(reportableResult);
+  process.exitCode =
+    delivery?.actionRequiredAsSuccess === true && reportableResult.state === 'action_required'
+      ? 0
+      : exitStatusFor(reportableResult);
 }

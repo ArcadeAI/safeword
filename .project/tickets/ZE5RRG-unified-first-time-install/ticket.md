@@ -90,6 +90,30 @@ Ruled out:
   cause-specific message path, while this ticket's result tests and BDD require
   lifecycle surfaces and doctor diagnostics.
 
+### Reviewer process-tree test isolation
+
+The post-merge full suite exposed a reproducible timeout-test failure because
+the test prepended its fake `claude` executable to the ambient `PATH` instead of
+isolating it. On this workstation the runtime correctly discovered the fake and
+two real Claude installations, then divided the one-second test deadline among
+all three candidates. That left roughly 333 ms for the fake candidate, which
+could expire before its shell created the child-PID evidence file.
+
+Direct instrumentation confirmed the fake was first in the candidate list and
+that all `SAFEWORD_REVIEW_*` variables survived environment sanitization. The
+failure disappeared when the test exposed only its fake executable and invoked
+`/bin/sleep` by absolute path. This preserves the production multi-candidate
+budget contract while making the process-tree test independent of tools
+installed on the developer or CI host.
+
+Ruled out:
+
+- Environment sanitization: the reviewer environment retained the PID path.
+- Broken process-group cleanup: successful isolated runs killed the recorded
+  descendant as intended.
+- Full-suite contention alone: the unisolated test also failed in a focused
+  Vitest process.
+
 ## Work Log
 
 - 2026-08-04T05:33:38.572Z Started: Created ticket ZE5RRG
@@ -118,3 +142,4 @@ Ruled out:
 - 2026-08-07T16:06:15.000Z Main catch-up investigation: Reproduced the current merge conflict and traced it to complementary edits in the shared human-result renderer. Recorded the source-level composition required to preserve both review-assurance explanations and lifecycle/doctor output; generated plugin conflicts will be rebuilt from the resolved source.
 - 2026-08-07T17:36:16.000Z Main catch-up resolved: Merged current `origin/main`, preserved both renderer contracts, regenerated the Claude plugin bundle, and aligned stale native-Claude and Codex acceptance fixtures with canonical `install --agents=...` behavior while keeping Cursor unselected. Post-merge verification passed 7,189 Vitest tests and 1,323 Cucumber scenarios (55,524 steps), with only the intentional skips; lint, typecheck, dependency, security, architecture, principle-trace, generated-artifact, and website-build gates also passed.
 - 2026-08-07T17:38:10.000Z Release-tip catch-up: `main` advanced to the v0.74.2 release while the full BDD lane was running. Merged the release tip, regenerated the Claude plugin identity/inventory at 0.74.2, and passed the Claude plugin release contract plus its six targeted release tests.
+- 2026-08-07T20:15:00.000Z Reviewer-runtime test investigation: Traced the post-merge timeout-test failure to ambient real Claude executables sharing the fake candidate's one-second deadline. Isolated the test PATH to its fake executable and kept the descendant workload available via an absolute `/bin/sleep` path; no production timeout or cleanup behavior changed.

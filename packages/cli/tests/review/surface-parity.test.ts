@@ -48,6 +48,7 @@ describe('class-1 review surface parity', () => {
     for (const relativePath of callers) {
       const content = readFileSync(nodePath.join(skills, relativePath), 'utf8');
       const normalized = content.replaceAll(/\s+/gu, ' ');
+      expect(content, relativePath).toContain('--agent-handoff --json');
       expect(content, relativePath).toContain('REVIEW_ROUTES_EXHAUSTED');
       expect(content, relativePath).toContain('/finish-review');
       expect(normalized, relativePath).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
