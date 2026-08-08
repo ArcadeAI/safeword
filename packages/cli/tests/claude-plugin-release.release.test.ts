@@ -48,6 +48,18 @@ describe('Claude plugin release contract', () => {
     }
   });
 
+  it('uses Claude project metadata directly for inline native skill commands', () => {
+    const skill = readFileSync(
+      nodePath.join(REPO_ROOT, 'plugin/skills/quality-review/SKILL.md'),
+      'utf8',
+    );
+
+    expect(skill).toContain(
+      '!`bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" quality-review',
+    );
+    expect(skill).not.toMatch(/^!`[^`\n]*\$\(/mu);
+  });
+
   it('promotes one monotonic stable channel only after stable publication', () => {
     const workflow = readFileSync(
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
