@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { runCli, runCliSync } from '../helpers';
+import { createTemporaryDirectory, runCli, runCliSync } from '../helpers';
 
 describe('Test Suite 1: Version and Help', () => {
   describe('Test 1.1: --version flag shows CLI version', () => {
@@ -75,7 +75,7 @@ describe('Test Suite 1: Version and Help', () => {
 
   describe('Test 1.3: Bare command reports status', () => {
     it('should report an actionable status when run with no arguments', async () => {
-      const bareResult = await runCli([]);
+      const bareResult = await runCli([], { cwd: createTemporaryDirectory() });
 
       expect(bareResult.exitCode).toBe(2);
       expect(bareResult.stdout).toContain('Needs attention');

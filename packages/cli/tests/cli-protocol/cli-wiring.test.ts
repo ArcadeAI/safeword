@@ -5,6 +5,33 @@ import { describe, expect, it } from 'vitest';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 describe('predictable CLI wiring', () => {
+  it.each([['retro-relay-retry'], ['retro-relay-discard', '00000000-0000-4000-8000-000000002251']])(
+    'renders %s through the public machine envelope',
+    async (...command) => {
+      const directory = createTemporaryDirectory();
+      const result = await runCli([
+        ...command,
+        '--json',
+        '--quiet',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ]);
+
+      expect(result.stderr).toBe('');
+      expect(() => JSON.parse(result.stdout)).not.toThrow();
+      const envelope = JSON.parse(result.stdout) as {
+        schema_version?: number;
+        state?: string;
+        data?: { command?: string };
+      };
+      expect(envelope.schema_version).toBe(1);
+      expect(envelope.data?.command).toBe(command[0]);
+      expect(['healthy', 'action_required']).toContain(envelope.state);
+    },
+  );
+
   it('publishes capabilities as JSON-only stdout', async () => {
     const result = await runCli(['capabilities', '--json', '--no-input']);
 

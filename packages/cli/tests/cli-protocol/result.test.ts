@@ -226,11 +226,9 @@ describe('CLI result protocol', () => {
     );
 
     expect(output).toContain('Diagnostic coverage:');
+    expect(output).toContain('- Project: needs attention (configured=false, cli version=0.72.0)');
     expect(output).toContain(
-      '- Project setup: needs attention (configured=false, cli version=0.72.0)',
-    );
-    expect(output).toContain(
-      '- Project setup [PROJECT_NOT_CONFIGURED]: Safeword is not configured in this project.',
+      '- Project [PROJECT_NOT_CONFIGURED]: Safeword is not configured in this project.',
     );
     expect(output.match(/Safeword is not configured in this project\./gu)).toHaveLength(1);
   });

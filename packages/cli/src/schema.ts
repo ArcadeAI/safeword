@@ -511,7 +511,7 @@ export function boundaryShimCommand(at: 'commit' | 'push'): string {
 function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
   return {
     operation: 'append',
-    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword remove\`\n`,
+    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword uninstall --agents=none\`\n`,
     marker: BOUNDARY_SHIM_MARKER,
     rerender: true,
     // A hook file that setup alone created holds nothing but the shim after

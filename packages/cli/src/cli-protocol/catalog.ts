@@ -108,7 +108,7 @@ function scopedInstallAlias(name: string, agent: 'claude' | 'codex'): CommandDef
     ...command(name, `Deprecated alias for install --agents=${agent}`, canonical.effectClass, {
       promptPolicy: canonical.promptPolicy,
       networkPolicy: canonical.networkPolicy,
-      commandOptions: canonical.registration.options,
+      commandOptions: agent === 'claude' ? [claudeScopeOption()] : [],
       // The retained spelling keeps its shipped safety guarantee: profile-only
       // installation that leaves the repository untouched (main's Rule
       // codex-plugin-install.TBU1.R2). `install --agents=<agent>` is the
@@ -438,6 +438,34 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('retro reconcile', 'Reconcile open retro findings', 'mutate', {
     networkPolicy: 'declared',
   }),
+  command(
+    'retro-relay-retry',
+    'List durable relay requests or rearm one dead letter without changing its identity',
+    'mutate',
+    {
+      networkPolicy: 'declared',
+      syntax: 'retro-relay-retry [request-id]',
+    },
+  ),
+  command(
+    'retro-relay-discard',
+    'Permanently discard one poisoned relay identity and its source reservation',
+    'destructive',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'retro-relay-discard <request-id>',
+      commandOptions: [
+        {
+          flags: '--confirm',
+          description: 'Confirm irreversible deletion of this exact request identity',
+        },
+      ],
+      fixture: {
+        argv: ['retro-relay-discard', '00000000-0000-4000-8000-000000000001'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('capabilities', 'Describe the public machine interface', 'observe', {
     handler: () => Promise.resolve(createCapabilitiesResult()),
   }),

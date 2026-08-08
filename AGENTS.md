@@ -118,7 +118,7 @@ See `ARCHITECTURE.md` for full structure including all packages and templates.
 
 **Location**: `<namespace-root>/`
 
-Use for project-owned tickets, learnings, and supporting product context. Setup and remove preserve authored ticket/learning content; generated indexes and transient Safe Word state may be reconciled by the CLI.
+Use for project-owned tickets, learnings, and supporting product context. Install and uninstall preserve authored ticket/learning content; generated indexes and transient Safe Word state may be reconciled by the CLI.
 
 **Read the matching guide when ANY trigger fires:**
 

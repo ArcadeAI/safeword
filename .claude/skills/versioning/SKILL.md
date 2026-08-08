@@ -146,7 +146,7 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
    npm view safeword version                             # → X.Y.Z
    ```
 
-   Optional: `bunx safeword@latest setup` in this repo to round-trip the dogfood install.
+   Optional: `bunx safeword@latest install` in this repo to round-trip the dogfood install.
 
 **Named failure modes** (match symptoms, then fix):
 
