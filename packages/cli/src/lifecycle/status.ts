@@ -1,4 +1,7 @@
-import type { AgentIntegration } from '../cli-protocol/agent-selection.js';
+import {
+  type AgentIntegration,
+  DEFAULT_AGENT_INTEGRATIONS,
+} from '../cli-protocol/agent-selection.js';
 import {
   type CliResult,
   combinedResultState,
@@ -84,7 +87,7 @@ function projectVersionFinding(
 
 export async function observeStatus(
   cwd: string,
-  agents: readonly AgentIntegration[] = ['claude', 'codex'],
+  agents: readonly AgentIntegration[] = DEFAULT_AGENT_INTEGRATIONS,
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<CliResult> {
   const result = await observeProjectStatus(cwd, agents);

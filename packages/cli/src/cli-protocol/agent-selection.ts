@@ -14,12 +14,16 @@ export type AgentSelectionResult =
   | { readonly ok: true; readonly selection: AgentSelection }
   | { readonly ok: false; readonly error: AgentSelectionError };
 
-const SUPPORTED_AGENTS = ['claude', 'codex', 'cursor'] as const;
-const DEFAULT_AGENTS: readonly AgentIntegration[] = ['claude', 'codex'];
+export const SUPPORTED_AGENT_INTEGRATIONS = ['claude', 'codex', 'cursor'] as const;
+export const DEFAULT_AGENT_INTEGRATIONS: readonly AgentIntegration[] = Object.freeze([
+  'claude',
+  'codex',
+]);
+export const AGENT_SELECTION_DESCRIPTION = `${SUPPORTED_AGENT_INTEGRATIONS.join(', ')}, or none`;
 
 export function parseAgentSelection(value: unknown): AgentSelectionResult {
   if (value === undefined) {
-    return { ok: true, selection: { agents: DEFAULT_AGENTS } };
+    return { ok: true, selection: { agents: DEFAULT_AGENT_INTEGRATIONS } };
   }
   if (typeof value !== 'string') return invalidSelection();
 
@@ -40,7 +44,7 @@ export function parseAgentSelection(value: unknown): AgentSelectionResult {
           },
         };
   }
-  if (values.some(agent => !SUPPORTED_AGENTS.includes(agent as AgentIntegration))) {
+  if (values.some(agent => !SUPPORTED_AGENT_INTEGRATIONS.includes(agent as AgentIntegration))) {
     return invalidSelection();
   }
   return {

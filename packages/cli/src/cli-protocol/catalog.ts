@@ -1,3 +1,4 @@
+import { AGENT_SELECTION_DESCRIPTION } from './agent-selection.js';
 import type { CommandHandler } from './handler.js';
 import { publicHandler } from './public-handlers.js';
 import { type CliResult, createResult } from './result.js';
@@ -129,14 +130,18 @@ function hidden(name: string): CommandDefinition {
   };
 }
 
+function agentSelectionOption(): CommandDefinition['registration']['options'][number] {
+  return { flags: '--agents <agents>', description: AGENT_SELECTION_DESCRIPTION };
+}
+
 const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('status', 'Report project health and the next action', 'observe', {
-    commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
+    commandOptions: [agentSelectionOption()],
   }),
   command('install', 'Install Safeword for this project and selected agents', 'mutate', {
     networkPolicy: 'declared',
     commandOptions: [
-      { flags: '--agents <agents>', description: 'claude, codex, cursor, or none' },
+      agentSelectionOption(),
       {
         flags: '--scope <scope>',
         description: 'Claude activation boundary: this project or the current user profile',
@@ -157,10 +162,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('plan', 'Preview reconciliation effects', 'plan', {
     syntax: 'plan [operation]',
-    commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
+    commandOptions: [agentSelectionOption()],
   }),
   command('doctor', 'Diagnose project configuration', 'observe', {
-    commandOptions: [{ flags: '--agents <agents>', description: 'claude, codex, cursor, or none' }],
+    commandOptions: [agentSelectionOption()],
   }),
   command(
     'uninstall',
@@ -170,7 +175,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       promptPolicy: 'confirm',
       networkPolicy: 'declared',
       commandOptions: [
-        { flags: '--agents <agents>', description: 'claude, codex, cursor, or none' },
+        agentSelectionOption(),
         { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
         {
           flags: '--plan <id>',
