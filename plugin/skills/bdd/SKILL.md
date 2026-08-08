@@ -53,7 +53,7 @@ author.) Invoke the shared host-owned coordinator with only the phase artifacts
 and ticket scope; its typed verdict decides:
 
 ```bash
-safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions]
+safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
 ```
 
 The coordinator prefers the opposite headless agent and labels a permitted

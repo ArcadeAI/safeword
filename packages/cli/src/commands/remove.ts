@@ -12,6 +12,7 @@ import {
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import type { ReconcileResult } from '../reconcile.js';
 import { ReconcileExecutionError } from '../reconcile.js';
+import type { SafewordSchema } from '../schema.js';
 import type { DependencyInstallResult } from '../utils/install.js';
 import { uninstallDependencies } from '../utils/install.js';
 
@@ -19,6 +20,7 @@ export interface RemoveOptions {
   readonly full?: boolean;
   readonly yes?: boolean;
   readonly plan?: string;
+  readonly schema?: SafewordSchema;
 }
 
 const PACKAGE_MANAGER_FILES = [
@@ -129,8 +131,9 @@ async function applyRemoval(
   cwd: string,
   mode: 'uninstall' | 'uninstall-full',
   full: boolean,
+  schema?: SafewordSchema,
 ): Promise<CliResult> {
-  const applied = await applyReconciliation(cwd, mode);
+  const applied = await applyReconciliation(cwd, mode, schema);
   const packageFilesBefore = snapshotPackageFiles(cwd);
   const packageRemoval = full
     ? uninstallDependencies(cwd, applied.packagesToRemove, { report: false })
@@ -207,12 +210,12 @@ export async function removeProject(cwd: string, options: RemoveOptions): Promis
   }
   const mode = options.full === true ? 'uninstall-full' : 'uninstall';
   try {
-    const { plan } = await createReconciliationPlan(cwd, mode);
+    const { plan } = await createReconciliationPlan(cwd, mode, options.schema);
     if (options.yes !== true || options.plan === undefined) {
       return confirmationRequired(plan, options.full === true);
     }
     if (options.plan !== plan.id) return stalePlan(plan);
-    return await applyRemoval(cwd, mode, options.full === true);
+    return await applyRemoval(cwd, mode, options.full === true, options.schema);
   } catch (removeError) {
     const partial = partialRemovalEffects(removeError);
     return createResult({

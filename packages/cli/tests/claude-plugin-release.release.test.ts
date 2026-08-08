@@ -19,7 +19,7 @@ describe('Claude plugin release contract', () => {
     expect(result.status).toBe(0);
   });
 
-  it('keeps the real-host upgrade gate in the maintainer release path', () => {
+  it('documents the real-host upgrade gate in the maintainer release path', () => {
     const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');
     const runbookPath = nodePath.join(CLI_ROOT, 'tests/smoke/claude-plugin-manual-acceptance.md');
     const runbook = readFileSync(runbookPath, 'utf8');
@@ -48,6 +48,31 @@ describe('Claude plugin release contract', () => {
     }
   });
 
+  it('uses Claude project metadata directly for inline native skill commands', () => {
+    const skill = readFileSync(
+      nodePath.join(REPO_ROOT, 'plugin/skills/quality-review/SKILL.md'),
+      'utf8',
+    );
+
+    expect(skill).toContain(
+      '!`bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" quality-review',
+    );
+    expect(skill).not.toMatch(/^!`[^`\n]*\$\(/mu);
+  });
+
+  it('declares the packaged skills directory to the native Claude host', () => {
+    const manifest = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, 'plugin/.claude-plugin/plugin.json'), 'utf8'),
+    ) as { skills?: unknown };
+    const marketplace = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, '.claude-plugin/marketplace.json'), 'utf8'),
+    ) as { plugins?: { name?: unknown; skills?: unknown }[] };
+    const safeword = marketplace.plugins?.find(plugin => plugin.name === 'safeword');
+
+    expect(manifest.skills).toEqual(['./skills']);
+    expect(safeword?.skills).toEqual(['./skills']);
+  });
+
   it('promotes one monotonic stable channel only after stable publication', () => {
     const workflow = readFileSync(
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
@@ -62,25 +87,15 @@ describe('Claude plugin release contract', () => {
     expect(workflow).not.toMatch(/git push[^\n]*(?:--force|-f\b)/u);
   });
 
-  it('blocks changed advisory surfaces on the disposable compatibility proof', () => {
+  it('does not block publication on the live advisory compatibility proof', () => {
     const workflow = readFileSync(
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
       'utf8',
     );
-    expect(workflow).toContain('advisory-pr-review-smoke:');
-    expect(workflow).toContain(
-      'advisory_smoke_required: ${{ steps.advisory-smoke-scope.outputs.required }}',
-    );
-    expect(workflow).toContain('git fetch origin refs/heads/stable:refs/remotes/origin/stable');
-    expect(workflow).toContain('git diff --quiet refs/remotes/origin/stable "$GITHUB_SHA"');
-    expect(workflow).toContain('packages/cli/src/pr-review');
-    expect(workflow).toContain("needs.build.outputs.advisory_smoke_required == 'true'");
-    expect(workflow).toContain('environment: pr-review-smoke');
-    expect(workflow).toContain('needs: [build, advisory-pr-review-smoke]');
-    expect(workflow).toContain("needs['advisory-pr-review-smoke'].result == 'skipped'");
-    expect(workflow).toContain("needs.build.outputs.advisory_smoke_required == 'false'");
-    expect(workflow).toContain('secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
-    expect(workflow).toContain('smoke:pr-review:disposable');
+    expect(workflow).toContain('publish:\n    name: Publish to npm\n    needs: build');
+    expect(workflow).not.toContain('advisory-pr-review-smoke:');
+    expect(workflow).not.toContain('pr-review-smoke');
+    expect(workflow).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
   });
 
   it('watches platform drift with a sandbox-only advisory canary', () => {

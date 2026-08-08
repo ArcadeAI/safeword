@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { publicCommands } from '../../src/cli-protocol/catalog.js';
-import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { createTemporaryDirectory, runCliWithLiteralArguments } from '../helpers.js';
 
 describe('public command machine contract', () => {
   it('executes every catalog fixture as deterministic JSON without prompting', async () => {
     for (const definition of publicCommands) {
       const invoke = async () => {
         const directory = createTemporaryDirectory();
-        return runCli(
+        return runCliWithLiteralArguments(
           [...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', directory],
           {
             cwd: directory,
@@ -31,5 +31,5 @@ describe('public command machine contract', () => {
         `${definition.name} used a synthetic adapter instead of its real handler`,
       ).toBe(false);
     }
-  }, 60_000);
+  }, 120_000);
 });

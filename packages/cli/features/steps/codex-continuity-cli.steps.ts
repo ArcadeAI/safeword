@@ -540,6 +540,13 @@ When('the builder migrates Codex', function (this: ContinuityCliWorld) {
   run(this, ['codex', 'migrate']);
 });
 
+When(
+  'the builder upgrades only the Safe Word project with legacy Codex protection',
+  function (this: ContinuityCliWorld) {
+    run(this, ['upgrade', '--agents', 'none', '--no-migrate-namespace']);
+  },
+);
+
 When('the builder migrates Codex and installation succeeds', function (this: ContinuityCliWorld) {
   run(this, ['codex', 'migrate']);
 });
@@ -1699,7 +1706,9 @@ Given('a repository that has never finalized Codex migration', function (this: C
 });
 
 When('the builder runs Safe Word setup', function (this: ContinuityCliWorld) {
-  run(this, ['setup', '--yes', '--no-modify'], { SAFEWORD_SKIP_INSTALL: '1' });
+  run(this, ['setup', '--yes', '--agents', 'none', '--no-modify'], {
+    SAFEWORD_SKIP_INSTALL: '1',
+  });
 });
 
 Then('no Safeword plugin-setup bootstrap skill is created', function (this: ContinuityCliWorld) {

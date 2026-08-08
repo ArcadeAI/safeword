@@ -46,7 +46,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      const result = await runCli(['setup', '--verbose'], {
+      const result = await runCli(['setup', '--verbose', '--agents', 'none'], {
         cwd: temporaryDirectory,
       });
 
@@ -70,7 +70,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCli(['setup', '--agents', 'none'], { cwd: temporaryDirectory });
 
       const version = readTestFile(temporaryDirectory, '.safeword/version').trim();
       // Should be semver format.
@@ -84,7 +84,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCli(['setup', '--agents', 'none'], { cwd: temporaryDirectory });
 
       expect(fileExists(temporaryDirectory, 'AGENTS.md')).toBe(false);
     });
@@ -98,7 +98,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       const existingContent = '# My Project\n\nExisting content here.\n';
       writeTestFile(temporaryDirectory, 'AGENTS.md', existingContent);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCli(['setup', '--agents', 'none'], { cwd: temporaryDirectory });
 
       const content = readTestFile(temporaryDirectory, 'AGENTS.md');
       expect(content).toBe(existingContent);
@@ -111,7 +111,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
       expect(fileExists(temporaryDirectory, 'AGENTS.md')).toBe(false);
 
-      await runCli(['upgrade'], { cwd: temporaryDirectory });
+      await runCli(['upgrade', '--agents', 'none'], { cwd: temporaryDirectory });
 
       expect(fileExists(temporaryDirectory, 'AGENTS.md')).toBe(false);
     });
@@ -122,7 +122,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      const result = await runCli(['setup', '--verbose'], {
+      const result = await runCli(['setup', '--verbose', '--agents', 'none'], {
         cwd: temporaryDirectory,
       });
 
@@ -141,7 +141,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
         createProject(temporaryDirectory);
         initGitRepo(temporaryDirectory);
 
-        const result = await runCli(['setup'], {
+        const result = await runCli(['setup', '--agents', 'none'], {
           cwd: temporaryDirectory,
           env: SKIP_INSTALL_ENV,
         });
@@ -164,7 +164,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       writeTestFile(temporaryDirectory, 'pyproject.toml', `[project]\nname = "test"\n`);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCli(['setup', '--agents', 'none'], { cwd: temporaryDirectory });
 
       const config = readSafewordConfig(temporaryDirectory);
       expect(config.installedPacks).toContain('python');

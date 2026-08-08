@@ -38,7 +38,7 @@ describe('Sync Config Command', () => {
       const result = await runCli(['sync-config'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).not.toBe(0);
-      expect(result.stdout + result.stderr).toMatch(/setup/i);
+      expect(result.stdout + result.stderr).toContain('safeword install');
     });
   });
 

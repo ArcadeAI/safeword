@@ -15,7 +15,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "c0c62ab94e73779aac74babf0a571460e62386b0a00ef69fae177ce6b85ab5bb"
+      "sha256": "ff5b582d80d501edc76a7d520be238097c9e6e23ba0c3088f27f853d99aac208"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -71,7 +71,7 @@
     },
     {
       "path": "resources/guides/verification-lanes-guide.md",
-      "sha256": "4a2e5cdc98f55a022e4888eb98e9ed6f63ed3e3ec8dd0934f3e118249d85fa78"
+      "sha256": "139dfff44444e7e13aa90cfbbd1acf2a9375fdb12222d31152eac3377ce1a385"
     },
     {
       "path": "resources/guides/zombie-process-cleanup.md",
@@ -135,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "bed95b30b191ee6baa286b5ac29cea6a2d76f5721a0b2397bfd4608707310017"
+      "sha256": "d2e16726f507e20dd1056f1b03c2925b284e2ed6feca3f69608b89b4c853d85f"
     },
     {
       "path": "runtime/dispatch.ts",
@@ -259,7 +259,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "5150936bbc783a951eaaf1587038f67f6469d6b642baa090a4403d5569188489"
+      "sha256": "2ae7f5f94c145572509b431972188f1be348542fb5026d9b68c215e632e7d1e6"
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
@@ -267,7 +267,7 @@
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
-      "sha256": "6974d327e1ab8868098555161422f862bac723f26741f78c4679fad9ad8c4a80"
+      "sha256": "bec99b5766f7c07477cb527f6030a13d1a1e93152806e8c6a0886a2c5b3d17cc"
     },
     {
       "path": "runtime/hooks/lib/parse-annotation.ts",
@@ -427,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "d3d32019ed8729a73541b9c48429725ee6aaaebefbd6b08736401af9cb600a89"
+      "sha256": "c5f88c575efcf1694bf98b6b272d7da67dfab2840bc972e873af834217b213ae"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
@@ -555,7 +555,7 @@
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "7cd41e819a8bc372c86526b588c1434bb080f1cadf63a9b6d86ddeed09b169b6"
+      "sha256": "dd9e73adc108072a1d1ff50669e0861af37c51e147286f4888aeb03948b435f2"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
@@ -567,7 +567,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "5df75d0c70005dd1a19421baa467302780a2e2a58616f1f4bea925ff1d1cb466"
+      "sha256": "9d774a49f6f60171f7aef678b948279ea147509b2fb85beccd6f68492a56505e"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -575,7 +575,7 @@
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "464b1aa25279a7501dd5435922cb78c76dbe418b48b666eb921c0ed36444b456"
+      "sha256": "5807f69b643ba6fb0831dd9cf3bab190fa3eb6716ec2b3920777b640563aa45b"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -583,7 +583,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "14e57518c9445c1872e906109cc178462a78fc4337d8bddd0528b1184138dfbe"
+      "sha256": "4764baffc194c310051ebcd462f6e3580b9dbc6dc91b6f02dd2fbf3c4004bba4"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "bb3c4edd27ecb9376cd686e55ca90b6b964a3e55f8672fbb1f81accecdb985b8"
+      "sha256": "154c4587a4388b916a775afc1f18a476d688a77a399d258f6fcb0c76c8fe44f8"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -647,11 +647,11 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "df58af149c583df31cfeeba250d057a15d784081e85b021438003de0dfcd2a06"
+      "sha256": "5a1865b2b2d8dd6ae08798f81b6414c730c75465edd691f347d2c124f5f7cbec"
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "eb3c417c7a4e218efc92d58e60e32d077eb4556803a1aed5c0d32af86817c060"
+      "sha256": "0e10e88553bca93ffc15f798ee8c6642dc65a9045296208d759afb9984279bf1"
     },
     {
       "path": "skills/spike/SKILL.md",
@@ -671,7 +671,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "4de3ce6df69d23b5abbcda93785b2eff432f889c0f09bd0a6c7ecdb8c2a44342"
+      "sha256": "762012f71db24e177ecca779c23c77f642e875d95a7d1cf1e2e7aeb6b77b47c2"
     }
   ]
 }

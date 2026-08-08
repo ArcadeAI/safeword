@@ -158,7 +158,7 @@ function findNamespaceAdvisories(cwd: string): string[] {
     isDirectory(nodePath.join(cwd, '.safeword-project'))
   ) {
     return [
-      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword setup --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
+      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword install --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
     ];
   }
   return [];
@@ -780,9 +780,9 @@ export async function checkHealth(
 
 export interface ReportHealthOptions {
   /**
-   * Replaces the default `Run \`safeword setup\` …` instruction on every
+   * Replaces the default `Run \`safeword install\` …` instruction on every
    * failure branch. Used by the post-upgrade self-verify (ticket 3293WH
-   * AC5): setup telling the user to run `safeword setup` as the fix is
+   * AC5): reconciliation telling the user to run `safeword install` as the fix is
    * a contradiction — an issue the reconcile just ran couldn't fix won't be
    * fixed by running it again.
    */
@@ -804,7 +804,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Missing Language Packs',
       lines: health.missingPacks.map(pack => `${pack} pack not installed`),
       render: listItem,
-      defaultHint: 'Run `safeword setup` to install missing packs',
+      defaultHint: 'Run `safeword install` to install missing packs',
     };
   }
   if (health.missingPackages.length > 0) {
@@ -812,7 +812,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Missing Packages',
       lines: health.missingPackages,
       render: listItem,
-      defaultHint: 'Run `safeword setup` to install missing packages',
+      defaultHint: 'Run `safeword install` to install missing packages',
     };
   }
   if (health.issues.length > 0) {
@@ -820,7 +820,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Issues Found',
       lines: health.issues,
       render: warn,
-      defaultHint: 'Run `safeword setup` to repair configuration',
+      defaultHint: 'Run `safeword install` to repair configuration',
     };
   }
   return undefined;

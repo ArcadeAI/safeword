@@ -87,6 +87,24 @@ const EMPTY_EFFECTS: Effects = {
   destructive: [],
 };
 
+export function combineEffects(groups: readonly Partial<Effects>[]): Effects {
+  return {
+    files: groups.flatMap(effects => effects.files ?? []),
+    packages: groups.flatMap(effects => effects.packages ?? []),
+    configuration: groups.flatMap(effects => effects.configuration ?? []),
+    network: groups.flatMap(effects => effects.network ?? []),
+    destructive: groups.flatMap(effects => effects.destructive ?? []),
+  };
+}
+
+/** Aggregate state precedence shared by commands that combine several results. */
+export function combinedResultState(results: readonly CliResult[]): CliResult['state'] {
+  if (results.some(result => result.state === 'failed')) return 'failed';
+  if (results.some(result => result.state === 'action_required')) return 'action_required';
+  if (results.some(result => result.state === 'changed')) return 'changed';
+  return 'healthy';
+}
+
 export function createResult(input: ResultInput): CliResult {
   return {
     schemaVersion: 1,
@@ -109,10 +127,27 @@ export function withDeprecation(
   replacement: string,
   compatibility: {
     readonly introducedIn: string;
-    readonly retainedThrough: string;
-    readonly removalEligibleAfter: string;
+    readonly retention: 'indefinite';
+    readonly redundantOptions?: readonly {
+      readonly key: string;
+      readonly flag: string;
+      readonly replacement: string;
+    }[];
   },
+  options: Readonly<Record<string, unknown>> = {},
 ): CliResult {
+  const redundantOptionFindings: Finding[] = (compatibility.redundantOptions ?? [])
+    .filter(option => options[option.key] === true)
+    .map(option => ({
+      code: 'CLI_OPTION_REDUNDANT',
+      message: `\`${option.flag}\` is accepted for compatibility but has no effect; use \`${option.replacement}\`.`,
+      severity: 'warning',
+      metadata: {
+        option: option.flag,
+        replacement: option.replacement,
+        retention: compatibility.retention,
+      },
+    }));
   return {
     ...result,
     findings: [
@@ -124,10 +159,10 @@ export function withDeprecation(
         metadata: {
           replacement,
           introduced_in: compatibility.introducedIn,
-          retained_through: compatibility.retainedThrough,
-          removal_eligible_after: compatibility.removalEligibleAfter,
+          retention: compatibility.retention,
         },
       },
+      ...redundantOptionFindings,
     ],
   };
 }
@@ -215,6 +250,10 @@ function effectLines(category: string, effects: unknown): string[] {
   );
 }
 
+function nextActionLabel(action: NextAction): string {
+  return 'command' in action ? action.command : action.instruction;
+}
+
 function plannedEffectLines(data: unknown): string[] {
   if (!isRecord(data)) return [];
   const plan = data.plan;
@@ -224,6 +263,99 @@ function plannedEffectLines(data: unknown): string[] {
   const categories = ['files', 'packages', 'configuration', 'network', 'destructive'];
   const lines = categories.flatMap(category => effectLines(category, effects[category]));
   return lines.length === 0 ? [] : ['Planned effects:', ...lines];
+}
+
+const SURFACE_LABELS: Readonly<Record<string, string>> = {
+  project: 'Project setup',
+  claude: 'Claude',
+  codex: 'Codex',
+  cursor: 'Cursor',
+};
+
+const SURFACE_OUTCOMES: Readonly<Record<string, string>> = {
+  healthy: 'ready',
+  changed: 'updated',
+  action_required: 'needs attention',
+  failed: 'failed',
+};
+
+/** Labelled surfaces of a `command`-tagged result payload, or [] when it is not that command. */
+function labelledSurfaces(
+  data: unknown,
+  command: string,
+): { readonly label: string; readonly surface: Record<string, unknown> }[] {
+  if (!isRecord(data) || data.command !== command || !Array.isArray(data.surfaces)) return [];
+  return data.surfaces.flatMap(surface => {
+    if (!isRecord(surface) || typeof surface.name !== 'string') return [];
+    const label = SURFACE_LABELS[surface.name];
+    return label === undefined ? [] : [{ label, surface }];
+  });
+}
+
+function installSurfaceLines(data: unknown): string[] {
+  return labelledSurfaces(data, 'install').flatMap(({ label, surface }) => {
+    if (surface.selected === false) return [`${label}: not selected`];
+    const outcome = typeof surface.state === 'string' ? SURFACE_OUTCOMES[surface.state] : undefined;
+    return outcome === undefined ? [] : [`${label}: ${outcome}`];
+  });
+}
+
+function installActivationLines(data: unknown): string[] {
+  return labelledSurfaces(data, 'install').flatMap(({ label, surface }) => {
+    if (!Array.isArray(surface.activation_actions)) return [];
+    return surface.activation_actions.flatMap(action =>
+      typeof action === 'string' ? [`${label} activation: ${action}`] : [],
+    );
+  });
+}
+
+function doctorDiagnosticCauses(data: unknown): ReadonlySet<string> {
+  if (!isRecord(data) || data.command !== 'doctor' || !Array.isArray(data.diagnostics)) {
+    return new Set();
+  }
+  return new Set(
+    data.diagnostics.flatMap(diagnostic =>
+      isRecord(diagnostic) && typeof diagnostic.cause === 'string' ? [diagnostic.cause] : [],
+    ),
+  );
+}
+
+function doctorDiagnosticLines(data: unknown): string[] {
+  if (!isRecord(data) || data.command !== 'doctor' || !Array.isArray(data.coverage)) return [];
+
+  const coverage = data.coverage.flatMap(item => {
+    if (!isRecord(item) || typeof item.surface !== 'string') return [];
+    const label = SURFACE_LABELS[item.surface] ?? item.surface;
+    const outcome = typeof item.state === 'string' ? SURFACE_OUTCOMES[item.state] : undefined;
+    const evidence = isRecord(item.evidence)
+      ? Object.entries(item.evidence)
+          .filter((entry): entry is [string, string | number | boolean] =>
+            ['string', 'number', 'boolean'].includes(typeof entry[1]),
+          )
+          .map(([key, value]) => `${key.replaceAll('_', ' ')}=${String(value)}`)
+      : [];
+    const evidenceSuffix = evidence.length === 0 ? '' : ` (${evidence.join(', ')})`;
+    return [`- ${label}: ${outcome ?? 'unknown'}${evidenceSuffix}`];
+  });
+  const diagnostics = Array.isArray(data.diagnostics)
+    ? data.diagnostics.flatMap(item => {
+        if (
+          !isRecord(item) ||
+          typeof item.surface !== 'string' ||
+          typeof item.code !== 'string' ||
+          typeof item.cause !== 'string'
+        ) {
+          return [];
+        }
+        const label = SURFACE_LABELS[item.surface] ?? item.surface;
+        return [`- ${label} [${item.code}]: ${item.cause}`];
+      })
+    : [];
+
+  return [
+    ...(coverage.length === 0 ? [] : ['Diagnostic coverage:', ...coverage]),
+    ...(diagnostics.length === 0 ? [] : ['Causes:', ...diagnostics]),
+  ];
 }
 
 /**
@@ -255,10 +387,6 @@ function reviewIndependenceLine(
 
 function optionalLine(value: string | undefined): readonly string[] {
   return value === undefined ? [] : [value];
-}
-
-function nextActionLabel(action: NextAction): string {
-  return 'command' in action ? action.command : action.instruction;
 }
 
 const EFFECT_LABELS: Readonly<Record<string, string>> = {
@@ -307,11 +435,17 @@ function resultBodyLines(result: CliResult, options: { verbose?: boolean }): str
   // line — findings take precedence over errors, matching uniqueMessages.
   const primaryMessage = result.findings[0]?.message ?? result.errors[0]?.message;
   const independenceLine = reviewIndependenceLine(result.data, primaryMessage);
-  const messages = uniqueMessages(result).filter(message => message !== independenceLine);
+  const diagnosticCauses = doctorDiagnosticCauses(result.data);
+  const messages = uniqueMessages(result).filter(
+    message => message !== independenceLine && !diagnosticCauses.has(message),
+  );
   const lines = [
     ...optionalLine(independenceLine),
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
+    ...installSurfaceLines(result.data),
+    ...installActivationLines(result.data),
+    ...doctorDiagnosticLines(result.data),
     ...messages,
     ...plannedEffectLines(result.data),
   ];

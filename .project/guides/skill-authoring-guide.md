@@ -267,7 +267,7 @@ Before publishing a skill:
 
 **Every new template file MUST be registered in `packages/cli/src/schema.ts`.**
 
-Without schema registration, templates are orphaned and never installed by `safeword setup` or `safeword upgrade`.
+Without schema registration, templates are orphaned and never installed by `safeword install` or `safeword upgrade`.
 
 **For new skills:**
 

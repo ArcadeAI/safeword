@@ -129,7 +129,9 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor'], {
+      env: INSTALL_DEPENDENCIES_ENV,
+    });
   });
 
   afterAll(() => {

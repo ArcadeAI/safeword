@@ -70,7 +70,9 @@ interface NativeClaudePluginWorld {
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
 const EXPECTED_VERSION = SAFEWORD_SCHEMA.version;
-const OFFICIAL_MARKETPLACE_SOURCE = 'https://github.com/ArcadeAI/safeword.git#stable';
+const OFFICIAL_MARKETPLACE_REF = EXPECTED_VERSION.includes('-') ? `v${EXPECTED_VERSION}` : 'stable';
+const OFFICIAL_MARKETPLACE_SOURCE = `https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF}`;
+const MARKETPLACE_REGISTRATION_KIND = EXPECTED_VERSION.includes('-') ? 'add' : 'update';
 
 function pluginCachePath(root: string): string {
   return nodePath.join(root, 'cache', 'safeword', EXPECTED_VERSION);
@@ -1200,51 +1202,31 @@ Given('a project that has never installed Safeword', function (this: NativeClaud
 
 When('safeword setup runs for native Claude delivery', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
-  const result = spawnSync(
-    'bun',
-    [
-      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
-      'setup',
-      '--json',
-      '--no-input',
-      '--cwd',
-      this.lifecycle.project,
-    ],
-    {
-      cwd: REPO_ROOT,
-      env: {
-        ...process.env,
-        SAFEWORD_SKIP_INSTALL: '1',
-        SAFEWORD_SKIP_SKILLS: '1',
-      },
-      encoding: 'utf8',
-    },
-  );
-  this.lifecycle.result = {
-    status: result.status ?? 1,
-    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
-  };
+  this.lifecycle.result = runLifecycleCommand(this, ['setup', '--agents=claude']);
 });
 
 Then('project-owned Safeword state is created', function (this: NativeClaudePluginWorld) {
-  assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+  assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
   assert.ok(this.lifecycle);
   assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/version')));
   assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/skills/debug/SKILL.md')));
-  assert.match(
-    readFileSync(
-      nodePath.join(this.lifecycle.project, '.cursor/rules/safeword-debugging.mdc'),
-      'utf8',
-    ),
-    /@\.safeword\/skills\/debug\/SKILL\.md/u,
-  );
+});
+
+Then('no Cursor configuration is materialized', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.cursor')), false);
 });
 
 Then(
   'no Claude-only legacy hooks, skills, commands, or agents are materialized',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
-    assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.claude')), false);
+    for (const legacyDirectory of ['hooks', 'skills', 'commands', 'agents']) {
+      assert.equal(
+        existsSync(nodePath.join(this.lifecycle.project, '.claude', legacyDirectory)),
+        false,
+      );
+    }
   },
 );
 
@@ -1446,12 +1428,14 @@ Then(
 );
 
 Then(
-  'the result recommends the explicit Claude lifecycle command without invoking it',
+  'the result recommends the canonical Claude install command without invoking it',
   function (this: NativeClaudePluginWorld) {
     const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
       next_actions?: { command?: string }[];
     };
-    assert.ok(result.next_actions?.some(action => action.command === 'safeword claude install'));
+    assert.ok(
+      result.next_actions?.some(action => action.command === 'safeword install --agents=claude'),
+    );
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
   },
@@ -1803,44 +1787,28 @@ Given(
 
 When('safeword setup runs again', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
-  const result = spawnSync(
-    'bun',
-    [
-      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
-      'setup',
-      '--json',
-      '--no-input',
-      '--cwd',
-      this.lifecycle.project,
-    ],
-    {
-      cwd: REPO_ROOT,
-      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
-      encoding: 'utf8',
-    },
-  );
-  this.lifecycle.result = {
-    status: result.status ?? 1,
-    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
-  };
+  this.lifecycle.result = runLifecycleCommand(this, ['setup', '--agents=claude']);
 });
 
 Then(
-  'no retired Claude hook, skill, command, agent, or settings entry is recreated',
+  'no retired Claude hook, skill, command, or agent is recreated',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
-    assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.claude')), false);
+    for (const legacyDirectory of ['hooks', 'skills', 'commands', 'agents']) {
+      assert.equal(
+        existsSync(nodePath.join(this.lifecycle.project, '.claude', legacyDirectory)),
+        false,
+      );
+    }
   },
 );
 
 Then(
-  'project-owned and Cursor-shared assets remain reconciled',
+  'project-owned assets remain reconciled while Cursor stays unselected',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
     assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/skills/debug/SKILL.md')));
-    assert.ok(
-      existsSync(nodePath.join(this.lifecycle.project, '.cursor/rules/safeword-debugging.mdc')),
-    );
+    assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.cursor')), false);
   },
 );
 
@@ -2805,7 +2773,7 @@ Then(
       createExactScopedFixture(this, scope as 'project' | 'user');
       return;
     }
-    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
     assert.ok(this.lifecycle);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
       marketplaceDeclarations: Record<string, unknown>[];
@@ -2825,7 +2793,7 @@ Then(
       state.marketplaceDeclarations.some(
         marketplace =>
           marketplace.name === 'safeword' &&
-          marketplace.ref === 'stable' &&
+          marketplace.ref === OFFICIAL_MARKETPLACE_REF &&
           marketplace.scope === scope &&
           (scope !== 'project' || marketplace.projectPath === this.lifecycle?.project),
       ),
@@ -2936,7 +2904,7 @@ Then(
 Then(
   'only the official marketplace, failure fallback, and Safeword plugin declarations are added at project scope',
   function (this: NativeClaudePluginWorld) {
-    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
     assert.ok(this.lifecycle);
     const settings = JSON.parse(
       readFileSync(nodePath.join(this.lifecycle.project, '.claude/settings.json'), 'utf8'),
@@ -2950,7 +2918,7 @@ Then(
       source: {
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-        ref: 'stable',
+        ref: OFFICIAL_MARKETPLACE_REF,
       },
     });
     assert.equal(settings.env?.CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE, '1');
@@ -3043,7 +3011,7 @@ Then(
       effects?: { configuration?: unknown[] };
     };
     assert.deepEqual(result.effects?.configuration, [
-      { kind: 'update', target: 'safeword', operation: 'project' },
+      { kind: MARKETPLACE_REGISTRATION_KIND, target: 'safeword', operation: 'project' },
       { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'project' },
       {
         kind: 'enable',
@@ -3079,7 +3047,7 @@ Then(
       completedEffects === 'no mutation'
         ? []
         : [
-            { kind: 'update', target: 'safeword', operation: 'user' },
+            { kind: MARKETPLACE_REGISTRATION_KIND, target: 'safeword', operation: 'user' },
             { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'user' },
             {
               kind: 'enable',
@@ -3270,7 +3238,7 @@ Then('project and profile state remain byte-identical', function (this: NativeCl
 Then(
   'the official marketplace and exact enabled Safeword version exist at user scope',
   function (this: NativeClaudePluginWorld) {
-    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
     assert.ok(this.lifecycle);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
       marketplaces: { name: string; source: string }[];
@@ -3287,7 +3255,7 @@ Then(
         name: 'safeword',
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
-        ref: 'stable',
+        ref: OFFICIAL_MARKETPLACE_REF,
       },
     ]);
     assert.deepEqual(state.plugins, [

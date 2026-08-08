@@ -854,7 +854,9 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     try {
       createTypeScriptPackageJson(directory);
       initGitRepo(directory);
-      await setupOrThrow(directory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
+      await setupOrThrow(directory, ['setup', '--yes', '--agents', 'cursor'], {
+        env: INSTALL_DEPENDENCIES_ENV,
+      });
 
       const cursorCommand = readFileSync(
         nodePath.join(directory, '.cursor/commands/closeout.md'),

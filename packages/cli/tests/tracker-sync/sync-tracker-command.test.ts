@@ -41,7 +41,7 @@ describe('sync-tracker command smoke (sync-tracker.TB1.AC1)', () => {
 
     await syncTrackerCommand();
 
-    expect(logs.join('\n')).toMatch(/safeword setup/);
+    expect(logs.join('\n')).toMatch(/safeword install/);
     expect(process.exitCode).toBe(0);
   });
 });
