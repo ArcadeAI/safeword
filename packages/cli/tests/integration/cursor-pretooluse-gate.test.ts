@@ -28,6 +28,7 @@ const ADAPTER = nodePath.resolve(__dirname, '../../templates/hooks/cursor/pre-to
 const TICKET_ID = 'CUR123';
 const TICKET_FOLDER = `${TICKET_ID}-cursor-gate`;
 const SESSION_ID = 'conv-1';
+const TODAY = new Date().toISOString().slice(0, 10);
 
 interface CursorDecision {
   permission?: string;
@@ -95,7 +96,6 @@ function writeFeatureAtImplement(ticketDirectory: string): void {
 }
 
 function inspirationTicket(phase: string): string {
-  const today = new Date().toISOString().slice(0, 10);
   return [
     '---',
     `id: ${TICKET_ID}`,
@@ -108,14 +108,13 @@ function inspirationTicket(phase: string): string {
     'done_when: the transition follows canonical gating',
     'inspiration_contract: v1',
     'inspiration_contract_scaffold: v1',
-    `created: ${today}T00:00:00.000Z`,
+    `created: ${TODAY}T00:00:00.000Z`,
     '---',
     '',
   ].join('\n');
 }
 
 function inspirationSpec(withEvidence: boolean): string {
-  const today = new Date().toISOString().slice(0, 10);
   return [
     '# Spec',
     '<!-- safeword:inspiration-contract:v1 -->',
@@ -126,7 +125,7 @@ function inspirationSpec(withEvidence: boolean): string {
           '',
           '| Reference | Checked on | Source version / edition | Customer-value evidence | Principle to borrow | Non-copy boundary | Decision impact |',
           '| --- | --- | --- | --- | --- | --- | --- |',
-          `| https://linear.app/docs/issue-templates | ${today} | n/a | Faster issue filing | Default good practice | Do not copy UI | retained: supports direction |`,
+          `| https://linear.app/docs/issue-templates | ${TODAY} | n/a | Faster issue filing | Default good practice | Do not copy UI | retained: supports direction |`,
           '',
         ]
       : []),
