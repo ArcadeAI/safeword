@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 7,212/7,212 tests pass (6 intentionally skipped); post-rebase focused suite 66/66
-**Gherkin:** ✅ Acceptance lane passes: 1,330 scenarios passed and 3 intentionally skipped, with the affected feature rerun at 81/81 and the five new scenarios at 5/5
+**Test Suite:** ✓ 7,283/7,283 tests pass (6 intentionally skipped); post-merge focused suite 104/104
+**Gherkin:** ✅ The post-merge lane passed 1,349 scenarios with 3 intentional skips before the temp volume filled; all 10 ENOSPC-affected scenarios then passed 10/10 (425/425 steps) after removing disposable test fixtures
 **Build:** ✅ Success for CLI and retro-relay packages
 **Lint:** ✅ ESLint, Gherkin lint, formatting, and whitespace checks are clean
 **Scenarios:** All 5 scenarios marked complete
@@ -19,8 +19,8 @@ Audit passed — the final diff has no actionable correctness, security, test-qu
 
 ## Evidence
 
-- Full package tests: retro-relay 167 passed / 1 skipped; CLI 7,045 passed / 5 skipped across 464 files.
-- Acceptance coverage: the full lane reached 1,327 passes before three host-profile fixture leaks; after isolating valid empty Claude and Codex profiles outside the project tree, the complete affected feature passed 81/81 (3,324 steps), proving the full 1,330-pass surface. The five added examples passed 5/5 (210 steps) after rebasing.
-- Rebase verification: 66 focused catalog, wiring, documentation, help, machine-contract, renderer, convergence, and CLI tests passed on `origin/main`.
-- Static gates: build, typecheck, ESLint, Gherkin lint, dependency-cruiser, `bun audit`, generated Claude plugin contract at 0.74.3, and `git diff --check` passed.
+- Full package tests after merging current `main`: retro-relay 167 passed / 1 skipped; CLI 7,116 passed / 5 skipped across 471 files.
+- Acceptance coverage: the post-merge full lane passed 1,349 scenarios before the macOS temp volume reached ENOSPC; the 10 affected scenario names then passed 10/10 (425/425 steps) after 2,950 disposable Safe Word test directories were removed and 8 GiB was reclaimed. GitHub CI remains the clean-volume single-run acceptance gate.
+- Merge verification: 104 focused catalog, wiring, documentation, help, machine-contract, renderer, convergence, CLI, plan/remove, and Claude profile tests passed on current `origin/main`.
+- Static gates: build, typecheck, ESLint, Gherkin lint, dependency-cruiser, `bun audit`, generated Claude plugin contract at 0.74.4, and `git diff --check` passed.
 - Experience walkthrough: help → capabilities → JSON relay recovery → retained alias help/rejection. The only deliberate friction is `retro-relay-discard --confirm`, which preserves irreversible-action safety; no new normal-flow step was added.
