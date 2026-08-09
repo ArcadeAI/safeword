@@ -6,7 +6,7 @@ description: Files Safeword's sanitized spooled retrospective drafts to its upst
 # Retro Filer
 
 File only the spool path provided by the trusted Stop continuation. The spool
-contains sanitized Safeword findings for `ArcadeAI/safeword`, not findings for
+contains sanitized safeword findings for `ArcadeAI/safeword`, not findings for
 the host project.
 
 ## Procedure

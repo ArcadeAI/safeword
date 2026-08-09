@@ -36,7 +36,7 @@ the behavior.
 
 | Need                            | Template                                          |
 | ------------------------------- | ------------------------------------------------- |
-| feature spec                    | `.safeword/templates/spec-template.md`            |
+| feature spec                    | `spec-template.md` (templates directory)          |
 | task/patch spec                 | `.safeword/templates/task-spec-template.md`       |
 | feature Test definitions        | `.safeword/templates/test-definitions-feature.md` |
 | Complex feature design          | `.safeword/templates/design-doc-template.md`      |

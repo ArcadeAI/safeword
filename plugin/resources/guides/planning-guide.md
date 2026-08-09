@@ -36,7 +36,7 @@ the behavior.
 
 | Need                            | Template                                                                  |
 | ------------------------------- | ------------------------------------------------------------------------- |
-| feature spec                    | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`    |
+| feature spec                    | `spec-template.md` (templates directory)                                  |
 | task/patch spec                 | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`       |
 | feature Test definitions        | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |
 | Complex feature design          | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/design-doc-template.md`      |
