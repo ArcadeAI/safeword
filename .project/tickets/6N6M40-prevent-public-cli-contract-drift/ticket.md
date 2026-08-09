@@ -2,13 +2,14 @@
 id: 6N6M40
 slug: prevent-public-cli-contract-drift
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/2283
 phase_anchors:
   - 'define-behavior: .project/tickets/6N6M40-prevent-public-cli-contract-drift/spec.md'
   - 'scenario-gate: features/prevent-public-cli-contract-drift.feature'
   - 'plan-implementation: .project/tickets/6N6M40-prevent-public-cli-contract-drift/impl-plan.md'
+  - 'done: .project/tickets/6N6M40-prevent-public-cli-contract-drift/verify.md'
 scope:
   - Assemble the production Commander tree through a side-effect-free createCliProgram factory and keep runCli as the only argv/runtime boundary.
   - Classify every public command, retained alias, argv compatibility rewrite, and internal route in one exhaustive catalog with exact syntax, visibility, options, and applicable policy metadata.
@@ -26,7 +27,7 @@ done_when:
   - The CLI contract job is green under 90 seconds in normal operation, required on main with strict-current-main behavior, and ordinary pull-request bypasses are removed.
   - All #2251/#2278 behavior remains green and no retained alias is deleted.
 created: 2026-08-09T06:29:37.342Z
-last_modified: 2026-08-09T06:29:37.342Z
+last_modified: 2026-08-09T07:15:46-10:00
 ---
 
 # Prevent public CLI contracts from drifting again
@@ -50,3 +51,4 @@ last_modified: 2026-08-09T06:29:37.342Z
 - 2026-08-09T23:18:00.000Z Implementation complete: The production factory, exhaustive invocation contract, runtime reconciliation, alias ownership, built-subprocess sweep, generated documentation/plugin freshness, terminology scanner, import boundary, and dedicated CI job are wired. Focused gates, typecheck, lint, dependency validation, website build, audit, and the 1,362-scenario acceptance suite are green.
 - 2026-08-09T23:18:00.000Z Quality and refactor pass complete: Degraded coordinator reviews found and closed bare/global-option retro routing, exact rewrite-target validation, two-way generated-tree freshness/remediation, topology changes, temporary cleanup, and symlink rejection. The final concurrent-repository-writer concern was rejected as outside the trusted-checkout threat model; a repository writer can already replace the executed generator. Extracted root-option matching as the only useful structure-only refactor and advanced to verify. Cross-agent independence remains unavailable because Claude is not authenticated.
 - 2026-08-09T23:47:00.000Z Full verification green on the final tree: retro-relay 167 passed/1 skipped; CLI Vitest 475 files and 7,159 passed/5 skipped; Cucumber 1,359 passed/3 skipped (58,402 steps passed/4 skipped). Diff audit, typecheck, dependency-cruiser, generated-plugin freshness, Bun audit, and whitespace checks are clean. Publishing the branch and staged live ruleset enforcement remain.
+- 2026-08-09T07:15:46-10:00 Live rollout complete: PR #2295 emitted a green `CLI contract` context in 68 seconds after its historical-tag checkout was corrected. Ruleset 16731324 now requires `Dogfood parity` and `CLI contract`, enforces strict-current-main, removes the two named-user bypasses, and retains one explicit `OrganizationAdmin` PR-only bypass for auditable administrative recovery. The temporary Dogfood duplicate was removed, final local verification passed, and the ticket advanced to done.
