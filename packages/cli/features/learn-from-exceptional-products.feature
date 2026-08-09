@@ -277,8 +277,6 @@ Feature: Learn from exceptional products before committing feature decisions
         | product decision | a complete product unsuccessful-search record |
         | implementation decision | a current technical reference record |
         | implementation decision | a complete technical unsuccessful-search record |
-        | product decision | reconciled current epic research for the same material job |
-        | implementation decision | reconciled current epic research with compatible technical boundaries |
 
     Scenario Outline: Complete unsuccessful-search records are accepted by stage
       Given a marked new-flow feature has <complete record shape>

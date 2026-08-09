@@ -356,6 +356,16 @@ describe('product inspiration evidence', () => {
     expect(result.ok).toBe(false);
   });
 
+  it('rejects a complete product table inside a terminated HTML comment', () => {
+    const result = evaluateProductInspiration({
+      ticketContent: activatedTicket(),
+      specContent: productSpec(`<!--\n${productTable(VALID_PRODUCT_ROW)}\n-->`),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
   it('rejects an impossible ticket creation timestamp instead of normalizing it', () => {
     const result = evaluateProductInspiration({
       ticketContent: activatedTicket('2026-02-29T00:00:00.000Z'),
@@ -749,6 +759,27 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: illustrative only',
+    ].join('\n');
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: implementationPlan(body),
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('rejects complete implementation evidence inside a terminated HTML comment', () => {
+    const body = [
+      '<!--',
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: illustrative only',
+      '-->',
     ].join('\n');
 
     expect(
