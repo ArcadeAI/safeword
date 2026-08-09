@@ -23,9 +23,14 @@ const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
 interface FixtureState {
   readonly healthyPayload?: boolean;
   readonly installedVersion?: string | false;
+  readonly largePluginInventory?: boolean;
   readonly marketplaceAddPersists?: boolean;
   readonly marketplaceDeclared?: boolean;
   readonly marketplaceListedReference?: string | false;
+  readonly omittedUserScope?: boolean;
+  readonly oversizedPluginInventory?: boolean;
+  readonly oversizedVersionOutput?: boolean;
+  readonly oversizedVersionStderr?: boolean;
   readonly pluginEnabled?: boolean;
 }
 
@@ -50,6 +55,62 @@ function initializeFixtureState(root: string, ref: string, state: FixtureState) 
   return { enabledState, installedState, installPath, marketplaceState };
 }
 
+function writePluginListOverride(
+  path: string,
+  state: FixtureState,
+  installPath: string,
+  project: string,
+): void {
+  if (state.omittedUserScope === true) {
+    writeFileSync(
+      path,
+      `${JSON.stringify([
+        {
+          id: 'safeword@safeword',
+          version: SAFEWORD_SCHEMA.version,
+          enabled: true,
+          installPath,
+        },
+      ])}\n`,
+    );
+    return;
+  }
+  if (
+    state.oversizedPluginInventory === true ||
+    state.oversizedVersionOutput === true ||
+    state.oversizedVersionStderr === true
+  ) {
+    writeFileSync(
+      path,
+      `${JSON.stringify([{ id: 'oversized@example', detail: 'x'.repeat(10 * 1024 * 1024) }])}\n`,
+    );
+    return;
+  }
+  if (state.largePluginInventory !== true) return;
+  const plugins: Record<string, unknown>[] = Array.from({ length: 400 }, (_, index) => ({
+    id: `unrelated-${index}@example`,
+    scope: 'user',
+    version: '1.0.0',
+    enabled: true,
+    installPath: `/tmp/${'x'.repeat(180)}-${index}`,
+  }));
+  plugins.push({
+    id: 'safeword@safeword',
+    scope: 'project',
+    version: SAFEWORD_SCHEMA.version,
+    enabled: true,
+    installPath,
+    projectPath: project,
+  });
+  writeFileSync(path, `${JSON.stringify(plugins)}\n`);
+}
+
+function versionCommand(state: FixtureState, outputPath: string): string {
+  if (state.oversizedVersionOutput === true) return `cat ${JSON.stringify(outputPath)}`;
+  if (state.oversizedVersionStderr === true) return `cat ${JSON.stringify(outputPath)} >&2`;
+  return "echo '2.1.170'";
+}
+
 function fixture(
   autoUpdate: boolean | undefined,
   ref = 'stable',
@@ -60,6 +121,7 @@ function fixture(
   const project = nodePath.join(root, 'project');
   const bin = nodePath.join(root, 'bin');
   const log = nodePath.join(root, 'claude.log');
+  const pluginListOverride = nodePath.join(root, 'plugin-list.json');
   const settingsPath = nodePath.join(project, '.claude/settings.json');
   directories.push(root);
   mkdirSync(nodePath.dirname(settingsPath), { recursive: true });
@@ -69,6 +131,7 @@ function fixture(
     ref,
     state,
   );
+  writePluginListOverride(pluginListOverride, state, installPath, project);
   const declaration: Record<string, unknown> = {
     source: { source: 'git', url: 'https://github.com/ArcadeAI/safeword.git', ref },
   };
@@ -101,7 +164,7 @@ function fixture(
 set -eu
 printf '%s\n' "$*" >> ${JSON.stringify(log)}
 case "$*" in
-  '--version') echo '2.1.170' ;;
+  '--version') ${versionCommand(state, pluginListOverride)} ;;
   'plugin marketplace list --json')
     if [ -f ${JSON.stringify(marketplaceState)} ]; then
       marketplace_ref=$(cat ${JSON.stringify(marketplaceState)})
@@ -112,7 +175,13 @@ case "$*" in
     ;;
   'plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project') ${persistMarketplace} ;;
   'plugin list --json')
-    if [ -f ${JSON.stringify(installedState)} ]; then
+    if [ -f ${JSON.stringify(pluginListOverride)} ]; then
+      if [ -p /dev/fd/1 ] || [ -S /dev/fd/1 ]; then
+        head -c 65536 ${JSON.stringify(pluginListOverride)}
+      else
+        cat ${JSON.stringify(pluginListOverride)}
+      fi
+    elif [ -f ${JSON.stringify(installedState)} ]; then
       plugin_version=$(cat ${JSON.stringify(installedState)})
       plugin_enabled=false
       if [ -f ${JSON.stringify(enabledState)} ]; then plugin_enabled=true; fi
@@ -241,6 +310,49 @@ describe('Claude marketplace update enrollment', () => {
       installations: [{ scope: 'project', health: 'current' }],
     });
   });
+
+  it('treats an omitted Claude plugin scope as the default user scope', () => {
+    const { project } = fixture(true, 'stable', undefined, { omittedUserScope: true });
+
+    expect(observeApplicableClaudePlugins(project)).toMatchObject({
+      status: 'observed',
+      installations: [{ scope: 'user', health: 'current' }],
+    });
+  });
+
+  it('observes a valid Claude plugin inventory larger than 64 KiB', () => {
+    const { project } = fixture(true, 'stable', undefined, { largePluginInventory: true });
+
+    expect(observeApplicableClaudePlugins(project)).toMatchObject({
+      status: 'observed',
+      installations: [{ scope: 'project', health: 'current' }],
+    });
+  });
+
+  it('reports an actionable error when Claude output exceeds the safety limit', () => {
+    const { project } = fixture(true, 'stable', undefined, { oversizedPluginInventory: true });
+
+    expect(observeApplicableClaudePlugins(project)).toMatchObject({
+      status: 'errored',
+      installations: [],
+      message: expect.stringContaining('Claude command output exceeded 10485760 bytes'),
+      nextAction: 'repair the reported Claude plugin error',
+    });
+  });
+
+  it.each([{ oversizedVersionOutput: true }, { oversizedVersionStderr: true }])(
+    'reports an operational error when the Claude version probe exceeds its limit',
+    state => {
+      const { project } = fixture(true, 'stable', undefined, state);
+
+      expect(observeApplicableClaudePlugins(project)).toMatchObject({
+        status: 'errored',
+        installations: [],
+        message: expect.stringContaining('Claude command output exceeded 10485760 bytes'),
+        nextAction: 'repair the reported Claude host error',
+      });
+    },
+  );
 
   it('enables native auto-update for an eligible stable marketplace without disturbing other settings', () => {
     const { log, project, settingsPath } = fixture(undefined);
