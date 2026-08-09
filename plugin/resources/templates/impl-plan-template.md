@@ -41,8 +41,9 @@ reuse code without checking its license and obligations. Use one physical line
 per row and no pipe characters inside cells.
 -->
 
+<!-- prettier-ignore -->
 | Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |
-| --------- | ---------- | -------------- | -------------- | --------------- | ------------------- | -------------------------------------- |
+| --- | --- | --- | --- | --- | --- | --- |
 
 **Decision impact:** <changed: or retained: plus a non-empty rationale>
 

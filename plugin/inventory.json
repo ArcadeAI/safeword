@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "83412dc45c314fb4ed1be7642a2ef4e8235d3a98b83e534e21313cf3af198103"
+      "sha256": "1d3edc44c22d91d3a9de13d4fa7b0a6a7eae0d2d57d973ca9f47246795155a19"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -575,7 +575,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "adcdda4ceb3588ed2106902836caf4762bcebac5236a04fe7878f8c9af1ba81e"
+      "sha256": "072ff40f8f2d46364c1ad74d6e3655567f2a14980437726314f072b92b5b9a46"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
