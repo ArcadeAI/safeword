@@ -38,6 +38,17 @@ module.exports = {
 
     // === CLI PACKAGE ARCHITECTURE ===
 
+    {
+      name: 'cli-entrypoint-only-imports-program',
+      severity: 'error',
+      comment: 'Only the executable wrapper may import the production CLI program boundary',
+      from: {
+        path: '^packages/cli/src/',
+        pathNot: String.raw`^packages/cli/src/cli\.ts$`,
+      },
+      to: { path: String.raw`^packages/cli/src/cli-protocol/program\.ts$` },
+    },
+
     // Commands cannot import other commands (except setup → sync-config)
     {
       name: 'cli-no-cross-command-imports',

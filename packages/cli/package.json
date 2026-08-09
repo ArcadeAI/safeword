@@ -53,6 +53,8 @@
     "check:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts --check",
     "check:claude-plugin": "bun scripts/check-claude-plugin-release.ts",
     "check:pr-review-workflows": "bun scripts/check-pr-review-workflows.ts",
+    "check:cli-contract": "bun scripts/check-cli-contract.ts",
+    "generate:cli-reference": "bun scripts/generate-cli-reference.ts",
     "smoke:pr-review:disposable": "bun scripts/run-pr-review-disposable-smoke.ts",
     "generate:cursor-wrappers": "bun scripts/generate-cursor-wrappers.ts",
     "measure:relay-drain": "bun scripts/measure-relay-drain-throughput.ts",
