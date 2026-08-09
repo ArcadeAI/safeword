@@ -127,14 +127,9 @@ function historicalInspirationContractWasActivated(
     const ticketContent = readHistoricalVersion(ticketDirectory, commit, ticketTrail.paths);
     const specContent = readHistoricalVersion(ticketDirectory, commit, specTrail.paths);
     if (ticketContent === undefined || specContent === undefined) return undefined;
-    const verdict = evaluateInspirationActivation({
-      ticketContent,
-      specContent,
-      activationProvenance: 'absent',
-    });
-    if (verdict.ok && verdict.activated) {
-      return true;
-    }
+    // Any committed activation signal is durable provenance, including a
+    // partial scaffold that never reached the complete three-signal state.
+    if (hasInspirationActivationCandidate({ ticketContent, specContent })) return true;
   }
   return false;
 }
