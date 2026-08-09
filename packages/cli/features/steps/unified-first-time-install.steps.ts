@@ -110,8 +110,9 @@ function createClaudePayload(root: string): string {
   const assets = [
     ['hooks/hooks.json', '{"hooks":{}}\n'],
     ['runtime/cli.js', '// cli\n'],
-    ['runtime/dispatch.ts', '// dispatch\n'],
+    ['runtime/dispatch.js', '// dispatch\n'],
     ['runtime/event-groups.json', '{}\n'],
+    ['.claude-plugin/plugin.json', '{"name":"safeword"}\n'],
   ] as const;
   for (const [relativePath, content] of assets) {
     const path = nodePath.join(installPath, relativePath);

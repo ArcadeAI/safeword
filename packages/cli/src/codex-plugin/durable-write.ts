@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   closeSync,
   fsyncSync,
+  linkSync,
   mkdirSync,
   openSync,
   renameSync,
@@ -34,6 +35,39 @@ export function writeDurableFile(
     }
     options.beforeRename?.();
     durableRename(temporaryPath, path);
+  } finally {
+    rmSync(temporaryPath, { force: true });
+  }
+}
+
+/** Publish a durable file only when the destination does not already exist. */
+export function writeDurableFileExclusive(
+  path: string,
+  content: Buffer | string,
+  options: { readonly mode: number },
+): void {
+  const directory = nodePath.dirname(path);
+  mkdirSync(directory, { recursive: true });
+  const temporaryPath = nodePath.join(
+    directory,
+    `.${nodePath.basename(path)}-${process.pid}-${randomUUID()}.tmp`,
+  );
+  try {
+    const descriptor = openSync(temporaryPath, 'wx', options.mode);
+    try {
+      writeFileSync(descriptor, content);
+      fsyncSync(descriptor);
+    } finally {
+      closeSync(descriptor);
+    }
+    linkSync(temporaryPath, path);
+    let directoryDescriptor: number | undefined;
+    try {
+      directoryDescriptor = openSync(directory, 'r');
+      fsyncSync(directoryDescriptor);
+    } finally {
+      if (directoryDescriptor !== undefined) closeSync(directoryDescriptor);
+    }
   } finally {
     rmSync(temporaryPath, { force: true });
   }

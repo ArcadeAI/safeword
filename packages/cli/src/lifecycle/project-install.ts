@@ -602,7 +602,16 @@ function setupResult(input: SetupResultInput): CliResult {
     ...namespaceMigration.findings,
     ...pythonFindings(pythonSetup),
   ];
-  const actionRequired = findings.some(finding => finding.severity !== 'info');
+  // A failed automatic Codex handoff is intentionally advisory: the legacy
+  // project integration remains active and the SessionStart bootstrap retries
+  // enrollment for the next task/developer. Keep the warning loud without
+  // turning an otherwise successful setup into a blocking exit status.
+  const actionRequired = findings.some(
+    finding => finding.severity !== 'info' && finding.code !== 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+  );
+  const handoffDeferred = findings.some(
+    finding => finding.code === 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+  );
   // `.claude/settings.json` records enrollment but not the enrolled version, so
   // it can only prove "already converged" when this run changed nothing. A run
   // that rewrote delivered files may have moved the templates past the version
@@ -611,7 +620,9 @@ function setupResult(input: SetupResultInput): CliResult {
   const claudePluginReloadEligible = claudeProjectPluginEnrolled && !changed;
   const resultFindings = [
     ...findings,
-    ...(actionRequired
+    // Suppressed while a handoff is deferred: claiming enrollment succeeded
+    // would contradict the warning this run just emitted.
+    ...(actionRequired || handoffDeferred
       ? []
       : [
           {
@@ -681,7 +692,9 @@ function projectClaudePluginEnrolled(cwd: string): boolean {
 function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
-    observeFileStage(cwd, ['.safeword'], completedEffects, () => installPack(packId, cwd));
+    observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
+      installPack(packId, cwd),
+    );
   }
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
     stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),

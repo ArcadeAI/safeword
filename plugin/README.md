@@ -28,8 +28,9 @@ safeword claude status
 The installer pins the official release at project scope by default and records
 the declaration in `.claude/settings.json`. Explicit `--scope user` activation
 instead writes the Claude profile and leaves the repository unchanged. Status
-reports both installations as `scope-overlap` when they apply together; neither
-is removed automatically. Both modes verify the same Claude-owned cache payload.
+reports one effective project installation when project and user declarations
+resolve to the exact same verified payload. Different versions or cache payloads
+remain a visible `scope-overlap`; neither declaration is removed automatically.
 
 ### From GitHub
 
@@ -56,7 +57,10 @@ Project state is still created explicitly:
 - `safeword install` — create or reconcile project-owned state and install Claude and Codex
 - `/safeword:bdd`, `/safeword:debug`, and the other namespaced skills — run native workflows
 
-For a legacy project, inspect migration state before removing anything:
+For a legacy project, the first successful `UserPromptSubmit` handled by the
+exact plugin automatically removes only byte-for-byte released Safeword assets
+and exact historical hook entries. Unknown content is preserved and reported
+once per session. These commands remain available for inspection and recovery:
 
 ```bash
 safeword claude status
@@ -66,7 +70,14 @@ safeword claude recover # only when status says recovery-required
 ```
 
 Legacy protection stays authoritative until exact plugin execution is proven.
-Cleanup is project-only and preserves unrecognized or third-party Claude content.
+Migration is project-only, preserves project enrollment and unrecognized or
+third-party Claude content, and never turns a successful prompt into a blocked
+prompt. Interrupted work resumes from its durable transaction on a later prompt.
+
+The bundled identity and SHA-256 inventory detect incomplete or corrupted plugin
+caches before any Safeword hook runs. They are consistency checks, not a trust
+boundary against an attacker who can rewrite both the plugin payload and its
+identity files; installation trust remains Claude Code's responsibility.
 
 ## Prerequisites
 
