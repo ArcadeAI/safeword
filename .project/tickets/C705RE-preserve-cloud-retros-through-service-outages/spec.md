@@ -30,12 +30,14 @@ false promise of recovery.
 ## Personas
 
 - Technical Builder (TBU)
+- Non-Technical Builder (NTB)
 - Safeword Maintainer (SWM)
 
 ## Surfaces
 
 Affected:
 
+- Safe Word CLI
 - Claude Code Cloud
 - OpenAI Codex Cloud
 - Cursor Cloud Agents
@@ -60,11 +62,17 @@ Unaffected:
   not consume public-ingress quarantine records.
 - **Handoff receipt:** the request-ID-bound proof returned by durable intake;
   it permits an ephemeral agent to end without retaining its own retry file.
+- **Quarantine key:** project installation ID + normalized remote repository +
+  request ID. It identifies one public intake record and is the sole dedupe
+  key for that record.
 - **Project installation ID:** a UUIDv4 generated locally by `safeword install`
   and stored in project config without contacting the relay. It is intentionally
-  public and groups first-seen telemetry; it is not authentication. The public
-  record namespace is project installation ID + normalized remote repository +
-  request ID, so copied project config in a fork remains a distinct source.
+  public and groups first-seen telemetry; it is not authentication. A copied
+  project config in a fork has a distinct quarantine key because its normalized
+  remote repository differs.
+- **Public ingest key:** a release-scoped, intentionally public key compiled
+  into Safe Word. It identifies the permitted intake format and can be rotated
+  by releasing a replacement; it is not a secret, identity, or authorization.
 - **Runtime profile:** best-effort claimed provenance gathered without network
   calls: normalized repository, actor, agent/harness, cloud-or-local host
   class, OS family, architecture, and Safe Word version. Initial GitHub login
@@ -73,7 +81,8 @@ Unaffected:
   metadata; raw email is never included in a GitHub issue, command output, or
   operational log. Profile collection has a 50 ms budget inside the existing
   500 ms cloud handoff deadline; a slow or malformed source produces an
-  omitted field and never delays relay handoff.
+  omitted field and never delays relay handoff. It is part of the 500 ms total
+  handoff budget, so the receipt request uses only the time that remains.
 
 ## Jobs To Be Done
 
@@ -129,9 +138,9 @@ Unaffected:
 
 #### preserve-cloud-retros-through-service-outages.SWM2.R1 — Installation creates a stable public project ID locally and handoff carries bounded best-effort provenance
 
-#### preserve-cloud-retros-through-service-outages.SWM2.R2 — Project ID and runtime provenance grant no relay operation, record read, GitHub credential, or cross-repository authority
+#### preserve-cloud-retros-through-service-outages.SWM2.R2 — Public intake cannot use privileged relay capabilities while authenticated operators can inspect queued data
 
-#### preserve-cloud-retros-through-service-outages.SWM2.R3 — Public payload and profile expire after 30 days while their payload-free tombstone remains
+#### preserve-cloud-retros-through-service-outages.SWM2.R3 — Public data remains available to authenticated operators within a fixed queue capacity
 
 ## Rave Moment
 
@@ -144,9 +153,11 @@ be marketed as surprising.
   handoff is counted as durable.
 - A public-ingress receipt survives relay restart as one encrypted quarantine
   record with the original identity and payload; it causes no GitHub write.
-- Encrypted public payload and runtime profile expire after 30 days; a
-  payload-free tombstone retaining the public namespace remains indefinitely
-  for duplicate protection.
+- Accepted public payload and runtime profile remain encrypted in a bounded
+  operator queue so authenticated Safe Word operators can inspect, cluster, or
+  export them later. The queue has a fixed configurable record capacity; a full
+  queue rejects a fresh quarantine key without displacing an accepted record.
+  It emits a sanitized operator alert at 80% capacity and again when full.
 - An unavailable intake returns control within the 500 ms handoff deadline, creates no
   user-facing interruption, and emits only sanitized operator evidence.
 - A surface without a supported carrier or without a receipt cannot count
@@ -180,18 +191,26 @@ for local filing and relay operations. Cloud handoff instead uses a
 telemetry-style local project installation ID. It is intentionally readable by
 the agent and therefore is never described as authentication or a secret.
 
-`safeword install` generates the UUIDv4 locally and stores it in project config;
-there is no registration endpoint or setup-time network call. At handoff the
+`safeword install` generates the UUIDv4 locally only when missing and stores it
+in project config; there is no registration endpoint or setup-time network
+call. At handoff the
 client derives the repository from its Git remote after stripping userinfo and
 adds only best-effort runtime claims. It never calls GitHub to discover an
 identity, reads a token, or sends a hostname, local path, or token. `GITHUB_ACTOR`
 is the only initial GitHub-login source; otherwise the actor is Git email or
 unknown. The relay validates and rate-limits the request but treats all values
 as metadata, never as authorization; it persists accepted public submissions
-only in an encrypted quarantine record. That encrypted payload/profile expires
-after 30 days, while a payload-free tombstone for the project ID, normalized
-repository, and request ID remains indefinitely. This accepts the residual risk of bounded
-junk submission and spoofed provenance; strict limits, idempotency, and
-operator observability contain it. This public path is intentionally outside
+  only in an encrypted quarantine record. A release-scoped public ingest key
+  accompanies the request but is never treated as a secret. Records persist
+  until an authenticated operator uses them or the configured fixed queue
+  capacity is reached; the receiver never evicts accepted data to make room for
+  a fresh untrusted quarantine key. This accepts the residual risk of bounded junk
+  submission and spoofed provenance; strict body, rate, and capacity limits
+  plus operator alerts contain it. This public path is intentionally outside
 issue 1479's authenticated relay contract and can never count toward issue
 1479, `05PR3F`, or issue 834.
+
+The public request body is the existing versioned, sanitized relay filing
+envelope plus public project installation ID and claimed runtime profile; its
+receipt is bound to the same request ID. New cloud carriers must use this exact
+schema or introduce a new version rather than changing the public contract.

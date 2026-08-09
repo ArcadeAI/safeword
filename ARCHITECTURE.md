@@ -540,18 +540,23 @@ by harness credentials and is allowed to use server-side GitHub credentials.
 #### Decision
 
 We will persist public submissions in a separate encrypted quarantine table
-keyed by public project UUID, normalized repository, and request ID. A
-write-only, disabled-by-default endpoint may create or deduplicate a quarantine
-receipt, but exposes no read, operation, reconciliation, or filing capability.
-The GitHub filing worker consumes only authenticated `retro_requests` records.
+keyed by public project UUID, normalized repository, and request ID. An
+explicitly deployment-enabled public endpoint, identified by a release-scoped
+public format key, may create or deduplicate a quarantine receipt. It exposes
+no public read, operation, reconciliation, or filing capability. Existing
+authenticated relay operators may list and inspect the small queue for later
+analysis, but cannot cause its records to enter the filing worker. The GitHub
+filing worker consumes only authenticated `retro_requests` records.
 
 #### Consequences
 
 Public cloud handoff can be quiet and durable without sign-up, while its
-untrusted metadata cannot cross into GitHub access. Payload/profile expiry after
-30 days and an indefinite payload-free tombstone protect privacy and duplicate
-handling. A provider still needs a real hosted carrier probe before its route is
-enabled; this does not activate ticket `05PR3F` or supersede issue 834.
+untrusted metadata cannot cross into GitHub access. The queue has a fixed,
+configurable record capacity and never silently evicts an accepted record; it
+alerts the operator at 80% capacity and again when full, when it rejects new
+identities. A provider still needs
+a real hosted carrier probe before its route is enabled; this does not activate
+ticket `05PR3F` or supersede issue 834.
 
 ### Settled Decisions (2025-12)
 

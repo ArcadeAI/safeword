@@ -19,8 +19,11 @@ scope:
 - Key public quarantine identity by project installation ID, normalized remote
   repository, and request ID, so a fork that copies project config is a distinct
   source without mutating its config at runtime.
-- Reuse the existing request identity, durable store, and deduplication to keep
-  accepted public ingress in a durable quarantine record.
+- Reuse the existing request identity and durable-store conventions to keep
+  accepted public ingress in a separate encrypted operator queue, with a fixed
+  configurable record capacity.
+- Let only an existing authenticated relay operator list and inspect queued
+  public records. Public ingress remains submit-only and never files a retro.
 - Keep the carrier quiet: its bounded failure is recorded only in sanitized
   operational telemetry, never narrated to the builder.
 - Prove the endpoint, client wiring, and failure behavior with integration and
@@ -41,8 +44,9 @@ done_when:
 - An accepted public request remains durably quarantined through a relay
   restart; a client-side timeout or service failure stays bounded and silent to
   the builder.
-- Encrypted public payload and runtime profile expire after 30 days while a
-  payload-free public tombstone remains indefinitely for duplicate protection.
+- Encrypted public payload and runtime profile remain available in the bounded
+  operator queue. A full queue rejects a new identity without evicting or
+  mutating an accepted record, while an existing identity still deduplicates.
 - The original bearer-authorized filing and operator paths retain their current
   authorization boundaries.
 created: 2026-08-08T16:53:28.607Z
@@ -140,3 +144,18 @@ waiting for relay filing or seeing a user-facing interruption.
   completion carrier. All provider routes remain disabled. The implementation
   plan uses a separate public quarantine table and write-only endpoint so this
   result cannot weaken the authenticated filing boundary.
+- 2026-08-08T18:42Z Plan review found that a write-only 30-day quarantine would
+  retain diagnostic data with no way to use it, while indefinite tombstones
+  would leave an unbounded anonymous-write namespace. User confirmed the
+  current low-volume goal: use the existing Railway SQLite service only. The
+  revised behavior is a small encrypted operator queue with a fixed configurable
+  record cap, no automatic eviction, basic bounded ingress, and operator-only
+  list/inspect access. This materially changes retention and therefore returns
+  to scenario review before implementation planning resumes.
+- 2026-08-08T19:10Z The revised bounded-queue behavior passed independent
+  scenario review after adding deterministic deadline, malformed-profile,
+  untrusted-egress, dedupe-before-rate-limit, capacity-race, and traceability
+  coverage. Reviewer suggestions for rate-window reset and exact body-size
+  boundaries are intentionally deferred: they do not protect the core durable
+  acceptance/quiet failure contract at current low volume and would add policy
+  surface before there is evidence it is needed.

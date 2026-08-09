@@ -46,7 +46,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A reachable but slow intake times out quietly before durable acceptance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Slow runtime-profile collection cannot consume the handoff budget
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A malformed runtime-profile source is omitted without delaying handoff
 
 - [ ] RED
 - [ ] GREEN
@@ -82,6 +94,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Reinstalling Safe Word preserves the existing public project ID
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A project without a normalized remote skips public handoff quietly
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A copied project ID remains a distinct source after a repository fork
 
 - [ ] RED
@@ -102,7 +126,37 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An authenticated operator can inspect an accepted public retro
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A Git email remains encrypted metadata and never reaches public output
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Handoff excludes host-local and credential data from its outbound payload
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Invalid public intake cannot create a quarantine record
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A configured public rate limit rejects a fresh quarantine key
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A retained quarantine key still dedupes after its rate limit is reached
 
 - [ ] RED
 - [ ] GREEN
@@ -114,21 +168,39 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: SWM2.R3 — Expire public personal data while retaining dedupe identity
+## Rule: SWM2.R3 — Retain bounded public operator data
 
-### Scenario: Public payload and runtime profile expire after 30 days
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A tombstone-only public namespace still dedupes its original request
+### Scenario: A full public queue rejects a new identity without replacing stored data
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Public payload is retained before its 30-day lifetime ends
+### Scenario: An operator is alerted before the public queue reaches capacity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The last available public queue slot accepts one new identity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A retained public quarantine key still dedupes its original request
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Concurrent duplicate public handoffs produce one record and receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Concurrent new keys cannot exceed the last available queue slot
 
 - [ ] RED
 - [ ] GREEN
