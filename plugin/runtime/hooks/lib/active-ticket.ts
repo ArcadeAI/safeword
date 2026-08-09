@@ -11,7 +11,7 @@ import process from 'node:process';
 
 import { parseFrontmatter } from './hierarchy.js';
 import { inspirationContractProvenance } from './feature-provenance.js';
-import { evaluateInspirationActivation, evaluateProductInspiration } from './inspiration.js';
+import { evaluateProductInspiration } from './inspiration.js';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { isValidSkipReason } from './parse-annotation.js';
