@@ -95,13 +95,13 @@ source; ticks remain open until the corresponding proof exists and passes.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Each blocking entry mechanism reaches the canonical inspiration gates
+### Scenario Outline: The canonical blockable transition reaches each inspiration gate
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Each blocking entry mechanism completes valid inspiration transitions automatically
+### Scenario Outline: Each generated blocking adapter preserves the canonical gate route
 
 - [ ] RED
 - [ ] GREEN

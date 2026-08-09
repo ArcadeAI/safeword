@@ -143,7 +143,7 @@ function stripHtmlComments(content: string): string {
 }
 
 function extractSection(content: string, heading: string, level: number): string | undefined {
-  const lines = stripHtmlComments(content).split(/\r?\n/);
+  const lines = withoutFencedCode(content).split(/\r?\n/);
   const matches = lines.flatMap((line, index) => (line === heading ? [index] : []));
   if (matches.length !== 1) return undefined;
 
@@ -223,6 +223,38 @@ function hasDecisionPrefix(value: string, prefixes: readonly string[]): boolean 
   return prefixes.some(
     prefix => value.startsWith(prefix) && value.slice(prefix.length).trim() !== '',
   );
+}
+
+function decisionRows(content: string): string[][] {
+  const lines = withoutFencedCode(content).split(/\r?\n/);
+  const header = '| Decision | Choice | Alternatives considered | Rejected because |';
+  const headerIndex = lines.indexOf(header);
+  if (headerIndex === -1) return [];
+
+  const delimiter = lines[headerIndex + 1] ?? '';
+  const delimiterCells =
+    delimiter.startsWith('|') && delimiter.endsWith('|')
+      ? delimiter
+          .slice(1, -1)
+          .split('|')
+          .map(cell => cell.trim())
+      : [];
+  if (delimiterCells.length !== 4 || delimiterCells.some(cell => !/^:?-+:?$/.test(cell))) {
+    return [];
+  }
+
+  const rows: string[][] = [];
+  for (let index = headerIndex + 2; index < lines.length; index++) {
+    const line = lines[index] ?? '';
+    if (!line.startsWith('|') || !line.endsWith('|')) break;
+    const cells = line
+      .slice(1, -1)
+      .split('|')
+      .map(cell => cell.trim());
+    if (cells.length !== 4 || cells.some(cell => cell === '')) return [];
+    rows.push(cells);
+  }
+  return rows;
 }
 
 export function evaluateProductInspiration(
@@ -409,7 +441,9 @@ export function evaluateImplementationInspiration(
   }
 
   const references = table.rows.map(row => row[0]!);
-  const cited = references.some(reference => decisions.split(reference).length >= 3);
+  const cited = decisionRows(decisions).some(row =>
+    references.some(reference => row.some(cell => cell.includes(reference))),
+  );
   if (!cited) {
     return evidenceFailure(
       'At least one affected Decisions row must cite an Implementation Inspiration reference.',

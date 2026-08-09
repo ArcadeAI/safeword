@@ -224,6 +224,16 @@ describe('product inspiration evidence', () => {
 
     expect(result.ok).toBe(false);
   });
+
+  it('rejects a product table inside fenced example content', () => {
+    const result = evaluateProductInspiration({
+      ticketContent: activatedTicket(),
+      specContent: productSpec(`\`\`\`md\n${productTable(VALID_PRODUCT_ROW)}\n\`\`\``),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+  });
 });
 
 const IMPLEMENTATION_HEADER =
@@ -371,6 +381,50 @@ describe('implementation inspiration evidence', () => {
         ticketContent: activatedTicket(),
         specContent: spec(SPEC_MARKER),
         planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('rejects duplicate reference text confined to the inspiration subsection', () => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: https://spec.commonmark.org/0.31.2/ supports it',
+    ].join('\n');
+    const plan = implementationPlan(body).replace(
+      '| parser | https://spec.commonmark.org/0.31.2/ |',
+      '| parser | uncited source |',
+    );
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('rejects an implementation table inside fenced example content', () => {
+    const body = [
+      '```md',
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: illustrative only',
+      '```',
+    ].join('\n');
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: implementationPlan(body),
         evaluationDate: '2026-08-09',
       }).ok,
     ).toBe(false);
