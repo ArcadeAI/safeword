@@ -35,13 +35,13 @@ Ruled out: a #2278 regression (the package is unchanged from `main`); simultaneo
 - [x] Exactly one contender acquires and every other contender is blocked.
 - [x] Child failure, malformed output, and early exit remain visible.
 - [x] The focused test passes repeatedly on the previously failing host.
-- [ ] Full retro-relay and repository verification pass.
+- [x] Full retro-relay and repository verification pass.
 
 ## Tests
 
 - [x] Real subprocess: coordinate 24 ready contenders and prove one acquisition during a single held-lock interval.
 - [x] Repeat the focused qualification to prove the result is not wall-clock dependent.
-- [ ] Run the full retro-relay suite and repository verification.
+- [x] Run the full retro-relay suite and repository verification.
 
 ## BDD Impact
 
@@ -53,3 +53,4 @@ No new Gherkin scenario: this changes only the synchronization mechanics of an e
 - 2026-08-09T01:10:00.000Z Investigated: Confirmed the wall-clock start and one-second release do not form a readiness barrier; recorded GitHub issue #2289.
 - 2026-08-09T02:05:00.000Z Implemented: Replaced the future-time race with explicit ready/start/outcome/release coordination; production lock code remains unchanged.
 - 2026-08-09T02:06:00.000Z Verified: Corrected focused test passed four consecutive runs; full retro-relay suite passed 167/167 with one intentional skip; affected-file ESLint, retro-relay TypeScript, and diff whitespace checks passed. Full repository ESLint was stopped after 19 minutes on the newly installed slow filesystem and remains delegated to PR CI.
+- 2026-08-09T04:50:00.000Z Reverified: After merging current main and the Claude/Codex host-boundary isolation fix, the exact branch passed 471 test files (7,109 tests; 5 intentional skips), full lint, TypeScript, dependency audit, generated Claude plugin parity, and whitespace checks.
