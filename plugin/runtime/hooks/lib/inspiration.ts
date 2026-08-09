@@ -318,7 +318,7 @@ export function evaluateProductInspiration(
     const table = parseExactTable(section, PRODUCT_HEADER, PRODUCT_DELIMITER, 7);
     if (!table) return evidenceFailure('The product inspiration table does not match v1 grammar.');
     for (const row of table.rows) {
-      const [reference, checkedOn, sourceVersion, , , , impact] = row;
+      const [reference, checkedOn, , , , , impact] = row;
       if (!isHttpsUrl(reference!))
         return evidenceFailure('Product references must be absolute HTTPS URLs.');
       if (!dateInRange(checkedOn!, baseline, input.evaluationDate)) {
@@ -326,8 +326,6 @@ export function evaluateProductInspiration(
           'Product evidence dates must fall between ticket creation and evaluation.',
         );
       }
-      if (sourceVersion === '')
-        return evidenceFailure('Product source version must use a value or n/a.');
       if (!hasDecisionPrefix(impact!, ['changed:', 'retained:'])) {
         return evidenceFailure('Product decision impact must begin changed: or retained:.');
       }
