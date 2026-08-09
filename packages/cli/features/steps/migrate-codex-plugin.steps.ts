@@ -324,9 +324,12 @@ When('the builder sets up Safeword', function (this: MigrationWorld) {
   });
 });
 
-When('the builder installs the Safeword Codex plugin', function (this: MigrationWorld) {
-  runCodexCommand(this, ['codex', 'install']);
-});
+When(
+  'the builder installs the Safeword Codex plugin for the first time',
+  function (this: MigrationWorld) {
+    runCodexCommand(this, ['codex', 'install']);
+  },
+);
 
 When('the builder installs the Safeword Codex plugin twice', function (this: MigrationWorld) {
   runCodexCommand(this, ['codex', 'install']);

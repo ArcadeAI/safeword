@@ -26,7 +26,7 @@ Feature: Install the Safeword Codex plugin for new users
     Scenario: Fresh Codex installation verifies the profile plugin without project configuration
       Given a project has no Codex configuration
       And the Safeword Codex plugin can be installed and is enabled
-      When the builder installs the Safeword Codex plugin
+      When the builder installs the Safeword Codex plugin for the first time
       Then the active Codex profile has the enabled Safeword plugin
       And the project has no Safeword Codex hook configuration
       And the builder is told to restart Codex before reviewing the installed plugin
@@ -42,7 +42,7 @@ Feature: Install the Safeword Codex plugin for new users
     Scenario: Failed profile installation leaves no project Codex configuration
       Given a project has no Codex configuration
       And the Safeword Codex plugin cannot be installed
-      When the builder installs the Safeword Codex plugin
+      When the builder installs the Safeword Codex plugin for the first time
       Then the Codex plugin installation fails with a remediation message
       And the project still has no Safeword Codex hook configuration
 
