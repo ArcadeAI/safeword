@@ -3929,11 +3929,52 @@ function stripQuotes2(value) {
 }
 var init_hierarchy = () => {};
 
+// templates/hooks/lib/inspiration.ts
+function stripHtmlComments(content) {
+  return content.replaceAll(/<!--[\s\S]*?-->/g, (comment) => comment.replaceAll(/[^\r\n]/g, ""));
+}
+function withoutFencedCode(content, preserveHtmlComments = false) {
+  const lines = content.split(/\r?\n/);
+  let fence;
+  let htmlComment = false;
+  const projected = lines.map((line) => {
+    if (fence !== undefined) {
+      const closing = new RegExp(`^\\s{0,3}${fence.kind}{${fence.length},}\\s*$`);
+      if (closing.test(line))
+        fence = undefined;
+      return "";
+    }
+    if (htmlComment) {
+      if (line.includes("-->"))
+        htmlComment = false;
+      return preserveHtmlComments ? line : "";
+    }
+    const opening = /^\s{0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    if (!opening) {
+      const commentStart = line.indexOf("<!--");
+      if (commentStart !== -1 && line.indexOf("-->", commentStart + 4) === -1) {
+        htmlComment = true;
+        return preserveHtmlComments ? line : line.slice(0, commentStart);
+      }
+      return line;
+    }
+    const run = opening[1];
+    const kind = run[0];
+    const info2 = opening[2] ?? "";
+    if (kind === "`" && info2.includes("`"))
+      return line;
+    fence = { kind, length: run.length };
+    return "";
+  }).join(`
+`);
+  return preserveHtmlComments ? projected : stripHtmlComments(projected);
+}
+
 // templates/hooks/lib/impl-plan.ts
 function activeLines(content) {
   const lines = [];
   let inComment = false;
-  for (const raw of content.split(`
+  for (const raw of withoutFencedCode(content).split(`
 `)) {
     let line = raw;
     if (inComment) {
@@ -3954,22 +3995,26 @@ function activeLines(content) {
       line = line.slice(0, start) + line.slice(end + 3);
       start = line.indexOf("<!--");
     }
+    if (/^(?: {4}|\t)/u.test(line))
+      continue;
     lines.push(line);
   }
   return lines;
 }
 function parseStatus(lines, errors) {
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith(STATUS_PREFIX))
-      continue;
-    const value = trimmed.slice(STATUS_PREFIX.length).trim();
-    if (value === "planned" || value === "implemented")
-      return value;
-    errors.push(`Unknown status "${value}" \u2014 allowed values: planned, implemented.`);
+  const candidates = lines.map((line) => line.trim()).filter((line) => line.startsWith(STATUS_PREFIX));
+  if (candidates.length === 0) {
+    errors.push(`Missing \`${STATUS_PREFIX}\` line \u2014 add \`${STATUS_PREFIX} planned\` near the top.`);
     return null;
   }
-  errors.push(`Missing \`${STATUS_PREFIX}\` line \u2014 add \`${STATUS_PREFIX} planned\` near the top.`);
+  if (candidates.length !== 1) {
+    errors.push(`Expected exactly one \`${STATUS_PREFIX}\` line; found ${candidates.length}.`);
+    return null;
+  }
+  const value = candidates[0].slice(STATUS_PREFIX.length).trim();
+  if (value === "planned" || value === "implemented")
+    return value;
+  errors.push(`Unknown status "${value}" \u2014 allowed values: planned, implemented.`);
   return null;
 }
 function collectSectionBodies(lines) {
@@ -3998,15 +4043,32 @@ function validateAlignmentHeading(lines, errors) {
     errors.push("Both `## Design alignment` and legacy `## Arch alignment` are present \u2014 keep exactly one.");
   }
 }
+function validateUniqueSectionHeadings(lines, errors) {
+  const counts = new Map;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("## "))
+      continue;
+    const name = SECTION_NAMES.get(trimmed.slice(3).trim().toLowerCase());
+    if (name !== undefined)
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  for (const [name, count] of counts) {
+    if (count > 1)
+      errors.push(`Section "${name}" appears ${count} times \u2014 keep exactly one heading.`);
+  }
+}
 function parseImplPlan(content) {
   const errors = [];
   const lines = activeLines(content);
   const status = parseStatus(lines, errors);
   validateAlignmentHeading(lines, errors);
+  validateUniqueSectionHeadings(lines, errors);
   const bodies = collectSectionBodies(lines);
   const sections = {};
   const validatePresentSection = (name, body) => {
-    const skipLine = body.length === 1 && body[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? body[0] : null;
+    const meaningfulBody = body.filter((line) => !/^#{3,6}(?:\s|$)/u.test(line) && (name !== "Decisions" || !DECISIONS_SCAFFOLD_LINES.has(line)));
+    const skipLine = meaningfulBody.length === 1 && meaningfulBody[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? meaningfulBody[0] : null;
     if (skipLine !== null) {
       const reason = skipLine.slice(SKIP_PREFIX.length).trim();
       if (reason === "") {
@@ -4015,10 +4077,10 @@ function parseImplPlan(content) {
       sections[name] = { satisfied: reason !== "", skip: reason };
       return;
     }
-    if (body.length === 0) {
+    if (meaningfulBody.length === 0) {
       errors.push(`Section "${name}" is empty \u2014 add content or \`skip: <why>\`.`);
     }
-    sections[name] = { satisfied: body.length > 0, skip: null };
+    sections[name] = { satisfied: meaningfulBody.length > 0, skip: null };
   };
   for (const name of IMPL_PLAN_SECTIONS) {
     const body = bodies.get(name);
@@ -4035,7 +4097,7 @@ function parseImplPlan(content) {
   }
   return { status, sections, errors };
 }
-var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", SECTION_NAMES, DESIGN_ALIGNMENT_HEADING = "design alignment", LEGACY_ARCH_ALIGNMENT_HEADING = "arch alignment";
+var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", DECISIONS_SCAFFOLD_LINES, SECTION_NAMES, DESIGN_ALIGNMENT_HEADING = "design alignment", LEGACY_ARCH_ALIGNMENT_HEADING = "arch alignment";
 var init_impl_plan = __esm(() => {
   IMPL_PLAN_SECTIONS = [
     "Approach",
@@ -4045,6 +4107,16 @@ var init_impl_plan = __esm(() => {
     "Assessment triggers"
   ];
   IMPL_PLAN_OPTIONAL_SECTIONS = ["Doc impact"];
+  DECISIONS_SCAFFOLD_LINES = new Set([
+    "### Implementation Inspiration",
+    "| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    "**Decision impact:** <changed: or retained: plus a non-empty rationale>",
+    "#### Implementation Unsuccessful Search",
+    "| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "### Recorded Decisions"
+  ]);
   SECTION_NAMES = new Map([
     ...IMPL_PLAN_SECTIONS.map((name) => [name.toLowerCase(), name]),
     ["arch alignment", "Design alignment"],

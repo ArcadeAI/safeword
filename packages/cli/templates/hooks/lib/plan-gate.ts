@@ -59,6 +59,15 @@ export function evaluateImplementEntry(
     };
   }
 
+  if (parsed.sections['Doc impact'] === undefined) {
+    return {
+      ok: false,
+      reason: 'impl-plan.md is not ready: spec-backed feature plans require a Doc impact section.',
+      remediation:
+        'Add `## Doc impact` with the affected docs.sources surfaces or `skip: <reason>`, then retry the move to implement.',
+    };
+  }
+
   if (parsed.status !== 'planned') {
     return {
       ok: false,

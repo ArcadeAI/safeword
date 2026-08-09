@@ -6,7 +6,7 @@
  * (pattern: impl-plan.test.ts).
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -17,6 +17,11 @@ const bddCopies = [
   nodePath.join(repoRoot, 'packages/cli/templates/skills/bdd'),
   nodePath.join(repoRoot, '.claude/skills/bdd'),
 ];
+const planCopyDirectories = [
+  ...bddCopies,
+  nodePath.join(repoRoot, 'plugin/skills/bdd'),
+  nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/bdd/references'),
+];
 
 function readCopies(file: string): { path: string; text: string }[] {
   return bddCopies.map(directory => {
@@ -26,9 +31,12 @@ function readCopies(file: string): { path: string; text: string }[] {
 }
 
 describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
-  const planCopies = readCopies('PLAN_IMPLEMENTATION.md');
+  const planCopies = planCopyDirectories.map(directory => {
+    const path = nodePath.join(directory, 'PLAN_IMPLEMENTATION.md');
+    return { path, text: readFileSync(path, 'utf8') };
+  });
 
-  it('owns the impl-plan authoring steps with the five design sections (TB1.R3)', () => {
+  it('owns the impl-plan authoring steps with all six design sections (TB1.R3)', () => {
     for (const { path, text } of planCopies) {
       expect(text, path).toContain('impl-plan.md');
       for (const section of [
@@ -36,6 +44,7 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
         'Decisions',
         'Design alignment',
         'Known deviations',
+        'Doc impact',
         'Assessment triggers',
       ]) {
         expect(text, path).toContain(section);
@@ -225,10 +234,12 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
   /** Assert a literal appears nowhere under the given shipped roots. */
   function expectNoShippedSurfaceMatches(literal: string, roots: string[]): void {
     for (const root of roots) {
-      const out = execSync(`grep -rlF "${literal}" ${root} 2>/dev/null || true`, {
+      const result = spawnSync('rg', ['-l', '-F', '--', literal, root], {
         cwd: repoRoot,
         encoding: 'utf8',
-      }).trim();
+      });
+      expect([0, 1], `rg failed under ${root}: ${result.stderr}`).toContain(result.status);
+      const out = (result.stdout ?? '').trim();
       expect(out, `"${literal}" under ${root}: ${out}`).toBe('');
     }
   }

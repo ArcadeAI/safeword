@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "0904f4bb6c8b033a51bb81d5cd916bfaef019155f40f556a74f8b25f0e567681"
+      "sha256": "3a49ab069b699a818b830e02b51abb54f1936165c3972ffe5a85b6e63a4b9673"
     },
     {
       "path": "runtime/dispatch.js",
@@ -235,11 +235,11 @@
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
-      "sha256": "29c7fd7ad70876d1119a9913d70a39566ce762c8e972959b81e995c5e0b3912d"
+      "sha256": "585352a4b233f91f2ba0eb926c7621cae5d70b3ea1fc09b16867026a50ea27ca"
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "c7039e738197ca31c5f483b54753def75a628cef142da70f73e3c00a35769a3d"
+      "sha256": "60a60476de62609f912222a8304177f3c6300d630ab07b526a92955cf06fbd08"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "0b6d519d92aa4ec2ffbf631ff5a287a15ff6e742ac5424636bfb1bc692f8cf2c"
+      "sha256": "15ff18ee6e0a085ca313e1bbde0fb3bba084426cad331244e74c973fa35e3637"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",

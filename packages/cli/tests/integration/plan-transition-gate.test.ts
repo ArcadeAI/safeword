@@ -78,6 +78,10 @@ const VALID_PLAN = [
   '',
   'skip: no deviations planned',
   '',
+  '## Doc impact',
+  '',
+  'skip: fixture has no customer-visible documentation change',
+  '',
   '## Assessment triggers',
   '',
   'Revisit when a second gate consumer appears.',
@@ -196,6 +200,139 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     );
 
     expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Implementation Inspiration');
+  });
+
+  it('denies activated implement entry without Doc impact', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n',
+    );
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      ACTIVATED_PLAN.replace(
+        '## Doc impact\n\nskip: fixture has no customer-visible documentation change\n\n',
+        '',
+      ),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Doc impact');
+  });
+
+  it('denies every spec-backed implement entry without Doc impact', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      VALID_PLAN.replace(
+        '## Doc impact\n\nskip: fixture has no customer-visible documentation change\n\n',
+        '',
+      ),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Doc impact');
+  });
+
+  it.each([
+    ['Approach', 'Riskiest assumption: the gate fires → scenario 1.', '### TODO'],
+    ['Doc impact', 'skip: fixture has no customer-visible documentation change', '### TODO'],
+  ])('denies a heading-only %s section through the real gate', (section, content, placeholder) => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      VALID_PLAN.replace(`## ${section}\n\n${content}`, () => `## ${section}\n\n${placeholder}`),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), section);
+  });
+
+  it('denies template-only Decisions scaffolding for a markerless new-flow feature', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    const scaffoldOnlyDecisions = VALID_PLAN.replace(
+      '### Recorded Decisions\n\n| Decision | Choice | Alternatives considered | Rejected because |\n| - | - | - | - |\n| gate | pre-tool | stop-only | too late |',
+      () =>
+        [
+          '### Implementation Inspiration',
+          '',
+          '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |',
+          '| --- | --- | --- | --- | --- | --- | --- |',
+          '',
+          '**Decision impact:** <changed: or retained: plus a non-empty rationale>',
+          '',
+          '### Recorded Decisions',
+        ].join('\n'),
+    );
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), scaffoldOnlyDecisions);
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Decisions');
+  });
+
+  it('denies an empty unsuccessful-search scaffold for a markerless new-flow feature', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    const scaffoldOnlyDecisions = VALID_PLAN.replace(
+      '### Recorded Decisions\n\n| Decision | Choice | Alternatives considered | Rejected because |\n| - | - | - | - |\n| gate | pre-tool | stop-only | too late |',
+      () =>
+        [
+          '#### Implementation Unsuccessful Search',
+          '',
+          '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
+          '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+          '',
+          '### Recorded Decisions',
+        ].join('\n'),
+    );
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), scaffoldOnlyDecisions);
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Decisions');
+  });
+
+  it('denies a plan whose metadata and sections exist only inside fenced code', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      `\`\`\`md\n${VALID_PLAN}\`\`\`\n`,
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), '**Status:**');
+  });
+
+  it('denies a plan whose metadata and sections exist only inside indented code', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      VALID_PLAN.split('\n')
+        .map(line => `    ${line}`)
+        .join('\n'),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), '**Status:**');
+  });
+
+  it('denies contradictory duplicate plan statuses through the real gate', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      VALID_PLAN.replace('**Status:** planned', '**Status:** planned\n**Status:** implemented'),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'exactly one `**Status:**`');
+  });
+
+  it('denies duplicate canonical plan sections through the real gate', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      `${VALID_PLAN}\n## Approach\n\nA contradictory duplicate.\n`,
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'appears 2 times');
   });
 
   it('denies activated implement entry without spec.md', () => {

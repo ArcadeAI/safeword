@@ -75,6 +75,7 @@ describe('Claude delivery schema', () => {
     for (const relativePath of [
       'runtime/hooks/pre-tool-quality.ts',
       'runtime/hooks/lib/active-ticket.ts',
+      'runtime/hooks/lib/impl-plan.ts',
       'runtime/hooks/lib/inspiration.ts',
       'runtime/hooks/lib/plan-gate.ts',
     ]) {
@@ -106,6 +107,56 @@ describe('Claude delivery schema', () => {
     expect(result.stderr).not.toContain('ReferenceError');
     expect(result.stdout).toContain('Broad process kill blocked');
     expect(result.stdout).toContain('${CLAUDE_PLUGIN_ROOT}');
+  });
+
+  it('runs implementation entry through the checked-in Claude plugin hook', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-plan-gate-'));
+    roots.push(root);
+    const ticketDirectory = nodePath.join(root, '.project/tickets/PLUG01-gate');
+    mkdirSync(ticketDirectory, { recursive: true });
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    writeFileSync(
+      ticketPath,
+      [
+        '---',
+        'id: PLUG01',
+        'type: feature',
+        'phase: plan-implementation',
+        'status: in_progress',
+        'scope: plugin plan gate',
+        'out_of_scope: unrelated work',
+        'done_when: transition is blocked',
+        '---',
+        '# Plugin plan gate',
+      ].join('\n'),
+    );
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(REPO_ROOT, 'plugin/runtime/hooks/pre-tool-quality.ts')],
+      {
+        cwd: root,
+        input: JSON.stringify({
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: ticketPath,
+            old_string: 'phase: plan-implementation',
+            new_string: 'phase: implement',
+          },
+        }),
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: root,
+          CLAUDE_PLUGIN_ROOT: nodePath.join(REPO_ROOT, 'plugin'),
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).not.toContain('Error');
+    expect(result.stdout).toContain('impl-plan.md');
   });
 
   it('does not mistake an unrelated third-party hook for legacy Safeword delivery', () => {

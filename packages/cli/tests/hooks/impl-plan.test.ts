@@ -48,10 +48,42 @@ describe('parseImplPlan status lifecycle (Rule 1)', () => {
     expect(result.status).toBe('implemented');
   });
 
+  it('rejects contradictory duplicate status lines', () => {
+    const result = parseImplPlan(
+      plan('planned').replace(
+        '**Status:** planned',
+        '**Status:** planned\n**Status:** implemented',
+      ),
+    );
+
+    expect(result.status).toBeNull();
+    expect(result.errors.join(' ')).toContain('exactly one `**Status:**`');
+  });
+
   it('reports a validation error when the status line is missing', () => {
     const result = parseImplPlan(`# Impl Plan: x\n\n${FIVE_SECTIONS}`);
     expect(result.status).toBeNull();
     expect(result.errors.some(error => error.includes('**Status:**'))).toBe(true);
+  });
+
+  it.each(['```md', '~~~md'])('ignores metadata and sections inside a %s fence', fence => {
+    const fencedPlan = `${fence}\n${plan('planned')}\n${fence.slice(0, 3)}\n`;
+    const result = parseImplPlan(fencedPlan);
+
+    expect(result.status).toBeNull();
+    expect(result.errors.some(error => error.includes('Missing `**Status:**`'))).toBe(true);
+  });
+
+  it('ignores metadata and sections inside an indented code block', () => {
+    const indentedPlan = plan('planned')
+      .split('\n')
+      .map(line => `    ${line}`)
+      .join('\n');
+    const result = parseImplPlan(indentedPlan);
+
+    expect(result.status).toBeNull();
+    expect(result.errors.some(error => error.includes('Missing `**Status:**`'))).toBe(true);
+    expect(result.errors.some(error => error.includes('Missing section heading'))).toBe(true);
   });
 
   it('reports a validation error listing allowed values for an unknown status', () => {
@@ -88,6 +120,54 @@ function sectionsWithout(omitted: string): string {
 }
 
 describe('parseImplPlan section validation (Rule 2)', () => {
+  it.each(['Approach', 'Decisions', 'Doc impact'] as const)(
+    'does not count a heading-only %s section as content',
+    name => {
+      const source =
+        name === 'Doc impact'
+          ? `${FIVE_SECTIONS}\n## Doc impact\n\n### TODO\n`
+          : sectionsWith({ [name]: '### TODO' });
+
+      const result = parseImplPlan(plan('planned', source));
+
+      expect(result.sections[name]?.satisfied).toBe(false);
+      expect(result.errors.join(' ')).toContain(`Section "${name}" is empty`);
+    },
+  );
+
+  it('does not count an empty unsuccessful-search scaffold as a decision', () => {
+    const scaffold = [
+      '## Approach',
+      'Content',
+      '## Decisions',
+      '#### Implementation Unsuccessful Search',
+      '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      '### Recorded Decisions',
+      '## Design alignment',
+      'Content',
+      '## Known deviations',
+      'skip: none',
+      '## Assessment triggers',
+      'Content',
+    ].join('\n\n');
+
+    const result = parseImplPlan(plan('planned', scaffold));
+
+    expect(result.sections.Decisions?.satisfied).toBe(false);
+    expect(result.errors.join(' ')).toContain('Section "Decisions" is empty');
+  });
+
+  it.each([
+    ['Approach', '## Approach\n\nA contradictory duplicate.'],
+    ['Decisions', '## Decisions\n\nA contradictory duplicate.'],
+    ['Doc impact', '## Doc impact\n\nskip: first\n\n## Doc impact\n\nskip: second'],
+  ])('rejects duplicate canonical %s headings', (name, duplicate) => {
+    const result = parseImplPlan(plan('planned', `${FIVE_SECTIONS}\n${duplicate}\n`));
+
+    expect(result.errors.join(' ')).toContain(`Section "${name}" appears`);
+  });
+
   it.each(['Design alignment', 'Arch alignment'])(
     'accepts %s as the single alignment heading and normalizes its section key',
     heading => {
@@ -217,7 +297,6 @@ describe('impl-plan template (Rule 4)', () => {
     );
     const result = parseImplPlan(template);
     for (const name of IMPL_PLAN_SECTIONS) {
-      if (name === 'Decisions') continue;
       expect(result.sections[name]?.satisfied, `section ${name}`).toBe(false);
     }
     expect(template).toContain('**Planned on:** <YYYY-MM-DD>');
@@ -259,6 +338,7 @@ describe('Doc impact optional section (TXRHMD, decision 22)', () => {
     for (const templatePath of [
       nodePath.join(repoRoot, 'packages/cli/templates/doc-templates/impl-plan-template.md'),
       nodePath.join(repoRoot, '.safeword/templates/impl-plan-template.md'),
+      nodePath.join(repoRoot, 'plugin/resources/templates/impl-plan-template.md'),
     ]) {
       const template = readFileSync(templatePath, 'utf8');
       expect(template, templatePath).toContain('## Doc impact');

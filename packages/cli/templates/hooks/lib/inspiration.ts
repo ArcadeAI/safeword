@@ -349,7 +349,7 @@ export function evaluateProductInspiration(
   return { ok: true, path: 'unsuccessful-search' };
 }
 
-function withoutFencedCode(content: string, preserveHtmlComments = false): string {
+export function withoutFencedCode(content: string, preserveHtmlComments = false): string {
   const lines = content.split(/\r?\n/);
   let fence: { kind: '`' | '~'; length: number } | undefined;
   let htmlComment = false;
