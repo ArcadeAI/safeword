@@ -774,7 +774,9 @@ function assertBlockedJsonMode(result: CliExecution): void {
 
 function assertBlockedQuietMode(result: CliExecution): void {
   assert.deepEqual(result, {
-    stdout: 'Review incomplete — required independent coverage is unsatisfied.\n',
+    stdout:
+      'Review incomplete — required independent coverage is unsatisfied.\n' +
+      'The independent reviewer (Claude) could not be run. The fallback review (Codex) could not be run. No independent check was recorded.\n',
     stderr: '',
     exitCode: 2,
   });
@@ -907,12 +909,6 @@ Then(
     assert.equal(execution.verdict, verdict);
     const statusText = verdict === 'approve' ? 'Review complete' : 'Review changes requested';
     assert.equal(execution.result.exitCode, verdict === 'approve' ? 0 : 2, execution.result.stdout);
-    assert.equal(
-      execution.result.stderr,
-      coverage === 'standard'
-        ? 'Requesting an independent Claude review…\nClaude did not complete; trying a Codex fallback…\n'
-        : 'Requesting an independent Claude review…\n',
-    );
     assert.equal(
       execution.result.stdout.split('\n', 1)[0],
       `${statusText} — ${coverage} coverage.`,
