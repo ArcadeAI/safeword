@@ -524,6 +524,35 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 
 ## Key Decisions
 
+### ADR: Keep public cloud retros quarantined from the filing worker
+
+**Status:** proposed
+**Date:** 2026-08-08
+**Supersedes:** none
+
+#### Context
+
+Cloud workspaces can disappear after completion. A no-sign-up project UUID can
+make a best-effort receipt possible, but it is readable by the agent and cannot
+be authentication. The existing relay filing table is intentionally protected
+by harness credentials and is allowed to use server-side GitHub credentials.
+
+#### Decision
+
+We will persist public submissions in a separate encrypted quarantine table
+keyed by public project UUID, normalized repository, and request ID. A
+write-only, disabled-by-default endpoint may create or deduplicate a quarantine
+receipt, but exposes no read, operation, reconciliation, or filing capability.
+The GitHub filing worker consumes only authenticated `retro_requests` records.
+
+#### Consequences
+
+Public cloud handoff can be quiet and durable without sign-up, while its
+untrusted metadata cannot cross into GitHub access. Payload/profile expiry after
+30 days and an indefinite payload-free tombstone protect privacy and duplicate
+handling. A provider still needs a real hosted carrier probe before its route is
+enabled; this does not activate ticket `05PR3F` or supersede issue 834.
+
 ### Settled Decisions (2025-12)
 
 - **Graceful Linter Fallback:** Skip linter silently if not installed (`.nothrow().quiet()`). Hook should never block Claude's workflow. (`lint.ts`)

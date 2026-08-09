@@ -2,7 +2,7 @@
 id: C705RE
 slug: preserve-cloud-retros-through-service-outages
 type: feature
-phase: scenario-gate
+phase: plan-implementation
 status: in_progress
 scope:
 - Generate one UUIDv4 project installation ID locally during `safeword install`,
@@ -134,3 +134,9 @@ waiting for relay filing or seeing a user-facing interruption.
   payload cannot reuse an accepted identity; `GITHUB_ACTOR` wins over Git
   email; and a 30-day tombstone still deduplicates without retaining payload.
   The remaining cross-outcome quiet-result check is intentional NTB coverage.
+- 2026-08-08T18:35Z Cloud-carrier spike was partial: Railway served health in
+  286 ms and accepted a bounded POST in 213 ms, but the deployed route correctly
+  required authentication and this local session cannot run an actual hosted
+  completion carrier. All provider routes remain disabled. The implementation
+  plan uses a separate public quarantine table and write-only endpoint so this
+  result cannot weaken the authenticated filing boundary.
