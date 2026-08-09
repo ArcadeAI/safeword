@@ -192,6 +192,15 @@ interface ParsedTable {
   rows: string[][];
 }
 
+function parseNonEmptyPipeRow(line: string, expectedCells: number): string[] | undefined {
+  if (!line.startsWith('|') || !line.endsWith('|')) return undefined;
+  const cells = line
+    .slice(1, -1)
+    .split('|')
+    .map(cell => cell.trim());
+  return cells.length === expectedCells && cells.every(cell => cell !== '') ? cells : undefined;
+}
+
 function parseExactTable(
   section: string,
   header: string,
@@ -209,12 +218,9 @@ function parseExactTable(
   let index = headerIndex + 2;
   while (index < lines.length && lines[index]?.startsWith('|')) {
     const line = lines[index] ?? '';
-    if (!line.endsWith('|') || line.includes('<!--') || line.includes('-->')) return undefined;
-    const cells = line
-      .slice(1, -1)
-      .split('|')
-      .map(cell => cell.trim());
-    if (cells.length !== expectedCells || cells.some(cell => cell === '')) return undefined;
+    if (line.includes('<!--') || line.includes('-->')) return undefined;
+    const cells = parseNonEmptyPipeRow(line, expectedCells);
+    if (cells === undefined) return undefined;
     rows.push(cells);
     index++;
   }
@@ -279,11 +285,8 @@ function decisionRows(content: string): string[][] {
   for (let index = headerIndex + 2; index < lines.length; index++) {
     const line = lines[index] ?? '';
     if (!line.startsWith('|') || !line.endsWith('|')) break;
-    const cells = line
-      .slice(1, -1)
-      .split('|')
-      .map(cell => cell.trim());
-    if (cells.length !== 4 || cells.some(cell => cell === '')) return [];
+    const cells = parseNonEmptyPipeRow(line, 4);
+    if (cells === undefined) return [];
     rows.push(cells);
   }
   return rows;
