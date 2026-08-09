@@ -26,6 +26,7 @@ describe('CI dogfood parity gate', () => {
     expect(workflow).toMatch(/^ {2}cli-contract:\n/m);
     expect(job).toContain('name: CLI contract');
     expect(job).toContain('timeout-minutes: 5');
+    expect(job).toContain('fetch-depth: 0');
     expect(job).toContain('run: bun run check:cli-contract');
     expect(job).not.toContain('\n    if:');
     expect(job).not.toContain('paths:');
@@ -33,5 +34,10 @@ describe('CI dogfood parity gate', () => {
 
     const invocations = workflow.match(/run: bun run check:cli-contract/gu) ?? [];
     expect(invocations).toHaveLength(2);
+
+    const fullHistoryCheckouts = workflow.match(
+      /# The CLI contract verifies historical Claude release fixtures\.\n {10}fetch-depth: 0/gu,
+    );
+    expect(fullHistoryCheckouts).toHaveLength(2);
   });
 });
