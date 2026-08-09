@@ -1,7 +1,7 @@
 {
   "name": "safeword",
   "version": "0.74.3",
-  "description": "Safe Word workflow guidance and gates for Codex.",
+  "description": "Safeword workflow guidance and gates for Codex.",
   "author": {
     "name": "Arcade AI"
   },
@@ -12,14 +12,14 @@
   "skills": "./skills/",
   "hooks": "./hooks.json",
   "interface": {
-    "displayName": "Safe Word",
+    "displayName": "Safeword",
     "shortDescription": "BDD/TDD workflow guidance and gates for Codex",
-    "longDescription": "Safe Word helps Codex follow behavior-first delivery, preserve user-owned project files, and enforce workflow gates through package-backed commands.",
+    "longDescription": "Safeword helps Codex follow behavior-first delivery, preserve user-owned project files, and enforce workflow gates through package-backed commands.",
     "developerName": "Arcade AI",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://github.com/ArcadeAI/safeword",
-    "defaultPrompt": ["Use Safe Word to define scenarios before implementation."],
+    "defaultPrompt": ["Use Safeword to define scenarios before implementation."],
     "brandColor": "#10A37F",
     "screenshots": []
   }
