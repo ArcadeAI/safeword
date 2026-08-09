@@ -1,0 +1,37 @@
+{
+  "commands": {
+    "install": {
+      "syntax": "install",
+      "options": [
+        "--agents <agents>",
+        "--scope <scope>",
+        "--no-modify",
+        "--migrate-namespace",
+        "--no-migrate-namespace",
+        "--repair-version-marker"
+      ]
+    },
+    "claude install": {
+      "syntax": "install",
+      "options": ["--scope <scope>"]
+    },
+    "codex install": {
+      "syntax": "install",
+      "options": []
+    },
+    "remove": {
+      "syntax": "remove",
+      "options": ["-y, --yes", "--plan <id>", "--full"]
+    },
+    "reset": {
+      "syntax": "reset",
+      "options": ["-y, --yes", "--plan <id>", "--full"]
+    }
+  },
+  "rewrites": {
+    "bare safeword": "status",
+    "project architecture --stage": "project architecture --from-index --stage-output",
+    "project architecture --staged": "project architecture --from-index",
+    "codex migrate --remove-legacy-hooks": "codex migrate --finalize"
+  }
+}

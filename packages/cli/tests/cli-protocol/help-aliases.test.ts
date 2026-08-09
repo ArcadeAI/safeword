@@ -3,7 +3,9 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { commandCatalog } from '../../src/cli-protocol/catalog.js';
+import { commandCatalog, findCommandDefinition } from '../../src/cli-protocol/catalog.js';
+import { configureCliOutput, createCliProgram } from '../../src/cli-protocol/program.js';
+import { createResult } from '../../src/cli-protocol/result.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 function visibleCommands(help: string): string[] {
@@ -17,7 +19,7 @@ function visibleCommands(help: string): string[] {
 describe('canonical help and compatibility aliases', () => {
   it('keeps public help and the declarative catalog complete in both directions', async () => {
     const canonical = commandCatalog.filter(
-      definition => definition.public && definition.aliasFor === undefined,
+      definition => definition.classification === 'public' && definition.aliasFor === undefined,
     );
     const families = [
       ...new Set(
@@ -127,6 +129,33 @@ describe('canonical help and compatibility aliases', () => {
     expect(codex.stdout).not.toContain('--no-modify');
   });
 
+  it('rejects an excluded alias option before entering its handler', async () => {
+    const definition = findCommandDefinition('codex install');
+    const originalHandler = definition.handler;
+    let entered = false;
+    Object.defineProperty(definition, 'handler', {
+      configurable: true,
+      value: () => {
+        entered = true;
+        return Promise.resolve(createResult({ state: 'healthy' }));
+      },
+    });
+    const program = createCliProgram();
+    configureCliOutput(program, { writeErr: () => {} });
+
+    try {
+      await expect(
+        program.parseAsync(['node', 'safeword', 'codex', 'install', '--scope=user']),
+      ).rejects.toMatchObject({ code: 'commander.unknownOption' });
+      expect(entered).toBe(false);
+    } finally {
+      Object.defineProperty(definition, 'handler', {
+        configurable: true,
+        value: originalHandler,
+      });
+    }
+  });
+
   it.each([
     ['check', 'status'],
     ['diff', 'plan'],
@@ -145,6 +174,71 @@ describe('canonical help and compatibility aliases', () => {
       expect.objectContaining({
         code: 'CLI_ALIAS_DEPRECATED',
         metadata: expect.objectContaining({ replacement }),
+      }),
+    );
+  });
+
+  it('routes bare retro to retro run before the handler validates its transcript', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runCli(['retro'], {
+      cwd: directory,
+      env: { SAFEWORD_NO_UPDATE_CHECK: '1' },
+    });
+
+    expect(result.stderr).toContain('`retro` is deprecated; use `retro run`.');
+    expect(result.stderr).toContain('retro run requires --transcript <path>.');
+    expect(result.stderr).not.toContain('Usage:');
+  });
+
+  it('routes retro when root options precede the retained spelling', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runCli(
+      ['--json', '--cwd', directory, 'retro', '--transcript', 'missing.jsonl'],
+      { cwd: directory, env: { SAFEWORD_NO_UPDATE_CHECK: '1' } },
+    );
+    const envelope = JSON.parse(result.stdout) as {
+      findings: { code: string; metadata?: Record<string, unknown> }[];
+    };
+
+    expect(envelope.findings).toContainEqual(
+      expect.objectContaining({
+        code: 'CLI_ALIAS_DEPRECATED',
+        metadata: expect.objectContaining({ replacement: 'retro run' }),
+      }),
+    );
+  });
+
+  it('routes a short help option to retro run help', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runCli(['retro', '-h'], { cwd: directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('Usage: safeword retro run');
+    expect(result.stdout).toContain('--transcript <path>');
+  });
+
+  it('routes retro after the real short verbose root option', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runCli(['-v', 'retro', '-h'], { cwd: directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('Usage: safeword retro run');
+  });
+
+  it('reports setup --yes as explicit redundant compatibility', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runCli(
+      ['setup', '--yes', '--json', '--no-input', '--offline', '--cwd', directory],
+      { cwd: directory },
+    );
+    const envelope = JSON.parse(result.stdout) as {
+      findings: { code: string; metadata?: Record<string, unknown> }[];
+    };
+
+    expect(envelope.findings).toContainEqual(
+      expect.objectContaining({
+        code: 'CLI_OPTION_REDUNDANT',
+        metadata: expect.objectContaining({ option: '--yes', replacement: 'install' }),
       }),
     );
   });

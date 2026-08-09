@@ -39,6 +39,31 @@ jobs:
         # visible and can be made a required branch-protection check.
         run: bun scripts/parity-check.ts --mode=all
 
+      # Staged rollout: keep this duplicate inside an already-required job until
+      # the dedicated context has reported and the live ruleset requires it.
+      - name: Check CLI contract during rollout
+        run: bun run check:cli-contract
+
+  cli-contract:
+    name: CLI contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check public CLI contract
+        run: bun run check:cli-contract
+
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest

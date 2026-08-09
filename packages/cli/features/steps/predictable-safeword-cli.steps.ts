@@ -903,7 +903,7 @@ Then(
     const commands = (wireResult(this).data as { commands: { name: string }[] }).commands;
     assert.ok(
       commandCatalog
-        .filter(command => !command.public)
+        .filter(command => command.classification === 'internal')
         .every(helper => commands.every(command => command.name !== helper.name)),
     );
     assert.deepEqual(wireResult(this).effects, EMPTY_EFFECTS);
@@ -969,7 +969,7 @@ Given(
 );
 
 When('it invokes its real hidden Safeword entrypoint', function (this: PredictableCliWorld) {
-  const hidden = commandCatalog.filter(command => !command.public);
+  const hidden = commandCatalog.filter(command => command.classification === 'internal');
   assert.ok(hidden.some(command => command.name.includes('hook')));
   const completed = runRealHook(this, assertPresent(this.hookSurface));
   this.result = {

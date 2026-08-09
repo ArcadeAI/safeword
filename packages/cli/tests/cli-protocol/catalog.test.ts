@@ -44,7 +44,8 @@ describe('CLI command catalog', () => {
     expect(publicCommands.length).toBeGreaterThan(0);
     for (const command of publicCommands) {
       expect(command).toMatchObject({
-        public: true,
+        classification: expect.stringMatching(/^(public|retained-alias)$/),
+        visibility: expect.stringMatching(/^(public|hidden)$/),
         effectClass: expect.stringMatching(/^(observe|plan|mutate|destructive)$/),
         promptPolicy: expect.stringMatching(/^(never|confirm)$/),
         networkPolicy: expect.stringMatching(/^(never|declared)$/),
@@ -62,7 +63,9 @@ describe('CLI command catalog', () => {
     expect(new Set(names).size).toBe(names.length);
 
     const canonicalNames = commandCatalog
-      .filter(definition => definition.public && definition.aliasFor === undefined)
+      .filter(
+        definition => definition.classification === 'public' && definition.aliasFor === undefined,
+      )
       .map(definition => definition.name);
     expect(canonicalNames).toEqual([
       'status',
@@ -145,7 +148,7 @@ describe('CLI command catalog', () => {
     }
     expect(aliases.find(alias => alias.name === 'setup')?.compatibility?.introducedIn).toBe('0.72');
 
-    const hidden = commandCatalog.filter(command => !command.public);
+    const hidden = commandCatalog.filter(command => command.classification === 'internal');
     expect(hidden.map(command => command.name)).toEqual([
       'boundary',
       'hook codex',
