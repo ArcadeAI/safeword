@@ -77,6 +77,57 @@ describe('inspiration contract activation', () => {
       }).ok,
     ).toBe(false);
   });
+
+  it.each([
+    [
+      'duplicate ticket marker',
+      ticket([
+        'inspiration_contract: v1',
+        'inspiration_contract: v1',
+        'inspiration_contract_scaffold: v1',
+      ]),
+      spec(SPEC_MARKER),
+    ],
+    [
+      'non-scalar ticket marker',
+      ticket(['inspiration_contract:', '  version: v1', 'inspiration_contract_scaffold: v1']),
+      spec(SPEC_MARKER),
+    ],
+    [
+      'marker after a level-two heading',
+      ticket(['inspiration_contract: v1', 'inspiration_contract_scaffold: v1']),
+      ['# Spec', '', '## Intent', '', SPEC_MARKER].join('\n'),
+    ],
+    [
+      'multiple marker candidates',
+      ticket(['inspiration_contract: v1', 'inspiration_contract_scaffold: v1']),
+      spec(`${SPEC_MARKER}\n<!-- safeword:inspiration-contract:v2 -->`),
+    ],
+    ['missing frontmatter delimiters', 'inspiration_contract: v1', spec(SPEC_MARKER)],
+  ])('fails closed for %s', (_name, ticketContent, specContent) => {
+    expect(evaluateInspirationActivation({ ticketContent, specContent }).ok).toBe(false);
+  });
+
+  it('accepts exact activation signals in CRLF artifacts', () => {
+    const result = evaluateInspirationActivation({
+      ticketContent: ticket([
+        'inspiration_contract: v1',
+        'inspiration_contract_scaffold: v1',
+      ]).replaceAll('\n', '\r\n'),
+      specContent: spec(SPEC_MARKER).replaceAll('\n', '\r\n'),
+    });
+
+    expect(result).toEqual({ ok: true, activated: true });
+  });
+
+  it('treats deliberate removal of all activation signals as legacy opt-out', () => {
+    expect(
+      evaluateInspirationActivation({
+        ticketContent: ticket(),
+        specContent: spec(),
+      }),
+    ).toEqual({ ok: true, activated: false });
+  });
 });
 
 const SIGNALS = ['inspiration_contract: v1', 'inspiration_contract_scaffold: v1'];
