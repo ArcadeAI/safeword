@@ -6,6 +6,7 @@
 export interface InspirationActivationInput {
   ticketContent: string;
   specContent: string;
+  activationProvenance?: 'activated' | 'absent' | 'unavailable';
 }
 
 export type InspirationActivationVerdict =
@@ -63,7 +64,7 @@ function ticketSignalCandidates(content: string): string[] {
 }
 
 function specSignalCandidates(content: string): string[] {
-  return [...content.matchAll(/<!--[\s\S]*?-->/g)]
+  return [...withoutFencedCode(content, true).matchAll(/<!--[\s\S]*?(?:-->|$)/g)]
     .map(match => match[0])
     .filter(comment => {
       const normalized = comment.toLowerCase().replaceAll(/[\s_:\-<>!]/g, '');
@@ -73,11 +74,22 @@ function specSignalCandidates(content: string): string[] {
     });
 }
 
+export function hasInspirationActivationCandidate(input: InspirationActivationInput): boolean {
+  return (
+    ticketSignalCandidates(input.ticketContent).length > 0 ||
+    specSignalCandidates(input.specContent).length > 0
+  );
+}
+
 function isSpecMarkerInPreamble(content: string): boolean {
-  const marker = content.indexOf(SPEC_MARKER);
+  const markdown = withoutFencedCode(content, true);
+  const marker = markdown.indexOf(SPEC_MARKER);
   if (marker === -1) return false;
-  const firstLevelTwo = content.search(/^##\s/m);
-  return firstLevelTwo === -1 || marker < firstLevelTwo;
+  const markerLine = markdown.slice(0, marker).split(/\r?\n/).length - 1;
+  const firstLevelTwoLine = stripHtmlComments(markdown)
+    .split(/\r?\n/)
+    .findIndex(line => /^##\s/.test(line));
+  return firstLevelTwoLine === -1 || markerLine < firstLevelTwoLine;
 }
 
 export function evaluateInspirationActivation(
@@ -87,6 +99,22 @@ export function evaluateInspirationActivation(
   const specCandidates = specSignalCandidates(input.specContent);
 
   if (ticketCandidates.length === 0 && specCandidates.length === 0) {
+    if (input.activationProvenance === 'unavailable') {
+      return {
+        ok: false,
+        reason: 'Inspiration activation provenance could not be verified from repository history.',
+        remediation:
+          'Restore repository history access or restore all three current v1 signals before retrying the transition.',
+      };
+    }
+    if (input.activationProvenance === 'activated') {
+      return {
+        ok: false,
+        reason: 'A previously activated inspiration contract is missing all current v1 signals.',
+        remediation:
+          'Restore the ticket marker, scaffold sentinel, and spec preamble marker; contract removal is not a legacy migration path.',
+      };
+    }
     return { ok: true, activated: false };
   }
 
@@ -139,7 +167,7 @@ function dateInRange(value: string, baseline: string, evaluationDate: string): b
 }
 
 function stripHtmlComments(content: string): string {
-  return content.replaceAll(/<!--[\s\S]*?-->/g, '');
+  return content.replaceAll(/<!--[\s\S]*?-->/g, comment => comment.replaceAll(/[^\r\n]/g, ''));
 }
 
 function extractSection(content: string, heading: string, level: number): string | undefined {
@@ -205,7 +233,11 @@ function productBaseline(ticketContent: string): string | undefined {
   if (!created || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(created)) {
     return undefined;
   }
-  return Number.isNaN(new Date(created).valueOf()) ? undefined : created.slice(0, 10);
+  const parsed = new Date(created);
+  const expected = created.includes('.') ? created : created.replace('Z', '.000Z');
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString() === expected
+    ? created.slice(0, 10)
+    : undefined;
 }
 
 function isHttpsUrl(value: string): boolean {
@@ -317,30 +349,64 @@ export function evaluateProductInspiration(
   return { ok: true, path: 'unsuccessful-search' };
 }
 
-function withoutFencedCode(content: string): string {
-  const lines = stripHtmlComments(content).split(/\r?\n/);
-  let fence: '`' | '~' | undefined;
-  return lines
+function withoutFencedCode(content: string, preserveHtmlComments = false): string {
+  const lines = content.split(/\r?\n/);
+  let fence: { kind: '`' | '~'; length: number } | undefined;
+  let htmlComment = false;
+  const projected = lines
     .map(line => {
-      const match = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
-      if (match) {
-        const kind = match[1]![0] as '`' | '~';
-        if (fence === undefined) fence = kind;
-        else if (fence === kind) fence = undefined;
+      if (fence !== undefined) {
+        const closing = new RegExp(`^\\s{0,3}${fence.kind}{${fence.length},}\\s*$`);
+        if (closing.test(line)) fence = undefined;
         return '';
       }
-      return fence === undefined ? line : '';
+
+      if (htmlComment) {
+        if (line.includes('-->')) htmlComment = false;
+        return preserveHtmlComments ? line : '';
+      }
+
+      const opening = /^\s{0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+      if (!opening) {
+        const commentStart = line.indexOf('<!--');
+        if (commentStart !== -1 && line.indexOf('-->', commentStart + 4) === -1) {
+          htmlComment = true;
+          return preserveHtmlComments ? line : line.slice(0, commentStart);
+        }
+        return line;
+      }
+
+      const run = opening[1]!;
+      const kind = run[0] as '`' | '~';
+      const info = opening[2] ?? '';
+      // GFM/CommonMark does not permit backticks in a backtick-fence info string.
+      if (kind === '`' && info.includes('`')) return line;
+      fence = { kind, length: run.length };
+      return '';
     })
     .join('\n');
+  return preserveHtmlComments ? projected : stripHtmlComments(projected);
+}
+
+function containsExactReference(cell: string, reference: string): boolean {
+  const escaped = reference.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[\\s([])${escaped}(?=$|[\\s)\\]}>.,;:!?])`).test(cell);
 }
 
 function plannedOnBaseline(planContent: string): string | undefined {
   const lines = withoutFencedCode(planContent).split(/\r?\n/);
-  const firstH1 = lines.findIndex(line => /^#\s/.test(line));
+  const levelOneHeadings = lines.flatMap((line, index) => (/^#\s+\S/.test(line) ? [index] : []));
+  if (levelOneHeadings.length !== 1) return undefined;
+  const firstH1 = levelOneHeadings[0]!;
   const firstH2 = lines.findIndex(line => /^##\s/.test(line));
   const candidates = lines.flatMap((line, index) => {
-    const normalized = line.toLowerCase().replaceAll(/[^a-z]/g, '');
-    return normalized.startsWith('plannedon') ? [{ index, line }] : [];
+    const colon = line.indexOf(':');
+    if (colon === -1) return [];
+    const label = line
+      .slice(0, colon)
+      .toLowerCase()
+      .replaceAll(/[\s*_\-]/g, '');
+    return label === 'plannedon' ? [{ index, line }] : [];
   });
   if (candidates.length !== 1) return undefined;
   const candidate = candidates[0]!;
@@ -364,7 +430,12 @@ export function evaluateImplementationInspiration(
   }
 
   const decisions = extractSection(input.planContent, '## Decisions', 2);
-  const section = decisions && extractSection(decisions, '### Implementation Inspiration', 3);
+  if (decisions === undefined) {
+    return evidenceFailure(
+      'Implementation Inspiration must appear once directly inside Decisions.',
+    );
+  }
+  const section = extractSection(decisions, '### Implementation Inspiration', 3);
   if (section === undefined) {
     return evidenceFailure(
       'Implementation Inspiration must appear once directly inside Decisions.',
@@ -441,9 +512,12 @@ export function evaluateImplementationInspiration(
   }
 
   const references = table.rows.map(row => row[0]!);
-  const cited = decisionRows(decisions).some(row =>
-    references.some(reference => row.some(cell => cell.includes(reference))),
-  );
+  const recordedDecisions = extractSection(decisions, '### Recorded Decisions', 3);
+  const cited =
+    recordedDecisions !== undefined &&
+    decisionRows(recordedDecisions).some(row =>
+      references.some(reference => row.some(cell => containsExactReference(cell, reference))),
+    );
   if (!cited) {
     return evidenceFailure(
       'At least one affected Decisions row must cite an Implementation Inspiration reference.',

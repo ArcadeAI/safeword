@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -58,6 +59,53 @@ describe('Claude delivery schema', () => {
     const schema = schemaForClaudeDelivery(root);
     expect(Object.keys(schema.ownedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
     expect(Object.keys(schema.managedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
+  });
+
+  it('keeps the checked-in inspiration gate collaborators byte-identical to generated assets', () => {
+    const input = {
+      cliBundle: 'export {};\n',
+      sourceRoot: nodePath.join(REPO_ROOT, 'packages/cli/src'),
+      templatesRoot: nodePath.join(REPO_ROOT, 'packages/cli/templates'),
+      version: '0.73.0',
+    };
+    const generated = new Map(
+      generateClaudePluginAssets(input).map(asset => [asset.relativePath, asset.content]),
+    );
+
+    for (const relativePath of [
+      'runtime/hooks/pre-tool-quality.ts',
+      'runtime/hooks/lib/active-ticket.ts',
+      'runtime/hooks/lib/inspiration.ts',
+      'runtime/hooks/lib/plan-gate.ts',
+    ]) {
+      expect(readFileSync(nodePath.join(REPO_ROOT, 'plugin', relativePath), 'utf8')).toBe(
+        generated.get(relativePath),
+      );
+    }
+  });
+
+  it('runs a generated denial branch without treating plugin-root placeholders as globals', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-hook-runtime-'));
+    roots.push(root);
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(REPO_ROOT, 'plugin/runtime/hooks/pre-tool-quality.ts')],
+      {
+        cwd: root,
+        input: JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'pkill node' } }),
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: root,
+          CLAUDE_PLUGIN_ROOT: nodePath.join(REPO_ROOT, 'plugin'),
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).not.toContain('ReferenceError');
+    expect(result.stdout).toContain('Broad process kill blocked');
+    expect(result.stdout).toContain('${CLAUDE_PLUGIN_ROOT}');
   });
 
   it('does not mistake an unrelated third-party hook for legacy Safeword delivery', () => {

@@ -5,12 +5,13 @@
  * getActiveTicket() — find most recent in_progress ticket globally (used by stop hook for hierarchy navigation)
  */
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
 import { parseFrontmatter } from './hierarchy.js';
-import { evaluateProductInspiration } from './inspiration.js';
+import { evaluateProductInspiration, hasInspirationActivationCandidate } from './inspiration.js';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { isValidSkipReason } from './parse-annotation.js';
@@ -52,6 +53,54 @@ export interface FeatureTicketReadiness {
 }
 
 const REQUIRED_READINESS_FRONTMATTER = ['scope', 'out_of_scope', 'done_when'] as const;
+
+export type InspirationProvenance = 'activated' | 'absent' | 'unavailable';
+
+/** Git history is durable activation provenance once a scaffold has been committed. */
+export function inspirationContractProvenance(ticketDirectory: string): InspirationProvenance {
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const specPath = nodePath.join(ticketDirectory, 'spec.md');
+  const currentTicket = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
+  const currentSpec = existsSync(specPath) ? readFileSync(specPath, 'utf8') : '';
+  if (
+    hasInspirationActivationCandidate({ ticketContent: currentTicket, specContent: currentSpec })
+  ) {
+    return 'activated';
+  }
+
+  const repository = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
+    cwd: ticketDirectory,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (repository.error !== undefined) return 'unavailable';
+  if (repository.status !== 0) {
+    return (repository.stderr ?? '').includes('not a git repository') ? 'absent' : 'unavailable';
+  }
+
+  const historySignals = [
+    { path: 'ticket.md', pattern: 'inspiration_contract: v1' },
+    { path: 'ticket.md', pattern: 'inspiration_contract_scaffold: v1' },
+    { path: 'spec.md', pattern: 'safeword:inspiration-contract:v1' },
+  ];
+  for (const signal of historySignals) {
+    const result = spawnSync(
+      'git',
+      ['log', '--all', '--follow', '--format=%H', '-G', signal.pattern, '--', signal.path],
+      { cwd: ticketDirectory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    if (result.error !== undefined || result.status !== 0) return 'unavailable';
+    if ((result.stdout ?? '').trim() !== '') return 'activated';
+  }
+
+  const shallow = spawnSync('git', ['rev-parse', '--is-shallow-repository'], {
+    cwd: ticketDirectory,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  if (shallow.error !== undefined || shallow.status !== 0) return 'unavailable';
+  return (shallow.stdout ?? '').trim() === 'true' ? 'unavailable' : 'absent';
+}
 
 /**
  * A required frontmatter field counts as missing when it is absent, the literal
@@ -110,7 +159,7 @@ export function evaluateFeatureTicketReadiness(
   const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
   const ticketContent =
     options.ticketContent ?? (existsSync(ticketFile) ? readFileSync(ticketFile, 'utf8') : '');
-  const frontmatterMatch = ticketContent.match(/^---\n([\s\S]*?)\n---/);
+  const frontmatterMatch = ticketContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
 
   if (!frontmatterMatch) {
     addReadinessIssue(
@@ -167,6 +216,7 @@ export function evaluateFeatureTicketReadiness(
     const inspirationVerdict = evaluateProductInspiration({
       ticketContent,
       specContent,
+      activationProvenance: inspirationContractProvenance(ticketDirectory),
       evaluationDate: options.evaluationDate ?? new Date().toISOString().slice(0, 10),
     });
     if (!inspirationVerdict.ok) {

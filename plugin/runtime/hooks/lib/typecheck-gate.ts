@@ -193,7 +193,7 @@ function findTscBin(projectDirectory: string, tsconfigPath: string): string | nu
  * `undefined` when that cannot be determined.
  *
  * Proximity is not coverage: find-up returns the nearest config, which may
- * `include` a completely different tree. A change under `"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/`
+ * `include` a completely different tree. A change under `"\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/`
  * resolves to the repo-root config whose include is `packages/*&#47;src/**`,
  * so typechecking it reported errors in ~30 untouched files while checking
  * none of the changed ones.

@@ -120,13 +120,89 @@ describe('inspiration contract activation', () => {
     expect(result).toEqual({ ok: true, activated: true });
   });
 
-  it('treats deliberate removal of all activation signals as legacy opt-out', () => {
+  it('ignores marker candidates and headings inside fenced examples', () => {
+    const ticketContent = ticket(['inspiration_contract: v1', 'inspiration_contract_scaffold: v1']);
+    const specContent = [
+      '# Spec',
+      '````md',
+      '<!-- safeword:inspiration-contract:v2 -->',
+      '## Example heading',
+      '```',
+      '````',
+      SPEC_MARKER,
+      '## Intent',
+    ].join('\n');
+
+    expect(evaluateInspirationActivation({ ticketContent, specContent })).toEqual({
+      ok: true,
+      activated: true,
+    });
+  });
+
+  it('ignores level-two headings inside HTML comments when locating the preamble', () => {
+    const ticketContent = ticket(['inspiration_contract: v1', 'inspiration_contract_scaffold: v1']);
+    const specContent = [
+      '# Spec',
+      '<!--',
+      '## Historical example',
+      '-->',
+      SPEC_MARKER,
+      '## Intent',
+    ].join('\n');
+
+    expect(evaluateInspirationActivation({ ticketContent, specContent })).toEqual({
+      ok: true,
+      activated: true,
+    });
+  });
+
+  it('does not activate from a marker shown only inside fenced code', () => {
+    expect(
+      evaluateInspirationActivation({
+        ticketContent: ticket(),
+        specContent: ['# Spec', '```md', SPEC_MARKER, '```', '## Intent'].join('\n'),
+      }),
+    ).toEqual({ ok: true, activated: false });
+  });
+
+  it('fails closed for an unterminated marker-like comment', () => {
+    const result = evaluateInspirationActivation({
+      ticketContent: ticket(),
+      specContent: '# Spec\n<!-- safeword:inspiration-contract:v1\n',
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('treats signal-free artifacts without activation provenance as legacy', () => {
     expect(
       evaluateInspirationActivation({
         ticketContent: ticket(),
         specContent: spec(),
       }),
     ).toEqual({ ok: true, activated: false });
+  });
+
+  it('rejects removal of all signals after activation is present in durable provenance', () => {
+    const result = evaluateInspirationActivation({
+      ticketContent: ticket(),
+      specContent: spec(),
+      activationProvenance: 'activated',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('previously activated');
+  });
+
+  it('fails closed when a signal-free artifact has unavailable activation provenance', () => {
+    const result = evaluateInspirationActivation({
+      ticketContent: ticket(),
+      specContent: spec(),
+      activationProvenance: 'unavailable',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('could not be verified');
   });
 });
 
@@ -234,6 +310,42 @@ describe('product inspiration evidence', () => {
 
     expect(result.ok).toBe(false);
   });
+
+  it('keeps evidence hidden when a shorter run appears inside a longer fence', () => {
+    const fenced = [
+      `\`\`\`\`md`,
+      '`'.repeat(3),
+      productTable(VALID_PRODUCT_ROW),
+      '`'.repeat(4),
+    ].join('\n');
+    const result = evaluateProductInspiration({
+      ticketContent: activatedTicket(),
+      specContent: productSpec(fenced),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('keeps product evidence hidden after an unterminated HTML comment', () => {
+    const result = evaluateProductInspiration({
+      ticketContent: activatedTicket(),
+      specContent: productSpec(`<!-- illustrative evidence\n${productTable(VALID_PRODUCT_ROW)}`),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects an impossible ticket creation timestamp instead of normalizing it', () => {
+    const result = evaluateProductInspiration({
+      ticketContent: activatedTicket('2026-02-29T00:00:00.000Z'),
+      specContent: productSpec(productTable(VALID_PRODUCT_ROW)),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+  });
 });
 
 const IMPLEMENTATION_HEADER =
@@ -254,6 +366,8 @@ function implementationPlan(body: string, plannedOn = '2026-08-09'): string {
     '### Implementation Inspiration',
     '',
     body,
+    '',
+    '### Recorded Decisions',
     '',
     '| Decision | Choice | Alternatives considered | Rejected because |',
     '| --- | --- | --- | --- |',
@@ -320,6 +434,41 @@ describe('implementation inspiration evidence', () => {
         ticketContent: activatedTicket(),
         specContent: spec(SPEC_MARKER),
         planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it.each([
+    ['missing level-one title', (plan: string) => plan.replace('# Impl Plan: Example\n\n', '')],
+    [
+      'duplicate level-one title',
+      (plan: string) => plan.replace('# Impl Plan: Example', '# Impl Plan: Example\n# Duplicate'),
+    ],
+    [
+      'Planned on before the level-one title',
+      (plan: string) =>
+        plan
+          .replace('# Impl Plan: Example\n\n', '')
+          .replace(
+            '**Planned on:** 2026-08-09',
+            '**Planned on:** 2026-08-09\n# Impl Plan: Example',
+          ),
+    ],
+  ])('rejects a plan with %s', (_name, alter) => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+    ].join('\n');
+    const alteredPlan = alter(implementationPlan(body));
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: alteredPlan,
         evaluationDate: '2026-08-09',
       }).ok,
     ).toBe(false);
@@ -409,6 +558,38 @@ describe('implementation inspiration evidence', () => {
     ).toBe(false);
   });
 
+  it.each([
+    [
+      'a longer URL with the evidence URL as its prefix',
+      'https://spec.commonmark.org/0.31.2/appendix',
+    ],
+    [
+      'the evidence URL embedded in a larger prose token',
+      'prefixhttps://spec.commonmark.org/0.31.2/',
+    ],
+  ])('rejects a decision citation that is only %s', (_name, citation) => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+    ].join('\n');
+    const plan = implementationPlan(body).replace(
+      '| parser | https://spec.commonmark.org/0.31.2/ |',
+      () => `| parser | ${citation} |`,
+    );
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
   it('rejects an implementation table inside fenced example content', () => {
     const body = [
       '```md',
@@ -450,5 +631,101 @@ describe('implementation inspiration evidence', () => {
     });
 
     expect(result).toEqual({ ok: true, path: 'reference' });
+  });
+
+  it('does not confuse ordinary preamble prose with the Planned on label', () => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+    ].join('\n');
+    const plan = implementationPlan(body).replace(
+      '**Status:** planned',
+      '**Status:** planned\nPlanned online rollout: staged after validation',
+    );
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: plan,
+        evaluationDate: '2026-08-09',
+      }),
+    ).toEqual({ ok: true, path: 'reference' });
+  });
+
+  it('keeps implementation evidence hidden by a longer tilde fence', () => {
+    const body = [
+      '~~~~md',
+      '~~~',
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: illustrative only',
+      '~~~~',
+    ].join('\n');
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: implementationPlan(body),
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('keeps implementation evidence hidden after an unterminated HTML comment', () => {
+    const body = [
+      '<!-- illustrative evidence',
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: illustrative only',
+    ].join('\n');
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: implementationPlan(body),
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('rejects a self-citation from a fake Decisions table inside inspiration', () => {
+    const decisionRow =
+      '| parser | https://spec.commonmark.org/0.31.2/ | full Markdown | strict subset is clearer |';
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+      '',
+      '| Decision | Choice | Alternatives considered | Rejected because |',
+      '| --- | --- | --- | --- |',
+      decisionRow,
+    ].join('\n');
+    const original = implementationPlan(body);
+    const outerRow = original.lastIndexOf(decisionRow);
+    const plan = `${original.slice(0, outerRow)}${decisionRow.replace(
+      'https://spec.commonmark.org/0.31.2/',
+      'uncited source',
+    )}${original.slice(outerRow + decisionRow.length)}`;
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
   });
 });

@@ -361,6 +361,7 @@ Feature: Learn from exceptional products before committing feature decisions
         | a signal-free pre-v1 ticket with malformed creation metadata | the ticket receives the legacy exemption |
         | a v1 ticket with all three signals | the ticket is activated and proceeds to evidence validation |
         | a v1 ticket whose two version markers were deleted but whose scaffold sentinel remains | marker remediation blocks the transition |
+        | a committed v1 ticket whose three current signals were deleted | committed activation provenance blocks the transition |
         | an activated ticket with all three signals but missing creation metadata | signal validation passes and evidence validation blocks on the missing date baseline |
         | an activated ticket with all three signals but malformed creation metadata | signal validation passes and evidence validation blocks on the malformed date baseline |
         | a downgraded then reinstalled v1 ticket whose authored signals remain | the ticket reactivates without backfill or content mutation |

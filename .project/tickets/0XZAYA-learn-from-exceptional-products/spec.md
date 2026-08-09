@@ -29,8 +29,9 @@ between evidence, requirements, and code to copy.
   inherit local weaknesses without comparison.
 - **Reversibility:** The enforcement is a two-way door; older versions ignore
   the additive fields and sections. Authored inspiration remains customer
-  content across downgrade/uninstall and reactivates on v1 reinstall unless the
-  user deliberately removes all contract signals.
+  content across downgrade/uninstall and reactivates on v1 reinstall. Once an
+  activated scaffold is committed, Git history prevents silent removal of all
+  current signals from being mistaken for a legacy artifact.
 
 ## References
 
@@ -297,8 +298,13 @@ reviewers assess the saved evidence and any observed violations.
   plus the spec marker. Any one of those three signals activates validation.
   Every activated ticket must then carry all three exact supported signals; a
   missing, conflicting, or unsupported signal blocks rather than downgrades.
-  A ticket with none is a pre-v1 scaffold and remains exempt regardless of its
-  creation date, so upgrading cannot strand work created by an older install.
+  A ticket with none and no committed activation provenance is a pre-v1
+  scaffold and remains exempt regardless of its creation date, so upgrading
+  cannot strand work created by an older install. A committed ticket/spec pair
+  that previously carried the sentinel or marker remains activated even if all
+  current signals are removed. Before the first commit, existing on-disk
+  signals remain activation provenance while a full-file transition write is
+  evaluated, so the proposed write cannot downgrade itself to legacy.
 - Marker grammar is exact and singular: one `inspiration_contract: v1` scalar,
   one `inspiration_contract_scaffold: v1` scalar, and one exact-case
   `<!-- safeword:inspiration-contract:v1 -->` comment in the spec preamble
@@ -339,7 +345,9 @@ impact begins `changed:` or `retained:`. A successful implementation-reference
 path is followed immediately by exactly one
 `**Decision impact:** changed: <rationale>` or
 `**Decision impact:** retained: <rationale>` line inside the subsection; the
-affected Decisions row cites at least one of the table's references.
+affected row in the direct `### Recorded Decisions` subsection cites at least
+one of the table's references. Tables nested inside Implementation Inspiration
+never satisfy that citation requirement.
 
 A product unsuccessful search is exactly one row under
 `### Product Unsuccessful Search`:
@@ -389,9 +397,12 @@ Rollback is non-destructive: older Safeword versions ignore the unknown
 frontmatter fields, comment, and sections; uninstall/downgrade never deletes
 customer ticket/spec content. Reinstalling v1 sees the retained signals and
 reactivates validation. V1 neither backfills nor blocks signal-free pre-v1
-artifacts. Deliberately deleting all three identity signals opts an artifact out
-of a file-local contract and is outside automatic detection; deleting either
-version marker alone remains detectable because the scaffold sentinel survives.
+artifacts with no activation provenance. After activation is committed, the
+gate follows ticket history across renames for the scaffold sentinel and
+rejects removal of all three current signals; deleting only one or two remains
+detectable directly in the current artifact. A non-Git project confirms that no
+committed provenance exists; a corrupt, inaccessible, or shallow history is
+unknown and fails closed until history access or the current signals return.
 
 ### Wiring targets
 

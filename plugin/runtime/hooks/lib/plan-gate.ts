@@ -2,13 +2,14 @@
 // present — same grandfathering marker as the M6D315 stop gate) may only enter
 // the implement phase once impl-plan.md parses valid with status `planned`.
 // Pure-ish helper (reads only the ticket folder) so the pre-tool hook can call
-// it standalone from "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/, mirroring the #404 readiness gate.
+// it standalone from "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/, mirroring the #404 readiness gate.
 
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { evaluateImplementationInspiration } from './inspiration.js';
+import { inspirationContractProvenance } from './active-ticket.js';
 import { parseImplPlan } from './impl-plan.js';
+import { evaluateImplementationInspiration } from './inspiration.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
@@ -19,17 +20,31 @@ export function evaluateImplementEntry(
   ticketDirectory: string,
   options: { evaluationDate?: string } = {},
 ): PlanGateVerdict {
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
+  const activationProvenance = inspirationContractProvenance(ticketDirectory);
   const specPath = nodePath.join(ticketDirectory, 'spec.md');
-  if (!existsSync(specPath)) return OK;
+  if (!existsSync(specPath)) {
+    if (activationProvenance === 'absent') return OK;
+    return {
+      ok: false,
+      reason:
+        activationProvenance === 'unavailable'
+          ? 'Implementation Inspiration cannot be verified because activation provenance is unavailable and spec.md is missing.'
+          : 'This activated feature is missing spec.md, so its inspiration contract and implementation plan cannot be verified.',
+      remediation:
+        'Restore spec.md with its exact v1 inspiration marker and Product Inspiration record, then complete impl-plan.md before entering implement.',
+    };
+  }
 
   const planPath = nodePath.join(ticketDirectory, 'impl-plan.md');
   if (!existsSync(planPath)) {
     return {
       ok: false,
       reason:
-        'This feature has no impl-plan.md yet — the implementation plan is authored during the plan-implementation phase, before any test or code is written. Next: scaffold impl-plan.md from "${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md.',
+        'This feature has no impl-plan.md yet — the implementation plan is authored during the plan-implementation phase, before any test or code is written. Next: scaffold impl-plan.md from "\${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md.',
       remediation:
-        'Create impl-plan.md next to ticket.md (scaffold from "${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), fill each section with content or `skip: <reason>`, keep **Status:** planned, then retry the move to implement.',
+        'Create impl-plan.md next to ticket.md (scaffold from "\${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), fill each section with content or `skip: <reason>`, keep **Status:** planned, then retry the move to implement.',
     };
   }
 
@@ -53,11 +68,11 @@ export function evaluateImplementEntry(
     };
   }
 
-  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
   const inspirationVerdict = evaluateImplementationInspiration({
-    ticketContent: existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '',
+    ticketContent,
     specContent: readFileSync(specPath, 'utf8'),
     planContent,
+    activationProvenance,
     evaluationDate: options.evaluationDate ?? new Date().toISOString().slice(0, 10),
   });
   if (!inspirationVerdict.ok) {

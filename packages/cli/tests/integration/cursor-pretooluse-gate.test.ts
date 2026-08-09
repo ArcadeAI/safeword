@@ -94,6 +94,49 @@ function writeFeatureAtImplement(ticketDirectory: string): void {
   );
 }
 
+function inspirationTicket(phase: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  return [
+    '---',
+    `id: ${TICKET_ID}`,
+    'slug: cursor-gate',
+    'type: feature',
+    `phase: ${phase}`,
+    'status: in_progress',
+    'scope: inspiration adapter parity',
+    'out_of_scope: unrelated feature work',
+    'done_when: the transition follows canonical gating',
+    'inspiration_contract: v1',
+    'inspiration_contract_scaffold: v1',
+    `created: ${today}T00:00:00.000Z`,
+    '---',
+    '',
+  ].join('\n');
+}
+
+function inspirationSpec(withEvidence: boolean): string {
+  const today = new Date().toISOString().slice(0, 10);
+  return [
+    '# Spec',
+    '<!-- safeword:inspiration-contract:v1 -->',
+    '',
+    ...(withEvidence
+      ? [
+          '## Product Inspiration',
+          '',
+          '| Reference | Checked on | Source version / edition | Customer-value evidence | Principle to borrow | Non-copy boundary | Decision impact |',
+          '| --- | --- | --- | --- | --- | --- | --- |',
+          `| https://linear.app/docs/issue-templates | ${today} | n/a | Faster issue filing | Default good practice | Do not copy UI | retained: supports direction |`,
+          '',
+        ]
+      : []),
+    '## Jobs To Be Done',
+    '',
+    'skip: fixture focuses on inspiration adapter parity',
+    '',
+  ].join('\n');
+}
+
 /** Bind the ticket in session state, the way a prior ticket.md edit would have. */
 function seedActiveTicket(projectRoot: string): void {
   writeFileSync(
@@ -161,6 +204,53 @@ describe('Cursor preToolUse edit-gate parity (F2TKR3)', () => {
     const decision = runAdapter(projectRoot, { toolName: 'Read', filePath: 'src/app.ts' });
 
     expect(decision.permission).toBe('allow');
+  });
+
+  it('routes an activated intake transition through the canonical inspiration gate', () => {
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    writeFileSync(ticketPath, inspirationTicket('intake'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), inspirationSpec(false));
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: fixture dimension\n');
+    seedActiveTicket(projectRoot);
+
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketPath,
+      content: inspirationTicket('define-behavior'),
+    });
+
+    expect(decision.permission).toBe('deny');
+    expect(decision.user_message).toContain('Product Inspiration');
+  });
+
+  it('allows an activated intake transition after valid Product Inspiration', () => {
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    writeFileSync(ticketPath, inspirationTicket('intake'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), inspirationSpec(true));
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: fixture dimension\n');
+    seedActiveTicket(projectRoot);
+
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketPath,
+      content: inspirationTicket('define-behavior'),
+    });
+
+    expect(decision).toEqual({ permission: 'allow' });
+  });
+
+  it('denies full-write removal of uncommitted activation signals during transition', () => {
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    writeFileSync(ticketPath, inspirationTicket('intake'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), inspirationSpec(false));
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: fixture dimension\n');
+    seedActiveTicket(projectRoot);
+    const proposed = inspirationTicket('define-behavior')
+      .replace('inspiration_contract: v1\n', '')
+      .replace('inspiration_contract_scaffold: v1\n', '');
+
+    const decision = runAdapter(projectRoot, { filePath: ticketPath, content: proposed });
+
+    expect(decision.permission).toBe('deny');
+    expect(decision.user_message).toContain('all three');
   });
 });
 

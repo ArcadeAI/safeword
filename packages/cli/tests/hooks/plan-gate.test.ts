@@ -30,6 +30,8 @@ function plan(inspiration: string): string {
     '',
     inspiration,
     '',
+    '### Recorded Decisions',
+    '',
     '| Decision | Choice | Alternatives considered | Rejected because |',
     '| --- | --- | --- | --- |',
     '| parser | https://spec.commonmark.org/0.31.2/ | full Markdown | strict subset |',

@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "80add7389da378c70bff04b36e521b5ae0712ea27d49b1a17ec29177214d6c57"
+      "sha256": "83412dc45c314fb4ed1be7642a2ef4e8235d3a98b83e534e21313cf3af198103"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "814648de95d923997b2034ca1a184c959ab52579c9982d07681ca40bd761964a"
+      "sha256": "0904f4bb6c8b033a51bb81d5cd916bfaef019155f40f556a74f8b25f0e567681"
     },
     {
       "path": "runtime/dispatch.js",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "2ea280fcf45e04d549d976d596b5a58da1c42dcef43f7a08996b6abc4284c8a2"
+      "sha256": "252aa4741c82a41b4fe9a7d7d099313c7d0b4e766dae26463a9e9d9407e650dc"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "4d89818ea62ee89d894a56a1947e05d1ee9edbf8eff45882a2c3adc2a589164e"
+      "sha256": "281b52dba00cc257c2b8098a0ca70994e531c8ded32a63eeb6f5f1ddfc11e88d"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -227,7 +227,7 @@
     },
     {
       "path": "runtime/hooks/lib/hierarchy.ts",
-      "sha256": "7f6d87bde5f1653ac5965d1b6aab000159ec69232bfceda2fb14b1d90c875f4b"
+      "sha256": "9360e404e80d0f324fe697c4af9326acc3f09a47ceab2471b315d4ef4445b4f1"
     },
     {
       "path": "runtime/hooks/lib/host-toolchain.ts",
@@ -235,11 +235,11 @@
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
-      "sha256": "23b3f4d7a12766b5d06cb6ea17e4a505ebc5fcc254a90bdd4965f6ef5e76c07a"
+      "sha256": "29c7fd7ad70876d1119a9913d70a39566ce762c8e972959b81e995c5e0b3912d"
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "51ec8570aa7836bdb483178f0d5d399e4eda77b02c1197c7ca3a6d076c8fe785"
+      "sha256": "c7039e738197ca31c5f483b54753def75a628cef142da70f73e3c00a35769a3d"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -247,7 +247,7 @@
     },
     {
       "path": "runtime/hooks/lib/jtbd.ts",
-      "sha256": "c97d501bd052206b630ba56321834a4bc62ecc2664b00e5bdc033138d59ee030"
+      "sha256": "5ff4694b832f97fec075e23de26cecf25e9c0de4a3a1b0ff6ae05d50f4d90a4a"
     },
     {
       "path": "runtime/hooks/lib/learning-verification-stamps.ts",
@@ -283,11 +283,11 @@
     },
     {
       "path": "runtime/hooks/lib/phase-provenance.ts",
-      "sha256": "0848a8b508b79d40fad26fcfc6437f3c7aa9cd584377e5bbf44d7aa1c3e207d6"
+      "sha256": "77a7aea77f21b611f1b65ea7728c53b115ae18cebb769fa2d29e7df708e0065e"
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "156f4d00d0a815ccea19c8b8e5cc996838f9ca8decaaac91728f436d91dd6d73"
+      "sha256": "0b6d519d92aa4ec2ffbf631ff5a287a15ff6e742ac5424636bfb1bc692f8cf2c"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
@@ -311,7 +311,7 @@
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
-      "sha256": "6ff4e23213b788c6998b85eb4812ff5557a38e068922847f59b7291e211841e6"
+      "sha256": "224925aa872ca6f91afcb6b182cbd18fedd1ed4dd27d2fec13248bae472341fe"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -343,11 +343,11 @@
     },
     {
       "path": "runtime/hooks/lib/retro-nudge.ts",
-      "sha256": "58b19fb8dab130cb7080d1297d730e0093ee9d55ea4fa6773728db6c24311542"
+      "sha256": "c2683a0e44c40b00fce1cff164dea0e5db8b47361a4ed8f71c2a35803ee07a51"
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
-      "sha256": "16e2a0ffbc7d148c79d891a17a567ff6460a6c823e0044774b7a16153f120490"
+      "sha256": "cf678e4700d79edad630de75c77909e047ffd196f03a0e246d00a1399cdf9555"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -363,7 +363,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "fc5f667a9b40fded95fb9d256b5800adccbc89f189e8b6b7a24da141b74061ed"
+      "sha256": "2cbd7b350881aa17202b5f92934c10b21b2748bbe3151ca9cad8c4c54f9bb9d2"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -371,7 +371,7 @@
     },
     {
       "path": "runtime/hooks/lib/self-report.ts",
-      "sha256": "d486caed51dd0afe5fdbe7e3dff0d0305b724cbe29200ea7838fc0a3ac132322"
+      "sha256": "ba05b0327b85d11ecaa71bc9109b87b6cd34df61ed7093c452cc3103ee97cc04"
     },
     {
       "path": "runtime/hooks/lib/shell-segments.ts",
@@ -383,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/lib/skill-nudge.ts",
-      "sha256": "438aa341aa2acbdf0183ae4bfd90ff2fef90dd6d7c5d30f4540b0122ac257e90"
+      "sha256": "c76abdaec17cb18a3ea6893849db5e87cf3616fd259bd787e3f7d7eccaf34ad8"
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
@@ -391,7 +391,7 @@
     },
     {
       "path": "runtime/hooks/lib/typecheck-gate.ts",
-      "sha256": "5f4a394fc01596bd6bba2863763091f95b829d9b35b9fe6d1cc923472e154987"
+      "sha256": "67b80f003b1435df517c55d022a4041f78e47969bb27095b06508b40d6b64458"
     },
     {
       "path": "runtime/hooks/lib/update-cache.ts",
@@ -451,7 +451,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "d02643399ff0c677d74a24d6105c64410e49474faf550077e630ae505306570f"
+      "sha256": "b0127217a01b3fffef9c1b07584cbaad2e0e4e5e4e826214e7bb3116f274629b"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -459,7 +459,7 @@
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
-      "sha256": "541b24d7678e1ac7c907ceb4f205e117bdb1b5a9e199ddddf58d5b7395a85a4a"
+      "sha256": "6ef3928c770660c7ed9fc8fc85f22c8601bfcbcb7def49a42e4e972fcde8e095"
     },
     {
       "path": "runtime/hooks/prompt-retro-nudge.ts",
@@ -539,7 +539,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "6252b2fdb95df75c03b9932341057d2a7f1cf35e1e0803e492ab229d659f0b4c"
+      "sha256": "f1f50fb9c5df53f65e496fc0815bf8766569e5f6deaa3b35404ef4e168f94e51"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",

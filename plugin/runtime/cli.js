@@ -3888,8 +3888,7 @@ var init_legacy_global_guidance = __esm(() => {
 // templates/hooks/lib/hierarchy.ts
 function parseFrontmatter2(yaml) {
   const result = {};
-  const lines = yaml.split(`
-`);
+  const lines = yaml.split(/\r?\n/);
   let currentKey = null;
   let currentList = null;
   for (const line of lines) {

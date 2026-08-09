@@ -21,6 +21,7 @@ import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
+import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
   AUTHOR_MODEL_ENV,
@@ -331,7 +332,7 @@ if (
   }
 
   const ticketContent = readFileSync(ticketFile, 'utf8');
-  const frontmatterMatch = ticketContent.match(/^---\n([\s\S]*?)\n---/);
+  const frontmatterMatch = ticketContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
 
   if (!frontmatterMatch) {
     deny(
@@ -477,7 +478,7 @@ function frontmatterScalar(
 }
 
 function frontmatterFromContent(content: string): Record<string, string | string[]> {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   return match ? parseFrontmatter(match[1] ?? '') : {};
 }
 
@@ -486,6 +487,46 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // canonical-ticket branches and be judged on their own frontmatter.
 const isCanonicalTicketEdit =
   nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
+const isCanonicalSpecEdit =
+  nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
+
+// A new feature's activation signals may be uncommitted, so Git history cannot
+// preserve provenance yet. Keep at least one current signal alive across edits:
+// the normal transition gates then require the complete three-signal contract.
+// This closes the two-edit downgrade where markers were removed first and the
+// phase was advanced in a later tool call.
+if (isCanonicalTicketEdit || isCanonicalSpecEdit) {
+  const toolInput = input.tool_input;
+  const reconstructable =
+    toolInput?.content !== undefined ||
+    toolInput?.edits !== undefined ||
+    toolInput?.old_string !== undefined;
+  if (reconstructable) {
+    const ticketDirectory = nodePath.dirname(editedFile);
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    const specPath = nodePath.join(ticketDirectory, 'spec.md');
+    const currentTicket = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
+    const currentSpec = existsSync(specPath) ? readFileSync(specPath, 'utf8') : '';
+    const proposed = nextContentAfterEdit(
+      toolInput,
+      isCanonicalTicketEdit ? currentTicket : currentSpec,
+    );
+    const priorActivated = hasInspirationActivationCandidate({
+      ticketContent: currentTicket,
+      specContent: currentSpec,
+    });
+    const proposedActivated = hasInspirationActivationCandidate({
+      ticketContent: isCanonicalTicketEdit ? proposed : currentTicket,
+      specContent: isCanonicalSpecEdit ? proposed : currentSpec,
+    });
+    if (priorActivated && !proposedActivated) {
+      deny(
+        'The last inspiration-contract activation signal cannot be removed before durable provenance exists.',
+        'Restore at least one exact v1 activation signal. The phase-transition gate will require the complete ticket marker, scaffold sentinel, and spec marker before work advances.',
+      );
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Phase-provenance gate (0KYEBN, #644 G2) — ALWAYS-ON. A feature ticket's

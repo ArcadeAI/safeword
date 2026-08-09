@@ -89,9 +89,9 @@ function isCloseoutCleanupPath(token: string | undefined, pluginRoot?: string): 
     ? nodePath.join(pluginRoot, 'resources/scripts/closeout-cleanup.ts').replaceAll('\\', '/')
     : undefined;
   return (
-    normalized === '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts' ||
-    normalized.endsWith('/"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts') ||
-    normalized === '${CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts' ||
+    normalized === '"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts' ||
+    normalized.endsWith('/"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts') ||
+    normalized === '\${CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts' ||
     normalized === pluginPath
   );
 }

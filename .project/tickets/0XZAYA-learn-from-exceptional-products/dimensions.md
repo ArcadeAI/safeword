@@ -15,7 +15,7 @@ and the existing BDD intake and plan-implementation boundaries.
 | Research provenance | fresh direct research; a useful parent source rechecked and recorded by the child; stale or mismatched research | TBU1.R1 / TBU1.R2 / NTB1.R3 |
 | Unsuccessful product search | job/question; attempted products/categories/queries; search date/sources; non-transfer rationale; retained decision/rationale; each field absent | TBU1.R1 / TBU1.R3 / NTB1.R3 |
 | Unsuccessful implementation search | technical question/decision; constraints/versions; attempted categories/repos/queries; search date/sources; non-transfer rationale; retained decision/rationale; each field absent | TBU1.R2 / TBU1.R3 / NTB1.R3 |
-| Activation boundary | any ticket marker, spec marker, or independent scaffold sentinel activates; all three exact v1 signals pass; any missing, conflicting, duplicate, malformed, or unsupported companion fails; deleting both version markers leaves the sentinel and fails; signal-free pre-v1 artifacts remain exempt regardless of creation date; downgrade/reinstall preserves authored signals | NTB1.R1 / NTB1.R3 |
+| Activation boundary | any ticket marker, spec marker, independent scaffold sentinel, or committed activation provenance activates; all three exact v1 signals pass; any missing, conflicting, duplicate, malformed, or unsupported companion fails; deleting current signals after commit fails from history; signal-free pre-v1 artifacts without provenance remain exempt regardless of creation date; downgrade/reinstall preserves authored signals | NTB1.R1 / NTB1.R3 |
 | Implementation ordering | bounded constraints; multiple independent candidates; external comparison; selected ideal; local-pattern reconciliation | TBU1.R2 |
 | Refresh guidance | routine RED/GREEN/REFACTOR continues; builder-classified disproved assumption or significant new choice causes the next workflow guidance to request a refreshed record; no semantic runtime detector is claimed | TBU1.R4 |
 | Untrusted-content guidance | benign evidence; embedded instruction; request for private context; executable retrieved code; absent or incompatible reuse license; every case is named in canonical guidance without claiming an owned sandbox | TBU1.R5 |
@@ -46,5 +46,5 @@ and the existing BDD intake and plan-implementation boundaries.
 - External material is evidence, never agent instruction, and code reuse is
   separately conditioned on compatible rights and obligations.
 - Matching ticket/spec markers plus an independent scaffold-origin sentinel
-  prevent deletion of the two markers from downgrading v1 work while preserving
-  every signal-free pre-v1 ticket across upgrades.
+  activate before the first commit; committed activation history prevents
+  silent downgrade while preserving signal-free pre-v1 tickets across upgrades.

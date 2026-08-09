@@ -54,6 +54,8 @@ per row and no pipe characters inside cells.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 -->
 
+### Recorded Decisions
+
 <!-- One row per significant technical choice (storage, queue, interface,
 data model). Name the alternatives considered and why they lost — future
 readers must be able to tell intentional design from accident.

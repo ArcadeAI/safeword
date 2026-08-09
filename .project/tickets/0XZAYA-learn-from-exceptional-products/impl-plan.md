@@ -18,7 +18,8 @@ The implementation is four dependency-ordered slices:
    helper and lock down failure precedence before parsing a successful row:
    exact/duplicate/malformed signals, activation by either version marker or the
    independent scaffold-origin sentinel, all-three v1 requirements, pre-v1
-   signal-free exemption, missing baselines, mutually exclusive
+   signal-free exemption only without committed activation provenance, missing
+   baselines, mutually exclusive
    result paths, and injected evaluation dates. Then add the complete v1
    single-line/no-pipe table lexer, direct product records, unsuccessful-search
    records. Each feature owns its record; a child may re-check the same source
@@ -87,11 +88,13 @@ executable.
 the existing direction of a strict readable subset, while making the no-pipe,
 single-line v1 boundary explicit.
 
+### Recorded Decisions
+
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
 | Evidence authoring format | Strict versioned Markdown sections and exact GFM-shaped tables ([GFM](https://github.github.com/gfm/)) | YAML/frontmatter records; fenced JSON validated by [JSON Schema 2020-12](https://json-schema.org/specification) | YAML introduces unordered mappings, implicit typing, and duplicate-key edge cases; JSON is deterministic but substantially worse for routine human editing. The selected subset keeps one artifact and one language while remaining parseable. |
 | Parser architecture | One dependency-free pure helper shared by intake readiness and the implementation plan gate | Separate stage parsers; a generic Markdown AST dependency | Separate parsers invite drift; a full Markdown engine expands the dependency and attack surface for a deliberately narrow grammar. Stage-specific schemas can share marker, row, date, and result primitives. |
-| Activation and migration | Paired ticket/spec v1 markers plus an independent `inspiration_contract_scaffold: v1` origin sentinel; any signal activates and all three are required; signal-free pre-v1 artifacts are exempt at every creation date | Release-date cutoff; current installed-version inference; marker pair alone; retroactive backfill | Cutoffs strand work created by older installs, current version does not prove creation provenance, and a pair alone cannot detect deletion of both markers. The sentinel proves v1 scaffold origin without dynamic project state; downgrade ignores the additive fields and reinstall reactivates retained v1 artifacts. |
+| Activation and migration | Paired ticket/spec v1 markers plus an independent `inspiration_contract_scaffold: v1` origin sentinel; any current signal or committed activation provenance activates and all three current signals are required; signal-free pre-v1 artifacts without provenance are exempt at every creation date | Release-date cutoff; current installed-version inference; marker pair alone; retroactive backfill | Cutoffs strand work created by older installs, current version does not prove creation provenance, and a pair alone cannot detect deletion of both markers. The sentinel proves scaffold origin before the first commit; Git history preserves that provenance afterward. Downgrade ignores the additive fields and reinstall reactivates retained or historically activated v1 artifacts. |
 | Enforcement boundary | Extend the existing `define-behavior` readiness and `implement` plan gates | Add a new phase; stop-hook-only reminders; validation on every edit | Existing transitions are the irreversible decision boundaries. A new phase adds ceremony, reminders are soft, and per-edit checks add noise without stronger evidence. |
 | Qualitative quality and research safety | Skills and independent review assess credibility, relevance, and comparability; [OWASP LLM01:2025](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) informs the explicit untrusted-content guidance; code validates only explicit structure and bounds | LLM-as-gate scoring; fixed reference quota; an owned runtime sandbox in this feature | Subjective scoring is nondeterministic and a quota rewards filler. V1 promises guidance and review, not runtime isolation that Safeword does not own. |
 | Host delivery | Change canonical templates/helpers, register them in schema, then regenerate/check host assets | Hand-edit generated host copies | Canonical generation preserves agent parity and prevents host-specific drift. |
