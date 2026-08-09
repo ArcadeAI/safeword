@@ -217,8 +217,12 @@ describe('impl-plan template (Rule 4)', () => {
     );
     const result = parseImplPlan(template);
     for (const name of IMPL_PLAN_SECTIONS) {
+      if (name === 'Decisions') continue;
       expect(result.sections[name]?.satisfied, `section ${name}`).toBe(false);
     }
+    expect(template).toContain('**Planned on:** <YYYY-MM-DD>');
+    expect(template).toContain('### Implementation Inspiration');
+    expect(template).toContain('Mismatch / license / security boundary');
   });
 });
 

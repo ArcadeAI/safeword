@@ -42,6 +42,12 @@ describe('ticket-writer — spec.md scaffold by type (Rule 1)', () => {
     });
     expect(existsSync(nodePath.join(folderPath, 'ticket.md'))).toBe(true);
     expect(existsSync(nodePath.join(folderPath, 'spec.md'))).toBe(true);
+    const ticket = readFileSync(nodePath.join(folderPath, 'ticket.md'), 'utf8');
+    const spec = readFileSync(nodePath.join(folderPath, 'spec.md'), 'utf8');
+    expect(ticket).toContain('inspiration_contract: v1');
+    expect(ticket).toContain('inspiration_contract_scaffold: v1');
+    expect(spec).toContain('<!-- safeword:inspiration-contract:v1 -->');
+    expect(spec).toContain('## Product Inspiration');
   });
 
   it('task does not scaffold spec.md', () => {
@@ -131,7 +137,7 @@ describe('ticket-writer — type-aware ticket.md body (Rule 2)', () => {
 describe('spec-template.md is well-formed (Rule 3)', () => {
   const template = readFileSync(nodePath.join(getTemplatesDirectory(), 'spec-template.md'), 'utf8');
 
-  it('has the ten section headers in canonical order', () => {
+  it('has the section headers in canonical order', () => {
     expect(specHeaders(template)).toEqual([
       'Intent',
       'Intake Brief',
@@ -139,6 +145,7 @@ describe('spec-template.md is well-formed (Rule 3)', () => {
       'Personas',
       'Surfaces',
       'Vocabulary',
+      'Product Inspiration',
       'Jobs To Be Done',
       'Rave Moment',
       'Outcomes',
