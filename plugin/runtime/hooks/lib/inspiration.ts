@@ -36,6 +36,10 @@ const PRODUCT_SEARCH_DELIMITER = '| --- | --- | --- | --- | --- | --- | --- | --
 const IMPLEMENTATION_HEADER =
   '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |';
 const IMPLEMENTATION_DELIMITER = '| --- | --- | --- | --- | --- | --- | --- |';
+const IMPLEMENTATION_SEARCH_HEADER =
+  '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |';
+const IMPLEMENTATION_SEARCH_DELIMITER =
+  '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |';
 
 const EVIDENCE_REMEDIATION =
   'Complete one exact inspiration reference table or the exact unsuccessful-search table with current dates and non-empty fields.';
@@ -333,6 +337,39 @@ export function evaluateImplementationInspiration(
     return evidenceFailure(
       'Implementation Inspiration must appear once directly inside Decisions.',
     );
+  }
+
+  const hasReference = section.includes(IMPLEMENTATION_HEADER);
+  const searchSection = extractSection(section, '#### Implementation Unsuccessful Search', 4);
+  const hasSearch = searchSection !== undefined;
+  if (hasReference === hasSearch) {
+    return evidenceFailure('Implementation Inspiration must contain exactly one resolution path.');
+  }
+
+  if (hasSearch) {
+    const searchTable = parseExactTable(
+      searchSection,
+      IMPLEMENTATION_SEARCH_HEADER,
+      IMPLEMENTATION_SEARCH_DELIMITER,
+      11,
+    );
+    if (!searchTable || searchTable.rows.length !== 1) {
+      return evidenceFailure(
+        'The implementation unsuccessful-search table does not match v1 grammar.',
+      );
+    }
+    const row = searchTable.rows[0]!;
+    if (!dateInRange(row[7]!, baseline, input.evaluationDate)) {
+      return evidenceFailure(
+        'Implementation search date must fall between planning and evaluation.',
+      );
+    }
+    if (!hasDecisionPrefix(row[10]!, ['retained:'])) {
+      return evidenceFailure(
+        'Implementation unsuccessful search must retain a decision with rationale.',
+      );
+    }
+    return { ok: true, path: 'unsuccessful-search' };
   }
 
   const table = parseExactTable(section, IMPLEMENTATION_HEADER, IMPLEMENTATION_DELIMITER, 7);

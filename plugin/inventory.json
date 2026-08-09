@@ -239,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "34ece914fa492dab9576d69041ea26dfec7417a96e5b3dd77016c457e3664f98"
+      "sha256": "3820156854100c75cd2bb620383d4c72675fbdfa8eab71f5e62fd5f5f71f49a1"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",

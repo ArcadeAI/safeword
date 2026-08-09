@@ -289,4 +289,23 @@ describe('implementation inspiration evidence', () => {
       }).ok,
     ).toBe(false);
   });
+
+  it('accepts the exact complete implementation unsuccessful-search path', () => {
+    const body = [
+      '#### Implementation Unsuccessful Search',
+      '',
+      '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      '| parse strict records | choose parser | no dependencies | n/a | standards | CommonMark | strict table parser | 2026-08-09 | official specs | no implementation transfers | retained: keep the dependency-free design |',
+    ].join('\n');
+
+    const result = evaluateImplementationInspiration({
+      ticketContent: activatedTicket(),
+      specContent: spec(SPEC_MARKER),
+      planContent: implementationPlan(body),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result).toEqual({ ok: true, path: 'unsuccessful-search' });
+  });
 });
