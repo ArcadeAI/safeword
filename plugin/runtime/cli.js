@@ -3929,7 +3929,7 @@ function stripQuotes2(value) {
 }
 var init_hierarchy = () => {};
 
-// templates/hooks/lib/inspiration.ts
+// templates/hooks/lib/markdown-structure.ts
 function stripHtmlComments(content) {
   return content.replaceAll(/<!--[\s\S]*?-->/g, (comment) => comment.replaceAll(/[^\r\n]/g, ""));
 }
@@ -3972,34 +3972,8 @@ function withoutFencedCode(content, preserveHtmlComments = false) {
 
 // templates/hooks/lib/impl-plan.ts
 function activeLines(content) {
-  const lines = [];
-  let inComment = false;
-  for (const raw of withoutFencedCode(content).split(`
-`)) {
-    let line = raw;
-    if (inComment) {
-      const end = line.indexOf("-->");
-      if (end === -1)
-        continue;
-      inComment = false;
-      line = line.slice(end + 3);
-    }
-    let start = line.indexOf("<!--");
-    while (start !== -1) {
-      const end = line.indexOf("-->", start + 4);
-      if (end === -1) {
-        line = line.slice(0, start);
-        inComment = true;
-        break;
-      }
-      line = line.slice(0, start) + line.slice(end + 3);
-      start = line.indexOf("<!--");
-    }
-    if (/^(?: {4}|\t)/u.test(line))
-      continue;
-    lines.push(line);
-  }
-  return lines;
+  return withoutFencedCode(content).split(`
+`).filter((line) => !/^(?: {4}|\t)/u.test(line));
 }
 function parseStatus(lines, errors) {
   const candidates = lines.map((line) => line.trim()).filter((line) => line.startsWith(STATUS_PREFIX));
@@ -15358,6 +15332,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".safeword/hooks/lib/active-ticket.ts": { template: "hooks/lib/active-ticket.ts" },
       ".safeword/hooks/lib/inspiration.ts": { template: "hooks/lib/inspiration.ts" },
+      ".safeword/hooks/lib/markdown-structure.ts": { template: "hooks/lib/markdown-structure.ts" },
       ".safeword/hooks/lib/architecture-document-nudge.ts": {
         template: "hooks/lib/architecture-document-nudge.ts"
       },

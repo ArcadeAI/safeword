@@ -4,7 +4,7 @@
 // impl-plan.md without importing the CLI dist (same cross-runtime-copy
 // rationale as jtbd.ts — deployed hooks run standalone from "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/).
 
-import { withoutFencedCode } from './inspiration.js';
+import { withoutFencedCode } from './markdown-structure.js';
 
 export type ImplPlanStatus = 'planned' | 'implemented';
 
@@ -71,37 +71,11 @@ const SECTION_NAMES = new Map<string, ImplPlanAnySectionName>([
 const DESIGN_ALIGNMENT_HEADING = 'design alignment';
 const LEGACY_ARCH_ALIGNMENT_HEADING = 'arch alignment';
 
-/**
- * Lines outside HTML comments. Mirrors jtbd.ts's comment handling — the
- * scaffolded template's guidance is commented, so a fresh scaffold parses
- * to empty sections.
- */
+/** Lines outside fenced, commented, and indented code. */
 export function activeLines(content: string): string[] {
-  const lines: string[] = [];
-  let inComment = false;
-  for (const raw of withoutFencedCode(content).split('\n')) {
-    let line = raw;
-    if (inComment) {
-      const end = line.indexOf('-->');
-      if (end === -1) continue;
-      inComment = false;
-      line = line.slice(end + 3);
-    }
-    let start = line.indexOf('<!--');
-    while (start !== -1) {
-      const end = line.indexOf('-->', start + 4);
-      if (end === -1) {
-        line = line.slice(0, start);
-        inComment = true;
-        break;
-      }
-      line = line.slice(0, start) + line.slice(end + 3);
-      start = line.indexOf('<!--');
-    }
-    if (/^(?: {4}|\t)/u.test(line)) continue;
-    lines.push(line);
-  }
-  return lines;
+  return withoutFencedCode(content)
+    .split('\n')
+    .filter(line => !/^(?: {4}|\t)/u.test(line));
 }
 
 /** Scan for the `**Status:**` line; report its value or push the matching error. */

@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "3a49ab069b699a818b830e02b51abb54f1936165c3972ffe5a85b6e63a4b9673"
+      "sha256": "b6430d18fa3fd915920b13fc2691bf2c757acc5918021f7bae4288773b452276"
     },
     {
       "path": "runtime/dispatch.js",
@@ -235,11 +235,11 @@
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
-      "sha256": "585352a4b233f91f2ba0eb926c7621cae5d70b3ea1fc09b16867026a50ea27ca"
+      "sha256": "2b0a515b8ad41ea1e3748ad4eeda8c73ec48f68dcfbb370d4743299c4e02e5ae"
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "e4fc2d5d186cde75c231c3a2a6f7aebccc53600128c1acdc63ef5809f2067eb3"
+      "sha256": "af63d91f4260e4e90fdbe4301542464668ea60f3b4218da07be77a05848cc404"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -268,6 +268,10 @@
     {
       "path": "runtime/hooks/lib/lint.ts",
       "sha256": "2ae7f5f94c145572509b431972188f1be348542fb5026d9b68c215e632e7d1e6"
+    },
+    {
+      "path": "runtime/hooks/lib/markdown-structure.ts",
+      "sha256": "4d0781f12d5abbecbe4797df04d3187d978b4d06469f1a57c40f3768f180fbe3"
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
