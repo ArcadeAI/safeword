@@ -176,6 +176,14 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       { flags: '--format <format>', description: 'human, json, or sh', defaultValue: 'human' },
     ],
   }),
+  command(
+    'project test-execution status',
+    'Show the effective test execution preference',
+    'observe',
+    {
+      syntax: 'test-execution status',
+    },
+  ),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),

@@ -44,6 +44,7 @@ describe('CLI command catalog', () => {
       'project sync-tickets',
       'project codify',
       'project test-plan',
+      'project test-execution status',
       'project lint-gherkin',
       'tracker sync',
       'tracker connect',
