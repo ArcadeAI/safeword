@@ -176,6 +176,12 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
     }
   });
 
+  it('links an unsuccessful search to the affected recorded decision', () => {
+    for (const { path, text } of planCopies) {
+      expect(text, path).toMatch(/Decision informed.*exactly match.*Decision.*Recorded Decisions/i);
+    }
+  });
+
   it('surfaces relevant language skills, never the full inventory (TB3.R4)', () => {
     for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/language skills?/i);

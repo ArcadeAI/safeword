@@ -480,7 +480,7 @@ describe('implementation inspiration evidence', () => {
       '',
       '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
       '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-      '| parse strict records | choose parser | no dependencies | n/a | standards | CommonMark | strict table parser | 2026-08-09 | official specs | no implementation transfers | retained: keep the dependency-free design |',
+      '| parse strict records | parser | no dependencies | n/a | standards | CommonMark | strict table parser | 2026-08-09 | official specs | no implementation transfers | retained: keep the dependency-free design |',
     ].join('\n');
 
     const result = evaluateImplementationInspiration({
@@ -491,6 +491,50 @@ describe('implementation inspiration evidence', () => {
     });
 
     expect(result).toEqual({ ok: true, path: 'unsuccessful-search' });
+  });
+
+  it('rejects an implementation unsuccessful search without a recorded decision', () => {
+    const body = [
+      '#### Implementation Unsuccessful Search',
+      '',
+      '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      '| parse strict records | parser | no dependencies | n/a | standards | CommonMark | strict table parser | 2026-08-09 | official specs | no implementation transfers | retained: keep the dependency-free design |',
+    ].join('\n');
+    const plan = implementationPlan(body).replace(
+      '| parser | https://spec.commonmark.org/0.31.2/ | full Markdown | strict subset is clearer |',
+      '',
+    );
+
+    const result = evaluateImplementationInspiration({
+      ticketContent: activatedTicket(),
+      specContent: spec(SPEC_MARKER),
+      planContent: plan,
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('Recorded Decisions');
+  });
+
+  it('rejects an implementation unsuccessful search linked to an unrelated decision', () => {
+    const body = [
+      '#### Implementation Unsuccessful Search',
+      '',
+      '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      '| parse strict records | unrelated decision | no dependencies | n/a | standards | CommonMark | strict table parser | 2026-08-09 | official specs | no implementation transfers | retained: keep the dependency-free design |',
+    ].join('\n');
+
+    const result = evaluateImplementationInspiration({
+      ticketContent: activatedTicket(),
+      specContent: spec(SPEC_MARKER),
+      planContent: implementationPlan(body),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('Decision informed');
   });
 
   it('rejects duplicate implementation decision impacts', () => {

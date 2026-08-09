@@ -7,7 +7,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { inspirationContractProvenance } from './active-ticket.js';
+import { inspirationContractProvenance, specArtifactProvenance } from './active-ticket.js';
 import { parseImplPlan } from './impl-plan.js';
 import { evaluateImplementationInspiration } from './inspiration.js';
 
@@ -25,15 +25,18 @@ export function evaluateImplementEntry(
   const activationProvenance = inspirationContractProvenance(ticketDirectory);
   const specPath = nodePath.join(ticketDirectory, 'spec.md');
   if (!existsSync(specPath)) {
-    if (activationProvenance === 'absent') return OK;
+    const specProvenance = specArtifactProvenance(ticketDirectory);
+    if (activationProvenance === 'absent' && specProvenance === 'absent') return OK;
     return {
       ok: false,
       reason:
-        activationProvenance === 'unavailable'
-          ? 'Implementation Inspiration cannot be verified because activation provenance is unavailable and spec.md is missing.'
-          : 'This activated feature is missing spec.md, so its inspiration contract and implementation plan cannot be verified.',
+        activationProvenance === 'unavailable' || specProvenance === 'unavailable'
+          ? 'Implementation planning cannot be verified because feature provenance is unavailable and spec.md is missing.'
+          : 'This spec-backed feature is missing spec.md, so its inspiration contract and implementation plan cannot be verified.',
       remediation:
-        'Restore spec.md with its exact v1 inspiration marker and Product Inspiration record, then complete impl-plan.md before entering implement.',
+        activationProvenance === 'activated'
+          ? 'Restore spec.md with its exact v1 inspiration marker and Product Inspiration record, then complete impl-plan.md before entering implement.'
+          : "Restore this feature's spec.md from its phase anchor or repository history, then complete impl-plan.md before entering implement.",
     };
   }
 

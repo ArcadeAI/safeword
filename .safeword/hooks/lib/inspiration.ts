@@ -441,6 +441,8 @@ export function evaluateImplementationInspiration(
       'Implementation Inspiration must appear once directly inside Decisions.',
     );
   }
+  const recordedDecisions = extractSection(decisions, '### Recorded Decisions', 3);
+  const recordedRows = recordedDecisions === undefined ? [] : decisionRows(recordedDecisions);
 
   const hasReference = section.includes(IMPLEMENTATION_HEADER);
   const searchSection = extractSection(section, '#### Implementation Unsuccessful Search', 4);
@@ -470,6 +472,16 @@ export function evaluateImplementationInspiration(
     if (!hasDecisionPrefix(row[10]!, ['retained:'])) {
       return evidenceFailure(
         'Implementation unsuccessful search must retain a decision with rationale.',
+      );
+    }
+    if (recordedRows.length === 0) {
+      return evidenceFailure(
+        'Implementation unsuccessful search requires at least one valid Recorded Decisions row.',
+      );
+    }
+    if (!recordedRows.some(recordedRow => recordedRow[0] === row[1])) {
+      return evidenceFailure(
+        'Implementation unsuccessful search Decision informed must exactly match a Recorded Decisions Decision cell.',
       );
     }
     return { ok: true, path: 'unsuccessful-search' };
@@ -512,12 +524,9 @@ export function evaluateImplementationInspiration(
   }
 
   const references = table.rows.map(row => row[0]!);
-  const recordedDecisions = extractSection(decisions, '### Recorded Decisions', 3);
-  const cited =
-    recordedDecisions !== undefined &&
-    decisionRows(recordedDecisions).some(row =>
-      references.some(reference => row.some(cell => containsExactReference(cell, reference))),
-    );
+  const cited = recordedRows.some(row =>
+    references.some(reference => row.some(cell => containsExactReference(cell, reference))),
+  );
   if (!cited) {
     return evidenceFailure(
       'At least one affected Decisions row must cite an Implementation Inspiration reference.',

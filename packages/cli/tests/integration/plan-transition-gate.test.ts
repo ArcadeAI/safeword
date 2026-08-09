@@ -12,6 +12,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { inspirationContractProvenance } from '../../templates/hooks/lib/active-ticket.js';
 import { evaluateImplementEntry } from '../../templates/hooks/lib/plan-gate.js';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
@@ -98,12 +99,27 @@ const VALID_INSPIRATION = [
   '**Decision impact:** retained: exact markers fit the gate',
 ].join('\n');
 
+const VALID_UNSUCCESSFUL_INSPIRATION = [
+  '### Implementation Inspiration',
+  '',
+  '#### Implementation Unsuccessful Search',
+  '',
+  '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
+  '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  `| parse strict records | gate | no dependencies | n/a | standards | CommonMark | strict table parser | ${TODAY} | official specs | no implementation transfers | retained: keep the dependency-free design |`,
+].join('\n');
+
 const ACTIVATED_PLAN = VALID_PLAN.replace(
   '**Status:** planned',
   () => `**Status:** planned\n**Planned on:** ${TODAY}`,
 )
   .replace('## Decisions\n', () => `## Decisions\n\n${VALID_INSPIRATION}\n`)
   .replace('| gate | pre-tool |', () => '| gate | https://spec.commonmark.org/0.31.2/ |');
+
+const ACTIVATED_UNSUCCESSFUL_PLAN = VALID_PLAN.replace(
+  '**Status:** planned',
+  () => `**Status:** planned\n**Planned on:** ${TODAY}`,
+).replace('## Decisions\n', () => `## Decisions\n\n${VALID_UNSUCCESSFUL_INSPIRATION}\n`);
 
 describe('TXRHMD plan-implementation → implement transition gate (wired)', () => {
   let projectRoot: string;
@@ -166,6 +182,27 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     return runCursorWrite(ticketFile, content);
   }
 
+  function commitFixture(message: string): void {
+    expect(spawnSync('git', ['add', '.'], { cwd: projectRoot }).status).toBe(0);
+    expect(
+      spawnSync(
+        'git',
+        [
+          '-c',
+          'commit.gpgsign=false',
+          '-c',
+          'user.name=Safeword Test',
+          '-c',
+          'user.email=test@safeword.local',
+          'commit',
+          '-m',
+          message,
+        ],
+        { cwd: projectRoot },
+      ).status,
+    ).toBe(0);
+  }
+
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'sw-plan-gate-'));
     ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', `${TICKET_ID}-gate`);
@@ -200,6 +237,45 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     );
 
     expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Implementation Inspiration');
+  });
+
+  it('allows an activated unsuccessful-search path with a recorded decision', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n',
+    );
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), ACTIVATED_UNSUCCESSFUL_PLAN);
+
+    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+  });
+
+  it('denies an activated unsuccessful-search path without a recorded decision', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n',
+    );
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      ACTIVATED_UNSUCCESSFUL_PLAN.replace('| gate | pre-tool | stop-only | too late |', ''),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Recorded Decisions');
+  });
+
+  it('denies an activated unsuccessful-search path linked to an unrelated decision', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n',
+    );
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      ACTIVATED_UNSUCCESSFUL_PLAN.replace('| gate | pre-tool |', '| unrelated | pre-tool |'),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Decision informed');
   });
 
   it('denies activated implement entry without Doc impact', () => {
@@ -339,6 +415,127 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
 
     expectHookDeny(runAdvance('plan-implementation', 'implement'), 'missing spec.md');
+  });
+
+  it('denies markerless implement entry when a phase anchor proves spec.md existed', () => {
+    const anchoredTicket = ticketBody('plan-implementation').replace('status: in_progress', () =>
+      [
+        'status: in_progress',
+        'phase_anchors:',
+        `  - "define-behavior: .project/tickets/${TICKET_ID}-gate/spec.md"`,
+      ].join('\n'),
+    );
+    writeFileSync(ticketFile, anchoredTicket);
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'missing spec.md');
+  });
+
+  it('denies markerless implement entry when Git history proves spec.md existed', () => {
+    const specFile = nodePath.join(ticketDirectory, 'spec.md');
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(specFile, '# Spec\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+    expect(spawnSync('git', ['init'], { cwd: projectRoot }).status).toBe(0);
+    commitFixture('record markerless spec');
+    rmSync(specFile);
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'missing spec.md');
+  });
+
+  it.each([
+    ['ticket body prose', 'inspiration_contract: v1\n\ninspiration_contract_scaffold: v1\n'],
+    ['fenced spec example', '# Spec\n\n```md\n<!-- safeword:inspiration-contract:v1 -->\n```\n'],
+  ])('does not treat a historical %s mention as activation', (_label, historicalContent) => {
+    const specFile = nodePath.join(ticketDirectory, 'spec.md');
+    const inSpec = historicalContent.startsWith('# Spec');
+    writeFileSync(
+      ticketFile,
+      inSpec
+        ? ticketBody('plan-implementation')
+        : ticketBody('plan-implementation') + historicalContent,
+    );
+    writeFileSync(specFile, inSpec ? historicalContent : '# Spec\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+    expect(spawnSync('git', ['init'], { cwd: projectRoot }).status).toBe(0);
+    commitFixture(`record ${_label}`);
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(specFile, '# Spec\n');
+
+    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+  });
+
+  it.each([
+    [
+      'partial ticket signal',
+      ticketBody('plan-implementation').replace(
+        'status: in_progress',
+        'status: in_progress\ninspiration_contract: v1',
+      ),
+      '# Spec\n',
+    ],
+    [
+      'malformed spec signal',
+      ticketBody('plan-implementation', 'feature', true),
+      '# Spec\n<!-- safeword:inspiration-contract:v2 -->\n',
+    ],
+  ])(
+    'does not treat a committed %s as complete activation',
+    (_label, historicalTicket, historicalSpec) => {
+      const specFile = nodePath.join(ticketDirectory, 'spec.md');
+      writeFileSync(ticketFile, historicalTicket);
+      writeFileSync(specFile, historicalSpec);
+      writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+      expect(spawnSync('git', ['init'], { cwd: projectRoot }).status).toBe(0);
+      commitFixture(`record ${_label}`);
+      writeFileSync(ticketFile, ticketBody('plan-implementation'));
+      writeFileSync(specFile, '# Spec\n');
+
+      expect(inspirationContractProvenance(ticketDirectory)).toBe('absent');
+      expectHookAllow(runAdvance('plan-implementation', 'implement'));
+    },
+  );
+
+  it('treats a committed valid scaffold as durable activation provenance', () => {
+    const specFile = nodePath.join(ticketDirectory, 'spec.md');
+    writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
+    writeFileSync(specFile, '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), ACTIVATED_PLAN);
+    expect(spawnSync('git', ['init'], { cwd: projectRoot }).status).toBe(0);
+    commitFixture('record valid inspiration scaffold');
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(specFile, '# Spec\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+
+    expect(inspirationContractProvenance(ticketDirectory)).toBe('activated');
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'previously activated');
+  });
+
+  it('preserves durable activation provenance across a ticket-directory rename', () => {
+    const specFile = nodePath.join(ticketDirectory, 'spec.md');
+    writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
+    writeFileSync(specFile, '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), ACTIVATED_PLAN);
+    expect(spawnSync('git', ['init'], { cwd: projectRoot }).status).toBe(0);
+    commitFixture('record valid inspiration scaffold before rename');
+
+    const renamedDirectory = nodePath.join(
+      projectRoot,
+      '.project',
+      'tickets',
+      `${TICKET_ID}-renamed`,
+    );
+    expect(
+      spawnSync('git', ['mv', ticketDirectory, renamedDirectory], { cwd: projectRoot }).status,
+    ).toBe(0);
+    ticketDirectory = renamedDirectory;
+    ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
+    commitFixture('rename ticket directory');
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+
+    expect(inspirationContractProvenance(ticketDirectory)).toBe('activated');
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'previously activated');
   });
 
   it('denies missing Implementation Inspiration through CRLF artifacts', () => {

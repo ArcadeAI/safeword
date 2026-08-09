@@ -16,6 +16,59 @@ import { writeClaudePluginMode } from '../../src/claude-plugin/migration-state.j
 const roots: string[] = [];
 const digest = 'a'.repeat(64);
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+const VALID_PLUGIN_PLAN = [
+  '# Impl Plan: plugin gate',
+  '',
+  '**Status:** planned',
+  '',
+  '## Approach',
+  '',
+  'Exercise the generated runtime hook.',
+  '',
+  '## Decisions',
+  '',
+  '### Recorded Decisions',
+  '',
+  '| Decision | Choice | Alternatives considered | Rejected because |',
+  '| - | - | - | - |',
+  '| gate | runtime hook | template only | deployment needs proof |',
+  '',
+  '## Arch alignment',
+  '',
+  'skip: test fixture',
+  '',
+  '## Known deviations',
+  '',
+  'skip: none',
+  '',
+  '## Doc impact',
+  '',
+  'skip: test fixture',
+  '',
+  '## Assessment triggers',
+  '',
+  'Revisit if plugin delivery changes.',
+].join('\n');
+
+function runPluginAdvance(root: string, ticketPath: string) {
+  return spawnSync('bun', [nodePath.join(REPO_ROOT, 'plugin/runtime/hooks/pre-tool-quality.ts')], {
+    cwd: root,
+    input: JSON.stringify({
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: ticketPath,
+        old_string: 'phase: plan-implementation',
+        new_string: 'phase: implement',
+      },
+    }),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: root,
+      CLAUDE_PLUGIN_ROOT: nodePath.join(REPO_ROOT, 'plugin'),
+    },
+  });
+}
 
 afterEach(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
@@ -157,6 +210,67 @@ describe('Claude delivery schema', () => {
     expect(result.status).toBe(0);
     expect(result.stderr).not.toContain('Error');
     expect(result.stdout).toContain('impl-plan.md');
+  });
+
+  it('runs plugin implementation acceptance and durable activation through real collaborators', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-plan-provenance-'));
+    roots.push(root);
+    const ticketDirectory = nodePath.join(root, '.project/tickets/PLUG02-gate');
+    mkdirSync(ticketDirectory, { recursive: true });
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    const specPath = nodePath.join(ticketDirectory, 'spec.md');
+    const planPath = nodePath.join(ticketDirectory, 'impl-plan.md');
+    const ticket = (activated: boolean) =>
+      [
+        '---',
+        'id: PLUG02',
+        'type: feature',
+        'phase: plan-implementation',
+        'status: in_progress',
+        ...(activated ? ['inspiration_contract: v1', 'inspiration_contract_scaffold: v1'] : []),
+        'scope: plugin plan gate',
+        'out_of_scope: unrelated work',
+        'done_when: transition is checked',
+        '---',
+        '# Plugin plan gate',
+      ].join('\n');
+
+    writeFileSync(ticketPath, ticket(false));
+    writeFileSync(specPath, '# Spec\n');
+    writeFileSync(planPath, VALID_PLUGIN_PLAN);
+    const accepted = runPluginAdvance(root, ticketPath);
+    expect(accepted.status).toBe(0);
+    expect(accepted.stderr).not.toContain('Error');
+    expect(accepted.stdout).toBe('');
+
+    writeFileSync(ticketPath, ticket(true));
+    writeFileSync(specPath, '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n');
+    expect(spawnSync('git', ['init'], { cwd: root }).status).toBe(0);
+    expect(spawnSync('git', ['add', '.'], { cwd: root }).status).toBe(0);
+    expect(
+      spawnSync(
+        'git',
+        [
+          '-c',
+          'commit.gpgsign=false',
+          '-c',
+          'user.name=Safeword Test',
+          '-c',
+          'user.email=test@safeword.local',
+          'commit',
+          '-m',
+          'record plugin activation',
+        ],
+        { cwd: root },
+      ).status,
+    ).toBe(0);
+    writeFileSync(ticketPath, ticket(false));
+    writeFileSync(specPath, '# Spec\n');
+
+    const denied = runPluginAdvance(root, ticketPath);
+    expect(denied.status).toBe(0);
+    expect(denied.stderr).not.toContain('Error');
+    expect(denied.stdout).toContain('previously activated');
   });
 
   it('does not mistake an unrelated third-party hook for legacy Safeword delivery', () => {

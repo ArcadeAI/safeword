@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "1d3edc44c22d91d3a9de13d4fa7b0a6a7eae0d2d57d973ca9f47246795155a19"
+      "sha256": "55db6c8212aa999bb3913035c117385af58ed5e1ce9ab5862d919802c45e7ea0"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "252aa4741c82a41b4fe9a7d7d099313c7d0b4e766dae26463a9e9d9407e650dc"
+      "sha256": "d71214313c7a374f6ddcd18e42caf3e3871db480684bab9ab3e7fca7d16e1312"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -239,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "60a60476de62609f912222a8304177f3c6300d630ab07b526a92955cf06fbd08"
+      "sha256": "27320367fa6b1d2745b669c110f8e5c15afec48f03d68a514a73b20f52740264"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "15ff18ee6e0a085ca313e1bbde0fb3bba084426cad331244e74c973fa35e3637"
+      "sha256": "80d5fa242cbfd4d783184293f2e39e387b7659d9041219f38cbc38584ba71183"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
@@ -575,7 +575,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "072ff40f8f2d46364c1ad74d6e3655567f2a14980437726314f072b92b5b9a46"
+      "sha256": "2772539a067d0455510a594218646beb6de708565e3df886227baf3f00e06324"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",

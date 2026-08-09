@@ -361,6 +361,9 @@ An implementation unsuccessful search is exactly one row under
 | Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
+Its `Decision informed` cell exactly matches the `Decision` cell of at least one
+valid row in the direct `### Recorded Decisions` subsection.
+
 Both `Decision retained` cells begin `retained:` and carry a non-empty
 rationale.
 
