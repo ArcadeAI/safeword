@@ -67,7 +67,7 @@ const CODEX_RESTART_INSTRUCTION =
  * typed human next action, so renderers must not repeat it here — a message and
  * a `Next:` line carrying the same sentence reads as a stutter, not as emphasis.
  */
-export const CODEX_RESTART_CONTEXT = 'This Codex app may keep its loaded Safe Word catalogue.';
+export const CODEX_RESTART_CONTEXT = 'This Codex app may keep its loaded Safeword catalogue.';
 
 export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {
   // Older Codex clients may omit nullable catalog version metadata. In that

@@ -173,7 +173,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command(
     'uninstall',
-    'Deactivate selected Safe Word project and agent state; preserve authored content; reinstall to recover',
+    'Deactivate selected Safeword project and agent state; preserve authored content; reinstall to recover',
     'destructive',
     {
       promptPolicy: 'confirm',
@@ -320,7 +320,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   ),
   command(
     'codex clean-guidance',
-    'Deactivate exact legacy Safe Word profile guidance, preserve unrelated content, and retain a recovery backup',
+    'Deactivate exact legacy Safeword profile guidance, preserve unrelated content, and retain a recovery backup',
     'destructive',
     {
       promptPolicy: 'confirm',

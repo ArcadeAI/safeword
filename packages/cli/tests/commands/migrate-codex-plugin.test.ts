@@ -335,11 +335,11 @@ describe('migrate codex-plugin command', () => {
     ];
     const userHookPath = nodePath.join(legacyHooksDirectory, 'custom.ts');
     mkdirSync(legacyHooksDirectory, { recursive: true });
-    writeFileSync(legacyRuntimeHookPath, '// legacy Safe Word hook\n');
+    writeFileSync(legacyRuntimeHookPath, '// legacy Safeword hook\n');
     writeFileSync(userHookPath, '// user hook\n');
     for (const path of sharedRuntimeHookPaths) {
       mkdirSync(nodePath.dirname(path), { recursive: true });
-      writeFileSync(path, '// shared Safe Word hook\n');
+      writeFileSync(path, '// shared Safeword hook\n');
     }
 
     const result = await runMigration(fixture, { cleanupLegacyHooks: true });
@@ -357,7 +357,7 @@ describe('migrate codex-plugin command', () => {
     expect(readBackedUpFile(fixture, '.codex/config.toml')).toBe(original);
     expect(existsSync(legacyRuntimeHookPath)).toBe(false);
     for (const path of sharedRuntimeHookPaths) {
-      expect(readFileSync(path, 'utf8')).toBe('// shared Safe Word hook\n');
+      expect(readFileSync(path, 'utf8')).toBe('// shared Safeword hook\n');
     }
     expect(existsSync(userHookPath)).toBe(true);
   });
@@ -396,7 +396,7 @@ describe('migrate codex-plugin command', () => {
     expect(existsSync(`${configPath}.safeword.bak`)).toBe(false);
   });
 
-  it('removes only the Safe Word handler during explicit handoff cleanup', async () => {
+  it('removes only the Safeword handler during explicit handoff cleanup', async () => {
     const original = `${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}${USER_CODEX_CONFIG}`;
     const fixture = createMigrationFixture(original);
     const { configPath } = fixture;
@@ -451,7 +451,7 @@ command = 'safeword hook codex pre-tool-use'
     expect(readBackedUpFile(fixture, '.codex/config.toml')).toBe(original);
   });
 
-  it('preserves user scripts beside an exact historical Safe Word hook', async () => {
+  it('preserves user scripts beside an exact historical Safeword hook', async () => {
     const original = `[[hooks.PreToolUse]]
 matcher = "^(apply_patch)$"
 
@@ -555,7 +555,7 @@ command = """npx --yes safeword hook codex pre-tool-use"""
 
     expect(result.exitCode).not.toBe(0);
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(original);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('unsupported Safe Word hook formatting');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('unsupported Safeword hook formatting');
   });
 
   it('refuses explicit cleanup when the Codex configuration is malformed', async () => {
@@ -567,7 +567,7 @@ command = """npx --yes safeword hook codex pre-tool-use"""
       '.safeword/hooks/codex/pre-tool-quality.ts',
     );
     mkdirSync(nodePath.dirname(legacyRuntimeHookPath), { recursive: true });
-    writeFileSync(legacyRuntimeHookPath, '// legacy Safe Word hook\n');
+    writeFileSync(legacyRuntimeHookPath, '// legacy Safeword hook\n');
 
     const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
@@ -595,7 +595,7 @@ command = """npx --yes safeword hook codex pre-tool-use"""
     expect(existsSync(codexLogPath)).toBe(false);
   });
 
-  it('does not treat a Safe Word marker in a comment as an owned handler', async () => {
+  it('does not treat a Safeword marker in a comment as an owned handler', async () => {
     const original = `[[hooks.PreToolUse]]
 matcher = "^custom$"
 
@@ -970,7 +970,7 @@ command = 'echo "keep this user hook"'
 
     expect(result.exitCode, result.stderr).toBe(2);
     expect(`${result.stdout}\n${result.stderr}`).toContain(
-      'This Codex app may keep its loaded Safe Word catalogue',
+      'This Codex app may keep its loaded Safeword catalogue',
     );
     expect(`${result.stdout}\n${result.stderr}`).toContain('Restart Codex');
     expect(`${result.stdout}\n${result.stderr}`).toContain('start a new task');

@@ -225,13 +225,13 @@ After(function (this: MigrationWorld) {
   if (this.migrationDirectory) rmSync(this.migrationDirectory, { recursive: true, force: true });
 });
 
-Given('a Safe Word project has legacy Codex hooks', function (this: MigrationWorld) {
+Given('a Safeword project has legacy Codex hooks', function (this: MigrationWorld) {
   createFixture(this, `${LEGACY_HOOK}\n`);
   installRuntime(this, 'enabled');
 });
 
 Given(
-  'a Safe Word project has legacy Codex hooks and a custom Codex hook',
+  'a Safeword project has legacy Codex hooks and a custom Codex hook',
   function (this: MigrationWorld) {
     createFixture(this, `${LEGACY_HOOK}\n${CUSTOM_HOOK}`);
     installRuntime(this, 'enabled');
@@ -239,7 +239,7 @@ Given(
 );
 
 Given(
-  'a Safe Word project has a custom Codex hook but no legacy Codex hooks',
+  'a Safeword project has a custom Codex hook but no legacy Codex hooks',
   function (this: MigrationWorld) {
     createFixture(this, CUSTOM_HOOK);
     installRuntime(this, 'enabled');
@@ -247,7 +247,7 @@ Given(
 );
 
 Given(
-  'a project has Safe Word legacy hooks and custom Codex configuration',
+  'a project has Safeword legacy hooks and custom Codex configuration',
   function (this: MigrationWorld) {
     createFixture(this, `${LEGACY_HOOK}\n${CUSTOM_HOOK}\n${CUSTOM_CODEX_CONFIGURATION}`);
     this.customCodexConfiguration = `${CUSTOM_HOOK}\n${CUSTOM_CODEX_CONFIGURATION}`;
@@ -255,34 +255,34 @@ Given(
   },
 );
 
-Given('a project has Safe Word legacy hooks', function (this: MigrationWorld) {
+Given('a project has Safeword legacy hooks', function (this: MigrationWorld) {
   createFixture(this, `${LEGACY_HOOK}\n`);
   installRuntime(this, 'enabled');
 });
 
 Given(
-  'the Safe Word plugin is installed but its hooks have not been reviewed',
+  'the Safeword plugin is installed but its hooks have not been reviewed',
   function (this: MigrationWorld) {
     installRuntime(this, 'enabled');
   },
 );
 
 Given(
-  'the Safe Word plugin is installed and the legacy hooks remain',
+  'the Safeword plugin is installed and the legacy hooks remain',
   function (this: MigrationWorld) {
     installRuntime(this, 'enabled');
   },
 );
 
-Given('the Safe Word plugin is already installed', function (this: MigrationWorld) {
+Given('the Safeword plugin is already installed', function (this: MigrationWorld) {
   installRuntime(this, 'enabled');
 });
 
-Given('the Safe Word plugin rejects a second installation', function (this: MigrationWorld) {
+Given('the Safeword plugin rejects a second installation', function (this: MigrationWorld) {
   installRuntime(this, 'already-installed');
 });
 
-Given('the Safe Word plugin cannot be installed', function (this: MigrationWorld) {
+Given('the Safeword plugin cannot be installed', function (this: MigrationWorld) {
   installRuntime(this, 'install-fails');
 });
 
@@ -292,18 +292,15 @@ Given('a project has no Codex configuration', function (this: MigrationWorld) {
   writeFileSync(nodePath.join(directory, 'package.json'), '{"name":"fixture","version":"1.0.0"}\n');
 });
 
-Given(
-  'the Safe Word Codex plugin can be installed and is enabled',
-  function (this: MigrationWorld) {
-    installRuntime(this, 'enabled');
-  },
-);
+Given('the Safeword Codex plugin can be installed and is enabled', function (this: MigrationWorld) {
+  installRuntime(this, 'enabled');
+});
 
-Given('the Safe Word Codex plugin cannot be installed', function (this: MigrationWorld) {
+Given('the Safeword Codex plugin cannot be installed', function (this: MigrationWorld) {
   installRuntime(this, 'install-fails');
 });
 
-Given('Codex reports the Safe Word plugin is disabled', function (this: MigrationWorld) {
+Given('Codex reports the Safeword plugin is disabled', function (this: MigrationWorld) {
   installRuntime(this, 'disabled');
 });
 
@@ -311,27 +308,27 @@ Given('Bun is unavailable', function (this: MigrationWorld) {
   this.migrationBin = undefined;
 });
 
-Given('a Safe Word project can be upgraded', function (this: MigrationWorld) {
+Given('a Safeword project can be upgraded', function (this: MigrationWorld) {
   createFixture(this, '');
 });
 
-When('the builder upgrades Safe Word', function (this: MigrationWorld) {
+When('the builder upgrades Safeword', function (this: MigrationWorld) {
   this.migrationResult = runCli(['upgrade', '--no-migrate-namespace'], worldDirectory(this), {
     SAFEWORD_SKIP_INSTALL: '1',
   });
 });
 
-When('the builder sets up Safe Word', function (this: MigrationWorld) {
+When('the builder sets up Safeword', function (this: MigrationWorld) {
   this.migrationResult = runCli(['setup', '--yes', '--no-modify'], worldDirectory(this), {
     SAFEWORD_SKIP_INSTALL: '1',
   });
 });
 
-When('the builder installs the Safe Word Codex plugin', function (this: MigrationWorld) {
+When('the builder installs the Safeword Codex plugin', function (this: MigrationWorld) {
   runCodexCommand(this, ['codex', 'install']);
 });
 
-When('the builder installs the Safe Word Codex plugin twice', function (this: MigrationWorld) {
+When('the builder installs the Safeword Codex plugin twice', function (this: MigrationWorld) {
   runCodexCommand(this, ['codex', 'install']);
   if (this.migrationResult?.exitCode !== 0) return;
   runCodexCommand(this, ['codex', 'install']);
@@ -378,7 +375,7 @@ Given('a plugin hook command is unpinned or uses npx', function (this: Migration
   };
 });
 
-Given('the Safe Word package is packed', function (this: MigrationWorld) {
+Given('the Safeword package is packed', function (this: MigrationWorld) {
   const packageDirectory = packPlugin(this);
   this.releaseContract = () => {
     assertPackedCodexPlugin(CLI_ROOT, packageDirectory);
@@ -386,7 +383,7 @@ Given('the Safe Word package is packed', function (this: MigrationWorld) {
 });
 
 Given(
-  'the Safe Word package is packed without a required plugin asset',
+  'the Safeword package is packed without a required plugin asset',
   function (this: MigrationWorld) {
     const packageDirectory = packPlugin(this);
     rmSync(nodePath.join(packageDirectory, 'codex-plugin/skills/bdd/references/DISCOVERY.md'));
@@ -427,31 +424,28 @@ Then(
   },
 );
 
-Then('the legacy Safe Word hooks remain in the project', function (this: MigrationWorld) {
+Then('the legacy Safeword hooks remain in the project', function (this: MigrationWorld) {
   assertLegacyHooksUnchanged(this);
 });
 
-Then('the legacy Safe Word hooks remain unchanged', function (this: MigrationWorld) {
+Then('the legacy Safeword hooks remain unchanged', function (this: MigrationWorld) {
   assertLegacyHooksUnchanged(this);
 });
 
-Then('the project has no Safe Word Codex hook configuration', function (this: MigrationWorld) {
+Then('the project has no Safeword Codex hook configuration', function (this: MigrationWorld) {
   assert.equal(existsSync(codexConfigPath(this)), false);
 });
 
 Then(
-  'the project has only the Safe Word Codex enrollment bootstrap',
+  'the project has only the Safeword Codex enrollment bootstrap',
   function (this: MigrationWorld) {
     assert.equal(codexConfig(this), codexProjectBootstrapContent(''));
   },
 );
 
-Then(
-  'the project still has no Safe Word Codex hook configuration',
-  function (this: MigrationWorld) {
-    assert.equal(existsSync(codexConfigPath(this)), false);
-  },
-);
+Then('the project still has no Safeword Codex hook configuration', function (this: MigrationWorld) {
+  assert.equal(existsSync(codexConfigPath(this)), false);
+});
 
 Then(
   'the builder is told to restart Codex before reviewing the installed plugin',
@@ -462,7 +456,7 @@ Then(
 );
 
 Then(
-  'Safe Word reports that automatic Codex profile enrollment is installed',
+  'Safeword reports that automatic Codex profile enrollment is installed',
   function (this: MigrationWorld) {
     assert.ok(
       latestCommandOutput(this).includes('Codex bootstrap is enrolled for this project'),
@@ -472,24 +466,24 @@ Then(
 );
 
 Then(
-  'Safe Word does not direct the builder to the legacy Codex migration command',
+  'Safeword does not direct the builder to the legacy Codex migration command',
   function (this: MigrationWorld) {
     assert.ok(!latestCommandOutput(this).includes('safeword migrate codex-plugin'));
   },
 );
 
-Then('the active Codex profile has the enabled Safe Word plugin', function (this: MigrationWorld) {
+Then('the active Codex profile has the enabled Safeword plugin', function (this: MigrationWorld) {
   assert.ok(
     this.migrationResult?.exitCode === 0 || this.migrationResult?.exitCode === 2,
     this.migrationResult?.stderr ?? 'migration failed',
   );
 });
 
-Then('the project has no Safe Word Codex hooks', function (this: MigrationWorld) {
+Then('the project has no Safeword Codex hooks', function (this: MigrationWorld) {
   assert.ok(!codexConfig(this).includes('safeword hook codex'));
 });
 
-Then('only Safe Word legacy Codex hooks are removed', function (this: MigrationWorld) {
+Then('only Safeword legacy Codex hooks are removed', function (this: MigrationWorld) {
   assert.equal(this.migrationResult?.exitCode, 0, migrationOutput(this));
   assert.ok(!codexConfig(this).includes('safeword hook codex'));
 });
@@ -498,7 +492,7 @@ Then('the profile plugin is not installed again', function (this: MigrationWorld
   assert.equal(this.migrationResult?.exitCode, 0, migrationOutput(this));
 });
 
-Then('Safe Word refuses to remove legacy Codex hooks', function (this: MigrationWorld) {
+Then('Safeword refuses to remove legacy Codex hooks', function (this: MigrationWorld) {
   assert.notEqual(this.migrationResult?.exitCode, 0);
   assertLegacyHooksUnchanged(this);
 });
@@ -521,7 +515,7 @@ Then('the custom Codex hook remains unchanged', function (this: MigrationWorld) 
 });
 
 Then(
-  'the builder is told to review the Safe Word hooks in Codex before cleanup',
+  'the builder is told to review the Safeword hooks in Codex before cleanup',
   function (this: MigrationWorld) {
     const output = migrationOutput(this);
     assert.ok(output.includes('/hooks'));
@@ -529,7 +523,7 @@ Then(
   },
 );
 
-Then('the project has no legacy Safe Word hooks', function (this: MigrationWorld) {
+Then('the project has no legacy Safeword hooks', function (this: MigrationWorld) {
   assert.ok(!codexConfig(this).includes('safeword hook codex'));
 });
 
@@ -542,7 +536,7 @@ Then('the custom Codex configuration remains unchanged', function (this: Migrati
 });
 
 Then(
-  'Safe Word reports the installed plugin and the required hook-review handoff',
+  'Safeword reports the installed plugin and the required hook-review handoff',
   function (this: MigrationWorld) {
     assert.equal(this.migrationResult?.exitCode, 2, migrationOutput(this));
     const output = migrationOutput(this);
