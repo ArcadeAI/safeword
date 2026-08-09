@@ -71,8 +71,9 @@ changed or was deliberately retained. Use one physical line per row and no
 pipe characters inside cells.
 -->
 
+<!-- prettier-ignore -->
 | Reference | Checked on | Source version / edition | Customer-value evidence | Principle to borrow | Non-copy boundary | Decision impact |
-| --------- | ---------- | ------------------------ | ----------------------- | ------------------- | ----------------- | --------------- |
+| --- | --- | --- | --- | --- | --- | --- |
 
 <!-- If no credible reference transfers, replace the table above with exactly:
 
