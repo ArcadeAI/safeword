@@ -86,6 +86,23 @@ describe('feature ticket readiness helper (#404)', () => {
     });
   });
 
+  it('rejects an empty dimensions artifact', () => {
+    withProject(projectDirectory => {
+      writeScopedFeatureTicket(projectDirectory);
+      writeTestFile(
+        projectDirectory,
+        '.project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: fixture deliberately omits JTBD details\n',
+      );
+      writeTestFile(projectDirectory, '.project/tickets/099-test/dimensions.md', '');
+
+      const readiness = evaluateFeatureTicketReadiness(projectDirectory, '099-test');
+
+      expect(readiness.ok).toBe(false);
+      expect(formatFeatureTicketReadiness(readiness)).toContain('dimensions.md: empty');
+    });
+  });
+
   it('blocks and then accepts activated Product Inspiration through real readiness collaborators', () => {
     withProject(projectDirectory => {
       const ticketPath = '.project/tickets/099-test/ticket.md';

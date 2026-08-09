@@ -29,11 +29,12 @@ its license, attribution, redistribution, and security boundaries are recorded.
 The gate validates explicit structure, current dates, and exact version fit—not
 the qualitative truth of the source.
 
-Record `**Planned on:** YYYY-MM-DD` when this phase begins. A direct child may
-use a parent's direct record only through the exact one-hop reconciliation;
-never inherit another reconciliation. During TDD, do not rerun research on
-every loop. If implementation disproves a load-bearing assumption or exposes a
-significant new choice, refresh the affected plan evidence before continuing.
+Record `**Planned on:** YYYY-MM-DD` when this phase begins. Every feature owns
+its evidence; a child may reuse a useful parent source only after checking and
+recording it again against the child's constraints and current versions. During
+TDD, do not rerun research on every loop. If implementation disproves a
+load-bearing assumption or exposes a significant new choice, refresh the
+affected plan evidence before continuing.
 
 ## Apply project principles
 

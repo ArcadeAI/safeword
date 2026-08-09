@@ -174,6 +174,10 @@ describe('product inspiration evidence', () => {
 
   it.each([
     ['non-HTTPS reference', VALID_PRODUCT_ROW.replace('https://', 'http://')],
+    [
+      'credential-bearing reference',
+      VALID_PRODUCT_ROW.replace('https://linear.app', 'https://user@linear.app'),
+    ],
     ['future date', VALID_PRODUCT_ROW.replace('2026-08-09', '2026-08-10')],
     ['date before creation', VALID_PRODUCT_ROW.replace('2026-08-09', '2026-08-08')],
     ['invalid decision impact', VALID_PRODUCT_ROW.replace('retained:', 'unchanged:')],
@@ -203,6 +207,23 @@ describe('product inspiration evidence', () => {
       }),
     ).toEqual({ ok: true, path: 'unsuccessful-search' });
   });
+
+  it('rejects mixed product reference and unsuccessful-search paths', () => {
+    const search = [
+      '### Product Unsuccessful Search',
+      '',
+      '| Customer job | Framed question | Products attempted | Source categories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      '| job | question | products | categories | queries | 2026-08-09 | sources | none transfer | retained: keep direction |',
+    ].join('\n');
+    const result = evaluateProductInspiration({
+      ticketContent: activatedTicket(),
+      specContent: productSpec(`${productTable(VALID_PRODUCT_ROW)}\n\n${search}`),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+  });
 });
 
 const IMPLEMENTATION_HEADER =
@@ -223,6 +244,10 @@ function implementationPlan(body: string, plannedOn = '2026-08-09'): string {
     '### Implementation Inspiration',
     '',
     body,
+    '',
+    '| Decision | Choice | Alternatives considered | Rejected because |',
+    '| --- | --- | --- | --- |',
+    '| parser | https://spec.commonmark.org/0.31.2/ | full Markdown | strict subset is clearer |',
     '',
     '## Approach',
     'Proof',
@@ -307,5 +332,69 @@ describe('implementation inspiration evidence', () => {
     });
 
     expect(result).toEqual({ ok: true, path: 'unsuccessful-search' });
+  });
+
+  it('rejects duplicate implementation decision impacts', () => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: first rationale',
+      '**Decision impact:** changed: second rationale',
+    ].join('\n');
+    const result = evaluateImplementationInspiration({
+      ticketContent: activatedTicket(),
+      specContent: spec(SPEC_MARKER),
+      planContent: implementationPlan(body),
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects implementation evidence not cited by an affected decision', () => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+    ].join('\n');
+    const plan = implementationPlan(body).replace(
+      '| parser | https://spec.commonmark.org/0.31.2/ |',
+      '| parser | uncited source |',
+    );
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('ignores planned-on candidates inside comments and fenced code', () => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+    ].join('\n');
+    const plan = implementationPlan(body).replace(
+      '**Status:** planned',
+      '**Status:** planned\n<!-- **Planned on:** 1999-01-01 -->\n```md\n**Planned on:** 1999-01-01\n```',
+    );
+    const result = evaluateImplementationInspiration({
+      ticketContent: activatedTicket(),
+      specContent: spec(SPEC_MARKER),
+      planContent: plan,
+      evaluationDate: '2026-08-09',
+    });
+
+    expect(result).toEqual({ ok: true, path: 'reference' });
   });
 });

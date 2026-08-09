@@ -86,7 +86,9 @@ const VALID_INSPIRATION = [
 const ACTIVATED_PLAN = VALID_PLAN.replace(
   '**Status:** planned',
   () => `**Status:** planned\n**Planned on:** ${TODAY}`,
-).replace('## Decisions\n', () => `## Decisions\n\n${VALID_INSPIRATION}\n`);
+)
+  .replace('## Decisions\n', () => `## Decisions\n\n${VALID_INSPIRATION}\n`)
+  .replace('| gate | pre-tool |', () => '| gate | https://spec.commonmark.org/0.31.2/ |');
 
 describe('TXRHMD plan-implementation → implement transition gate (wired)', () => {
   let projectRoot: string;

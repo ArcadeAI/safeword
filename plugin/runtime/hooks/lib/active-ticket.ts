@@ -189,6 +189,14 @@ export function evaluateFeatureTicketReadiness(
     );
   } else {
     const dimensionsContent = readFileSync(dimensionsFile, 'utf8').trim();
+    if (dimensionsContent === '') {
+      addReadinessIssue(
+        issues,
+        'dimensions.md',
+        'empty',
+        'Either write a dimension table, or use `skip: <reason>` explaining why no dimensions need enumerating.',
+      );
+    }
     const skipMatch = /^skip:(.*)$/i.exec(dimensionsContent);
     if (skipMatch && !isValidSkipReason(skipMatch[1] ?? '')) {
       addReadinessIssue(

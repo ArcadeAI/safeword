@@ -393,6 +393,10 @@ export function evaluateImplementationInspiration(
   }
 
   const lines = section.split(/\r?\n/);
+  const impactLines = lines.filter(line => /^\*\*Decision impact:\*\*/.test(line.trim()));
+  if (impactLines.length !== 1) {
+    return evidenceFailure('Implementation evidence requires exactly one decision impact line.');
+  }
   const nextLine = lines
     .slice(table.endLine)
     .find(line => line.trim() !== '')
@@ -401,6 +405,14 @@ export function evaluateImplementationInspiration(
   if (!impact || !hasDecisionPrefix(impact[1]!, ['changed:', 'retained:'])) {
     return evidenceFailure(
       'Implementation evidence requires one decision impact immediately after its table.',
+    );
+  }
+
+  const references = table.rows.map(row => row[0]!);
+  const cited = references.some(reference => decisions.split(reference).length >= 3);
+  if (!cited) {
+    return evidenceFailure(
+      'At least one affected Decisions row must cite an Implementation Inspiration reference.',
     );
   }
 

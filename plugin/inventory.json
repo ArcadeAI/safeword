@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "7a8c13f2072db1a9dfcee9afc7dce3a2223745dcd53192a7b1696c9473f1e7bc"
+      "sha256": "2ea280fcf45e04d549d976d596b5a58da1c42dcef43f7a08996b6abc4284c8a2"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -239,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "3820156854100c75cd2bb620383d4c72675fbdfa8eab71f5e62fd5f5f71f49a1"
+      "sha256": "7efee2d9df56865d26d8ff07f35ebac3918a9eab7c33c7a1f79fc19217bb7e37"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -567,7 +567,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "09739be51d0fbf6f01476db5a52ff66d4091b539e9696b1fc69fa9d056b63e6f"
+      "sha256": "015d83dc2b6e19108ceddd749b5948a6f958f639353a52e128dddad5beeabc08"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -575,7 +575,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "0e14c8b8417960154ec9af34a87ed91af8117e0b0a7288c229baa134b34c1c1e"
+      "sha256": "adcdda4ceb3588ed2106902836caf4762bcebac5236a04fe7878f8c9af1ba81e"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
