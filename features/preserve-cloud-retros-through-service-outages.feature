@@ -196,6 +196,14 @@ Feature: Hand off cloud retros without interrupting builders
       Then the relay returns the retro and available runtime profile to that operator
       And the request does not create a tracker issue
 
+    @surface.railway-hosted-relay
+    Scenario: An authenticated operator can remove an inspected public retro
+      Given an operator has exported one accepted public retro from the queue
+      When the operator deletes that retro by its receipt
+      Then the relay removes only that quarantine record
+      And the queue can accept a fresh public quarantine key when capacity is available
+      And the request does not create a tracker issue
+
     @rejection @surface.railway-hosted-relay
     Scenario: A Git email remains encrypted metadata and never reaches public output
       Given a cloud carrier has local Git email "dev@example.com" and no `GITHUB_ACTOR`

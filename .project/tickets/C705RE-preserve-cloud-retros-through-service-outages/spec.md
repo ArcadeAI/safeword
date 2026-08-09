@@ -154,9 +154,9 @@ be marketed as surprising.
 - A public-ingress receipt survives relay restart as one encrypted quarantine
   record with the original identity and payload; it causes no GitHub write.
 - Accepted public payload and runtime profile remain encrypted in a bounded
-  operator queue so authenticated Safe Word operators can inspect, cluster, or
-  export them later. The queue has a fixed configurable record capacity; a full
-  queue rejects a fresh quarantine key without displacing an accepted record.
+  operator queue so authenticated Safe Word operators can inspect or export
+  them later. The queue has a fixed configurable record capacity; a full queue
+  rejects a fresh quarantine key without displacing an accepted record.
   It emits a sanitized operator alert at 80% capacity and again when full.
 - An unavailable intake returns control within the 500 ms handoff deadline, creates no
   user-facing interruption, and emits only sanitized operator evidence.
@@ -203,10 +203,13 @@ as metadata, never as authorization; it persists accepted public submissions
   only in an encrypted quarantine record. A release-scoped public ingest key
   accompanies the request but is never treated as a secret. Records persist
   until an authenticated operator uses them or the configured fixed queue
-  capacity is reached; the receiver never evicts accepted data to make room for
-  a fresh untrusted quarantine key. This accepts the residual risk of bounded junk
-  submission and spoofed provenance; strict body, rate, and capacity limits
-  plus operator alerts contain it. This public path is intentionally outside
+  capacity is reached; the receiver never automatically evicts accepted data to
+  make room for a fresh untrusted quarantine key. An authenticated operator may
+  inspect or export a record and explicitly delete it to recover capacity. The
+  public key and client-generated project ID do not prevent abuse: the global
+  rate limit and fixed capacity merely slow it and make it bounded, while 80%
+  and full alerts make the condition actionable before it silently affects all
+  senders. This public path is intentionally outside
 issue 1479's authenticated relay contract and can never count toward issue
 1479, `05PR3F`, or issue 834.
 

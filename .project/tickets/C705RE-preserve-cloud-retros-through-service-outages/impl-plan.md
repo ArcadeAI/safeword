@@ -27,9 +27,11 @@ restart, and leaves the GitHub fixture untouched.
    validates the release-scoped public ingest key and a bounded schema, applies
    simple global and namespace rate limits, checks capacity inside the write
    transaction, commits before returning a request-bound receipt, and exposes
-   no public read/status route. Add authenticated operator-only paginated list
-   and receipt lookup routes for the queued records; neither can file or
-   reconcile. Primary proof: `packages/retro-relay/tests/relay.integration.test.ts`
+   no public read/status route. Add authenticated operator-only paginated list,
+   receipt lookup, and explicit receipt-delete routes for queued records;
+   operator list/lookup is the export surface and delete requires the operator
+   to have already selected the exact receipt. None can file or reconcile.
+   Primary proof: `packages/retro-relay/tests/relay.integration.test.ts`
    through the real HTTP listener, mocking only the GitHub process boundary.
    Fault injection covers persistence failure, response loss after commit,
    unrecognized-key and configured-rate-limit rejection, dedupe before rate
@@ -107,7 +109,8 @@ The current architecture says public relay routing is compiled off until
 readiness evidence exists. This plan permits only an explicitly
 deployment-enabled public quarantine endpoint; it cannot file, reconcile,
 enable `05PR3F`, or affect issue 834. Public reads remain impossible; only an
-existing authenticated operator may list or inspect the queue. The explicit
+existing authenticated operator may list, inspect, export through the list API,
+or explicitly delete one selected record to restore capacity. The explicit
 separation is recorded below rather than treating public receipt as
 authenticated relay activation.
 
@@ -130,5 +133,6 @@ authenticated relay activation.
 - A provider proves a real completion carrier: add that provider's adapter and
   record its hosted receipt/timing evidence before enabling it.
 - Sustained abuse, capacity, or rate-limit pressure: add an edge/WAF control
-  or stronger client attestation rather than trusting the public UUID as a
-  credential.
+  or stronger client attestation. The public UUID is not an abuse-control
+  credential; the initial global rate/cap merely buys the operator time to
+  inspect/export/delete safely.

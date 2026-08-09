@@ -132,6 +132,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An authenticated operator can remove an inspected public retro
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A Git email remains encrypted metadata and never reaches public output
 
 - [ ] RED

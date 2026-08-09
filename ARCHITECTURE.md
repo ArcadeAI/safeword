@@ -544,17 +544,19 @@ keyed by public project UUID, normalized repository, and request ID. An
 explicitly deployment-enabled public endpoint, identified by a release-scoped
 public format key, may create or deduplicate a quarantine receipt. It exposes
 no public read, operation, reconciliation, or filing capability. Existing
-authenticated relay operators may list and inspect the small queue for later
-analysis, but cannot cause its records to enter the filing worker. The GitHub
+authenticated relay operators may list, inspect, and explicitly delete selected
+records from the small queue after export, but cannot cause its records to
+enter the filing worker. The GitHub
 filing worker consumes only authenticated `retro_requests` records.
 
 #### Consequences
 
 Public cloud handoff can be quiet and durable without sign-up, while its
 untrusted metadata cannot cross into GitHub access. The queue has a fixed,
-configurable record capacity and never silently evicts an accepted record; it
-alerts the operator at 80% capacity and again when full, when it rejects new
-identities. A provider still needs
+configurable record capacity and never automatically evicts an accepted record;
+operators can explicitly delete a selected record after export. It alerts the
+operator at 80% capacity and again when full, when it rejects new identities.
+A provider still needs
 a real hosted carrier probe before its route is enabled; this does not activate
 ticket `05PR3F` or supersede issue 834.
 
