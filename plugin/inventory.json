@@ -51,7 +51,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "4ea6b40f15ef5a377579cfdb921613d8f8400443f8ef0288657d02f9e3f6cb81"
+      "sha256": "8336ba610c8c28eb905605296155d74f7d48b9c549833acde78c9d4c2d20a756"
     },
     {
       "path": "resources/guides/retro.md",
@@ -123,7 +123,7 @@
     },
     {
       "path": "resources/templates/ticket-template.md",
-      "sha256": "8930d608505fecac70719e874acae145461a00360f3eeeafa6801f2ba0b8e1f5"
+      "sha256": "d3cb9d6f88ca8457b41f315d6f7b7e5e5bdea8e8bf16f361dd21248557560535"
     },
     {
       "path": "resources/templates/tripwire-template.md",
@@ -131,7 +131,7 @@
     },
     {
       "path": "resources/templates/work-log-template.md",
-      "sha256": "1b72b85cb2c0311f57bc87ebd2634d4d5072740878b42d397d03ab953f330f00"
+      "sha256": "bb15eafa8630e4d421c784ab860134be428f268dfbb9cbc55a6448cc19fd27c2"
     },
     {
       "path": "runtime/cli.js",
@@ -635,7 +635,7 @@
     },
     {
       "path": "skills/refactor/SKILL.md",
-      "sha256": "c021d23f88db1739214857e9f6cc509617e319b630731c84f66637d1dd2ae0ea"
+      "sha256": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e"
     },
     {
       "path": "skills/retro-filer/SKILL.md",
@@ -667,7 +667,7 @@
     },
     {
       "path": "skills/ticket-system/SKILL.md",
-      "sha256": "c4da67bd4fb86b576ec4d3310c2f5d89fc5648e5210ad079a6f20ba3d6c3fc7c"
+      "sha256": "fa6b65463e1c93874a06b17f467b4d8e1bdfdf115dd80b2c912857fb4df39fa0"
     },
     {
       "path": "skills/verify/SKILL.md",

@@ -40,7 +40,7 @@ Our Codex hooks ship as a plugin: `.codex-plugin/plugin.json` declares `"hooks":
 
 ## Research Findings
 
-See `.safeword-project/guides/stop-hook-research.md` for full analysis, including:
+See `.project/guides/stop-hook-research.md` for full analysis, including:
 
 - What the research says about intrinsic self-review vs. external feedback
 - The Goodhart's Law problem with evidence pattern matching

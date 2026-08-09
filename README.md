@@ -274,7 +274,7 @@ Key directories created in your project:
 │   ├── 7K9M3P-login-bug/
 │   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
 │   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
-│   │   ├── spec.md             # Feature spec for epics (optional)
+│   │   ├── spec.md             # Feature spec, auto-created at intake (features only)
 │   │   └── design.md           # Design doc for complex features (optional)
 │   └── completed/              # Archive for done tickets
 ├── learnings/                  # Extracted knowledge (gotchas, discoveries)

@@ -2,6 +2,10 @@
 
 **Anchored to:** {path to ticket, spec, or design doc}
 
+This is an informal scratch format for exploratory work — unlike `ticket.md`'s
+Work Log, hooks don't parse it, so the timestamp format below is a suggestion,
+not a requirement.
+
 ---
 
 ## Session: YYYY-MM-DD
