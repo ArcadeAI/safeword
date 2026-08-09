@@ -1,7 +1,17 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
+import {
+  closeSync,
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { parse, type ParseError } from 'jsonc-parser';
@@ -21,6 +31,8 @@ import { canonicalClaudeProjectRoot } from './project-root.js';
 export { canonicalClaudeProjectRoot } from './project-root.js';
 
 const MINIMUM_CLAUDE_VERSION = [2, 1, 170] as const;
+const CLAUDE_COMMAND_TIMEOUT_MS = 30_000;
+const MAXIMUM_CLAUDE_OUTPUT_BYTES = 10 * 1024 * 1024;
 const MARKETPLACE_NAME = 'safeword';
 const MARKETPLACE_BASE = 'https://github.com/ArcadeAI/safeword.git';
 
@@ -64,24 +76,67 @@ class ClaudeProfileError extends Error {
 }
 
 function runClaude(cwd: string, arguments_: readonly string[], effects: readonly Effect[]): string {
-  const result = spawnSync('claude', arguments_, { cwd, encoding: 'utf8' });
-  if (result.error !== undefined) {
-    throw new ClaudeProfileError(
-      'CLAUDE_HOST_UNAVAILABLE',
-      `Claude Code could not be started: ${result.error.message}`,
-      effects,
-    );
+  const outputDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-output-'));
+  const outputPath = nodePath.join(outputDirectory, 'stdout');
+  const outputDescriptor = openSync(outputPath, 'w');
+  let outputOpen = true;
+
+  try {
+    const result = spawnSync('claude', arguments_, {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: MAXIMUM_CLAUDE_OUTPUT_BYTES,
+      stdio: ['ignore', outputDescriptor, 'pipe'],
+      timeout: CLAUDE_COMMAND_TIMEOUT_MS,
+    });
+    closeSync(outputDescriptor);
+    outputOpen = false;
+
+    if (result.error !== undefined) {
+      const errorCode = (result.error as NodeJS.ErrnoException).code;
+      if (errorCode === 'ENOBUFS') {
+        throw new ClaudeProfileError(
+          'CLAUDE_PROFILE_OUTPUT_TOO_LARGE',
+          `Claude command output exceeded ${MAXIMUM_CLAUDE_OUTPUT_BYTES} bytes: claude ${arguments_.join(' ')}`,
+          effects,
+        );
+      }
+      if (errorCode !== 'ENOENT') {
+        throw new ClaudeProfileError(
+          'CLAUDE_PROFILE_COMMAND_FAILED',
+          `Claude command could not complete: claude ${arguments_.join(' ')} (${result.error.message})`,
+          effects,
+        );
+      }
+      throw new ClaudeProfileError(
+        'CLAUDE_HOST_UNAVAILABLE',
+        `Claude Code could not be started: ${result.error.message}`,
+        effects,
+      );
+    }
+    const outputBytes = statSync(outputPath).size;
+    if (outputBytes > MAXIMUM_CLAUDE_OUTPUT_BYTES) {
+      throw new ClaudeProfileError(
+        'CLAUDE_PROFILE_OUTPUT_TOO_LARGE',
+        `Claude command output exceeded ${MAXIMUM_CLAUDE_OUTPUT_BYTES} bytes: claude ${arguments_.join(' ')}`,
+        effects,
+      );
+    }
+    const output = readFileSync(outputPath, 'utf8');
+    if (result.status !== 0) {
+      const detail = `${result.stderr ?? ''}${output}`.trim();
+      const detailSuffix = detail === '' ? '' : ` (${detail})`;
+      throw new ClaudeProfileError(
+        'CLAUDE_PROFILE_COMMAND_FAILED',
+        `Claude command failed: claude ${arguments_.join(' ')}${detailSuffix}`,
+        effects,
+      );
+    }
+    return output;
+  } finally {
+    if (outputOpen) closeSync(outputDescriptor);
+    rmSync(outputDirectory, { recursive: true, force: true });
   }
-  if (result.status !== 0) {
-    const detail = `${result.stderr ?? ''}${result.stdout ?? ''}`.trim();
-    const detailSuffix = detail === '' ? '' : ` (${detail})`;
-    throw new ClaudeProfileError(
-      'CLAUDE_PROFILE_COMMAND_FAILED',
-      `Claude command failed: claude ${arguments_.join(' ')}${detailSuffix}`,
-      effects,
-    );
-  }
-  return result.stdout ?? '';
 }
 
 function parseJsonArray(output: string, command: string, effects: readonly Effect[]): JsonObject[] {
@@ -359,8 +414,13 @@ function pluginEntries(cwd: string, effects: readonly Effect[]): JsonObject[] {
   );
 }
 
+function pluginScope(entry: JsonObject): ClaudePluginScope | undefined {
+  const scope = entry.scope ?? 'user';
+  return scope === 'project' || scope === 'user' ? scope : undefined;
+}
+
 function entryMatchesScope(entry: JsonObject, scope: ClaudePluginScope, cwd: string): boolean {
-  if ((entry.scope ?? 'user') !== scope) return false;
+  if (pluginScope(entry) !== scope) return false;
   return scope === 'user' || canonicalDirectory(entry.projectPath) === cwd;
 }
 
@@ -379,12 +439,13 @@ function safewordPlugin(
 }
 
 function applicableSafewordPlugins(entries: readonly JsonObject[], cwd: string): JsonObject[] {
-  return entries.filter(
-    entry =>
+  return entries.filter(entry => {
+    const scope = pluginScope(entry);
+    return (
       entry.id === CLAUDE_PLUGIN_ID &&
-      (entry.scope === 'user' ||
-        (entry.scope === 'project' && canonicalDirectory(entry.projectPath) === cwd)),
-  );
+      (scope === 'user' || (scope === 'project' && canonicalDirectory(entry.projectPath) === cwd))
+    );
+  });
 }
 
 const DIAGNOSTIC_FAILURES: Readonly<
@@ -665,6 +726,14 @@ export function observeApplicableClaudePlugins(cwd: string): ClaudeApplicablePlu
     assertSupportedHost(projectRoot);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (!isUnsupportedHostError(error)) {
+      return {
+        status: 'errored',
+        installations: [],
+        message,
+        nextAction: 'repair the reported Claude host error',
+      };
+    }
     return {
       status: 'unsupported-host',
       installations: [],
@@ -687,7 +756,7 @@ export function observeApplicableClaudePlugins(cwd: string): ClaudeApplicablePlu
   return {
     status: 'observed',
     installations: plugins.map(plugin => ({
-      scope: plugin.scope as ClaudePluginScope,
+      scope: pluginScope(plugin) ?? 'user',
       plugin,
       ...observeInstalledPlugin(plugin),
     })),
@@ -717,6 +786,13 @@ function unsupportedHostNextAction(error: unknown, message: string): string {
     return 'install Claude Code';
   }
   return message.startsWith('Could not parse') ? 'reinstall Claude Code' : 'update Claude Code';
+}
+
+function isUnsupportedHostError(error: unknown): boolean {
+  return (
+    error instanceof ClaudeProfileError &&
+    ['CLAUDE_HOST_UNAVAILABLE', 'CLAUDE_VERSION_UNSUPPORTED'].includes(error.code)
+  );
 }
 
 function assertNativePayload(plugin: JsonObject, effects: readonly Effect[]): void {
@@ -750,7 +826,7 @@ function verifyPlugin(
   if (
     plugin?.version === SAFEWORD_SCHEMA.version &&
     plugin.enabled === true &&
-    plugin.scope === scope
+    pluginScope(plugin) === scope
   ) {
     assertNativePayload(plugin, effects);
     return entries;
