@@ -164,3 +164,11 @@ waiting for relay filing or seeing a user-facing interruption.
   cloud adapter is planned until a provider proves a completion carrier. The
   plan now binds dedupe to a canonical complete v1 envelope and makes the
   50 ms profile collection part of the 500 ms total handoff budget.
+- 2026-08-09T16:25Z A live Claude Code Cloud `Stop`-hook probe wrote its fixed
+  marker, proving hook execution, but the Railway health request timed out at
+  452 ms under a conservative 450 ms deadline. The result is partial: Cloud
+  lifecycle execution exists, but a synchronous receipt-confirmed completion
+  carrier is not ready. Replanning defers the entire public-cloud vertical
+  slice—not merely the adapter—because a receiver-only release would add public
+  ingress without an end-to-end handoff. A future one-question spike must prove
+  a detached carrier against the actual public receipt endpoint.
