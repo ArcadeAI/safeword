@@ -6,6 +6,7 @@ import { createServer as createSecureServer } from 'node:https';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -481,45 +482,53 @@ describe('retro relay runtime qualification', () => {
     const initial = ProcessLock.acquire(lockPath);
     initial.release();
     const packageRoot = fileURLToPath(new URL('..', import.meta.url));
-    const startAt = Date.now() + 500;
-    const contender = `
+    const contender = String.raw`
       import { ProcessLock } from './dist/index.js';
-      const delay = Number(process.env.START_AT) - Date.now();
-      if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+      process.stdout.write('ready\n');
+      await new Promise(resolve => process.stdin.once('data', resolve));
       try {
         const lock = ProcessLock.acquire(process.env.LOCK_PATH);
-        process.stdout.write('acquired');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        process.stdout.write('acquired\n');
+        await new Promise(resolve => process.stdin.once('data', resolve));
         lock.release();
       } catch {
-        process.stdout.write('blocked');
+        process.stdout.write('blocked\n');
       }
     `;
-    const results = await Promise.all(
-      Array.from({ length: 24 }, () => {
-        const child = spawn(process.execPath, ['--input-type=module', '--eval', contender], {
-          cwd: packageRoot,
-          env: { ...process.env, LOCK_PATH: lockPath, START_AT: String(startAt) },
-          stdio: ['ignore', 'pipe', 'pipe'],
+    const contenders = Array.from({ length: 24 }, () => {
+      const child = spawn(process.execPath, ['--input-type=module', '--eval', contender], {
+        cwd: packageRoot,
+        env: { ...process.env, LOCK_PATH: lockPath },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      const lines = createInterface({ input: child.stdout })[Symbol.asyncIterator]();
+      const closed = new Promise<void>((resolve, reject) => {
+        let stderr = '';
+        child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+          stderr += chunk;
         });
-        return new Promise<string>((resolve, reject) => {
-          let stdout = '';
-          let stderr = '';
-          child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
-            stdout += chunk;
-          });
-          child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
-            stderr += chunk;
-          });
-          child.once('error', reject);
-          child.once('close', code => {
-            if (code === 0) resolve(stdout);
-            else reject(new Error(stderr || `lock contender exited ${String(code)}`));
-          });
+        child.once('error', reject);
+        child.once('close', code => {
+          if (code === 0) resolve();
+          else reject(new Error(stderr || `lock contender exited ${String(code)}`));
         });
-      }),
-    );
+      });
+      return { child, closed, lines };
+    });
+
+    const ready = await Promise.all(contenders.map(({ lines }) => lines.next()));
+    expect(ready.map(result => result.value)).toEqual(Array.from({ length: 24 }, () => 'ready'));
+
+    for (const { child } of contenders) child.stdin.write('start\n');
+    const outcomes = await Promise.all(contenders.map(({ lines }) => lines.next()));
+    const results = outcomes.map(result => result.value);
+
+    for (const [index, { child }] of contenders.entries()) {
+      child.stdin.end(results.at(index) === 'acquired' ? 'release\n' : undefined);
+    }
+    await Promise.all(contenders.map(({ closed }) => closed));
 
     expect(results.filter(result => result === 'acquired')).toHaveLength(1);
-  });
+    expect(results.filter(result => result === 'blocked')).toHaveLength(23);
+  }, 30_000);
 });
