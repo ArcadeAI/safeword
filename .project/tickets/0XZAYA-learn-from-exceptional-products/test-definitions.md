@@ -128,7 +128,7 @@ source; ticks remain open until the corresponding proof exists and passes.
 ### Scenario Outline: An activated ticket requires all matching v1 signals
 
 - [x] RED 77c5217f0
-- [ ] GREEN
+- [x] GREEN 416418e56
 - [ ] REFACTOR
 
 ### Scenario Outline: Matching v1 signals preserve new-flow eligibility
