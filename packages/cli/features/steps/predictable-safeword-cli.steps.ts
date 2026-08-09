@@ -74,6 +74,7 @@ interface PredictableCliWorld extends SafewordWorld {
   secondDirectory?: string;
   witnessDirectory?: string;
   witnessLog?: string;
+  hostProfileDirectory?: string;
 }
 
 interface CommandRun {
@@ -89,6 +90,11 @@ function temporaryProject(world: PredictableCliWorld): string {
   return world.temporaryDirectory;
 }
 
+function hostProfileDirectory(world: PredictableCliWorld): string {
+  world.hostProfileDirectory ??= mkdtempSync(join(tmpdir(), 'safeword-cli-profiles-'));
+  return world.hostProfileDirectory;
+}
+
 function runCli(
   world: PredictableCliWorld,
   argv: readonly string[],
@@ -97,7 +103,11 @@ function runCli(
   const completed = spawnSync(process.execPath, [CLI_PATH, ...argv], {
     cwd,
     encoding: 'utf8',
-    env: { ...childEnvironment(), ...world.hostEnvironment },
+    env: publicFixtureEnvironment(
+      hostProfileDirectory(world),
+      world.hostEnvironment ?? {},
+      childEnvironment(),
+    ),
   });
   world.result = {
     stdout: completed.stdout,
@@ -129,7 +139,12 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     temporaryProject(world),
     `public-fixture-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
   );
+  const hostProfiles = join(
+    temporaryProject(world),
+    `public-host-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
+  );
   rmSync(cwd, { recursive: true, force: true });
+  rmSync(hostProfiles, { recursive: true, force: true });
   mkdirSync(cwd, { recursive: true });
   const completed = spawnSync(
     process.execPath,
@@ -137,7 +152,7 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     {
       cwd,
       encoding: 'utf8',
-      env: publicFixtureEnvironment(cwd, definition.fixture.environment),
+      env: publicFixtureEnvironment(hostProfiles, definition.fixture.environment),
     },
   );
   // Each run gets its own directory, so the path itself is not part of the
@@ -278,6 +293,9 @@ After(function (this: PredictableCliWorld) {
   }
   if (this.witnessDirectory !== undefined) {
     rmSync(this.witnessDirectory, { recursive: true, force: true });
+  }
+  if (this.hostProfileDirectory !== undefined) {
+    rmSync(this.hostProfileDirectory, { recursive: true, force: true });
   }
 });
 

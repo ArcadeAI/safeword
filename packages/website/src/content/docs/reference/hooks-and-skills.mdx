@@ -80,7 +80,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
   </TabItem>
   <TabItem label="Codex">
-    Safeword's Codex support is plugin-backed. Setup writes one project SessionStart bootstrap that enrolls each active Codex profile automatically; `safeword install --agents=codex` remains available for immediate manual enrollment. Restart Codex after a new installation and start a new task to load the plugin. Setup writes no repository workflow tree or mutation-event hook.
+    Safeword's Codex support is plugin-backed. Install writes one project SessionStart bootstrap that enrolls each active Codex profile automatically; `safeword install --agents=codex` remains available for immediate manual enrollment. Restart Codex after a new installation and start a new task to load the plugin. Install writes no repository workflow tree or mutation-event hook.
 
 | When                            | What happens                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------- |
@@ -98,7 +98,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     ### Hook trust
 
-    Codex hooks run only after the host trusts them; Safe Word never bypasses that boundary. Setup commits one project SessionStart bootstrap that enrolls the current profile and warns prominently until a later task has exact native proof. The warning never blocks edits or commands. Ordinary maintenance automatically backs up and removes a fully recognized legacy installation only after native installation succeeds; edited or unknown content is preserved. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
+    Codex hooks run only after the host trusts them; Safe Word never bypasses that boundary. Install commits one project SessionStart bootstrap that enrolls the current profile and warns prominently until a later task has exact native proof. The warning never blocks edits or commands. Ordinary maintenance automatically backs up and removes a fully recognized legacy installation only after native installation succeeds; edited or unknown content is preserved. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
 
     Plugin skill files: bundled in the Safe Word package under `codex-plugin/skills/`
 

@@ -266,7 +266,7 @@ function plannedEffectLines(data: unknown): string[] {
 }
 
 const SURFACE_LABELS: Readonly<Record<string, string>> = {
-  project: 'Project setup',
+  project: 'Project',
   claude: 'Claude',
   codex: 'Codex',
   cursor: 'Cursor',

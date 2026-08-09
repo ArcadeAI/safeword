@@ -72,6 +72,42 @@ describe('public CLI documentation', () => {
     });
 
     expect(staleInvocations).toEqual([]);
+
+    const canonicalLifecycleProse = [
+      'README.md',
+      'AGENTS.md',
+      'ARCHITECTURE.md',
+      '.claude/skills/versioning/SKILL.md',
+      'packages/website/src/content/docs/getting-started/faq.mdx',
+      'packages/website/src/content/docs/getting-started/quick-start.mdx',
+      'packages/website/src/content/docs/reference/configuration.mdx',
+      'packages/website/src/content/docs/reference/hooks-and-skills.mdx',
+      'packages/cli/src/lifecycle/project-install.ts',
+    ].map(file => ({ file, content: readFileSync(nodePath.join(REPO_ROOT, file), 'utf8') }));
+    const staleLifecycleProse = canonicalLifecycleProse.flatMap(({ file, content }) =>
+      [
+        /safeword(?:@latest)?[ \t]+setup(?=$|[^\w-])/gimu,
+        /safeword(?:@latest)?[ \t]+remove(?=$|[^\w-])/gimu,
+        /\bSetup (writes|commits|scaffolds|creates|may remove)/gu,
+        /(?:before running|retrying|converge) setup/giu,
+        /Project setup/gu,
+        /### Setup Convergence Flow/gu,
+      ].flatMap(pattern =>
+        content
+          .matchAll(pattern)
+          .filter(match => {
+            const matchIndex = match.index ?? 0;
+            const start = content.lastIndexOf('\n', matchIndex) + 1;
+            const end = content.indexOf('\n', matchIndex);
+            const line = end === -1 ? content.slice(start) : content.slice(start, end);
+            return !/compatib|deprecated|historical|retained/iu.test(line);
+          })
+          .map(match => ({ file, phrase: match[0] }))
+          .toArray(),
+      ),
+    );
+
+    expect(staleLifecycleProse).toEqual([]);
   });
 
   it('keeps Claude context guidance aligned with current Claude Code behavior', () => {
@@ -130,6 +166,8 @@ describe('public CLI documentation', () => {
       expect(compatibilitySection, replacement).toContain(`\`${replacement}\``);
     }
     expect(reference).toContain('safeword review run <kind> <targets...>');
+    expect(reference).toContain('safeword retro-relay-retry [request-id]');
+    expect(reference).toContain('safeword retro-relay-discard <request-id> [--confirm]');
     expect(reference).toContain('### safeword codex clean-guidance');
     expect(reference).toContain('destructive deactivation');
     expect(reference).toContain('Creates or merges only with `--agents=cursor`');

@@ -331,7 +331,7 @@ function readProjectVersionMarker(
       kind: 'gate',
       value: versionRefusal(
         'PROJECT_VERSION_MARKER_UNSAFE',
-        'Project version marker is not an ordinary regular file. Inspect .safeword/version and replace it manually before running setup; symbolic links are never followed or repaired.',
+        'Project version marker is not an ordinary regular file. Inspect .safeword/version and replace it manually before running install; symbolic links are never followed or repaired.',
       ),
     };
   }
@@ -355,7 +355,7 @@ function readProjectVersionMarker(
         {
           command: recoveryCommand,
           description:
-            'Replace the linked project version marker without changing its other hardlink peers, then converge setup.',
+            'Replace the linked project version marker without changing its other hardlink peers, then complete installation.',
           requiresHuman: true,
         },
       ],
@@ -371,7 +371,7 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
     return versionRefusal(
       'PROJECT_VERSION_UNSAFE',
-      '.safeword must be an ordinary directory inside the project. Inspect and replace it manually before running setup.',
+      '.safeword must be an ordinary directory inside the project. Inspect and replace it manually before running install.',
     );
   }
   const projectVersionPath = nodePath.join(safewordDirectoryPath, 'version');
@@ -394,7 +394,7 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
         {
           command: recoveryCommand,
           description:
-            'Replace the unreadable version marker with the current CLI version, then converge setup.',
+            'Replace the unreadable version marker with the current CLI version, then complete installation.',
           requiresHuman: true,
         },
       ],
@@ -925,7 +925,7 @@ function verifiedSetupResult(
       ],
       errors: [
         ...applied.errors,
-        ...(health.configured ? healthProblems : ['Safeword is not configured after setup.']).map(
+        ...(health.configured ? healthProblems : ['Safeword is not configured after install.']).map(
           message => ({
             code: 'SETUP_POSTCONDITION_FAILED',
             message,
@@ -937,7 +937,7 @@ function verifiedSetupResult(
         ...applied.recovery,
         {
           command: 'safeword doctor --verbose',
-          description: 'Inspect the failed setup postcondition before retrying.',
+          description: 'Inspect the failed install postcondition before retrying.',
           requiresHuman: true,
         },
       ],
@@ -988,7 +988,7 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
     recovery: [
       {
         command: 'safeword status --verbose',
-        description: 'Inspect the partial project state before retrying setup.',
+        description: 'Inspect the partial project state before retrying install.',
         requiresHuman: true,
       },
     ],

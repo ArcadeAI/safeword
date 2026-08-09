@@ -12,21 +12,23 @@ Safeword has one canonical lifecycle. Retained aliases remain executable
 indefinitely for compatibility, but examples and recovery guidance use the
 canonical commands below.
 
-| Command        | Effect      | Purpose                                     |
-| -------------- | ----------- | ------------------------------------------- |
-| `status`       | Read-only   | Report health and one next action           |
-| `install`      | Mutating    | Configure the project and selected agents   |
-| `plan`         | Read-only   | Preview reconciliation effects              |
-| `doctor`       | Read-only   | Diagnose project configuration              |
-| `uninstall`    | Destructive | Remove the exact reviewed Safeword plan     |
-| `project …`    | Mixed       | Maintain project config, tests, and indexes |
-| `tracker …`    | Mutating    | Connect and synchronize an external tracker |
-| `claude …`     | Mixed       | Inspect, clean up, or recover Claude state  |
-| `codex …`      | Mixed       | Inspect, migrate, or recover Codex state    |
-| `ticket …`     | Mixed       | List and create project tickets             |
-| `review run`   | Mutating    | Run an independent adversarial review       |
-| `retro …`      | Mixed       | Extract, inspect, and reconcile findings    |
-| `capabilities` | Read-only   | Describe the stable machine interface       |
+| Command               | Effect      | Purpose                                     |
+| --------------------- | ----------- | ------------------------------------------- |
+| `status`              | Read-only   | Report health and one next action           |
+| `install`             | Mutating    | Configure the project and selected agents   |
+| `plan`                | Read-only   | Preview reconciliation effects              |
+| `doctor`              | Read-only   | Diagnose project configuration              |
+| `uninstall`           | Destructive | Remove the exact reviewed Safeword plan     |
+| `project …`           | Mixed       | Maintain project config, tests, and indexes |
+| `tracker …`           | Mutating    | Connect and synchronize an external tracker |
+| `claude …`            | Mixed       | Inspect, clean up, or recover Claude state  |
+| `codex …`             | Mixed       | Inspect, migrate, or recover Codex state    |
+| `ticket …`            | Mixed       | List and create project tickets             |
+| `review run`          | Mutating    | Run an independent adversarial review       |
+| `retro …`             | Mixed       | Extract, inspect, and reconcile findings    |
+| `retro-relay-retry`   | Mixed       | List or rearm one durable relay request     |
+| `retro-relay-discard` | Destructive | Discard one confirmed poisoned request      |
+| `capabilities`        | Read-only   | Describe the stable machine interface       |
 
 Every public command accepts the same global options before or after the
 command:
@@ -120,7 +122,6 @@ may miss issues, and is not merge-safety evidence.
 | `rustfmt.toml`       | Creates file                                       | Formatting config (Rust)                              |
 | `Cargo.toml`         | Adds lints section                                 | clippy lints (Rust)                                   |
 | `.sqlfluff`          | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
-| `AGENTS.md`          | Creates or prepends                                | Links to SAFEWORD.md                                  |
 | `.mcp.json`          | Creates or merges                                  | MCP server config                                     |
 | `.cursor/mcp.json`   | Creates or merges only with `--agents=cursor`      | MCP server config (Cursor)                            |
 
@@ -171,7 +172,15 @@ safeword review run <kind> <targets...>
 safeword retro run
 safeword retro signals
 safeword retro reconcile
+safeword retro-relay-retry [request-id]
+safeword retro-relay-discard <request-id> [--confirm]
 ```
+
+`retro-relay-retry` lists durable requests when no identity is supplied and
+rearms the exact dead letter when one is supplied. Expired server-side
+requests may use the configured relay recovery boundary. `retro-relay-discard`
+is the irreversible escape hatch for one poisoned identity; without
+`--confirm`, it returns an action-required result and leaves the spool intact.
 
 Run any command with `--help` for its complete option set.
 For `project test-plan` and `retro signals` / `self-report`, the retained

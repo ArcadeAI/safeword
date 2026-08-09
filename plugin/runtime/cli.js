@@ -412,7 +412,7 @@ var init_result = __esm(() => {
     failed: "Failed"
   };
   SURFACE_LABELS = {
-    project: "Project setup",
+    project: "Project",
     claude: "Claude",
     codex: "Codex",
     cursor: "Cursor"
@@ -14506,7 +14506,7 @@ function boundaryShimCommand(at) {
 function boundaryShimPatch(at) {
   return {
     operation: "append",
-    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword remove\`
+    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword uninstall --agents=none\`
 `,
     marker: BOUNDARY_SHIM_MARKER,
     rerender: true,
@@ -35501,7 +35501,7 @@ function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) 
   if (!metadata.isFile() || metadata.nlink <= 1) {
     return {
       kind: "gate",
-      value: versionRefusal("PROJECT_VERSION_MARKER_UNSAFE", "Project version marker is not an ordinary regular file. Inspect .safeword/version and replace it manually before running setup; symbolic links are never followed or repaired.")
+      value: versionRefusal("PROJECT_VERSION_MARKER_UNSAFE", "Project version marker is not an ordinary regular file. Inspect .safeword/version and replace it manually before running install; symbolic links are never followed or repaired.")
     };
   }
   if (repairVersionMarker) {
@@ -35520,7 +35520,7 @@ function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) 
     value: versionRefusal("PROJECT_VERSION_MARKER_UNSAFE", `Project version marker has multiple directory entries. Inspect .safeword/version, then run \`${recoveryCommand}\` to replace only the project entry.`, [
       {
         command: recoveryCommand,
-        description: "Replace the linked project version marker without changing its other hardlink peers, then converge setup.",
+        description: "Replace the linked project version marker without changing its other hardlink peers, then complete installation.",
         requiresHuman: true
       }
     ])
@@ -35532,7 +35532,7 @@ function checkProjectVersion(cwd, repairVersionMarker) {
     throwIfNoEntry: false
   });
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
-    return versionRefusal("PROJECT_VERSION_UNSAFE", ".safeword must be an ordinary directory inside the project. Inspect and replace it manually before running setup.");
+    return versionRefusal("PROJECT_VERSION_UNSAFE", ".safeword must be an ordinary directory inside the project. Inspect and replace it manually before running install.");
   }
   const projectVersionPath = nodePath63.join(safewordDirectoryPath, "version");
   const marker = readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker);
@@ -35552,7 +35552,7 @@ function checkProjectVersion(cwd, repairVersionMarker) {
     return versionRefusal("PROJECT_VERSION_UNSAFE", `Project version is not valid SemVer. Inspect .safeword/version, then run \`${recoveryCommand}\` to replace it.`, [
       {
         command: recoveryCommand,
-        description: "Replace the unreadable version marker with the current CLI version, then converge setup.",
+        description: "Replace the unreadable version marker with the current CLI version, then complete installation.",
         requiresHuman: true
       }
     ]);
@@ -35961,7 +35961,7 @@ function verifiedSetupResult(applied, health, wasConfigured) {
       ],
       errors: [
         ...applied.errors,
-        ...(health.configured ? healthProblems : ["Safeword is not configured after setup."]).map((message) => ({
+        ...(health.configured ? healthProblems : ["Safeword is not configured after install."]).map((message) => ({
           code: "SETUP_POSTCONDITION_FAILED",
           message,
           retryable: true
@@ -35971,7 +35971,7 @@ function verifiedSetupResult(applied, health, wasConfigured) {
         ...applied.recovery,
         {
           command: "safeword doctor --verbose",
-          description: "Inspect the failed setup postcondition before retrying.",
+          description: "Inspect the failed install postcondition before retrying.",
           requiresHuman: true
         }
       ]
@@ -36018,7 +36018,7 @@ function setupFailure(setupError, initialEffects) {
     recovery: [
       {
         command: "safeword status --verbose",
-        description: "Inspect the partial project state before retrying setup.",
+        description: "Inspect the partial project state before retrying install.",
         requiresHuman: true
       }
     ]
@@ -42750,6 +42750,68 @@ var init_self_report = __esm(() => {
   SAFE_FRAME_LABEL = /^(?:async |get |set |new )*[\w$.<>]+(?: \[as [\w$.<>]+\])?$/;
 });
 
+// templates/hooks/lib/dogfood.ts
+import { existsSync as existsSync42, readFileSync as readFileSync52 } from "fs";
+import nodePath82 from "path";
+function isDogfoodRepo(projectDirectory) {
+  if (existsSync42(nodePath82.join(projectDirectory, "packages", "cli", "templates")))
+    return true;
+  try {
+    const pkg2 = JSON.parse(readFileSync52(nodePath82.join(projectDirectory, "package.json"), "utf8"));
+    return pkg2.name === "safeword";
+  } catch {
+    return false;
+  }
+}
+var init_dogfood = () => {};
+
+// templates/hooks/lib/retro-debug.ts
+import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync13 } from "fs";
+import nodePath83 from "path";
+import process13 from "process";
+function sanitizeDebugValue(key, value) {
+  if (value === undefined)
+    return;
+  if (REDACT_KEY_PATTERN.test(key))
+    return REDACTED;
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeDebugValue(key, item));
+  }
+  if (typeof value === "object" && value !== null) {
+    const sanitized = {};
+    for (const [childKey, childValue] of Object.entries(value)) {
+      const clean = sanitizeDebugValue(childKey, childValue);
+      if (clean !== undefined)
+        sanitized[childKey] = clean;
+    }
+    return sanitized;
+  }
+  return value;
+}
+function sanitizedEvent(event) {
+  const result = {};
+  for (const [key, value] of Object.entries(event)) {
+    const clean = sanitizeDebugValue(key, value);
+    if (clean !== undefined)
+      result[key] = clean;
+  }
+  return result;
+}
+function recordRetroDebugEvent(event, env = process13.env) {
+  const logPath = env[RETRO_DEBUG_LOG_ENV];
+  if (!logPath)
+    return;
+  try {
+    mkdirSync13(nodePath83.dirname(logPath), { recursive: true });
+    appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
+`);
+  } catch {}
+}
+var RETRO_DEBUG_LOG_ENV = "SAFEWORD_RETRO_DEBUG_LOG", REDACTED = "[redacted]", REDACT_KEY_PATTERN;
+var init_retro_debug = __esm(() => {
+  REDACT_KEY_PATTERN = /^(?:transcript|transcriptText|transcriptContent|prompt|stdout|stderr|findings|rawFindings|body)$/i;
+});
+
 // templates/hooks/lib/retro-draft-spool.ts
 var exports_retro_draft_spool = {};
 __export(exports_retro_draft_spool, {
@@ -42767,12 +42829,12 @@ __export(exports_retro_draft_spool, {
   ackFilePath: () => ackFilePath
 });
 import { createHash as createHash19 } from "crypto";
-import nodePath82 from "path";
+import nodePath84 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
 }
 function draftSpoolPath(projectDirectory, sessionId) {
-  return nodePath82.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+  return nodePath84.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
 }
 function spoolSiblingPath(projectDirectory, sessionId, suffix) {
   const spool = draftSpoolPath(projectDirectory, sessionId);
@@ -42900,69 +42962,7 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl";
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
-  SPOOL_DIR = nodePath82.join(".safeword", "retro-drafts");
-});
-
-// templates/hooks/lib/dogfood.ts
-import { existsSync as existsSync42, readFileSync as readFileSync52 } from "fs";
-import nodePath83 from "path";
-function isDogfoodRepo(projectDirectory) {
-  if (existsSync42(nodePath83.join(projectDirectory, "packages", "cli", "templates")))
-    return true;
-  try {
-    const pkg2 = JSON.parse(readFileSync52(nodePath83.join(projectDirectory, "package.json"), "utf8"));
-    return pkg2.name === "safeword";
-  } catch {
-    return false;
-  }
-}
-var init_dogfood = () => {};
-
-// templates/hooks/lib/retro-debug.ts
-import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync13 } from "fs";
-import nodePath84 from "path";
-import process13 from "process";
-function sanitizeDebugValue(key, value) {
-  if (value === undefined)
-    return;
-  if (REDACT_KEY_PATTERN.test(key))
-    return REDACTED;
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeDebugValue(key, item));
-  }
-  if (typeof value === "object" && value !== null) {
-    const sanitized = {};
-    for (const [childKey, childValue] of Object.entries(value)) {
-      const clean = sanitizeDebugValue(childKey, childValue);
-      if (clean !== undefined)
-        sanitized[childKey] = clean;
-    }
-    return sanitized;
-  }
-  return value;
-}
-function sanitizedEvent(event) {
-  const result = {};
-  for (const [key, value] of Object.entries(event)) {
-    const clean = sanitizeDebugValue(key, value);
-    if (clean !== undefined)
-      result[key] = clean;
-  }
-  return result;
-}
-function recordRetroDebugEvent(event, env = process13.env) {
-  const logPath = env[RETRO_DEBUG_LOG_ENV];
-  if (!logPath)
-    return;
-  try {
-    mkdirSync13(nodePath84.dirname(logPath), { recursive: true });
-    appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
-`);
-  } catch {}
-}
-var RETRO_DEBUG_LOG_ENV = "SAFEWORD_RETRO_DEBUG_LOG", REDACTED = "[redacted]", REDACT_KEY_PATTERN;
-var init_retro_debug = __esm(() => {
-  REDACT_KEY_PATTERN = /^(?:transcript|transcriptText|transcriptContent|prompt|stdout|stderr|findings|rawFindings|body)$/i;
+  SPOOL_DIR = nodePath84.join(".safeword", "retro-drafts");
 });
 
 // templates/hooks/lib/retro-extract.ts
@@ -56993,6 +56993,191 @@ function retroFailure(message) {
     errors: [{ code: "RETRO_COMMAND_FAILED", message, retryable: true }]
   });
 }
+function relayCommandMessages() {
+  const errors = [];
+  const info2 = [];
+  const success2 = [];
+  return {
+    errors,
+    info: info2,
+    success: success2,
+    output: {
+      error: (message) => {
+        errors.push(message);
+      },
+      info: (message) => {
+        info2.push(message);
+      },
+      success: (message) => {
+        success2.push(message);
+      }
+    }
+  };
+}
+async function relayRecoveryDirectory(cwd) {
+  const { resolveRelayRecoveryOutboxDirectory: resolveRelayRecoveryOutboxDirectory2 } = await Promise.resolve().then(() => (init_retro(), exports_retro));
+  const outbox = resolveRelayRecoveryOutboxDirectory2(cwd, globalThis.process.env.SAFEWORD_RETRO_RELAY_OUTBOX);
+  if (!("error" in outbox))
+    return outbox.directory;
+  return createResult({
+    state: "failed",
+    errors: [{ code: "RETRO_RELAY_OUTBOX_INVALID", message: outbox.error, retryable: false }]
+  });
+}
+function relayRecoveryFromEnvironment(offline) {
+  if (offline)
+    return;
+  const credential = globalThis.process.env.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
+  const relayUrl = globalThis.process.env.SAFEWORD_RETRO_RELAY_URL?.trim();
+  if (!credential || !relayUrl)
+    return;
+  const operatorCredential = globalThis.process.env.SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL?.trim();
+  return {
+    credential,
+    fetch,
+    ...operatorCredential && { operatorCredential },
+    relayUrl
+  };
+}
+function relayCommandFindings(messages3) {
+  return [...messages3.info, ...messages3.success].map((message, index) => ({
+    code: index < messages3.info.length ? "RETRO_RELAY_STATUS" : "RETRO_RELAY_RECOVERED",
+    message,
+    severity: "info"
+  }));
+}
+function relayCommandFailure(command, message, requestId) {
+  return createResult({
+    state: "failed",
+    errors: [
+      {
+        code: command === "retro-relay-retry" ? "RETRO_RELAY_RETRY_FAILED" : "RETRO_RELAY_DISCARD_FAILED",
+        message,
+        retryable: command === "retro-relay-retry"
+      }
+    ],
+    data: { command, ...requestId && { request_id: requestId } }
+  });
+}
+function relayRetryResult(requestId, succeeded, messages3) {
+  const changed = succeeded && requestId !== undefined;
+  const recoveredThroughRelay = messages3.success.some((message) => message.includes("recovered"));
+  let state = "failed";
+  if (succeeded)
+    state = changed ? "changed" : "healthy";
+  return createResult({
+    state,
+    changed,
+    findings: relayCommandFindings(messages3),
+    effects: {
+      configuration: changed && !recoveredThroughRelay ? [{ kind: "rearm", target: `Retro relay request ${requestId}`, operation: "retry" }] : [],
+      network: recoveredThroughRelay ? [{ kind: "retro-relay-recovery", target: "Configured retro relay", operation: "retry" }] : []
+    },
+    errors: messages3.errors.map((message) => ({
+      code: "RETRO_RELAY_RETRY_FAILED",
+      message,
+      retryable: true
+    })),
+    data: { command: "retro-relay-retry", ...requestId && { request_id: requestId } }
+  });
+}
+async function retroRelayRetryHandler(invocation) {
+  const requestId = invocation.operands[0];
+  if (requestId !== undefined && typeof requestId !== "string") {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "CLI_ARGUMENT_INVALID",
+          message: "retro-relay-retry request identity must be text.",
+          retryable: false
+        }
+      ],
+      data: { command: "retro-relay-retry" }
+    });
+  }
+  const directory = await relayRecoveryDirectory(invocation.cwd);
+  if (typeof directory !== "string")
+    return directory;
+  const messages3 = relayCommandMessages();
+  const { retryRelayDeadLetterCommand: retryRelayDeadLetterCommand2 } = await Promise.resolve().then(() => (init_retro(), exports_retro));
+  const relay = relayRecoveryFromEnvironment(invocation.offline);
+  let succeeded;
+  try {
+    succeeded = await retryRelayDeadLetterCommand2(requestId, {
+      output: messages3.output,
+      projectDirectory: directory,
+      ...relay && { relay }
+    });
+  } catch (error2) {
+    return relayCommandFailure("retro-relay-retry", error2 instanceof Error ? error2.message : String(error2), requestId);
+  }
+  return relayRetryResult(requestId, succeeded, messages3);
+}
+async function retroRelayDiscardHandler(invocation) {
+  const requestId = invocation.operands[0];
+  if (typeof requestId !== "string") {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "CLI_ARGUMENT_INVALID",
+          message: "retro-relay-discard requires one request identity.",
+          retryable: false
+        }
+      ],
+      data: { command: "retro-relay-discard" }
+    });
+  }
+  if (invocation.options.confirm !== true) {
+    return createResult({
+      state: "action_required",
+      findings: [
+        {
+          code: "CONFIRMATION_REQUIRED",
+          message: "Confirm irreversible deletion of this exact durable request identity.",
+          severity: "warning"
+        }
+      ],
+      nextActions: [
+        {
+          command: `safeword retro-relay-discard ${requestId} --confirm`,
+          mutates: true,
+          requiresHuman: true
+        }
+      ],
+      data: { command: "retro-relay-discard", request_id: requestId }
+    });
+  }
+  const directory = await relayRecoveryDirectory(invocation.cwd);
+  if (typeof directory !== "string")
+    return directory;
+  const messages3 = relayCommandMessages();
+  const { discardRelaySpoolCommand: discardRelaySpoolCommand2 } = await Promise.resolve().then(() => (init_retro(), exports_retro));
+  let succeeded;
+  try {
+    succeeded = await discardRelaySpoolCommand2(requestId, true, {
+      output: messages3.output,
+      projectDirectory: directory
+    });
+  } catch (error2) {
+    return relayCommandFailure("retro-relay-discard", error2 instanceof Error ? error2.message : String(error2), requestId);
+  }
+  return createResult({
+    state: succeeded ? "changed" : "failed",
+    changed: succeeded,
+    findings: relayCommandFindings(messages3),
+    effects: {
+      destructive: succeeded ? [{ kind: "discard", target: `Retro relay request ${requestId}`, operation: "delete" }] : []
+    },
+    errors: messages3.errors.map((message) => ({
+      code: "RETRO_RELAY_DISCARD_FAILED",
+      message,
+      retryable: false
+    })),
+    data: { command: "retro-relay-discard", request_id: requestId }
+  });
+}
 function retroOptions(invocation, transcript) {
   const findings = stringOption(invocation.options, "findings");
   return {
@@ -57162,6 +57347,8 @@ var HANDLERS = {
   "retro run": retroRunHandler,
   "retro signals": retroSignalsHandler,
   "retro reconcile": retroReconcileHandler,
+  "retro-relay-retry": retroRelayRetryHandler,
+  "retro-relay-discard": retroRelayDiscardHandler,
   boundary: () => Promise.resolve(createResult({ state: "healthy", data: { command: "boundary", internal: true } })),
   "hook codex": () => Promise.resolve(createResult({ state: "healthy", data: { command: "hook codex", internal: true } })),
   "codex-hook": () => Promise.resolve(createResult({ state: "healthy", data: { command: "codex-hook", internal: true } })),
@@ -57224,7 +57411,7 @@ function scopedInstallAlias(name, agent) {
     ...command(name, `Deprecated alias for install --agents=${agent}`, canonical.effectClass, {
       promptPolicy: canonical.promptPolicy,
       networkPolicy: canonical.networkPolicy,
-      commandOptions: canonical.registration.options,
+      commandOptions: agent === "claude" ? [claudeScopeOption()] : [],
       handler: publicHandler(name)
     }),
     aliasFor: "install",
@@ -57511,6 +57698,24 @@ var CANONICAL_COMMANDS = [
   }),
   command("retro reconcile", "Reconcile open retro findings", "mutate", {
     networkPolicy: "declared"
+  }),
+  command("retro-relay-retry", "List durable relay requests or rearm one dead letter without changing its identity", "mutate", {
+    networkPolicy: "declared",
+    syntax: "retro-relay-retry [request-id]"
+  }),
+  command("retro-relay-discard", "Permanently discard one poisoned relay identity and its source reservation", "destructive", {
+    promptPolicy: "confirm",
+    syntax: "retro-relay-discard <request-id>",
+    commandOptions: [
+      {
+        flags: "--confirm",
+        description: "Confirm irreversible deletion of this exact request identity"
+      }
+    ],
+    fixture: {
+      argv: ["retro-relay-discard", "00000000-0000-4000-8000-000000000001"],
+      environment: MACHINE_ENVIRONMENT
+    }
   }),
   command("capabilities", "Describe the public machine interface", "observe", {
     handler: () => Promise.resolve(createCapabilitiesResult())
@@ -58088,57 +58293,6 @@ var featureDirectoriesDefinition = findCommandDefinition("feature-directories");
 program2.command("feature-directories", { hidden: true }).description(featureDirectoriesDefinition.description).action(async () => {
   const { featureDirectories: featureDirectories2 } = await Promise.resolve().then(() => (init_feature_directories(), exports_feature_directories));
   featureDirectories2(process22.cwd());
-});
-function relayRecoveryFromEnvironment() {
-  const credential = process22.env.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
-  const relayUrl = process22.env.SAFEWORD_RETRO_RELAY_URL?.trim();
-  if (!credential || !relayUrl)
-    return;
-  const operatorCredential = process22.env.SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL?.trim();
-  return {
-    credential,
-    fetch,
-    ...operatorCredential && { operatorCredential },
-    relayUrl
-  };
-}
-async function relayRecoveryDirectory() {
-  const { resolveRelayRecoveryOutboxDirectory: resolveRelayRecoveryOutboxDirectory2 } = await Promise.resolve().then(() => (init_retro(), exports_retro));
-  const { error: outputError } = await Promise.resolve().then(() => exports_output);
-  const outbox = resolveRelayRecoveryOutboxDirectory2(process22.env.CLAUDE_PROJECT_DIR ?? process22.cwd(), process22.env.SAFEWORD_RETRO_RELAY_OUTBOX);
-  if (!("error" in outbox))
-    return outbox.directory;
-  outputError(outbox.error);
-  process22.exitCode = 1;
-  return;
-}
-program2.command("retro-relay-retry [request-id]").description("List durable relay requests or rearm one dead letter without changing its identity").action(async (requestId) => {
-  const { retryRelayDeadLetterCommand: retryRelayDeadLetterCommand2 } = await Promise.resolve().then(() => (init_retro(), exports_retro));
-  const { error: outputError, info: info2, success: success2 } = await Promise.resolve().then(() => exports_output);
-  const projectDirectory = await relayRecoveryDirectory();
-  if (!projectDirectory)
-    return;
-  const relay = relayRecoveryFromEnvironment();
-  const ok = await retryRelayDeadLetterCommand2(requestId, {
-    output: { error: outputError, info: info2, success: success2 },
-    projectDirectory,
-    ...relay && { relay }
-  });
-  if (!ok)
-    process22.exitCode = 1;
-});
-program2.command("retro-relay-discard <request-id>").description("Permanently discard one poisoned relay identity and its source reservation").option("--confirm", "Confirm irreversible deletion of this exact request identity").action(async (requestId, options) => {
-  const { discardRelaySpoolCommand: discardRelaySpoolCommand2 } = await Promise.resolve().then(() => (init_retro(), exports_retro));
-  const { error: outputError, info: info2, success: success2 } = await Promise.resolve().then(() => exports_output);
-  const projectDirectory = await relayRecoveryDirectory();
-  if (!projectDirectory)
-    return;
-  const ok = await discardRelaySpoolCommand2(requestId, options.confirm === true, {
-    output: { error: outputError, info: info2, success: success2 },
-    projectDirectory
-  });
-  if (!ok)
-    process22.exitCode = 1;
 });
 try {
   await program2.parseAsync();
