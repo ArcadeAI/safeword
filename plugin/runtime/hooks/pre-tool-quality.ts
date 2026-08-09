@@ -469,6 +469,14 @@ function nextContentAfterEdit(toolInput: HookInput['tool_input'], priorContent: 
   return priorContent;
 }
 
+function hasReconstructableEdit(toolInput: HookInput['tool_input']): boolean {
+  return (
+    toolInput?.content !== undefined ||
+    toolInput?.edits !== undefined ||
+    toolInput?.old_string !== undefined
+  );
+}
+
 function frontmatterScalar(
   meta: Record<string, string | string[]>,
   key: string,
@@ -497,11 +505,7 @@ const isCanonicalSpecEdit =
 // phase was advanced in a later tool call.
 if (isCanonicalTicketEdit || isCanonicalSpecEdit) {
   const toolInput = input.tool_input;
-  const reconstructable =
-    toolInput?.content !== undefined ||
-    toolInput?.edits !== undefined ||
-    toolInput?.old_string !== undefined;
-  if (reconstructable) {
+  if (hasReconstructableEdit(toolInput)) {
     const ticketDirectory = nodePath.dirname(editedFile);
     const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
     const specPath = nodePath.join(ticketDirectory, 'spec.md');
@@ -541,11 +545,7 @@ if (isCanonicalTicketEdit) {
   // carrying none of those (e.g. NotebookEdit, adapter probes) pass — the
   // gate polices content it can see, matching the sibling gates' posture.
   const toolInput = input.tool_input;
-  const reconstructable =
-    toolInput?.content !== undefined ||
-    toolInput?.edits !== undefined ||
-    toolInput?.old_string !== undefined;
-  if (reconstructable) {
+  if (hasReconstructableEdit(toolInput)) {
     const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : undefined;
     const proposedContent = nextContentAfterEdit(toolInput, priorContent ?? '');
     const verdict = evaluateTicketWrite(priorContent, proposedContent);
