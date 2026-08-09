@@ -290,6 +290,48 @@ function decisionRows(content: string): string[][] {
   return rows;
 }
 
+function validateProductReferences(
+  section: string,
+  baseline: string,
+  evaluationDate: string,
+): InspirationEvidenceVerdict {
+  const table = parseExactTable(section, PRODUCT_HEADER, PRODUCT_DELIMITER, 7);
+  if (!table) return evidenceFailure('The product inspiration table does not match v1 grammar.');
+  for (const row of table.rows) {
+    const [reference, checkedOn, , , , , impact] = row;
+    if (!isHttpsUrl(reference!))
+      return evidenceFailure('Product references must be absolute HTTPS URLs.');
+    if (!dateInRange(checkedOn!, baseline, evaluationDate)) {
+      return evidenceFailure(
+        'Product evidence dates must fall between ticket creation and evaluation.',
+      );
+    }
+    if (!hasDecisionPrefix(impact!, ['changed:', 'retained:'])) {
+      return evidenceFailure('Product decision impact must begin changed: or retained:.');
+    }
+  }
+  return { ok: true, path: 'reference' };
+}
+
+function validateProductSearch(
+  searchSection: string,
+  baseline: string,
+  evaluationDate: string,
+): InspirationEvidenceVerdict {
+  const table = parseExactTable(searchSection, PRODUCT_SEARCH_HEADER, PRODUCT_SEARCH_DELIMITER, 9);
+  if (!table || table.rows.length !== 1) {
+    return evidenceFailure('The product unsuccessful-search table does not match v1 grammar.');
+  }
+  const row = table.rows[0]!;
+  if (!dateInRange(row[5]!, baseline, evaluationDate)) {
+    return evidenceFailure('Product search date must fall between ticket creation and evaluation.');
+  }
+  if (!hasDecisionPrefix(row[8]!, ['retained:'])) {
+    return evidenceFailure('Product unsuccessful search must retain a decision with rationale.');
+  }
+  return { ok: true, path: 'unsuccessful-search' };
+}
+
 export function evaluateProductInspiration(
   input: ProductInspirationInput,
 ): InspirationEvidenceVerdict {
@@ -314,38 +356,9 @@ export function evaluateProductInspiration(
   if (hasReference === hasSearch) {
     return evidenceFailure('Product Inspiration must contain exactly one resolution path.');
   }
-
-  if (hasReference) {
-    const table = parseExactTable(section, PRODUCT_HEADER, PRODUCT_DELIMITER, 7);
-    if (!table) return evidenceFailure('The product inspiration table does not match v1 grammar.');
-    for (const row of table.rows) {
-      const [reference, checkedOn, , , , , impact] = row;
-      if (!isHttpsUrl(reference!))
-        return evidenceFailure('Product references must be absolute HTTPS URLs.');
-      if (!dateInRange(checkedOn!, baseline, input.evaluationDate)) {
-        return evidenceFailure(
-          'Product evidence dates must fall between ticket creation and evaluation.',
-        );
-      }
-      if (!hasDecisionPrefix(impact!, ['changed:', 'retained:'])) {
-        return evidenceFailure('Product decision impact must begin changed: or retained:.');
-      }
-    }
-    return { ok: true, path: 'reference' };
-  }
-
-  const table = parseExactTable(searchSection!, PRODUCT_SEARCH_HEADER, PRODUCT_SEARCH_DELIMITER, 9);
-  if (!table || table.rows.length !== 1) {
-    return evidenceFailure('The product unsuccessful-search table does not match v1 grammar.');
-  }
-  const row = table.rows[0]!;
-  if (!dateInRange(row[5]!, baseline, input.evaluationDate)) {
-    return evidenceFailure('Product search date must fall between ticket creation and evaluation.');
-  }
-  if (!hasDecisionPrefix(row[8]!, ['retained:'])) {
-    return evidenceFailure('Product unsuccessful search must retain a decision with rationale.');
-  }
-  return { ok: true, path: 'unsuccessful-search' };
+  return hasReference
+    ? validateProductReferences(section, baseline, input.evaluationDate)
+    : validateProductSearch(searchSection!, baseline, input.evaluationDate);
 }
 
 function containsExactReference(cell: string, reference: string): boolean {
@@ -373,6 +386,99 @@ function plannedOnBaseline(planContent: string): string | undefined {
   if (candidate.index <= firstH1 || firstH2 === -1 || candidate.index >= firstH2) return undefined;
   const match = /^\*\*Planned on:\*\* (\d{4}-\d{2}-\d{2})$/.exec(candidate.line);
   return match && isUtcDate(match[1]!) ? match[1] : undefined;
+}
+
+function validateImplementationSearch(
+  searchSection: string,
+  recordedRows: string[][],
+  baseline: string,
+  evaluationDate: string,
+): InspirationEvidenceVerdict {
+  const searchTable = parseExactTable(
+    searchSection,
+    IMPLEMENTATION_SEARCH_HEADER,
+    IMPLEMENTATION_SEARCH_DELIMITER,
+    11,
+  );
+  if (!searchTable || searchTable.rows.length !== 1) {
+    return evidenceFailure(
+      'The implementation unsuccessful-search table does not match v1 grammar.',
+    );
+  }
+  const row = searchTable.rows[0]!;
+  if (!dateInRange(row[7]!, baseline, evaluationDate)) {
+    return evidenceFailure('Implementation search date must fall between planning and evaluation.');
+  }
+  if (!hasDecisionPrefix(row[10]!, ['retained:'])) {
+    return evidenceFailure(
+      'Implementation unsuccessful search must retain a decision with rationale.',
+    );
+  }
+  if (recordedRows.length === 0) {
+    return evidenceFailure(
+      'Implementation unsuccessful search requires at least one valid Recorded Decisions row.',
+    );
+  }
+  if (!recordedRows.some(recordedRow => recordedRow[0] === row[1])) {
+    return evidenceFailure(
+      'Implementation unsuccessful search Decision informed must exactly match a Recorded Decisions Decision cell.',
+    );
+  }
+  return { ok: true, path: 'unsuccessful-search' };
+}
+
+function validateImplementationReferences(
+  section: string,
+  recordedRows: string[][],
+  baseline: string,
+  evaluationDate: string,
+): InspirationEvidenceVerdict {
+  const table = parseExactTable(section, IMPLEMENTATION_HEADER, IMPLEMENTATION_DELIMITER, 7);
+  if (!table)
+    return evidenceFailure('The implementation inspiration table does not match v1 grammar.');
+  for (const row of table.rows) {
+    const [reference, checkedOn, sourceVersion, targetVersion] = row;
+    if (!isHttpsUrl(reference!)) {
+      return evidenceFailure('Implementation references must be absolute HTTPS URLs.');
+    }
+    if (!dateInRange(checkedOn!, baseline, evaluationDate)) {
+      return evidenceFailure(
+        'Implementation evidence dates must fall between planning and evaluation.',
+      );
+    }
+    const versionsMatch =
+      (sourceVersion === 'n/a' && targetVersion === 'n/a') ||
+      (sourceVersion !== 'n/a' && sourceVersion === targetVersion);
+    if (!versionsMatch)
+      return evidenceFailure('Implementation source and target versions must match.');
+  }
+
+  const lines = section.split(/\r?\n/);
+  const impactLines = lines.filter(line => /^\*\*Decision impact:\*\*/.test(line.trim()));
+  if (impactLines.length !== 1) {
+    return evidenceFailure('Implementation evidence requires exactly one decision impact line.');
+  }
+  const nextLine = lines
+    .slice(table.endLine)
+    .find(line => line.trim() !== '')
+    ?.trim();
+  const impact = /^\*\*Decision impact:\*\* ((?:changed:|retained:).+)$/.exec(nextLine ?? '');
+  if (!impact || !hasDecisionPrefix(impact[1]!, ['changed:', 'retained:'])) {
+    return evidenceFailure(
+      'Implementation evidence requires one decision impact immediately after its table.',
+    );
+  }
+
+  const references = table.rows.map(row => row[0]!);
+  const cited = recordedRows.some(row =>
+    references.some(reference => row.some(cell => containsExactReference(cell, reference))),
+  );
+  if (!cited) {
+    return evidenceFailure(
+      'At least one affected Decisions row must cite an Implementation Inspiration reference.',
+    );
+  }
+  return { ok: true, path: 'reference' };
 }
 
 export function evaluateImplementationInspiration(
@@ -410,88 +516,7 @@ export function evaluateImplementationInspiration(
   if (hasReference === hasSearch) {
     return evidenceFailure('Implementation Inspiration must contain exactly one resolution path.');
   }
-
-  if (hasSearch) {
-    const searchTable = parseExactTable(
-      searchSection,
-      IMPLEMENTATION_SEARCH_HEADER,
-      IMPLEMENTATION_SEARCH_DELIMITER,
-      11,
-    );
-    if (!searchTable || searchTable.rows.length !== 1) {
-      return evidenceFailure(
-        'The implementation unsuccessful-search table does not match v1 grammar.',
-      );
-    }
-    const row = searchTable.rows[0]!;
-    if (!dateInRange(row[7]!, baseline, input.evaluationDate)) {
-      return evidenceFailure(
-        'Implementation search date must fall between planning and evaluation.',
-      );
-    }
-    if (!hasDecisionPrefix(row[10]!, ['retained:'])) {
-      return evidenceFailure(
-        'Implementation unsuccessful search must retain a decision with rationale.',
-      );
-    }
-    if (recordedRows.length === 0) {
-      return evidenceFailure(
-        'Implementation unsuccessful search requires at least one valid Recorded Decisions row.',
-      );
-    }
-    if (!recordedRows.some(recordedRow => recordedRow[0] === row[1])) {
-      return evidenceFailure(
-        'Implementation unsuccessful search Decision informed must exactly match a Recorded Decisions Decision cell.',
-      );
-    }
-    return { ok: true, path: 'unsuccessful-search' };
-  }
-
-  const table = parseExactTable(section, IMPLEMENTATION_HEADER, IMPLEMENTATION_DELIMITER, 7);
-  if (!table)
-    return evidenceFailure('The implementation inspiration table does not match v1 grammar.');
-  for (const row of table.rows) {
-    const [reference, checkedOn, sourceVersion, targetVersion] = row;
-    if (!isHttpsUrl(reference!)) {
-      return evidenceFailure('Implementation references must be absolute HTTPS URLs.');
-    }
-    if (!dateInRange(checkedOn!, baseline, input.evaluationDate)) {
-      return evidenceFailure(
-        'Implementation evidence dates must fall between planning and evaluation.',
-      );
-    }
-    const versionsMatch =
-      (sourceVersion === 'n/a' && targetVersion === 'n/a') ||
-      (sourceVersion !== 'n/a' && sourceVersion === targetVersion);
-    if (!versionsMatch)
-      return evidenceFailure('Implementation source and target versions must match.');
-  }
-
-  const lines = section.split(/\r?\n/);
-  const impactLines = lines.filter(line => /^\*\*Decision impact:\*\*/.test(line.trim()));
-  if (impactLines.length !== 1) {
-    return evidenceFailure('Implementation evidence requires exactly one decision impact line.');
-  }
-  const nextLine = lines
-    .slice(table.endLine)
-    .find(line => line.trim() !== '')
-    ?.trim();
-  const impact = /^\*\*Decision impact:\*\* ((?:changed:|retained:).+)$/.exec(nextLine ?? '');
-  if (!impact || !hasDecisionPrefix(impact[1]!, ['changed:', 'retained:'])) {
-    return evidenceFailure(
-      'Implementation evidence requires one decision impact immediately after its table.',
-    );
-  }
-
-  const references = table.rows.map(row => row[0]!);
-  const cited = recordedRows.some(row =>
-    references.some(reference => row.some(cell => containsExactReference(cell, reference))),
-  );
-  if (!cited) {
-    return evidenceFailure(
-      'At least one affected Decisions row must cite an Implementation Inspiration reference.',
-    );
-  }
-
-  return { ok: true, path: 'reference' };
+  return hasSearch
+    ? validateImplementationSearch(searchSection, recordedRows, baseline, input.evaluationDate)
+    : validateImplementationReferences(section, recordedRows, baseline, input.evaluationDate);
 }
