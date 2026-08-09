@@ -139,6 +139,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Claude migration ownership is generated from historical release
+          # tags, so the catalogue freshness gate needs the same full history
+          # as the test and release jobs.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -8,7 +9,15 @@ type JsonObject = Record<string, unknown>;
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
-const pluginRoot = nodePath.join(repoRoot, 'plugin');
+// Testability seam: the acceptance lane points this at a deliberately damaged
+// copy of the plugin to prove the contract can actually FAIL. Unset in every
+// real run, so release behaviour is unchanged.
+const pluginRoot = process.env.SAFEWORD_CLAUDE_PLUGIN_ROOT ?? nodePath.join(repoRoot, 'plugin');
+
+execFileSync('bun', ['scripts/generate-claude-historical-catalogue.ts', '--check'], {
+  cwd: packageRoot,
+  stdio: 'inherit',
+});
 
 function readJson(path: string): JsonObject {
   return JSON.parse(readFileSync(path, 'utf8')) as JsonObject;
@@ -46,6 +55,16 @@ for (const asset of assets) {
   }
   if (sha256(nodePath.join(pluginRoot, asset.path)) !== asset.sha256) {
     throw new Error(`Claude plugin packaged runtime asset drifted: ${asset.path}`);
+  }
+}
+const dispatcher = readFileSync(nodePath.join(pluginRoot, 'runtime/dispatch.js'), 'utf8');
+for (const proof of [
+  'migrateClaudeLegacyAutomatically',
+  'claimClaudeMigrationAttempt',
+  'plugin-mode-v2.json',
+]) {
+  if (!dispatcher.includes(proof)) {
+    throw new Error(`Claude plugin dispatcher is missing automatic migration wiring: ${proof}`);
   }
 }
 const documentation = [

@@ -151,6 +151,24 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
   };
 }
 
+function stableMachineResult(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(item => stableMachineResult(item));
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => {
+      if (key !== 'recorded_at') return [key, stableMachineResult(child)];
+      // The observation schema declares `recorded_at: string | null`, and a
+      // missing hook proof legitimately reports null. Only a present value has
+      // to be a parseable timestamp.
+      // eslint-disable-next-line unicorn/no-null -- null is the schema's own absent-observation value
+      if (child === null) return [key, null];
+      assert.equal(typeof child, 'string');
+      assert.ok(!Number.isNaN(Date.parse(child)));
+      return [key, '<valid-observation-time>'];
+    }),
+  );
+}
+
 function setupProject(world: PredictableCliWorld): void {
   const directory = temporaryProject(world);
   runCli(
@@ -681,7 +699,10 @@ Then(
       const second = assertPresent(secondRuns[index]);
       assert.equal(first.stderr, '');
       assert.equal(second.stderr, '');
-      assert.deepEqual(JSON.parse(first.stdout), JSON.parse(second.stdout));
+      assert.deepEqual(
+        stableMachineResult(JSON.parse(first.stdout)),
+        stableMachineResult(JSON.parse(second.stdout)),
+      );
       assert.equal(first.exitCode, second.exitCode);
     }
   },

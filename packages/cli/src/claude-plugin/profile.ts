@@ -4,11 +4,21 @@ import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'nod
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
+import { parse, type ParseError } from 'jsonc-parser';
+
 import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
-import { CLAUDE_PLUGIN_ID } from './inventory.js';
+import {
+  CLAUDE_NATIVE_METADATA_FILES,
+  CLAUDE_NATIVE_REQUIRED_ASSETS,
+  CLAUDE_PLUGIN_ID,
+  claudeNativePayloadFiles,
+} from './inventory.js';
+import { canonicalClaudeProjectRoot } from './project-root.js';
+
+export { canonicalClaudeProjectRoot } from './project-root.js';
 
 const MINIMUM_CLAUDE_VERSION = [2, 1, 170] as const;
 const MARKETPLACE_NAME = 'safeword';
@@ -55,6 +65,13 @@ class ClaudeProfileError extends Error {
 
 function runClaude(cwd: string, arguments_: readonly string[], effects: readonly Effect[]): string {
   const result = spawnSync('claude', arguments_, { cwd, encoding: 'utf8' });
+  if (result.error !== undefined) {
+    throw new ClaudeProfileError(
+      'CLAUDE_HOST_UNAVAILABLE',
+      `Claude Code could not be started: ${result.error.message}`,
+      effects,
+    );
+  }
   if (result.status !== 0) {
     const detail = `${result.stderr ?? ''}${result.stdout ?? ''}`.trim();
     const detailSuffix = detail === '' ? '' : ` (${detail})`;
@@ -128,27 +145,6 @@ function canonicalDirectory(path: unknown): string | undefined {
   }
 }
 
-export function canonicalClaudeProjectRoot(cwd: string): string {
-  const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
-  const environmentRoot = configuredRoot === undefined ? undefined : configuredRoot.trim();
-  let candidate = environmentRoot === '' ? undefined : environmentRoot;
-  if (candidate === undefined) {
-    const result = spawnSync('git', ['-C', cwd, 'rev-parse', '--show-toplevel'], {
-      encoding: 'utf8',
-    });
-    const gitRoot = result.status === 0 ? result.stdout?.trim() : undefined;
-    candidate = gitRoot === '' || gitRoot === undefined ? cwd : gitRoot;
-  }
-  const canonical = canonicalDirectory(candidate);
-  if (canonical === undefined) {
-    throw new ClaudeProfileError(
-      'CLAUDE_PROJECT_IDENTITY_INVALID',
-      `Claude project root is missing, not a directory, or cannot be resolved: ${candidate}`,
-    );
-  }
-  return canonical;
-}
-
 function scopedSettingsPath(cwd: string, scope: ClaudePluginScope): string {
   return scope === 'project'
     ? nodePath.join(cwd, '.claude/settings.json')
@@ -168,7 +164,9 @@ function readScopedSettings(cwd: string, scope: ClaudePluginScope): JsonObject |
   if (!existsSync(path)) return undefined;
   let settings: unknown;
   try {
-    settings = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    const errors: ParseError[] = [];
+    settings = parse(readFileSync(path, 'utf8'), errors) as unknown;
+    if (errors.length > 0) throw new SyntaxError(`parse error at offset ${errors[0]?.offset ?? 0}`);
   } catch (error) {
     invalidScopeSettings(
       scope,
@@ -389,6 +387,31 @@ function applicableSafewordPlugins(entries: readonly JsonObject[], cwd: string):
   );
 }
 
+const DIAGNOSTIC_FAILURES: Readonly<
+  Record<string, { classification: string; nextAction: string }>
+> = {
+  CLAUDE_MARKETPLACE_UNVERIFIED: {
+    classification: 'marketplace-unverified',
+    nextAction: 'claude plugin marketplace list --json',
+  },
+  CLAUDE_PLUGIN_METADATA_UNVERIFIED: {
+    classification: 'unverified-metadata',
+    nextAction: 'claude plugin list --json',
+  },
+  CLAUDE_PLUGIN_DOWNGRADE_REFUSED: {
+    classification: 'downgrade-refused',
+    nextAction: 'claude plugin list --json',
+  },
+  CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED: {
+    classification: 'postcondition-verification-failed',
+    nextAction: 'claude plugin list --json',
+  },
+  CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED: {
+    classification: 'payload-unverified',
+    nextAction: 'safeword claude status',
+  },
+};
+
 function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
   let failure: ClaudeProfileError;
   if (error instanceof ClaudeProfileError) failure = error;
@@ -399,10 +422,22 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
   let classification = 'errored';
   let nextAction = 'safeword install --agents=claude';
   let nextActionMutates = true;
+  const diagnostic = DIAGNOSTIC_FAILURES[failure.code];
+  if (diagnostic !== undefined) {
+    classification = diagnostic.classification;
+    nextAction = diagnostic.nextAction;
+    nextActionMutates = false;
+  }
   switch (failure.code) {
     case 'CLAUDE_VERSION_UNSUPPORTED': {
       classification = 'unsupported-host';
       nextAction = 'claude update';
+      break;
+    }
+    case 'CLAUDE_HOST_UNAVAILABLE': {
+      classification = 'host-unavailable';
+      nextAction = 'claude --version';
+      nextActionMutates = false;
       break;
     }
     case 'CLAUDE_MARKETPLACE_CONFLICT': {
@@ -413,24 +448,6 @@ function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
     case 'CLAUDE_AUTO_UPDATE_DISABLED': {
       classification = 'auto-update-disabled';
       nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
-      break;
-    }
-    case 'CLAUDE_PLUGIN_METADATA_UNVERIFIED': {
-      classification = 'unverified-metadata';
-      nextAction = 'claude plugin list --json';
-      nextActionMutates = false;
-      break;
-    }
-    case 'CLAUDE_PLUGIN_DOWNGRADE_REFUSED': {
-      classification = 'downgrade-refused';
-      nextAction = 'claude plugin list --json';
-      nextActionMutates = false;
-      break;
-    }
-    case 'CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED': {
-      classification = 'postcondition-verification-failed';
-      nextAction = 'claude plugin list --json';
-      nextActionMutates = false;
       break;
     }
   }
@@ -550,7 +567,11 @@ function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]
     if (plugin.version !== SAFEWORD_SCHEMA.version) {
       runClaude(cwd, ['plugin', 'update', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
       effects.push({ kind: 'update', target: CLAUDE_PLUGIN_ID, operation: scope });
-    } else if (plugin.enabled !== true) {
+    }
+    // Independent conditions on purpose: a plugin that is BOTH outdated and
+    // disabled needs updating AND re-enabling. Chaining these with `else`
+    // updates it and leaves it disabled.
+    if (plugin.enabled !== true) {
       runClaude(cwd, ['plugin', 'enable', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
       effects.push({ kind: 'enable', target: CLAUDE_PLUGIN_ID, operation: scope });
     }
@@ -565,7 +586,7 @@ function assertInstalledAsset(installPath: string, asset: JsonObject): void {
   if (
     typeof asset.path !== 'string' ||
     nodePath.isAbsolute(asset.path) ||
-    asset.path.split(nodePath.sep).includes('..') ||
+    asset.path.split(/[\\/]/u).includes('..') ||
     typeof asset.sha256 !== 'string'
   ) {
     throw new TypeError('installed inventory contains an unsafe asset');
@@ -594,12 +615,7 @@ function assertInstalledIdentity(
 
 function assertRequiredNativeAssets(assets: readonly JsonObject[]): void {
   const paths = new Set(assets.map(asset => asset.path));
-  for (const required of [
-    'hooks/hooks.json',
-    'runtime/cli.js',
-    'runtime/dispatch.ts',
-    'runtime/event-groups.json',
-  ]) {
+  for (const required of CLAUDE_NATIVE_REQUIRED_ASSETS) {
     if (!paths.has(required)) throw new TypeError(`installed native asset is missing: ${required}`);
   }
 }
@@ -616,6 +632,16 @@ function validateNativePayload(plugin: JsonObject): void {
   assertInstalledIdentity(identity, inventory, inventoryContent);
   assertRequiredNativeAssets(inventory.assets);
   for (const asset of inventory.assets) assertInstalledAsset(plugin.installPath, asset);
+  const expectedPaths = new Set([
+    ...inventory.assets.map(asset => asset.path as string),
+    ...CLAUDE_NATIVE_METADATA_FILES,
+  ]);
+  const unexpectedPath = claudeNativePayloadFiles(plugin.installPath).find(
+    path => !expectedPaths.has(path),
+  );
+  if (unexpectedPath !== undefined) {
+    throw new TypeError(`installed native payload contains an unlisted asset: ${unexpectedPath}`);
+  }
   const hookManifest = nodePath.join(plugin.installPath, 'hooks/hooks.json');
   if (identity.hook_manifest_sha256 !== fileSha256(hookManifest)) {
     throw new TypeError('installed hook manifest does not match its identity');
@@ -643,9 +669,7 @@ export function observeApplicableClaudePlugins(cwd: string): ClaudeApplicablePlu
       status: 'unsupported-host',
       installations: [],
       message,
-      nextAction: message.startsWith('Could not parse')
-        ? 'reinstall Claude Code'
-        : 'update Claude Code',
+      nextAction: unsupportedHostNextAction(error, message),
     };
   }
 
@@ -686,6 +710,13 @@ function observeInstalledPlugin(plugin: JsonObject | undefined): ClaudeProfileOb
     };
   }
   return { health: 'current', plugin };
+}
+
+function unsupportedHostNextAction(error: unknown, message: string): string {
+  if (error instanceof ClaudeProfileError && error.code === 'CLAUDE_HOST_UNAVAILABLE') {
+    return 'install Claude Code';
+  }
+  return message.startsWith('Could not parse') ? 'reinstall Claude Code' : 'update Claude Code';
 }
 
 function assertNativePayload(plugin: JsonObject, effects: readonly Effect[]): void {
@@ -789,7 +820,13 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
       changed: effects.length > 0,
       effects: {
         configuration: effects,
-        network: effects.map(effect => ({ ...effect, target: 'Claude plugin marketplace' })),
+        network: effects
+          .filter(
+            effect =>
+              (effect.target === MARKETPLACE_NAME && ['add', 'update'].includes(effect.kind)) ||
+              (effect.target === CLAUDE_PLUGIN_ID && ['install', 'update'].includes(effect.kind)),
+          )
+          .map(effect => ({ ...effect, target: 'Claude plugin marketplace' })),
       },
       nextActions:
         effects.length === 0
