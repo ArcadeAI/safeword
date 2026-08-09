@@ -279,4 +279,246 @@ describe('CLI result protocol', () => {
       stderr: '',
     });
   });
+
+  it.each([
+    {
+      name: 'approved standard',
+      state: 'healthy',
+      status: 'approved',
+      independence: 'degraded',
+      reviewer: 'codex',
+      verdict: 'approve',
+      policy: undefined,
+      line: 'Review complete — standard coverage.',
+    },
+    {
+      name: 'changes-requested standard',
+      state: 'action_required',
+      status: 'changes_requested',
+      independence: 'degraded',
+      reviewer: 'codex',
+      verdict: 'request_changes',
+      policy: undefined,
+      line: 'Review changes requested — standard coverage.',
+    },
+    {
+      name: 'approved independent',
+      state: 'healthy',
+      status: 'approved',
+      independence: 'cross-agent',
+      reviewer: 'claude',
+      verdict: 'approve',
+      policy: undefined,
+      line: 'Review complete — independent coverage.',
+    },
+    {
+      name: 'required standard',
+      state: 'action_required',
+      status: 'blocked',
+      independence: 'degraded',
+      reviewer: 'codex',
+      verdict: 'approve',
+      policy: 'require',
+      line: 'Review blocked — standard coverage achieved; required independent coverage is unsatisfied.',
+    },
+    {
+      name: 'incomplete',
+      state: 'action_required',
+      status: 'blocked',
+      independence: 'none',
+      reviewer: undefined,
+      verdict: undefined,
+      policy: 'prefer',
+      line: 'Review incomplete.',
+    },
+  ] as const)(
+    'renders coverage first for $name without rewriting provenance',
+    ({ state, status, independence, reviewer, verdict, policy, line }) => {
+      const data = {
+        command: 'review run',
+        status,
+        author_agent: 'codex',
+        assigned_reviewer: 'claude',
+        ...(reviewer !== undefined && { actual_reviewer: reviewer }),
+        independence,
+        ...(policy !== undefined && { review_policy: policy }),
+        ...(verdict !== undefined && {
+          reviewer_output: { verdict, reviewer_agent: reviewer, summary: 'Review summary.' },
+        }),
+      };
+      const result = createResult({
+        state,
+        findings: [
+          {
+            code: 'REVIEW_INDEPENDENCE_DEGRADED',
+            message: 'This review was not independent.',
+            severity: 'warning',
+          },
+        ],
+        data,
+      });
+
+      expect(renderHumanResult(result).split('\n', 1)[0]).toBe(line);
+      expect(renderHumanResult(result)).not.toContain('not independent');
+      expect(result.data).toEqual(data);
+    },
+  );
+
+  it.each([undefined, 'prefer'])(
+    'does not invent a required-independence block for policy %s',
+    policy => {
+      const result = createResult({
+        state: 'action_required',
+        data: {
+          command: 'review run',
+          status: 'blocked',
+          author_agent: 'codex',
+          actual_reviewer: 'codex',
+          independence: 'degraded',
+          ...(policy !== undefined && { review_policy: policy }),
+          reviewer_output: {
+            verdict: 'approve',
+            reviewer_agent: 'codex',
+            summary: 'Checked.',
+            findings: [],
+          },
+        },
+      });
+
+      expect(renderHumanResult(result).split('\n', 1)[0]).toBe('Review incomplete.');
+    },
+  );
+
+  it.each([
+    ['missing reviewer output', undefined],
+    ['malformed reviewer output', { verdict: 'looks_good', reviewer_agent: 'codex' }],
+  ])('does not present completion for %s', (_label, reviewerOutput) => {
+    const result = createResult({
+      state: 'healthy',
+      data: {
+        command: 'review run',
+        status: 'approved',
+        author_agent: 'codex',
+        actual_reviewer: 'codex',
+        independence: 'degraded',
+        ...(reviewerOutput !== undefined && { reviewer_output: reviewerOutput }),
+      },
+    });
+
+    expect(renderHumanResult(result)).toBe('Review incomplete.');
+  });
+
+  it.each([
+    ['missing output reviewer', undefined],
+    ['mismatched output reviewer', 'claude'],
+  ])('does not present completion for %s', (_label, reviewerAgent) => {
+    const result = createResult({
+      state: 'healthy',
+      data: {
+        command: 'review run',
+        status: 'approved',
+        author_agent: 'codex',
+        actual_reviewer: 'codex',
+        independence: 'degraded',
+        reviewer_output: {
+          verdict: 'approve',
+          ...(reviewerAgent !== undefined && { reviewer_agent: reviewerAgent }),
+        },
+      },
+    });
+
+    expect(renderHumanResult(result)).toBe('Review incomplete.');
+  });
+
+  it.each([
+    ['approved', 'request_changes'],
+    ['changes_requested', 'approve'],
+  ] as const)('does not present completion for mismatched %s/%s', (status, verdict) => {
+    const result = createResult({
+      state: status === 'approved' ? 'healthy' : 'action_required',
+      data: {
+        command: 'review run',
+        status,
+        author_agent: 'codex',
+        actual_reviewer: 'codex',
+        independence: 'degraded',
+        reviewer_output: {
+          verdict,
+          reviewer_agent: 'codex',
+          summary: 'Checked.',
+          findings: [],
+        },
+      },
+    });
+
+    expect(renderHumanResult(result)).toBe('Review incomplete.');
+  });
+
+  it.each([
+    ['not_installed', 'To add independent coverage, install or update Claude, then retry review.'],
+    ['not_authenticated', 'To add independent coverage, sign in to Claude, then retry review.'],
+    ['timed_out', 'To add independent coverage, retry Claude review.'],
+    ['process_failed', 'To add independent coverage, retry Claude review.'],
+    ['invalid_output', 'To add independent coverage, retry Claude review.'],
+    ['source_changed', 'To add independent coverage, retry Claude review.'],
+  ] as const)('shows one verbose suggestion for %s', (failure, suggestion) => {
+    const result = createResult({
+      state: 'healthy',
+      data: {
+        command: 'review run',
+        status: 'approved',
+        author_agent: 'codex',
+        assigned_reviewer: 'claude',
+        actual_reviewer: 'codex',
+        preferred_failure: failure,
+        independence: 'degraded',
+        reviewer_output: { verdict: 'approve', reviewer_agent: 'codex' },
+      },
+    });
+
+    expect(renderHumanResult(result)).not.toContain('To add independent coverage');
+    expect(renderHumanResult(result, { verbose: true })).toContain(suggestion);
+    expect(result.recovery).toEqual([]);
+  });
+
+  it.each([
+    { author: 'codex', actual: 'claude', assigned: 'claude', failure: 'not_installed' },
+    { author: 'codex', actual: 'codex', assigned: 'codex', failure: 'not_installed' },
+    { author: 'codex', actual: 'codex', assigned: 'claude', failure: 'not_installedX' },
+  ])('does not suggest an upgrade for untrusted tuple %#', tuple => {
+    const result = createResult({
+      state: 'healthy',
+      data: {
+        command: 'review run',
+        status: 'approved',
+        author_agent: tuple.author,
+        assigned_reviewer: tuple.assigned,
+        actual_reviewer: tuple.actual,
+        preferred_failure: tuple.failure,
+        independence: 'degraded',
+        reviewer_output: { verdict: 'approve', reviewer_agent: tuple.actual },
+      },
+    });
+
+    expect(renderHumanResult(result, { verbose: true })).not.toContain(
+      'To add independent coverage',
+    );
+  });
+
+  it('does not suggest an upgrade when approved provenance lacks validated reviewer output', () => {
+    const result = createResult({
+      state: 'healthy',
+      data: {
+        command: 'review run',
+        status: 'approved',
+        author_agent: 'codex',
+        assigned_reviewer: 'claude',
+        actual_reviewer: 'codex',
+        preferred_failure: 'not_installed',
+        independence: 'degraded',
+      },
+    });
+
+    expect(renderHumanResult(result, { verbose: true })).toBe('Review incomplete.');
+  });
 });

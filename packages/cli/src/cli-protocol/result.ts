@@ -1,3 +1,5 @@
+import { reviewResultLines } from './review-presentation.js';
+
 type ResultState = 'healthy' | 'changed' | 'action_required' | 'failed';
 
 export interface Finding {
@@ -358,37 +360,6 @@ function doctorDiagnosticLines(data: unknown): string[] {
   ];
 }
 
-/**
- * The review's own primary finding or error already carries the complete,
- * cause-specific explanation — coordinator.ts builds it once, per failure
- * class. Reusing it here (instead of re-deriving a second copy from raw
- * `data` fields) is what keeps this line from silently drifting back to a
- * generic sentence whenever a coordinator branch adds detail the other copy
- * doesn't know about — exactly what happened here once already.
- */
-function reviewIndependenceLine(
-  data: unknown,
-  primaryMessage: string | undefined,
-): string | undefined {
-  if (!isRecord(data) || data.command !== 'review run') return undefined;
-  if (primaryMessage !== undefined) return primaryMessage;
-  const reviewer =
-    typeof data.actual_reviewer === 'string'
-      ? `${data.actual_reviewer.charAt(0).toUpperCase()}${data.actual_reviewer.slice(1)}`
-      : 'another agent';
-  if (data.independence === 'cross-agent')
-    return `A different agent (${reviewer}) checked the work in a separate headless process.`;
-  if (data.independence === 'degraded')
-    return `This review was not independent: the same agent (${reviewer}) checked its own work in a separate headless process.`;
-  if (data.cross_agent_review === 'not_requested')
-    return 'An independent agent check was not requested.';
-  return 'The independent check did not run.';
-}
-
-function optionalLine(value: string | undefined): readonly string[] {
-  return value === undefined ? [] : [value];
-}
-
 const EFFECT_LABELS: Readonly<Record<string, string>> = {
   create: 'Created',
   update: 'Updated',
@@ -431,16 +402,11 @@ export interface HumanResultStreams {
 }
 
 function resultBodyLines(result: CliResult, options: { verbose?: boolean }): string[] {
-  // Whatever would print first in `messages` below is also the right primary
-  // line — findings take precedence over errors, matching uniqueMessages.
-  const primaryMessage = result.findings[0]?.message ?? result.errors[0]?.message;
-  const independenceLine = reviewIndependenceLine(result.data, primaryMessage);
+  const reviewLines = reviewResultLines(result, options);
+  if (reviewLines !== undefined) return reviewLines;
   const diagnosticCauses = doctorDiagnosticCauses(result.data);
-  const messages = uniqueMessages(result).filter(
-    message => message !== independenceLine && !diagnosticCauses.has(message),
-  );
+  const messages = uniqueMessages(result).filter(message => !diagnosticCauses.has(message));
   const lines = [
-    ...optionalLine(independenceLine),
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
     ...installSurfaceLines(result.data),

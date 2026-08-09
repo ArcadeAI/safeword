@@ -1821,11 +1821,11 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/finish-review/REVIEWER.md':
         '1fdbcc909088278f39f69bb77efe49cf422333210e5b393f3a2a247e898e7efa',
       '.claude/skills/finish-review/SKILL.md':
-        'b6be07deb9c444a9956a0fc1ac863d83727869c4377ca7a569ac43e480ed6618',
+        '09945ab0feae863101a31794a669b8d82fb8b08dafcd3cd990630a7916759768',
       '.claude/skills/lint/SKILL.md':
         '208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66',
       '.claude/skills/quality-review/SKILL.md':
-        'a8fdfedf58abbb5bb1ecb63fd0a722bdcdf7b82d3b896cfc63221f671fa4657b',
+        'c26985e7100390b7d79c569f71e15cf8223972dfac41b4527ccce0afccdebdec',
       '.claude/skills/refactor/SKILL.md':
         'ecfd1b594e9a4c18387e6b9bc84a5bd1ded6b0b3df40a69271ba779ce2b7f122',
       '.claude/skills/retro-filer/SKILL.md':

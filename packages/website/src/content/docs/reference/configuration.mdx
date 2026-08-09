@@ -143,7 +143,7 @@ Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 }
 ```
 
-- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer fails, Safe Word can retry that independent agent on its configured alternate model before running a visibly `degraded` same-agent headless fallback. If every CLI route fails, a foreground agent may add best-effort host-native or self-review findings; their actual verdict is preserved.
+- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer fails, Safe Word can retry that independent agent on its configured alternate model before running a same-agent headless fallback. A completed same-agent result is presented as standard coverage; requested details can suggest how to add independent coverage. If every CLI route fails, a foreground agent may add supplemental host-native or self-review findings; their actual verdict is preserved.
 - `require` — only an opposite-agent result satisfies the gate. A completed same-agent headless review returns the existing independence-required failure. If every CLI route fails, a foreground agent may still report useful host-native or self-review findings, but the result remains action required, recommends restoring an independent reviewer or explicitly choosing `prefer`, and never writes independent evidence.
 - `off` — retain the existing review route and do not create cross-agent evidence.
 
@@ -151,7 +151,7 @@ Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 
 Each review attempt defaults to five minutes, with reviewer work across all routes bounded to nine minutes. Packet preparation happens before that shared reviewer-work deadline; final synchronous integrity checks and bounded process cleanup may finish after it. `SAFEWORD_REVIEW_TIMEOUT_MS` and `SAFEWORD_REVIEW_RUN_BOUND_MS` accept positive millisecond values when a caller needs shorter limits; neither can raise the nine-minute reviewer-work ceiling.
 
-Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs to keep the default route fully independent. Review results report the author, assigned and actual reviewer, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy. Safe Word records the configured alternate model only when that route actually runs and never invents a default model name.
+Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs when you want independent coverage. Human output calls a validated same-agent result standard coverage and a validated opposite-agent result independent coverage; machine results retain the author, assigned and actual reviewer, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy. Safe Word records the configured alternate model only when that route actually runs and never invents a default model name.
 
 ### Advisory pull request review
 

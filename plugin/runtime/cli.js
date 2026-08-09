@@ -128,6 +128,131 @@ var init_migration_error = __esm(() => {
   };
 });
 
+// src/cli-protocol/review-presentation.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function reviewCoverage(data) {
+  const author = data.author_agent;
+  const reviewer = data.actual_reviewer;
+  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string") {
+    return "incomplete";
+  }
+  if (data.independence === "degraded" && reviewer === author)
+    return "standard";
+  if (data.independence === "cross-agent" && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
+    return "independent";
+  }
+  return "incomplete";
+}
+function reviewVerdict(data) {
+  const output = data.reviewer_output;
+  if (!isRecord(output))
+    return;
+  if (typeof output.reviewer_agent !== "string" || !REVIEW_AUTHORS.has(output.reviewer_agent) || output.reviewer_agent !== data.actual_reviewer) {
+    return;
+  }
+  return output.verdict === "approve" || output.verdict === "request_changes" ? output.verdict : undefined;
+}
+function reviewVerdictMatchesStatus(status, verdict) {
+  if (status === "approved")
+    return verdict === "approve";
+  if (status === "changes_requested")
+    return verdict === "request_changes";
+  return status === "blocked" && verdict !== undefined;
+}
+function reviewPolicyMatchesStatus(data) {
+  if (data.status === "blocked") {
+    return data.review_policy === "prefer" || data.review_policy === "require";
+  }
+  return (data.status === "approved" || data.status === "changes_requested") && data.review_policy === undefined;
+}
+function reviewStateMatchesStatus(state, status) {
+  if (status === "approved")
+    return state === "healthy";
+  return (status === "changes_requested" || status === "blocked") && state === "action_required";
+}
+function isConsistentReviewResult(data, state, verdict) {
+  return reviewStateMatchesStatus(state, data.status) && reviewPolicyMatchesStatus(data) && reviewVerdictMatchesStatus(data.status, verdict);
+}
+function incompleteCoverageLine(data) {
+  return data.status === "blocked" && data.review_policy === "require" ? "Review incomplete \u2014 required independent coverage is unsatisfied." : "Review incomplete.";
+}
+function blockedReviewCoverageLine(data, coverage, verdict) {
+  if (coverage === "standard" && data.review_policy === "require") {
+    return verdict === "request_changes" ? "Review blocked \u2014 changes requested with standard coverage; required independent coverage is unsatisfied." : "Review blocked \u2014 standard coverage achieved; required independent coverage is unsatisfied.";
+  }
+  return incompleteCoverageLine(data);
+}
+function reviewCoverageLine(data, state) {
+  const coverage = reviewCoverage(data);
+  const status = data.status;
+  const verdict = reviewVerdict(data);
+  if (!reviewStateMatchesStatus(state, status))
+    return incompleteCoverageLine(data);
+  if (!reviewPolicyMatchesStatus(data))
+    return "Review incomplete.";
+  if (!reviewVerdictMatchesStatus(status, verdict))
+    return incompleteCoverageLine(data);
+  if (status === "blocked" && verdict !== undefined) {
+    return blockedReviewCoverageLine(data, coverage, verdict);
+  }
+  if (coverage === "incomplete")
+    return "Review incomplete.";
+  if (verdict === "request_changes")
+    return `Review changes requested \u2014 ${coverage} coverage.`;
+  return `Review complete \u2014 ${coverage} coverage.`;
+}
+function isCompletedStandardReview(data, state) {
+  const verdict = reviewVerdict(data);
+  return data.status === "approved" && isConsistentReviewResult(data, state, verdict) && reviewCoverage(data) === "standard";
+}
+function reviewUpgradeSuggestion(data, state) {
+  if (!isCompletedStandardReview(data, state))
+    return;
+  const author = data.author_agent;
+  const reviewer = data.assigned_reviewer;
+  if (typeof author !== "string" || typeof reviewer !== "string" || !REVIEW_AGENTS.has(reviewer) || reviewer === author) {
+    return;
+  }
+  const label = `${reviewer.charAt(0).toUpperCase()}${reviewer.slice(1)}`;
+  if (data.preferred_failure === "not_installed") {
+    return `To add independent coverage, install or update ${label}, then retry review.`;
+  }
+  if (data.preferred_failure === "not_authenticated") {
+    return `To add independent coverage, sign in to ${label}, then retry review.`;
+  }
+  if (RETRYABLE_REVIEW_FAILURES.has(String(data.preferred_failure))) {
+    return `To add independent coverage, retry ${label} review.`;
+  }
+  return;
+}
+function reviewResultLines(result, options) {
+  if (!isRecord(result.data) || result.data.command !== "review run")
+    return;
+  const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
+  messages.push(...result.errors.map((error) => error.message));
+  const lines = [reviewCoverageLine(result.data, result.state), ...new Set(messages)];
+  if (options.verbose === true) {
+    const suggestion = reviewUpgradeSuggestion(result.data, result.state);
+    if (suggestion !== undefined)
+      lines.push(suggestion);
+  }
+  return lines;
+}
+var REVIEW_AGENTS, REVIEW_AUTHORS, REPLACED_REVIEW_FINDINGS, RETRYABLE_REVIEW_FAILURES;
+var init_review_presentation = __esm(() => {
+  REVIEW_AGENTS = new Set(["claude", "codex"]);
+  REVIEW_AUTHORS = new Set(["claude", "codex", "cursor"]);
+  REPLACED_REVIEW_FINDINGS = new Set(["REVIEW_INDEPENDENCE", "REVIEW_INDEPENDENCE_DEGRADED"]);
+  RETRYABLE_REVIEW_FAILURES = new Set([
+    "timed_out",
+    "process_failed",
+    "invalid_output",
+    "source_changed"
+  ]);
+});
+
 // src/cli-protocol/result.ts
 function combineEffects(groups) {
   return {
@@ -247,35 +372,35 @@ function uniqueMessages(result) {
 function suppressHumanOutput(result, options) {
   return options.quiet === true && result.state === "healthy";
 }
-function isRecord(value) {
+function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function effectLines(category, effects) {
   if (!Array.isArray(effects))
     return [];
-  return effects.flatMap((effect) => isRecord(effect) && typeof effect.kind === "string" && typeof effect.target === "string" ? [`${category}: ${effect.kind} ${effect.target}`] : []);
+  return effects.flatMap((effect) => isRecord2(effect) && typeof effect.kind === "string" && typeof effect.target === "string" ? [`${category}: ${effect.kind} ${effect.target}`] : []);
 }
 function nextActionLabel(action) {
   return "command" in action ? action.command : action.instruction;
 }
 function plannedEffectLines(data) {
-  if (!isRecord(data))
+  if (!isRecord2(data))
     return [];
   const plan = data.plan;
-  if (!isRecord(plan))
+  if (!isRecord2(plan))
     return [];
   const effects = plan.effects;
-  if (!isRecord(effects))
+  if (!isRecord2(effects))
     return [];
   const categories = ["files", "packages", "configuration", "network", "destructive"];
   const lines = categories.flatMap((category) => effectLines(category, effects[category]));
   return lines.length === 0 ? [] : ["Planned effects:", ...lines];
 }
 function labelledSurfaces(data, command) {
-  if (!isRecord(data) || data.command !== command || !Array.isArray(data.surfaces))
+  if (!isRecord2(data) || data.command !== command || !Array.isArray(data.surfaces))
     return [];
   return data.surfaces.flatMap((surface) => {
-    if (!isRecord(surface) || typeof surface.name !== "string")
+    if (!isRecord2(surface) || typeof surface.name !== "string")
       return [];
     const label = SURFACE_LABELS[surface.name];
     return label === undefined ? [] : [{ label, surface }];
@@ -297,25 +422,25 @@ function installActivationLines(data) {
   });
 }
 function doctorDiagnosticCauses(data) {
-  if (!isRecord(data) || data.command !== "doctor" || !Array.isArray(data.diagnostics)) {
+  if (!isRecord2(data) || data.command !== "doctor" || !Array.isArray(data.diagnostics)) {
     return new Set;
   }
-  return new Set(data.diagnostics.flatMap((diagnostic) => isRecord(diagnostic) && typeof diagnostic.cause === "string" ? [diagnostic.cause] : []));
+  return new Set(data.diagnostics.flatMap((diagnostic) => isRecord2(diagnostic) && typeof diagnostic.cause === "string" ? [diagnostic.cause] : []));
 }
 function doctorDiagnosticLines(data) {
-  if (!isRecord(data) || data.command !== "doctor" || !Array.isArray(data.coverage))
+  if (!isRecord2(data) || data.command !== "doctor" || !Array.isArray(data.coverage))
     return [];
   const coverage = data.coverage.flatMap((item) => {
-    if (!isRecord(item) || typeof item.surface !== "string")
+    if (!isRecord2(item) || typeof item.surface !== "string")
       return [];
     const label = SURFACE_LABELS[item.surface] ?? item.surface;
     const outcome = typeof item.state === "string" ? SURFACE_OUTCOMES[item.state] : undefined;
-    const evidence = isRecord(item.evidence) ? Object.entries(item.evidence).filter((entry) => ["string", "number", "boolean"].includes(typeof entry[1])).map(([key, value]) => `${key.replaceAll("_", " ")}=${String(value)}`) : [];
+    const evidence = isRecord2(item.evidence) ? Object.entries(item.evidence).filter((entry) => ["string", "number", "boolean"].includes(typeof entry[1])).map(([key, value]) => `${key.replaceAll("_", " ")}=${String(value)}`) : [];
     const evidenceSuffix = evidence.length === 0 ? "" : ` (${evidence.join(", ")})`;
     return [`- ${label}: ${outcome ?? "unknown"}${evidenceSuffix}`];
   });
   const diagnostics = Array.isArray(data.diagnostics) ? data.diagnostics.flatMap((item) => {
-    if (!isRecord(item) || typeof item.surface !== "string" || typeof item.code !== "string" || typeof item.cause !== "string") {
+    if (!isRecord2(item) || typeof item.surface !== "string" || typeof item.code !== "string" || typeof item.cause !== "string") {
       return [];
     }
     const label = SURFACE_LABELS[item.surface] ?? item.surface;
@@ -325,23 +450,6 @@ function doctorDiagnosticLines(data) {
     ...coverage.length === 0 ? [] : ["Diagnostic coverage:", ...coverage],
     ...diagnostics.length === 0 ? [] : ["Causes:", ...diagnostics]
   ];
-}
-function reviewIndependenceLine(data, primaryMessage) {
-  if (!isRecord(data) || data.command !== "review run")
-    return;
-  if (primaryMessage !== undefined)
-    return primaryMessage;
-  const reviewer = typeof data.actual_reviewer === "string" ? `${data.actual_reviewer.charAt(0).toUpperCase()}${data.actual_reviewer.slice(1)}` : "another agent";
-  if (data.independence === "cross-agent")
-    return `A different agent (${reviewer}) checked the work in a separate headless process.`;
-  if (data.independence === "degraded")
-    return `This review was not independent: the same agent (${reviewer}) checked its own work in a separate headless process.`;
-  if (data.cross_agent_review === "not_requested")
-    return "An independent agent check was not requested.";
-  return "The independent check did not run.";
-}
-function optionalLine(value) {
-  return value === undefined ? [] : [value];
 }
 function completedEffectLines(result) {
   const visibleCategories = [
@@ -355,12 +463,12 @@ function completedEffectLines(result) {
   return lines;
 }
 function resultBodyLines(result, options) {
-  const primaryMessage = result.findings[0]?.message ?? result.errors[0]?.message;
-  const independenceLine = reviewIndependenceLine(result.data, primaryMessage);
+  const reviewLines = reviewResultLines(result, options);
+  if (reviewLines !== undefined)
+    return reviewLines;
   const diagnosticCauses = doctorDiagnosticCauses(result.data);
-  const messages = uniqueMessages(result).filter((message) => message !== independenceLine && !diagnosticCauses.has(message));
+  const messages = uniqueMessages(result).filter((message) => !diagnosticCauses.has(message));
   const lines = [
-    ...optionalLine(independenceLine),
     VERDICTS[result.state],
     `Changed: ${result.changed ? "yes" : "no"}`,
     ...installSurfaceLines(result.data),
@@ -398,6 +506,7 @@ function renderHumanStreams(result, options = {}) {
 }
 var EMPTY_EFFECTS, VERDICTS, SURFACE_LABELS, SURFACE_OUTCOMES, EFFECT_LABELS;
 var init_result = __esm(() => {
+  init_review_presentation();
   EMPTY_EFFECTS = {
     files: [],
     packages: [],
@@ -4067,9 +4176,9 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/explain/SKILL.md": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d",
         ".claude/skills/figure-it-out/SKILL.md": "4552275007b0161037a1791233722a89dac16f963f55aab80fc7a9b6b37f67d4",
         ".claude/skills/finish-review/REVIEWER.md": "1fdbcc909088278f39f69bb77efe49cf422333210e5b393f3a2a247e898e7efa",
-        ".claude/skills/finish-review/SKILL.md": "b6be07deb9c444a9956a0fc1ac863d83727869c4377ca7a569ac43e480ed6618",
+        ".claude/skills/finish-review/SKILL.md": "09945ab0feae863101a31794a669b8d82fb8b08dafcd3cd990630a7916759768",
         ".claude/skills/lint/SKILL.md": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66",
-        ".claude/skills/quality-review/SKILL.md": "a8fdfedf58abbb5bb1ecb63fd0a722bdcdf7b82d3b896cfc63221f671fa4657b",
+        ".claude/skills/quality-review/SKILL.md": "c26985e7100390b7d79c569f71e15cf8223972dfac41b4527ccce0afccdebdec",
         ".claude/skills/refactor/SKILL.md": "ecfd1b594e9a4c18387e6b9bc84a5bd1ded6b0b3df40a69271ba779ce2b7f122",
         ".claude/skills/retro-filer/SKILL.md": "8e92f1a7579ba1dd70ced8e9815be0eeed3bc09d43c310a5646ff93c428412ff",
         ".claude/skills/retro/SKILL.md": "8e7b5912810c1e0fe596ff2367b5bc7d3890bd86db5719f49e3c0227b0fdd44a",
@@ -40319,7 +40428,7 @@ function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
 function attemptDeadlineMs() {
   return reviewTimeoutMilliseconds("claude");
 }
-function isRecord2(value) {
+function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function parseJson(value) {
@@ -40327,10 +40436,10 @@ function parseJson(value) {
 }
 function parseClaudeOutput(stdout) {
   const envelope = parseJson(stdout);
-  if (isRecord2(envelope) && "structured_output" in envelope) {
+  if (isRecord3(envelope) && "structured_output" in envelope) {
     return envelope.structured_output;
   }
-  if (isRecord2(envelope) && typeof envelope.result === "string") {
+  if (isRecord3(envelope) && typeof envelope.result === "string") {
     return parseJson(envelope.result);
   }
   return envelope;
@@ -40344,17 +40453,17 @@ function parseCodexOutput(stdout) {
       return [];
     }
   });
-  const message = events.findLast((event) => isRecord2(event) && event.type === "item.completed" && isRecord2(event.item) && event.item.type === "agent_message" && typeof event.item.text === "string");
-  if (isRecord2(message) && isRecord2(message.item) && typeof message.item.text === "string") {
+  const message = events.findLast((event) => isRecord3(event) && event.type === "item.completed" && isRecord3(event.item) && event.item.type === "agent_message" && typeof event.item.text === "string");
+  if (isRecord3(message) && isRecord3(message.item) && typeof message.item.text === "string") {
     return parseJson(message.item.text);
   }
   return parseJson(stdout);
 }
 function reviewerVerdictMatchesFindings(verdict, findings) {
-  return verdict !== "approve" || findings.every((finding) => isRecord2(finding) && finding.severity !== "error");
+  return verdict !== "approve" || findings.every((finding) => isRecord3(finding) && finding.severity !== "error");
 }
 function hasValidReviewerOutputBody(value) {
-  if (!isRecord2(value))
+  if (!isRecord3(value))
     return false;
   const allowedOutputKeys = new Set([
     "schema_version",
@@ -40367,7 +40476,7 @@ function hasValidReviewerOutputBody(value) {
   if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings)) {
     return false;
   }
-  const findingsAreValid = value.findings.every((finding) => isRecord2(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && ["info", "warning", "error"].includes(String(finding.severity)) && typeof finding.message === "string");
+  const findingsAreValid = value.findings.every((finding) => isRecord3(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && ["info", "warning", "error"].includes(String(finding.severity)) && typeof finding.message === "string");
   if (!findingsAreValid)
     return false;
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
@@ -40971,6 +41080,13 @@ function unsupportedAuthorResult(input) {
         severity: "warning"
       }
     ],
+    recovery: input.policy === "require" ? [
+      {
+        command: retryCommand(input.kind, input.targets),
+        description: "Run this review in an environment with a usable independent reviewer.",
+        requiresHuman: true
+      }
+    ] : [],
     data: {
       command: "review run",
       status: "blocked",
@@ -41002,6 +41118,7 @@ function changedReviewResult(input) {
         status: "blocked",
         author_agent: input.author,
         assigned_reviewer: input.reviewer,
+        review_policy: input.policy,
         independence: "none"
       }
     });
@@ -41032,6 +41149,7 @@ function changedReviewResult(input) {
       status: "blocked",
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
+      review_policy: input.policy,
       independence: "none"
     }
   });
@@ -41069,6 +41187,7 @@ async function runDegradedFallback(input) {
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.author,
+    policy: input.policy,
     kind: input.kind,
     targets: input.targets,
     sourceChanged,
@@ -41198,6 +41317,7 @@ async function runAlternateModelRoute(input) {
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.reviewer,
+    policy: input.policy,
     kind: input.kind,
     targets: input.targets,
     sourceChanged,
@@ -41230,6 +41350,7 @@ async function runRemainingRoutes(input) {
     author: input.author,
     reviewer: input.assignedReviewer,
     preferredFailure: input.preferredFailure,
+    policy: input.policy,
     runDeadline: input.runDeadline
   });
   if (alternate.kind === "completed")
@@ -41311,7 +41432,7 @@ async function runReview(input) {
   }
   const pair = oppositeReviewPair(author);
   if (pair === undefined) {
-    return unsupportedAuthorResult({ author, policy });
+    return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
   }
   const { reviewer } = pair;
   const prepared = preparePrimaryReview(input, reviewer);
@@ -41320,6 +41441,7 @@ async function runReview(input) {
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
+    policy,
     kind: input.kind,
     targets: input.targets,
     sourceChanged,
@@ -41369,18 +41491,18 @@ var init_coordinator = __esm(() => {
 });
 
 // src/pr-review/providers/openai.ts
-function isRecord3(value) {
+function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function outputText(response) {
-  if (!isRecord3(response) || !Array.isArray(response.output)) {
+  if (!isRecord4(response) || !Array.isArray(response.output)) {
     throw new Error("OpenAI reviewer returned no output");
   }
   for (const item of response.output) {
-    if (!isRecord3(item) || !Array.isArray(item.content))
+    if (!isRecord4(item) || !Array.isArray(item.content))
       continue;
     for (const content of item.content) {
-      if (isRecord3(content) && content.type === "output_text" && typeof content.text === "string") {
+      if (isRecord4(content) && content.type === "output_text" && typeof content.text === "string") {
         return content.text;
       }
     }
@@ -41392,11 +41514,11 @@ function hasFindingFields(finding) {
 }
 function parseFindings(text, evidencePaths) {
   const parsed2 = JSON.parse(text);
-  if (!isRecord3(parsed2) || !Array.isArray(parsed2.findings)) {
+  if (!isRecord4(parsed2) || !Array.isArray(parsed2.findings)) {
     throw new Error("OpenAI reviewer returned invalid findings");
   }
   return parsed2.findings.map((finding) => {
-    if (!isRecord3(finding) || !hasFindingFields(finding) || typeof finding.path !== "string" || !evidencePaths.has(finding.path)) {
+    if (!isRecord4(finding) || !hasFindingFields(finding) || typeof finding.path !== "string" || !evidencePaths.has(finding.path)) {
       throw new Error("OpenAI reviewer returned an invalid path-bound finding");
     }
     return {
@@ -41454,7 +41576,7 @@ async function reviewWithOpenAI(options) {
   if (!response.ok)
     throw new Error(`OpenAI reviewer request failed (${response.status})`);
   const payload = await response.json();
-  const usage = isRecord3(payload) && isRecord3(payload.usage) ? payload.usage : undefined;
+  const usage = isRecord4(payload) && isRecord4(payload.usage) ? payload.usage : undefined;
   return {
     findings: parseFindings(outputText(payload), new Set(options.evidence.map((item) => item.path))),
     tokenUsage: {
@@ -41655,14 +41777,14 @@ __export(exports_review_pr, {
 import { readFileSync as readFileSync48, writeFileSync as writeFileSync19 } from "fs";
 import nodePath79 from "path";
 import process11 from "process";
-function isRecord4(value) {
+function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isPullState(value) {
   return typeof value === "string" && PULL_STATES.has(value);
 }
 function validRequiredChecks(value) {
-  return value === undefined || Array.isArray(value) && value.every((check) => isRecord4(check) && typeof check.context === "string" && check.context.length > 0);
+  return value === undefined || Array.isArray(value) && value.every((check) => isRecord5(check) && typeof check.context === "string" && check.context.length > 0);
 }
 function hasValidInputEnvelope(raw) {
   const validHead = typeof raw.headSha === "string" && /^[a-f\d]{40,64}$/u.test(raw.headSha);
@@ -41671,7 +41793,7 @@ function hasValidInputEnvelope(raw) {
 }
 function parseConfig(cwd) {
   const raw = JSON.parse(readFileSync48(nodePath79.join(cwd, ".safeword", "config.json"), "utf8"));
-  if (!isRecord4(raw) || !isRecord4(raw.prReview)) {
+  if (!isRecord5(raw) || !isRecord5(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
   const config = raw.prReview;
@@ -41682,26 +41804,26 @@ function parseConfig(cwd) {
 }
 function parseInput(inputPath) {
   const raw = JSON.parse(readFileSync48(inputPath, "utf8"));
-  if (!isRecord4(raw) || !hasValidInputEnvelope(raw)) {
+  if (!isRecord5(raw) || !hasValidInputEnvelope(raw)) {
     throw new Error("review-pr: invalid inspection input");
   }
   const artifacts = raw.artifacts.map((artifact) => {
-    if (isRecord4(artifact) && (artifact.kind === "non_text" || artifact.kind === "unreadable_text") && typeof artifact.path === "string") {
+    if (isRecord5(artifact) && (artifact.kind === "non_text" || artifact.kind === "unreadable_text") && typeof artifact.path === "string") {
       return { kind: artifact.kind, path: artifact.path };
     }
-    if (!isRecord4(artifact) || artifact.kind !== "text" || typeof artifact.content !== "string" || typeof artifact.path !== "string" || artifact.path.length === 0) {
+    if (!isRecord5(artifact) || artifact.kind !== "text" || typeof artifact.content !== "string" || typeof artifact.path !== "string" || artifact.path.length === 0) {
       throw new Error("review-pr: invalid text artifact");
     }
     return { content: artifact.content, kind: "text", path: artifact.path };
   });
   const checks = raw.checks.map((check) => {
-    if (!isRecord4(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
+    if (!isRecord5(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
       throw new Error("review-pr: invalid check-run sample");
     }
     return { conclusion: check.conclusion, name: check.name, status: check.status };
   });
   const statuses = raw.statuses.map((status) => {
-    if (!isRecord4(status) || typeof status.context !== "string" || typeof status.state !== "string") {
+    if (!isRecord5(status) || typeof status.context !== "string" || typeof status.state !== "string") {
       throw new Error("review-pr: invalid commit-status sample");
     }
     return { context: status.context, state: status.state };
@@ -41720,7 +41842,7 @@ function parseInput(inputPath) {
   };
 }
 function parseOwnReceipt(value) {
-  if (!isRecord4(value) || typeof value.reviewedSha !== "string" || value.route === undefined && typeof value.status !== "string" || value.route !== undefined && value.route !== "looks_ready" && value.route !== "needs_human") {
+  if (!isRecord5(value) || typeof value.reviewedSha !== "string" || value.route === undefined && typeof value.status !== "string" || value.route !== undefined && value.route !== "looks_ready" && value.route !== "needs_human") {
     throw new Error("review-pr: invalid inspection result");
   }
   return value;
@@ -42012,7 +42134,7 @@ __export(exports_review_pr_publication, {
 });
 import { readFileSync as readFileSync49 } from "fs";
 import process12 from "process";
-function isRecord5(value) {
+function isRecord6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isReviewRunState(value) {
@@ -42023,23 +42145,23 @@ function hasExactKeys(value, expected) {
   return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
 }
 function isSerializedFinding(value) {
-  return isRecord5(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
+  return isRecord6(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
 }
 function isSerializedCheck(value) {
-  return isRecord5(value) && hasExactKeys(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
+  return isRecord6(value) && hasExactKeys(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
 }
 function isSerializedCoverage(value) {
-  if (!isRecord5(value) || typeof value.path !== "string")
+  if (!isRecord6(value) || typeof value.path !== "string")
     return false;
   if (value.status === "integrity_reviewed")
     return hasExactKeys(value, ["path", "status"]);
   return value.status === "skipped" && value.skipReason === "non_text" && hasExactKeys(value, ["path", "skipReason", "status"]);
 }
 function isTokenUsage(value) {
-  if (isRecord5(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
+  if (isRecord6(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
     return false;
   }
-  if (!isRecord5(value)) {
+  if (!isRecord6(value)) {
     return false;
   }
   return Object.values(value).every((tokens) => Number.isSafeInteger(tokens) && Number(tokens) >= 0);
@@ -42095,12 +42217,12 @@ function hasConsistentRoute(receipt) {
   const findings = receipt.findings;
   const unknowns = receipt.unknowns;
   const missingEvidence = receipt.missingEvidence;
-  const mayLookReady = receipt.runState === "complete" && unknowns.length === 0 && missingEvidence.length === 0 && Number(receipt.reviewableTextArtifacts) > 0 && findings.every((finding) => isRecord5(finding) && finding.consequential === false);
+  const mayLookReady = receipt.runState === "complete" && unknowns.length === 0 && missingEvidence.length === 0 && Number(receipt.reviewableTextArtifacts) > 0 && findings.every((finding) => isRecord6(finding) && finding.consequential === false);
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path4) {
   const value = JSON.parse(readFileSync49(path4, "utf8"));
-  if (!isRecord5(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
+  if (!isRecord6(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
   return value;
@@ -42113,7 +42235,7 @@ function parseReviewedReceipt(path4) {
     }
     return { inspectionAudit: value.inspectionAudit };
   }
-  if (!hasExactKeys(value, ["inspectionAudit", "kind", "receipt", "schemaVersion"]) || !isRecord5(value.receipt)) {
+  if (!hasExactKeys(value, ["inspectionAudit", "kind", "receipt", "schemaVersion"]) || !isRecord6(value.receipt)) {
     throw new Error("review-pr: invalid advisory result artifact");
   }
   const receipt = value.receipt;
@@ -42260,7 +42382,7 @@ function createGitHubReviewBoundary() {
         if (!Array.isArray(payload))
           throw new Error("review-pr: invalid GitHub comments response");
         return payload.map((comment) => {
-          if (!isRecord5(comment) || !isRecord5(comment.user)) {
+          if (!isRecord6(comment) || !isRecord6(comment.user)) {
             throw new Error("review-pr: invalid GitHub comment");
           }
           if (typeof comment.body !== "string" || typeof comment.created_at !== "string" || typeof comment.id !== "number") {
@@ -42283,7 +42405,7 @@ function createGitHubReviewBoundary() {
     },
     readPullRequest: async () => {
       const payload = await githubRequest(`${root}/pulls/${pull}`);
-      if (!isRecord5(payload) || !isRecord5(payload.head) || typeof payload.head.sha !== "string") {
+      if (!isRecord6(payload) || !isRecord6(payload.head) || typeof payload.head.sha !== "string") {
         throw new Error("review-pr: invalid GitHub pull response");
       }
       let state = "ready";
