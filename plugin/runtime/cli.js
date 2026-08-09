@@ -15331,6 +15331,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
         template: "hooks/record-skill-invocation.ts"
       },
       ".safeword/hooks/lib/active-ticket.ts": { template: "hooks/lib/active-ticket.ts" },
+      ".safeword/hooks/lib/feature-provenance.ts": { template: "hooks/lib/feature-provenance.ts" },
       ".safeword/hooks/lib/inspiration.ts": { template: "hooks/lib/inspiration.ts" },
       ".safeword/hooks/lib/markdown-structure.ts": { template: "hooks/lib/markdown-structure.ts" },
       ".safeword/hooks/lib/architecture-document-nudge.ts": {

@@ -7,7 +7,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { inspirationContractProvenance, specArtifactProvenance } from './active-ticket.js';
+import { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
 import { parseImplPlan } from './impl-plan.js';
 import { evaluateImplementationInspiration } from './inspiration.js';
 

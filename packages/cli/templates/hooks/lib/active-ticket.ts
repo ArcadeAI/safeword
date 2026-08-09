@@ -5,21 +5,19 @@
  * getActiveTicket() — find most recent in_progress ticket globally (used by stop hook for hierarchy navigation)
  */
 
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
 import { parseFrontmatter } from './hierarchy.js';
-import {
-  evaluateInspirationActivation,
-  evaluateProductInspiration,
-  hasInspirationActivationCandidate,
-} from './inspiration.js';
+import { inspirationContractProvenance } from './feature-provenance.js';
+import { evaluateInspirationActivation, evaluateProductInspiration } from './inspiration.js';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { isValidSkipReason } from './parse-annotation.js';
 import { activeScenarioKey } from './skill-nudge.js';
+
+export { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
 
 export interface ActiveTicketInfo {
   phase: string | undefined;
@@ -57,181 +55,6 @@ export interface FeatureTicketReadiness {
 }
 
 const REQUIRED_READINESS_FRONTMATTER = ['scope', 'out_of_scope', 'done_when'] as const;
-
-export type InspirationProvenance = 'activated' | 'absent' | 'unavailable';
-export type SpecArtifactProvenance = 'present' | 'absent' | 'unavailable';
-
-interface HistoricalFileTrail {
-  commits: Set<string>;
-  paths: Set<string>;
-}
-
-function historicalFileTrail(
-  ticketDirectory: string,
-  repositoryPrefix: string,
-  fileName: 'ticket.md' | 'spec.md',
-): HistoricalFileTrail | undefined {
-  const history = spawnSync('git', ['log', '--all', '--follow', '--format=%H', '--', fileName], {
-    cwd: ticketDirectory,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  if (history.error !== undefined || history.status !== 0) return undefined;
-
-  const names = spawnSync(
-    'git',
-    ['log', '--all', '--follow', '--name-status', '--format=', '--', fileName],
-    { cwd: ticketDirectory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
-  );
-  if (names.error !== undefined || names.status !== 0) return undefined;
-
-  const paths = new Set([`${repositoryPrefix}${fileName}`]);
-  for (const line of (names.stdout ?? '').split(/\r?\n/)) {
-    const [, firstPath, secondPath] = line.split('\t');
-    if (firstPath !== undefined && firstPath !== '') paths.add(firstPath);
-    if (secondPath !== undefined && secondPath !== '') paths.add(secondPath);
-  }
-  return {
-    commits: new Set((history.stdout ?? '').split(/\r?\n/).filter(Boolean)),
-    paths,
-  };
-}
-
-function readHistoricalVersion(
-  ticketDirectory: string,
-  commit: string,
-  paths: Set<string>,
-): string | undefined {
-  for (const path of paths) {
-    const version = spawnSync('git', ['show', `${commit}:${path}`], {
-      cwd: ticketDirectory,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    if (version.error !== undefined) return undefined;
-    if (version.status === 0) return version.stdout ?? '';
-  }
-  return '';
-}
-
-function historicalInspirationContractWasActivated(
-  ticketDirectory: string,
-  repositoryPrefix: string,
-): boolean | undefined {
-  const ticketTrail = historicalFileTrail(ticketDirectory, repositoryPrefix, 'ticket.md');
-  const specTrail = historicalFileTrail(ticketDirectory, repositoryPrefix, 'spec.md');
-  if (ticketTrail === undefined || specTrail === undefined) return undefined;
-
-  const commits = new Set([...ticketTrail.commits, ...specTrail.commits]);
-  for (const commit of commits) {
-    const ticketContent = readHistoricalVersion(ticketDirectory, commit, ticketTrail.paths);
-    const specContent = readHistoricalVersion(ticketDirectory, commit, specTrail.paths);
-    if (ticketContent === undefined || specContent === undefined) return undefined;
-    // Any committed activation signal is durable provenance, including a
-    // partial scaffold that never reached the complete three-signal state.
-    if (hasInspirationActivationCandidate({ ticketContent, specContent })) return true;
-  }
-  return false;
-}
-
-/** A current phase anchor or Git history proves that this feature owns spec.md. */
-export function specArtifactProvenance(ticketDirectory: string): SpecArtifactProvenance {
-  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
-  const specPath = nodePath.join(ticketDirectory, 'spec.md');
-  if (existsSync(specPath)) return 'present';
-
-  const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
-  const frontmatterMatch = ticketContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  const meta = parseFrontmatter(frontmatterMatch?.[1] ?? '');
-  const anchors = meta.phase_anchors;
-  if (
-    Array.isArray(anchors) &&
-    anchors.some(entry => {
-      const colon = entry.indexOf(':');
-      if (colon === -1) return false;
-      const anchoredPath = entry
-        .slice(colon + 1)
-        .trim()
-        .replace(/^['"]|['"]$/g, '');
-      return anchoredPath.split('/').at(-1) === 'spec.md';
-    })
-  ) {
-    return 'present';
-  }
-
-  const repository = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
-    cwd: ticketDirectory,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  if (repository.error !== undefined) return 'unavailable';
-  if (repository.status !== 0) {
-    return (repository.stderr ?? '').includes('not a git repository') ? 'absent' : 'unavailable';
-  }
-
-  const history = spawnSync('git', ['log', '--all', '--follow', '--format=%H', '--', 'spec.md'], {
-    cwd: ticketDirectory,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  if (history.error !== undefined || history.status !== 0) return 'unavailable';
-  if ((history.stdout ?? '').trim() !== '') return 'present';
-
-  const shallow = spawnSync('git', ['rev-parse', '--is-shallow-repository'], {
-    cwd: ticketDirectory,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  if (shallow.error !== undefined || shallow.status !== 0) return 'unavailable';
-  return (shallow.stdout ?? '').trim() === 'true' ? 'unavailable' : 'absent';
-}
-
-/** Git history is durable activation provenance once a scaffold has been committed. */
-export function inspirationContractProvenance(ticketDirectory: string): InspirationProvenance {
-  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
-  const specPath = nodePath.join(ticketDirectory, 'spec.md');
-  const currentTicket = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
-  const currentSpec = existsSync(specPath) ? readFileSync(specPath, 'utf8') : '';
-  if (
-    hasInspirationActivationCandidate({ ticketContent: currentTicket, specContent: currentSpec })
-  ) {
-    return 'activated';
-  }
-
-  const repository = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
-    cwd: ticketDirectory,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  if (repository.error !== undefined) return 'unavailable';
-  if (repository.status !== 0) {
-    return (repository.stderr ?? '').includes('not a git repository') ? 'absent' : 'unavailable';
-  }
-
-  // Git canonicalizes macOS's /var → /private/var alias. Asking Git for the
-  // repository-relative prefix avoids constructing a false cross-root path.
-  const prefix = spawnSync('git', ['rev-parse', '--show-prefix'], {
-    cwd: ticketDirectory,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  if (prefix.error !== undefined || prefix.status !== 0) return 'unavailable';
-
-  const activated = historicalInspirationContractWasActivated(
-    ticketDirectory,
-    (prefix.stdout ?? '').trim(),
-  );
-  if (activated === undefined) return 'unavailable';
-  if (activated) return 'activated';
-
-  const shallow = spawnSync('git', ['rev-parse', '--is-shallow-repository'], {
-    cwd: ticketDirectory,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  if (shallow.error !== undefined || shallow.status !== 0) return 'unavailable';
-  return (shallow.stdout ?? '').trim() === 'true' ? 'unavailable' : 'absent';
-}
 
 /**
  * A required frontmatter field counts as missing when it is absent, the literal

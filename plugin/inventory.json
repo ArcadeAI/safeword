@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b6430d18fa3fd915920b13fc2691bf2c757acc5918021f7bae4288773b452276"
+      "sha256": "fd8d924331081bc1b2ff5de29c2beb5e2c10d4c83b807abf88176c057b60b1a8"
     },
     {
       "path": "runtime/dispatch.js",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "ede0605a388c710334b765fa4cbcf505c59a329b0ade3567560dde6b2a5d1ff1"
+      "sha256": "5a4ca9217fbd2b6ed30f20779c2fcb53f0b24e16f5838bfa07834d814d200ea2"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -220,6 +220,10 @@
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
       "sha256": "4cf68e893669ffd335db24816d8b7d92d2e08df76b010bb7210616d6ede73b5e"
+    },
+    {
+      "path": "runtime/hooks/lib/feature-provenance.ts",
+      "sha256": "840d3bff9d61d75dbcbdeff0f6317752cf7a640eebc26bae59d7b1920d66b4aa"
     },
     {
       "path": "runtime/hooks/lib/git-operation.ts",
@@ -291,7 +295,7 @@
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "80d5fa242cbfd4d783184293f2e39e387b7659d9041219f38cbc38584ba71183"
+      "sha256": "d06b0d4ed845be5a9e7d9a2bd629371324b95c72e3dd14c6c6ef45b10dc95ae6"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",

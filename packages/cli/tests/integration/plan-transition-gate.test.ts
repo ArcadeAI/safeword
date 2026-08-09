@@ -479,7 +479,7 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
       '# Spec\n<!-- safeword:inspiration-contract:v2 -->\n',
     ],
   ])(
-    'does not treat a committed %s as complete activation',
+    'remembers a committed %s as activation provenance',
     (_label, historicalTicket, historicalSpec) => {
       const specFile = nodePath.join(ticketDirectory, 'spec.md');
       writeFileSync(ticketFile, historicalTicket);
@@ -490,8 +490,8 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
       writeFileSync(ticketFile, ticketBody('plan-implementation'));
       writeFileSync(specFile, '# Spec\n');
 
-      expect(inspirationContractProvenance(ticketDirectory)).toBe('absent');
-      expectHookAllow(runAdvance('plan-implementation', 'implement'));
+      expect(inspirationContractProvenance(ticketDirectory)).toBe('activated');
+      expectHookDeny(runAdvance('plan-implementation', 'implement'), 'previously activated');
     },
   );
 
