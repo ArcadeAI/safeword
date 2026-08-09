@@ -119,10 +119,10 @@ before adding any successful evidence row.
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
 | Optimize for the NTB without constraining the TBU | Inspiration is present by default with plain-language remediation at each host's available enforcement level, while technical builders retain explicit references, unsuccessful-search evidence, and review records. | `packages/cli/tests/integration/inspiration-intake-transition.test.ts` | |
-| Structure enforces; instructions suggest | Existing transition hooks require durable evidence structure; qualitative research quality and safety boundaries stay in guidance and independent review. OpenAI Codex Cloud remains guidance-only because Safeword owns no blockable transition boundary there. | `packages/cli/tests/hooks/inspiration.test.ts` | explicit-conflict |
-| Fire at boundaries, not every turn | Validation runs only when entering `define-behavior` or `implement`, and research refresh is guidance for significant new choices rather than every TDD loop. | `packages/cli/tests/integration/inspiration-intake-transition.test.ts` and `packages/cli/tests/integration/plan-transition-gate.test.ts` | |
-| Add, never replace | New sections and helpers extend existing specs, plans, gates, and generated surfaces; signal-free pre-v1 tickets remain valid across upgrade, while downgrade/uninstall preserves customer artifacts. | `packages/cli/tests/hooks/inspiration.test.ts` | |
-| Clarity before correctness | A single named helper and exact v1 record shapes are preferred over a generic Markdown framework or duplicated stage parsers. | `packages/cli/templates/hooks/lib/inspiration.ts` | |
+| 1. Structure enforces; instructions suggest | Existing transition hooks require durable evidence structure; qualitative research quality and safety boundaries stay in guidance and independent review. OpenAI Codex Cloud remains guidance-only because Safeword owns no blockable transition boundary there. | `packages/cli/tests/hooks/inspiration.test.ts` | explicit-conflict |
+| 2. Fire at boundaries, not every turn | Validation runs only when entering `define-behavior` or `implement`, and research refresh is guidance for significant new choices rather than every TDD loop. | `packages/cli/features/learn-from-exceptional-products.feature` | |
+| 3. Add, never replace | New sections and helpers extend existing specs, plans, gates, and generated surfaces; signal-free pre-v1 tickets remain valid across upgrade, while downgrade/uninstall preserves customer artifacts. | `packages/cli/tests/hooks/inspiration.test.ts` | |
+| 5. Clarity before correctness | A single named helper and exact v1 record shapes are preferred over a generic Markdown framework or duplicated stage parsers. | `packages/cli/templates/hooks/lib/inspiration.ts` | |
 
 Architecture decisions honored:
 
@@ -141,7 +141,7 @@ architectural direction.
 
 ## Known deviations
 
-- **Structure enforces; instructions suggest:** OpenAI Codex Cloud receives the
+- **1. Structure enforces; instructions suggest:** OpenAI Codex Cloud receives the
   canonical BDD workflow but no Safeword-owned blockable transition hook, so the
   feature promises automatic guidance there rather than a hard block. The
   surface scenario and docs state that limit explicitly.
