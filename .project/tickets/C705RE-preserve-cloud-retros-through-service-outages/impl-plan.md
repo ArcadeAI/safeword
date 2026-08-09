@@ -4,135 +4,106 @@
 
 ## Approach
 
-The riskiest assumption is that anonymous intake can commit an encrypted
-quarantine record without ever entering the authenticated GitHub filing state
-machine. Prove that first with a real HTTP server, SQLite store, and payload
-keyring: a successful `POST /v1/public-retros` returns one receipt, survives a
-restart, and leaves the GitHub fixture untouched.
+The riskiest assumption is that Claude Code Cloud can invoke a Safe Word
+completion carrier and receive one public receipt before its task ends. Prove
+that in a disposable hosted task before production code. The receiver design is
+already aligned with existing SQLite/keyring patterns; the carrier is not.
 
-1. Add a versioned `public_quarantine` SQLite table and store API beside, but
-   separate from, `retro_requests`. Its primary key is public project ID,
-   normalized repository, and request ID; the queue has a configurable maximum
-   record count (10,000 by default), retains accepted encrypted
-   payload/profile, and never evicts a record to accept another. Its API
-   returns the original receipt for the same raw payload, rejects a changed
-   payload under the same identity, and atomically makes concurrent duplicates
-   one record. Primary proof: `packages/retro-relay/tests/lifecycle.test.ts`
-   integration tests using a real temporary SQLite database, including restart,
-   exact-capacity, 80%-fill alert, same-key concurrency, and distinct-key
-   final-slot races. Reuse the existing `PayloadKeyring` envelope format for
-   encryption at rest and operator decryption; keys remain server-only relay
-   configuration, as for private filings.
-2. Add an explicitly deployment-enabled public route in `http-server.ts`. It
-   validates the release-scoped public ingest key and a bounded schema, applies
-   simple global rate limit (with dedupe before limiting), checks capacity inside the write
-   transaction, commits before returning a request-bound receipt, and exposes
-   no public read/status route. Add authenticated operator-only paginated list,
-   receipt lookup, and explicit receipt-delete routes for queued records;
-   operator list/lookup is the export surface and delete requires the operator
-   to have already selected the exact receipt. None can file or reconcile.
-   Primary proof: `packages/retro-relay/tests/relay.integration.test.ts`
-   through the real HTTP listener, mocking only the GitHub process boundary.
-   Fault injection covers persistence failure, response loss after commit,
-   unrecognized-key and configured-global-rate-limit rejection, dedupe before rate
-   limiting, 80%-fill alert, full-queue rejection, and a reachable endpoint
-   whose response crosses the deterministic deadline.
-3. Add a shared CLI cloud-intake builder: create one UUIDv4
-   `projectInstallationId` during `safeword install` only when missing while preserving every
-   other config key; derive a normalized remote, profile, and one
-   transport-independent UUIDv4 request ID before payload construction; enforce
-   a 50 ms profile budget using an injected monotonic clock in tests; and submit
-   a bounded receipt request using only the remainder of the 500 ms total
-   deadline. `GITHUB_ACTOR` wins over local Git
-   email; no source causes a network identity lookup, token read, hostname, or
-   local-path transmission. Primary proof: CLI integration tests with real
-   temporary project config and Git metadata, faking only fetch/subprocess
-   boundaries. Supporting unit tests cover URL normalization, source precedence,
-   redaction, deterministic composed deadline, malformed input, egress field
-   exclusion, install idempotency, and missing-remote quiet skip.
-4. Wire the shared builder into the cloud-carrier adapter seam but keep all
-   three provider routes disabled until a provider-specific carrier probe has a
-   real hosted completion signal and receipt. Primary proof: adapter wiring
-   tests with the real installed config and public HTTP fixture; provider live
-   checks remain release evidence, not mocked acceptance. This covers Claude
-   Code Cloud, OpenAI Codex Cloud, and Cursor Cloud Agents without claiming
-   present availability.
-5. Update the relay README plus user install/privacy documentation in `README.md`
-   and `packages/website/src/content/docs/`: explain local public UUID creation,
-   best-effort metadata, bounded encrypted operator-queue retention, and the fact that this
-   route never files an issue or replaces the private relay. Update the Railway
-   deployment/runbook with the explicit public-ingress enablement and the
-   per-provider live probe.
+1. Spike Claude Code Cloud only: install the smallest disposable completion
+   carrier in a fixture project, have it post a fixed sanitized receipt marker
+   to Railway, and inspect the real hosted receipt. Kill the Claude slice if
+   the carrier does not run, lacks outbound access, or cannot complete in the
+   500 ms budget. The spike produces evidence only; no production code is
+   reused. Codex Cloud and Cursor Cloud Agents remain `skip: live receipt proof
+   outstanding`, not assertions that their carriers do not exist.
+2. If that spike validates, add `PublicQuarantineStore` and a versioned `public_quarantine` migration
+   beside `retro_requests`. Its `BEGIN IMMEDIATE` insertion transaction performs
+   canonical complete-envelope fingerprinting, existing-key dedupe, mutation
+   conflict, global rate/capacity checks, encryption with the existing keyring,
+   and receipt creation. Primary proof: `lifecycle.test.ts` using a temporary
+   SQLite database; supporting migration/restart, duplicate, mutated-payload,
+   final-slot, and explicit-delete tests. Node's documented `DatabaseSync` is a
+   single synchronous connection, so the transaction—not a pretend mutex—is the
+   serialization boundary.
+3. Add explicitly deployment-enabled public routes and existing-operator-only
+   list/read/delete routes in `http-server.ts`. Public routes use a public v1
+   format key, strict allowlist validation, bounded body size, and the store;
+   they do not authenticate a bearer or construct `RelayService`. Primary proof:
+   `relay.integration.test.ts` through the real listener with only GitHub
+   mocked. Fault injection covers write failure, response loss after commit,
+   wrong key, global limiting across IDs, and no tracker write.
+4. Add config-preserving project UUID creation plus a Claude-specific thin
+   completion adapter around a shared public-envelope
+   builder. It creates request UUIDv4 before payload construction, normalizes a
+   remote, collects allowlisted provenance for at most 50 ms, and waits only for
+   the remainder of the 500 ms total deadline. Missing remote skips quietly.
+   Primary proof: CLI integration tests using temporary project config and Git
+   metadata; supporting units cover canonical serialization, field allowlist,
+   actor precedence, malformed profile input, and composed deadline arithmetic.
+5. Add no Codex or Cursor adapter. They remain `skip: live receipt proof
+   outstanding`; each needs its own spike before a thin adapter is added.
+6. Update `README.md`, website docs, and `packages/retro-relay/README.md` with
+   zero-signup UUID behavior, claimed metadata, public-key non-authentication,
+   queue/operator lifecycle, quiet failure, and the fact this cannot file an
+   issue or advance #1479/`05PR3F`/#834.
 
-The spike evidence is intentionally part of this plan: Railway `GET /health`
-returned 200 in 286 ms and a bounded unauthenticated POST reached the service
-in 213 ms but returned the expected 401. The production endpoint therefore
-must be added before any actual carrier can be tested. Sources: [Node SQLite
-API](https://nodejs.org/download/release/v23.11.1/docs/api/sqlite.html) and
-[Railway persistent volumes](https://docs.railway.com/overview/the-basics).
+The prior Railway spike is input evidence only. It did not prove a cloud
+carrier, so it does not enable one.
 
 ## Decisions
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
-| Durable public data | Separate bounded `public_quarantine` operator queue, store API, and lifecycle | Reuse `retro_requests`; external telemetry vendor | Reuse would give anonymous intake a path toward filing semantics; an external store adds an unnecessary data system. |
-| Public API | Deployment-enabled `POST /v1/public-retros` with public format key, bounded global/namespace limiting, and operator-only list/lookup | Bearer credential in plugin; public access to existing filing route | Marketplace code cannot protect a bearer; existing route is privileged by design. |
-| Public identity | Locally generated UUIDv4 in `.safeword/config.json` at `projectInstallationId` | Server enrollment; device/account identity | The UUID needs no sign-up and is not authority; network registration defeats the zero-friction requirement. |
-| Profile source | One shared builder with `GITHUB_ACTOR` first, local Git email fallback, and a 50 ms budget | Per-harness collectors; GitHub/CLI identity lookup | Per-harness logic drifts; identity calls are slow, noisy, and can require credentials. |
-| Carrier rollout | Shared adapter seam, all host routes disabled until live proof | Pretend a generic hook works everywhere; block feature until all hosts are proven | The first misstates readiness; the second prevents a useful safe server/client slice. |
+| Store boundary | Separate `public_quarantine` store/table | Reuse `retro_requests`; external telemetry system | The former risks a filing path from public input; the latter adds a service without low-volume value. |
+| Dedupe equality | Canonical sorted-key fingerprint of every validated v1 public field | Raw request bytes; fingerprint only retro text | Raw bytes make key order relevant; partial fingerprint allows changed persisted metadata under one receipt. |
+| Timing | 50 ms profile collection inside one 500 ms total deadline | Additive 50 ms + 500 ms timers | Additive timers violate the silent handoff contract. |
+| Admission and recovery | Global in-memory limiter, 10,000-record cap, 80%/full alerts, explicit operator delete | Public UUID as credential; automatic expiry/eviction | UUID is forgeable; automatic loss conflicts with "store it for later." This is low-volume operational containment, not abuse prevention. |
+| Carrier rollout | Claude-only adapter after a live Claude carrier spike; each other provider separately | Shared hypothetical adapter now | An unused generic hook would misstate readiness and create contract drift. |
 
-Figure It Out evidence: Node's `DatabaseSync` is a single file-backed,
-synchronous SQLite connection, matching the relay's existing single-process WAL
-and transaction boundary. Railway documents persistent volumes as the storage
-that survives deploys/restarts and distributes traffic among replicas, so this
-design retains the existing one-replica volume rule. The isolated spike found a
-live Railway health response but no public receipt route; its result was
-`PARTIAL`, not carrier validation.
+Figure It Out evidence: Node documents `DatabaseSync` as a synchronous,
+single-connection API and supports prepared statements/transactions; this
+matches the relay's existing WAL + `BEGIN IMMEDIATE` design. The existing
+`PayloadKeyring` already encrypts with AES-256-GCM and binds a scope/hash as
+associated data, so public records reuse it rather than introduce new key
+management. See [Node SQLite docs](https://nodejs.org/api/sqlite.html).
 
 ## Design alignment
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Install creates the ID silently; handoff adds no task narration while a TBU can inspect documented operational evidence. | CLI integration tests prove no network install and no output; adapter tests prove silent failure. | |
-| Structure enforces; instructions suggest | Separate public table/service methods make public ingress unable to call the filing worker. | Real HTTP/store integration tests assert no GitHub request on every public path. | |
-| Add, never replace | Config generation writes only a missing project ID and preserves unknown user keys. | Temporary-config wiring test reads the original keys after install. | |
-| Clarity before correctness | One public submit route, one receipt vocabulary, and separately authenticated operator reads make the trust boundary legible. | Route-contract integration tests reject public reads, privileged paths, and invalid bodies. | |
+| Structure enforces; instructions suggest | Public HTTP routes depend only on `PublicQuarantineStore`; no public method accepts a filing principal or calls `RelayService`. | Real-listener tests prove no GitHub call on every public outcome. | Explicit conflict: public route is deployment-enabled only after the Claude live-receipt gate, while architecture defaults it compiled off. |
+| Add, never replace | Add a sibling table and config field; leave private credential filing and `retro_requests` unchanged. | Private-path regression integration test; reinstall preserves existing UUID. | |
+| Optimize for the NTB without constraining the TBU | Builder sees no transport text; operators retain direct list/read/delete control. | Claude carrier wiring tests after hosted proof, plus operator-route tests. | |
+| Clarity before correctness | One v1 allowlist, one quarantine key, and no unproven carrier abstraction. | Schema tests reject unknown fields; design doc and route contract stay small. | |
 
-Architecture record honored: `ARCHITECTURE.md`'s Retro relay boundary retains
-one Railway replica, one persistent `/data` volume, encrypted envelopes, and
-server-side GitHub credentials. This plan adds a sibling quarantine boundary;
-it does not relax authenticated filing.
+Architecture decision honored: `ARCHITECTURE.md`'s public-cloud-retro ADR keeps
+public records outside the filing worker, on the existing encrypted one-replica
+SQLite deployment.
 
 ## Known deviations
 
-The current architecture says public relay routing is compiled off until
-readiness evidence exists. This plan permits only an explicitly
-deployment-enabled public quarantine endpoint; it cannot file, reconcile,
-enable `05PR3F`, or affect issue 834. Public reads remain impossible; only an
-existing authenticated operator may list, inspect, export through the list API,
-or explicitly delete one selected record to restore capacity. The explicit
-separation is recorded below rather than treating public receipt as
-authenticated relay activation.
+The architecture says public relay routing is compiled off pending readiness.
+This plan enables only a deployment-configured quarantine route, not a private
+filing path. It conflicts with the compiled-off default until the Claude spike
+produces a live receipt; it still cannot satisfy #1479's authenticated durable
+filing invariant or supersede #834.
 
 ## Doc impact
 
-- `README.md`: add a plain-language privacy/zero-signup note near install and
-  retain the distinction from ordinary private filing.
-- `packages/website/src/content/docs`: add the same user-facing explanation and
-  fixed-capacity retention statement.
-- `packages/retro-relay/README.md`: document the public route's enablement,
-  public-key boundary, fixed-capacity encrypted queue, operator access,
-  no-filing guarantee, and live-carrier probe.
+- `README.md`: plain-language zero-signup and privacy note.
+- `packages/website/src/content/docs`: installation and public-retro lifecycle.
+- `packages/retro-relay/README.md`: enablement, non-secret key, operator export/
+  delete process, capacity alert, and disabled carrier status.
 
 ## Assessment triggers
 
-- More than one replica, a network filesystem, or a second relay region: move
-  the durable public store to an appropriate shared database before enabling it.
-- A public route needs reads, operations, or GitHub writes: require an
-  independently rotatable authorization design and reconsider the boundary.
-- A provider proves a real completion carrier: add that provider's adapter and
-  record its hosted receipt/timing evidence before enabling it.
-- Sustained abuse, capacity, or rate-limit pressure: add an edge/WAF control
-  or stronger client attestation. The public UUID is not an abuse-control
-  credential; the initial global rate/cap merely buys the operator time to
-  inspect/export/delete safely.
+- Claude spike invalidates its completion carrier: stop the Claude slice and
+  preserve only the non-routed receiver work for a later carrier decision.
+- Another provider proves a completion carrier: run its own spike before adding
+  that provider's adapter and live receipt proof.
+- Capacity alert or sustained global throttling: introduce edge admission/WAF;
+  do not mistake the UUID or public key for abuse resistance.
+- Second replica, region, or shared storage: replace the single-file queue with
+  a transactional shared store before enabling public ingress.
+- A new v1 field or key rotation: publish an explicit version/overlap migration
+  rather than changing the accepted shape silently.

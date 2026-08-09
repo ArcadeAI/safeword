@@ -159,3 +159,8 @@ waiting for relay filing or seeing a user-facing interruption.
   boundaries are intentionally deferred: they do not protect the core durable
   acceptance/quiet failure contract at current low volume and would add policy
   surface before there is evidence it is needed.
+- 2026-08-08T19:25Z Replanned after the approved scenario review. The first
+  slice is public quarantine persistence plus real HTTP/operator wiring; no
+  cloud adapter is planned until a provider proves a completion carrier. The
+  plan now binds dedupe to a canonical complete v1 envelope and makes the
+  50 ms profile collection part of the 500 ms total handoff budget.
