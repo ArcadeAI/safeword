@@ -28,7 +28,7 @@ Feature: Hand off cloud retros without interrupting builders
     Scenario: A mutated retry cannot replace an accepted quarantine record
       Given public intake has durably accepted one bounded retro and receipt under one quarantine key
       When a caller reuses that same quarantine key with a different sanitized retro payload
-      Then the relay returns no durable receipt for the mutated retry
+      Then the relay returns an explicit payload-conflict rejection with no durable receipt
       And it retains the original quarantine record and receipt unchanged
 
   @preserve-cloud-retros-through-service-outages.TBU1.R2
@@ -40,6 +40,12 @@ Feature: Hand off cloud retros without interrupting builders
       When the relay restarts
       Then it retains one quarantine record with the original request identity and payload
       And the tracker receives no issue creation
+
+    @surface.railway-hosted-relay
+    Scenario: A retained request still dedupes after a relay restart
+      Given public intake has accepted one quarantine key and its original receipt
+      When the relay restarts and a caller resubmits that quarantine key with its original payload
+      Then the relay returns the original receipt without creating another quarantine record
 
     @rejection @surface.railway-hosted-relay
     Scenario: A public intake persistence failure creates neither receipt nor tracker filing
@@ -93,9 +99,9 @@ Feature: Hand off cloud retros without interrupting builders
 
     @surface.claude-code-cloud @surface.openai-codex-cloud @surface.cursor-cloud-agents
     Scenario Outline: Handoff transport outcome does not change the builder-facing result
-      Given a <carrier outcome> cloud handoff attempt at task completion
+      Given a <carrier outcome> cloud handoff attempt at task completion for requested output "created src/widget.ts"
       When the cloud carrier returns its ordinary task result
-      Then that result still contains the requested-work result
+      Then that result still contains "created src/widget.ts"
       And that result contains no Safe Word transport status
 
       Examples:
@@ -135,6 +141,7 @@ Feature: Hand off cloud retros without interrupting builders
     @surface.safeword-cli
     Scenario: Reinstalling Safe Word preserves the existing public project ID
       Given a project config with an existing Safe Word project installation ID
+      And network access is available
       When Safe Word installs again
       Then project config retains that exact project installation ID
       And no relay enrollment request occurs
@@ -219,7 +226,8 @@ Feature: Hand off cloud retros without interrupting builders
       Given a cloud carrier has hostname "build-host.internal", local path "/private/project", and credential "secret-token" available
       And public intake records its received request body
       When the carrier submits one sanitized retro
-      Then that request body includes none of "build-host.internal", "/private/project", or "secret-token"
+      Then that request body validates against the public-ingest allowlist schema
+      And that request body contains only the versioned sanitized relay envelope, project installation ID, and runtime profile fields
 
     @rejection @surface.railway-hosted-relay
     Scenario Outline: Invalid public intake cannot create a quarantine record
@@ -237,17 +245,17 @@ Feature: Hand off cloud retros without interrupting builders
 
     @rejection @surface.railway-hosted-relay
     Scenario: A configured public rate limit rejects a fresh quarantine key
-      Given public intake permits one submission per project installation ID in its current window
-      And that project installation ID has already submitted once in that window
-      When it submits a valid retro under a fresh quarantine key
+      Given public intake permits one submission globally in its current window
+      And a different public project installation ID has already submitted once in that window
+      When a caller submits a valid retro under a fresh quarantine key
       Then the relay returns no durable receipt or tracker filing
       And it retains no quarantine record for that fresh quarantine key
 
     @surface.railway-hosted-relay
     Scenario: A retained quarantine key still dedupes after its rate limit is reached
-      Given public intake permits one submission per project installation ID in its current window
+      Given public intake permits one submission globally in its current window
       And it retains one accepted quarantine key for that project installation ID
-      And that project installation ID has reached its configured limit in that window
+      And the global limit has been reached in that window
       When a caller resubmits that retained quarantine key with its original payload
       Then the relay returns the original receipt without creating another quarantine record
 
@@ -266,13 +274,13 @@ Feature: Hand off cloud retros without interrupting builders
       When a caller submits a fresh public quarantine key
       Then the relay returns no durable receipt
       And it retains every existing quarantine record unchanged
-      And it records one sanitized capacity alert for an operator
+      And it records one sanitized queue-capacity alert for an operator
 
     @surface.railway-hosted-relay
     Scenario: An operator is alerted before the public queue reaches capacity
       Given public intake reaches 80 percent of its configured record capacity
       When it accepts the record that crosses that threshold
-      Then it records one sanitized queue-fill alert for an operator
+      Then it records one sanitized queue-capacity alert for an operator
 
     @surface.railway-hosted-relay
     Scenario: The last available public queue slot accepts one new identity
@@ -300,5 +308,5 @@ Feature: Hand off cloud retros without interrupting builders
       And a controlled write barrier will release both submissions together
       When both submissions cross that barrier
       Then exactly one caller receives a durable receipt
-      And the other caller receives no receipt and one capacity alert is recorded
+      And the other caller receives no receipt and one queue-capacity alert is recorded
       And the relay record count does not exceed its configured capacity

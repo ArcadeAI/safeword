@@ -32,6 +32,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A retained request still dedupes after a relay restart
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A public intake persistence failure creates neither receipt nor tracker filing
 
 - [ ] RED

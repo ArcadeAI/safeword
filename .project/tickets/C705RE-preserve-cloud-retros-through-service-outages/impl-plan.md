@@ -25,7 +25,7 @@ restart, and leaves the GitHub fixture untouched.
    configuration, as for private filings.
 2. Add an explicitly deployment-enabled public route in `http-server.ts`. It
    validates the release-scoped public ingest key and a bounded schema, applies
-   simple global and namespace rate limits, checks capacity inside the write
+   simple global rate limit (with dedupe before limiting), checks capacity inside the write
    transaction, commits before returning a request-bound receipt, and exposes
    no public read/status route. Add authenticated operator-only paginated list,
    receipt lookup, and explicit receipt-delete routes for queued records;
@@ -34,7 +34,7 @@ restart, and leaves the GitHub fixture untouched.
    Primary proof: `packages/retro-relay/tests/relay.integration.test.ts`
    through the real HTTP listener, mocking only the GitHub process boundary.
    Fault injection covers persistence failure, response loss after commit,
-   unrecognized-key and configured-rate-limit rejection, dedupe before rate
+   unrecognized-key and configured-global-rate-limit rejection, dedupe before rate
    limiting, 80%-fill alert, full-queue rejection, and a reachable endpoint
    whose response crosses the deterministic deadline.
 3. Add a shared CLI cloud-intake builder: create one UUIDv4

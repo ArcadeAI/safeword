@@ -217,3 +217,5 @@ The public request body is the existing versioned, sanitized relay filing
 envelope plus public project installation ID and claimed runtime profile; its
 receipt is bound to the same request ID. New cloud carriers must use this exact
 schema or introduce a new version rather than changing the public contract.
+The relay rejects a reused quarantine key whose complete accepted request differs
+from its original request with an explicit payload-conflict response.
