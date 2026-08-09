@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "d8f73da38b9dea0f88cfbbb67ed1e08707fb876f92f04e7bbece0b098fb2b920"
+      "sha256": "80add7389da378c70bff04b36e521b5ae0712ea27d49b1a17ec29177214d6c57"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "6a8244b9a6431b16c6fcb212a60b6382c88c283f648e3b37448aef6d4b6a21fc"
+      "sha256": "814648de95d923997b2034ca1a184c959ab52579c9982d07681ca40bd761964a"
     },
     {
       "path": "runtime/dispatch.js",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "03774026e80d0c0447ad831f4cbc4384ce164933e6586035067fa7e8455afa7f"
+      "sha256": "7a8c13f2072db1a9dfcee9afc7dce3a2223745dcd53192a7b1696c9473f1e7bc"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -238,6 +238,10 @@
       "sha256": "23b3f4d7a12766b5d06cb6ea17e4a505ebc5fcc254a90bdd4965f6ef5e76c07a"
     },
     {
+      "path": "runtime/hooks/lib/inspiration.ts",
+      "sha256": "34ece914fa492dab9576d69041ea26dfec7417a96e5b3dd77016c457e3664f98"
+    },
+    {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
       "sha256": "8188ea61781b0117cea71b033aeee821cfd720ba2fa601f1101a785af73d9a89"
     },
@@ -283,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "610b4ce6f0086d79d458307252c1cbfa3d504a8744bf16e05676e739a48d06b8"
+      "sha256": "156f4d00d0a815ccea19c8b8e5cc996838f9ca8decaaac91728f436d91dd6d73"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
@@ -563,7 +567,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "a4fea7e38e96e54ac99d3e4ae5a94dda577dd3af45dbf47c578cbadb75fd6dde"
+      "sha256": "09739be51d0fbf6f01476db5a52ff66d4091b539e9696b1fc69fa9d056b63e6f"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -571,7 +575,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "9d774a49f6f60171f7aef678b948279ea147509b2fb85beccd6f68492a56505e"
+      "sha256": "0e14c8b8417960154ec9af34a87ed91af8117e0b0a7288c229baa134b34c1c1e"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",

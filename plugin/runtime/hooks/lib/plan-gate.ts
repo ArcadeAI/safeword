@@ -7,6 +7,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { evaluateImplementationInspiration } from './inspiration.js';
 import { parseImplPlan } from './impl-plan.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
@@ -14,8 +15,12 @@ export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remedi
 const OK: PlanGateVerdict = { ok: true };
 
 /** Gate the plan-implementation → implement transition on a valid, planned plan. */
-export function evaluateImplementEntry(ticketDirectory: string): PlanGateVerdict {
-  if (!existsSync(nodePath.join(ticketDirectory, 'spec.md'))) return OK;
+export function evaluateImplementEntry(
+  ticketDirectory: string,
+  options: { evaluationDate?: string } = {},
+): PlanGateVerdict {
+  const specPath = nodePath.join(ticketDirectory, 'spec.md');
+  if (!existsSync(specPath)) return OK;
 
   const planPath = nodePath.join(ticketDirectory, 'impl-plan.md');
   if (!existsSync(planPath)) {
@@ -28,7 +33,8 @@ export function evaluateImplementEntry(ticketDirectory: string): PlanGateVerdict
     };
   }
 
-  const parsed = parseImplPlan(readFileSync(planPath, 'utf8'));
+  const planContent = readFileSync(planPath, 'utf8');
+  const parsed = parseImplPlan(planContent);
   if (parsed.errors.length > 0) {
     return {
       ok: false,
@@ -44,6 +50,21 @@ export function evaluateImplementEntry(ticketDirectory: string): PlanGateVerdict
       reason: `impl-plan.md status reads "${String(parsed.status)}" — entering implement requires a plan that says planned, so the plan describes what is about to be built.`,
       remediation:
         'Update the plan for this pass and reset its status line to **Status:** planned, then retry the move to implement.',
+    };
+  }
+
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const inspirationVerdict = evaluateImplementationInspiration({
+    ticketContent: existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '',
+    specContent: readFileSync(specPath, 'utf8'),
+    planContent,
+    evaluationDate: options.evaluationDate ?? new Date().toISOString().slice(0, 10),
+  });
+  if (!inspirationVerdict.ok) {
+    return {
+      ok: false,
+      reason: `Implementation Inspiration is not ready: ${inspirationVerdict.reason}`,
+      remediation: inspirationVerdict.remediation,
     };
   }
 

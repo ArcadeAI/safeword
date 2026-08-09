@@ -3122,6 +3122,8 @@ function renderTicketMarkdown(id, options) {
   const featureReadinessFrontmatter = type === "feature" ? `scope:
 out_of_scope:
 done_when:
+inspiration_contract: v1
+inspiration_contract_scaffold: v1
 ` : "";
   const childrenFrontmatter = type === "epic" ? `children: []
 ` : "";
@@ -15284,6 +15286,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
         template: "hooks/record-skill-invocation.ts"
       },
       ".safeword/hooks/lib/active-ticket.ts": { template: "hooks/lib/active-ticket.ts" },
+      ".safeword/hooks/lib/inspiration.ts": { template: "hooks/lib/inspiration.ts" },
       ".safeword/hooks/lib/architecture-document-nudge.ts": {
         template: "hooks/lib/architecture-document-nudge.ts"
       },

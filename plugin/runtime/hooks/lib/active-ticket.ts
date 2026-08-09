@@ -10,6 +10,7 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { parseFrontmatter } from './hierarchy.js';
+import { evaluateProductInspiration } from './inspiration.js';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { isValidSkipReason } from './parse-annotation.js';
@@ -98,7 +99,7 @@ function readConfiguredPersonasPath(rawConfig: string): string | undefined {
 export function evaluateFeatureTicketReadiness(
   projectDirectory: string,
   ticketFolder: string,
-  options: { ticketContent?: string } = {},
+  options: { evaluationDate?: string; ticketContent?: string } = {},
 ): FeatureTicketReadiness {
   const issues: FeatureTicketReadinessIssue[] = [];
   const ticketDirectory = nodePath.join(
@@ -160,6 +161,20 @@ export function evaluateFeatureTicketReadiness(
         'spec.md',
         `criteria gate: ${criteriaVerdict.reason}`,
         'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n>` (or a legacy `#### <jtbd-id>.AC<n>`), or add a per-JTBD `skip: <reason>`.',
+      );
+    }
+
+    const inspirationVerdict = evaluateProductInspiration({
+      ticketContent,
+      specContent,
+      evaluationDate: options.evaluationDate ?? new Date().toISOString().slice(0, 10),
+    });
+    if (!inspirationVerdict.ok) {
+      addReadinessIssue(
+        issues,
+        'spec.md Product Inspiration',
+        inspirationVerdict.reason,
+        inspirationVerdict.remediation,
       );
     }
   }

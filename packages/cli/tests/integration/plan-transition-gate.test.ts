@@ -16,8 +16,9 @@ import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 const TICKET_ID = 'TX480G';
+const TODAY = new Date().toISOString().slice(0, 10);
 
-const ticketBody = (phase: string, type = 'feature'): string =>
+const ticketBody = (phase: string, type = 'feature', activated = false): string =>
   [
     '---',
     `id: ${TICKET_ID}`,
@@ -30,6 +31,13 @@ const ticketBody = (phase: string, type = 'feature'): string =>
     '  - unrelated',
     'done_when:',
     '  - gated',
+    ...(activated
+      ? [
+          'inspiration_contract: v1',
+          'inspiration_contract_scaffold: v1',
+          `created: ${TODAY}T00:00:00.000Z`,
+        ]
+      : []),
     '---',
     '',
     '# Ticket',
@@ -64,6 +72,21 @@ const VALID_PLAN = [
   'Revisit when a second gate consumer appears.',
   '',
 ].join('\n');
+
+const VALID_INSPIRATION = [
+  '### Implementation Inspiration',
+  '',
+  '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |',
+  '| --- | --- | --- | --- | --- | --- | --- |',
+  `| https://spec.commonmark.org/0.31.2/ | ${TODAY} | 0.31.2 | 0.31.2 | Exact comment grammar | Exact marker | Strict subset only |`,
+  '',
+  '**Decision impact:** retained: exact markers fit the gate',
+].join('\n');
+
+const ACTIVATED_PLAN = VALID_PLAN.replace(
+  '**Status:** planned',
+  () => `**Status:** planned\n**Planned on:** ${TODAY}`,
+).replace('## Decisions\n', () => `## Decisions\n\n${VALID_INSPIRATION}\n`);
 
 describe('TXRHMD plan-implementation → implement transition gate (wired)', () => {
   let projectRoot: string;
@@ -101,6 +124,34 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+  });
+
+  it('denies activated implement entry without Implementation Inspiration', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n',
+    );
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      VALID_PLAN.replace(
+        '**Status:** planned',
+        () => `**Status:** planned\n**Planned on:** ${TODAY}`,
+      ),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Implementation Inspiration');
+  });
+
+  it('allows activated implement entry with current version-matched inspiration', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n',
+    );
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), ACTIVATED_PLAN);
+
     expectHookAllow(runAdvance('plan-implementation', 'implement'));
   });
 
