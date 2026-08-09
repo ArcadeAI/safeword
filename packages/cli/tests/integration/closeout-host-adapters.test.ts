@@ -386,6 +386,85 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
     30_000,
   );
 
+  it('reuses one exact-head verification and retrospective snapshot from preview through apply', () => {
+    const fixture = deliveryFixture();
+    installBoundaryFakes(fixture);
+    const sandbox = nodePath.dirname(fixture.bare);
+    const id = 'claude-closeout-snapshot';
+    const transcript = nodePath.join(sandbox, `${id}.jsonl`);
+    const counter = nodePath.join(sandbox, 'safeword-invocations.txt');
+    const cli = nodePath.join(fixture.bin, 'counting-safeword.ts');
+    writeFileSync(
+      transcript,
+      [
+        JSON.stringify({ type: 'session_meta', sessionId: id, cwd: fixture.topic }),
+        JSON.stringify({
+          message: { role: 'user', content: [{ type: 'text', text: 'close this delivery' }] },
+        }),
+      ].join('\n'),
+    );
+    executable(
+      cli,
+      `#!/usr/bin/env bun
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+const counter = process.env.SAFEWORD_COUNTER;
+if (!counter) process.exit(2);
+const count = existsSync(counter) ? Number(readFileSync(counter, 'utf8')) : 0;
+writeFileSync(counter, String(count + 1));
+const args = process.argv.slice(2);
+if (args[0] === 'project' && args[1] === 'test-plan') {
+  console.log(JSON.stringify([{ cwd: process.cwd(), command: 'true', available: true }]));
+} else if (args[0] === 'retro' && args[1] === 'run') {
+  console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false } }));
+} else process.exit(1);
+`,
+    );
+    const environment = {
+      ...process.env,
+      PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+      GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
+      SAFEWORD_TEST_BARE: fixture.bare,
+      SAFEWORD_CLI: cli,
+      SAFEWORD_COUNTER: counter,
+      CLAUDE_PROJECT_DIR: fixture.topic,
+    };
+    const guard = nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts');
+
+    bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
+    const preview = spawnSync('bun', [guard, '--pr', '42'], {
+      cwd: fixture.topic,
+      env: environment,
+      encoding: 'utf8',
+    });
+    expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+    const digest = (JSON.parse(preview.stdout) as { digest: string }).digest;
+
+    bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
+    const replay = spawnSync('bun', [guard, '--pr', '42'], {
+      cwd: fixture.topic,
+      env: environment,
+      encoding: 'utf8',
+    });
+    expect(replay.status, `${replay.stderr}\n${replay.stdout}`).toBe(0);
+
+    bindHostSession({
+      runtime: 'claude',
+      fixture,
+      environment,
+      id,
+      transcript,
+      guardArguments: `--pr 42 --yes --plan ${digest}`,
+    });
+    const applied = spawnSync('bun', [guard, '--pr', '42', '--yes', '--plan', digest], {
+      cwd: fixture.topic,
+      env: environment,
+      encoding: 'utf8',
+    });
+
+    expect(applied.status, `${applied.stderr}\n${applied.stdout}`).toBe(0);
+    expect(readFileSync(counter, 'utf8')).toBe('5');
+  }, 30_000);
+
   it.each([
     {
       state: 'the topic worktree is already absent',
@@ -725,6 +804,11 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
     ).toBe(0);
     expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
 
+    // A cached receipt is only reusable for the exact clean state it covered.
+    // Make the later invocation meaningfully different so it must re-run its plan.
+    const dirtyPath = nodePath.join(fixture.topic, 'uncommitted-closeout-change.txt');
+    writeFileSync(dirtyPath, 'requires a new verification\n');
+
     const failingCli = nodePath.join(fixture.bin, 'failing-safeword.ts');
     executable(
       failingCli,
@@ -755,6 +839,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     ).toBe(2);
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
 
+    rmSync(dirtyPath, { force: true });
     runOrThrow('git', ['worktree', 'remove', fixture.topic], fixture.main);
     const resumedId = 'claude-receipt-after-failure';
     const resumedTranscript = transcriptFor(resumedId, fixture.main);

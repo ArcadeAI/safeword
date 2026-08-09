@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { rememberCloseoutBinding } from '../templates/hooks/lib/closeout-binding.ts';
+import { draftSpoolPath, markDraftsFiled } from '../templates/hooks/lib/retro-draft-spool.ts';
 import {
   applyCleanupPlan,
   buildCleanupPlan,
@@ -185,6 +186,55 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       }
     },
   );
+
+  it('reuses a completed extraction after the user files its pending drafts', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-filing-recovery-'));
+    const id = 'claude-filing-recovery';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const spool = draftSpoolPath(root, id);
+      mkdirSync(nodePath.dirname(spool), { recursive: true });
+      writeFileSync(
+        spool,
+        `${JSON.stringify({
+          signature: 'retro:filing-recovery',
+          title: 'File the completed retrospective',
+          body: 'A safe, already-extracted finding.',
+          labels: ['retro'],
+        })}\n`,
+      );
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return {
+          status: 0,
+          stdout: JSON.stringify({ state: 'changed', data: { agent_filing_needed: true } }),
+          stderr: '',
+        };
+      };
+
+      expect(runBoundRetro(root, binding, runner)).toMatchObject({
+        complete: false,
+        failure: 'filing',
+      });
+      markDraftsFiled(root, id, ['retro:filing-recovery']);
+      expect(runBoundRetro(root, binding, runner)).toMatchObject({
+        complete: true,
+        pendingDrafts: 0,
+      });
+      expect(runs).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it.each([
     [true, '', false, 0, undefined],
     [false, 'Retro extraction failed.', false, 0, 'extraction'],

@@ -572,6 +572,8 @@ export function runBoundRetro(
 ): CloseoutObservation['retro'] {
   const transcript = resolveTranscript(binding, root);
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0 };
+  const cached = readRetroReceipt(root, binding, transcript);
+  if (cached) return retroObservationFromReceipt(root, binding.id, cached);
   const retro = runner(
     root,
     [
@@ -592,11 +594,9 @@ export function runBoundRetro(
     errors?: { message?: string }[];
   }>(retro);
   const pendingDrafts = readSpooledDrafts(root, binding.id).length;
-  const complete =
-    retro.status === 0 &&
-    (result?.state === 'healthy' || result?.state === 'changed') &&
-    result.data?.agent_filing_needed === false &&
-    pendingDrafts === 0;
+  const successful =
+    retro.status === 0 && (result?.state === 'healthy' || result?.state === 'changed');
+  const complete = successful && result.data?.agent_filing_needed === false && pendingDrafts === 0;
   const errorText = result?.errors?.map(error => error.message ?? '').join('\n') ?? '';
   const failure = classifyRetroFailure({
     complete,
@@ -604,6 +604,17 @@ export function runBoundRetro(
     agentFilingNeeded: result?.data?.agent_filing_needed,
     pendingDrafts,
   });
+  if (successful) {
+    writeRetroReceipt(root, {
+      runtime: binding.runtime,
+      id: binding.id,
+      projectRoot: realpathSync(binding.projectRoot),
+      snapshot: transcriptSnapshot(transcript),
+      agentFilingNeeded: result.data?.agent_filing_needed === true,
+      pendingDrafts,
+      recordedAt: new Date().toISOString(),
+    });
+  }
   return {
     bound: true,
     complete,
@@ -625,6 +636,23 @@ interface VerificationReceipt {
   recordedAt: string;
 }
 
+interface TranscriptSnapshot {
+  path: string;
+  byteLength: number;
+  digest: string;
+}
+
+interface RetroReceipt {
+  version: 1;
+  runtime: CloseoutBinding['runtime'];
+  id: string;
+  projectRoot: string;
+  snapshot: TranscriptSnapshot;
+  agentFilingNeeded: boolean;
+  pendingDrafts: number;
+  recordedAt: string;
+}
+
 const VERIFICATION_RECEIPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 function cleanWorkingStateHash(headOid: string): string {
@@ -637,6 +665,102 @@ function verificationReceiptPath(root: string): string | undefined {
   return commonDirectory.status === 0 && path !== ''
     ? nodePath.join(nodePath.resolve(root, path), 'safeword', 'closeout-verification.json')
     : undefined;
+}
+
+function retroReceiptPath(root: string): string | undefined {
+  const commonDirectory = git(root, 'rev-parse', '--git-common-dir');
+  const path = commonDirectory.stdout.trim();
+  return commonDirectory.status === 0 && path !== ''
+    ? nodePath.join(nodePath.resolve(root, path), 'safeword', 'closeout-retro.json')
+    : undefined;
+}
+
+function transcriptSnapshot(path: string): TranscriptSnapshot {
+  const content = readFileSync(path);
+  return {
+    path: realpathSync(path),
+    byteLength: content.byteLength,
+    digest: createHash('sha256').update(content).digest('hex'),
+  };
+}
+
+function snapshotStillMatches(snapshot: TranscriptSnapshot): boolean {
+  try {
+    const content = readFileSync(snapshot.path);
+    return (
+      content.byteLength >= snapshot.byteLength &&
+      createHash('sha256').update(content.subarray(0, snapshot.byteLength)).digest('hex') ===
+        snapshot.digest
+    );
+  } catch {
+    return false;
+  }
+}
+
+function readRetroReceipt(
+  root: string,
+  binding: CloseoutBinding,
+  transcript: string,
+  now = new Date(),
+): RetroReceipt | undefined {
+  const path = retroReceiptPath(root);
+  if (!path || !existsSync(path)) return undefined;
+  try {
+    const receipt = JSON.parse(readFileSync(path, 'utf8')) as Partial<RetroReceipt>;
+    const recordedAt =
+      typeof receipt.recordedAt === 'string' ? Date.parse(receipt.recordedAt) : Number.NaN;
+    return receipt.version === 1 &&
+      receipt.runtime === binding.runtime &&
+      receipt.id === binding.id &&
+      receipt.projectRoot === realpathSync(binding.projectRoot) &&
+      receipt.snapshot?.path === realpathSync(transcript) &&
+      typeof receipt.snapshot.byteLength === 'number' &&
+      receipt.snapshot.byteLength >= 0 &&
+      typeof receipt.snapshot.digest === 'string' &&
+      Number.isFinite(recordedAt) &&
+      recordedAt <= now.getTime() &&
+      now.getTime() - recordedAt <= VERIFICATION_RECEIPT_MAX_AGE_MS &&
+      snapshotStillMatches(receipt.snapshot)
+      ? (receipt as RetroReceipt)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeRetroReceipt(root: string, receipt: Omit<RetroReceipt, 'version'>): boolean {
+  const path = retroReceiptPath(root);
+  if (!path) return false;
+  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(temporaryPath, `${JSON.stringify({ version: 1, ...receipt })}\n`, {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    renameSync(temporaryPath, path);
+    return true;
+  } catch {
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    return false;
+  }
+}
+
+function retroObservationFromReceipt(
+  root: string,
+  sessionId: string,
+  receipt: RetroReceipt,
+): CloseoutObservation['retro'] {
+  const pendingDrafts = readSpooledDrafts(root, sessionId).length;
+  const filingRecovered =
+    receipt.agentFilingNeeded && receipt.pendingDrafts > 0 && pendingDrafts === 0;
+  const complete = (!receipt.agentFilingNeeded || filingRecovered) && pendingDrafts === 0;
+  return {
+    bound: true,
+    complete,
+    pendingDrafts,
+    failure: complete ? undefined : 'filing',
+  };
 }
 
 function readVerificationReceipt(
@@ -702,8 +826,17 @@ function workingStateHash(root: string, headOid: string): string {
 
 function runVerification(root: string, expectedOid: string): CloseoutObservation['verification'] {
   const observedHead = git(root, 'rev-parse', 'HEAD').stdout.trim();
+  const observedStateHash = workingStateHash(root, observedHead);
+  const receipt = readVerificationReceipt(root, expectedOid);
+  if (receipt && observedHead === expectedOid && observedStateHash === receipt.stateHash) {
+    return {
+      current: true,
+      passed: true,
+      headOid: receipt.headOid,
+      stateHash: receipt.stateHash,
+    };
+  }
   if (observedHead !== expectedOid) {
-    const receipt = readVerificationReceipt(root, expectedOid);
     return receipt
       ? {
           current: true,
