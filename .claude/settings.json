@@ -167,6 +167,14 @@
             "async": true
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.claude/spike-claude-cloud-carrier.mjs"
+          }
+        ]
       }
     ],
     "PreToolUse": [
