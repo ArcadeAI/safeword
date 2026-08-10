@@ -1,7 +1,7 @@
 # Safeword Architecture
 
 **Version:** 1.20
-**Last Updated:** 2026-08-01
+**Last Updated:** 2026-08-05
 **Status:** Production
 
 ---
@@ -68,72 +68,73 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ### Retro relay boundary
 
-`packages/retro-relay` is deliberately separate from the published CLI. The
-gated shared CLI core sends the same tenant/installation/repository/request ID
-identity from every harness surface; harness and subject are authorization and
-audit attributes only. Public relay routing remains compiled off until the
-readiness evidence below is satisfied.
-SQLite WAL is the smallest supported durable store for one active process on
-one host. Multi-host deployment or a network filesystem requires migration
-through the store boundary to PostgreSQL.
-The relay uses Node's built-in `node:sqlite` API, avoiding host compiler and
-native-addon prerequisites for contributors and deploys. A separate SQLite
-lock database holds an exclusive transaction for the process lifetime, so the
-operating system releases single-process ownership automatically after a crash
-without PID files or stale-reclaimer cleanup.
+`packages/retro-relay` is deliberately separate from the published CLI.
+Public relay routing remains compiled off until the readiness evidence below
+is satisfied.
 
-The Railway deployment profile therefore fixes one replica and one persistent
-`/data` volume. Readiness must query SQLite's schema version. A random
-per-process boot ID proves that an in-place restart replaced the process;
-`RAILWAY_REPLICA_ID` identifies the hosted replica but may remain stable across
-that restart and is not a restart oracle.
+**Identity.** The gated shared CLI core sends the same
+tenant/installation/repository/request-ID identity from every harness surface
+(Claude, Codex, Cursor). Which harness or subject made the call is used only
+for authorization and audit — it is never part of that identity.
 
-The relay stores request payloads only as AES-256-GCM envelopes and keeps
-GitHub App credentials server-side. Ambiguous create outcomes are quarantined
-until a privileged reconciliation route finds exactly one reserved marker in a
-complete raw REST issue-body scan. Sanitized MCP reads are never duplicate
-authority. The client supplies one absolute creation-plus-24-hour retry
-deadline, which the server persists and may shorten but never extend, followed
-by one-hour dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
-timed maintenance worker persists its retry schedule and terminal alert outbox
-in the same database.
-With #1474 and #1481 complete, canonical/legacy semantic adoption and
-cross-request aliasing remain unbuilt until the post-fix collision rates are
-remeasured and bound into the readiness evidence.
+**Storage.** SQLite WAL is the smallest supported durable store for one
+active process on one host; multi-host deployment or a network filesystem
+requires migrating through the store boundary to PostgreSQL. The relay uses
+Node's built-in `node:sqlite` API, so contributors and deploys need no host
+compiler or native-addon prerequisites. A separate SQLite lock database holds
+one exclusive transaction for the life of the process — if the process
+crashes, the operating system releases that lock automatically, with no PID
+files or stale-lock cleanup needed.
 
-Before transport, the CLI writes one immutable file containing the exact
-serialized request bytes and a UUIDv4 request ID. Relay routing requires an
-explicit absolute `SAFEWORD_RETRO_RELAY_OUTBOX` outside the project workspace;
-there is no inferred cross-provider cloud persistence. Claude, Codex, Cursor,
-and their cloud surfaces can claim and resend those bytes only when they share
-that operator-provided durable handoff. Without it, routing stays on the native
-path. The outbox is resolved physically so an external-looking symlink cannot
-alias back into the disposable project. Harness identity is never part of
-request identity. File contents, newly created spool-directory entries, and
-containing-directory mutations are synced before durable success is reported,
-and atomic rename fences concurrent claims. An
-atomic acknowledgement journal is authoritative before recoverable payload
-cleanup, so a crash cannot convert an unknown relay response into permission
-for native GitHub fallback. The immutable record carries its creation time and
-shared 24-hour retry deadline; expiry moves it to a visible local dead letter.
-Locally, a hashed session, delta-window boundary, and encounter slot correlates
-retries to that record while allowing later fires and unrelated findings to
-spool independently. It is stripped before transport and is never server-side
-semantic or duplicate authority.
+**Deployment.** The Railway deployment profile fixes one replica and one
+persistent `/data` volume. Readiness must query SQLite's schema version. A
+random per-process boot ID proves that an in-place restart replaced the
+process; `RAILWAY_REPLICA_ID` identifies the hosted replica but may stay
+stable across a restart, so it is not a restart oracle.
 
-Production authentication requires separate repository-scoped `file`
-principals for Claude, Codex, and Cursor and a `reconcile`/`operate` principal
-for operators. Filing inputs have bounded bodies and fields, UUIDv4 request
-identity, ten-second inbound/GitHub timeouts, bounded GitHub concurrency and
-reconciliation scans, coalesced installation-token minting, and a per-principal
-filing/reconciliation rate limit. The single-principal
-Railway spike configuration is explicitly health-only. Relay routing is
-compiled fail-closed until parsed versioned metric evidence has a nonempty
-sample, immutable artifact hashes, and Git ancestry bind the evidence to the
-running build. Its drain-throughput evidence is a regression floor: at least
-300 queued requests, at least 80 ms relay latency, at least two acceptances in
-one bounded drain, and total drain duration below one second. #1474 and #1481
-are complete prerequisites; their resulting measurements still gate activation.
+**Payload handling.** The relay stores request payloads only as AES-256-GCM
+envelopes and keeps GitHub App credentials server-side. When a create
+request's outcome is ambiguous, the relay quarantines it until a privileged
+reconciliation step finds exactly one reserved marker in a complete raw REST
+issue-body scan — sanitized MCP reads are never duplicate authority. The
+client supplies one absolute creation-plus-24-hour retry deadline, which the
+server persists and may shorten but never extend, followed by one-hour
+dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
+timed maintenance worker persists its retry schedule and terminal alert
+outbox in the same database. With #1474 and #1481 complete, canonical/legacy
+semantic adoption and cross-request aliasing remain unbuilt until the
+post-fix collision rates are remeasured and bound into the readiness
+evidence.
+
+**Durability guarantees before transport:**
+
+- The CLI writes one immutable file containing the exact serialized request bytes and a UUIDv4 request ID before transport.
+- Relay routing requires an explicit absolute `SAFEWORD_RETRO_RELAY_OUTBOX` outside the project workspace — there is no inferred cross-provider cloud persistence.
+- Claude, Codex, Cursor, and their cloud surfaces can claim and resend those bytes only when they share that operator-provided durable handoff; without it, routing stays on the native path.
+- The outbox is resolved physically, so an external-looking symlink cannot alias back into the disposable project.
+- Harness identity is never part of request identity.
+- File contents, newly created spool-directory entries, and containing-directory mutations are synced before durable success is reported, and atomic rename fences concurrent claims.
+- An atomic acknowledgement journal is authoritative before recoverable payload cleanup, so a crash cannot convert an unknown relay response into permission for native GitHub fallback.
+- The immutable record carries its creation time and shared 24-hour retry deadline; expiry moves it to a visible local dead letter.
+- Locally, a hashed session, delta-window boundary, and encounter slot correlates retries to that record while allowing later fires and unrelated findings to spool independently; it is stripped before transport and is never server-side semantic or duplicate authority.
+
+**Production authentication and limits:**
+
+- Separate repository-scoped `file` principals for Claude, Codex, and Cursor, plus a `reconcile`/`operate` principal for operators.
+- Bounded request bodies and fields, UUIDv4 request identity.
+- Ten-second inbound/GitHub timeouts.
+- Bounded GitHub concurrency and reconciliation scans.
+- Coalesced installation-token minting.
+- A per-principal filing/reconciliation rate limit.
+
+The single-principal Railway spike configuration is limited to serving health
+checks — it cannot file to GitHub yet. Relay routing is compiled fail-closed
+until parsed versioned metric evidence has a nonempty sample, immutable
+artifact hashes, and Git ancestry bind the evidence to the running build. Its
+drain-throughput evidence is a regression floor: at least 300 queued
+requests, at least 80 ms relay latency, at least two acceptances in one
+bounded drain, and total drain duration below one second. #1474 and #1481 are
+complete prerequisites; their resulting measurements still gate activation.
 Issue #834 remains active; #1495 gates readiness only if client credential
 helpers are reused.
 
@@ -190,7 +191,7 @@ The generated package leaf is the current structural inventory. These purposes e
 | `retro`                  | Sanitizes, deduplicates, triages, reconciles, and files retrospective findings                         |
 | `schema.ts`              | Single source of truth for owned, managed, preserved, deprecated, merged, and patched assets           |
 | `self-report-capture.ts` | Accepts bounded CLI-side self-observation events for retrospective analysis                            |
-| `skills`                 | Installs optional third-party language coding skills without owning Safe Word workflows                |
+| `skills`                 | Installs optional third-party language coding skills without owning Safeword workflows                 |
 | `templates`              | Produces dynamic configuration and legacy-cleanup content used by reconciliation                       |
 | `test-plan`              | Resolves and renders the canonical test/build/typecheck/BDD/dependency plan for a project              |
 | `ticket-create`          | Routes ticket creation between local identifiers and issue-first tracker identities                    |
@@ -647,7 +648,7 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 
 **Quality review cadence (SXSCJQ; implement-step reviews quieted by JENFZX):** The quality review fires at phase boundaries, not on a LOC throttle. PostToolUse surfaces a phase-appropriate review (`getQualityMessage`) as `additionalContext` on each `phase:` change in `ticket.md` — at the edit, so it works in long autonomous runs where the Stop hook never fires. Ordinary implement-step (RED/GREEN/REFACTOR) reviews no longer surface per step; they are folded into the whole-ticket review at the implement→verify exit (JENFZX). The Stop hook is a deduped backstop: it reviews per phase, but only for a boundary not already marked (`lastReviewedPhase` in session state). With no resolvable ticket phase — no active ticket, or one in a status escape hatch — a generic review is recorded once per user-prompt boundary: `stopQualityReviewAwaitingUserPrompt` keeps later idle Stops silent until `UserPromptSubmit` clears it, while typecheck, phase, and done gates remain independent. The former implement-phase LOC review throttle (`LOC_REVIEW_THRESHOLD`) is removed. Shared decision logic lives in `lib/review-trigger.ts` (`shouldReviewPhase`); checkbox-flip detection in `lib/checkbox-transitions.ts`.
 
-**Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex uses the profile-scoped Safe Word plugin, whose hook manifest calls the packaged, version-pinned `bunx --bun safeword@<version> hook codex stop` entrypoint. It emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
+**Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex uses the profile-scoped Safeword plugin, whose hook manifest calls the packaged, version-pinned `bunx --bun safeword@<version> hook codex stop` entrypoint. It emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
 
 **Codex Desktop session identity (S2CWBE):** Hook payload `session_id` and a
 fresh Codex proof-bridge cache remain the preferred sources. When Codex Desktop
@@ -778,7 +779,7 @@ safeword accepts this trade — **consistency and enforcement over independent b
 
 | Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Context        | Codex needs the full Safe Word workflow without copying workflow files into each repository. Plugin installation and enablement do not prove its hooks executed, so migration cannot safely remove working legacy protection. Shared repository cleanup also needs to survive interruption without overwriting teammate changes.                                                                                                                                                                                                                                            |
+| Context        | Codex needs the full Safeword workflow without copying workflow files into each repository. Plugin installation and enablement do not prove its hooks executed, so migration cannot safely remove working legacy protection. Shared repository cleanup also needs to survive interruption without overwriting teammate changes.                                                                                                                                                                                                                                             |
 | Decision       | Generate and distribute the Codex plugin from canonical templates. Migrate with Expand → Prove → Contract: install profile-first; record profile-local SessionStart proof bound to package version and the exact hook-manifest digest; let each viable legacy event remain authoritative while the plugin covers gaps; and finalize only with current proof plus explicit confirmation. Finalization uses a contained, fingerprinted transaction backup and conflict-safe recovery. Historical ownership and viability identities live in `SAFEWORD_SCHEMA.codexMigration`. |
 | Consequences   | Generic setup and upgrade preserve recognized legacy assets. `safeword codex status` derives human and schema-1 JSON output from one typed state model. Finalization removes only schema-owned assets, preserves custom content, records plugin mode, and leaves a setup-only bootstrap. Interrupted work reports `recovery_required`; recovery refuses to overwrite intervening edits. Profile proof is operational evidence for the active profile, not a claim that every teammate migrated.                                                                             |
 | Alternatives   | Manually maintain plugin skills: rejected because the existing thin catalogue drifted. Generate at customer runtime: rejected because it adds a customer-time failure mode and cannot prove the installed cache. Delete hooks on plugin enablement: rejected because enabled does not mean trusted.                                                                                                                                                                                                                                                                         |

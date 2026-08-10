@@ -66,7 +66,7 @@ function reviewWiring(world: SafewordWorld): ReviewWiring {
 }
 
 Given(
-  'a project uses the installed Claude plugin without project-local Safe Word setup',
+  'a project uses the installed Claude plugin without project-local Safeword setup',
   function (this: SafewordWorld) {
     installedPluginFallbackByWorld.set(this, []);
   },

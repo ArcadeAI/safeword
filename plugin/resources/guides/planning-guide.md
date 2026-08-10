@@ -20,7 +20,7 @@ Ticket artifacts live in the ticket folder:
 
 - `ticket.md` - Ticket definition
 - `test-definitions.md` - R/G/R ledger for BDD scenarios
-- `spec.md` - Feature spec (epics only)
+- `spec.md` - Feature spec, auto-created at intake (features only)
 - `impl-plan.md` - Implementation design record for new-flow features — authored during the plan-implementation phase (after scenarios validate, before TDD), scaffolded from `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md`; the plan gate blocks `implement` until it parses valid (see the bdd skill's `PLAN_IMPLEMENTATION.md`)
 - `design.md` - Design doc (complex features)
 
@@ -36,7 +36,7 @@ the behavior.
 
 | Need                            | Template                                                                  |
 | ------------------------------- | ------------------------------------------------------------------------- |
-| feature spec                    | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`    |
+| feature spec                    | `spec-template.md` (templates directory)                                  |
 | task/patch spec                 | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`       |
 | feature Test definitions        | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |
 | Complex feature design          | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/design-doc-template.md`      |

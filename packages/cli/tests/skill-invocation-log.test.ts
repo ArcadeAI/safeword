@@ -104,11 +104,9 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
         expect(content).toContain(
           'on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper',
         );
+        expect(content).toContain("a feature ticket can't be marked done without this proof");
         expect(content).toContain(
-          'Feature tickets must fail closed if no real current-session proof can be logged.',
-        );
-        expect(content).toContain(
-          `Task, patch, and no-ticket ${skill} work may continue after recording that session-scoped proof was unavailable and not required by the gate.`,
+          "For task, patch, or no-ticket work, this proof isn't required — note it's missing and continue.",
         );
         expect(content).toContain(
           `If no \`[skill-invocation-log] ${skill} ✓\` line appears above, run this fallback before continuing:`,
@@ -269,7 +267,7 @@ describe('self-review stamp fallback surfaces (K2ZP40)', () => {
         'CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec',
       );
       expect(content).toContain(
-        'The review stamp is content-bound and uses the normalized runtime identity.',
+        "The stamp is tied to the spec's exact current content — edit the spec, and the stamp goes stale automatically.",
       );
       expect(content).not.toContain('no `✓` line at all**: STOP');
     },

@@ -190,14 +190,14 @@ function eventRemovalRanges(
   );
   if (blocks.some(block => block.safeWordAmbiguous)) {
     throw new Error(
-      'Legacy Safe Word hook cleanup found an ambiguous hook block; no changes were made.',
+      'Legacy Safeword hook cleanup found an ambiguous hook block; no changes were made.',
     );
   }
   const ownedBlocks = blocks.filter(block => block.safeWordOwned);
   if (ownedBlocks.length === 0) return [];
   const parentRange = { start, end: nestedStarts[0] ?? end };
   // Unknown parent metadata is user-owned. Preserve that now-inert scaffold
-  // and remove only the recognized Safe Word child block.
+  // and remove only the recognized Safeword child block.
   return ownedBlocks.length === blocks.length && isKnownParentScaffold(lines, parentRange)
     ? [{ start, end }]
     : ownedBlocks.map(block => block.range);
@@ -298,7 +298,7 @@ function prepareLegacyCodexHookBlocks(content: string): {
   const lines = splitLines(content);
   if (!countsMatch(semanticLegacyCommandCounts(document), sourceLegacyCommandCounts(lines))) {
     throw new Error(
-      'Codex configuration uses unsupported Safe Word hook formatting; no legacy hooks were removed.',
+      'Codex configuration uses unsupported Safeword hook formatting; no legacy hooks were removed.',
     );
   }
   const ranges = removalRanges(lines);

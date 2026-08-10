@@ -193,7 +193,7 @@ CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
 `src/skills`
 
-Installs optional third-party language coding skills without owning Safe Word workflow skills.
+Installs optional third-party language coding skills without owning Safeword workflow skills.
 
 ### templates
 

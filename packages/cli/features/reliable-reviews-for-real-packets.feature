@@ -55,7 +55,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the assigned reviewer route is reported as timed out
 
   @reliable-reviews-for-real-packets.TBU1.R4 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and the descendants its platform lets it reach, never waits on what the system will not kill, never claims to have stopped what escaped, and never uses a late answer
+  Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safeword stops it and the descendants its platform lets it reach, never waits on what the system will not kill, never claims to have stopped what escaped, and never uses a late answer
 
     Scenario: Cleanup reaches every descendant the platform groups with the reviewer
       Given a reviewer that never answers and leaves a grandchild grouped with it
@@ -130,7 +130,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review reports that the check was not independent
 
   @reliable-reviews-for-real-packets.TBU3.R2 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R2 — A review completed by the reviewer agent on its alternate model is still a full cross-agent check, and Safe Word's own review result names the model that reviewed
+  Rule: reliable-reviews-for-real-packets.TBU3.R2 — A review completed by the reviewer agent on its alternate model is still a full cross-agent check, and Safeword's own review result names the model that reviewed
 
     Scenario: An alternate-model review still counts as a full independent check
       Given the reviewer agent's alternate model completed the review
@@ -145,7 +145,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the result does not report a full cross-agent check
 
   @reliable-reviews-for-real-packets.TBU3.R3 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R3 — With no alternate model configured, routing is exactly what it is today, and Safe Word never supplies a model name of its own
+  Rule: reliable-reviews-for-real-packets.TBU3.R3 — With no alternate model configured, routing is exactly what it is today, and Safeword never supplies a model name of its own
 
     Scenario: A model value within the grammar is used as configured
       Given a configured alternate model within the accepted grammar
@@ -230,7 +230,7 @@ Feature: Keep independent reviews reliable for real ticket packets
   @reliable-reviews-for-real-packets.NTB1.R2 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.NTB1.R2 — An explanation never carries raw reviewer output, diagnostic noise, or credentials
 
-    Scenario: An explanation is built only from Safe Word's own failure classification
+    Scenario: An explanation is built only from Safeword's own failure classification
       Given a reviewer that fails while emitting a credential
       When the exhausted-route result is reported
       Then the explanation names only the route and its classified cause

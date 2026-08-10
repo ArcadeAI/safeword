@@ -186,7 +186,7 @@ function agentName(agent: ReviewAgent): string {
 
 /**
  * What went wrong on one route, in words a reader who cannot see the code can
- * act on. Built only from Safe Word's own classification — never from anything
+ * act on. Built only from Safeword's own classification — never from anything
  * the reviewer printed, which may carry credentials or a rejected answer.
  */
 function causePhrase(failure: string): string {

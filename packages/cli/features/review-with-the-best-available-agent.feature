@@ -26,7 +26,7 @@ Feature: Keep review available with the best supported fallback
 
   @review-with-the-best-available-agent.TBU1.R5 @surface.claude-code @surface.claude-code-cloud
   Scenario: The installed Claude plugin fallback is self-contained
-    Given a project uses the installed Claude plugin without project-local Safe Word setup
+    Given a project uses the installed Claude plugin without project-local Safeword setup
     When the installed Claude fallback assets are inspected
     Then the fallback skill and reviewer load their contract from the installed plugin
 
