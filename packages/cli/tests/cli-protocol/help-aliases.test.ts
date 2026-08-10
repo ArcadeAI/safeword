@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { commandCatalog, findCommandDefinition } from '../../src/cli-protocol/catalog.js';
 import { configureCliOutput, createCliProgram } from '../../src/cli-protocol/program.js';
 import { createResult } from '../../src/cli-protocol/result.js';
-import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { createTemporaryDirectory, runCli, runCliWithoutInstall } from '../helpers.js';
 
 function visibleCommands(help: string): string[] {
   const section = help.split('\nCommands:\n', 2)[1]?.split('\n\n', 1)[0] ?? '';
@@ -227,7 +227,7 @@ describe('canonical help and compatibility aliases', () => {
 
   it('reports setup --yes as explicit redundant compatibility', async () => {
     const directory = createTemporaryDirectory();
-    const result = await runCli(
+    const result = await runCliWithoutInstall(
       ['setup', '--yes', '--json', '--no-input', '--offline', '--cwd', directory],
       { cwd: directory },
     );
