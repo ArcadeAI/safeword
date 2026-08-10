@@ -195,6 +195,64 @@ describe('test execution CLI wiring', () => {
     });
   });
 
+  it.each([
+    { mode: 'local', fallbackUsed: false },
+    { mode: 'remote-preferred', fallbackUsed: true },
+  ] as const)('uses a $mode personal preference for a test request', async input => {
+    const directory = createTemporaryDirectory();
+    const personalDirectory = nodePath.join(directory, '.project', 'personal');
+    const projectDirectory = nodePath.join(directory, '.safeword');
+    mkdirSync(personalDirectory, { recursive: true });
+    mkdirSync(projectDirectory, { recursive: true });
+    const personalConfig = JSON.stringify({ schemaVersion: 1, testExecution: input.mode });
+    const projectConfig = JSON.stringify({ testExecution: 'remote-preferred' });
+    writeFileSync(nodePath.join(personalDirectory, 'config.json'), personalConfig);
+    writeFileSync(nodePath.join(projectDirectory, 'config.json'), projectConfig);
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'personal-preference-test-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:done': String.raw`node -e "require('node:fs').appendFileSync('runs.log','run\n')"`,
+        },
+      }),
+    );
+
+    const result = await runCli(
+      [
+        'project',
+        'test',
+        '--lane',
+        'done',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: {
+        effective: { mode: input.mode, source: 'personal' },
+        dispatch: { attempted: false },
+        fallback: { used: input.fallbackUsed },
+        executed: 1,
+      },
+    });
+    expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
+    expect(readFileSync(nodePath.join(personalDirectory, 'config.json'), 'utf8')).toBe(
+      personalConfig,
+    );
+    expect(readFileSync(nodePath.join(projectDirectory, 'config.json'), 'utf8')).toBe(
+      projectConfig,
+    );
+  });
+
   it('fails closed for malformed personal configuration without changing files', async () => {
     const directory = createTemporaryDirectory();
     const personalDirectory = nodePath.join(directory, '.project', 'personal');
