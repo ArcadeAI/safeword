@@ -55,7 +55,7 @@ per row and no pipe characters inside cells.
 | Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
-`Decision informed` must exactly and uniquely match the `Decision` cell of the affected Recorded Decisions row.
+`Decision informed` must exactly match the unique `Decision` cell of the affected Recorded Decisions row.
 -->
 
 ### Recorded Decisions

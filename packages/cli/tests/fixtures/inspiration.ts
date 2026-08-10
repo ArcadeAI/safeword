@@ -19,7 +19,7 @@ export function validProductInspirationLines(date: string): string[] {
   ];
 }
 
-export function validImplementationInspiration(date: string): string {
+export function validImplementationInspiration(date: string, decision = 'gate'): string {
   return [
     '### Implementation Inspiration',
     '',
@@ -28,6 +28,6 @@ export function validImplementationInspiration(date: string): string {
     `| https://spec.commonmark.org/0.31.2/ | ${date} | 0.31.2 | 0.31.2 | Exact comment grammar | Exact marker | Strict subset only |`,
     '',
     '**Decision impact:** retained: exact markers fit the design',
-    '**Decision informed:** gate',
+    `**Decision informed:** ${decision}`,
   ].join('\n');
 }

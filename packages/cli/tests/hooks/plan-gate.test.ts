@@ -6,7 +6,7 @@ import { evaluateImplementEntry } from '../../templates/hooks/lib/plan-gate.js';
 import { validImplementationInspiration } from '../fixtures/inspiration.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from '../helpers.js';
 
-const VALID_INSPIRATION = validImplementationInspiration('2026-08-09');
+const VALID_INSPIRATION = validImplementationInspiration('2026-08-09', 'parser');
 
 function plan(inspiration: string): string {
   return [
