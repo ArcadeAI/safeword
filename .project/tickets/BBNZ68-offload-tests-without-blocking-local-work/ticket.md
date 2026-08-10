@@ -16,7 +16,7 @@ out_of_scope:
 done_when:
   - Every child ticket has independently verified its customer-facing contract
 created: 2026-08-07T16:44:39.255Z
-last_modified: 2026-08-09T21:50:08Z
+last_modified: 2026-08-10T19:50:00Z
 ---
 
 # Offload tests without blocking local work
@@ -48,3 +48,4 @@ last_modified: 2026-08-09T21:50:08Z
 - 2026-08-09T21:20:17Z Split: Promoted BBNZ68 to the epic container after the user approved decomposition. Its existing spec and feature scenarios remain the shared contract; child tickets own independently shippable implementation slices.
 - 2026-08-09T21:20:59Z Planned children: S7TZF9 (contributor preference), X2Z8MN (workflow lifecycle), S2TF4J (dispatch and recovery), and BR373S (trusted runner). S7TZF9 is the first delivery slice.
 - 2026-08-09T21:50:08Z Review-spec attempted: shortened coordinator exhausted both Claude and Codex routes. Required fresh-context supplemental review found the shared packet is design-only and cannot prove behavior until implementation and executable evidence exist; no independent approval was claimed.
+- 2026-08-10T19:50:00Z CI follow-up: Marked the epic contract `@wip` while its remaining child slices lack executable steps. This keeps all 134 scenarios discoverable as source without introducing undefined scenarios into the acceptance lane; the exact Cucumber wiring test and Gherkin lint pass.

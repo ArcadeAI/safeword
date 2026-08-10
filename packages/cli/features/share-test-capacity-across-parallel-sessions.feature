@@ -1,4 +1,4 @@
-@surface.safeword-cli
+@wip @surface.safeword-cli
 Feature: Let parallel sessions share test capacity safely
 
   Background:

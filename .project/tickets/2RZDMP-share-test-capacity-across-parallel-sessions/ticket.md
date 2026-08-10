@@ -14,7 +14,7 @@ scope:
 out_of_scope:
 done_when:
 created: 2026-08-07T17:31:35.044Z
-last_modified: 2026-08-08T03:42:01Z
+last_modified: 2026-08-10T19:50:00Z
 ---
 
 # Let parallel sessions share test capacity safely
@@ -34,3 +34,4 @@ last_modified: 2026-08-08T03:42:01Z
 - 2026-08-07T18:53:19Z Phase: intake → define-behavior; reconciled the proposal with 72WMQ5's hardened machine-wide mutex and saved the systematic behavior dimensions before scenario authoring.
 - 2026-08-07T18:58:01Z Phase: define-behavior → scenario-gate; authored 15 scenarios across 6 rules with complete rejection, host-surface, dimension, and R/G/R-ledger coverage.
 - 2026-08-08T03:42:01Z Scenario-quality approved: Expanded to 56 scenarios and a matching 56-entry ledger; closed initialization, parser, durability, process-lifecycle, native-provenance, recovery, and public-CLI proof gaps. Gherkin and diff checks pass. Review independence remained degraded because Claude was unavailable; a separate headless Codex reviewer approved with no findings.
+- 2026-08-10T19:50:00Z CI follow-up: Marked the future implementation contract `@wip` until its executable steps are built. The scenarios remain canonical BDD source while the repository acceptance lane stays free of undefined steps; the exact Cucumber wiring test and Gherkin lint pass.
