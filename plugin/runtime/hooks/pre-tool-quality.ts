@@ -13,7 +13,7 @@ import {
   getTicketInfo,
   parseTddStep,
 } from './lib/active-ticket.ts';
-import { detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
@@ -21,6 +21,7 @@ import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
+import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
   AUTHOR_MODEL_ENV,
@@ -263,7 +264,9 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 //    a bare shared-runtime name kills every project's processes on the
 //    machine, not just this one's. Denied with the project-scoped
 //    alternatives from zombie-process-cleanup.md.
-// 3. REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2). The
+// 3. Inspiration activation artifacts must be mutated through an edit payload
+//    whose proposed content can be reconstructed; shell writes are denied.
+// 4. REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2). The
 //    only file-path commit rule that survived scope reduction — see
 //    <namespace-root>/learnings/procedural-gates-generalize-beyond-tdd.md for
 //    why the RED/GREEN file-path rules were dropped.
@@ -278,11 +281,18 @@ if (tool === 'Bash') {
       `Make the change with the Edit tool on ${ledgerWrite.path} — each [ ] → [x] transition needs a commit SHA or "skip: <reason>", validated at write time. One checkbox per edit.`,
     );
   }
+  const inspirationWrite = detectInspirationArtifactWrite(command);
+  if (inspirationWrite) {
+    deny(
+      `Bash writes to inspiration activation artifacts are blocked (${inspirationWrite.shape} targeting ${inspirationWrite.path}). Shell commands bypass the prior/proposed-content validation that prevents activation downgrade.`,
+      `Make the change with the Edit or Write tool on ${inspirationWrite.path}, so Safeword can preserve at least one v1 activation signal until durable Git provenance exists.`,
+    );
+  }
   const processKill = detectBroadProcessKill(command);
   if (processKill) {
     deny(
-      `Broad process kill blocked: \`${processKill.command} ${processKill.target}\` matches by name across the whole machine, killing every project's ${processKill.target} processes (dev servers, test runners, other sessions), not just this project's. Use the project-scoped \`"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh\` instead.`,
-      `Project-scoped alternatives: \`"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh\` (auto-detects this project's processes; previews by default, --yes to kill), \`lsof -ti:<port> | xargs kill -9\` (port-scoped), or \`pkill -f "<pattern>.*$(pwd)"\` (path-scoped). See "${CLAUDE_PLUGIN_ROOT}"/resources/guides/zombie-process-cleanup.md.`,
+      `Broad process kill blocked: \`${processKill.command} ${processKill.target}\` matches by name across the whole machine, killing every project's ${processKill.target} processes (dev servers, test runners, other sessions), not just this project's. Use the project-scoped \`"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh\` instead.`,
+      `Project-scoped alternatives: \`"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/cleanup-zombies.sh\` (auto-detects this project's processes; previews by default, --yes to kill), \`lsof -ti:<port> | xargs kill -9\` (port-scoped), or \`pkill -f "<pattern>.*$(pwd)"\` (path-scoped). See "\${CLAUDE_PLUGIN_ROOT}"/resources/guides/zombie-process-cleanup.md.`,
     );
   }
   if (GIT_COMMIT_COMMAND.test(command)) {
@@ -331,7 +341,7 @@ if (
   }
 
   const ticketContent = readFileSync(ticketFile, 'utf8');
-  const frontmatterMatch = ticketContent.match(/^---\n([\s\S]*?)\n---/);
+  const frontmatterMatch = ticketContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
 
   if (!frontmatterMatch) {
     deny(
@@ -468,6 +478,14 @@ function nextContentAfterEdit(toolInput: HookInput['tool_input'], priorContent: 
   return priorContent;
 }
 
+function hasReconstructableEdit(toolInput: HookInput['tool_input']): boolean {
+  return (
+    toolInput?.content !== undefined ||
+    toolInput?.edits !== undefined ||
+    toolInput?.old_string !== undefined
+  );
+}
+
 function frontmatterScalar(
   meta: Record<string, string | string[]>,
   key: string,
@@ -477,7 +495,7 @@ function frontmatterScalar(
 }
 
 function frontmatterFromContent(content: string): Record<string, string | string[]> {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   return match ? parseFrontmatter(match[1] ?? '') : {};
 }
 
@@ -486,6 +504,64 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // canonical-ticket branches and be judged on their own frontmatter.
 const isCanonicalTicketEdit =
   nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
+const isCanonicalSpecEdit =
+  nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
+
+interface CanonicalTicketEditContext {
+  priorContent: string;
+  proposedContent: string;
+  priorMeta: Record<string, string | string[]>;
+  proposedMeta: Record<string, string | string[]>;
+}
+
+let cachedCanonicalTicketEditContext: CanonicalTicketEditContext | undefined;
+
+function canonicalTicketEditContext(): CanonicalTicketEditContext {
+  if (cachedCanonicalTicketEditContext !== undefined) return cachedCanonicalTicketEditContext;
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  cachedCanonicalTicketEditContext = {
+    priorContent,
+    proposedContent,
+    priorMeta: frontmatterFromContent(priorContent),
+    proposedMeta: frontmatterFromContent(proposedContent),
+  };
+  return cachedCanonicalTicketEditContext;
+}
+
+// A new feature's activation signals may be uncommitted, so Git history cannot
+// preserve provenance yet. Keep at least one current signal alive across edits:
+// the normal transition gates then require the complete three-signal contract.
+// This closes the two-edit downgrade where markers were removed first and the
+// phase was advanced in a later tool call.
+if (isCanonicalTicketEdit || isCanonicalSpecEdit) {
+  const toolInput = input.tool_input;
+  if (hasReconstructableEdit(toolInput)) {
+    const ticketDirectory = nodePath.dirname(editedFile);
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    const specPath = nodePath.join(ticketDirectory, 'spec.md');
+    const currentTicket = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
+    const currentSpec = existsSync(specPath) ? readFileSync(specPath, 'utf8') : '';
+    const proposed = nextContentAfterEdit(
+      toolInput,
+      isCanonicalTicketEdit ? currentTicket : currentSpec,
+    );
+    const priorActivated = hasInspirationActivationCandidate({
+      ticketContent: currentTicket,
+      specContent: currentSpec,
+    });
+    const proposedActivated = hasInspirationActivationCandidate({
+      ticketContent: isCanonicalTicketEdit ? proposed : currentTicket,
+      specContent: isCanonicalSpecEdit ? proposed : currentSpec,
+    });
+    if (priorActivated && !proposedActivated) {
+      deny(
+        'The last inspiration-contract activation signal cannot be removed before durable provenance exists.',
+        'Restore at least one exact v1 activation signal. The phase-transition gate will require the complete ticket marker, scaffold sentinel, and spec marker before work advances.',
+      );
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Phase-provenance gate (0KYEBN, #644 G2) — ALWAYS-ON. A feature ticket's
@@ -500,14 +576,12 @@ if (isCanonicalTicketEdit) {
   // carrying none of those (e.g. NotebookEdit, adapter probes) pass — the
   // gate polices content it can see, matching the sibling gates' posture.
   const toolInput = input.tool_input;
-  const reconstructable =
-    toolInput?.content !== undefined ||
-    toolInput?.edits !== undefined ||
-    toolInput?.old_string !== undefined;
-  if (reconstructable) {
-    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : undefined;
-    const proposedContent = nextContentAfterEdit(toolInput, priorContent ?? '');
-    const verdict = evaluateTicketWrite(priorContent, proposedContent);
+  if (hasReconstructableEdit(toolInput)) {
+    const context = canonicalTicketEditContext();
+    const verdict = evaluateTicketWrite(
+      existsSync(editedFile) ? context.priorContent : undefined,
+      context.proposedContent,
+    );
     if (!verdict.ok) {
       deny(verdict.reason, withOrderingNote(verdict.remediation));
     }
@@ -515,20 +589,18 @@ if (isCanonicalTicketEdit) {
 }
 
 /** Prior/proposed phase + proposed type for a canonical ticket.md edit. */
-function phaseTransitionContext(toolInput: HookInput['tool_input']): {
+function phaseTransitionContext(): {
   priorPhase: string | undefined;
   proposedPhase: string | undefined;
   proposedType: string | undefined;
   proposedContent: string;
 } {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(toolInput, priorContent);
-  const proposedMeta = frontmatterFromContent(proposedContent);
+  const context = canonicalTicketEditContext();
   return {
-    priorPhase: frontmatterScalar(frontmatterFromContent(priorContent), 'phase'),
-    proposedPhase: frontmatterScalar(proposedMeta, 'phase'),
-    proposedType: frontmatterScalar(proposedMeta, 'type'),
-    proposedContent,
+    priorPhase: frontmatterScalar(context.priorMeta, 'phase'),
+    proposedPhase: frontmatterScalar(context.proposedMeta, 'phase'),
+    proposedType: frontmatterScalar(context.proposedMeta, 'type'),
+    proposedContent: context.proposedContent,
   };
 }
 
@@ -536,9 +608,7 @@ function phaseTransitionContext(toolInput: HookInput['tool_input']): {
 // scenario work starts. The existing test-definitions.md gate still guards the
 // first scenario-file write; this catches the earlier phase edit.
 if (isCanonicalTicketEdit) {
-  const { priorPhase, proposedPhase, proposedType, proposedContent } = phaseTransitionContext(
-    input.tool_input,
-  );
+  const { priorPhase, proposedPhase, proposedType, proposedContent } = phaseTransitionContext();
 
   if (
     proposedType === 'feature' &&
@@ -563,7 +633,7 @@ if (isCanonicalTicketEdit) {
 // during the plan-implementation phase. Ordered after provenance/readiness so
 // "wrong step" is reported before "plan not ready".
 if (isCanonicalTicketEdit) {
-  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext(input.tool_input);
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
 
   if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
     const verdict = evaluateImplementEntry(nodePath.dirname(editedFile));
@@ -580,11 +650,8 @@ if (isCanonicalTicketEdit) {
 // `write-review-stamp.ts --phase`. Inert until reviewGate is enabled.
 if (isCanonicalTicketEdit) {
   if (isReviewGateOn()) {
-    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-    const exitedPhase = detectPhaseAdvance(
-      priorContent,
-      nextContentAfterEdit(input.tool_input, priorContent),
-    );
+    const context = canonicalTicketEditContext();
+    const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
     if (exitedPhase !== undefined) {
       const ticketDirectory = nodePath.dirname(editedFile);
       const stamps = readReviewStamps();
@@ -592,7 +659,7 @@ if (isCanonicalTicketEdit) {
       if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
-          `Run the phase's \`safeword review run\` command, then record its author_agent, actual_reviewer, and independence with \`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`; add a model only when independently verified.`,
+          `Run the phase's \`safeword review run\` command, then record its author_agent, actual_reviewer, and independence with \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`; add a model only when independently verified.`,
         );
       }
       // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
@@ -610,7 +677,7 @@ if (isCanonicalTicketEdit) {
         if (realReviews.length > 0 && !hasCrossModelReview) {
           deny(
             `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
-            `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and actual_model via \`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
+            `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and actual_model via \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
           );
         }
       }
@@ -625,9 +692,8 @@ if (isCanonicalTicketEdit) {
 // ---------------------------------------------------------------------------
 
 if (isCanonicalTicketEdit) {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
-  const denial = evaluateBlockedOnGate(priorContent, proposedContent, id => {
+  const context = canonicalTicketEditContext();
+  const denial = evaluateBlockedOnGate(context.priorContent, context.proposedContent, id => {
     const info = getTicketInfo(projectDirectory, id);
     return { found: info.folder !== undefined, status: info.status };
   });
@@ -695,7 +761,7 @@ if (state.activeTicket) {
     recordFailure(projectDirectory, input.session_id, 'plan-implementation-code-freeze');
     deny(
       'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
-      'Author impl-plan.md next to ticket.md (scaffold from "${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
+      'Author impl-plan.md next to ticket.md (scaffold from "\${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
     );
   }
 

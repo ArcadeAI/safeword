@@ -3122,6 +3122,8 @@ function renderTicketMarkdown(id, options) {
   const featureReadinessFrontmatter = type === "feature" ? `scope:
 out_of_scope:
 done_when:
+inspiration_contract: v1
+inspiration_contract_scaffold: v1
 ` : "";
   const childrenFrontmatter = type === "epic" ? `children: []
 ` : "";
@@ -3886,8 +3888,7 @@ var init_legacy_global_guidance = __esm(() => {
 // templates/hooks/lib/hierarchy.ts
 function parseFrontmatter2(yaml) {
   const result = {};
-  const lines = yaml.split(`
-`);
+  const lines = yaml.split(/\r?\n/);
   let currentKey = null;
   let currentList = null;
   for (const line of lines) {
@@ -3928,47 +3929,82 @@ function stripQuotes2(value) {
 }
 var init_hierarchy = () => {};
 
+// templates/hooks/lib/markdown-structure.ts
+function stripHtmlComments(content) {
+  return content.replaceAll(/<!--[\s\S]*?-->/g, (comment) => comment.replaceAll(/[^\r\n]/g, ""));
+}
+function withoutFencedCode(content, preserveHtmlComments = false) {
+  const lines = content.split(/\r?\n/);
+  let fence;
+  let htmlComment = false;
+  const projected = lines.map((line) => {
+    if (fence !== undefined) {
+      const closing = new RegExp(`^\\s{0,3}${fence.kind}{${fence.length},}\\s*$`);
+      if (closing.test(line))
+        fence = undefined;
+      return "";
+    }
+    if (htmlComment) {
+      if (line.includes("-->"))
+        htmlComment = false;
+      return preserveHtmlComments ? line : "";
+    }
+    const opening = /^\s{0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    if (!opening) {
+      const commentStart = line.indexOf("<!--");
+      if (commentStart !== -1 && line.indexOf("-->", commentStart + 4) === -1) {
+        htmlComment = true;
+        return preserveHtmlComments ? line : line.slice(0, commentStart);
+      }
+      return line;
+    }
+    const run = opening[1];
+    const kind = run[0];
+    const info2 = opening[2] ?? "";
+    if (kind === "`" && info2.includes("`"))
+      return line;
+    fence = { kind, length: run.length };
+    return "";
+  }).join(`
+`);
+  return preserveHtmlComments ? projected : stripHtmlComments(projected);
+}
+
+// templates/hooks/lib/inspiration.ts
+var IMPLEMENTATION_INSPIRATION_GRAMMAR;
+var init_inspiration = __esm(() => {
+  IMPLEMENTATION_INSPIRATION_GRAMMAR = {
+    referenceHeading: "### Implementation Inspiration",
+    referenceHeader: "| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |",
+    referenceDelimiter: "| --- | --- | --- | --- | --- | --- | --- |",
+    decisionImpact: "**Decision impact:** <changed: or retained: plus a non-empty rationale>",
+    decisionInformed: "**Decision informed:** <exact Decision cell from Recorded Decisions>",
+    searchHeading: "#### Implementation Unsuccessful Search",
+    searchHeader: "| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |",
+    searchDelimiter: "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    recordedDecisionsHeading: "### Recorded Decisions"
+  };
+});
+
 // templates/hooks/lib/impl-plan.ts
 function activeLines(content) {
-  const lines = [];
-  let inComment = false;
-  for (const raw of content.split(`
-`)) {
-    let line = raw;
-    if (inComment) {
-      const end = line.indexOf("-->");
-      if (end === -1)
-        continue;
-      inComment = false;
-      line = line.slice(end + 3);
-    }
-    let start = line.indexOf("<!--");
-    while (start !== -1) {
-      const end = line.indexOf("-->", start + 4);
-      if (end === -1) {
-        line = line.slice(0, start);
-        inComment = true;
-        break;
-      }
-      line = line.slice(0, start) + line.slice(end + 3);
-      start = line.indexOf("<!--");
-    }
-    lines.push(line);
-  }
-  return lines;
+  return withoutFencedCode(content).split(`
+`).filter((line) => !/^(?: {4}|\t)/u.test(line));
 }
 function parseStatus(lines, errors) {
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith(STATUS_PREFIX))
-      continue;
-    const value = trimmed.slice(STATUS_PREFIX.length).trim();
-    if (value === "planned" || value === "implemented")
-      return value;
-    errors.push(`Unknown status "${value}" \u2014 allowed values: planned, implemented.`);
+  const candidates = lines.map((line) => line.trim()).filter((line) => line.startsWith(STATUS_PREFIX));
+  if (candidates.length === 0) {
+    errors.push(`Missing \`${STATUS_PREFIX}\` line \u2014 add \`${STATUS_PREFIX} planned\` near the top.`);
     return null;
   }
-  errors.push(`Missing \`${STATUS_PREFIX}\` line \u2014 add \`${STATUS_PREFIX} planned\` near the top.`);
+  if (candidates.length !== 1) {
+    errors.push(`Expected exactly one \`${STATUS_PREFIX}\` line; found ${candidates.length}.`);
+    return null;
+  }
+  const value = candidates[0].slice(STATUS_PREFIX.length).trim();
+  if (value === "planned" || value === "implemented")
+    return value;
+  errors.push(`Unknown status "${value}" \u2014 allowed values: planned, implemented.`);
   return null;
 }
 function collectSectionBodies(lines) {
@@ -3997,15 +4033,32 @@ function validateAlignmentHeading(lines, errors) {
     errors.push("Both `## Design alignment` and legacy `## Arch alignment` are present \u2014 keep exactly one.");
   }
 }
+function validateUniqueSectionHeadings(lines, errors) {
+  const counts = new Map;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("## "))
+      continue;
+    const name = SECTION_NAMES.get(trimmed.slice(3).trim().toLowerCase());
+    if (name !== undefined)
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  for (const [name, count] of counts) {
+    if (count > 1)
+      errors.push(`Section "${name}" appears ${count} times \u2014 keep exactly one heading.`);
+  }
+}
 function parseImplPlan(content) {
   const errors = [];
   const lines = activeLines(content);
   const status = parseStatus(lines, errors);
   validateAlignmentHeading(lines, errors);
+  validateUniqueSectionHeadings(lines, errors);
   const bodies = collectSectionBodies(lines);
   const sections = {};
   const validatePresentSection = (name, body) => {
-    const skipLine = body.length === 1 && body[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? body[0] : null;
+    const meaningfulBody = body.filter((line) => !/^#{3,6}(?:\s|$)/u.test(line) && (name !== "Decisions" || !DECISIONS_SCAFFOLD_LINES.has(line)));
+    const skipLine = meaningfulBody.length === 1 && meaningfulBody[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? meaningfulBody[0] : null;
     if (skipLine !== null) {
       const reason = skipLine.slice(SKIP_PREFIX.length).trim();
       if (reason === "") {
@@ -4014,10 +4067,10 @@ function parseImplPlan(content) {
       sections[name] = { satisfied: reason !== "", skip: reason };
       return;
     }
-    if (body.length === 0) {
+    if (meaningfulBody.length === 0) {
       errors.push(`Section "${name}" is empty \u2014 add content or \`skip: <why>\`.`);
     }
-    sections[name] = { satisfied: body.length > 0, skip: null };
+    sections[name] = { satisfied: meaningfulBody.length > 0, skip: null };
   };
   for (const name of IMPL_PLAN_SECTIONS) {
     const body = bodies.get(name);
@@ -4034,8 +4087,9 @@ function parseImplPlan(content) {
   }
   return { status, sections, errors };
 }
-var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", SECTION_NAMES, DESIGN_ALIGNMENT_HEADING = "design alignment", LEGACY_ARCH_ALIGNMENT_HEADING = "arch alignment";
+var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", DECISIONS_SCAFFOLD_LINES, SECTION_NAMES, DESIGN_ALIGNMENT_HEADING = "design alignment", LEGACY_ARCH_ALIGNMENT_HEADING = "arch alignment";
 var init_impl_plan = __esm(() => {
+  init_inspiration();
   IMPL_PLAN_SECTIONS = [
     "Approach",
     "Decisions",
@@ -4044,6 +4098,7 @@ var init_impl_plan = __esm(() => {
     "Assessment triggers"
   ];
   IMPL_PLAN_OPTIONAL_SECTIONS = ["Doc impact"];
+  DECISIONS_SCAFFOLD_LINES = new Set(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
   SECTION_NAMES = new Map([
     ...IMPL_PLAN_SECTIONS.map((name) => [name.toLowerCase(), name]),
     ["arch alignment", "Design alignment"],
@@ -4555,9 +4610,9 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "0f4bc744e55e6e404dee4258b6180b111828ec833b66997ade79b0d159f7e8d4",
         ".claude/agents/safeword-reviewer.md": "5cc17d5cec1a6df812770cf80667673279bf1acc1bb961ebe458f8c5b58bdc1a",
         ".claude/skills/audit/SKILL.md": "784da329a70fe34b6e3a477b50caaee0d6bbfc1a3ed1d33b213fd9fb55346f4d",
-        ".claude/skills/bdd/DISCOVERY.md": "057b81e87cf4857c780e01ebebdc278485d3179c249335fbc38264784f0587bb",
+        ".claude/skills/bdd/DISCOVERY.md": "c229895c53030b8f44ff563dd3728d8f4a4e4e593d8c29ae9349283ea25b5d91",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "cb5fd5ecd897e8aaa51a59e548b327fd37c30647e224df39fc31c15fcc5a91c2",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "bf1b303505bae2ea3c66b699cfe8f24614f4c1be63d1ac20ee4ddf5ec76a2916",
         ".claude/skills/bdd/SCENARIOS.md": "2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d",
         ".claude/skills/bdd/SKILL.md": "ec82db67adaa26f852779687b205b0fbcbc143e257d81cdc527ab320d4b0b756",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
@@ -15284,6 +15339,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
         template: "hooks/record-skill-invocation.ts"
       },
       ".safeword/hooks/lib/active-ticket.ts": { template: "hooks/lib/active-ticket.ts" },
+      ".safeword/hooks/lib/feature-provenance.ts": { template: "hooks/lib/feature-provenance.ts" },
+      ".safeword/hooks/lib/inspiration.ts": { template: "hooks/lib/inspiration.ts" },
+      ".safeword/hooks/lib/markdown-structure.ts": { template: "hooks/lib/markdown-structure.ts" },
       ".safeword/hooks/lib/architecture-document-nudge.ts": {
         template: "hooks/lib/architecture-document-nudge.ts"
       },

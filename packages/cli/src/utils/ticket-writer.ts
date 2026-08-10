@@ -235,6 +235,8 @@ function renderTicketMarkdown(id: string, options: NewTicketOptions): string {
       ? `scope:
 out_of_scope:
 done_when:
+inspiration_contract: v1
+inspiration_contract_scaffold: v1
 `
       : '';
   // Epics are containers: they carry a `children:` list (bidirectional with each

@@ -2,12 +2,12 @@
 //
 // Pure helpers (no I/O) so the pre-tool quality hook can evaluate a ticket's
 // spec.md against personas.md without importing the CLI's persona utilities
-// (those live in the published dist, not in the deployed "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/).
+// (those live in the published dist, not in the deployed "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/).
 //
 // This re-implements the `## `-block + HTML-comment-skip parsing that the
 // CLI now centralizes in src/utils/markdown-sections.ts (ticket WQ4RH3). It is
 // a deliberate cross-runtime copy, NOT deferred work: deployed hooks run
-// standalone from "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/ and cannot import the CLI dist, so the
+// standalone from "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/ and cannot import the CLI dist, so the
 // src-side unification intentionally stops at the hook boundary.
 
 const JTBD_HEADING = 'jobs to be done';
@@ -333,7 +333,7 @@ export function evaluateCriteriaGate(specContent: string): JtbdGateVerdict {
 // The two functions below are the hook-side mirror of the CLI's
 // `src/utils/markdown-sections.ts` (computeSkipMask + stripInlineComments).
 // They cannot share a module — deployed hooks run standalone from
-// `"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/` and can't import the CLI's dist. The differential test
+// `"\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/` and can't import the CLI's dist. The differential test
 // `tests/hooks/parser-parity.test.ts` pins this copy to the CLI so the two
 // can't drift (ticket P58R22). Keep them byte-for-byte equivalent to the CLI.
 
