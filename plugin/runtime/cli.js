@@ -56557,6 +56557,7 @@ async function syncConfigHandler(invocation) {
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
   const architecture2 = buildArchitecture2(invocation.cwd);
   const before = inspectConfig2(invocation.cwd, architecture2);
+  const generatedConfigExists = existsSync44(nodePath90.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
   if (invocation.options.check === true)
     return configCheckResult(before);
   if (before.matches && existsSync44(nodePath90.join(invocation.cwd, ".dependency-cruiser.cjs"))) {
@@ -56569,7 +56570,7 @@ async function syncConfigHandler(invocation) {
   const files = [
     ...synced.generatedConfig ? [
       {
-        kind: before.matches ? "update" : "create",
+        kind: generatedConfigExists ? "update" : "create",
         target: ".safeword/depcruise-config.cjs"
       }
     ] : [],
@@ -56625,14 +56626,15 @@ function architectureCheckResult(stale, advisories) {
 }
 function architectureModeResult(input) {
   const changed = input.results.filter((result) => ["created", "healed", "regenerated"].includes(result.action));
+  const mutated = changed.length > 0 || input.stagedPaths.length > 0;
   let state = "healthy";
   if (input.failed)
     state = "failed";
-  else if (changed.length > 0)
+  else if (mutated)
     state = "changed";
   return createResult({
     state,
-    changed: changed.length > 0,
+    changed: mutated,
     effects: {
       files: [
         ...changed.map((result) => ({
@@ -56730,7 +56732,7 @@ async function architectureHandler(invocation) {
       data: { command: "project architecture" }
     });
   }
-  if (!enforcementEnabled && (invocation.options.check || mode.stageOutput)) {
+  if (!enforcementEnabled) {
     return architectureEnforcementDisabledResult(architectureAdvisories(discoverUnreadableWorkspaces2(invocation.cwd)));
   }
   if (mode.fromIndex) {
@@ -57493,7 +57495,7 @@ async function codexMutationPreflight(name, isFinalization, invocation, migratio
     return codexRecoveryPreflight(invocation, migration);
   return;
 }
-async function codexMutationHandler(name, invocation) {
+async function codexMutationHandlerCore(name, invocation) {
   const suppliedPlan = stringOption(invocation.options, "plan");
   if (suppliedPlan !== undefined && !isPlanIdentity(suppliedPlan)) {
     return malformedPlanIdentity(name);
@@ -57511,6 +57513,27 @@ async function codexMutationHandler(name, invocation) {
   } catch (codexError) {
     return codexFailure(codexError, name, isFinalization);
   }
+}
+async function codexMutationHandler(name, invocation) {
+  const result = await codexMutationHandlerCore(name, invocation);
+  if (name !== "codex migrate" || invocation.options.removeLegacyHooks !== true)
+    return result;
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: "CLI_OPTION_DEPRECATED",
+        message: "--remove-legacy-hooks is deprecated; use --finalize.",
+        severity: "warning",
+        metadata: {
+          legacy: "--remove-legacy-hooks",
+          replacement: "--finalize",
+          retention: "indefinite"
+        }
+      }
+    ]
+  };
 }
 async function retroSignalsHandler(invocation) {
   const { formatIssueDrafts: formatIssueDrafts2, readReports: readReports2, summarizeReports: summarizeReports2 } = await Promise.resolve().then(() => (init_self_report(), exports_self_report));
@@ -57696,13 +57719,13 @@ async function retroRelayRetryHandler(invocation) {
 }
 async function retroRelayDiscardHandler(invocation) {
   const requestId = invocation.operands[0];
-  if (typeof requestId !== "string") {
+  if (typeof requestId !== "string" || !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u.test(requestId)) {
     return createResult({
       state: "failed",
       errors: [
         {
           code: "CLI_ARGUMENT_INVALID",
-          message: "retro-relay-discard requires one request identity.",
+          message: "retro-relay-discard requires one lowercase UUIDv4 request identity.",
           retryable: false
         }
       ],
