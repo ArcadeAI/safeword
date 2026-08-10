@@ -1,4 +1,14 @@
-import { lstatSync, readFileSync, realpathSync, type Stats } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  type Stats,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
@@ -15,7 +25,17 @@ function isExecutionMode(value: unknown): value is ExecutionMode {
 }
 
 function hasDuplicateJsonKeys(content: string): boolean {
-  return ['"schemaVersion"', '"testExecution"'].some(key => content.split(key).length > 2);
+  const keys = new Set<string>();
+  const keyPattern = /("(?:\\.|[^"\\])*")\s*:/gu;
+  for (const match of content.matchAll(keyPattern)) {
+    const token = match[1];
+    // eslint-disable-next-line security/detect-possible-timing-attacks -- Capture existence is public parser state.
+    if (token === undefined) continue;
+    const key = JSON.parse(token) as string;
+    if (keys.has(key)) return true;
+    keys.add(key);
+  }
+  return false;
 }
 
 function personalPath(cwd: string): { namespaceRoot: string; path: string } {
@@ -43,6 +63,34 @@ function validatePersonalDirectory(
     return { path, error: 'must remain inside the resolved namespace root' };
   }
   return undefined;
+}
+
+function validateGitPrivacy(cwd: string, path: string): PersonalExecutionPreference | undefined {
+  const relativePath = nodePath.relative(cwd, path);
+  const ignored = spawnSync('git', ['-C', cwd, 'check-ignore', '--quiet', '--', relativePath], {
+    stdio: 'ignore',
+  });
+  const tracked = spawnSync('git', ['-C', cwd, 'ls-files', '--error-unmatch', '--', relativePath], {
+    stdio: 'ignore',
+  });
+  if (ignored.status !== 0 || tracked.status === 0) {
+    return { path, error: 'must be Git-ignored and untracked' };
+  }
+  return undefined;
+}
+
+function readPersonalFile(path: string): {
+  readonly content?: string;
+  readonly error?: PersonalExecutionPreference;
+} {
+  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const fileError = validatePersonalFile(fstatSync(descriptor), path);
+    if (fileError !== undefined) return { error: fileError };
+    return { content: readFileSync(descriptor, 'utf8') };
+  } finally {
+    closeSync(descriptor);
+  }
 }
 
 function parsePersonalPreference(content: string, path: string): PersonalExecutionPreference {
@@ -76,7 +124,12 @@ export function readPersonalExecutionPreference(cwd: string): PersonalExecutionP
     if (fileError !== undefined) return fileError;
     const directoryError = validatePersonalDirectory(namespaceRoot, path);
     if (directoryError !== undefined) return directoryError;
-    return parsePersonalPreference(readFileSync(path, 'utf8'), path);
+    const privacyError = validateGitPrivacy(cwd, path);
+    if (privacyError !== undefined) return privacyError;
+    const opened = readPersonalFile(path);
+    if (opened.error !== undefined) return opened.error;
+    if (opened.content === undefined) return { path, error: 'cannot be read' };
+    return parsePersonalPreference(opened.content, path);
   } catch {
     return { path, error: 'cannot be read as personal test-execution configuration' };
   }

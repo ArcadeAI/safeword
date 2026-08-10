@@ -40324,13 +40324,33 @@ var init_test_plan = __esm(() => {
 });
 
 // src/test-execution/config.ts
-import { lstatSync as lstatSync13, readFileSync as readFileSync47, realpathSync as realpathSync6 } from "fs";
+import { spawnSync as spawnSync7 } from "child_process";
+import {
+  closeSync as closeSync3,
+  constants as constants2,
+  fstatSync,
+  lstatSync as lstatSync13,
+  openSync as openSync3,
+  readFileSync as readFileSync47,
+  realpathSync as realpathSync6
+} from "fs";
 import nodePath78 from "path";
 function isExecutionMode(value) {
   return value === "local" || value === "remote-preferred";
 }
 function hasDuplicateJsonKeys(content) {
-  return ['"schemaVersion"', '"testExecution"'].some((key) => content.split(key).length > 2);
+  const keys = new Set;
+  const keyPattern = /("(?:\\.|[^"\\])*")\s*:/gu;
+  for (const match of content.matchAll(keyPattern)) {
+    const token = match[1];
+    if (token === undefined)
+      continue;
+    const key = JSON.parse(token);
+    if (keys.has(key))
+      return true;
+    keys.add(key);
+  }
+  return false;
 }
 function personalPath(cwd) {
   const namespaceRoot = resolveNamespaceRoot(cwd);
@@ -40349,6 +40369,26 @@ function validatePersonalDirectory(namespaceRoot, path4) {
     return { path: path4, error: "must remain inside the resolved namespace root" };
   }
   return;
+}
+function validateGitPrivacy(cwd, path4) {
+  const relativePath = nodePath78.relative(cwd, path4);
+  const ignored = spawnSync7("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], { stdio: "ignore" });
+  const tracked = spawnSync7("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], { stdio: "ignore" });
+  if (ignored.status !== 0 || tracked.status === 0) {
+    return { path: path4, error: "must be Git-ignored and untracked" };
+  }
+  return;
+}
+function readPersonalFile(path4) {
+  const descriptor = openSync3(path4, constants2.O_RDONLY | constants2.O_NOFOLLOW);
+  try {
+    const fileError = validatePersonalFile(fstatSync(descriptor), path4);
+    if (fileError !== undefined)
+      return { error: fileError };
+    return { content: readFileSync47(descriptor, "utf8") };
+  } finally {
+    closeSync3(descriptor);
+  }
 }
 function parsePersonalPreference(content, path4) {
   if (hasDuplicateJsonKeys(content))
@@ -40379,7 +40419,15 @@ function readPersonalExecutionPreference(cwd) {
     const directoryError = validatePersonalDirectory(namespaceRoot, path4);
     if (directoryError !== undefined)
       return directoryError;
-    return parsePersonalPreference(readFileSync47(path4, "utf8"), path4);
+    const privacyError = validateGitPrivacy(cwd, path4);
+    if (privacyError !== undefined)
+      return privacyError;
+    const opened = readPersonalFile(path4);
+    if (opened.error !== undefined)
+      return opened.error;
+    if (opened.content === undefined)
+      return { path: path4, error: "cannot be read" };
+    return parsePersonalPreference(opened.content, path4);
   } catch {
     return { path: path4, error: "cannot be read as personal test-execution configuration" };
   }
@@ -40413,7 +40461,7 @@ __export(exports_test_execution, {
   runProjectTests: () => runProjectTests,
   observeTestExecutionStatus: () => observeTestExecutionStatus
 });
-import { spawnSync as spawnSync7 } from "child_process";
+import { spawnSync as spawnSync8 } from "child_process";
 import nodePath79 from "path";
 function shellInvocation(command) {
   if (process.platform === "win32") {
@@ -40427,7 +40475,7 @@ function executePlan2(plan, delivery) {
     if (!entry2.available)
       continue;
     const [executable, arguments_] = shellInvocation(entry2.command);
-    const result = spawnSync7(executable, arguments_, {
+    const result = spawnSync8(executable, arguments_, {
       cwd: entry2.cwd,
       env: process.env,
       encoding: "utf8",
@@ -40743,13 +40791,13 @@ var init_run_identity = __esm(() => {
 // src/review/packet.ts
 import { createHash as createHash18, randomUUID as randomUUID6 } from "crypto";
 import {
-  closeSync as closeSync3,
-  constants as constants2,
-  fstatSync,
+  closeSync as closeSync4,
+  constants as constants3,
+  fstatSync as fstatSync2,
   lstatSync as lstatSync14,
   mkdirSync as mkdirSync12,
   mkdtempSync as mkdtempSync5,
-  openSync as openSync3,
+  openSync as openSync4,
   readdirSync as readdirSync28,
   readFileSync as readFileSync49,
   realpathSync as realpathSync7,
@@ -40769,9 +40817,9 @@ function fileDigest(path4) {
   }
 }
 function readContainedText(root, source, target) {
-  const descriptor = openSync3(source, constants2.O_RDONLY | (constants2.O_NOFOLLOW ?? 0));
+  const descriptor = openSync4(source, constants3.O_RDONLY | (constants3.O_NOFOLLOW ?? 0));
   try {
-    const opened = fstatSync(descriptor);
+    const opened = fstatSync2(descriptor);
     if (!opened.isFile())
       throw new Error(`Review target is not a regular file: ${target}`);
     const resolved = realpathSync7(source);
@@ -40790,7 +40838,7 @@ function readContainedText(root, source, target) {
     }
     return { bytes, content };
   } finally {
-    closeSync3(descriptor);
+    closeSync4(descriptor);
   }
 }
 function escapes(root, candidate) {
@@ -41006,7 +41054,7 @@ var init_environment = __esm(() => {
 
 // src/review/runtime.ts
 import { spawn } from "child_process";
-import { accessSync as accessSync2, constants as constants3, mkdtempSync as mkdtempSync6, realpathSync as realpathSync8, rmSync as rmSync11, writeFileSync as writeFileSync19 } from "fs";
+import { accessSync as accessSync2, constants as constants4, mkdtempSync as mkdtempSync6, realpathSync as realpathSync8, rmSync as rmSync11, writeFileSync as writeFileSync19 } from "fs";
 import { tmpdir as tmpdir4 } from "os";
 import nodePath83 from "path";
 function reviewerArguments(reviewer, model, schemaPath) {
@@ -41137,7 +41185,7 @@ function executableCandidates(reviewer, untrustedRoot) {
       const canonical = realpathSync8(candidate);
       if (!outsideUntrustedRoot(untrustedRoot, canonical))
         return [];
-      accessSync2(canonical, constants3.X_OK);
+      accessSync2(canonical, constants4.X_OK);
       return [canonical];
     } catch {
       return [];
@@ -51877,7 +51925,7 @@ __export(exports_retro, {
   buildProvenanceResolver: () => buildProvenanceResolver,
   buildAutoExtractor: () => buildAutoExtractor
 });
-import { spawnSync as spawnSync8 } from "child_process";
+import { spawnSync as spawnSync9 } from "child_process";
 import {
   mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync7,
@@ -52067,7 +52115,7 @@ function headlessEnvironment(environment) {
   }));
 }
 function spawnClaudeExtractor(argv, spawnOptions) {
-  const result = spawnSync8("claude", argv, {
+  const result = spawnSync9("claude", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -52077,7 +52125,7 @@ function spawnClaudeExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function spawnCodexExtractor(argv, spawnOptions) {
-  const result = spawnSync8("codex", argv, {
+  const result = spawnSync9("codex", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     stdio: spawnOptions.stdio,
@@ -52086,7 +52134,7 @@ function spawnCodexExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: "" });
 }
 function spawnCursorExtractor(argv, spawnOptions) {
-  const result = spawnSync8("cursor-agent", argv, {
+  const result = spawnSync9("cursor-agent", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -52096,7 +52144,7 @@ function spawnCursorExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function prepareCursorExtractionDirectory(directory) {
-  const gitInit = spawnSync8("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
+  const gitInit = spawnSync9("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath89.join(directory, ".cursor");
@@ -52577,7 +52625,7 @@ async function executeRetroCliCommand(options, cwd) {
     sessionId: options.sessionId ?? process17.env.CLAUDE_SESSION_ID ?? options.transcript ?? "unknown",
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
-      runGit: () => spawnSync8("git", ["rev-parse", "--short", "HEAD"], {
+      runGit: () => spawnSync9("git", ["rev-parse", "--short", "HEAD"], {
         cwd: projectDirectory,
         encoding: "utf8",
         timeout: 1e4
@@ -53364,7 +53412,7 @@ __export(exports_codex_hook, {
   normalizeNamespaceRootLabel: () => normalizeNamespaceRootLabel,
   codexHook: () => codexHook
 });
-import { execFileSync as execFileSync9, spawnSync as spawnSync9 } from "child_process";
+import { execFileSync as execFileSync9, spawnSync as spawnSync10 } from "child_process";
 import {
   cpSync,
   existsSync as existsSync46,
@@ -53574,7 +53622,7 @@ function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath93.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
-  const result = spawnSync9("bun", [hookPath], {
+  const result = spawnSync10("bun", [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",

@@ -6,6 +6,11 @@ import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
+function initializePrivateConfigRepo(directory: string): void {
+  execFileSync('git', ['init', '--quiet'], { cwd: directory });
+  writeFileSync(nodePath.join(directory, '.gitignore'), '.project/personal/\n');
+}
+
 describe('test execution CLI wiring', () => {
   it('runs the resolved done plan once when a command selects local execution', async () => {
     const directory = createTemporaryDirectory();
@@ -164,6 +169,7 @@ describe('test execution CLI wiring', () => {
 
   it('uses a valid private preference without changing the shared project config', async () => {
     const directory = createTemporaryDirectory();
+    initializePrivateConfigRepo(directory);
     const personalDirectory = nodePath.join(directory, '.project', 'personal');
     mkdirSync(personalDirectory, { recursive: true });
     writeFileSync(
@@ -201,6 +207,7 @@ describe('test execution CLI wiring', () => {
     { mode: 'remote-preferred', fallbackUsed: true },
   ] as const)('uses a $mode personal preference for a test request', async input => {
     const directory = createTemporaryDirectory();
+    initializePrivateConfigRepo(directory);
     const personalDirectory = nodePath.join(directory, '.project', 'personal');
     const projectDirectory = nodePath.join(directory, '.safeword');
     mkdirSync(personalDirectory, { recursive: true });
