@@ -8,7 +8,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 - [x] RED 72ce94260
 - [x] GREEN 0ed48f3a7
-- [ ] REFACTOR
+- [x] REFACTOR skip: parsing, execution, and exit delivery are already separated
 
 ### Scenario: A remote-preferred command override wins but falls back before dispatch
 
