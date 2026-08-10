@@ -33,7 +33,7 @@ function missingSpecVerdict(
   };
 }
 
-function validateParsedPlan(parsed: ImplPlanResult): PlanGateVerdict {
+function validateParsedPlan(parsed: ImplPlanResult, requireDocImpact: boolean): PlanGateVerdict {
   if (parsed.errors.length > 0) {
     return {
       ok: false,
@@ -42,7 +42,7 @@ function validateParsedPlan(parsed: ImplPlanResult): PlanGateVerdict {
         'Fix the named plan sections (content or `skip: <reason>` each), then retry the move to implement.',
     };
   }
-  if (parsed.sections['Doc impact'] === undefined) {
+  if (requireDocImpact && parsed.sections['Doc impact'] === undefined) {
     return {
       ok: false,
       reason: 'impl-plan.md is not ready: spec-backed feature plans require a Doc impact section.',
@@ -87,7 +87,7 @@ export function evaluateImplementEntry(
 
   const planContent = readFileSync(planPath, 'utf8');
   const parsed = parseImplPlan(planContent);
-  const planVerdict = validateParsedPlan(parsed);
+  const planVerdict = validateParsedPlan(parsed, activationProvenance === 'activated');
   if (!planVerdict.ok) return planVerdict;
 
   const inspirationVerdict = evaluateImplementationInspiration({

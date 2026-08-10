@@ -295,7 +295,7 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Doc impact');
   });
 
-  it('denies every spec-backed implement entry without Doc impact', () => {
+  it('allows a markerless legacy spec-backed plan without Doc impact', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
     writeFileSync(
@@ -306,7 +306,7 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
       ),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Doc impact');
+    expectHookAllow(runAdvance('plan-implementation', 'implement'));
   });
 
   it.each([
