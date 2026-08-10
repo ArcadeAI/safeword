@@ -28,7 +28,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 640c3bf11
 - [x] GREEN 2145bb94f
-- [ ] REFACTOR
+- [x] REFACTOR skip: classifier partitions and adapter provenance remain single-purpose with no structural duplication to remove
 
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
