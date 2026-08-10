@@ -26,7 +26,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Hidden completion failures are unusable
 
-- [ ] RED
+- [x] RED 640c3bf11
 - [ ] GREEN
 - [ ] REFACTOR
 
