@@ -56,9 +56,9 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 ### Scenario: An unavailable remote preference uses the real local plan
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: shared fallback implementation already covered command selection
+- [x] GREEN 580eb75a8
+- [x] REFACTOR skip: one matrix covers project and personal sources across both lanes
 
 ### Scenario: Public CLI grammar exposes only supported execution modes
 
