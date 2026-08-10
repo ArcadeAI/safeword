@@ -1,3 +1,5 @@
+import nodePath from 'node:path';
+
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
   readPersonalExecutionPreference,
@@ -23,6 +25,7 @@ export function observeTestExecutionStatus(cwd: string): CliResult {
   }
   const project = readProjectExecutionPreference(cwd);
   const effective = resolveExecutionMode({ personal: personal.mode, project });
+  const personalOrigin = nodePath.relative(cwd, personal.path);
   return createResult({
     state: 'healthy',
     data: {
@@ -31,7 +34,7 @@ export function observeTestExecutionStatus(cwd: string): CliResult {
       remote: { available: REMOTE_EXECUTION_AVAILABLE },
       scopes: [
         { source: 'command', mode: undefined },
-        { source: 'personal', mode: personal.mode, path: personal.path },
+        { source: 'personal', mode: personal.mode, path: personalOrigin },
         { source: 'project', mode: project, path: '.safeword/config.json' },
         { source: 'built-in', mode: 'local' },
       ],
