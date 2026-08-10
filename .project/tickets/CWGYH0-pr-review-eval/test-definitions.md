@@ -36,7 +36,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b2670c4dc
 - [x] GREEN 1cfb1e9e3
-- [ ] REFACTOR
+- [x] REFACTOR skip: the walking skeleton keeps locking, durable writes, and sealing in one cohesive ticket-local module
 
 ### Scenario: A second infrastructure failure excludes the paired case
 
