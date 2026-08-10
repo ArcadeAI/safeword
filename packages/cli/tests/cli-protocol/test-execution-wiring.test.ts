@@ -263,6 +263,7 @@ describe('test execution CLI wiring', () => {
 
   it('fails closed for malformed personal configuration without changing files', async () => {
     const directory = createTemporaryDirectory();
+    initializePrivateConfigRepo(directory);
     const personalDirectory = nodePath.join(directory, '.project', 'personal');
     mkdirSync(personalDirectory, { recursive: true });
     writeFileSync(nodePath.join(personalDirectory, 'config.json'), '{ bad json');
