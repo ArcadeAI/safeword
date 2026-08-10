@@ -251,7 +251,7 @@ export function observeTestExecutionStatus(cwd: string): CliResult {
       effective,
       remote: { available: REMOTE_EXECUTION_AVAILABLE },
       scopes: [
-        { source: 'command', mode: undefined },
+        { source: 'command', mode: 'not applicable' },
         { source: 'personal', mode: personal.mode, path: personalOrigin },
         { source: 'project', mode: project, path: '.safeword/config.json' },
         { source: 'built-in', mode: 'local' },

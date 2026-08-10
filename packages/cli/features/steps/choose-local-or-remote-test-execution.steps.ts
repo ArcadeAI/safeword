@@ -1,8 +1,19 @@
-/* eslint-disable unicorn/prefer-switch -- Defect fixtures read most clearly as one ordered discriminator. */
+/* eslint-disable complexity, unicorn/prefer-switch -- Defect fixtures read most clearly as one ordered discriminator. */
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  linkSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +29,55 @@ interface TestExecutionWorld extends SafewordWorld {
   secondDirectory?: string;
   secondResult?: SafewordWorld['result'];
   expectedExit?: number;
+  filesystemSnapshot?: string;
+  secondFilesystemSnapshot?: string;
+  configurationSnapshot?: string;
+}
+
+function snapshotConfig(root: string): string {
+  return JSON.stringify(
+    ['.safeword/config.json', '.project/personal/config.json'].map(relative => {
+      const path = join(root, relative);
+      try {
+        return [relative, readFileSync(path).toString('base64')];
+      } catch {
+        return [relative, 'absent'];
+      }
+    }),
+  );
+}
+
+function snapshotFilesystem(root: string): string {
+  const entries: { path: string; kind: string; mode: number; bytes?: string; target?: string }[] =
+    [];
+  const visit = (directory: string): void => {
+    const names = readdirSync(directory).toSorted((left, right) => left.localeCompare(right));
+    for (const name of names) {
+      const path = join(directory, name);
+      const relative = nodePath.relative(root, path);
+      const stat = lstatSync(path);
+      if (stat.isSymbolicLink()) {
+        entries.push({
+          path: relative,
+          kind: 'symlink',
+          mode: stat.mode,
+          target: readlinkSync(path),
+        });
+      } else if (stat.isDirectory()) {
+        entries.push({ path: relative, kind: 'directory', mode: stat.mode });
+        visit(path);
+      } else {
+        entries.push({
+          path: relative,
+          kind: stat.isFile() ? 'file' : 'other',
+          mode: stat.mode,
+          bytes: stat.isFile() ? readFileSync(path).toString('base64') : undefined,
+        });
+      }
+    }
+  };
+  visit(root);
+  return JSON.stringify(entries);
 }
 
 function project(world: TestExecutionWorld): string {
@@ -117,20 +177,26 @@ Given(
     const directory = project(this);
     writeProjectPreference(directory, 'local');
     writePersonalPreference(directory, 'local');
-    writeRunnableProject(directory);
+    this.expectedExit = 17;
+    writeRunnableProject(directory, this.expectedExit);
+    this.configurationSnapshot = snapshotConfig(directory);
   },
 );
 
 Given(
-  /^the project default is remote-preferred and this worktree's `personal\/config\.json` contains (.+)$/u,
-  function (this: TestExecutionWorld, description: string) {
+  /^the project default is remote-preferred, this worktree's `personal\/config\.json` contains the exact minimal schema selecting (local|remote-preferred), remote availability is (not installed), and the real test plan exits (\d+)$/u,
+  function (
+    this: TestExecutionWorld,
+    mode: 'local' | 'remote-preferred',
+    _availability: 'not installed',
+    exit: string,
+  ) {
     const directory = project(this);
     writeProjectPreference(directory, 'remote-preferred');
-    writePersonalPreference(
-      directory,
-      description.includes('remote-preferred') ? 'remote-preferred' : 'local',
-    );
-    writeRunnableProject(directory);
+    writePersonalPreference(directory, mode);
+    this.expectedExit = Number(exit);
+    writeRunnableProject(directory, this.expectedExit);
+    this.configurationSnapshot = snapshotConfig(directory);
   },
 );
 
@@ -140,6 +206,8 @@ Given(
     writePersonalPreference(project(this), 'local');
     this.secondDirectory = mkdtempSync(join(tmpdir(), 'safeword-test-execution-bdd-b-'));
     writePersonalPreference(this.secondDirectory, 'remote-preferred');
+    this.filesystemSnapshot = snapshotFilesystem(project(this));
+    this.secondFilesystemSnapshot = snapshotFilesystem(this.secondDirectory);
   },
 );
 
@@ -158,6 +226,12 @@ Given(
       writeFileSync(path, '{"schemaVersion":2,"testExecution":"local"}');
     else if (defect === 'unsupported execution mode')
       writeFileSync(path, '{"schemaVersion":1,"testExecution":"remote"}');
+    else if (defect === 'a missing required schema field')
+      writeFileSync(path, '{"schemaVersion":1}');
+    else if (defect === 'a schema field with the wrong JSON value type')
+      writeFileSync(path, '{"schemaVersion":"1","testExecution":true}');
+    else if (defect === 'extra nested structure')
+      writeFileSync(path, '{"schemaVersion":1,"testExecution":{"mode":"local"}}');
     else if (defect === 'a directory') mkdirSync(path);
     else if (defect === 'a symlink') {
       const target = join(directory, 'outside.json');
@@ -176,6 +250,7 @@ Given(
       writeFileSync(path, '{"schemaVersion":1,"testExecution":"local"}');
       writeFileSync(join(directory, '.gitignore'), '');
     }
+    this.filesystemSnapshot = snapshotFilesystem(directory);
   },
 );
 
@@ -184,6 +259,8 @@ Given(
   function (this: TestExecutionWorld) {
     const path = initializePrivateConfig(project(this));
     writeFileSync(path, '{ bad json');
+    writeRunnableProject(project(this));
+    this.filesystemSnapshot = snapshotFilesystem(project(this));
   },
 );
 
@@ -195,12 +272,24 @@ Given(
 );
 
 Given(
+  /^the project default is local, no command or personal preference exists, and the real test plan exits (\d+)$/u,
+  function (this: TestExecutionWorld, exit: string) {
+    const directory = project(this);
+    writeProjectPreference(directory, 'local');
+    this.expectedExit = Number(exit);
+    writeRunnableProject(directory, this.expectedExit);
+    this.configurationSnapshot = snapshotConfig(directory);
+  },
+);
+
+Given(
   /^(project|personal) selects remote-preferred and no remote provider is installed$/u,
   function (this: TestExecutionWorld, source: 'project' | 'personal') {
     const directory = project(this);
     if (source === 'project') writeProjectPreference(directory, 'remote-preferred');
     else writePersonalPreference(directory, 'remote-preferred');
-    writeRunnableProject(directory);
+    this.expectedExit = source === 'project' ? 19 : 23;
+    writeRunnableProject(directory, this.expectedExit);
   },
 );
 
@@ -243,29 +332,32 @@ Then(
 );
 
 Then(
-  'Safeword reports command as the winning source, proves no dispatch occurred, and runs the real test plan once',
-  function (this: TestExecutionWorld) {
-    assert.equal(this.result.exitCode, 0);
+  /^Safeword reports command as the winning source, proves no dispatch occurred, runs the real test plan once, returns its exact (\d+) exit, and leaves project and personal configuration unchanged$/u,
+  function (this: TestExecutionWorld, exit: string) {
+    assert.equal(this.result.exitCode, Number(exit));
     const data = resultData(this);
     assert.deepEqual(data.effective, { mode: 'remote-preferred', source: 'command' });
     assert.deepEqual(data.dispatch, { attempted: false });
     assert.equal(data.executed, 1);
+    assert.equal(snapshotConfig(project(this)), this.configurationSnapshot);
   },
 );
 
 Then(
-  'Safeword reports personal as the winning source, sends no dispatch, and runs the real test plan once',
-  function (this: TestExecutionWorld) {
-    assert.equal(this.result.exitCode, 0);
+  /^Safeword reports personal as the winning source, (selects local without fallback and sends no dispatch|reports remote unavailability before dispatch and falls back locally), runs the real test plan once, returns its exact (\d+) exit, and leaves project and personal configuration unchanged$/u,
+  function (this: TestExecutionWorld, outcome: string, exit: string) {
+    assert.equal(this.result.exitCode, Number(exit));
     const data = resultData(this);
     assert.equal((data.effective as { source?: string }).source, 'personal');
     assert.deepEqual(data.dispatch, { attempted: false });
+    assert.equal((data.fallback as { used?: boolean }).used, outcome.startsWith('reports remote'));
     assert.equal(data.executed, 1);
+    assert.equal(snapshotConfig(project(this)), this.configurationSnapshot);
   },
 );
 
 Then(
-  'worktree A reports its exact A path and local effective mode, worktree B reports its exact B path and remote-preferred effective mode, and neither process reads the other path',
+  'each worktree reports its own canonical namespace-root personal path and effective mode, neither process reads the other path, and both status requests leave both worktrees unchanged',
   function (this: TestExecutionWorld) {
     assert.ok(this.secondResult);
     const first = JSON.parse(this.result.stdout) as { data: { effective: { mode: string } } };
@@ -276,21 +368,24 @@ Then(
     assert.equal(second.data.effective.mode, 'remote-preferred');
     assert.match(this.result.stdout, /\.project\/personal\/config\.json/u);
     assert.match(this.secondResult.stdout, /\.project\/personal\/config\.json/u);
+    assert.equal(snapshotFilesystem(project(this)), this.filesystemSnapshot);
+    assert.equal(snapshotFilesystem(this.secondDirectory), this.secondFilesystemSnapshot);
   },
 );
 
 Then(
-  /^Safeword exits with `SAFEWORD_TEST_EXECUTION_INVALID`, names the personal origin, (?:executes no plan, sends no dispatch, and changes no project configuration|and changes no project, personal, ignore or other filesystem bytes)$/u,
+  /^Safeword exits with `SAFEWORD_TEST_EXECUTION_INVALID`, names the personal origin, (?:executes no plan, sends no dispatch, and|and) changes no project, personal, ignore or other filesystem bytes$/u,
   function (this: TestExecutionWorld) {
     assert.equal(this.result.exitCode, 1);
     assert.match(this.result.stdout, /SAFEWORD_TEST_EXECUTION_INVALID/u);
     assert.match(this.result.stdout, /personal.*config\.json/u);
     assert.doesNotMatch(this.result.stdout, /"executed":1/u);
+    assert.equal(snapshotFilesystem(project(this)), this.filesystemSnapshot);
   },
 );
 
 Then(
-  'status lists command, personal, project and built-in scopes in highest-first order, identifies built-in local as the winner, reports remote execution as not installed, and changes no files',
+  'status lists command, personal, project and built-in scopes in highest-first order with command `not applicable`, the canonical personal and project origins, and built-in origin; identifies exact effective mode local and source built-in; reports remote execution as not installed; and changes no files',
   function (this: TestExecutionWorld) {
     assert.equal(this.result.exitCode, 0);
     const data = resultData(this) as {
@@ -304,13 +399,28 @@ Then(
       data.scopes.map(scope => scope.source),
       ['command', 'personal', 'project', 'built-in'],
     );
+    assert.match(this.result.stdout, /not applicable/u);
+    assert.match(this.result.stdout, /\.project\/personal\/config\.json/u);
+    assert.match(this.result.stdout, /\.safeword\/config\.json/u);
   },
 );
 
 Then(
-  /^Safeword reports that remote execution is unavailable before dispatch, runs the real (?:test|verify) plan once, and returns that plan's exit result$/u,
-  function (this: TestExecutionWorld) {
-    assert.equal(this.result.exitCode, 0);
+  /^Safeword reports project as the winning local source, sends no dispatch, runs the real test plan once, returns its exact (\d+) exit, and leaves project and personal configuration unchanged$/u,
+  function (this: TestExecutionWorld, exit: string) {
+    assert.equal(this.result.exitCode, Number(exit));
+    const data = resultData(this);
+    assert.deepEqual(data.effective, { mode: 'local', source: 'project' });
+    assert.deepEqual(data.dispatch, { attempted: false });
+    assert.equal(data.executed, 1);
+    assert.equal(snapshotConfig(project(this)), this.configurationSnapshot);
+  },
+);
+
+Then(
+  /^Safeword reports that remote execution is unavailable before dispatch, runs the real (?:test|verify) plan once, and returns that plan's exact (\d+) exit$/u,
+  function (this: TestExecutionWorld, exit: string) {
+    assert.equal(this.result.exitCode, Number(exit));
     const data = resultData(this);
     assert.deepEqual(data.dispatch, { attempted: false });
     assert.deepEqual(data.fallback, {

@@ -296,7 +296,7 @@ describe('test execution CLI wiring', () => {
         effective: { mode: 'local', source: 'built-in' },
         remote: { available: false },
         scopes: [
-          { source: 'command' },
+          { source: 'command', mode: 'not applicable' },
           { source: 'personal' },
           { source: 'project' },
           { source: 'built-in', mode: 'local' },
