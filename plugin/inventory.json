@@ -179,7 +179,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "445d1a93e460a13134bb43c2c3241f348199921108108734c1fda9e1dcffd17d"
+      "sha256": "cba3f5899aa07a11d97cee0e89294854efee26cd7149cbfc61e9fa446996fc57"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",

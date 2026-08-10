@@ -33,14 +33,19 @@ import nodePath from 'node:path';
 import { isNamespacePath } from './namespace-root.js';
 import { commandWordIndex, parseShellWords, splitShellSegments } from './shell-segments.js';
 
-export interface LedgerWriteDetection {
+export interface ProtectedWriteDetection {
   /** Human-readable write shape, used in the denial message. */
   shape: string;
   /** The ledger path token that triggered detection. */
   path: string;
 }
 
-export type ProtectedWriteDetection = LedgerWriteDetection;
+interface ProtectedWriteDescriptor {
+  isPath: (token: string) => boolean;
+  isBasename: (token: string) => boolean;
+  embeddedPath: (word: string) => string | undefined;
+  inlineSubject: string;
+}
 
 /** True when a token has the ledger basename, boundary-anchored so `my-test-definitions.md` isn't one. */
 function isTestDefinitionsBasename(token: string): boolean {
@@ -136,11 +141,14 @@ function embeddedInspirationArtifactPath(word: string): string | undefined {
   return match !== null && isInspirationArtifactPath(match[0]) ? match[0] : undefined;
 }
 
-/** Scan a segment's words for a redirection (`>`/`>>`/`&>`/`>|`, fd-prefixed) whose target is a ledger. */
-function detectRedirectionWrite(words: string[]): LedgerWriteDetection | undefined {
+/** Scan a segment for a redirection whose target matches the protected descriptor. */
+function detectRedirectionWrite(
+  words: string[],
+  descriptor: ProtectedWriteDescriptor,
+): ProtectedWriteDetection | undefined {
   for (let index = 0; index < words.length; index += 1) {
     const target = redirectionTarget(words, index);
-    if (target !== undefined && isLedgerPath(target)) {
+    if (target !== undefined && descriptor.isPath(target)) {
       const shape = /^(?:\d*|&)>>/.test(words[index] ?? '')
         ? 'append redirection'
         : 'output redirection';
@@ -150,10 +158,13 @@ function detectRedirectionWrite(words: string[]): LedgerWriteDetection | undefin
   return undefined;
 }
 
-function detectInSegment(segment: string): LedgerWriteDetection | undefined {
+function detectProtectedWriteInSegment(
+  segment: string,
+  descriptor: ProtectedWriteDescriptor,
+): ProtectedWriteDetection | undefined {
   const words = parseShellWords(segment);
 
-  const redirection = detectRedirectionWrite(words);
+  const redirection = detectRedirectionWrite(words, descriptor);
   if (redirection !== undefined) return redirection;
 
   const commandIndex = commandWordIndex(words);
@@ -165,16 +176,16 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
   const arguments_ = rest.filter(word => !word.startsWith('-'));
 
   if (IN_PLACE_EDITORS.has(commandWord) && rest.some(isInPlaceFlag)) {
-    const ledgerArgument = rest.find(isLedgerPath);
-    if (ledgerArgument !== undefined) {
-      return { shape: `${commandWord} in-place edit`, path: ledgerArgument };
+    const protectedArgument = rest.find(descriptor.isPath);
+    if (protectedArgument !== undefined) {
+      return { shape: `${commandWord} in-place edit`, path: protectedArgument };
     }
   }
 
   if (ARGUMENT_WRITERS.has(commandWord)) {
-    const ledgerArgument = arguments_.find(isLedgerPath);
-    if (ledgerArgument !== undefined) {
-      return { shape: commandWord, path: ledgerArgument };
+    const protectedArgument = arguments_.find(descriptor.isPath);
+    if (protectedArgument !== undefined) {
+      return { shape: commandWord, path: protectedArgument };
     }
   }
 
@@ -183,25 +194,25 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
     if (targetDirectory !== undefined) {
       // `-t <dir>` form: the destination is the flag's directory and every
       // positional is a SOURCE — so the last positional is NOT a destination
-      // (guards the false positive where the ledger is being copied OUT).
+      // (guards the false positive where the protected file is copied OUT).
       if (isNamespacePath(targetDirectory, 'tickets/')) {
-        const ledgerSource = arguments_.find(isTestDefinitionsBasename);
-        if (ledgerSource !== undefined) {
-          return { shape: `${commandWord} into ticket directory`, path: ledgerSource };
+        const protectedSource = arguments_.find(descriptor.isBasename);
+        if (protectedSource !== undefined) {
+          return { shape: `${commandWord} into ticket directory`, path: protectedSource };
         }
       }
     } else {
       const destination = arguments_.at(-1);
-      if (destination !== undefined && isLedgerPath(destination)) {
+      if (destination !== undefined && descriptor.isPath(destination)) {
         return { shape: `${commandWord} destination`, path: destination };
       }
       // Positional directory form (`cp <src…> <ticket-dir>/`): a source named
-      // test-definitions.md landing in a tickets-namespace directory becomes a
-      // ledger at the destination.
+      // protected basename landing in a tickets-namespace directory becomes a
+      // protected file at the destination.
       if (destination !== undefined && isNamespacePath(destination, 'tickets/')) {
-        const ledgerSource = arguments_.slice(0, -1).find(isTestDefinitionsBasename);
-        if (ledgerSource !== undefined) {
-          return { shape: `${commandWord} into ticket directory`, path: ledgerSource };
+        const protectedSource = arguments_.slice(0, -1).find(descriptor.isBasename);
+        if (protectedSource !== undefined) {
+          return { shape: `${commandWord} into ticket directory`, path: protectedSource };
         }
       }
     }
@@ -209,88 +220,51 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
 
   if (INLINE_INTERPRETERS.has(commandWord) && rest.some(isInlineCodeFlag)) {
     for (const word of rest) {
-      const embedded = embeddedLedgerPath(word);
+      const embedded = descriptor.embeddedPath(word);
       if (embedded !== undefined) {
-        return { shape: `inline ${commandWord} code naming the ledger`, path: embedded };
+        return {
+          shape: `inline ${commandWord} code naming the ${descriptor.inlineSubject}`,
+          path: embedded,
+        };
       }
     }
   }
 
   return undefined;
 }
+
+function detectProtectedWrite(
+  command: string,
+  descriptor: ProtectedWriteDescriptor,
+): ProtectedWriteDetection | undefined {
+  for (const segment of splitShellSegments(command)) {
+    const detection = detectProtectedWriteInSegment(segment, descriptor);
+    if (detection !== undefined) return detection;
+  }
+  return undefined;
+}
+
+const LEDGER_DESCRIPTOR: ProtectedWriteDescriptor = {
+  isPath: isLedgerPath,
+  isBasename: isTestDefinitionsBasename,
+  embeddedPath: embeddedLedgerPath,
+  inlineSubject: 'ledger',
+};
+
+const INSPIRATION_DESCRIPTOR: ProtectedWriteDescriptor = {
+  isPath: isInspirationArtifactPath,
+  isBasename: isInspirationArtifactBasename,
+  embeddedPath: embeddedInspirationArtifactPath,
+  inlineSubject: 'artifact',
+};
 
 /**
  * Detect a write-shaped reference to a ledger file in a Bash command.
  * Returns the first detection, or undefined when nothing detectable writes
  * to a ledger. Pure over the command string — no filesystem access.
  */
-export function detectLedgerWrite(command: string): LedgerWriteDetection | undefined {
-  for (const segment of splitShellSegments(command)) {
-    const detection = detectInSegment(segment);
-    if (detection !== undefined) return detection;
-  }
-  return undefined;
-}
-
-function detectInspirationWriteInSegment(segment: string): ProtectedWriteDetection | undefined {
-  const words = parseShellWords(segment);
-
-  for (let index = 0; index < words.length; index += 1) {
-    const target = redirectionTarget(words, index);
-    if (target !== undefined && isInspirationArtifactPath(target)) {
-      return {
-        shape: /^(?:\d*|&)>>/.test(words[index] ?? '')
-          ? 'append redirection'
-          : 'output redirection',
-        path: target,
-      };
-    }
-  }
-
-  const commandIndex = commandWordIndex(words);
-  const commandWord = nodePath.basename(words[commandIndex] ?? '');
-  const rest = words.slice(commandIndex + 1);
-  const arguments_ = rest.filter(word => !word.startsWith('-'));
-
-  if (IN_PLACE_EDITORS.has(commandWord) && rest.some(isInPlaceFlag)) {
-    const artifact = rest.find(isInspirationArtifactPath);
-    if (artifact !== undefined) return { shape: `${commandWord} in-place edit`, path: artifact };
-  }
-  if (ARGUMENT_WRITERS.has(commandWord)) {
-    const artifact = arguments_.find(isInspirationArtifactPath);
-    if (artifact !== undefined) return { shape: commandWord, path: artifact };
-  }
-  if (DESTINATION_WRITERS.has(commandWord)) {
-    const targetDirectory = flagTargetDirectory(rest);
-    if (targetDirectory !== undefined) {
-      if (isNamespacePath(targetDirectory, 'tickets/')) {
-        const source = arguments_.find(isInspirationArtifactBasename);
-        if (source !== undefined) {
-          return { shape: `${commandWord} into ticket directory`, path: source };
-        }
-      }
-    } else {
-      const destination = arguments_.at(-1);
-      if (destination !== undefined && isInspirationArtifactPath(destination)) {
-        return { shape: `${commandWord} destination`, path: destination };
-      }
-      if (destination !== undefined && isNamespacePath(destination, 'tickets/')) {
-        const source = arguments_.slice(0, -1).find(isInspirationArtifactBasename);
-        if (source !== undefined) {
-          return { shape: `${commandWord} into ticket directory`, path: source };
-        }
-      }
-    }
-  }
-  if (INLINE_INTERPRETERS.has(commandWord) && rest.some(isInlineCodeFlag)) {
-    for (const word of rest) {
-      const artifact = embeddedInspirationArtifactPath(word);
-      if (artifact !== undefined) {
-        return { shape: `inline ${commandWord} code naming the artifact`, path: artifact };
-      }
-    }
-  }
-  return undefined;
+export function detectLedgerWrite(command: string): ProtectedWriteDetection | undefined {
+  return detectProtectedWrite(command, LEDGER_DESCRIPTOR);
 }
 
 /**
@@ -301,9 +275,5 @@ function detectInspirationWriteInSegment(segment: string): ProtectedWriteDetecti
 export function detectInspirationArtifactWrite(
   command: string,
 ): ProtectedWriteDetection | undefined {
-  for (const segment of splitShellSegments(command)) {
-    const detection = detectInspirationWriteInSegment(segment);
-    if (detection !== undefined) return detection;
-  }
-  return undefined;
+  return detectProtectedWrite(command, INSPIRATION_DESCRIPTOR);
 }
