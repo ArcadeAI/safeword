@@ -22,7 +22,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 - [x] RED skip: precedence behavior already existed from the status slice
 - [x] GREEN 589c612b9
-- [ ] REFACTOR
+- [x] REFACTOR skip: the two modes share one parameterized behavior test
 
 ### Scenario: A personal preference is not shared with another worktree
 
