@@ -9,6 +9,7 @@ import type {
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
+import { isWouldChangeAction, type SelfHealAction } from '../utils/architecture-document.js';
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
@@ -82,6 +83,21 @@ function completeConfigInspection(
   mainConfigExists: boolean,
 ): ConfigInspection {
   return generated.matches && !mainConfigExists ? { matches: false, reason: 'missing' } : generated;
+}
+
+function syncedConfigResult(
+  inspection: ConfigInspection,
+  files: CliResult['effects']['files'],
+): CliResult {
+  let state: CliResult['state'] = files.length === 0 ? 'healthy' : 'changed';
+  if (!inspection.matches) state = 'action_required';
+  return createResult({
+    state,
+    changed: files.length > 0,
+    effects: { files },
+    findings: inspection.matches ? [] : configCheckResult(inspection).findings,
+    data: { command: 'project sync-config', in_sync: inspection.matches },
+  });
 }
 
 async function statusHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -205,11 +221,11 @@ async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResu
       : []),
     ...(synced.createdMainConfig ? [{ kind: 'create', target: '.dependency-cruiser.cjs' }] : []),
   ];
-  return createResult({
-    state: files.length === 0 ? 'healthy' : 'changed',
-    effects: { files },
-    data: { command: 'project sync-config', in_sync: true },
-  });
+  const after = completeConfigInspection(
+    inspectConfig(invocation.cwd, architecture),
+    mainConfigExists || synced.createdMainConfig,
+  );
+  return syncedConfigResult(after, files);
 }
 
 type ArchitectureAdvisory = {
@@ -218,7 +234,7 @@ type ArchitectureAdvisory = {
   readonly severity: 'info';
 };
 
-type HealedDocument = { readonly action: string; readonly path: string };
+type HealedDocument = { readonly action: SelfHealAction; readonly path: string };
 
 function architectureAdvisories(
   unreadableWorkspaces: readonly {
@@ -298,9 +314,7 @@ function architectureModeResult(input: {
   readonly messages: readonly ArchitectureModeMessage[];
   readonly errors: readonly string[];
 }): CliResult {
-  const changed = input.results.filter(result =>
-    ['created', 'healed', 'regenerated'].includes(result.action),
-  );
+  const changed = input.results.filter(result => isWouldChangeAction(result.action));
   const mutated = changed.length > 0 || input.stagedPaths.length > 0;
   let state: CliResult['state'] = 'healthy';
   if (input.failed) state = 'failed';
@@ -412,7 +426,7 @@ function withArchitectureOptionCompatibility(
 }
 
 async function architectureHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { isWouldChangeAction, planSelfHealProject, selfHealProject } =
+  const { planSelfHealProject, selfHealProject } =
     await import('../utils/architecture-document.js');
   const { discoverUnreadableWorkspaces, extractMonorepoArchitectureSnapshot } =
     await import('../utils/architecture-monorepo.js');
@@ -478,9 +492,6 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
     cwd: invocation.cwd,
     changed,
     advisories,
-    staged: [],
-    stageFailures: [],
-    stageRequested: false,
   });
 }
 
@@ -511,54 +522,21 @@ function architectureHealResult(input: {
   readonly cwd: string;
   readonly changed: readonly HealedDocument[];
   readonly advisories: readonly ArchitectureAdvisory[];
-  readonly staged: readonly { kind: string; target: string }[];
-  readonly stageFailures: readonly string[];
-  readonly stageRequested: boolean;
 }): CliResult {
-  const staleStaging = input.stageFailures.length > 0;
   const changedDocuments = input.changed.length > 0;
-  let state: CliResult['state'] = changedDocuments ? 'changed' : 'healthy';
-  if (staleStaging) state = 'action_required';
 
   return createResult({
-    state,
+    state: changedDocuments ? 'changed' : 'healthy',
     changed: changedDocuments,
     effects: {
-      files: [
-        ...input.changed.map(result => ({
-          kind: result.action === 'created' ? 'create' : 'update',
-          target: nodePath.relative(input.cwd, result.path),
-        })),
-        ...input.staged.map(effect => ({ ...effect, operation: 'stage' })),
-      ],
+      files: input.changed.map(result => ({
+        kind: result.action === 'created' ? 'create' : 'update',
+        target: nodePath.relative(input.cwd, result.path),
+      })),
     },
-    findings: [
-      ...healedDocumentFindings(input.cwd, input.changed),
-      ...input.advisories,
-      ...(staleStaging
-        ? [
-            {
-              code: 'ARCHITECTURE_STAGE_FAILED',
-              message: `Architecture documents were refreshed but could not be staged (${input.stageFailures.join(', ')}).`,
-              severity: 'warning' as const,
-            },
-          ]
-        : []),
-    ],
-    nextActions: staleStaging
-      ? [
-          {
-            command: 'safeword project architecture --from-index --stage-output',
-            mutates: true,
-            requiresHuman: false,
-          },
-        ]
-      : [],
+    findings: [...healedDocumentFindings(input.cwd, input.changed), ...input.advisories],
     data: {
       command: 'project architecture',
-      staged: input.stageRequested && !staleStaging,
-      staged_files: input.staged.map(effect => effect.target),
-      stage_failures: input.stageFailures,
       enforcement: true,
     },
   });
@@ -622,11 +600,11 @@ async function codifyHandler(invocation: CommandInvocation): Promise<CliResult> 
 
 async function testPlanHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeTestPlan } = await import('../commands/test-plan.js');
-  const result = await observeTestPlan(
-    invocation.cwd,
-    invocation.operands[0] as string | undefined,
-    invocation.options,
-  );
+  const rawKind = invocation.operands[0];
+  if (rawKind !== undefined && typeof rawKind !== 'string') {
+    return invalidOperand('project test-plan', 'test-plan kind must be text.');
+  }
+  const result = await observeTestPlan(invocation.cwd, rawKind, invocation.options);
   return withLegacyRawJsonGuidance(result, invocation.options, 'project test-plan');
 }
 
@@ -663,10 +641,22 @@ async function projectTestHandler(invocation: CommandInvocation): Promise<CliRes
 
 async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeGherkinLint } = await import('../commands/lint-gherkin.js');
-  return observeGherkinLint(
-    invocation.cwd,
-    (invocation.operands[0] as readonly string[] | undefined) ?? [],
-  );
+  const rawFiles = invocation.operands[0];
+  if (
+    rawFiles !== undefined &&
+    (!Array.isArray(rawFiles) || rawFiles.some(file => typeof file !== 'string'))
+  ) {
+    return invalidOperand('project lint-gherkin', 'lint-gherkin files must be text paths.');
+  }
+  return observeGherkinLint(invocation.cwd, (rawFiles as string[] | undefined) ?? []);
+}
+
+function invalidOperand(command: string, message: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ code: 'CLI_ARGUMENT_INVALID', message, retryable: false }],
+    data: { command },
+  });
 }
 
 async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -751,14 +741,14 @@ async function reviewPrPublicationHandler(
   invocation: CommandInvocation,
 ): Promise<CliResult> {
   if (invocation.offline) return onlineRequired(`review-pr ${stage}`);
+  const resultPath = invocation.operands[0];
+  if (stage === 'publish' && typeof resultPath !== 'string') {
+    return invalidOperand('review-pr publish', 'review-pr publish requires a result path.');
+  }
   try {
     const { createGitHubReviewBoundary, invalidatePullRequestCommand, publishPullRequestCommand } =
       await import('../commands/review-pr-publication.js');
     const github = createGitHubReviewBoundary();
-    const resultPath = invocation.operands[0];
-    if (stage === 'publish' && typeof resultPath !== 'string') {
-      throw new Error('review-pr publish requires a result path');
-    }
     const outcome =
       stage === 'publish' && typeof resultPath === 'string'
         ? await publishPullRequestCommand(github, resultPath)
@@ -771,13 +761,13 @@ async function reviewPrPublicationHandler(
       },
       data: { command: `review-pr ${stage}`, outcome },
     });
-  } catch {
+  } catch (error: unknown) {
     return createResult({
       state: 'failed',
       errors: [
         {
           code: 'PR_REVIEW_PUBLICATION_FAILED',
-          message: `Pull-request ${stage} failed without changing merge eligibility.`,
+          message: `Pull-request ${stage} failed: ${error instanceof Error ? error.message : String(error)}`,
           retryable: false,
         },
       ],
@@ -1092,10 +1082,18 @@ async function runCodexFinalization(
     nodePath.join(invocation.cwd, effect.target),
   );
   const before = paths.map(path => ({ path, snapshot: observeFile(path) }));
-  const changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
-    yes: true,
-    report: false,
-  });
+  let changed: boolean;
+  try {
+    changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
+      yes: true,
+      report: false,
+    });
+  } catch (finalizationError) {
+    const fileEffects = before.flatMap(snapshot =>
+      observedFileEffect(invocation.cwd, snapshot.path, snapshot.snapshot),
+    );
+    return codexFailure(finalizationError, 'codex migrate', true, fileEffects);
+  }
   const observed = migration.observeCodexMigration(invocation.cwd);
   return {
     ...observed,
@@ -1639,13 +1637,13 @@ function relayRetryResult(
 
 async function retroRelayRetryHandler(invocation: CommandInvocation): Promise<CliResult> {
   const requestId = invocation.operands[0];
-  if (requestId !== undefined && typeof requestId !== 'string') {
+  if (requestId !== undefined && (typeof requestId !== 'string' || !isRelayRequestId(requestId))) {
     return createResult({
       state: 'failed',
       errors: [
         {
           code: 'CLI_ARGUMENT_INVALID',
-          message: 'retro-relay-retry request identity must be text.',
+          message: 'retro-relay-retry request identity must be a lowercase UUIDv4.',
           retryable: false,
         },
       ],
@@ -1676,10 +1674,7 @@ async function retroRelayRetryHandler(invocation: CommandInvocation): Promise<Cl
 
 async function retroRelayDiscardHandler(invocation: CommandInvocation): Promise<CliResult> {
   const requestId = invocation.operands[0];
-  if (
-    typeof requestId !== 'string' ||
-    !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u.test(requestId)
-  ) {
+  if (typeof requestId !== 'string' || !isRelayRequestId(requestId)) {
     return createResult({
       state: 'failed',
       errors: [
@@ -1745,6 +1740,10 @@ async function retroRelayDiscardHandler(invocation: CommandInvocation): Promise<
     })),
     data: { command: 'retro-relay-discard', request_id: requestId },
   });
+}
+
+function isRelayRequestId(value: string): boolean {
+  return /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u.test(value);
 }
 
 function retroOptions(invocation: CommandInvocation, transcript: string): RetroCliOptions {
@@ -1970,6 +1969,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
 };
 
 export function publicHandler(name: string): CommandHandler {
+  if (!Object.hasOwn(HANDLERS, name)) {
+    throw new Error(`No typed public handler registered for ${name}`);
+  }
   const handler = HANDLERS[name];
   if (handler === undefined) throw new Error(`No typed public handler registered for ${name}`);
   return handler;

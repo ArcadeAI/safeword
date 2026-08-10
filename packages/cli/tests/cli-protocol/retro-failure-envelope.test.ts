@@ -43,23 +43,28 @@ describe('retro run failure envelope', () => {
   });
 
   it('preserves partial mutation evidence when a collaborator reports failure', async () => {
-    retro.execute.mockResolvedValue({
-      extractionSucceeded: true,
-      restTransportAvailable: true,
-      outcome: {
-        ok: false,
-        errorMessage: 'one finding could not be filed',
-        agentFilingNeeded: true,
-        result: {
-          bumped: [],
-          commented: [],
-          created: [{ number: 42 }],
-          deferred: [],
-          failed: ['broken finding'],
-          filedDestinations: [],
-          filedSignatures: [],
+    retro.execute.mockImplementation((_options: unknown, directory: string) => {
+      const spool = nodePath.join(directory, '.safeword/retro-drafts/partial-session.jsonl');
+      mkdirSync(nodePath.dirname(spool), { recursive: true });
+      writeFileSync(spool, '{"partial":true}\n');
+      return Promise.resolve({
+        extractionSucceeded: true,
+        restTransportAvailable: true,
+        outcome: {
+          ok: false,
+          errorMessage: 'one finding could not be filed',
+          agentFilingNeeded: true,
+          result: {
+            bumped: [],
+            commented: [],
+            created: [{ number: 42 }],
+            deferred: [],
+            failed: ['broken finding'],
+            filedDestinations: [],
+            filedSignatures: [],
+          },
         },
-      },
+      });
     });
     const directory = createTemporaryDirectory();
     let result;
@@ -68,7 +73,7 @@ describe('retro run failure envelope', () => {
         cwd: directory,
         noInput: true,
         offline: false,
-        options: { transcript: 'session.jsonl' },
+        options: { transcript: 'session.jsonl', sessionId: 'partial-session' },
         operands: [],
       });
     } finally {
@@ -78,7 +83,10 @@ describe('retro run failure envelope', () => {
     expect(result).toMatchObject({
       state: 'failed',
       changed: true,
-      effects: { network: [{ kind: 'retro-triage', target: 'GitHub' }] },
+      effects: {
+        files: [{ kind: 'create', target: '.safeword/retro-drafts/partial-session.jsonl' }],
+        network: [{ kind: 'retro-triage', target: 'GitHub' }],
+      },
       errors: [{ code: 'RETRO_COMMAND_FAILED', message: 'one finding could not be filed' }],
       data: {
         command: 'retro run',
@@ -88,3 +96,5 @@ describe('retro run failure envelope', () => {
     });
   });
 });
+import { mkdirSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
