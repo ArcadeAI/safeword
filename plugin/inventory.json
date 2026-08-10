@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "797c6f43e2583af17b740046838d9d09fa1f9c0d5ec3587d9cab9dd53e1bba81"
+      "sha256": "aad61da6933a0889e705757fd7fbd342b72b2541c0a9d806140f6952f56d67f1"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "7c28e7ee52d76ef290125d18c5c05e587b24163811b90d437731ccc331c5ef07"
+      "sha256": "f719a26af66b74271d3a207e1dc6538cc4d11ed13bfd2b56fafb238ae2ad06bb"
     },
     {
       "path": "runtime/event-groups.json",
