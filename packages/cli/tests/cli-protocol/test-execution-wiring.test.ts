@@ -81,6 +81,51 @@ describe('test execution CLI wiring', () => {
     expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
   });
 
+  it('reports fallback before dispatch when a command prefers unavailable remote execution', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'remote-preferred-test-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:done': String.raw`node -e "require('node:fs').appendFileSync('runs.log','run\n')"`,
+        },
+      }),
+    );
+
+    const result = await runCli(
+      [
+        'project',
+        'test',
+        '--lane',
+        'done',
+        '--execution',
+        'remote-preferred',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        effective: { mode: 'remote-preferred', source: 'command' },
+        remote: { available: false },
+        dispatch: { attempted: false },
+        fallback: { used: true, execution: 'local', reason: 'remote-unavailable' },
+        executed: 1,
+      },
+    });
+    expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
+  });
+
   it('reports the built-in local preference without changing a project', async () => {
     const directory = createTemporaryDirectory();
     const result = await runCli(
