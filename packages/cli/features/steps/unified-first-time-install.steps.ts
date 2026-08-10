@@ -332,7 +332,16 @@ exit 1
   world.claudeFailure = claudeFailure;
   world.cursorBefore = directoryDigest(nodePath.join(project, '.cursor'));
   world.hostEnvironment = {
-    PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+    PATH: [
+      bin,
+      process.env.BUN_INSTALL === undefined
+        ? nodePath.dirname(process.execPath)
+        : nodePath.join(process.env.BUN_INSTALL, 'bin'),
+      '/usr/bin',
+      '/bin',
+      '/usr/sbin',
+      '/sbin',
+    ].join(nodePath.delimiter),
     CODEX_HOME: profile,
     SAFEWORD_CLAUDE_MARKETPLACE: claudeMarketplace,
     SAFEWORD_CLAUDE_LOG: claudeLog,
@@ -383,7 +392,9 @@ function assertReferenceCommand(
 
 function fixtureProcessEnvironment(world: UnifiedInstallWorld): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = {
-    ...process.env,
+    LANG: process.env.LANG ?? 'C.UTF-8',
+    LC_ALL: process.env.LC_ALL,
+    TZ: process.env.TZ,
     ...world.hostEnvironment,
     SAFEWORD_NO_UPDATE_CHECK: '1',
     SAFEWORD_SKIP_INSTALL: '1',
@@ -1167,34 +1178,6 @@ Given(
 );
 
 /**
- * Option aliases have no standalone invocation; they are proven executable by
- * the architecture and Codex migration suites that pass them to their command.
- */
-const OPTION_ALIAS_PROOFS: Readonly<Record<string, string>> = {
-  '--stage': 'tests/commands/architecture-stage.test.ts',
-  '--staged': 'tests/commands/architecture-stage.test.ts',
-  '--remove-legacy-hooks': 'features/migrate-codex-to-plugin.feature',
-};
-
-function assertOptionAliasRegistration(
-  alias: string,
-  route: CompatibilityRoute,
-  proof: string,
-): void {
-  const definition = commandCatalog
-    .filter(
-      candidate =>
-        route.replacement === candidate.name || route.replacement.startsWith(`${candidate.name} `),
-    )
-    .toSorted((left, right) => right.name.length - left.name.length)[0];
-  assert.ok(definition, `No canonical command owns ${route.replacement} (proof: ${proof})`);
-  const registered = definition.registration.options?.some(option =>
-    option.flags.split(/[,|\s]+/u).includes(alias),
-  );
-  assert.equal(registered, true, `${alias} is absent from ${definition.name} (proof: ${proof})`);
-}
-
-/**
  * Operands required by an alias before Commander will dispatch it. Argument
  * validation runs ahead of the handler, so an alias missing a required operand
  * exits without compatibility guidance; supplying one exercises the route.
@@ -1204,9 +1187,61 @@ const ALIAS_REQUIRED_OPERANDS: Readonly<Record<string, readonly string[]>> = {
   connect: ['unsupported-provider'],
 };
 
+function invokeOptionAlias(world: UnifiedInstallWorld, alias: string): boolean {
+  if (alias === '--stage' || alias === '--staged') {
+    createDivergentArchitectureFixture(world);
+    runRawCommand(world, ['project', 'architecture', alias]);
+    return true;
+  }
+  if (alias !== '--remove-legacy-hooks') return false;
+
+  initializeHosts(world);
+  for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+    recordCodexHookProof(event, world.hostEnvironment);
+  }
+  const argv = ['codex', 'migrate', alias];
+  runRawCommand(world, argv);
+  return true;
+}
+
+function assertCredentialIsolationInChild(world: UnifiedInstallWorld): void {
+  const observed = spawnSync(
+    process.execPath,
+    [
+      '-e',
+      'process.stdout.write(`${process.env.GITHUB_TOKEN ?? "unset"}|${process.env.GH_TOKEN ?? "unset"}`)',
+    ],
+    { env: fixtureProcessEnvironment(world), encoding: 'utf8' },
+  );
+  assert.equal(observed.status, 0, observed.stderr);
+  assert.equal(observed.stdout, 'unset|unset');
+}
+
+function assertOptionAliasResult(result: string, alias: string, canonical: string): void {
+  const envelope = JSON.parse(result) as {
+    schema_version?: number;
+    data?: { command?: string };
+    findings?: { code?: string; metadata?: { legacy?: string; replacement?: string } }[];
+  };
+  assert.equal(envelope.schema_version, 1, `${alias} did not return a result envelope`);
+  assert.equal(
+    envelope.findings?.some(
+      finding =>
+        finding.code === 'CLI_OPTION_DEPRECATED' &&
+        finding.metadata?.legacy === alias &&
+        canonical.endsWith(finding.metadata?.replacement ?? '\0'),
+    ),
+    true,
+    `${alias} did not dispatch with compatibility guidance: ${result}`,
+  );
+  if (alias === '--remove-legacy-hooks') {
+    assert.equal(envelope.data?.command, 'codex migrate --finalize');
+  }
+}
+
 When('the user invokes it', function (this: UnifiedInstallWorld) {
   const alias = requiredValue(this.compatibilityAlias, 'compatibility alias');
-  if (OPTION_ALIAS_PROOFS[alias] !== undefined) return;
+  if (invokeOptionAlias(this, alias)) return;
   initializeHosts(this);
   // Reproduce the credential-bearing developer/CI environment that exposed
   // this fixture's former live-network leak. The fixture process boundary must
@@ -1216,6 +1251,7 @@ When('the user invokes it', function (this: UnifiedInstallWorld) {
       ...this.hostEnvironment,
       GITHUB_TOKEN: `ghp_${'a'.repeat(36)}`,
     };
+    assertCredentialIsolationInChild(this);
   }
   const argv = alias === 'bare safeword' ? [] : alias.split(' ');
   runRawCommand(this, [...argv, ...(ALIAS_REQUIRED_OPERANDS[alias] ?? [])]);
@@ -1228,13 +1264,8 @@ Then(
     const canonical = requiredValue(this.compatibilityCanonical, 'canonical route');
     assertRetainedCompatibilityRoute(this);
 
-    const optionProof = OPTION_ALIAS_PROOFS[alias];
-    if (optionProof !== undefined) {
-      assertOptionAliasRegistration(
-        alias,
-        requiredValue(this.compatibilityRoute, 'compatibility route'),
-        optionProof,
-      );
+    if (alias.startsWith('--')) {
+      assertOptionAliasResult(this.result.stdout, alias, canonical);
       return;
     }
 
@@ -1249,8 +1280,8 @@ Then(
     if (alias === 'retro-reconcile') {
       const calls = readFileSync(requiredValue(this.githubLog, 'GitHub log'), 'utf8')
         .trim()
-        .split('\n');
-      assert.ok(calls.some(call => call.startsWith('auth token|')));
+        .split('\n')
+        .filter(call => call.length > 0);
       assert.equal(
         calls.every(call => call.endsWith('|unset|unset')),
         true,

@@ -1351,7 +1351,7 @@ async function codexMutationPreflight(
   return undefined;
 }
 
-async function codexMutationHandler(
+async function codexMutationHandlerCore(
   name: CodexMutationName,
   invocation: CommandInvocation,
 ): Promise<CliResult> {
@@ -1371,6 +1371,30 @@ async function codexMutationHandler(
   } catch (codexError) {
     return codexFailure(codexError, name, isFinalization);
   }
+}
+
+async function codexMutationHandler(
+  name: CodexMutationName,
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const result = await codexMutationHandlerCore(name, invocation);
+  if (name !== 'codex migrate' || invocation.options.removeLegacyHooks !== true) return result;
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: 'CLI_OPTION_DEPRECATED',
+        message: '--remove-legacy-hooks is deprecated; use --finalize.',
+        severity: 'warning',
+        metadata: {
+          legacy: '--remove-legacy-hooks',
+          replacement: '--finalize',
+          retention: 'indefinite',
+        },
+      },
+    ],
+  };
 }
 
 async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliResult> {
