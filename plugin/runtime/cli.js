@@ -57837,19 +57837,31 @@ function retroNetworkEffects(execution) {
     return [];
   return [{ kind: "retro-triage", target: "GitHub", operation: "read-write" }];
 }
-function retroRunResult(execution, fileEffects) {
-  if (!execution.outcome.ok) {
-    return retroFailure(execution.outcome.errorMessage ?? "Retro execution failed.");
+function retroRunFailureMessage(execution) {
+  if (execution.outcome.ok) {
+    return execution.extractionSucceeded ? undefined : "Retro extraction failed.";
   }
-  if (!execution.extractionSucceeded)
-    return retroFailure("Retro extraction failed.");
+  return execution.outcome.errorMessage ?? "Retro execution failed.";
+}
+function retroRunState(failureMessage, changed) {
+  if (failureMessage !== undefined)
+    return "failed";
+  return changed ? "changed" : "healthy";
+}
+function retroRunResult(execution, fileEffects) {
   const result = execution.outcome.result;
   const changed = retroMutationCount(execution) > 0 || fileEffects.length > 0;
+  const failureMessage = retroRunFailureMessage(execution);
+  const errors = [];
+  if (failureMessage !== undefined) {
+    errors.push({ code: "RETRO_COMMAND_FAILED", message: failureMessage, retryable: true });
+  }
   return createResult({
-    state: changed ? "changed" : "healthy",
+    state: retroRunState(failureMessage, changed),
     changed,
     effects: { files: fileEffects, network: retroNetworkEffects(execution) },
     findings: retroDropFindings(execution),
+    errors,
     data: {
       command: "retro run",
       result,

@@ -1781,21 +1781,35 @@ function retroNetworkEffects(execution: RetroCommandExecution): CliResult['effec
   return [{ kind: 'retro-triage', target: 'GitHub', operation: 'read-write' }];
 }
 
+function retroRunFailureMessage(execution: RetroCommandExecution): string | undefined {
+  if (execution.outcome.ok) {
+    return execution.extractionSucceeded ? undefined : 'Retro extraction failed.';
+  }
+  return execution.outcome.errorMessage ?? 'Retro execution failed.';
+}
+
+function retroRunState(failureMessage: string | undefined, changed: boolean): CliResult['state'] {
+  if (failureMessage !== undefined) return 'failed';
+  return changed ? 'changed' : 'healthy';
+}
+
 function retroRunResult(
   execution: RetroCommandExecution,
   fileEffects: CliResult['effects']['files'],
 ): CliResult {
-  if (!execution.outcome.ok) {
-    return retroFailure(execution.outcome.errorMessage ?? 'Retro execution failed.');
-  }
-  if (!execution.extractionSucceeded) return retroFailure('Retro extraction failed.');
   const result = execution.outcome.result;
   const changed = retroMutationCount(execution) > 0 || fileEffects.length > 0;
+  const failureMessage = retroRunFailureMessage(execution);
+  const errors: CliResult['errors'][number][] = [];
+  if (failureMessage !== undefined) {
+    errors.push({ code: 'RETRO_COMMAND_FAILED', message: failureMessage, retryable: true });
+  }
   return createResult({
-    state: changed ? 'changed' : 'healthy',
+    state: retroRunState(failureMessage, changed),
     changed,
     effects: { files: fileEffects, network: retroNetworkEffects(execution) },
     findings: retroDropFindings(execution),
+    errors,
     data: {
       command: 'retro run',
       result,
