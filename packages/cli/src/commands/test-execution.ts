@@ -14,6 +14,7 @@ import {
 import { type PlanEntry, type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
 
 const REMOTE_EXECUTION_AVAILABLE = false;
+const JSON_RUNNER_OUTPUT_LIMIT_BYTES = 16 * 1024 * 1024;
 
 function shellInvocation(command: string): readonly [string, string[]] {
   if (process.platform === 'win32') {
@@ -26,7 +27,56 @@ interface PlanExecution {
   readonly executed: number;
   readonly failedRunner?: string;
   readonly childExit?: number | null;
-  readonly childOutput?: { readonly stdout: string; readonly stderr: string };
+  readonly childError?: { readonly code: string; readonly message: string };
+  readonly childOutput?: readonly {
+    readonly runner: string;
+    readonly stdout: string;
+    readonly stderr: string;
+  }[];
+}
+
+function spawnPlanEntry(entry: PlanEntry, captureOutput: boolean) {
+  const [executable, arguments_] = shellInvocation(entry.command);
+  return spawnSync(executable, arguments_, {
+    cwd: entry.cwd,
+    env: process.env,
+    encoding: 'utf8',
+    stdio: captureOutput ? ['inherit', 'pipe', 'pipe'] : 'inherit',
+    ...(captureOutput && { maxBuffer: JSON_RUNNER_OUTPUT_LIMIT_BYTES }),
+  });
+}
+
+function spawnErrorCode(error: Error): string {
+  return 'code' in error && typeof error.code === 'string' ? error.code : 'SPAWN_ERROR';
+}
+
+function executePlanEntry(
+  entry: PlanEntry,
+  delivery: { readonly json?: boolean },
+  previous: PlanExecution,
+): PlanExecution {
+  const captureOutput = delivery.json === true;
+  const result = spawnPlanEntry(entry, captureOutput);
+  const execution: PlanExecution = {
+    executed: previous.executed + 1,
+    ...(captureOutput && {
+      childOutput: [
+        ...(previous.childOutput ?? []),
+        { runner: entry.runner, stdout: result.stdout ?? '', stderr: result.stderr ?? '' },
+      ],
+    }),
+  };
+  if (result.error !== undefined) {
+    return {
+      ...execution,
+      failedRunner: entry.runner,
+      childExit: result.status,
+      childError: { code: spawnErrorCode(result.error), message: result.error.message },
+    };
+  }
+  return result.status === 0
+    ? execution
+    : { ...execution, failedRunner: entry.runner, childExit: result.status };
 }
 
 function executePlan(
@@ -36,25 +86,21 @@ function executePlan(
   let execution: PlanExecution = { executed: 0 };
   for (const entry of plan) {
     if (!entry.available) continue;
-    const [executable, arguments_] = shellInvocation(entry.command);
-    const result = spawnSync(executable, arguments_, {
-      cwd: entry.cwd,
-      env: process.env,
-      encoding: 'utf8',
-      stdio: delivery.json === true ? ['inherit', 'pipe', 'pipe'] : 'inherit',
-    });
-    execution = {
-      executed: execution.executed + 1,
-      ...(delivery.json === true && {
-        childOutput: { stdout: result.stdout ?? '', stderr: result.stderr ?? '' },
-      }),
-    };
-    if (result.status !== 0) {
-      return { ...execution, failedRunner: entry.runner, childExit: result.status };
-    }
+    execution = executePlanEntry(entry, delivery, execution);
+    if (execution.failedRunner !== undefined) return execution;
   }
   return execution;
 }
+
+const TEST_COMMAND_EFFECTS = {
+  network: [
+    {
+      kind: 'repository-test-command',
+      target: 'project-defined test plan',
+      operation: 'execute with declared network access',
+    },
+  ],
+} as const;
 
 function executionDecision(effective: ResolvedExecutionMode) {
   const fallbackUsed = effective.mode === 'remote-preferred' && !REMOTE_EXECUTION_AVAILABLE;
@@ -132,13 +178,18 @@ export function runProjectTests(
   const decision = executionDecision(effective);
   const execution = executePlan(plan, delivery);
   if (execution.failedRunner !== undefined) {
+    const failureMessage =
+      execution.childError === undefined
+        ? `${execution.failedRunner} exited with status ${String(execution.childExit ?? 'unknown')}.`
+        : `${execution.failedRunner} could not complete (${execution.childError.code}): ${execution.childError.message}`;
     return createResult({
       state: 'failed',
       exitCode: execution.childExit ?? 1,
+      effects: TEST_COMMAND_EFFECTS,
       errors: [
         {
           code: 'SAFEWORD_TEST_EXECUTION_FAILED',
-          message: `${execution.failedRunner} exited with status ${String(execution.childExit ?? 'unknown')}.`,
+          message: failureMessage,
           retryable: false,
         },
       ],
@@ -155,6 +206,7 @@ export function runProjectTests(
 
   return createResult({
     state: 'healthy',
+    effects: TEST_COMMAND_EFFECTS,
     findings: [
       {
         code: 'SAFEWORD_TEST_EXECUTION_SELECTED',

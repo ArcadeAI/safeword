@@ -35,7 +35,6 @@ describe('test execution CLI wiring', () => {
         '--execution',
         'local',
         '--no-input',
-        '--offline',
         '--cwd',
         directory,
       ],
@@ -75,7 +74,6 @@ describe('test execution CLI wiring', () => {
         '--execution',
         'local',
         '--no-input',
-        '--offline',
         '--cwd',
         directory,
       ],
@@ -111,7 +109,6 @@ describe('test execution CLI wiring', () => {
         'remote-preferred',
         '--json',
         '--no-input',
-        '--offline',
         '--cwd',
         directory,
       ],
@@ -130,6 +127,96 @@ describe('test execution CLI wiring', () => {
       },
     });
     expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
+  });
+
+  it('refuses repository test commands offline before executing the plan', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'offline-test-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:done': String.raw`node -e "require('node:fs').appendFileSync('runs.log','run\n')"`,
+        },
+      }),
+    );
+
+    const result = await runCli(
+      ['project', 'test', '--json', '--no-input', '--offline', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: [expect.objectContaining({ code: 'CLI_ONLINE_REQUIRED' })],
+      data: { command: 'project test', offline: true },
+    });
+    expect(() => readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toThrow();
+  });
+
+  it('preserves JSON output from every executed language runner', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'requirements.txt'), '');
+    writeFileSync(
+      nodePath.join(directory, 'test_sample.py'),
+      "import unittest\n\nclass SampleTest(unittest.TestCase):\n    def test_output(self):\n        print('python-output')\n",
+    );
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'polyglot-output-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: { 'test:done': `node -e "console.log('javascript-output')"` },
+      }),
+    );
+
+    const result = await runCli(['project', 'test', '--json', '--no-input', '--cwd', directory], {
+      cwd: directory,
+      env: { SAFEWORD_FAKE_TOOLS: 'only:npm,python3' },
+    });
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        executed: 2,
+        childOutput: [
+          { runner: 'npm', stdout: expect.stringContaining('javascript-output') },
+          { runner: 'unittest', stdout: expect.stringContaining('python-output') },
+        ],
+      },
+    });
+  });
+
+  it('captures noisy JSON runner output beyond Node default buffer limits', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'noisy-output-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: { 'test:done': `node -e "process.stdout.write('x'.repeat(1250000))"` },
+      }),
+    );
+
+    const result = await runCli(['project', 'test', '--json', '--no-input', '--cwd', directory], {
+      cwd: directory,
+    });
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    const output = JSON.parse(result.stdout) as {
+      state: string;
+      data: { childOutput: { runner: string; stdout: string; stderr: string }[] };
+    };
+    expect(output.state).toBe('healthy');
+    expect(output.data.childOutput).toHaveLength(1);
+    expect(output.data.childOutput[0]).toMatchObject({ runner: 'npm', stderr: '' });
+    expect(output.data.childOutput[0]?.stdout).toContain('x'.repeat(1_250_000));
   });
 
   it.each([
@@ -165,17 +252,7 @@ describe('test execution CLI wiring', () => {
     );
 
     const result = await runCli(
-      [
-        'project',
-        'test',
-        '--lane',
-        input.lane,
-        '--json',
-        '--no-input',
-        '--offline',
-        '--cwd',
-        directory,
-      ],
+      ['project', 'test', '--lane', input.lane, '--json', '--no-input', '--cwd', directory],
       { cwd: directory },
     );
 
@@ -290,17 +367,7 @@ describe('test execution CLI wiring', () => {
     );
 
     const result = await runCli(
-      [
-        'project',
-        'test',
-        '--lane',
-        'done',
-        '--json',
-        '--no-input',
-        '--offline',
-        '--cwd',
-        directory,
-      ],
+      ['project', 'test', '--lane', 'done', '--json', '--no-input', '--cwd', directory],
       { cwd: directory },
     );
 
@@ -338,23 +405,21 @@ describe('test execution CLI wiring', () => {
       );
     }
 
-    const [resultA, resultB] = await Promise.all(
-      [worktreeA, worktreeB].map(directory =>
-        runCli(
-          [
-            'project',
-            'test-execution',
-            'status',
-            '--json',
-            '--no-input',
-            '--offline',
-            '--cwd',
-            directory,
-          ],
-          { cwd: directory },
-        ),
-      ),
-    );
+    const readStatus = (directory: string) =>
+      runCli(
+        [
+          'project',
+          'test-execution',
+          'status',
+          '--json',
+          '--no-input',
+          '--offline',
+          '--cwd',
+          directory,
+        ],
+        { cwd: directory },
+      );
+    const [resultA, resultB] = await Promise.all([readStatus(worktreeA), readStatus(worktreeB)]);
 
     const statusA = JSON.parse(resultA.stdout) as Record<string, unknown>;
     const statusB = JSON.parse(resultB.stdout) as Record<string, unknown>;
@@ -438,17 +503,7 @@ describe('test execution CLI wiring', () => {
     );
 
     const result = await runCli(
-      [
-        'project',
-        'test',
-        '--lane',
-        'done',
-        '--json',
-        '--no-input',
-        '--offline',
-        '--cwd',
-        directory,
-      ],
+      ['project', 'test', '--lane', 'done', '--json', '--no-input', '--cwd', directory],
       { cwd: directory },
     );
 
@@ -491,7 +546,6 @@ describe('test execution CLI wiring', () => {
         'remote-preferred',
         '--json',
         '--no-input',
-        '--offline',
         '--cwd',
         directory,
       ],

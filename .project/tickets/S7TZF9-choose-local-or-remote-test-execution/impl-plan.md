@@ -87,9 +87,9 @@ worktree-local, inspectable, optional, and lower precedence than a one-run flag.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Safe local default and plain source/status output; explicit override remains available | CLI wiring tests for status and override | |
-| Structure enforces; instructions suggest | Invalid personal config fails before execution rather than relying on a warning | Filesystem integration tests | |
-| Add, never replace | Read-only test commands do not edit project config or ignore files | Filesystem before/after assertions | |
+| Optimize for the NTB without constraining the TBU | Safe local default and plain source/status output; explicit override remains available | `packages/cli/tests/cli-protocol/test-execution-wiring.test.ts` | |
+| 1. Structure enforces; instructions suggest | Invalid personal config fails before execution rather than relying on a warning | `packages/cli/tests/cli-protocol/test-execution-wiring.test.ts` | |
+| 3. Add, never replace | Read-only test commands do not edit project config or ignore files | `packages/cli/features/steps/choose-local-or-remote-test-execution.steps.ts` | |
 
 Architecture decisions: None recorded yet for this execution preference seam.
 

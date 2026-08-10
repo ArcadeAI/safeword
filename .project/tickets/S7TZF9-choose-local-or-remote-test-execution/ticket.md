@@ -20,7 +20,7 @@ done_when:
   - Status explains the winning mode and its origin
 parent: BBNZ68
 created: 2026-08-09T21:20:26.567Z
-last_modified: 2026-08-10T02:10:00Z
+last_modified: 2026-08-10T11:50:00Z
 ---
 
 # Choose local or remote test execution per contributor
@@ -38,3 +38,5 @@ last_modified: 2026-08-10T02:10:00Z
 - 2026-08-10T02:03:00Z Plan review requested changes: The independent Claude route timed out; a fresh headless Codex review found undefined project-preference, remote-availability, personal-file lifecycle and local-process contracts. Revised the plan and spec to define those boundaries before implementation.
 - 2026-08-10T02:10:00Z Supplemental plan review requested changes after both coordinator routes timed out. Added enforced Git-ignore privacy, strict duplicate/schema validation proofs, an explicit portable filesystem threat boundary, and corrected the Safeword CLI persona codes.
 - 2026-08-10T02:12:00Z Began implementation: All degraded-review findings were incorporated. No independent stamp was written because both coordinator routes were exhausted; continuing under the configured prefer policy and the user's explicit direction to proceed without Indy review.
+- 2026-08-10T06:10:00Z Quality review requested changes through the degraded Codex route after Claude timed out. Declared repository-runner network capability, refused offline execution before spawn, preserved per-runner JSON output, and added bounded noisy-output handling with explicit spawn errors. Retained successful empty plans and permissive invalid project preference handling because both are explicit approved plan contracts; strict validation remains reserved for personal config.
+- 2026-08-10T11:50:00Z Final quality re-review approved the implementation and executable behavior steps. Claude timed out again, so the coordinator completed through its permitted fresh headless Codex fallback and recorded degraded independence with no findings. The diff audit also passed after replacing prose-only principle proofs with resolvable evidence paths.

@@ -83,7 +83,10 @@ function readPersonalFile(path: string): {
   readonly content?: string;
   readonly error?: PersonalExecutionPreference;
 } {
-  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  // O_NOFOLLOW is POSIX-only. lstat still rejects a static final-component
+  // symlink on Windows; the documented same-user directory race is out of scope.
+  const noFollow = constants.O_NOFOLLOW ?? 0;
+  const descriptor = openSync(path, constants.O_RDONLY | noFollow);
   try {
     const fileError = validatePersonalFile(fstatSync(descriptor), path);
     if (fileError !== undefined) return { error: fileError };

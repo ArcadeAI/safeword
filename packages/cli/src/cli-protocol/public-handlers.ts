@@ -622,6 +622,7 @@ async function testExecutionStatusHandler(invocation: CommandInvocation): Promis
 }
 
 async function projectTestHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('project test');
   const { runProjectTests } = await import('../commands/test-execution.js');
   return runProjectTests(invocation.cwd, invocation.options, { json: invocation.json === true });
 }

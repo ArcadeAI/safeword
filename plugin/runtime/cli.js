@@ -40384,7 +40384,8 @@ function validateGitPrivacy(cwd, path4) {
   return;
 }
 function readPersonalFile(path4) {
-  const descriptor = openSync3(path4, constants2.O_RDONLY | constants2.O_NOFOLLOW);
+  const noFollow = constants2.O_NOFOLLOW ?? 0;
+  const descriptor = openSync3(path4, constants2.O_RDONLY | noFollow);
   try {
     const fileError = validatePersonalFile(fstatSync(descriptor), path4);
     if (fileError !== undefined)
@@ -40473,27 +40474,49 @@ function shellInvocation(command) {
   }
   return ["/bin/sh", ["-c", command]];
 }
+function spawnPlanEntry(entry2, captureOutput) {
+  const [executable, arguments_] = shellInvocation(entry2.command);
+  return spawnSync8(executable, arguments_, {
+    cwd: entry2.cwd,
+    env: process.env,
+    encoding: "utf8",
+    stdio: captureOutput ? ["inherit", "pipe", "pipe"] : "inherit",
+    ...captureOutput && { maxBuffer: JSON_RUNNER_OUTPUT_LIMIT_BYTES }
+  });
+}
+function spawnErrorCode(error2) {
+  return "code" in error2 && typeof error2.code === "string" ? error2.code : "SPAWN_ERROR";
+}
+function executePlanEntry(entry2, delivery, previous) {
+  const captureOutput = delivery.json === true;
+  const result = spawnPlanEntry(entry2, captureOutput);
+  const execution = {
+    executed: previous.executed + 1,
+    ...captureOutput && {
+      childOutput: [
+        ...previous.childOutput ?? [],
+        { runner: entry2.runner, stdout: result.stdout ?? "", stderr: result.stderr ?? "" }
+      ]
+    }
+  };
+  if (result.error !== undefined) {
+    return {
+      ...execution,
+      failedRunner: entry2.runner,
+      childExit: result.status,
+      childError: { code: spawnErrorCode(result.error), message: result.error.message }
+    };
+  }
+  return result.status === 0 ? execution : { ...execution, failedRunner: entry2.runner, childExit: result.status };
+}
 function executePlan2(plan, delivery) {
   let execution = { executed: 0 };
   for (const entry2 of plan) {
     if (!entry2.available)
       continue;
-    const [executable, arguments_] = shellInvocation(entry2.command);
-    const result = spawnSync8(executable, arguments_, {
-      cwd: entry2.cwd,
-      env: process.env,
-      encoding: "utf8",
-      stdio: delivery.json === true ? ["inherit", "pipe", "pipe"] : "inherit"
-    });
-    execution = {
-      executed: execution.executed + 1,
-      ...delivery.json === true && {
-        childOutput: { stdout: result.stdout ?? "", stderr: result.stderr ?? "" }
-      }
-    };
-    if (result.status !== 0) {
-      return { ...execution, failedRunner: entry2.runner, childExit: result.status };
-    }
+    execution = executePlanEntry(entry2, delivery, execution);
+    if (execution.failedRunner !== undefined)
+      return execution;
   }
   return execution;
 }
@@ -40557,13 +40580,15 @@ function runProjectTests(cwd, options, delivery = {}) {
   const decision = executionDecision(effective);
   const execution = executePlan2(plan, delivery);
   if (execution.failedRunner !== undefined) {
+    const failureMessage = execution.childError === undefined ? `${execution.failedRunner} exited with status ${String(execution.childExit ?? "unknown")}.` : `${execution.failedRunner} could not complete (${execution.childError.code}): ${execution.childError.message}`;
     return createResult({
       state: "failed",
       exitCode: execution.childExit ?? 1,
+      effects: TEST_COMMAND_EFFECTS,
       errors: [
         {
           code: "SAFEWORD_TEST_EXECUTION_FAILED",
-          message: `${execution.failedRunner} exited with status ${String(execution.childExit ?? "unknown")}.`,
+          message: failureMessage,
           retryable: false
         }
       ],
@@ -40579,6 +40604,7 @@ function runProjectTests(cwd, options, delivery = {}) {
   }
   return createResult({
     state: "healthy",
+    effects: TEST_COMMAND_EFFECTS,
     findings: [
       {
         code: "SAFEWORD_TEST_EXECUTION_SELECTED",
@@ -40628,11 +40654,21 @@ function observeTestExecutionStatus(cwd) {
     }
   });
 }
-var REMOTE_EXECUTION_AVAILABLE = false;
+var REMOTE_EXECUTION_AVAILABLE = false, JSON_RUNNER_OUTPUT_LIMIT_BYTES, TEST_COMMAND_EFFECTS;
 var init_test_execution = __esm(() => {
   init_result();
   init_config4();
   init_resolve();
+  JSON_RUNNER_OUTPUT_LIMIT_BYTES = 16 * 1024 * 1024;
+  TEST_COMMAND_EFFECTS = {
+    network: [
+      {
+        kind: "repository-test-command",
+        target: "project-defined test plan",
+        operation: "execute with declared network access"
+      }
+    ]
+  };
 });
 
 // src/commands/lint-gherkin.ts
@@ -56797,6 +56833,8 @@ async function testExecutionStatusHandler(invocation) {
   return observeTestExecutionStatus2(invocation.cwd);
 }
 async function projectTestHandler(invocation) {
+  if (invocation.offline)
+    return onlineRequired("project test");
   const { runProjectTests: runProjectTests2 } = await Promise.resolve().then(() => (init_test_execution(), exports_test_execution));
   return runProjectTests2(invocation.cwd, invocation.options, { json: invocation.json === true });
 }
@@ -58025,6 +58063,7 @@ var CANONICAL_COMMANDS = [
     ]
   }),
   command("project test", "Run repository test commands", "mutate", {
+    networkPolicy: "declared",
     syntax: "test",
     commandOptions: [
       {

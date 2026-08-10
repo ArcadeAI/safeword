@@ -259,6 +259,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     ],
   }),
   command('project test', 'Run repository test commands', 'mutate', {
+    networkPolicy: 'declared',
     syntax: 'test',
     commandOptions: [
       {

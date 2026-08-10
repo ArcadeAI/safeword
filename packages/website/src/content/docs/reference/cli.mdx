@@ -192,6 +192,8 @@ safeword project sync-learnings
 safeword project sync-tickets
 safeword project codify <ticket> [--format vitest|gherkin] [--red] [--out <path>]
 safeword project test-plan [dir] [--kind <kind>] [--format human|json|sh]
+safeword project test [--lane done|full] [--execution local|remote-preferred]
+safeword project test-execution status
 safeword project lint-gherkin [files...]
 
 safeword tracker connect <provider>
@@ -219,6 +221,11 @@ Run any command with `--help` for its complete option set.
 For `project test-plan` and `retro signals` / `self-report`, the retained
 `--format json` option emits the command's legacy raw shape. Use the global
 `--json` option for the stable result envelope.
+
+`project test` executes project-owned commands, which may access the network.
+It therefore refuses `--offline` before starting a runner. In JSON mode, output
+is captured separately for every executed runner; without `--json`, runners
+inherit the terminal streams directly.
 
 ## Compatibility routes
 
