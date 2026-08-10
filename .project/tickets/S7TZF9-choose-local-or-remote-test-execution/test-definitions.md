@@ -63,8 +63,8 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 ### Scenario: Public CLI grammar exposes only supported execution modes
 
 - [x] RED 555a950ee
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 12e881859
+- [x] REFACTOR skip: option accumulation is isolated in one parser strategy
 
 ## Feature-level cross-scenario refactor
 
