@@ -1413,7 +1413,7 @@ Given(
 
 When('ordinary safeword setup upgrades the project', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
-  this.lifecycle.result = runLifecycleCommand(this, ['setup']);
+  this.lifecycle.result = runLifecycleCommand(this, ['setup', '--agents=claude']);
 });
 
 Then(
