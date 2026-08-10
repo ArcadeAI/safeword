@@ -130,11 +130,11 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then cleanup refuses to contract that project
       And the unknown content and every unrelated project file remain byte-identical
 
-    Scenario: Ordinary setup preserves an existing legacy project and its Claude profile
+    Scenario: Ordinary setup preserves an existing legacy project and unrelated Claude profile state
       Given an existing project has viable legacy Claude protection and arbitrary profile state
       When ordinary safeword setup upgrades the project
-      Then every viable legacy asset and the complete Claude profile are byte-identical
-      And the result recommends the canonical Claude install command without invoking it
+      Then every viable legacy asset and unrelated Claude profile state are preserved
+      And the result records the project plugin install and recommends reloading it
 
   @native-claude-plugin.TBU1.R3 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R3 — Framework code executes from the installed versioned plugin while project state remains in the repository

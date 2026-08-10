@@ -10,10 +10,14 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { parseFrontmatter } from './hierarchy.js';
+import { inspirationContractProvenance } from './feature-provenance.js';
+import { evaluateProductInspiration } from './inspiration.js';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { isValidSkipReason } from './parse-annotation.js';
 import { activeScenarioKey } from './skill-nudge.js';
+
+export { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
 
 export interface ActiveTicketInfo {
   phase: string | undefined;
@@ -98,7 +102,7 @@ function readConfiguredPersonasPath(rawConfig: string): string | undefined {
 export function evaluateFeatureTicketReadiness(
   projectDirectory: string,
   ticketFolder: string,
-  options: { ticketContent?: string } = {},
+  options: { evaluationDate?: string; ticketContent?: string } = {},
 ): FeatureTicketReadiness {
   const issues: FeatureTicketReadinessIssue[] = [];
   const ticketDirectory = nodePath.join(
@@ -109,7 +113,7 @@ export function evaluateFeatureTicketReadiness(
   const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
   const ticketContent =
     options.ticketContent ?? (existsSync(ticketFile) ? readFileSync(ticketFile, 'utf8') : '');
-  const frontmatterMatch = ticketContent.match(/^---\n([\s\S]*?)\n---/);
+  const frontmatterMatch = ticketContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
 
   if (!frontmatterMatch) {
     addReadinessIssue(
@@ -162,6 +166,21 @@ export function evaluateFeatureTicketReadiness(
         'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n>` (or a legacy `#### <jtbd-id>.AC<n>`), or add a per-JTBD `skip: <reason>`.',
       );
     }
+
+    const inspirationVerdict = evaluateProductInspiration({
+      ticketContent,
+      specContent,
+      activationProvenance: inspirationContractProvenance(ticketDirectory),
+      evaluationDate: options.evaluationDate ?? new Date().toISOString().slice(0, 10),
+    });
+    if (!inspirationVerdict.ok) {
+      addReadinessIssue(
+        issues,
+        'spec.md Product Inspiration',
+        inspirationVerdict.reason,
+        inspirationVerdict.remediation,
+      );
+    }
   }
 
   const dimensionsFile = nodePath.join(ticketDirectory, 'dimensions.md');
@@ -174,6 +193,14 @@ export function evaluateFeatureTicketReadiness(
     );
   } else {
     const dimensionsContent = readFileSync(dimensionsFile, 'utf8').trim();
+    if (dimensionsContent === '') {
+      addReadinessIssue(
+        issues,
+        'dimensions.md',
+        'empty',
+        'Either write a dimension table, or use `skip: <reason>` explaining why no dimensions need enumerating.',
+      );
+    }
     const skipMatch = /^skip:(.*)$/i.exec(dimensionsContent);
     if (skipMatch && !isValidSkipReason(skipMatch[1] ?? '')) {
       addReadinessIssue(
