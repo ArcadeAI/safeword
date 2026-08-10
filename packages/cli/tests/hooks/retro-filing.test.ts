@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -204,6 +204,53 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
 
     expect(result.status).toBe(0);
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([unacknowledged]);
+  });
+
+  it('the shipped helper emits only code-validated drafts for tracker egress', () => {
+    const sealed = sealedRetroDraft('retro:aaaaaaaaaaaa', 'Validated');
+    spoolDrafts(projectDirectory, 'sess-1', [sealed]);
+
+    const result = spawnSync(
+      'bun',
+      [DRAIN_RETRO_SPOOL, draftSpoolPath(projectDirectory, 'sess-1'), '--validated-jsonl'],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual(sealed);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([sealed]);
+  });
+
+  it('the shipped helper emits no filing input when a sealed body was modified', () => {
+    const sealed = sealedRetroDraft('retro:aaaaaaaaaaaa', 'Validated');
+    const spool = draftSpoolPath(projectDirectory, 'sess-1');
+    mkdirSync(nodePath.dirname(spool), { recursive: true });
+    writeFileSync(spool, `${JSON.stringify({ ...sealed, body: 'modified after egress' })}\n`);
+
+    const result = spawnSync('bun', [DRAIN_RETRO_SPOOL, spool, '--validated-jsonl'], {
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('Refusing tracker egress');
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toHaveLength(1);
+  });
+
+  it('the shipped helper rejects a spool symlink before validation or draining', () => {
+    const outside = nodePath.join(projectDirectory, 'outside.jsonl');
+    const spool = draftSpoolPath(projectDirectory, 'sess-1');
+    mkdirSync(nodePath.dirname(spool), { recursive: true });
+    writeFileSync(outside, `${JSON.stringify(draft('retro:aaaaaaaaaaaa', 'Outside'))}\n`);
+    symlinkSync(outside, spool);
+
+    const result = spawnSync('bun', [DRAIN_RETRO_SPOOL, spool, '--validated-jsonl'], {
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('Refusing a symlinked retro spool');
   });
 
   it('leaves an un-postable draft spooled for retry, and a later boundary still nudges for it', async () => {

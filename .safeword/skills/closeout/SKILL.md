@@ -80,10 +80,9 @@ A missing, stale, malformed, dirty-state, or wrong-head receipt blocks cleanup.
 
 After merge is independently confirmed, invoke the cleanup guard in preview
 mode. Its host hook supplies a short-lived, single-consumer binding to this exact
-session (and Cursor transcript). Codex Desktop may instead supply its authenticated
-current `CODEX_THREAD_ID`, consistent with SafeWord's other Codex identity bridges.
-A missing or expired binding or identity fails closed; there is no newest-session
-fallback and callers cannot nominate another receipt, session, transcript, or spool.
+session and transcript. A missing or expired binding or identity fails closed;
+there is no environment-only or newest-session fallback, and callers cannot
+nominate another receipt, session, transcript, or spool.
 
 The guard runs `safeword retro run --json` itself and accepts only a
 successful result whose `data.agent_filing_needed` is `false` and whose derived
@@ -94,6 +93,12 @@ Failed extraction, failed filing, pending drafts, malformed output, or an
 identity mismatch means no cleanup. Report every failure and its recovery
 action. A request to skip retro does not create a bypass: preserve the worktree
 and branches and explain that the retrospective is required before cleanup.
+
+When the authenticated preview reports pending drafts and includes
+`plan.retro.spoolPath`, invoke the `safeword:retro-filer` skill with that exact
+path, then rerun the preview. This is the closeout recovery continuation: the
+guard derived the path from its short-lived host-session binding, so do not
+substitute, discover, or accept a caller-provided spool path.
 
 ## 5. Preview, confirm, and apply exact cleanup
 
