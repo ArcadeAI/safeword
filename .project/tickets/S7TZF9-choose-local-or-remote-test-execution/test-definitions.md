@@ -14,7 +14,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 - [x] RED 2bc4d1563
 - [x] GREEN 8180a8047
-- [ ] REFACTOR
+- [x] REFACTOR skip: fallback decision and plan execution are already isolated
 
 ## Rule: choose-local-or-remote-test-execution.TBU1.R2
 
