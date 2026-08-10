@@ -1,7 +1,7 @@
 @codex-plugin-hook-parity
 Feature: Codex plugin hook parity
 
-  Codex plugin delivery should remove Safe Word implementation files from the
+  Codex plugin delivery should remove Safeword implementation files from the
   customer's repo without weakening the behavior previously supplied by the
   repo-local Codex hook adapters.
 
@@ -11,13 +11,13 @@ Feature: Codex plugin hook parity
     Scenario: Packaged PreToolUse denies the same blocked edit as the legacy adapter
       Given a Codex project with an incomplete feature ticket
       When the packaged Codex PreToolUse command receives an apply_patch that creates that ticket's test definitions
-      Then it denies the edit with the Safe Word intake gate reason
+      Then it denies the edit with the Safeword intake gate reason
       And the denial explains the Codex `$explain` escape hatch
 
     @codex-plugin-hook-parity.TB1.R1 @surface.openai-codex @surface.safeword-cli
     Scenario: Packaged PreToolUse records skill and review-stamp run identity
       Given a Codex session id and project namespace root
-      When the packaged Codex PreToolUse command sees Safe Word proof commands
+      When the packaged Codex PreToolUse command sees Safeword proof commands
       Then it writes the Codex run identity bridge files expected by the proof helpers
 
     @codex-plugin-hook-parity.TB1.R1 @surface.openai-codex @surface.safeword-cli
@@ -73,7 +73,7 @@ Feature: Codex plugin hook parity
 
     @codex-plugin-hook-parity.TB1.R4 @surface.openai-codex @surface.safeword-cli
     Scenario: Packaged SessionStart emits package-owned SAFEWORD context without upgrading
-      Given a Codex project with no applicable Safe Word upgrade
+      Given a Codex project with no applicable Safeword upgrade
       When the packaged Codex SessionStart command runs
       Then SessionStart performs no implicit upgrade
       And it emits SessionStart additionalContext containing package-owned SAFEWORD.md
@@ -88,15 +88,15 @@ Feature: Codex plugin hook parity
   Rule: UserPromptSubmit preserves timestamp and queued prompt context
 
     @codex-plugin-hook-parity.TB1.R5 @surface.openai-codex @surface.safeword-cli
-    Scenario: Packaged UserPromptSubmit emits queued Safe Word prompt context
-      Given queued Safe Word prompt context for a Codex project
+    Scenario: Packaged UserPromptSubmit emits queued Safeword prompt context
+      Given queued Safeword prompt context for a Codex project
       When the packaged Codex UserPromptSubmit command runs
       Then it emits Codex UserPromptSubmit additionalContext containing that queued context
       And the queued context remains project-owned data, not plugin implementation
 
     @codex-plugin-hook-parity.TB1.R5 @surface.openai-codex @surface.safeword-cli
     Scenario: Packaged UserPromptSubmit emits a current timestamp with no queued prompt context
-      Given no queued Safe Word prompt context for a Codex project
+      Given no queued Safeword prompt context for a Codex project
       When the packaged Codex UserPromptSubmit command runs
       Then it emits Codex UserPromptSubmit additionalContext containing the current timestamp
 
@@ -114,19 +114,19 @@ Feature: Codex plugin hook parity
     Scenario: Plugin manifest commands all use the packaged hook command
       Given the Codex plugin hook manifest
       When hook commands are inspected
-      Then every Safe Word hook command runs `safeword hook codex`
+      Then every Safeword hook command runs `safeword hook codex`
       And no command points at repo-local `.safeword/hooks/codex`
 
     @codex-plugin-hook-parity.SM1.R2 @surface.safeword-cli
     Scenario: Hidden compatibility alias preserves the packaged hook contract
-      Given a legacy Safe Word Codex hook command invokes `safeword codex-hook pre-tool-use`
+      Given a legacy Safeword Codex hook command invokes `safeword codex-hook pre-tool-use`
       When it receives the same blocked edit payload as `safeword hook codex pre-tool-use`
       Then both commands deny with the same Codex hook JSON contract
 
     @codex-plugin-hook-parity.SM1.R3 @live @manual @surface.openai-codex
     Scenario: Live vetted plugin run observes package-backed lifecycle dispatch
-      Given an isolated CODEX_HOME with the Safe Word plugin installed
+      Given an isolated CODEX_HOME with the Safeword plugin installed
       And the live smoke uses Codex's explicit one-off hook-trust bypass
       When real `codex exec --json` starts a no-tool session
       Then the plugin SessionStart hook invokes the packaged `safeword hook codex session-start` command
-      And the customer repo contains no repo-local Safe Word Codex implementation tree
+      And the customer repo contains no repo-local Safeword Codex implementation tree

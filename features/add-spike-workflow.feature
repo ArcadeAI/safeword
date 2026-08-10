@@ -1,6 +1,6 @@
 @surface.claude-code @surface.openai-codex @surface.cursor @surface.safeword-cli
 Feature: Resolve build-only uncertainty with a spike
-  Safe Word maintainers need executable evidence for technical risks without
+  Safeword maintainers need executable evidence for technical risks without
   weakening the production feature workflow or merging disposable code.
 
   @spike-workflow.SWM1.R1

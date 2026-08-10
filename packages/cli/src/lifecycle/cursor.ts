@@ -6,7 +6,7 @@ import { isCursorProjectPath, type SafewordSchema } from '../schema.js';
 import { projectLifecycleSchema } from './schema.js';
 
 /**
- * Safe Word-owned Cursor files declared by the schema. Cursor has no host
+ * Safeword-owned Cursor files declared by the schema. Cursor has no host
  * process to interrogate, so its project-local assets are the only surface
  * evidence available.
  */
@@ -16,7 +16,7 @@ function cursorOwnedFiles(schema: SafewordSchema): readonly string[] {
   );
 }
 
-/** True when this project already carries Safe Word-owned Cursor assets. */
+/** True when this project already carries Safeword-owned Cursor assets. */
 export function hasCursorProjectAssets(cwd: string, schema: SafewordSchema): boolean {
   return cursorOwnedFiles(schema).some(path => existsSync(nodePath.join(cwd, path)));
 }
@@ -43,7 +43,7 @@ export function observeCursorProject(cwd: string, schema: SafewordSchema): CliRe
     findings: [
       {
         code: 'CURSOR_ASSETS_MISSING',
-        message: `${missing.length} Safe Word-owned Cursor file(s) are missing; run \`safeword install --agents=cursor\`.`,
+        message: `${missing.length} Safeword-owned Cursor file(s) are missing; run \`safeword install --agents=cursor\`.`,
         severity: 'warning',
       },
     ],
@@ -75,7 +75,7 @@ export function unselectedCursorFinding(
     {
       code: 'CURSOR_NOT_SELECTED',
       message:
-        'This project has Safe Word-owned Cursor assets that the current selection excludes; include `--agents=cursor` to keep them current.',
+        'This project has Safeword-owned Cursor assets that the current selection excludes; include `--agents=cursor` to keep them current.',
       severity: 'info',
     },
   ];

@@ -309,7 +309,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       expect(fileExists(nodePath.join(temporaryDirectory, '.safeword/hooks/codex'))).toBe(false);
     });
 
-    it('retains existing Safe Word Codex hooks until explicit migration', async () => {
+    it('retains existing Safeword Codex hooks until explicit migration', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -343,7 +343,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       const userHookPath = nodePath.join(temporaryDirectory, '.safeword/hooks/codex/custom.ts');
       mkdirSync(nodePath.dirname(userHookPath), { recursive: true });
       for (const legacyHookPath of legacyRuntimeHookPaths) {
-        writeFileSync(legacyHookPath, '// legacy Safe Word hook\n');
+        writeFileSync(legacyHookPath, '// legacy Safeword hook\n');
       }
       writeFileSync(userHookPath, '// user hook\n');
 

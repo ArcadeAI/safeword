@@ -3710,7 +3710,7 @@ function legacyGlobalGuidanceDiagnostic(observation) {
       observation,
       finding: {
         code: "CODEX_LEGACY_GLOBAL_GUIDANCE_EXACT",
-        message: `The active Codex profile guidance at ${observation.path} is an exact historical Safe Word revision that references retired workflow paths.`,
+        message: `The active Codex profile guidance at ${observation.path} is an exact historical Safeword revision that references retired workflow paths.`,
         severity: "warning",
         metadata: { classification: "exact_legacy", disposition: "recoverable_cleanup" }
       },
@@ -3726,7 +3726,7 @@ function legacyGlobalGuidanceDiagnostic(observation) {
       observation,
       finding: {
         code: "CODEX_LEGACY_GLOBAL_GUIDANCE_SUSPECTED",
-        message: `The active Codex profile guidance at ${observation.path} resembles edited legacy Safe Word instructions. Review it manually; Safe Word will not modify it.`,
+        message: `The active Codex profile guidance at ${observation.path} resembles edited legacy Safeword instructions. Review it manually; Safeword will not modify it.`,
         severity: "warning",
         metadata: { classification: "suspected_legacy", disposition: "manual_review" }
       }
@@ -4607,9 +4607,9 @@ var init_historical_catalogue_generated = __esm(() => {
     schema_version: 1,
     current: {
       files: {
-        ".claude/agents/safeword-retro-filer.md": "0f4bc744e55e6e404dee4258b6180b111828ec833b66997ade79b0d159f7e8d4",
-        ".claude/agents/safeword-reviewer.md": "5cc17d5cec1a6df812770cf80667673279bf1acc1bb961ebe458f8c5b58bdc1a",
-        ".claude/skills/audit/SKILL.md": "784da329a70fe34b6e3a477b50caaee0d6bbfc1a3ed1d33b213fd9fb55346f4d",
+        ".claude/agents/safeword-retro-filer.md": "d897ee5de427ff715e4ffe3e7416bfb7bbf98cf3b5d0a41d2f12f1fc313fe668",
+        ".claude/agents/safeword-reviewer.md": "13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470",
+        ".claude/skills/audit/SKILL.md": "9da1c1379274ed239b02115bbb0e986c298a64dbf0a3109c8c878360a3318993",
         ".claude/skills/bdd/DISCOVERY.md": "c229895c53030b8f44ff563dd3728d8f4a4e4e593d8c29ae9349283ea25b5d91",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "bf1b303505bae2ea3c66b699cfe8f24614f4c1be63d1ac20ee4ddf5ec76a2916",
@@ -4624,21 +4624,21 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/debug/SKILL.md": "ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0",
         ".claude/skills/elicit/SKILL.md": "2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5",
         ".claude/skills/explain/SKILL.md": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d",
-        ".claude/skills/figure-it-out/SKILL.md": "4552275007b0161037a1791233722a89dac16f963f55aab80fc7a9b6b37f67d4",
-        ".claude/skills/finish-review/REVIEWER.md": "1fdbcc909088278f39f69bb77efe49cf422333210e5b393f3a2a247e898e7efa",
-        ".claude/skills/finish-review/SKILL.md": "09945ab0feae863101a31794a669b8d82fb8b08dafcd3cd990630a7916759768",
+        ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
+        ".claude/skills/finish-review/REVIEWER.md": "0ecee21a63f91e09d3136f62cf8f7590ba9a640b85cad7b7b35c1ae334ff43c2",
+        ".claude/skills/finish-review/SKILL.md": "8ff3fbeb2ba9eb6f9278bea718aacd747682dae4245bdb87356988c53611a69b",
         ".claude/skills/lint/SKILL.md": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66",
-        ".claude/skills/quality-review/SKILL.md": "c26985e7100390b7d79c569f71e15cf8223972dfac41b4527ccce0afccdebdec",
-        ".claude/skills/refactor/SKILL.md": "ecfd1b594e9a4c18387e6b9bc84a5bd1ded6b0b3df40a69271ba779ce2b7f122",
-        ".claude/skills/retro-filer/SKILL.md": "8e92f1a7579ba1dd70ced8e9815be0eeed3bc09d43c310a5646ff93c428412ff",
-        ".claude/skills/retro/SKILL.md": "8e7b5912810c1e0fe596ff2367b5bc7d3890bd86db5719f49e3c0227b0fdd44a",
-        ".claude/skills/review-spec/SKILL.md": "4188d2cf86c63c19622149eabbbd93391b6740b67735a8c0891df366accbc38d",
-        ".claude/skills/self-review/SKILL.md": "51bccc782884dc2ef6171465909df2726875bb308d0004fd2bbed13e51208ffc",
+        ".claude/skills/quality-review/SKILL.md": "5e0a2900bc8f3efbcf3f414c0ff5c4ccc74c0e37b403b0b704aef0b532aec87d",
+        ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
+        ".claude/skills/retro-filer/SKILL.md": "a4c12dcff328f6e9adb3569c81d2ebda4618aa842fa3bfe15c3c1a486164db02",
+        ".claude/skills/retro/SKILL.md": "166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379",
+        ".claude/skills/review-spec/SKILL.md": "aa03f01cb4e3f84e943e87d96678d6159aaef0b16dd998a24222ba2faf2ff330",
+        ".claude/skills/self-review/SKILL.md": "dcc667823790f18e1fa8cf35aaf10c40464664929c7bbb093531fd684f673e15",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "f49a7e07dea7a62f39e9919c0c4251ede4ec2dec72b9892e7e0c42205d510e6f",
         ".claude/skills/testing/SKILL.md": "697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9",
-        ".claude/skills/ticket-system/SKILL.md": "12798a8ebd1fb2bb65b4ee42fb3611d12f6817bc6cd27af829294ef31bfed27b",
-        ".claude/skills/verify/SKILL.md": "71a6236f9522df0ac6d9f6627d4b66e57dc5067d71c0b64cd66da2cdf5c2f24c"
+        ".claude/skills/ticket-system/SKILL.md": "1edd1d2c546dae594124c8846c43f78f81d4579370589eaf1476b894c0a9750e",
+        ".claude/skills/verify/SKILL.md": "df24deb0a9b4086e8da5f82f514e9d7f5ea22d4dcc0e6d432b80d7f8b47e3463"
       },
       hooks: {
         SessionStart: [
@@ -14593,7 +14593,7 @@ function cursorRuleSkillPairs() {
   }
   return [...skillRules].map(([skill, cursorRules]) => ({ skill, cursorRules }));
 }
-var CURSOR_ACTION_SKILLS, DEBUG_DESCRIPTION = "Four-phase debugging framework that ensures root cause identification before fixes. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').", REFACTOR_DESCRIPTION = "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change \u2192 test \u2192 commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.", CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS, SKILL_CURSOR_PAIRS;
+var CURSOR_ACTION_SKILLS, DEBUG_DESCRIPTION = "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').", REFACTOR_DESCRIPTION = "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change \u2192 test \u2192 commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.", CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS, SKILL_CURSOR_PAIRS;
 var init_cursor_wrappers = __esm(() => {
   CURSOR_ACTION_SKILLS = [
     "lint",
@@ -14620,12 +14620,12 @@ var init_cursor_wrappers = __esm(() => {
     },
     {
       name: "quality-review",
-      description: "Deep code review with web research. USE WHEN user says 'double check against latest', 'verify versions', 'check security'. Complements automatic quality hook with ecosystem verification.",
+      description: "Deep code review with web research. Use when the user says 'double check against latest', 'verify versions', or 'check security'. Adds live research on top of the automatic quality hook \u2014 confirms you're using current library versions and APIs, not stale ones.",
       skillPath: "quality-review/SKILL.md"
     },
     {
       name: "finish-review",
-      description: "Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.",
+      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
       skillPath: "finish-review/SKILL.md"
     },
     {
@@ -14635,7 +14635,7 @@ var init_cursor_wrappers = __esm(() => {
     },
     {
       name: "closeout",
-      description: "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session, merging with explicit authority, running retro, and cleaning the exact merged branch and worktree.",
+      description: "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session: merging only when you've been explicitly told to merge, running the retro, and cleaning up the exact merged branch and worktree.",
       skillPath: "closeout/SKILL.md"
     },
     {
@@ -14645,12 +14645,12 @@ var init_cursor_wrappers = __esm(() => {
     },
     {
       name: "retro",
-      description: 'Run a safeword retrospective on the current session on demand \u2014 mine the transcript for friction (bugs / rough edges / gaps) and file it behind the egress guard. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
+      description: 'Run a safeword retrospective on the current session on demand \u2014 mine the transcript for friction (bugs / rough edges / gaps) and submit it through the outbound safety check before filing upstream. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
       skillPath: "retro/SKILL.md"
     },
     {
       name: "spike",
-      description: "Run a bounded disposable experiment to resolve one build-only technical uncertainty before production planning. Manual invocation only.",
+      description: "Run a quick, throwaway experiment to answer one open technical question before committing to the real build. Only runs when you ask for it directly.",
       skillPath: "spike/SKILL.md"
     },
     {
@@ -14696,7 +14696,7 @@ var init_cursor_wrappers = __esm(() => {
     {
       name: "safeword-finish-review",
       alwaysApply: false,
-      description: "Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.",
+      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
       referencePath: ".safeword/skills/finish-review/SKILL.md",
       skill: "finish-review"
     },
@@ -14739,7 +14739,7 @@ var init_cursor_wrappers = __esm(() => {
     {
       name: "safeword-retro-filer",
       alwaysApply: false,
-      description: "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+      description: "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
       referencePath: ".safeword/skills/retro-filer/SKILL.md",
       skill: "retro-filer"
     },
@@ -30563,7 +30563,7 @@ function observeCursorProject(cwd, schema) {
     findings: [
       {
         code: "CURSOR_ASSETS_MISSING",
-        message: `${missing.length} Safe Word-owned Cursor file(s) are missing; run \`safeword install --agents=cursor\`.`,
+        message: `${missing.length} Safeword-owned Cursor file(s) are missing; run \`safeword install --agents=cursor\`.`,
         severity: "warning"
       }
     ],
@@ -30586,7 +30586,7 @@ function unselectedCursorFinding(cwd, agents) {
   return [
     {
       code: "CURSOR_NOT_SELECTED",
-      message: "This project has Safe Word-owned Cursor assets that the current selection excludes; include `--agents=cursor` to keep them current.",
+      message: "This project has Safeword-owned Cursor assets that the current selection excludes; include `--agents=cursor` to keep them current.",
       severity: "info"
     }
   ];
@@ -32870,7 +32870,7 @@ function eventRemovalRanges(lines, start, end, event) {
     return [];
   const blocks = nestedStarts.map((nestedStart, index) => classifyHookBlock(lines, { start: nestedStart, end: nestedStarts[index + 1] ?? end }));
   if (blocks.some((block) => block.safeWordAmbiguous)) {
-    throw new Error("Legacy Safe Word hook cleanup found an ambiguous hook block; no changes were made.");
+    throw new Error("Legacy Safeword hook cleanup found an ambiguous hook block; no changes were made.");
   }
   const ownedBlocks = blocks.filter((block) => block.safeWordOwned);
   if (ownedBlocks.length === 0)
@@ -32954,7 +32954,7 @@ function prepareLegacyCodexHookBlocks(content) {
   }
   const lines = splitLines(content);
   if (!countsMatch(semanticLegacyCommandCounts(document2), sourceLegacyCommandCounts(lines))) {
-    throw new Error("Codex configuration uses unsupported Safe Word hook formatting; no legacy hooks were removed.");
+    throw new Error("Codex configuration uses unsupported Safeword hook formatting; no legacy hooks were removed.");
   }
   const ranges = removalRanges(lines);
   const removedBlocks = ranges.map((range) => lines.slice(range.start, range.end).join(""));
@@ -33125,7 +33125,7 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safe Word catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
+var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
@@ -33893,15 +33893,15 @@ function verifyCodexPluginIsEnabled(options = {}) {
   try {
     pluginList = run("codex", ["plugin", "list", "--json"]);
   } catch (error2) {
-    const prefix = options.installationCompleted === true ? "Plugin installation succeeded, but enablement is unknown" : "Could not verify the Safe Word Codex plugin";
+    const prefix = options.installationCompleted === true ? "Plugin installation succeeded, but enablement is unknown" : "Could not verify the Safeword Codex plugin";
     throw new CodexMigrationError(options.installationCompleted === true ? "PLUGIN_ENABLEMENT_UNKNOWN" : "PLUGIN_ENABLEMENT_FAILED", `${prefix}: ${String(error2)}`, { cause: error2 });
   }
   const plugin = pluginObservationFromList(pluginList);
   if (plugin.enabled !== true) {
-    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.");
+    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safeword plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.");
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
-    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`, { profileChanged: options.installationCompleted === true });
+    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", `Codex reported Safeword plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`, { profileChanged: options.installationCompleted === true });
   }
 }
 function pathExistsIncludingDanglingSymlink(path4) {
@@ -34068,8 +34068,8 @@ function installCodexPlugin(options = {}) {
     releaseCodexProfileLock(lock);
   }
   if (options.json !== true) {
-    success("Safe Word Codex plugin is enabled for this profile.");
-    info("This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.");
+    success("Safeword Codex plugin is enabled for this profile.");
+    info("This Codex app may keep its loaded Safeword catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safeword legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.");
   }
   if (options.reportMigrationState === true) {
     reportCodexMigration(cwd, {
@@ -34111,7 +34111,7 @@ function buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval) {
 `
   }, {
     path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
-    content: "---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n"
+    content: "---\nname: safeword-plugin-setup\ndescription: Restore the Safeword Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n"
   });
   return mutations;
 }
@@ -34238,7 +34238,7 @@ function reportCompletedFinalization(cwd, options) {
   if (options.json === true)
     reportCodexMigration(cwd, options);
   else
-    success("Safe Word Codex migration is already finalized.");
+    success("Safeword Codex migration is already finalized.");
 }
 function reportAppliedFinalization(cwd, input) {
   if (input.options.json === true) {
@@ -34250,7 +34250,7 @@ function reportAppliedFinalization(cwd, input) {
     return;
   }
   info("Backed up the complete legacy Codex state for conflict-safe recovery.");
-  info(input.removedLegacyHooks ? "Removed Safe Word legacy Codex project protection after the verified plugin handoff." : "No Safe Word legacy Codex hooks were found in this project.");
+  info(input.removedLegacyHooks ? "Removed Safeword legacy Codex project protection after the verified plugin handoff." : "No Safeword legacy Codex hooks were found in this project.");
 }
 function reportCodexWhen(enabled, report) {
   if (enabled)
@@ -34292,7 +34292,7 @@ async function removeLegacyCodexHooks(cwd = process.cwd(), options = {}) {
   run("codex", ["--version"]);
   verifyCodexPluginIsEnabled();
   reportCodexWhen(options.report !== false && options.json !== true, () => {
-    success("Safe Word Codex plugin is enabled for this profile.");
+    success("Safeword Codex plugin is enabled for this profile.");
   });
   assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, plannedMutations, plannedEffects, plannedInputs);
   applyCodexFinalization(cwd, plannedMutations);
@@ -34333,7 +34333,7 @@ function recoverCodexMigration(cwd = process.cwd(), options = {}) {
   if (options.json === true) {
     reportCodexMigration(cwd, { ...options, changed });
   } else {
-    success(changed ? "Restored the backed-up Safe Word legacy Codex project state." : "No Safe Word Codex migration recovery was needed.");
+    success(changed ? "Restored the backed-up Safeword legacy Codex project state." : "No Safeword Codex migration recovery was needed.");
   }
   return changed;
 }
@@ -53361,8 +53361,8 @@ function readPackagedSafewordInstructions() {
   if (!instructionsPath)
     return;
   return [
-    "Current Safe Word authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
-    "These current paths supersede retired Safe Word instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
+    "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
+    "These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
     "",
     readFileSync56(instructionsPath, "utf8")
   ].join(`
@@ -53405,7 +53405,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   const hookPath = resolvePackagedHook(relativePath);
   if (!hookPath) {
     return {
-      error: new Error(`Safe Word packaged hook is missing: ${relativePath}`),
+      error: new Error(`Safeword packaged hook is missing: ${relativePath}`),
       stderr: "",
       stdout: ""
     };
@@ -53429,7 +53429,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
 function snapshotPackagedHook(relativePath) {
   const packagedHooksDirectory = findPackagedTemplate("hooks");
   if (!packagedHooksDirectory) {
-    return { error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+    return { error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   }
   const directory = mkdtempSync8(nodePath91.join(tmpdir6(), `safeword-codex-hook-snapshot-${process21.pid}-`));
   const stagingHooksDirectory = nodePath91.join(directory, "hooks-copying");
@@ -53438,7 +53438,7 @@ function snapshotPackagedHook(relativePath) {
     cpSync(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
     renameSync7(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath91.join(snapshotHooksDirectory, relativePath);
-    return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+    return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
     return {
       directory,
@@ -53451,7 +53451,7 @@ function hookFailureDetail(result) {
 }
 function denyForPackagedHookFailure(result) {
   const detail = hookFailureDetail(result);
-  process21.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}
+  process21.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}
 `);
   process21.exit(2);
 }
@@ -53672,7 +53672,7 @@ async function runStop() {
 async function codexHook(event, options = {}) {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) {
-    process21.stderr.write(`Safe Word ignored unknown Codex hook event: ${event}
+    process21.stderr.write(`Safeword ignored unknown Codex hook event: ${event}
 `);
     return;
   }
@@ -56683,14 +56683,14 @@ function cleanGuidanceRefusal(cleanup) {
     PLAN_STALE: "The active profile guidance changed. Review a fresh cleanup plan.",
     UNSAFE_GUIDANCE: "The active profile guidance is not an exact registered revision.",
     BACKUP_OCCUPIED: `Cleanup refused because ${cleanup.backupPath} already exists.`,
-    SOURCE_CHANGED_DURING_MOVE: "The guidance changed during cleanup. Safe Word preserved the moved artifact and refused cleanup."
+    SOURCE_CHANGED_DURING_MOVE: "The guidance changed during cleanup. Safeword preserved the moved artifact and refused cleanup."
   };
   return createResult({
     state: "action_required",
     findings: [
       {
         code: cleanup.code ?? "CODEX_GUIDANCE_CLEANUP_REFUSED",
-        message: cleanup.code === undefined ? "Safe Word could not safely clean the profile guidance." : messages3[cleanup.code],
+        message: cleanup.code === undefined ? "Safeword could not safely clean the profile guidance." : messages3[cleanup.code],
         severity: "warning"
       }
     ],
@@ -56957,7 +56957,7 @@ function codexFailureCode(error2, message, name, isFinalization) {
     return error2.code;
   const specific = [
     [/Plugin installation succeeded, but enablement is unknown/iu, "PLUGIN_ENABLEMENT_UNKNOWN"],
-    [/did not report the Safe Word plugin as enabled/iu, "PLUGIN_ENABLEMENT_FAILED"],
+    [/did not report the Safeword plugin as enabled/iu, "PLUGIN_ENABLEMENT_FAILED"],
     [/marketplace unavailable/iu, "PLUGIN_MARKETPLACE_FAILED"],
     [/ambiguous|cannot safely identify/iu, "AMBIGUOUS_LEGACY_CONFIG"],
     [
@@ -57031,7 +57031,7 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
       ]
     });
   }
-  const partialInstall = /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(message);
+  const partialInstall = /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(message);
   const partialMarketplace = error2 instanceof CodexMigrationError && error2.profileChanged;
   return createResult({
     state: "failed",
@@ -57077,7 +57077,7 @@ function codexPluginUpdateFailure(observed) {
       ...observed.errors,
       {
         code: "PLUGIN_UPDATE_REQUIRED",
-        message: "Finalization requires the packaged Safe Word plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.",
+        message: "Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.",
         retryable: true
       }
     ],
@@ -57686,7 +57686,7 @@ var CANONICAL_COMMANDS = [
   command("doctor", "Diagnose project configuration", "observe", {
     commandOptions: [agentSelectionOption()]
   }),
-  command("uninstall", "Deactivate selected Safe Word project and agent state; preserve authored content; reinstall to recover", "destructive", {
+  command("uninstall", "Deactivate selected Safeword project and agent state; preserve authored content; reinstall to recover", "destructive", {
     promptPolicy: "confirm",
     networkPolicy: "declared",
     commandOptions: [
@@ -57814,7 +57814,7 @@ var CANONICAL_COMMANDS = [
     ]
   }),
   command("claude recover", "Restore recognized Claude state from its cleanup backup without replacing unrelated content", "mutate"),
-  command("codex clean-guidance", "Deactivate exact legacy Safe Word profile guidance, preserve unrelated content, and retain a recovery backup", "destructive", {
+  command("codex clean-guidance", "Deactivate exact legacy Safeword profile guidance, preserve unrelated content, and retain a recovery backup", "destructive", {
     promptPolicy: "confirm",
     commandOptions: [
       { flags: "--yes", description: "Confirm cleanup of the observed exact revision" },

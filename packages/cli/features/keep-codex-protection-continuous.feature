@@ -6,12 +6,12 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario: Upgrade preserves recognized legacy protection
       Given a configured project with recognized legacy Codex hooks and workflow assets
-      When the builder upgrades Safe Word
+      When the builder upgrades Safeword
       Then the legacy Codex assets remain protected and automatic enrollment is added
 
     Scenario: Plugin installation failure leaves repository protection unchanged
       Given a configured project with recognized legacy Codex protection
-      And the active Codex profile cannot install the Safe Word plugin
+      And the active Codex profile cannot install the Safeword plugin
       When the builder migrates Codex
       Then migration fails without changing the repository
 
@@ -26,7 +26,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     @rejection
     Scenario: Enabled plugin without proof remains unproven
-      Given the active Codex profile reports the Safe Word plugin enabled
+      Given the active Codex profile reports the Safeword plugin enabled
       And no current profile hook proof exists
       When the builder checks Codex status
       Then status reports plugin_enabled_hook_unproven and recommends hook review in the restarted app
@@ -34,12 +34,12 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     @rejection
     Scenario: Enabled older plugin requires an update
-      Given the active Codex profile reports an enabled older Safe Word plugin
+      Given the active Codex profile reports an enabled older Safeword plugin
       When the builder checks Codex status
       Then status reports plugin_update_required and recommends updating the plugin
 
     Scenario: Successful installation requires an app restart
-      Given the active Codex profile does not contain the Safe Word plugin
+      Given the active Codex profile does not contain the Safeword plugin
       When the builder migrates Codex and installation succeeds
       Then migration reports plugin_installed_app_restart_required and changes no repository file
       And the profile contains an activation marker bound to the installed version and hook manifest
@@ -56,13 +56,13 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Then restart-bound proof replaces the pending marker and status no longer requires an app restart
 
     Scenario: Trusted plugin SessionStart records event-specific proof
-      Given the Safe Word profile-plugin SessionStart dispatcher is trusted
+      Given the Safeword profile-plugin SessionStart dispatcher is trusted
       When Codex invokes it with the plugin-hook marker
       Then the profile contains schema 2 proof with the running version, exact manifest digest, and a parseable UTC timestamp
 
     @rejection
     Scenario: Interrupted proof write cannot become current
-      Given the Safe Word profile-plugin SessionStart proof write is interrupted
+      Given the Safeword profile-plugin SessionStart proof write is interrupted
       When the builder checks Codex status
       Then no partial or malformed proof is accepted as current
       And status reports plugin_enabled_hook_unproven
@@ -138,14 +138,14 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     @rejection
     Scenario: Failed finalization rolls back to the complete pre-migration state
       Given a confirmed finalization whose repository mutation fails
-      When Safe Word handles the failure
+      When Safeword handles the failure
       Then every prepared change is rolled back to the exact pre-migration state
       And the command reports failure without reporting recovery_required
 
     @rejection
     Scenario: Failed rollback retains recovery evidence
       Given a confirmed finalization whose repository mutation and restoration both fail
-      When Safe Word handles the failure
+      When Safeword handles the failure
       Then the backup remains and the finalized marker is absent
       And status reports recovery_required
 
@@ -191,7 +191,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     @rejection
     Scenario Outline: Handled transaction failure restores the pre-migration state
       Given confirmed finalization fails <boundary> while rollback remains available
-      When Safe Word handles the failure
+      When Safeword handles the failure
       Then the exact pre-migration repository state is restored and the temporary backup is removed
 
       Examples:
@@ -241,7 +241,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Human status gives one safe next action for settled migration states
       Given the repository and active profile derive the <fixture> fixture
-      When Safe Word derives human Codex status from the fixture
+      When Safeword derives human Codex status from the fixture
       Then status reports <state>, names protection as <protection>, and ends with <next_action>
 
       Examples:
@@ -261,7 +261,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Unproven plugin status reflects legacy protection
       Given an enabled plugin without current proof and <legacy_fixture>
-      When Safe Word derives human Codex status from the fixture
+      When Safeword derives human Codex status from the fixture
       Then status reports plugin_enabled_hook_unproven with protection <protection>
       And the output recommends restarting Codex and reviewing hooks
 
@@ -273,22 +273,22 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     @rejection
     Scenario: Partial hook proof names the events still required before finalization
       Given an enabled plugin with proof for only SessionStart
-      When Safe Word derives the prepared Codex domain status
+      When Safeword derives the prepared Codex domain status
       Then structured status reports plugin_enabled_hook_unproven with partial proof and names the four missing hook events
 
     Scenario: Older Codex clients with an unknown plugin version remain compatible
       Given an enabled unknown-version plugin with current proof and legacy protection
-      When Safe Word derives human Codex status from the fixture
+      When Safeword derives human Codex status from the fixture
       Then status reports compatibility with protected coverage and unknown plugin observation
 
     Scenario: Recovery state takes precedence over legacy protection
       Given an unresolved migration backup and recognized legacy protection
-      When Safe Word derives human Codex status from the fixture
+      When Safeword derives human Codex status from the fixture
       Then status reports recovery_required, names protection as uncertain, and ends with safeword codex recover
 
     Scenario: Plugin-only human status has no next action
       Given current profile proof and a finalized project without legacy assets
-      When Safe Word derives human Codex status from the fixture
+      When Safeword derives human Codex status from the fixture
       Then status reports plugin, names protection as protected, and contains no Next line
 
     @rejection
@@ -299,7 +299,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Domain status uses state-specific complete schema
       Given the repository and active profile derive the <fixture> fixture
-      When Safe Word derives the prepared Codex domain status
+      When Safeword derives the prepared Codex domain status
       Then the complete migration schema 2 object reports state <state> and protection <protection>
       And it has <next_actions> next actions naming <next_command> and the command exits <exit_code>
 
@@ -324,7 +324,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Next-action shape distinguishes a runnable command from a human step
       Given the repository and active profile derive the <fixture> fixture
-      When Safe Word derives the prepared Codex domain status
+      When Safeword derives the prepared Codex domain status
       Then the single next action is shaped as a <shape> action
 
       Examples:
@@ -348,7 +348,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Finalized project setup state overrides disabled-profile detail
       Given a finalized repository whose profile plugin is <plugin_state>
-      When Safe Word derives human Codex status from the fixture
+      When Safeword derives human Codex status from the fixture
       Then status reports plugin_setup_required and protection unprotected
 
       Examples:
@@ -372,13 +372,13 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | yes only        |
 
   @codex-continuity.SWM1.R1
-  Rule: codex-continuity.SWM1.R1 — Finalization removes only known Safe Word-owned legacy assets
+  Rule: codex-continuity.SWM1.R1 — Finalization removes only known Safeword-owned legacy assets
 
     @rejection
     Scenario: Lookalike and user-authored assets survive finalization
       Given current profile proof and a mixture of known legacy and user-authored Codex assets
       When the builder finalizes migration
-      Then only the finite Safe Word legacy allowlist is removed
+      Then only the finite Safeword legacy allowlist is removed
 
   @codex-continuity.SWM1.R2
   Rule: codex-continuity.SWM1.R2 — A finalized repository retains a small plugin-setup bootstrap without duplicated workflow policy
@@ -396,5 +396,5 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     @rejection
     Scenario: Generic setup does not install the migration bootstrap
       Given a repository that has never finalized Codex migration
-      When the builder runs Safe Word setup
+      When the builder runs Safeword setup
       Then no Safeword plugin-setup bootstrap skill is created

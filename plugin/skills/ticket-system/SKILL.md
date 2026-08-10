@@ -19,6 +19,8 @@ allowed-tools: '*'
 if [ -x node_modules/.bin/safeword ]; then
   SW="node_modules/.bin/safeword"
 elif [ -f packages/cli/src/cli.ts ]; then
+  # Only true inside safeword's own repo (dogfooding) — runs from source
+  # instead of requiring a build.
   SW="bun packages/cli/src/cli.ts"
 else SW="bunx safeword"; fi
 
@@ -158,12 +160,13 @@ single-action task.
 
 **Use the matching template when ANY trigger fires:**
 
-| Trigger                                                    | Template                                                                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Planning new feature scope OR creating feature spec        | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`    |
-| Bug, improvement, refactor, or internal task               | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`       |
-| Need test definitions for a feature OR acceptance criteria | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |
-| Feature spans 3+ components OR needs technical spec        | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/design-doc-template.md`      |
-| Making decision with long-term impact OR trade-offs        | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/architecture-template.md`    |
-| Task needs context anchoring                               | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/ticket-template.md`          |
-| Starting execution of a plan, ticket, or spec              | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/work-log-template.md`        |
+| Trigger                                                                | Template                                                                  |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Planning new feature scope OR creating feature spec                    | `spec-template.md` (auto-scaffolded at intake; JTBD + Numbered Rules)     |
+| Writing a feature spec by hand in the older user-story format (legacy) | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`    |
+| Bug, improvement, refactor, or internal task                           | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`       |
+| Need test definitions for a feature OR acceptance criteria             | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |
+| Feature spans 3+ components OR needs technical spec                    | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/design-doc-template.md`      |
+| Making decision with long-term impact OR trade-offs                    | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/architecture-template.md`    |
+| Task needs context anchoring                                           | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/ticket-template.md`          |
+| Starting execution of a plan, ticket, or spec                          | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/work-log-template.md`        |

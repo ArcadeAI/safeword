@@ -1,6 +1,6 @@
 ---
 name: review-spec
-description: Use when reviewing a ticket's scenarios (`.feature` source, with legacy test-definitions.md fallback) — auto-fired by the bdd scenario-gate and re-invokable after scenario edits. Runs vacuous-pass, AODI, determinism, negative-case, and cross-cutting checks and produces a structured findings report. NOT for spec.md JTBD/criteria/persona framing — that is self-review.
+description: Use when reviewing a ticket's scenarios (`.feature` source, with legacy test-definitions.md fallback) — auto-fired by the bdd scenario-gate and re-invokable after scenario edits. Runs vacuous-pass, AODI (Atomic/Observable/Deterministic/Independent), determinism, negative-case, and cross-cutting checks and produces a structured findings report. NOT for spec.md JTBD/criteria/persona framing — that is self-review.
 allowed-tools: '*'
 ---
 

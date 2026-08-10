@@ -20,14 +20,14 @@ export function oppositeReviewPair(author: ReviewAuthor): OppositeReviewPair | u
  * dot, underscore, colon, slash or hyphen, never leading with a hyphen. Real
  * model identifiers fit (`claude-sonnet-4-5-20250929`, `vendor/model:tag`);
  * whitespace, control characters, shell metacharacters and option-like values
- * do not. Safe Word passes the value as its own argument and never through a
+ * do not. Safeword passes the value as its own argument and never through a
  * shell, so this is a second line of defence rather than the only one.
  */
 const MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
 
 /**
- * The model Safe Word should retry the reviewer agent on when its default
- * cannot complete. Safe Word never supplies a model of its own: an absent,
+ * The model Safeword should retry the reviewer agent on when its default
+ * cannot complete. Safeword never supplies a model of its own: an absent,
  * malformed, or unusable value reads as "none configured", which keeps routing
  * exactly as it is today.
  */

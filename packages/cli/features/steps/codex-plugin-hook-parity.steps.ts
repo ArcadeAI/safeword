@@ -258,7 +258,7 @@ Given(
 );
 
 When(
-  'the packaged Codex PreToolUse command sees Safe Word proof commands',
+  'the packaged Codex PreToolUse command sees Safeword proof commands',
   function (this: SafewordWorld) {
     const command = [
       'bun "$CLAUDE_PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" bdd',
@@ -335,7 +335,7 @@ Given(
 );
 
 Given(
-  'a Codex project with no applicable Safe Word upgrade',
+  'a Codex project with no applicable Safeword upgrade',
   function (this: CodexPluginHookParityWorld) {
     this.temporaryDirectory = createProject('safeword-codex-plugin-hook-parity-');
     const safewordDirectory = nodePath.join(this.temporaryDirectory, '.safeword');
@@ -373,20 +373,20 @@ Given(
 );
 
 Given(
-  'queued Safe Word prompt context for a Codex project',
+  'queued Safeword prompt context for a Codex project',
   function (this: CodexPluginHookParityWorld) {
     this.temporaryDirectory = createProject('safeword-codex-plugin-hook-parity-');
     mkdirSync(nodePath.join(this.temporaryDirectory, '.project'), { recursive: true });
     writeFileSync(
       nodePath.join(this.temporaryDirectory, '.project', 'codex-prompt-context.txt'),
-      'Continue with the queued Safe Word proof work.',
+      'Continue with the queued Safeword proof work.',
     );
     this.codexHookInput = { hook_event_name: 'UserPromptSubmit', cwd: this.temporaryDirectory };
   },
 );
 
 Given(
-  'no queued Safe Word prompt context for a Codex project',
+  'no queued Safeword prompt context for a Codex project',
   function (this: CodexPluginHookParityWorld) {
     this.temporaryDirectory = createProject('safeword-codex-plugin-hook-parity-');
     this.codexHookInput = { hook_event_name: 'UserPromptSubmit', cwd: this.temporaryDirectory };
@@ -499,7 +499,7 @@ When('hook commands are inspected', function (this: SafewordWorld) {
 });
 
 Given(
-  'a legacy Safe Word Codex hook command invokes `safeword codex-hook pre-tool-use`',
+  'a legacy Safeword Codex hook command invokes `safeword codex-hook pre-tool-use`',
   function (this: CodexPluginHookParityWorld) {
     this.temporaryDirectory = createProject('safeword-codex-plugin-hook-parity-');
     createIncompleteFeatureTicket(this.temporaryDirectory);
@@ -535,7 +535,7 @@ When(
   },
 );
 
-Then('it denies the edit with the Safe Word intake gate reason', function (this: SafewordWorld) {
+Then('it denies the edit with the Safeword intake gate reason', function (this: SafewordWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   assert.match(this.result.stdout, /"permissionDecision":"deny"/u);
   assert.match(this.result.stdout, /scope/u);
@@ -731,7 +731,7 @@ Then(
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'UserPromptSubmit');
     assert.match(
       parsed.hookSpecificOutput?.additionalContext ?? '',
-      /Continue with the queued Safe Word proof work\./u,
+      /Continue with the queued Safeword proof work\./u,
     );
   },
 );
@@ -802,7 +802,7 @@ Then(
 );
 
 Then(
-  'every Safe Word hook command runs `safeword hook codex`',
+  'every Safeword hook command runs `safeword hook codex`',
   function (this: CodexPluginHookParityWorld) {
     const commands = this.hookManifestCommands ?? [];
     assert.equal(commands.length, 5);

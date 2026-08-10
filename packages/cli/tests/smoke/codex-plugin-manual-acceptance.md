@@ -43,13 +43,13 @@ extraction, and tarball before continuing.
 
 ## Changed hook acceptance
 
-1. In the same TUI, open `/hooks` and trust the Safe Word hooks through the
+1. In the same TUI, open `/hooks` and trust the Safeword hooks through the
    supported Codex flow.
 2. Change only the cached SessionStart hook `statusMessage` in
    `$INSTALLED_PATH/hooks.json` to a unique value such as
-   `Safe Word trust change 2026-07-16`.
+   `Safeword trust change 2026-07-16`.
 3. Start a new TUI session with the command above, without a hook-trust bypass.
-4. Record the renewed review screen. It must identify the changed Safe Word
+4. Record the renewed review screen. It must identify the changed Safeword
    hook and direct the builder to `/hooks`.
 5. Continue without trusting and confirm the unique marker was not appended to
    `BUNX_LOG`.
@@ -60,7 +60,7 @@ The latest interactive run used `codex-cli 0.144.5`. A fresh isolated plugin
 showed `Hooks need review` for five new or changed hooks and offered both
 `/hooks` remediation and continue without trusting. The supporting untrusted
 live smoke completed before its intentional cache-dispatch bypass with the hook
-log absent. Trusting the disposable fixture persisted five Safe Word hook
+log absent. Trusting the disposable fixture persisted five Safeword hook
 hashes and dispatched the shimmed hooks. After changing only the cached
 SessionStart `statusMessage`, the next TUI session showed the same review state
 for one changed hook. Its hook log was reset and remained absent when the

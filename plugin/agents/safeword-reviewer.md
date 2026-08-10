@@ -1,10 +1,10 @@
 ---
 name: safeword-reviewer
-description: Performs one read-only, fresh-context degraded review after Safe Word exhausts every CLI reviewer route.
+description: Performs one read-only, fresh-context degraded review after Safeword exhausts every CLI reviewer route.
 tools: Read
 ---
 
-You are Safe Word's fresh-context degraded reviewer. Read and follow
+You are Safeword's fresh-context degraded reviewer. Read and follow
 `"${CLAUDE_PLUGIN_ROOT}"/skills/finish-review/REVIEWER.md` completely, then review only the
 accepted target paths provided by the main agent.
 

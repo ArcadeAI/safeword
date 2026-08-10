@@ -18,7 +18,7 @@ Feature: Cross-agent adversarial reviews
     Scenario Outline: Each author agent selects the opposite headless reviewer
       Given <author> authored work requiring a class-1 review
       And <reviewer> is installed and authenticated
-      When Safe Word starts the review
+      When Safeword starts the review
       Then a fresh headless <reviewer> reviews the bounded work packet
       And no same-agent reviewer is selected
 
@@ -31,14 +31,14 @@ Feature: Cross-agent adversarial reviews
     Scenario: A same-agent candidate cannot displace an available opposite reviewer
       Given Codex-authored work requires a class-1 review
       And both Claude and a fresh Codex reviewer are available
-      When Safe Word starts the review
+      When Safeword starts the review
       Then Claude is selected
       And the fresh Codex candidate is not used
 
     @rejection
     Scenario: An author outside the Claude and Codex pairing keeps its existing route
       Given work authored by a runtime other than Claude or Codex requires review
-      When Safe Word selects the review route
+      When Safeword selects the review route
       Then no opposite-agent pairing is inferred
       And the runtime's existing review route is retained without cross-agent evidence
 
@@ -47,14 +47,14 @@ Feature: Cross-agent adversarial reviews
 
     Scenario: A validated opposite-agent result earns complete provenance
       Given Claude-authored work was reviewed successfully by headless Codex using an assigned model
-      When Safe Word records the completed review
+      When Safeword records the completed review
       Then the evidence names Claude as author and Codex as reviewer
       And it records the assigned model and cross-agent independence
 
     @rejection
     Scenario Outline: Reviewer identity faults earn no review evidence
       Given a successful-looking review result <identity_fault>
-      When Safe Word validates the result
+      When Safeword validates the result
       Then no passing review evidence is recorded
       And the route is classified as <classification>
 
@@ -77,7 +77,7 @@ Feature: Cross-agent adversarial reviews
     @rejection @surface.safeword-cli
     Scenario: An unrelated author-vendor credential never enters the reviewer boundary
       Given the reviewer vendor differs from the author vendor
-      When Safe Word constructs the child environment and review packet
+      When Safeword constructs the child environment and review packet
       Then only credentials needed by the reviewer vendor cross the subprocess boundary
       And no unrelated vendor credential value appears in reviewer input, output, or diagnostics
 
@@ -87,7 +87,7 @@ Feature: Cross-agent adversarial reviews
     @rejection
     Scenario Outline: Each preferred-route failure keeps its specific cause
       Given the opposite-agent route encounters <failure>
-      When Safe Word evaluates whether to fall back
+      When Safeword evaluates whether to fall back
       Then the preferred route is reported as <classification>
       And fallback does not erase that cause
 
@@ -123,7 +123,7 @@ Feature: Cross-agent adversarial reviews
     @rejection
     Scenario: No safe review route blocks without hanging or minting evidence
       Given the opposite reviewer and every permitted fallback are unavailable
-      When Safe Word exhausts the review routes
+      When Safeword exhausts the review routes
       Then the review terminates within its configured deadline
       And the workflow is blocked with a concrete recovery action
       And no passing review evidence is recorded
@@ -133,7 +133,7 @@ Feature: Cross-agent adversarial reviews
 
     Scenario Outline: Every outcome leads with its independence status
       Given a class-1 review finishes with <outcome>
-      When Safe Word presents the result
+      When Safeword presents the result
       Then the first plain-language statement says <meaning>
 
       Examples:
@@ -145,7 +145,7 @@ Feature: Cross-agent adversarial reviews
     @rejection
     Scenario: An opaque technical status is not accepted as the builder-facing result
       Given a review result contains only an exit code, agent name, and authentication class
-      When Safe Word prepares the builder-facing result
+      When Safeword prepares the builder-facing result
       Then it adds a plain-language independence statement
       And the opaque technical status is retained only as supporting detail
 
@@ -155,7 +155,7 @@ Feature: Cross-agent adversarial reviews
     @rejection
     Scenario Outline: The builder receives one actionable recovery step for each failure
       Given the independent review is degraded or blocked because <cause>
-      When Safe Word explains what to do next
+      When Safeword explains what to do next
       Then it leads with <recommended_action>
       And the builder is not required to diagnose packages, environment variables, or credential formats
 
@@ -186,7 +186,7 @@ Feature: Cross-agent adversarial reviews
     @rejection
     Scenario: A class-1 surface that bypasses the coordinator fails parity validation
       Given one class-1 review surface invokes a reviewer through a private route
-      When Safe Word validates review-surface parity
+      When Safeword validates review-surface parity
       Then parity fails and names the bypassing surface
 
   @cross-agent-review.SWM1.R2
@@ -210,7 +210,7 @@ Feature: Cross-agent adversarial reviews
     Scenario: A cloud session never invents or exposes a missing reviewer credential
       Given a cloud session has no usable credential for the opposite reviewer
       When a class-1 review starts
-      Then Safe Word reports that the reviewer is not signed in
+      Then Safeword reports that the reviewer is not signed in
       And it does not request, print, or synthesize a secret value
 
     Scenario: An explicit opt-out retains the existing route without cross-agent evidence
@@ -234,7 +234,7 @@ Feature: Cross-agent adversarial reviews
     @rejection
     Scenario Outline: Excluded reviewer classes do not enter the cross-agent coordinator
       Given <excluded_work> is about to run
-      When Safe Word selects its execution path
+      When Safeword selects its execution path
       Then it retains its existing route
       And no opposite-agent review process is launched
 

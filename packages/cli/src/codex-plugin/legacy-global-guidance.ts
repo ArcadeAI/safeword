@@ -130,7 +130,7 @@ export function legacyGlobalGuidanceDiagnostic(
       observation,
       finding: {
         code: 'CODEX_LEGACY_GLOBAL_GUIDANCE_EXACT',
-        message: `The active Codex profile guidance at ${observation.path} is an exact historical Safe Word revision that references retired workflow paths.`,
+        message: `The active Codex profile guidance at ${observation.path} is an exact historical Safeword revision that references retired workflow paths.`,
         severity: 'warning',
         metadata: { classification: 'exact_legacy', disposition: 'recoverable_cleanup' },
       },
@@ -146,7 +146,7 @@ export function legacyGlobalGuidanceDiagnostic(
       observation,
       finding: {
         code: 'CODEX_LEGACY_GLOBAL_GUIDANCE_SUSPECTED',
-        message: `The active Codex profile guidance at ${observation.path} resembles edited legacy Safe Word instructions. Review it manually; Safe Word will not modify it.`,
+        message: `The active Codex profile guidance at ${observation.path} resembles edited legacy Safeword instructions. Review it manually; Safeword will not modify it.`,
         severity: 'warning',
         metadata: { classification: 'suspected_legacy', disposition: 'manual_review' },
       },

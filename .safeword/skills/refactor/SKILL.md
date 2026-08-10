@@ -18,8 +18,8 @@ Work one refactoring at a time: change, test, commit. Don't batch changes.
 
 Use when the user says "refactor", "clean up", "restructure", "extract",
 "rename", or "simplify", or when you've identified a code smell. Skip for adding
-a feature or fixing a bug (use tdd-enforcer) and for formatting/style fixes (use
-/lint).
+a feature or fixing a bug (use `/bdd`) and for formatting/style fixes (use
+`/lint`).
 
 **Code smells** (common triggers):
 
@@ -43,12 +43,12 @@ Merge into a **ledger**, not a loose list: each entry is a smell + location, ord
 
 **Is this actually refactoring?**
 
-| User Intent         | Action                                          |
-| ------------------- | ----------------------------------------------- |
-| "Make this cleaner" | ✓ Refactoring                                   |
-| "Add validation"    | ✗ New behavior → tdd-enforcer                   |
-| "Fix this bug"      | ✗ Bug fix → tdd-enforcer or systematic-debugger |
-| "Format this code"  | ✗ Style → /lint                                 |
+| User Intent         | Action                         |
+| ------------------- | ------------------------------ |
+| "Make this cleaner" | ✓ Refactoring                  |
+| "Add validation"    | ✗ New behavior → `/bdd`        |
+| "Fix this bug"      | ✗ Bug fix → `/bdd` or `/debug` |
+| "Format this code"  | ✗ Style → /lint                |
 
 **If not refactoring:** Explain and suggest correct approach.
 
@@ -66,7 +66,7 @@ Merge into a **ledger**, not a loose list: each entry is a smell + location, ord
 
 **When writing characterization tests:** Characterization tests are still tests — apply behavioral testing principles (assert on what the system does, not how).
 
-**If the code can't be exercised under test** (hard-wired dependencies, no instantiation point): introduce a _seam_ first — the smallest dependency-break that lets a test run — then characterize. That seam is itself a Tier-3 refactoring; make it under whatever coverage exists, in its own step. (Feathers, _Working Effectively with Legacy Code_.)
+**If the code can't be exercised under test** (hard-wired dependencies, no instantiation point): introduce a _seam_ first — the smallest dependency-break that lets a test run — then characterize. That seam is itself a Risk Level 3 refactoring; make it under whatever coverage exists, in its own step. (Feathers, _Working Effectively with Legacy Code_.)
 
 ### Characterization Tests
 
@@ -93,7 +93,7 @@ One refactoring at a time; run tests after every change.
 
 ### Refactoring Catalog
 
-**Tier 1 - Lowest Risk** (behavior-preserving _when references are complete_):
+**Risk Level 1 - Lowest Risk** (behavior-preserving _when references are complete_):
 
 | Smell                | Refactoring          | Example                                |
 | -------------------- | -------------------- | -------------------------------------- |
@@ -120,7 +120,7 @@ const d = price * 0.2;
 const discountAmount = price * 0.2;
 ```
 
-**Tier 2 - Safe with Tests** (low risk if tests exist):
+**Risk Level 2 - Safe with Tests** (low risk if tests exist):
 
 | Smell               | Refactoring               | Example                                           |
 | ------------------- | ------------------------- | ------------------------------------------------- |
@@ -151,7 +151,7 @@ function getDiscount(user) {
 }
 ```
 
-**Tier 3 - Requires Care** (higher risk, break into smaller steps):
+**Risk Level 3 - Requires Care** (higher risk, break into smaller steps):
 
 | Smell                      | Refactoring                                                                                                                                   | Caution                                                                                                                    |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -252,7 +252,7 @@ A single-named-smell request has a one-entry ledger — resolve it, audit, done.
 
 - STOP refactoring
 - Note the bug location
-- Ask the user whether to fix it now (switching to tdd-enforcer) or continue refactoring
+- Ask the user whether to fix it now (switching to `/debug`) or continue refactoring
 
 **User requests large refactoring:**
 

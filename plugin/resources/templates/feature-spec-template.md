@@ -1,5 +1,10 @@
 # Feature Spec: [Feature Name] (Issue #[number])
 
+**Legacy manual template.** The intake flow scaffolds `spec.md` automatically,
+using the JTBD + Numbered Rules format (see `spec-template.md` in the
+templates directory). Use this file only if you're writing a feature spec by
+hand in the older user-story format.
+
 **Guide**: `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/planning-guide.md` - Best practices, INVEST criteria, and examples
 **Template**: `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`
 
