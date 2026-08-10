@@ -26,9 +26,9 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 ### Scenario: A personal preference is not shared with another worktree
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cwd-scoped resolution already isolated each worktree
+- [x] GREEN ebec2f1d1
+- [x] REFACTOR skip: one paired test proves both worktree decisions
 
 ## Rule: choose-local-or-remote-test-execution.TBU1.R3
 
