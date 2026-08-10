@@ -1734,6 +1734,7 @@ function claudeNativePayloadFiles(root) {
   const visit3 = (physicalDirectory, logicalDirectory) => {
     const entries = readdirSync(physicalDirectory, { withFileTypes: true });
     for (const entry of entries) {
+      if (logicalDirectory === '' && entry.isDirectory() && entry.name === '.in_use') continue;
       const physicalPath = nodePath3.join(physicalDirectory, entry.name);
       const logicalPath =
         logicalDirectory === '' ? entry.name : nodePath3.posix.join(logicalDirectory, entry.name);

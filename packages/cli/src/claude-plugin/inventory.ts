@@ -37,6 +37,9 @@ export function claudeNativePayloadFiles(root: string): string[] {
   const visit = (physicalDirectory: string, logicalDirectory: string): void => {
     const entries = readdirSync(physicalDirectory, { withFileTypes: true });
     for (const entry of entries) {
+      // Claude owns this root-level lease directory and rotates PID markers
+      // while sessions use the cached plugin. It is host metadata, not payload.
+      if (logicalDirectory === '' && entry.isDirectory() && entry.name === '.in_use') continue;
       const physicalPath = nodePath.join(physicalDirectory, entry.name);
       const logicalPath =
         logicalDirectory === '' ? entry.name : nodePath.posix.join(logicalDirectory, entry.name);

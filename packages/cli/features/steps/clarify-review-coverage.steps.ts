@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
 
-import { BeforeAll, Given, Then, When } from '@cucumber/cucumber';
+import { AfterAll, BeforeAll, Given, Then, When } from '@cucumber/cucumber';
+import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin';
+import { IdGenerator } from '@cucumber/messages';
 
 import { generateClaudePluginAssets } from '../../src/claude-plugin/catalogue.js';
 import {
@@ -50,7 +52,7 @@ interface ReviewWorld {
     result: CliExecution;
   };
   requiredOutcome?: { name: string; result: CliExecution };
-  blockedMode?: { name: string; result: { stdout: string; stderr: string; exitCode: number } };
+  blockedMode?: { name: string; result: CliExecution };
   originalRecovery?: unknown;
 }
 
@@ -63,16 +65,29 @@ const fixtureControlVariables = new Set([
   'SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX',
   'SAFEWORD_REVIEW_COVERAGE_VERDICT',
   'SAFEWORD_REVIEW_COVERAGE_FINDING',
+  'SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE',
+  'SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX',
 ]);
 const CHANGE_REQUEST_VERDICT = 'request_changes';
 const CHANGE_REQUEST_FINDING = 'Needs work.';
+const fixtureDirectories = new Set<string>();
 
 BeforeAll(async () => {
-  await execFileAsync('bun', ['run', 'build'], {
-    cwd: nodePath.join(repoRoot, 'packages/cli'),
-  });
+  const cliRoot = nodePath.join(repoRoot, 'packages/cli');
+  await execFileAsync('bun', ['run', 'build'], { cwd: cliRoot });
   productionCliBuild.completed = true;
 });
+
+AfterAll(() => {
+  for (const directory of fixtureDirectories) rmSync(directory, { force: true, recursive: true });
+  fixtureDirectories.clear();
+});
+
+function createFixtureDirectory(prefix: string): string {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), prefix));
+  fixtureDirectories.add(directory);
+  return directory;
+}
 
 function sanitizedFixtureEnvironment(): NodeJS.ProcessEnv {
   return Object.fromEntries(
@@ -402,15 +417,23 @@ Given('reviewer prose mentions {string}', function (this: ReviewWorld, prose: st
   };
 });
 
+function renderOrdinaryReview(world: ReviewWorld): void {
+  assert.ok(world.reviewResult);
+  world.human = renderHumanResult(world.reviewResult);
+}
+
+function renderOrdinaryAndVerboseReview(world: ReviewWorld): void {
+  renderOrdinaryReview(world);
+  assert.ok(world.reviewResult);
+  world.verbose = renderHumanResult(world.reviewResult, { verbose: true });
+}
+
 When('the typed review result is rendered for a person', function (this: ReviewWorld) {
-  assert.ok(this.reviewResult);
-  this.human = renderHumanResult(this.reviewResult);
+  renderOrdinaryReview(this);
 });
 
 When('verbose review details are rendered', function (this: ReviewWorld) {
-  assert.ok(this.reviewResult);
-  this.human = renderHumanResult(this.reviewResult);
-  this.verbose = renderHumanResult(this.reviewResult, { verbose: true });
+  renderOrdinaryAndVerboseReview(this);
 });
 
 When('human and JSON review results are rendered', function (this: ReviewWorld) {
@@ -509,7 +532,7 @@ Then('review policy is absent', function (this: ReviewWorld) {
 });
 
 Then('no completed coverage phrase is shown', function (this: ReviewWorld) {
-  const presentation = (this.human ?? '').replace(
+  const presentation = (this.human ?? '').replaceAll(
     'required independent coverage is unsatisfied',
     '',
   );
@@ -524,16 +547,26 @@ Then('the declared inconsistent cases exactly match the executable rejection dom
     nodePath.join(repoRoot, 'packages/cli/features/clarify-review-coverage.feature'),
     'utf8',
   );
-  const scenarioBody = feature.split(
-    'Scenario Outline: Presentation rejects inconsistent policy and status as completed coverage',
-    2,
-  )[1];
-  const section = scenarioBody?.split('@clarify-review-coverage', 2)[0];
-  assert.ok(section);
-  const declared = section
-    .split('\n')
-    .map(line => /^\s*\|\s*([a-z][\w-]+)\s*\|\s*$/u.exec(line)?.[1])
-    .filter((value): value is string => value !== undefined && value !== 'case')
+  const parser = new Parser(
+    new AstBuilder(IdGenerator.incrementing()),
+    new GherkinClassicTokenMatcher(),
+  );
+  const document = parser.parse(feature);
+  const scenario = document.feature?.children
+    .map(child => child.scenario)
+    .find(
+      candidate =>
+        candidate?.name ===
+        'Presentation rejects inconsistent policy and status as completed coverage',
+    );
+  assert.ok(scenario, 'Missing inconsistent-policy presentation scenario outline');
+  const declared = scenario.examples
+    .flatMap(example => {
+      const caseColumn = example.tableHeader?.cells.findIndex(cell => cell.value === 'case') ?? -1;
+      assert.notEqual(caseColumn, -1, 'Missing case column in inconsistent-policy examples');
+      return example.tableBody.map(row => row.cells[caseColumn]?.value);
+    })
+    .filter((value): value is string => value !== undefined)
     .toSorted((left, right) => left.localeCompare(right));
   assert.deepEqual(
     declared,
@@ -633,10 +666,66 @@ Then('requested changes remain the first review line', function (this: ReviewWor
   assert.equal(this.verbose?.split('\n', 1)[0], 'Review changes requested — standard coverage.');
 });
 
-function installStandardReviewerFixture(): CliFixture {
-  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coverage-bdd-'));
-  const bin = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coverage-bin-'));
+function createCliFixture(): CliFixture {
+  const directory = createFixtureDirectory('safeword-coverage-bdd-');
+  const bin = createFixtureDirectory('safeword-coverage-bin-');
   writeFileSync(nodePath.join(directory, 'spec.md'), `bounded review input ${directory}\n`);
+  return { directory, bin };
+}
+
+function reviewerInvocationValidation(agent: 'claude' | 'codex'): string {
+  const dynamic = undefined;
+  const expected: readonly (string | undefined)[] =
+    agent === 'claude'
+      ? [
+          '-p',
+          '--output-format',
+          'json',
+          '--json-schema',
+          dynamic,
+          '--no-session-persistence',
+          '--disable-slash-commands',
+          '--setting-sources',
+          '',
+          '--strict-mcp-config',
+          '--tools',
+          '',
+        ]
+      : [
+          'exec',
+          '--json',
+          '--sandbox',
+          'read-only',
+          '--skip-git-repo-check',
+          '--ephemeral',
+          '--ignore-user-config',
+          '--ignore-rules',
+          '--disable',
+          'hooks',
+          '--config',
+          'mcp_servers={}',
+          '--output-schema',
+          dynamic,
+          '-',
+        ];
+  const checks = expected.map((argument, index) => {
+    const position = index + 1;
+    const predicate =
+      argument === undefined ? '[ -n "$1" ]' : `[ "$1" = ${shellSingleQuoted(argument)} ]`;
+    return String.raw`[ "$#" -gt 0 ] && ${predicate} || { printf 'invalid ${agent} review argument at position ${position}\n' >&2; exit 64; }
+shift`;
+  });
+  return `${checks.join('\n')}\n[ "$#" -eq 0 ] || { printf 'unexpected extra ${agent} review arguments\\n' >&2; exit 64; }`;
+}
+
+function shellSingleQuoted(value: string): string {
+  const escapedQuote = ["'", '"', "'", '"', "'"].join('');
+  return `'${value.split("'").join(escapedQuote)}'`;
+}
+
+function installStandardReviewerFixture(): CliFixture {
+  const fixture = createCliFixture();
+  const { bin } = fixture;
   const executable = nodePath.join(bin, 'codex');
   writeFileSync(
     executable,
@@ -647,6 +736,7 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
   printf '%s\n' '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema --model'
   exit 0
 fi
+${reviewerInvocationValidation('codex')}
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"codex","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
@@ -654,7 +744,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"codex","verdict
     { mode: 0o755 },
   );
   chmodSync(executable, 0o755);
-  return { directory, bin };
+  return fixture;
 }
 
 function installCoverageReviewer(bin: string, agent: 'claude' | 'codex'): void {
@@ -669,6 +759,7 @@ function installCoverageReviewer(bin: string, agent: 'claude' | 'codex'): void {
 set -eu
 if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then printf '${agent} 1.0.0\n'; exit 0; fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${capabilities}'; exit 0; fi
+${reviewerInvocationValidation(agent)}
 failure=$(printenv SAFEWORD_REVIEW_COVERAGE_FAIL_${agent.toUpperCase()} || printenv SAFEWORD_REVIEW_COVERAGE_FAIL || true)
 if [ "$failure" = "1" ]; then printf 'review failed\n' >&2; exit 7; fi
 payload=$(cat)
@@ -691,7 +782,7 @@ async function runFixtureCli(
   fixture: CliFixture,
   arguments_: string[],
   environment: Record<string, string> = {},
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+): Promise<CliExecution> {
   try {
     const result = await execFileAsync(
       process.execPath,
@@ -709,11 +800,23 @@ async function runFixtureCli(
     );
     return { stdout: result.stdout, stderr: result.stderr, exitCode: 0 };
   } catch (error) {
-    const failed = error as { stdout?: string; stderr?: string; code?: number };
+    const failed = error as {
+      stdout?: string;
+      stderr?: string;
+      code?: number | string | null;
+      signal?: NodeJS.Signals | null;
+    };
+    const diagnostics = [
+      failed.stderr,
+      typeof failed.code === 'string' ? `Spawn error: ${failed.code}` : undefined,
+      failed.signal === undefined || failed.signal === null
+        ? undefined
+        : `Process terminated by signal: ${failed.signal}`,
+    ].filter((value): value is string => value !== undefined && value.length > 0);
     return {
       stdout: failed.stdout ?? '',
-      stderr: failed.stderr ?? '',
-      exitCode: failed.code ?? 1,
+      stderr: diagnostics.join('\n'),
+      exitCode: typeof failed.code === 'number' ? failed.code : 1,
     };
   }
 }
@@ -756,7 +859,8 @@ function fixtureArguments(name: string, directory: string): string[] {
   }
   if (name === 'quiet') return ['--quiet', '--verbose', ...suffix];
   if (name === 'json') return ['--json', '--verbose', ...suffix];
-  return ['review', 'run', '--help'];
+  if (name === 'help') return ['review', 'run', '--help'];
+  assert.fail(`Unknown review fixture mode: ${name}`);
 }
 
 function assertBlockedJsonMode(result: CliExecution): void {
@@ -782,11 +886,7 @@ function assertBlockedQuietMode(result: CliExecution): void {
   });
 }
 
-function assertOneVerboseSuggestion(result: {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-}): void {
+function assertOneVerboseSuggestion(result: CliExecution): void {
   const suggestion = 'To add independent coverage, install or update Claude, then retry review.';
   assert.equal(result.exitCode, 0);
   assert.equal(result.stdout.split('\n', 1)[0], 'Review complete — standard coverage.');
@@ -948,9 +1048,7 @@ Given(
 );
 
 When('ordinary and verbose review content is rendered', function (this: ReviewWorld) {
-  assert.ok(this.reviewResult);
-  this.human = renderHumanResult(this.reviewResult);
-  this.verbose = renderHumanResult(this.reviewResult, { verbose: true });
+  renderOrdinaryAndVerboseReview(this);
 });
 
 Then(
@@ -978,7 +1076,7 @@ function installRequiredReviewerFixture(): CliFixture {
 }
 
 function installPreferredReviewerFixture(policy?: 'require'): CliFixture {
-  const fixture = installStandardReviewerFixture();
+  const fixture = createCliFixture();
   installCoverageReviewer(fixture.bin, 'codex');
   installCoverageReviewer(fixture.bin, 'claude');
   if (policy !== undefined) {
@@ -994,7 +1092,7 @@ function installPreferredReviewerFixture(policy?: 'require'): CliFixture {
 async function runRequiredFixture(
   environment: Record<string, string> = {},
   mode: 'json' | 'quiet' = 'json',
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+): Promise<CliExecution> {
   const fixture = installRequiredReviewerFixture();
   return runFixtureCli(
     fixture,
@@ -1266,12 +1364,16 @@ const distributedContracts = {
       'packages/cli/codex-plugin/skills/finish-review/SKILL.md',
     ],
     dogfood: ['.safeword/skills/finish-review/SKILL.md', '.claude/skills/finish-review/SKILL.md'],
-    cursor: [
-      'packages/cli/templates/commands/finish-review.md',
-      '.cursor/commands/finish-review.md',
-      'packages/cli/templates/cursor/rules/safeword-finish-review.mdc',
-      '.cursor/rules/safeword-finish-review.mdc',
-    ],
+    cursor: {
+      command: {
+        source: 'packages/cli/templates/commands/finish-review.md',
+        destination: '.cursor/commands/finish-review.md',
+      },
+      rule: {
+        source: 'packages/cli/templates/cursor/rules/safeword-finish-review.mdc',
+        destination: '.cursor/rules/safeword-finish-review.mdc',
+      },
+    },
   },
   'quality-review': {
     canonical: 'packages/cli/templates/skills/quality-review/SKILL.md',
@@ -1280,18 +1382,27 @@ const distributedContracts = {
       'packages/cli/codex-plugin/skills/quality-review/SKILL.md',
     ],
     dogfood: ['.safeword/skills/quality-review/SKILL.md', '.claude/skills/quality-review/SKILL.md'],
-    cursor: [
-      'packages/cli/templates/commands/quality-review.md',
-      '.cursor/commands/quality-review.md',
-      'packages/cli/templates/cursor/rules/safeword-quality-reviewing.mdc',
-      '.cursor/rules/safeword-quality-reviewing.mdc',
-    ],
+    cursor: {
+      command: {
+        source: 'packages/cli/templates/commands/quality-review.md',
+        destination: '.cursor/commands/quality-review.md',
+      },
+      rule: {
+        source: 'packages/cli/templates/cursor/rules/safeword-quality-reviewing.mdc',
+        destination: '.cursor/rules/safeword-quality-reviewing.mdc',
+      },
+    },
   },
 } as const;
 
 function distributedContractPaths(name: ReviewContractName): readonly string[] {
   const contract = distributedContracts[name];
-  return [contract.canonical, ...contract.generated, ...contract.dogfood, ...contract.cursor];
+  return [
+    contract.canonical,
+    ...contract.generated,
+    ...contract.dogfood,
+    ...Object.values(contract.cursor).flatMap(edge => [edge.source, edge.destination]),
+  ];
 }
 
 const mandatoryFinishPolicyBlock = `Under \`prefer\`, map \`approve\` to \`State: approved\` and \`request_changes\` to
@@ -1344,24 +1455,46 @@ function assertNoContradictoryPolicyClaims(content: string, relativePath: string
   }
 }
 
-function distributedContractContent(relativePath: string): string {
+function contractBody(content: string): string {
+  if (!content.startsWith('---\n')) return content.trim();
+  const body = content.split('---', 3)[2]?.trim();
+  assert.ok(body, 'Contract frontmatter must be followed by a body');
+  return body;
+}
+
+function distributedContractContent(
+  relativePath: string,
+  expectedContract: ReviewContractName,
+): string {
   const content = readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
   const pointer = contractPointerTarget(content);
+  if (pointer !== undefined) {
+    assert.ok(
+      pointer.includes(`/skills/${expectedContract}/`),
+      `${relativePath} points to the wrong review contract: ${pointer}`,
+    );
+  }
   return pointer === undefined ? content : readFileSync(nodePath.join(repoRoot, pointer), 'utf8');
 }
 
 function contractPointerTarget(content: string): string | undefined {
-  return /(?:Read and follow the instructions in |@)(\.safeword\/skills\/(?:finish-review|quality-review)\/SKILL\.md)/u.exec(
-    content,
+  return /^(?:Read and follow the instructions in |@)(\.safeword\/skills\/(?:finish-review|quality-review)\/SKILL\.md)$/u.exec(
+    contractBody(content),
   )?.[1];
 }
 
-function assertPointerOnlyWrapper(relativePath: string): void {
+function assertPointerOnlyWrapper(
+  relativePath: string,
+  expectedContract: ReviewContractName,
+): void {
   const content = readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
   const pointer = contractPointerTarget(content);
   if (pointer === undefined) return;
-  const body = content.split('---', 3)[2]?.trim();
-  assert.ok(body, relativePath);
+  assert.ok(
+    pointer.includes(`/skills/${expectedContract}/`),
+    `${relativePath} points to the wrong review contract: ${pointer}`,
+  );
+  const body = contractBody(content);
   assert.equal(
     body,
     body.startsWith('@') ? `@${pointer}` : `Read and follow the instructions in ${pointer}`,
@@ -1384,7 +1517,10 @@ Then(
     assert.ok(this.distributedContract);
     const contractPaths = distributedContractPaths(this.distributedContract);
     for (const relativePath of contractPaths) {
-      assert.ok(distributedContractContent(relativePath).includes(expected), relativePath);
+      assert.ok(
+        distributedContractContent(relativePath, this.distributedContract).includes(expected),
+        relativePath,
+      );
     }
   },
 );
@@ -1393,11 +1529,13 @@ Then('every surface preserves its policy boundary clauses', function (this: Revi
   assert.ok(this.distributedContract);
   const contractPaths = distributedContractPaths(this.distributedContract);
   for (const relativePath of contractPaths) {
-    assertPointerOnlyWrapper(relativePath);
-    const content = normalizeContract(distributedContractContent(relativePath));
+    assertPointerOnlyWrapper(relativePath, this.distributedContract);
+    const content = normalizeContract(
+      distributedContractContent(relativePath, this.distributedContract),
+    );
     const mandatoryBlock = mandatoryPolicyBlock(this.distributedContract);
     assert.ok(content.includes(mandatoryBlock), relativePath);
-    const remainder = content.replace(mandatoryBlock, '');
+    const remainder = content.replaceAll(mandatoryBlock, '');
     assertNoContradictoryPolicyClaims(remainder, relativePath);
   }
 });
@@ -1413,8 +1551,8 @@ Then(
       'Never describe either supplemental route as completed standard or independent coverage, and never write an independent review stamp from this workflow.',
     ];
     for (const relativePath of contractPaths) {
-      assertPointerOnlyWrapper(relativePath);
-      const content = normalizeContract(distributedContractContent(relativePath));
+      assertPointerOnlyWrapper(relativePath, 'finish-review');
+      const content = normalizeContract(distributedContractContent(relativePath, 'finish-review'));
       let remainder = content;
       for (const clause of allowedClauses) {
         assert.ok(content.includes(clause), relativePath);
@@ -1425,7 +1563,7 @@ Then(
         /\b(?:standard(?: or independent)?|independent|completed standard(?: or independent)?|completed machine|machine-validated) coverage\b/iu,
         relativePath,
       );
-      const policyRemainder = remainder.replace(mandatoryPolicyBlock('finish-review'), '');
+      const policyRemainder = remainder.replaceAll(mandatoryPolicyBlock('finish-review'), '');
       assertNoContradictoryPolicyClaims(policyRemainder, relativePath);
     }
   },
@@ -1468,12 +1606,10 @@ function assertDogfoodContractEdges(): void {
 }
 
 function assertCursorContractEdges(): void {
-  const cursorEdges = Object.values(distributedContracts).flatMap(contract => [
-    [contract.cursor[0], contract.cursor[1]],
-    [contract.cursor[2], contract.cursor[3]],
-  ]);
-  for (const [source, destination] of cursorEdges) {
-    assert.ok(source && destination);
+  const cursorEdges = Object.values(distributedContracts).flatMap(contract =>
+    Object.values(contract.cursor),
+  );
+  for (const { source, destination } of cursorEdges) {
     assert.equal(
       readFileSync(nodePath.join(repoRoot, destination), 'utf8'),
       readFileSync(nodePath.join(repoRoot, source), 'utf8'),
@@ -1570,10 +1706,12 @@ function assertReviewManifests(): void {
     ),
   ) as { skills?: string };
   assert.deepEqual(claudeManifest.skills, ['./skills']);
+  const claudeSkillsRoot = claudeManifest.skills?.[0];
+  assert.ok(claudeSkillsRoot);
   assert.equal(codexManifest.skills, './skills/');
   for (const name of contractNames) {
     const claudeSkill: string = readFileSync(
-      nodePath.join(repoRoot, 'plugin', claudeManifest.skills[0] ?? '', name, 'SKILL.md'),
+      nodePath.join(repoRoot, 'plugin', claudeSkillsRoot, name, 'SKILL.md'),
       'utf8',
     );
     const codexSkill: string = readFileSync(
