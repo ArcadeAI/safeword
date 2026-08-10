@@ -1,6 +1,7 @@
 import {
 	existsSync,
 	mkdirSync,
+	readdirSync,
 	readFileSync,
 	renameSync,
 } from "node:fs";
@@ -15,6 +16,8 @@ import {
 } from "/private/tmp/cwgyh0-pr-review-adapter-PxYDro/tools/pr-review/src/eval/development-benchmark.ts";
 import {
 	executeWithInfrastructureRetry,
+	parseCumulativeCaseTarget,
+	parseCumulativeCostTarget,
 	shuffleFrozen,
 } from "./scored-run-policy";
 
@@ -63,6 +66,14 @@ const policy = {
 const scratchRoot = requireEnvironment("CWGYH0_SCRATCH_ROOT");
 const outputRoot = requireEnvironment("CWGYH0_OUTPUT_ROOT");
 const preflightOnly = process.env.CWGYH0_PREFLIGHT_ONLY === "1";
+const cumulativeCaseTarget = parseCumulativeCaseTarget(
+	process.env.CWGYH0_CASE_TARGET,
+	30,
+);
+const cumulativeCostTargetUsd = parseCumulativeCostTarget(
+	process.env.CWGYH0_COST_TARGET_USD,
+	aggregateCostCeilingUsd,
+);
 
 type RawCase = DevelopmentCase & {
 	testPatchPaths: string[];
@@ -79,6 +90,19 @@ type WorkItem = {
 	system: SystemName;
 	trial: number;
 	variant: DevelopmentVariant;
+};
+type RunState = {
+	attemptedCases: number;
+	candidateQueueIds: string[];
+	completedCaseIds: string[];
+	completedCases: number;
+	cumulativeCostUsd: number;
+	currentCaseId: string | null;
+	exclusions: Array<Record<string, unknown>>;
+	frozenRun: Record<string, unknown>;
+	nextWorkIndex: number;
+	reserveIndex: number;
+	version: 2;
 };
 
 function requireEnvironment(name: string): string {
@@ -394,13 +418,24 @@ function estimatedCost(output: {
 	};
 }
 
-if (existsSync(outputRoot)) {
+async function writeJsonAtomically(path: string, value: unknown): Promise<void> {
+	const temporaryPath = `${path}.tmp`;
+	await Bun.write(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
+	renameSync(temporaryPath, path);
+}
+
+function directoryEntryCount(path: string): number {
+	return existsSync(path) ? readdirSync(path).length : 0;
+}
+
+const resuming = existsSync(outputRoot);
+if (preflightOnly && resuming) {
 	throw new Error(`refusing to overwrite existing output directory: ${outputRoot}`);
 }
 if (existsSync(scratchRoot)) {
 	throw new Error(`scratch root must not already exist: ${scratchRoot}`);
 }
-mkdirSync(outputRoot, { recursive: true });
+if (!resuming) mkdirSync(outputRoot, { recursive: true });
 mkdirSync(scratchRoot, { recursive: true });
 
 loadDevelopmentManifest(primaryManifestPath);
@@ -409,14 +444,6 @@ const primary = readRawManifest(primaryManifestPath);
 const reserve = readRawManifest(reserveManifestPath);
 const allCases = validateFrozenInputs(primary, reserve);
 const safeRepositories = new Map<string, string>();
-for (const item of allCases) {
-	for (const variant of ["buggy", "fixed"] as const) {
-		safeRepositories.set(
-			`${item.id}:${variant}`,
-			prepareSafeRepository(item, variant),
-		);
-	}
-}
 
 const frozenRun = {
 	aggregateCostCeilingUsd,
@@ -433,6 +460,14 @@ const frozenRun = {
 };
 
 if (preflightOnly) {
+	for (const item of allCases) {
+		for (const variant of ["buggy", "fixed"] as const) {
+			safeRepositories.set(
+				`${item.id}:${variant}`,
+				prepareSafeRepository(item, variant),
+			);
+		}
+	}
 	await Bun.write(
 		join(outputRoot, "preflight.json"),
 		`${JSON.stringify(
@@ -448,24 +483,68 @@ if (preflightOnly) {
 	);
 	console.log(`preflight passed for ${allCases.length} cases / ${safeRepositories.size} snapshots`);
 } else {
-	const candidateQueue = shuffleFrozen(primary.cases, seed);
-	let reserveIndex = 0;
-	let completedCases = 0;
-	let attemptedCases = 0;
-	let cumulativeCostUsd = 0;
-	const exclusions: Array<Record<string, unknown>> = [];
-	const completedCaseIds: string[] = [];
 	mkdirSync(join(outputRoot, "active"), { recursive: true });
 	mkdirSync(join(outputRoot, "quarantine"), { recursive: true });
+	const statePath = join(outputRoot, "run-state.json");
+	const casesById = new Map(allCases.map((item) => [item.id, item]));
+	let state: RunState;
+	if (resuming) {
+		if (!existsSync(statePath)) {
+			throw new Error("existing scored output has no resumable run-state.json");
+		}
+		state = JSON.parse(readFileSync(statePath, "utf8")) as RunState;
+		if (state.version !== 2 || JSON.stringify(state.frozenRun) !== JSON.stringify(frozenRun)) {
+			throw new Error("saved run state does not match the frozen benchmark");
+		}
+		const recordedCaseDirectories =
+			directoryEntryCount(join(outputRoot, "active")) +
+			directoryEntryCount(join(outputRoot, "quarantine"));
+		if (recordedCaseDirectories !== state.attemptedCases) {
+			throw new Error(
+				"scored output contains an interrupted case and cannot be resumed safely",
+			);
+		}
+	} else {
+		state = {
+			attemptedCases: 0,
+			candidateQueueIds: shuffleFrozen(primary.cases, seed).map((item) => item.id),
+			completedCaseIds: [],
+			completedCases: 0,
+			cumulativeCostUsd: 0,
+			currentCaseId: null,
+			exclusions: [],
+			frozenRun,
+			nextWorkIndex: 0,
+			reserveIndex: 0,
+			version: 2,
+		};
+		await writeJsonAtomically(statePath, state);
+	}
+	if (cumulativeCaseTarget < state.completedCases) {
+		throw new Error(
+			`case target ${cumulativeCaseTarget} is behind ${state.completedCases} completed cases`,
+		);
+	}
 
-	while (completedCases < primary.cases.length) {
-		const item = candidateQueue.shift();
+	while (
+		state.completedCases < primary.cases.length &&
+		state.completedCases < cumulativeCaseTarget &&
+		state.cumulativeCostUsd < cumulativeCostTargetUsd
+	) {
+		const continuingCase = state.currentCaseId !== null;
+		const itemId = state.currentCaseId ?? state.candidateQueueIds.shift();
+		const item = itemId === undefined ? undefined : casesById.get(itemId);
 		if (item === undefined) throw new Error("candidate queue exhausted");
-		attemptedCases += 1;
+		if (!continuingCase) {
+			state.attemptedCases += 1;
+			state.currentCaseId = item.id;
+			state.nextWorkIndex = 0;
+			await writeJsonAtomically(statePath, state);
+		}
 		const caseDirectory = join(
 			outputRoot,
 			"active",
-			`${String(attemptedCases).padStart(2, "0")}--${safeName(item.id)}`,
+			`${String(state.attemptedCases).padStart(2, "0")}--${safeName(item.id)}`,
 		);
 		mkdirSync(caseDirectory, { recursive: true });
 		const work = shuffleFrozen(
@@ -479,22 +558,26 @@ if (preflightOnly) {
 					})),
 				),
 			),
-			seed + attemptedCases,
+			seed + state.attemptedCases,
 		);
 		let excluded = false;
 		for (const [workIndex, current] of work.entries()) {
+			if (workIndex < state.nextWorkIndex) continue;
 			const callOrdinal = workIndex + 1;
-			if (cumulativeCostUsd >= aggregateCostCeilingUsd) {
-				throw new Error(`aggregate cost ceiling reached: $${cumulativeCostUsd.toFixed(2)}`);
+			if (state.cumulativeCostUsd >= cumulativeCostTargetUsd) break;
+			if (state.cumulativeCostUsd >= aggregateCostCeilingUsd) {
+				throw new Error(`aggregate cost ceiling reached: $${state.cumulativeCostUsd.toFixed(2)}`);
 			}
-			const safeRepository = safeRepositories.get(
-				`${item.id}:${current.variant}`,
-			);
-			if (safeRepository === undefined) throw new Error("safe repository vanished");
+			const safeRepositoryKey = `${item.id}:${current.variant}`;
+			let safeRepository = safeRepositories.get(safeRepositoryKey);
+			if (safeRepository === undefined) {
+				safeRepository = prepareSafeRepository(item, current.variant);
+				safeRepositories.set(safeRepositoryKey, safeRepository);
+			}
 			const root = createTrialClone(
 				safeRepository,
 				current,
-				attemptedCases,
+				state.attemptedCases,
 				callOrdinal,
 			);
 			const execute = createRunnerExecutor({
@@ -516,7 +599,7 @@ if (preflightOnly) {
 			const startedAt = new Date().toISOString();
 			const started = performance.now();
 			console.log(
-				`case ${completedCases + 1}/30 call ${callOrdinal}/12: ${current.system} ${item.id} ${current.variant} t${current.trial}`,
+				`case ${state.completedCases + 1}/30 call ${callOrdinal}/12: ${current.system} ${item.id} ${current.variant} t${current.trial}`,
 			);
 			try {
 				const result = await executeWithInfrastructureRetry(() => execute(reviewInput));
@@ -528,7 +611,7 @@ if (preflightOnly) {
 						infrastructureErrors: result.infrastructureErrors,
 						recordedAt: new Date().toISOString(),
 					};
-					exclusions.push(exclusion);
+					state.exclusions.push(exclusion);
 					await Bun.write(
 						join(caseDirectory, `${String(callOrdinal).padStart(2, "0")}--EXCLUDED.json`),
 						`${JSON.stringify(exclusion, null, 2)}\n`,
@@ -536,12 +619,12 @@ if (preflightOnly) {
 					break;
 				}
 				const usage = estimatedCost(result.value);
-				cumulativeCostUsd += usage.costUsd;
+				state.cumulativeCostUsd += usage.costUsd;
 				const record = {
 					...reviewInput,
 					attempts: result.attempts,
 					completedAt: new Date().toISOString(),
-					cumulativeCostUsd,
+					cumulativeCostUsd: state.cumulativeCostUsd,
 					durationMs: Math.round(performance.now() - started),
 					frozenRun,
 					infrastructureErrors: result.infrastructureErrors,
@@ -558,8 +641,10 @@ if (preflightOnly) {
 					),
 					`${JSON.stringify(record, null, 2)}\n`,
 				);
-				if (cumulativeCostUsd > aggregateCostCeilingUsd) {
-					throw new Error(`aggregate cost ceiling exceeded: $${cumulativeCostUsd.toFixed(2)}`);
+				state.nextWorkIndex = callOrdinal;
+				await writeJsonAtomically(statePath, state);
+				if (state.cumulativeCostUsd > aggregateCostCeilingUsd) {
+					throw new Error(`aggregate cost ceiling exceeded: $${state.cumulativeCostUsd.toFixed(2)}`);
 				}
 			} catch (error) {
 				await Bun.write(
@@ -585,37 +670,41 @@ if (preflightOnly) {
 			const quarantine = join(
 				outputRoot,
 				"quarantine",
-				`${String(attemptedCases).padStart(2, "0")}--${safeName(item.id)}`,
+				`${String(state.attemptedCases).padStart(2, "0")}--${safeName(item.id)}`,
 			);
 			renameSync(caseDirectory, quarantine);
-			const replacement = reserve.cases[reserveIndex];
+			const replacement = reserve.cases[state.reserveIndex];
 			if (replacement === undefined) {
 				throw new Error("frozen reserves exhausted after infrastructure exclusions");
 			}
-			reserveIndex += 1;
-			candidateQueue.unshift(replacement);
+			state.reserveIndex += 1;
+			state.candidateQueueIds.unshift(replacement.id);
+			state.currentCaseId = null;
+			state.nextWorkIndex = 0;
+			await writeJsonAtomically(statePath, state);
 			continue;
 		}
-		completedCases += 1;
-		completedCaseIds.push(item.id);
+		if (state.nextWorkIndex < work.length) break;
+		state.completedCases += 1;
+		state.completedCaseIds.push(item.id);
+		state.currentCaseId = null;
+		state.nextWorkIndex = 0;
+		await writeJsonAtomically(statePath, state);
 	}
 
-	await Bun.write(
-		join(outputRoot, "run-summary.json"),
-		`${JSON.stringify(
-			{
-				...frozenRun,
-				completedAt: new Date().toISOString(),
-				completedCaseIds,
-				cumulativeCostUsd,
-				exclusions,
-				status: "completed",
-			},
-			null,
-			2,
-		)}\n`,
-	);
+	const status = state.completedCases === primary.cases.length ? "completed" : "checkpoint";
+	await writeJsonAtomically(join(outputRoot, "run-summary.json"), {
+		...frozenRun,
+		completedAt: new Date().toISOString(),
+		completedCaseIds: state.completedCaseIds,
+		completedCases: state.completedCases,
+		cumulativeCaseTarget,
+		cumulativeCostTargetUsd,
+		cumulativeCostUsd: state.cumulativeCostUsd,
+		exclusions: state.exclusions,
+		status,
+	});
 	console.log(
-		`completed 30 cases with ${exclusions.length} exclusion(s), estimated cost $${cumulativeCostUsd.toFixed(2)}`,
+		`${status}: ${state.completedCases}/30 cases with ${state.exclusions.length} exclusion(s), estimated cost $${state.cumulativeCostUsd.toFixed(2)}`,
 	);
 }

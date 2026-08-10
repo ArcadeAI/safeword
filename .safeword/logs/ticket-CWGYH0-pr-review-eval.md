@@ -889,3 +889,32 @@
 - The full no-model isolation preflight is running against all 80 buggy/fixed
   snapshots. The scored run remains intentionally stopped: its preregistered
   ceiling is $1,000 and requires an explicit spend decision.
+- A development-only Sonnet 5 cost calibration used the already-burned DEV-R01
+  case with the frozen full/narrow prompts and scored limits. Four buggy/fixed
+  calls cost $3.533523 total, projecting a complete three-trial scored case at
+  about $10.60. No holdout output was exposed.
+- Refroze the runner for cumulative complete-case spend checkpoints at 1, 2,
+  5, 10, 20, and 30 cases. Atomic state preserves the exact shuffled queue,
+  reserves, exclusions, completed cases, and cost; resume refuses frozen-input
+  drift or a partially written case. Checkpoints never inspect or score interim
+  answers. Thirty-two policy/statistics tests, ESLint, Prettier, and the Bun
+  bundle pass. No scored-corpus model call had occurred at this refreeze.
+- The first frozen holdout case was much heavier than the development
+  calibration. Its first four randomized work items cost $8.638881, with zero
+  retries or infrastructure errors. Inspected only usage/duration/retry/error
+  metadata; did not open findings, named-defect matches, or reviewer text.
+- Paused after the fourth durable record and before call five. Refroze only the
+  operational checkpoint layer to persist after each work item and resume the
+  same case/work index at cumulative dollar targets. Recovered the four records
+  into version-2 state (`nextWorkIndex: 4`) and proved no-model resume. Forty-two
+  tests plus lint, format, and bundle pass; all scientific inputs, completed
+  outputs, work order, and scoring remain unchanged.
+- Staged scored execution passed the $10 gate at $10.277085 / 6 calls, the $20
+  gate at $20.407170 / 12 calls, and the $50 gate at $50.350935 / 28 calls.
+  Across all three checkpoints: zero provider retries, infrastructure errors,
+  or case exclusions; no duplicated work; exact work-index resume; no findings,
+  named-defect matches, or reviewer text inspected. State is checkpointed four
+  calls into the third frozen case with two cases complete.
+- The $100 stage did not start. Three 1Password authorization attempts timed
+  out before the runner launched, including a scoped Arcade sign-in with the
+  desktop app foregrounded. State and spend remain at the $50 checkpoint.

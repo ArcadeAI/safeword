@@ -108,3 +108,31 @@ export function shuffleFrozen<T>(values: readonly T[], seed: number): T[] {
 	}
 	return result;
 }
+
+export function parseCumulativeCaseTarget(
+	value: string | undefined,
+	totalCases: number,
+): number {
+	if (value === undefined || value.length === 0) return totalCases;
+	const target = Number(value);
+	if (!Number.isInteger(target) || target < 1 || target > totalCases) {
+		throw new Error(
+			`CWGYH0_CASE_TARGET must be an integer from 1 through ${totalCases}`,
+		);
+	}
+	return target;
+}
+
+export function parseCumulativeCostTarget(
+	value: string | undefined,
+	aggregateCeilingUsd: number,
+): number {
+	if (value === undefined || value.length === 0) return aggregateCeilingUsd;
+	const target = Number(value);
+	if (!Number.isFinite(target) || target <= 0 || target > aggregateCeilingUsd) {
+		throw new Error(
+			`CWGYH0_COST_TARGET_USD must be greater than zero and at most ${aggregateCeilingUsd}`,
+		);
+	}
+	return target;
+}

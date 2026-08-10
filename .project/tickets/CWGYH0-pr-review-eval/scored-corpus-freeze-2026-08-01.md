@@ -141,8 +141,15 @@ run_holder=$(mktemp -d /private/tmp/cwgyh0-scored-run-XXXXXX)
 op run --env-file=/Users/alex/.env.op.zshrc-migration -- \
   env CWGYH0_SCRATCH_ROOT="$run_holder/scratch" \
   CWGYH0_OUTPUT_ROOT="$PWD/.project/tickets/CWGYH0-pr-review-eval/scored-run-2026-08-01-raw" \
+  CWGYH0_COST_TARGET_USD=10 \
   bun .project/tickets/CWGYH0-pr-review-eval/scored-live-run.ts
 ```
+
+For later checkpoints, use a fresh `run_holder`, reuse the same output root,
+and raise `CWGYH0_COST_TARGET_USD` cumulatively to `20`, `50`, `100`, `200`,
+and onward. The runner stops after the first complete randomized work item
+whose recorded cumulative cost reaches the target. It never exposes or scores
+interim model answers.
 
 ## Recovery refreeze — 2026-08-07
 
@@ -158,6 +165,90 @@ byte-identical to the original freeze.
 
 The runner refuses an existing scratch or output directory and refuses any
 manifest, prompt, or adapter hash drift.
+
+## Staged-spend recovery refreeze — 2026-08-08
+
+No scored-corpus model call had occurred. A development-only Sonnet 5
+calibration used the already-burned DEV-R01 case and the frozen full/narrow
+prompts. Its four buggy/fixed calls cost $3.533523 total, projecting one complete
+three-trial scored case block at about $10.60.
+
+The runner now supports cumulative complete-case checkpoints: 1, 2, 5, 10,
+20, and 30 cases (approximately $10, $20, $50, $100, $200, and completion).
+It atomically persists the frozen queue, reserve position, exclusions,
+completed cases, and cumulative cost. A later stage must match the exact frozen
+run and refuses an interrupted case directory. Checkpoints occur only between
+complete 12-call case blocks; they do not inspect, score, or tune model output.
+Safe repositories are prepared lazily for the active case, while
+`CWGYH0_PREFLIGHT_ONLY=1` retains the exhaustive 80-snapshot isolation pass.
+
+- Staged runner SHA-256:
+  `e7642dbf9aaf94c60bf07824aa3d4075e68f456b1488682e5d0551e632dd3a0a`.
+- Retry/randomization/checkpoint policy SHA-256:
+  `86a8385c3709ef9f9240b6173561add26c21695ab67aec4dbbc518f0a08a1cbe`.
+- Policy tests SHA-256:
+  `4bfa20ffdb6da99e53c104bccb54e25b8280601261cff7d0c1fb1176519d5b78`.
+- Statistical tests SHA-256:
+  `98e467bddcb8c662b93516e28c918b800a72b39ba8351cf0ff5c5b53673375b4`.
+- Thirty-two policy/statistics tests pass under the repository's Vitest
+  runner; ESLint, Prettier, and a Bun production bundle pass.
+
+Corpus, prompts, graders, thresholds, model, prices, trials, randomization,
+retry/substitution rules, statistical primitives, and scorer are unchanged.
+
+## Work-item spend recovery refreeze — 2026-08-08
+
+The first scored checkpoint selected SCORE-S33 under the frozen shuffle. Its
+first four randomized work items completed for $8.638881 with zero retries and
+zero infrastructure errors. Only usage, duration, retry, and error metadata
+were inspected. Findings, named-defect matches, and reviewer text were not
+opened or scored. The process was stopped after the fourth durable record and
+before the fifth API request.
+
+This operational evidence falsified the complete-case cost assumption: one
+12-call case can materially exceed $10. Without changing any scientific input
+or output, the runner now persists state atomically after every successful work
+item and resumes the same current case at its next frozen work index. Dollar
+targets are cumulative and may overshoot only by the final indivisible work
+item. Resume validation refuses frozen-run drift, missing state, or an output
+directory inconsistent with the recorded attempted-case count.
+
+The four durable SCORE-S33 records were recovered into version-2 state with
+`nextWorkIndex: 4`, cumulative cost `$8.638881`, and the untouched remainder of
+the frozen shuffled queue. A no-model resume check loaded this state and wrote
+a checkpoint summary without preparing a repository or making an API call.
+
+- Work-item checkpoint runner SHA-256:
+  `76b75a5421f6e78cfd280a13e5a9e249f005929f638115a752753f611355bdb8`.
+- Retry/randomization/checkpoint policy SHA-256:
+  `91eb87b80e0437fae8972ea38627c937e08cce0d484f89179fb00639012cb6cc`.
+- Policy tests SHA-256:
+  `ade4882747a8d3bf530537196568f7c981792450a7232b35966cece4353a9ec5`.
+- Statistical tests SHA-256 remains:
+  `98e467bddcb8c662b93516e28c918b800a72b39ba8351cf0ff5c5b53673375b4`.
+- Forty-two policy/statistics tests pass; ESLint, Prettier, the Bun production
+  bundle, and the no-model resume check pass.
+
+Corpus, prompts, model, graders, thresholds, trials, work order, completed
+outputs, retry/substitution rules, statistical primitives, and scorer remain
+unchanged. The recovery decision used cost and operational metadata only.
+
+## Staged execution record — 2026-08-08
+
+| Gate | Durable calls | Completed cases | Actual cumulative cost | Operational result |
+| ---: | ---: | ---: | ---: | --- |
+| $10 | 6 | 0 | $10.277085 | passed |
+| $20 | 12 | 1 | $20.407170 | passed |
+| $50 | 28 | 2 | $50.350935 | passed |
+
+All 28 calls completed without a provider retry, infrastructure error, case
+exclusion, duplicate record, or resume mismatch. The current version-2 state
+is four work items into the third frozen case. Findings, named-defect matches,
+reviewer text, and interim scores remain blinded.
+
+The attempted $100 stage made no API call: 1Password authorization timed out
+before the runner launched. The durable state and cumulative spend therefore
+remain at the $50 checkpoint.
 
 ## Frozen scoring and gate
 

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import { mean, pairedBootstrapInterval, percentile } from "./scored-analysis";
 

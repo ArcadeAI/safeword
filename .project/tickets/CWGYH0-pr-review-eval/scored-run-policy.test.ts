@@ -1,8 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
 	executeWithInfrastructureRetry,
 	isInfrastructureError,
+	parseCumulativeCaseTarget,
+	parseCumulativeCostTarget,
 	shuffleFrozen,
 } from "./scored-run-policy";
 
@@ -95,4 +97,37 @@ test("frozen shuffle is deterministic without mutating its input", () => {
 	expect(first).toEqual(second);
 	expect(first).not.toEqual(input);
 	expect(input).toEqual(["a", "b", "c", "d", "e"]);
+});
+
+describe("cumulative case checkpoints", () => {
+	test("defaults to the complete corpus", () => {
+		expect(parseCumulativeCaseTarget(undefined, 30)).toBe(30);
+		expect(parseCumulativeCaseTarget("", 30)).toBe(30);
+	});
+
+	test.each([1, 2, 5, 10, 20, 30])("accepts cumulative target %d", (target) => {
+		expect(parseCumulativeCaseTarget(String(target), 30)).toBe(target);
+	});
+
+	test.each(["0", "1.5", "31", "nope"])('rejects target "%s"', (target) => {
+		expect(() => parseCumulativeCaseTarget(target, 30)).toThrow(
+			"CWGYH0_CASE_TARGET",
+		);
+	});
+});
+
+describe("cumulative cost checkpoints", () => {
+	test("defaults to the frozen aggregate ceiling", () => {
+		expect(parseCumulativeCostTarget(undefined, 1_000)).toBe(1_000);
+	});
+
+	test.each([10, 20, 50, 100, 1_000])("accepts cumulative target %d", (target) => {
+		expect(parseCumulativeCostTarget(String(target), 1_000)).toBe(target);
+	});
+
+	test.each(["0", "-1", "1001", "nope"])('rejects target "%s"', (target) => {
+		expect(() => parseCumulativeCostTarget(target, 1_000)).toThrow(
+			"CWGYH0_COST_TARGET_USD",
+		);
+	});
 });
