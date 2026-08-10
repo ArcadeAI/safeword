@@ -48,9 +48,9 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 ### Scenario: Status explains the effective local decision without changing anything
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: status behavior predates the current TDD continuation
+- [x] GREEN b1ff687fb4
+- [x] REFACTOR skip: status delegates to the shared precedence resolver
 
 ## Rule: choose-local-or-remote-test-execution.NTB1.R2
 
