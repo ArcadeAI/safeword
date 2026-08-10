@@ -20,7 +20,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 ### Scenario: A personal preference chooses the current worktree default
 
-- [ ] RED
+- [x] RED skip: precedence behavior already existed from the status slice
 - [ ] GREEN
 - [ ] REFACTOR
 
