@@ -621,6 +621,11 @@ async function testExecutionStatusHandler(invocation: CommandInvocation): Promis
   return observeTestExecutionStatus(invocation.cwd);
 }
 
+async function projectTestHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { runProjectTests } = await import('../commands/test-execution.js');
+  return runProjectTests(invocation.cwd, invocation.options);
+}
+
 async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeGherkinLint } = await import('../commands/lint-gherkin.js');
   return observeGherkinLint(
@@ -1836,6 +1841,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project sync-tickets': syncTicketsHandler,
   'project codify': codifyHandler,
   'project test-plan': testPlanHandler,
+  'project test': projectTestHandler,
   'project test-execution status': testExecutionStatusHandler,
   'project lint-gherkin': lintGherkinHandler,
   'tracker sync': invocation => trackerHandler('tracker sync', invocation),

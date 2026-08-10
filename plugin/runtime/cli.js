@@ -40402,9 +40402,89 @@ function resolveExecutionMode(input) {
 // src/commands/test-execution.ts
 var exports_test_execution = {};
 __export(exports_test_execution, {
+  runProjectTests: () => runProjectTests,
   observeTestExecutionStatus: () => observeTestExecutionStatus
 });
+import { spawnSync as spawnSync7 } from "child_process";
 import nodePath79 from "path";
+function invalidExecutionRequest(message) {
+  return createResult({
+    state: "failed",
+    errors: [{ code: "SAFEWORD_TEST_EXECUTION_INVALID", message, retryable: false }]
+  });
+}
+function runProjectTests(cwd, options) {
+  const lane = options.lane ?? "done";
+  if (lane !== "done" && lane !== "full") {
+    return invalidExecutionRequest("Test lane must be done or full.");
+  }
+  const commandMode = options.execution;
+  if (commandMode !== undefined && commandMode !== "local" && commandMode !== "remote-preferred") {
+    return invalidExecutionRequest("Execution mode must be local or remote-preferred.");
+  }
+  const personal = readPersonalExecutionPreference(cwd);
+  if (personal.error !== undefined) {
+    return invalidExecutionRequest(`Personal test-execution configuration at ${personal.path} ${personal.error}.`);
+  }
+  const project = readProjectExecutionPreference(cwd);
+  const effective = resolveExecutionMode({
+    command: commandMode,
+    personal: personal.mode,
+    project
+  });
+  const planKind = lane === "full" ? "verify" : "test";
+  const plan = resolveTestPlan(cwd, { kind: planKind });
+  let executed = 0;
+  for (const entry2 of plan) {
+    if (!entry2.available)
+      continue;
+    const result = spawnSync7(entry2.command, {
+      cwd: entry2.cwd,
+      env: process.env,
+      shell: true,
+      stdio: "inherit"
+    });
+    executed += 1;
+    if (result.status !== 0) {
+      return createResult({
+        state: "failed",
+        errors: [
+          {
+            code: "SAFEWORD_TEST_EXECUTION_FAILED",
+            message: `${entry2.runner} exited with status ${String(result.status ?? "unknown")}.`,
+            retryable: false
+          }
+        ],
+        data: {
+          command: "project test",
+          lane,
+          effective,
+          planKind,
+          executed,
+          childExit: result.status
+        }
+      });
+    }
+  }
+  return createResult({
+    state: "healthy",
+    findings: [
+      {
+        code: "SAFEWORD_TEST_EXECUTION_SELECTED",
+        message: `Test execution used ${effective.mode} mode from ${effective.source}.`,
+        severity: "info"
+      }
+    ],
+    data: {
+      command: "project test",
+      lane,
+      effective,
+      remote: { available: REMOTE_EXECUTION_AVAILABLE },
+      planKind,
+      executed
+    }
+  });
+}
 function observeTestExecutionStatus(cwd) {
   const personal = readPersonalExecutionPreference(cwd);
   if (personal.error !== undefined) {
@@ -40441,6 +40521,7 @@ var REMOTE_EXECUTION_AVAILABLE = false;
 var init_test_execution = __esm(() => {
   init_result();
   init_config4();
+  init_resolve();
 });
 
 // src/commands/lint-gherkin.ts
@@ -51746,7 +51827,7 @@ __export(exports_retro, {
   buildProvenanceResolver: () => buildProvenanceResolver,
   buildAutoExtractor: () => buildAutoExtractor
 });
-import { spawnSync as spawnSync7 } from "child_process";
+import { spawnSync as spawnSync8 } from "child_process";
 import {
   mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync7,
@@ -51936,7 +52017,7 @@ function headlessEnvironment(environment) {
   }));
 }
 function spawnClaudeExtractor(argv, spawnOptions) {
-  const result = spawnSync7("claude", argv, {
+  const result = spawnSync8("claude", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -51946,7 +52027,7 @@ function spawnClaudeExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function spawnCodexExtractor(argv, spawnOptions) {
-  const result = spawnSync7("codex", argv, {
+  const result = spawnSync8("codex", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     stdio: spawnOptions.stdio,
@@ -51955,7 +52036,7 @@ function spawnCodexExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: "" });
 }
 function spawnCursorExtractor(argv, spawnOptions) {
-  const result = spawnSync7("cursor-agent", argv, {
+  const result = spawnSync8("cursor-agent", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -51965,7 +52046,7 @@ function spawnCursorExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function prepareCursorExtractionDirectory(directory) {
-  const gitInit = spawnSync7("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
+  const gitInit = spawnSync8("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath89.join(directory, ".cursor");
@@ -52446,7 +52527,7 @@ async function executeRetroCliCommand(options, cwd) {
     sessionId: options.sessionId ?? process17.env.CLAUDE_SESSION_ID ?? options.transcript ?? "unknown",
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
-      runGit: () => spawnSync7("git", ["rev-parse", "--short", "HEAD"], {
+      runGit: () => spawnSync8("git", ["rev-parse", "--short", "HEAD"], {
         cwd: projectDirectory,
         encoding: "utf8",
         timeout: 1e4
@@ -53233,7 +53314,7 @@ __export(exports_codex_hook, {
   normalizeNamespaceRootLabel: () => normalizeNamespaceRootLabel,
   codexHook: () => codexHook
 });
-import { execFileSync as execFileSync9, spawnSync as spawnSync8 } from "child_process";
+import { execFileSync as execFileSync9, spawnSync as spawnSync9 } from "child_process";
 import {
   cpSync,
   existsSync as existsSync46,
@@ -53443,7 +53524,7 @@ function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath93.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
-  const result = spawnSync8("bun", [hookPath], {
+  const result = spawnSync9("bun", [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",
@@ -56604,6 +56685,10 @@ async function testExecutionStatusHandler(invocation) {
   const { observeTestExecutionStatus: observeTestExecutionStatus2 } = await Promise.resolve().then(() => (init_test_execution(), exports_test_execution));
   return observeTestExecutionStatus2(invocation.cwd);
 }
+async function projectTestHandler(invocation) {
+  const { runProjectTests: runProjectTests2 } = await Promise.resolve().then(() => (init_test_execution(), exports_test_execution));
+  return runProjectTests2(invocation.cwd, invocation.options);
+}
 async function lintGherkinHandler(invocation) {
   const { observeGherkinLint: observeGherkinLint2 } = await Promise.resolve().then(() => (init_lint_gherkin(), exports_lint_gherkin));
   return observeGherkinLint2(invocation.cwd, invocation.operands[0] ?? []);
@@ -57611,6 +57696,7 @@ var HANDLERS = {
   "project sync-tickets": syncTicketsHandler,
   "project codify": codifyHandler,
   "project test-plan": testPlanHandler,
+  "project test": projectTestHandler,
   "project test-execution status": testExecutionStatusHandler,
   "project lint-gherkin": lintGherkinHandler,
   "tracker sync": (invocation) => trackerHandler("tracker sync", invocation),
@@ -57827,8 +57913,22 @@ var CANONICAL_COMMANDS = [
       }
     ]
   }),
+  command("project test", "Run repository test commands", "mutate", {
+    syntax: "test",
+    commandOptions: [
+      {
+        flags: "--lane <lane>",
+        description: "done or full",
+        defaultValue: "done"
+      },
+      {
+        flags: "--execution <mode>",
+        description: "local or remote-preferred"
+      }
+    ]
+  }),
   command("project test-execution status", "Show the effective test execution preference", "observe", {
-    syntax: "test-execution status"
+    syntax: "status"
   }),
   command("project lint-gherkin", "Validate executable feature files", "observe", {
     syntax: "lint-gherkin [files...]"
@@ -58140,6 +58240,11 @@ var publicCommands = commandCatalog.filter((definition) => definition.classifica
 var commandFamilies = [
   { route: "project", description: "Manage project-local Safeword state", visibility: "public" },
   {
+    route: "project test-execution",
+    description: "Manage test execution preferences",
+    visibility: "public"
+  },
+  {
     route: "tracker",
     description: "Manage tracker connections and synchronization",
     visibility: "public"
@@ -58435,20 +58540,35 @@ function machineOutputRequested(arguments_) {
 import process19 from "process";
 init_plan();
 init_result();
-function firstPathSegment(name) {
-  const first = name.split(" ", 1)[0];
-  if (first === undefined)
-    throw new Error("Command name cannot be empty");
-  return first;
-}
 function familyNames() {
-  return new Set(commandCatalog.filter((definition) => definition.classification !== "internal" && definition.name.includes(" ")).map((definition) => firstPathSegment(definition.name)));
+  const families = new Set;
+  for (const definition of commandCatalog) {
+    if (definition.classification === "internal")
+      continue;
+    const path7 = definition.name.split(" ");
+    for (let length = 1;length < path7.length; length += 1) {
+      families.add(path7.slice(0, length).join(" "));
+    }
+  }
+  return families;
 }
 function registerFamilies(program2) {
   const families = new Map;
-  for (const name of familyNames()) {
+  const names = [...familyNames()].toSorted((left, right) => {
+    const depth = left.split(" ").length - right.split(" ").length;
+    return depth === 0 ? left.localeCompare(right) : depth;
+  });
+  for (const name of names) {
     const contract = commandFamilies.find((candidate) => candidate.route === name);
-    const family = program2.command(name, { hidden: contract?.visibility === "hidden" }).description(contract?.description ?? `Manage ${name} operations`);
+    const path7 = name.split(" ");
+    const parentName = path7.slice(0, -1).join(" ");
+    const parent = parentName === "" ? program2 : families.get(parentName);
+    if (parent === undefined)
+      throw new Error(`Missing parent command family for ${name}`);
+    const syntax = path7.at(-1);
+    if (syntax === undefined)
+      throw new Error("Command family name cannot be empty");
+    const family = parent.command(syntax, { hidden: contract?.visibility === "hidden" }).description(contract?.description ?? `Manage ${name} operations`);
     families.set(name, family);
   }
   return families;
@@ -58488,7 +58608,7 @@ function definitionCommand(program2, families, definition) {
       hidden: definition.visibility === "hidden"
     });
   }
-  const parent = families.get(firstPathSegment(definition.name));
+  const parent = families.get(path7.slice(0, -1).join(" "));
   if (parent === undefined) {
     throw new Error(`Missing command family for ${definition.name}`);
   }

@@ -258,12 +258,26 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     ],
   }),
+  command('project test', 'Run repository test commands', 'mutate', {
+    syntax: 'test',
+    commandOptions: [
+      {
+        flags: '--lane <lane>',
+        description: 'done or full',
+        defaultValue: 'done',
+      },
+      {
+        flags: '--execution <mode>',
+        description: 'local or remote-preferred',
+      },
+    ],
+  }),
   command(
     'project test-execution status',
     'Show the effective test execution preference',
     'observe',
     {
-      syntax: 'test-execution status',
+      syntax: 'status',
     },
   ),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
@@ -639,6 +653,11 @@ export const publicCommands = commandCatalog.filter(
 
 export const commandFamilies = [
   { route: 'project', description: 'Manage project-local Safeword state', visibility: 'public' },
+  {
+    route: 'project test-execution',
+    description: 'Manage test execution preferences',
+    visibility: 'public',
+  },
   {
     route: 'tracker',
     description: 'Manage tracker connections and synchronization',

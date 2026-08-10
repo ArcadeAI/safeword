@@ -19,28 +19,34 @@ import { isPlanIdentity } from './plan.js';
 import { createProgressReporter } from './policy.js';
 import { type CliResult, createResult, withDeprecation } from './result.js';
 
-function firstPathSegment(name: string): string {
-  const first = name.split(' ', 1)[0];
-  if (first === undefined) throw new Error('Command name cannot be empty');
-  return first;
-}
-
 function familyNames(): Set<string> {
-  return new Set(
-    commandCatalog
-      .filter(
-        definition => definition.classification !== 'internal' && definition.name.includes(' '),
-      )
-      .map(definition => firstPathSegment(definition.name)),
-  );
+  const families = new Set<string>();
+  for (const definition of commandCatalog) {
+    if (definition.classification === 'internal') continue;
+    const path = definition.name.split(' ');
+    for (let length = 1; length < path.length; length += 1) {
+      families.add(path.slice(0, length).join(' '));
+    }
+  }
+  return families;
 }
 
 function registerFamilies(program: Command): Map<string, Command> {
   const families = new Map<string, Command>();
-  for (const name of familyNames()) {
+  const names = [...familyNames()].toSorted((left, right) => {
+    const depth = left.split(' ').length - right.split(' ').length;
+    return depth === 0 ? left.localeCompare(right) : depth;
+  });
+  for (const name of names) {
     const contract = commandFamilies.find(candidate => candidate.route === name);
-    const family = program
-      .command(name, { hidden: contract?.visibility === 'hidden' })
+    const path = name.split(' ');
+    const parentName = path.slice(0, -1).join(' ');
+    const parent = parentName === '' ? program : families.get(parentName);
+    if (parent === undefined) throw new Error(`Missing parent command family for ${name}`);
+    const syntax = path.at(-1);
+    if (syntax === undefined) throw new Error('Command family name cannot be empty');
+    const family = parent
+      .command(syntax, { hidden: contract?.visibility === 'hidden' })
       .description(contract?.description ?? `Manage ${name} operations`);
     families.set(name, family);
   }
@@ -87,7 +93,7 @@ function definitionCommand(
     });
   }
 
-  const parent = families.get(firstPathSegment(definition.name));
+  const parent = families.get(path.slice(0, -1).join(' '));
   if (parent === undefined) {
     throw new Error(`Missing command family for ${definition.name}`);
   }
