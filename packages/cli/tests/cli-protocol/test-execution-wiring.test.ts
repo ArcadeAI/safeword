@@ -261,6 +261,70 @@ describe('test execution CLI wiring', () => {
     );
   });
 
+  it('keeps personal preferences isolated between worktrees', async () => {
+    const worktreeA = createTemporaryDirectory();
+    const worktreeB = createTemporaryDirectory();
+    for (const [directory, mode] of [
+      [worktreeA, 'local'],
+      [worktreeB, 'remote-preferred'],
+    ] as const) {
+      initializePrivateConfigRepo(directory);
+      const personalDirectory = nodePath.join(directory, '.project', 'personal');
+      mkdirSync(personalDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(personalDirectory, 'config.json'),
+        JSON.stringify({ schemaVersion: 1, testExecution: mode }),
+      );
+    }
+
+    const [resultA, resultB] = await Promise.all(
+      [worktreeA, worktreeB].map(directory =>
+        runCli(
+          [
+            'project',
+            'test-execution',
+            'status',
+            '--json',
+            '--no-input',
+            '--offline',
+            '--cwd',
+            directory,
+          ],
+          { cwd: directory },
+        ),
+      ),
+    );
+
+    const statusA = JSON.parse(resultA.stdout) as Record<string, unknown>;
+    const statusB = JSON.parse(resultB.stdout) as Record<string, unknown>;
+    expect(resultA).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(resultB).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(statusA).toMatchObject({
+      data: {
+        effective: { mode: 'local', source: 'personal' },
+        scopes: expect.arrayContaining([
+          expect.objectContaining({
+            source: 'personal',
+            mode: 'local',
+            path: '.project/personal/config.json',
+          }),
+        ]),
+      },
+    });
+    expect(statusB).toMatchObject({
+      data: {
+        effective: { mode: 'remote-preferred', source: 'personal' },
+        scopes: expect.arrayContaining([
+          expect.objectContaining({
+            source: 'personal',
+            mode: 'remote-preferred',
+            path: '.project/personal/config.json',
+          }),
+        ]),
+      },
+    });
+  });
+
   it('fails closed for malformed personal configuration without changing files', async () => {
     const directory = createTemporaryDirectory();
     initializePrivateConfigRepo(directory);
