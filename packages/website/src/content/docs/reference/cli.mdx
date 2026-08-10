@@ -14,42 +14,44 @@ canonical commands below.
 
 {/* safeword:generated-cli-commands:start */}
 
-| Command                  | Effect      | Purpose                                                                                                      |
-| ------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------ |
-| `status`                 | observe     | Report project health and the next action                                                                    |
-| `install`                | mutate      | Install Safeword for this project and selected agents                                                        |
-| `plan`                   | plan        | Preview reconciliation effects                                                                               |
-| `doctor`                 | observe     | Diagnose project configuration                                                                               |
-| `uninstall`              | destructive | Deactivate selected Safe Word project and agent state; preserve authored content; reinstall to recover       |
-| `project sync-config`    | mutate      | Regenerate dependency-cruiser configuration                                                                  |
-| `project architecture`   | mutate      | Refresh generated architecture state                                                                         |
-| `project sync-learnings` | mutate      | Refresh the project learning index                                                                           |
-| `project sync-tickets`   | mutate      | Refresh project ticket indexes                                                                               |
-| `project codify`         | mutate      | Generate a test skeleton from ticket behavior                                                                |
-| `project test-plan`      | observe     | Describe repository test commands                                                                            |
-| `project lint-gherkin`   | observe     | Validate executable feature files                                                                            |
-| `tracker sync`           | mutate      | Synchronize tickets with the configured tracker                                                              |
-| `tracker connect`        | mutate      | Connect a project to a tracker                                                                               |
-| `codex migrate`          | destructive | Deactivate proven legacy Codex hooks after creating a recovery backup                                        |
-| `codex bootstrap`        | mutate      | Keep the project Codex plugin available                                                                      |
-| `codex status`           | observe     | Report Codex plugin and migration state                                                                      |
-| `claude status`          | observe     | Report Claude plugin and migration state                                                                     |
-| `claude cleanup`         | destructive | Deactivate verified legacy Claude assets while preserving a recoverable backup                               |
-| `claude recover`         | mutate      | Restore recognized Claude state from its cleanup backup without replacing unrelated content                  |
-| `codex clean-guidance`   | destructive | Deactivate exact legacy Safe Word profile guidance, preserve unrelated content, and retain a recovery backup |
-| `codex recover`          | destructive | Restore backed-up legacy Codex state without replacing unrelated current content                             |
-| `ticket list`            | observe     | List project tickets                                                                                         |
-| `ticket new`             | mutate      | Create a project ticket                                                                                      |
-| `review run`             | mutate      | Run an independent adversarial review                                                                        |
-| `review-pr inspect`      | mutate      | Inspect bounded pull-request evidence as untrusted data                                                      |
-| `review-pr invalidate`   | mutate      | Remove an obsolete advisory route                                                                            |
-| `review-pr publish`      | mutate      | Publish a validated advisory result                                                                          |
-| `retro run`              | mutate      | Extract and file session findings                                                                            |
-| `retro signals`          | observe     | Inspect locally captured runtime signals                                                                     |
-| `retro reconcile`        | mutate      | Reconcile open retro findings                                                                                |
-| `retro-relay-retry`      | mutate      | List durable relay requests or rearm one dead letter without changing its identity                           |
-| `retro-relay-discard`    | destructive | Permanently discard one poisoned relay identity and its source reservation                                   |
-| `capabilities`           | observe     | Describe the public machine interface                                                                        |
+| Command                         | Effect      | Purpose                                                                                                     |
+| ------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| `status`                        | observe     | Report project health and the next action                                                                   |
+| `install`                       | mutate      | Install Safeword for this project and selected agents                                                       |
+| `plan`                          | plan        | Preview reconciliation effects                                                                              |
+| `doctor`                        | observe     | Diagnose project configuration                                                                              |
+| `uninstall`                     | destructive | Deactivate selected Safeword project and agent state; preserve authored content; reinstall to recover       |
+| `project sync-config`           | mutate      | Regenerate dependency-cruiser configuration                                                                 |
+| `project architecture`          | mutate      | Refresh generated architecture state                                                                        |
+| `project sync-learnings`        | mutate      | Refresh the project learning index                                                                          |
+| `project sync-tickets`          | mutate      | Refresh project ticket indexes                                                                              |
+| `project codify`                | mutate      | Generate a test skeleton from ticket behavior                                                               |
+| `project test-plan`             | observe     | Describe repository test commands                                                                           |
+| `project test`                  | mutate      | Run repository test commands                                                                                |
+| `project test-execution status` | observe     | Show the effective test execution preference                                                                |
+| `project lint-gherkin`          | observe     | Validate executable feature files                                                                           |
+| `tracker sync`                  | mutate      | Synchronize tickets with the configured tracker                                                             |
+| `tracker connect`               | mutate      | Connect a project to a tracker                                                                              |
+| `codex migrate`                 | destructive | Deactivate proven legacy Codex hooks after creating a recovery backup                                       |
+| `codex bootstrap`               | mutate      | Keep the project Codex plugin available                                                                     |
+| `codex status`                  | observe     | Report Codex plugin and migration state                                                                     |
+| `claude status`                 | observe     | Report Claude plugin and migration state                                                                    |
+| `claude cleanup`                | destructive | Deactivate verified legacy Claude assets while preserving a recoverable backup                              |
+| `claude recover`                | mutate      | Restore recognized Claude state from its cleanup backup without replacing unrelated content                 |
+| `codex clean-guidance`          | destructive | Deactivate exact legacy Safeword profile guidance, preserve unrelated content, and retain a recovery backup |
+| `codex recover`                 | destructive | Restore backed-up legacy Codex state without replacing unrelated current content                            |
+| `ticket list`                   | observe     | List project tickets                                                                                        |
+| `ticket new`                    | mutate      | Create a project ticket                                                                                     |
+| `review run`                    | mutate      | Run an independent adversarial review                                                                       |
+| `review-pr inspect`             | mutate      | Inspect bounded pull-request evidence as untrusted data                                                     |
+| `review-pr invalidate`          | mutate      | Remove an obsolete advisory route                                                                           |
+| `review-pr publish`             | mutate      | Publish a validated advisory result                                                                         |
+| `retro run`                     | mutate      | Extract and file session findings                                                                           |
+| `retro signals`                 | observe     | Inspect locally captured runtime signals                                                                    |
+| `retro reconcile`               | mutate      | Reconcile open retro findings                                                                               |
+| `retro-relay-retry`             | mutate      | List durable relay requests or rearm one dead letter without changing its identity                          |
+| `retro-relay-discard`           | destructive | Permanently discard one poisoned relay identity and its source reservation                                  |
+| `capabilities`                  | observe     | Describe the public machine interface                                                                       |
 
 {/* safeword:generated-cli-commands:end */}
 
@@ -190,6 +192,8 @@ safeword project sync-learnings
 safeword project sync-tickets
 safeword project codify <ticket> [--format vitest|gherkin] [--red] [--out <path>]
 safeword project test-plan [dir] [--kind <kind>] [--format human|json|sh]
+safeword project test [--lane done|full] [--execution local|remote-preferred]
+safeword project test-execution status
 safeword project lint-gherkin [files...]
 
 safeword tracker connect <provider>
@@ -217,6 +221,11 @@ Run any command with `--help` for its complete option set.
 For `project test-plan` and `retro signals` / `self-report`, the retained
 `--format json` option emits the command's legacy raw shape. Use the global
 `--json` option for the stable result envelope.
+
+`project test` executes project-owned commands, which may access the network.
+It therefore refuses `--offline` before starting a runner. In JSON mode, output
+is captured separately for every executed runner; without `--json`, runners
+inherit the terminal streams directly.
 
 ## Compatibility routes
 

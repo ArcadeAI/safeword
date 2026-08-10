@@ -678,6 +678,7 @@ function createResult(input) {
     errors: input.errors ?? [],
     recovery: input.recovery ?? [],
     nextActions: input.nextActions ?? [],
+    ...input.exitCode !== undefined && { exitCode: input.exitCode },
     ...input.presentation !== undefined && { presentation: input.presentation },
     ...input.data !== undefined && { data: input.data }
   };
@@ -712,6 +713,8 @@ function withDeprecation(result, legacy, replacement, compatibility, options = {
   };
 }
 function exitStatusFor(result) {
+  if (result.exitCode !== undefined)
+    return result.exitCode;
   if (result.state === "failed")
     return 1;
   if (result.state === "action_required")
@@ -3710,7 +3713,7 @@ function legacyGlobalGuidanceDiagnostic(observation) {
       observation,
       finding: {
         code: "CODEX_LEGACY_GLOBAL_GUIDANCE_EXACT",
-        message: `The active Codex profile guidance at ${observation.path} is an exact historical Safe Word revision that references retired workflow paths.`,
+        message: `The active Codex profile guidance at ${observation.path} is an exact historical Safeword revision that references retired workflow paths.`,
         severity: "warning",
         metadata: { classification: "exact_legacy", disposition: "recoverable_cleanup" }
       },
@@ -3726,7 +3729,7 @@ function legacyGlobalGuidanceDiagnostic(observation) {
       observation,
       finding: {
         code: "CODEX_LEGACY_GLOBAL_GUIDANCE_SUSPECTED",
-        message: `The active Codex profile guidance at ${observation.path} resembles edited legacy Safe Word instructions. Review it manually; Safe Word will not modify it.`,
+        message: `The active Codex profile guidance at ${observation.path} resembles edited legacy Safeword instructions. Review it manually; Safeword will not modify it.`,
         severity: "warning",
         metadata: { classification: "suspected_legacy", disposition: "manual_review" }
       }
@@ -4607,9 +4610,9 @@ var init_historical_catalogue_generated = __esm(() => {
     schema_version: 1,
     current: {
       files: {
-        ".claude/agents/safeword-retro-filer.md": "0f4bc744e55e6e404dee4258b6180b111828ec833b66997ade79b0d159f7e8d4",
-        ".claude/agents/safeword-reviewer.md": "5cc17d5cec1a6df812770cf80667673279bf1acc1bb961ebe458f8c5b58bdc1a",
-        ".claude/skills/audit/SKILL.md": "784da329a70fe34b6e3a477b50caaee0d6bbfc1a3ed1d33b213fd9fb55346f4d",
+        ".claude/agents/safeword-retro-filer.md": "d897ee5de427ff715e4ffe3e7416bfb7bbf98cf3b5d0a41d2f12f1fc313fe668",
+        ".claude/agents/safeword-reviewer.md": "13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470",
+        ".claude/skills/audit/SKILL.md": "9da1c1379274ed239b02115bbb0e986c298a64dbf0a3109c8c878360a3318993",
         ".claude/skills/bdd/DISCOVERY.md": "c229895c53030b8f44ff563dd3728d8f4a4e4e593d8c29ae9349283ea25b5d91",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "bf1b303505bae2ea3c66b699cfe8f24614f4c1be63d1ac20ee4ddf5ec76a2916",
@@ -4624,21 +4627,21 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/debug/SKILL.md": "ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0",
         ".claude/skills/elicit/SKILL.md": "2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5",
         ".claude/skills/explain/SKILL.md": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d",
-        ".claude/skills/figure-it-out/SKILL.md": "4552275007b0161037a1791233722a89dac16f963f55aab80fc7a9b6b37f67d4",
-        ".claude/skills/finish-review/REVIEWER.md": "1fdbcc909088278f39f69bb77efe49cf422333210e5b393f3a2a247e898e7efa",
-        ".claude/skills/finish-review/SKILL.md": "09945ab0feae863101a31794a669b8d82fb8b08dafcd3cd990630a7916759768",
+        ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
+        ".claude/skills/finish-review/REVIEWER.md": "0ecee21a63f91e09d3136f62cf8f7590ba9a640b85cad7b7b35c1ae334ff43c2",
+        ".claude/skills/finish-review/SKILL.md": "8ff3fbeb2ba9eb6f9278bea718aacd747682dae4245bdb87356988c53611a69b",
         ".claude/skills/lint/SKILL.md": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66",
-        ".claude/skills/quality-review/SKILL.md": "c26985e7100390b7d79c569f71e15cf8223972dfac41b4527ccce0afccdebdec",
-        ".claude/skills/refactor/SKILL.md": "ecfd1b594e9a4c18387e6b9bc84a5bd1ded6b0b3df40a69271ba779ce2b7f122",
-        ".claude/skills/retro-filer/SKILL.md": "8e92f1a7579ba1dd70ced8e9815be0eeed3bc09d43c310a5646ff93c428412ff",
-        ".claude/skills/retro/SKILL.md": "8e7b5912810c1e0fe596ff2367b5bc7d3890bd86db5719f49e3c0227b0fdd44a",
-        ".claude/skills/review-spec/SKILL.md": "4188d2cf86c63c19622149eabbbd93391b6740b67735a8c0891df366accbc38d",
-        ".claude/skills/self-review/SKILL.md": "51bccc782884dc2ef6171465909df2726875bb308d0004fd2bbed13e51208ffc",
+        ".claude/skills/quality-review/SKILL.md": "5e0a2900bc8f3efbcf3f414c0ff5c4ccc74c0e37b403b0b704aef0b532aec87d",
+        ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
+        ".claude/skills/retro-filer/SKILL.md": "a4c12dcff328f6e9adb3569c81d2ebda4618aa842fa3bfe15c3c1a486164db02",
+        ".claude/skills/retro/SKILL.md": "166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379",
+        ".claude/skills/review-spec/SKILL.md": "aa03f01cb4e3f84e943e87d96678d6159aaef0b16dd998a24222ba2faf2ff330",
+        ".claude/skills/self-review/SKILL.md": "dcc667823790f18e1fa8cf35aaf10c40464664929c7bbb093531fd684f673e15",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "f49a7e07dea7a62f39e9919c0c4251ede4ec2dec72b9892e7e0c42205d510e6f",
         ".claude/skills/testing/SKILL.md": "697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9",
-        ".claude/skills/ticket-system/SKILL.md": "12798a8ebd1fb2bb65b4ee42fb3611d12f6817bc6cd27af829294ef31bfed27b",
-        ".claude/skills/verify/SKILL.md": "71a6236f9522df0ac6d9f6627d4b66e57dc5067d71c0b64cd66da2cdf5c2f24c"
+        ".claude/skills/ticket-system/SKILL.md": "1edd1d2c546dae594124c8846c43f78f81d4579370589eaf1476b894c0a9750e",
+        ".claude/skills/verify/SKILL.md": "df24deb0a9b4086e8da5f82f514e9d7f5ea22d4dcc0e6d432b80d7f8b47e3463"
       },
       hooks: {
         SessionStart: [
@@ -14593,7 +14596,7 @@ function cursorRuleSkillPairs() {
   }
   return [...skillRules].map(([skill, cursorRules]) => ({ skill, cursorRules }));
 }
-var CURSOR_ACTION_SKILLS, DEBUG_DESCRIPTION = "Four-phase debugging framework that ensures root cause identification before fixes. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').", REFACTOR_DESCRIPTION = "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change \u2192 test \u2192 commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.", CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS, SKILL_CURSOR_PAIRS;
+var CURSOR_ACTION_SKILLS, DEBUG_DESCRIPTION = "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').", REFACTOR_DESCRIPTION = "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change \u2192 test \u2192 commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.", CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS, SKILL_CURSOR_PAIRS;
 var init_cursor_wrappers = __esm(() => {
   CURSOR_ACTION_SKILLS = [
     "lint",
@@ -14620,12 +14623,12 @@ var init_cursor_wrappers = __esm(() => {
     },
     {
       name: "quality-review",
-      description: "Deep code review with web research. USE WHEN user says 'double check against latest', 'verify versions', 'check security'. Complements automatic quality hook with ecosystem verification.",
+      description: "Deep code review with web research. Use when the user says 'double check against latest', 'verify versions', or 'check security'. Adds live research on top of the automatic quality hook \u2014 confirms you're using current library versions and APIs, not stale ones.",
       skillPath: "quality-review/SKILL.md"
     },
     {
       name: "finish-review",
-      description: "Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.",
+      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
       skillPath: "finish-review/SKILL.md"
     },
     {
@@ -14635,7 +14638,7 @@ var init_cursor_wrappers = __esm(() => {
     },
     {
       name: "closeout",
-      description: "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session, merging with explicit authority, running retro, and cleaning the exact merged branch and worktree.",
+      description: "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session: merging only when you've been explicitly told to merge, running the retro, and cleaning up the exact merged branch and worktree.",
       skillPath: "closeout/SKILL.md"
     },
     {
@@ -14645,12 +14648,12 @@ var init_cursor_wrappers = __esm(() => {
     },
     {
       name: "retro",
-      description: 'Run a safeword retrospective on the current session on demand \u2014 mine the transcript for friction (bugs / rough edges / gaps) and file it behind the egress guard. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
+      description: 'Run a safeword retrospective on the current session on demand \u2014 mine the transcript for friction (bugs / rough edges / gaps) and submit it through the outbound safety check before filing upstream. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
       skillPath: "retro/SKILL.md"
     },
     {
       name: "spike",
-      description: "Run a bounded disposable experiment to resolve one build-only technical uncertainty before production planning. Manual invocation only.",
+      description: "Run a quick, throwaway experiment to answer one open technical question before committing to the real build. Only runs when you ask for it directly.",
       skillPath: "spike/SKILL.md"
     },
     {
@@ -14696,7 +14699,7 @@ var init_cursor_wrappers = __esm(() => {
     {
       name: "safeword-finish-review",
       alwaysApply: false,
-      description: "Internal continuation used only after the shared review coordinator returns REVIEW_ROUTES_EXHAUSTED. Not a user workflow.",
+      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
       referencePath: ".safeword/skills/finish-review/SKILL.md",
       skill: "finish-review"
     },
@@ -14739,7 +14742,7 @@ var init_cursor_wrappers = __esm(() => {
     {
       name: "safeword-retro-filer",
       alwaysApply: false,
-      description: "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+      description: "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
       referencePath: ".safeword/skills/retro-filer/SKILL.md",
       skill: "retro-filer"
     },
@@ -30563,7 +30566,7 @@ function observeCursorProject(cwd, schema) {
     findings: [
       {
         code: "CURSOR_ASSETS_MISSING",
-        message: `${missing.length} Safe Word-owned Cursor file(s) are missing; run \`safeword install --agents=cursor\`.`,
+        message: `${missing.length} Safeword-owned Cursor file(s) are missing; run \`safeword install --agents=cursor\`.`,
         severity: "warning"
       }
     ],
@@ -30586,7 +30589,7 @@ function unselectedCursorFinding(cwd, agents) {
   return [
     {
       code: "CURSOR_NOT_SELECTED",
-      message: "This project has Safe Word-owned Cursor assets that the current selection excludes; include `--agents=cursor` to keep them current.",
+      message: "This project has Safeword-owned Cursor assets that the current selection excludes; include `--agents=cursor` to keep them current.",
       severity: "info"
     }
   ];
@@ -32870,7 +32873,7 @@ function eventRemovalRanges(lines, start, end, event) {
     return [];
   const blocks = nestedStarts.map((nestedStart, index) => classifyHookBlock(lines, { start: nestedStart, end: nestedStarts[index + 1] ?? end }));
   if (blocks.some((block) => block.safeWordAmbiguous)) {
-    throw new Error("Legacy Safe Word hook cleanup found an ambiguous hook block; no changes were made.");
+    throw new Error("Legacy Safeword hook cleanup found an ambiguous hook block; no changes were made.");
   }
   const ownedBlocks = blocks.filter((block) => block.safeWordOwned);
   if (ownedBlocks.length === 0)
@@ -32954,7 +32957,7 @@ function prepareLegacyCodexHookBlocks(content) {
   }
   const lines = splitLines(content);
   if (!countsMatch(semanticLegacyCommandCounts(document2), sourceLegacyCommandCounts(lines))) {
-    throw new Error("Codex configuration uses unsupported Safe Word hook formatting; no legacy hooks were removed.");
+    throw new Error("Codex configuration uses unsupported Safeword hook formatting; no legacy hooks were removed.");
   }
   const ranges = removalRanges(lines);
   const removedBlocks = ranges.map((range) => lines.slice(range.start, range.end).join(""));
@@ -33125,7 +33128,7 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safe Word catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
+var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
@@ -33893,15 +33896,15 @@ function verifyCodexPluginIsEnabled(options = {}) {
   try {
     pluginList = run("codex", ["plugin", "list", "--json"]);
   } catch (error2) {
-    const prefix = options.installationCompleted === true ? "Plugin installation succeeded, but enablement is unknown" : "Could not verify the Safe Word Codex plugin";
+    const prefix = options.installationCompleted === true ? "Plugin installation succeeded, but enablement is unknown" : "Could not verify the Safeword Codex plugin";
     throw new CodexMigrationError(options.installationCompleted === true ? "PLUGIN_ENABLEMENT_UNKNOWN" : "PLUGIN_ENABLEMENT_FAILED", `${prefix}: ${String(error2)}`, { cause: error2 });
   }
   const plugin = pluginObservationFromList(pluginList);
   if (plugin.enabled !== true) {
-    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.");
+    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safeword plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.");
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
-    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`, { profileChanged: options.installationCompleted === true });
+    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", `Codex reported Safeword plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`, { profileChanged: options.installationCompleted === true });
   }
 }
 function pathExistsIncludingDanglingSymlink(path4) {
@@ -34068,8 +34071,8 @@ function installCodexPlugin(options = {}) {
     releaseCodexProfileLock(lock);
   }
   if (options.json !== true) {
-    success("Safe Word Codex plugin is enabled for this profile.");
-    info("This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.");
+    success("Safeword Codex plugin is enabled for this profile.");
+    info("This Codex app may keep its loaded Safeword catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safeword legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.");
   }
   if (options.reportMigrationState === true) {
     reportCodexMigration(cwd, {
@@ -34111,7 +34114,7 @@ function buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval) {
 `
   }, {
     path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
-    content: "---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n"
+    content: "---\nname: safeword-plugin-setup\ndescription: Restore the Safeword Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n"
   });
   return mutations;
 }
@@ -34238,7 +34241,7 @@ function reportCompletedFinalization(cwd, options) {
   if (options.json === true)
     reportCodexMigration(cwd, options);
   else
-    success("Safe Word Codex migration is already finalized.");
+    success("Safeword Codex migration is already finalized.");
 }
 function reportAppliedFinalization(cwd, input) {
   if (input.options.json === true) {
@@ -34250,7 +34253,7 @@ function reportAppliedFinalization(cwd, input) {
     return;
   }
   info("Backed up the complete legacy Codex state for conflict-safe recovery.");
-  info(input.removedLegacyHooks ? "Removed Safe Word legacy Codex project protection after the verified plugin handoff." : "No Safe Word legacy Codex hooks were found in this project.");
+  info(input.removedLegacyHooks ? "Removed Safeword legacy Codex project protection after the verified plugin handoff." : "No Safeword legacy Codex hooks were found in this project.");
 }
 function reportCodexWhen(enabled, report) {
   if (enabled)
@@ -34292,7 +34295,7 @@ async function removeLegacyCodexHooks(cwd = process.cwd(), options = {}) {
   run("codex", ["--version"]);
   verifyCodexPluginIsEnabled();
   reportCodexWhen(options.report !== false && options.json !== true, () => {
-    success("Safe Word Codex plugin is enabled for this profile.");
+    success("Safeword Codex plugin is enabled for this profile.");
   });
   assertCodexFinalizationPlanUnchanged(cwd, preparedLegacyHookRemoval, plannedMutations, plannedEffects, plannedInputs);
   applyCodexFinalization(cwd, plannedMutations);
@@ -34333,7 +34336,7 @@ function recoverCodexMigration(cwd = process.cwd(), options = {}) {
   if (options.json === true) {
     reportCodexMigration(cwd, { ...options, changed });
   } else {
-    success(changed ? "Restored the backed-up Safe Word legacy Codex project state." : "No Safe Word Codex migration recovery was needed.");
+    success(changed ? "Restored the backed-up Safeword legacy Codex project state." : "No Safeword Codex migration recovery was needed.");
   }
   return changed;
 }
@@ -40067,7 +40070,12 @@ function defaultIsToolAvailable(tool) {
   const fake = process11.env.SAFEWORD_FAKE_TOOLS;
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
-  return spawnSync6("command", ["-v", tool], { shell: true, stdio: "ignore" }).status === 0;
+  if (process11.platform === "win32") {
+    return spawnSync6("where.exe", [tool], { stdio: "ignore" }).status === 0;
+  }
+  return spawnSync6("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
+    stdio: "ignore"
+  }).status === 0;
 }
 function entry(language, cwd, command, runner, available) {
   return { language, cwd, command, runner, available };
@@ -40375,13 +40383,361 @@ var init_test_plan = __esm(() => {
   init_resolve();
 });
 
+// src/test-execution/config.ts
+import { spawnSync as spawnSync7 } from "child_process";
+import {
+  closeSync as closeSync3,
+  constants as constants2,
+  fstatSync,
+  lstatSync as lstatSync13,
+  openSync as openSync3,
+  readFileSync as readFileSync47,
+  realpathSync as realpathSync6
+} from "fs";
+import nodePath78 from "path";
+function isExecutionMode(value) {
+  return value === "local" || value === "remote-preferred";
+}
+function hasDuplicateJsonKeys(content) {
+  const keys = new Set;
+  const keyPattern = /("(?:\\.|[^"\\])*")\s*:/gu;
+  for (const match of content.matchAll(keyPattern)) {
+    const token = match[1];
+    if (token === undefined)
+      continue;
+    const key = JSON.parse(token);
+    if (keys.has(key))
+      return true;
+    keys.add(key);
+  }
+  return false;
+}
+function personalPath(cwd) {
+  const namespaceRoot = resolveNamespaceRoot(cwd);
+  return { namespaceRoot, path: nodePath78.join(namespaceRoot, "personal", "config.json") };
+}
+function validatePersonalFile(metadata, path4) {
+  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.nlink !== 1) {
+    return { path: path4, error: "must be a regular, unlinked file" };
+  }
+  return;
+}
+function validatePersonalDirectory(namespaceRoot, path4) {
+  const rootRealPath = realpathSync6(namespaceRoot);
+  const personalDirectoryRealPath = realpathSync6(nodePath78.dirname(path4));
+  if (personalDirectoryRealPath !== nodePath78.join(rootRealPath, "personal")) {
+    return { path: path4, error: "must remain inside the resolved namespace root" };
+  }
+  return;
+}
+function validateGitPrivacy(cwd, path4) {
+  const relativePath = nodePath78.relative(cwd, path4);
+  const ignored = spawnSync7("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
+    stdio: "ignore"
+  });
+  const tracked = spawnSync7("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], {
+    stdio: "ignore"
+  });
+  if (ignored.status !== 0 || tracked.status === 0) {
+    return { path: path4, error: "must be Git-ignored and untracked" };
+  }
+  return;
+}
+function readPersonalFile(path4) {
+  const noFollow = constants2.O_NOFOLLOW ?? 0;
+  const descriptor = openSync3(path4, constants2.O_RDONLY | noFollow);
+  try {
+    const fileError = validatePersonalFile(fstatSync(descriptor), path4);
+    if (fileError !== undefined)
+      return { error: fileError };
+    return { content: readFileSync47(descriptor, "utf8") };
+  } finally {
+    closeSync3(descriptor);
+  }
+}
+function parsePersonalPreference(content, path4) {
+  if (hasDuplicateJsonKeys(content))
+    return { path: path4, error: "contains duplicate JSON keys" };
+  const parsed2 = JSON.parse(content);
+  if (parsed2 === null || Array.isArray(parsed2) || typeof parsed2 !== "object") {
+    return { path: path4, error: "must be a JSON object" };
+  }
+  const record = parsed2;
+  if (Object.keys(record).length !== 2 || !Object.hasOwn(record, "schemaVersion") || !Object.hasOwn(record, "testExecution")) {
+    return { path: path4, error: "must contain only schemaVersion and testExecution" };
+  }
+  if (record.schemaVersion !== 1)
+    return { path: path4, error: "uses an unsupported schema version" };
+  if (!isExecutionMode(record.testExecution))
+    return { path: path4, error: "uses an unsupported execution mode" };
+  return { path: path4, mode: record.testExecution };
+}
+function readPersonalExecutionPreference(cwd) {
+  const { namespaceRoot, path: path4 } = personalPath(cwd);
+  try {
+    const metadata = lstatSync13(path4, { throwIfNoEntry: false });
+    if (metadata === undefined)
+      return { path: path4 };
+    const fileError = validatePersonalFile(metadata, path4);
+    if (fileError !== undefined)
+      return fileError;
+    const directoryError = validatePersonalDirectory(namespaceRoot, path4);
+    if (directoryError !== undefined)
+      return directoryError;
+    const privacyError = validateGitPrivacy(cwd, path4);
+    if (privacyError !== undefined)
+      return privacyError;
+    const opened = readPersonalFile(path4);
+    if (opened.error !== undefined)
+      return opened.error;
+    if (opened.content === undefined)
+      return { path: path4, error: "cannot be read" };
+    return parsePersonalPreference(opened.content, path4);
+  } catch {
+    return { path: path4, error: "cannot be read as personal test-execution configuration" };
+  }
+}
+function readProjectExecutionPreference(cwd) {
+  try {
+    const config = JSON.parse(readFileSync47(nodePath78.join(cwd, ".safeword", "config.json"), "utf8"));
+    return isExecutionMode(config.testExecution) ? config.testExecution : undefined;
+  } catch {
+    return;
+  }
+}
+var init_config4 = __esm(() => {
+  init_configured_paths();
+});
+
+// src/test-execution/mode.ts
+function resolveExecutionMode(input) {
+  if (input.command !== undefined)
+    return { mode: input.command, source: "command" };
+  if (input.personal !== undefined)
+    return { mode: input.personal, source: "personal" };
+  if (input.project !== undefined)
+    return { mode: input.project, source: "project" };
+  return { mode: "local", source: "built-in" };
+}
+
+// src/commands/test-execution.ts
+var exports_test_execution = {};
+__export(exports_test_execution, {
+  runProjectTests: () => runProjectTests,
+  observeTestExecutionStatus: () => observeTestExecutionStatus
+});
+import { spawnSync as spawnSync8 } from "child_process";
+import nodePath79 from "path";
+function shellInvocation(command) {
+  if (process.platform === "win32") {
+    return [process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", command]];
+  }
+  return ["/bin/sh", ["-c", command]];
+}
+function spawnPlanEntry(entry2, captureOutput) {
+  const [executable, arguments_] = shellInvocation(entry2.command);
+  return spawnSync8(executable, arguments_, {
+    cwd: entry2.cwd,
+    env: process.env,
+    encoding: "utf8",
+    stdio: captureOutput ? ["inherit", "pipe", "pipe"] : "inherit",
+    ...captureOutput && { maxBuffer: JSON_RUNNER_OUTPUT_LIMIT_BYTES }
+  });
+}
+function spawnErrorCode(error2) {
+  return "code" in error2 && typeof error2.code === "string" ? error2.code : "SPAWN_ERROR";
+}
+function executePlanEntry(entry2, delivery, previous) {
+  const captureOutput = delivery.json === true;
+  const result = spawnPlanEntry(entry2, captureOutput);
+  const execution = {
+    executed: previous.executed + 1,
+    ...captureOutput && {
+      childOutput: [
+        ...previous.childOutput ?? [],
+        { runner: entry2.runner, stdout: result.stdout ?? "", stderr: result.stderr ?? "" }
+      ]
+    }
+  };
+  if (result.error !== undefined) {
+    return {
+      ...execution,
+      failedRunner: entry2.runner,
+      childExit: result.status,
+      childError: { code: spawnErrorCode(result.error), message: result.error.message }
+    };
+  }
+  return result.status === 0 ? execution : { ...execution, failedRunner: entry2.runner, childExit: result.status };
+}
+function executePlan2(plan, delivery) {
+  let execution = { executed: 0 };
+  for (const entry2 of plan) {
+    if (!entry2.available)
+      continue;
+    execution = executePlanEntry(entry2, delivery, execution);
+    if (execution.failedRunner !== undefined)
+      return execution;
+  }
+  return execution;
+}
+function executionDecision(effective) {
+  const fallbackUsed = effective.mode === "remote-preferred" && !REMOTE_EXECUTION_AVAILABLE;
+  return {
+    fallbackUsed,
+    data: {
+      remote: { available: REMOTE_EXECUTION_AVAILABLE },
+      dispatch: { attempted: false },
+      fallback: {
+        used: fallbackUsed,
+        ...fallbackUsed && { execution: "local", reason: "remote-unavailable" }
+      }
+    }
+  };
+}
+function invalidExecutionRequest(message) {
+  return createResult({
+    state: "failed",
+    errors: [{ code: "SAFEWORD_TEST_EXECUTION_INVALID", message, retryable: false }]
+  });
+}
+function executionModeValues(value) {
+  if (value === undefined)
+    return [];
+  return Array.isArray(value) ? value : [value];
+}
+function parseExecutionRequest(options) {
+  const lane = options.lane ?? "done";
+  if (lane !== "done" && lane !== "full") {
+    return invalidExecutionRequest("Test lane must be done or full.");
+  }
+  const requestedModes = executionModeValues(options.execution);
+  if (requestedModes.length > 1) {
+    return invalidExecutionRequest("Execution mode may be specified only once.");
+  }
+  const commandMode = requestedModes[0];
+  if (commandMode !== undefined && commandMode !== "local" && commandMode !== "remote-preferred") {
+    return invalidExecutionRequest("Execution mode must be local or remote-preferred.");
+  }
+  return { lane, commandMode };
+}
+function runProjectTests(cwd, options, delivery = {}) {
+  const request = parseExecutionRequest(options);
+  if ("state" in request)
+    return request;
+  const { lane, commandMode } = request;
+  const personal = readPersonalExecutionPreference(cwd);
+  if (personal.error !== undefined) {
+    return invalidExecutionRequest(`Personal test-execution configuration at ${personal.path} ${personal.error}.`);
+  }
+  const project = readProjectExecutionPreference(cwd);
+  const effective = resolveExecutionMode({
+    command: commandMode,
+    personal: personal.mode,
+    project
+  });
+  const planKind = lane === "full" ? "verify" : "test";
+  const plan = resolveTestPlan(cwd, { kind: planKind });
+  const decision = executionDecision(effective);
+  const execution = executePlan2(plan, delivery);
+  if (execution.failedRunner !== undefined) {
+    const failureMessage = execution.childError === undefined ? `${execution.failedRunner} exited with status ${String(execution.childExit ?? "unknown")}.` : `${execution.failedRunner} could not complete (${execution.childError.code}): ${execution.childError.message}`;
+    return createResult({
+      state: "failed",
+      exitCode: execution.childExit ?? 1,
+      effects: TEST_COMMAND_EFFECTS,
+      errors: [
+        {
+          code: "SAFEWORD_TEST_EXECUTION_FAILED",
+          message: failureMessage,
+          retryable: false
+        }
+      ],
+      data: {
+        command: "project test",
+        lane,
+        effective,
+        ...decision.data,
+        planKind,
+        ...execution
+      }
+    });
+  }
+  return createResult({
+    state: "healthy",
+    effects: TEST_COMMAND_EFFECTS,
+    findings: [
+      {
+        code: "SAFEWORD_TEST_EXECUTION_SELECTED",
+        message: decision.fallbackUsed ? `Remote execution from ${effective.source} is unavailable; used the local plan before dispatch.` : `Test execution used ${effective.mode} mode from ${effective.source}.`,
+        severity: "info"
+      }
+    ],
+    data: {
+      command: "project test",
+      lane,
+      effective,
+      ...decision.data,
+      planKind,
+      ...execution
+    }
+  });
+}
+function observeTestExecutionStatus(cwd) {
+  const personal = readPersonalExecutionPreference(cwd);
+  if (personal.error !== undefined) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "SAFEWORD_TEST_EXECUTION_INVALID",
+          message: `Personal test-execution configuration at ${personal.path} ${personal.error}.`,
+          retryable: false
+        }
+      ]
+    });
+  }
+  const project = readProjectExecutionPreference(cwd);
+  const effective = resolveExecutionMode({ personal: personal.mode, project });
+  const personalOrigin = nodePath79.relative(cwd, personal.path);
+  return createResult({
+    state: "healthy",
+    data: {
+      command: "project test-execution status",
+      effective,
+      remote: { available: REMOTE_EXECUTION_AVAILABLE },
+      scopes: [
+        { source: "command", mode: "not applicable" },
+        { source: "personal", mode: personal.mode, path: personalOrigin },
+        { source: "project", mode: project, path: ".safeword/config.json" },
+        { source: "built-in", mode: "local" }
+      ]
+    }
+  });
+}
+var REMOTE_EXECUTION_AVAILABLE = false, JSON_RUNNER_OUTPUT_LIMIT_BYTES, TEST_COMMAND_EFFECTS;
+var init_test_execution = __esm(() => {
+  init_result();
+  init_config4();
+  init_resolve();
+  JSON_RUNNER_OUTPUT_LIMIT_BYTES = 16 * 1024 * 1024;
+  TEST_COMMAND_EFFECTS = {
+    network: [
+      {
+        kind: "repository-test-command",
+        target: "project-defined test plan",
+        operation: "execute with declared network access"
+      }
+    ]
+  };
+});
+
 // src/commands/lint-gherkin.ts
 var exports_lint_gherkin = {};
 __export(exports_lint_gherkin, {
   observeGherkinLint: () => observeGherkinLint
 });
-import { existsSync as existsSync42, readFileSync as readFileSync47 } from "fs";
-import nodePath78 from "path";
+import { existsSync as existsSync42, readFileSync as readFileSync48 } from "fs";
+import nodePath80 from "path";
 function observeGherkinLint(cwd, files) {
   const featureFiles = files.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files);
   const issues = featureFiles.flatMap((file) => lintFile(cwd, file));
@@ -40402,7 +40758,7 @@ function observeGherkinLint(cwd, files) {
   });
 }
 function resolveInputFiles(cwd, files) {
-  return files.map((file) => nodePath78.resolve(cwd, file));
+  return files.map((file) => nodePath80.resolve(cwd, file));
 }
 function discoverFeatureFiles(cwd) {
   return collectExecutableFeatureFiles(cwd);
@@ -40416,7 +40772,7 @@ function lintFile(cwd, filePath) {
       }
     ];
   }
-  const content = readFileSync47(filePath, "utf8");
+  const content = readFileSync48(filePath, "utf8");
   return findGherkinLintIssues(content, { filePath }).map((issue2) => ({
     code: `GHERKIN_${issue2.rule.toUpperCase().replaceAll("-", "_")}`,
     message: formatIssue(cwd, filePath, issue2)
@@ -40427,7 +40783,7 @@ function formatIssue(cwd, filePath, issue2) {
   return `${location}: ${issue2.message} [${issue2.rule}]`;
 }
 function formatPath(cwd, filePath) {
-  return nodePath78.relative(cwd, filePath) || nodePath78.basename(filePath);
+  return nodePath80.relative(cwd, filePath) || nodePath80.basename(filePath);
 }
 var init_lint_gherkin = __esm(() => {
   init_result();
@@ -40544,45 +40900,45 @@ var init_run_identity = __esm(() => {
 // src/review/packet.ts
 import { createHash as createHash18, randomUUID as randomUUID6 } from "crypto";
 import {
-  closeSync as closeSync3,
-  constants as constants2,
-  fstatSync,
-  lstatSync as lstatSync13,
+  closeSync as closeSync4,
+  constants as constants3,
+  fstatSync as fstatSync2,
+  lstatSync as lstatSync14,
   mkdirSync as mkdirSync12,
   mkdtempSync as mkdtempSync5,
-  openSync as openSync3,
+  openSync as openSync4,
   readdirSync as readdirSync28,
-  readFileSync as readFileSync48,
-  realpathSync as realpathSync6,
+  readFileSync as readFileSync49,
+  realpathSync as realpathSync7,
   rmSync as rmSync10,
   writeFileSync as writeFileSync18
 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
-import nodePath79 from "path";
+import nodePath81 from "path";
 function digest2(content) {
   return createHash18("sha256").update(content).digest("hex");
 }
 function fileDigest(path4) {
   try {
-    return digest2(readFileSync48(path4));
+    return digest2(readFileSync49(path4));
   } catch {
     return;
   }
 }
 function readContainedText(root, source, target) {
-  const descriptor = openSync3(source, constants2.O_RDONLY | (constants2.O_NOFOLLOW ?? 0));
+  const descriptor = openSync4(source, constants3.O_RDONLY | (constants3.O_NOFOLLOW ?? 0));
   try {
-    const opened = fstatSync(descriptor);
+    const opened = fstatSync2(descriptor);
     if (!opened.isFile())
       throw new Error(`Review target is not a regular file: ${target}`);
-    const resolved = realpathSync6(source);
+    const resolved = realpathSync7(source);
     if (escapes(root, resolved))
       throw new Error(`Review target escapes the project: ${target}`);
-    const observed = lstatSync13(resolved);
+    const observed = lstatSync14(resolved);
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
       throw new Error(`Review target changed while it was being captured: ${target}`);
     }
-    const bytes = readFileSync48(descriptor);
+    const bytes = readFileSync49(descriptor);
     let content;
     try {
       content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -40591,18 +40947,18 @@ function readContainedText(root, source, target) {
     }
     return { bytes, content };
   } finally {
-    closeSync3(descriptor);
+    closeSync4(descriptor);
   }
 }
 function escapes(root, candidate) {
-  const relative = nodePath79.relative(root, candidate);
-  return relative === ".." || relative.startsWith(`..${nodePath79.sep}`) || nodePath79.isAbsolute(relative);
+  const relative = nodePath81.relative(root, candidate);
+  return relative === ".." || relative.startsWith(`..${nodePath81.sep}`) || nodePath81.isAbsolute(relative);
 }
 function snapshotEntries(root, directory = root) {
   return readdirSync28(directory).flatMap((name) => {
-    const path4 = nodePath79.join(directory, name);
-    const relative = nodePath79.relative(root, path4);
-    const stats = lstatSync13(path4);
+    const path4 = nodePath81.join(directory, name);
+    const relative = nodePath81.relative(root, path4);
+    const stats = lstatSync14(path4);
     if (stats.isDirectory())
       return [`directory:${relative}`, ...snapshotEntries(root, path4)];
     if (stats.isFile())
@@ -40614,20 +40970,20 @@ function prepareReviewPacket(cwd, kind, targets) {
   if (targets.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
-  const workspace = mkdtempSync5(nodePath79.join(tmpdir3(), "safeword-review-"));
-  const canonicalRoot = realpathSync6(cwd);
+  const workspace = mkdtempSync5(nodePath81.join(tmpdir3(), "safeword-review-"));
+  const canonicalRoot = realpathSync7(cwd);
   const tracked = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
   try {
     let packetBytes = 0;
     logicalFiles = targets.map((target) => {
-      const source = nodePath79.resolve(cwd, target);
-      const relative = nodePath79.relative(cwd, source);
+      const source = nodePath81.resolve(cwd, target);
+      const relative = nodePath81.relative(cwd, source);
       if (escapes(cwd, source)) {
         throw new Error(`Review target escapes the project: ${target}`);
       }
-      const stats = lstatSync13(source);
+      const stats = lstatSync14(source);
       if (!stats.isFile() || stats.isSymbolicLink()) {
         throw new Error(`Review target is not a regular file: ${target}`);
       }
@@ -40640,13 +40996,13 @@ function prepareReviewPacket(cwd, kind, targets) {
       if (packetBytes > MAX_PACKET_BYTES) {
         throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
       }
-      const snapshot = nodePath79.join(workspace, relative);
-      mkdirSync12(nodePath79.dirname(snapshot), { recursive: true });
+      const snapshot = nodePath81.join(workspace, relative);
+      mkdirSync12(nodePath81.dirname(snapshot), { recursive: true });
       writeFileSync18(snapshot, bytes, { mode: 384 });
-      let parent = nodePath79.dirname(relative);
+      let parent = nodePath81.dirname(relative);
       while (parent !== ".") {
         expectedSnapshotEntries.add(`directory:${parent}`);
-        parent = nodePath79.dirname(parent);
+        parent = nodePath81.dirname(parent);
       }
       expectedSnapshotEntries.add(`file:${relative}`);
       tracked.push({ source, snapshot, sha256: digest2(bytes) });
@@ -40703,8 +41059,8 @@ var init_review_ledger = __esm(() => {
 });
 
 // src/review/policy.ts
-import { readFileSync as readFileSync49 } from "fs";
-import nodePath80 from "path";
+import { readFileSync as readFileSync50 } from "fs";
+import nodePath82 from "path";
 function oppositeReviewPair(author) {
   if (author === "claude")
     return { author, reviewer: "codex" };
@@ -40721,7 +41077,7 @@ function readAlternateReviewerModel(cwd, reviewer) {
 }
 function readConfiguredAlternateModel(cwd, reviewer) {
   try {
-    const raw = JSON.parse(readFileSync49(nodePath80.join(cwd, ".safeword", "config.json"), "utf8"));
+    const raw = JSON.parse(readFileSync50(nodePath82.join(cwd, ".safeword", "config.json"), "utf8"));
     if (typeof raw !== "object" || raw === null)
       return;
     const models = raw.crossAgentReviewAlternateModel;
@@ -40735,7 +41091,7 @@ function readConfiguredAlternateModel(cwd, reviewer) {
 }
 function readReviewPolicy(cwd) {
   try {
-    const raw = readFileSync49(nodePath80.join(cwd, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync50(nodePath82.join(cwd, ".safeword", "config.json"), "utf8");
     return readCrossAgentReviewPolicy(raw);
   } catch {
     return "prefer";
@@ -40807,9 +41163,9 @@ var init_environment = __esm(() => {
 
 // src/review/runtime.ts
 import { spawn } from "child_process";
-import { accessSync as accessSync2, constants as constants3, mkdtempSync as mkdtempSync6, realpathSync as realpathSync7, rmSync as rmSync11, writeFileSync as writeFileSync19 } from "fs";
+import { accessSync as accessSync2, constants as constants4, mkdtempSync as mkdtempSync6, realpathSync as realpathSync8, rmSync as rmSync11, writeFileSync as writeFileSync19 } from "fs";
 import { tmpdir as tmpdir4 } from "os";
-import nodePath81 from "path";
+import nodePath83 from "path";
 function reviewerArguments(reviewer, model, schemaPath) {
   const base = [...ARGUMENTS[reviewer]];
   const extra = [];
@@ -40909,14 +41265,14 @@ function reviewPrompt(reviewer, packet) {
 `);
 }
 function inside(root, candidate) {
-  const relative = nodePath81.relative(root, candidate);
-  return relative === "" || !nodePath81.isAbsolute(relative) && !relative.startsWith(`..${nodePath81.sep}`) && relative !== "..";
+  const relative = nodePath83.relative(root, candidate);
+  return relative === "" || !nodePath83.isAbsolute(relative) && !relative.startsWith(`..${nodePath83.sep}`) && relative !== "..";
 }
 function outsideUntrustedRoot(root, candidate) {
   if (inside(root, candidate))
     return false;
   try {
-    return !inside(root, realpathSync7(candidate));
+    return !inside(root, realpathSync8(candidate));
   } catch {
     return false;
   }
@@ -40930,15 +41286,15 @@ function remainingReviewTime(deadline, reviewer, lastFailure) {
 }
 function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
-  const candidates = (process.env.PATH ?? "").split(nodePath81.delimiter).filter((directory) => directory !== "" && nodePath81.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath81.join(directory, `${reviewer}${extension}`)));
+  const candidates = (process.env.PATH ?? "").split(nodePath83.delimiter).filter((directory) => directory !== "" && nodePath83.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath83.join(directory, `${reviewer}${extension}`)));
   const canonicalCandidates = candidates.flatMap((candidate) => {
     if (inside(untrustedRoot, candidate))
       return [];
     try {
-      const canonical = realpathSync7(candidate);
+      const canonical = realpathSync8(candidate);
       if (!outsideUntrustedRoot(untrustedRoot, canonical))
         return [];
-      accessSync2(canonical, constants3.X_OK);
+      accessSync2(canonical, constants4.X_OK);
       return [canonical];
     } catch {
       return [];
@@ -41220,8 +41576,8 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   }
 }
 function writeContractFile() {
-  const directory = mkdtempSync6(nodePath81.join(tmpdir4(), "safeword-review-contract-"));
-  const path4 = nodePath81.join(directory, "review-result.schema.json");
+  const directory = mkdtempSync6(nodePath83.join(tmpdir4(), "safeword-review-contract-"));
+  const path4 = nodePath83.join(directory, "review-result.schema.json");
   writeFileSync19(path4, REVIEW_OUTPUT_SCHEMA, { mode: 384 });
   return {
     path: path4,
@@ -42183,8 +42539,8 @@ var exports_review_pr = {};
 __export(exports_review_pr, {
   inspectPullRequestCommand: () => inspectPullRequestCommand
 });
-import { readFileSync as readFileSync50, writeFileSync as writeFileSync20 } from "fs";
-import nodePath82 from "path";
+import { readFileSync as readFileSync51, writeFileSync as writeFileSync20 } from "fs";
+import nodePath84 from "path";
 import process12 from "process";
 function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -42201,7 +42557,7 @@ function hasValidInputEnvelope(raw) {
   return raw.schemaVersion === 1 && validHead && validState && Array.isArray(raw.artifacts) && Array.isArray(raw.checks) && Array.isArray(raw.statuses) && typeof raw.markerReceiptExists === "boolean";
 }
 function parseConfig(cwd) {
-  const raw = JSON.parse(readFileSync50(nodePath82.join(cwd, ".safeword", "config.json"), "utf8"));
+  const raw = JSON.parse(readFileSync51(nodePath84.join(cwd, ".safeword", "config.json"), "utf8"));
   if (!isRecord5(raw) || !isRecord5(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
@@ -42212,7 +42568,7 @@ function parseConfig(cwd) {
   return config;
 }
 function parseInput(inputPath) {
-  const raw = JSON.parse(readFileSync50(inputPath, "utf8"));
+  const raw = JSON.parse(readFileSync51(inputPath, "utf8"));
   if (!isRecord5(raw) || !hasValidInputEnvelope(raw)) {
     throw new Error("review-pr: invalid inspection input");
   }
@@ -42541,7 +42897,7 @@ __export(exports_review_pr_publication, {
   invalidatePullRequestCommand: () => invalidatePullRequestCommand,
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
 });
-import { readFileSync as readFileSync51 } from "fs";
+import { readFileSync as readFileSync52 } from "fs";
 import process13 from "process";
 function isRecord6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -42630,7 +42986,7 @@ function hasConsistentRoute(receipt) {
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path4) {
-  const value = JSON.parse(readFileSync51(path4, "utf8"));
+  const value = JSON.parse(readFileSync52(path4, "utf8"));
   if (!isRecord6(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
@@ -42933,13 +43289,13 @@ var init_codex_bootstrap = __esm(() => {
 });
 
 // templates/hooks/lib/dogfood.ts
-import { existsSync as existsSync43, readFileSync as readFileSync52 } from "fs";
-import nodePath83 from "path";
+import { existsSync as existsSync43, readFileSync as readFileSync53 } from "fs";
+import nodePath85 from "path";
 function isDogfoodRepo(projectDirectory) {
-  if (existsSync43(nodePath83.join(projectDirectory, "packages", "cli", "templates")))
+  if (existsSync43(nodePath85.join(projectDirectory, "packages", "cli", "templates")))
     return true;
   try {
-    const pkg2 = JSON.parse(readFileSync52(nodePath83.join(projectDirectory, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync53(nodePath85.join(projectDirectory, "package.json"), "utf8"));
     return pkg2.name === "safeword";
   } catch {
     return false;
@@ -42949,7 +43305,7 @@ var init_dogfood = () => {};
 
 // templates/hooks/lib/retro-debug.ts
 import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync13 } from "fs";
-import nodePath84 from "path";
+import nodePath86 from "path";
 import process14 from "process";
 function sanitizeDebugValue(key, value) {
   if (value === undefined)
@@ -42984,7 +43340,7 @@ function recordRetroDebugEvent(event, env = process14.env) {
   if (!logPath)
     return;
   try {
-    mkdirSync13(nodePath84.dirname(logPath), { recursive: true });
+    mkdirSync13(nodePath86.dirname(logPath), { recursive: true });
     appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
 `);
   } catch {}
@@ -43011,12 +43367,12 @@ __export(exports_retro_draft_spool, {
   ackFilePath: () => ackFilePath
 });
 import { createHash as createHash19 } from "crypto";
-import nodePath85 from "path";
+import nodePath87 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
 }
 function draftSpoolPath(projectDirectory, sessionId) {
-  return nodePath85.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+  return nodePath87.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
 }
 function spoolSiblingPath(projectDirectory, sessionId, suffix) {
   const spool = draftSpoolPath(projectDirectory, sessionId);
@@ -43144,7 +43500,7 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl";
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
-  SPOOL_DIR = nodePath85.join(".safeword", "retro-drafts");
+  SPOOL_DIR = nodePath87.join(".safeword", "retro-drafts");
 });
 
 // templates/hooks/lib/retro-extract.ts
@@ -43174,8 +43530,8 @@ __export(exports_retro_extract, {
   DEFAULT_CLAUDE_RETRO_MODEL: () => DEFAULT_CLAUDE_RETRO_MODEL,
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
-import { readFileSync as readFileSync53, writeFileSync as writeFileSync21 } from "fs";
-import nodePath86 from "path";
+import { readFileSync as readFileSync54, writeFileSync as writeFileSync21 } from "fs";
+import nodePath88 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
     return DEFAULT_CODEX_RETRO_MODEL;
@@ -43185,7 +43541,7 @@ function defaultRetroModel(agent) {
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
-    const raw = readFileSync53(nodePath86.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync54(nodePath88.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const model = parsed2.retro?.model;
     return typeof model === "string" && model.length > 0 ? model : defaultRetroModel(agent);
@@ -43345,10 +43701,10 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
     const digest3 = buildDigest(transcript);
     if (digest3.trim() === "")
       return { ok: false, failureReason: "empty_digest", findings: [] };
-    const schemaPath = dependencies.schemaPath ?? nodePath86.join(dependencies.cwd, "schema.json");
-    const outputPath = dependencies.outputPath ?? nodePath86.join(dependencies.cwd, "output.json");
+    const schemaPath = dependencies.schemaPath ?? nodePath88.join(dependencies.cwd, "schema.json");
+    const outputPath = dependencies.outputPath ?? nodePath88.join(dependencies.cwd, "output.json");
     const writeFile2 = dependencies.writeFile ?? writeFileSync21;
-    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync53(path4, "utf8"));
+    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync54(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
     const argv = buildCodexExtractArgv({
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
@@ -51678,17 +52034,17 @@ __export(exports_retro, {
   buildProvenanceResolver: () => buildProvenanceResolver,
   buildAutoExtractor: () => buildAutoExtractor
 });
-import { spawnSync as spawnSync7 } from "child_process";
+import { spawnSync as spawnSync9 } from "child_process";
 import {
   mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync7,
-  readFileSync as readFileSync54,
-  realpathSync as realpathSync8,
+  readFileSync as readFileSync55,
+  realpathSync as realpathSync9,
   statSync as statSync6,
   writeFileSync as writeFileSync22
 } from "fs";
 import { tmpdir as tmpdir5 } from "os";
-import nodePath87 from "path";
+import nodePath89 from "path";
 import process17 from "process";
 function buildProvenanceResolver(options) {
   return () => {
@@ -51812,7 +52168,7 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const read = dependencies.readFile ?? ((path7) => readFileSync54(path7, "utf8"));
+  const read = dependencies.readFile ?? ((path7) => readFileSync55(path7, "utf8"));
   let transcript;
   try {
     transcript = read(options.transcript);
@@ -51835,7 +52191,7 @@ async function runRetro(options, dependencies) {
       sessionId,
       draftsPassed: drafts.length,
       skippedAppend: drafts.length === 0,
-      spoolFile: nodePath87.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
+      spoolFile: nodePath89.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
     });
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
@@ -51868,7 +52224,7 @@ function headlessEnvironment(environment) {
   }));
 }
 function spawnClaudeExtractor(argv, spawnOptions) {
-  const result = spawnSync7("claude", argv, {
+  const result = spawnSync9("claude", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -51878,7 +52234,7 @@ function spawnClaudeExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function spawnCodexExtractor(argv, spawnOptions) {
-  const result = spawnSync7("codex", argv, {
+  const result = spawnSync9("codex", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     stdio: spawnOptions.stdio,
@@ -51887,7 +52243,7 @@ function spawnCodexExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: "" });
 }
 function spawnCursorExtractor(argv, spawnOptions) {
-  const result = spawnSync7("cursor-agent", argv, {
+  const result = spawnSync9("cursor-agent", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -51897,16 +52253,16 @@ function spawnCursorExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function prepareCursorExtractionDirectory(directory) {
-  const gitInit = spawnSync7("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
+  const gitInit = spawnSync9("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
-  const cursorDirectory = nodePath87.join(directory, ".cursor");
+  const cursorDirectory = nodePath89.join(directory, ".cursor");
   mkdirSync14(cursorDirectory, { recursive: true });
-  writeFileSync22(nodePath87.join(cursorDirectory, "cli.json"), JSON.stringify({
+  writeFileSync22(nodePath89.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
   }));
-  writeFileSync22(nodePath87.join(cursorDirectory, "sandbox.json"), JSON.stringify({
+  writeFileSync22(nodePath89.join(cursorDirectory, "sandbox.json"), JSON.stringify({
     type: "workspace_readwrite",
     disableTmpWrite: true,
     networkPolicy: { default: "deny", allow: [] }
@@ -51924,7 +52280,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
   const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
-  const workDirectory = mkdtempSync7(nodePath87.join(tmpdir5(), "safeword-retro-"));
+  const workDirectory = mkdtempSync7(nodePath89.join(tmpdir5(), "safeword-retro-"));
   if (agent === "codex") {
     return async (transcript) => {
       const result = await runCodexHeadlessExtractionChecked2(transcript, {
@@ -51932,12 +52288,12 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
         writeFile: (path7, content) => {
           writeFileSync22(path7, content);
         },
-        readFile: (path7) => readFileSync54(path7, "utf8"),
+        readFile: (path7) => readFileSync55(path7, "utf8"),
         env: headlessEnvironment(process17.env),
         cwd: workDirectory,
         model,
-        schemaPath: nodePath87.join(workDirectory, "schema.json"),
-        outputPath: nodePath87.join(workDirectory, "output.json")
+        schemaPath: nodePath89.join(workDirectory, "schema.json"),
+        outputPath: nodePath89.join(workDirectory, "output.json")
       });
       recordRetroDebugEvent({
         event: "retro_cli_extraction",
@@ -51976,7 +52332,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
     const result = await runHeadlessExtractionChecked2(transcript, {
       spawn: spawnClaude,
       writeDigest: (digest4) => {
-        const path7 = nodePath87.join(workDirectory, "digest.txt");
+        const path7 = nodePath89.join(workDirectory, "digest.txt");
         writeFileSync22(path7, digest4);
         return path7;
       },
@@ -52027,10 +52383,10 @@ function unavailableTransport() {
 }
 function physicalProjectPath(projectDirectory) {
   try {
-    return realpathSync8(projectDirectory);
+    return realpathSync9(projectDirectory);
   } catch {
     try {
-      return nodePath87.join(realpathSync8(nodePath87.dirname(projectDirectory)), nodePath87.basename(projectDirectory));
+      return nodePath89.join(realpathSync9(nodePath89.dirname(projectDirectory)), nodePath89.basename(projectDirectory));
     } catch {
       return;
     }
@@ -52038,23 +52394,23 @@ function physicalProjectPath(projectDirectory) {
 }
 function physicalOutboxPath(outboxDirectory) {
   try {
-    const physicalOutbox = realpathSync8(outboxDirectory);
+    const physicalOutbox = realpathSync9(outboxDirectory);
     return statSync6(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
   }
 }
 function isOutsideProject(projectDirectory, outboxDirectory) {
-  const relative = nodePath87.relative(projectDirectory, outboxDirectory);
-  return relative === ".." || relative.startsWith(`..${nodePath87.sep}`);
+  const relative = nodePath89.relative(projectDirectory, outboxDirectory);
+  return relative === ".." || relative.startsWith(`..${nodePath89.sep}`);
 }
 function resolveRelayOutboxDirectory(projectDirectory, configuredDirectory) {
   const configured = configuredDirectory?.trim();
-  if (configured === undefined || configured.length === 0 || !nodePath87.isAbsolute(configured)) {
+  if (configured === undefined || configured.length === 0 || !nodePath89.isAbsolute(configured)) {
     return;
   }
-  const resolved = nodePath87.resolve(configured);
-  if (resolved === nodePath87.parse(resolved).root)
+  const resolved = nodePath89.resolve(configured);
+  if (resolved === nodePath89.parse(resolved).root)
     return;
   const physicalProject = physicalProjectPath(projectDirectory);
   if (physicalProject === undefined)
@@ -52185,7 +52541,7 @@ async function executeRetroWithDependencies(options, dependencies) {
     extract: dependencies.extract,
     harness: dependencies.harness,
     projectDirectory: dependencies.projectDirectory,
-    readFile: (path7) => readFileSync54(path7, "utf8"),
+    readFile: (path7) => readFileSync55(path7, "utf8"),
     ...relay !== undefined && { relay },
     resolveProvenance: dependencies.resolveProvenance,
     sessionId: dependencies.sessionId,
@@ -52378,7 +52734,7 @@ async function executeRetroCliCommand(options, cwd) {
     sessionId: options.sessionId ?? process17.env.CLAUDE_SESSION_ID ?? options.transcript ?? "unknown",
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
-      runGit: () => spawnSync7("git", ["rev-parse", "--short", "HEAD"], {
+      runGit: () => spawnSync9("git", ["rev-parse", "--short", "HEAD"], {
         cwd: projectDirectory,
         encoding: "utf8",
         timeout: 1e4
@@ -52403,7 +52759,7 @@ async function retroCommand(options) {
 }
 function readFindings(path7) {
   try {
-    const parsed2 = JSON.parse(readFileSync54(path7, "utf8"));
+    const parsed2 = JSON.parse(readFileSync55(path7, "utf8"));
     return Array.isArray(parsed2) ? parsed2 : [];
   } catch {
     return [];
@@ -52995,7 +53351,7 @@ __export(exports_boundary, {
 });
 import { execFileSync as execFileSync8 } from "child_process";
 import { appendFileSync as appendFileSync3, existsSync as existsSync45, mkdirSync as mkdirSync15 } from "fs";
-import nodePath90 from "path";
+import nodePath92 from "path";
 import process20 from "process";
 function tryGit(cwd, args) {
   try {
@@ -53074,10 +53430,10 @@ function collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures) 
     byTicket.set(ticketPath, change);
   }
   for (const change of byTicket.values()) {
-    const folder = nodePath90.join(cwd, change.anchorScope.ticketPath);
+    const folder = nodePath92.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find((a) => a.artifact === "ticket.md")?.proposed;
-    change.ticketCurrent = staged ?? readFileSafe(nodePath90.join(folder, "ticket.md"));
-    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync45(nodePath90.join(folder, "test-definitions.md"));
+    change.ticketCurrent = staged ?? readFileSafe(nodePath92.join(folder, "ticket.md"));
+    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync45(nodePath92.join(folder, "test-definitions.md"));
     if (at === "push" && change.artifacts.some((a) => a.artifact === "ticket.md")) {
       const path7 = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path7, range.priorRef);
@@ -53095,8 +53451,8 @@ function legalityStepsFor(cwd, path7, priorReference) {
   }));
 }
 function appendAudit(cwd, entry2) {
-  const auditPath = nodePath90.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync15(nodePath90.dirname(auditPath), { recursive: true });
+  const auditPath = nodePath92.join(cwd, AUDIT_RELATIVE_PATH);
+  mkdirSync15(nodePath92.dirname(auditPath), { recursive: true });
   appendFileSync3(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -53140,7 +53496,7 @@ function boundary(options) {
   try {
     const at = options.at === "push" ? "push" : "commit";
     const cwd = process20.cwd();
-    if (existsSync45(nodePath90.join(cwd, ".safeword"))) {
+    if (existsSync45(nodePath92.join(cwd, ".safeword"))) {
       reconcileBoundary(cwd, at);
     }
   } catch (error2) {
@@ -53155,7 +53511,7 @@ var init_boundary = __esm(() => {
   init_configured_paths();
   init_feature_source();
   init_fs();
-  AUDIT_RELATIVE_PATH = nodePath90.join(".safeword", "boundary-audit.jsonl");
+  AUDIT_RELATIVE_PATH = nodePath92.join(".safeword", "boundary-audit.jsonl");
 });
 
 // src/commands/codex-hook.ts
@@ -53165,19 +53521,19 @@ __export(exports_codex_hook, {
   normalizeNamespaceRootLabel: () => normalizeNamespaceRootLabel,
   codexHook: () => codexHook
 });
-import { execFileSync as execFileSync9, spawnSync as spawnSync8 } from "child_process";
+import { execFileSync as execFileSync9, spawnSync as spawnSync10 } from "child_process";
 import {
   cpSync,
   existsSync as existsSync46,
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync8,
-  readFileSync as readFileSync56,
+  readFileSync as readFileSync57,
   renameSync as renameSync7,
   rmSync as rmSync12,
   writeFileSync as writeFileSync23
 } from "fs";
 import { tmpdir as tmpdir6 } from "os";
-import nodePath91 from "path";
+import nodePath93 from "path";
 import process21 from "process";
 async function readStdin() {
   stdinCache.body ??= (async () => {
@@ -53266,8 +53622,8 @@ function writeCodexIdentityCache(input) {
   if (!sessionId || !skillName)
     return;
   try {
-    const cachePath = nodePath91.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync16(nodePath91.dirname(cachePath), { recursive: true });
+    const cachePath = nodePath93.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
+    mkdirSync16(nodePath93.dirname(cachePath), { recursive: true });
     writeFileSync23(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
@@ -53361,21 +53717,21 @@ function readPackagedSafewordInstructions() {
   if (!instructionsPath)
     return;
   return [
-    "Current Safe Word authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
-    "These current paths supersede retired Safe Word instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
+    "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
+    "These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
     "",
-    readFileSync56(instructionsPath, "utf8")
+    readFileSync57(instructionsPath, "utf8")
   ].join(`
 `);
 }
 function findPackagedTemplate(relativePath) {
-  return TEMPLATE_DIRECTORIES.map((directory) => nodePath91.join(directory, relativePath)).find((candidate) => existsSync46(candidate));
+  return TEMPLATE_DIRECTORIES.map((directory) => nodePath93.join(directory, relativePath)).find((candidate) => existsSync46(candidate));
 }
 function resolvePackagedHook(relativePath) {
-  return findPackagedTemplate(nodePath91.join("hooks", relativePath));
+  return findPackagedTemplate(nodePath93.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
-  const result = spawnSync8("bun", [hookPath], {
+  const result = spawnSync10("bun", [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",
@@ -53399,13 +53755,13 @@ function normalizeNamespaceRootLabel(label) {
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
 }
 function packagedNamespaceRootLabel(projectDirectory) {
-  return normalizeNamespaceRootLabel(nodePath91.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
+  return normalizeNamespaceRootLabel(nodePath93.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
 }
 function runPackagedHook(relativePath, rawInput, projectDirectory) {
   const hookPath = resolvePackagedHook(relativePath);
   if (!hookPath) {
     return {
-      error: new Error(`Safe Word packaged hook is missing: ${relativePath}`),
+      error: new Error(`Safeword packaged hook is missing: ${relativePath}`),
       stderr: "",
       stdout: ""
     };
@@ -53414,10 +53770,10 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync8(nodePath91.join(tmpdir6(), "safeword-codex-hook-"));
-      cpSync(nodePath91.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync23(nodePath91.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
-      executableHookPath = nodePath91.join(temporaryHookDirectory, nodePath91.basename(hookPath));
+      temporaryHookDirectory = mkdtempSync8(nodePath93.join(tmpdir6(), "safeword-codex-hook-"));
+      cpSync(nodePath93.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync23(nodePath93.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      executableHookPath = nodePath93.join(temporaryHookDirectory, nodePath93.basename(hookPath));
     }
     const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
@@ -53429,16 +53785,16 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
 function snapshotPackagedHook(relativePath) {
   const packagedHooksDirectory = findPackagedTemplate("hooks");
   if (!packagedHooksDirectory) {
-    return { error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+    return { error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   }
-  const directory = mkdtempSync8(nodePath91.join(tmpdir6(), `safeword-codex-hook-snapshot-${process21.pid}-`));
-  const stagingHooksDirectory = nodePath91.join(directory, "hooks-copying");
-  const snapshotHooksDirectory = nodePath91.join(directory, "hooks");
+  const directory = mkdtempSync8(nodePath93.join(tmpdir6(), `safeword-codex-hook-snapshot-${process21.pid}-`));
+  const stagingHooksDirectory = nodePath93.join(directory, "hooks-copying");
+  const snapshotHooksDirectory = nodePath93.join(directory, "hooks");
   try {
     cpSync(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
     renameSync7(stagingHooksDirectory, snapshotHooksDirectory);
-    const hookPath = nodePath91.join(snapshotHooksDirectory, relativePath);
-    return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+    const hookPath = nodePath93.join(snapshotHooksDirectory, relativePath);
+    return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
     return {
       directory,
@@ -53451,7 +53807,7 @@ function hookFailureDetail(result) {
 }
 function denyForPackagedHookFailure(result) {
   const detail = hookFailureDetail(result);
-  process21.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}
+  process21.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}
 `);
   process21.exit(2);
 }
@@ -53464,8 +53820,8 @@ function emitPackagedPreToolResult(result) {
   return true;
 }
 function readProjectTextFile(projectDirectory, relativePath) {
-  const filePath = nodePath91.join(projectDirectory, relativePath);
-  return existsSync46(filePath) ? readFileSync56(filePath, "utf8") : undefined;
+  const filePath = nodePath93.join(projectDirectory, relativePath);
+  return existsSync46(filePath) ? readFileSync57(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process21.stdout.write(`${JSON.stringify(output)}
@@ -53512,8 +53868,8 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath91.join(projectDirectory, ".project/tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync46(ticketPath) ? readFileSync56(ticketPath, "utf8") : "";
+  const ticketPath = nodePath93.join(projectDirectory, ".project/tickets", ticketFolder, "ticket.md");
+  const ticketContent = existsSync46(ticketPath) ? readFileSync57(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -53578,7 +53934,7 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
   if (input?.tool_name !== "apply_patch")
     return [rawInput];
   return extractTargetPaths(input).map((filePath) => JSON.stringify({
-    tool_input: { file_path: nodePath91.resolve(projectDirectory, filePath) }
+    tool_input: { file_path: nodePath93.resolve(projectDirectory, filePath) }
   }));
 }
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
@@ -53672,7 +54028,7 @@ async function runStop() {
 async function codexHook(event, options = {}) {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) {
-    process21.stderr.write(`Safe Word ignored unknown Codex hook event: ${event}
+    process21.stderr.write(`Safeword ignored unknown Codex hook event: ${event}
 `);
     return;
   }
@@ -53700,8 +54056,8 @@ var init_codex_hook = __esm(() => {
   REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
-    nodePath91.resolve(MODULE_DIRECTORY, "../templates"),
-    nodePath91.resolve(MODULE_DIRECTORY, "../../templates")
+    nodePath93.resolve(MODULE_DIRECTORY, "../templates"),
+    nodePath93.resolve(MODULE_DIRECTORY, "../../templates")
   ];
   SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
   SHELL_WHITESPACE = [" ", `
@@ -55823,8 +56179,8 @@ init_agent_selection();
 init_migration_error();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync44, lstatSync as lstatSync14, readFileSync as readFileSync55, readlinkSync as readlinkSync4 } from "fs";
-import nodePath88 from "path";
+import { existsSync as existsSync44, lstatSync as lstatSync15, readFileSync as readFileSync56, readlinkSync as readlinkSync4 } from "fs";
+import nodePath90 from "path";
 
 // src/cli-protocol/option-values.ts
 function stringOption(options, name) {
@@ -56195,7 +56551,7 @@ async function uninstallHandler(invocation) {
   return uninstallLifecycle2(invocation);
 }
 async function syncConfigHandler(invocation) {
-  const safewordDirectory = nodePath88.join(invocation.cwd, ".safeword");
+  const safewordDirectory = nodePath90.join(invocation.cwd, ".safeword");
   if (!existsSync44(safewordDirectory))
     return notConfigured("project sync-config");
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
@@ -56203,7 +56559,7 @@ async function syncConfigHandler(invocation) {
   const before = inspectConfig2(invocation.cwd, architecture2);
   if (invocation.options.check === true)
     return configCheckResult(before);
-  if (before.matches && existsSync44(nodePath88.join(invocation.cwd, ".dependency-cruiser.cjs"))) {
+  if (before.matches && existsSync44(nodePath90.join(invocation.cwd, ".dependency-cruiser.cjs"))) {
     return createResult({
       state: "healthy",
       data: { command: "project sync-config", in_sync: true }
@@ -56281,7 +56637,7 @@ function architectureModeResult(input) {
       files: [
         ...changed.map((result) => ({
           kind: result.action === "created" ? "create" : "update",
-          target: nodePath88.relative(input.cwd, result.path)
+          target: nodePath90.relative(input.cwd, result.path)
         })),
         ...input.stagedPaths.map((target) => ({ kind: "stage", target, operation: "stage" }))
       ]
@@ -56408,7 +56764,7 @@ function healedDocumentFindings(cwd, changed) {
       }
     ];
   }
-  const healed = changed.map((result) => nodePath88.relative(cwd, result.path)).join(", ");
+  const healed = changed.map((result) => nodePath90.relative(cwd, result.path)).join(", ");
   return [
     {
       code: "ARCHITECTURE_REFRESHED",
@@ -56430,7 +56786,7 @@ function architectureHealResult(input) {
       files: [
         ...input.changed.map((result) => ({
           kind: result.action === "created" ? "create" : "update",
-          target: nodePath88.relative(input.cwd, result.path)
+          target: nodePath90.relative(input.cwd, result.path)
         })),
         ...input.staged.map((effect) => ({ ...effect, operation: "stage" }))
       ]
@@ -56471,7 +56827,7 @@ async function syncLearningsHandler(invocation) {
       files: result.wrote ? [
         {
           kind: "write",
-          target: nodePath88.relative(invocation.cwd, result.indexPath)
+          target: nodePath90.relative(invocation.cwd, result.indexPath)
         }
       ] : []
     },
@@ -56491,7 +56847,7 @@ async function syncTicketsHandler(invocation) {
     effects: {
       files: result.wrote ? [result.indexPath, result.completedIndexPath].map((target) => ({
         kind: "write",
-        target: nodePath88.relative(invocation.cwd, target)
+        target: nodePath90.relative(invocation.cwd, target)
       })) : []
     },
     findings: result.skipped.map((skip) => ({
@@ -56531,6 +56887,16 @@ function withLegacyRawJsonGuidance(result, options, command) {
       }
     ]
   };
+}
+async function testExecutionStatusHandler(invocation) {
+  const { observeTestExecutionStatus: observeTestExecutionStatus2 } = await Promise.resolve().then(() => (init_test_execution(), exports_test_execution));
+  return observeTestExecutionStatus2(invocation.cwd);
+}
+async function projectTestHandler(invocation) {
+  if (invocation.offline)
+    return onlineRequired("project test");
+  const { runProjectTests: runProjectTests2 } = await Promise.resolve().then(() => (init_test_execution(), exports_test_execution));
+  return runProjectTests2(invocation.cwd, invocation.options, { json: invocation.json === true });
 }
 async function lintGherkinHandler(invocation) {
   const { observeGherkinLint: observeGherkinLint2 } = await Promise.resolve().then(() => (init_lint_gherkin(), exports_lint_gherkin));
@@ -56683,14 +57049,14 @@ function cleanGuidanceRefusal(cleanup) {
     PLAN_STALE: "The active profile guidance changed. Review a fresh cleanup plan.",
     UNSAFE_GUIDANCE: "The active profile guidance is not an exact registered revision.",
     BACKUP_OCCUPIED: `Cleanup refused because ${cleanup.backupPath} already exists.`,
-    SOURCE_CHANGED_DURING_MOVE: "The guidance changed during cleanup. Safe Word preserved the moved artifact and refused cleanup."
+    SOURCE_CHANGED_DURING_MOVE: "The guidance changed during cleanup. Safeword preserved the moved artifact and refused cleanup."
   };
   return createResult({
     state: "action_required",
     findings: [
       {
         code: cleanup.code ?? "CODEX_GUIDANCE_CLEANUP_REFUSED",
-        message: cleanup.code === undefined ? "Safe Word could not safely clean the profile guidance." : messages3[cleanup.code],
+        message: cleanup.code === undefined ? "Safeword could not safely clean the profile guidance." : messages3[cleanup.code],
         severity: "warning"
       }
     ],
@@ -56859,8 +57225,8 @@ async function runCodexRecovery(invocation, migration) {
   if (suppliedPlan !== undefined && suppliedPlan !== plan.id)
     return staleCodexPlan(plan);
   const before = recovery.effects.map((effect) => ({
-    path: nodePath88.join(invocation.cwd, effect.path),
-    content: observeFile(nodePath88.join(invocation.cwd, effect.path))
+    path: nodePath90.join(invocation.cwd, effect.path),
+    content: observeFile(nodePath90.join(invocation.cwd, effect.path))
   }));
   let changed;
   try {
@@ -56891,7 +57257,7 @@ async function runCodexFinalization(invocation, migration) {
   if (suppliedPlan !== undefined && suppliedPlan !== current.plan.id) {
     return staleCodexPlan(current.plan);
   }
-  const paths = current.plan.effects.files.map((effect) => nodePath88.join(invocation.cwd, effect.target));
+  const paths = current.plan.effects.files.map((effect) => nodePath90.join(invocation.cwd, effect.target));
   const before = paths.map((path7) => ({ path: path7, snapshot: observeFile(path7) }));
   const changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
     yes: true,
@@ -56948,7 +57314,7 @@ async function codexBootstrapHandler(invocation) {
   const { bootstrapCodexPlugin: bootstrapCodexPlugin2 } = await Promise.resolve().then(() => (init_codex_bootstrap(), exports_codex_bootstrap));
   let rawInput = "";
   try {
-    rawInput = readFileSync55(0, "utf8");
+    rawInput = readFileSync56(0, "utf8");
   } catch {}
   return bootstrapCodexPlugin2(invocation.cwd, rawInput, { offline: invocation.offline });
 }
@@ -56957,7 +57323,7 @@ function codexFailureCode(error2, message, name, isFinalization) {
     return error2.code;
   const specific = [
     [/Plugin installation succeeded, but enablement is unknown/iu, "PLUGIN_ENABLEMENT_UNKNOWN"],
-    [/did not report the Safe Word plugin as enabled/iu, "PLUGIN_ENABLEMENT_FAILED"],
+    [/did not report the Safeword plugin as enabled/iu, "PLUGIN_ENABLEMENT_FAILED"],
     [/marketplace unavailable/iu, "PLUGIN_MARKETPLACE_FAILED"],
     [/ambiguous|cannot safely identify/iu, "AMBIGUOUS_LEGACY_CONFIG"],
     [
@@ -57031,7 +57397,7 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
       ]
     });
   }
-  const partialInstall = /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(message);
+  const partialInstall = /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(message);
   const partialMarketplace = error2 instanceof CodexMigrationError && error2.profileChanged;
   return createResult({
     state: "failed",
@@ -57077,7 +57443,7 @@ function codexPluginUpdateFailure(observed) {
       ...observed.errors,
       {
         code: "PLUGIN_UPDATE_REQUIRED",
-        message: "Finalization requires the packaged Safe Word plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.",
+        message: "Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.",
         retryable: true
       }
     ],
@@ -57395,8 +57761,8 @@ async function retroRelayDiscardHandler(invocation) {
 function retroOptions(invocation, transcript) {
   const findings = stringOption(invocation.options, "findings");
   return {
-    transcript: nodePath88.resolve(invocation.cwd, transcript),
-    findings: findings === undefined ? undefined : nodePath88.resolve(invocation.cwd, findings),
+    transcript: nodePath90.resolve(invocation.cwd, transcript),
+    findings: findings === undefined ? undefined : nodePath90.resolve(invocation.cwd, findings),
     autoExtract: invocation.options.autoExtract === true,
     windowStart: numericOption(invocation.options, "windowStart"),
     sessionId: stringOption(invocation.options, "sessionId")
@@ -57456,14 +57822,14 @@ function snapshotKind(stats) {
 }
 function snapshotBytes(path7, stats) {
   if (stats.isFile())
-    return readFileSync55(path7).toString("base64");
+    return readFileSync56(path7).toString("base64");
   if (stats.isSymbolicLink())
     return Buffer.from(readlinkSync4(path7)).toString("base64");
   return;
 }
 function observeFile(path7) {
   try {
-    const stats = lstatSync14(path7);
+    const stats = lstatSync15(path7);
     const kind = snapshotKind(stats);
     const bytes = snapshotBytes(path7, stats);
     return { kind, mode: stats.mode & 511, ...bytes !== undefined && { bytes } };
@@ -57475,7 +57841,7 @@ function observedFileEffect(cwd, path7, before) {
   const after = observeFile(path7);
   if (JSON.stringify(before) === JSON.stringify(after))
     return [];
-  const target = nodePath88.relative(cwd, path7).split(nodePath88.sep).join("/");
+  const target = nodePath90.relative(cwd, path7).split(nodePath90.sep).join("/");
   if (before === undefined)
     return [{ kind: "create", target }];
   if (after === undefined)
@@ -57539,6 +57905,8 @@ var HANDLERS = {
   "project sync-tickets": syncTicketsHandler,
   "project codify": codifyHandler,
   "project test-plan": testPlanHandler,
+  "project test": projectTestHandler,
+  "project test-execution status": testExecutionStatusHandler,
   "project lint-gherkin": lintGherkinHandler,
   "tracker sync": (invocation) => trackerHandler("tracker sync", invocation),
   "tracker connect": (invocation) => trackerHandler("tracker connect", invocation),
@@ -57686,7 +58054,7 @@ var CANONICAL_COMMANDS = [
   command("doctor", "Diagnose project configuration", "observe", {
     commandOptions: [agentSelectionOption()]
   }),
-  command("uninstall", "Deactivate selected Safe Word project and agent state; preserve authored content; reinstall to recover", "destructive", {
+  command("uninstall", "Deactivate selected Safeword project and agent state; preserve authored content; reinstall to recover", "destructive", {
     promptPolicy: "confirm",
     networkPolicy: "declared",
     commandOptions: [
@@ -57754,6 +58122,25 @@ var CANONICAL_COMMANDS = [
       }
     ]
   }),
+  command("project test", "Run repository test commands", "mutate", {
+    networkPolicy: "declared",
+    syntax: "test",
+    commandOptions: [
+      {
+        flags: "--lane <lane>",
+        description: "done or full",
+        defaultValue: "done"
+      },
+      {
+        flags: "--execution <mode>",
+        description: "local or remote-preferred",
+        valueKind: "execution-mode-list"
+      }
+    ]
+  }),
+  command("project test-execution status", "Show the effective test execution preference", "observe", {
+    syntax: "status"
+  }),
   command("project lint-gherkin", "Validate executable feature files", "observe", {
     syntax: "lint-gherkin [files...]"
   }),
@@ -57814,7 +58201,7 @@ var CANONICAL_COMMANDS = [
     ]
   }),
   command("claude recover", "Restore recognized Claude state from its cleanup backup without replacing unrelated content", "mutate"),
-  command("codex clean-guidance", "Deactivate exact legacy Safe Word profile guidance, preserve unrelated content, and retain a recovery backup", "destructive", {
+  command("codex clean-guidance", "Deactivate exact legacy Safeword profile guidance, preserve unrelated content, and retain a recovery backup", "destructive", {
     promptPolicy: "confirm",
     commandOptions: [
       { flags: "--yes", description: "Confirm cleanup of the observed exact revision" },
@@ -58064,6 +58451,11 @@ var publicCommands = commandCatalog.filter((definition) => definition.classifica
 var commandFamilies = [
   { route: "project", description: "Manage project-local Safeword state", visibility: "public" },
   {
+    route: "project test-execution",
+    description: "Manage test execution preferences",
+    visibility: "public"
+  },
+  {
     route: "tracker",
     description: "Manage tracker connections and synchronization",
     visibility: "public"
@@ -58203,7 +58595,7 @@ function createCapabilitiesResult() {
 }
 
 // src/cli-protocol/execute.ts
-import nodePath89 from "path";
+import nodePath91 from "path";
 import process18 from "process";
 
 // src/cli-protocol/policy.ts
@@ -58295,7 +58687,7 @@ function readGlobalOptions(command2) {
   return {
     json: options.json === true,
     noInput: options.noInput === true,
-    cwd: nodePath89.resolve(process18.cwd(), options.cwd ?? "."),
+    cwd: nodePath91.resolve(process18.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,
     verbose: options.verbose === true
@@ -58314,6 +58706,7 @@ function reportResult(result, options, commandName, delivery) {
         ...result,
         ok: false,
         state: "failed",
+        exitCode: 1,
         errors: [
           ...result.errors,
           {
@@ -58359,23 +58752,70 @@ function machineOutputRequested(arguments_) {
 import process19 from "process";
 init_plan();
 init_result();
-function firstPathSegment(name) {
-  const first = name.split(" ", 1)[0];
-  if (first === undefined)
-    throw new Error("Command name cannot be empty");
-  return first;
-}
 function familyNames() {
-  return new Set(commandCatalog.filter((definition) => definition.classification !== "internal" && definition.name.includes(" ")).map((definition) => firstPathSegment(definition.name)));
+  const families = new Set;
+  for (const definition of commandCatalog) {
+    if (definition.classification === "internal")
+      continue;
+    const path7 = definition.name.split(" ");
+    for (let length = 1;length < path7.length; length += 1) {
+      families.add(path7.slice(0, length).join(" "));
+    }
+  }
+  return families;
 }
 function registerFamilies(program2) {
   const families = new Map;
-  for (const name of familyNames()) {
+  const names = [...familyNames()].toSorted((left, right) => {
+    const depth = left.split(" ").length - right.split(" ").length;
+    return depth === 0 ? left.localeCompare(right) : depth;
+  });
+  for (const name of names) {
     const contract = commandFamilies.find((candidate) => candidate.route === name);
-    const family = program2.command(name, { hidden: contract?.visibility === "hidden" }).description(contract?.description ?? `Manage ${name} operations`);
+    const path7 = name.split(" ");
+    const parentName = path7.slice(0, -1).join(" ");
+    const parent = parentName === "" ? program2 : families.get(parentName);
+    if (parent === undefined)
+      throw new Error(`Missing parent command family for ${name}`);
+    const syntax = path7.at(-1);
+    if (syntax === undefined)
+      throw new Error("Command family name cannot be empty");
+    const family = parent.command(syntax, { hidden: contract?.visibility === "hidden" }).description(contract?.description ?? `Manage ${name} operations`);
     families.set(name, family);
   }
   return families;
+}
+function configureValueParser(option, valueKind) {
+  switch (valueKind) {
+    case "plan-identity": {
+      option.argParser((value) => {
+        if (!isPlanIdentity(value)) {
+          throw new InvalidArgumentError("plan identity must be the 64-character hexadecimal id returned by the latest preview");
+        }
+        return value;
+      });
+      return;
+    }
+    case "claude-plugin-scope": {
+      option.argParser((value) => {
+        if (value !== "project" && value !== "user") {
+          throw new InvalidArgumentError("scope must be either project or user");
+        }
+        return value;
+      });
+      return;
+    }
+    case "execution-mode-list": {
+      option.argParser((value, previous) => [
+        ...previous ?? [],
+        value
+      ]);
+      return;
+    }
+    case undefined: {
+      return;
+    }
+  }
 }
 function addDefinitionOptions(command2, definition) {
   for (const option of definition.registration.options) {
@@ -58384,21 +58824,7 @@ function addDefinitionOptions(command2, definition) {
       commanderOption.default(option.defaultValue);
     if (option.hidden === true)
       commanderOption.hideHelp();
-    if (option.valueKind === "plan-identity") {
-      commanderOption.argParser((value) => {
-        if (!isPlanIdentity(value)) {
-          throw new InvalidArgumentError("plan identity must be the 64-character hexadecimal id returned by the latest preview");
-        }
-        return value;
-      });
-    } else if (option.valueKind === "claude-plugin-scope") {
-      commanderOption.argParser((value) => {
-        if (value !== "project" && value !== "user") {
-          throw new InvalidArgumentError("scope must be either project or user");
-        }
-        return value;
-      });
-    }
+    configureValueParser(commanderOption, option.valueKind);
     command2.addOption(commanderOption);
   }
 }
@@ -58412,7 +58838,7 @@ function definitionCommand(program2, families, definition) {
       hidden: definition.visibility === "hidden"
     });
   }
-  const parent = families.get(firstPathSegment(definition.name));
+  const parent = families.get(path7.slice(0, -1).join(" "));
   if (parent === undefined) {
     throw new Error(`Missing command family for ${definition.name}`);
   }
@@ -58455,6 +58881,7 @@ async function executeDefinition(command2, definition, invocation = {}) {
     try {
       result = await definition.handler({
         cwd: globalOptions.cwd,
+        json: globalOptions.json,
         noInput: globalOptions.noInput,
         offline: globalOptions.offline,
         options: commandOptions,

@@ -79,14 +79,14 @@ Default to the existing pattern. Per Google's code-review standard, conform "as 
 
 Required only when the ideal diverges from what exists:
 
-| Field                       | Notes                                                                                                           |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Direction**               | Conform, or deviate                                                                                             |
-| **Reason**                  | The load-bearing why                                                                                            |
-| **Health defect** (deviate) | A _named_ failure of the existing pattern the ideal fixes. "Cleaner" is not a defect.                           |
-| **Inconsistency cost**      | The call-site count you're splitting (from the survey)                                                          |
-| **Pre-mortem**              | One line: "assume deviating was wrong — what broke?" Prospective hindsight surfaces costs you're discounting.   |
-| **Uplevel ticket**          | The tracked follow-up to migrate the rest. Track it; don't migrate every call site now (avoid the rabbit-hole). |
+| Field                       | Notes                                                                                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Direction**               | Conform, or deviate                                                                                                                       |
+| **Reason**                  | The load-bearing why                                                                                                                      |
+| **Health defect** (deviate) | A _named_ failure of the existing pattern the ideal fixes. "Cleaner" is not a defect.                                                     |
+| **Inconsistency cost**      | The call-site count you're splitting (from the survey)                                                                                    |
+| **Pre-mortem**              | One line: "assume deviating was wrong — what broke?" Imagining the failure before it happens surfaces costs you're currently discounting. |
+| **Uplevel ticket**          | The tracked follow-up to migrate the rest. Track it; don't migrate every call site now (avoid the rabbit-hole).                           |
 
 **Depth scales with reversibility:**
 

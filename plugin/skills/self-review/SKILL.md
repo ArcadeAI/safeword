@@ -10,9 +10,9 @@ allowed-tools: '*'
 # Self-Review
 
 Review the artifact you just authored, then earn its review stamp so the next
-step is unblocked. This is **Tier 1** — a cheap, inline floor. You review your
-own work; no sub-agent is spawned. The independent check is Tier 2 (the fork
-review at each phase exit), not this.
+step is unblocked. This is **Tier 1** — a fast, built-in first pass: you review
+your own work, no sub-agent involved. Tier 2 (the fork review at each phase
+exit) is the independent check; that happens separately.
 
 **Stakes set depth.** Tier 2 may never run — review as if your stamp is the last
 word before code gets built on this spec, because often it is. Cheap floor means
@@ -24,7 +24,8 @@ The line below runs the stamp-earning step at render time. It binds a
 `review:<scope>` stamp to the active ticket's `spec.md` **at its current
 content** and appends it to `skill-invocations.log` under the project namespace root, where the
 per-asset gate reads it back. Invoking this skill is what writes the stamp —
-hand-editing the log is the gameable floor this tier deliberately accepts.
+hand-editing the log would let you fake this, a known gap this tier accepts to
+stay cheap.
 
 !`CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/write-review-stamp.ts" spec`
 
@@ -35,7 +36,7 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/write-review-stamp.ts" spec
 ```
 
-The review stamp is content-bound and uses the normalized runtime identity.
+The stamp is tied to the spec's exact current content — edit the spec, and the stamp goes stale automatically.
 
 **If the automatic line and fallback both print `[skill-invocation-log] FAILED`, or still do not print `✓`**: STOP.
 The stamp was not written and the gate will keep blocking. Most likely the bash
@@ -78,5 +79,4 @@ and records why:
 bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts spec --skip "<why this spec needs no review>"
 ```
 
-Skip is the explicit `--skip` flag, quoted as one argument — free text after the
-artifact is rejected, and an empty reason does not clear the gate.
+To skip, pass `--skip "<reason>"` as one quoted argument. A reason is required — an empty one won't clear the gate.

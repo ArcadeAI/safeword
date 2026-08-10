@@ -296,7 +296,7 @@ When('the builder requests Codex status as JSON', function (this: ContinuityStat
 });
 
 When(
-  'Safe Word derives human Codex status from the fixture',
+  'Safeword derives human Codex status from the fixture',
   function (this: ContinuityStatusWorld) {
     this.codexStatus = derivePreparedStatus(this);
     this.codexStatusOutput = renderCodexMigrationHuman(this.codexStatus);
@@ -304,7 +304,7 @@ When(
   },
 );
 
-When('Safe Word derives the prepared Codex domain status', function (this: ContinuityStatusWorld) {
+When('Safeword derives the prepared Codex domain status', function (this: ContinuityStatusWorld) {
   this.codexStatus = derivePreparedStatus(this);
   this.codexStatusExitCode = codexMigrationExitCode(this.codexStatus);
 });

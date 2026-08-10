@@ -2,23 +2,23 @@
 # exercised by focused Vitest integration tests. Keep this behavior contract in
 # Gherkin while excluding duplicate Cucumber glue from the acceptance lane.
 @manual @surface.openai-codex @surface.safeword-cli
-Feature: Prevent stale Safe Word guidance from blocking Codex users
+Feature: Prevent stale Safeword guidance from blocking Codex users
 
   @prevent-legacy-global-instructions.TBU1.R1
-  Rule: prevent-legacy-global-instructions.TBU1.R1 — Current Safe Word project paths remain authoritative when legacy profile guidance is present
+  Rule: prevent-legacy-global-instructions.TBU1.R1 — Current Safeword project paths remain authoritative when legacy profile guidance is present
 
-    Scenario: Session context explicitly supersedes retired Safe Word paths
-      Given an enrolled Safe Word project and legacy global Codex guidance
-      When the Safe Word Codex session hook loads standing context
+    Scenario: Session context explicitly supersedes retired Safeword paths
+      Given an enrolled Safeword project and legacy global Codex guidance
+      When the Safeword Codex session hook loads standing context
       Then the first context block names ".project/" as the ticket location
       And it names ".safeword/guides/" as the guide location
-      And it explicitly supersedes the retired Safe Word paths
+      And it explicitly supersedes the retired Safeword paths
 
     @rejection
-    Scenario: Retired paths are never presented as current Safe Word authority
-      Given an enrolled Safe Word project and legacy global Codex guidance
-      When the Safe Word Codex session hook loads standing context
-      Then the first context block does not direct the builder to retired Safe Word paths
+    Scenario: Retired paths are never presented as current Safeword authority
+      Given an enrolled Safeword project and legacy global Codex guidance
+      When the Safeword Codex session hook loads standing context
+      Then the first context block does not direct the builder to retired Safeword paths
       And it directs the builder to the current project paths
 
   @prevent-legacy-global-instructions.TBU1.R2
@@ -40,10 +40,10 @@ Feature: Prevent stale Safe Word guidance from blocking Codex users
         | edited legacy  | doctor       | suspected legacy | manual review without cleanup |
 
     @rejection
-    Scenario: User-authored global guidance is not reported as Safe Word legacy content
+    Scenario: User-authored global guidance is not reported as Safeword legacy content
       Given a Codex profile AGENTS file with unrelated user guidance
       When the builder runs Codex status
-      Then no legacy Safe Word guidance finding is reported
+      Then no legacy Safeword guidance finding is reported
 
   @prevent-legacy-global-instructions.TBU1.R3
   Rule: prevent-legacy-global-instructions.TBU1.R3 — Positively identified historical content has an explicit recoverable cleanup path

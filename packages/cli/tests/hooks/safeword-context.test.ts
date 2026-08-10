@@ -15,7 +15,7 @@ afterEach(() => {
   roots.length = 0;
 });
 
-describe('Safe Word standing context authority', () => {
+describe('Safeword standing context authority', () => {
   it('puts current paths and the legacy-path override before the full standing instructions', () => {
     const root = createTemporaryDirectory();
     roots.push(root);
@@ -38,11 +38,11 @@ describe('Safe Word standing context authority', () => {
     const claudeContext = (
       JSON.parse(claudeResponse) as { hookSpecificOutput: { additionalContext: string } }
     ).hookSpecificOutput.additionalContext;
-    expect(claudeContext).not.toContain('Current Safe Word authority');
+    expect(claudeContext).not.toContain('Current Safeword authority');
 
     const cursorResponse = createSafewordContextResponse('cursor', standingContext) ?? '{}';
     const cursorContext = (JSON.parse(cursorResponse) as { additional_context: string })
       .additional_context;
-    expect(cursorContext).not.toContain('Current Safe Word authority');
+    expect(cursorContext).not.toContain('Current Safeword authority');
   });
 });

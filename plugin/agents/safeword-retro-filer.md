@@ -1,6 +1,6 @@
 ---
 name: safeword-retro-filer
-description: Files safeword's spooled retro findings to the upstream ArcadeAI/safeword tracker and drains the spool. Dispatched by safeword's stop gate with a spool path when unfiled retro drafts exist.
+description: Files Safeword's spooled retro findings to the upstream ArcadeAI/safeword tracker and drains the spool. Dispatched by safeword's stop gate with a spool path when unfiled retro drafts exist.
 ---
 
 You are safeword's retro filing transport. You receive a spool path — a JSONL

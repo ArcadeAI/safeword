@@ -1,5 +1,5 @@
 @surface.safeword-cli @feature.unified-first-time-install
-Feature: One coherent Safe Word command model
+Feature: One coherent Safeword command model
 
   @unified-first-time-install.TBU1.R1
   Rule: unified-first-time-install.TBU1.R1 — One install reconciles the project and installs both native profile plugins
@@ -91,14 +91,14 @@ Feature: One coherent Safe Word command model
     Scenario: Explicit Cursor install reconciles its project-local assets
       Given a project with no Cursor configuration
       When the user installs with agents "cursor"
-      Then core project configuration and Safe Word-owned Cursor assets are installed
+      Then core project configuration and Safeword-owned Cursor assets are installed
       And Claude and Codex profiles are unchanged
 
     @rejection @surface.cursor
     Scenario: Explicit Cursor install preserves customer and third-party Cursor content
       Given a project with customer and third-party Cursor configuration
       When the user installs with agents "cursor"
-      Then Safe Word Cursor entries are reconciled without replacing unrelated content
+      Then Safeword Cursor entries are reconciled without replacing unrelated content
 
   @unified-first-time-install.TBU1.R5
   Rule: unified-first-time-install.TBU1.R5 — Repeated installation converges safely across the selected surfaces
@@ -182,7 +182,7 @@ Feature: One coherent Safe Word command model
       Then the unplanned effect is refused and recovery guidance is returned
 
   @unified-first-time-install.TBU2.R3
-  Rule: unified-first-time-install.TBU2.R3 — Uninstallation reverses only recognized Safe Word-owned state after exact-plan confirmation
+  Rule: unified-first-time-install.TBU2.R3 — Uninstallation reverses only recognized Safeword-owned state after exact-plan confirmation
 
     Scenario: Unqualified uninstall previews core Claude and Codex removal
       Given a default unified installation
@@ -193,7 +193,7 @@ Feature: One coherent Safe Word command model
     Scenario: Confirmed uninstall preserves custom and third-party content
       Given an exact uninstall plan and unrelated project and profile content
       When the user confirms that exact plan
-      Then only recognized Safe Word-owned state is removed
+      Then only recognized Safeword-owned state is removed
       And backup and recovery actions are reported where required
 
     @rejection
@@ -438,7 +438,7 @@ Feature: One coherent Safe Word command model
       Then both call the operation destructive deactivation rather than only a backup
 
     Scenario: Recoverable destructive work can be restored without replacing unrelated content
-      Given a confirmed cleanup moved recognized Safe Word state into a recovery backup
+      Given a confirmed cleanup moved recognized Safeword state into a recovery backup
       When the user runs the advertised recovery action
       Then the recognized state is restored to service
       And unrelated current project and profile content remains unchanged

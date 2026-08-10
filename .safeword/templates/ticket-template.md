@@ -75,7 +75,7 @@ Relations (all optional, omit when none):
 {All artifacts colocate in this ticket folder}
 
 - ./test-definitions.md (BDD scenarios - features only)
-- ./spec.md (feature spec - epics only)
+- ./spec.md (feature spec, auto-created at intake - features only)
 - ./design.md (design doc - complex features only)
 
 ### Scope

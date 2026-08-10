@@ -1,0 +1,131 @@
+# Spec: Let parallel sessions share test capacity safely
+
+## Intent
+
+Safeword should let independent worktrees participating in the current
+scheduler protocol overlap small focused test runs up to a conservative shared
+limit, while preserving same-worktree build safety and exclusive broad
+verification. Parallel participating sessions should make progress without
+turning resource contention into flaky results or abandoned suites.
+
+## Intake Brief
+
+- **Requested by:** Alex, after the machine-global mutex repeatedly queued short focused runs behind unrelated full suites.
+- **Cost of inaction:** Parallel sessions remain needlessly serialized, encouraging lock bypasses that can overload the machine or reintroduce build races.
+- **Reversibility:** Two-way door. The capacity limit can default to one, restoring today's mutex behavior without changing the test command.
+
+## References
+
+- GitHub issue #419 / `.project/tickets/419-global-package-test-lock/ticket.md` — current machine-global mutex and its safety rationale
+- `.project/tickets/CQJBSN-test-suite-parallelism/ticket.md` — Vitest worker isolation and saturation evidence
+- `.project/tickets/BBNZ68-offload-tests-without-blocking-local-work/ticket.md` — separately owns optional GitHub-hosted execution
+
+## Personas
+
+- Technical Builder (TBU)
+
+## Surfaces
+
+Affected:
+
+- Safeword CLI
+
+Unaffected:
+
+- Claude Code, OpenAI Codex, and Cursor host integrations — their sessions use the same package wrapper without host-specific wiring.
+- GitHub Actions Execution Sandbox — remote verification is owned by BBNZ68.
+
+## Vocabulary
+
+- **Focused run:** A test invocation naming explicit test files and eligible to consume one shared permit.
+- **Broad run:** A directory, alternate configuration, coverage, done-lane, or full-suite invocation that consumes all capacity and runs exclusively.
+- **Permit:** One bounded share of local test capacity among participating current-protocol wrappers.
+- **Checkout mutex:** The per-worktree guard that keeps each participating package-test wrapper's complete build and test activity serialized against another participating wrapper in that checkout, even when another checkout holds a permit.
+
+## Jobs To Be Done
+
+### share-test-capacity.TBU1 — Keep independent verification moving safely
+
+**Persona:** Technical Builder (TBU)
+
+> When several worktrees need verification at once, I want small independent
+> checks to share bounded machine capacity while broad checks remain exclusive,
+> so parallel work stays responsive without build races, false failures, or
+> discarded full-suite runs.
+
+#### share-test-capacity.TBU1.R1 — Separate worktrees using the current scheduler protocol may overlap focused file checks only within their shared bounded capacity
+
+#### share-test-capacity.TBU1.R2 — Participating package-test commands in the same worktree remain serialized across their complete build and test lifetimes
+
+#### share-test-capacity.TBU1.R3 — Broad verification drains focused work and runs with exclusive machine capacity without starvation
+
+#### share-test-capacity.TBU1.R4 — A waiting broad run prevents newer focused runs from continuously overtaking it
+
+#### share-test-capacity.TBU1.R5 — Capacity ownership changes atomically and abandoned ownership is recovered without PID-reuse mistakes or manual cleanup
+
+#### share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
+
+## Rave Moment
+
+### share-test-capacity — The short check no longer waits for the suite
+
+- **Moment:** A focused test in one worktree begins safely while another focused test runs elsewhere, yet an arriving full suite still gets its exclusive turn.
+- **Beats:** A single opaque queue where a seconds-long check waits behind minutes of unrelated verification, or an unsafe lock bypass that overloads the machine.
+- **They'd say:** “My sessions can test in parallel now, but Safeword still keeps the heavy runs from fighting each other.”
+
+## Outcomes
+
+- Eligible focused runs from participating current-protocol worktrees overlap only up to their configured shared limit.
+- Same-worktree build and test commands never overlap.
+- Broad runs become exclusive after existing focused holders drain, and newer focused arrivals cannot starve them.
+- Process death releases both focused and broad capacity automatically without reclaiming capacity from a live reused PID.
+- Capacity one preserves the current single-run behavior, and participating new-wrapper sessions cannot disagree about the active capacity.
+
+## Open Questions
+
+None.
+
+## Decisions
+
+- V1 initializes one persisted shared capacity to one, preserving today's mutex behavior. Raising it to two or more is an explicit current-protocol opt-in made only while the new scheduler is idle; the customer confirms every intended participating worktree uses the new wrapper. Every participating current-protocol process then reads the same canonical value; project-local configuration and per-process environment do not redefine that shared resource.
+- The public opt-in is `safeword project test-capacity set <1..8> [--confirm-current-protocol]`. For a value above one, the single bare flag is mandatory and atomically persists the exact scheduler protocol/schema version with the capacity only after the scheduler is idle; capacity one may omit it. Valued, duplicate, false, conflicting, or unknown flags and extra tokens are invalid. Missing, malformed, stale-version, or racing confirmation changes nothing. The confirmation is an explicit operator assertion—not detection of untracked legacy processes—and status reports that limitation plus the command to restore capacity one before any legacy wrapper is used.
+- Before committing capacity above one on POSIX, the set command and confirmation output disclose that deliberately detached descendants are not contained and direct projects to disable detachment; retaining capacity one is an additional participating-wrapper safeguard but cannot by itself contain an already escaped process. The confirmation affirms that limitation as well as current-protocol participation; status repeats it whenever POSIX capacity exceeds one and never claims capacity one repairs deliberate escape.
+- The reset surface is exactly `safeword project test-capacity reset --expected-domain <domain-id> --confirm-idle`, with each option present once, a nonempty domain value, no option values for `--confirm-idle`, and no unknown flags or extra positionals. The domain ID comes from status; reset acquires the state guard before establishing an exact current schema/domain match and positive idle proof, and the explicit confirmation flag then atomically restores capacity one with current protocol state. Admission and reset serialize on that guard: an owner registered first makes reset `BUSY`, while a reset committed first advances the version before later admission, so neither race can lose an owner. Malformed syntax, missing/mismatched domain, missing confirmation, busy state, or unverifiable identity exits with the applicable stable code and changes nothing.
+- The supported capacity token is exactly one canonical unsigned decimal digit in `1..8`. Signs, leading zeros, surrounding whitespace inside the token, decimal/exponent notation, overflow, missing or duplicate positional values, and duplicate or conflicting confirmation flags are invalid and change no state. Capacity may change only while there are no owners or waiters; otherwise the change is refused with a clear retry action.
+- Concurrent valid set commands serialize under the state guard. If the scheduler remains idle, each commits in guard order with the next state version; `BUSY` is reserved for a command whose guarded view contains an owner/waiter or whose precondition became stale, not mere contention on the guard.
+- Broad runs acquire the entire canonical capacity atomically. Capacity one restores today's single-run behavior.
+- Automatic CPU- or memory-derived sizing is deferred until real usage provides a trustworthy model across operating systems and CI runners.
+- A request is focused only when it has at least one argument and every argument, after the wrapper's documented checkout-relative path rebasing, is a literal path to an existing regular test file inside that checkout whose case-sensitive basename ends in `.test` or `.spec` followed by `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.mts`, `.cjs`, or `.cts`. Existing regular non-test files, near-miss/case variants, and mixed test/non-test arguments are broad; custom/alternate selection configuration is already broad. Classification walks every path component at or below the canonical checkout root without following symlinks, rejects any symlinked component in that scope, and confirms the canonical resolved parent/file remains beneath the root before admitting focus; operating-system-managed path prefixes above the canonical checkout root are outside this check. The classifier rejects focus for option-prefixed tokens, `--`, glob or pattern metacharacters, nonexistent paths, directories, in-scope symlinks, paths escaping the checkout lexically or canonically, unknown runner flags, mixed file/flag forms, coverage, done lanes, alternate configurations, and unfiltered runs. Rejected focus means conservative broad classification, not command rejection; the unchanged downstream runner still owns whether the invocation itself is valid. The classifier passes each validated exact file path unchanged to the real Vitest collaborator and maintains no second test-selection grammar.
+- Registration, admission, cancellation, and crash cleanup occur atomically under the scheduler state guard. Each waiter receives a monotonic FIFO ticket and the same PID-plus-process-creation identity required of owners. Before every head-admission decision, the process holding the state guard removes only waiters whose exact process instance the OS reports absent. Cancellation removes only the caller's identity and ticket. If identity cannot be verified, admission fails closed with recovery guidance instead of skipping the head.
+- Consecutive focused requests at the live queue head may fill capacity; a broad request is admitted only when it reaches the head and all capacity is free, then runs alone. No later request can overtake the head.
+- No waiter holds a partial allocation. Ownership acquisition and release are atomic, and recovery either uses OS-released ownership or validates process birth identity in addition to PID; elapsed age alone never authorizes reclaiming a live owner's capacity.
+- V1 first use atomically creates one owner-only scheduler state guard and one version-1 current schema/protocol state at capacity one. A first wrapper that initializes the current protocol retains the transition guard through its own registration, so a waiting capacity change observes that owner instead of racing an idle state. Concurrent first wrappers serialize through that single canonical guard; interrupted creation recovers only authenticated temporary artifacts, unsafe pre-existing artifacts fail closed, and a compatible older state migrates once under the idle guard. Each commit writes and flushes a temporary file, renames it over state, then flushes the containing directory. If the active filesystem/platform reports that durability primitive unsupported, runtime state mutation fails closed; native evidence must authenticate both the supported success path and this unsupported fail-closed path rather than silently omitting the boundary. A crash before rename leaves the prior valid state; a crash after rename exposes the complete new state; an unreadable state fails closed.
+- A state transition retains a small old/new-hash journal until the post-rename directory flush succeeds. Tests establish crash points with an interposed real-filesystem barrier whose event is emitted only after the named underlying syscall returns, rather than trusting a nearby harness event. If a journal-parent, live-parent, rollback, journal-removal, or other required flush fails, or the process stops before acknowledging it, restart treats durability as indeterminate and admits nothing—even when restart observes the old live state but no journal after an unacknowledged journal rename. Guarded recovery verifies that live state matches one authenticated journal side, re-flushes the directory, and only then completes or rolls back and removes the journal. A state matching neither side remains fail-closed.
+- Scheduler/configuration storage uses an owner-only directory opened without following symlinks or reparse points. Guarded operations pin and revalidate the directory/file identity across validation, temporary creation, flush, and rename; reject unexpected hard-link counts; and fail closed if an inode/file ID, ownership, permissions, link count, or canonical parent changes. Temporary and live artifacts are created relative to that pinned directory handle where the platform provides the primitive, so a path swap cannot redirect an authorized transition.
+- Under that guard, state holds canonical capacity, next FIFO ticket, waiter identities, and owner identities with weight `1` for focused or the full canonical capacity for broad. Admission, cancellation, owner release, and verified dead-process pruning are single guarded state transitions; a broad owner is recorded only from an empty owner set. Process evidence must reconcile every repository lifetime to exactly one durable activation and release, and every owner to one keyed wrapper; duplicate/replayed releases are idempotent, reservation-to-active failure starts no repository process and removes only that reservation, and unkeyed repository descendants are a failure.
+- Admission first persists a `reserved` owner containing the wrapper process instance and permit weight. The wrapper then creates an execution container that cannot yet run repository code: on POSIX, a supervisor outside the repository execution group creates a blocked child as that group's leader; on Windows, an out-of-job supervisor creates a cryptographically random named Job Object with an owner-only DACL and kill-on-close, assigns a suspended root process, and retains the controlling handle. It persists the supervisor and container identities by transitioning the same owner to `active`, then signals/resumes the container.
+- Ordinary spawned build/test descendants inherit that recorded container. If the wrapper dies while `reserved`, a blocked child observes pipe closure and exits; verified cleanup removes the reservation. If it dies after `active`, reclamation requires the recorded process group or Job Object empty. Windows Job Objects provide enforced containment; POSIX process groups do not prevent repository code from deliberately calling `setsid`, `setpgid`, or daemonizing.
+- POSIX active state records the out-of-group supervisor PID and creation identity plus the execution PGID and its leader's creation identity. The supervisor remains alive until ordinary descendants exit; on wrapper-pipe loss it terminates the separate execution group, waits for group disappearance, then exits. Recovery compares both recorded incarnations. Its first absent observation atomically marks the owner `reclaiming` without returning capacity, then releases the state guard. After one bounded recovery interval measured by a monotonic clock, it reacquires the guard and reclaims only if the state version and reclaim marker are unchanged and a second platform observation again proves both exact instances and the group absent. New admissions treat `reclaiming` weight as occupied. A live or reused identity at either observation clears the marker and fails closed; tests inject the clock and platform observations rather than sleeping. A live group with a different leader incarnation, a surviving member after leader loss, a live group after supervisor loss, or an unverifiable/reused PGID fails closed rather than being mistaken for the recorded container.
+- Windows active state records the out-of-job supervisor PID and creation time, the random Job Object name, and the suspended root process PID and creation time before resume. On wrapper-pipe loss the supervisor explicitly terminates the job, queries its active-process count until zero, and only then closes its handle, so an unexpected surviving external handle cannot prevent teardown. Recovery reopens the exact owner-only named job when it exists and withholds capacity until its active-process count is zero. If the job no longer exists, recovery uses the same two-stage reclaim marker and exact root/supervisor creation-time absence proof. A name that exists with an unexpected identity/ACL, access denial, a live member, handle loss without provable emptiness, or unverifiable creation time fails closed; a random name is never treated as identity proof by itself.
+- V1's POSIX capacity guarantee therefore covers non-detaching test/build tools. Deliberately detached descendants are unsupported and named as an evidence limitation; v1 does not claim it can discover or contain arbitrary escaped repository processes. If code escapes undetected, the recorded group can become empty and capacity can return while the escaped process remains active at any configured capacity. Safeword directs customers to disable detachment and use capacity one as an additional participating-wrapper safeguard; it never describes capacity one as containment, the escaped process as contained, or resulting overlap as safe.
+- The scheduler state guard and checkout mutex each use the same process-instance validation contract for crash recovery. Cleanup removes only the exact staged owner identity; repository code cannot begin before the active container record is durably visible, and descendant teardown is proven before active capacity returns.
+- The checkout mutex owner record begins with the exact wrapper identity and, before repository code is released, is durably linked to the same active execution-container identity recorded by the scheduler. If the wrapper dies while queued or reserved, exact wrapper absence permits recovery because repository code could not have started. If it dies while active, the checkout mutex remains unavailable until the recorded process group or Job Object is proven empty; PID death alone never permits same-worktree overlap. Reused, missing, or unverifiable wrapper or container identity fails closed under the mutex transition guard.
+- Every run acquires its checkout mutex before entering the shared-capacity scheduler and releases shared capacity before the checkout mutex. A failed or cancelled capacity wait releases the checkout mutex, and no code path acquires these guards in the opposite order.
+- If unsafe scheduler state prevents authenticated waiter removal, the failed caller leaves the exact bytes untouched. Status names the recorded-domain recovery procedure. After the underlying identity/access fault is repaired, guarded recovery may prune only a ticket whose exact process instance is proven absent; while identity remains unverifiable, status and reset fail closed without mutation until the operator locates the recorded domain and proves it idle.
+- Canonical configuration is per OS user and machine in the platform's user configuration directory. Active scheduler state uses a stable owner-only namespace derived from the OS machine identity (`IOPlatformUUID` on macOS, machine ID on Linux, or `MachineGuid` on Windows) plus the OS user ID/SID. Containers and distinct OS users are separate capacity domains.
+- Configuration and active state carry a schema version. Corrupt, unreadable, permission-unsafe, or newer incompatible state fails closed with a recovery action and never bypasses the scheduler; a migration may run only while the scheduler is idle.
+- An owner identity combines PID with the operating system's process creation identity on macOS, Linux, and Windows. Multi-read identity is accepted only as one authenticated, internally consistent snapshot; process exit/reuse or a machine/process identity change between reads fails closed. Reclamation occurs only after the OS reports that exact process instance absent. If creation identity cannot be verified, Safeword fails closed instead of reclaiming by PID or elapsed age.
+- Native platform and filesystem coverage is accepted only from trusted CI provenance binding the repository, workflow job, native runner OS, commit SHA, and exact artifact digest. Missing/forged attestations, replayed or wrong-commit artifacts, cross-platform claims, wrong producers, digest mismatches, skipped jobs, and unavailable required cases cannot be replaced by injected seam coverage. They exit nonzero with `SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE` and emit no affected platform-class pass or overall completion record; the verifier exits zero and atomically emits at most one process/container pass and one filesystem/durability pass per platform, plus one current-commit completion record only after both classes for every required platform pass. Filesystem coverage includes authenticated successful durability primitives and authenticated unsupported-primitive fixtures proving runtime fails closed. Repeating or concurrently racing verification of the identical valid set is idempotent, never partially consumes evidence, and advances durable evidence state only for the single deduplicated commit.
+- Linux identity uses boot ID plus `/proc/<pid>/stat` start-time ticks; Windows uses the process creation time associated with the PID. macOS uses the PID start time reported under `LC_ALL=C`; its second-level precision is conservative—an apparent same-second PID reuse is treated as still live, never reclaimed. Missing, malformed, permission-denied, or changed readings fail closed.
+- If machine or user identity becomes unavailable, changes unexpectedly, or conflicts with persisted configuration after scheduler initialization, Safeword refuses new admission and reports how to locate and drain the recorded domain; it never switches guards while owners or waiters may exist. The legacy capacity-one mutex is available only before current-protocol initialization or after the prior domain is located and proven idle through its recorded identity, followed by an explicit reset.
+- Fail-closed public errors exit nonzero, start no repository process, and emit a stable machine code plus `safeword project test-capacity status` as the first recovery command. Codes are `SAFEWORD_TEST_CAPACITY_INVALID` for malformed/range input, `SAFEWORD_TEST_CAPACITY_BUSY` for owners/waiters or a lost update, `SAFEWORD_TEST_CAPACITY_STATE_UNSAFE` for permissions/path/durability/schema faults, `SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE` for process or capacity-domain proof failure, and `SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED` when the required containment primitive is unavailable. Status identifies the canonical domain/state location and permits an explicit reset command only after that recorded domain is proven idle.
+- The bounded-capacity guarantee covers participating current-protocol sessions only; it does not claim to detect, exclude, or control a legacy process. Mixed old and new package-test wrappers cannot safely share capacity because old clients do not understand permits. Before using a legacy wrapper, the customer must return the current protocol to capacity one and wait for it to become idle. Continuous mixed-version execution and an atomic legacy-to-current handoff are explicitly deferred from v1.
+- V1 does not intercept arbitrary standalone build, test, or repository commands that bypass the current package-test wrapper. Same-worktree serialization covers participating wrappers and every build/test descendant they spawn; extending the checkout mutex to unrelated public commands is a separate integration surface.
+
+## Required Next-Phase Evidence
+
+- Test harness proof terms—including predetermined statuses, trusted CI attestations, independently verified identities, and proven-empty containers—must be fixed or authenticated before the action under test. A step may not derive its expected evidence from the observed outcome it is meant to verify.
+- Concurrent process-level scenarios must use the real package-test wrapper and build/test collaborators, not an isolated scheduler adapter.
+- Process evidence is keyed by exact wrapper process instance, FIFO ticket, container identity, and command ID. The harness records monotonic sequence numbers for admission, descendant creation, build/Vitest start and exit, ownership release, and wrapper terminal exit; every success/failure assertion names the command's terminal status and proves no unaccounted descendant remains.
+- Scenarios must cover focused batching, FIFO broad exclusivity, cancellation at every queue stage, wrapper death before and after container activation, supervisor exit, surviving descendants, group disappearance, PGID reuse, same-worktree serialization, capacity validation, corrupt state, and capacity-one recovery.
+- Platform contract coverage must exercise Linux, macOS, and Windows identity/container seams; any platform that cannot prove the required primitive stays at capacity one with the limitation named.

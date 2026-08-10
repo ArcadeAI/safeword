@@ -174,7 +174,7 @@ Then('the release is rejected', function (this: WorkflowWorld) {
   assertContractRejected(this);
 });
 
-Given('an empty project has no Safe Word workflow material', function (this: WorkflowWorld) {
+Given('an empty project has no Safeword workflow material', function (this: WorkflowWorld) {
   const projectDirectory = nodePath.join(fixtureRoot(this), 'project');
   mkdirSync(projectDirectory, { recursive: true });
   writeFileSync(
@@ -185,7 +185,7 @@ Given('an empty project has no Safe Word workflow material', function (this: Wor
   this.projectDirectory = projectDirectory;
 });
 
-When('the builder installs Safe Word for Codex', function (this: WorkflowWorld) {
+When('the builder installs Safeword for Codex', function (this: WorkflowWorld) {
   assert.ok(this.projectDirectory !== undefined, 'project fixture was not initialized');
   const result = runCodexInstall(
     this.projectDirectory,
@@ -215,7 +215,7 @@ Then(
 );
 
 Given(
-  'a generated plugin writes Safe Word workflow material into the target project',
+  'a generated plugin writes Safeword workflow material into the target project',
   function (this: WorkflowWorld) {
     const projectDirectory = nodePath.join(fixtureRoot(this), 'project');
     mkdirSync(nodePath.join(projectDirectory, '.agents/skills/bdd'), { recursive: true });
@@ -239,7 +239,7 @@ Then('the integration is rejected', function (this: WorkflowWorld) {
   assertContractRejected(this, '.agents');
 });
 
-Given('a canonical Safe Word workflow', function (this: WorkflowWorld) {
+Given('a canonical Safeword workflow', function (this: WorkflowWorld) {
   const canonicalSkillsDirectory = nodePath.join(fixtureRoot(this), 'canonical-skills');
   mkdirSync(nodePath.join(canonicalSkillsDirectory, 'alpha'), { recursive: true });
   mkdirSync(nodePath.join(canonicalSkillsDirectory, 'beta'), { recursive: true });
@@ -267,7 +267,7 @@ Given('a canonical Safe Word workflow', function (this: WorkflowWorld) {
   this.pluginDirectory = canonicalSkillsDirectory;
 });
 
-When('Safe Word generates its Codex plugin skill', function (this: WorkflowWorld) {
+When('Safeword generates its Codex plugin skill', function (this: WorkflowWorld) {
   assert.ok(this.pluginDirectory !== undefined, 'canonical workflow fixture was not initialized');
   this.generatedAssets = generateCodexPluginAssets(this.pluginDirectory);
 });
@@ -293,7 +293,7 @@ Then(
   },
 );
 
-Given('the generated Safe Word plugin catalogue', function (this: WorkflowWorld) {
+Given('the generated Safeword plugin catalogue', function (this: WorkflowWorld) {
   this.generatedAssets = generateCodexPluginAssets(CANONICAL_SKILLS);
 });
 
@@ -312,7 +312,7 @@ Then(
 );
 
 Given(
-  'a generated Safe Word plugin catalogue has metadata inventory over 8000 characters',
+  'a generated Safeword plugin catalogue has metadata inventory over 8000 characters',
   function (this: WorkflowWorld) {
     const assets = generateCodexPluginAssets(CANONICAL_SKILLS);
     this.releaseContract = () => {
@@ -350,7 +350,7 @@ Then('generation is rejected', function (this: WorkflowWorld) {
   assertContractRejected(this, 'differs from the canonical transformation');
 });
 
-When('Safe Word packs a release package', function (this: WorkflowWorld) {
+When('Safeword packs a release package', function (this: WorkflowWorld) {
   const destination = nodePath.join(fixtureRoot(this), 'packed');
   mkdirSync(destination, { recursive: true });
   this.packageDirectory = extractPackedCliPackage(
@@ -367,7 +367,7 @@ Then(
   },
 );
 
-Given('a packed Safe Word package omits a generated plugin asset', function (this: WorkflowWorld) {
+Given('a packed Safeword package omits a generated plugin asset', function (this: WorkflowWorld) {
   const destination = nodePath.join(fixtureRoot(this), 'packed');
   mkdirSync(destination, { recursive: true });
   const packageDirectory = extractPackedCliPackage(
@@ -390,7 +390,7 @@ Then('publication is rejected', function (this: WorkflowWorld) {
 });
 
 Given(
-  'a target project contains a copy of a required Safe Word workflow asset',
+  'a target project contains a copy of a required Safeword workflow asset',
   function (this: WorkflowWorld) {
     const root = fixtureRoot(this);
     const projectDirectory = nodePath.join(root, 'project');
@@ -429,7 +429,7 @@ Then('the installation is rejected', function (this: WorkflowWorld) {
   assertContractRejected(this, 'missing expected asset');
 });
 
-Given('the generated Safe Word plugin hooks', function (this: WorkflowWorld) {
+Given('the generated Safeword plugin hooks', function (this: WorkflowWorld) {
   const version = packageVersion();
   const hooks = readPluginHooks();
   this.hookContract = () => {
@@ -444,12 +444,12 @@ When('the hook release contract runs', function (this: WorkflowWorld) {
   this.hookContractError = captureContractError(this.hookContract);
 });
 
-Then('every Safe Word hook invokes a version-pinned Bunx command', function (this: WorkflowWorld) {
+Then('every Safeword hook invokes a version-pinned Bunx command', function (this: WorkflowWorld) {
   assert.equal(this.hookContractError, undefined);
 });
 
 Given(
-  'a Safe Word plugin hook violates the {string} policy',
+  'a Safeword plugin hook violates the {string} policy',
   function (this: WorkflowWorld, policy: string) {
     const hooks = readPluginHooks();
     const command = commandSlot(hooks);
