@@ -40,7 +40,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 ### Scenario: Invalid personal configuration blocks a status request without mutation
 
-- [ ] RED
+- [x] RED skip: status already failed closed for malformed JSON
 - [ ] GREEN
 - [ ] REFACTOR
 
