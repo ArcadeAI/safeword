@@ -344,7 +344,7 @@ function requiredPath(path: string | undefined, label: string): string {
 }
 
 function fixtureProcessEnvironment(world: UnifiedInstallWorld): NodeJS.ProcessEnv {
-  const environment = {
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     ...world.hostEnvironment,
     SAFEWORD_NO_UPDATE_CHECK: '1',
