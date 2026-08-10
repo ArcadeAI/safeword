@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -15,5 +15,14 @@ describe('Claude native plugin inventory', () => {
     writeFileSync(nodePath.join(root, 'skills/.in_use/unlisted'), 'untrusted\n');
 
     expect(claudeNativePayloadFiles(root)).toEqual(['skills/.in_use/unlisted']);
+  });
+
+  it('keeps a root lease-marker symlink visible as an untrusted leaf', () => {
+    const root = createTemporaryDirectory();
+    const external = createTemporaryDirectory();
+    writeFileSync(nodePath.join(external, '12345'), 'outside payload\n');
+    symlinkSync(external, nodePath.join(root, '.in_use'), 'dir');
+
+    expect(claudeNativePayloadFiles(root)).toEqual(['.in_use']);
   });
 });
