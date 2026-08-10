@@ -1,6 +1,6 @@
 // Safeword: language-skill nudge — pure decision helpers (no I/O, ticket TBD).
 //
-// Standalone (deployed hooks run from "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/ with no access to the CLI
+// Standalone (deployed hooks run from "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/ with no access to the CLI
 // dist — same rationale as jtbd.ts / impl-plan.ts). The PostToolUse hook supplies
 // the edited file path, the set of installed skill prefixes (derived from
 // .claude/skills/<prefix>-* on disk), and the active scenario id; these pure

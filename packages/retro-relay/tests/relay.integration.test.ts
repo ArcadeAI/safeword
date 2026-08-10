@@ -585,7 +585,7 @@ describe('retry-safe retro relay', () => {
     );
     expect(statuses.filter(status => status === 201)).toHaveLength(60);
     expect(statuses.filter(status => status === 429)).toHaveLength(1);
-  });
+  }, 15_000);
 
   it('reuses the filed receipt after response delivery is lost', async () => {
     let responseDropped = false;

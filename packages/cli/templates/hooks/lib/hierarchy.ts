@@ -40,7 +40,7 @@ export type NextAction =
  */
 export function parseFrontmatter(yaml: string): Record<string, string | string[]> {
   const result: Record<string, string | string[]> = {};
-  const lines = yaml.split('\n');
+  const lines = yaml.split(/\r?\n/);
   let currentKey: string | null = null;
   let currentList: string[] | null = null;
 

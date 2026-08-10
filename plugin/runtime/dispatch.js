@@ -1734,6 +1734,7 @@ function claudeNativePayloadFiles(root) {
   const visit3 = (physicalDirectory, logicalDirectory) => {
     const entries = readdirSync(physicalDirectory, { withFileTypes: true });
     for (const entry of entries) {
+      if (logicalDirectory === '' && entry.isDirectory() && entry.name === '.in_use') continue;
       const physicalPath = nodePath3.join(physicalDirectory, entry.name);
       const logicalPath =
         logicalDirectory === '' ? entry.name : nodePath3.posix.join(logicalDirectory, entry.name);
@@ -1789,11 +1790,11 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '784da329a70fe34b6e3a477b50caaee0d6bbfc1a3ed1d33b213fd9fb55346f4d',
       '.claude/skills/bdd/DISCOVERY.md':
-        '057b81e87cf4857c780e01ebebdc278485d3179c249335fbc38264784f0587bb',
+        'c229895c53030b8f44ff563dd3728d8f4a4e4e593d8c29ae9349283ea25b5d91',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        'cb5fd5ecd897e8aaa51a59e548b327fd37c30647e224df39fc31c15fcc5a91c2',
+        'bf1b303505bae2ea3c66b699cfe8f24614f4c1be63d1ac20ee4ddf5ec76a2916',
       '.claude/skills/bdd/SCENARIOS.md':
         '2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d',
       '.claude/skills/bdd/SKILL.md':
