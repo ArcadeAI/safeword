@@ -473,11 +473,13 @@ function validateImplementationReferences(
   if (impactLines.length !== 1) {
     return evidenceFailure('Implementation evidence requires exactly one decision impact line.');
   }
-  const nextLine = lines
+  const trailingLines = lines
     .slice(table.endLine)
-    .find(line => line.trim() !== '')
-    ?.trim();
-  const impact = /^\*\*Decision impact:\*\* ((?:changed:|retained:).+)$/.exec(nextLine ?? '');
+    .map(line => line.trim())
+    .filter(line => line !== '');
+  const impact = /^\*\*Decision impact:\*\* ((?:changed:|retained:).+)$/.exec(
+    trailingLines[0] ?? '',
+  );
   if (!impact || !hasDecisionPrefix(impact[1]!, ['changed:', 'retained:'])) {
     return evidenceFailure(
       'Implementation evidence requires one decision impact immediately after its table.',
@@ -488,10 +490,7 @@ function validateImplementationReferences(
   if (decisionLines.length !== 1) {
     return evidenceFailure('Implementation evidence requires exactly one Decision informed line.');
   }
-  const decisionLine = lines
-    .slice(table.endLine)
-    .filter(line => line.trim() !== '')[1]
-    ?.trim();
+  const decisionLine = trailingLines[1];
   const decision = /^\*\*Decision informed:\*\* (.+)$/.exec(decisionLine ?? '')?.[1]?.trim();
   if (!decision) {
     return evidenceFailure(
