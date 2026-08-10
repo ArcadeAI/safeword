@@ -378,7 +378,7 @@ function plannedOnBaseline(planContent: string): string | undefined {
     const label = line
       .slice(0, colon)
       .toLowerCase()
-      .replaceAll(/[\s*_\-]/g, '');
+      .replaceAll(/[\s*_-]/g, '');
     return label === 'plannedon' ? [{ index, line }] : [];
   });
   if (candidates.length !== 1) return undefined;
