@@ -164,9 +164,23 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
   });
 
   it('creates and stages a doc carrying the current fingerprint when none exists', async () => {
-    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+    const result = await runCli(['architecture', '--stage', '--json'], {
+      cwd: context.directory,
+    });
 
     expect(result.exitCode).toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      state?: string;
+      changed?: boolean;
+      effects?: { files?: { kind?: string; target?: string }[] };
+    };
+    expect(envelope).toMatchObject({
+      state: 'changed',
+      changed: true,
+    });
+    expect(envelope.effects?.files).toContainEqual(
+      expect.objectContaining({ kind: 'stage', target: DOC_RELATIVE }),
+    );
     expect(stagedFiles(context.directory)).toContain(DOC_RELATIVE);
     const content = execFileSync('git', ['show', `:${DOC_RELATIVE}`], {
       cwd: context.directory,

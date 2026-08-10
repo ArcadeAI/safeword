@@ -291,13 +291,14 @@ function architectureModeResult(input: {
   const changed = input.results.filter(result =>
     ['created', 'healed', 'regenerated'].includes(result.action),
   );
+  const mutated = changed.length > 0 || input.stagedPaths.length > 0;
   let state: CliResult['state'] = 'healthy';
   if (input.failed) state = 'failed';
-  else if (changed.length > 0) state = 'changed';
+  else if (mutated) state = 'changed';
 
   return createResult({
     state,
-    changed: changed.length > 0,
+    changed: mutated,
     effects: {
       files: [
         ...changed.map(result => ({
@@ -1634,13 +1635,16 @@ async function retroRelayRetryHandler(invocation: CommandInvocation): Promise<Cl
 
 async function retroRelayDiscardHandler(invocation: CommandInvocation): Promise<CliResult> {
   const requestId = invocation.operands[0];
-  if (typeof requestId !== 'string') {
+  if (
+    typeof requestId !== 'string' ||
+    !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u.test(requestId)
+  ) {
     return createResult({
       state: 'failed',
       errors: [
         {
           code: 'CLI_ARGUMENT_INVALID',
-          message: 'retro-relay-discard requires one request identity.',
+          message: 'retro-relay-discard requires one lowercase UUIDv4 request identity.',
           retryable: false,
         },
       ],
