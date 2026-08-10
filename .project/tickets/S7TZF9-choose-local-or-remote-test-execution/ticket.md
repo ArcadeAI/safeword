@@ -20,7 +20,7 @@ done_when:
   - Status explains the winning mode and its origin
 parent: BBNZ68
 created: 2026-08-09T21:20:26.567Z
-last_modified: 2026-08-10T11:50:00Z
+last_modified: 2026-08-10T12:02:00Z
 ---
 
 # Choose local or remote test execution per contributor
@@ -40,3 +40,4 @@ last_modified: 2026-08-10T11:50:00Z
 - 2026-08-10T02:12:00Z Began implementation: All degraded-review findings were incorporated. No independent stamp was written because both coordinator routes were exhausted; continuing under the configured prefer policy and the user's explicit direction to proceed without Indy review.
 - 2026-08-10T06:10:00Z Quality review requested changes through the degraded Codex route after Claude timed out. Declared repository-runner network capability, refused offline execution before spawn, preserved per-runner JSON output, and added bounded noisy-output handling with explicit spawn errors. Retained successful empty plans and permissive invalid project preference handling because both are explicit approved plan contracts; strict validation remains reserved for personal config.
 - 2026-08-10T11:50:00Z Final quality re-review approved the implementation and executable behavior steps. Claude timed out again, so the coordinator completed through its permitted fresh headless Codex fallback and recorded degraded independence with no findings. The diff audit also passed after replacing prose-only principle proofs with resolvable evidence paths.
+- 2026-08-10T12:02:00Z Remote CI run 31385029999 passed lint, dogfood parity, and the CLI contract, then both Node matrices found the same generated-architecture freshness failure after merging main (7,354 tests passed; one documentation assertion failed). Reconciled the still-accurate module descriptions to the merged fingerprint; `project architecture --check` is green before rerunning CI.
