@@ -43,6 +43,15 @@ describe('architecture command', () => {
 
     expect(existsSync(resolveGeneratedArchitecturePath(context.directory))).toBe(true);
   });
+
+  it('does not create the document when enforcement is opted out', async () => {
+    writeEnforcementConfig(context.directory, false);
+
+    const result = await runCli(['architecture'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(existsSync(resolveGeneratedArchitecturePath(context.directory))).toBe(false);
+  });
 });
 
 describe('architecture --check — CI staleness backstop (FPV0E4 Slice 2)', () => {

@@ -167,6 +167,27 @@ describe('Sync Config Command', () => {
       const after = readTestFile(temporaryDirectory, '.safeword/depcruise-config.cjs');
       expect(after).toBe(driftedContent);
     });
+
+    it('reports regeneration of an existing drifted config as an update', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      await runCli(['sync-config'], { cwd: temporaryDirectory });
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/depcruise-config.cjs',
+        '// drifted\nmodule.exports = {};',
+      );
+
+      const result = await runCli(['sync-config', '--json'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        effects: {
+          files: expect.arrayContaining([
+            { kind: 'update', target: '.safeword/depcruise-config.cjs' },
+          ]),
+        },
+      });
+    });
   });
 
   describe('Test 2.9: --check exits non-zero and writes nothing when on-disk missing', () => {

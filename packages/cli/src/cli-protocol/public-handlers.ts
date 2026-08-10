@@ -171,6 +171,9 @@ async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResu
     await import('../commands/sync-config.js');
   const architecture = buildArchitecture(invocation.cwd);
   const before = inspectConfig(invocation.cwd, architecture);
+  const generatedConfigExists = existsSync(
+    nodePath.join(invocation.cwd, '.safeword/depcruise-config.cjs'),
+  );
   if (invocation.options.check === true) return configCheckResult(before);
 
   if (before.matches && existsSync(nodePath.join(invocation.cwd, '.dependency-cruiser.cjs'))) {
@@ -185,7 +188,7 @@ async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResu
     ...(synced.generatedConfig
       ? [
           {
-            kind: before.matches ? 'update' : 'create',
+            kind: generatedConfigExists ? 'update' : 'create',
             target: '.safeword/depcruise-config.cjs',
           },
         ]
@@ -414,7 +417,7 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
       data: { command: 'project architecture' },
     });
   }
-  if (!enforcementEnabled && (invocation.options.check || mode.stageOutput)) {
+  if (!enforcementEnabled) {
     return architectureEnforcementDisabledResult(
       architectureAdvisories(discoverUnreadableWorkspaces(invocation.cwd)),
     );

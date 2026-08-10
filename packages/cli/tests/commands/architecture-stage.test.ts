@@ -90,6 +90,19 @@ afterEach(() => {
 });
 
 describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () => {
+  it.each([['--from-index'], ['--from-index', '--stage-output']])(
+    'does not generate or stage architecture when enforcement is opted out: %s',
+    async (...flags) => {
+      writeEnforcementConfig(context.directory, false);
+
+      const result = await runCli(['architecture', ...flags], { cwd: context.directory });
+
+      expect(result.exitCode).toBe(0);
+      expect(existsSync(nodePath.join(context.directory, DOC_RELATIVE))).toBe(false);
+      expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+    },
+  );
+
   it('uses independent canonical flags for index input and staged output', async () => {
     selfHeal(context.directory);
     commitAll(context.directory, 'record initial architecture');
