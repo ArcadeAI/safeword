@@ -6,6 +6,11 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { evaluateFeatureTicketReadiness } from '../../templates/hooks/lib/active-ticket.js';
+import {
+  INSPIRATION_SPEC_MARKER,
+  inspirationActivationLines,
+  validProductInspirationLines,
+} from '../fixtures/inspiration.js';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
@@ -25,9 +30,7 @@ function ticket(phase: string): string {
     'scope: inspiration gate',
     'out_of_scope: unrelated work',
     'done_when: evidence is captured',
-    'inspiration_contract: v1',
-    'inspiration_contract_scaffold: v1',
-    `created: ${TODAY}T00:00:00.000Z`,
+    ...inspirationActivationLines(TODAY),
     '---',
     '# Inspiration gate',
   ].join('\n');
@@ -36,18 +39,9 @@ function ticket(phase: string): string {
 function spec(withEvidence: boolean): string {
   return [
     '# Spec',
-    '<!-- safeword:inspiration-contract:v1 -->',
+    INSPIRATION_SPEC_MARKER,
     '',
-    ...(withEvidence
-      ? [
-          '## Product Inspiration',
-          '',
-          '| Reference | Checked on | Source version / edition | Customer-value evidence | Principle to borrow | Non-copy boundary | Decision impact |',
-          '| --- | --- | --- | --- | --- | --- | --- |',
-          `| https://linear.app/docs/issue-templates | ${TODAY} | n/a | Faster issue filing | Default good practice | Do not copy UI | retained: supports direction |`,
-          '',
-        ]
-      : []),
+    ...(withEvidence ? validProductInspirationLines(TODAY) : []),
     '## Jobs To Be Done',
     '',
     'skip: fixture focuses on transition wiring',

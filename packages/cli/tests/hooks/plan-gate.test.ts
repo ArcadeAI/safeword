@@ -3,17 +3,10 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { evaluateImplementEntry } from '../../templates/hooks/lib/plan-gate.js';
+import { validImplementationInspiration } from '../fixtures/inspiration.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from '../helpers.js';
 
-const VALID_INSPIRATION = [
-  '### Implementation Inspiration',
-  '',
-  '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |',
-  '| --- | --- | --- | --- | --- | --- | --- |',
-  '| https://spec.commonmark.org/0.31.2/ | 2026-08-09 | 0.31.2 | 0.31.2 | Defines comments | Exact marker | Accept strict subset |',
-  '',
-  '**Decision impact:** retained: exact markers fit the design',
-].join('\n');
+const VALID_INSPIRATION = validImplementationInspiration('2026-08-09');
 
 function plan(inspiration: string): string {
   return [

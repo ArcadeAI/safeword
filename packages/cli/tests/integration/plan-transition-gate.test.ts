@@ -14,6 +14,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { inspirationContractProvenance } from '../../templates/hooks/lib/active-ticket.js';
 import { evaluateImplementEntry } from '../../templates/hooks/lib/plan-gate.js';
+import {
+  inspirationActivationLines,
+  validImplementationInspiration,
+} from '../fixtures/inspiration.js';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
@@ -41,13 +45,7 @@ const ticketBody = (phase: string, type = 'feature', activated = false): string 
     '  - unrelated',
     'done_when:',
     '  - gated',
-    ...(activated
-      ? [
-          'inspiration_contract: v1',
-          'inspiration_contract_scaffold: v1',
-          `created: ${TODAY}T00:00:00.000Z`,
-        ]
-      : []),
+    ...(activated ? inspirationActivationLines(TODAY) : []),
     '---',
     '',
     '# Ticket',
@@ -89,15 +87,7 @@ const VALID_PLAN = [
   '',
 ].join('\n');
 
-const VALID_INSPIRATION = [
-  '### Implementation Inspiration',
-  '',
-  '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |',
-  '| --- | --- | --- | --- | --- | --- | --- |',
-  `| https://spec.commonmark.org/0.31.2/ | ${TODAY} | 0.31.2 | 0.31.2 | Exact comment grammar | Exact marker | Strict subset only |`,
-  '',
-  '**Decision impact:** retained: exact markers fit the gate',
-].join('\n');
+const VALID_INSPIRATION = validImplementationInspiration(TODAY);
 
 const VALID_UNSUCCESSFUL_INSPIRATION = [
   '### Implementation Inspiration',

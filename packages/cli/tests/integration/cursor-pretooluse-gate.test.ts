@@ -23,6 +23,12 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  INSPIRATION_SPEC_MARKER,
+  inspirationActivationLines,
+  validProductInspirationLines,
+} from '../fixtures/inspiration.js';
+
 const ADAPTER = nodePath.resolve(__dirname, '../../templates/hooks/cursor/pre-tool-quality.ts');
 
 const TICKET_ID = 'CUR123';
@@ -106,9 +112,7 @@ function inspirationTicket(phase: string): string {
     'scope: inspiration adapter parity',
     'out_of_scope: unrelated feature work',
     'done_when: the transition follows canonical gating',
-    'inspiration_contract: v1',
-    'inspiration_contract_scaffold: v1',
-    `created: ${TODAY}T00:00:00.000Z`,
+    ...inspirationActivationLines(TODAY),
     '---',
     '',
   ].join('\n');
@@ -117,18 +121,9 @@ function inspirationTicket(phase: string): string {
 function inspirationSpec(withEvidence: boolean): string {
   return [
     '# Spec',
-    '<!-- safeword:inspiration-contract:v1 -->',
+    INSPIRATION_SPEC_MARKER,
     '',
-    ...(withEvidence
-      ? [
-          '## Product Inspiration',
-          '',
-          '| Reference | Checked on | Source version / edition | Customer-value evidence | Principle to borrow | Non-copy boundary | Decision impact |',
-          '| --- | --- | --- | --- | --- | --- | --- |',
-          `| https://linear.app/docs/issue-templates | ${TODAY} | n/a | Faster issue filing | Default good practice | Do not copy UI | retained: supports direction |`,
-          '',
-        ]
-      : []),
+    ...(withEvidence ? validProductInspirationLines(TODAY) : []),
     '## Jobs To Be Done',
     '',
     'skip: fixture focuses on inspiration adapter parity',

@@ -8,8 +8,7 @@ import {
   evaluateInspirationActivation,
   evaluateProductInspiration,
 } from '../../templates/hooks/lib/inspiration.js';
-
-const SPEC_MARKER = '<!-- safeword:inspiration-contract:v1 -->';
+import { INSPIRATION_SPEC_MARKER as SPEC_MARKER } from '../fixtures/inspiration.js';
 
 function ticket(signals: string[] = []): string {
   return ['---', 'id: EXAMPLE', 'type: feature', ...signals, '---', ''].join('\n');
