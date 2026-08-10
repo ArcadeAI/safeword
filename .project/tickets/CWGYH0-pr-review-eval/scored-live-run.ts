@@ -51,8 +51,8 @@ const expectedHashes = {
 	narrowVerifier:
 		"cfbabd76b53d0c41a955bd4330c4103bed357f905214718fc4e6819ff79454c5",
 };
-const expectedAdapterCommit = "b9b8d1f26af118b6a9d5c1e4b658bd96f3aee09a";
-const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@b9b8d1f26";
+const expectedAdapterCommit = "e691a230520ea013b66a43e99f01c02d7ecb45de";
+const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@e691a2305";
 const preregisteredRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@8d86720c0";
 const model = "claude-sonnet-5";
 const trials = 3;
@@ -625,7 +625,13 @@ if (preflightOnly) {
 			try {
 				const result = await executeWithInfrastructureRetry(
 					() => execute(reviewInput),
-					(value) => classifyTrialOutput(value, "correctness"),
+					(value) => classifyTrialOutput(value, "correctness", {
+						caseId: reviewInput.caseId,
+						reviewBaseSha: reviewInput.reviewBaseSha,
+						runnerRef: reviewInput.runnerRef,
+						sourceSha: reviewInput.sourceSha,
+						variant: reviewInput.variant,
+					}),
 				);
 				if (result.status === "exclude-case") {
 					const usage = estimatedAttemptCost(result.attemptRecords);

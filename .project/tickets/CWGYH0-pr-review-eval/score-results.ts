@@ -19,6 +19,9 @@ type RecordFile = {
 		report: { consolidated: { findings: Finding[] } };
 		score: { matchingFindings: Finding[]; namedFailure: boolean };
 	};
+	reviewBaseSha: string;
+	runnerRef: string;
+	sourceSha: string;
 	system: SystemName;
 	trial: number;
 	variant: Variant;
@@ -74,7 +77,13 @@ for (const relativePath of glob.scanSync(outputRoot)) {
 	if (!systems.includes(record.system) || !variants.includes(record.variant)) {
 		throw new Error(`unexpected record dimensions in ${relativePath}`);
 	}
-	const disposition = classifyTrialOutput(record.output, "correctness");
+	const disposition = classifyTrialOutput(record.output, "correctness", {
+		caseId: record.caseId,
+		reviewBaseSha: record.reviewBaseSha,
+		runnerRef: record.runnerRef,
+		sourceSha: record.sourceSha,
+		variant: record.variant,
+	});
 	if (disposition.status !== "usable") {
 		throw new Error(
 			`unusable scored record ${relativePath}: ${disposition.reason}`,

@@ -22,10 +22,22 @@ type UnknownRecord = Record<string, unknown>;
 
 export type TrialInvalidReason =
 	| "incomplete-provider-output"
+	| "provider-failure"
 	| "provenance-incomplete"
+	| "provenance-mismatch"
 	| "reviewer-failed"
 	| "routing-invalid"
-	| "schema-invalid";
+	| "schema-invalid"
+	| "unexpected-finish"
+	| "unknown-state";
+
+export type TrialProvenance = {
+	caseId: string;
+	reviewBaseSha: string;
+	runnerRef: string;
+	sourceSha: string;
+	variant: string;
+};
 
 export type TrialDisposition =
 	| { reason: "completed"; retry: "never"; status: "usable" }
@@ -108,6 +120,13 @@ function retryForFailure(failure: unknown): "infrastructure-once" | "never" {
 	return "never";
 }
 
+function matchesProvenance(
+	actual: UnknownRecord,
+	expected: TrialProvenance,
+): boolean {
+	return Object.entries(expected).every(([key, value]) => actual[key] === value);
+}
+
 /**
  * A record is usable only when the runner positively proves reviewer
  * completion. Unknown or legacy shapes fail closed instead of becoming
@@ -116,8 +135,16 @@ function retryForFailure(failure: unknown): "infrastructure-once" | "never" {
 export function classifyTrialOutput(
 	value: unknown,
 	expectedExpert: string,
+	expectedProvenance: TrialProvenance,
 ): TrialDisposition {
 	if (value === undefined || value === null || value === "") {
+		return {
+			reason: "incomplete-provider-output",
+			retry: "never",
+			status: "invalid",
+		};
+	}
+	if (typeof value === "string") {
 		return {
 			reason: "incomplete-provider-output",
 			retry: "never",
@@ -132,11 +159,24 @@ export function classifyTrialOutput(
 	if (
 		!Array.isArray(value.models) ||
 		!Array.isArray(report.expertOutcomes) ||
-		!Array.isArray(value.trace) ||
 		!isRecord(report.consolidated) ||
 		!Array.isArray(report.consolidated.findings)
 	) {
 		return { reason: "schema-invalid", retry: "never", status: "invalid" };
+	}
+	if (!Array.isArray(value.trace) || !isRecord(value.provenance)) {
+		return {
+			reason: "provenance-incomplete",
+			retry: "never",
+			status: "invalid",
+		};
+	}
+	if (!matchesProvenance(value.provenance, expectedProvenance)) {
+		return {
+			reason: "provenance-mismatch",
+			retry: "never",
+			status: "invalid",
+		};
 	}
 
 	const routedModel = value.models.some(
@@ -156,8 +196,41 @@ export function classifyTrialOutput(
 	if (!Array.isArray(outcome.findings)) {
 		return { reason: "schema-invalid", retry: "never", status: "invalid" };
 	}
+	if (outcome.cappedBy !== null) {
+		return {
+			reason: "unexpected-finish",
+			retry: "never",
+			status: "invalid",
+		};
+	}
+	if (outcome.error !== null) {
+		if (!isRecord(outcome.failure) || typeof outcome.failure.kind !== "string") {
+			return { reason: "reviewer-failed", retry: "never", status: "invalid" };
+		}
+		if (
+			outcome.failure.kind === "provider-request" ||
+			outcome.failure.kind === "network" ||
+			(outcome.failure.kind === "schema-violation" &&
+				outcome.failure.source === "provider-response")
+		) {
+			return {
+				reason: "provider-failure",
+				retry: retryForFailure(outcome.failure),
+				status: "invalid",
+			};
+		}
+		if (outcome.failure.kind === "report-schema") {
+			return { reason: "schema-invalid", retry: "never", status: "invalid" };
+		}
+		if (outcome.failure.kind === "review") {
+			return { reason: "reviewer-failed", retry: "never", status: "invalid" };
+		}
+		return { reason: "unknown-state", retry: "never", status: "invalid" };
+	}
+	if (outcome.failure !== null) {
+		return { reason: "unknown-state", retry: "never", status: "invalid" };
+	}
 	if (
-		outcome.error !== null ||
 		typeof outcome.turns !== "number" ||
 		!Number.isInteger(outcome.turns) ||
 		outcome.turns < 1 ||

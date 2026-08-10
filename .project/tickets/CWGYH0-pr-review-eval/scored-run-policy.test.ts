@@ -12,7 +12,7 @@ import {
 const expectedProvenance = {
 	caseId: "SCORE-example",
 	reviewBaseSha: "base-sha",
-	runnerRef: "codex/cwgyh0-dev-benchmark-adapter@b9b8d1f26",
+	runnerRef: "codex/cwgyh0-dev-benchmark-adapter@e691a2305",
 	sourceSha: "source-sha",
 	variant: "buggy",
 };
@@ -57,7 +57,7 @@ describe("positive trial admission", () => {
 			{ file: "b.ts", line: 2, title: "other" },
 		])],
 	])("admits %s", (_name, output) => {
-		expect(classifyTrialOutput(output, "correctness")).toEqual({
+		expect(classifyWithFrozenProvenance(output)).toEqual({
 			reason: "completed",
 			retry: "never",
 			status: "usable",
@@ -75,7 +75,7 @@ describe("positive trial admission", () => {
 		["missing usage", { ...completedOutput(), report: { ...completedOutput().report, usage: undefined } }, "provenance-incomplete"],
 		["invalid score", { ...completedOutput(), score: { reviewValid: false } }, "reviewer-failed"],
 	] as const)("rejects %s", (_name, output, reason) => {
-		expect(classifyTrialOutput(output, "correctness")).toEqual({
+		expect(classifyWithFrozenProvenance(output)).toEqual({
 			reason,
 			retry: "never",
 			status: "invalid",
@@ -93,8 +93,8 @@ describe("positive trial admission", () => {
 			failure,
 		};
 		output.score.reviewValid = false;
-		expect(classifyTrialOutput(output, "correctness")).toEqual({
-			reason: "reviewer-failed",
+		expect(classifyWithFrozenProvenance(output)).toEqual({
+			reason: "provider-failure",
 			retry: "infrastructure-once",
 			status: "invalid",
 		});
@@ -112,7 +112,7 @@ describe("positive trial admission", () => {
 			failure,
 		};
 		output.score.reviewValid = false;
-		expect(classifyTrialOutput(output, "correctness").retry).toBe("never");
+		expect(classifyWithFrozenProvenance(output).retry).toBe("never");
 	});
 
 	test.each([
@@ -260,7 +260,7 @@ describe("one-retry policy", () => {
 		const successful = completedOutput();
 		const result = await executeWithInfrastructureRetry(
 			async () => (++calls === 1 ? failed : successful),
-			(value) => classifyTrialOutput(value, "correctness"),
+			(value) => classifyTrialOutput(value, "correctness", expectedProvenance),
 		);
 
 		expect(result.status).toBe("completed");
@@ -283,7 +283,7 @@ describe("one-retry policy", () => {
 				calls += 1;
 				return failed;
 			},
-			(value) => classifyTrialOutput(value, "correctness"),
+			(value) => classifyTrialOutput(value, "correctness", expectedProvenance),
 		);
 
 		expect(calls).toBe(1);
