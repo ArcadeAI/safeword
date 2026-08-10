@@ -1266,12 +1266,16 @@ const distributedContracts = {
       'packages/cli/codex-plugin/skills/finish-review/SKILL.md',
     ],
     dogfood: ['.safeword/skills/finish-review/SKILL.md', '.claude/skills/finish-review/SKILL.md'],
-    cursor: [
-      'packages/cli/templates/commands/finish-review.md',
-      '.cursor/commands/finish-review.md',
-      'packages/cli/templates/cursor/rules/safeword-finish-review.mdc',
-      '.cursor/rules/safeword-finish-review.mdc',
-    ],
+    cursor: {
+      command: {
+        source: 'packages/cli/templates/commands/finish-review.md',
+        destination: '.cursor/commands/finish-review.md',
+      },
+      rule: {
+        source: 'packages/cli/templates/cursor/rules/safeword-finish-review.mdc',
+        destination: '.cursor/rules/safeword-finish-review.mdc',
+      },
+    },
   },
   'quality-review': {
     canonical: 'packages/cli/templates/skills/quality-review/SKILL.md',
@@ -1280,18 +1284,27 @@ const distributedContracts = {
       'packages/cli/codex-plugin/skills/quality-review/SKILL.md',
     ],
     dogfood: ['.safeword/skills/quality-review/SKILL.md', '.claude/skills/quality-review/SKILL.md'],
-    cursor: [
-      'packages/cli/templates/commands/quality-review.md',
-      '.cursor/commands/quality-review.md',
-      'packages/cli/templates/cursor/rules/safeword-quality-reviewing.mdc',
-      '.cursor/rules/safeword-quality-reviewing.mdc',
-    ],
+    cursor: {
+      command: {
+        source: 'packages/cli/templates/commands/quality-review.md',
+        destination: '.cursor/commands/quality-review.md',
+      },
+      rule: {
+        source: 'packages/cli/templates/cursor/rules/safeword-quality-reviewing.mdc',
+        destination: '.cursor/rules/safeword-quality-reviewing.mdc',
+      },
+    },
   },
 } as const;
 
 function distributedContractPaths(name: ReviewContractName): readonly string[] {
   const contract = distributedContracts[name];
-  return [contract.canonical, ...contract.generated, ...contract.dogfood, ...contract.cursor];
+  return [
+    contract.canonical,
+    ...contract.generated,
+    ...contract.dogfood,
+    ...Object.values(contract.cursor).flatMap(edge => [edge.source, edge.destination]),
+  ];
 }
 
 const mandatoryFinishPolicyBlock = `Under \`prefer\`, map \`approve\` to \`State: approved\` and \`request_changes\` to
@@ -1468,12 +1481,10 @@ function assertDogfoodContractEdges(): void {
 }
 
 function assertCursorContractEdges(): void {
-  const cursorEdges = Object.values(distributedContracts).flatMap(contract => [
-    [contract.cursor[0], contract.cursor[1]],
-    [contract.cursor[2], contract.cursor[3]],
-  ]);
-  for (const [source, destination] of cursorEdges) {
-    assert.ok(source && destination);
+  const cursorEdges = Object.values(distributedContracts).flatMap(contract =>
+    Object.values(contract.cursor),
+  );
+  for (const { source, destination } of cursorEdges) {
     assert.equal(
       readFileSync(nodePath.join(repoRoot, destination), 'utf8'),
       readFileSync(nodePath.join(repoRoot, source), 'utf8'),
