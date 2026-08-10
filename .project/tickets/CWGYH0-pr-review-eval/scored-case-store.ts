@@ -17,6 +17,15 @@ export type RunLock = { release: () => void };
 export type ProvisionalCase = {
 	activePath: string;
 	provisionalPath: string;
+	quarantinePath: string;
+};
+
+export type ReserveState = {
+	candidateQueueIds: string[];
+	currentCaseId: string | null;
+	nextWorkIndex: number;
+	reserveIndex: number;
+	version: number;
 };
 
 function syncDirectory(path: string): void {
@@ -97,12 +106,13 @@ export function beginProvisionalCase(input: {
 	syncDirectory(input.outputRoot);
 	const provisionalPath = join(provisionalRoot, caseName);
 	const activePath = join(activeRoot, caseName);
-	if (existsSync(activePath) || existsSync(join(quarantineRoot, caseName))) {
+	const quarantinePath = join(quarantineRoot, caseName);
+	if (existsSync(activePath) || existsSync(quarantinePath)) {
 		throw new Error(`case is already sealed: ${caseName}`);
 	}
 	mkdirSync(provisionalPath);
 	syncDirectory(provisionalRoot);
-	return { activePath, provisionalPath };
+	return { activePath, provisionalPath, quarantinePath };
 }
 
 export function recordTrialResult<T>(
@@ -129,4 +139,14 @@ export function sealActiveCase(caseState: ProvisionalCase): void {
 	renameSync(caseState.provisionalPath, caseState.activePath);
 	syncDirectory(dirname(caseState.provisionalPath));
 	syncDirectory(dirname(caseState.activePath));
+}
+
+export function quarantineCaseAndAllocateReserve<T extends ReserveState>(_input: {
+	caseState: ProvisionalCase;
+	exclusion: unknown;
+	outputRoot: string;
+	reserveIds: readonly string[];
+	state: T;
+}): { replacementId: string; state: T } {
+	throw new Error("quarantine transition not implemented");
 }
