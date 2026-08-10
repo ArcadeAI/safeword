@@ -235,6 +235,45 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('reruns extraction when the bound transcript is rewritten after its snapshot', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-snapshot-invalidation-'));
+    const id = 'claude-retro-snapshot-invalidation';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({ session_id: id, cwd: root, message: 'close this delivery' })}\n`,
+      );
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return {
+          status: 0,
+          stdout: JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false } }),
+          stderr: '',
+        };
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({ session_id: id, cwd: root, message: 'rewritten closeout context' })}\n`,
+      );
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     [true, '', false, 0, undefined],
     [false, 'Retro extraction failed.', false, 0, 'extraction'],
