@@ -498,6 +498,28 @@ const isCanonicalTicketEdit =
 const isCanonicalSpecEdit =
   nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
 
+interface CanonicalTicketEditContext {
+  priorContent: string;
+  proposedContent: string;
+  priorMeta: Record<string, string | string[]>;
+  proposedMeta: Record<string, string | string[]>;
+}
+
+let cachedCanonicalTicketEditContext: CanonicalTicketEditContext | undefined;
+
+function canonicalTicketEditContext(): CanonicalTicketEditContext {
+  if (cachedCanonicalTicketEditContext !== undefined) return cachedCanonicalTicketEditContext;
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  cachedCanonicalTicketEditContext = {
+    priorContent,
+    proposedContent,
+    priorMeta: frontmatterFromContent(priorContent),
+    proposedMeta: frontmatterFromContent(proposedContent),
+  };
+  return cachedCanonicalTicketEditContext;
+}
+
 // A new feature's activation signals may be uncommitted, so Git history cannot
 // preserve provenance yet. Keep at least one current signal alive across edits:
 // the normal transition gates then require the complete three-signal contract.
@@ -546,9 +568,11 @@ if (isCanonicalTicketEdit) {
   // gate polices content it can see, matching the sibling gates' posture.
   const toolInput = input.tool_input;
   if (hasReconstructableEdit(toolInput)) {
-    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : undefined;
-    const proposedContent = nextContentAfterEdit(toolInput, priorContent ?? '');
-    const verdict = evaluateTicketWrite(priorContent, proposedContent);
+    const context = canonicalTicketEditContext();
+    const verdict = evaluateTicketWrite(
+      existsSync(editedFile) ? context.priorContent : undefined,
+      context.proposedContent,
+    );
     if (!verdict.ok) {
       deny(verdict.reason, withOrderingNote(verdict.remediation));
     }
@@ -556,20 +580,18 @@ if (isCanonicalTicketEdit) {
 }
 
 /** Prior/proposed phase + proposed type for a canonical ticket.md edit. */
-function phaseTransitionContext(toolInput: HookInput['tool_input']): {
+function phaseTransitionContext(): {
   priorPhase: string | undefined;
   proposedPhase: string | undefined;
   proposedType: string | undefined;
   proposedContent: string;
 } {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(toolInput, priorContent);
-  const proposedMeta = frontmatterFromContent(proposedContent);
+  const context = canonicalTicketEditContext();
   return {
-    priorPhase: frontmatterScalar(frontmatterFromContent(priorContent), 'phase'),
-    proposedPhase: frontmatterScalar(proposedMeta, 'phase'),
-    proposedType: frontmatterScalar(proposedMeta, 'type'),
-    proposedContent,
+    priorPhase: frontmatterScalar(context.priorMeta, 'phase'),
+    proposedPhase: frontmatterScalar(context.proposedMeta, 'phase'),
+    proposedType: frontmatterScalar(context.proposedMeta, 'type'),
+    proposedContent: context.proposedContent,
   };
 }
 
@@ -577,9 +599,7 @@ function phaseTransitionContext(toolInput: HookInput['tool_input']): {
 // scenario work starts. The existing test-definitions.md gate still guards the
 // first scenario-file write; this catches the earlier phase edit.
 if (isCanonicalTicketEdit) {
-  const { priorPhase, proposedPhase, proposedType, proposedContent } = phaseTransitionContext(
-    input.tool_input,
-  );
+  const { priorPhase, proposedPhase, proposedType, proposedContent } = phaseTransitionContext();
 
   if (
     proposedType === 'feature' &&
@@ -604,7 +624,7 @@ if (isCanonicalTicketEdit) {
 // during the plan-implementation phase. Ordered after provenance/readiness so
 // "wrong step" is reported before "plan not ready".
 if (isCanonicalTicketEdit) {
-  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext(input.tool_input);
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
 
   if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
     const verdict = evaluateImplementEntry(nodePath.dirname(editedFile));
@@ -621,11 +641,8 @@ if (isCanonicalTicketEdit) {
 // `write-review-stamp.ts --phase`. Inert until reviewGate is enabled.
 if (isCanonicalTicketEdit) {
   if (isReviewGateOn()) {
-    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-    const exitedPhase = detectPhaseAdvance(
-      priorContent,
-      nextContentAfterEdit(input.tool_input, priorContent),
-    );
+    const context = canonicalTicketEditContext();
+    const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
     if (exitedPhase !== undefined) {
       const ticketDirectory = nodePath.dirname(editedFile);
       const stamps = readReviewStamps();
@@ -666,9 +683,8 @@ if (isCanonicalTicketEdit) {
 // ---------------------------------------------------------------------------
 
 if (isCanonicalTicketEdit) {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
-  const denial = evaluateBlockedOnGate(priorContent, proposedContent, id => {
+  const context = canonicalTicketEditContext();
+  const denial = evaluateBlockedOnGate(context.priorContent, context.proposedContent, id => {
     const info = getTicketInfo(projectDirectory, id);
     return { found: info.folder !== undefined, status: info.status };
   });
