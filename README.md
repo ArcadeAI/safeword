@@ -79,9 +79,11 @@ released `stable` channel the first time they open the repository, so teammates
 need no extra command.
 
 The running Codex app cannot load a newly installed plugin into a task that has
-already started. The bootstrap therefore prints a loud startup warning and one
-restart action until a new task records exact native proof. It never intercepts
-or blocks edits or commands. On the first ordinary upgrade of an unmodified
+already started — and starting a new task alone isn't enough either, since the
+app itself keeps the old plugin catalogue loaded. The bootstrap therefore
+prints a loud startup warning until you restart Codex and open a new task,
+which is what actually records native proof. It never intercepts or blocks
+edits or commands. On the first ordinary upgrade of an unmodified
 legacy installation, Safeword installs the native plugin first, then backs up
 and removes the recognized legacy assets automatically. Ambiguous or edited
 legacy content is preserved and reported instead.
@@ -120,7 +122,7 @@ legacy content is preserved and reported instead.
 
 ## How It Works
 
-Every session moves through five phases, in order — and three hard gates stop your agent skipping ahead:
+Every session moves through five phases, in order — and four hard gates stop your agent skipping ahead:
 
 ```mermaid
 flowchart TD
@@ -145,7 +147,9 @@ flowchart TD
     phase0 --> g1{{"Phase gate:<br/>scope / out_of_scope / done_when"}}
     g1 --> scenarios["Define-behavior scenarios"]
     scenarios --> g2{{"Phase gate:<br/>test-definitions.md exists"}}
-    g2 --> build
+    g2 --> plan["Plan: author impl-plan.md"]
+    plan --> g4{{"Plan gate:<br/>impl-plan.md valid"}}
+    g4 --> build
 
     task --> build["3 · Build<br/>RED → GREEN → REFACTOR"]
     patch --> verify
@@ -159,7 +163,7 @@ flowchart TD
 
 - **Clarify** — the agent proposes a direction and converges with you before building. For features, this writes the product framing first: Jobs To Be Done → Acceptance Criteria → engineering scope.
 - **Classify** — sizes the work as a **patch** (fix directly), **task** (TDD), or **feature** (BDD).
-- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios first.
+- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios and an implementation plan first.
 - **Verify** — the agent runs the relevant tests itself, never handing you something untested.
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
 
@@ -480,9 +484,11 @@ failure, findings, and unresolved unknowns all route to a human. Binary files
 with recognized binary extensions are recorded as skipped; a binary-only change
 cannot look ready.
 
-Safeword inspects fork pull requests with read-only access only. GitHub then
-runs a trusted `workflow_run` publisher from the base branch, which never
-checks out the PR code and never receives the model secret. GitHub currently requires
+Safeword runs this as one `pull_request_target` workflow — so it always runs
+with base-branch privileges, even for fork PRs — split into privilege-scoped
+jobs: an inspection job reads the PR's data (never its code) and calls the
+model without any GitHub write permission, and a separate publisher job posts
+the result without ever touching the model secret. GitHub currently requires
 `pull-requests: write` for an ordinary pull-request conversation comment, so the
 publisher is additionally constrained by Safeword's fixed issue-comment-only
 boundary and the compatibility smoke verifies that it creates no review, check,

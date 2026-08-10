@@ -1,8 +1,10 @@
 ---
 name: ticket-system
-description: Ticket system and work logs for context anchoring. Use when
-  creating tickets, managing work logs, or anchoring context across multi-step
-  tasks or sessions. Do NOT use for simple patches or single-step tasks.
+description: Ticket system and work logs for context anchoring. Use when creating
+  tickets, managing work logs, or anchoring context across multi-step tasks or
+  sessions. Do NOT use for simple patches or single-step tasks.
+user-invocable: false
+allowed-tools: '*'
 ---
 
 # Ticket System
@@ -17,6 +19,8 @@ description: Ticket system and work logs for context anchoring. Use when
 if [ -x node_modules/.bin/safeword ]; then
   SW="node_modules/.bin/safeword"
 elif [ -f packages/cli/src/cli.ts ]; then
+  # Only true inside safeword's own repo (dogfooding) — runs from source
+  # instead of requiring a build.
   SW="bun packages/cli/src/cli.ts"
 else SW="bunx safeword"; fi
 

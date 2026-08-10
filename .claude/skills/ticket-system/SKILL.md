@@ -19,6 +19,8 @@ allowed-tools: '*'
 if [ -x node_modules/.bin/safeword ]; then
   SW="node_modules/.bin/safeword"
 elif [ -f packages/cli/src/cli.ts ]; then
+  # Only true inside safeword's own repo (dogfooding) — runs from source
+  # instead of requiring a build.
   SW="bun packages/cli/src/cli.ts"
 else SW="bunx safeword"; fi
 
