@@ -3,6 +3,11 @@ id: CWGYH0
 slug: pr-review-eval
 type: feature
 phase: implement
+phase_skips:
+  - intake: Existing task scope and done-when were retained when the recovery expanded this ticket into a feature.
+  - define-behavior: Dimensions, spec, feature scenarios, and the R/G/R ledger were authored before implementation but landed in the same recovery commit.
+  - scenario-gate: The shared coordinator and required degraded fallback reviewed the saved scenarios before implementation; no separate transition commit exists.
+  - plan-implementation: The implementation plan was reviewed and revised before code changes but landed in the same recovery commit.
 status: in_progress
 scope:
   - Freeze approximately 20–30 post-model-cutoff `diff → finding → acted on?` pairs from existing local Claude sessions and repository history, with durable provenance and no outcome leakage into the review input.
