@@ -403,4 +403,45 @@ describe('test execution CLI wiring', () => {
     });
     expect(() => readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toThrow();
   });
+
+  it('rejects duplicate execution overrides before executing a test plan', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'duplicate-execution-mode-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:done': String.raw`node -e "require('node:fs').appendFileSync('runs.log','run\n')"`,
+        },
+      }),
+    );
+
+    const result = await runCli(
+      [
+        'project',
+        'test',
+        '--lane',
+        'done',
+        '--execution',
+        'local',
+        '--execution',
+        'remote-preferred',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [expect.objectContaining({ code: 'SAFEWORD_TEST_EXECUTION_INVALID' })],
+    });
+    expect(() => readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toThrow();
+  });
 });
