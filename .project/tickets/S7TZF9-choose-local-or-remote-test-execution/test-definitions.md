@@ -62,7 +62,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 ### Scenario: Public CLI grammar exposes only supported execution modes
 
-- [ ] RED
+- [x] RED 555a950ee
 - [ ] GREEN
 - [ ] REFACTOR
 
