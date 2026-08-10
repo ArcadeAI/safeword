@@ -242,14 +242,14 @@ unchanged. The recovery decision used cost and operational metadata only.
 | $50 | 28 | 2 | $50.350935 | passed |
 | $100 | 51 | 4 | $106.576443 | passed |
 | $200 | 100 | 8 | $200.585727 | passed |
+| $500 / full run | 360 | 30 | $440.076699 | completed |
 
-All 100 calls completed without a provider retry, infrastructure error, case
-exclusion, duplicate record, or resume mismatch. The current version-2 state
-is four work items into the ninth frozen case, with eight cases complete. Mean
-cost is $2.005857 per call, maximum call cost is $13.932660, and the longest
-call took 516,843 ms. The observed mean projects the complete 360-call run at
-about $722. Findings, named-defect matches, reviewer text, and interim scores
-remain blinded.
+All 360 calls completed without a provider retry, infrastructure error, case
+exclusion, duplicate record, or resume mismatch. The final version-2 state has
+all 30 primary cases complete. Mean cost was $1.222435 per call, maximum call
+cost was $19.025088, and the longest call took 516,843 ms. Findings,
+named-defect matches, reviewer text, and interim scores remained blinded until
+the full run completed.
 
 Before the $200 stage, the branch merged `origin/main` at `78afa7a7b`
 (`v0.74.6`). All frozen corpus, prompt, runner, policy, and scorer hashes were
@@ -264,6 +264,41 @@ desktop app was unlocked, Touch ID and CLI integration were enabled, and
 resetting only the CLI integration handshake recovered authorization. The
 runner then resumed at the exact saved work index and reached the checkpoint
 without a duplicate paid call.
+
+Before the final stage, adapter commit
+`8d86720c09361577373a353b0f2e4810c4423c8a` was made durable on remote branch
+`ArcadeAI/monorepo:codex/cwgyh0-dev-benchmark-adapter`. The remote branch head
+is `260f136abc3d2a43d2fc6b4618997a3894211343`; Git verifies the frozen adapter
+commit is its ancestor.
+
+## Post-run scoring audit — 2026-08-10
+
+The frozen deterministic scorer produced status
+`provisional-awaiting-finding-verification`. Its literal registered-alias match
+reported zero named-defect hits for either system. There are 82 additional
+findings awaiting independent factual verification: 64 from full and 18 from
+narrow. The full system emitted 27 findings on buggy records and 37 on fixed
+records; narrow emitted 11 and 7 respectively.
+
+The preserved provisional result is
+`scored-results-provisional-2026-08-10.json`, SHA-256
+`4699650ef70da68ae19f029f9fc12fab3f5a7494f4eea59f1da97e42f3340e2e`.
+
+A required construct-validity audit found the exact-substring named-defect
+matcher has false negatives. At least the full system's buggy S01 trial 2
+finding names the registered causal file and semantically describes the frozen
+cursor-reset mechanism and repeated-first-page consequence, but none of the
+registered multiword aliases appears byte-for-byte in its paraphrase, so the
+frozen matcher rejects it. This is a scoring-contract defect, not input drift:
+the frozen scorer and adapter hashes match their preregistered values.
+
+The preregistered primary result must not be rewritten post hoc. As a labeled
+sensitivity check only, crediting that obvious S01 hit changes full recall from
+0 to 1/90 (`0.011111`), with paired full-minus-narrow interval `[0, 0.033333]`.
+The lower bound remains zero, so the full reviewer cannot validate over narrow
+under either the literal frozen score or this minimal semantic correction.
+Because the 82 additional findings are not yet independently classified, the
+formal result remains provisional rather than final.
 
 ## Frozen scoring and gate
 

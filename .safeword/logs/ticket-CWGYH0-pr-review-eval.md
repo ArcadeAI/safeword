@@ -930,3 +930,23 @@
   1Password desktop app was unlocked and Touch ID plus CLI integration were
   enabled; resetting the CLI integration handshake restored scoped in-memory
   authorization. No API call occurred during the failed attempts.
+- Pushed `codex/cwgyh0-dev-benchmark-adapter` to `ArcadeAI/monorepo`; remote
+  head `260f136abc3d2a43d2fc6b4618997a3894211343` contains frozen adapter commit
+  `8d86720c09361577373a353b0f2e4810c4423c8a` as an ancestor.
+- The $500 stage completed the entire benchmark below its cap: 360 unique calls,
+  all 30 cases, $440.076699 total, zero retries, infrastructure errors,
+  exclusions, duplicates, or resume mismatches. Mean call cost was $1.222435,
+  maximum $19.025088, and maximum duration 516,843 ms. All frozen hashes still
+  match.
+- The frozen scorer returned `provisional-awaiting-finding-verification`: its
+  literal alias matcher recorded zero named-defect hits and found 82 additional
+  findings awaiting factual verification (64 full, 18 narrow). Full emitted 27
+  findings on buggy records and 37 on fixed records; narrow emitted 11 and 7.
+- Post-run construct audit found the literal matcher rejects at least one clear
+  semantic target hit (full, buggy S01 trial 2) because the finding paraphrases
+  both registered concepts instead of reproducing a whole alias substring.
+  This does not license rewriting the preregistered result. A labeled
+  sensitivity check crediting that hit gives full recall 1/90 and paired
+  interval `[0, 0.033333]`; the lower bound remains zero, so validation fails
+  either way. Formal status stays provisional until additional findings are
+  independently verified.
