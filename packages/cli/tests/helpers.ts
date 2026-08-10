@@ -18,6 +18,7 @@ import { expect } from 'vitest';
 import { shortHash } from '../src/retro/hash.js';
 
 const execFileAsync = promisify(execFile);
+const CLI_MACHINE_OUTPUT_LIMIT_BYTES = 20 * 1024 * 1024;
 
 /**
  * Timeout constants for test operations.
@@ -437,6 +438,7 @@ async function executeCli(cliArguments: string[], options: RunCliOptions): Promi
       cwd,
       env: { ...process.env, ...env },
       timeout,
+      maxBuffer: CLI_MACHINE_OUTPUT_LIMIT_BYTES,
     });
     return { stdout, stderr, exitCode: 0, timedOut: false };
   } catch (error: unknown) {

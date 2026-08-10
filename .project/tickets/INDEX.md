@@ -7,6 +7,8 @@
 
 ## Tickets (521)
 
+## Tickets (511)
+
 ### 001
 
 - **Iteration 8: Audit/Lint Ignore Rules (009)** (cancelled, epic: —)
@@ -200,6 +202,25 @@
 - **Sub-epic: Quality-review skill — provenance-gated verdicts (+ research angles) (NX15EF)** (done, epic: quality-review-provenance-gate)
   Make `quality-review`'s verdict trustworthy under documented LLM-judge overconfidence by gating severity on evidence provenance, and sharpen its research into named angles — without adding committees or effort knobs.
   → `.project/tickets/NX15EF-quality-review-provenance-gate-epic`
+
+### BBNZ68
+
+- **Protect remote test runners before repository code runs (BR373S)** (in_progress, epic: —)
+  Ensure the managed GitHub Actions runner validates trusted inputs, uses least privilege, and reports authoritative remote results.
+  blocked by: Install remote test workflows without overwriting customer changes (X2Z8MN)
+  → `.project/tickets/BR373S-protect-remote-test-runners`
+- **Run tests remotely with safe recovery (S2TF4J)** (in_progress, epic: —)
+  Dispatch an eligible test run to GitHub Actions, preserve durable recovery evidence, and use local fallback only when no remote run was created.
+  blocked by: Choose local or remote test execution per contributor (S7TZF9), Install remote test workflows without overwriting customer changes (X2Z8MN)
+  → `.project/tickets/S2TF4J-run-tests-remotely-with-safe-recovery`
+- **Choose local or remote test execution per contributor (S7TZF9)** (in_progress, epic: —)
+  Let contributors choose a safe local or remote-preferred test default, including an optional private worktree config and graceful local fallback.
+  blocks: Run tests remotely with safe recovery (S2TF4J)
+  → `.project/tickets/S7TZF9-choose-local-or-remote-test-execution`
+- **Install remote test workflows without overwriting customer changes (X2Z8MN)** (in_progress, epic: —)
+  Let projects opt in to the managed GitHub Actions workflow through safe setup, upgrade, disable, and conflict recovery.
+  blocks: Protect remote test runners before repository code runs (BR373S), Run tests remotely with safe recovery (S2TF4J)
+  → `.project/tickets/X2Z8MN-install-remote-test-workflows-safely`
 
 ### bdd-chain-hardening
 
@@ -1041,6 +1062,9 @@
   Bare invocation previews (deny-by-default); killing requires --yes — graduating the skill's "run --dry-run first, then re-run" prose ritual into the script itself
   external issue: https://github.com/ArcadeAI/safeword/issues/773
   → `.project/tickets/2KG1JW-cleanup-zombies-confirm`
+- **Let parallel sessions share test capacity safely (2RZDMP)** (in_progress, epic: —)
+  Let Safeword sessions in separate worktrees overlap focused tests within a safe machine limit while broad verification remains exclusive and same-worktree builds stay serialized.
+  → `.project/tickets/2RZDMP-share-test-capacity-across-parallel-sessions`
 - **Tracker connect/onboarding flow — interactive wiring (when + where the human authorizes) (2TK5AD)** (done, epic: —)
   Make wiring a tracker a clear, opt-in, human-in-the-loop flow: the agent prepares config and orchestrates, the human does the steps only they can (authorize OAuth / paste a token / install the GitHub App / pick team+repo), and the agent **verifies before any real sync** — closing the "set-but-silently-broken" trap.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
@@ -1274,6 +1298,9 @@
   Let automation trust `safeword upgrade` exit status as the apply result, while keeping post-upgrade health warnings visible.
   external issue: https://github.com/ArcadeAI/safeword/issues/427
   → `.project/tickets/BBJKR5-keep-upgrade-success-on-health-warnings`
+- **Offload tests without blocking local work (BBNZ68)** (in_progress, epic: —)
+  Let every Safeword customer optionally run Safeword's done-oriented or full test-plan lane on remote GitHub-hosted runners, with safe local recovery when Safeword can establish that no remote run was created.
+  → `.project/tickets/BBNZ68-offload-tests-without-blocking-local-work`
 - **Stop installing JS tooling into non-JS projects (BE7C7B)** (done, epic: —)
   A pure Python/Go/Rust/SQL project should not receive a `package.json`, npm dev-deps, or a TypeScript BDD lane it cannot run.
   → `.project/tickets/BE7C7B-gate-js-toolchain-by-language`
