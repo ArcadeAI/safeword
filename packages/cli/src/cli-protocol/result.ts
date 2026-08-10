@@ -62,6 +62,8 @@ export interface CliResult {
   readonly errors: readonly ResultError[];
   readonly recovery: readonly RecoveryAction[];
   readonly nextActions: readonly NextAction[];
+  /** Process status for commands that must preserve a delegated program's exit. */
+  readonly exitCode?: number;
   readonly presentation?: {
     readonly kind: 'raw';
     readonly body: string;
@@ -77,6 +79,7 @@ interface ResultInput {
   readonly errors?: readonly ResultError[];
   readonly recovery?: readonly RecoveryAction[];
   readonly nextActions?: readonly NextAction[];
+  readonly exitCode?: number;
   readonly presentation?: NonNullable<CliResult['presentation']>;
   readonly data?: unknown;
 }
@@ -118,6 +121,7 @@ export function createResult(input: ResultInput): CliResult {
     errors: input.errors ?? [],
     recovery: input.recovery ?? [],
     nextActions: input.nextActions ?? [],
+    ...(input.exitCode !== undefined && { exitCode: input.exitCode }),
     ...(input.presentation !== undefined && { presentation: input.presentation }),
     ...(input.data !== undefined && { data: input.data }),
   };
@@ -169,7 +173,8 @@ export function withDeprecation(
   };
 }
 
-export function exitStatusFor(result: CliResult): 0 | 1 | 2 {
+export function exitStatusFor(result: CliResult): number {
+  if (result.exitCode !== undefined) return result.exitCode;
   if (result.state === 'failed') return 1;
   if (result.state === 'action_required') return 2;
   return 0;

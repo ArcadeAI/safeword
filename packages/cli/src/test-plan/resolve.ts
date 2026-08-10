@@ -113,7 +113,14 @@ function allToolsAvailable(): boolean {
 function defaultIsToolAvailable(tool: string): boolean {
   const fake = process.env.SAFEWORD_FAKE_TOOLS;
   if (fake !== undefined) return fakeToolProbe(fake)(tool);
-  return spawnSync('command', ['-v', tool], { shell: true, stdio: 'ignore' }).status === 0;
+  if (process.platform === 'win32') {
+    return spawnSync('where.exe', [tool], { stdio: 'ignore' }).status === 0;
+  }
+  return (
+    spawnSync('/bin/sh', ['-c', 'command -v "$1"', 'safeword-tool-probe', tool], {
+      stdio: 'ignore',
+    }).status === 0
+  );
 }
 
 function entry(

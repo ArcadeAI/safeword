@@ -41,7 +41,7 @@ export interface CommandDefinition {
       readonly flags: string;
       readonly description: string;
       readonly defaultValue?: string;
-      readonly valueKind?: 'claude-plugin-scope' | 'plan-identity';
+      readonly valueKind?: 'claude-plugin-scope' | 'execution-mode-list' | 'plan-identity';
       readonly compatibilityReplacement?: string;
       readonly hidden?: boolean;
     }[];
@@ -258,6 +258,30 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     ],
   }),
+  command('project test', 'Run repository test commands', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'test',
+    commandOptions: [
+      {
+        flags: '--lane <lane>',
+        description: 'done or full',
+        defaultValue: 'done',
+      },
+      {
+        flags: '--execution <mode>',
+        description: 'local or remote-preferred',
+        valueKind: 'execution-mode-list',
+      },
+    ],
+  }),
+  command(
+    'project test-execution status',
+    'Show the effective test execution preference',
+    'observe',
+    {
+      syntax: 'status',
+    },
+  ),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),
@@ -631,6 +655,11 @@ export const publicCommands = commandCatalog.filter(
 
 export const commandFamilies = [
   { route: 'project', description: 'Manage project-local Safeword state', visibility: 'public' },
+  {
+    route: 'project test-execution',
+    description: 'Manage test execution preferences',
+    visibility: 'public',
+  },
   {
     route: 'tracker',
     description: 'Manage tracker connections and synchronization',

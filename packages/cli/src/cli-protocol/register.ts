@@ -19,41 +19,47 @@ import { isPlanIdentity } from './plan.js';
 import { createProgressReporter } from './policy.js';
 import { type CliResult, createResult, withDeprecation } from './result.js';
 
-function firstPathSegment(name: string): string {
-  const first = name.split(' ', 1)[0];
-  if (first === undefined) throw new Error('Command name cannot be empty');
-  return first;
-}
-
 function familyNames(): Set<string> {
-  return new Set(
-    commandCatalog
-      .filter(
-        definition => definition.classification !== 'internal' && definition.name.includes(' '),
-      )
-      .map(definition => firstPathSegment(definition.name)),
-  );
+  const families = new Set<string>();
+  for (const definition of commandCatalog) {
+    if (definition.classification === 'internal') continue;
+    const path = definition.name.split(' ');
+    for (let length = 1; length < path.length; length += 1) {
+      families.add(path.slice(0, length).join(' '));
+    }
+  }
+  return families;
 }
 
 function registerFamilies(program: Command): Map<string, Command> {
   const families = new Map<string, Command>();
-  for (const name of familyNames()) {
+  const names = [...familyNames()].toSorted((left, right) => {
+    const depth = left.split(' ').length - right.split(' ').length;
+    return depth === 0 ? left.localeCompare(right) : depth;
+  });
+  for (const name of names) {
     const contract = commandFamilies.find(candidate => candidate.route === name);
-    const family = program
-      .command(name, { hidden: contract?.visibility === 'hidden' })
+    const path = name.split(' ');
+    const parentName = path.slice(0, -1).join(' ');
+    const parent = parentName === '' ? program : families.get(parentName);
+    if (parent === undefined) throw new Error(`Missing parent command family for ${name}`);
+    const syntax = path.at(-1);
+    if (syntax === undefined) throw new Error('Command family name cannot be empty');
+    const family = parent
+      .command(syntax, { hidden: contract?.visibility === 'hidden' })
       .description(contract?.description ?? `Manage ${name} operations`);
     families.set(name, family);
   }
   return families;
 }
 
-export function addDefinitionOptions(command: Command, definition: CommandDefinition): void {
-  for (const option of definition.registration.options) {
-    const commanderOption = new Option(option.flags, option.description);
-    if (option.defaultValue !== undefined) commanderOption.default(option.defaultValue);
-    if (option.hidden === true) commanderOption.hideHelp();
-    if (option.valueKind === 'plan-identity') {
-      commanderOption.argParser(value => {
+function configureValueParser(
+  option: Option,
+  valueKind: CommandDefinition['registration']['options'][number]['valueKind'],
+): void {
+  switch (valueKind) {
+    case 'plan-identity': {
+      option.argParser(value => {
         if (!isPlanIdentity(value)) {
           throw new InvalidArgumentError(
             'plan identity must be the 64-character hexadecimal id returned by the latest preview',
@@ -61,14 +67,36 @@ export function addDefinitionOptions(command: Command, definition: CommandDefini
         }
         return value;
       });
-    } else if (option.valueKind === 'claude-plugin-scope') {
-      commanderOption.argParser(value => {
+      return;
+    }
+    case 'claude-plugin-scope': {
+      option.argParser(value => {
         if (value !== 'project' && value !== 'user') {
           throw new InvalidArgumentError('scope must be either project or user');
         }
         return value;
       });
+      return;
     }
+    case 'execution-mode-list': {
+      option.argParser((value: string, previous: string[] | undefined) => [
+        ...(previous ?? []),
+        value,
+      ]);
+      return;
+    }
+    case undefined: {
+      return;
+    }
+  }
+}
+
+export function addDefinitionOptions(command: Command, definition: CommandDefinition): void {
+  for (const option of definition.registration.options) {
+    const commanderOption = new Option(option.flags, option.description);
+    if (option.defaultValue !== undefined) commanderOption.default(option.defaultValue);
+    if (option.hidden === true) commanderOption.hideHelp();
+    configureValueParser(commanderOption, option.valueKind);
     command.addOption(commanderOption);
   }
 }
@@ -87,7 +115,7 @@ function definitionCommand(
     });
   }
 
-  const parent = families.get(firstPathSegment(definition.name));
+  const parent = families.get(path.slice(0, -1).join(' '));
   if (parent === undefined) {
     throw new Error(`Missing command family for ${definition.name}`);
   }
@@ -163,6 +191,7 @@ async function executeDefinition(
     try {
       result = await definition.handler({
         cwd: globalOptions.cwd,
+        json: globalOptions.json,
         noInput: globalOptions.noInput,
         offline: globalOptions.offline,
         options: commandOptions,

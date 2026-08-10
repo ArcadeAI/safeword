@@ -41,9 +41,14 @@ describe('canonical help and compatibility aliases', () => {
     ).toEqual(expectedRoot);
 
     for (const family of families) {
-      const expected = canonical
-        .filter(definition => definition.name.startsWith(`${family} `))
-        .map(definition => definition.name.slice(family.length + 1));
+      const expected = [
+        ...new Set(
+          canonical
+            .filter(definition => definition.name.startsWith(`${family} `))
+            .map(definition => definition.name.slice(family.length + 1).split(' ', 1)[0])
+            .filter((child): child is string => child !== undefined),
+        ),
+      ];
       const retainedBareAlias = commandCatalog.some(
         definition => definition.name === family && definition.aliasFor !== undefined,
       );
