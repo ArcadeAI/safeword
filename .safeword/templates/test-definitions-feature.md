@@ -1,28 +1,39 @@
-# Test Definitions: [Feature Name]
+# Test Definitions: {feature name}
 
-Feature source: `features/<slug>.feature`
+<!--
+Feature source: `features/<slug>.feature`.
 
-test-definitions.md is the R/G/R ledger. Keep executable Given/When/Then
-scenarios in the `.feature` file; keep only scenario progress here so hooks can
-derive the active RED/GREEN/REFACTOR step.
+test-definitions.md is the R/G/R ledger, not a second copy of the scenarios —
+keep executable Given/When/Then steps in the `.feature` file, and keep only
+scenario progress here so hooks can derive the active RED/GREEN/REFACTOR
+step.
 
-## Rule: [Business rule the scenarios below cover]
+One `## Rule:` block per business rule, one `### Scenario:` entry per
+scenario that proves it (names must match the `.feature` file). Fill in each
+`{brace}` placeholder, then delete this comment — but leave every
+`- [ ] RED` / `- [ ] GREEN` / `- [ ] REFACTOR` checkbox bare. Those aren't
+placeholders to fill in now: hooks parse them literally, and they get their
+real content (a commit SHA, or `skip: <reason>`) only as you actually work
+through RED, GREEN, and REFACTOR for that scenario.
+-->
 
-### Scenario: [Scenario name from the feature file]
+## Rule: {business rule the scenarios below cover}
+
+### Scenario: {scenario name from the feature file}
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: [Second scenario name]
+### Scenario: {second scenario name}
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: [Another business rule]
+## Rule: {another business rule}
 
-### Scenario: [Scenario name]
+### Scenario: {scenario name}
 
 - [ ] RED
 - [ ] GREEN
