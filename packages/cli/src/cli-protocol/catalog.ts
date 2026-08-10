@@ -21,7 +21,8 @@ interface Compatibility {
 export interface CommandDefinition {
   readonly name: string;
   readonly description: string;
-  readonly public: boolean;
+  readonly classification: InvocationClassification;
+  readonly visibility: InvocationVisibility;
   readonly effectClass: EffectClass;
   readonly promptPolicy: PromptPolicy;
   readonly networkPolicy: NetworkPolicy;
@@ -42,6 +43,7 @@ export interface CommandDefinition {
       readonly defaultValue?: string;
       readonly valueKind?: 'claude-plugin-scope' | 'plan-identity';
       readonly compatibilityReplacement?: string;
+      readonly hidden?: boolean;
     }[];
   };
   readonly aliasFor?: string;
@@ -70,7 +72,8 @@ function command(
   return {
     name,
     description,
-    public: true,
+    classification: 'public',
+    visibility: 'public',
     effectClass,
     promptPolicy: options.promptPolicy ?? 'never',
     networkPolicy: options.networkPolicy ?? 'never',
@@ -98,6 +101,8 @@ function alias(name: string, aliasFor: string): CommandDefinition {
       handler: canonical.handler,
     }),
     aliasFor,
+    classification: 'retained-alias',
+    visibility: 'hidden',
     compatibility: RETAINED_ALIAS,
   };
 }
@@ -108,7 +113,7 @@ function scopedInstallAlias(name: string, agent: 'claude' | 'codex'): CommandDef
     ...command(name, `Deprecated alias for install --agents=${agent}`, canonical.effectClass, {
       promptPolicy: canonical.promptPolicy,
       networkPolicy: canonical.networkPolicy,
-      commandOptions: canonical.registration.options,
+      commandOptions: agent === 'claude' ? [claudeScopeOption()] : [],
       // The retained spelling keeps its shipped safety guarantee: profile-only
       // installation that leaves the repository untouched (main's Rule
       // codex-plugin-install.TBU1.R2). `install --agents=<agent>` is the
@@ -116,6 +121,8 @@ function scopedInstallAlias(name: string, agent: 'claude' | 'codex'): CommandDef
       handler: publicHandler(name),
     }),
     aliasFor: 'install',
+    classification: 'retained-alias',
+    visibility: 'hidden',
     compatibility: {
       ...RETAINED_ALIAS,
       replacement: `install --agents=${agent}`,
@@ -123,10 +130,17 @@ function scopedInstallAlias(name: string, agent: 'claude' | 'codex'): CommandDef
   };
 }
 
-function hidden(name: string): CommandDefinition {
+function hidden(
+  name: string,
+  options: {
+    readonly syntax?: string;
+    readonly commandOptions?: CommandDefinition['registration']['options'];
+  } = {},
+): CommandDefinition {
   return {
-    ...command(name, 'Internal Safeword helper', 'hook'),
-    public: false,
+    ...command(name, 'Internal Safeword helper', 'hook', options),
+    classification: 'internal',
+    visibility: 'hidden',
   };
 }
 
@@ -411,6 +425,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('review-pr publish', 'Publish a validated advisory result', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'publish <result>',
+    fixture: {
+      argv: ['review-pr', 'publish', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
   }),
   command('retro run', 'Extract and file session findings', 'mutate', {
     networkPolicy: 'declared',
@@ -438,6 +456,34 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('retro reconcile', 'Reconcile open retro findings', 'mutate', {
     networkPolicy: 'declared',
   }),
+  command(
+    'retro-relay-retry',
+    'List durable relay requests or rearm one dead letter without changing its identity',
+    'mutate',
+    {
+      networkPolicy: 'declared',
+      syntax: 'retro-relay-retry [request-id]',
+    },
+  ),
+  command(
+    'retro-relay-discard',
+    'Permanently discard one poisoned relay identity and its source reservation',
+    'destructive',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'retro-relay-discard <request-id>',
+      commandOptions: [
+        {
+          flags: '--confirm',
+          description: 'Confirm irreversible deletion of this exact request identity',
+        },
+      ],
+      fixture: {
+        argv: ['retro-relay-discard', '00000000-0000-4000-8000-000000000001'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('capabilities', 'Describe the public machine interface', 'observe', {
     handler: () => Promise.resolve(createCapabilitiesResult()),
   }),
@@ -548,9 +594,14 @@ const ALIASES: readonly CommandDefinition[] = [
 ];
 
 const HIDDEN_COMMANDS: readonly CommandDefinition[] = [
-  hidden('boundary'),
-  hidden('hook codex'),
-  hidden('codex-hook'),
+  hidden('boundary', {
+    commandOptions: [{ flags: '--at <boundary>', description: 'which boundary: commit | push' }],
+  }),
+  hidden('hook codex', {
+    syntax: 'codex <event>',
+    commandOptions: [{ flags: '--plugin-hook', description: '', hidden: true }],
+  }),
+  hidden('codex-hook', { syntax: 'codex-hook <event>' }),
   hidden('feature-directories'),
 ];
 
@@ -560,7 +611,48 @@ export const commandCatalog: readonly CommandDefinition[] = [
   ...HIDDEN_COMMANDS,
 ];
 
-export const publicCommands = commandCatalog.filter(definition => definition.public);
+export type InvocationClassification = 'public' | 'retained-alias' | 'internal';
+export type InvocationVisibility = 'public' | 'hidden';
+export type InvocationKind = 'command' | 'family' | 'default' | 'argv-rewrite';
+
+export interface InvocationContract {
+  readonly route: string;
+  readonly kind: InvocationKind;
+  readonly classification: InvocationClassification;
+  readonly visibility: InvocationVisibility;
+  readonly command?: CommandDefinition;
+  readonly target?: string;
+  readonly fixture?: CommandDefinition['fixture'];
+}
+
+export const publicCommands = commandCatalog.filter(
+  definition => definition.classification !== 'internal',
+);
+
+export const commandFamilies = [
+  { route: 'project', description: 'Manage project-local Safeword state', visibility: 'public' },
+  {
+    route: 'tracker',
+    description: 'Manage tracker connections and synchronization',
+    visibility: 'public',
+  },
+  { route: 'codex', description: 'Manage the Safeword Codex plugin', visibility: 'public' },
+  { route: 'claude', description: 'Manage the Safeword Claude plugin', visibility: 'public' },
+  { route: 'ticket', description: 'Manage project tickets', visibility: 'public' },
+  { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
+  {
+    route: 'review-pr',
+    description: 'Inspect and publish pull request reviews',
+    visibility: 'public',
+  },
+  {
+    route: 'retro',
+    description: 'Inspect and file Safeword runtime findings',
+    visibility: 'public',
+  },
+  { route: 'migrate', description: 'Compatibility migration commands', visibility: 'hidden' },
+  { route: 'hook', description: 'Run packaged Safeword hooks', visibility: 'hidden' },
+] as const;
 
 export interface CompatibilityRoute {
   readonly route: string;
@@ -588,6 +680,53 @@ export const compatibilityRoutes: readonly CompatibilityRoute[] = [
           ],
     ),
   ),
+];
+
+const commandNames = new Set(commandCatalog.map(definition => definition.name));
+
+function familyClassification(family: (typeof commandFamilies)[number]): InvocationClassification {
+  if (family.route === 'retro') return 'retained-alias';
+  return family.visibility === 'hidden' ? 'internal' : 'public';
+}
+
+export const invocationCatalog: readonly InvocationContract[] = [
+  ...commandCatalog
+    .filter(definition => definition.name !== 'retro')
+    .map(definition => ({
+      route: definition.name,
+      kind: 'command' as const,
+      classification: definition.classification,
+      visibility: definition.visibility,
+      command: definition,
+    })),
+  ...commandFamilies.map(family => {
+    const retained = family.route === 'retro' ? findCommandDefinition('retro') : undefined;
+    return {
+      route: family.route,
+      kind: 'family' as const,
+      classification: familyClassification(family),
+      visibility: family.visibility,
+      ...(retained !== undefined && { command: retained, target: 'retro run' }),
+    };
+  }),
+  {
+    route: 'bare safeword',
+    kind: 'default',
+    classification: 'retained-alias',
+    visibility: 'hidden',
+    target: 'status',
+    fixture: { argv: [], environment: MACHINE_ENVIRONMENT },
+  },
+  ...compatibilityRoutes
+    .filter(route => route.route !== 'bare safeword' && !commandNames.has(route.route))
+    .map(route => ({
+      route: route.route,
+      kind: 'argv-rewrite' as const,
+      classification: 'retained-alias' as const,
+      visibility: 'hidden' as const,
+      target: route.replacement,
+      fixture: { argv: route.route.split(' '), environment: MACHINE_ENVIRONMENT },
+    })),
 ];
 
 export function findCommandDefinition(name: string): CommandDefinition {

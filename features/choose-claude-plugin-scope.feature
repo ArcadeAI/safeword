@@ -16,6 +16,12 @@ Feature: Choose where Safeword runs in Claude
         | --scope project | project        | user             |
         | --scope user    | user           | project          |
 
+    Scenario: Identical project and user records for one loaded installation use project scope
+      Given the current project has applicable project and user installations with the same exact version
+      When safeword claude status runs
+      Then status reports project as the applicable Safeword scope
+      And project and profile state remain byte-identical
+
     @rejection
     Scenario Outline: Unsupported scope is rejected before mutation
       Given arbitrary project and Claude profile state
@@ -192,7 +198,6 @@ Feature: Choose where Safeword runs in Claude
 
       Examples:
         | overlap-state              |
-        | the same exact version     |
         | different official versions |
         | one disabled installation  |
 
@@ -229,7 +234,7 @@ Feature: Choose where Safeword runs in Claude
 
     @rejection
     Scenario: Overlapping scopes cannot authorize legacy cleanup
-      Given the current project has applicable project and user installations
+      Given the current project has incompatible project and user installations
       And exact plugin execution proof exists
       When safeword claude cleanup is confirmed
       Then cleanup reports scope-overlap without removing legacy protection

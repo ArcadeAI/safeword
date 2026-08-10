@@ -60,13 +60,19 @@ describe('best-available host review contract', () => {
     expect(normalizedContract).toContain('credentials, or secrets');
     expect(contract).toContain('cannot independently prove');
     expect(contract).toContain('not a structural sandbox guarantee');
-    expect(normalizedSkill).toContain('This review was not independent.');
+    expect(normalizedSkill).toContain(
+      'Provide supplemental review feedback in this foreground session.',
+    );
+    expect(normalizedSkill).toContain('Required independent coverage remains unsatisfied.');
+    expect(normalizedSkill).not.toContain('This review was not independent.');
     expect(normalizedSkill).toContain('Host-mandated project context may have loaded');
     expect(normalizedSkill).toContain('source integrity was not revalidated');
-    expect(normalizedSkill).toContain('The main agent reviewed its own work in the same thread.');
+    expect(normalizedSkill).toContain('Supplemental feedback came from the main agent');
+    expect(normalizedSkill).toContain('Use an environment with a usable independent reviewer.');
     expect(normalizedSkill).toContain(
-      'Make an independent reviewer usable or explicitly choose `prefer`.',
+      "Include the coordinator's recovery command exactly as provided.",
     );
+    expect(normalizedSkill).toContain('Alternatively, explicitly choose `prefer`.');
     expect(normalizedSkill).toContain('map `approve` to `State: approved`');
     expect(normalizedSkill).toContain('and `request_changes` to `State: action required`');
     expect(normalizedSkill).toContain(

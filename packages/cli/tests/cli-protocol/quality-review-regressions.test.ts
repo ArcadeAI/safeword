@@ -34,7 +34,11 @@ describe('quality-review regressions for the public CLI boundary', () => {
     'catalogs the public %s leaf',
     name => {
       expect(findCommandDefinition(name)).toEqual(
-        expect.objectContaining({ name, public: true, handler: expect.any(Function) }),
+        expect.objectContaining({
+          name,
+          classification: expect.stringMatching(/^(public|retained-alias)$/),
+          handler: expect.any(Function),
+        }),
       );
     },
   );

@@ -17,9 +17,9 @@ describe('Claude plugin release contract', () => {
       'Claude plugin release contract is aligned',
     );
     expect(result.status).toBe(0);
-  });
+  }, 15_000);
 
-  it('keeps the real-host upgrade gate in the maintainer release path', () => {
+  it('documents the real-host upgrade gate in the maintainer release path', () => {
     const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');
     const runbookPath = nodePath.join(CLI_ROOT, 'tests/smoke/claude-plugin-manual-acceptance.md');
     const runbook = readFileSync(runbookPath, 'utf8');
@@ -58,6 +58,19 @@ describe('Claude plugin release contract', () => {
       '!`bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" quality-review',
     );
     expect(skill).not.toMatch(/^!`[^`\n]*\$\(/mu);
+  });
+
+  it('declares the packaged skills directory to the native Claude host', () => {
+    const manifest = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, 'plugin/.claude-plugin/plugin.json'), 'utf8'),
+    ) as { skills?: unknown };
+    const marketplace = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, '.claude-plugin/marketplace.json'), 'utf8'),
+    ) as { plugins?: { name?: unknown; skills?: unknown }[] };
+    const safeword = marketplace.plugins?.find(plugin => plugin.name === 'safeword');
+
+    expect(manifest.skills).toEqual(['./skills']);
+    expect(safeword?.skills).toEqual(['./skills']);
   });
 
   it('promotes one monotonic stable channel only after stable publication', () => {

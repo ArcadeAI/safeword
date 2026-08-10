@@ -20,6 +20,21 @@ function writeExecutable(path: string, content: string): void {
   chmodSync(path, 0o755);
 }
 
+/** Install a supported Claude host with no applicable Safeword plugins. */
+export function installEmptyClaudeRuntime(bin: string): void {
+  writeExecutable(
+    nodePath.join(bin, 'claude'),
+    `#!/bin/sh
+set -eu
+if [ "$*" = "--version" ]; then
+  printf '%s\n' '2.1.170'
+else
+  printf '%s\n' '[]'
+fi
+`,
+  );
+}
+
 export function installFakeCodexRuntime(
   directory: string,
   { pluginEnabled, pluginInitiallyInstalled, pluginVersion }: FakeCodexRuntimeOptions,

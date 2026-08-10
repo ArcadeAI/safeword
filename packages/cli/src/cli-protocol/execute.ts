@@ -18,14 +18,18 @@ export interface GlobalCliOptions {
 
 const GLOBAL_OPTION_KEYS = new Set(['json', 'noInput', 'cwd', 'quiet', 'offline', 'verbose']);
 
+export const GLOBAL_OPTION_DEFINITIONS = [
+  { flags: '--json', description: 'Write one versioned result envelope as JSON' },
+  { flags: '--no-input', description: 'Never prompt or infer consent' },
+  { flags: '--cwd <path>', description: 'Run against this project directory' },
+  { flags: '--quiet', description: 'Suppress healthy and progress prose' },
+  { flags: '--offline', description: 'Reject declared network effects' },
+  { flags: '-v, --verbose', description: 'Include implementation detail' },
+] as const;
+
 export function addGlobalOptions(command: Command): Command {
-  return command
-    .option('--json', 'Write one versioned result envelope as JSON')
-    .option('--no-input', 'Never prompt or infer consent')
-    .option('--cwd <path>', 'Run against this project directory')
-    .option('--quiet', 'Suppress healthy and progress prose')
-    .option('--offline', 'Reject declared network effects')
-    .option('-v, --verbose', 'Include implementation detail');
+  for (const option of GLOBAL_OPTION_DEFINITIONS) command.option(option.flags, option.description);
+  return command;
 }
 
 export function readGlobalOptions(command: Command): GlobalCliOptions {

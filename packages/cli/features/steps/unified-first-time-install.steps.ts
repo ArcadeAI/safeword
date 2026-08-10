@@ -54,6 +54,9 @@ interface UnifiedInstallWorld extends SafewordWorld {
   projectBefore?: string;
   unplannedContent?: string;
   canonicalCommand?: string;
+  relayRecoveryCommand?: string;
+  profileOnlyAlias?: string;
+  irrelevantAliasOption?: string;
   historicalCommand?: string;
   humanInstallSummary?: boolean;
   compatibilityAlias?: string;
@@ -107,8 +110,9 @@ function createClaudePayload(root: string): string {
   const assets = [
     ['hooks/hooks.json', '{"hooks":{}}\n'],
     ['runtime/cli.js', '// cli\n'],
-    ['runtime/dispatch.ts', '// dispatch\n'],
+    ['runtime/dispatch.js', '// dispatch\n'],
     ['runtime/event-groups.json', '{}\n'],
+    ['.claude-plugin/plugin.json', '{"name":"safeword"}\n'],
   ] as const;
   for (const [relativePath, content] of assets) {
     const path = nodePath.join(installPath, relativePath);
@@ -2049,7 +2053,19 @@ Given(
   },
 );
 
+Given(
+  'the public relay recovery command {string}',
+  function (this: UnifiedInstallWorld, command: string) {
+    initializeHosts(this);
+    this.relayRecoveryCommand = command;
+  },
+);
+
 When('the user requests global JSON output', function (this: UnifiedInstallWorld) {
+  if (this.relayRecoveryCommand !== undefined) {
+    runRawCommand(this, [...this.relayRecoveryCommand.split(' '), '--quiet', '--offline']);
+    return;
+  }
   const command = requiredPath(this.canonicalCommand, 'canonical command');
   const argumentsByCommand: Readonly<Record<string, readonly string[]>> = {
     install: ['install', '--agents', 'none'],
@@ -2061,6 +2077,62 @@ When('the user requests global JSON output', function (this: UnifiedInstallWorld
   const arguments_ = argumentsByCommand[command];
   if (arguments_ === undefined) throw new Error(`Unsupported lifecycle fixture: ${command}`);
   runRawCommand(this, arguments_);
+});
+
+Then('capabilities lists the relay recovery command', function (this: UnifiedInstallWorld) {
+  const command = requiredPath(this.relayRecoveryCommand, 'relay recovery command').split(
+    ' ',
+    1,
+  )[0];
+  const project = requiredPath(this.projectRoot, 'project root');
+  const result = spawnSync(
+    process.execPath,
+    [CLI_PATH, 'capabilities', '--json', '--cwd', project],
+    {
+      cwd: project,
+      encoding: 'utf8',
+      env: { ...process.env, ...this.hostEnvironment, SAFEWORD_NO_UPDATE_CHECK: '1' },
+    },
+  );
+  const envelope = JSON.parse(result.stdout) as { data?: { commands?: { name?: string }[] } };
+  assert.equal(
+    envelope.data?.commands?.some(candidate => candidate.name === command),
+    true,
+  );
+});
+
+Given('retained profile-only alias {string}', function (this: UnifiedInstallWorld, alias: string) {
+  initializeHosts(this);
+  this.profileOnlyAlias = alias;
+  this.fixtureBefore = fixtureEffectDigest(this);
+});
+
+When(
+  'the user supplies irrelevant option {string}',
+  function (this: UnifiedInstallWorld, option: string) {
+    this.irrelevantAliasOption = option;
+    runRawCommand(this, [
+      ...requiredPath(this.profileOnlyAlias, 'profile-only alias').split(' '),
+      option,
+      '--offline',
+    ]);
+  },
+);
+
+Then(
+  'the parser rejects the option before any profile mutation',
+  function (this: UnifiedInstallWorld) {
+    assert.equal(this.result.exitCode, 1);
+    assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
+    const envelope = JSON.parse(this.result.stdout) as { errors?: { message?: string }[] };
+    assert.match(JSON.stringify(envelope.errors), /unknown option/iu);
+  },
+);
+
+Then('the alias remains documented as retained indefinitely', function (this: UnifiedInstallWorld) {
+  const alias = requiredPath(this.profileOnlyAlias, 'profile-only alias');
+  const route = compatibilityRoutes.find(candidate => candidate.route === alias);
+  assert.equal(route?.retention, 'indefinite');
 });
 
 Then(
@@ -2126,7 +2198,7 @@ Given('core Claude and Codex installation all succeed', function (this: UnifiedI
 });
 
 Then('the human result names each surface and its outcome', function (this: UnifiedInstallWorld) {
-  assert.match(this.result.stdout, /Project setup: (?:ready|updated|needs attention)/u);
+  assert.match(this.result.stdout, /Project: (?:ready|updated|needs attention)/u);
   assert.match(this.result.stdout, /Claude: (?:ready|updated|needs attention)/u);
   assert.match(this.result.stdout, /Codex: (?:ready|updated|needs attention)/u);
 });
@@ -2157,7 +2229,7 @@ Then(
   function (this: UnifiedInstallWorld) {
     assert.notEqual(this.result.exitCode, 0);
     const rendered = `${this.result.stdout}\n${this.result.stderr}`;
-    assert.match(rendered, /Project setup: updated/u);
+    assert.match(rendered, /Project: updated/u);
     assert.match(rendered, /Claude: failed/u);
     assert.match(rendered, /Codex: needs attention/u);
     assert.doesNotMatch(rendered, /^Healthy$/mu);
@@ -2290,7 +2362,7 @@ When('a non-technical builder reads the human summary', () => {
 Then(
   'they can identify what is ready what failed and the next action',
   function (this: UnifiedInstallWorld) {
-    assert.match(this.result.stdout, /Project setup: updated/u);
+    assert.match(this.result.stdout, /Project: updated/u);
     assert.match(this.result.stdout, /Claude: needs attention/u);
     assert.match(this.result.stdout, /Next: \/reload-plugins/u);
   },

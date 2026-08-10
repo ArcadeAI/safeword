@@ -12,21 +12,46 @@ Safeword has one canonical lifecycle. Retained aliases remain executable
 indefinitely for compatibility, but examples and recovery guidance use the
 canonical commands below.
 
-| Command        | Effect      | Purpose                                     |
-| -------------- | ----------- | ------------------------------------------- |
-| `status`       | Read-only   | Report health and one next action           |
-| `install`      | Mutating    | Configure the project and selected agents   |
-| `plan`         | Read-only   | Preview reconciliation effects              |
-| `doctor`       | Read-only   | Diagnose project configuration              |
-| `uninstall`    | Destructive | Remove the exact reviewed Safeword plan     |
-| `project …`    | Mixed       | Maintain project config, tests, and indexes |
-| `tracker …`    | Mutating    | Connect and synchronize an external tracker |
-| `claude …`     | Mixed       | Inspect, clean up, or recover Claude state  |
-| `codex …`      | Mixed       | Inspect, migrate, or recover Codex state    |
-| `ticket …`     | Mixed       | List and create project tickets             |
-| `review run`   | Mutating    | Run an independent adversarial review       |
-| `retro …`      | Mixed       | Extract, inspect, and reconcile findings    |
-| `capabilities` | Read-only   | Describe the stable machine interface       |
+{/* safeword:generated-cli-commands:start */}
+
+| Command                  | Effect      | Purpose                                                                                                      |
+| ------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------ |
+| `status`                 | observe     | Report project health and the next action                                                                    |
+| `install`                | mutate      | Install Safeword for this project and selected agents                                                        |
+| `plan`                   | plan        | Preview reconciliation effects                                                                               |
+| `doctor`                 | observe     | Diagnose project configuration                                                                               |
+| `uninstall`              | destructive | Deactivate selected Safe Word project and agent state; preserve authored content; reinstall to recover       |
+| `project sync-config`    | mutate      | Regenerate dependency-cruiser configuration                                                                  |
+| `project architecture`   | mutate      | Refresh generated architecture state                                                                         |
+| `project sync-learnings` | mutate      | Refresh the project learning index                                                                           |
+| `project sync-tickets`   | mutate      | Refresh project ticket indexes                                                                               |
+| `project codify`         | mutate      | Generate a test skeleton from ticket behavior                                                                |
+| `project test-plan`      | observe     | Describe repository test commands                                                                            |
+| `project lint-gherkin`   | observe     | Validate executable feature files                                                                            |
+| `tracker sync`           | mutate      | Synchronize tickets with the configured tracker                                                              |
+| `tracker connect`        | mutate      | Connect a project to a tracker                                                                               |
+| `codex migrate`          | destructive | Deactivate proven legacy Codex hooks after creating a recovery backup                                        |
+| `codex bootstrap`        | mutate      | Keep the project Codex plugin available                                                                      |
+| `codex status`           | observe     | Report Codex plugin and migration state                                                                      |
+| `claude status`          | observe     | Report Claude plugin and migration state                                                                     |
+| `claude cleanup`         | destructive | Deactivate verified legacy Claude assets while preserving a recoverable backup                               |
+| `claude recover`         | mutate      | Restore recognized Claude state from its cleanup backup without replacing unrelated content                  |
+| `codex clean-guidance`   | destructive | Deactivate exact legacy Safe Word profile guidance, preserve unrelated content, and retain a recovery backup |
+| `codex recover`          | destructive | Restore backed-up legacy Codex state without replacing unrelated current content                             |
+| `ticket list`            | observe     | List project tickets                                                                                         |
+| `ticket new`             | mutate      | Create a project ticket                                                                                      |
+| `review run`             | mutate      | Run an independent adversarial review                                                                        |
+| `review-pr inspect`      | mutate      | Inspect bounded pull-request evidence as untrusted data                                                      |
+| `review-pr invalidate`   | mutate      | Remove an obsolete advisory route                                                                            |
+| `review-pr publish`      | mutate      | Publish a validated advisory result                                                                          |
+| `retro run`              | mutate      | Extract and file session findings                                                                            |
+| `retro signals`          | observe     | Inspect locally captured runtime signals                                                                     |
+| `retro reconcile`        | mutate      | Reconcile open retro findings                                                                                |
+| `retro-relay-retry`      | mutate      | List durable relay requests or rearm one dead letter without changing its identity                           |
+| `retro-relay-discard`    | destructive | Permanently discard one poisoned relay identity and its source reservation                                   |
+| `capabilities`           | observe     | Describe the public machine interface                                                                        |
+
+{/* safeword:generated-cli-commands:end */}
 
 Every public command accepts the same global options before or after the
 command:
@@ -68,7 +93,15 @@ bunx safeword@latest uninstall
 
 `install` handles first-time installation and upgrades through the same
 idempotent convergence path, installing Claude and Codex by default while
-leaving Cursor untouched. `setup`, `upgrade`, `claude install`, and `codex install` remain deprecated aliases. `uninstall` requires both `--yes` and the current
+leaving Cursor untouched.
+
+{/* safeword:compatibility:start */}
+
+`setup`, `upgrade`, `claude install`, and `codex install` remain deprecated aliases.
+
+{/* safeword:compatibility:end */}
+
+`uninstall` requires both `--yes` and the current
 `--plan <id>` so consent cannot apply to a project that changed after preview.
 Project verification runs automatically after `install`; use `doctor` directly
 for CI health gates and debugging. The retained `upgrade` alias follows the
@@ -120,7 +153,6 @@ may miss issues, and is not merge-safety evidence.
 | `rustfmt.toml`       | Creates file                                       | Formatting config (Rust)                              |
 | `Cargo.toml`         | Adds lints section                                 | clippy lints (Rust)                                   |
 | `.sqlfluff`          | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
-| `AGENTS.md`          | Creates or prepends                                | Links to SAFEWORD.md                                  |
 | `.mcp.json`          | Creates or merges                                  | MCP server config                                     |
 | `.cursor/mcp.json`   | Creates or merges only with `--agents=cursor`      | MCP server config (Cursor)                            |
 
@@ -138,12 +170,12 @@ safeword install --agents=claude --scope user
 /reload-plugins
 safeword claude status
 
-# Legacy projects only: preview, then run the exact --yes --plan command returned
+# Optional diagnostics or repair for a legacy project that still needs attention
 safeword claude cleanup
 safeword claude recover # only when status reports recovery-required
 ```
 
-`claude install` selects and verifies the official stable plugin at project scope by default, preserving unrelated settings and an explicit native-update opt-out. Pass `--scope user` for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next prompt records proof bound to the installed version and bundled hook manifest. `claude status` is read-only. Cleanup never installs, updates, enables, reloads, or trusts a plugin: it removes only recognized legacy Safeword project assets after exact plugin proof and explicit plan confirmation, preserving custom and third-party content.
+`claude install` selects and verifies the official stable plugin at project scope by default, preserving unrelated settings and an explicit native-update opt-out. Pass `--scope user` for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next successful prompt records proof bound to the installed version and bundled hook manifest, then automatically retires exact catalogued legacy Safeword files and settings entries. Modified, malformed, unknown, and third-party content is preserved with a non-blocking advisory. `claude status` is read-only; `claude cleanup` remains an explicit diagnostic/repair path. Neither path installs, updates, enables, reloads, or trusts a plugin.
 
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
@@ -171,7 +203,15 @@ safeword review run <kind> <targets...>
 safeword retro run
 safeword retro signals
 safeword retro reconcile
+safeword retro-relay-retry [request-id]
+safeword retro-relay-discard <request-id> [--confirm]
 ```
+
+`retro-relay-retry` lists durable requests when no identity is supplied and
+rearms the exact dead letter when one is supplied. Expired server-side
+requests may use the configured relay recovery boundary. `retro-relay-discard`
+is the irreversible escape hatch for one poisoned identity; without
+`--confirm`, it returns an action-required result and leaves the spool intact.
 
 Run any command with `--help` for its complete option set.
 For `project test-plan` and `retro signals` / `self-report`, the retained
@@ -180,17 +220,21 @@ For `project test-plan` and `retro signals` / `self-report`, the retained
 
 ## Compatibility routes
 
+{/* safeword:compatibility:start */}
+
 These spellings remain executable indefinitely, but are excluded from the
 canonical quick path. Each invocation reports its replacement in structured
 compatibility metadata.
+
+{/* safeword:generated-cli-compatibility:start */}
 
 | Retained route                        | Canonical replacement                              |
 | ------------------------------------- | -------------------------------------------------- |
 | bare `safeword`                       | `status`                                           |
 | `check`                               | `status`                                           |
-| `setup`                               | `install`                                          |
 | `claude install`                      | `install --agents=claude`                          |
 | `codex install`                       | `install --agents=codex`                           |
+| `setup`                               | `install`                                          |
 | `upgrade`                             | `install`                                          |
 | `diff`                                | `plan`                                             |
 | `remove`                              | `uninstall --agents=none`                          |
@@ -212,8 +256,12 @@ compatibility metadata.
 | `project architecture --staged`       | `project architecture --from-index`                |
 | `codex migrate --remove-legacy-hooks` | `codex migrate --finalize`                         |
 
+{/* safeword:generated-cli-compatibility:end */}
+
 `setup --yes` is also retained indefinitely. Because installation is
 non-destructive, `--yes` is redundant and does not grant additional consent.
+
+{/* safeword:compatibility:end */}
 
 ## safeword project architecture
 

@@ -16,7 +16,9 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { recoverClaudeCleanup } from '../../src/claude-plugin/cleanup.js';
+import { claudeLegacyMutations, recoverClaudeCleanup } from '../../src/claude-plugin/cleanup.js';
+import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
+import { historicalHookEntry } from '../../src/claude-plugin/historical-ownership.js';
 
 const fixtures: string[] = [];
 
@@ -85,6 +87,19 @@ describe('Claude cleanup recovery', () => {
     expect(readFileSync(target, 'utf8')).toBe('recognized legacy\n');
   });
 
+  it('accepts an all-after forward transaction and retires it idempotently', () => {
+    const { root, target, transaction } = fixture();
+    writeTransaction(transaction, 'complete-forward', 'recognized legacy\n');
+    expect(existsSync(target)).toBe(false);
+
+    expect(recoverClaudeCleanup(root).state).toBe('changed');
+    expect(existsSync(target)).toBe(false);
+    expect(existsSync(transaction)).toBe(false);
+    expect(existsSync(nodePath.join(root, '.safeword/claude-plugin/plugin-mode-v1.json'))).toBe(
+      true,
+    );
+  });
+
   it('preserves unknown concurrent bytes and retains recovery evidence', () => {
     const { root, target, transaction } = fixture();
     writeFileSync(target, 'concurrent user bytes\n');
@@ -123,5 +138,54 @@ describe('Claude cleanup recovery', () => {
     expect(recoverClaudeCleanup(nested).state).toBe('changed');
     expect(existsSync(target)).toBe(false);
     expect(existsSync(transaction)).toBe(false);
+  });
+});
+
+describe('Claude settings contraction', () => {
+  function acceptedPromptHook(): unknown {
+    const fingerprint =
+      CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].hooks.UserPromptSubmit?.[0] ?? '';
+    return historicalHookEntry(fingerprint);
+  }
+
+  it('removes only exact historical entries while preserving untouched JSONC bytes', () => {
+    const { root } = fixture();
+    const settings = nodePath.join(root, '.claude/settings.json');
+    const accepted = acceptedPromptHook();
+    const modified = structuredClone(accepted) as { hooks: { command: string }[] };
+    const modifiedCommand = modified.hooks[0];
+    if (modifiedCommand === undefined) throw new Error('Historical hook command is missing.');
+    modifiedCommand.command += ' --custom';
+    const prefix =
+      '{\n  // user heading stays byte-exact\n  "theme"  :  "dark",\n  "hooks": {\n    "UserPromptSubmit": [\n';
+    const suffix = '\n    ]\n  },\n  "custom" : { "spacing" : true } // tail stays\n}\n';
+    writeFileSync(
+      settings,
+      `${prefix}      ${JSON.stringify(accepted)},\n      ${JSON.stringify(modified)},\n      {"hooks":[{"type":"command","command":"bun third-party.ts"}]}${suffix}`,
+    );
+
+    const mutation = claudeLegacyMutations(root).find(
+      entry => entry.path === '.claude/settings.json',
+    );
+    expect(mutation?.content).not.toBeNull();
+    expect(mutation?.content).toContain('// user heading stays byte-exact');
+    expect(mutation?.content).toContain('"theme"  :  "dark"');
+    expect(mutation?.content).toContain('"custom" : { "spacing" : true } // tail stays');
+    expect(mutation?.content).toContain('--custom');
+    expect(mutation?.content).toContain('bun third-party.ts');
+    expect(mutation?.content).not.toContain(JSON.stringify(accepted));
+  });
+
+  it('deletes a generated hook-only settings file instead of leaving an empty object', () => {
+    const { root } = fixture();
+    const settings = nodePath.join(root, '.claude/settings.json');
+    writeFileSync(
+      settings,
+      `${JSON.stringify({ hooks: { UserPromptSubmit: [acceptedPromptHook()] } }, undefined, 2)}\n`,
+    );
+    expect(claudeLegacyMutations(root)).toContainEqual({
+      path: '.claude/settings.json',
+      content: null,
+    });
   });
 });

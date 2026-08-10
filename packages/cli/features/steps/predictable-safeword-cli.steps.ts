@@ -74,6 +74,7 @@ interface PredictableCliWorld extends SafewordWorld {
   secondDirectory?: string;
   witnessDirectory?: string;
   witnessLog?: string;
+  hostProfileDirectory?: string;
 }
 
 interface CommandRun {
@@ -89,6 +90,11 @@ function temporaryProject(world: PredictableCliWorld): string {
   return world.temporaryDirectory;
 }
 
+function hostProfileDirectory(world: PredictableCliWorld): string {
+  world.hostProfileDirectory ??= mkdtempSync(join(tmpdir(), 'safeword-cli-profiles-'));
+  return world.hostProfileDirectory;
+}
+
 function runCli(
   world: PredictableCliWorld,
   argv: readonly string[],
@@ -97,7 +103,11 @@ function runCli(
   const completed = spawnSync(process.execPath, [CLI_PATH, ...argv], {
     cwd,
     encoding: 'utf8',
-    env: { ...childEnvironment(), ...world.hostEnvironment },
+    env: publicFixtureEnvironment(
+      hostProfileDirectory(world),
+      world.hostEnvironment ?? {},
+      childEnvironment(),
+    ),
   });
   world.result = {
     stdout: completed.stdout,
@@ -129,7 +139,12 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     temporaryProject(world),
     `public-fixture-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
   );
+  const hostProfiles = join(
+    temporaryProject(world),
+    `public-host-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
+  );
   rmSync(cwd, { recursive: true, force: true });
+  rmSync(hostProfiles, { recursive: true, force: true });
   mkdirSync(cwd, { recursive: true });
   const completed = spawnSync(
     process.execPath,
@@ -137,7 +152,7 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     {
       cwd,
       encoding: 'utf8',
-      env: publicFixtureEnvironment(cwd, definition.fixture.environment),
+      env: publicFixtureEnvironment(hostProfiles, definition.fixture.environment),
     },
   );
   // Each run gets its own directory, so the path itself is not part of the
@@ -149,6 +164,24 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     stderr: normalize(completed.stderr),
     exitCode: completed.status ?? 1,
   };
+}
+
+function stableMachineResult(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(item => stableMachineResult(item));
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => {
+      if (key !== 'recorded_at') return [key, stableMachineResult(child)];
+      // The observation schema declares `recorded_at: string | null`, and a
+      // missing hook proof legitimately reports null. Only a present value has
+      // to be a parseable timestamp.
+      // eslint-disable-next-line unicorn/no-null -- null is the schema's own absent-observation value
+      if (child === null) return [key, null];
+      assert.equal(typeof child, 'string');
+      assert.ok(!Number.isNaN(Date.parse(child)));
+      return [key, '<valid-observation-time>'];
+    }),
+  );
 }
 
 function setupProject(world: PredictableCliWorld): void {
@@ -260,6 +293,9 @@ After(function (this: PredictableCliWorld) {
   }
   if (this.witnessDirectory !== undefined) {
     rmSync(this.witnessDirectory, { recursive: true, force: true });
+  }
+  if (this.hostProfileDirectory !== undefined) {
+    rmSync(this.hostProfileDirectory, { recursive: true, force: true });
   }
 });
 
@@ -681,7 +717,10 @@ Then(
       const second = assertPresent(secondRuns[index]);
       assert.equal(first.stderr, '');
       assert.equal(second.stderr, '');
-      assert.deepEqual(JSON.parse(first.stdout), JSON.parse(second.stdout));
+      assert.deepEqual(
+        stableMachineResult(JSON.parse(first.stdout)),
+        stableMachineResult(JSON.parse(second.stdout)),
+      );
       assert.equal(first.exitCode, second.exitCode);
     }
   },
@@ -864,7 +903,7 @@ Then(
     const commands = (wireResult(this).data as { commands: { name: string }[] }).commands;
     assert.ok(
       commandCatalog
-        .filter(command => !command.public)
+        .filter(command => command.classification === 'internal')
         .every(helper => commands.every(command => command.name !== helper.name)),
     );
     assert.deepEqual(wireResult(this).effects, EMPTY_EFFECTS);
@@ -930,7 +969,7 @@ Given(
 );
 
 When('it invokes its real hidden Safeword entrypoint', function (this: PredictableCliWorld) {
-  const hidden = commandCatalog.filter(command => !command.public);
+  const hidden = commandCatalog.filter(command => command.classification === 'internal');
   assert.ok(hidden.some(command => command.name.includes('hook')));
   const completed = runRealHook(this, assertPresent(this.hookSurface));
   this.result = {

@@ -125,7 +125,7 @@ async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliRe
 }
 
 async function claudeCleanupHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { cleanupClaudeLegacy } = await import('../claude-plugin/cleanup.js');
+  const { cleanupClaudeLegacy } = await import('../claude-plugin/cleanup-command.js');
   return cleanupClaudeLegacy(invocation.cwd, {
     assumeYes: invocation.options.yes === true,
     plan: stringOption(invocation.options, 'plan'),
@@ -1439,6 +1439,242 @@ function retroFailure(message: string): CliResult {
   });
 }
 
+interface RelayCommandMessages {
+  readonly errors: string[];
+  readonly info: string[];
+  readonly success: string[];
+}
+
+function relayCommandMessages(): RelayCommandMessages & {
+  readonly output: {
+    readonly error: (message: string) => void;
+    readonly info: (message: string) => void;
+    readonly success: (message: string) => void;
+  };
+} {
+  const errors: string[] = [];
+  const info: string[] = [];
+  const success: string[] = [];
+  return {
+    errors,
+    info,
+    success,
+    output: {
+      error: message => {
+        errors.push(message);
+      },
+      info: message => {
+        info.push(message);
+      },
+      success: message => {
+        success.push(message);
+      },
+    },
+  };
+}
+
+async function relayRecoveryDirectory(cwd: string): Promise<CliResult | string> {
+  const { resolveRelayRecoveryOutboxDirectory } = await import('../commands/retro.js');
+  const outbox = resolveRelayRecoveryOutboxDirectory(
+    cwd,
+    globalThis.process.env.SAFEWORD_RETRO_RELAY_OUTBOX,
+  );
+  if (!('error' in outbox)) return outbox.directory;
+  return createResult({
+    state: 'failed',
+    errors: [{ code: 'RETRO_RELAY_OUTBOX_INVALID', message: outbox.error, retryable: false }],
+  });
+}
+
+function relayRecoveryFromEnvironment(offline: boolean):
+  | {
+      credential: string;
+      fetch: typeof fetch;
+      operatorCredential?: string;
+      relayUrl: string;
+    }
+  | undefined {
+  if (offline) return undefined;
+  const credential = globalThis.process.env.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
+  const relayUrl = globalThis.process.env.SAFEWORD_RETRO_RELAY_URL?.trim();
+  if (!credential || !relayUrl) return undefined;
+  const operatorCredential =
+    globalThis.process.env.SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL?.trim();
+  return {
+    credential,
+    fetch,
+    ...(operatorCredential && { operatorCredential }),
+    relayUrl,
+  };
+}
+
+function relayCommandFindings(messages: RelayCommandMessages): CliResult['findings'] {
+  return [...messages.info, ...messages.success].map((message, index) => ({
+    code: index < messages.info.length ? 'RETRO_RELAY_STATUS' : 'RETRO_RELAY_RECOVERED',
+    message,
+    severity: 'info' as const,
+  }));
+}
+
+function relayCommandFailure(
+  command: 'retro-relay-discard' | 'retro-relay-retry',
+  message: string,
+  requestId?: string,
+): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code:
+          command === 'retro-relay-retry'
+            ? 'RETRO_RELAY_RETRY_FAILED'
+            : 'RETRO_RELAY_DISCARD_FAILED',
+        message,
+        retryable: command === 'retro-relay-retry',
+      },
+    ],
+    data: { command, ...(requestId && { request_id: requestId }) },
+  });
+}
+
+function relayRetryResult(
+  requestId: string | undefined,
+  succeeded: boolean,
+  messages: RelayCommandMessages,
+): CliResult {
+  const changed = succeeded && requestId !== undefined;
+  const recoveredThroughRelay = messages.success.some(message => message.includes('recovered'));
+  let state: CliResult['state'] = 'failed';
+  if (succeeded) state = changed ? 'changed' : 'healthy';
+  return createResult({
+    state,
+    changed,
+    findings: relayCommandFindings(messages),
+    effects: {
+      configuration:
+        changed && !recoveredThroughRelay
+          ? [{ kind: 'rearm', target: `Retro relay request ${requestId}`, operation: 'retry' }]
+          : [],
+      network: recoveredThroughRelay
+        ? [{ kind: 'retro-relay-recovery', target: 'Configured retro relay', operation: 'retry' }]
+        : [],
+    },
+    errors: messages.errors.map(message => ({
+      code: 'RETRO_RELAY_RETRY_FAILED',
+      message,
+      retryable: true,
+    })),
+    data: { command: 'retro-relay-retry', ...(requestId && { request_id: requestId }) },
+  });
+}
+
+async function retroRelayRetryHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const requestId = invocation.operands[0];
+  if (requestId !== undefined && typeof requestId !== 'string') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: 'retro-relay-retry request identity must be text.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'retro-relay-retry' },
+    });
+  }
+  const directory = await relayRecoveryDirectory(invocation.cwd);
+  if (typeof directory !== 'string') return directory;
+  const messages = relayCommandMessages();
+  const { retryRelayDeadLetterCommand } = await import('../commands/retro.js');
+  const relay = relayRecoveryFromEnvironment(invocation.offline);
+  let succeeded: boolean;
+  try {
+    succeeded = await retryRelayDeadLetterCommand(requestId, {
+      output: messages.output,
+      projectDirectory: directory,
+      ...(relay && { relay }),
+    });
+  } catch (error: unknown) {
+    return relayCommandFailure(
+      'retro-relay-retry',
+      error instanceof Error ? error.message : String(error),
+      requestId,
+    );
+  }
+  return relayRetryResult(requestId, succeeded, messages);
+}
+
+async function retroRelayDiscardHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const requestId = invocation.operands[0];
+  if (typeof requestId !== 'string') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: 'retro-relay-discard requires one request identity.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'retro-relay-discard' },
+    });
+  }
+  if (invocation.options.confirm !== true) {
+    return createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'CONFIRMATION_REQUIRED',
+          message: 'Confirm irreversible deletion of this exact durable request identity.',
+          severity: 'warning',
+        },
+      ],
+      nextActions: [
+        {
+          command: `safeword retro-relay-discard ${requestId} --confirm`,
+          mutates: true,
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'retro-relay-discard', request_id: requestId },
+    });
+  }
+  const directory = await relayRecoveryDirectory(invocation.cwd);
+  if (typeof directory !== 'string') return directory;
+  const messages = relayCommandMessages();
+  const { discardRelaySpoolCommand } = await import('../commands/retro.js');
+  let succeeded: boolean;
+  try {
+    succeeded = await discardRelaySpoolCommand(requestId, true, {
+      output: messages.output,
+      projectDirectory: directory,
+    });
+  } catch (error: unknown) {
+    return relayCommandFailure(
+      'retro-relay-discard',
+      error instanceof Error ? error.message : String(error),
+      requestId,
+    );
+  }
+  return createResult({
+    state: succeeded ? 'changed' : 'failed',
+    changed: succeeded,
+    findings: relayCommandFindings(messages),
+    effects: {
+      destructive: succeeded
+        ? [{ kind: 'discard', target: `Retro relay request ${requestId}`, operation: 'delete' }]
+        : [],
+    },
+    errors: messages.errors.map(message => ({
+      code: 'RETRO_RELAY_DISCARD_FAILED',
+      message,
+      retryable: false,
+    })),
+    data: { command: 'retro-relay-discard', request_id: requestId },
+  });
+}
+
 function retroOptions(invocation: CommandInvocation, transcript: string): RetroCliOptions {
   const findings = stringOption(invocation.options, 'findings');
   return {
@@ -1617,6 +1853,8 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
   'retro reconcile': retroReconcileHandler,
+  'retro-relay-retry': retroRelayRetryHandler,
+  'retro-relay-discard': retroRelayDiscardHandler,
   boundary: () =>
     Promise.resolve(
       createResult({ state: 'healthy', data: { command: 'boundary', internal: true } }),

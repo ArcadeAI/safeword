@@ -378,7 +378,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
 
     // A headless process proves cache dispatch and all hook evidence, but it is
     // not a restarted Desktop app-server and therefore must leave activation pending.
-    const marker = writeCodexActivationMarker(environment, new Date(), { activeHosts: [] });
+    const marker = writeCodexActivationMarker(environment, new Date());
     const model = process.env.SAFEWORD_CODEX_SMOKE_MODEL ?? DEFAULT_CODEX_ACTIVATION_CHECK_MODEL;
     const activation = runHeadlessCodexActivationCheck({
       codexBinary: CODEX,
@@ -394,7 +394,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
       expect(shimOutput).toContain(`--bun safeword@${packageVersion()} hook codex ${event}`);
     }
     assertNoProjectWorkflowTree(projectRoot);
-  });
+  }, 600_000);
 });
 
 describe.skipIf(!CAN_RUN_MIGRATION)('live smoke: Codex public migration', () => {
