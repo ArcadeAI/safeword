@@ -35,7 +35,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: One infrastructure failure is retried once
 
 - [x] RED b2670c4dc
-- [ ] GREEN
+- [x] GREEN 1cfb1e9e3
 - [ ] REFACTOR
 
 ### Scenario: A second infrastructure failure excludes the paired case
