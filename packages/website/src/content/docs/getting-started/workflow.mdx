@@ -26,7 +26,7 @@ flowchart TD
     classify -->|"1–2 files, one behavior"| task["task — TDD"]
     classify -->|"3+ files · new state · many flows"| feature["feature — BDD"]
 
-    feature --> phase0["Phase 0 spec:<br/>Intake Brief → Jobs To Be Done → Acceptance Criteria → scope"]
+    feature --> phase0["Phase 0 spec:<br/>Intake Brief → Jobs To Be Done → Product Inspiration → Rules → scope"]
     phase0 --> g1{{"Phase gate:<br/>scope / out_of_scope / done_when"}}
     g1 --> scenarios["Define-behavior scenarios"]
     scenarios --> g2{{"Phase gate:<br/>test-definitions.md exists"}}
@@ -49,7 +49,7 @@ flowchart TD
 
 The agent doesn't ask twenty questions and it doesn't guess. It **proposes a direction**, then surfaces the open questions inside that proposal, and converges with you over as many turns as the ambiguity warrants — a clear request takes zero rounds, a vague idea takes two or three.
 
-For a **feature**, this is also where the product framing gets written, in order: a short Intake Brief (who asked, the cost of not doing it, how reversible it is) → Jobs To Be Done (one persona per job) → Acceptance Criteria → engineering scope. The brief comes first and doubles as triage — if the cost of inaction is low and the change is easily reversed, it may be a leaner task, not a feature. Those scope decisions land in the ticket as `scope`, `out_of_scope`, and `done_when`.
+For a **feature**, this is also where the product framing gets written, in order: a short Intake Brief (who asked, the cost of not doing it, how reversible it is) → Jobs To Be Done (one persona per job) → Product Inspiration (who does this exceptionally well, what customers value, the principle to borrow, and the boundary not to copy) → Rules → engineering scope. The brief comes first and doubles as triage — if the cost of inaction is low and the change is easily reversed, it may be a leaner task, not a feature. Those scope decisions land in the ticket as `scope`, `out_of_scope`, and `done_when`.
 
 ## 2 · Classify
 
@@ -63,7 +63,7 @@ The agent sizes the work — it doesn't announce a label, it just picks the righ
 
 - **patch** goes straight to the fix.
 - **task** runs the TDD loop: a failing test (RED), the minimum code to pass (GREEN), then cleanup (REFACTOR).
-- **feature** writes define-behavior scenarios first, validates them at the scenario gate, plans the implementation (`impl-plan.md` — the proof plan, build order, and any architecture decisions, written in the plan-implementation phase), then implements each scenario through that same TDD loop.
+- **feature** writes define-behavior scenarios first, validates them at the scenario gate, then captures Implementation Inspiration from current, comparable, version-matched primary sources before selecting the plan (`impl-plan.md` — evidence, proof plan, build order, and architecture decisions). It then implements each scenario through the same TDD loop.
 
 ## 4 · Verify
 
@@ -77,6 +77,7 @@ A ticket can't close until `verify.md` exists in its folder — the artifact the
 Safeword runs hooks every turn to track which phase the agent is in. Four of them stop work cold rather than warn:
 
 - **Phase gate** — can't start TDD without `test-definitions.md`; can't write that file without `scope` / `out_of_scope` / `done_when` in the ticket.
+- **Inspiration gates** — newly scaffolded features can't leave intake or planning without a current reference record (or a specific unsuccessful-search record). External material is treated as untrusted evidence: it cannot replace requirements, disclose private context, or authorize execution or copying.
 - **Plan gate** — a feature can't enter the implement phase without a valid `impl-plan.md` (written in the plan-implementation phase), and can't reach verify until that plan is reconciled against what actually shipped.
 - **LOC gate** — commit roughly every 400 lines of project code, so no single change grows an unreviewable blast radius.
 - **Done gate** — can't close a ticket without `verify.md`.

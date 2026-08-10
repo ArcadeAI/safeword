@@ -12,7 +12,7 @@
 
 import { spawnSync } from 'node:child_process';
 
-import { detectLedgerWrite } from '../lib/bash-ledger-writes.js';
+import { detectInspirationArtifactWrite, detectLedgerWrite } from '../lib/bash-ledger-writes.js';
 import { detectBroadProcessKill } from '../lib/process-kill-guard.js';
 import nodePath from 'node:path';
 
@@ -252,9 +252,10 @@ const GIT_GLOBAL_OPTIONS_WITH_VALUE = new Set([
 
 export function requiresFailClosedShellGate(params: { command: string }): boolean {
   const { command } = params;
-  // Ledger writes (W42G34, #644 G3) and broad process kills (K4STDR, #773)
-  // join git commits as the commands whose verdict must come from the
-  // delegated Claude gate rather than fail-open.
+  // Protected artifact writes, ledger writes (W42G34, #644 G3), and broad
+  // process kills (K4STDR, #773) join git commits as the commands whose verdict
+  // must come from the delegated Claude gate rather than fail-open.
+  if (detectInspirationArtifactWrite(command) !== undefined) return true;
   if (detectLedgerWrite(command) !== undefined) return true;
   if (detectBroadProcessKill(command) !== undefined) return true;
   return splitShellSegments(command).some(segment => isGitCommitSegment(parseShellWords(segment)));

@@ -23,11 +23,18 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  INSPIRATION_SPEC_MARKER,
+  inspirationActivationLines,
+  validProductInspirationLines,
+} from '../fixtures/inspiration.js';
+
 const ADAPTER = nodePath.resolve(__dirname, '../../templates/hooks/cursor/pre-tool-quality.ts');
 
 const TICKET_ID = 'CUR123';
 const TICKET_FOLDER = `${TICKET_ID}-cursor-gate`;
 const SESSION_ID = 'conv-1';
+const TODAY = new Date().toISOString().slice(0, 10);
 
 interface CursorDecision {
   permission?: string;
@@ -92,6 +99,36 @@ function writeFeatureAtImplement(ticketDirectory: string): void {
       '',
     ].join('\n'),
   );
+}
+
+function inspirationTicket(phase: string): string {
+  return [
+    '---',
+    `id: ${TICKET_ID}`,
+    'slug: cursor-gate',
+    'type: feature',
+    `phase: ${phase}`,
+    'status: in_progress',
+    'scope: inspiration adapter parity',
+    'out_of_scope: unrelated feature work',
+    'done_when: the transition follows canonical gating',
+    ...inspirationActivationLines(TODAY),
+    '---',
+    '',
+  ].join('\n');
+}
+
+function inspirationSpec(withEvidence: boolean): string {
+  return [
+    '# Spec',
+    INSPIRATION_SPEC_MARKER,
+    '',
+    ...(withEvidence ? validProductInspirationLines(TODAY) : []),
+    '## Jobs To Be Done',
+    '',
+    'skip: fixture focuses on inspiration adapter parity',
+    '',
+  ].join('\n');
 }
 
 /** Bind the ticket in session state, the way a prior ticket.md edit would have. */
@@ -161,6 +198,53 @@ describe('Cursor preToolUse edit-gate parity (F2TKR3)', () => {
     const decision = runAdapter(projectRoot, { toolName: 'Read', filePath: 'src/app.ts' });
 
     expect(decision.permission).toBe('allow');
+  });
+
+  it('routes an activated intake transition through the canonical inspiration gate', () => {
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    writeFileSync(ticketPath, inspirationTicket('intake'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), inspirationSpec(false));
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: fixture dimension\n');
+    seedActiveTicket(projectRoot);
+
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketPath,
+      content: inspirationTicket('define-behavior'),
+    });
+
+    expect(decision.permission).toBe('deny');
+    expect(decision.user_message).toContain('Product Inspiration');
+  });
+
+  it('allows an activated intake transition after valid Product Inspiration', () => {
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    writeFileSync(ticketPath, inspirationTicket('intake'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), inspirationSpec(true));
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: fixture dimension\n');
+    seedActiveTicket(projectRoot);
+
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketPath,
+      content: inspirationTicket('define-behavior'),
+    });
+
+    expect(decision).toEqual({ permission: 'allow' });
+  });
+
+  it('denies full-write removal of uncommitted activation signals during transition', () => {
+    const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+    writeFileSync(ticketPath, inspirationTicket('intake'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), inspirationSpec(false));
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: fixture dimension\n');
+    seedActiveTicket(projectRoot);
+    const proposed = inspirationTicket('define-behavior')
+      .replace('inspiration_contract: v1\n', '')
+      .replace('inspiration_contract_scaffold: v1\n', '');
+
+    const decision = runAdapter(projectRoot, { filePath: ticketPath, content: proposed });
+
+    expect(decision.permission).toBe('deny');
+    expect(decision.user_message).toContain('all three');
   });
 });
 
