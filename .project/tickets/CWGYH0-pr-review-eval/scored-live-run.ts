@@ -15,6 +15,7 @@ import {
 	loadDevelopmentManifest,
 } from "/private/tmp/cwgyh0-pr-review-adapter-PxYDro/tools/pr-review/src/eval/development-benchmark.ts";
 import {
+	classifyTrialOutput,
 	executeWithInfrastructureRetry,
 	parseCumulativeCaseTarget,
 	parseCumulativeCostTarget,
@@ -610,6 +611,28 @@ if (preflightOnly) {
 						failedWork: current,
 						infrastructureErrors: result.infrastructureErrors,
 						recordedAt: new Date().toISOString(),
+					};
+					state.exclusions.push(exclusion);
+					await Bun.write(
+						join(caseDirectory, `${String(callOrdinal).padStart(2, "0")}--EXCLUDED.json`),
+						`${JSON.stringify(exclusion, null, 2)}\n`,
+					);
+					break;
+				}
+				const disposition = classifyTrialOutput(result.value, "correctness");
+				if (disposition.status === "invalid") {
+					const usage = estimatedCost(result.value);
+					state.cumulativeCostUsd += usage.costUsd;
+					excluded = true;
+					const exclusion = {
+						attempts: result.attempts,
+						caseId: item.id,
+						disposition,
+						failedWork: current,
+						infrastructureErrors: result.infrastructureErrors,
+						output: result.value,
+						recordedAt: new Date().toISOString(),
+						usage,
 					};
 					state.exclusions.push(exclusion);
 					await Bun.write(

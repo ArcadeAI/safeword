@@ -1,12 +1,67 @@
 import { describe, expect, test } from "vitest";
 
 import {
+	classifyTrialOutput,
 	executeWithInfrastructureRetry,
 	isInfrastructureError,
 	parseCumulativeCaseTarget,
 	parseCumulativeCostTarget,
 	shuffleFrozen,
 } from "./scored-run-policy";
+
+function completedOutput(findings: unknown[] = []) {
+	return {
+		models: [{ expert: "correctness", model: "claude-sonnet-5", provider: "anthropic" }],
+		report: {
+			consolidated: { findings },
+			expertOutcomes: [{
+				error: null,
+				expert: "correctness",
+				findings,
+				turns: 2,
+				usage: { inputTokens: 10, outputTokens: 2 },
+			}],
+			usage: { inputTokens: 10, outputTokens: 2 },
+		},
+		score: { reviewValid: true },
+		trace: [],
+	};
+}
+
+describe("positive trial admission", () => {
+	test.each([
+		["explicit empty findings", completedOutput()],
+		["one finding", completedOutput([{ file: "a.ts", line: 1, title: "bug" }])],
+		["multiple findings", completedOutput([
+			{ file: "a.ts", line: 1, title: "bug" },
+			{ file: "b.ts", line: 2, title: "other" },
+		])],
+	])("admits %s", (_name, output) => {
+		expect(classifyTrialOutput(output, "correctness")).toEqual({
+			reason: "completed",
+			retry: "never",
+			status: "usable",
+		});
+	});
+
+	test.each([
+		["missing output", undefined, "incomplete-provider-output"],
+		["missing report", {}, "schema-invalid"],
+		["no routed expert", { ...completedOutput(), models: [], report: { ...completedOutput().report, expertOutcomes: [] } }, "routing-invalid"],
+		["wrong expert", { ...completedOutput(), models: [{ expert: "security" }], report: { ...completedOutput().report, expertOutcomes: [{ ...completedOutput().report.expertOutcomes[0], expert: "security" }] } }, "routing-invalid"],
+		["expert error", { ...completedOutput(), report: { ...completedOutput().report, expertOutcomes: [{ ...completedOutput().report.expertOutcomes[0], error: "Unable to connect" }] }, score: { reviewValid: false } }, "reviewer-failed"],
+		["zero turns", { ...completedOutput(), report: { ...completedOutput().report, expertOutcomes: [{ ...completedOutput().report.expertOutcomes[0], turns: 0 }] } }, "reviewer-failed"],
+		["missing findings", { ...completedOutput(), report: { ...completedOutput().report, expertOutcomes: [{ ...completedOutput().report.expertOutcomes[0], findings: undefined }] } }, "schema-invalid"],
+		["missing usage", { ...completedOutput(), report: { ...completedOutput().report, usage: undefined } }, "provenance-incomplete"],
+		["invalid score", { ...completedOutput(), score: { reviewValid: false } }, "reviewer-failed"],
+	] as const)("rejects %s", (_name, output, reason) => {
+		expect(classifyTrialOutput(output, "correctness")).toEqual({
+			reason,
+			retry: "never",
+			status: "invalid",
+		});
+	});
+});
 
 class RequestError extends Error {
 	readonly status: number;

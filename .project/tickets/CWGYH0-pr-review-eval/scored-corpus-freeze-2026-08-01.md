@@ -244,12 +244,13 @@ unchanged. The recovery decision used cost and operational metadata only.
 | $200 | 100 | 8 | $200.585727 | passed |
 | $500 / full run | 360 | 30 | $440.076699 | completed |
 
-All 360 calls completed without a provider retry, infrastructure error, case
-exclusion, duplicate record, or resume mismatch. The final version-2 state has
-all 30 primary cases complete. Mean cost was $1.222435 per call, maximum call
-cost was $19.025088, and the longest call took 516,843 ms. Findings,
-named-defect matches, reviewer text, and interim scores remained blinded until
-the full run completed.
+The outer runner durably wrote 360 records without a provider retry, case
+exclusion, duplicate record, or resume mismatch. That operational statement was
+later found to be misleading: the inner review runner had converted expert
+failures into successful empty reports, so the outer retry policy could not see
+or classify them. The validity audit below supersedes any claim that 360 usable
+review calls completed. Findings, named-defect matches, reviewer text, and
+interim scores remained blinded until the outer run completed.
 
 Before the $200 stage, the branch merged `origin/main` at `78afa7a7b`
 (`v0.74.6`). All frozen corpus, prompt, runner, policy, and scorer hashes were
@@ -272,6 +273,41 @@ is `260f136abc3d2a43d2fc6b4618997a3894211343`; Git verifies the frozen adapter
 commit is its ancestor.
 
 ## Post-run scoring audit — 2026-08-10
+
+### Final scientific disposition: void — instrument failure
+
+The run is void for confirmatory use. The durable validity audit is
+`scored-run-validity-audit-2026-08-10.json`.
+
+Only 122 of 360 records contain a routed expert with a usable report. The other
+238 comprise 196 provider connection failures, 18 schema-invalid reports, 12
+records with no expert routed, and 12 socket, timeout, or wall-clock failures.
+The runner returned these conditions inside a nominally successful report, and
+the scorer admitted the resulting empty finding arrays as recall misses and
+silence. Only S21 and S24 have all twelve usable prompt/variant/trial records.
+
+The 122 usable records cost $342.434583 and the non-usable records cost
+$97.642116. Those subsets may support labeled descriptive cost/latency summaries
+and failure fixtures only. They must not support recall, silence, arm-effect, or
+confirmatory validation estimates because admission is conditioned on successful
+completion and is plausibly correlated with case complexity.
+
+The raw directory manifest hash is
+`d5f691735b3bc5a36e749e49722bf203e38f2c4f90ba849dfefa003efcc71971`.
+Verify this hash before any reuse and retain the manifest independently from the
+working copy before paid recovery work begins.
+
+The construct audit also directly falsified repeated findings, including the
+claim that Go 1.26.1 rejects `new(value)` and the claim that S33's certified
+fixed `--template` flag is unsupported. Finding-verification remains useful as
+exploratory diagnosis; it cannot rescue this run.
+
+Because the scored outputs exposed the exact-substring matcher's defect, these
+30 cases are contaminated for scorer redesign. Reusing them after changing the
+scorer is exploratory or amended evidence. A confirmatory v3 requires a fresh,
+powered holdout and a new freeze.
+
+### Preserved frozen scorer output
 
 The frozen deterministic scorer produced status
 `provisional-awaiting-finding-verification`. Its literal registered-alias match
@@ -297,8 +333,9 @@ sensitivity check only, crediting that obvious S01 hit changes full recall from
 0 to 1/90 (`0.011111`), with paired full-minus-narrow interval `[0, 0.033333]`.
 The lower bound remains zero, so the full reviewer cannot validate over narrow
 under either the literal frozen score or this minimal semantic correction.
-Because the 82 additional findings are not yet independently classified, the
-formal result remains provisional rather than final.
+The text above preserves what the frozen scorer emitted; it is not the final
+scientific status. The run is void regardless of whether the 82 additional
+findings are later classified.
 
 ## Frozen scoring and gate
 

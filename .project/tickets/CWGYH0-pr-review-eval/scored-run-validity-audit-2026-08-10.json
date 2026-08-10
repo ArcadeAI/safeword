@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "auditedAt": "2026-08-10T00:00:00-07:00",
+  "run": "scored-run-2026-08-01-raw",
+  "decision": "void-instrument-failure",
+  "confirmatoryUseAllowed": false,
+  "reason": "The runner converted expert failures and no-expert routing into completed empty reports, and the scorer admitted those records as misses and silence.",
+  "admissionAudit": {
+    "plannedRecords": 360,
+    "usableRecords": 122,
+    "nonUsableRecords": 238,
+    "nonUsableByCause": {
+      "providerConnectionFailure": 196,
+      "schemaInvalidReport": 18,
+      "noExpertRouted": 12,
+      "socketTimeoutOrWallClockFailure": 12
+    },
+    "recordsWithZeroExpertTurns": 214,
+    "casesWithAllTwelveUsableRecords": [
+      "SCORE-S21-missing-tool-search-rollout-gate-fails-open",
+      "SCORE-S24-non-date-protocol-version-bypasses-negotiation"
+    ]
+  },
+  "costAudit": {
+    "allRecordsUsd": 440.076699,
+    "usableRecordsUsd": 342.434583,
+    "nonUsableRecordsUsd": 97.642116,
+    "note": "Usable-record cost is conditioned on successful completion and is not a complete rerun estimate."
+  },
+  "constructAudit": {
+    "exactSubstringMatcherValid": false,
+    "confirmedFalseNegative": {
+      "caseId": "SCORE-S01-catalog-cursor-past-last-key-restarts-pagination",
+      "system": "full",
+      "variant": "buggy",
+      "trial": 2,
+      "title": "Catalog tools cursor pagination can silently reset to the first page"
+    },
+    "directlyFalsifiedExamples": [
+      {
+        "caseId": "SCORE-S43-failed-tool-attempt-counts-as-onboarding-success",
+        "claim": "new(value) does not compile",
+        "refutation": "The pinned module declares Go 1.26.1, whose language specification permits new(expression)."
+      },
+      {
+        "caseId": "SCORE-S33-connect-dialog-generates-unsupported-cli-flag",
+        "claim": "The fixed --template flag is unsupported",
+        "refutation": "The certified fixed twin changes --framework to --template and its frozen reproduction passes."
+      }
+    ]
+  },
+  "allowedUses": [
+    "descriptive cost and latency summaries labeled by admission outcome",
+    "failure-injection fixtures",
+    "exploratory finding review with an explicit post-hoc label"
+  ],
+  "prohibitedUses": [
+    "reviewer recall or silence estimates",
+    "full-versus-narrow effect estimates",
+    "confirmatory prompt validation",
+    "scorer or prompt tuning presented as holdout evaluation"
+  ],
+  "artifactHashes": {
+    "provisionalFrozenScoreSha256": "4699650ef70da68ae19f029f9fc12fab3f5a7494f4eea59f1da97e42f3340e2e",
+    "rawDirectoryManifestSha256": "d5f691735b3bc5a36e749e49722bf203e38f2c4f90ba849dfefa003efcc71971"
+  }
+}

@@ -1,7 +1,7 @@
 ---
 id: CWGYH0
 slug: pr-review-eval
-type: task
+type: feature
 phase: implement
 status: in_progress
 scope:
@@ -37,6 +37,11 @@ last_modified: 2026-08-08T01:12:00Z
 
 ## Work Log
 
+- 2026-08-10T00:00:00-05:00 Completed the first fail-closed TDD slice: positive reviewer completion admits explicit empty, one-finding, and multiple-finding reports; the writer quarantines invalid dispositions with recorded usage/cost; the scorer rejects unusable records. Replay classified the void corpus as exactly 122 usable and 238 invalid, matching the independent audit. Targeted tests passed 49/49 and the full repository suite passed 7,185 tests with 5 skipped after restoring frozen dependencies.
+- 2026-08-10T00:00:00-07:00 Completed implementation-plan review after route exhaustion and supplemental review. The final plan separates immutable preregistration from derived replacements, keeps existing recorded-human labels, defines a typed trial disposition, and binds spend authorization to exact code/input/run identities. Starting TDD with the hidden-failure admission boundary.
+- 2026-08-10T00:00:00-07:00 Completed the recovery scenario pass after coordinator route exhaustion and same-agent fresh-context supplemental review. Applied all applicable findings; the only rejected finding expected completed tests before the RED phase. Entered implementation planning with the positive admission predicate and real-wiring hidden-failure test as the load-bearing slice.
+- 2026-08-10T00:00:00-07:00 Defined the recovery behavior in four rules and ten scenarios: positive completion, paired retry/exclusion, fail-closed scoring, and a ten-call paid canary. Expanded the ticket to feature workflow because recovery crosses runner, artifact, scorer, and spend-gate boundaries.
+- 2026-08-10T00:00:00-07:00 Voided the 360-record scored run as an instrument failure after record-level audit: only 122 records contain a routed expert with a usable report; 238 are provider, schema, routing, socket, timeout, or wall-clock failures that the inner runner converted to empty success. Preserved the frozen scorer output and added `scored-run-validity-audit-2026-08-10.json` as the durable scientific disposition. Existing scored cases are diagnostic/exploratory only for scorer redesign; confirmatory v3 requires a fresh powered holdout.
 - 2026-08-08T01:12:00Z Resumed as GitHub issue #1910 after #1909 closed. Reconciled the issue's asymmetric-label and falsification-first contract with this existing experiment rather than creating a duplicate ticket. Inspected a real local Claude JSONL: top-level event records carry session/cwd/git metadata; assistant/user messages nest typed content blocks; tool results are user events. Next: freeze a durable 20–30-pair manifest without outcome leakage.
 - 2026-07-15T14:24:45.773Z Started: Created ticket CWGYH0
 

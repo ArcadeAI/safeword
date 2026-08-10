@@ -18,6 +18,23 @@ type ErrorLike = {
 	status?: unknown;
 };
 
+type UnknownRecord = Record<string, unknown>;
+
+export type TrialInvalidReason =
+	| "incomplete-provider-output"
+	| "provenance-incomplete"
+	| "reviewer-failed"
+	| "routing-invalid"
+	| "schema-invalid";
+
+export type TrialDisposition =
+	| { reason: "completed"; retry: "never"; status: "usable" }
+	| {
+		reason: TrialInvalidReason;
+		retry: "never";
+		status: "invalid";
+	};
+
 export type RetriedResult<T> =
 	| {
 			attempts: 1 | 2;
@@ -29,6 +46,98 @@ export type RetriedResult<T> =
 
 function isErrorLike(value: unknown): value is ErrorLike {
 	return typeof value === "object" && value !== null;
+}
+
+function isRecord(value: unknown): value is UnknownRecord {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasUsage(value: unknown): boolean {
+	if (!isRecord(value)) return false;
+	const inputTokens = value.inputTokens;
+	const outputTokens = value.outputTokens;
+	return (
+		typeof inputTokens === "number" &&
+		Number.isFinite(inputTokens) &&
+		inputTokens >= 0 &&
+		typeof outputTokens === "number" &&
+		Number.isFinite(outputTokens) &&
+		outputTokens >= 0 &&
+		inputTokens + outputTokens > 0
+	);
+}
+
+/**
+ * A record is usable only when the runner positively proves reviewer
+ * completion. Unknown or legacy shapes fail closed instead of becoming
+ * artificial silence.
+ */
+export function classifyTrialOutput(
+	value: unknown,
+	expectedExpert: string,
+): TrialDisposition {
+	if (value === undefined || value === null || value === "") {
+		return {
+			reason: "incomplete-provider-output",
+			retry: "never",
+			status: "invalid",
+		};
+	}
+	if (!isRecord(value) || !isRecord(value.report)) {
+		return { reason: "schema-invalid", retry: "never", status: "invalid" };
+	}
+
+	const report = value.report;
+	if (
+		!Array.isArray(value.models) ||
+		!Array.isArray(report.expertOutcomes) ||
+		!Array.isArray(value.trace) ||
+		!isRecord(report.consolidated) ||
+		!Array.isArray(report.consolidated.findings)
+	) {
+		return { reason: "schema-invalid", retry: "never", status: "invalid" };
+	}
+
+	const routedModel = value.models.some(
+		(model) => isRecord(model) && model.expert === expectedExpert,
+	);
+	const routedOutcomes = report.expertOutcomes.filter(
+		(outcome) => isRecord(outcome) && outcome.expert === expectedExpert,
+	);
+	if (!routedModel || routedOutcomes.length !== 1) {
+		return { reason: "routing-invalid", retry: "never", status: "invalid" };
+	}
+
+	const outcome = routedOutcomes[0];
+	if (!isRecord(outcome)) {
+		return { reason: "routing-invalid", retry: "never", status: "invalid" };
+	}
+	if (!Array.isArray(outcome.findings)) {
+		return { reason: "schema-invalid", retry: "never", status: "invalid" };
+	}
+	if (
+		outcome.error !== null ||
+		typeof outcome.turns !== "number" ||
+		!Number.isInteger(outcome.turns) ||
+		outcome.turns < 1 ||
+		!hasUsage(outcome.usage)
+	) {
+		return { reason: "reviewer-failed", retry: "never", status: "invalid" };
+	}
+	if (!hasUsage(report.usage)) {
+		return {
+			reason: "provenance-incomplete",
+			retry: "never",
+			status: "invalid",
+		};
+	}
+	if (!isRecord(value.score)) {
+		return { reason: "schema-invalid", retry: "never", status: "invalid" };
+	}
+	if (value.score.reviewValid === false) {
+		return { reason: "reviewer-failed", retry: "never", status: "invalid" };
+	}
+	return { reason: "completed", retry: "never", status: "usable" };
 }
 
 function errorSummary(error: unknown): string {

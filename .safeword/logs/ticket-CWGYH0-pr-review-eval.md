@@ -950,3 +950,14 @@
   interval `[0, 0.033333]`; the lower bound remains zero, so validation fails
   either way. Formal status stays provisional until additional findings are
   independently verified.
+- A full record-level validity audit voided the run as an instrument failure.
+  Only 122/360 records contain a routed expert with a usable report; 196 are
+  provider connection failures, 18 schema-invalid reports, 12 no-expert routes,
+  and 12 socket/timeout/wall-clock failures. The inner runner returned failures
+  as successful empty reports, so the outer retry policy never fired and the
+  scorer counted missing reviews as misses and silence. Only S21 and S24 have
+  all twelve usable records. The frozen scorer output remains preserved, while
+  `scored-run-validity-audit-2026-08-10.json` is the final disposition. The 122
+  surviving records are descriptive/diagnostic only; confirmatory v3 needs a
+  fresh powered holdout because scorer redesign is now contaminated by observed
+  scored outputs.

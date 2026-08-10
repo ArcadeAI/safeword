@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { mean, pairedBootstrapInterval } from "./scored-analysis";
+import { classifyTrialOutput } from "./scored-run-policy";
 
 const seed = 5_453_573;
 const bootstrapResamples = 1_000;
@@ -72,6 +73,12 @@ for (const relativePath of glob.scanSync(outputRoot)) {
 	const record = readJson<RecordFile>(join(outputRoot, relativePath));
 	if (!systems.includes(record.system) || !variants.includes(record.variant)) {
 		throw new Error(`unexpected record dimensions in ${relativePath}`);
+	}
+	const disposition = classifyTrialOutput(record.output, "correctness");
+	if (disposition.status !== "usable") {
+		throw new Error(
+			`unusable scored record ${relativePath}: ${disposition.reason}`,
+		);
 	}
 	records.push(record);
 }
