@@ -326,6 +326,7 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
           '| --- | --- | --- | --- | --- | --- | --- |',
           '',
           '**Decision impact:** <changed: or retained: plus a non-empty rationale>',
+          '**Decision informed:** <exact Decision cell from Recorded Decisions>',
           '',
           '### Recorded Decisions',
         ].join('\n'),
@@ -646,9 +647,9 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
       .replace('## Doc impact\n', '## Doc impact\n\nskip: fixture only\n')
       .replace('## Assessment triggers\n', '## Assessment triggers\n\nRevisit on grammar v2.\n')
       .replace(
-        '| --- | --- | --- | --- | --- | --- | --- |\n\n**Decision impact:** <changed: or retained: plus a non-empty rationale>',
+        '| --- | --- | --- | --- | --- | --- | --- |\n\n**Decision impact:** <changed: or retained: plus a non-empty rationale>\n**Decision informed:** <exact Decision cell from Recorded Decisions>',
         () =>
-          `| --- | --- | --- | --- | --- | --- | --- |\n| https://spec.commonmark.org/0.31.2/ | ${TODAY} | 0.31.2 | 0.31.2 | Exact grammar | Keep exact records | V1 subset only |\n\n**Decision impact:** retained: exact records fit`,
+          `| --- | --- | --- | --- | --- | --- | --- |\n| https://spec.commonmark.org/0.31.2/ | ${TODAY} | 0.31.2 | 0.31.2 | Exact grammar | Keep exact records | V1 subset only |\n\n**Decision impact:** retained: exact records fit\n**Decision informed:** parser`,
       )
       .replace(
         '## Design alignment',

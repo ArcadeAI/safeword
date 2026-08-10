@@ -87,6 +87,7 @@ executable.
 **Decision impact:** retained: current GFM and CommonMark specifications support
 the existing direction of a strict readable subset, while making the no-pipe,
 single-line v1 boundary explicit.
+**Decision informed:** Evidence authoring format
 
 ### Recorded Decisions
 

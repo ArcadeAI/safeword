@@ -42,6 +42,7 @@ export const IMPLEMENTATION_INSPIRATION_GRAMMAR = {
     '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |',
   referenceDelimiter: '| --- | --- | --- | --- | --- | --- | --- |',
   decisionImpact: '**Decision impact:** <changed: or retained: plus a non-empty rationale>',
+  decisionInformed: '**Decision informed:** <exact Decision cell from Recorded Decisions>',
   searchHeading: '#### Implementation Unsuccessful Search',
   searchHeader:
     '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
@@ -276,8 +277,9 @@ function hasDecisionPrefix(value: string, prefixes: readonly string[]): boolean 
 function decisionRows(content: string): string[][] {
   const lines = withoutFencedCode(content).split(/\r?\n/);
   const header = '| Decision | Choice | Alternatives considered | Rejected because |';
-  const headerIndex = lines.indexOf(header);
-  if (headerIndex === -1) return [];
+  const headerIndexes = lines.flatMap((line, index) => (line === header ? [index] : []));
+  if (headerIndexes.length !== 1) return [];
+  const headerIndex = headerIndexes[0]!;
 
   const delimiter = lines[headerIndex + 1] ?? '';
   const delimiterCells =
@@ -299,7 +301,8 @@ function decisionRows(content: string): string[][] {
     if (cells === undefined) return [];
     rows.push(cells);
   }
-  return rows;
+  const identifiers = rows.map(row => row[0]);
+  return new Set(identifiers).size === identifiers.length ? rows : [];
 }
 
 function validateProductReferences(
@@ -481,13 +484,34 @@ function validateImplementationReferences(
     );
   }
 
+  const decisionLines = lines.filter(line => /^\*\*Decision informed:\*\*/.test(line.trim()));
+  if (decisionLines.length !== 1) {
+    return evidenceFailure('Implementation evidence requires exactly one Decision informed line.');
+  }
+  const decisionLine = lines
+    .slice(table.endLine)
+    .filter(line => line.trim() !== '')[1]
+    ?.trim();
+  const decision = /^\*\*Decision informed:\*\* (.+)$/.exec(decisionLine ?? '')?.[1]?.trim();
+  if (!decision) {
+    return evidenceFailure(
+      'Implementation evidence requires one Decision informed line immediately after its decision impact.',
+    );
+  }
+  const matchingRow = recordedRows.find(row => row[0] === decision);
+  if (!matchingRow) {
+    return evidenceFailure(
+      'Implementation Decision informed must uniquely match a Recorded Decisions Decision cell.',
+    );
+  }
+
   const references = table.rows.map(row => row[0]!);
-  const cited = recordedRows.some(row =>
-    references.some(reference => row.some(cell => containsExactReference(cell, reference))),
+  const cited = references.some(reference =>
+    matchingRow.some(cell => containsExactReference(cell, reference)),
   );
   if (!cited) {
     return evidenceFailure(
-      'At least one affected Decisions row must cite an Implementation Inspiration reference.',
+      'The affected Recorded Decisions row must cite an Implementation Inspiration reference.',
     );
   }
   return { ok: true, path: 'reference' };

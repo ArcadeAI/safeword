@@ -40,6 +40,8 @@ export interface LedgerWriteDetection {
   path: string;
 }
 
+export type ProtectedWriteDetection = LedgerWriteDetection;
+
 /** True when a token has the ledger basename, boundary-anchored so `my-test-definitions.md` isn't one. */
 function isTestDefinitionsBasename(token: string): boolean {
   return token === 'test-definitions.md' || token.endsWith('/test-definitions.md');
@@ -48,6 +50,15 @@ function isTestDefinitionsBasename(token: string): boolean {
 /** True when a token is a literal path to an R/G/R ledger file. */
 function isLedgerPath(token: string): boolean {
   return isTestDefinitionsBasename(token) && isNamespacePath(token, 'tickets/');
+}
+
+function isInspirationArtifactBasename(token: string): boolean {
+  const basename = nodePath.basename(token);
+  return basename === 'ticket.md' || basename === 'spec.md';
+}
+
+function isInspirationArtifactPath(token: string): boolean {
+  return isInspirationArtifactBasename(token) && isNamespacePath(token, 'tickets/');
 }
 
 const IN_PLACE_EDITORS = new Set(['sed', 'perl', 'gsed']);
@@ -118,6 +129,11 @@ function flagTargetDirectory(words: string[]): string | undefined {
 function embeddedLedgerPath(word: string): string | undefined {
   const match = /[\w./-]*test-definitions\.md/.exec(word);
   return match !== null && isLedgerPath(match[0]) ? match[0] : undefined;
+}
+
+function embeddedInspirationArtifactPath(word: string): string | undefined {
+  const match = /[\w./-]*(?:ticket|spec)\.md/.exec(word);
+  return match !== null && isInspirationArtifactPath(match[0]) ? match[0] : undefined;
 }
 
 /** Scan a segment's words for a redirection (`>`/`>>`/`&>`/`>|`, fd-prefixed) whose target is a ledger. */
@@ -211,6 +227,80 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
 export function detectLedgerWrite(command: string): LedgerWriteDetection | undefined {
   for (const segment of splitShellSegments(command)) {
     const detection = detectInSegment(segment);
+    if (detection !== undefined) return detection;
+  }
+  return undefined;
+}
+
+function detectInspirationWriteInSegment(segment: string): ProtectedWriteDetection | undefined {
+  const words = parseShellWords(segment);
+
+  for (let index = 0; index < words.length; index += 1) {
+    const target = redirectionTarget(words, index);
+    if (target !== undefined && isInspirationArtifactPath(target)) {
+      return {
+        shape: /^(?:\d*|&)>>/.test(words[index] ?? '')
+          ? 'append redirection'
+          : 'output redirection',
+        path: target,
+      };
+    }
+  }
+
+  const commandIndex = commandWordIndex(words);
+  const commandWord = nodePath.basename(words[commandIndex] ?? '');
+  const rest = words.slice(commandIndex + 1);
+  const arguments_ = rest.filter(word => !word.startsWith('-'));
+
+  if (IN_PLACE_EDITORS.has(commandWord) && rest.some(isInPlaceFlag)) {
+    const artifact = rest.find(isInspirationArtifactPath);
+    if (artifact !== undefined) return { shape: `${commandWord} in-place edit`, path: artifact };
+  }
+  if (ARGUMENT_WRITERS.has(commandWord)) {
+    const artifact = arguments_.find(isInspirationArtifactPath);
+    if (artifact !== undefined) return { shape: commandWord, path: artifact };
+  }
+  if (DESTINATION_WRITERS.has(commandWord)) {
+    const targetDirectory = flagTargetDirectory(rest);
+    if (targetDirectory !== undefined && isNamespacePath(targetDirectory, 'tickets/')) {
+      const source = arguments_.find(isInspirationArtifactBasename);
+      if (source !== undefined) {
+        return { shape: `${commandWord} into ticket directory`, path: source };
+      }
+    } else {
+      const destination = arguments_.at(-1);
+      if (destination !== undefined && isInspirationArtifactPath(destination)) {
+        return { shape: `${commandWord} destination`, path: destination };
+      }
+      if (destination !== undefined && isNamespacePath(destination, 'tickets/')) {
+        const source = arguments_.slice(0, -1).find(isInspirationArtifactBasename);
+        if (source !== undefined) {
+          return { shape: `${commandWord} into ticket directory`, path: source };
+        }
+      }
+    }
+  }
+  if (INLINE_INTERPRETERS.has(commandWord) && rest.some(isInlineCodeFlag)) {
+    for (const word of rest) {
+      const artifact = embeddedInspirationArtifactPath(word);
+      if (artifact !== undefined) {
+        return { shape: `inline ${commandWord} code naming the artifact`, path: artifact };
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Detect a shell write targeting ticket.md or spec.md in the ticket namespace.
+ * These activation-bearing artifacts must be edited through a reconstructable
+ * Edit/Write payload so the downgrade guard can compare prior and proposed content.
+ */
+export function detectInspirationArtifactWrite(
+  command: string,
+): ProtectedWriteDetection | undefined {
+  for (const segment of splitShellSegments(command)) {
+    const detection = detectInspirationWriteInSegment(segment);
     if (detection !== undefined) return detection;
   }
   return undefined;

@@ -3978,6 +3978,7 @@ var init_inspiration = __esm(() => {
     referenceHeader: "| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |",
     referenceDelimiter: "| --- | --- | --- | --- | --- | --- | --- |",
     decisionImpact: "**Decision impact:** <changed: or retained: plus a non-empty rationale>",
+    decisionInformed: "**Decision informed:** <exact Decision cell from Recorded Decisions>",
     searchHeading: "#### Implementation Unsuccessful Search",
     searchHeader: "| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |",
     searchDelimiter: "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",

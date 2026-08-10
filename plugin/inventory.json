@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "55db6c8212aa999bb3913035c117385af58ed5e1ce9ab5862d919802c45e7ea0"
+      "sha256": "06bd60e36beaf13e6c44b4e649f83897aa9077a580d2567f79ef072f51f0c2e8"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e40a27651a08b49bcf8e0a4e5581b98bd677d466bcbb51b81f1102b510ba67d9"
+      "sha256": "797c6f43e2583af17b740046838d9d09fa1f9c0d5ec3587d9cab9dd53e1bba81"
     },
     {
       "path": "runtime/dispatch.js",
@@ -179,7 +179,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "52422979a303cf8079d380ca156f7c06cb6e5485a538d0c9b897f18eecc07994"
+      "sha256": "52357ee6065d2e0f78a1b538318d8378bf962a19c9f1c6666066c1097c88ab44"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -243,7 +243,7 @@
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "57e39cf681526778a8a4b7c1cd51a002b5dbe1e2400c9371dd500b02f169af7c"
+      "sha256": "9e71a376f43e6abfdfb3e2660cfd9386de30e802f78f6dd28f305c2ffb5bae69"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -459,7 +459,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "2f1085214b23f81e8577d52223b969771254ce83b2d6ede895ceeb5bc4f15ee6"
+      "sha256": "fa0d5821452243da350e25856f841d1d3344c5a746733af92a5f18d095f253ae"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -583,7 +583,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "2772539a067d0455510a594218646beb6de708565e3df886227baf3f00e06324"
+      "sha256": "e781b6d2f2c29d3122be4a8be7750430756c3430af95352b136fb1bcca412c16"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",

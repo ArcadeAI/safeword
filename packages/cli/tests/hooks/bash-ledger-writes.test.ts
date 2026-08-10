@@ -14,7 +14,10 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { requiresFailClosedShellGate } from '../../templates/hooks/cursor/gate-adapter.js';
-import { detectLedgerWrite } from '../../templates/hooks/lib/bash-ledger-writes.js';
+import {
+  detectInspirationArtifactWrite,
+  detectLedgerWrite,
+} from '../../templates/hooks/lib/bash-ledger-writes.js';
 
 const LEDGER = '.project/tickets/GH628F/test-definitions.md';
 
@@ -186,4 +189,26 @@ describe('detectLedgerWrite', () => {
       );
     });
   });
+});
+
+describe('detectInspirationArtifactWrite', () => {
+  const TICKET = '.project/tickets/INS001-gate/ticket.md';
+  const SPEC = '.project/tickets/INS001-gate/spec.md';
+
+  it.each([
+    `sed -i 's/inspiration_contract: v1//' ${TICKET}`,
+    `printf legacy > ${SPEC}`,
+    `python3 -c 'open("${TICKET}", "w").write("legacy")'`,
+    `cp /tmp/spec.md ${SPEC}`,
+  ])('detects a protected artifact write: %s', command => {
+    expect(detectInspirationArtifactWrite(command)).toBeDefined();
+    expect(requiresFailClosedShellGate({ command })).toBe(true);
+  });
+
+  it.each([`cat ${TICKET}`, `git diff -- ${SPEC}`, 'sed -n 1,20p README.md'])(
+    'allows a read-only command: %s',
+    command => {
+      expect(detectInspirationArtifactWrite(command)).toBeUndefined();
+    },
+  );
 });

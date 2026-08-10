@@ -105,6 +105,16 @@ describe('activated intake inspiration transition wiring', () => {
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
+  function bashThroughHook(command: string): HookResult {
+    const result = spawnSync('bun', [HOOK_PATH], {
+      cwd: projectRoot,
+      input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+    });
+    return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  }
+
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'sw-inspiration-intake-'));
     ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', 'INS001-gate');
@@ -199,6 +209,16 @@ describe('activated intake inspiration transition wiring', () => {
       'last inspiration-contract activation signal',
     );
     expectHookDeny(advanceThroughCodex(), 'all three');
+  });
+
+  it('denies Bash removal of uncommitted activation signals through the real hook route', () => {
+    const specFile = nodePath.join(ticketDirectory, 'spec.md');
+    writeFileSync(specFile, spec(false));
+
+    expectHookDeny(
+      bashThroughHook(`sed -i 's/inspiration_contract[^[:space:]]*//' ${ticketFile} ${specFile}`),
+      'inspiration activation artifacts',
+    );
   });
 
   it('denies silent signal removal after an activated scaffold was committed', () => {

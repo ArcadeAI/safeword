@@ -46,6 +46,7 @@ per row and no pipe characters inside cells.
 | --- | --- | --- | --- | --- | --- | --- |
 
 **Decision impact:** <changed: or retained: plus a non-empty rationale>
+**Decision informed:** <exact Decision cell from Recorded Decisions>
 
 <!-- If no credible reference transfers, replace the table and impact line above with exactly:
 
@@ -54,7 +55,7 @@ per row and no pipe characters inside cells.
 | Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
-`Decision informed` must exactly match the `Decision` cell of the affected Recorded Decisions row.
+`Decision informed` must exactly and uniquely match the `Decision` cell of the affected Recorded Decisions row.
 -->
 
 ### Recorded Decisions

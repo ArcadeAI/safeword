@@ -414,6 +414,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: the evidence supports the strict subset',
+      '**Decision informed:** parser',
     ].join('\n');
     const result = evaluateImplementationInspiration({
       ticketContent: activatedTicket(),
@@ -442,6 +443,7 @@ describe('implementation inspiration evidence', () => {
           row,
           '',
           '**Decision impact:** changed: choose this design',
+          '**Decision informed:** parser',
         ].join('\n'),
       ),
       evaluationDate: '2026-08-09',
@@ -490,6 +492,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
     ].join('\n');
     const alteredPlan = alter(implementationPlan(body));
     expect(
@@ -573,6 +576,7 @@ describe('implementation inspiration evidence', () => {
       '',
       '**Decision impact:** retained: first rationale',
       '**Decision impact:** changed: second rationale',
+      '**Decision informed:** parser',
     ].join('\n');
     const result = evaluateImplementationInspiration({
       ticketContent: activatedTicket(),
@@ -591,10 +595,90 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
     ].join('\n');
     const plan = implementationPlan(body).replace(
       '| parser | https://spec.commonmark.org/0.31.2/ |',
       '| parser | uncited source |',
+    );
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('rejects a decoy decision citation outside the explicitly affected row', () => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
+    ].join('\n');
+    const plan = implementationPlan(body)
+      .replace('| parser | https://spec.commonmark.org/0.31.2/ |', '| parser | uncited source |')
+      .replace(
+        '| parser | uncited source | full Markdown | strict subset is clearer |',
+        '| parser | uncited source | full Markdown | strict subset is clearer |\n| decoy | https://spec.commonmark.org/0.31.2/ | none | unrelated |',
+      );
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('rejects an ambiguous duplicate affected decision identifier', () => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
+    ].join('\n');
+    const plan = implementationPlan(body).replace(
+      '| parser | https://spec.commonmark.org/0.31.2/ | full Markdown | strict subset is clearer |',
+      '| parser | https://spec.commonmark.org/0.31.2/ | full Markdown | strict subset is clearer |\n| parser | https://spec.commonmark.org/0.31.2/ | none | duplicate identifier |',
+    );
+
+    expect(
+      evaluateImplementationInspiration({
+        ticketContent: activatedTicket(),
+        specContent: spec(SPEC_MARKER),
+        planContent: plan,
+        evaluationDate: '2026-08-09',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('rejects duplicate Recorded Decisions tables', () => {
+    const body = [
+      IMPLEMENTATION_HEADER,
+      IMPLEMENTATION_DELIMITER,
+      VALID_IMPLEMENTATION_ROW,
+      '',
+      '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
+    ].join('\n');
+    const decisionTable = [
+      '| Decision | Choice | Alternatives considered | Rejected because |',
+      '| --- | --- | --- | --- |',
+      '| parser | https://spec.commonmark.org/0.31.2/ | full Markdown | strict subset is clearer |',
+    ].join('\n');
+    const plan = implementationPlan(body).replace(
+      decisionTable,
+      () => `${decisionTable}\n${decisionTable}`,
     );
 
     expect(
@@ -614,6 +698,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: https://spec.commonmark.org/0.31.2/ supports it',
+      '**Decision informed:** parser',
     ].join('\n');
     const plan = implementationPlan(body).replace(
       '| parser | https://spec.commonmark.org/0.31.2/ |',
@@ -646,6 +731,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
     ].join('\n');
     const plan = implementationPlan(body).replace(
       '| parser | https://spec.commonmark.org/0.31.2/ |',
@@ -690,6 +776,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
     ].join('\n');
     const plan = implementationPlan(body).replace(
       '**Status:** planned',
@@ -712,6 +799,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
     ].join('\n');
     const plan = implementationPlan(body).replace(
       '**Status:** planned',
@@ -737,6 +825,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: illustrative only',
+      '**Decision informed:** parser',
       '~~~~',
     ].join('\n');
 
@@ -758,6 +847,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: illustrative only',
+      '**Decision informed:** parser',
     ].join('\n');
 
     expect(
@@ -778,6 +868,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: illustrative only',
+      '**Decision informed:** parser',
       '-->',
     ].join('\n');
 
@@ -800,6 +891,7 @@ describe('implementation inspiration evidence', () => {
       VALID_IMPLEMENTATION_ROW,
       '',
       '**Decision impact:** retained: rationale',
+      '**Decision informed:** parser',
       '',
       '| Decision | Choice | Alternatives considered | Rejected because |',
       '| --- | --- | --- | --- |',

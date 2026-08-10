@@ -13,7 +13,7 @@ import {
   getTicketInfo,
   parseTddStep,
 } from './lib/active-ticket.ts';
-import { detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
@@ -264,7 +264,9 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 //    a bare shared-runtime name kills every project's processes on the
 //    machine, not just this one's. Denied with the project-scoped
 //    alternatives from zombie-process-cleanup.md.
-// 3. REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2). The
+// 3. Inspiration activation artifacts must be mutated through an edit payload
+//    whose proposed content can be reconstructed; shell writes are denied.
+// 4. REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2). The
 //    only file-path commit rule that survived scope reduction — see
 //    <namespace-root>/learnings/procedural-gates-generalize-beyond-tdd.md for
 //    why the RED/GREEN file-path rules were dropped.
@@ -277,6 +279,13 @@ if (tool === 'Bash') {
     deny(
       `Bash writes to the R/G/R ledger are blocked (${ledgerWrite.shape} targeting ${ledgerWrite.path}). Shell commands bypass the annotation validation that runs on Edit payloads, so ledger checkboxes must be changed through the Edit tool.`,
       `Make the change with the Edit tool on ${ledgerWrite.path} — each [ ] → [x] transition needs a commit SHA or "skip: <reason>", validated at write time. One checkbox per edit.`,
+    );
+  }
+  const inspirationWrite = detectInspirationArtifactWrite(command);
+  if (inspirationWrite) {
+    deny(
+      `Bash writes to inspiration activation artifacts are blocked (${inspirationWrite.shape} targeting ${inspirationWrite.path}). Shell commands bypass the prior/proposed-content validation that prevents activation downgrade.`,
+      `Make the change with the Edit or Write tool on ${inspirationWrite.path}, so Safeword can preserve at least one v1 activation signal until durable Git provenance exists.`,
     );
   }
   const processKill = detectBroadProcessKill(command);
