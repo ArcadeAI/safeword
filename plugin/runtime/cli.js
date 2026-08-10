@@ -40372,8 +40372,12 @@ function validatePersonalDirectory(namespaceRoot, path4) {
 }
 function validateGitPrivacy(cwd, path4) {
   const relativePath = nodePath78.relative(cwd, path4);
-  const ignored = spawnSync7("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], { stdio: "ignore" });
-  const tracked = spawnSync7("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], { stdio: "ignore" });
+  const ignored = spawnSync7("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
+    stdio: "ignore"
+  });
+  const tracked = spawnSync7("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], {
+    stdio: "ignore"
+  });
   if (ignored.status !== 0 || tracked.status === 0) {
     return { path: path4, error: "must be Git-ignored and untracked" };
   }
@@ -40513,12 +40517,21 @@ function invalidExecutionRequest(message) {
     errors: [{ code: "SAFEWORD_TEST_EXECUTION_INVALID", message, retryable: false }]
   });
 }
+function executionModeValues(value) {
+  if (value === undefined)
+    return [];
+  return Array.isArray(value) ? value : [value];
+}
 function parseExecutionRequest(options) {
   const lane = options.lane ?? "done";
   if (lane !== "done" && lane !== "full") {
     return invalidExecutionRequest("Test lane must be done or full.");
   }
-  const commandMode = options.execution;
+  const requestedModes = executionModeValues(options.execution);
+  if (requestedModes.length > 1) {
+    return invalidExecutionRequest("Execution mode may be specified only once.");
+  }
+  const commandMode = requestedModes[0];
   if (commandMode !== undefined && commandMode !== "local" && commandMode !== "remote-preferred") {
     return invalidExecutionRequest("Execution mode must be local or remote-preferred.");
   }
@@ -58021,7 +58034,8 @@ var CANONICAL_COMMANDS = [
       },
       {
         flags: "--execution <mode>",
-        description: "local or remote-preferred"
+        description: "local or remote-preferred",
+        valueKind: "execution-mode-list"
       }
     ]
   }),
@@ -58672,6 +58686,38 @@ function registerFamilies(program2) {
   }
   return families;
 }
+function configureValueParser(option, valueKind) {
+  switch (valueKind) {
+    case "plan-identity": {
+      option.argParser((value) => {
+        if (!isPlanIdentity(value)) {
+          throw new InvalidArgumentError("plan identity must be the 64-character hexadecimal id returned by the latest preview");
+        }
+        return value;
+      });
+      return;
+    }
+    case "claude-plugin-scope": {
+      option.argParser((value) => {
+        if (value !== "project" && value !== "user") {
+          throw new InvalidArgumentError("scope must be either project or user");
+        }
+        return value;
+      });
+      return;
+    }
+    case "execution-mode-list": {
+      option.argParser((value, previous) => [
+        ...previous ?? [],
+        value
+      ]);
+      return;
+    }
+    case undefined: {
+      return;
+    }
+  }
+}
 function addDefinitionOptions(command2, definition) {
   for (const option of definition.registration.options) {
     const commanderOption = new Option(option.flags, option.description);
@@ -58679,21 +58725,7 @@ function addDefinitionOptions(command2, definition) {
       commanderOption.default(option.defaultValue);
     if (option.hidden === true)
       commanderOption.hideHelp();
-    if (option.valueKind === "plan-identity") {
-      commanderOption.argParser((value) => {
-        if (!isPlanIdentity(value)) {
-          throw new InvalidArgumentError("plan identity must be the 64-character hexadecimal id returned by the latest preview");
-        }
-        return value;
-      });
-    } else if (option.valueKind === "claude-plugin-scope") {
-      commanderOption.argParser((value) => {
-        if (value !== "project" && value !== "user") {
-          throw new InvalidArgumentError("scope must be either project or user");
-        }
-        return value;
-      });
-    }
+    configureValueParser(commanderOption, option.valueKind);
     command2.addOption(commanderOption);
   }
 }

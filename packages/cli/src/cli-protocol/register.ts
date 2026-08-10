@@ -53,13 +53,13 @@ function registerFamilies(program: Command): Map<string, Command> {
   return families;
 }
 
-export function addDefinitionOptions(command: Command, definition: CommandDefinition): void {
-  for (const option of definition.registration.options) {
-    const commanderOption = new Option(option.flags, option.description);
-    if (option.defaultValue !== undefined) commanderOption.default(option.defaultValue);
-    if (option.hidden === true) commanderOption.hideHelp();
-    if (option.valueKind === 'plan-identity') {
-      commanderOption.argParser(value => {
+function configureValueParser(
+  option: Option,
+  valueKind: CommandDefinition['registration']['options'][number]['valueKind'],
+): void {
+  switch (valueKind) {
+    case 'plan-identity': {
+      option.argParser(value => {
         if (!isPlanIdentity(value)) {
           throw new InvalidArgumentError(
             'plan identity must be the 64-character hexadecimal id returned by the latest preview',
@@ -67,14 +67,36 @@ export function addDefinitionOptions(command: Command, definition: CommandDefini
         }
         return value;
       });
-    } else if (option.valueKind === 'claude-plugin-scope') {
-      commanderOption.argParser(value => {
+      return;
+    }
+    case 'claude-plugin-scope': {
+      option.argParser(value => {
         if (value !== 'project' && value !== 'user') {
           throw new InvalidArgumentError('scope must be either project or user');
         }
         return value;
       });
+      return;
     }
+    case 'execution-mode-list': {
+      option.argParser((value: string, previous: string[] | undefined) => [
+        ...(previous ?? []),
+        value,
+      ]);
+      return;
+    }
+    case undefined: {
+      return;
+    }
+  }
+}
+
+export function addDefinitionOptions(command: Command, definition: CommandDefinition): void {
+  for (const option of definition.registration.options) {
+    const commanderOption = new Option(option.flags, option.description);
+    if (option.defaultValue !== undefined) commanderOption.default(option.defaultValue);
+    if (option.hidden === true) commanderOption.hideHelp();
+    configureValueParser(commanderOption, option.valueKind);
     command.addOption(commanderOption);
   }
 }

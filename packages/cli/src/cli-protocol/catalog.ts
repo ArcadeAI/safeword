@@ -41,7 +41,7 @@ export interface CommandDefinition {
       readonly flags: string;
       readonly description: string;
       readonly defaultValue?: string;
-      readonly valueKind?: 'claude-plugin-scope' | 'plan-identity';
+      readonly valueKind?: 'claude-plugin-scope' | 'execution-mode-list' | 'plan-identity';
       readonly compatibilityReplacement?: string;
       readonly hidden?: boolean;
     }[];
@@ -269,6 +269,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       {
         flags: '--execution <mode>',
         description: 'local or remote-preferred',
+        valueKind: 'execution-mode-list',
       },
     ],
   }),

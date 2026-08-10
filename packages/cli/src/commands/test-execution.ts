@@ -83,6 +83,11 @@ interface ExecutionRequest {
   readonly commandMode?: ExecutionMode;
 }
 
+function executionModeValues(value: unknown): unknown[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 function parseExecutionRequest(
   options: Readonly<Record<string, unknown>>,
 ): ExecutionRequest | CliResult {
@@ -90,7 +95,11 @@ function parseExecutionRequest(
   if (lane !== 'done' && lane !== 'full') {
     return invalidExecutionRequest('Test lane must be done or full.');
   }
-  const commandMode = options.execution;
+  const requestedModes = executionModeValues(options.execution);
+  if (requestedModes.length > 1) {
+    return invalidExecutionRequest('Execution mode may be specified only once.');
+  }
+  const commandMode = requestedModes[0];
   if (commandMode !== undefined && commandMode !== 'local' && commandMode !== 'remote-preferred') {
     return invalidExecutionRequest('Execution mode must be local or remote-preferred.');
   }
