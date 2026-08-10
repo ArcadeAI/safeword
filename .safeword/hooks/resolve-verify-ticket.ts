@@ -1,0 +1,211 @@
+#!/usr/bin/env bun
+
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import nodePath from 'node:path';
+import process from 'node:process';
+
+import { getTicketInfo } from './lib/active-ticket.ts';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { readSessionState } from './lib/quality-state.ts';
+import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
+
+export type VerifyTicketResolution =
+  | { state: 'resolved'; ticketPath: string; source: 'explicit' | 'session' | 'diff' }
+  | { state: 'none' }
+  | { state: 'error'; message: string; candidates?: string[] };
+
+interface ResolveVerifyTicketOptions {
+  env?: NodeJS.ProcessEnv;
+  explicitTicket?: string;
+}
+
+const DEFAULT_BASE_REFS = [
+  'refs/remotes/origin/HEAD',
+  'refs/remotes/origin/main',
+  'refs/heads/main',
+  'refs/heads/master',
+] as const;
+
+function runGit(projectDirectory: string, args: string[]): { status: number; stdout: string } {
+  const result = spawnSync('git', ['-C', projectDirectory, ...args], {
+    encoding: 'utf8',
+  });
+  return { status: result.status ?? 1, stdout: result.stdout ?? '' };
+}
+
+function resolveTicketId(
+  projectDirectory: string,
+  ticketId: string,
+  source: 'explicit' | 'session',
+): VerifyTicketResolution {
+  const ticket = getTicketInfo(projectDirectory, ticketId);
+  if (!ticket.folder) {
+    return { state: 'error', message: `${source}-bound ticket "${ticketId}" not found` };
+  }
+  return {
+    state: 'resolved',
+    source,
+    ticketPath: nodePath.join(
+      resolveNamespaceRoot(projectDirectory),
+      'tickets',
+      ticket.folder,
+      'ticket.md',
+    ),
+  };
+}
+
+function sessionTicketId(projectDirectory: string, identity: RunIdentity): string | undefined {
+  return readSessionState(projectDirectory, identity)?.activeTicket ?? undefined;
+}
+
+function nulSeparated(output: string): string[] {
+  return output.split('\0').filter(Boolean);
+}
+
+function changedPaths(projectDirectory: string): string[] {
+  const insideWorktree = runGit(projectDirectory, ['rev-parse', '--is-inside-work-tree']);
+  if (insideWorktree.status !== 0 || insideWorktree.stdout.trim() !== 'true') return [];
+
+  const paths = new Set<string>();
+  const hasHead = runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']);
+
+  if (hasHead.status === 0) {
+    const baseRef = DEFAULT_BASE_REFS.find(
+      candidate =>
+        runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', `${candidate}^{commit}`])
+          .status === 0,
+    );
+    if (baseRef !== undefined) {
+      const mergeBase = runGit(projectDirectory, ['merge-base', 'HEAD', baseRef]);
+      if (mergeBase.status === 0 && mergeBase.stdout.trim() !== '') {
+        const committed = runGit(projectDirectory, [
+          'diff',
+          '--name-only',
+          '-z',
+          `${mergeBase.stdout.trim()}...HEAD`,
+        ]);
+        if (committed.status === 0) {
+          for (const path of nulSeparated(committed.stdout)) paths.add(path);
+        }
+      }
+    }
+
+    const working = runGit(projectDirectory, ['diff', '--name-only', '-z', 'HEAD']);
+    if (working.status === 0) {
+      for (const path of nulSeparated(working.stdout)) paths.add(path);
+    }
+  } else {
+    const staged = runGit(projectDirectory, ['diff', '--cached', '--name-only', '-z']);
+    if (staged.status === 0) {
+      for (const path of nulSeparated(staged.stdout)) paths.add(path);
+    }
+  }
+
+  const untracked = runGit(projectDirectory, ['ls-files', '--others', '--exclude-standard', '-z']);
+  if (untracked.status === 0) {
+    for (const path of nulSeparated(untracked.stdout)) paths.add(path);
+  }
+  return [...paths];
+}
+
+function changedTicketPaths(projectDirectory: string): string[] {
+  const namespaceRoot = resolveNamespaceRoot(projectDirectory);
+  const namespaceRelative = nodePath.relative(projectDirectory, namespaceRoot);
+  if (namespaceRelative.startsWith('..') || nodePath.isAbsolute(namespaceRelative)) return [];
+
+  const normalizedNamespace = namespaceRelative.split(nodePath.sep).join('/');
+  const prefix = normalizedNamespace === '' ? 'tickets/' : `${normalizedNamespace}/tickets/`;
+  return changedPaths(projectDirectory)
+    .map(path => path.split(nodePath.sep).join('/'))
+    .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
+    .map(path => nodePath.resolve(projectDirectory, path))
+    .filter(path => existsSync(path))
+    .sort();
+}
+
+export function resolveVerifyTicket(
+  projectDirectory: string,
+  options: ResolveVerifyTicketOptions = {},
+): VerifyTicketResolution {
+  const absoluteProject = nodePath.resolve(projectDirectory);
+  if (options.explicitTicket?.trim()) {
+    return resolveTicketId(absoluteProject, options.explicitTicket.trim(), 'explicit');
+  }
+
+  const candidates = changedTicketPaths(absoluteProject);
+  const identity = resolveRunIdentity({}, { env: options.env ?? process.env });
+  if (identity.sessionKey !== null) {
+    const ticketId = sessionTicketId(absoluteProject, identity);
+    if (ticketId !== undefined) {
+      const sessionResolution = resolveTicketId(absoluteProject, ticketId, 'session');
+      if (sessionResolution.state !== 'resolved' || candidates.length === 0) {
+        return sessionResolution;
+      }
+      if (candidates.includes(sessionResolution.ticketPath)) return sessionResolution;
+      return {
+        state: 'error',
+        message:
+          'Session-bound ticket conflicts with current-work ticket candidates; pass --ticket <id> to disambiguate',
+        candidates: [sessionResolution.ticketPath, ...candidates].sort(),
+      };
+    }
+  }
+
+  if (candidates.length === 0) return { state: 'none' };
+  if (candidates.length === 1) {
+    return { state: 'resolved', source: 'diff', ticketPath: candidates[0] as string };
+  }
+  return {
+    state: 'error',
+    message: 'Multiple current-work ticket candidates found; pass --ticket <id> to disambiguate',
+    candidates,
+  };
+}
+
+function parseArguments(args: string[]): {
+  projectDirectory: string;
+  explicitTicket?: string;
+  error?: string;
+} {
+  if (args[0] === '--ticket') {
+    if (args.length === 2 && args[1]?.trim()) {
+      return { projectDirectory: process.cwd(), explicitTicket: args[1] };
+    }
+    return {
+      projectDirectory: process.cwd(),
+      error: 'Usage: resolve-verify-ticket.ts [project-directory] [--ticket <id>]',
+    };
+  }
+  const projectDirectory = args[0] ?? process.cwd();
+  if (args.length <= 1) return { projectDirectory };
+  if (args.length === 3 && args[1] === '--ticket' && args[2]?.trim()) {
+    return { projectDirectory, explicitTicket: args[2] };
+  }
+  return {
+    projectDirectory,
+    error: 'Usage: resolve-verify-ticket.ts [project-directory] [--ticket <id>]',
+  };
+}
+
+if (import.meta.main) {
+  const parsed = parseArguments(process.argv.slice(2));
+  if (parsed.error !== undefined) {
+    process.stderr.write(`${parsed.error}\n`);
+    process.exit(1);
+  }
+
+  const result = resolveVerifyTicket(parsed.projectDirectory, {
+    env: process.env,
+    explicitTicket: parsed.explicitTicket,
+  });
+  if (result.state === 'resolved') {
+    process.stdout.write(`${result.ticketPath}\n`);
+  } else if (result.state === 'none') {
+    process.stderr.write('No current-work ticket found; continue without an active ticket.\n');
+  } else {
+    process.stderr.write(`${result.message}\n`);
+    for (const candidate of result.candidates ?? []) process.stderr.write(`${candidate}\n`);
+    process.exit(1);
+  }
+}

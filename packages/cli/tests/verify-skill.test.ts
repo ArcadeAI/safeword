@@ -63,6 +63,18 @@ describe('verify.md artifact step (7PG694)', () => {
   });
 });
 
+describe('verify current-ticket resolution (#2083)', () => {
+  it.each(allVerifySurfaces)(
+    '%s delegates current-work resolution to the installed helper',
+    (_name, content) => {
+      expect(content).toContain('.safeword/hooks/resolve-verify-ticket.ts');
+      expect(content).toContain('--ticket');
+      expect(content).not.toContain('done | head -1');
+      expect(content).not.toContain('grep -q "^status: in_progress" "$f"');
+    },
+  );
+});
+
 describe('verify report structure (146)', () => {
   describe('Rule: Status section preserves existing checklist + done-gate evidence patterns', () => {
     it.each(templateFiles)(

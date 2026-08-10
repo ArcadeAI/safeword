@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ff9840a450351abfaec0932f971967778423c072c0c5d0d2e8b91db7c7e68413"
+      "sha256": "32ad1be00e734c37614cfb1aba2b98706c5ac65da96b0bde6b8e95f3ebd5bf6c"
     },
     {
       "path": "runtime/dispatch.js",
@@ -490,6 +490,10 @@
       "sha256": "baa1f87f55c9479bfdca57496ea8b2207277977746fc439888ce899a908756ab"
     },
     {
+      "path": "runtime/hooks/resolve-verify-ticket.ts",
+      "sha256": "16bae51d06e3be4b34d5952eade7e38f4fee24b7924fad20c50c8aac5e396558"
+    },
+    {
       "path": "runtime/hooks/session-architecture-heal.ts",
       "sha256": "198c54f56d7a2cb995e018e58f8089203cf46f3484cd282a9f075141141c4c37"
     },
@@ -687,7 +691,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "dafdf07cacd7fbb65906616b7df5a5933c2f40a7fce6770b0cc44105f80d00dc"
+      "sha256": "2fb44a8b0d63b0baa7d08cbc581846f05c1b7b472d0864dd1569a95799664e86"
     }
   ]
 }

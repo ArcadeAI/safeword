@@ -42,15 +42,21 @@ For task, patch, or no-ticket work, this proof isn't required — note it's miss
 
 ### 1. Find Current Ticket (if any)
 
+Use the installed resolver. It reconciles this runtime's session binding with
+the current PR or worktree's Git changes and fails closed when those signals
+conflict. It never scans the global `in_progress` backlog. A session-bound
+ticket remains relevant after its status changes during closeout; a changed
+`done` ticket remains eligible.
+
 ```bash
-# Find in_progress tickets, excluding epics
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-NS_ROOT="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
-for f in "$NS_ROOT"/tickets/*/ticket.md; do
-  [ -f "$f" ] || continue
-  grep -q "^status: in_progress" "$f" && ! grep -q "^type: epic" "$f" && echo "$f"
-done | head -1
+bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR"
 ```
+
+If Safeword's injected context names a ticket but the host exposes no runtime
+identity to the helper, rerun with `--ticket <id>`. Multiple changed tickets
+fail closed with the same instruction. No candidate means continue without an
+active ticket.
 
 If a ticket is found, read it to get:
 
