@@ -65,3 +65,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
