@@ -73,6 +73,7 @@ export function runProjectTests(
     if (result.status !== 0) {
       return createResult({
         state: 'failed',
+        exitCode: result.status ?? 1,
         errors: [
           {
             code: 'SAFEWORD_TEST_EXECUTION_FAILED',

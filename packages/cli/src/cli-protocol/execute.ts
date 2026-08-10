@@ -79,6 +79,7 @@ export function reportResult(
         ...result,
         ok: false,
         state: 'failed',
+        exitCode: 1,
         errors: [
           ...result.errors,
           {

@@ -1662,6 +1662,7 @@ function createResult(input) {
     errors: input.errors ?? [],
     recovery: input.recovery ?? [],
     nextActions: input.nextActions ?? [],
+    ...(input.exitCode !== void 0 && { exitCode: input.exitCode }),
     ...(input.presentation !== void 0 && { presentation: input.presentation }),
     ...(input.data !== void 0 && { data: input.data }),
   };

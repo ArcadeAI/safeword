@@ -678,6 +678,7 @@ function createResult(input) {
     errors: input.errors ?? [],
     recovery: input.recovery ?? [],
     nextActions: input.nextActions ?? [],
+    ...input.exitCode !== undefined && { exitCode: input.exitCode },
     ...input.presentation !== undefined && { presentation: input.presentation },
     ...input.data !== undefined && { data: input.data }
   };
@@ -712,6 +713,8 @@ function withDeprecation(result, legacy, replacement, compatibility, options = {
   };
 }
 function exitStatusFor(result) {
+  if (result.exitCode !== undefined)
+    return result.exitCode;
   if (result.state === "failed")
     return 1;
   if (result.state === "action_required")
@@ -40413,7 +40416,7 @@ function invalidExecutionRequest(message) {
     errors: [{ code: "SAFEWORD_TEST_EXECUTION_INVALID", message, retryable: false }]
   });
 }
-function runProjectTests(cwd, options) {
+function parseExecutionRequest(options) {
   const lane = options.lane ?? "done";
   if (lane !== "done" && lane !== "full") {
     return invalidExecutionRequest("Test lane must be done or full.");
@@ -40422,6 +40425,13 @@ function runProjectTests(cwd, options) {
   if (commandMode !== undefined && commandMode !== "local" && commandMode !== "remote-preferred") {
     return invalidExecutionRequest("Execution mode must be local or remote-preferred.");
   }
+  return { lane, commandMode };
+}
+function runProjectTests(cwd, options) {
+  const request = parseExecutionRequest(options);
+  if ("state" in request)
+    return request;
+  const { lane, commandMode } = request;
   const personal = readPersonalExecutionPreference(cwd);
   if (personal.error !== undefined) {
     return invalidExecutionRequest(`Personal test-execution configuration at ${personal.path} ${personal.error}.`);
@@ -40448,6 +40458,7 @@ function runProjectTests(cwd, options) {
     if (result.status !== 0) {
       return createResult({
         state: "failed",
+        exitCode: result.status ?? 1,
         errors: [
           {
             code: "SAFEWORD_TEST_EXECUTION_FAILED",
@@ -58495,6 +58506,7 @@ function reportResult(result, options, commandName, delivery) {
         ...result,
         ok: false,
         state: "failed",
+        exitCode: 1,
         errors: [
           ...result.errors,
           {
