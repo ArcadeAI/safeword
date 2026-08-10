@@ -132,6 +132,67 @@ describe('test execution CLI wiring', () => {
     expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
   });
 
+  it.each([
+    { source: 'project', lane: 'done', planKind: 'test' },
+    { source: 'personal', lane: 'full', planKind: 'verify' },
+  ] as const)('falls back to the $planKind plan for a $source preference', async input => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ testExecution: 'remote-preferred' }),
+    );
+    if (input.source === 'personal') {
+      initializePrivateConfigRepo(directory);
+      const personalDirectory = nodePath.join(directory, '.project', 'personal');
+      mkdirSync(personalDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(personalDirectory, 'config.json'),
+        JSON.stringify({ schemaVersion: 1, testExecution: 'remote-preferred' }),
+      );
+    }
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'preference-fallback-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:done': String.raw`node -e "require('node:fs').appendFileSync('runs.log','done\n')"`,
+          'test:ci': String.raw`node -e "require('node:fs').appendFileSync('runs.log','full\n')"`,
+        },
+      }),
+    );
+
+    const result = await runCli(
+      [
+        'project',
+        'test',
+        '--lane',
+        input.lane,
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: {
+        effective: { mode: 'remote-preferred', source: input.source },
+        remote: { available: false },
+        dispatch: { attempted: false },
+        fallback: { used: true, execution: 'local', reason: 'remote-unavailable' },
+        planKind: input.planKind,
+        executed: 1,
+      },
+    });
+    expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe(`${input.lane}\n`);
+  });
+
   it('reports the built-in local preference without changing a project', async () => {
     const directory = createTemporaryDirectory();
     const result = await runCli(
