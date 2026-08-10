@@ -14,7 +14,11 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { rememberCloseoutBinding } from '../templates/hooks/lib/closeout-binding.ts';
-import { draftSpoolPath, markDraftsFiled } from '../templates/hooks/lib/retro-draft-spool.ts';
+import {
+  draftSpoolPath,
+  markDraftsFiled,
+  recordFiledAck,
+} from '../templates/hooks/lib/retro-draft-spool.ts';
 import {
   applyCleanupPlan,
   buildCleanupPlan,
@@ -28,6 +32,8 @@ import {
   POST_MERGE_VERIFICATION_KINDS,
   pullRequestIdentity,
   resolveCloseoutBinding,
+  resolveHostedCheckRollup,
+  resolveHostedVerification,
   resolveProtection,
   resolveRemoteRef as resolveRemoteReference,
   resolveRequiredChecks,
@@ -64,7 +70,12 @@ function safeObservation(overrides: Partial<CloseoutObservation> = {}): Closeout
         ciChecks: 'passed',
       },
     ],
-    remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid: 'a'.repeat(40) },
+    remote: {
+      name: 'origin',
+      url: 'git@github.com:acme/widget.git',
+      pushUrl: 'git@github.com:acme/widget.git',
+      oid: 'a'.repeat(40),
+    },
     remoteResolution: 'matched',
     localRefOid: 'a'.repeat(40),
     defaultBranch: 'main',
@@ -229,7 +240,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     },
   );
 
-  it('reuses a completed extraction after the user files its pending drafts', () => {
+  it('reuses a completed extraction after acknowledged filing drains its pending drafts', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-filing-recovery-'));
     const id = 'claude-filing-recovery';
     const transcript = nodePath.join(root, 'transcript.jsonl');
@@ -263,9 +274,98 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         complete: false,
         failure: 'filing',
       });
+      expect(recordFiledAck(root, id, { signature: 'retro:filing-recovery', issue: 2176 })).toBe(
+        true,
+      );
       markDraftsFiled(root, id, ['retro:filing-recovery']);
       expect(runBoundRetro(root, binding, runner)).toMatchObject({
         complete: true,
+        pendingDrafts: 0,
+      });
+      expect(runs).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not treat disappearance of an unacknowledged draft as filing proof', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-unacknowledged-loss-'));
+    const id = 'claude-unacknowledged-loss';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const spool = draftSpoolPath(root, id);
+      mkdirSync(nodePath.dirname(spool), { recursive: true });
+      writeFileSync(
+        spool,
+        `${JSON.stringify({
+          signature: 'retro:unacknowledged-loss',
+          title: 'Preserve filing proof',
+          body: 'A draft that must not disappear silently.',
+          labels: ['retro'],
+        })}\n`,
+      );
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return filingNeededRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(false);
+      markDraftsFiled(root, id, ['retro:unacknowledged-loss']);
+      expect(runBoundRetro(root, binding, runner)).toMatchObject({
+        complete: false,
+        failure: 'filing',
+        pendingDrafts: 0,
+      });
+      expect(runs).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('requires acknowledgements for captured drafts even when extraction reports filing complete', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-complete-with-drafts-'));
+    const id = 'claude-complete-with-drafts';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const spool = draftSpoolPath(root, id);
+      mkdirSync(nodePath.dirname(spool), { recursive: true });
+      writeFileSync(
+        spool,
+        `${JSON.stringify({
+          signature: 'retro:complete-with-drafts',
+          title: 'Do not infer filing from disappearance',
+          body: 'A pre-existing draft still needs an acknowledgement.',
+          labels: ['retro'],
+        })}\n`,
+      );
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return completedRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(false);
+      markDraftsFiled(root, id, ['retro:complete-with-drafts']);
+      expect(runBoundRetro(root, binding, runner)).toMatchObject({
+        complete: false,
+        failure: 'filing',
         pendingDrafts: 0,
       });
       expect(runs).toBe(1);
@@ -391,6 +491,8 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         { ...valid, pendingDrafts: jsonNull },
         { ...valid, pendingDrafts: -1 },
         { ...valid, pendingDrafts: '0' },
+        { ...valid, pendingDraftSignatures: undefined },
+        { ...valid, pendingDraftSignatures: ['unexpected'] },
       ];
 
       for (const receipt of invalidReceipts) {
@@ -407,17 +509,66 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(workingStateHash('/definitely/not/a/repository', 'a'.repeat(40))).toBeUndefined();
   });
   it.each([
-    [true, '', false, 0, undefined],
-    [false, 'Retro extraction failed.', false, 0, 'extraction'],
-    [false, '', true, 0, 'filing'],
-    [false, '', false, 1, 'filing'],
-    [false, 'malformed output', false, 0, 'unknown'],
+    {
+      complete: true,
+      errorText: '',
+      processStatus: 0,
+      agentFilingNeeded: false,
+      pendingDrafts: 0,
+      expected: undefined,
+    },
+    {
+      complete: false,
+      errorText: 'Retro extraction failed.',
+      processStatus: 1,
+      agentFilingNeeded: false,
+      pendingDrafts: 0,
+      expected: 'extraction',
+    },
+    {
+      complete: false,
+      errorText: '',
+      processStatus: 0,
+      agentFilingNeeded: true,
+      pendingDrafts: 0,
+      expected: 'filing',
+    },
+    {
+      complete: false,
+      errorText: '',
+      processStatus: 0,
+      agentFilingNeeded: false,
+      pendingDrafts: 1,
+      expected: 'filing',
+    },
+    {
+      complete: false,
+      errorText: 'command failed on stderr',
+      processStatus: 1,
+      agentFilingNeeded: false,
+      pendingDrafts: 0,
+      expected: 'extraction',
+    },
+    {
+      complete: false,
+      errorText: 'malformed output',
+      processStatus: 0,
+      agentFilingNeeded: false,
+      pendingDrafts: 0,
+      expected: 'unknown',
+    },
   ] as const)(
-    'classifies the current retro outcome (%s, %s, %s, %s)',
-    (complete, errorText, agentFilingNeeded, pendingDrafts, expected) => {
-      expect(classifyRetroFailure({ complete, errorText, agentFilingNeeded, pendingDrafts })).toBe(
-        expected,
-      );
+    'classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)',
+    ({ complete, errorText, processStatus, agentFilingNeeded, pendingDrafts, expected }) => {
+      expect(
+        classifyRetroFailure({
+          complete,
+          errorText,
+          processStatus,
+          agentFilingNeeded,
+          pendingDrafts,
+        }),
+      ).toBe(expected);
     },
   );
 
@@ -492,6 +643,28 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(resolveRequiredChecks([{ bucket: 'unexpected', state: 'SUCCESS' }])).toBe('unknown');
   });
 
+  it('requires both required checks and the complete hosted rollup to be green', () => {
+    expect(
+      resolveHostedCheckRollup([
+        { __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' },
+        { __typename: 'StatusContext', state: 'SUCCESS' },
+      ]),
+    ).toBe('passed');
+    expect(
+      resolveHostedCheckRollup([
+        { __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'FAILURE' },
+      ]),
+    ).toBe('failed');
+    expect(
+      resolveHostedCheckRollup([{ __typename: 'CheckRun', status: 'IN_PROGRESS', conclusion: '' }]),
+    ).toBe('pending');
+    expect(resolveHostedVerification('passed', 'passed')).toBe('passed');
+    expect(resolveHostedVerification('passed', 'failed')).toBe('failed');
+    expect(resolveHostedVerification('passed', 'pending')).toBe('pending');
+    expect(resolveHostedVerification('absent', 'passed')).toBe('passed');
+    expect(resolveHostedVerification('unknown', 'passed')).toBe('unknown');
+  });
+
   it('derives branch protection conservatively while allowing a proven-absent remote ref', () => {
     expect(resolveProtection('absent')).toBe('unprotected');
     expect(resolveProtection('matched', true)).toBe('protected');
@@ -525,7 +698,11 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'delete-local-ref',
     ]);
     expect(plan.operations[0]).toMatchObject({ path: '/repo-closeout', oid: 'a'.repeat(40) });
-    expect(plan.operations[1]).toMatchObject({ remote: 'origin', oid: 'a'.repeat(40) });
+    expect(plan.operations[1]).toMatchObject({
+      remote: 'origin',
+      pushUrl: 'git@github.com:acme/widget.git',
+      oid: 'a'.repeat(40),
+    });
     expect(plan.operations[2]).toMatchObject({ ref: 'refs/heads/feature/closeout' });
     expect(cleanupPlanDigest(plan)).toMatch(/^[a-f0-9]{64}$/);
     expect(cleanupPlanDigest(plan)).toBe(cleanupPlanDigest(buildCleanupPlan(observation)));
@@ -583,7 +760,14 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     ],
     [
       'fork or remote mismatch',
-      { remote: { name: 'origin', url: 'git@github.com:other/widget.git', oid: 'a'.repeat(40) } },
+      {
+        remote: {
+          name: 'origin',
+          url: 'git@github.com:other/widget.git',
+          pushUrl: 'git@github.com:other/widget.git',
+          oid: 'a'.repeat(40),
+        },
+      },
       'the pull request head repository does not match the selected git remote',
     ],
     [
@@ -592,6 +776,19 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         remote: {
           name: 'origin',
           url: 'https://evil.example/github.com/acme/widget.git',
+          pushUrl: 'https://evil.example/github.com/acme/widget.git',
+          oid: 'a'.repeat(40),
+        },
+      },
+      'the pull request head repository does not match the selected git remote',
+    ],
+    [
+      'separate push repository',
+      {
+        remote: {
+          name: 'origin',
+          url: 'git@github.com:acme/widget.git',
+          pushUrl: 'git@github.com:other/widget.git',
           oid: 'a'.repeat(40),
         },
       },
@@ -604,7 +801,14 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     ],
     [
       'changed remote ref',
-      { remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid: 'c'.repeat(40) } },
+      {
+        remote: {
+          name: 'origin',
+          url: 'git@github.com:acme/widget.git',
+          pushUrl: 'git@github.com:acme/widget.git',
+          oid: 'c'.repeat(40),
+        },
+      },
       'the remote branch no longer matches the pull request head',
     ],
     [
@@ -767,7 +971,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         '/repo',
         'push',
         `--force-with-lease=refs/heads/feature/closeout:${'a'.repeat(40)}`,
-        'origin',
+        'git@github.com:acme/widget.git',
         ':refs/heads/feature/closeout',
       ],
       ['git', '-C', '/repo', 'update-ref', '-d', 'refs/heads/feature/closeout', 'a'.repeat(40)],
@@ -918,6 +1122,25 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(calls[0]?.cwd).toBe('/repo');
   });
 
+  it('refuses worktree removal when HEAD changes at the execution boundary', () => {
+    const operation = buildCleanupPlan(safeObservation()).operations[0];
+    if (operation?.kind !== 'remove-worktree')
+      throw new Error('fixture worktree operation missing');
+    const calls: string[][] = [];
+
+    const result = executeCleanupOperation(operation, (_command, arguments_) => {
+      calls.push(arguments_);
+      return { status: 0, stdout: `${'c'.repeat(40)}\n`, stderr: '' };
+    });
+
+    expect(result).toEqual({
+      status: 1,
+      stdout: '',
+      stderr: 'worktree HEAD changed before removal',
+    });
+    expect(calls).toEqual([['-C', '/repo-closeout', 'rev-parse', 'HEAD']]);
+  });
+
   it('distinguishes an absent remote ref from an unobservable remote', () => {
     expect(resolveRemoteReference({ status: 0, stdout: '', stderr: '' })).toEqual({
       resolution: 'absent',
@@ -966,7 +1189,12 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       const baseline = safeObservation({
         deliveryWorktreePath: topic,
         pullRequests: [{ ...pullRequest(), headRefOid: oid }],
-        remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid },
+        remote: {
+          name: 'origin',
+          url: 'git@github.com:acme/widget.git',
+          pushUrl: 'git@github.com:acme/widget.git',
+          oid,
+        },
         localRefOid: oid,
         worktrees: [mainWorktree, { path: topic, branch: 'feature/closeout', oid, main: false }],
         verification: { current: true, passed: true, headOid: oid, stateHash: 'real-git' },
@@ -993,9 +1221,20 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         digest: cleanupPlanDigest(plan),
         observe: () => observations.shift() ?? afterLocal,
         execute: operation => {
-          const [command, ...arguments_] = operationCommand(operation);
-          if (!command) throw new Error('missing command');
-          const execution = spawnSync(command, arguments_, { encoding: 'utf8' });
+          const execution = executeCleanupOperation(operation, (command, arguments_, cwd) => {
+            const localArguments =
+              operation.kind === 'delete-remote-ref'
+                ? arguments_.map(argument =>
+                    argument === operation.pushUrl ? operation.remote : argument,
+                  )
+                : arguments_;
+            const processResult = spawnSync(command, localArguments, { cwd, encoding: 'utf8' });
+            return {
+              status: processResult.status ?? 1,
+              stdout: processResult.stdout ?? '',
+              stderr: processResult.stderr ?? processResult.error?.message ?? '',
+            };
+          });
           if (execution.status !== 0) throw new Error(execution.stderr);
         },
       });

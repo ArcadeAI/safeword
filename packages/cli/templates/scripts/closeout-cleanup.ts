@@ -16,7 +16,7 @@ import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';
-import { readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
+import { readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
 import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
@@ -34,6 +34,7 @@ export interface PullRequestIdentity {
 export interface RemoteIdentity {
   name: string;
   url: string;
+  pushUrl: string;
   oid: string;
 }
 
@@ -68,7 +69,14 @@ export interface CloseoutObservation {
 
 export type CleanupOperation =
   | { kind: 'remove-worktree'; cwd: string; path: string; oid: string }
-  | { kind: 'delete-remote-ref'; cwd: string; remote: string; ref: string; oid: string }
+  | {
+      kind: 'delete-remote-ref';
+      cwd: string;
+      remote: string;
+      pushUrl: string;
+      ref: string;
+      oid: string;
+    }
   | { kind: 'delete-local-ref'; cwd: string; ref: string; oid: string };
 
 export interface CleanupPlan {
@@ -140,7 +148,10 @@ function collectRefBlockers(
     block(plan, 'the local branch no longer matches the pull request head');
   }
   if (observation.remote) {
-    if (normalizedRepository(observation.remote.url) !== expectedRepository) {
+    if (
+      normalizedRepository(observation.remote.url) !== expectedRepository ||
+      normalizedRepository(observation.remote.pushUrl) !== expectedRepository
+    ) {
       block(plan, 'the pull request head repository does not match the selected git remote');
     }
     if (observation.remote.oid !== pullRequest.headRefOid) {
@@ -195,6 +206,7 @@ function assembleOperations(
       kind: 'delete-remote-ref',
       cwd: survivingWorktree.path,
       remote: observation.remote.name,
+      pushUrl: observation.remote.pushUrl,
       ref: `refs/heads/${pullRequest.headRefName}`,
       oid: pullRequest.headRefOid,
     });
@@ -269,7 +281,7 @@ export function operationCommand(operation: CleanupOperation): string[] {
         operation.cwd,
         'push',
         `--force-with-lease=${operation.ref}:${operation.oid}`,
-        operation.remote,
+        operation.pushUrl,
         `:${operation.ref}`,
       ];
     case 'delete-local-ref':
@@ -329,6 +341,8 @@ function operationTargetMatches(
       observation.remoteResolution === 'matched' &&
       observation.remote?.name === operation.remote &&
       normalizedRepository(observation.remote.url) === expectedRepository &&
+      normalizedRepository(observation.remote.pushUrl) === expectedRepository &&
+      observation.remote.pushUrl === operation.pushUrl &&
       observation.remote.oid === operation.oid &&
       operation.ref === `refs/heads/${identity.headRefName}`
     );
@@ -442,6 +456,20 @@ export function executeCleanupOperation(
   operation: CleanupOperation,
   runner: ProcessRunner = run,
 ): ProcessResult {
+  if (operation.kind === 'remove-worktree') {
+    const head = runner('git', ['-C', operation.path, 'rev-parse', 'HEAD'], operation.cwd);
+    if (head.status !== 0 || head.stdout.trim() !== operation.oid) {
+      return { status: 1, stdout: '', stderr: 'worktree HEAD changed before removal' };
+    }
+    const status = runner(
+      'git',
+      ['-C', operation.path, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
+      operation.cwd,
+    );
+    if (status.status !== 0 || status.stdout !== '') {
+      return { status: 1, stdout: '', stderr: 'worktree became dirty before removal' };
+    }
+  }
   const [command, ...arguments_] = operationCommand(operation);
   if (!command) return { status: 1, stdout: '', stderr: 'cleanup command is empty' };
   return runner(command, arguments_, operation.cwd);
@@ -581,6 +609,7 @@ function resolveTranscript(binding: CloseoutBinding, root: string): string | und
 interface RetroFailureInput {
   complete: boolean;
   errorText: string;
+  processStatus: number;
   agentFilingNeeded: boolean | undefined;
   pendingDrafts: number;
 }
@@ -591,6 +620,7 @@ export function classifyRetroFailure(
   if (input.complete) return undefined;
   if (/extract/iu.test(input.errorText)) return 'extraction';
   if (input.agentFilingNeeded === true || input.pendingDrafts > 0) return 'filing';
+  if (input.processStatus !== 0) return 'extraction';
   return 'unknown';
 }
 
@@ -622,17 +652,21 @@ export function runBoundRetro(
     data?: { agent_filing_needed?: boolean };
     errors?: { message?: string }[];
   }>(retro);
-  const pendingDrafts = readSpooledDrafts(root, binding.id).length;
+  const pendingDraftRecords = readSpooledDrafts(root, binding.id);
+  const pendingDrafts = pendingDraftRecords.length;
   const agentFilingNeeded = result?.data?.agent_filing_needed;
   const successful =
     retro.status === 0 &&
     (result?.state === 'healthy' || result?.state === 'changed') &&
     typeof agentFilingNeeded === 'boolean';
   const complete = successful && agentFilingNeeded === false && pendingDrafts === 0;
-  const errorText = result?.errors?.map(error => error.message ?? '').join('\n') ?? '';
+  const errorText = [result?.errors?.map(error => error.message ?? '').join('\n'), retro.stderr]
+    .filter(Boolean)
+    .join('\n');
   const failure = classifyRetroFailure({
     complete,
     errorText,
+    processStatus: retro.status,
     agentFilingNeeded: result?.data?.agent_filing_needed,
     pendingDrafts,
   });
@@ -644,6 +678,7 @@ export function runBoundRetro(
       snapshot: transcriptSnapshot(transcript),
       agentFilingNeeded,
       pendingDrafts,
+      pendingDraftSignatures: pendingDraftRecords.map(draft => draft.signature),
       recordedAt: new Date().toISOString(),
     });
   }
@@ -683,6 +718,7 @@ interface RetroReceipt {
   snapshot: TranscriptSnapshot;
   agentFilingNeeded: boolean;
   pendingDrafts: number;
+  pendingDraftSignatures: string[];
   recordedAt: string;
 }
 
@@ -754,6 +790,11 @@ function readRetroReceipt(
       typeof receipt.agentFilingNeeded === 'boolean' &&
       Number.isInteger(receipt.pendingDrafts) &&
       (receipt.pendingDrafts ?? -1) >= 0 &&
+      Array.isArray(receipt.pendingDraftSignatures) &&
+      receipt.pendingDraftSignatures.length === receipt.pendingDrafts &&
+      receipt.pendingDraftSignatures.every(
+        signature => typeof signature === 'string' && signature.length > 0,
+      ) &&
       Number.isFinite(recordedAt) &&
       recordedAt <= now.getTime() &&
       now.getTime() - recordedAt <= VERIFICATION_RECEIPT_MAX_AGE_MS &&
@@ -792,9 +833,16 @@ function retroObservationFromReceipt(
   receipt: RetroReceipt,
 ): CloseoutObservation['retro'] {
   const pendingDrafts = readSpooledDrafts(root, sessionId).length;
-  const filingRecovered =
-    receipt.agentFilingNeeded && receipt.pendingDrafts > 0 && pendingDrafts === 0;
-  const complete = (!receipt.agentFilingNeeded || filingRecovered) && pendingDrafts === 0;
+  const acknowledgedSignatures = new Set(readAcks(root, sessionId).map(ack => ack.signature));
+  const capturedDraftsAcknowledged =
+    receipt.pendingDraftSignatures.length > 0 &&
+    receipt.pendingDraftSignatures.every(signature => acknowledgedSignatures.has(signature)) &&
+    pendingDrafts === 0;
+  const complete =
+    pendingDrafts === 0 &&
+    (receipt.pendingDraftSignatures.length > 0
+      ? capturedDraftsAcknowledged
+      : !receipt.agentFilingNeeded);
   return {
     bound: true,
     complete,
@@ -977,6 +1025,14 @@ interface GhPullRequest {
   headRefOid: string;
   headRepositoryOwner?: { login?: string };
   headRepository?: { name?: string; nameWithOwner?: string };
+  statusCheckRollup?: GhStatusCheck[];
+}
+
+interface GhStatusCheck {
+  __typename?: string;
+  status?: string;
+  conclusion?: string;
+  state?: string;
 }
 
 interface GhRequiredCheck {
@@ -994,6 +1050,34 @@ export function resolveRequiredChecks(
   return checks.every(check => ['pass', 'skipping'].includes(check.bucket ?? ''))
     ? 'passed'
     : 'unknown';
+}
+
+export function resolveHostedCheckRollup(
+  checks: GhStatusCheck[] | undefined,
+): PullRequestIdentity['ciChecks'] {
+  if (!checks) return 'unknown';
+  if (checks.length === 0) return 'absent';
+  let pending = false;
+  for (const check of checks) {
+    if (check.__typename === 'CheckRun') {
+      if (check.status !== 'COMPLETED') pending = true;
+      else if (!['SUCCESS', 'NEUTRAL', 'SKIPPED'].includes(check.conclusion ?? '')) return 'failed';
+    } else if (check.__typename === 'StatusContext') {
+      if (check.state === 'PENDING' || check.state === 'EXPECTED') pending = true;
+      else if (check.state !== 'SUCCESS') return 'failed';
+    } else return 'unknown';
+  }
+  return pending ? 'pending' : 'passed';
+}
+
+export function resolveHostedVerification(
+  required: PullRequestIdentity['ciChecks'],
+  rollup: PullRequestIdentity['ciChecks'],
+): PullRequestIdentity['ciChecks'] {
+  if (required === 'failed' || rollup === 'failed') return 'failed';
+  if (required === 'pending' || rollup === 'pending') return 'pending';
+  const requiredChecksSatisfied = required === 'passed' || required === 'absent';
+  return requiredChecksSatisfied && rollup === 'passed' ? 'passed' : 'unknown';
 }
 
 export function pullRequestIdentity(
@@ -1025,7 +1109,7 @@ function observePullRequest(root: string, pr: string): PullRequestIdentity[] {
       'view',
       pr,
       '--json',
-      'url,state,headRefName,headRefOid,headRepositoryOwner,headRepository',
+      'url,state,headRefName,headRefOid,headRepositoryOwner,headRepository,statusCheckRollup',
     ],
     root,
   );
@@ -1037,7 +1121,11 @@ function observePullRequest(root: string, pr: string): PullRequestIdentity[] {
   );
   const requiredChecks =
     requiredResult.status === 0 ? json<GhRequiredCheck[]>(requiredResult) : undefined;
-  const identity = parsed && pullRequestIdentity(parsed, resolveRequiredChecks(requiredChecks));
+  const ciChecks = resolveHostedVerification(
+    resolveRequiredChecks(requiredChecks),
+    resolveHostedCheckRollup(parsed?.statusCheckRollup),
+  );
+  const identity = parsed && pullRequestIdentity(parsed, ciChecks);
   return identity ? [identity] : [];
 }
 
@@ -1048,9 +1136,16 @@ function observeRemote(
   const names = git(root, 'remote').stdout.trim().split('\n').filter(Boolean);
   const matching = names.flatMap(name => {
     const url = git(root, 'remote', 'get-url', name).stdout.trim();
-    return normalizedRepository(url) ===
-      `${identity.headOwner}/${identity.headRepository}`.toLowerCase()
-      ? [{ name, url }]
+    const pushUrls = git(root, 'remote', 'get-url', '--push', '--all', name)
+      .stdout.trim()
+      .split('\n')
+      .filter(Boolean);
+    const pushUrl = pushUrls[0] ?? '';
+    const expectedRepository = `${identity.headOwner}/${identity.headRepository}`.toLowerCase();
+    return normalizedRepository(url) === expectedRepository &&
+      pushUrls.length === 1 &&
+      normalizedRepository(pushUrl) === expectedRepository
+      ? [{ name, url, pushUrl }]
       : [];
   });
   if (matching.length !== 1) return { remoteResolution: 'ambiguous' };

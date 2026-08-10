@@ -113,7 +113,29 @@ exit 1
   return { bare, bin, main, topic, oid: runOrThrow('git', ['rev-parse', 'HEAD'], topic) };
 }
 
-function installBoundaryFakes(fixture: DeliveryFixture, greenCi = true): void {
+function installBoundaryFakes(
+  fixture: DeliveryFixture,
+  requiredChecksGreen = true,
+  rollup: 'green' | 'failed' | 'pending' | 'missing' = requiredChecksGreen ? 'green' : 'missing',
+): void {
+  let statusCheckRollup;
+  switch (rollup) {
+    case 'green': {
+      statusCheckRollup = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }];
+      break;
+    }
+    case 'failed': {
+      statusCheckRollup = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'FAILURE' }];
+      break;
+    }
+    case 'pending': {
+      statusCheckRollup = [{ __typename: 'CheckRun', status: 'IN_PROGRESS', conclusion: '' }];
+      break;
+    }
+    case 'missing': {
+      break;
+    }
+  }
   const pullRequestJson = JSON.stringify({
     url: 'https://github.com/acme/widget/pull/42',
     state: 'MERGED',
@@ -121,11 +143,11 @@ function installBoundaryFakes(fixture: DeliveryFixture, greenCi = true): void {
     headRefOid: fixture.oid,
     headRepositoryOwner: { login: 'acme' },
     headRepository: { name: 'widget', nameWithOwner: 'acme/widget' },
-    ...(greenCi && {
-      statusCheckRollup: [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }],
-    }),
+    ...(statusCheckRollup && { statusCheckRollup }),
   });
-  const requiredChecksJson = JSON.stringify(greenCi ? [{ bucket: 'pass', state: 'SUCCESS' }] : []);
+  const requiredChecksJson = JSON.stringify(
+    requiredChecksGreen ? [{ bucket: 'pass', state: 'SUCCESS' }] : [],
+  );
   executable(
     nodePath.join(fixture.bin, 'gh'),
     String.raw`#!/bin/sh
@@ -311,24 +333,71 @@ else if (args[0] === 'retro' && args[1] === 'run') {
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
   }, 30_000);
 
-  it('mints exact-head verification from green CI without executing local plans', () => {
-    const fixture = deliveryFixture();
-    installBoundaryFakes(fixture, true);
-    const sandbox = nodePath.dirname(fixture.bare);
-    const id = 'claude-green-ci';
-    const transcript = nodePath.join(sandbox, `${id}.jsonl`);
-    const localPlanMarker = nodePath.join(sandbox, 'local-plan-ran');
-    const cli = nodePath.join(fixture.bin, 'green-ci-safeword.ts');
-    writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: fixture.topic })}\n`);
-    executable(
-      cli,
-      `#!/usr/bin/env bun
+  it.each([true, false])(
+    'mints exact-head verification from a green rollup without local plans (required checks: %s)',
+    requiredChecks => {
+      const fixture = deliveryFixture();
+      installBoundaryFakes(fixture, requiredChecks, 'green');
+      const sandbox = nodePath.dirname(fixture.bare);
+      const id = 'claude-green-ci';
+      const transcript = nodePath.join(sandbox, `${id}.jsonl`);
+      const localPlanMarker = nodePath.join(sandbox, 'local-plan-ran');
+      const cli = nodePath.join(fixture.bin, 'green-ci-safeword.ts');
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: fixture.topic })}\n`);
+      executable(
+        cli,
+        `#!/usr/bin/env bun
 import { writeFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 if (args[0] === 'project' && args[1] === 'test-plan') {
   writeFileSync(process.env.SAFEWORD_LOCAL_PLAN_MARKER, 'ran');
   process.exit(1);
 }
+if (args[0] === 'retro' && args[1] === 'run') {
+  console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false } }));
+} else process.exit(1);
+`,
+      );
+      const environment = {
+        ...process.env,
+        PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+        GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
+        SAFEWORD_TEST_BARE: fixture.bare,
+        SAFEWORD_CLI: cli,
+        SAFEWORD_LOCAL_PLAN_MARKER: localPlanMarker,
+        CLAUDE_PROJECT_DIR: fixture.topic,
+      };
+      bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
+      const preview = spawnSync(
+        'bun',
+        [nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'), '--pr', '42'],
+        { cwd: fixture.topic, env: environment, encoding: 'utf8' },
+      );
+
+      expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+      expect(existsSync(localPlanMarker)).toBe(false);
+      expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
+    },
+    30_000,
+  );
+
+  it('blocks cleanup when the effective push repository differs from the pull request head', () => {
+    const fixture = deliveryFixture();
+    installBoundaryFakes(fixture);
+    runOrThrow(
+      'git',
+      ['remote', 'set-url', '--push', 'origin', 'git@github.com:other/widget.git'],
+      fixture.topic,
+    );
+    const sandbox = nodePath.dirname(fixture.bare);
+    const id = 'claude-mismatched-push-repository';
+    const transcript = nodePath.join(sandbox, `${id}.jsonl`);
+    const cli = nodePath.join(fixture.bin, 'push-repository-safeword.ts');
+    writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: fixture.topic })}\n`);
+    executable(
+      cli,
+      `#!/usr/bin/env bun
+const args = process.argv.slice(2);
 if (args[0] === 'retro' && args[1] === 'run') {
   console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false } }));
 } else process.exit(1);
@@ -340,7 +409,6 @@ if (args[0] === 'retro' && args[1] === 'run') {
       GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
       SAFEWORD_TEST_BARE: fixture.bare,
       SAFEWORD_CLI: cli,
-      SAFEWORD_LOCAL_PLAN_MARKER: localPlanMarker,
       CLAUDE_PROJECT_DIR: fixture.topic,
     };
     bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
@@ -350,10 +418,66 @@ if (args[0] === 'retro' && args[1] === 'run') {
       { cwd: fixture.topic, env: environment, encoding: 'utf8' },
     );
 
-    expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
-    expect(existsSync(localPlanMarker)).toBe(false);
-    expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
+    expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(2);
+    expect(
+      (JSON.parse(preview.stdout) as { plan: { blockers: string[] } }).plan.blockers,
+    ).toContain('the pull request head repository does not map to exactly one git remote');
+    expect(
+      runOrThrow(
+        'git',
+        ['ls-remote', '--refs', 'origin', 'refs/heads/feature/closeout'],
+        fixture.topic,
+        environment,
+      ),
+    ).toContain(fixture.oid);
   }, 30_000);
+
+  it.each(['failed', 'pending'] as const)(
+    'falls back to local verification when a non-required hosted check is %s',
+    rollup => {
+      const fixture = deliveryFixture();
+      installBoundaryFakes(fixture, true, rollup);
+      const sandbox = nodePath.dirname(fixture.bare);
+      const id = `claude-${rollup}-optional-check`;
+      const transcript = nodePath.join(sandbox, `${id}.jsonl`);
+      const localPlanMarker = nodePath.join(sandbox, 'local-plan-ran');
+      const cli = nodePath.join(fixture.bin, 'hosted-rollup-fallback-safeword.ts');
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: fixture.topic })}\n`);
+      executable(
+        cli,
+        `#!/usr/bin/env bun
+import { writeFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+if (args[0] === 'project' && args[1] === 'test-plan') {
+  writeFileSync(process.env.SAFEWORD_LOCAL_PLAN_MARKER, 'ran');
+  console.log(JSON.stringify([{ cwd: process.env.CLAUDE_PROJECT_DIR, command: 'true', available: true }]));
+} else if (args[0] === 'retro' && args[1] === 'run') {
+  console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false } }));
+} else process.exit(1);
+`,
+      );
+      const environment = {
+        ...process.env,
+        PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+        GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
+        SAFEWORD_TEST_BARE: fixture.bare,
+        SAFEWORD_CLI: cli,
+        SAFEWORD_LOCAL_PLAN_MARKER: localPlanMarker,
+        CLAUDE_PROJECT_DIR: fixture.topic,
+      };
+      bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
+      const preview = spawnSync(
+        'bun',
+        [nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'), '--pr', '42'],
+        { cwd: fixture.topic, env: environment, encoding: 'utf8' },
+      );
+
+      expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+      expect(readFileSync(localPlanMarker, 'utf8')).toBe('ran');
+      expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
+    },
+    30_000,
+  );
 
   it.each(['claude', 'codex', 'cursor'] as const)(
     'drives the installed %s hook through the actual guard and real Git cleanup',
