@@ -49,7 +49,7 @@ export interface ImplPlanResult {
 
 const STATUS_PREFIX = '**Status:**';
 const SKIP_PREFIX = 'skip:';
-const DECISIONS_SCAFFOLD_LINES = new Set(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
+const DECISIONS_SCAFFOLD_LINES = new Set<string>(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
 
 const SECTION_NAMES = new Map<string, ImplPlanAnySectionName>([
   ...IMPL_PLAN_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [name.toLowerCase(), name]),
