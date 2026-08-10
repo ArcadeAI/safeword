@@ -262,10 +262,12 @@ function detectInspirationWriteInSegment(segment: string): ProtectedWriteDetecti
   }
   if (DESTINATION_WRITERS.has(commandWord)) {
     const targetDirectory = flagTargetDirectory(rest);
-    if (targetDirectory !== undefined && isNamespacePath(targetDirectory, 'tickets/')) {
-      const source = arguments_.find(isInspirationArtifactBasename);
-      if (source !== undefined) {
-        return { shape: `${commandWord} into ticket directory`, path: source };
+    if (targetDirectory !== undefined) {
+      if (isNamespacePath(targetDirectory, 'tickets/')) {
+        const source = arguments_.find(isInspirationArtifactBasename);
+        if (source !== undefined) {
+          return { shape: `${commandWord} into ticket directory`, path: source };
+        }
       }
     } else {
       const destination = arguments_.at(-1);
