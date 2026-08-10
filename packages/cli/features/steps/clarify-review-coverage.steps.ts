@@ -1,17 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
@@ -75,31 +65,16 @@ const fixtureControlVariables = new Set([
   'SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX',
   'SAFEWORD_REVIEW_COVERAGE_VERDICT',
   'SAFEWORD_REVIEW_COVERAGE_FINDING',
+  'SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE',
+  'SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX',
 ]);
 const CHANGE_REQUEST_VERDICT = 'request_changes';
 const CHANGE_REQUEST_FINDING = 'Needs work.';
 const fixtureDirectories = new Set<string>();
 
-BeforeAll(() => {
+BeforeAll(async () => {
   const cliRoot = nodePath.join(repoRoot, 'packages/cli');
-  const builtCli = nodePath.join(cliRoot, 'dist/cli.js');
-  assert.ok(
-    existsSync(builtCli),
-    'Missing packages/cli/dist/cli.js; run bun run pretest:bdd before cucumber-js.',
-  );
-  let newestInput = 0;
-  for (const input of [
-    nodePath.join(cliRoot, 'src'),
-    nodePath.join(cliRoot, 'package.json'),
-    nodePath.join(cliRoot, 'tsconfig.json'),
-    nodePath.join(cliRoot, 'tsup.config.ts'),
-  ]) {
-    newestInput = Math.max(newestInput, newestModifiedTime(input));
-  }
-  assert.ok(
-    statSync(builtCli).mtimeMs >= newestInput,
-    'Stale packages/cli/dist/cli.js; run bun run pretest:bdd before cucumber-js.',
-  );
+  await execFileAsync('bun', ['run', 'build'], { cwd: cliRoot });
   productionCliBuild.completed = true;
 });
 
@@ -112,17 +87,6 @@ function createFixtureDirectory(prefix: string): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), prefix));
   fixtureDirectories.add(directory);
   return directory;
-}
-
-function newestModifiedTime(path: string): number {
-  const status = statSync(path);
-  if (!status.isDirectory()) return status.mtimeMs;
-  let latest = status.mtimeMs;
-  const entries = readdirSync(path, { withFileTypes: true });
-  for (const entry of entries) {
-    latest = Math.max(latest, newestModifiedTime(nodePath.join(path, entry.name)));
-  }
-  return latest;
 }
 
 function sanitizedFixtureEnvironment(): NodeJS.ProcessEnv {
@@ -710,66 +674,53 @@ function createCliFixture(): CliFixture {
 }
 
 function reviewerInvocationValidation(agent: 'claude' | 'codex'): string {
-  if (agent === 'claude') {
-    return String.raw`prompt_mode=0
-output_json=0
-schema=0
-isolated_session=0
-slash_commands=0
-setting_sources=0
-strict_mcp=0
-tools=0
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    -p) prompt_mode=1; shift ;;
-    --output-format) [ "$#" -ge 2 ] && [ "$2" = "json" ] || exit 64; output_json=1; shift 2 ;;
-    --json-schema) [ "$#" -ge 2 ] && [ -n "$2" ] || exit 64; schema=1; shift 2 ;;
-    --no-session-persistence) isolated_session=1; shift ;;
-    --disable-slash-commands) slash_commands=1; shift ;;
-    --setting-sources) [ "$#" -ge 2 ] && [ -z "$2" ] || exit 64; setting_sources=1; shift 2 ;;
-    --strict-mcp-config) strict_mcp=1; shift ;;
-    --tools) [ "$#" -ge 2 ] && [ -z "$2" ] || exit 64; tools=1; shift 2 ;;
-    --model) [ "$#" -ge 2 ] && [ -n "$2" ] || exit 64; shift 2 ;;
-    *) printf 'unsupported claude review argument: %s\n' "$1" >&2; exit 64 ;;
-  esac
-done
-[ "$prompt_mode$output_json$schema$isolated_session$slash_commands$setting_sources$strict_mcp$tools" = "11111111" ] || {
-  printf 'incomplete claude review arguments\n' >&2
-  exit 64
-}`;
-  }
-  return String.raw`exec_mode=0
-json=0
-sandbox=0
-git_check=0
-ephemeral=0
-user_config=0
-rules=0
-hooks=0
-mcp=0
-schema=0
-stdin_marker=0
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    exec) exec_mode=1; shift ;;
-    --json) json=1; shift ;;
-    --sandbox) [ "$#" -ge 2 ] && [ "$2" = "read-only" ] || exit 64; sandbox=1; shift 2 ;;
-    --skip-git-repo-check) git_check=1; shift ;;
-    --ephemeral) ephemeral=1; shift ;;
-    --ignore-user-config) user_config=1; shift ;;
-    --ignore-rules) rules=1; shift ;;
-    --disable) [ "$#" -ge 2 ] && [ "$2" = "hooks" ] || exit 64; hooks=1; shift 2 ;;
-    --config) [ "$#" -ge 2 ] && [ "$2" = "mcp_servers={}" ] || exit 64; mcp=1; shift 2 ;;
-    --output-schema) [ "$#" -ge 2 ] && [ -n "$2" ] || exit 64; schema=1; shift 2 ;;
-    --model) [ "$#" -ge 2 ] && [ -n "$2" ] || exit 64; shift 2 ;;
-    -) stdin_marker=1; shift; [ "$#" -eq 0 ] || exit 64 ;;
-    *) printf 'unsupported codex review argument: %s\n' "$1" >&2; exit 64 ;;
-  esac
-done
-[ "$exec_mode$json$sandbox$git_check$ephemeral$user_config$rules$hooks$mcp$schema$stdin_marker" = "11111111111" ] || {
-  printf 'incomplete codex review arguments\n' >&2
-  exit 64
-}`;
+  const dynamic = undefined;
+  const expected: readonly (string | undefined)[] =
+    agent === 'claude'
+      ? [
+          '-p',
+          '--output-format',
+          'json',
+          '--json-schema',
+          dynamic,
+          '--no-session-persistence',
+          '--disable-slash-commands',
+          '--setting-sources',
+          '',
+          '--strict-mcp-config',
+          '--tools',
+          '',
+        ]
+      : [
+          'exec',
+          '--json',
+          '--sandbox',
+          'read-only',
+          '--skip-git-repo-check',
+          '--ephemeral',
+          '--ignore-user-config',
+          '--ignore-rules',
+          '--disable',
+          'hooks',
+          '--config',
+          'mcp_servers={}',
+          '--output-schema',
+          dynamic,
+          '-',
+        ];
+  const checks = expected.map((argument, index) => {
+    const position = index + 1;
+    const predicate =
+      argument === undefined ? '[ -n "$1" ]' : `[ "$1" = ${shellSingleQuoted(argument)} ]`;
+    return String.raw`[ "$#" -gt 0 ] && ${predicate} || { printf 'invalid ${agent} review argument at position ${position}\n' >&2; exit 64; }
+shift`;
+  });
+  return `${checks.join('\n')}\n[ "$#" -eq 0 ] || { printf 'unexpected extra ${agent} review arguments\\n' >&2; exit 64; }`;
+}
+
+function shellSingleQuoted(value: string): string {
+  const escapedQuote = ["'", '"', "'", '"', "'"].join('');
+  return `'${value.split("'").join(escapedQuote)}'`;
 }
 
 function installStandardReviewerFixture(): CliFixture {
