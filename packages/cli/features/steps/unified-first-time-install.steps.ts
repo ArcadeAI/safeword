@@ -28,6 +28,7 @@ import {
   recordCodexHookProof,
 } from '../../src/codex-plugin/profile-proof.ts';
 import { SAFEWORD_SCHEMA } from '../../src/schema.ts';
+import { parseShellWords } from '../../templates/hooks/lib/shell-segments.ts';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -63,7 +64,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   compatibilityCanonical?: string;
   compatibilityRoute?: CompatibilityRoute;
   compatibilityInvariant?: string;
-  referenceHelp?: string;
+  referenceHelp?: Readonly<Record<string, string>>;
   referenceCapabilities?: Record<string, unknown>;
   legacyGuidancePath?: string;
   recoveryCommand?: string;
@@ -341,6 +342,29 @@ exit 1
 function requiredPath(path: string | undefined, label: string): string {
   if (path === undefined) throw new Error(`${label} was not initialized`);
   return path;
+}
+
+function helpListsCommand(help: string, command: string): boolean {
+  return help.split('\n').some(line => line.trimStart().split(/\s+/u, 1)[0] === command);
+}
+
+function assertReferenceCommand(
+  help: Readonly<Record<string, string>>,
+  capabilities: readonly { name?: string; effect_class?: string }[] | undefined,
+  name: string,
+  effectClass: string,
+): void {
+  const definition = commandCatalog.find(candidate => candidate.name === name);
+  assert.equal(definition?.effectClass, effectClass, name);
+  assert.equal(typeof definition?.handler, 'function', name);
+  const [family, nestedCommand] = name.split(' ', 2);
+  assert.equal(helpListsCommand(help[''] ?? '', family ?? ''), true);
+  assert.equal(helpListsCommand(help[family ?? ''] ?? '', nestedCommand ?? ''), true);
+  assert.equal(
+    capabilities?.some(entry => entry.name === name && entry.effect_class === effectClass),
+    true,
+    `${name} is absent from capabilities with effect class ${effectClass}`,
+  );
 }
 
 function fixtureProcessEnvironment(world: UnifiedInstallWorld): NodeJS.ProcessEnv {
@@ -1363,41 +1387,33 @@ Given(
 
 When('CLI reference and capability fixtures are validated', function (this: UnifiedInstallWorld) {
   const project = requiredPath(this.projectRoot, 'project root');
-  const environment = { ...process.env, ...this.hostEnvironment, SAFEWORD_NO_UPDATE_CHECK: '1' };
-  const help = spawnSync(process.execPath, [CLI_PATH, '--help'], {
-    cwd: project,
-    encoding: 'utf8',
-    env: environment,
-  });
-  this.referenceHelp = help.stdout;
+  const environment = fixtureProcessEnvironment(this);
+  this.referenceHelp = Object.fromEntries(
+    ['', 'review', 'codex'].map(command => {
+      const help = spawnSync(
+        process.execPath,
+        [CLI_PATH, ...command.split(' ').filter(Boolean), '--help'],
+        { cwd: project, encoding: 'utf8', env: environment },
+      );
+      assert.equal(help.status, 0, help.stderr);
+      return [command, help.stdout];
+    }),
+  );
   this.referenceCapabilities = runJsonCommand(this, 'capabilities');
 });
 
 Then(
   'both commands are listed with their executable syntax and effect policy',
   function (this: UnifiedInstallWorld) {
-    const help = requiredPath(this.referenceHelp, 'CLI reference help');
+    const help = this.referenceHelp;
+    assert.ok(help, 'CLI reference help was not initialized');
     const capabilities = this.referenceCapabilities?.data as
       { commands?: { name?: string; effect_class?: string }[] } | undefined;
     for (const [name, effectClass] of [
       ['review run', 'mutate'],
       ['codex clean-guidance', 'destructive'],
     ] as const) {
-      const definition = commandCatalog.find(candidate => candidate.name === name);
-      assert.equal(definition?.effectClass, effectClass, name);
-      assert.equal(typeof definition?.handler, 'function', name);
-      // The fixtures gathered by the When must actually carry the command.
-      assert.ok(
-        help.includes(name.split(' ', 1)[0] ?? name),
-        `${name} is absent from the CLI reference help`,
-      );
-      assert.equal(
-        capabilities?.commands?.some(
-          entry => entry.name === name && entry.effect_class === effectClass,
-        ),
-        true,
-        `${name} is absent from capabilities with effect class ${effectClass}`,
-      );
+      assertReferenceCommand(help, capabilities?.commands, name, effectClass);
     }
   },
 );
@@ -1518,13 +1534,18 @@ Given(
 );
 
 When('the user runs the advertised recovery action', function (this: UnifiedInstallWorld) {
-  const completed = spawnSync(
-    'sh',
-    ['-c', requiredPath(this.recoveryCommand, 'recovery command')],
-    {
-      encoding: 'utf8',
-    },
+  const [executable, separator, ...arguments_] = parseShellWords(
+    requiredPath(this.recoveryCommand, 'recovery command'),
   );
+  assert.equal(executable, 'mv');
+  assert.equal(separator, '--');
+  assert.equal(arguments_.length, 2);
+  const project = requiredPath(this.projectRoot, 'project root');
+  const completed = spawnSync(executable, [separator, ...arguments_], {
+    cwd: project,
+    encoding: 'utf8',
+    env: fixtureProcessEnvironment(this),
+  });
   assert.equal(completed.status, 0, completed.stderr);
 });
 
@@ -1577,6 +1598,7 @@ function createDivergentArchitectureFixture(world: UnifiedInstallWorld): void {
   // Staged-only module: present in the index, absent from HEAD.
   writeModule('billing');
   git('add', '--', 'src/billing/index.ts');
+  rmSync(nodePath.join(project, 'src/billing'), { recursive: true });
   // Worktree-only module: never staged.
   writeModule('shipping');
   world.architectureDocument = nodePath.join(project, '.project/architecture.generated.md');
@@ -1623,6 +1645,11 @@ Then(
     assert.equal(
       document.includes('shipping'),
       input === 'worktree',
+      `reading ${input} state produced: ${document}`,
+    );
+    assert.equal(
+      document.includes('billing'),
+      input === 'index',
       `reading ${input} state produced: ${document}`,
     );
     assert.equal(
@@ -2094,10 +2121,11 @@ When('the user requests global JSON output', function (this: UnifiedInstallWorld
 });
 
 Then('capabilities lists the relay recovery command', function (this: UnifiedInstallWorld) {
-  const command = requiredPath(this.relayRecoveryCommand, 'relay recovery command').split(
-    ' ',
-    1,
-  )[0];
+  const invocation = requiredPath(this.relayRecoveryCommand, 'relay recovery command');
+  const command = commandCatalog.find(
+    candidate => invocation === candidate.name || invocation.startsWith(`${candidate.name} `),
+  )?.name;
+  assert.ok(command, `No catalogue command matches relay recovery invocation: ${invocation}`);
   const project = requiredPath(this.projectRoot, 'project root');
   const result = spawnSync(
     process.execPath,
