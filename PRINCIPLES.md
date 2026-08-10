@@ -2,7 +2,7 @@
 
 Safeword makes the right process easy to follow and the wrong process hard to reach. It does not lock the agent out — it shapes the environment so skipping steps has consequences and following them has momentum.
 
-Three enforcement layers, in order of strength: natural gates (prerequisites that physically must exist before the next step can start), reminders (current phase and step injected each turn), and output validation (hard block at done until tests pass and evidence exists). Gate the irreversible. Nudge the qualitative.
+Four enforcement tiers, in order of strength: natural gates (prerequisites and hard output-validation boundaries), independent observation (tests, parsers, and separate review), reminders (current phase and step injected when relevant), and self-report. Gate the irreversible. Nudge the qualitative.
 
 When evaluating a new feature, ticket approach, or design trade-off, check it against these principles. If a decision conflicts with one, either the decision is wrong or the principle needs updating.
 
@@ -45,7 +45,7 @@ The strongest enforcement is making the wrong path physically impossible. Natura
 
 1. **Natural gates** — artifact must exist to proceed (can't create test-definitions.md without ticket scope fields)
 2. **Independent observation** — a separate process verifies (Haiku judge, test suite, artifact parsing)
-3. **Reminders** — prompt injection of current state (one compressed line per turn)
+3. **Reminders** — prompt injection of current state at a relevant boundary (one compressed line)
 4. **Self-report** — agent says it did the thing (~40% false positive rate per SWE-bench)
 
 Design enforcement at the highest tier that's practical. When you reach for a self-report flag, ask: is there an artifact I could require instead?
@@ -118,17 +118,17 @@ Authority is earned through progressive specificity. Each proposal should be che
 
 ---
 
-## 5. Clarity before correctness
+## 5. Correct and safe; then clear; then simple
 
-_"The most successful implementations weren't using complex frameworks. They were building with simple, composable patterns." — [Building Effective Agents](https://www.anthropic.com/research/building-effective-agents)_
+_"The most successful implementations weren't using complex frameworks. They were building with simple, composable patterns." — [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents)_
 
-Code that is correct but unclear will be misunderstood and broken by the next change. Code that is simple but unclear will be "improved" into complexity. Clarity is the foundation that preserves simplicity and correctness over time.
+Correctness and safety are gates, not trade-offs. Among designs that pass them, prefer clarity over simplicity, then choose the simplest complete solution. Code that is correct but unclear will be misunderstood and broken by the next change. Simple work reduces the number of things that can fail. We need both, in that order.
 
-**Clarity > Simplicity > Correctness** — in that order.
+Accept complexity required by current behavior or a credible material risk. Reject complexity introduced by our solution: speculative flexibility, premature abstractions, parallel mechanisms, unnecessary dependencies, and "just in case" features. Do not confuse fewer components with a simpler system when the cut moves complexity to users, hides it in coupling, weakens verification, or removes protection against a credible failure.
 
-This applies beyond code. Skill files should be concise (3 steps, not 9). Enforcement should be legible (a developer reading the hook should understand what it checks and why). Principles should be few and load-bearing, not an exhaustive checklist. Documentation should be precise enough that an agent with no prior context can follow it without ambiguity.
+This applies beyond code. Keep skills focused, hooks legible, code unsurprising, documentation precise, and principles few and load-bearing. Don't comment what the code already says. Name things so the name is the documentation.
 
-Delete what isn't needed. Don't abstract for hypothetical reuse. Don't comment what the code already says. Name things so the name is the documentation. When in doubt, choose the simpler solution that works today.
+A mechanism earns its place through evidence: a behavioral test, eval comparison, trace, dogfooding result, or risk analysis. Simplify agent scaffolding incrementally and retain the before-and-after evidence. Judge tests, observability, recovery paths, and defense in depth by the failures they detect or contain, not only by whether the happy path still works. This measured approach follows current [OpenAI model guidance](https://developers.openai.com/api/docs/guides/latest-model) and [Anthropic harness research](https://www.anthropic.com/engineering/harness-design-long-running-apps).
 
 ---
 
