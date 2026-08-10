@@ -297,6 +297,35 @@ The raw directory manifest hash is
 Verify this hash before any reuse and retain the manifest independently from the
 working copy before paid recovery work begins.
 
+### Fail-closed instrument refreeze — 2026-08-10
+
+The preregistered manifests, corpus, prompts, labels, and prices remain
+byte-identical. Their original adapter reference is retained as historical
+input rather than rewritten. The recovery runner separately binds the repaired
+runtime adapter, which now preserves provider-request, network, schema, review,
+and unknown failure provenance alongside billed usage.
+
+- Runtime adapter commit:
+  `b9b8d1f26af118b6a9d5c1e4b658bd96f3aee09a`.
+- Runtime adapter reference:
+  `codex/cwgyh0-dev-benchmark-adapter@b9b8d1f26`.
+- Persistent adapter worktree:
+  `/Users/alex/.codex/worktrees/ec04/arcade-pr-review`.
+- Recovery runner SHA-256:
+  `35fcf0dbbd8540074465004b5d022664897a272d3167a6e60a6a4327bc98a4d9`.
+- Trial policy SHA-256:
+  `ab2174886cbb97d16aba7875e0084751733f51d68449be61ecbef43db05c1633`.
+- Trial policy tests SHA-256:
+  `0e02d761c56b1f90e08146e5b27920a2c41d5e967f2c7e5e263795e5db4bbf2c`.
+- Recovery preflight evidence SHA-256:
+  `292ffe18d9b9fe715940fc6c290cf3a6c26dba587948f8d4220d39fed4a3d77d`.
+
+The retry boundary makes at most one second attempt for an explicitly typed
+408, 429, 5xx, or allowlisted network failure. Schema, content, routing,
+reviewer, provenance, and unknown failures are never silently retried. Every
+returned attempt is retained and included in aggregate cost, including an
+infrastructure failure followed by success.
+
 The construct audit also directly falsified repeated findings, including the
 claim that Go 1.26.1 rejects `new(value)` and the claim that S33's certified
 fixed `--template` flag is unsupported. Finding-verification remains useful as

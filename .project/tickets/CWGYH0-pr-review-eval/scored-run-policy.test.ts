@@ -17,6 +17,7 @@ function completedOutput(findings: unknown[] = []) {
 			expertOutcomes: [{
 				error: null,
 				expert: "correctness",
+				failure: null as unknown,
 				findings,
 				turns: 2,
 				usage: { inputTokens: 10, outputTokens: 2 },
@@ -61,6 +62,39 @@ describe("positive trial admission", () => {
 			status: "invalid",
 		});
 	});
+
+	test.each([
+		["provider 503", { kind: "provider-request", status: 503 }],
+		["network reset", { code: "ECONNRESET", kind: "network" }],
+	] as const)("marks %s for one infrastructure retry", (_name, failure) => {
+		const output = completedOutput();
+		output.report.expertOutcomes[0] = {
+			...output.report.expertOutcomes[0],
+			error: "temporary provider failure",
+			failure,
+		};
+		output.score.reviewValid = false;
+		expect(classifyTrialOutput(output, "correctness")).toEqual({
+			reason: "reviewer-failed",
+			retry: "infrastructure-once",
+			status: "invalid",
+		});
+	});
+
+	test.each([
+		["schema violation", { kind: "schema-violation" }],
+		["ordinary review failure", { kind: "review" }],
+		["unknown failure", { kind: "unknown" }],
+	] as const)("does not retry %s", (_name, failure) => {
+		const output = completedOutput();
+		output.report.expertOutcomes[0] = {
+			...output.report.expertOutcomes[0],
+			error: "review failed",
+			failure,
+		};
+		output.score.reviewValid = false;
+		expect(classifyTrialOutput(output, "correctness").retry).toBe("never");
+	});
 });
 
 class RequestError extends Error {
@@ -104,12 +138,56 @@ describe("one-retry policy", () => {
 			return "ok";
 		});
 
-		expect(result).toEqual({
+		expect(result).toMatchObject({
 			attempts: 2,
 			infrastructureErrors: ["ProviderRequestError: request failed with HTTP 503"],
 			status: "completed",
 			value: "ok",
 		});
+		expect(result.attemptRecords).toHaveLength(2);
+	});
+
+	test("retries one embedded provider failure and preserves both paid outputs", async () => {
+		let calls = 0;
+		const failed = completedOutput();
+		failed.report.expertOutcomes[0] = {
+			...failed.report.expertOutcomes[0],
+			error: "anthropic request failed with HTTP 503",
+			failure: { kind: "provider-request", status: 503 },
+		};
+		failed.score.reviewValid = false;
+		const successful = completedOutput();
+		const result = await executeWithInfrastructureRetry(
+			async () => (++calls === 1 ? failed : successful),
+			(value) => classifyTrialOutput(value, "correctness"),
+		);
+
+		expect(result.status).toBe("completed");
+		expect(result.attemptRecords).toHaveLength(2);
+		expect(result.attemptRecords[0]).toMatchObject({ output: failed });
+		expect(result.attemptRecords[1]).toMatchObject({ output: successful });
+	});
+
+	test("does not retry an embedded schema failure", async () => {
+		let calls = 0;
+		const failed = completedOutput();
+		failed.report.expertOutcomes[0] = {
+			...failed.report.expertOutcomes[0],
+			error: "unusable response",
+			failure: { kind: "schema-violation" },
+		};
+		failed.score.reviewValid = false;
+		const result = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				return failed;
+			},
+			(value) => classifyTrialOutput(value, "correctness"),
+		);
+
+		expect(calls).toBe(1);
+		expect(result).toMatchObject({ attempts: 1, status: "exclude-case" });
+		expect(result.attemptRecords).toHaveLength(1);
 	});
 
 	test("excludes after the second infrastructure failure", async () => {

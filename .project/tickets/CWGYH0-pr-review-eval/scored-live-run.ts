@@ -13,7 +13,7 @@ import {
 	type DevelopmentReviewInput,
 	type DevelopmentVariant,
 	loadDevelopmentManifest,
-} from "/private/tmp/cwgyh0-pr-review-adapter-PxYDro/tools/pr-review/src/eval/development-benchmark.ts";
+} from "/Users/alex/.codex/worktrees/ec04/arcade-pr-review/tools/pr-review/src/eval/development-benchmark.ts";
 import {
 	classifyTrialOutput,
 	executeWithInfrastructureRetry,
@@ -24,7 +24,7 @@ import {
 
 const ticketRoot = import.meta.dir;
 const sourceRepository = "/Users/alex/Projects/arcade-monorepo";
-const adapterRoot = "/private/tmp/cwgyh0-pr-review-adapter-PxYDro";
+const adapterRoot = "/Users/alex/.codex/worktrees/ec04/arcade-pr-review";
 const primaryManifestPath = join(
 	ticketRoot,
 	"scored-cases-frozen-2026-08-01.json",
@@ -51,8 +51,9 @@ const expectedHashes = {
 	narrowVerifier:
 		"cfbabd76b53d0c41a955bd4330c4103bed357f905214718fc4e6819ff79454c5",
 };
-const expectedAdapterCommit = "8d86720c09361577373a353b0f2e4810c4423c8a";
-const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@8d86720c0";
+const expectedAdapterCommit = "b9b8d1f26af118b6a9d5c1e4b658bd96f3aee09a";
+const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@b9b8d1f26";
+const preregisteredRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@8d86720c0";
 const model = "claude-sonnet-5";
 const trials = 3;
 const seed = 5_453_573;
@@ -289,8 +290,8 @@ function validateFrozenInputs(
 	}
 	if (
 		primary.modelCutoff !== reserve.modelCutoff ||
-		primary.runnerRef !== expectedRunnerRef ||
-		reserve.runnerRef !== expectedRunnerRef
+		primary.runnerRef !== preregisteredRunnerRef ||
+		reserve.runnerRef !== preregisteredRunnerRef
 	) {
 		throw new Error("frozen manifests disagree on cutoff or runner reference");
 	}
@@ -419,6 +420,23 @@ function estimatedCost(output: {
 	};
 }
 
+function estimatedAttemptCost(
+	attemptRecords: readonly { output: { report: unknown } | null }[],
+): { costUsd: number; inputTokens: number; outputTokens: number } {
+	return attemptRecords.reduce(
+		(total, attempt) => {
+			if (attempt.output === null) return total;
+			const usage = estimatedCost(attempt.output);
+			return {
+				costUsd: total.costUsd + usage.costUsd,
+				inputTokens: total.inputTokens + usage.inputTokens,
+				outputTokens: total.outputTokens + usage.outputTokens,
+			};
+		},
+		{ costUsd: 0, inputTokens: 0, outputTokens: 0 },
+	);
+}
+
 async function writeJsonAtomically(path: string, value: unknown): Promise<void> {
 	const temporaryPath = `${path}.tmp`;
 	await Bun.write(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
@@ -449,11 +467,13 @@ const safeRepositories = new Map<string, string>();
 const frozenRun = {
 	aggregateCostCeilingUsd,
 	expectedAdapterCommit,
+	expectedRunnerRef,
 	expectedHashes,
 	inputPricePerMillionUsd,
 	model,
 	outputPricePerMillionUsd,
 	policy,
+	preregisteredRunnerRef,
 	primaryCases: primary.cases.map((item) => item.id),
 	reserveCases: reserve.cases.map((item) => item.id),
 	seed,
@@ -593,7 +613,7 @@ if (preflightOnly) {
 				failureDescription: item.failureDescription,
 				modelCutoff: primary.modelCutoff,
 				reviewBaseSha: item.reviewBaseSha,
-				runnerRef: primary.runnerRef,
+				runnerRef: expectedRunnerRef,
 				sourceSha: sourceSha(item, current.variant),
 				variant: current.variant,
 			};
@@ -603,34 +623,21 @@ if (preflightOnly) {
 				`case ${state.completedCases + 1}/30 call ${callOrdinal}/12: ${current.system} ${item.id} ${current.variant} t${current.trial}`,
 			);
 			try {
-				const result = await executeWithInfrastructureRetry(() => execute(reviewInput));
+				const result = await executeWithInfrastructureRetry(
+					() => execute(reviewInput),
+					(value) => classifyTrialOutput(value, "correctness"),
+				);
 				if (result.status === "exclude-case") {
-					excluded = true;
-					const exclusion = {
-						caseId: item.id,
-						failedWork: current,
-						infrastructureErrors: result.infrastructureErrors,
-						recordedAt: new Date().toISOString(),
-					};
-					state.exclusions.push(exclusion);
-					await Bun.write(
-						join(caseDirectory, `${String(callOrdinal).padStart(2, "0")}--EXCLUDED.json`),
-						`${JSON.stringify(exclusion, null, 2)}\n`,
-					);
-					break;
-				}
-				const disposition = classifyTrialOutput(result.value, "correctness");
-				if (disposition.status === "invalid") {
-					const usage = estimatedCost(result.value);
+					const usage = estimatedAttemptCost(result.attemptRecords);
 					state.cumulativeCostUsd += usage.costUsd;
 					excluded = true;
 					const exclusion = {
+						attemptRecords: result.attemptRecords,
 						attempts: result.attempts,
 						caseId: item.id,
-						disposition,
+						disposition: result.disposition,
 						failedWork: current,
 						infrastructureErrors: result.infrastructureErrors,
-						output: result.value,
 						recordedAt: new Date().toISOString(),
 						usage,
 					};
@@ -641,10 +648,11 @@ if (preflightOnly) {
 					);
 					break;
 				}
-				const usage = estimatedCost(result.value);
+				const usage = estimatedAttemptCost(result.attemptRecords);
 				state.cumulativeCostUsd += usage.costUsd;
 				const record = {
 					...reviewInput,
+					attemptRecords: result.attemptRecords,
 					attempts: result.attempts,
 					completedAt: new Date().toISOString(),
 					cumulativeCostUsd: state.cumulativeCostUsd,
@@ -698,7 +706,7 @@ if (preflightOnly) {
 			renameSync(caseDirectory, quarantine);
 			const replacement = reserve.cases[state.reserveIndex];
 			if (replacement === undefined) {
-				throw new Error("frozen reserves exhausted after infrastructure exclusions");
+				throw new Error("frozen reserves exhausted after case exclusions");
 			}
 			state.reserveIndex += 1;
 			state.candidateQueueIds.unshift(replacement.id);

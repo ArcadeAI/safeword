@@ -31,18 +31,39 @@ export type TrialDisposition =
 	| { reason: "completed"; retry: "never"; status: "usable" }
 	| {
 		reason: TrialInvalidReason;
-		retry: "never";
+		retry: "infrastructure-once" | "never";
 		status: "invalid";
 	};
+
+export type TrialAttempt<T> =
+	| {
+		attempt: 1 | 2;
+		disposition: TrialDisposition;
+		error: null;
+		output: T;
+	  }
+	| {
+		attempt: 1 | 2;
+		disposition: null;
+		error: string;
+		output: null;
+	  };
 
 export type RetriedResult<T> =
 	| {
 			attempts: 1 | 2;
+			attemptRecords: TrialAttempt<T>[];
 			infrastructureErrors: string[];
 			status: "completed";
 			value: T;
 	  }
-	| { attempts: 2; infrastructureErrors: string[]; status: "exclude-case" };
+	| {
+		attempts: 1 | 2;
+		attemptRecords: TrialAttempt<T>[];
+		disposition?: TrialDisposition;
+		infrastructureErrors: string[];
+		status: "exclude-case";
+	  };
 
 function isErrorLike(value: unknown): value is ErrorLike {
 	return typeof value === "object" && value !== null;
@@ -65,6 +86,26 @@ function hasUsage(value: unknown): boolean {
 		outputTokens >= 0 &&
 		inputTokens + outputTokens > 0
 	);
+}
+
+function retryForFailure(failure: unknown): "infrastructure-once" | "never" {
+	if (!isRecord(failure) || typeof failure.kind !== "string") return "never";
+	if (
+		failure.kind === "provider-request" &&
+		typeof failure.status === "number" &&
+		(RETRYABLE_HTTP_STATUSES.has(failure.status) ||
+			(failure.status >= 500 && failure.status <= 599))
+	) {
+		return "infrastructure-once";
+	}
+	if (
+		failure.kind === "network" &&
+		typeof failure.code === "string" &&
+		RETRYABLE_NETWORK_CODES.has(failure.code)
+	) {
+		return "infrastructure-once";
+	}
+	return "never";
 }
 
 /**
@@ -122,7 +163,11 @@ export function classifyTrialOutput(
 		outcome.turns < 1 ||
 		!hasUsage(outcome.usage)
 	) {
-		return { reason: "reviewer-failed", retry: "never", status: "invalid" };
+		return {
+			reason: "reviewer-failed",
+			retry: retryForFailure(outcome.failure),
+			status: "invalid",
+		};
 	}
 	if (!hasUsage(report.usage)) {
 		return {
@@ -173,21 +218,69 @@ export function isInfrastructureError(error: unknown): boolean {
 
 export async function executeWithInfrastructureRetry<T>(
 	execute: () => Promise<T>,
+	classify?: (value: T) => TrialDisposition,
 ): Promise<RetriedResult<T>> {
 	const infrastructureErrors: string[] = [];
+	const attemptRecords: TrialAttempt<T>[] = [];
 	for (const attempts of [1, 2] as const) {
 		try {
+			const value = await execute();
+			const disposition = classify?.(value) ?? {
+				reason: "completed",
+				retry: "never",
+				status: "usable",
+			} as const;
+			attemptRecords.push({
+				attempt: attempts,
+				disposition,
+				error: null,
+				output: value,
+			});
+			if (disposition.status === "invalid") {
+				if (disposition.retry === "infrastructure-once") {
+					const report = isRecord(value) && isRecord(value.report) ? value.report : null;
+					const outcomes = report !== null && Array.isArray(report.expertOutcomes)
+						? report.expertOutcomes
+						: [];
+					const failed = outcomes.find((outcome) => isRecord(outcome) && outcome.error !== null);
+					const summary = isRecord(failed) && typeof failed.error === "string"
+						? failed.error
+						: disposition.reason;
+					infrastructureErrors.push(summary);
+					if (attempts === 1) continue;
+				}
+				return {
+					attempts,
+					attemptRecords,
+					disposition,
+					infrastructureErrors,
+					status: "exclude-case",
+				};
+			}
 			return {
 				attempts,
+				attemptRecords,
 				infrastructureErrors,
 				status: "completed",
-				value: await execute(),
+				value,
 			};
 		} catch (error) {
 			if (!isInfrastructureError(error)) throw error;
-			infrastructureErrors.push(errorSummary(error));
+			const summary = errorSummary(error);
+			infrastructureErrors.push(summary);
+			attemptRecords.push({
+				attempt: attempts,
+				disposition: null,
+				error: summary,
+				output: null,
+			});
 			if (attempts === 2) {
-				return { attempts, infrastructureErrors, status: "exclude-case" };
+				return {
+					attempts,
+					attemptRecords,
+					infrastructureErrors,
+					status: "exclude-case",
+				};
 			}
 		}
 	}
