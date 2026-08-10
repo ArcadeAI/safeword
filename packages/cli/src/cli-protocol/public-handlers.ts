@@ -804,7 +804,7 @@ function cleanGuidanceRefusal(cleanup: LegacyGlobalGuidanceCleanupResult): CliRe
     UNSAFE_GUIDANCE: 'The active profile guidance is not an exact registered revision.',
     BACKUP_OCCUPIED: `Cleanup refused because ${cleanup.backupPath} already exists.`,
     SOURCE_CHANGED_DURING_MOVE:
-      'The guidance changed during cleanup. Safe Word preserved the moved artifact and refused cleanup.',
+      'The guidance changed during cleanup. Safeword preserved the moved artifact and refused cleanup.',
   } as const;
   return createResult({
     state: 'action_required',
@@ -813,7 +813,7 @@ function cleanGuidanceRefusal(cleanup: LegacyGlobalGuidanceCleanupResult): CliRe
         code: cleanup.code ?? 'CODEX_GUIDANCE_CLEANUP_REFUSED',
         message:
           cleanup.code === undefined
-            ? 'Safe Word could not safely clean the profile guidance.'
+            ? 'Safeword could not safely clean the profile guidance.'
             : messages[cleanup.code],
         severity: 'warning',
       },
@@ -1141,7 +1141,7 @@ function codexFailureCode(
   const specific = (
     [
       [/Plugin installation succeeded, but enablement is unknown/iu, 'PLUGIN_ENABLEMENT_UNKNOWN'],
-      [/did not report the Safe Word plugin as enabled/iu, 'PLUGIN_ENABLEMENT_FAILED'],
+      [/did not report the Safeword plugin as enabled/iu, 'PLUGIN_ENABLEMENT_FAILED'],
       [/marketplace unavailable/iu, 'PLUGIN_MARKETPLACE_FAILED'],
       [/ambiguous|cannot safely identify/iu, 'AMBIGUOUS_LEGACY_CONFIG'],
       [
@@ -1237,7 +1237,7 @@ function codexFailure(
     });
   }
   const partialInstall =
-    /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(
+    /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(
       message,
     );
   const partialMarketplace = error instanceof CodexMigrationError && error.profileChanged;
@@ -1298,7 +1298,7 @@ function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
       {
         code: 'PLUGIN_UPDATE_REQUIRED',
         message:
-          'Finalization requires the packaged Safe Word plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.',
+          'Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.',
         retryable: true,
       },
     ],

@@ -239,7 +239,7 @@ When('safeword setup reconciles the project', function (this: SafewordWorld) {
 });
 
 Then(
-  /^the project has `\.codex\/config\.toml` with packaged Safe Word hook commands and no repo-local Codex implementation files$/,
+  /^the project has `\.codex\/config\.toml` with packaged Safeword hook commands and no repo-local Codex implementation files$/,
   function (this: SafewordWorld) {
     assertFileExists(this.temporaryDirectory, '.codex/config.toml');
     const config = readFileSync(

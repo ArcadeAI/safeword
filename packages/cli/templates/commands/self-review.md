@@ -5,8 +5,9 @@ description: Self-review the spec inline and earn its Tier 1 review stamp (proje
 # Self-Review
 
 Review the artifact you just authored, then earn its review stamp so the next
-step is unblocked. Tier 1 — your own inline pass, no sub-agent. The independent
-check is Tier 2 (the phase-exit review), not this.
+step is unblocked. This is Tier 1 — a fast, built-in first pass: you review
+your own work, no sub-agent involved. Tier 2 (the phase-exit review) is the
+independent check; that happens separately.
 
 ## Earn the stamp
 
@@ -23,7 +24,7 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec
 ```
 
-The review stamp is content-bound and uses the normalized runtime identity.
+The stamp is tied to the spec's exact current content — edit the spec, and the stamp goes stale automatically.
 
 If the automatic line and fallback both print `[skill-invocation-log] FAILED`,
 or still do not print `✓`, the stamp was not written and the gate will keep
@@ -46,9 +47,8 @@ re-blocks until the corrected spec is re-reviewed.
 ## Skip valve
 
 Trivial or docs-only? Log a skip with a reason instead — it clears the same gate
-and records why. Skip is the explicit `--skip` flag, quoted as one argument —
-free text after the artifact is rejected, and an empty reason does not clear
-the gate:
+and records why. To skip, pass `--skip "<reason>"` as one quoted argument. A
+reason is required — an empty one won't clear the gate:
 
 ```bash
 bun .safeword/hooks/write-review-stamp.ts spec --skip "<why this spec needs no review>"

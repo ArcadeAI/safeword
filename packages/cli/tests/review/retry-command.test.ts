@@ -47,7 +47,7 @@ async function recoveryCommandFor(name: string): Promise<string> {
   }
 }
 
-describe('the recovery command Safe Word suggests', () => {
+describe('the recovery command Safeword suggests', () => {
   it.each([
     ['a name that looks like a flag', '--help'],
     ['a name that looks like an option with a value', '--cwd'],

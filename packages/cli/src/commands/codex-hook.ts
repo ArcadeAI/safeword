@@ -309,8 +309,8 @@ function readPackagedSafewordInstructions(): string | undefined {
   const instructionsPath = findPackagedTemplate('SAFEWORD.md');
   if (!instructionsPath) return undefined;
   return [
-    'Current Safe Word authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
-    'These current paths supersede retired Safe Word instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
+    'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
+    'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
     '',
     readFileSync(instructionsPath, 'utf8'),
   ].join('\n');
@@ -376,7 +376,7 @@ function runPackagedHook(
   const hookPath = resolvePackagedHook(relativePath);
   if (!hookPath) {
     return {
-      error: new Error(`Safe Word packaged hook is missing: ${relativePath}`),
+      error: new Error(`Safeword packaged hook is missing: ${relativePath}`),
       stderr: '',
       stdout: '',
     };
@@ -418,7 +418,7 @@ interface PackagedHookSnapshot {
 function snapshotPackagedHook(relativePath: string): PackagedHookSnapshot {
   const packagedHooksDirectory = findPackagedTemplate('hooks');
   if (!packagedHooksDirectory) {
-    return { error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+    return { error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   }
 
   const directory = mkdtempSync(
@@ -432,7 +432,7 @@ function snapshotPackagedHook(relativePath: string): PackagedHookSnapshot {
     const hookPath = nodePath.join(snapshotHooksDirectory, relativePath);
     return existsSync(hookPath)
       ? { directory, hookPath }
-      : { directory, error: new Error(`Safe Word packaged hook is missing: ${relativePath}`) };
+      : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error) {
     return {
       directory,
@@ -447,7 +447,7 @@ function hookFailureDetail(result: HookProcessResult): string {
 
 function denyForPackagedHookFailure(result: HookProcessResult): never {
   const detail = hookFailureDetail(result);
-  process.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}\n`);
+  process.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}\n`);
   process.exit(2);
 }
 
@@ -721,7 +721,7 @@ export async function codexHook(
 ): Promise<void> {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) {
-    process.stderr.write(`Safe Word ignored unknown Codex hook event: ${event}\n`);
+    process.stderr.write(`Safeword ignored unknown Codex hook event: ${event}\n`);
     return;
   }
   if (options.pluginHook === true) {

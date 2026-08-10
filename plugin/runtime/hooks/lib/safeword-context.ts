@@ -10,8 +10,8 @@ export type HookInput = {
 };
 
 const CODEX_AUTHORITY = [
-  'Current Safe Word authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `"\${CLAUDE_PLUGIN_ROOT}"/resources/guides/`.',
-  'These current paths supersede retired Safe Word instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
+  'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `"\${CLAUDE_PLUGIN_ROOT}"/resources/guides/`.',
+  'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
 ].join('\n');
 
 export function withCodexAuthority(context: string | null): string | null {

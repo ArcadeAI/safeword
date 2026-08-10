@@ -332,7 +332,7 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
     const prefix =
       options.installationCompleted === true
         ? 'Plugin installation succeeded, but enablement is unknown'
-        : 'Could not verify the Safe Word Codex plugin';
+        : 'Could not verify the Safeword Codex plugin';
     throw new CodexMigrationError(
       options.installationCompleted === true
         ? 'PLUGIN_ENABLEMENT_UNKNOWN'
@@ -345,13 +345,13 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
   if (plugin.enabled !== true) {
     throw new CodexMigrationError(
       'PLUGIN_ENABLEMENT_FAILED',
-      'Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.',
+      'Codex did not report the Safeword plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.',
     );
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
     throw new CodexMigrationError(
       'PLUGIN_ENABLEMENT_FAILED',
-      `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`,
+      `Codex reported Safeword plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`,
       { profileChanged: options.installationCompleted === true },
     );
   }
@@ -588,9 +588,9 @@ export function installCodexPlugin(
   }
 
   if (options.json !== true) {
-    success('Safe Word Codex plugin is enabled for this profile.');
+    success('Safeword Codex plugin is enabled for this profile.');
     info(
-      'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
+      'This Codex app may keep its loaded Safeword catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safeword legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
     );
   }
   if (options.reportMigrationState === true) {
@@ -649,7 +649,7 @@ function buildCodexFinalizationMutations(
     {
       path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
       content:
-        '---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n',
+        '---\nname: safeword-plugin-setup\ndescription: Restore the Safeword Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n',
     },
   );
   return mutations;
@@ -826,7 +826,7 @@ function reportCompletedFinalization(
   options: { json?: boolean; environment?: NodeJS.ProcessEnv },
 ): void {
   if (options.json === true) reportCodexMigration(cwd, options);
-  else success('Safe Word Codex migration is already finalized.');
+  else success('Safeword Codex migration is already finalized.');
 }
 
 function reportAppliedFinalization(
@@ -848,8 +848,8 @@ function reportAppliedFinalization(
   info('Backed up the complete legacy Codex state for conflict-safe recovery.');
   info(
     input.removedLegacyHooks
-      ? 'Removed Safe Word legacy Codex project protection after the verified plugin handoff.'
-      : 'No Safe Word legacy Codex hooks were found in this project.',
+      ? 'Removed Safeword legacy Codex project protection after the verified plugin handoff.'
+      : 'No Safeword legacy Codex hooks were found in this project.',
   );
 }
 
@@ -909,7 +909,7 @@ export async function removeLegacyCodexHooks(
   verifyCodexPluginIsEnabled();
 
   reportCodexWhen(options.report !== false && options.json !== true, () => {
-    success('Safe Word Codex plugin is enabled for this profile.');
+    success('Safeword Codex plugin is enabled for this profile.');
   });
 
   assertCodexFinalizationPlanUnchanged(
@@ -981,8 +981,8 @@ export function recoverCodexMigration(
   } else {
     success(
       changed
-        ? 'Restored the backed-up Safe Word legacy Codex project state.'
-        : 'No Safe Word Codex migration recovery was needed.',
+        ? 'Restored the backed-up Safeword legacy Codex project state.'
+        : 'No Safeword Codex migration recovery was needed.',
     );
   }
   return changed;

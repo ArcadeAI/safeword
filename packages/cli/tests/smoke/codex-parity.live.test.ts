@@ -188,12 +188,12 @@ function createMarketplace(root: string, extractedPackage: string): string {
     `${JSON.stringify(
       {
         name: LIVE_MARKETPLACE_NAME,
-        description: 'Isolated Safe Word plugin smoke marketplace.',
-        owner: { name: 'Safe Word test suite' },
+        description: 'Isolated Safeword plugin smoke marketplace.',
+        owner: { name: 'Safeword test suite' },
         plugins: [
           {
             name: 'safeword',
-            description: 'Safe Word test plugin.',
+            description: 'Safeword test plugin.',
             source: { source: 'local', path: './plugins/safeword' },
             policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
             category: 'Developer Tools',
@@ -303,7 +303,7 @@ const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== u
 const CAN_RUN_MIGRATION = CAN_RUN && process.env.SAFEWORD_RUN_CODEX_MIGRATION_SMOKE === '1';
 const KEEP_LIVE_FIXTURE = process.env.SAFEWORD_KEEP_CODEX_LIVE_FIXTURE === '1';
 
-const LEGACY_HOOK_CONFIG = `# Legacy Safe Word Codex project configuration.
+const LEGACY_HOOK_CONFIG = `# Legacy Safeword Codex project configuration.
 
 [[hooks.PreToolUse]]
 matcher = "^(apply_patch)$"

@@ -186,7 +186,7 @@ function initializeHosts(world: UnifiedInstallWorld): void {
     : 'stable';
   const officialClaudeSource = `${marketplaceUrl}#${marketplaceReference}`;
   // Claude records project-scope state in the project's .claude/settings.json.
-  // Merge rather than overwrite: Safe Word writes its own keys there too
+  // Merge rather than overwrite: Safeword writes its own keys there too
   // (marketplace auto-update, last-known-good fallback), and clobbering them
   // makes every install re-enable them, so a repeat install never converges.
   const mergeSettings = nodePath.join(bin, 'safeword-merge-claude-settings');
@@ -769,7 +769,7 @@ When('the user confirms that exact plan', function (this: UnifiedInstallWorld) {
   runRawCommand(this, ['uninstall', '--yes', '--plan', requiredPath(this.planId, 'plan id')]);
 });
 
-Then('only recognized Safe Word-owned state is removed', function (this: UnifiedInstallWorld) {
+Then('only recognized Safeword-owned state is removed', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   const project = requiredPath(this.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), false);
@@ -1023,7 +1023,7 @@ Then('no Cursor file or directory is created', function (this: UnifiedInstallWor
 });
 
 Then(
-  'core project configuration and Safe Word-owned Cursor assets are installed',
+  'core project configuration and Safeword-owned Cursor assets are installed',
   function (this: UnifiedInstallWorld) {
     const project = requiredPath(this.projectRoot, 'project root');
     assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
@@ -1046,7 +1046,7 @@ Given(
 );
 
 Then(
-  'Safe Word Cursor entries are reconciled without replacing unrelated content',
+  'Safeword Cursor entries are reconciled without replacing unrelated content',
   function (this: UnifiedInstallWorld) {
     const project = requiredPath(this.projectRoot, 'project root');
     // The positive half of the claim: a no-op install would preserve both
@@ -1054,7 +1054,7 @@ Then(
     const owned = Object.keys(SAFEWORD_SCHEMA.ownedFiles).filter(path =>
       path.startsWith('.cursor/'),
     );
-    assert.ok(owned.length > 0, 'schema declares no Safe Word-owned Cursor files');
+    assert.ok(owned.length > 0, 'schema declares no Safeword-owned Cursor files');
     for (const path of owned) {
       assert.equal(existsSync(nodePath.join(project, path)), true, path);
     }
@@ -1485,7 +1485,7 @@ Then(
 );
 
 Given(
-  'a confirmed cleanup moved recognized Safe Word state into a recovery backup',
+  'a confirmed cleanup moved recognized Safeword state into a recovery backup',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     createLegacyGuidanceFixture(this);

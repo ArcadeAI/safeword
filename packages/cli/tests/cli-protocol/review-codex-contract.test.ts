@@ -12,10 +12,10 @@ import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
  * severities and `path`/`title`/`recommendation` fields — unless it is handed a
  * schema to conform to. This is the observed production behaviour: in 13 of 13
  * real fallback attempts Codex answered off-contract and was rejected, because
- * Safe Word never told it what shape the answer had to take.
+ * Safeword never told it what shape the answer had to take.
  *
  * It records the schema path it was given so the test can read back the exact
- * contract Safe Word delivered.
+ * contract Safeword delivered.
  */
 function installSchemaAwareCodex(directory: string): string {
   const bin = nodePath.join(

@@ -73,8 +73,8 @@ still real, but the proxy inflated it.
 
 ### 5. GEPA is optional
 
-A reflective prompt optimiser (GEPA) can PROPOSE candidates, but the eval is the
-gate, never the optimiser. On review-spec the raw GEPA winner was REJECTED — it
+A reflective prompt optimiser (GEPA) can propose candidates, but the eval is the
+gate, never the optimiser. On review-spec the raw GEPA winner was rejected — it
 dropped a real second defect ⅓ of the time to buy precision — and a
 **human-authored** candidate, informed by the eval's own findings, beat it. The
 optimiser serves the eval; it never replaces it.
