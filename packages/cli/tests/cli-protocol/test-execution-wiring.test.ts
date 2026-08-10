@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -280,5 +281,54 @@ describe('test execution CLI wiring', () => {
       effects: { files: [], configuration: [] },
       errors: [expect.objectContaining({ code: 'SAFEWORD_TEST_EXECUTION_INVALID' })],
     });
+  });
+
+  it('blocks an unignored personal configuration before executing a test plan', async () => {
+    const directory = createTemporaryDirectory();
+    execFileSync('git', ['init', '--quiet'], { cwd: directory });
+    const personalDirectory = nodePath.join(directory, '.project', 'personal');
+    mkdirSync(personalDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(personalDirectory, 'config.json'),
+      JSON.stringify({ schemaVersion: 1, testExecution: 'local' }),
+    );
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'unsafe-personal-config-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:done': String.raw`node -e "require('node:fs').appendFileSync('runs.log','run\n')"`,
+        },
+      }),
+    );
+
+    const result = await runCli(
+      [
+        'project',
+        'test',
+        '--lane',
+        'done',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [
+        expect.objectContaining({
+          code: 'SAFEWORD_TEST_EXECUTION_INVALID',
+          message: expect.stringMatching(/ignored.*untracked/i),
+        }),
+      ],
+    });
+    expect(() => readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toThrow();
   });
 });
