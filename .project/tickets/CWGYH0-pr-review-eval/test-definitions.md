@@ -27,7 +27,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Hidden completion failures are unusable
 
 - [x] RED 640c3bf11
-- [ ] GREEN
+- [x] GREEN 2145bb94f
 - [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
