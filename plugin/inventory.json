@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f1e493786f2258c57f737451b0175dd3520386df301eae72493cde8769b49da9"
+      "sha256": "e40a27651a08b49bcf8e0a4e5581b98bd677d466bcbb51b81f1102b510ba67d9"
     },
     {
       "path": "runtime/dispatch.js",
@@ -239,11 +239,11 @@
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
-      "sha256": "2b0a515b8ad41ea1e3748ad4eeda8c73ec48f68dcfbb370d4743299c4e02e5ae"
+      "sha256": "1c10ffff9f3a5123c7946dd4fc76abae1a18a4c3734b87306279e3078e4c7c8f"
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "7d98a4b06555747269927a053548b4950ccb5b42ca706e34167a50aecfc07a0e"
+      "sha256": "57e39cf681526778a8a4b7c1cd51a002b5dbe1e2400c9371dd500b02f169af7c"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",

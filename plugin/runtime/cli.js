@@ -3970,6 +3970,21 @@ function withoutFencedCode(content, preserveHtmlComments = false) {
   return preserveHtmlComments ? projected : stripHtmlComments(projected);
 }
 
+// templates/hooks/lib/inspiration.ts
+var IMPLEMENTATION_INSPIRATION_GRAMMAR;
+var init_inspiration = __esm(() => {
+  IMPLEMENTATION_INSPIRATION_GRAMMAR = {
+    referenceHeading: "### Implementation Inspiration",
+    referenceHeader: "| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |",
+    referenceDelimiter: "| --- | --- | --- | --- | --- | --- | --- |",
+    decisionImpact: "**Decision impact:** <changed: or retained: plus a non-empty rationale>",
+    searchHeading: "#### Implementation Unsuccessful Search",
+    searchHeader: "| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |",
+    searchDelimiter: "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    recordedDecisionsHeading: "### Recorded Decisions"
+  };
+});
+
 // templates/hooks/lib/impl-plan.ts
 function activeLines(content) {
   return withoutFencedCode(content).split(`
@@ -4073,6 +4088,7 @@ function parseImplPlan(content) {
 }
 var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", DECISIONS_SCAFFOLD_LINES, SECTION_NAMES, DESIGN_ALIGNMENT_HEADING = "design alignment", LEGACY_ARCH_ALIGNMENT_HEADING = "arch alignment";
 var init_impl_plan = __esm(() => {
+  init_inspiration();
   IMPL_PLAN_SECTIONS = [
     "Approach",
     "Decisions",
@@ -4081,16 +4097,7 @@ var init_impl_plan = __esm(() => {
     "Assessment triggers"
   ];
   IMPL_PLAN_OPTIONAL_SECTIONS = ["Doc impact"];
-  DECISIONS_SCAFFOLD_LINES = new Set([
-    "### Implementation Inspiration",
-    "| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
-    "**Decision impact:** <changed: or retained: plus a non-empty rationale>",
-    "#### Implementation Unsuccessful Search",
-    "| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-    "### Recorded Decisions"
-  ]);
+  DECISIONS_SCAFFOLD_LINES = new Set(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
   SECTION_NAMES = new Map([
     ...IMPL_PLAN_SECTIONS.map((name) => [name.toLowerCase(), name]),
     ["arch alignment", "Design alignment"],

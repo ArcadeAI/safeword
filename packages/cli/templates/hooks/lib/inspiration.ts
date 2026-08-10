@@ -36,13 +36,25 @@ const PRODUCT_DELIMITER = '| --- | --- | --- | --- | --- | --- | --- |';
 const PRODUCT_SEARCH_HEADER =
   '| Customer job | Framed question | Products attempted | Source categories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |';
 const PRODUCT_SEARCH_DELIMITER = '| --- | --- | --- | --- | --- | --- | --- | --- | --- |';
-const IMPLEMENTATION_HEADER =
-  '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |';
-const IMPLEMENTATION_DELIMITER = '| --- | --- | --- | --- | --- | --- | --- |';
-const IMPLEMENTATION_SEARCH_HEADER =
-  '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |';
-const IMPLEMENTATION_SEARCH_DELIMITER =
-  '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |';
+export const IMPLEMENTATION_INSPIRATION_GRAMMAR = {
+  referenceHeading: '### Implementation Inspiration',
+  referenceHeader:
+    '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |',
+  referenceDelimiter: '| --- | --- | --- | --- | --- | --- | --- |',
+  decisionImpact: '**Decision impact:** <changed: or retained: plus a non-empty rationale>',
+  searchHeading: '#### Implementation Unsuccessful Search',
+  searchHeader:
+    '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
+  searchDelimiter: '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  recordedDecisionsHeading: '### Recorded Decisions',
+} as const;
+
+const {
+  referenceHeader: IMPLEMENTATION_HEADER,
+  referenceDelimiter: IMPLEMENTATION_DELIMITER,
+  searchHeader: IMPLEMENTATION_SEARCH_HEADER,
+  searchDelimiter: IMPLEMENTATION_SEARCH_DELIMITER,
+} = IMPLEMENTATION_INSPIRATION_GRAMMAR;
 
 const EVIDENCE_REMEDIATION =
   'Complete one exact inspiration reference table or the exact unsuccessful-search table with current dates and non-empty fields.';

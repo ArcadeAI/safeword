@@ -5,6 +5,7 @@
 // rationale as jtbd.ts — deployed hooks run standalone from .safeword/hooks/).
 
 import { withoutFencedCode } from './markdown-structure.js';
+import { IMPLEMENTATION_INSPIRATION_GRAMMAR } from './inspiration.js';
 
 export type ImplPlanStatus = 'planned' | 'implemented';
 
@@ -48,16 +49,7 @@ export interface ImplPlanResult {
 
 const STATUS_PREFIX = '**Status:**';
 const SKIP_PREFIX = 'skip:';
-const DECISIONS_SCAFFOLD_LINES = new Set([
-  '### Implementation Inspiration',
-  '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |',
-  '| --- | --- | --- | --- | --- | --- | --- |',
-  '**Decision impact:** <changed: or retained: plus a non-empty rationale>',
-  '#### Implementation Unsuccessful Search',
-  '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
-  '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-  '### Recorded Decisions',
-]);
+const DECISIONS_SCAFFOLD_LINES = new Set(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
 
 const SECTION_NAMES = new Map<string, ImplPlanAnySectionName>([
   ...IMPL_PLAN_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [name.toLowerCase(), name]),
