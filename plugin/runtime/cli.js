@@ -56471,6 +56471,9 @@ function configCheckResult(inspection) {
     data: { command: "project sync-config", in_sync: false }
   });
 }
+function completeConfigInspection(generated, mainConfigExists) {
+  return generated.matches && !mainConfigExists ? { matches: false, reason: "missing" } : generated;
+}
 async function statusHandler(invocation) {
   const parsed2 = parseAgentSelection(invocation.options.agents);
   if (!parsed2.ok)
@@ -56557,10 +56560,12 @@ async function syncConfigHandler(invocation) {
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
   const architecture2 = buildArchitecture2(invocation.cwd);
   const before = inspectConfig2(invocation.cwd, architecture2);
+  const mainConfigExists = existsSync44(nodePath90.join(invocation.cwd, ".dependency-cruiser.cjs"));
   const generatedConfigExists = existsSync44(nodePath90.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
-  if (invocation.options.check === true)
-    return configCheckResult(before);
-  if (before.matches && existsSync44(nodePath90.join(invocation.cwd, ".dependency-cruiser.cjs"))) {
+  if (invocation.options.check === true) {
+    return configCheckResult(completeConfigInspection(before, mainConfigExists));
+  }
+  if (before.matches && mainConfigExists) {
     return createResult({
       state: "healthy",
       data: { command: "project sync-config", in_sync: true }
@@ -56696,6 +56701,11 @@ function architectureCliMode(options) {
     ...legacy !== undefined && { legacy }
   };
 }
+function architectureOptionsConflict(options) {
+  const legacyCount = Number(options.stage === true) + Number(options.staged === true);
+  const canonicalSelected = options.fromIndex === true || options.stageOutput === true;
+  return legacyCount > 1 || legacyCount > 0 && canonicalSelected;
+}
 function withArchitectureOptionCompatibility(result, legacy) {
   if (legacy === undefined)
     return result;
@@ -56718,6 +56728,19 @@ async function architectureHandler(invocation) {
   const { discoverUnreadableWorkspaces: discoverUnreadableWorkspaces2, extractMonorepoArchitectureSnapshot: extractMonorepoArchitectureSnapshot2 } = await Promise.resolve().then(() => (init_architecture_monorepo(), exports_architecture_monorepo));
   const { isArchitectureDocumentEnforcementEnabled: isArchitectureDocumentEnforcementEnabled2 } = await Promise.resolve().then(() => (init_configured_paths(), exports_configured_paths));
   const enforcementEnabled = isArchitectureDocumentEnforcementEnabled2(invocation.cwd);
+  if (architectureOptionsConflict(invocation.options)) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "CLI_ARGUMENT_INVALID",
+          message: "Choose either one legacy architecture option or the canonical --from-index/--stage-output options.",
+          retryable: false
+        }
+      ],
+      data: { command: "project architecture" }
+    });
+  }
   const mode = architectureCliMode(invocation.options);
   if (mode.stageOutput && !mode.fromIndex) {
     return createResult({
@@ -57884,7 +57907,12 @@ async function retroRunHandler(invocation) {
   const spoolBefore = observeFile(spoolPath2);
   const { executeRetroCommand: executeRetroCommand2 } = await Promise.resolve().then(() => (init_retro(), exports_retro));
   invocation.progress?.start("Extracting and filing retro findings\u2026");
-  const execution = await executeRetroCommand2(options, invocation.cwd);
+  let execution;
+  try {
+    execution = await executeRetroCommand2(options, invocation.cwd);
+  } catch (error2) {
+    return retroFailure(error2 instanceof Error ? error2.message : String(error2));
+  }
   return retroRunResult(execution, observedFileEffect(invocation.cwd, spoolPath2, spoolBefore));
 }
 async function retroReconcileHandler(invocation) {

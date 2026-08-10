@@ -145,6 +145,23 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
   });
 
   it.each([
+    ['--stage', '--staged'],
+    ['--stage', '--from-index'],
+    ['--staged', '--stage-output'],
+  ])('rejects conflicting architecture options %s %s', async (...flags) => {
+    const result = await runCli(['architecture', ...flags, '--json'], {
+      cwd: context.directory,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'CLI_ARGUMENT_INVALID' }],
+    });
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+  });
+
+  it.each([
     ['--staged', '--from-index'],
     ['--stage', '--from-index --stage-output'],
   ])('retains %s with explicit compatibility guidance', async (legacy, replacement) => {

@@ -77,6 +77,13 @@ function configCheckResult(inspection: ConfigInspection): CliResult {
   });
 }
 
+function completeConfigInspection(
+  generated: ConfigInspection,
+  mainConfigExists: boolean,
+): ConfigInspection {
+  return generated.matches && !mainConfigExists ? { matches: false, reason: 'missing' } : generated;
+}
+
 async function statusHandler(invocation: CommandInvocation): Promise<CliResult> {
   const parsed = parseAgentSelection(invocation.options.agents);
   if (!parsed.ok) return invalidAgentSelection('status', parsed.error);
@@ -171,12 +178,15 @@ async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResu
     await import('../commands/sync-config.js');
   const architecture = buildArchitecture(invocation.cwd);
   const before = inspectConfig(invocation.cwd, architecture);
+  const mainConfigExists = existsSync(nodePath.join(invocation.cwd, '.dependency-cruiser.cjs'));
   const generatedConfigExists = existsSync(
     nodePath.join(invocation.cwd, '.safeword/depcruise-config.cjs'),
   );
-  if (invocation.options.check === true) return configCheckResult(before);
+  if (invocation.options.check === true) {
+    return configCheckResult(completeConfigInspection(before, mainConfigExists));
+  }
 
-  if (before.matches && existsSync(nodePath.join(invocation.cwd, '.dependency-cruiser.cjs'))) {
+  if (before.matches && mainConfigExists) {
     return createResult({
       state: 'healthy',
       data: { command: 'project sync-config', in_sync: true },
@@ -375,6 +385,12 @@ function architectureCliMode(options: Readonly<Record<string, unknown>>): Archit
   };
 }
 
+function architectureOptionsConflict(options: Readonly<Record<string, unknown>>): boolean {
+  const legacyCount = Number(options.stage === true) + Number(options.staged === true);
+  const canonicalSelected = options.fromIndex === true || options.stageOutput === true;
+  return legacyCount > 1 || (legacyCount > 0 && canonicalSelected);
+}
+
 function withArchitectureOptionCompatibility(
   result: CliResult,
   legacy: ArchitectureCliMode['legacy'],
@@ -403,6 +419,20 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
   const { isArchitectureDocumentEnforcementEnabled } = await import('../utils/configured-paths.js');
 
   const enforcementEnabled = isArchitectureDocumentEnforcementEnabled(invocation.cwd);
+  if (architectureOptionsConflict(invocation.options)) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message:
+            'Choose either one legacy architecture option or the canonical --from-index/--stage-output options.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'project architecture' },
+    });
+  }
   const mode = architectureCliMode(invocation.options);
   if (mode.stageOutput && !mode.fromIndex) {
     return createResult({
@@ -1829,7 +1859,12 @@ async function retroRunHandler(invocation: CommandInvocation): Promise<CliResult
   const spoolBefore = observeFile(spoolPath);
   const { executeRetroCommand } = await import('../commands/retro.js');
   invocation.progress?.start('Extracting and filing retro findings…');
-  const execution = await executeRetroCommand(options, invocation.cwd);
+  let execution;
+  try {
+    execution = await executeRetroCommand(options, invocation.cwd);
+  } catch (error: unknown) {
+    return retroFailure(error instanceof Error ? error.message : String(error));
+  }
   return retroRunResult(execution, observedFileEffect(invocation.cwd, spoolPath, spoolBefore));
 }
 
