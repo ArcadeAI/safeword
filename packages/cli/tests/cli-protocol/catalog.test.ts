@@ -8,12 +8,44 @@ import {
 } from '../../src/cli-protocol/catalog.js';
 import { renderJsonResult } from '../../src/cli-protocol/result.js';
 
+function publishedOptions(definition: (typeof publicCommands)[number]): Record<string, unknown>[] {
+  return definition.registration.options.map(
+    ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
+      flags,
+      description,
+      ...(defaultValue !== undefined && { default_value: defaultValue }),
+      ...(valueKind !== undefined && { value_kind: valueKind }),
+      ...(compatibilityReplacement !== undefined && {
+        compatibility: {
+          replacement: compatibilityReplacement,
+          retention: 'indefinite',
+        },
+      }),
+    }),
+  );
+}
+
+function expectPublishedCommandShape(command: Record<string, unknown> | undefined): void {
+  expect(command).toEqual(
+    expect.objectContaining({
+      name: expect.any(String),
+      aliases: expect.any(Array),
+      effect_class: expect.any(String),
+      prompt_policy: expect.any(String),
+      network_policy: expect.any(String),
+      schema_versions: [1],
+    }),
+  );
+  expect(command?.fixture).toEqual(expect.objectContaining({ argv: expect.any(Array) }));
+}
+
 describe('CLI command catalog', () => {
   it('describes every public command with executable policy and a fixture', () => {
     expect(publicCommands.length).toBeGreaterThan(0);
     for (const command of publicCommands) {
       expect(command).toMatchObject({
-        public: true,
+        classification: expect.stringMatching(/^(public|retained-alias)$/),
+        visibility: expect.stringMatching(/^(public|hidden)$/),
         effectClass: expect.stringMatching(/^(observe|plan|mutate|destructive)$/),
         promptPolicy: expect.stringMatching(/^(never|confirm)$/),
         networkPolicy: expect.stringMatching(/^(never|declared)$/),
@@ -31,7 +63,9 @@ describe('CLI command catalog', () => {
     expect(new Set(names).size).toBe(names.length);
 
     const canonicalNames = commandCatalog
-      .filter(definition => definition.public && definition.aliasFor === undefined)
+      .filter(
+        definition => definition.classification === 'public' && definition.aliasFor === undefined,
+      )
       .map(definition => definition.name);
     expect(canonicalNames).toEqual([
       'status',
@@ -65,6 +99,8 @@ describe('CLI command catalog', () => {
       'retro run',
       'retro signals',
       'retro reconcile',
+      'retro-relay-retry',
+      'retro-relay-discard',
       'capabilities',
     ]);
 
@@ -112,7 +148,7 @@ describe('CLI command catalog', () => {
     }
     expect(aliases.find(alias => alias.name === 'setup')?.compatibility?.introducedIn).toBe('0.72');
 
-    const hidden = commandCatalog.filter(command => !command.public);
+    const hidden = commandCatalog.filter(command => command.classification === 'internal');
     expect(hidden.map(command => command.name)).toEqual([
       'boundary',
       'hook codex',
@@ -137,37 +173,11 @@ describe('CLI command catalog', () => {
 
     expect(data.commands).toHaveLength(publicCommands.length);
     expect(data.commands.some(command => command.name === 'boundary')).toBe(false);
-    const firstCommand = data.commands[0];
-    expect(firstCommand).toEqual(
-      expect.objectContaining({
-        name: expect.any(String),
-        aliases: expect.any(Array),
-        effect_class: expect.any(String),
-        prompt_policy: expect.any(String),
-        network_policy: expect.any(String),
-        schema_versions: [1],
-      }),
-    );
-    expect(firstCommand?.fixture).toEqual(expect.objectContaining({ argv: expect.any(Array) }));
+    expectPublishedCommandShape(data.commands[0]);
 
     for (const definition of publicCommands) {
       const published = data.commands.find(command => command.name === definition.name);
-      expect(published?.options).toEqual(
-        definition.registration.options.map(
-          ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
-            flags,
-            description,
-            ...(defaultValue !== undefined && { default_value: defaultValue }),
-            ...(valueKind !== undefined && { value_kind: valueKind }),
-            ...(compatibilityReplacement !== undefined && {
-              compatibility: {
-                replacement: compatibilityReplacement,
-                retention: 'indefinite',
-              },
-            }),
-          }),
-        ),
-      );
+      expect(published?.options).toEqual(publishedOptions(definition));
     }
 
     expect(compatibilityRoutes).toEqual(
@@ -200,6 +210,13 @@ describe('CLI command catalog', () => {
       }),
     );
     expect(setup?.compatibility).not.toHaveProperty('removal_eligible_after');
+
+    const claudeInstall = data.commands.find(command => command.name === 'claude install');
+    const codexInstall = data.commands.find(command => command.name === 'codex install');
+    expect(claudeInstall?.options).toEqual([
+      expect.objectContaining({ flags: '--scope <scope>', default_value: 'project' }),
+    ]);
+    expect(codexInstall?.options).toEqual([]);
 
     const remove = data.commands.find(command => command.name === 'remove');
     expect(remove?.options).toEqual(

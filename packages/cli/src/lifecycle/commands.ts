@@ -37,6 +37,10 @@ interface SurfaceResult {
   readonly result: CliResult;
 }
 
+function codexLegacyHandoffDeferred(result: CliResult): boolean {
+  return result.findings.some(finding => finding.code === 'CODEX_PLUGIN_HANDOFF_DEFERRED');
+}
+
 function activationActionsFor(surface: SurfaceResult): string[] {
   if (surface.name === 'claude' && surface.result.changed) return ['run /reload-plugins'];
   if (surface.name === 'codex' && surface.result.state === 'action_required') {
@@ -175,7 +179,15 @@ async function installAgentSurfaces(
     surfaces.push({ name: 'claude', result: await adapters.installClaude() });
   }
   if (agents.includes('codex')) {
-    surfaces.push({ name: 'codex', result: await adapters.installCodex() });
+    // Project convergence already attempted the legacy handoff. Its failure is
+    // deliberately advisory: legacy hooks remain active and the project
+    // bootstrap retries for the next task/developer. Retrying the same profile
+    // mutation here only changes that safe, loud outcome into a fatal install.
+    if (codexLegacyHandoffDeferred(projectResult)) {
+      surfaces.push({ name: 'codex', result: createResult({ state: 'healthy' }) });
+    } else {
+      surfaces.push({ name: 'codex', result: await adapters.installCodex() });
+    }
   }
   if (agents.includes('cursor')) {
     // Cursor has no host process; its outcome is read back from the assets the

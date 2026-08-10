@@ -52,9 +52,15 @@ bunx safeword@latest install --agents=claude --scope user
 bunx safeword@latest claude status
 ```
 
-Existing projects keep their working legacy Claude hooks until current plugin
-execution is proven. When status reports `cleanup-ready`, preview and explicitly
-confirm the exact project-only contraction:
+Existing projects keep their working legacy Claude hooks until the exact current
+plugin successfully handles a prompt. That prompt then retires every byte and
+hook entry Safeword can prove came from a supported release. Clean migration is
+silent; edited, third-party, symlinked, or otherwise unrecognized content stays
+untouched and produces one plain-language advisory per Claude session. The
+project-scoped marketplace and enablement declarations remain committed so the
+next trusted teammate is offered the plugin normally.
+
+The explicit commands remain available for diagnosis and recovery:
 
 ```bash
 bunx safeword@latest claude cleanup
@@ -63,9 +69,9 @@ bunx safeword@latest claude cleanup
 bunx safeword@latest claude recover
 ```
 
-Cleanup never installs, enables, reloads, or changes plugin trust. It preserves
-unknown and third-party Claude content and refuses stale proof or concurrent
-edits.
+Cleanup never installs, enables, reloads, or changes plugin trust. Automatic
+migration is bounded, never blocks a successful prompt, and resumes from a
+durable transaction after interruption or a competing developer process.
 
 **Codex enrollment.** Installing also commits a small project-level
 `SessionStart` bootstrap. It enrolls each developer's Codex profile in the
@@ -106,7 +112,7 @@ legacy content is preserved and reported instead.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
-**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run during normal human development. In repos that already use husky, install appends one warn-only line to `pre-commit`/`pre-push` (the boundary evidence check — it reports, never blocks, and `safeword remove` removes it); safeword never installs a hook manager or blocks a commit.
+**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run during normal human development. In repos that already use husky, install appends one warn-only line to `pre-commit`/`pre-push` (the boundary evidence check — it reports, never blocks, and `safeword uninstall --agents=none` removes it); safeword never installs a hook manager or blocks a commit.
 
 **Use in CI if you want** — Safeword adds `lint`, `format`, and `test:bdd` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 
@@ -589,7 +595,7 @@ Tickets and learnings derive from `paths.projectRoot`. Principles, personas, glo
 No. Safeword is a process overlay — it adds quality enforcement (BDD/TDD, linting, code review) on top of whatever you already use. It doesn't install application dependencies or modify your source code.
 
 **Will it overwrite my CLAUDE.md?**
-No. Current releases neither create `CLAUDE.md` nor add Safeword imports to it. Setup may remove an obsolete Safeword import block created by an older release, while preserving the rest of the customer-owned file.
+No. Current releases neither create `CLAUDE.md` nor add Safeword imports to it. Install may remove an obsolete Safeword import block created by an older release, while preserving the rest of the customer-owned file.
 
 **What packages does it install?**
 For JS/TS projects: ESLint, Prettier, supporting plugins, and `jiti` for TypeScript ESLint config loading — all as `devDependencies` (the `-D` flag). These are code quality tools, not application dependencies. Python, Go, and Rust (beta) use their language-native linters (ruff, golangci-lint, clippy).
@@ -601,7 +607,7 @@ No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.ox
 No. Commit the Safeword project configuration your team uses, including the Claude declaration and Codex SessionStart bootstrap. Claude keeps each user's payload cache locally. The Codex bootstrap enrolls every teammate's separate profile automatically and warns loudly until a new task loads the plugin; it never blocks their work. The linting devDependencies install automatically with `npm install` / `bun install`.
 
 **Will it interfere with my development workflow?**
-No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, install appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword remove` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, install appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword uninstall --agents=none` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
 
 **What Claude Code permissions does safeword need?**
 Safeword's feature-ticket done-gate verifies that `/verify` and `/audit` were actually invoked by reading a session-scoped log written via bash injection at the top of each skill. If Claude Code denies that bash injection, feature tickets hard-block at done-phase.

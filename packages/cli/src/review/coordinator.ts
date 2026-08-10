@@ -258,6 +258,8 @@ function degradedDescription(
 function unsupportedAuthorResult(input: {
   readonly author: ReviewAuthor;
   readonly policy: ReviewPolicy;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
 }): CliResult {
   return createResult({
     state: 'action_required',
@@ -268,6 +270,16 @@ function unsupportedAuthorResult(input: {
         severity: 'warning',
       },
     ],
+    recovery:
+      input.policy === 'require'
+        ? [
+            {
+              command: retryCommand(input.kind, input.targets),
+              description: 'Run this review in an environment with a usable independent reviewer.',
+              requiresHuman: true,
+            },
+          ]
+        : [],
     data: {
       command: 'review run',
       status: 'blocked',
@@ -281,6 +293,7 @@ function unsupportedAuthorResult(input: {
 function changedReviewResult(input: {
   readonly author: ReviewAgent;
   readonly reviewer: ReviewAgent;
+  readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly sourceChanged: boolean;
@@ -309,6 +322,7 @@ function changedReviewResult(input: {
         status: 'blocked',
         author_agent: input.author,
         assigned_reviewer: input.reviewer,
+        review_policy: input.policy,
         independence: 'none',
       },
     });
@@ -338,6 +352,7 @@ function changedReviewResult(input: {
       status: 'blocked',
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
+      review_policy: input.policy,
       independence: 'none',
     },
   });
@@ -410,6 +425,7 @@ async function runDegradedFallback(
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.author,
+    policy: input.policy,
     kind: input.kind,
     targets: input.targets,
     sourceChanged,
@@ -563,6 +579,7 @@ async function runAlternateModelRoute(
     readonly author: ReviewAgent;
     readonly reviewer: ReviewAgent;
     readonly preferredFailure: ReviewFailure;
+    readonly policy: ReviewPolicy;
     readonly runDeadline: number;
   },
 ): Promise<
@@ -589,6 +606,7 @@ async function runAlternateModelRoute(
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.reviewer,
+    policy: input.policy,
     kind: input.kind,
     targets: input.targets,
     sourceChanged,
@@ -636,6 +654,7 @@ async function runRemainingRoutes(
     author: input.author,
     reviewer: input.assignedReviewer,
     preferredFailure: input.preferredFailure,
+    policy: input.policy,
     runDeadline: input.runDeadline,
   });
   if (alternate.kind === 'completed') return alternate.result;
@@ -733,7 +752,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   }
   const pair = oppositeReviewPair(author);
   if (pair === undefined) {
-    return unsupportedAuthorResult({ author, policy });
+    return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
   }
   const { reviewer } = pair;
 
@@ -750,6 +769,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
+    policy,
     kind: input.kind,
     targets: input.targets,
     sourceChanged,

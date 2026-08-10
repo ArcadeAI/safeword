@@ -5,6 +5,7 @@ import { type Command, InvalidArgumentError, Option } from 'commander';
 import {
   commandCatalog,
   type CommandDefinition,
+  commandFamilies,
   compatibilityRoutes,
   findCommandDefinition,
 } from './catalog.js';
@@ -18,16 +19,6 @@ import { isPlanIdentity } from './plan.js';
 import { createProgressReporter } from './policy.js';
 import { type CliResult, createResult, withDeprecation } from './result.js';
 
-const FAMILY_DESCRIPTIONS: Readonly<Record<string, string>> = {
-  project: 'Manage project-local Safeword state',
-  tracker: 'Manage tracker connections and synchronization',
-  codex: 'Manage the Safeword Codex plugin',
-  ticket: 'Manage project tickets',
-  review: 'Run independent adversarial reviews',
-  retro: 'Inspect and file Safeword runtime findings',
-  migrate: 'Compatibility migration commands',
-};
-
 function firstPathSegment(name: string): string {
   const first = name.split(' ', 1)[0];
   if (first === undefined) throw new Error('Command name cannot be empty');
@@ -37,7 +28,9 @@ function firstPathSegment(name: string): string {
 function familyNames(): Set<string> {
   return new Set(
     commandCatalog
-      .filter(definition => definition.public && definition.name.includes(' '))
+      .filter(
+        definition => definition.classification !== 'internal' && definition.name.includes(' '),
+      )
       .map(definition => firstPathSegment(definition.name)),
   );
 }
@@ -45,18 +38,20 @@ function familyNames(): Set<string> {
 function registerFamilies(program: Command): Map<string, Command> {
   const families = new Map<string, Command>();
   for (const name of familyNames()) {
+    const contract = commandFamilies.find(candidate => candidate.route === name);
     const family = program
-      .command(name, { hidden: name === 'migrate' })
-      .description(FAMILY_DESCRIPTIONS[name] ?? `Manage ${name} operations`);
+      .command(name, { hidden: contract?.visibility === 'hidden' })
+      .description(contract?.description ?? `Manage ${name} operations`);
     families.set(name, family);
   }
   return families;
 }
 
-function addDefinitionOptions(command: Command, definition: CommandDefinition): void {
+export function addDefinitionOptions(command: Command, definition: CommandDefinition): void {
   for (const option of definition.registration.options) {
     const commanderOption = new Option(option.flags, option.description);
     if (option.defaultValue !== undefined) commanderOption.default(option.defaultValue);
+    if (option.hidden === true) commanderOption.hideHelp();
     if (option.valueKind === 'plan-identity') {
       commanderOption.argParser(value => {
         if (!isPlanIdentity(value)) {
@@ -88,7 +83,7 @@ function definitionCommand(
     const family = families.get(definition.name);
     if (family !== undefined) return family;
     return program.command(definition.registration.syntax, {
-      hidden: definition.aliasFor !== undefined,
+      hidden: definition.visibility === 'hidden',
     });
   }
 
@@ -97,30 +92,39 @@ function definitionCommand(
     throw new Error(`Missing command family for ${definition.name}`);
   }
   return parent.command(definition.registration.syntax, {
-    hidden: definition.aliasFor !== undefined,
+    hidden: definition.visibility === 'hidden',
   });
+}
+
+function withAliasDeprecation(
+  result: CliResult,
+  definition: CommandDefinition,
+  commandOptions: Readonly<Record<string, unknown>>,
+): CliResult {
+  if (definition.aliasFor === undefined || definition.compatibility === undefined) {
+    throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
+  }
+  return withDeprecation(
+    result,
+    definition.name,
+    definition.compatibility.replacement ?? definition.aliasFor,
+    definition.compatibility,
+    commandOptions,
+  );
 }
 
 function withCompatibilityDeprecation(
   result: CliResult,
   definition: CommandDefinition,
   commandOptions: Readonly<Record<string, unknown>> = {},
+  invocation: RuntimeInvocation = {},
 ): CliResult {
   if (definition.aliasFor !== undefined) {
-    if (definition.compatibility === undefined) {
-      throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
-    }
     // `replacement` names the scoped canonical route (`install --agents=claude`)
     // where the alias maps to more than the bare canonical command name.
-    return withDeprecation(
-      result,
-      definition.name,
-      definition.compatibility.replacement ?? definition.aliasFor,
-      definition.compatibility,
-      commandOptions,
-    );
+    return withAliasDeprecation(result, definition, commandOptions);
   }
-  if (definition.name !== 'retro run' || process.env.SAFEWORD_CLI_RETAINED_ALIAS !== 'retro') {
+  if (definition.name !== 'retro run' || invocation.retainedAlias !== 'retro') {
     return result;
   }
 
@@ -137,7 +141,11 @@ function withCompatibilityDeprecation(
   );
 }
 
-async function executeDefinition(command: Command, definition: CommandDefinition): Promise<void> {
+async function executeDefinition(
+  command: Command,
+  definition: CommandDefinition,
+  invocation: RuntimeInvocation = {},
+): Promise<void> {
   const globalOptions = readGlobalOptions(command);
   const commandOptions = readCommandOptions(command);
   const progress =
@@ -176,7 +184,7 @@ async function executeDefinition(command: Command, definition: CommandDefinition
   } finally {
     progress?.stop();
   }
-  result = withCompatibilityDeprecation(result, definition, commandOptions);
+  result = withCompatibilityDeprecation(result, definition, commandOptions, invocation);
   const actionRequiredAsSuccessOption = definition.exitPolicy?.actionRequiredAsSuccessOption;
   reportResult(result, globalOptions, definition.name, {
     actionRequiredAsSuccess:
@@ -185,7 +193,11 @@ async function executeDefinition(command: Command, definition: CommandDefinition
   });
 }
 
-function addDefinitionAction(command: Command, definition: CommandDefinition): void {
+function addDefinitionAction(
+  command: Command,
+  definition: CommandDefinition,
+  invocation: RuntimeInvocation,
+): void {
   addGlobalOptions(command);
   addDefinitionOptions(command, definition);
   if (definition.aliasFor === undefined || !familyNames().has(definition.name)) {
@@ -196,19 +208,26 @@ function addDefinitionAction(command: Command, definition: CommandDefinition): v
     if (actionCommand !== command) {
       throw new Error(`Commander did not supply the command boundary for ${definition.name}`);
     }
-    await executeDefinition(command, definition);
+    await executeDefinition(command, definition, invocation);
   });
 }
 
-export function registerPublicCommandCatalog(program: Command): void {
+export interface RuntimeInvocation {
+  readonly retainedAlias?: string;
+}
+
+export function registerPublicCommandCatalog(
+  program: Command,
+  invocation: RuntimeInvocation = {},
+): void {
   const families = registerFamilies(program);
   for (const definition of commandCatalog) {
-    if (!definition.public) continue;
+    if (definition.classification === 'internal') continue;
     // A retained alias cannot share a name with a command family: attaching its
     // action to the family makes Commander treat every subcommand as an excess
     // argument. The family remains the public entry point for its children.
     if (definition.aliasFor !== undefined && families.has(definition.name)) continue;
-    addDefinitionAction(definitionCommand(program, families, definition), definition);
+    addDefinitionAction(definitionCommand(program, families, definition), definition, invocation);
   }
 
   const compatibilityHelp = compatibilityRoutes
@@ -221,6 +240,6 @@ export function registerPublicCommandCatalog(program: Command): void {
 
   program.action(async () => {
     const definition = findCommandDefinition('status');
-    await executeDefinition(program, definition);
+    await executeDefinition(program, definition, invocation);
   });
 }

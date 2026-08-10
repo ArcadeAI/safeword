@@ -1629,31 +1629,32 @@ When(
 );
 
 /**
- * Rejection scenarios in this rule run setup with profile enrollment
- * made unavailable, and each one asserts the decline it produces (#1973). The
- * decline is the point: it proves setup ran, reached the Codex handoff,
- * and preserved the project on the way out. Without that assertion these
- * scenarios pass whether or not anything executed, because untouched files
- * look identical to files nothing reached.
+ * Rejection scenarios run the upgrade with profile enrollment unavailable.
+ * They assert the nonblocking advisory it emits: that proves upgrade reached
+ * the handoff while preserving the working legacy integration.
+ * Without that assertion these scenarios pass whether or not anything ran,
+ * because untouched files look identical to files nothing reached.
  *
- * Enrollment stays unavailable in those cases so they cannot clone a network
- * marketplace or mutate an ambient Codex profile. The successful case below
- * crosses the same subprocess boundary through a temp-bin fake and isolated
- * CODEX_HOME.
+ * Enrollment stays unavailable in those cases so they cannot mutate an ambient
+ * Codex profile. The successful case below crosses the same subprocess boundary
+ * through a temp-bin fake and isolated CODEX_HOME.
  */
 When(
-  'the plugin migration install runs without profile enrollment available',
+  'the plugin migration upgrade runs without profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    const codexHomeRoot = createTemporaryDirectory('safeword-unavailable-codex-home-');
+    const unavailableCodexHome = nodePath.join(codexHomeRoot, 'not-a-directory');
+    writeFileSync(unavailableCodexHome, 'profile enrollment unavailable\n');
+    this.codexPluginCodexHome = codexHomeRoot;
     this.codexPluginMigrationResult = runCommand(
       process.execPath,
-      [SAFEWORD_CLI_PATH, 'install', '--agents=codex'],
+      [SAFEWORD_CLI_PATH, 'upgrade', '--agents=codex'],
       {
         cwd: repoRoot,
         env: {
-          // SAFEWORD_SKIP_INSTALL only skips project dependencies; hide profile tools too.
-          PATH: '',
           SAFEWORD_SKIP_INSTALL: '1',
+          CODEX_HOME: unavailableCodexHome,
         },
         timeout: 120_000,
       },
@@ -1662,7 +1663,7 @@ When(
 );
 
 When(
-  'the plugin migration install runs with profile enrollment available',
+  'the plugin migration upgrade runs with profile enrollment available',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     const runtimeRoot = createTemporaryDirectory('safeword-codex-migration-runtime-');
@@ -1679,13 +1680,11 @@ When(
       SAFEWORD_SKIP_INSTALL: '1',
       CODEX_HOME: runtime.codexHome,
     };
-    const installResult = runCommand(
+    this.codexPluginMigrationResult = runCommand(
       process.execPath,
-      [SAFEWORD_CLI_PATH, 'install', '--agents=codex'],
+      [SAFEWORD_CLI_PATH, 'upgrade', '--agents=codex'],
       { cwd: repoRoot, env: environment, timeout: 120_000 },
     );
-    assert.equal(installResult.exitCode, 2, `${installResult.stdout}\n${installResult.stderr}`);
-
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
       recordCodexHookProof(event, environment);
     }
@@ -1700,6 +1699,24 @@ When(
       process.execPath,
       [SAFEWORD_CLI_PATH, 'codex', 'migrate', '--finalize', '--yes', '--plan', planId, '--json'],
       { cwd: repoRoot, env: environment, timeout: 120_000 },
+    );
+  },
+);
+
+Then(
+  'the upgrade reports profile enrollment attention loudly without blocking',
+  function (this: CodexPluginMigrationWorld) {
+    assertMigrationRanAndReportedAttention(this);
+  },
+);
+
+Then(
+  'the project bootstrap can enroll the next developer',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.match(
+      readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8'),
+      /bunx --bun safeword@latest codex bootstrap/u,
     );
   },
 );
@@ -1870,10 +1887,28 @@ function assertMigrationRanAndDeclined(world: CodexPluginMigrationWorld): void {
   );
 }
 
+function assertMigrationRanAndReportedAttention(world: CodexPluginMigrationWorld): void {
+  const result = world.codexPluginMigrationResult;
+  assert.ok(result, 'migration result was not captured');
+  assert.equal(
+    result.exitCode,
+    0,
+    `expected nonblocking migration attention: ${result.stdout}${result.stderr}`,
+  );
+  assert.match(
+    `${result.stdout}\n${result.stderr}`,
+    /Codex|plugin|profile/iu,
+    'install did not report the unavailable Codex profile',
+  );
+}
+
+// Install keeps its zero exit here on purpose: a deferred Codex handoff is an
+// advisory, so the legacy project integration stays active and SessionStart
+// retries enrollment for the next developer.
 Then(
-  'install reports profile enrollment failure loudly',
+  'install reports profile enrollment attention loudly without blocking',
   function (this: CodexPluginMigrationWorld) {
-    assertMigrationRanAndDeclined(this);
+    assertMigrationRanAndReportedAttention(this);
   },
 );
 
@@ -1961,7 +1996,7 @@ Then(
 Then(
   'Safeword-owned Codex skill files remain beside the user-authored skill until finalization',
   function (this: CodexPluginMigrationWorld) {
-    assertMigrationRanAndDeclined(this);
+    assertMigrationRanAndReportedAttention(this);
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
       'bdd',
@@ -1972,7 +2007,7 @@ Then(
 );
 
 Then('the user-authored Codex config entries remain', function (this: CodexPluginMigrationWorld) {
-  assertMigrationRanAndDeclined(this);
+  assertMigrationRanAndReportedAttention(this);
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
   const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
   const lines = config.split(/\r?\n/u);

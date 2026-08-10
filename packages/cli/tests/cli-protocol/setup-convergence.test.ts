@@ -317,7 +317,7 @@ describe('convergent setup', () => {
         {
           command: `safeword install --repair-version-marker --cwd '${directory}'`,
           description:
-            'Replace the unreadable version marker with the current CLI version, then converge setup.',
+            'Replace the unreadable version marker with the current CLI version, then complete installation.',
           requiresHuman: true,
         },
       ]);
@@ -460,7 +460,7 @@ describe('convergent setup', () => {
         {
           command: `safeword install --repair-version-marker --cwd '${directory}'`,
           description:
-            'Replace the linked project version marker without changing its other hardlink peers, then converge setup.',
+            'Replace the linked project version marker without changing its other hardlink peers, then complete installation.',
           requiresHuman: true,
         },
       ],

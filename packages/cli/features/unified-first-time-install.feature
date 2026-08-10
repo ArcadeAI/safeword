@@ -260,6 +260,16 @@ Feature: One coherent Safeword command model
         | plan      |
         | uninstall |
 
+    Scenario Outline: Every public relay recovery command renders the same machine contract
+      Given the public relay recovery command "<command>"
+      When the user requests global JSON output
+      Then stdout contains one versioned result envelope and no prose
+      And capabilities lists the relay recovery command
+      Examples:
+        | command                                                        |
+        | retro-relay-retry                                              |
+        | retro-relay-discard 00000000-0000-4000-8000-000000002251       |
+
     @rejection
     Scenario Outline: Legacy raw JSON remains compatible but is not advertised as canonical
       Given historical raw JSON command "<command>"
@@ -318,6 +328,18 @@ Feature: One coherent Safeword command model
       When the user runs setup with yes
       Then unified installation runs without inferring additional consent
       And compatibility guidance reports that yes is redundant and names install
+
+    @rejection
+    Scenario Outline: Profile-only aliases reject project lifecycle options they do not implement
+      Given retained profile-only alias "<alias>"
+      When the user supplies irrelevant option "<option>"
+      Then the parser rejects the option before any profile mutation
+      And the alias remains documented as retained indefinitely
+      Examples:
+        | alias          | option          |
+        | claude install | --no-modify     |
+        | codex install  | --agents=cursor |
+        | codex install  | --scope=user    |
 
     Scenario Outline: Nontrivial aliases preserve their defined observable contract
       Given compatibility route "<alias>"
