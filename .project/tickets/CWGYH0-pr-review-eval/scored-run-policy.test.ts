@@ -9,12 +9,22 @@ import {
 	shuffleFrozen,
 } from "./scored-run-policy";
 
+const expectedProvenance = {
+	caseId: "SCORE-example",
+	reviewBaseSha: "base-sha",
+	runnerRef: "codex/cwgyh0-dev-benchmark-adapter@b9b8d1f26",
+	sourceSha: "source-sha",
+	variant: "buggy",
+};
+
 function completedOutput(findings: unknown[] = []) {
 	return {
 		models: [{ expert: "correctness", model: "claude-sonnet-5", provider: "anthropic" }],
+		provenance: expectedProvenance,
 		report: {
 			consolidated: { findings },
 			expertOutcomes: [{
+				cappedBy: null,
 				error: null,
 				expert: "correctness",
 				failure: null as unknown,
@@ -27,6 +37,15 @@ function completedOutput(findings: unknown[] = []) {
 		score: { reviewValid: true },
 		trace: [],
 	};
+}
+
+function classifyWithFrozenProvenance(output: unknown) {
+	const classify = classifyTrialOutput as unknown as (
+		value: unknown,
+		expert: string,
+		provenance: typeof expectedProvenance,
+	) => ReturnType<typeof classifyTrialOutput>;
+	return classify(output, "correctness", expectedProvenance);
 }
 
 describe("positive trial admission", () => {
@@ -94,6 +113,88 @@ describe("positive trial admission", () => {
 		};
 		output.score.reviewValid = false;
 		expect(classifyTrialOutput(output, "correctness").retry).toBe("never");
+	});
+
+	test.each([
+		["a provider connection failure", (() => {
+			const output = completedOutput();
+			output.report.expertOutcomes[0] = {
+				...output.report.expertOutcomes[0],
+				error: "anthropic request failed with HTTP 503",
+				failure: { kind: "provider-request", status: 503 },
+			};
+			output.score.reviewValid = false;
+			return output;
+		})(), "provider-failure"],
+		["an HTTP-200 provider error envelope", (() => {
+			const output = completedOutput();
+			output.report.expertOutcomes[0] = {
+				...output.report.expertOutcomes[0],
+				error: "anthropic returned an unusable response",
+				failure: {
+					kind: "schema-violation",
+					raw: '{"type":"error"}',
+					source: "provider-response",
+				},
+			};
+			output.score.reviewValid = false;
+			return output;
+		})(), "provider-failure"],
+		["an empty provider response", undefined, "incomplete-provider-output"],
+		["a truncated provider response", '{"content":', "incomplete-provider-output"],
+		["an unexpected terminal finish", (() => {
+			const output = completedOutput();
+			output.report.expertOutcomes[0] = {
+				...output.report.expertOutcomes[0],
+				cappedBy: "no-report",
+			};
+			return output;
+		})(), "unexpected-finish"],
+		["a schema-invalid report", (() => {
+			const output = completedOutput();
+			output.report.expertOutcomes[0] = {
+				...output.report.expertOutcomes[0],
+				findings: undefined,
+			};
+			return output;
+		})(), "schema-invalid"],
+		["no expected reviewer route", {
+			...completedOutput(),
+			models: [],
+			report: { ...completedOutput().report, expertOutcomes: [] },
+		}, "routing-invalid"],
+		["a reviewer error outcome", (() => {
+			const output = completedOutput();
+			output.report.expertOutcomes[0] = {
+				...output.report.expertOutcomes[0],
+				error: "invalid report after 2 attempts",
+				failure: { kind: "review" },
+			};
+			output.score.reviewValid = false;
+			return output;
+		})(), "reviewer-failed"],
+		["incomplete trace or usage", {
+			...completedOutput(),
+			trace: undefined,
+		}, "provenance-incomplete"],
+		["mismatched frozen provenance", {
+			...completedOutput(),
+			provenance: { ...expectedProvenance, sourceSha: "other-sha" },
+		}, "provenance-mismatch"],
+		["an unrecognized completion state", (() => {
+			const output = completedOutput();
+			output.report.expertOutcomes[0] = {
+				...output.report.expertOutcomes[0],
+				error: "new provider state",
+				failure: { kind: "future-state" },
+			};
+			return output;
+		})(), "unknown-state"],
+	] as const)("rejects %s with canonical reason %s", (_name, output, reason) => {
+		expect(classifyWithFrozenProvenance(output)).toMatchObject({
+			reason,
+			status: "invalid",
+		});
 	});
 });
 
