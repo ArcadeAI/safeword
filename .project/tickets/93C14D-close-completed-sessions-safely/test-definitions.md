@@ -28,14 +28,11 @@ required `Scenario:` heading grammar.
 
 ## Rule: close-completed-sessions-safely.NTB1.R2 — Retrospective capture is a mandatory prerequisite to destructive cleanup
 
-### Scenario Outline: Retro extraction runs in the bound host runtime
+### Scenario: Retro extraction runs in the bound host runtime
 
-- [x] RED — closeout's mandatory retro subprocess did not carry the bound host,
-      so Codex and Cursor could fall back to Claude extraction
-- [x] GREEN — the guard forwards `SAFEWORD_RETRO_AGENT` from the exact fresh
-      Claude/Codex/Cursor binding; each runtime has a checked headless extractor
-- [x] REFACTOR — runtime selection is a small pure mapping while the real
-      subprocess boundary test proves the environment is forwarded
+- [x] RED skip: legacy scenario did not retain its original red commit metadata
+- [x] GREEN 15c1d9dc3
+- [x] REFACTOR skip: runtime selection is a small pure mapping while the real subprocess boundary test proves the environment is forwarded
 
 ### Scenario: A completed retro permits cleanup
 
@@ -48,6 +45,12 @@ required `Scenario:` heading grammar.
 - [x] RED 0170c9663
 - [x] GREEN 4e7238eff
 - [x] REFACTOR skip: failure states share one fail-closed boundary and recovery contract
+
+### Scenario: Filing completed retro drafts resumes without re-extraction
+
+- [x] RED skip: the receipt behavior shipped before this scenario was added to the ledger
+- [x] GREEN f6622f29d
+- [x] REFACTOR skip: the recovery test keeps the runner boundary explicit and proves one extraction across filing recovery
 
 ### Scenario: A request to skip retro does not create a bypass
 
@@ -62,6 +65,18 @@ required `Scenario:` heading grammar.
 - [x] RED af86a036e
 - [x] GREEN e0bce09f1
 - [x] REFACTOR skip: reviewed the concise state-transition guidance; no structural change improved it
+
+### Scenario: Exact evidence is reused through preview, replay, and approved apply
+
+- [x] RED skip: the receipt behavior shipped before this scenario was added to the ledger
+- [x] GREEN f6622f29d
+- [x] REFACTOR skip: the host-adapter test names each verification lane and proves the same workflow across every local runtime
+
+### Scenario: Changed evidence invalidates the matching cached prerequisite
+
+- [x] RED skip: the receipt behavior shipped before this scenario was added to the ledger
+- [x] GREEN f6622f29d
+- [x] REFACTOR skip: a focused rewrite test proves altered session context re-runs extraction while append-only continuation remains reusable
 
 ### Scenario: A local merge-command error after remote success is partial success
 

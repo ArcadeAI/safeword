@@ -79,6 +79,12 @@ Feature: Close completed sessions safely
         | failed filing                 | resolve the filing failure         |
         | pending drafts in the spool   | drain the filing spool             |
 
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Filing completed retro drafts resumes without re-extraction
+      Given retrospective extraction completed and left filing drafts for the bound session
+      When the user files every pending draft and closeout resumes
+      Then it treats the retrospective as complete without re-running extraction and validates cleanup
+
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: A request to skip retro does not create a bypass
       Given retro is incomplete
@@ -103,6 +109,30 @@ Feature: Close completed sessions safely
         | entry into the merge queue                  | already exercised     | wait for a confirmed merged state                      |
         | confirmed merge and completed retro         | already exercised     | clean the exact targets                                |
         | worktree removal and remote branch removal  | already exercised     | remove the exact local branch                          |
+
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario Outline: Exact evidence is reused through preview, replay, and approved apply
+      Given the exact clean merged head has current verification and a completed retrospective snapshot bound to "<runtime>"
+      When closeout is previewed, replayed, and approved with unchanged evidence
+      Then it runs each verification lane and the retrospective once before applying cleanup
+
+      Examples:
+        | runtime       |
+        | Claude Code   |
+        | OpenAI Codex  |
+        | Cursor        |
+
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario Outline: Changed evidence invalidates the matching cached prerequisite
+      Given the exact clean merged head has completed closeout evidence
+      And "<change>" changes after its snapshot
+      When closeout resumes
+      Then it does not reuse the cached "<prerequisite>" and does not clean up until it passes again
+
+      Examples:
+        | change                      | prerequisite   |
+        | the working tree             | verification   |
+        | the bound session transcript is rewritten | retrospective  |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: A local merge-command error after remote success is partial success
