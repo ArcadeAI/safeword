@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "79768926ba197819c3b6f6dbd444190e3eadf29bd276da12745452b68ce8bd11"
+      "sha256": "c1b4aaac9beaff37ccca791e621c6f91081c5269f2b81333bf11462734a573a4"
     },
     {
       "path": "resources/templates/adr-template.md",

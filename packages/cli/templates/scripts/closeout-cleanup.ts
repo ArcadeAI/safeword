@@ -660,18 +660,18 @@ function cleanWorkingStateHash(headOid: string): string {
 }
 
 function verificationReceiptPath(root: string): string | undefined {
-  const commonDirectory = git(root, 'rev-parse', '--git-common-dir');
-  const path = commonDirectory.stdout.trim();
-  return commonDirectory.status === 0 && path !== ''
-    ? nodePath.join(nodePath.resolve(root, path), 'safeword', 'closeout-verification.json')
-    : undefined;
+  return closeoutReceiptPath(root, 'closeout-verification.json');
 }
 
 function retroReceiptPath(root: string): string | undefined {
+  return closeoutReceiptPath(root, 'closeout-retro.json');
+}
+
+function closeoutReceiptPath(root: string, filename: string): string | undefined {
   const commonDirectory = git(root, 'rev-parse', '--git-common-dir');
   const path = commonDirectory.stdout.trim();
   return commonDirectory.status === 0 && path !== ''
-    ? nodePath.join(nodePath.resolve(root, path), 'safeword', 'closeout-retro.json')
+    ? nodePath.join(nodePath.resolve(root, path), 'safeword', filename)
     : undefined;
 }
 
