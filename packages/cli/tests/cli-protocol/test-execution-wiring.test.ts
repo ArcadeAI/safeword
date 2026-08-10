@@ -3,6 +3,41 @@ import { describe, expect, it } from 'vitest';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 describe('test execution CLI wiring', () => {
+  it('runs the resolved done plan once when a command selects local execution', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'local-test-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:done': String.raw`node -e "require('node:fs').appendFileSync('runs.log','run\n')"`,
+        },
+      }),
+    );
+
+    const result = await runCli(
+      [
+        'project',
+        'test',
+        '--lane',
+        'done',
+        '--execution',
+        'local',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/local.*command|command.*local/i);
+    expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
+  });
+
   it('reports the built-in local preference without changing a project', async () => {
     const directory = createTemporaryDirectory();
     const result = await runCli(
@@ -101,5 +136,5 @@ describe('test execution CLI wiring', () => {
     });
   });
 });
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
