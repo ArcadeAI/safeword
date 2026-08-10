@@ -1437,10 +1437,17 @@ Then(
 Then(
   'the result records the project plugin install and recommends reloading it',
   function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
     const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      ok?: boolean;
+      state?: string;
+      errors?: unknown[];
       next_actions?: { command?: string }[];
       effects?: { configuration?: { kind?: string; operation?: string; target?: string }[] };
     };
+    assert.equal(result.ok, true);
+    assert.equal(result.state, 'action_required');
+    assert.deepEqual(result.errors, []);
     assert.ok(
       result.effects?.configuration?.some(
         effect =>
