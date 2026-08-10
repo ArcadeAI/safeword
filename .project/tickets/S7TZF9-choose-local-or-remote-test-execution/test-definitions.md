@@ -38,6 +38,12 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 - [x] GREEN dbcc69d0a
 - [x] REFACTOR skip: file, Git, and schema checks are isolated validation steps
 
+### Scenario: A command override cannot bypass invalid personal configuration
+
+- [x] RED skip: strict personal validation already precedes preference resolution
+- [x] GREEN 10b435aad
+- [x] REFACTOR skip: the shared strict config reader already precedes mode resolution
+
 ### Scenario: Invalid personal configuration blocks a status request without mutation
 
 - [x] RED skip: status already failed closed for malformed JSON
@@ -51,6 +57,12 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 - [x] RED skip: status behavior predates the current TDD continuation
 - [x] GREEN b1ff687fb4
 - [x] REFACTOR skip: status delegates to the shared precedence resolver
+
+### Scenario: A valid local project preference is reported and used
+
+- [x] RED skip: review exposed missing project-source proof before the executable scenario was added
+- [x] GREEN 10b435aad
+- [x] REFACTOR skip: project-source reporting already uses the shared precedence resolver
 
 ## Rule: choose-local-or-remote-test-execution.NTB1.R2
 
