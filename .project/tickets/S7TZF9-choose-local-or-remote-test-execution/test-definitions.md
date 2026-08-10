@@ -27,22 +27,22 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 ### Scenario: A personal preference is not shared with another worktree
 
 - [ ] RED
-- [x] GREEN dbcc69d0a
-- [x] REFACTOR skip: file, Git, and schema checks are isolated validation steps
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: choose-local-or-remote-test-execution.TBU1.R3
 
 ### Scenario: Invalid personal configuration blocks a test request
 
 - [x] RED ee2b791c6
-- [x] GREEN 2a94a8d68
-- [ ] REFACTOR
+- [x] GREEN dbcc69d0a
+- [x] REFACTOR skip: file, Git, and schema checks are isolated validation steps
 
 ### Scenario: Invalid personal configuration blocks a status request without mutation
 
 - [x] RED skip: status already failed closed for malformed JSON
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 2a94a8d68
+- [x] REFACTOR skip: the existing status path shares the strict config reader
 
 ## Rule: choose-local-or-remote-test-execution.NTB1.R1
 
