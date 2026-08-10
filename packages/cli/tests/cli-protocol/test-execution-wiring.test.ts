@@ -1,3 +1,6 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
@@ -35,6 +38,46 @@ describe('test execution CLI wiring', () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toMatch(/local.*command|command.*local/i);
+    expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
+  });
+
+  it('preserves a nonzero exit from the resolved full verification plan', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ testExecution: 'remote-preferred' }),
+    );
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'local-verification-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:ci': String.raw`node -e "require('node:fs').appendFileSync('runs.log','run\n');process.exit(23)"`,
+        },
+      }),
+    );
+
+    const result = await runCli(
+      [
+        'project',
+        'test',
+        '--lane',
+        'full',
+        '--execution',
+        'local',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(23);
+    expect(result.stderr).toMatch(/exited with status 23/i);
     expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
   });
 
@@ -136,5 +179,3 @@ describe('test execution CLI wiring', () => {
     });
   });
 });
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import nodePath from 'node:path';
