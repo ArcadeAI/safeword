@@ -68,4 +68,4 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: shared parsing, precedence, decision, and plan helpers already serve every scenario
