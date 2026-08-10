@@ -14,7 +14,10 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { requiresFailClosedShellGate } from '../../templates/hooks/cursor/gate-adapter.js';
-import { detectLedgerWrite } from '../../templates/hooks/lib/bash-ledger-writes.js';
+import {
+  detectInspirationArtifactWrite,
+  detectLedgerWrite,
+} from '../../templates/hooks/lib/bash-ledger-writes.js';
 
 const LEDGER = '.project/tickets/GH628F/test-definitions.md';
 
@@ -185,5 +188,50 @@ describe('detectLedgerWrite', () => {
         false,
       );
     });
+  });
+});
+
+describe('detectInspirationArtifactWrite', () => {
+  const TICKET = '.project/tickets/INS001-gate/ticket.md';
+  const SPEC = '.project/tickets/INS001-gate/spec.md';
+  const TICKET_DIRECTORY = '.project/tickets/INS001-gate/';
+
+  it.each([
+    `sed -i 's/inspiration_contract: v1//' ${TICKET}`,
+    `printf legacy > ${SPEC}`,
+    `python3 -c 'open("${TICKET}", "w").write("legacy")'`,
+    `cp /tmp/spec.md ${SPEC}`,
+  ])('detects a protected artifact write: %s', command => {
+    expect(detectInspirationArtifactWrite(command)).toBeDefined();
+    expect(requiresFailClosedShellGate({ command })).toBe(true);
+  });
+
+  it.each([
+    `printf legacy >> ${SPEC}`,
+    `printf legacy 2> ${SPEC}`,
+    `printf legacy &> ${SPEC}`,
+    `printf legacy >| ${SPEC}`,
+    `printf legacy | /usr/bin/tee ${SPEC}`,
+    `truncate -s 0 ${TICKET}`,
+    `mv /tmp/ticket.md ${TICKET}`,
+    `install /tmp/spec.md ${SPEC}`,
+    `cp -t ${TICKET_DIRECTORY} /tmp/spec.md`,
+    `cp --target-directory=${TICKET_DIRECTORY} /tmp/ticket.md`,
+    `cp /tmp/spec.md ${TICKET_DIRECTORY}`,
+    `git status && sed -i 's/v1/v0/' ${TICKET}; echo done`,
+    'echo legacy > .safeword-project/tickets/INS001-gate/spec.md',
+  ])('characterizes every supported protected write shape: %s', command => {
+    expect(detectInspirationArtifactWrite(command)).toBeDefined();
+  });
+
+  it.each([
+    `cat ${TICKET}`,
+    `git diff -- ${SPEC}`,
+    `cp ${SPEC} /tmp/spec-backup.md`,
+    `mv -t /backup ${TICKET}`,
+    `cp --target-directory=/tmp ${SPEC}`,
+    'sed -n 1,20p README.md',
+  ])('allows a read-only command: %s', command => {
+    expect(detectInspirationArtifactWrite(command)).toBeUndefined();
   });
 });

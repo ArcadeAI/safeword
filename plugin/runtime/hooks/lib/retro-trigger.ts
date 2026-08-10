@@ -291,7 +291,7 @@ export function buildRetroNudge(transcriptPath: string): string {
   return (
     `Safeword retro has not run for this session. The transcript at ${transcriptPath} ` +
     `is available to mine for safeword friction (bugs / rough edges / gaps); the retro ` +
-    `guide at "${CLAUDE_PLUGIN_ROOT}"/resources/guides/retro.md describes the fresh-context extraction and ` +
+    `guide at "\${CLAUDE_PLUGIN_ROOT}"/resources/guides/retro.md describes the fresh-context extraction and ` +
     `\`safeword retro run\` filing step.`
   );
 }

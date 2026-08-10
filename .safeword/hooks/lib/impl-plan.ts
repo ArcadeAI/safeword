@@ -4,6 +4,9 @@
 // impl-plan.md without importing the CLI dist (same cross-runtime-copy
 // rationale as jtbd.ts — deployed hooks run standalone from .safeword/hooks/).
 
+import { withoutFencedCode } from './markdown-structure.js';
+import { IMPLEMENTATION_INSPIRATION_GRAMMAR } from './inspiration.js';
+
 export type ImplPlanStatus = 'planned' | 'implemented';
 
 /** The five required impl-plan sections, in template order. */
@@ -46,6 +49,7 @@ export interface ImplPlanResult {
 
 const STATUS_PREFIX = '**Status:**';
 const SKIP_PREFIX = 'skip:';
+const DECISIONS_SCAFFOLD_LINES = new Set<string>(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
 
 const SECTION_NAMES = new Map<string, ImplPlanAnySectionName>([
   ...IMPL_PLAN_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [name.toLowerCase(), name]),
@@ -59,49 +63,29 @@ const SECTION_NAMES = new Map<string, ImplPlanAnySectionName>([
 const DESIGN_ALIGNMENT_HEADING = 'design alignment';
 const LEGACY_ARCH_ALIGNMENT_HEADING = 'arch alignment';
 
-/**
- * Lines outside HTML comments. Mirrors jtbd.ts's comment handling — the
- * scaffolded template's guidance is commented, so a fresh scaffold parses
- * to empty sections.
- */
+/** Lines outside fenced, commented, and indented code. */
 export function activeLines(content: string): string[] {
-  const lines: string[] = [];
-  let inComment = false;
-  for (const raw of content.split('\n')) {
-    let line = raw;
-    if (inComment) {
-      const end = line.indexOf('-->');
-      if (end === -1) continue;
-      inComment = false;
-      line = line.slice(end + 3);
-    }
-    let start = line.indexOf('<!--');
-    while (start !== -1) {
-      const end = line.indexOf('-->', start + 4);
-      if (end === -1) {
-        line = line.slice(0, start);
-        inComment = true;
-        break;
-      }
-      line = line.slice(0, start) + line.slice(end + 3);
-      start = line.indexOf('<!--');
-    }
-    lines.push(line);
-  }
-  return lines;
+  return withoutFencedCode(content)
+    .split('\n')
+    .filter(line => !/^(?: {4}|\t)/u.test(line));
 }
 
 /** Scan for the `**Status:**` line; report its value or push the matching error. */
 function parseStatus(lines: string[], errors: string[]): ImplPlanStatus | null {
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith(STATUS_PREFIX)) continue;
-    const value = trimmed.slice(STATUS_PREFIX.length).trim();
-    if (value === 'planned' || value === 'implemented') return value;
-    errors.push(`Unknown status "${value}" — allowed values: planned, implemented.`);
+  const candidates = lines.map(line => line.trim()).filter(line => line.startsWith(STATUS_PREFIX));
+  if (candidates.length === 0) {
+    errors.push(
+      `Missing \`${STATUS_PREFIX}\` line — add \`${STATUS_PREFIX} planned\` near the top.`,
+    );
     return null;
   }
-  errors.push(`Missing \`${STATUS_PREFIX}\` line — add \`${STATUS_PREFIX} planned\` near the top.`);
+  if (candidates.length !== 1) {
+    errors.push(`Expected exactly one \`${STATUS_PREFIX}\` line; found ${candidates.length}.`);
+    return null;
+  }
+  const value = candidates[0]!.slice(STATUS_PREFIX.length).trim();
+  if (value === 'planned' || value === 'implemented') return value;
+  errors.push(`Unknown status "${value}" — allowed values: planned, implemented.`);
   return null;
 }
 
@@ -140,17 +124,40 @@ function validateAlignmentHeading(lines: string[], errors: string[]): void {
   }
 }
 
+/** Reject repeated known section headings after legacy aliases normalize. */
+function validateUniqueSectionHeadings(lines: string[], errors: string[]): void {
+  const counts = new Map<ImplPlanAnySectionName, number>();
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('## ')) continue;
+    const name = SECTION_NAMES.get(trimmed.slice(3).trim().toLowerCase());
+    if (name !== undefined) counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  for (const [name, count] of counts) {
+    if (count > 1)
+      errors.push(`Section "${name}" appears ${count} times — keep exactly one heading.`);
+  }
+}
+
 export function parseImplPlan(content: string): ImplPlanResult {
   const errors: string[] = [];
   const lines = activeLines(content);
   const status = parseStatus(lines, errors);
   validateAlignmentHeading(lines, errors);
+  validateUniqueSectionHeadings(lines, errors);
   const bodies = collectSectionBodies(lines);
 
   const sections: ImplPlanResult['sections'] = {};
   const validatePresentSection = (name: ImplPlanAnySectionName, body: string[]): void => {
+    const meaningfulBody = body.filter(
+      line =>
+        !/^#{3,6}(?:\s|$)/u.test(line) &&
+        (name !== 'Decisions' || !DECISIONS_SCAFFOLD_LINES.has(line)),
+    );
     const skipLine =
-      body.length === 1 && body[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? body[0] : null;
+      meaningfulBody.length === 1 && meaningfulBody[0]?.toLowerCase().startsWith(SKIP_PREFIX)
+        ? meaningfulBody[0]
+        : null;
     if (skipLine !== null) {
       const reason = skipLine.slice(SKIP_PREFIX.length).trim();
       if (reason === '') {
@@ -159,10 +166,10 @@ export function parseImplPlan(content: string): ImplPlanResult {
       sections[name] = { satisfied: reason !== '', skip: reason };
       return;
     }
-    if (body.length === 0) {
+    if (meaningfulBody.length === 0) {
       errors.push(`Section "${name}" is empty — add content or \`skip: <why>\`.`);
     }
-    sections[name] = { satisfied: body.length > 0, skip: null };
+    sections[name] = { satisfied: meaningfulBody.length > 0, skip: null };
   };
 
   for (const name of IMPL_PLAN_SECTIONS) {

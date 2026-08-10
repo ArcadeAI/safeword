@@ -124,7 +124,11 @@ function adaptPluginRuntime(content: string): string {
   ) {
     throw new Error('Claude plugin runtime adaptation requires a localCli fallback binding.');
   }
-  return adapted;
+  // Runtime hooks are TypeScript. A project path inside a template literal is
+  // rewritten to the plugin shell placeholder, but an unescaped `${...}` would
+  // become JavaScript interpolation of a nonexistent global. Keep it literal so
+  // Claude/the user's shell can expand the host-provided environment variable.
+  return adapted.replaceAll('${CLAUDE_PLUGIN_ROOT}', () => '\\${CLAUDE_PLUGIN_ROOT}');
 }
 
 const PROJECT_FRAMEWORK_REFERENCE =
@@ -179,7 +183,7 @@ export function assertClaudePluginAssetReferences(
   assertNoProjectFrameworkReferences(assets);
 }
 
-const PLUGIN_ROOT_REFERENCE = /\$\{CLAUDE_PLUGIN_ROOT\}(?:\\?"\/|\/)([\w*./-]+)/gu;
+const PLUGIN_ROOT_REFERENCE = /\\?\$\{CLAUDE_PLUGIN_ROOT\}(?:\\?"\/|\/)([\w*./-]+)/gu;
 const RELATIVE_MODULE_REFERENCE = /(?:from\s+|import\s*\()['"](\.[^'"]+)['"]/gu;
 
 function stripReferencePunctuation(value: string | undefined): string | undefined {
