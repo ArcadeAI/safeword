@@ -297,6 +297,15 @@ case "$*" in
 esac
 `,
   );
+  // The unified-install corpus exercises CLI routing, not live GitHub access.
+  // Shadow `gh` as well as removing token variables below so a developer's
+  // keychain cannot turn a compatibility scenario into a real network sweep.
+  writeExecutable(
+    nodePath.join(bin, 'gh'),
+    `#!/bin/sh
+exit 1
+`,
+  );
 
   world.fixtureRoot = root;
   world.temporaryDirectory = project;
@@ -332,6 +341,18 @@ esac
 function requiredPath(path: string | undefined, label: string): string {
   if (path === undefined) throw new Error(`${label} was not initialized`);
   return path;
+}
+
+function fixtureProcessEnvironment(world: UnifiedInstallWorld): NodeJS.ProcessEnv {
+  const environment = {
+    ...process.env,
+    ...world.hostEnvironment,
+    SAFEWORD_NO_UPDATE_CHECK: '1',
+    SAFEWORD_SKIP_INSTALL: '1',
+  };
+  delete environment.GITHUB_TOKEN;
+  delete environment.GH_TOKEN;
+  return environment;
 }
 
 interface LifecyclePlanEnvelope {
@@ -382,19 +403,13 @@ After(function (this: UnifiedInstallWorld) {
 
 function runInstall(world: UnifiedInstallWorld, arguments_: readonly string[]): void {
   const project = requiredPath(world.projectRoot, 'project root');
-  const environment = world.hostEnvironment ?? {};
   const completed = spawnSync(
     process.execPath,
     [CLI_PATH, 'install', ...arguments_, '--json', '--cwd', project],
     {
       cwd: project,
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        ...environment,
-        SAFEWORD_NO_UPDATE_CHECK: '1',
-        SAFEWORD_SKIP_INSTALL: '1',
-      },
+      env: fixtureProcessEnvironment(world),
     },
   );
   world.result = {
@@ -409,12 +424,7 @@ function runJsonCommand(world: UnifiedInstallWorld, command: string): Record<str
   const completed = spawnSync(process.execPath, [CLI_PATH, command, '--json', '--cwd', project], {
     cwd: project,
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      ...world.hostEnvironment,
-      SAFEWORD_NO_UPDATE_CHECK: '1',
-      SAFEWORD_SKIP_INSTALL: '1',
-    },
+    env: fixtureProcessEnvironment(world),
   });
   // status and doctor are observations: action_required (exit 2) is a real
   // health verdict, so only a hard failure invalidates the envelope.
@@ -437,12 +447,7 @@ function runRawCommand(
     {
       cwd: project,
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        ...world.hostEnvironment,
-        SAFEWORD_NO_UPDATE_CHECK: '1',
-        SAFEWORD_SKIP_INSTALL: '1',
-      },
+      env: fixtureProcessEnvironment(world),
     },
   );
   world.result = {
@@ -1145,6 +1150,15 @@ When('the user invokes it', function (this: UnifiedInstallWorld) {
   const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
   if (OPTION_ALIAS_PROOFS[alias] !== undefined) return;
   initializeHosts(this);
+  // Reproduce the credential-bearing developer/CI environment that exposed
+  // this fixture's former live-network leak. The fixture process boundary must
+  // remove it before exercising the reconcile alias.
+  if (alias === 'retro-reconcile') {
+    this.hostEnvironment = {
+      ...this.hostEnvironment,
+      GITHUB_TOKEN: `ghp_${'a'.repeat(36)}`,
+    };
+  }
   const argv = alias === 'bare safeword' ? [] : alias.split(' ');
   runRawCommand(this, [...argv, ...(ALIAS_REQUIRED_OPERANDS[alias] ?? [])]);
 });
