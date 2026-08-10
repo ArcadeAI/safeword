@@ -915,6 +915,18 @@
   or case exclusions; no duplicated work; exact work-index resume; no findings,
   named-defect matches, or reviewer text inspected. State is checkpointed four
   calls into the third frozen case with two cases complete.
-- The $100 stage did not start. Three 1Password authorization attempts timed
-  out before the runner launched, including a scoped Arcade sign-in with the
-  desktop app foregrounded. State and spend remain at the $50 checkpoint.
+- Merged current `origin/main` (`78afa7a7b`, `v0.74.6`) into the work branch.
+  Every frozen scientific hash remains unchanged. Restored the disposable
+  adapter worktree at its exact pinned commit and installed its frozen
+  dependencies after main removed the old workspace links. Forty-two tests,
+  Prettier, ESLint, and the Bun production bundle pass.
+- Staged scored execution passed the $100 gate at $106.576443 / 51 calls and
+  the $200 gate at $200.585727 / 100 calls. Eight cases are complete and the
+  exact resume state is four calls into case nine. Across all calls: zero
+  retries, infrastructure errors, exclusions, duplicate records, or resume
+  mismatches. Mean call cost is $2.005857; maximum is $13.932660; longest
+  duration is 516,843 ms. Findings and scores remain blinded.
+- Initial $200 authorization attempts timed out before launch. Confirmed the
+  1Password desktop app was unlocked and Touch ID plus CLI integration were
+  enabled; resetting the CLI integration handshake restored scoped in-memory
+  authorization. No API call occurred during the failed attempts.

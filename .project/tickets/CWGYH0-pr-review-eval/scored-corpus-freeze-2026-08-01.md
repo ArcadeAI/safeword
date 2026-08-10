@@ -240,15 +240,30 @@ unchanged. The recovery decision used cost and operational metadata only.
 | $10 | 6 | 0 | $10.277085 | passed |
 | $20 | 12 | 1 | $20.407170 | passed |
 | $50 | 28 | 2 | $50.350935 | passed |
+| $100 | 51 | 4 | $106.576443 | passed |
+| $200 | 100 | 8 | $200.585727 | passed |
 
-All 28 calls completed without a provider retry, infrastructure error, case
+All 100 calls completed without a provider retry, infrastructure error, case
 exclusion, duplicate record, or resume mismatch. The current version-2 state
-is four work items into the third frozen case. Findings, named-defect matches,
-reviewer text, and interim scores remain blinded.
+is four work items into the ninth frozen case, with eight cases complete. Mean
+cost is $2.005857 per call, maximum call cost is $13.932660, and the longest
+call took 516,843 ms. The observed mean projects the complete 360-call run at
+about $722. Findings, named-defect matches, reviewer text, and interim scores
+remain blinded.
 
-The attempted $100 stage made no API call: 1Password authorization timed out
-before the runner launched. The durable state and cumulative spend therefore
-remain at the $50 checkpoint.
+Before the $200 stage, the branch merged `origin/main` at `78afa7a7b`
+(`v0.74.6`). All frozen corpus, prompt, runner, policy, and scorer hashes were
+unchanged. The merge removed dependencies from the disposable pinned adapter
+worktree; restoring its exact commit `8d86720c09361577373a353b0f2e4810c4423c8a`
+and frozen-lockfile dependencies recovered the environment without changing a
+scientific input. Forty-two policy/statistics tests, Prettier, ESLint, and the
+Bun production bundle pass after the merge.
+
+The first $200 authorization attempts timed out before launch. The 1Password
+desktop app was unlocked, Touch ID and CLI integration were enabled, and
+resetting only the CLI integration handshake recovered authorization. The
+runner then resumed at the exact saved work index and reached the checkpoint
+without a duplicate paid call.
 
 ## Frozen scoring and gate
 
