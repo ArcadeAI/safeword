@@ -6,8 +6,7 @@
  * (pattern: impl-plan.test.ts).
  */
 
-import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -240,13 +239,14 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
   /** Assert a literal appears nowhere under the given shipped roots. */
   function expectNoShippedSurfaceMatches(literal: string, roots: string[]): void {
     for (const root of roots) {
-      const result = spawnSync('rg', ['-l', '-F', '--', literal, root], {
-        cwd: repoRoot,
-        encoding: 'utf8',
-      });
-      expect([0, 1], `rg failed under ${root}: ${result.stderr}`).toContain(result.status);
-      const out = (result.stdout ?? '').trim();
-      expect(out, `"${literal}" under ${root}: ${out}`).toBe('');
+      const matches = readdirSync(nodePath.join(repoRoot, root), {
+        recursive: true,
+        withFileTypes: true,
+      })
+        .filter(entry => entry.isFile())
+        .map(entry => nodePath.join(entry.parentPath, entry.name))
+        .filter(path => readFileSync(path, 'utf8').includes(literal));
+      expect(matches, `"${literal}" under ${root}: ${matches.join(', ')}`).toEqual([]);
     }
   }
 
