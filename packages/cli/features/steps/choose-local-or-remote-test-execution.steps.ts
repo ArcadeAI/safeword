@@ -360,6 +360,7 @@ Then(
   'each worktree reports its own canonical namespace-root personal path and effective mode, neither process reads the other path, and both status requests leave both worktrees unchanged',
   function (this: TestExecutionWorld) {
     assert.ok(this.secondResult);
+    assert.ok(this.secondDirectory);
     const first = JSON.parse(this.result.stdout) as { data: { effective: { mode: string } } };
     const second = JSON.parse(this.secondResult.stdout) as {
       data: { effective: { mode: string } };

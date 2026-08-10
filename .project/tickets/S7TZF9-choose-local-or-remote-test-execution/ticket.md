@@ -24,7 +24,7 @@ done_when:
   - Status explains the winning mode and its origin
 parent: BBNZ68
 created: 2026-08-09T21:20:26.567Z
-last_modified: 2026-08-10T12:22:00Z
+last_modified: 2026-08-10T19:34:00Z
 ---
 
 # Choose local or remote test execution per contributor
@@ -47,3 +47,4 @@ last_modified: 2026-08-10T12:22:00Z
 - 2026-08-10T12:02:00Z Remote CI run 31385029999 passed lint, dogfood parity, and the CLI contract, then both Node matrices found the same generated-architecture freshness failure after merging main (7,354 tests passed; one documentation assertion failed). Reconciled the still-accurate module descriptions to the merged fingerprint; `project architecture --check` is green before rerunning CI.
 - 2026-08-10T12:22:00Z Entered verification: Remote CI run 31385930373 passed lint, dogfood parity, the CLI contract, both full Node matrices, physical-install proof, the repository-wide Cucumber lane, and release gates. Recorded the audit, scope, surface, dependency, and persona-walk evidence in verify.md.
 - 2026-08-10T12:23:00Z Completed: All done-gate evidence is recorded and the contributor-preference slice is ready for the remote-workflow installation child.
+- 2026-08-10T19:34:00Z CI follow-up: After synchronizing with main, the lint job exposed an unchecked optional second-worktree path in the acceptance harness. Added the missing runtime assertion; package typecheck and all 28 S7 scenarios pass locally before rerunning remote CI.
