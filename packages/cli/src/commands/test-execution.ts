@@ -6,10 +6,70 @@ import {
   readPersonalExecutionPreference,
   readProjectExecutionPreference,
 } from '../test-execution/config.js';
-import { type ExecutionMode, resolveExecutionMode } from '../test-execution/mode.js';
-import { type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
+import {
+  type ExecutionMode,
+  type ResolvedExecutionMode,
+  resolveExecutionMode,
+} from '../test-execution/mode.js';
+import { type PlanEntry, type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
 
 const REMOTE_EXECUTION_AVAILABLE = false;
+
+function shellInvocation(command: string): readonly [string, string[]] {
+  if (process.platform === 'win32') {
+    return [process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', command]];
+  }
+  return ['/bin/sh', ['-c', command]];
+}
+
+interface PlanExecution {
+  readonly executed: number;
+  readonly failedRunner?: string;
+  readonly childExit?: number | null;
+  readonly childOutput?: { readonly stdout: string; readonly stderr: string };
+}
+
+function executePlan(
+  plan: readonly PlanEntry[],
+  delivery: { readonly json?: boolean },
+): PlanExecution {
+  let execution: PlanExecution = { executed: 0 };
+  for (const entry of plan) {
+    if (!entry.available) continue;
+    const [executable, arguments_] = shellInvocation(entry.command);
+    const result = spawnSync(executable, arguments_, {
+      cwd: entry.cwd,
+      env: process.env,
+      encoding: 'utf8',
+      stdio: delivery.json === true ? ['inherit', 'pipe', 'pipe'] : 'inherit',
+    });
+    execution = {
+      executed: execution.executed + 1,
+      ...(delivery.json === true && {
+        childOutput: { stdout: result.stdout ?? '', stderr: result.stderr ?? '' },
+      }),
+    };
+    if (result.status !== 0) {
+      return { ...execution, failedRunner: entry.runner, childExit: result.status };
+    }
+  }
+  return execution;
+}
+
+function executionDecision(effective: ResolvedExecutionMode) {
+  const fallbackUsed = effective.mode === 'remote-preferred' && !REMOTE_EXECUTION_AVAILABLE;
+  return {
+    fallbackUsed,
+    data: {
+      remote: { available: REMOTE_EXECUTION_AVAILABLE },
+      dispatch: { attempted: false },
+      fallback: {
+        used: fallbackUsed,
+        ...(fallbackUsed && { execution: 'local', reason: 'remote-unavailable' }),
+      },
+    },
+  };
+}
 
 function invalidExecutionRequest(message: string): CliResult {
   return createResult({
@@ -40,6 +100,7 @@ function parseExecutionRequest(
 export function runProjectTests(
   cwd: string,
   options: Readonly<Record<string, unknown>>,
+  delivery: { readonly json?: boolean } = {},
 ): CliResult {
   const request = parseExecutionRequest(options);
   if ('state' in request) return request;
@@ -59,38 +120,28 @@ export function runProjectTests(
   });
   const planKind: PlanKind = lane === 'full' ? 'verify' : 'test';
   const plan = resolveTestPlan(cwd, { kind: planKind });
-  let executed = 0;
-
-  for (const entry of plan) {
-    if (!entry.available) continue;
-    const result = spawnSync(entry.command, {
-      cwd: entry.cwd,
-      env: process.env,
-      shell: true,
-      stdio: 'inherit',
-    });
-    executed += 1;
-    if (result.status !== 0) {
-      return createResult({
-        state: 'failed',
-        exitCode: result.status ?? 1,
-        errors: [
-          {
-            code: 'SAFEWORD_TEST_EXECUTION_FAILED',
-            message: `${entry.runner} exited with status ${String(result.status ?? 'unknown')}.`,
-            retryable: false,
-          },
-        ],
-        data: {
-          command: 'project test',
-          lane,
-          effective,
-          planKind,
-          executed,
-          childExit: result.status,
+  const decision = executionDecision(effective);
+  const execution = executePlan(plan, delivery);
+  if (execution.failedRunner !== undefined) {
+    return createResult({
+      state: 'failed',
+      exitCode: execution.childExit ?? 1,
+      errors: [
+        {
+          code: 'SAFEWORD_TEST_EXECUTION_FAILED',
+          message: `${execution.failedRunner} exited with status ${String(execution.childExit ?? 'unknown')}.`,
+          retryable: false,
         },
-      });
-    }
+      ],
+      data: {
+        command: 'project test',
+        lane,
+        effective,
+        ...decision.data,
+        planKind,
+        ...execution,
+      },
+    });
   }
 
   return createResult({
@@ -98,7 +149,9 @@ export function runProjectTests(
     findings: [
       {
         code: 'SAFEWORD_TEST_EXECUTION_SELECTED',
-        message: `Test execution used ${effective.mode} mode from ${effective.source}.`,
+        message: decision.fallbackUsed
+          ? `Remote execution from ${effective.source} is unavailable; used the local plan before dispatch.`
+          : `Test execution used ${effective.mode} mode from ${effective.source}.`,
         severity: 'info',
       },
     ],
@@ -106,9 +159,9 @@ export function runProjectTests(
       command: 'project test',
       lane,
       effective,
-      remote: { available: REMOTE_EXECUTION_AVAILABLE },
+      ...decision.data,
       planKind,
-      executed,
+      ...execution,
     },
   });
 }

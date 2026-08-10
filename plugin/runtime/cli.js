@@ -40010,7 +40010,12 @@ function defaultIsToolAvailable(tool) {
   const fake = process11.env.SAFEWORD_FAKE_TOOLS;
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
-  return spawnSync6("command", ["-v", tool], { shell: true, stdio: "ignore" }).status === 0;
+  if (process11.platform === "win32") {
+    return spawnSync6("where.exe", [tool], { stdio: "ignore" }).status === 0;
+  }
+  return spawnSync6("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
+    stdio: "ignore"
+  }).status === 0;
 }
 function entry(language, cwd, command, runner, available) {
   return { language, cwd, command, runner, available };
@@ -40410,6 +40415,50 @@ __export(exports_test_execution, {
 });
 import { spawnSync as spawnSync7 } from "child_process";
 import nodePath79 from "path";
+function shellInvocation(command) {
+  if (process.platform === "win32") {
+    return [process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", command]];
+  }
+  return ["/bin/sh", ["-c", command]];
+}
+function executePlan2(plan, delivery) {
+  let execution = { executed: 0 };
+  for (const entry2 of plan) {
+    if (!entry2.available)
+      continue;
+    const [executable, arguments_] = shellInvocation(entry2.command);
+    const result = spawnSync7(executable, arguments_, {
+      cwd: entry2.cwd,
+      env: process.env,
+      encoding: "utf8",
+      stdio: delivery.json === true ? ["inherit", "pipe", "pipe"] : "inherit"
+    });
+    execution = {
+      executed: execution.executed + 1,
+      ...delivery.json === true && {
+        childOutput: { stdout: result.stdout ?? "", stderr: result.stderr ?? "" }
+      }
+    };
+    if (result.status !== 0) {
+      return { ...execution, failedRunner: entry2.runner, childExit: result.status };
+    }
+  }
+  return execution;
+}
+function executionDecision(effective) {
+  const fallbackUsed = effective.mode === "remote-preferred" && !REMOTE_EXECUTION_AVAILABLE;
+  return {
+    fallbackUsed,
+    data: {
+      remote: { available: REMOTE_EXECUTION_AVAILABLE },
+      dispatch: { attempted: false },
+      fallback: {
+        used: fallbackUsed,
+        ...fallbackUsed && { execution: "local", reason: "remote-unavailable" }
+      }
+    }
+  };
+}
 function invalidExecutionRequest(message) {
   return createResult({
     state: "failed",
@@ -40427,7 +40476,7 @@ function parseExecutionRequest(options) {
   }
   return { lane, commandMode };
 }
-function runProjectTests(cwd, options) {
+function runProjectTests(cwd, options, delivery = {}) {
   const request = parseExecutionRequest(options);
   if ("state" in request)
     return request;
@@ -40444,45 +40493,35 @@ function runProjectTests(cwd, options) {
   });
   const planKind = lane === "full" ? "verify" : "test";
   const plan = resolveTestPlan(cwd, { kind: planKind });
-  let executed = 0;
-  for (const entry2 of plan) {
-    if (!entry2.available)
-      continue;
-    const result = spawnSync7(entry2.command, {
-      cwd: entry2.cwd,
-      env: process.env,
-      shell: true,
-      stdio: "inherit"
-    });
-    executed += 1;
-    if (result.status !== 0) {
-      return createResult({
-        state: "failed",
-        exitCode: result.status ?? 1,
-        errors: [
-          {
-            code: "SAFEWORD_TEST_EXECUTION_FAILED",
-            message: `${entry2.runner} exited with status ${String(result.status ?? "unknown")}.`,
-            retryable: false
-          }
-        ],
-        data: {
-          command: "project test",
-          lane,
-          effective,
-          planKind,
-          executed,
-          childExit: result.status
+  const decision = executionDecision(effective);
+  const execution = executePlan2(plan, delivery);
+  if (execution.failedRunner !== undefined) {
+    return createResult({
+      state: "failed",
+      exitCode: execution.childExit ?? 1,
+      errors: [
+        {
+          code: "SAFEWORD_TEST_EXECUTION_FAILED",
+          message: `${execution.failedRunner} exited with status ${String(execution.childExit ?? "unknown")}.`,
+          retryable: false
         }
-      });
-    }
+      ],
+      data: {
+        command: "project test",
+        lane,
+        effective,
+        ...decision.data,
+        planKind,
+        ...execution
+      }
+    });
   }
   return createResult({
     state: "healthy",
     findings: [
       {
         code: "SAFEWORD_TEST_EXECUTION_SELECTED",
-        message: `Test execution used ${effective.mode} mode from ${effective.source}.`,
+        message: decision.fallbackUsed ? `Remote execution from ${effective.source} is unavailable; used the local plan before dispatch.` : `Test execution used ${effective.mode} mode from ${effective.source}.`,
         severity: "info"
       }
     ],
@@ -40490,9 +40529,9 @@ function runProjectTests(cwd, options) {
       command: "project test",
       lane,
       effective,
-      remote: { available: REMOTE_EXECUTION_AVAILABLE },
+      ...decision.data,
       planKind,
-      executed
+      ...execution
     }
   });
 }
@@ -56698,7 +56737,7 @@ async function testExecutionStatusHandler(invocation) {
 }
 async function projectTestHandler(invocation) {
   const { runProjectTests: runProjectTests2 } = await Promise.resolve().then(() => (init_test_execution(), exports_test_execution));
-  return runProjectTests2(invocation.cwd, invocation.options);
+  return runProjectTests2(invocation.cwd, invocation.options, { json: invocation.json === true });
 }
 async function lintGherkinHandler(invocation) {
   const { observeGherkinLint: observeGherkinLint2 } = await Promise.resolve().then(() => (init_lint_gherkin(), exports_lint_gherkin));
@@ -58663,6 +58702,7 @@ async function executeDefinition(command2, definition, invocation = {}) {
     try {
       result = await definition.handler({
         cwd: globalOptions.cwd,
+        json: globalOptions.json,
         noInput: globalOptions.noInput,
         offline: globalOptions.offline,
         options: commandOptions,

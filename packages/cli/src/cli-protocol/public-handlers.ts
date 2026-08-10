@@ -623,7 +623,7 @@ async function testExecutionStatusHandler(invocation: CommandInvocation): Promis
 
 async function projectTestHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { runProjectTests } = await import('../commands/test-execution.js');
-  return runProjectTests(invocation.cwd, invocation.options);
+  return runProjectTests(invocation.cwd, invocation.options, { json: invocation.json === true });
 }
 
 async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliResult> {

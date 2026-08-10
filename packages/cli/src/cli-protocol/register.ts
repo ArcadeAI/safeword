@@ -169,6 +169,7 @@ async function executeDefinition(
     try {
       result = await definition.handler({
         cwd: globalOptions.cwd,
+        json: globalOptions.json,
         noInput: globalOptions.noInput,
         offline: globalOptions.offline,
         options: commandOptions,
