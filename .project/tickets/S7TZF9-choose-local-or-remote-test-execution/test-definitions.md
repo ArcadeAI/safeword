@@ -7,7 +7,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 ### Scenario: A command override selects one local plan invocation and preserves its exit
 
 - [x] RED 772d4d5d3
-- [ ] GREEN
+- [x] GREEN eafcce522
 - [ ] REFACTOR
 
 ### Scenario: A remote-preferred command override wins but falls back before dispatch
