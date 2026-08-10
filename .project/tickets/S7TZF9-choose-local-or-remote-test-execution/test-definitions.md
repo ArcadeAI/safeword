@@ -34,7 +34,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 
 ### Scenario: Invalid personal configuration blocks a test request
 
-- [ ] RED
+- [x] RED ee2b791c6
 - [ ] GREEN
 - [ ] REFACTOR
 
