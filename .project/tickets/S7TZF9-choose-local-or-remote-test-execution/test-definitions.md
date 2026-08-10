@@ -27,7 +27,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 ### Scenario: A personal preference is not shared with another worktree
 
 - [ ] RED
-- [ ] GREEN
+- [x] GREEN dbcc69d0a
 - [ ] REFACTOR
 
 ## Rule: choose-local-or-remote-test-execution.TBU1.R3
