@@ -13,7 +13,7 @@ Feature source: `packages/cli/features/choose-local-or-remote-test-execution.fea
 ### Scenario: A remote-preferred command override wins but falls back before dispatch
 
 - [x] RED 2bc4d1563
-- [ ] GREEN
+- [x] GREEN 8180a8047
 - [ ] REFACTOR
 
 ## Rule: choose-local-or-remote-test-execution.TBU1.R2
