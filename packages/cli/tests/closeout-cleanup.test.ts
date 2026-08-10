@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { rememberCloseoutBinding } from '../templates/hooks/lib/closeout-binding.ts';
+import { draftSpoolPath, markDraftsFiled } from '../templates/hooks/lib/retro-draft-spool.ts';
 import {
   applyCleanupPlan,
   buildCleanupPlan,
@@ -29,10 +30,13 @@ import {
   resolveCloseoutBinding,
   resolveProtection,
   resolveRemoteRef as resolveRemoteReference,
+  resolveRequiredChecks,
   retroAgentForRuntime,
+  retroForMergedPullRequest,
   runBoundRetro,
   safewordCliCommand,
   transcriptMatchesBinding,
+  workingStateHash,
 } from '../templates/scripts/closeout-cleanup.ts';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
@@ -57,6 +61,7 @@ function safeObservation(overrides: Partial<CloseoutObservation> = {}): Closeout
         headRepository: 'widget',
         headRefName: 'feature/closeout',
         headRefOid: 'a'.repeat(40),
+        ciChecks: 'passed',
       },
     ],
     remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid: 'a'.repeat(40) },
@@ -75,7 +80,7 @@ function safeObservation(overrides: Partial<CloseoutObservation> = {}): Closeout
       },
     ],
     verification: { current: true, passed: true, headOid: 'a'.repeat(40), stateHash: 'clean' },
-    retro: { bound: true, complete: true, pendingDrafts: 0 },
+    retro: { bound: true, complete: true, pendingDrafts: 0, evidenceHash: 'retro-clean' },
     ...overrides,
   };
 }
@@ -98,7 +103,45 @@ function runGit(...arguments_: string[]): string {
   return result.stdout.trim();
 }
 
+function filingNeededRetroResult() {
+  return {
+    status: 0,
+    stdout: JSON.stringify({ state: 'changed', data: { agent_filing_needed: true } }),
+    stderr: '',
+  };
+}
+
+function completedRetroResult() {
+  return {
+    status: 0,
+    stdout: JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false } }),
+    stderr: '',
+  };
+}
+
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
+  it('does not run retrospective work before the exact pull request is confirmed merged', () => {
+    const binding = { runtime: 'codex' as const, id: 'thread-42', projectRoot: '/repo' };
+    let calls = 0;
+    const runRetro = () => {
+      calls += 1;
+      return safeObservation().retro;
+    };
+
+    expect(retroForMergedPullRequest('/repo', binding, [], runRetro)).toMatchObject({
+      complete: false,
+    });
+    expect(
+      retroForMergedPullRequest('/repo', binding, [{ ...pullRequest(), state: 'OPEN' }], runRetro),
+    ).toMatchObject({ complete: false });
+    expect(calls).toBe(0);
+
+    expect(retroForMergedPullRequest('/repo', binding, [pullRequest()], runRetro)).toMatchObject({
+      complete: true,
+    });
+    expect(calls).toBe(1);
+  });
+
   it('revalidates immutable merged code without rerunning mutable dependency intelligence', () => {
     expect(POST_MERGE_VERIFICATION_KINDS).toEqual(['verify', 'build', 'typecheck', 'bdd']);
     expect(POST_MERGE_VERIFICATION_KINDS).not.toContain('deps');
@@ -185,6 +228,184 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       }
     },
   );
+
+  it('reuses a completed extraction after the user files its pending drafts', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-filing-recovery-'));
+    const id = 'claude-filing-recovery';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const spool = draftSpoolPath(root, id);
+      mkdirSync(nodePath.dirname(spool), { recursive: true });
+      writeFileSync(
+        spool,
+        `${JSON.stringify({
+          signature: 'retro:filing-recovery',
+          title: 'File the completed retrospective',
+          body: 'A safe, already-extracted finding.',
+          labels: ['retro'],
+        })}\n`,
+      );
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return filingNeededRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner)).toMatchObject({
+        complete: false,
+        failure: 'filing',
+      });
+      markDraftsFiled(root, id, ['retro:filing-recovery']);
+      expect(runBoundRetro(root, binding, runner)).toMatchObject({
+        complete: true,
+        pendingDrafts: 0,
+      });
+      expect(runs).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('reruns an inconsistent filing-needed result when no recoverable draft exists', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-missing-draft-'));
+    const id = 'claude-missing-draft';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return filingNeededRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(false);
+      expect(runBoundRetro(root, binding, runner).complete).toBe(false);
+      expect(runs).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('reruns extraction when the bound transcript grows', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-transcript-growth-'));
+    const id = 'claude-transcript-growth';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return completedRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      writeFileSync(transcript, `${JSON.stringify({ role: 'user', text: 'new content' })}\n`, {
+        flag: 'a',
+      });
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not cache retro output without an explicit filing verdict', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-malformed-output-'));
+    const id = 'claude-malformed-retro';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      let runs = 0;
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      const runner = () => {
+        runs += 1;
+        return {
+          status: 0,
+          stdout: JSON.stringify({ state: 'healthy', data: {} }),
+          stderr: '',
+        };
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(false);
+      expect(runBoundRetro(root, binding, runner).complete).toBe(false);
+      expect(runs).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects incomplete and wrongly typed retro receipts', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-invalid-receipt-'));
+    const id = 'claude-invalid-retro-receipt';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return completedRetroResult();
+      };
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      const receiptPath = nodePath.join(root, '.git', 'safeword', 'closeout-retro.json');
+      const valid = JSON.parse(readFileSync(receiptPath, 'utf8')) as Record<string, unknown>;
+      const jsonNull: unknown = JSON.parse('null');
+      const invalidReceipts = [
+        { ...valid, agentFilingNeeded: undefined },
+        { ...valid, agentFilingNeeded: jsonNull },
+        { ...valid, agentFilingNeeded: 'false' },
+        { ...valid, pendingDrafts: jsonNull },
+        { ...valid, pendingDrafts: -1 },
+        { ...valid, pendingDrafts: '0' },
+      ];
+
+      for (const receipt of invalidReceipts) {
+        writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
+        expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      }
+      expect(runs).toBe(1 + invalidReceipts.length);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not represent a failed git status as a clean state hash', () => {
+    expect(workingStateHash('/definitely/not/a/repository', 'a'.repeat(40))).toBeUndefined();
+  });
   it.each([
     [true, '', false, 0, undefined],
     [false, 'Retro extraction failed.', false, 0, 'extraction'],
@@ -228,23 +449,29 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   it('maps current GitHub pull request shapes without trusting incomplete identities', () => {
     const expected = pullRequest();
     expect(
-      pullRequestIdentity({
-        url: expected.url,
-        state: expected.state,
-        headRefName: expected.headRefName,
-        headRefOid: expected.headRefOid,
-        headRepositoryOwner: { login: expected.headOwner },
-        headRepository: { name: expected.headRepository },
-      }),
+      pullRequestIdentity(
+        {
+          url: expected.url,
+          state: expected.state,
+          headRefName: expected.headRefName,
+          headRefOid: expected.headRefOid,
+          headRepositoryOwner: { login: expected.headOwner },
+          headRepository: { name: expected.headRepository },
+        },
+        'passed',
+      ),
     ).toEqual(expected);
     expect(
-      pullRequestIdentity({
-        url: expected.url,
-        state: expected.state,
-        headRefName: expected.headRefName,
-        headRefOid: expected.headRefOid,
-        headRepository: { nameWithOwner: `${expected.headOwner}/${expected.headRepository}` },
-      }),
+      pullRequestIdentity(
+        {
+          url: expected.url,
+          state: expected.state,
+          headRefName: expected.headRefName,
+          headRefOid: expected.headRefOid,
+          headRepository: { nameWithOwner: `${expected.headOwner}/${expected.headRepository}` },
+        },
+        'passed',
+      ),
     ).toEqual(expected);
     expect(
       pullRequestIdentity({
@@ -254,6 +481,15 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         headRefOid: expected.headRefOid,
       }),
     ).toBeUndefined();
+  });
+
+  it('trusts hosted verification only when required checks are explicitly complete', () => {
+    expect(resolveRequiredChecks(undefined)).toBe('unknown');
+    expect(resolveRequiredChecks([])).toBe('absent');
+    expect(resolveRequiredChecks([{ bucket: 'pass', state: 'SUCCESS' }])).toBe('passed');
+    expect(resolveRequiredChecks([{ bucket: 'pending', state: 'PENDING' }])).toBe('pending');
+    expect(resolveRequiredChecks([{ bucket: 'fail', state: 'FAILURE' }])).toBe('failed');
+    expect(resolveRequiredChecks([{ bucket: 'unexpected', state: 'SUCCESS' }])).toBe('unknown');
   });
 
   it('derives branch protection conservatively while allowing a proven-absent remote ref', () => {
@@ -293,6 +529,15 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(plan.operations[2]).toMatchObject({ ref: 'refs/heads/feature/closeout' });
     expect(cleanupPlanDigest(plan)).toMatch(/^[a-f0-9]{64}$/);
     expect(cleanupPlanDigest(plan)).toBe(cleanupPlanDigest(buildCleanupPlan(observation)));
+  });
+
+  it('makes transcript growth stale against an earlier preview', () => {
+    const first = buildCleanupPlan(safeObservation());
+    const later = buildCleanupPlan(
+      safeObservation({ retro: { ...safeObservation().retro, evidenceHash: 'retro-appended' } }),
+    );
+
+    expect(cleanupPlanDigest(later)).not.toBe(cleanupPlanDigest(first));
   });
 
   it('uses the unique default-branch worktree when the primary worktree is detached', () => {
@@ -486,16 +731,30 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   it('applies only a digest-bound unchanged plan using compare-and-swap commands', () => {
     const observation = safeObservation();
     const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
-    const observations = [observation, observation, afterWorktree, afterWorktree];
+    const afterRemote = safeObservation({
+      worktrees: [worktree(0)],
+      remote: undefined,
+      remoteResolution: 'absent',
+    });
+    const afterLocal = safeObservation({
+      worktrees: [worktree(0)],
+      remote: undefined,
+      remoteResolution: 'absent',
+      localRefOid: undefined,
+    });
+    let current = observation;
     const plan = buildCleanupPlan(observation);
     const executed: string[][] = [];
 
     const result = applyCleanupPlan({
       plan,
       digest: cleanupPlanDigest(plan),
-      observe: () => observations.shift() ?? afterWorktree,
+      observe: () => current,
       execute: operation => {
         executed.push(operationCommand(operation));
+        if (operation.kind === 'remove-worktree') current = afterWorktree;
+        else if (operation.kind === 'delete-remote-ref') current = afterRemote;
+        else current = afterLocal;
       },
     });
 
@@ -536,6 +795,14 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         execute,
       }).blockers,
     ).toContain('repository state changed after preview');
+    expect(
+      applyCleanupPlan({
+        plan,
+        digest: cleanupPlanDigest(plan),
+        observe: () => safeObservation({ protection: 'protected' }),
+        execute,
+      }).blockers,
+    ).toContain('cleanup targets changed after preview');
   });
 
   it('re-observes each remaining target and stops after a concurrent ref change', () => {
@@ -561,6 +828,55 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
     expect(result.applied).toBe(false);
     expect(result.blockers).toContain('delete-remote-ref target changed during cleanup');
+    expect(executed).toEqual(['remove-worktree']);
+  });
+
+  it('stops before remote deletion when branch protection changes during cleanup', () => {
+    const initial = safeObservation();
+    const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
+    const protectedBranch = { ...afterWorktree, protection: 'protected' as const };
+    const observations = [initial, initial, afterWorktree, protectedBranch];
+    const executed: string[] = [];
+    const plan = buildCleanupPlan(initial);
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observations.shift() ?? protectedBranch,
+      execute: operation => {
+        executed.push(operation.kind);
+      },
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.blockers).toContain('delete-remote-ref target changed during cleanup');
+    expect(executed).toEqual(['remove-worktree']);
+  });
+
+  it('stops when the pull request head repository changes during cleanup', () => {
+    const initial = safeObservation();
+    const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
+    const changedRepo = {
+      ...afterWorktree,
+      pullRequests: [
+        { ...pullRequest(), headOwner: 'other-owner', headRepository: 'other-repository' },
+      ],
+    };
+    const observations = [initial, initial, afterWorktree, changedRepo];
+    const executed: string[] = [];
+    const plan = buildCleanupPlan(initial);
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observations.shift() ?? changedRepo,
+      execute: operation => {
+        executed.push(operation.kind);
+      },
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.blockers).toContain('pull request identity changed during cleanup');
     expect(executed).toEqual(['remove-worktree']);
   });
 
@@ -661,12 +977,21 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         remote: undefined,
         remoteResolution: 'absent' as const,
       };
-      const observations = [baseline, baseline, afterWorktree, afterRemote];
+      const afterLocal = { ...afterRemote, localRefOid: undefined };
+      const observations = [
+        baseline,
+        baseline,
+        afterWorktree,
+        afterWorktree,
+        afterRemote,
+        afterRemote,
+        afterLocal,
+      ];
       const plan = buildCleanupPlan(baseline);
       const result = applyCleanupPlan({
         plan,
         digest: cleanupPlanDigest(plan),
-        observe: () => observations.shift() ?? afterRemote,
+        observe: () => observations.shift() ?? afterLocal,
         execute: operation => {
           const [command, ...arguments_] = operationCommand(operation);
           if (!command) throw new Error('missing command');
