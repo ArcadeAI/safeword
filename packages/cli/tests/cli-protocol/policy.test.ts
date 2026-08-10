@@ -9,7 +9,9 @@ import {
 import { createResult } from '../../src/cli-protocol/result.js';
 
 function definition(name: string) {
-  const match = commandCatalog.find(command => command.name === name && command.public);
+  const match = commandCatalog.find(
+    command => command.name === name && command.classification !== 'internal',
+  );
   if (match === undefined) throw new Error(`Missing ${name}`);
   return match;
 }

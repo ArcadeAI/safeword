@@ -103,7 +103,7 @@ describe('Check Command - Reconcile Integration', () => {
 
       // Run actual setup (this is an integration test)
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      execSync(`bun ${cliPath} setup`, {
+      execSync(`bun ${cliPath} setup --agents cursor`, {
         cwd: temporaryDirectory,
         env: {
           ...process.env,

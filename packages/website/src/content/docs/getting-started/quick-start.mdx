@@ -10,12 +10,12 @@ One command. Your agent writes better code.
 ## Install
 
 ```bash
-bunx safeword@latest setup
+bunx safeword@latest install
 ```
 
 Takes about 30 seconds. Works with TypeScript, Python (beta), Go (beta), Rust (beta), and SQL/dbt (beta) projects.
 
-Safeword adds code quality tools as devDependencies and configuration files. Your application code, runtime dependencies, and existing configs are unchanged.
+By default, Safeword configures the project and installs both the Claude Code and Codex profile plugins. Cursor stays untouched unless you explicitly run `safeword install --agents=cursor` (or select all three with `--agents=claude,codex,cursor`). Your application code, runtime dependencies, and existing configs are unchanged.
 
 ## What Changes
 
@@ -23,7 +23,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
 <Tabs>
   <TabItem label="Claude Code">
-    **Install the native plugin for this project.** Run `safeword claude install`, then `/reload-plugins` inside Claude Code. Project scope is the default and records activation in `.claude/settings.json`; use `safeword claude install --scope user` when you intentionally want Safeword active across every project in your Claude profile.
+    **Install the native plugin for this project.** Run `safeword install --agents=claude`, then `/reload-plugins` inside Claude Code. Project scope is the default and records activation in `.claude/settings.json`; use `safeword install --agents=claude --scope user` when you intentionally want Safeword active across every project in your Claude profile.
 
     **Your agent gets namespaced Safeword workflows.** Native skills use names such as `/safeword:bdd`, `/safeword:verify`, and `/safeword:explain` instead of project-local Safeword skill files.
 
@@ -33,6 +33,8 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
   </TabItem>
   <TabItem label="Cursor">
+    **Cursor is explicit opt-in.** Run `safeword install --agents=cursor` to install only the project and Cursor integration, or include Cursor in a comma-separated agent selection.
+
     **Your agent follows structured workflows.** Safeword adds rules (`.cursor/rules/`) that guide how your agent approaches tasks. When debugging, it investigates before jumping to fixes. When building features, it follows your codebase patterns.
 
     **Better decisions, automatically.** The rules kick in based on what you're asking for—no special commands needed.
@@ -41,9 +43,9 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
   <TabItem label="Codex">
     **Your agent gets scoped safeword plugin skills.** The Safe Word Codex plugin exposes names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain` instead of installing Safe Word workflow files into your repo.
 
-    **Setup enrolls each repository.** Installing the profile plugin does not enroll every repository you open. Until `safeword setup` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
+    **Install enrolls each repository.** Installing a profile plugin does not enroll every repository you open. Until `safeword install` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
 
-    **Native gates run through the plugin.** The project SessionStart bootstrap enrolls each developer's profile automatically; `safeword codex install` is available when you want to enroll immediately. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue. Until then, the bootstrap warns without blocking work. Native plugin hooks use version-pinned Bunx commands.
+    **Native gates run through the plugin.** The project SessionStart bootstrap enrolls each developer's profile automatically; `safeword install --agents=codex` is available when you want to enroll immediately. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue. Until then, the bootstrap warns without blocking work. Native plugin hooks use version-pinned Bunx commands.
 
     **Stop completion and nudges run through Codex continuations.** The packaged `safeword hook codex stop` entrypoint checks shared evidence for the session-bound, in-progress done-phase ticket and marks it done only when that evidence passes. It otherwise continues the turn with exact remediation or advisory text such as an ARCHITECTURE.md drift nudge; it never stages, commits, or opens a PR.
 
@@ -60,7 +62,7 @@ Open your project and ask your agent to build something real:
   <TabItem label="Claude Code">
     Watch what happens:
 
-    1. Run `safeword claude install`, then `/reload-plugins` in Claude Code
+    1. Run `/reload-plugins` in Claude Code after the default install
     2. Your agent follows namespaced workflows such as `/safeword:bdd`
     3. Lint runs automatically on new code, auto-fixing what it can
     4. If there are issues, your agent fixes them before you even see the code
@@ -70,7 +72,7 @@ Open your project and ask your agent to build something real:
   <TabItem label="Cursor">
     Watch what happens:
 
-    1. Your agent investigates your existing API patterns first
+    1. Run `safeword install --agents=cursor`
     2. It follows the structure of your codebase
     3. If you ask it to debug something, it'll investigate before jumping to fixes
 
@@ -80,7 +82,7 @@ Open your project and ask your agent to build something real:
   <TabItem label="Codex">
     Watch what happens:
 
-    1. Setup commits one project SessionStart bootstrap
+    1. Install commits one project SessionStart bootstrap
     2. On each teammate's first task, it enrolls that teammate's Codex profile in the stable plugin channel
     3. If the current task cannot load the plugin yet, it warns loudly and asks for one new task; it does not block edits or commands
     4. In the next task, your agent follows scoped plugin skills such as `safeword:bdd`
@@ -104,7 +106,7 @@ Safeword added a few folders to your project:
 | `.cursor/commands/`     | Slash commands for Cursor                                       |
 | `.safeword/`            | Project configuration, guides, and templates                    |
 
-Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache and follows the verified stable channel unless native updates were explicitly disabled. Codex setup commits one non-blocking SessionStart bootstrap, and each collaborator's first task enrolls only that collaborator's profile. Until a later task records exact native proof, the bootstrap warns that work is unprotected but permits it to continue. Each repository is enrolled with `safeword setup`, which creates the project namespace before plugin hooks write project state.
+Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache and follows the verified stable channel unless native updates were explicitly disabled. Codex install commits one non-blocking SessionStart bootstrap, and each collaborator's first task enrolls only that collaborator's profile. Until a later task records exact native proof, the bootstrap warns that work is unprotected but permits it to continue. Each repository is enrolled with `safeword install`, which creates the project namespace before plugin hooks write project state.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 
@@ -123,7 +125,7 @@ When you're ready to understand what's happening under the hood:
 Safeword improves over time. Update when you want the latest:
 
 ```bash
-bunx safeword@latest setup
+bunx safeword@latest install
 ```
 
 Your customizations are preserved. Only the core files get updated.

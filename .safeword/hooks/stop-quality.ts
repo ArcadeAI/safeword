@@ -81,17 +81,18 @@ const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const MAX_MESSAGES_FOR_TOOLS = 5;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
 /**
- * A complete reminder block the harness injects into a user message. Claude Code
- * wraps hook context in a system reminder and inserts it where the hook fired, so
- * a genuine prompt routinely carries one ahead of the human's own text
- * (SessionStart project instructions, UserPromptSubmit hook output). The boundary
- * check removes these before asking whether any human text is left.
- *
- * Task notifications are injected blocks too. Remove complete blocks here so a
- * notification followed by human text still establishes a turn boundary. Code
- * that needs to classify the raw notification must inspect the original content.
+ * A background-task completion the harness injects as a user-role message. It
+ * re-invokes the agent as a fresh turn, so it ends the previous one — unlike a
+ * `<system-reminder>`, which rides along inside a turn that is still running.
  */
-const TRANSCRIPT_REMINDER_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[\s\S]*?<\/\1>/gi;
+const TRANSCRIPT_TURN_START_NOTIFICATION_PATTERN = /^\s*<task-notification\b/i;
+/**
+ * A complete system block the harness injects into a user message. A genuine
+ * prompt routinely carries one ahead of the human's own text (SessionStart
+ * project instructions, UserPromptSubmit hook output), so the boundary check
+ * removes these before asking whether any human text is left.
+ */
+const TRANSCRIPT_SYSTEM_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[\s\S]*?<\/\1>/gi;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
@@ -437,43 +438,34 @@ function checkUsageLimit(transcriptLines: string[]): void {
 function detectEditToolsUsed(transcriptLines: string[]): boolean {
   let checked = 0;
   for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
-    const transcriptLine = transcriptLines[i];
-    if (transcriptLine === undefined) continue;
-    try {
-      const message: TranscriptMessage = JSON.parse(transcriptLine);
-      if (message.type === 'assistant' && message.message?.content !== undefined) {
-        checked++;
-        if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
-      }
-    } catch {
-      // Skip invalid JSON lines
+    const message = parseTranscriptLine(transcriptLines[i]);
+    if (message === undefined) continue;
+    if (isAssistantMessage(message)) {
+      checked++;
+      if (containsEditToolUse(normalizeContentItems(message.message?.content))) return true;
     }
   }
   return false;
 }
 
 /**
- * Stop at a genuine human prompt, but not at the user-role tool-result message
- * Claude emits while completing that same turn. Returns undefined when the
- * bounded scan cannot find a reliable prompt boundary, so callers preserve the
- * existing fail-closed behavior.
+ * Stop at whatever started this turn — a human prompt, or a background-task
+ * notification that re-invoked the agent — but not at the user-role tool-result
+ * message Claude emits while completing that same turn. The transcript is
+ * already resident in memory, so walk to the actual boundary instead of using
+ * a line cap that can recreate the missed-edit bug on sufficiently large turns.
+ * Returns undefined only when the available transcript has no turn boundary,
+ * so callers preserve the existing fallback for truncated transcripts.
  */
 function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
-  let checked = 0;
-  for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
-    const transcriptLine = transcriptLines[i];
-    if (transcriptLine === undefined) continue;
-    try {
-      const message: TranscriptMessage = JSON.parse(transcriptLine);
-      if (isGenuineUserPrompt(message)) {
-        return false;
-      }
-      if (message.type === 'assistant' && message.message?.content !== undefined) {
-        checked++;
-        if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
-      }
-    } catch {
-      // Skip invalid JSON lines and preserve the legacy bounded scan if no prompt is found.
+  for (let i = transcriptLines.length - 1; i >= 0; i--) {
+    // An unparseable line is skipped, not a boundary: preserve the legacy
+    // fallback when no turn start is found.
+    const message = parseTranscriptLine(transcriptLines[i]);
+    if (message === undefined) continue;
+    if (startsNewTurn(message)) return false;
+    if (isAssistantMessage(message)) {
+      if (containsEditToolUse(normalizeContentItems(message.message?.content))) return true;
     }
   }
   return undefined;
@@ -484,21 +476,20 @@ function normalizeContentItems(content: ContentItem[] | string | undefined): Con
   return Array.isArray(content) ? content : [];
 }
 
-/**
- * The human's own text in a user message, with injected reminder blocks removed.
- * Empty for a pure tool-result message and for a message that is nothing but a
- * reminder or task notification. Use this only to ask "did a human write
- * anything here"; notification classification must use the original content.
- */
-function humanPromptText(message: TranscriptMessage): string {
+/** Joined text of a message's text blocks — empty for a pure tool-result message. */
+function userMessageText(message: TranscriptMessage): string {
   if (message.type !== 'user' || message.isMeta) return '';
 
   return normalizeContentItems(message.message?.content)
     .filter((item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text)
     .map(item => item.text)
     .join('\n')
-    .replace(TRANSCRIPT_REMINDER_BLOCK_PATTERN, '')
     .trim();
+}
+
+/** User text with complete harness-injected system blocks removed. */
+function humanPromptText(message: TranscriptMessage): string {
+  return userMessageText(message).replace(TRANSCRIPT_SYSTEM_BLOCK_PATTERN, '').trim();
 }
 
 function isGenuineUserPrompt(message: TranscriptMessage): boolean {
@@ -509,8 +500,38 @@ function isGenuineUserPrompt(message: TranscriptMessage): boolean {
   return text.length > 0 && !TRANSCRIPT_SYSTEM_MESSAGE_PATTERN.test(text);
 }
 
+/**
+ * A background-task completion re-invokes the agent, so it starts a new turn:
+ * edits before it belong to an earlier unit of work that was reviewed on its
+ * own stop. Without this the widened boundary walk (V8Z1NP) reaches past the
+ * notification and demands a decision brief for a status turn that edited
+ * nothing — the false positive issue #1431 describes.
+ */
+function isBackgroundTaskNotification(message: TranscriptMessage): boolean {
+  return TRANSCRIPT_TURN_START_NOTIFICATION_PATTERN.test(userMessageText(message));
+}
+
+/** Whether this message opened the turn the transcript currently ends in. */
+function startsNewTurn(message: TranscriptMessage): boolean {
+  return isGenuineUserPrompt(message) || isBackgroundTaskNotification(message);
+}
+
 function containsEditToolUse(content: ContentItem[]): boolean {
   return content.some(item => item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name));
+}
+
+/** A transcript JSONL line, or undefined when it is not parseable. */
+function parseTranscriptLine(transcriptLine: string | undefined): TranscriptMessage | undefined {
+  if (transcriptLine === undefined) return undefined;
+  try {
+    return JSON.parse(transcriptLine) as TranscriptMessage;
+  } catch {
+    return undefined;
+  }
+}
+
+function isAssistantMessage(message: TranscriptMessage): boolean {
+  return message.type === 'assistant' && message.message?.content !== undefined;
 }
 
 /**

@@ -35,7 +35,7 @@ import {
   renderHumanResult,
   renderJsonResult,
 } from '../../src/cli-protocol/result.ts';
-import { convergeSetup } from '../../src/commands/converge-setup.ts';
+import { convergeSetup } from '../../src/lifecycle/project-install.ts';
 import { publicFixtureEnvironment } from './public-fixture-environment.js';
 import type { SafewordWorld } from './world.js';
 
@@ -64,6 +64,8 @@ interface PredictableCliWorld extends SafewordWorld {
   publicCommandName?: string;
   hookEntrypoint?: string;
   hookSurface?: 'Claude Code' | 'Codex' | 'Cursor';
+  unifiedUninstall?: boolean;
+  hostEnvironment?: NodeJS.ProcessEnv;
   latencySamples?: number[];
   scheduledProgress?: () => void;
   progressMessages?: string[];
@@ -72,6 +74,7 @@ interface PredictableCliWorld extends SafewordWorld {
   secondDirectory?: string;
   witnessDirectory?: string;
   witnessLog?: string;
+  hostProfileDirectory?: string;
 }
 
 interface CommandRun {
@@ -87,6 +90,11 @@ function temporaryProject(world: PredictableCliWorld): string {
   return world.temporaryDirectory;
 }
 
+function hostProfileDirectory(world: PredictableCliWorld): string {
+  world.hostProfileDirectory ??= mkdtempSync(join(tmpdir(), 'safeword-cli-profiles-'));
+  return world.hostProfileDirectory;
+}
+
 function runCli(
   world: PredictableCliWorld,
   argv: readonly string[],
@@ -95,7 +103,11 @@ function runCli(
   const completed = spawnSync(process.execPath, [CLI_PATH, ...argv], {
     cwd,
     encoding: 'utf8',
-    env: childEnvironment(),
+    env: publicFixtureEnvironment(
+      hostProfileDirectory(world),
+      world.hostEnvironment ?? {},
+      childEnvironment(),
+    ),
   });
   world.result = {
     stdout: completed.stdout,
@@ -118,8 +130,21 @@ function childEnvironment(): NodeJS.ProcessEnv {
 }
 
 function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinition): CommandRun {
-  const cwd = join(temporaryProject(world), 'public-fixture');
+  // One directory per command, wiped before each run: distinct paths keep an
+  // earlier fixture from changing a later command's preconditions, while a
+  // stable path per command keeps plan identities repeatable across runs.
+  // A unique path per *run* would not — plan digests take in profile
+  // observations that name the project directory.
+  const cwd = join(
+    temporaryProject(world),
+    `public-fixture-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
+  );
+  const hostProfiles = join(
+    temporaryProject(world),
+    `public-host-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
+  );
   rmSync(cwd, { recursive: true, force: true });
+  rmSync(hostProfiles, { recursive: true, force: true });
   mkdirSync(cwd, { recursive: true });
   const completed = spawnSync(
     process.execPath,
@@ -127,19 +152,45 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     {
       cwd,
       encoding: 'utf8',
-      env: publicFixtureEnvironment(cwd, definition.fixture.environment),
+      env: publicFixtureEnvironment(hostProfiles, definition.fixture.environment),
     },
   );
+  // Each run gets its own directory, so the path itself is not part of the
+  // contract: host tools echo it back inside messages. Normalize it away so a
+  // determinism comparison measures behaviour rather than the temp-dir name.
+  const normalize = (value: string): string => value.split(cwd).join('<fixture>');
   return {
-    stdout: completed.stdout,
-    stderr: completed.stderr,
+    stdout: normalize(completed.stdout),
+    stderr: normalize(completed.stderr),
     exitCode: completed.status ?? 1,
   };
 }
 
+function stableMachineResult(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(item => stableMachineResult(item));
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => {
+      if (key !== 'recorded_at') return [key, stableMachineResult(child)];
+      // The observation schema declares `recorded_at: string | null`, and a
+      // missing hook proof legitimately reports null. Only a present value has
+      // to be a parseable timestamp.
+      // eslint-disable-next-line unicorn/no-null -- null is the schema's own absent-observation value
+      if (child === null) return [key, null];
+      assert.equal(typeof child, 'string');
+      assert.ok(!Number.isNaN(Date.parse(child)));
+      return [key, '<valid-observation-time>'];
+    }),
+  );
+}
+
 function setupProject(world: PredictableCliWorld): void {
   const directory = temporaryProject(world);
-  runCli(world, ['setup', '--json', '--no-input', '--cwd', directory], directory);
+  runCli(
+    world,
+    ['setup', '--agents', 'none', '--json', '--no-input', '--cwd', directory],
+    directory,
+  );
   assert.equal(world.result.exitCode, 0);
   const setupResult = world.result;
   runCli(world, ['plan', '--json', '--no-input', '--offline', '--cwd', directory], directory);
@@ -243,6 +294,9 @@ After(function (this: PredictableCliWorld) {
   if (this.witnessDirectory !== undefined) {
     rmSync(this.witnessDirectory, { recursive: true, force: true });
   }
+  if (this.hostProfileDirectory !== undefined) {
+    rmSync(this.hostProfileDirectory, { recursive: true, force: true });
+  }
 });
 
 function installEffectWitnesses(world: PredictableCliWorld): void {
@@ -287,7 +341,7 @@ globalThis.fetch = (() => {
   world.witnessLog = log;
 }
 
-Given('a configured healthy project', function (this: PredictableCliWorld) {
+Given('a configured project without native profile plugins', function (this: PredictableCliWorld) {
   setupProject(this);
 });
 
@@ -305,9 +359,9 @@ When('the user runs Safeword with no command', function (this: PredictableCliWor
   runCli(this, ['--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
 });
 
-Then('the result reports healthy state and no changes', function (this: PredictableCliWorld) {
+Then('the result reports action required without changes', function (this: PredictableCliWorld) {
   const result = wireResult(this);
-  assert.equal(result.state, 'healthy');
+  assert.equal(result.state, 'action_required');
   assert.equal(result.changed, false);
 });
 
@@ -493,7 +547,7 @@ Given(
 
 When('the user confirms the stale plan', function (this: PredictableCliWorld) {
   runCli(this, [
-    'remove',
+    this.unifiedUninstall === true ? 'uninstall' : 'remove',
     '--yes',
     '--plan',
     assertPresent(this.planId),
@@ -554,7 +608,15 @@ Given('setup has converged a project', function (this: PredictableCliWorld) {
 });
 
 When('the user runs setup again', function (this: PredictableCliWorld) {
-  runCli(this, ['setup', '--json', '--no-input', '--cwd', temporaryProject(this)]);
+  runCli(this, [
+    'setup',
+    '--agents',
+    'none',
+    '--json',
+    '--no-input',
+    '--cwd',
+    temporaryProject(this),
+  ]);
 });
 
 Then('the result is successful and changed is false', function (this: PredictableCliWorld) {
@@ -594,7 +656,7 @@ Given('a public command handler', function (this: PredictableCliWorld) {
 });
 
 When('it observes and plans an operation', async function (this: PredictableCliWorld) {
-  const { observeStatus } = await import('../../src/commands/status.ts');
+  const { observeStatus } = await import('../../src/lifecycle/status.ts');
   this.protocolResult = await observeStatus(temporaryProject(this));
 });
 
@@ -655,7 +717,10 @@ Then(
       const second = assertPresent(secondRuns[index]);
       assert.equal(first.stderr, '');
       assert.equal(second.stderr, '');
-      assert.deepEqual(JSON.parse(first.stdout), JSON.parse(second.stdout));
+      assert.deepEqual(
+        stableMachineResult(JSON.parse(first.stdout)),
+        stableMachineResult(JSON.parse(second.stdout)),
+      );
       assert.equal(first.exitCode, second.exitCode);
     }
   },
@@ -731,7 +796,14 @@ When('status is run with cwd selecting the second project', function (this: Pred
 Then(
   'the result describes only the second project and the parent process cwd is unchanged',
   function (this: PredictableCliWorld) {
-    assert.equal((wireResult(this).data as { configured: boolean }).configured, false);
+    const data = wireResult(this).data as {
+      surfaces: { name: string; state: string }[];
+    };
+    assert.deepEqual(data.surfaces, [
+      { name: 'project', selected: true, state: 'action_required' },
+      { name: 'claude', selected: true, state: 'action_required' },
+      { name: 'codex', selected: true, state: 'action_required' },
+    ]);
     assert.equal(process.cwd(), this.parentCwd);
   },
 );
@@ -831,7 +903,7 @@ Then(
     const commands = (wireResult(this).data as { commands: { name: string }[] }).commands;
     assert.ok(
       commandCatalog
-        .filter(command => !command.public)
+        .filter(command => command.classification === 'internal')
         .every(helper => commands.every(command => command.name !== helper.name)),
     );
     assert.deepEqual(wireResult(this).effects, EMPTY_EFFECTS);
@@ -875,12 +947,13 @@ When(
 );
 
 Then(
-  'canonical behavior runs with a deprecation finding and removal eligibility metadata',
+  'canonical behavior runs with indefinite-retention compatibility metadata',
   function (this: PredictableCliWorld) {
     const finding = assertPresent(this.protocolResult).findings.find(
       candidate => candidate.code === 'CLI_ALIAS_DEPRECATED',
     );
-    assert.equal(finding?.metadata?.removal_eligible_after, '0.71');
+    assert.equal(finding?.metadata?.retention, 'indefinite');
+    assert.equal(finding?.metadata?.removal_eligible_after, undefined);
   },
 );
 
@@ -896,7 +969,7 @@ Given(
 );
 
 When('it invokes its real hidden Safeword entrypoint', function (this: PredictableCliWorld) {
-  const hidden = commandCatalog.filter(command => !command.public);
+  const hidden = commandCatalog.filter(command => command.classification === 'internal');
   assert.ok(hidden.some(command => command.name.includes('hook')));
   const completed = runRealHook(this, assertPresent(this.hookSurface));
   this.result = {

@@ -88,9 +88,9 @@ Safeword auto-detects your stack and configures linting accordingly:
 | Rust (beta)    | clippy            | rustc         | —                  |
 | SQL/dbt (beta) | SQLFluff          | —             | —                  |
 
-Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
+Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword install` again.
 
-Edit-time linting uses the generated language-pack config when it exists. For JavaScript/TypeScript, Python, Go, and Rust, a missing config falls back to the tool's defaults and reports once per session that Safeword rules are not active. SQLFluff runs only when its generated config exists. The lint hook never repairs a pack, runs setup, stages files, or creates a commit. Version convergence remains the responsibility of the session-start updater; to repair a missing pack manually, run `safeword setup`.
+Edit-time linting uses the generated language-pack config when it exists. For JavaScript/TypeScript, Python, Go, and Rust, a missing config falls back to the tool's defaults and reports once per session that Safeword rules are not active. SQLFluff runs only when its generated config exists. The lint hook never repairs a pack, runs installation, stages files, or creates a commit. Version convergence remains the responsibility of the session-start updater; to repair a missing pack manually, run `safeword install`.
 
 ## Biome & Alternative Formatters
 
@@ -115,12 +115,12 @@ Both tools coexist cleanly — ESLint handles code analysis (bugs, security, com
 
 Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
 
-- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers entirely: setup skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored. Adopting `prettier-plugin-sql` in a repo that already has safeword-generated SQLFluff configs? Delete `.sqlfluff` and `.safeword/sqlfluff.cfg`; upgrades won't recreate them.
+- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers entirely: install skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored. Adopting `prettier-plugin-sql` in a repo that already has safeword-generated SQLFluff configs? Delete `.sqlfluff` and `.safeword/sqlfluff.cfg`; upgrades won't recreate them.
 - **Otherwise**, safeword lints SQL with SQLFluff: the edit-time hook runs `sqlfluff lint` and reports violations to the agent. In-place rewriting is opt-in — set `"sql": { "fix": true }` in `.safeword/config.json` to have the hook run `sqlfluff fix` on edited files. SQLFluff honors `.sqlfluffignore`, so you can exclude files (e.g. applied migrations) from rewriting.
 
 ## Hook Configuration
 
-Claude Code hooks run from the Safe Word plugin installed with `safeword claude install`. Project scope is the default and records activation in `.claude/settings.json`; `safeword claude install --scope user` activates it across projects. Cursor hooks are configured in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Fresh setup does not create legacy Safe Word-owned Claude hook settings. Existing legacy Claude settings remain authoritative until current plugin execution is proven and an explicit `safeword claude cleanup` plan removes only recognized Safeword entries. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
+Claude Code hooks run from the Safe Word plugin installed with `safeword install --agents=claude`. Project scope is the default and records activation in `.claude/settings.json`; `safeword install --agents=claude --scope user` activates it across projects. Cursor hooks are configured in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. Fresh install does not create legacy Safe Word-owned Claude hook settings. On an upgraded project, the first successful prompt handled by the exact current plugin automatically removes only byte-for-byte recognized Safeword legacy files and hook entries. Modified, malformed, or third-party content is preserved and reported without blocking the prompt. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
 
 To disable a specific hook, remove the safeword hook entry from that agent's config.
 
@@ -143,7 +143,7 @@ Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 }
 ```
 
-- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer fails, Safe Word can retry that independent agent on its configured alternate model before running a visibly `degraded` same-agent headless fallback. If every CLI route fails, a foreground agent may add best-effort host-native or self-review findings; their actual verdict is preserved.
+- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer fails, Safe Word can retry that independent agent on its configured alternate model before running a same-agent headless fallback. A completed same-agent result is presented as standard coverage; requested details can suggest how to add independent coverage. If every CLI route fails, a foreground agent may add supplemental host-native or self-review findings; their actual verdict is preserved.
 - `require` — only an opposite-agent result satisfies the gate. A completed same-agent headless review returns the existing independence-required failure. If every CLI route fails, a foreground agent may still report useful host-native or self-review findings, but the result remains action required, recommends restoring an independent reviewer or explicitly choosing `prefer`, and never writes independent evidence.
 - `off` — retain the existing review route and do not create cross-agent evidence.
 
@@ -151,12 +151,12 @@ Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 
 Each review attempt defaults to five minutes, with reviewer work across all routes bounded to nine minutes. Packet preparation happens before that shared reviewer-work deadline; final synchronous integrity checks and bounded process cleanup may finish after it. `SAFEWORD_REVIEW_TIMEOUT_MS` and `SAFEWORD_REVIEW_RUN_BOUND_MS` accept positive millisecond values when a caller needs shorter limits; neither can raise the nine-minute reviewer-work ceiling.
 
-Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs to keep the default route fully independent. Review results report the author, assigned and actual reviewer, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy. Safe Word records the configured alternate model only when that route actually runs and never invents a default model name.
+Desktop and managed cloud sessions reuse each CLI's existing authenticated profile; Safe Word does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs when you want independent coverage. Human output calls a validated same-agent result standard coverage and a validated opposite-agent result independent coverage; machine results retain the author, assigned and actual reviewer, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy. Safe Word records the configured alternate model only when that route actually runs and never invents a default model name.
 
 ### Advisory pull request review
 
 The GitHub Actions advisory reviewer is default off. Enable it with a complete
-`prReview` block, then run `safeword setup` to generate the router and reusable
+`prReview` block, then run `safeword install` to generate the router and reusable
 worker workflows:
 
 ```json
@@ -173,7 +173,7 @@ worker workflows:
 
 | Key              | Meaning                                                                                                                                         |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enabled`        | Must be `true` before setup generates the workflows.                                                                                            |
+| `enabled`        | Must be `true` before install generates the workflows.                                                                                          |
 | `provider`       | Currently `openai`.                                                                                                                             |
 | `model`          | Non-empty OpenAI Responses model name.                                                                                                          |
 | `maxTotalBytes`  | Positive integer cap applied cumulatively in GitHub's file order. Text beyond the cap is reported as missing evidence and forces `needs_human`. |
@@ -257,7 +257,7 @@ The `paths` object also supports per-file overrides — `principles`, `personas`
 
 Persona headers may carry an explicit short code, for example `## Platform Operator (PO)`. Automatic codes use **3–4 letters** (`Platform Operator` → `PLO`); explicit overrides may use **2–4 letters**. Carry the resolved code unchanged through JTBD ids and Gherkin lineage (`oauth-flow.PO1.R1`). Safeword still accepts existing explicit 5–6 character codes and resolves former derived aliases, so upgrading does not require renaming historical specs or scenarios.
 
-Two directory keys, `features` and `steps`, point the BDD acceptance lane at relocated (or host-owned) directories. Unlike the per-file overrides they **augment** the defaults rather than replace them: `safeword project codify`, `safeword project lint-gherkin`, and the `safeword doctor` spec gate read the configured `features` directory _in addition to_ root `features/` and the workspace-package conventions, and the scaffolded `cucumber.mjs` runner reads both keys (`steps` matters only to the runner, for relocated TypeScript step definitions). Set them when your acceptance suite lives elsewhere (e.g. `tests/behaviors` + `tests/steps`), including when setup detected an existing cucumber harness and skipped the starter lane:
+Two directory keys, `features` and `steps`, point the BDD acceptance lane at relocated (or host-owned) directories. Unlike the per-file overrides they **augment** the defaults rather than replace them: `safeword project codify`, `safeword project lint-gherkin`, and the `safeword doctor` spec gate read the configured `features` directory _in addition to_ root `features/` and the workspace-package conventions, and the scaffolded `cucumber.mjs` runner reads both keys (`steps` matters only to the runner, for relocated TypeScript step definitions). Set them when your acceptance suite lives elsewhere (e.g. `tests/behaviors` + `tests/steps`), including when install detected an existing cucumber harness and skipped the starter lane:
 
 ```json
 {
@@ -286,7 +286,7 @@ Two directory keys, `features` and `steps`, point the BDD acceptance lane at rel
 Relative paths resolve against the project root (the directory containing `.safeword/`); absolute paths are used verbatim.
 
 `principles.md`, `personas.md`, and `surfaces.md` share one safe ownership
-lifecycle. Setup scaffolds a missing default, preserves authored content
+lifecycle. Install scaffolds a missing default, preserves authored content
 byte-for-byte, and suppresses the default scaffold when the matching
 `paths.principles`, `paths.personas`, or `paths.surfaces` override is present.
 Doctor fails non-zero with a key-specific error when a configured file is

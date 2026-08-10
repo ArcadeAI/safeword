@@ -8,6 +8,7 @@ import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
 import {
   type CliResult,
+  combineEffects,
   createResult,
   type Effect,
   type Effects,
@@ -17,6 +18,12 @@ import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
 import { automaticallyMigrateLegacyCodex } from '../codex-plugin/operations.js';
 import { installCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
+import {
+  buildArchitecture,
+  hasArchitectureDetected,
+  inspectConfig,
+  syncConfigCore,
+} from '../commands/sync-config.js';
 import { checkHealth, type HealthStatus } from '../health.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
@@ -29,6 +36,7 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
+import type { SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
@@ -49,12 +57,6 @@ import {
 } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
-import {
-  buildArchitecture,
-  hasArchitectureDetected,
-  inspectConfig,
-  syncConfigCore,
-} from './sync-config.js';
 
 function ensurePackageJson(cwd: string): boolean {
   const packageJsonPath = nodePath.join(cwd, 'package.json');
@@ -152,6 +154,7 @@ export async function convergeSetup(
       readonly stop: () => void;
     };
     adapters?: Partial<SetupAdapters>;
+    schema?: SafewordSchema;
   },
 ): Promise<CliResult> {
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
@@ -195,6 +198,7 @@ export async function convergeSetup(
       namespaceMigration,
       preliminaryFileEffects: versionMarkerEffects,
       adapters,
+      schema: options.schema,
     });
   } catch (setupError) {
     return setupFailure(setupError, {
@@ -243,7 +247,7 @@ function convergeNamespace(
               {
                 code: 'NAMESPACE_MIGRATION_AVAILABLE',
                 message:
-                  'This project still uses .safeword-project; run `safeword setup --migrate-namespace` to move it to .project.',
+                  'This project still uses .safeword-project; run `safeword install --migrate-namespace` to move it to .project.',
                 severity: 'info',
               },
             ],
@@ -327,7 +331,7 @@ function readProjectVersionMarker(
       kind: 'gate',
       value: versionRefusal(
         'PROJECT_VERSION_MARKER_UNSAFE',
-        'Project version marker is not an ordinary regular file. Inspect .safeword/version and replace it manually before running setup; symbolic links are never followed or repaired.',
+        'Project version marker is not an ordinary regular file. Inspect .safeword/version and replace it manually before running install; symbolic links are never followed or repaired.',
       ),
     };
   }
@@ -339,7 +343,7 @@ function readProjectVersionMarker(
     };
   }
   const recoveryCommand = buildReplayCommand({
-    command: 'safeword setup --repair-version-marker',
+    command: 'safeword install --repair-version-marker',
     cwd,
   });
   return {
@@ -351,7 +355,7 @@ function readProjectVersionMarker(
         {
           command: recoveryCommand,
           description:
-            'Replace the linked project version marker without changing its other hardlink peers, then converge setup.',
+            'Replace the linked project version marker without changing its other hardlink peers, then complete installation.',
           requiresHuman: true,
         },
       ],
@@ -367,7 +371,7 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
     return versionRefusal(
       'PROJECT_VERSION_UNSAFE',
-      '.safeword must be an ordinary directory inside the project. Inspect and replace it manually before running setup.',
+      '.safeword must be an ordinary directory inside the project. Inspect and replace it manually before running install.',
     );
   }
   const projectVersionPath = nodePath.join(safewordDirectoryPath, 'version');
@@ -380,7 +384,7 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
       return { repaired: true };
     }
     const recoveryCommand = buildReplayCommand({
-      command: 'safeword setup --repair-version-marker',
+      command: 'safeword install --repair-version-marker',
       cwd,
     });
     return versionRefusal(
@@ -390,7 +394,7 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
         {
           command: recoveryCommand,
           description:
-            'Replace the unreadable version marker with the current CLI version, then converge setup.',
+            'Replace the unreadable version marker with the current CLI version, then complete installation.',
           requiresHuman: true,
         },
       ],
@@ -598,7 +602,16 @@ function setupResult(input: SetupResultInput): CliResult {
     ...namespaceMigration.findings,
     ...pythonFindings(pythonSetup),
   ];
-  const actionRequired = findings.some(finding => finding.severity !== 'info');
+  // A failed automatic Codex handoff is intentionally advisory: the legacy
+  // project integration remains active and the SessionStart bootstrap retries
+  // enrollment for the next task/developer. Keep the warning loud without
+  // turning an otherwise successful setup into a blocking exit status.
+  const actionRequired = findings.some(
+    finding => finding.severity !== 'info' && finding.code !== 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+  );
+  const handoffDeferred = findings.some(
+    finding => finding.code === 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+  );
   // `.claude/settings.json` records enrollment but not the enrolled version, so
   // it can only prove "already converged" when this run changed nothing. A run
   // that rewrote delivered files may have moved the templates past the version
@@ -607,7 +620,9 @@ function setupResult(input: SetupResultInput): CliResult {
   const claudePluginReloadEligible = claudeProjectPluginEnrolled && !changed;
   const resultFindings = [
     ...findings,
-    ...(actionRequired
+    // Suppressed while a handoff is deferred: claiming enrollment succeeded
+    // would contradict the warning this run just emitted.
+    ...(actionRequired || handoffDeferred
       ? []
       : [
           {
@@ -652,7 +667,7 @@ function setupNextAction(input: {
 }): { command: string; mutates: boolean; requiresHuman: boolean } {
   if (input.actionRequired) {
     return {
-      command: input.installCommand ?? 'safeword setup',
+      command: input.installCommand ?? 'safeword install',
       mutates: true,
       requiresHuman: true,
     };
@@ -660,7 +675,7 @@ function setupNextAction(input: {
   if (input.claudePluginReloadEligible) {
     return { command: '/reload-plugins', mutates: false, requiresHuman: true };
   }
-  return { command: 'safeword claude install', mutates: true, requiresHuman: true };
+  return { command: 'safeword install --agents=claude', mutates: true, requiresHuman: true };
 }
 
 function projectClaudePluginEnrolled(cwd: string): boolean {
@@ -677,7 +692,9 @@ function projectClaudePluginEnrolled(cwd: string): boolean {
 function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
-    observeFileStage(cwd, ['.safeword'], completedEffects, () => installPack(packId, cwd));
+    observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
+      installPack(packId, cwd),
+    );
   }
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
     stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),
@@ -718,6 +735,47 @@ interface ApplySetupInput {
   readonly namespaceMigration: NamespaceConvergence;
   readonly preliminaryFileEffects: readonly Effect[];
   readonly adapters: SetupAdapters;
+  readonly schema?: SafewordSchema;
+}
+
+/**
+ * Hand a legacy project-hook installation over to the native Codex plugin.
+ * A failure here is reported, never fatal: the legacy protection stays in
+ * place rather than leaving the project unguarded mid-setup.
+ */
+function migrateLegacyCodexDuringSetup(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+): Finding[] {
+  const codexMigrationTargets = [
+    CODEX_MIGRATION_SCHEMA.paths.config,
+    CODEX_MIGRATION_SCHEMA.paths.backupRoot,
+    CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
+    CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
+    ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
+  ];
+  try {
+    const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () =>
+      automaticallyMigrateLegacyCodex(cwd),
+    );
+    if (!migrated) return [];
+    return [
+      {
+        code: 'CODEX_PLUGIN_HANDOFF_COMPLETE',
+        message:
+          'Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.',
+        severity: 'info',
+      },
+    ];
+  } catch (error) {
+    return [
+      {
+        code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}`,
+        severity: 'warning',
+      },
+    ];
+  }
 }
 
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
@@ -731,7 +789,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   } = input;
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
-  const setupSchema = schemaForClaudeDelivery(cwd);
+  const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
   const result = await reconcile(setupSchema, operation, context);
   const completedEffects: CompletedSetupEffects = {
     files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],
@@ -744,33 +802,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
       installCodexProjectBootstrap(cwd),
     );
-    const codexHandoffFindings: Finding[] = [];
-    const codexMigrationTargets = [
-      CODEX_MIGRATION_SCHEMA.paths.config,
-      CODEX_MIGRATION_SCHEMA.paths.backupRoot,
-      CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
-      CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
-      ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
-    ];
-    try {
-      const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () =>
-        automaticallyMigrateLegacyCodex(cwd),
-      );
-      if (migrated) {
-        codexHandoffFindings.push({
-          code: 'CODEX_PLUGIN_HANDOFF_STARTED',
-          message:
-            'Codex installed the native profile plugin; legacy project protection remains until explicit finalization after the restarted app proves its hooks.',
-          severity: 'info',
-        });
-      }
-    } catch (error) {
-      codexHandoffFindings.push({
-        code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
-        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}`,
-        severity: 'warning',
-      });
-    }
+    const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects);
     const architectureEffects = observeFileStage(
       cwd,
       ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
@@ -893,7 +925,7 @@ function verifiedSetupResult(
       ],
       errors: [
         ...applied.errors,
-        ...(health.configured ? healthProblems : ['Safeword is not configured after setup.']).map(
+        ...(health.configured ? healthProblems : ['Safeword is not configured after install.']).map(
           message => ({
             code: 'SETUP_POSTCONDITION_FAILED',
             message,
@@ -905,7 +937,7 @@ function verifiedSetupResult(
         ...applied.recovery,
         {
           command: 'safeword doctor --verbose',
-          description: 'Inspect the failed setup postcondition before retrying.',
+          description: 'Inspect the failed install postcondition before retrying.',
           requiresHuman: true,
         },
       ],
@@ -956,19 +988,20 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
     recovery: [
       {
         command: 'safeword status --verbose',
-        description: 'Inspect the partial project state before retrying setup.',
+        description: 'Inspect the partial project state before retrying install.',
         requiresHuman: true,
       },
     ],
   });
 }
 
-function mergeEffects(...groups: readonly Partial<Effects>[]): Partial<Effects> {
-  const categories = ['files', 'packages', 'configuration', 'network', 'destructive'] as const;
-  return Object.fromEntries(
-    categories.map(category => [
-      category,
-      uniqueEffects(groups.flatMap(group => group[category] ?? [])),
-    ]),
-  );
+function mergeEffects(...groups: readonly Partial<Effects>[]): Effects {
+  const combined = combineEffects(groups);
+  return {
+    files: uniqueEffects(combined.files),
+    packages: uniqueEffects(combined.packages),
+    configuration: uniqueEffects(combined.configuration),
+    network: uniqueEffects(combined.network),
+    destructive: uniqueEffects(combined.destructive),
+  };
 }

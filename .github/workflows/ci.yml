@@ -39,6 +39,29 @@ jobs:
         # visible and can be made a required branch-protection check.
         run: bun scripts/parity-check.ts --mode=all
 
+  cli-contract:
+    name: CLI contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The CLI contract verifies historical Claude release fixtures.
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check public CLI contract
+        run: bun run check:cli-contract
+
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -139,6 +162,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Claude migration ownership is generated from historical release
+          # tags, so the catalogue freshness gate needs the same full history
+          # as the test and release jobs.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

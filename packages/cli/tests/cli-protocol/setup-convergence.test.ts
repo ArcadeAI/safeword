@@ -12,7 +12,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { convergeSetup } from '../../src/commands/converge-setup.js';
+import { convergeSetup } from '../../src/lifecycle/project-install.js';
 import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
 
@@ -22,7 +22,9 @@ describe('convergent setup', () => {
     const result = await runCliWithoutInstall(['setup', '--cwd', directory], { cwd: directory });
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout.split('\n').filter(line => line.startsWith('Next:'))).toHaveLength(1);
+    const nextLines = result.stdout.split('\n').filter(line => line.startsWith('Next:'));
+    expect(nextLines).toHaveLength(1);
+    expect(nextLines[0]).toMatch(/^Next: (?:\/reload-plugins|safeword install --agents=claude)$/u);
     expect(result.stdout).toMatch(/^Complete\nChanged: yes\n/);
     expect(result.stdout).toContain('Configuration is healthy');
     expect(result.stdout).not.toContain('Created: .safeword/');
@@ -180,7 +182,7 @@ describe('convergent setup', () => {
     };
     expect(envelope.changed).toBe(true);
     expect(envelope.next_actions).toEqual([
-      { command: 'safeword claude install', mutates: true, requires_human: true },
+      { command: 'safeword install --agents=claude', mutates: true, requires_human: true },
     ]);
     expect(envelope.findings.map(finding => finding.code)).not.toContain(
       'SETUP_CLAUDE_PLUGIN_PRESERVED',
@@ -307,15 +309,15 @@ describe('convergent setup', () => {
         expect.objectContaining({
           code: 'PROJECT_VERSION_UNSAFE',
           message: expect.stringContaining(
-            `safeword setup --repair-version-marker --cwd '${directory}'`,
+            `safeword install --repair-version-marker --cwd '${directory}'`,
           ),
         }),
       );
       expect(result.recovery).toEqual([
         {
-          command: `safeword setup --repair-version-marker --cwd '${directory}'`,
+          command: `safeword install --repair-version-marker --cwd '${directory}'`,
           description:
-            'Replace the unreadable version marker with the current CLI version, then converge setup.',
+            'Replace the unreadable version marker with the current CLI version, then complete installation.',
           requiresHuman: true,
         },
       ]);
@@ -456,9 +458,9 @@ describe('convergent setup', () => {
       ],
       recovery: [
         {
-          command: `safeword setup --repair-version-marker --cwd '${directory}'`,
+          command: `safeword install --repair-version-marker --cwd '${directory}'`,
           description:
-            'Replace the linked project version marker without changing its other hardlink peers, then converge setup.',
+            'Replace the linked project version marker without changing its other hardlink peers, then complete installation.',
           requiresHuman: true,
         },
       ],

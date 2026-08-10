@@ -6,7 +6,7 @@
  * `.safeword-project/tickets/7YN5QB/test-definitions.md` — derivation
  * algorithm, code-pattern validation, and name-length validation.
  *
- * Integration tests against the `safeword setup` / `safeword check` commands
+ * Integration tests against the `safeword install` / `safeword check` commands
  * live under `tests/commands/`. File-IO behavior for `validatePersonaRef`
  * (missing-file graceful return) lives under `tests/utils/personas-ref.test.ts`
  * (sibling — separate file because it needs filesystem fixtures).

@@ -1,13 +1,17 @@
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
-import { getTemplatesDirectory } from '../utils/fs.js';
-import { currentClaudePluginHookManifestSha256 } from './catalogue.js';
+import { currentClaudePluginHookManifestSha256 } from './hook-manifest.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
+import {
+  type ClaudeLegacyObservation,
+  legacyObservationIsEmpty,
+  observeClaudeLegacy,
+} from './legacy-classifier.js';
 import {
   canonicalClaudeProjectRoot,
   type ClaudeApplicablePluginsObservation,
@@ -29,21 +33,8 @@ type ClaudeStatusClassification =
   | 'cleanup-ready'
   | 'plugin-mode';
 
-interface LegacyObservation {
-  readonly recognized: string[];
-  readonly conflicts: string[];
-}
-
 function claudeConfigDirectory(environment: NodeJS.ProcessEnv = process.env): string {
   return environment.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
-}
-
-function isRegularFile(path: string): boolean {
-  try {
-    return lstatSync(path).isFile();
-  } catch {
-    return false;
-  }
 }
 
 function jsonObject(path: string): JsonObject | undefined {
@@ -107,38 +98,12 @@ function proofIsCurrent(plugin: JsonObject, cwd: string): boolean {
   return proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalRoot);
 }
 
-function legacyObservation(cwd: string): LegacyObservation {
-  const recognized: string[] = [];
-  const conflicts: string[] = [];
-  const templates = getTemplatesDirectory();
-  for (const [relative, definition] of Object.entries(SAFEWORD_SCHEMA.ownedFiles)) {
-    if (!relative.startsWith('.claude/') || definition.template === undefined) continue;
-    const installed = nodePath.join(cwd, relative);
-    if (!existsSync(installed)) continue;
-    if (!isRegularFile(installed)) {
-      conflicts.push(relative);
-      continue;
-    }
-    const canonical = nodePath.join(templates, definition.template);
-    if (
-      isRegularFile(canonical) &&
-      createHash('sha256').update(readFileSync(installed)).digest('hex') ===
-        createHash('sha256').update(readFileSync(canonical)).digest('hex')
-    ) {
-      recognized.push(relative);
-    } else {
-      conflicts.push(relative);
-    }
-  }
-  return { recognized, conflicts };
-}
-
 const ACTIONS: Readonly<Record<ClaudeStatusClassification, string | undefined>> = {
   'recovery-required': 'safeword claude recover',
   'unsupported-host': undefined,
-  missing: 'safeword claude install',
-  disabled: 'safeword claude install',
-  'wrong-version': 'safeword claude install',
+  missing: 'safeword install --agents=claude',
+  disabled: 'safeword install --agents=claude',
+  'wrong-version': 'safeword install --agents=claude',
   errored: 'repair the reported Claude plugin error',
   unproven: '/reload-plugins',
   'scope-overlap': undefined,
@@ -150,7 +115,7 @@ const ACTIONS: Readonly<Record<ClaudeStatusClassification, string | undefined>> 
 interface StatusOptions {
   readonly nextAction?: string;
   readonly message?: string;
-  readonly legacy?: LegacyObservation;
+  readonly legacy?: ClaudeLegacyObservation;
   readonly applicableScope?: ClaudePluginScope;
   readonly installations?: readonly {
     scope: ClaudePluginScope;
@@ -166,7 +131,17 @@ function statusData(
 ): Record<string, unknown> {
   const data: Record<string, unknown> = { command: 'claude status', classification };
   if (options.applicableScope !== undefined) data.applicable_scope = options.applicableScope;
-  if (options.legacy !== undefined) data.legacy = options.legacy;
+  if (options.legacy !== undefined) {
+    data.legacy = {
+      recognized: options.legacy.recognizedFiles,
+      conflicts: options.legacy.conflictingFiles,
+      recognized_hooks: options.legacy.recognizedHooks,
+      conflicting_hooks: options.legacy.conflictingHooks,
+      ...(options.legacy.settingsError !== undefined && {
+        settings_error: options.legacy.settingsError,
+      }),
+    };
+  }
   if (options.installations !== undefined) {
     data.installations = options.installations.map(({ scope, health, plugin }) => ({
       scope,
@@ -228,10 +203,37 @@ function statusResult(
   });
 }
 
+export function equivalentClaudeInstallations(
+  installations: ClaudeApplicablePluginsObservation['installations'],
+): boolean {
+  const [first, ...rest] = installations;
+  if (first?.health !== 'current') return false;
+  return rest.every(installation => {
+    if (installation.health !== 'current') return false;
+    const left = first.plugin;
+    const right = installation.plugin;
+    if (
+      left.id !== right.id ||
+      left.version !== right.version ||
+      left.enabled !== right.enabled ||
+      typeof left.installPath !== 'string' ||
+      typeof right.installPath !== 'string'
+    ) {
+      return false;
+    }
+    try {
+      return realpathSync(left.installPath) === realpathSync(right.installPath);
+    } catch {
+      return false;
+    }
+  });
+}
+
 function scopeOverlapResult(
   installations: ClaudeApplicablePluginsObservation['installations'],
 ): CliResult | undefined {
   if (new Set(installations.map(installation => installation.scope)).size <= 1) return undefined;
+  if (equivalentClaudeInstallations(installations)) return undefined;
   const summary = installations
     .map(installation => `${installation.scope} (${installation.health})`)
     .join(' and ');
@@ -259,19 +261,14 @@ function statusForInstallation(
   if (!proofIsCurrent(installation.plugin, projectRoot)) {
     return statusResult('unproven', { applicableScope: installation.scope });
   }
-  const legacy = legacyObservation(projectRoot);
-  if (legacy.conflicts.length > 0) {
-    return statusResult('coexistence', { legacy, applicableScope: installation.scope });
-  }
-  if (legacy.recognized.length > 0) {
+  const legacy = observeClaudeLegacy(projectRoot);
+  if (legacy.recognizedFiles.length > 0 || legacy.recognizedHooks.length > 0) {
     return statusResult('cleanup-ready', { legacy, applicableScope: installation.scope });
   }
-  const classification = existsSync(
-    nodePath.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker),
-  )
-    ? 'plugin-mode'
-    : 'coexistence';
-  return statusResult(classification, { legacy, applicableScope: installation.scope });
+  if (!legacyObservationIsEmpty(legacy)) {
+    return statusResult('coexistence', { legacy, applicableScope: installation.scope });
+  }
+  return statusResult('plugin-mode', { legacy, applicableScope: installation.scope });
 }
 
 export function observeClaudeStatus(cwd: string): CliResult {
@@ -296,7 +293,9 @@ export function observeClaudeStatus(cwd: string): CliResult {
   }
   const overlap = scopeOverlapResult(profile.installations);
   if (overlap !== undefined) return overlap;
-  const installation = profile.installations[0];
+  const installation =
+    profile.installations.find(candidate => candidate.scope === 'project') ??
+    profile.installations.find(candidate => candidate.scope === 'user');
   if (installation === undefined) return statusResult('missing');
   return statusForInstallation(installation, projectRoot);
 }

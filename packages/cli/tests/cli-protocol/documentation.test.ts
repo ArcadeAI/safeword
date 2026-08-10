@@ -3,6 +3,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { compatibilityRoutes } from '../../src/cli-protocol/catalog.js';
+
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const CUSTOMER_GUIDANCE_SURFACES = [
   ['README.md', ''],
@@ -70,6 +72,42 @@ describe('public CLI documentation', () => {
     });
 
     expect(staleInvocations).toEqual([]);
+
+    const canonicalLifecycleProse = [
+      'README.md',
+      'AGENTS.md',
+      'ARCHITECTURE.md',
+      '.claude/skills/versioning/SKILL.md',
+      'packages/website/src/content/docs/getting-started/faq.mdx',
+      'packages/website/src/content/docs/getting-started/quick-start.mdx',
+      'packages/website/src/content/docs/reference/configuration.mdx',
+      'packages/website/src/content/docs/reference/hooks-and-skills.mdx',
+      'packages/cli/src/lifecycle/project-install.ts',
+    ].map(file => ({ file, content: readFileSync(nodePath.join(REPO_ROOT, file), 'utf8') }));
+    const staleLifecycleProse = canonicalLifecycleProse.flatMap(({ file, content }) =>
+      [
+        /safeword(?:@latest)?[ \t]+setup(?=$|[^\w-])/gimu,
+        /safeword(?:@latest)?[ \t]+remove(?=$|[^\w-])/gimu,
+        /\bSetup (writes|commits|scaffolds|creates|may remove)/gu,
+        /(?:before running|retrying|converge) setup/giu,
+        /Project setup/gu,
+        /### Setup Convergence Flow/gu,
+      ].flatMap(pattern =>
+        content
+          .matchAll(pattern)
+          .filter(match => {
+            const matchIndex = match.index ?? 0;
+            const start = content.lastIndexOf('\n', matchIndex) + 1;
+            const end = content.indexOf('\n', matchIndex);
+            const line = end === -1 ? content.slice(start) : content.slice(start, end);
+            return !/compatib|deprecated|historical|retained/iu.test(line);
+          })
+          .map(match => ({ file, phrase: match[0] }))
+          .toArray(),
+      ),
+    );
+
+    expect(staleLifecycleProse).toEqual([]);
   });
 
   it('keeps Claude context guidance aligned with current Claude Code behavior', () => {
@@ -110,5 +148,28 @@ describe('public CLI documentation', () => {
       expect(content, file).not.toContain('⚠ stale');
       expect(content, file).not.toContain('⚠ orphaned');
     }
+  });
+
+  it('publishes the exhaustive lifecycle and compatibility reference', () => {
+    const reference = readFileSync(
+      nodePath.join(REPO_ROOT, 'packages/website/src/content/docs/reference/cli.mdx'),
+      'utf8',
+    );
+    const compatibilitySection = reference
+      .split('## Compatibility routes', 2)[1]
+      ?.split('\n## ', 1)[0];
+
+    expect(compatibilitySection).toBeDefined();
+    for (const { route, replacement } of compatibilityRoutes) {
+      const displayedRoute = route === 'bare safeword' ? 'bare `safeword`' : `\`${route}\``;
+      expect(compatibilitySection, route).toContain(`| ${displayedRoute}`);
+      expect(compatibilitySection, replacement).toContain(`\`${replacement}\``);
+    }
+    expect(reference).toContain('safeword review run <kind> <targets...>');
+    expect(reference).toContain('safeword retro-relay-retry [request-id]');
+    expect(reference).toContain('safeword retro-relay-discard <request-id> [--confirm]');
+    expect(reference).toContain('### safeword codex clean-guidance');
+    expect(reference).toContain('destructive deactivation');
+    expect(reference).toContain('Creates or merges only with `--agents=cursor`');
   });
 });

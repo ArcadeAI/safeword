@@ -29,7 +29,7 @@ function createProjectDirectory(): string {
 }
 
 function runSafeword(projectDirectory: string, command: 'setup' | 'upgrade'): void {
-  execFileSync('bun', [CLI_PATH, command], {
+  execFileSync('bun', [CLI_PATH, command, '--agents', 'cursor'], {
     cwd: projectDirectory,
     // These scenarios prove context-file behavior and hook wiring, not
     // package-manager integration. SAFEWORD_SKIP_INSTALL keeps setup/upgrade
@@ -209,7 +209,7 @@ Then(
     const pluginHooks = readProjectFile(PROJECT_ROOT, 'plugin/hooks/hooks.json');
     assert.match(
       pluginHooks,
-      /dispatch\.ts SessionStart -- bun [^\n]+session-safeword-context\.ts/u,
+      /dispatch\.js SessionStart -- bun [^\n]+session-safeword-context\.ts/u,
     );
     assert.match(cursorHooks, /session-safeword-context\.ts/);
   },

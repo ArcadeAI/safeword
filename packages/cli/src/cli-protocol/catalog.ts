@@ -1,3 +1,4 @@
+import { AGENT_SELECTION_DESCRIPTION } from './agent-selection.js';
 import type { CommandHandler } from './handler.js';
 import { publicHandler } from './public-handlers.js';
 import { type CliResult, createResult } from './result.js';
@@ -8,18 +9,27 @@ type NetworkPolicy = 'never' | 'declared';
 
 interface Compatibility {
   readonly introducedIn: string;
-  readonly retainedThrough: string;
-  readonly removalEligibleAfter: string;
+  readonly retention: 'indefinite';
+  readonly replacement?: string;
+  readonly redundantOptions?: readonly {
+    readonly key: string;
+    readonly flag: string;
+    readonly replacement: string;
+  }[];
 }
 
 export interface CommandDefinition {
   readonly name: string;
   readonly description: string;
-  readonly public: boolean;
+  readonly classification: InvocationClassification;
+  readonly visibility: InvocationVisibility;
   readonly effectClass: EffectClass;
   readonly promptPolicy: PromptPolicy;
   readonly networkPolicy: NetworkPolicy;
   readonly schemaVersions: readonly [1];
+  readonly exitPolicy?: {
+    readonly actionRequiredAsSuccessOption: string;
+  };
   readonly fixture: {
     readonly argv: readonly string[];
     readonly environment: Readonly<Record<string, string>>;
@@ -32,6 +42,8 @@ export interface CommandDefinition {
       readonly description: string;
       readonly defaultValue?: string;
       readonly valueKind?: 'claude-plugin-scope' | 'plan-identity';
+      readonly compatibilityReplacement?: string;
+      readonly hidden?: boolean;
     }[];
   };
   readonly aliasFor?: string;
@@ -41,8 +53,7 @@ export interface CommandDefinition {
 const MACHINE_ENVIRONMENT = { SAFEWORD_NO_UPDATE_CHECK: '1' } as const;
 const RETAINED_ALIAS: Compatibility = {
   introducedIn: '0.70',
-  retainedThrough: '0.71',
-  removalEligibleAfter: '0.71',
+  retention: 'indefinite',
 };
 
 function command(
@@ -54,17 +65,20 @@ function command(
       syntax: string;
       commandOptions: CommandDefinition['registration']['options'];
       handler: CommandHandler;
+      exitPolicy: NonNullable<CommandDefinition['exitPolicy']>;
     }
   > = {},
 ): CommandDefinition {
   return {
     name,
     description,
-    public: true,
+    classification: 'public',
+    visibility: 'public',
     effectClass,
     promptPolicy: options.promptPolicy ?? 'never',
     networkPolicy: options.networkPolicy ?? 'never',
     schemaVersions: [1],
+    ...(options.exitPolicy !== undefined && { exitPolicy: options.exitPolicy }),
     handler: options.handler ?? publicHandler(name),
     registration: {
       syntax: options.syntax ?? name.split(' ').at(-1) ?? name,
@@ -87,63 +101,127 @@ function alias(name: string, aliasFor: string): CommandDefinition {
       handler: canonical.handler,
     }),
     aliasFor,
+    classification: 'retained-alias',
+    visibility: 'hidden',
     compatibility: RETAINED_ALIAS,
   };
 }
 
-function hidden(name: string): CommandDefinition {
+function scopedInstallAlias(name: string, agent: 'claude' | 'codex'): CommandDefinition {
+  const canonical = canonicalDefinition('install');
   return {
-    ...command(name, 'Internal Safeword helper', 'hook'),
-    public: false,
+    ...command(name, `Deprecated alias for install --agents=${agent}`, canonical.effectClass, {
+      promptPolicy: canonical.promptPolicy,
+      networkPolicy: canonical.networkPolicy,
+      commandOptions: agent === 'claude' ? [claudeScopeOption()] : [],
+      // The retained spelling keeps its shipped safety guarantee: profile-only
+      // installation that leaves the repository untouched (main's Rule
+      // codex-plugin-install.TBU1.R2). `install --agents=<agent>` is the
+      // canonical route that also reconciles project configuration.
+      handler: publicHandler(name),
+    }),
+    aliasFor: 'install',
+    classification: 'retained-alias',
+    visibility: 'hidden',
+    compatibility: {
+      ...RETAINED_ALIAS,
+      replacement: `install --agents=${agent}`,
+    },
+  };
+}
+
+function hidden(
+  name: string,
+  options: {
+    readonly syntax?: string;
+    readonly commandOptions?: CommandDefinition['registration']['options'];
+  } = {},
+): CommandDefinition {
+  return {
+    ...command(name, 'Internal Safeword helper', 'hook', options),
+    classification: 'internal',
+    visibility: 'hidden',
+  };
+}
+
+function agentSelectionOption(): CommandDefinition['registration']['options'][number] {
+  return { flags: '--agents <agents>', description: AGENT_SELECTION_DESCRIPTION };
+}
+
+function claudeScopeOption(): CommandDefinition['registration']['options'][number] {
+  return {
+    flags: '--scope <scope>',
+    description: 'Claude activation boundary: this project or the current user profile',
+    defaultValue: 'project',
+    valueKind: 'claude-plugin-scope',
   };
 }
 
 const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
-  command('status', 'Report project health and the next action', 'observe'),
-  command('setup', 'Converge Safeword configuration', 'mutate', {
+  command('status', 'Report project health and the next action', 'observe', {
+    commandOptions: [agentSelectionOption()],
+  }),
+  command('install', 'Install Safeword for this project and selected agents', 'mutate', {
     networkPolicy: 'declared',
     commandOptions: [
-      { flags: '-y, --yes', description: 'Skip confirmation prompts' },
+      agentSelectionOption(),
+      claudeScopeOption(),
       { flags: '--no-modify', description: 'Do not edit the project ESLint configuration' },
       {
         flags: '--migrate-namespace',
         description: 'Move the legacy project namespace to .project',
       },
-      {
-        flags: '--no-migrate-namespace',
-        description: 'Keep the legacy project namespace',
-      },
+      { flags: '--no-migrate-namespace', description: 'Keep the legacy project namespace' },
       {
         flags: '--repair-version-marker',
         description: 'Replace an unreadable project version marker',
       },
     ],
   }),
-  command('plan', 'Preview reconciliation effects', 'plan'),
-  command('doctor', 'Diagnose project configuration', 'observe'),
-  command('remove', 'Remove Safeword configuration', 'destructive', {
-    promptPolicy: 'confirm',
-    networkPolicy: 'declared',
-    commandOptions: [
-      { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
-      {
-        flags: '--plan <id>',
-        description: 'Identity of the exact plan being confirmed',
-        valueKind: 'plan-identity',
-      },
-      { flags: '--full', description: 'Also remove linting configuration and packages' },
-    ],
+  command('plan', 'Preview reconciliation effects', 'plan', {
+    syntax: 'plan [operation]',
+    commandOptions: [agentSelectionOption(), claudeScopeOption()],
   }),
+  command('doctor', 'Diagnose project configuration', 'observe', {
+    commandOptions: [agentSelectionOption()],
+  }),
+  command(
+    'uninstall',
+    'Deactivate selected Safe Word project and agent state; preserve authored content; reinstall to recover',
+    'destructive',
+    {
+      promptPolicy: 'confirm',
+      networkPolicy: 'declared',
+      commandOptions: [
+        agentSelectionOption(),
+        claudeScopeOption(),
+        { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
+        {
+          flags: '--plan <id>',
+          description: 'Identity of the exact plan being confirmed',
+          valueKind: 'plan-identity',
+        },
+        { flags: '--full', description: 'Also remove linting configuration and packages' },
+      ],
+    },
+  ),
   command('project sync-config', 'Regenerate dependency-cruiser configuration', 'mutate', {
     commandOptions: [{ flags: '--check', description: 'Report drift without writing' }],
   }),
   command('project architecture', 'Refresh generated architecture state', 'mutate', {
     commandOptions: [
       { flags: '--check', description: 'Report drift without writing' },
-      { flags: '--stage', description: 'Stage regenerated architecture documents' },
+      { flags: '--from-index', description: 'Generate from the staged Git index' },
+      { flags: '--stage-output', description: 'Stage generated architecture documents' },
+      {
+        flags: '--stage',
+        description: 'Deprecated alias for --from-index --stage-output',
+        compatibilityReplacement: '--from-index --stage-output',
+      },
       {
         flags: '--staged',
-        description: 'Regenerate from the staged tree without staging documents',
+        description: 'Deprecated alias for --from-index',
+        compatibilityReplacement: '--from-index',
       },
     ],
   }),
@@ -173,7 +251,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'test, build, verify, typecheck, deps, or bdd',
         defaultValue: 'test',
       },
-      { flags: '--format <format>', description: 'human, json, or sh', defaultValue: 'human' },
+      {
+        flags: '--format <format>',
+        description: 'human, sh, or legacy raw json; use global --json for machine output',
+        defaultValue: 'human',
+      },
     ],
   }),
   command(
@@ -209,54 +291,58 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
-  command('codex migrate', 'Migrate legacy project hooks to the Codex plugin', 'destructive', {
-    promptPolicy: 'confirm',
-    networkPolicy: 'declared',
-    commandOptions: [
-      { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
-      { flags: '--yes', description: 'Confirm the observed migration plan' },
-      {
-        flags: '--plan <id>',
-        description: 'Identity of the exact migration plan',
-        valueKind: 'plan-identity',
-      },
-      { flags: '--remove-legacy-hooks', description: 'Deprecated alias for --finalize' },
-    ],
-  }),
-  command('codex install', 'Install the Codex profile plugin', 'mutate', {
-    networkPolicy: 'declared',
-  }),
+  command(
+    'codex migrate',
+    'Deactivate proven legacy Codex hooks after creating a recovery backup',
+    'destructive',
+    {
+      promptPolicy: 'confirm',
+      networkPolicy: 'declared',
+      commandOptions: [
+        { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
+        { flags: '--yes', description: 'Confirm the observed migration plan' },
+        {
+          flags: '--plan <id>',
+          description: 'Identity of the exact migration plan',
+          valueKind: 'plan-identity',
+        },
+        {
+          flags: '--remove-legacy-hooks',
+          description: 'Deprecated alias for --finalize',
+          compatibilityReplacement: '--finalize',
+        },
+      ],
+    },
+  ),
   command('codex bootstrap', 'Keep the project Codex plugin available', 'mutate', {
     networkPolicy: 'declared',
   }),
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
-  command('claude install', 'Install the Claude plugin for a project or user', 'mutate', {
-    networkPolicy: 'declared',
-    commandOptions: [
-      {
-        flags: '--scope <scope>',
-        description: 'Install for this project or the current user profile',
-        defaultValue: 'project',
-        valueKind: 'claude-plugin-scope',
-      },
-    ],
-  }),
   command('claude status', 'Report Claude plugin and migration state', 'observe'),
-  command('claude cleanup', 'Remove verified legacy Claude project assets', 'destructive', {
-    promptPolicy: 'confirm',
-    commandOptions: [
-      { flags: '--yes', description: 'Confirm cleanup of the observed exact revision' },
-      {
-        flags: '--plan <id>',
-        description: 'Identity of the exact cleanup plan',
-        valueKind: 'plan-identity',
-      },
-    ],
-  }),
-  command('claude recover', 'Recover an interrupted Claude cleanup', 'mutate'),
+  command(
+    'claude cleanup',
+    'Deactivate verified legacy Claude assets while preserving a recoverable backup',
+    'destructive',
+    {
+      promptPolicy: 'confirm',
+      commandOptions: [
+        { flags: '--yes', description: 'Confirm cleanup of the observed exact revision' },
+        {
+          flags: '--plan <id>',
+          description: 'Identity of the exact cleanup plan',
+          valueKind: 'plan-identity',
+        },
+      ],
+    },
+  ),
+  command(
+    'claude recover',
+    'Restore recognized Claude state from its cleanup backup without replacing unrelated content',
+    'mutate',
+  ),
   command(
     'codex clean-guidance',
-    'Back up exact legacy Safe Word profile guidance',
+    'Deactivate exact legacy Safe Word profile guidance, preserve unrelated content, and retain a recovery backup',
     'destructive',
     {
       promptPolicy: 'confirm',
@@ -270,17 +356,22 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       ],
     },
   ),
-  command('codex recover', 'Restore backed-up legacy Codex project state', 'destructive', {
-    promptPolicy: 'confirm',
-    commandOptions: [
-      { flags: '--yes', description: 'Confirm recovery of the observed backup' },
-      {
-        flags: '--plan <id>',
-        description: 'Identity of the exact recovery plan',
-        valueKind: 'plan-identity',
-      },
-    ],
-  }),
+  command(
+    'codex recover',
+    'Restore backed-up legacy Codex state without replacing unrelated current content',
+    'destructive',
+    {
+      promptPolicy: 'confirm',
+      commandOptions: [
+        { flags: '--yes', description: 'Confirm recovery of the observed backup' },
+        {
+          flags: '--plan <id>',
+          description: 'Identity of the exact recovery plan',
+          valueKind: 'plan-identity',
+        },
+      ],
+    },
+  ),
   command('ticket list', 'List project tickets', 'observe'),
   command('ticket new', 'Create a project ticket', 'mutate', {
     networkPolicy: 'declared',
@@ -308,6 +399,13 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('review run', 'Run an independent adversarial review', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'run <kind> <targets...>',
+    commandOptions: [
+      {
+        flags: '--agent-handoff',
+        description: 'Treat action-required output as a successful author-agent handoff',
+      },
+    ],
+    exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
     fixture: {
       argv: ['review', 'run', 'quality-review', 'fixture'],
       environment: MACHINE_ENVIRONMENT,
@@ -335,6 +433,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('review-pr publish', 'Publish a validated advisory result', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'publish <result>',
+    fixture: {
+      argv: ['review-pr', 'publish', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
   }),
   command('retro run', 'Extract and file session findings', 'mutate', {
     networkPolicy: 'declared',
@@ -354,7 +456,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     commandOptions: [
       {
         flags: '--format <format>',
-        description: 'Output format: human, json, or issue',
+        description: 'human, issue, or legacy raw json; use global --json for machine output',
         defaultValue: 'human',
       },
     ],
@@ -362,6 +464,34 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('retro reconcile', 'Reconcile open retro findings', 'mutate', {
     networkPolicy: 'declared',
   }),
+  command(
+    'retro-relay-retry',
+    'List durable relay requests or rearm one dead letter without changing its identity',
+    'mutate',
+    {
+      networkPolicy: 'declared',
+      syntax: 'retro-relay-retry [request-id]',
+    },
+  ),
+  command(
+    'retro-relay-discard',
+    'Permanently discard one poisoned relay identity and its source reservation',
+    'destructive',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'retro-relay-discard <request-id>',
+      commandOptions: [
+        {
+          flags: '--confirm',
+          description: 'Confirm irreversible deletion of this exact request identity',
+        },
+      ],
+      fixture: {
+        argv: ['retro-relay-discard', '00000000-0000-4000-8000-000000000001'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('capabilities', 'Describe the public machine interface', 'observe', {
     handler: () => Promise.resolve(createCapabilitiesResult()),
   }),
@@ -378,11 +508,46 @@ function canonicalOptions(name: string): CommandDefinition['registration']['opti
   return definition.registration.options;
 }
 
+function projectOnlyUninstallAlias(name: 'remove' | 'reset'): CommandDefinition {
+  return {
+    ...alias(name, 'uninstall'),
+    handler: publicHandler('remove'),
+    compatibility: { ...RETAINED_ALIAS, replacement: 'uninstall --agents=none' },
+    registration: {
+      syntax: name,
+      options: canonicalOptions('uninstall').filter(
+        option => !option.flags.includes('--agents') && !option.flags.includes('--scope'),
+      ),
+    },
+  };
+}
+
 const ALIASES: readonly CommandDefinition[] = [
   alias('check', 'status'),
-  alias('upgrade', 'setup'),
-  alias('diff', 'plan'),
-  alias('reset', 'remove'),
+  scopedInstallAlias('claude install', 'claude'),
+  scopedInstallAlias('codex install', 'codex'),
+  {
+    ...alias('setup', 'install'),
+    compatibility: {
+      introducedIn: '0.72',
+      retention: 'indefinite',
+      redundantOptions: [{ key: 'yes', flag: '--yes', replacement: 'install' }],
+    },
+    registration: {
+      syntax: 'setup',
+      options: [
+        ...canonicalOptions('install'),
+        { flags: '-y, --yes', description: 'Retained redundant compatibility option' },
+      ],
+    },
+  },
+  alias('upgrade', 'install'),
+  {
+    ...alias('diff', 'plan'),
+    registration: { syntax: 'diff [operation]', options: canonicalOptions('plan') },
+  },
+  projectOnlyUninstallAlias('remove'),
+  projectOnlyUninstallAlias('reset'),
   alias('sync-config', 'project sync-config'),
   alias('architecture', 'project architecture'),
   alias('sync-learnings', 'project sync-learnings'),
@@ -437,9 +602,14 @@ const ALIASES: readonly CommandDefinition[] = [
 ];
 
 const HIDDEN_COMMANDS: readonly CommandDefinition[] = [
-  hidden('boundary'),
-  hidden('hook codex'),
-  hidden('codex-hook'),
+  hidden('boundary', {
+    commandOptions: [{ flags: '--at <boundary>', description: 'which boundary: commit | push' }],
+  }),
+  hidden('hook codex', {
+    syntax: 'codex <event>',
+    commandOptions: [{ flags: '--plugin-hook', description: '', hidden: true }],
+  }),
+  hidden('codex-hook', { syntax: 'codex-hook <event>' }),
   hidden('feature-directories'),
 ];
 
@@ -449,7 +619,123 @@ export const commandCatalog: readonly CommandDefinition[] = [
   ...HIDDEN_COMMANDS,
 ];
 
-export const publicCommands = commandCatalog.filter(definition => definition.public);
+export type InvocationClassification = 'public' | 'retained-alias' | 'internal';
+export type InvocationVisibility = 'public' | 'hidden';
+export type InvocationKind = 'command' | 'family' | 'default' | 'argv-rewrite';
+
+export interface InvocationContract {
+  readonly route: string;
+  readonly kind: InvocationKind;
+  readonly classification: InvocationClassification;
+  readonly visibility: InvocationVisibility;
+  readonly command?: CommandDefinition;
+  readonly target?: string;
+  readonly fixture?: CommandDefinition['fixture'];
+}
+
+export const publicCommands = commandCatalog.filter(
+  definition => definition.classification !== 'internal',
+);
+
+export const commandFamilies = [
+  { route: 'project', description: 'Manage project-local Safeword state', visibility: 'public' },
+  {
+    route: 'tracker',
+    description: 'Manage tracker connections and synchronization',
+    visibility: 'public',
+  },
+  { route: 'codex', description: 'Manage the Safeword Codex plugin', visibility: 'public' },
+  { route: 'claude', description: 'Manage the Safeword Claude plugin', visibility: 'public' },
+  { route: 'ticket', description: 'Manage project tickets', visibility: 'public' },
+  { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
+  {
+    route: 'review-pr',
+    description: 'Inspect and publish pull request reviews',
+    visibility: 'public',
+  },
+  {
+    route: 'retro',
+    description: 'Inspect and file Safeword runtime findings',
+    visibility: 'public',
+  },
+  { route: 'migrate', description: 'Compatibility migration commands', visibility: 'hidden' },
+  { route: 'hook', description: 'Run packaged Safeword hooks', visibility: 'hidden' },
+] as const;
+
+export interface CompatibilityRoute {
+  readonly route: string;
+  readonly replacement: string;
+  readonly retention: 'indefinite';
+}
+
+export const compatibilityRoutes: readonly CompatibilityRoute[] = [
+  { route: 'bare safeword', replacement: 'status', retention: 'indefinite' },
+  ...ALIASES.map(definition => ({
+    route: definition.name,
+    replacement: definition.compatibility?.replacement ?? definition.aliasFor ?? '',
+    retention: 'indefinite' as const,
+  })),
+  ...CANONICAL_COMMANDS.flatMap(definition =>
+    definition.registration.options.flatMap(option =>
+      option.compatibilityReplacement === undefined
+        ? []
+        : [
+            {
+              route: `${definition.name} ${option.flags}`,
+              replacement: `${definition.name} ${option.compatibilityReplacement}`,
+              retention: 'indefinite' as const,
+            },
+          ],
+    ),
+  ),
+];
+
+const commandNames = new Set(commandCatalog.map(definition => definition.name));
+
+function familyClassification(family: (typeof commandFamilies)[number]): InvocationClassification {
+  if (family.route === 'retro') return 'retained-alias';
+  return family.visibility === 'hidden' ? 'internal' : 'public';
+}
+
+export const invocationCatalog: readonly InvocationContract[] = [
+  ...commandCatalog
+    .filter(definition => definition.name !== 'retro')
+    .map(definition => ({
+      route: definition.name,
+      kind: 'command' as const,
+      classification: definition.classification,
+      visibility: definition.visibility,
+      command: definition,
+    })),
+  ...commandFamilies.map(family => {
+    const retained = family.route === 'retro' ? findCommandDefinition('retro') : undefined;
+    return {
+      route: family.route,
+      kind: 'family' as const,
+      classification: familyClassification(family),
+      visibility: family.visibility,
+      ...(retained !== undefined && { command: retained, target: 'retro run' }),
+    };
+  }),
+  {
+    route: 'bare safeword',
+    kind: 'default',
+    classification: 'retained-alias',
+    visibility: 'hidden',
+    target: 'status',
+    fixture: { argv: [], environment: MACHINE_ENVIRONMENT },
+  },
+  ...compatibilityRoutes
+    .filter(route => route.route !== 'bare safeword' && !commandNames.has(route.route))
+    .map(route => ({
+      route: route.route,
+      kind: 'argv-rewrite' as const,
+      classification: 'retained-alias' as const,
+      visibility: 'hidden' as const,
+      target: route.replacement,
+      fixture: { argv: route.route.split(' '), environment: MACHINE_ENVIRONMENT },
+    })),
+];
 
 export function findCommandDefinition(name: string): CommandDefinition {
   const definition = commandCatalog.find(candidate => candidate.name === name);
@@ -467,25 +753,40 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
   return {
     name: definition.name,
     aliases: aliasesFor(definition.name),
-    ...(definition.aliasFor !== undefined && { alias_for: definition.aliasFor }),
+    ...(definition.aliasFor !== undefined && {
+      alias_for: definition.compatibility?.replacement ?? definition.aliasFor,
+    }),
     effect_class: definition.effectClass,
     prompt_policy: definition.promptPolicy,
     network_policy: definition.networkPolicy,
     schema_versions: definition.schemaVersions,
     fixture: definition.fixture,
     options: definition.registration.options.map(
-      ({ flags, description, defaultValue, valueKind }) => ({
+      ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
         flags,
         description,
         ...(defaultValue !== undefined && { default_value: defaultValue }),
         ...(valueKind !== undefined && { value_kind: valueKind }),
+        ...(compatibilityReplacement !== undefined && {
+          compatibility: {
+            replacement: compatibilityReplacement,
+            retention: 'indefinite',
+          },
+        }),
       }),
     ),
     ...(definition.compatibility !== undefined && {
       compatibility: {
         introduced_in: definition.compatibility.introducedIn,
-        retained_through: definition.compatibility.retainedThrough,
-        removal_eligible_after: definition.compatibility.removalEligibleAfter,
+        retention: definition.compatibility.retention,
+        ...(definition.compatibility.replacement !== undefined && {
+          replacement: definition.compatibility.replacement,
+        }),
+        ...(definition.compatibility.redundantOptions !== undefined && {
+          redundant_options: definition.compatibility.redundantOptions.map(
+            ({ flag, replacement }) => ({ flag, replacement }),
+          ),
+        }),
       },
     }),
   };
@@ -495,6 +796,11 @@ export function createCapabilitiesResult(): CliResult {
   return createResult({
     state: 'healthy',
     data: {
+      machine_output: {
+        canonical_option: '--json',
+        schema_version: 1,
+        description: 'One versioned result envelope on stdout.',
+      },
       commands: publicCommands.map(definition => capability(definition)),
     },
   });

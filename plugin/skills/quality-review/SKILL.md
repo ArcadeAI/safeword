@@ -16,7 +16,7 @@ Deep review with research to verify a work-product — code, docs, specs, plans,
 
 Required at the done-gate for tickets with **two or more RGR loops** (W610WW). The line below logs a current-run entry to `skill-invocations.log` under the project namespace root so the done-gate hook can verify /quality-review actually ran; Claude Code expands the `!` line automatically. On Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id, so the fallback runs on all three runtimes without hand-picking one. Hand-writing review notes cannot produce this gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
 
@@ -169,19 +169,27 @@ Each pass:
    and scope to the host-owned coordinator:
 
    ```bash
-   safeword review run quality-review changed-file [more-changed-files...]
+   safeword review run quality-review changed-file [more-changed-files...] --agent-handoff --json
    ```
 
    Claude-authored work prefers headless Codex; Codex-authored work prefers
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
-   provenance, preserves the exact preferred-route failure, and labels any
-   permitted same-agent fallback as degraded. Treat its typed result as the
+   provenance, preserves the exact preferred-route failure, and records any
+   permitted same-agent fallback as `independence: degraded` while presenting
+   it to people as standard coverage. Treat its typed result as the
    review verdict. Only when the typed result is
    `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the
    original result and the same accepted targets. For every other result,
    return it unchanged. The canonical fallback may use one host-native
    subagent, but do not invent another private route or mint independent
    evidence yourself.
+
+   Keep optional setup advice quiet by default. When the user asks
+   `Show review coverage details.`, report the typed result's achieved coverage,
+   raw independence, and actual reviewer when present. Derive at most one
+   optional upgrade from typed `assigned_reviewer` and `preferred_failure`.
+   Preserve a blocked or `require`-unsatisfied result, and never invent
+   provenance, completed coverage, or a recovery command.
 
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.

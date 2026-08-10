@@ -4,7 +4,7 @@
 
 ## Harness availability check (entry)
 
-Before the first RED, confirm the project's test harness actually runs — judge from existing signals (a `test` script in the project manifest, the scaffolded acceptance lane under `features/`, the project's conventional test directory). `safeword setup` scaffolds a runnable lane into every project, so absence is the exception (pre-existing installs, projects using their own runner like pytest-bdd, brownfield repos).
+Before the first RED, confirm the project's test harness actually runs — judge from existing signals (a `test` script in the project manifest, the scaffolded acceptance lane under `features/`, the project's conventional test directory). `safeword install` scaffolds a runnable lane into every project, so absence is the exception (pre-existing installs, projects using their own runner like pytest-bdd, brownfield repos).
 
 **Harness present** → standard loop below, no ceremony.
 
@@ -169,7 +169,7 @@ surfaces a real spec, scope, value, or risk decision.
 Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`, the stop hook blocks `verify`/`done` for a new-flow feature until its `impl-plan.md` design has been **independently reviewed** — the same propose-then-challenge discipline the scenario-gate applies to scenarios, now applied to the design. Two requirements:
 
 1. **Cited evidence.** The Decisions section must carry a citation — a URL or a `[n]` source-reference marker — proving the choice was weighed against real evidence (the `/figure-it-out` trace), or an auditable `skip: <reason>`.
-2. **A fresh-context review.** Run `safeword review run plan-implementation impl-plan.md ticket-spec feature-file` so the shared coordinator gives only the bounded design evidence to the preferred opposite headless agent. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
+2. **A fresh-context review.** Run `safeword review run plan-implementation impl-plan.md ticket-spec feature-file --agent-handoff --json` so the shared coordinator gives only the bounded design evidence to the preferred opposite headless agent. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
 
    ```bash
    bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" impl-plan
