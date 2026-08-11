@@ -225,7 +225,7 @@ Then(
   },
 );
 
-Given('a project with the installed architecture guide', function (this: ArchitectureWorld) {
+When('Safeword installs the architecture guide into a project', function (this: ArchitectureWorld) {
   const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes', '--agents', 'none'], {
     cwd: dir(this),
     encoding: 'utf8',

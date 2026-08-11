@@ -101,10 +101,10 @@ Feature: Architecture narrative reconciliation reaches configured narratives
 
     @wip @architecture-narrative-blindspots.TB1.AC4
     Scenario: The architecture review prompt resolves the narrative via paths.architecture
-      Given the installed architecture review prompt
+      When Safeword inspects the installed architecture review prompt
       Then it directs the agent to the paths.architecture narrative with root ARCHITECTURE.md as the fallback
 
     @wip @architecture-narrative-blindspots.TB1.AC4
     Scenario: The audit skill's structural-drift check resolves the narrative via paths.architecture
-      Given the installed audit skill
+      When Safeword inspects the installed audit skill
       Then its structural-drift check directs the agent to the paths.architecture narrative with root ARCHITECTURE.md as the fallback

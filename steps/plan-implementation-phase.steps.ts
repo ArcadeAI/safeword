@@ -455,7 +455,7 @@ Given('the shipped bdd splitting document', function (this: PlanWorld) {
   this.docs = readCopies('SPLITTING.md');
 });
 
-Given('the canonical phase list', function (this: PlanWorld) {
+When('Safeword reads the canonical phase list', function (this: PlanWorld) {
   // Read the shipped hook lib's CANONICAL_PHASES as source text — this lane
   // never imports project value modules.
   const source = readFileSync(
@@ -467,7 +467,7 @@ Given('the canonical phase list', function (this: PlanWorld) {
   this.phaseList = [...arrayText.matchAll(/'([^']+)'/g)].map(match => match[1] ?? '');
 });
 
-Given('the schema manifest', function (this: PlanWorld) {
+When('Safeword validates the schema manifest', function (this: PlanWorld) {
   this.schemaSource = readFileSync(
     nodePath.join(PROJECT_ROOT, 'packages/cli/src/schema.ts'),
     'utf8',
@@ -478,7 +478,7 @@ Given('the schema manifest', function (this: PlanWorld) {
   );
 });
 
-Given('the project architecture record', function (this: PlanWorld) {
+When('Safeword reads the project architecture record', function (this: PlanWorld) {
   this.architectureRecord = readFileSync(nodePath.join(PROJECT_ROOT, 'ARCHITECTURE.md'), 'utf8');
 });
 

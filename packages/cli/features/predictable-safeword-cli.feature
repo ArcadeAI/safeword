@@ -1,6 +1,7 @@
 @surface.safeword-cli @feature.predictable-safeword-cli
 Feature: One predictable Safeword CLI
 
+  @predictable-safeword-cli.TBU1.R1
   Rule: predictable-safeword-cli.TBU1.R1 — The default command reports project health without changing the project
     Scenario: Bare Safeword remains read-only after project-only installation
       Given a configured project without native profile plugins
@@ -12,6 +13,7 @@ Feature: One predictable Safeword CLI
       When the user runs Safeword with no command
       Then the result requires action and recommends "safeword plan"
 
+  @predictable-safeword-cli.TBU1.R2
   Rule: predictable-safeword-cli.TBU1.R2 — Read-only commands remain read-only on first run, drift, and failure
     Scenario Outline: Every read-only command has no effects in every project state
       Given a project that is <state>
@@ -29,6 +31,7 @@ Feature: One predictable Safeword CLI
         | drifted      | doctor  |
         | failed       | doctor  |
 
+  @predictable-safeword-cli.TBU1.R3
   Rule: predictable-safeword-cli.TBU1.R3 — Human output leads with the outcome, says whether anything changed, and offers no more than one next action
     Scenario Outline: Human output has one verdict and an explicit change statement
       Given a <state> result with <action_count> possible next actions
@@ -50,6 +53,7 @@ Feature: One predictable Safeword CLI
       When Safeword renders the same result with verbose enabled
       Then implementation detail follows the unchanged primary verdict
 
+  @predictable-safeword-cli.TBU1.R4
   Rule: predictable-safeword-cli.TBU1.R4 — Destructive work shows an exact plan and requires explicit confirmation
     Scenario: Remove without consent does not mutate
       Given a configured project
@@ -71,12 +75,14 @@ Feature: One predictable Safeword CLI
       When Safeword applies the plan
       Then the result reports the first completed effect the stable error and recovery action
 
+  @predictable-safeword-cli.TBU1.R5
   Rule: predictable-safeword-cli.TBU1.R5 — Setup converges, and the second identical run reports no changes
     Scenario: A second setup run is unchanged
       Given setup has converged a project
       When the user runs setup again
       Then the result is successful and changed is false
 
+  @predictable-safeword-cli.NTB1.R1
   Rule: predictable-safeword-cli.NTB1.R1 — Action-required state is distinct from failure and never masquerades as success
     Scenario Outline: Result state determines the stable exit status
       Given a command result in <state> state
@@ -88,6 +94,7 @@ Feature: One predictable Safeword CLI
         | failed          | 1      |
         | action-required | 2      |
 
+  @predictable-safeword-cli.NTB1.R2
   Rule: predictable-safeword-cli.NTB1.R2 — Non-interactive operation never prompts or guesses consent
     Scenario Outline: Non-interactive destructive commands never prompt
       Given a destructive command has a valid plan
@@ -98,6 +105,7 @@ Feature: One predictable Safeword CLI
         | --no-input |
         | non-TTY    |
 
+  @predictable-safeword-cli.SWM1.R1
   Rule: predictable-safeword-cli.SWM1.R1 — Plans and results have shared typed contracts and renderers own presentation
     Scenario: A handler describes effects without writing output
       Given a public command handler
@@ -109,7 +117,9 @@ Feature: One predictable Safeword CLI
       When each real handler is invoked through the executable adapter
       Then only the shared renderer writes output and no handler terminates the process
 
+  @predictable-safeword-cli.SWM1.R2
   Rule: predictable-safeword-cli.SWM1.R2 — Every public command supports deterministic JSON and no-input operation
+    @surface.claude-code @surface.cursor
     Scenario: Every public command accepts the machine contract
       Given every public command and its deterministic invocation fixture
       When each command is invoked with "--json --no-input"
@@ -148,6 +158,7 @@ Feature: One predictable Safeword CLI
       When Safeword renders each result with quiet enabled
       Then healthy and progress prose is suppressed while next actions and errors remain visible
 
+  @predictable-safeword-cli.SWM1.R3
   Rule: predictable-safeword-cli.SWM1.R3 — JSON uses one versioned envelope and stable error and exit semantics
     Scenario Outline: JSON output is one complete parseable versioned envelope
       Given a command that <outcome>
@@ -159,6 +170,7 @@ Feature: One predictable Safeword CLI
         | requires action |
         | fails           |
 
+  @predictable-safeword-cli.SWM1.R4
   Rule: predictable-safeword-cli.SWM1.R4 — Capabilities describe commands and effects without executing them
     Scenario: Capabilities is complete and effect-free
       Given the public command catalog
@@ -166,6 +178,7 @@ Feature: One predictable Safeword CLI
       Then every public command declares its canonical name aliases effect class prompt policy network policy schema and invocation fixture
       And hidden helpers are absent and no command effect occurs
 
+  @predictable-safeword-cli.SWM1.R5
   Rule: predictable-safeword-cli.SWM1.R5 — Normal help exposes the simplified hierarchy while old names remain deprecated aliases
     Scenario: Help shows the canonical hierarchy only
       Given the Safeword CLI
@@ -214,6 +227,7 @@ Feature: One predictable Safeword CLI
         | migrate codex-plugin | 2        |
 
   @surface.openai-codex
+  @predictable-safeword-cli.SWM1.R6
   Rule: predictable-safeword-cli.SWM1.R6 — Typed Codex hook entrypoints stay hidden, quiet, offline, and free of install or upgrade effects
     Scenario Outline: Each real hook adapter is hidden quiet offline and lifecycle-safe
       Given an installed <surface> hook
@@ -230,6 +244,7 @@ Feature: One predictable Safeword CLI
       When its latency is measured repeatedly
       Then its p95 latency stays within the repository threshold
 
+  @predictable-safeword-cli.SWM1.R7
   Rule: predictable-safeword-cli.SWM1.R7 — Long-running interactive commands report meaningful progress within 100 milliseconds
     Scenario: Meaningful feedback is emitted before slow work
       Given an interactive command with an injected monotonic clock and an apply step longer than 100 milliseconds

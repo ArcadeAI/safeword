@@ -310,7 +310,7 @@ Feature: plan-implementation phase before TDD
   Rule: plan-implementation-phase.SM1.R1 — every phase-keyed surface carries a plan-implementation entry
 
     Scenario: Canonical phase order places plan-implementation between scenario-gate and implement
-      Given the canonical phase list
+      When Safeword reads the canonical phase list
       Then it reads intake, define-behavior, scenario-gate, plan-implementation, implement, verify, done
 
     @surface.claude-code
@@ -384,7 +384,7 @@ Feature: plan-implementation phase before TDD
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: The planning phase doc ships to all three harnesses
-      Given the schema manifest
+      When Safeword validates the schema manifest
       Then PLAN_IMPLEMENTATION.md is registered for the Claude skill directory, the Codex skill directory, and a Cursor rule
       And each installed copy is byte-identical to its template
 
@@ -392,6 +392,6 @@ Feature: plan-implementation phase before TDD
   Rule: plan-implementation-phase.SM1.R3 — the decomposition-retirement ADR is superseded on the record
 
     Scenario: The architecture record supersedes the decomposition retirement
-      Given the project architecture record
+      When Safeword reads the project architecture record
       Then an accepted ADR records the plan-implementation phase
       And the decomposition-retirement ADR is marked superseded by it
