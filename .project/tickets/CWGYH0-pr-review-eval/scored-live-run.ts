@@ -770,6 +770,7 @@ if (preflightOnly) {
 			console.log(
 				`case ${state.completedCases + 1}/30 call ${callOrdinal}/12: ${current.system} ${item.id} ${current.variant} t${current.trial}`,
 			);
+			const workId = `${current.system}--${current.variant}--t${current.trial}`;
 			try {
 				const result = await executeWithInfrastructureRetry(
 					() => execute(reviewInput),
@@ -781,9 +782,8 @@ if (preflightOnly) {
 						variant: reviewInput.variant,
 					}),
 				);
-				const workId = `${current.system}--${current.variant}--t${current.trial}`;
+				recordTrialResult(caseState, workId, result);
 				if (result.status === "exclude-case") {
-					recordTrialResult(caseState, workId, result);
 					const usage = estimatedAttemptCost(result.attemptRecords);
 					excluded = true;
 					const replacement = reserve.cases[state.reserveIndex];
@@ -840,20 +840,16 @@ if (preflightOnly) {
 				state.nextWorkIndex = callOrdinal;
 				commitAdmittedCaseWork({ caseState, record, state, statePath, workId });
 			} catch (error) {
-				await Bun.write(
+				writeJsonDurably(
 					join(caseState.provisionalPath, `${String(callOrdinal).padStart(2, "0")}--FAILED.json`),
-					`${JSON.stringify(
-						{
-							...reviewInput,
-							durationMs: Math.round(performance.now() - started),
-							error: serializeError(error),
-							startedAt,
-							system: current.system,
-							trial: current.trial,
-						},
-						null,
-						2,
-					)}\n`,
+					{
+						...reviewInput,
+						durationMs: Math.round(performance.now() - started),
+						error: serializeError(error),
+						startedAt,
+						system: current.system,
+						trial: current.trial,
+					},
 				);
 				throw error;
 			}

@@ -429,8 +429,11 @@ export async function executeWithInfrastructureRetry<T>(
 		} catch (error) {
 			const summary = errorSummary(error);
 			if (!isInfrastructureError(error)) {
-				const disposition = thrownDisposition(error);
-				if (disposition === null) throw error;
+				const disposition = thrownDisposition(error) ?? {
+					reason: "unknown-state",
+					retry: "never",
+					status: "invalid",
+				} as const;
 				attemptRecords.push({
 					attempt: attempts,
 					disposition,
