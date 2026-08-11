@@ -316,7 +316,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d6d054141
 - [x] GREEN d832b5ba1
-- [ ] REFACTOR
+- [x] REFACTOR skip: one manifest walk rejects unsafe identity, inventory, type, timing, and digest drift
 
 ### Scenario: The void corpus cannot confirm or tune the replacement scorer
 
