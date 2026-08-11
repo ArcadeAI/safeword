@@ -7,7 +7,11 @@ import {
 } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import {
+	type DevelopmentReviewInput,
+	type DevelopmentVariant,
+	loadPinnedAdapter,
+} from "./scored-adapter";
 import {
 	classifyTrialOutput,
 	executeWithInfrastructureRetry,
@@ -83,17 +87,6 @@ const cumulativeCostTargetUsd = parseCumulativeCostTarget(
 	aggregateCostStopUsd,
 );
 
-type DevelopmentVariant = "buggy" | "fixed";
-type DevelopmentReviewInput = {
-	caseId: string;
-	causalPaths: string[];
-	failureDescription: unknown;
-	modelCutoff: string;
-	reviewBaseSha: string;
-	runnerRef: string;
-	sourceSha: string;
-	variant: DevelopmentVariant;
-};
 type RawCase = {
 	baseSha: string;
 	causalPaths: string[];
@@ -129,16 +122,6 @@ type RunState = {
 	reserveIndex: number;
 	version: 3;
 };
-type AdapterModule = {
-	createRunnerExecutor: (options: {
-		env?: Record<string, string | undefined>;
-		expertsDir: string;
-		forceExpertLane?: "correctness";
-		policy: typeof policy;
-		targetFor: (input: DevelopmentReviewInput) => { baseRef: string; root: string };
-	}) => (input: DevelopmentReviewInput) => Promise<unknown>;
-	loadDevelopmentManifest: (path: string) => unknown;
-};
 
 function requireEnvironment(name: string): string {
 	const value = process.env[name];
@@ -146,20 +129,6 @@ function requireEnvironment(name: string): string {
 		throw new Error(`${name} is required`);
 	}
 	return value;
-}
-
-function requireAdapterModule(value: unknown): AdapterModule {
-	if (
-		typeof value !== "object" ||
-		value === null ||
-		!("createRunnerExecutor" in value) ||
-		typeof value.createRunnerExecutor !== "function" ||
-		!("loadDevelopmentManifest" in value) ||
-		typeof value.loadDevelopmentManifest !== "function"
-	) {
-		throw new Error("pinned adapter does not expose the benchmark contract");
-	}
-	return value as AdapterModule;
 }
 
 function runGit(cwd: string, args: string[]): string {
@@ -502,19 +471,10 @@ if (existsSync(scratchRoot)) {
 if (!resuming) mkdirSync(outputRoot, { recursive: true });
 mkdirSync(scratchRoot, { recursive: true });
 
-if (runGit(adapterRoot, ["rev-parse", "HEAD"]) !== expectedAdapterCommit) {
-	throw new Error("adapter commit does not match the frozen runner");
-}
-if (runGit(adapterRoot, ["status", "--porcelain", "--untracked-files=no"])) {
-	throw new Error("adapter has tracked modifications");
-}
-const { createRunnerExecutor, loadDevelopmentManifest } = requireAdapterModule(
-	await import(
-		pathToFileURL(
-			join(adapterRoot, "tools/pr-review/src/eval/development-benchmark.ts"),
-		).href
-	),
-);
+const { createRunnerExecutor, loadDevelopmentManifest } = await loadPinnedAdapter({
+	adapterRoot,
+	expectedCommit: expectedAdapterCommit,
+});
 
 loadDevelopmentManifest(primaryManifestPath);
 loadDevelopmentManifest(reserveManifestPath);
@@ -810,6 +770,7 @@ if (preflightOnly) {
 			const execute = createRunnerExecutor({
 				env: process.env,
 				expertsDir: experts[current.system],
+				forceExpertLane: "correctness",
 				policy,
 				targetFor: () => ({ baseRef: item.reviewBaseSha, root }),
 			});

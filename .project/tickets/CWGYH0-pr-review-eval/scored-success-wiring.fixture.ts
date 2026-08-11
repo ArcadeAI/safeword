@@ -9,9 +9,9 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
-import { createRunnerExecutor } from "/Users/alex/.codex/worktrees/ec04/arcade-pr-review/tools/pr-review/src/eval/development-benchmark.ts";
+import { loadPinnedAdapter } from "./scored-adapter";
 import {
 	beginProvisionalCase,
 	commitAdmittedCaseWork,
@@ -25,6 +25,14 @@ import {
 function git(root: string, ...arguments_: string[]): string {
 	return execFileSync("git", arguments_, { cwd: root, encoding: "utf8" }).trim();
 }
+
+const safewordRoot = resolve(import.meta.dirname, "../../..");
+const adapterRoot = process.env.CWGYH0_ADAPTER_ROOT ??
+	join(dirname(safewordRoot), "arcade-pr-review");
+const { createRunnerExecutor } = await loadPinnedAdapter({
+	adapterRoot,
+	expectedCommit: "3eb8652324c755ce2fc806b6ab5d3d41c1f1a39f",
+});
 
 const root = mkdtempSync(join(tmpdir(), "cwgyh0-success-wiring-"));
 try {

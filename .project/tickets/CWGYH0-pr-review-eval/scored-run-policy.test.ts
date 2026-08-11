@@ -96,9 +96,11 @@ describe("positive trial admission", () => {
 			};
 			return output;
 		})()],
-		["consolidated finding absent from the routed outcome", completedOutput([
-			{ file: "a.ts", line: 1, title: "bug" },
-		])],
+		["consolidated finding absent from the routed outcome", (() => {
+			const output = completedOutput();
+			output.report.consolidated.findings = [{ file: "a.ts", line: 1, title: "bug" }];
+			return output;
+		})()],
 		["named-failure flag inconsistent with matching findings", (() => {
 			const finding = { file: "a.ts", line: 1, title: "bug" };
 			const output = completedOutput([finding]);

@@ -119,6 +119,10 @@ function isScoredFinding(value: unknown): boolean {
 	);
 }
 
+function findingIdentity(value: UnknownRecord): string {
+	return `${value.file as string}\u0000${value.line as number}\u0000${value.title as string}`;
+}
+
 function retryForFailure(failure: unknown): "infrastructure-once" | "never" {
 	if (!isRecord(failure) || typeof failure.kind !== "string") return "never";
 	if (
@@ -189,6 +193,9 @@ export function classifyTrialOutput(
 			retry: "never",
 			status: "invalid",
 		};
+	}
+	if (value.models.length !== 1 || report.expertOutcomes.length !== 1) {
+		return { reason: "routing-invalid", retry: "never", status: "invalid" };
 	}
 	if (!matchesProvenance(value.provenance, expectedProvenance)) {
 		return {
@@ -307,6 +314,22 @@ export function classifyTrialOutput(
 		!value.score.matchingFindings.every(isScoredFinding) ||
 		!report.consolidated.findings.every(isScoredFinding) ||
 		!outcome.findings.every(isScoredFinding)
+	) {
+		return { reason: "schema-invalid", retry: "never", status: "invalid" };
+	}
+	const outcomeFindingKeys = new Set(
+		outcome.findings.map((finding) => findingIdentity(finding as UnknownRecord)),
+	);
+	const matchingFindingKeys = value.score.matchingFindings.map((finding) =>
+		findingIdentity(finding as UnknownRecord),
+	);
+	const consolidatedFindingKeys = report.consolidated.findings.map((finding) =>
+		findingIdentity(finding as UnknownRecord),
+	);
+	if (
+		value.score.namedFailure !== (matchingFindingKeys.length > 0) ||
+		matchingFindingKeys.some((key) => !outcomeFindingKeys.has(key)) ||
+		consolidatedFindingKeys.some((key) => !outcomeFindingKeys.has(key))
 	) {
 		return { reason: "schema-invalid", retry: "never", status: "invalid" };
 	}
