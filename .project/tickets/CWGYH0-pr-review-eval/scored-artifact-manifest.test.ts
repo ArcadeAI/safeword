@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,6 +7,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
 import {
+	loadPinnedManifestFromGit,
 	validateConfirmatoryCorpus,
 	verifyRawArtifactManifest,
 } from "./scored-artifact-manifest";
@@ -31,6 +33,33 @@ function frozenArtifacts() {
 }
 
 describe("immutable raw artifact reuse", () => {
+	test("loads manifest bytes only from an exact commit in the trusted repository", () => {
+		const gitRoot = mkdtempSync(join(tmpdir(), "cwgyh0-manifest-git-"));
+		execFileSync("git", ["init", "-q"], { cwd: gitRoot });
+		execFileSync("git", ["remote", "add", "origin", "https://example.test/trusted.git"], { cwd: gitRoot });
+		const manifestBytes = '{"algorithm":"sha256","artifacts":[],"createdAt":"2026-08-01T00:00:00.000Z","source":"raw-attempts"}\n';
+		writeFileSync(join(gitRoot, "manifest.json"), manifestBytes);
+		writeFileSync(join(gitRoot, "manifest.sha256"), `${sha256(manifestBytes)}\n`);
+		execFileSync("git", ["add", "manifest.json", "manifest.sha256"], { cwd: gitRoot });
+		execFileSync("git", ["-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "-qm", "freeze"], { cwd: gitRoot });
+		const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: gitRoot, encoding: "utf8" }).trim();
+
+		expect(loadPinnedManifestFromGit({
+			commit,
+			digestPath: "manifest.sha256",
+			expectedRepositoryIdentity: "https://example.test/trusted.git",
+			gitRoot,
+			manifestPath: "manifest.json",
+		})).toEqual({ digest: sha256(manifestBytes), manifestBytes });
+		expect(() => loadPinnedManifestFromGit({
+			commit,
+			digestPath: "manifest.sha256",
+			expectedRepositoryIdentity: "https://example.test/attacker.git",
+			gitRoot,
+			manifestPath: "manifest.json",
+		})).toThrow("repository identity mismatch");
+	});
+
 	test("returns the exact verified bytes bound to a frozen manifest digest", () => {
 		const fixture = frozenArtifacts();
 		const verified = verifyRawArtifactManifest({
