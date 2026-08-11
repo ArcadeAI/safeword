@@ -301,7 +301,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Incomplete canary cost data blocks more spend
 
 - [x] RED a7d8259d1
-- [ ] GREEN
+- [x] GREEN 47d0ed48c
 - [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R5 — Raw evidence and corpus roles cannot drift
