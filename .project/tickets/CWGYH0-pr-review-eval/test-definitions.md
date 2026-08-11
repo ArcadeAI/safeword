@@ -328,7 +328,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d6d054141
 - [x] GREEN d832b5ba1
-- [ ] REFACTOR
+- [x] REFACTOR skip: one corpus-role guard requires disjoint, preregistered, powered cases and reserves
 
 ### Scenario Outline: Invalid holdout construction cannot produce confirmatory estimates
 
