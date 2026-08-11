@@ -10,6 +10,7 @@ import {
 	unlinkSync,
 	writeFileSync,
 } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 
 import {
@@ -53,6 +54,7 @@ export type RecoveryEvidence = {
 	caseId: string;
 	exclusion: unknown;
 	replacementId: string;
+	workId: string;
 };
 
 function syncDirectory(path: string): void {
@@ -65,16 +67,21 @@ function syncDirectory(path: string): void {
 }
 
 export function writeJsonDurably(path: string, value: unknown): void {
-	const temporaryPath = `${path}.tmp-${process.pid}`;
-	const descriptor = openSync(temporaryPath, "wx");
+	const temporaryPath = `${path}.tmp-${process.pid}-${randomUUID()}`;
 	try {
-		writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`);
-		fsyncSync(descriptor);
-	} finally {
-		closeSync(descriptor);
+		const descriptor = openSync(temporaryPath, "wx");
+		try {
+			writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`);
+			fsyncSync(descriptor);
+		} finally {
+			closeSync(descriptor);
+		}
+		renameSync(temporaryPath, path);
+		syncDirectory(dirname(path));
+	} catch (error) {
+		if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+		throw error;
 	}
-	renameSync(temporaryPath, path);
-	syncDirectory(dirname(path));
 }
 
 function safeSegment(value: string, field: string): string {
@@ -335,25 +342,25 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 		}));
 	const exclusionPath = join(casePath, "EXCLUSION.json");
 	let exclusion: unknown;
+	const terminalAttempt = attemptArtifacts.findLast(({ record }) =>
+		(record.disposition?.status === "invalid" &&
+			(record.disposition.retry === "never" || record.attempt === 2)) ||
+		(record.attempt === 2 &&
+			record.disposition === null &&
+			typeof record.error === "string" &&
+			record.error.length > 0),
+	);
 	if (existsSync(exclusionPath)) {
 		exclusion = JSON.parse(readFileSync(exclusionPath, "utf8")) as unknown;
 	} else {
 		if (!provisionalExists) {
 			throw new Error("quarantined case has no durable exclusion record");
 		}
-		const invalidAttempt = attemptArtifacts.findLast(({ record }) =>
-			(record.disposition?.status === "invalid" &&
-				(record.disposition.retry === "never" || record.attempt === 2)) ||
-			(record.attempt === 2 &&
-				record.disposition === null &&
-				typeof record.error === "string" &&
-				record.error.length > 0),
-		);
-		if (invalidAttempt === undefined) return input.state;
+		if (terminalAttempt === undefined) return input.state;
 		exclusion = {
-			disposition: invalidAttempt.record.disposition,
-			error: invalidAttempt.record.error ?? null,
-			workId: invalidAttempt.filename.replace(/--attempt-[12]\.json$/, ""),
+			disposition: terminalAttempt.record.disposition,
+			error: terminalAttempt.record.error ?? null,
+			workId: terminalAttempt.filename.replace(/--attempt-[12]\.json$/, ""),
 		};
 		writeJsonDurably(exclusionPath, exclusion);
 	}
@@ -365,11 +372,27 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 
 	const replacementId = input.reserveIds[input.state.reserveIndex];
 	if (replacementId === undefined) throw new Error("frozen reserves exhausted");
+	const recordedWorkId =
+		typeof exclusion === "object" &&
+		exclusion !== null &&
+		"workId" in exclusion &&
+		typeof exclusion.workId === "string"
+			? exclusion.workId
+			: undefined;
+	const workId =
+		recordedWorkId ??
+		terminalAttempt?.filename.replace(/--attempt-[12]\.json$/, "");
+	if (workId === undefined) {
+		throw new Error("durable exclusion does not identify its failed work item");
+	}
 	const reconciledState = input.reconcileExclusion?.(input.state, {
-		attemptRecords: attemptArtifacts.map(({ record }) => record),
+		attemptRecords: attemptArtifacts
+			.filter(({ filename }) => filename.startsWith(`${workId}--attempt-`))
+			.map(({ record }) => record),
 		caseId: input.state.currentCaseId,
 		exclusion,
 		replacementId,
+		workId,
 	}) ?? input.state;
 	if (reconciledState.reserveIndex !== input.state.reserveIndex) {
 		throw new Error("exclusion reconciliation must not change reserve position");

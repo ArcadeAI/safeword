@@ -768,6 +768,7 @@ if (preflightOnly) {
 						replacementId: replacement.id,
 						recordedAt: new Date().toISOString(),
 						usage,
+						workId,
 					};
 					const transition = quarantineCaseAndAllocateReserve({
 						caseState,

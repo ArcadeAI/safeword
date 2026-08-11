@@ -100,6 +100,19 @@ function hasUsage(value: unknown): boolean {
 	);
 }
 
+function isScoredFinding(value: unknown): boolean {
+	return (
+		isRecord(value) &&
+		typeof value.file === "string" &&
+		value.file.length > 0 &&
+		typeof value.line === "number" &&
+		Number.isInteger(value.line) &&
+		value.line > 0 &&
+		typeof value.title === "string" &&
+		value.title.length > 0
+	);
+}
+
 function retryForFailure(failure: unknown): "infrastructure-once" | "never" {
 	if (!isRecord(failure) || typeof failure.kind !== "string") return "never";
 	if (
@@ -273,6 +286,15 @@ export function classifyTrialOutput(
 			retry: "never",
 			status: "invalid",
 		};
+	}
+	if (
+		typeof value.score.namedFailure !== "boolean" ||
+		!Array.isArray(value.score.matchingFindings) ||
+		!value.score.matchingFindings.every(isScoredFinding) ||
+		!report.consolidated.findings.every(isScoredFinding) ||
+		!outcome.findings.every(isScoredFinding)
+	) {
+		return { reason: "schema-invalid", retry: "never", status: "invalid" };
 	}
 	return { reason: "completed", retry: "never", status: "usable" };
 }
