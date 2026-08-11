@@ -11,6 +11,20 @@ import type { Effects } from './result.js';
 type PlanMode = 'install' | 'upgrade' | 'uninstall' | 'uninstall-full';
 type ReadFileForDigest = (path: string) => Buffer;
 
+const PACKAGE_MANAGER_INPUTS = [
+  'package.json',
+  'bun.lock',
+  'bun.lockb',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'pyproject.toml',
+  'uv.lock',
+  'poetry.lock',
+  'Pipfile',
+  'Pipfile.lock',
+] as const;
+
 const readFileForDigest: ReadFileForDigest = path => readFileSync(path);
 
 function actionTargets(action: Action): string[] {
@@ -119,7 +133,10 @@ export async function createReconciliationPlan(
     dryRun,
     plan: createPlan({
       command: mode === 'install' || mode === 'upgrade' ? 'setup' : 'remove',
-      preconditionDigest: preconditionDigest(cwd, dryRun.actions),
+      preconditionDigest: preconditionDigestForPaths(cwd, [
+        ...dryRun.actions.flatMap(action => actionTargets(action)),
+        ...PACKAGE_MANAGER_INPUTS,
+      ]),
       effects,
       requiresConfirmation: mode !== 'install' && mode !== 'upgrade',
       verification: [{ description: 'Re-run safeword status' }],

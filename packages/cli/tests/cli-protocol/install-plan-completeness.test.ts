@@ -19,6 +19,7 @@ import {
   runCli,
   runCliWithoutInstall,
 } from '../helpers.js';
+import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
 
 interface Effect {
   readonly kind: string;
@@ -92,6 +93,7 @@ async function planProject(
   directory: string,
   agents = 'none',
   options: readonly string[] = [],
+  environment: Record<string, string> = {},
 ): Promise<{ envelope: LifecycleEnvelope; stdout: string }> {
   const before = treeDigest(directory);
   const result = await runCliWithoutInstall(
@@ -105,7 +107,7 @@ async function planProject(
       '--cwd',
       directory,
     ],
-    { cwd: directory },
+    { cwd: directory, env: environment },
   );
   expect(result.exitCode).toBe(2);
   expect(treeDigest(directory)).toBe(before);
@@ -131,7 +133,7 @@ describe('install plan completeness', () => {
       ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
       { cwd: directory },
     );
-    expect(installed.exitCode).toBe(0);
+    expect(installed.exitCode, installed.stdout).toBe(0);
     const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
     const planned = new Set((planEnvelope.data.plan.effects.files ?? []).map(effectIdentity));
     expect(
@@ -268,13 +270,79 @@ describe('install plan completeness', () => {
     writeJson(directory, 'packages/app/package.json', { name: 'app', private: true });
     writeFileSync(nodePath.join(directory, 'pyproject.toml'), '[project]\nname = "polyglot"\n');
 
-    const { envelope } = await planProject(directory, 'claude,codex,cursor');
+    const runtimeDirectory = temporaryDirectory();
+    const runtime = installFakeCodexRuntime(runtimeDirectory, {
+      pluginEnabled: false,
+      pluginInitiallyInstalled: false,
+    });
+    const claude = nodePath.join(runtime.bin, 'claude');
+    const claudeInstalled = nodePath.join(runtimeDirectory, 'claude-installed');
+    const claudePluginPath = nodePath.resolve(import.meta.dirname, '../../../../plugin');
+    const marketplaceReference = VERSION.includes('-') ? `v${VERSION}` : 'stable';
+    writeFileSync(
+      claude,
+      `#!/bin/sh
+set -eu
+case "$*" in
+  '--version') echo '2.1.170' ;;
+  'plugin marketplace list --json')
+    echo '[{"name":"safeword","source":{"source":"git","url":"https://github.com/ArcadeAI/safeword.git","ref":"${marketplaceReference}"}}]'
+    ;;
+  'plugin marketplace add '*' --scope project')
+    mkdir -p .claude
+    echo '{"extraKnownMarketplaces":{"safeword":{"source":{"source":"git","url":"https://github.com/ArcadeAI/safeword.git","ref":"${marketplaceReference}"}}}}' > .claude/settings.json
+    ;;
+  'plugin list --json')
+    if [ -f ${JSON.stringify(claudeInstalled)} ]; then
+      printf '[{"id":"safeword@safeword","scope":"project","projectPath":"%s","version":"${VERSION}","enabled":true,"installPath":${JSON.stringify(claudePluginPath)}}]\n' "$PWD"
+    else
+      echo '[]'
+    fi
+    ;;
+  'plugin install safeword@safeword --scope project'*) touch ${JSON.stringify(claudeInstalled)} ;;
+  *) ;;
+esac
+`,
+    );
+    chmodSync(claude, 0o755);
+    const environment = {
+      CLAUDE_CONFIG_DIR: nodePath.join(runtimeDirectory, 'claude-config'),
+      CODEX_HOME: runtime.codexHome,
+      SAFEWORD_CODEX_LOG: runtime.logPath,
+      PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+    };
+
+    const { envelope } = await planProject(directory, 'claude,codex,cursor', [], environment);
 
     expectEffectsInclude(envelope, 'files', [
       { kind: 'update', target: '.safeword/config.json' },
       { kind: 'create', target: '.codex/config.toml' },
       { kind: 'update', target: 'packages/app/package.json' },
     ]);
+
+    const installed = await runCliWithoutInstall(
+      [
+        'install',
+        '--agents=claude,codex,cursor',
+        '--scope=project',
+        '--no-input',
+        '--no-modify',
+        '--json',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    expect([0, 2], installed.stdout).toContain(installed.exitCode);
+    const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
+    for (const category of ['files', 'packages', 'configuration', 'network'] as const) {
+      const planned = new Set((envelope.data.plan.effects[category] ?? []).map(effectIdentity));
+      expect(
+        (installEnvelope.effects[category] ?? []).filter(
+          effect => !planned.has(effectIdentity(effect)),
+        ),
+      ).toEqual([]);
+    }
   });
 
   it.each([

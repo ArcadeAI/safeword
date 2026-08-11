@@ -251,18 +251,32 @@ function agentInstallEffects(
   agent: Exclude<AgentIntegration, 'cursor'>,
   scope: 'project' | 'user',
 ): Effects {
-  const labels: Readonly<Record<AgentIntegration, string>> = {
-    claude: scope === 'project' ? 'Claude project plugin' : 'Claude profile plugin',
-    codex: 'Codex profile plugin',
-    cursor: 'Cursor project integration',
-  };
-  const label = labels[agent];
-  const operation = agent === 'claude' && scope === 'project' ? 'project' : 'profile';
+  if (agent === 'claude') {
+    return {
+      files: [],
+      packages: [],
+      configuration: [
+        { kind: 'add', target: 'safeword', operation: scope },
+        { kind: 'enable', target: 'safeword marketplace auto-update', operation: scope },
+        {
+          kind: 'enable',
+          target: 'safeword last-known-good marketplace fallback',
+          operation: scope,
+        },
+        { kind: 'install', target: 'safeword@safeword', operation: scope },
+      ],
+      network: [
+        { kind: 'add', target: 'Claude plugin marketplace', operation: scope },
+        { kind: 'install', target: 'Claude plugin marketplace', operation: scope },
+      ],
+      destructive: [],
+    };
+  }
   return {
     files: [],
     packages: [],
-    configuration: [{ kind: 'activate', target: label, operation }],
-    network: [{ kind: 'plugin-marketplace', target: label, operation: 'install' }],
+    configuration: [{ kind: 'enable', target: 'Safeword Codex profile plugin' }],
+    network: [],
     destructive: [],
   };
 }
