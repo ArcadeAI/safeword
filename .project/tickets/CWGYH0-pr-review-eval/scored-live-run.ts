@@ -538,6 +538,7 @@ if (preflightOnly) {
 	);
 	console.log(`preflight passed for ${allCases.length} cases / ${safeRepositories.size} snapshots`);
 } else {
+	const trustedAnchorAuthor = requireEnvironment("CWGYH0_TRUSTED_ANCHOR_AUTHOR");
 	const certifiedPreflightPath = requireEnvironment("CWGYH0_PREFLIGHT_PATH");
 	const certifiedPreflightBytes = readFileSync(certifiedPreflightPath, "utf8");
 	const corpusRoleBytes = readFileSync(
@@ -598,6 +599,7 @@ if (preflightOnly) {
 	const labelAnchor = await loadGitHubEvidenceAnchor(
 		requireEnvironment("CWGYH0_CANARY_LABEL_ANCHOR_URL"),
 		"canary-labels",
+		trustedAnchorAuthor,
 	);
 	const pinnedLabels = loadPinnedManifestFromGit({
 		commit: labelAnchor.commit,
@@ -628,6 +630,7 @@ if (preflightOnly) {
 	const gateAnchor = await loadGitHubEvidenceAnchor(
 		requireEnvironment("CWGYH0_CANARY_GATE_ANCHOR_URL"),
 		"canary",
+		trustedAnchorAuthor,
 	);
 	const pinnedGate = loadPinnedManifestFromGit({
 		commit: gateAnchor.commit,

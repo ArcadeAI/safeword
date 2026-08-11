@@ -10,7 +10,9 @@ export type EvidenceAnchor = {
 export async function loadGitHubEvidenceAnchor(
 	url: string,
 	marker: "canary" | "canary-labels" | "raw-manifest",
+	trustedAuthor: string,
 ): Promise<EvidenceAnchor> {
+	if (trustedAuthor.length === 0) throw new Error("trusted evidence-anchor author is required");
 	const parsed = new URL(url);
 	if (
 		parsed.protocol !== "https:" ||
@@ -30,11 +32,13 @@ export async function loadGitHubEvidenceAnchor(
 		created_at?: unknown;
 		html_url?: unknown;
 		updated_at?: unknown;
+		user?: { login?: unknown };
 	};
 	if (
 		typeof comment.body !== "string" ||
 		typeof comment.created_at !== "string" ||
 		comment.updated_at !== comment.created_at ||
+		comment.user?.login !== trustedAuthor ||
 		typeof comment.html_url !== "string" ||
 		!comment.html_url.startsWith("https://github.com/ArcadeAI/safeword/issues/1910#issuecomment-")
 	) {

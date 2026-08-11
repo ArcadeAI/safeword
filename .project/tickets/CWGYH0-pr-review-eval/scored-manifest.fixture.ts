@@ -95,8 +95,10 @@ export function freezeFixtureBlob(input: {
 			created_at: createdAt,
 			html_url: `https://github.com/ArcadeAI/safeword/issues/1910#issuecomment-${commentId}`,
 			updated_at: createdAt,
+			user: { login: "fixture-anchor-author" },
 		}),
 		CWGYH0_RAW_MANIFEST_ANCHOR_URL: anchorUrl,
 		CWGYH0_RAW_MANIFEST_GIT_ROOT: input.gitRoot,
+		CWGYH0_TRUSTED_ANCHOR_AUTHOR: "fixture-anchor-author",
 	};
 }

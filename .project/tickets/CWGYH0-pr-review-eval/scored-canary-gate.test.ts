@@ -43,18 +43,29 @@ function rawOutput(index: number) {
 					providerResponses: [{
 						raw: JSON.stringify({
 							content: [{
+								input: { path: "src/example.ts" },
+								name: "read_file",
+								type: "tool_use",
+							}],
+							stop_reason: "tool_use",
+							usage: { input_tokens: 6, output_tokens: 1 },
+						}),
+						stopReason: "tool_use",
+					}, {
+						raw: JSON.stringify({
+							content: [{
 								input: { couldNotVerify: [], findings, summary: "Complete." },
 								name: "report_findings",
 								type: "tool_use",
 							}],
 							stop_reason: "tool_use",
-							usage: { input_tokens: 10, output_tokens: 2 },
+							usage: { input_tokens: 4, output_tokens: 1 },
 						}),
 						stopReason: "tool_use",
 					}],
 					summary: "Complete.",
 					toolCalls: [toolCall],
-					turns: 1,
+					turns: 2,
 					usage: { inputTokens: 10, outputTokens: 2 },
 				}],
 				usage: { inputTokens: 10, outputTokens: 2 },

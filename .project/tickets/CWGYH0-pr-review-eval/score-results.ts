@@ -72,6 +72,8 @@ const rawAnchor = await loadGitHubEvidenceAnchor(
 	process.env.CWGYH0_RAW_MANIFEST_ANCHOR_URL ??
 		requireArgument(6, "raw manifest anchor URL"),
 	"raw-manifest",
+	process.env.CWGYH0_TRUSTED_ANCHOR_AUTHOR ??
+		requireArgument(8, "trusted evidence-anchor author"),
 );
 const pinnedManifest = loadPinnedManifestFromGit({
 	commit: rawAnchor.commit,

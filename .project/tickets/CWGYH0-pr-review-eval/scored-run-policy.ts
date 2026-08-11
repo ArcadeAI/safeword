@@ -138,6 +138,11 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 	}
 	let inputTokens = 0;
 	let outputTokens = 0;
+	const requestedTools: Array<{
+		args: UnknownRecord;
+		name: string;
+		path: string | null;
+	}> = [];
 	for (const evidence of outcome.providerResponses) {
 		if (
 			!isRecord(evidence) ||
@@ -150,7 +155,25 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 		}
 		try {
 			const raw = JSON.parse(evidence.raw) as unknown;
-			if (!isRecord(raw) || raw.stop_reason !== evidence.stopReason || !isRecord(raw.usage)) return false;
+			if (
+				!isRecord(raw) ||
+				raw.stop_reason !== evidence.stopReason ||
+				!isRecord(raw.usage) ||
+				!Array.isArray(raw.content)
+			) return false;
+			for (const block of raw.content) {
+				if (
+					!isRecord(block) ||
+					block.type !== "tool_use" ||
+					block.name === "report_findings"
+				) continue;
+				if (typeof block.name !== "string" || !isRecord(block.input)) return false;
+				requestedTools.push({
+					args: block.input,
+					name: block.name,
+					path: typeof block.input.path === "string" ? block.input.path : null,
+				});
+			}
 			const rawUsage = usageOf({
 				inputTokens: raw.usage.input_tokens,
 				outputTokens: raw.usage.output_tokens,
@@ -167,6 +190,17 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 		outcomeUsage === null ||
 		outcomeUsage.inputTokens !== inputTokens ||
 		outcomeUsage.outputTokens !== outputTokens
+	) return false;
+	if (
+		!Array.isArray(outcome.toolCalls) ||
+		requestedTools.length !== outcome.toolCalls.length ||
+		requestedTools.some((requested, index) => {
+			const executed = outcome.toolCalls[index];
+			return !isToolCall(executed) ||
+				executed.name !== requested.name ||
+				executed.path !== requested.path ||
+				JSON.stringify(executed.args) !== JSON.stringify(requested.args);
+		})
 	) return false;
 	const terminal = outcome.providerResponses.at(-1) as UnknownRecord;
 	if (terminal.stopReason !== "tool_use" || typeof terminal.raw !== "string") {

@@ -44,7 +44,7 @@ function completedOutput(findings: unknown[] = []) {
 				model: "claude-sonnet-5",
 				provider: "anthropic",
 				providerResponses: [
-					{ raw: '{"content":[{"type":"tool_use","name":"read_file","input":{}}],"stop_reason":"tool_use","usage":{"input_tokens":6,"output_tokens":1}}', stopReason: "tool_use" },
+					{ raw: '{"content":[{"type":"tool_use","name":"read_file","input":{"path":"src/example.ts"}}],"stop_reason":"tool_use","usage":{"input_tokens":6,"output_tokens":1}}', stopReason: "tool_use" },
 					{
 						raw: JSON.stringify({
 							content: [{
@@ -104,6 +104,11 @@ describe("positive trial admission", () => {
 		}],
 		["trace that differs from the retained expert calls", (output: ReturnType<typeof completedOutput>) => {
 			output.trace = [{ ...output.trace[0]!, summary: "fabricated" }];
+		}],
+		["matching fabricated trace and expert calls", (output: ReturnType<typeof completedOutput>) => {
+			const fabricated = { ...output.trace[0]!, args: { path: "src/other.ts" }, path: "src/other.ts" };
+			output.trace = [fabricated];
+			output.report.expertOutcomes[0]!.toolCalls = [fabricated];
 		}],
 		["missing raw per-turn usage", (output: ReturnType<typeof completedOutput>) => {
 			const evidence = output.report.expertOutcomes[0]!.providerResponses[0]!;

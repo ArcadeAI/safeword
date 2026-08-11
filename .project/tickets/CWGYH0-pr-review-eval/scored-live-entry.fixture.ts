@@ -260,18 +260,29 @@ try {
 							providerResponses: [{
 								raw: JSON.stringify({
 									content: [{
+										input: { path: "src/example.ts" },
+										name: "read_file",
+										type: "tool_use",
+									}],
+									stop_reason: "tool_use",
+									usage: { input_tokens: 6, output_tokens: 2 },
+								}),
+								stopReason: "tool_use",
+							}, {
+								raw: JSON.stringify({
+									content: [{
 										input: { couldNotVerify: [], findings, summary: "Complete." },
 										name: "report_findings",
 										type: "tool_use",
 									}],
 									stop_reason: "tool_use",
-									usage: { input_tokens: 10, output_tokens: 5 },
+									usage: { input_tokens: 4, output_tokens: 3 },
 								}),
 								stopReason: "tool_use",
 							}],
 							summary: "Complete.",
 							toolCalls: [toolCall],
-							turns: 1,
+							turns: 2,
 							usage: { inputTokens: 10, outputTokens: 5 },
 						}],
 						usage: { inputTokens: 10, outputTokens: 5 },
@@ -416,6 +427,7 @@ try {
 					CWGYH0_RESERVE_MANIFEST_SHA256: sha256(fixtureReservePath),
 					CWGYH0_SCRATCH_ROOT: join(root, input.scratchName),
 					CWGYH0_SOURCE_REPOSITORY: adapterRoot,
+					CWGYH0_TRUSTED_ANCHOR_AUTHOR: "fixture-anchor-author",
 				},
 				stdio: "pipe",
 			},
