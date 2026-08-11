@@ -6075,7 +6075,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/tdd-review/SKILL.md": "f49a7e07dea7a62f39e9919c0c4251ede4ec2dec72b9892e7e0c42205d510e6f",
         ".claude/skills/testing/SKILL.md": "697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9",
         ".claude/skills/ticket-system/SKILL.md": "1edd1d2c546dae594124c8846c43f78f81d4579370589eaf1476b894c0a9750e",
-        ".claude/skills/verify/SKILL.md": "df24deb0a9b4086e8da5f82f514e9d7f5ea22d4dcc0e6d432b80d7f8b47e3463"
+        ".claude/skills/verify/SKILL.md": "b3655b880ec4a5046ba4671e430da41147516d29758032c7b38382a6a874a7bb"
       },
       hooks: {
         SessionStart: [

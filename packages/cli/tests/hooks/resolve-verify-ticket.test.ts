@@ -103,8 +103,9 @@ describe('resolve-verify-ticket', () => {
 
   it('fails closed when session and current-work ticket evidence conflict', () => {
     const sessionTicket = writeTicket('SESSION1-bound-ticket', 'SESSION1');
-    commitAll('add session ticket');
-    const changedTicket = writeTicket('CHANGED1-diff-ticket', 'CHANGED1', 'done');
+    const changedTicket = writeTicket('CHANGED1-diff-ticket', 'CHANGED1');
+    commitAll('add ticket baseline');
+    writeTicket('CHANGED1-diff-ticket', 'CHANGED1', 'done');
     writeFileSync(
       nodePath.join(
         context.projectDirectory,
@@ -124,6 +125,74 @@ describe('resolve-verify-ticket', () => {
     expect(result.stderr).toContain('Session-bound ticket conflicts');
     expect(result.stderr).toContain(sessionTicket);
     expect(result.stderr).toContain(changedTicket);
+  });
+
+  it('keeps the session-bound ticket when current work only adds a follow-up ticket', () => {
+    const sessionTicket = writeTicket('SESSION1-bound-ticket', 'SESSION1');
+    commitAll('add session ticket');
+    writeTicket('FOLLOW1-new-follow-up', 'FOLLOW1');
+    writeFileSync(
+      nodePath.join(
+        context.projectDirectory,
+        '.project',
+        'quality-state-claude-review-session.json',
+      ),
+      JSON.stringify({ activeTicket: 'SESSION1' }),
+    );
+
+    const environment = cleanRunEnvironment();
+    environment.SAFEWORD_AGENT_RUNTIME = 'claude';
+    environment.CLAUDE_SESSION_ID = 'review-session';
+    const result = runResolver({ env: environment });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim()).toBe(sessionTicket);
+  });
+
+  it('uses a valid session binding when the Git base is unavailable', () => {
+    git('branch', '-M', 'trunk');
+    const sessionTicket = writeTicket('SESSION1-bound-ticket', 'SESSION1');
+    commitAll('add session ticket');
+    git('checkout', '-b', 'feature/verify-ticket');
+    writeFileSync(
+      nodePath.join(
+        context.projectDirectory,
+        '.project',
+        'quality-state-claude-review-session.json',
+      ),
+      JSON.stringify({ activeTicket: 'SESSION1' }),
+    );
+
+    const environment = cleanRunEnvironment();
+    environment.SAFEWORD_AGENT_RUNTIME = 'claude';
+    environment.CLAUDE_SESSION_ID = 'review-session';
+    const result = runResolver({ env: environment });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim()).toBe(sessionTicket);
+  });
+
+  it('falls back to one current-work ticket when the session binding is stale', () => {
+    const changedTicket = writeTicket('CHANGED1-diff-ticket', 'CHANGED1');
+    writeFileSync(
+      nodePath.join(
+        context.projectDirectory,
+        '.project',
+        'quality-state-claude-review-session.json',
+      ),
+      JSON.stringify({ activeTicket: 'MISSING1' }),
+    );
+
+    const environment = cleanRunEnvironment();
+    environment.SAFEWORD_AGENT_RUNTIME = 'claude';
+    environment.CLAUDE_SESSION_ID = 'review-session';
+    const result = runResolver({ env: environment });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim()).toBe(changedTicket);
   });
 
   it('selects an already-done ticket changed by the current worktree', () => {
@@ -152,6 +221,19 @@ describe('resolve-verify-ticket', () => {
     git('branch', '-M', 'trunk');
     git('update-ref', 'refs/remotes/origin/trunk', 'HEAD');
     git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk');
+    git('checkout', '-b', 'feature/verify-ticket');
+    const ticketPath = writeTicket('PR12345-current-pr', 'PR12345', 'done');
+    commitAll('add current PR ticket');
+
+    const result = runResolver();
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(ticketPath);
+  });
+
+  it('uses origin master when the remote HEAD symref and local default branch are absent', () => {
+    git('branch', '-M', 'trunk');
+    git('update-ref', 'refs/remotes/origin/master', 'HEAD');
     git('checkout', '-b', 'feature/verify-ticket');
     const ticketPath = writeTicket('PR12345-current-pr', 'PR12345', 'done');
     commitAll('add current PR ticket');
@@ -243,6 +325,14 @@ describe('resolve-verify-ticket', () => {
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
     expect(result.stderr).toContain('Usage: resolve-verify-ticket.ts');
+  });
+
+  it('rejects an explicit ticket id that does not exist', () => {
+    const result = runResolver({ ticket: 'MISSING1' });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('explicit-bound ticket "MISSING1" not found');
   });
 
   it.each(['staged', 'unstaged'] as const)(

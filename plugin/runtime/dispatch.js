@@ -1847,7 +1847,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '1edd1d2c546dae594124c8846c43f78f81d4579370589eaf1476b894c0a9750e',
       '.claude/skills/verify/SKILL.md':
-        'df24deb0a9b4086e8da5f82f514e9d7f5ea22d4dcc0e6d432b80d7f8b47e3463',
+        'b3655b880ec4a5046ba4671e430da41147516d29758032c7b38382a6a874a7bb',
     },
     hooks: {
       SessionStart: [

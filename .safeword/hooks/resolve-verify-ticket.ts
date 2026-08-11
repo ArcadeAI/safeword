@@ -21,11 +21,13 @@ interface ResolveVerifyTicketOptions {
 }
 
 type ChangedPathsResult =
-  { state: 'available'; paths: string[] } | { state: 'error'; message: string };
+  | { state: 'available'; paths: string[]; preexistingPaths: string[] }
+  | { state: 'error'; message: string };
 
 const DEFAULT_BASE_REFS = [
   'refs/remotes/origin/HEAD',
   'refs/remotes/origin/main',
+  'refs/remotes/origin/master',
   'refs/heads/main',
   'refs/heads/master',
 ] as const;
@@ -46,15 +48,19 @@ function resolveTicketId(
   if (!ticket.folder) {
     return { state: 'error', message: `${source}-bound ticket "${ticketId}" not found` };
   }
+  const ticketPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticket.folder,
+    'ticket.md',
+  );
+  if (!existsSync(ticketPath)) {
+    return { state: 'error', message: `${source}-bound ticket "${ticketId}" not found` };
+  }
   return {
     state: 'resolved',
     source,
-    ticketPath: nodePath.join(
-      resolveNamespaceRoot(projectDirectory),
-      'tickets',
-      ticket.folder,
-      'ticket.md',
-    ),
+    ticketPath,
   };
 }
 
@@ -69,10 +75,11 @@ function nulSeparated(output: string): string[] {
 function changedPaths(projectDirectory: string): ChangedPathsResult {
   const insideWorktree = runGit(projectDirectory, ['rev-parse', '--is-inside-work-tree']);
   if (insideWorktree.status !== 0 || insideWorktree.stdout.trim() !== 'true') {
-    return { state: 'available', paths: [] };
+    return { state: 'available', paths: [], preexistingPaths: [] };
   }
 
   const paths = new Set<string>();
+  const preexistingPaths = new Set<string>();
   const hasHead = runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']);
 
   if (hasHead.status === 0) {
@@ -112,6 +119,18 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
       return { state: 'error', message: 'Unable to read working-tree Git changes' };
     }
     for (const path of nulSeparated(working.stdout)) paths.add(path);
+
+    const preexisting = runGit(projectDirectory, [
+      'diff',
+      '--diff-filter=MRTUXB',
+      '--name-only',
+      '-z',
+      mergeBase.stdout.trim(),
+    ]);
+    if (preexisting.status !== 0) {
+      return { state: 'error', message: 'Unable to classify current-work Git changes' };
+    }
+    for (const path of nulSeparated(preexisting.stdout)) preexistingPaths.add(path);
   } else {
     const staged = runGit(projectDirectory, ['diff', '--cached', '--name-only', '-z']);
     if (staged.status !== 0) {
@@ -125,14 +144,18 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
     return { state: 'error', message: 'Unable to read untracked Git changes' };
   }
   for (const path of nulSeparated(untracked.stdout)) paths.add(path);
-  return { state: 'available', paths: [...paths] };
+  return {
+    state: 'available',
+    paths: [...paths],
+    preexistingPaths: [...preexistingPaths],
+  };
 }
 
 function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
   const namespaceRelative = nodePath.relative(projectDirectory, namespaceRoot);
   if (namespaceRelative.startsWith('..') || nodePath.isAbsolute(namespaceRelative)) {
-    return { state: 'available', paths: [] };
+    return { state: 'available', paths: [], preexistingPaths: [] };
   }
 
   const normalizedNamespace = namespaceRelative.split(nodePath.sep).join('/');
@@ -142,7 +165,11 @@ function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   return {
     state: 'available',
     paths: changed.paths
-      .map(path => path.split(nodePath.sep).join('/'))
+      .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
+      .map(path => nodePath.resolve(projectDirectory, path))
+      .filter(path => existsSync(path))
+      .sort(),
+    preexistingPaths: changed.preexistingPaths
       .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
       .map(path => nodePath.resolve(projectDirectory, path))
       .filter(path => existsSync(path))
@@ -159,25 +186,34 @@ export function resolveVerifyTicket(
     return resolveTicketId(absoluteProject, options.explicitTicket.trim(), 'explicit');
   }
 
-  const changed = changedTicketPaths(absoluteProject);
-  if (changed.state === 'error') return changed;
-  const candidates = changed.paths;
   const identity = resolveRunIdentity({}, { env: options.env ?? process.env });
-  if (identity.sessionKey !== null) {
-    const ticketId = sessionTicketId(absoluteProject, identity);
-    if (ticketId !== undefined) {
-      const sessionResolution = resolveTicketId(absoluteProject, ticketId, 'session');
-      if (sessionResolution.state !== 'resolved' || candidates.length === 0) {
-        return sessionResolution;
-      }
-      if (candidates.includes(sessionResolution.ticketPath)) return sessionResolution;
-      return {
-        state: 'error',
-        message:
-          'Session-bound ticket conflicts with current-work ticket candidates; pass --ticket <id> to disambiguate',
-        candidates: [sessionResolution.ticketPath, ...candidates].sort(),
-      };
+  const boundTicketId =
+    identity.sessionKey === null ? undefined : sessionTicketId(absoluteProject, identity);
+  const sessionResolution =
+    boundTicketId === undefined
+      ? undefined
+      : resolveTicketId(absoluteProject, boundTicketId, 'session');
+
+  const changed = changedTicketPaths(absoluteProject);
+  if (changed.state === 'error') {
+    return sessionResolution?.state === 'resolved' ? sessionResolution : changed;
+  }
+  const candidates = changed.paths;
+  if (sessionResolution?.state === 'resolved') {
+    if (candidates.length === 0 || candidates.includes(sessionResolution.ticketPath)) {
+      return sessionResolution;
     }
+    const conflicts = candidates.filter(candidate => changed.preexistingPaths.includes(candidate));
+    if (conflicts.length === 0) return sessionResolution;
+    return {
+      state: 'error',
+      message:
+        'Session-bound ticket conflicts with current-work ticket candidates; pass --ticket <id> to disambiguate',
+      candidates: [sessionResolution.ticketPath, ...conflicts].sort(),
+    };
+  }
+  if (sessionResolution?.state === 'error' && candidates.length === 0) {
+    return sessionResolution;
   }
 
   if (candidates.length === 0) return { state: 'none' };
