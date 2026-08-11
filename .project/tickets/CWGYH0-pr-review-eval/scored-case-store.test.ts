@@ -207,6 +207,42 @@ describe("durable case lifecycle", () => {
 });
 
 describe("semantic failure handling", () => {
+	test("stops before allocating beyond the frozen reserve list", async () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const pendingCase = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		let calls = 0;
+
+		await expect(
+			executeCaseWork({
+				caseState: pendingCase,
+				classify: () => ({ reason: "schema-invalid", retry: "never", status: "invalid" }),
+				execute: async () => {
+					calls += 1;
+					return { raw: "semantic failure" };
+				},
+				outputRoot,
+				reserveIds: [],
+				state: {
+					candidateQueueIds: [],
+					currentCaseId: "SCORE-example",
+					nextWorkIndex: 0,
+					reserveIndex: 0,
+					version: 3,
+				},
+				workId: "full--buggy--t1",
+			}),
+		).rejects.toThrow("frozen reserves exhausted");
+		expect(calls).toBe(1);
+		expect(readdirSync(pendingCase.provisionalPath)).toEqual([
+			"full--buggy--t1--attempt-1.json",
+		]);
+		expect(existsSync(pendingCase.quarantinePath)).toBe(false);
+	});
+
 	test.each([
 		["parsing failure", "schema-invalid"],
 		["content-policy failure", "reviewer-failed"],

@@ -145,6 +145,11 @@ try {
 	assert.equal(failureSummary.completedCases, 1);
 	assert.equal(failureSummary.exclusions.length, 1);
 	assert.equal(readdirSync(join(failureOutputRoot, "quarantine")).length, 1);
+	assert.equal(
+		readFileSync(failureFetchLog, "utf8").trim().split("\n").length,
+		25,
+		"one failed fetch plus one replacement case; no pending sibling from the failed case ran",
+	);
 } finally {
 	rmSync(root, { force: true, recursive: true });
 }

@@ -373,6 +373,32 @@ describe("one-retry policy", () => {
 		expect(result.attemptRecords[1]).toMatchObject({ output: successful });
 	});
 
+	test("stops after infrastructure then semantic failure", async () => {
+		let calls = 0;
+		const result = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				if (calls === 1) throw new RequestError(503);
+				return { kind: "schema-invalid" };
+			},
+			() => ({ reason: "schema-invalid", retry: "never", status: "invalid" }),
+		);
+
+		expect(calls).toBe(2);
+		expect(result).toMatchObject({
+			attemptRecords: [
+				{ attempt: 1, disposition: null, output: null },
+				{
+					attempt: 2,
+					disposition: { reason: "schema-invalid", retry: "never", status: "invalid" },
+					output: { kind: "schema-invalid" },
+				},
+			],
+			attempts: 2,
+			status: "exclude-case",
+		});
+	});
+
 	test("does not retry an embedded schema failure", async () => {
 		let calls = 0;
 		const failed = completedOutput();
