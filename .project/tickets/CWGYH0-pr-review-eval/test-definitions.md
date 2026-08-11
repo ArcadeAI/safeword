@@ -86,7 +86,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Frozen reserves are selected deterministically
 
-- [ ] RED
+- [x] RED 473dbe7d1
 - [ ] GREEN
 - [ ] REFACTOR
 
