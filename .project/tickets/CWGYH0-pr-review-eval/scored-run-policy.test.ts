@@ -34,7 +34,7 @@ function completedOutput(findings: unknown[] = []) {
 			}],
 			usage: { inputTokens: 10, outputTokens: 2 },
 		},
-		score: { reviewValid: true },
+		score: { matchingFindings: [], namedFailure: false, reviewValid: true },
 		terminalState: "completed",
 		trace: [{ type: "tool-call" }],
 	};
@@ -201,6 +201,10 @@ describe("positive trial admission", () => {
 	test.each([
 		["missing review-valid evidence", { ...completedOutput(), score: {} }, "schema-invalid"],
 		["non-boolean review-valid evidence", { ...completedOutput(), score: { reviewValid: "true" } }, "schema-invalid"],
+		["non-boolean named-failure evidence", { ...completedOutput(), score: { ...completedOutput().score, namedFailure: "false" } }, "schema-invalid"],
+		["missing matching findings", { ...completedOutput(), score: { ...completedOutput().score, matchingFindings: undefined } }, "schema-invalid"],
+		["a malformed matching finding", { ...completedOutput(), score: { ...completedOutput().score, matchingFindings: [{ file: "a.ts", line: "1", title: "bug" }] } }, "schema-invalid"],
+		["a malformed consolidated finding", completedOutput([{ file: "a.ts", line: 0, title: "bug" }]), "schema-invalid"],
 		["an empty execution trace", { ...completedOutput(), trace: [] }, "provenance-incomplete"],
 		["no explicit terminal state", { ...completedOutput(), terminalState: undefined }, "unexpected-finish"],
 		["a non-completed terminal state", { ...completedOutput(), terminalState: "failed" }, "unexpected-finish"],

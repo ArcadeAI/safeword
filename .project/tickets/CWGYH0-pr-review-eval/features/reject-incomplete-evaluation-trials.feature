@@ -58,6 +58,19 @@ Feature: Keep failed reviews out of benchmark scores
         | no explicit terminal state          | unexpected-finish     |
         | a non-completed terminal state      | unexpected-finish     |
 
+    @rejection
+    Scenario Outline: Every scorer-consumed field is validated before admission
+      Given a reviewer output has <malformed evidence>
+      When the evaluation harness classifies the trial
+      Then the trial is rejected as schema-invalid
+
+      Examples:
+        | malformed evidence                  |
+        | a non-boolean named-failure          |
+        | missing matching findings            |
+        | a malformed matching finding        |
+        | a malformed consolidated finding    |
+
   @pr-review-eval.SWM1.R2
   Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
@@ -149,6 +162,11 @@ Feature: Keep failed reviews out of benchmark scores
       Given the run lock names a process that is no longer alive
       When the harness restarts against the same output directory
       Then it safely reclaims the stale lock and becomes the sole owner
+
+    Scenario: A failed durable write does not poison the next write
+      Given serializing a state update fails after its temporary file is created
+      When the harness retries the same state target with valid data
+      Then no stale temporary file blocks the durable write
 
     Scenario Outline: Injected crashes exercise the durable quarantine transaction
       Given a terminal case failure is durable

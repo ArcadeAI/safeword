@@ -21,6 +21,7 @@ import {
 	recordAdmittedTrial,
 	recordTrialResult,
 	sealActiveCase,
+	writeJsonDurably,
 } from "./scored-case-store";
 import {
 	executeWithInfrastructureRetry,
@@ -37,6 +38,22 @@ class RequestError extends Error {
 }
 
 describe("durable case lifecycle", () => {
+	test("cleans a failed temporary write before retrying the same target", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const target = join(outputRoot, "state.json");
+		const circular: { self?: unknown } = {};
+		circular.self = circular;
+
+		expect(() => writeJsonDurably(target, circular)).toThrow();
+		expect(readdirSync(outputRoot)).toEqual([]);
+
+		writeJsonDurably(target, { status: "recovered" });
+
+		expect(JSON.parse(readFileSync(target, "utf8"))).toEqual({
+			status: "recovered",
+		});
+	});
+
 	test("keeps admitted records invisible until the whole case is sealed", async () => {
 		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
 		const pendingCase = beginProvisionalCase({
@@ -328,6 +345,10 @@ describe("quarantine crash recovery", () => {
 			ordinal: 1,
 			outputRoot,
 		});
+		const sibling = await executeWithInfrastructureRetry(async () => ({
+			report: { usage: { inputTokens: 10, outputTokens: 5 } },
+		}));
+		recordTrialResult(caseState, "narrow--fixed--t1", sibling);
 		const failed = await executeWithInfrastructureRetry(async () => {
 			throw new RequestError();
 		});
@@ -363,6 +384,7 @@ describe("quarantine crash recovery", () => {
 					attemptRecords: [{ attempt: 1 }, { attempt: 2 }],
 					caseId: "SCORE-example",
 					replacementId: "RESERVE-A",
+					workId: "full--buggy--t1",
 				},
 			],
 			reserveIndex: 1,
@@ -371,6 +393,7 @@ describe("quarantine crash recovery", () => {
 			"EXCLUSION.json",
 			"full--buggy--t1--attempt-1.json",
 			"full--buggy--t1--attempt-2.json",
+			"narrow--fixed--t1--attempt-1.json",
 		]);
 	});
 
