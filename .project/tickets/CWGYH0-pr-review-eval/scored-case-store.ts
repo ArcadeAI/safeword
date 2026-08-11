@@ -20,6 +20,11 @@ import {
 
 export type RunLock = { release: () => void };
 
+export type QuarantineFailurePoint =
+	| "after-exclusion-write"
+	| "after-quarantine-rename"
+	| "after-state-write";
+
 export type ProvisionalCase = {
 	activePath: string;
 	provisionalPath: string;
@@ -200,6 +205,7 @@ export function sealActiveCase(caseState: ProvisionalCase): void {
 export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: {
 	caseState: ProvisionalCase;
 	exclusion: unknown;
+	failurePoint?: (point: QuarantineFailurePoint) => void;
 	outputRoot: string;
 	reserveIds: readonly string[];
 	state: T;
@@ -215,11 +221,14 @@ export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: 
 		join(input.caseState.provisionalPath, "EXCLUSION.json"),
 		input.exclusion,
 	);
+	input.failurePoint?.("after-exclusion-write");
 	renameSync(input.caseState.provisionalPath, input.caseState.quarantinePath);
 	syncDirectory(dirname(input.caseState.provisionalPath));
 	syncDirectory(dirname(input.caseState.quarantinePath));
+	input.failurePoint?.("after-quarantine-rename");
 
 	writeJsonDurably(join(input.outputRoot, "run-state.json"), transition.state);
+	input.failurePoint?.("after-state-write");
 
 	return transition;
 }
