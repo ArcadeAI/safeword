@@ -48,6 +48,13 @@ export type CaseWorkResult<T, TState extends ReserveState> =
 			status: "excluded";
 	  };
 
+export type RecoveryEvidence = {
+	attemptRecords: unknown[];
+	caseId: string;
+	exclusion: unknown;
+	replacementId: string;
+};
+
 function syncDirectory(path: string): void {
 	const descriptor = openSync(path, "r");
 	try {
@@ -57,7 +64,7 @@ function syncDirectory(path: string): void {
 	}
 }
 
-function writeJsonDurably(path: string, value: unknown): void {
+export function writeJsonDurably(path: string, value: unknown): void {
 	const temporaryPath = `${path}.tmp-${process.pid}`;
 	const descriptor = openSync(temporaryPath, "wx");
 	try {
@@ -297,6 +304,7 @@ export async function executeCaseWork<T, TState extends ReserveState>(input: {
 export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 	caseState: ProvisionalCase;
 	outputRoot: string;
+	reconcileExclusion?: (state: T, evidence: RecoveryEvidence) => T;
 	reserveIds: readonly string[];
 	state: T;
 }): T {
@@ -311,43 +319,62 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 		throw new Error("current case has no durable provisional or quarantine record");
 	}
 
-	if (provisionalExists) {
-		const exclusionPath = join(input.caseState.provisionalPath, "EXCLUSION.json");
-		if (!existsSync(exclusionPath)) {
-			const invalidAttempt = readdirSync(input.caseState.provisionalPath)
-				.filter((filename) => /--attempt-[12]\.json$/.test(filename))
-				.sort()
-				.map((filename) => ({
-					filename,
-					record: JSON.parse(
-						readFileSync(join(input.caseState.provisionalPath, filename), "utf8"),
-					) as {
-						attempt?: number;
-						disposition?: TrialDisposition | null;
-						error?: string | null;
-					},
-				}))
-				.findLast(({ record }) =>
-					(record.disposition?.status === "invalid" &&
-						(record.disposition.retry === "never" || record.attempt === 2)) ||
-					(record.attempt === 2 &&
-						record.disposition === null &&
-						typeof record.error === "string" &&
-						record.error.length > 0),
-				);
-			if (invalidAttempt === undefined) return input.state;
-			writeJsonDurably(exclusionPath, {
-				disposition: invalidAttempt.record.disposition,
-				error: invalidAttempt.record.error ?? null,
-				workId: invalidAttempt.filename.replace(/--attempt-[12]\.json$/, ""),
-			});
+	const casePath = provisionalExists
+		? input.caseState.provisionalPath
+		: input.caseState.quarantinePath;
+	const attemptArtifacts = readdirSync(casePath)
+		.filter((filename) => /--attempt-[12]\.json$/.test(filename))
+		.sort()
+		.map((filename) => ({
+			filename,
+			record: JSON.parse(readFileSync(join(casePath, filename), "utf8")) as {
+				attempt?: number;
+				disposition?: TrialDisposition | null;
+				error?: string | null;
+			},
+		}));
+	const exclusionPath = join(casePath, "EXCLUSION.json");
+	let exclusion: unknown;
+	if (existsSync(exclusionPath)) {
+		exclusion = JSON.parse(readFileSync(exclusionPath, "utf8")) as unknown;
+	} else {
+		if (!provisionalExists) {
+			throw new Error("quarantined case has no durable exclusion record");
 		}
+		const invalidAttempt = attemptArtifacts.findLast(({ record }) =>
+			(record.disposition?.status === "invalid" &&
+				(record.disposition.retry === "never" || record.attempt === 2)) ||
+			(record.attempt === 2 &&
+				record.disposition === null &&
+				typeof record.error === "string" &&
+				record.error.length > 0),
+		);
+		if (invalidAttempt === undefined) return input.state;
+		exclusion = {
+			disposition: invalidAttempt.record.disposition,
+			error: invalidAttempt.record.error ?? null,
+			workId: invalidAttempt.filename.replace(/--attempt-[12]\.json$/, ""),
+		};
+		writeJsonDurably(exclusionPath, exclusion);
+	}
+	if (provisionalExists) {
 		renameSync(input.caseState.provisionalPath, input.caseState.quarantinePath);
 		syncDirectory(dirname(input.caseState.provisionalPath));
 		syncDirectory(dirname(input.caseState.quarantinePath));
 	}
 
-	const transition = nextReserveTransition(input.reserveIds, input.state);
+	const replacementId = input.reserveIds[input.state.reserveIndex];
+	if (replacementId === undefined) throw new Error("frozen reserves exhausted");
+	const reconciledState = input.reconcileExclusion?.(input.state, {
+		attemptRecords: attemptArtifacts.map(({ record }) => record),
+		caseId: input.state.currentCaseId,
+		exclusion,
+		replacementId,
+	}) ?? input.state;
+	if (reconciledState.reserveIndex !== input.state.reserveIndex) {
+		throw new Error("exclusion reconciliation must not change reserve position");
+	}
+	const transition = nextReserveTransition(input.reserveIds, reconciledState);
 	writeJsonDurably(join(input.outputRoot, "run-state.json"), transition.state);
 	return transition.state;
 }

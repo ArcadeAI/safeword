@@ -21,6 +21,17 @@ import {
 	parseCumulativeCostTarget,
 	shuffleFrozen,
 } from "./scored-run-policy";
+import {
+	acquireRunLock,
+	beginProvisionalCase,
+	caseStateFor,
+	quarantineCaseAndAllocateReserve,
+	recoverInterruptedQuarantine,
+	recordAdmittedTrial,
+	recordTrialResult,
+	sealActiveCase,
+	writeJsonDurably,
+} from "./scored-case-store";
 
 const ticketRoot = import.meta.dir;
 const sourceRepository = "/Users/alex/Projects/arcade-monorepo";
@@ -104,7 +115,7 @@ type RunState = {
 	frozenRun: Record<string, unknown>;
 	nextWorkIndex: number;
 	reserveIndex: number;
-	version: 2;
+	version: 3;
 };
 
 function requireEnvironment(name: string): string {
@@ -438,9 +449,7 @@ function estimatedAttemptCost(
 }
 
 async function writeJsonAtomically(path: string, value: unknown): Promise<void> {
-	const temporaryPath = `${path}.tmp`;
-	await Bun.write(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
-	renameSync(temporaryPath, path);
+	writeJsonDurably(path, value);
 }
 
 function directoryEntryCount(path: string): number {
@@ -504,7 +513,10 @@ if (preflightOnly) {
 	);
 	console.log(`preflight passed for ${allCases.length} cases / ${safeRepositories.size} snapshots`);
 } else {
+	const runLock = acquireRunLock(outputRoot);
+	try {
 	mkdirSync(join(outputRoot, "active"), { recursive: true });
+	mkdirSync(join(outputRoot, "provisional"), { recursive: true });
 	mkdirSync(join(outputRoot, "quarantine"), { recursive: true });
 	const statePath = join(outputRoot, "run-state.json");
 	const casesById = new Map(allCases.map((item) => [item.id, item]));
@@ -514,13 +526,20 @@ if (preflightOnly) {
 			throw new Error("existing scored output has no resumable run-state.json");
 		}
 		state = JSON.parse(readFileSync(statePath, "utf8")) as RunState;
-		if (state.version !== 2 || JSON.stringify(state.frozenRun) !== JSON.stringify(frozenRun)) {
+		if (state.version !== 3 || JSON.stringify(state.frozenRun) !== JSON.stringify(frozenRun)) {
 			throw new Error("saved run state does not match the frozen benchmark");
 		}
 		const recordedCaseDirectories =
 			directoryEntryCount(join(outputRoot, "active")) +
+			directoryEntryCount(join(outputRoot, "provisional")) +
 			directoryEntryCount(join(outputRoot, "quarantine"));
-		if (recordedCaseDirectories !== state.attemptedCases) {
+		const awaitingProvisionalCreation =
+			state.currentCaseId !== null &&
+			recordedCaseDirectories === state.attemptedCases - 1;
+		if (
+			recordedCaseDirectories !== state.attemptedCases &&
+			!awaitingProvisionalCreation
+		) {
 			throw new Error(
 				"scored output contains an interrupted case and cannot be resumed safely",
 			);
@@ -537,9 +556,100 @@ if (preflightOnly) {
 			frozenRun,
 			nextWorkIndex: 0,
 			reserveIndex: 0,
-			version: 2,
+			version: 3,
 		};
 		await writeJsonAtomically(statePath, state);
+	}
+	if (state.currentCaseId !== null) {
+		const interruptedCaseId = state.currentCaseId;
+		const interruptedCase = caseStateFor({
+			caseId: interruptedCaseId,
+			ordinal: state.attemptedCases,
+			outputRoot,
+		});
+		if (existsSync(interruptedCase.activePath)) {
+			const admittedRecords = readdirSync(interruptedCase.activePath).filter((name) =>
+				name.endsWith("--record.json"),
+			);
+			if (admittedRecords.length !== 12) {
+				throw new Error("sealed active case does not contain 12 admitted records");
+			}
+			state.completedCases += 1;
+			state.completedCaseIds.push(interruptedCaseId);
+			state.currentCaseId = null;
+			state.nextWorkIndex = 0;
+			await writeJsonAtomically(statePath, state);
+		} else {
+			if (
+				!existsSync(interruptedCase.provisionalPath) &&
+				!existsSync(interruptedCase.quarantinePath)
+			) {
+				beginProvisionalCase({
+					caseId: interruptedCaseId,
+					ordinal: state.attemptedCases,
+					outputRoot,
+				});
+			}
+			if (existsSync(interruptedCase.provisionalPath)) {
+				const durableRecords = readdirSync(
+					interruptedCase.provisionalPath,
+				).filter((name) => name.endsWith("--record.json"));
+				if (durableRecords.length > state.nextWorkIndex) {
+					if (durableRecords.length !== state.nextWorkIndex + 1) {
+						throw new Error("provisional records are ahead of state by more than one work item");
+					}
+					const recoveredCosts = durableRecords.map((name) => {
+						const record = JSON.parse(
+							readFileSync(join(interruptedCase.provisionalPath, name), "utf8"),
+						) as { cumulativeCostUsd?: unknown };
+						return record.cumulativeCostUsd;
+					});
+					if (
+						recoveredCosts.some(
+							(cost) => typeof cost !== "number" || !Number.isFinite(cost),
+						)
+					) {
+						throw new Error("recovered record has invalid cumulative cost");
+					}
+					state.nextWorkIndex = durableRecords.length;
+					state.cumulativeCostUsd = Math.max(...(recoveredCosts as number[]));
+					await writeJsonAtomically(statePath, state);
+				}
+			}
+			state = recoverInterruptedQuarantine({
+				caseState: interruptedCase,
+				outputRoot,
+				reconcileExclusion: (current, evidence) => {
+					const attemptRecords = evidence.attemptRecords as Array<{
+						output: { report: unknown } | null;
+					}>;
+					const usage = estimatedAttemptCost(attemptRecords);
+					const durableExclusion =
+						typeof evidence.exclusion === "object" &&
+						evidence.exclusion !== null &&
+						!Array.isArray(evidence.exclusion)
+							? evidence.exclusion
+							: {};
+					return {
+						...current,
+						cumulativeCostUsd: current.cumulativeCostUsd + usage.costUsd,
+						exclusions: [
+							...current.exclusions,
+							{
+								...durableExclusion,
+								attemptRecords: evidence.attemptRecords,
+								caseId: evidence.caseId,
+								recoveredAt: new Date().toISOString(),
+								replacementId: evidence.replacementId,
+								usage,
+							},
+						],
+					};
+				},
+				reserveIds: reserve.cases.map((candidate) => candidate.id),
+				state,
+			});
+		}
 	}
 	if (cumulativeCaseTarget < state.completedCases) {
 		throw new Error(
@@ -562,12 +672,18 @@ if (preflightOnly) {
 			state.nextWorkIndex = 0;
 			await writeJsonAtomically(statePath, state);
 		}
-		const caseDirectory = join(
-			outputRoot,
-			"active",
-			`${String(state.attemptedCases).padStart(2, "0")}--${safeName(item.id)}`,
-		);
-		mkdirSync(caseDirectory, { recursive: true });
+		const caseState = continuingCase
+			? beginProvisionalCase({
+				caseId: item.id,
+				ordinal: state.attemptedCases,
+				outputRoot,
+				resume: true,
+			})
+			: beginProvisionalCase({
+				caseId: item.id,
+				ordinal: state.attemptedCases,
+				outputRoot,
+			});
 		const work = shuffleFrozen(
 			(["full", "narrow"] as const).flatMap((system) =>
 				(["buggy", "fixed"] as const).flatMap((variant) =>
@@ -633,10 +749,15 @@ if (preflightOnly) {
 						variant: reviewInput.variant,
 					}),
 				);
+				const workId = `${current.system}--${current.variant}--t${current.trial}`;
 				if (result.status === "exclude-case") {
+					recordTrialResult(caseState, workId, result);
 					const usage = estimatedAttemptCost(result.attemptRecords);
-					state.cumulativeCostUsd += usage.costUsd;
 					excluded = true;
+					const replacement = reserve.cases[state.reserveIndex];
+					if (replacement === undefined) {
+						throw new Error("frozen reserves exhausted after case exclusions");
+					}
 					const exclusion = {
 						attemptRecords: result.attemptRecords,
 						attempts: result.attempts,
@@ -644,14 +765,22 @@ if (preflightOnly) {
 						disposition: result.disposition,
 						failedWork: current,
 						infrastructureErrors: result.infrastructureErrors,
+						replacementId: replacement.id,
 						recordedAt: new Date().toISOString(),
 						usage,
 					};
-					state.exclusions.push(exclusion);
-					await Bun.write(
-						join(caseDirectory, `${String(callOrdinal).padStart(2, "0")}--EXCLUDED.json`),
-						`${JSON.stringify(exclusion, null, 2)}\n`,
-					);
+					const transition = quarantineCaseAndAllocateReserve({
+						caseState,
+						exclusion,
+						outputRoot,
+						reserveIds: reserve.cases.map((candidate) => candidate.id),
+						state: {
+							...state,
+							cumulativeCostUsd: state.cumulativeCostUsd + usage.costUsd,
+							exclusions: [...state.exclusions, exclusion],
+						},
+					});
+					state = transition.state;
 					break;
 				}
 				const usage = estimatedAttemptCost(result.attemptRecords);
@@ -671,13 +800,7 @@ if (preflightOnly) {
 					trial: current.trial,
 					usage,
 				};
-				await Bun.write(
-					join(
-						caseDirectory,
-						`${String(callOrdinal).padStart(2, "0")}--${current.system}--${current.variant}--t${current.trial}.json`,
-					),
-					`${JSON.stringify(record, null, 2)}\n`,
-				);
+				recordAdmittedTrial(caseState, workId, record);
 				state.nextWorkIndex = callOrdinal;
 				await writeJsonAtomically(statePath, state);
 				if (state.cumulativeCostUsd > aggregateCostCeilingUsd) {
@@ -685,7 +808,7 @@ if (preflightOnly) {
 				}
 			} catch (error) {
 				await Bun.write(
-					join(caseDirectory, `${String(callOrdinal).padStart(2, "0")}--FAILED.json`),
+					join(caseState.provisionalPath, `${String(callOrdinal).padStart(2, "0")}--FAILED.json`),
 					`${JSON.stringify(
 						{
 							...reviewInput,
@@ -704,24 +827,10 @@ if (preflightOnly) {
 		}
 
 		if (excluded) {
-			const quarantine = join(
-				outputRoot,
-				"quarantine",
-				`${String(state.attemptedCases).padStart(2, "0")}--${safeName(item.id)}`,
-			);
-			renameSync(caseDirectory, quarantine);
-			const replacement = reserve.cases[state.reserveIndex];
-			if (replacement === undefined) {
-				throw new Error("frozen reserves exhausted after case exclusions");
-			}
-			state.reserveIndex += 1;
-			state.candidateQueueIds.unshift(replacement.id);
-			state.currentCaseId = null;
-			state.nextWorkIndex = 0;
-			await writeJsonAtomically(statePath, state);
 			continue;
 		}
 		if (state.nextWorkIndex < work.length) break;
+		sealActiveCase(caseState);
 		state.completedCases += 1;
 		state.completedCaseIds.push(item.id);
 		state.currentCaseId = null;
@@ -744,4 +853,7 @@ if (preflightOnly) {
 	console.log(
 		`${status}: ${state.completedCases}/30 cases with ${state.exclusions.length} exclusion(s), estimated cost $${state.cumulativeCostUsd.toFixed(2)}`,
 	);
+	} finally {
+		runLock.release();
+	}
 }

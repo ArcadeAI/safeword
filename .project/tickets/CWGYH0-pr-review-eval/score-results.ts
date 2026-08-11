@@ -67,7 +67,7 @@ if (existsSync(resultsPath)) throw new Error(`refusing to overwrite ${resultsPat
 
 const summary = readJson<{
 	completedCaseIds: string[];
-	exclusions: Array<{ caseId: string }>;
+	exclusions: Array<{ caseId: string; replacementId: string }>;
 	primaryCases: string[];
 	reserveCases: string[];
 	status: string;
@@ -83,7 +83,7 @@ const preflight = readJson<{
 }>(preflightPath);
 
 const rawRecords: RecordFile[] = [];
-const glob = new Bun.Glob("active/*/*.json");
+const glob = new Bun.Glob("active/*/*--record.json");
 for (const relativePath of glob.scanSync(outputRoot)) {
 	const record = readJson<RecordFile>(join(outputRoot, relativePath));
 	if (!systems.includes(record.system) || !variants.includes(record.variant)) {
@@ -104,9 +104,9 @@ const classifiedRecords = rawRecords.map((record) => {
 const expectedRepositories =
 	(summary.primaryCases.length + summary.reserveCases.length) * variants.length;
 const matrix = deriveScoreableMatrix({
-	allocations: summary.exclusions.map((exclusion, index) => ({
+	allocations: summary.exclusions.map((exclusion) => ({
 		quarantinedCaseId: exclusion.caseId,
-		replacementCaseId: summary.reserveCases[index] ?? "",
+		replacementCaseId: exclusion.replacementId,
 	})),
 	preflight: {
 		expectedRepositoryCount: expectedRepositories,
@@ -126,6 +126,12 @@ const matrix = deriveScoreableMatrix({
 	trials: Array.from({ length: trials }, (_, index) => index + 1),
 	variants,
 });
+if (
+	[...summary.completedCaseIds].sort().join("\u0000") !==
+	[...matrix.effectiveCaseIds].sort().join("\u0000")
+) {
+	throw new Error("completed case IDs do not match the effective frozen matrix");
+}
 const records = matrix.admittedRecords;
 
 const byCell = new Map<string, typeof records>();
