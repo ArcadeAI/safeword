@@ -32,7 +32,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Positive completion evidence cannot be inferred
 
-- [ ] RED
+- [x] RED d6e1c25ad
 - [ ] GREEN
 - [ ] REFACTOR
 
