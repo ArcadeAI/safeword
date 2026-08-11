@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import {
+	existsSync,
+	readFileSync,
+	readdirSync,
+	renameSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
@@ -10,6 +16,7 @@ import {
 	beginProvisionalCase,
 	executeCaseWork,
 	quarantineCaseAndAllocateReserve,
+	recoverInterruptedQuarantine,
 	recordTrialResult,
 	sealActiveCase,
 } from "./scored-case-store";
@@ -181,5 +188,90 @@ describe("semantic failure handling", () => {
 			disposition: { reason, retry: "never", status: "invalid" },
 			workId: "full--buggy--t1",
 		});
+	});
+});
+
+describe("quarantine crash recovery", () => {
+	test.each([
+		"before the atomic quarantine transition",
+		"during the quarantine state transaction",
+		"after quarantine before reserve allocation",
+		"after reserve allocation before next work",
+	] as const)("recovers exactly once %s", async (boundary) => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const caseState = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		const failed = await executeWithInfrastructureRetry(
+			async () => ({ raw: "semantic failure" }),
+			() => ({ reason: "schema-invalid", retry: "never", status: "invalid" }),
+		);
+		recordTrialResult(caseState, "full--buggy--t1", failed);
+		const exclusion = {
+			disposition: { reason: "schema-invalid", retry: "never", status: "invalid" },
+			workId: "full--buggy--t1",
+		};
+		const exclusionPath = join(caseState.provisionalPath, "EXCLUSION.json");
+		if (boundary !== "before the atomic quarantine transition") {
+			writeFileSync(exclusionPath, `${JSON.stringify(exclusion)}\n`);
+		}
+		if (
+			boundary === "after quarantine before reserve allocation" ||
+			boundary === "after reserve allocation before next work"
+		) {
+			renameSync(caseState.provisionalPath, caseState.quarantinePath);
+		}
+		const baseState = {
+			candidateQueueIds: ["SCORE-next"],
+			currentCaseId: "SCORE-example",
+			nextWorkIndex: 4,
+			reserveIndex: 0,
+			version: 3,
+		};
+		const state = boundary === "after reserve allocation before next work"
+			? {
+				...baseState,
+				candidateQueueIds: ["RESERVE-A", "SCORE-next"],
+				currentCaseId: null,
+				nextWorkIndex: 0,
+				reserveIndex: 1,
+			}
+			: baseState;
+		if (boundary === "after reserve allocation before next work") {
+			writeFileSync(
+				join(outputRoot, "run-state.json"),
+				`${JSON.stringify(state)}\n`,
+			);
+		}
+
+		const recovered = recoverInterruptedQuarantine({
+			caseState,
+			outputRoot,
+			reserveIds: ["RESERVE-A", "RESERVE-B"],
+			state,
+		});
+		const recoveredAgain = recoverInterruptedQuarantine({
+			caseState,
+			outputRoot,
+			reserveIds: ["RESERVE-A", "RESERVE-B"],
+			state: recovered,
+		});
+
+		expect(recoveredAgain).toEqual(recovered);
+		expect(recovered).toMatchObject({
+			candidateQueueIds: ["RESERVE-A", "SCORE-next"],
+			currentCaseId: null,
+			nextWorkIndex: 0,
+			reserveIndex: 1,
+		});
+		expect(existsSync(caseState.provisionalPath)).toBe(false);
+		expect(readdirSync(caseState.quarantinePath).sort()).toEqual([
+			"EXCLUSION.json",
+			"full--buggy--t1--attempt-1.json",
+		]);
+		expect(JSON.parse(readFileSync(join(outputRoot, "run-state.json"), "utf8")))
+			.toEqual(recovered);
 	});
 });

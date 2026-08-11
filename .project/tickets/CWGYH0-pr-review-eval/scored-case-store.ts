@@ -223,3 +223,12 @@ export async function executeCaseWork<T, TState extends ReserveState>(input: {
 	});
 	return { ...transition, result, status: "excluded" };
 }
+
+export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
+	caseState: ProvisionalCase;
+	outputRoot: string;
+	reserveIds: readonly string[];
+	state: T;
+}): T {
+	throw new Error("quarantine recovery not implemented");
+}
