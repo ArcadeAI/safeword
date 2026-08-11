@@ -206,7 +206,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED baff4f129
 - [x] GREEN 9f8db4b55
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared commit helper preserves the record-before-state ordering without duplicating it
 
 ### Scenario: Aggregate cost is an observed stop, not a prepaid ceiling
 
