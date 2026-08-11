@@ -104,7 +104,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Contending restarts cannot both reclaim one stale lock
 
-- [ ] RED
+- [x] RED 473dbe7d1
 - [ ] GREEN
 - [ ] REFACTOR
 
