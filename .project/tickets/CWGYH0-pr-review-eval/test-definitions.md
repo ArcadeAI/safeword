@@ -51,7 +51,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Every emitted reviewer outcome must match the frozen route
 
 - [x] RED 8eb575194
-- [ ] GREEN
+- [x] GREEN 8eb31e5ca
 - [ ] REFACTOR
 
 ### Scenario: Scored finding views agree with the routed reviewer output
