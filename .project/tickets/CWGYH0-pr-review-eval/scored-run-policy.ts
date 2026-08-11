@@ -102,6 +102,7 @@ function hasUsage(value: unknown): boolean {
 		typeof outputTokens === "number" &&
 		Number.isSafeInteger(outputTokens) &&
 		outputTokens >= 0 &&
+		Number.isSafeInteger(inputTokens + outputTokens) &&
 		inputTokens + outputTokens > 0
 	);
 }
@@ -179,8 +180,15 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 				outputTokens: raw.usage.output_tokens,
 			});
 			if (rawUsage === null) return false;
-			inputTokens += rawUsage.inputTokens;
-			outputTokens += rawUsage.outputTokens;
+			const nextInputTokens = inputTokens + rawUsage.inputTokens;
+			const nextOutputTokens = outputTokens + rawUsage.outputTokens;
+			if (
+				!Number.isSafeInteger(nextInputTokens) ||
+				!Number.isSafeInteger(nextOutputTokens) ||
+				!Number.isSafeInteger(nextInputTokens + nextOutputTokens)
+			) return false;
+			inputTokens = nextInputTokens;
+			outputTokens = nextOutputTokens;
 		} catch {
 			return false;
 		}

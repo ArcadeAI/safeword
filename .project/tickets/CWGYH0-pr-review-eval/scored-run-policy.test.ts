@@ -120,6 +120,23 @@ describe("positive trial admission", () => {
 			raw.usage.input_tokens = 5.5;
 			first.raw = JSON.stringify(raw);
 		}],
+		["raw token usage whose aggregate exceeds the safe integer range", (output: ReturnType<typeof completedOutput>) => {
+			const first = output.report.expertOutcomes[0]!.providerResponses[0]!;
+			const second = output.report.expertOutcomes[0]!.providerResponses[1]!;
+			const firstRaw = JSON.parse(first.raw) as { usage: { input_tokens: number; output_tokens: number } };
+			const secondRaw = JSON.parse(second.raw) as { usage: { input_tokens: number; output_tokens: number } };
+			firstRaw.usage.input_tokens = Number.MAX_SAFE_INTEGER;
+			firstRaw.usage.output_tokens = 0;
+			secondRaw.usage.input_tokens = 1;
+			secondRaw.usage.output_tokens = 0;
+			first.raw = JSON.stringify(firstRaw);
+			second.raw = JSON.stringify(secondRaw);
+			output.report.expertOutcomes[0]!.usage = {
+				inputTokens: Number.MAX_SAFE_INTEGER + 1,
+				outputTokens: 0,
+			};
+			output.report.usage = { ...output.report.expertOutcomes[0]!.usage };
+		}],
 		["aggregate usage that differs from retained turns", (output: ReturnType<typeof completedOutput>) => {
 			output.report.expertOutcomes[0]!.usage.inputTokens += 1;
 		}],
