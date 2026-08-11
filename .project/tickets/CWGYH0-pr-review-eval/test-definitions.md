@@ -104,7 +104,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A failed durable write does not poison the next write
 
-- [ ] RED
+- [x] RED 32c2b0a28
 - [ ] GREEN
 - [ ] REFACTOR
 
