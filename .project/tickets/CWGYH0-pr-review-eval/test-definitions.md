@@ -170,7 +170,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Reserve exhaustion stops the run
 
-- [ ] RED
+- [x] RED skip: quality-review requested an explicit proof for behavior already implemented
 - [ ] GREEN
 - [ ] REFACTOR
 
