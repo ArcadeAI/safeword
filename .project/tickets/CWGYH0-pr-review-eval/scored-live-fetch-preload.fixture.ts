@@ -1,0 +1,34 @@
+import { appendFileSync } from "node:fs";
+
+let providerTurn = 0;
+globalThis.fetch = Object.assign(
+	() => {
+		providerTurn += 1;
+		const logPath = process.env.CWGYH0_FETCH_LOG;
+		if (logPath) appendFileSync(logPath, `${providerTurn}\n`);
+		const content = providerTurn % 2 === 1
+			? [{
+				id: `read-${providerTurn}`,
+				input: { path: "package.json" },
+				name: "read_file",
+				type: "tool_use",
+			}]
+			: [{
+				id: `report-${providerTurn}`,
+				input: { couldNotVerify: [], findings: [], summary: "No findings." },
+				name: "report_findings",
+				type: "tool_use",
+			}];
+		return Promise.resolve(
+			new Response(
+				JSON.stringify({
+					content,
+					stop_reason: "tool_use",
+					usage: { input_tokens: 10, output_tokens: 5 },
+				}),
+				{ headers: { "content-type": "application/json" }, status: 200 },
+			),
+		);
+	},
+	{ preconnect: () => undefined },
+) as typeof fetch;

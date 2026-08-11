@@ -46,7 +46,7 @@ Architecture alignment: this remains ticket-local research tooling and follows `
 
 ## Known deviations
 
-The benchmark currently imports a frozen adapter by absolute scratch path. Implementation will replace that with a pinned persistent checkout or packaged adapter reference before another paid call; retaining `/private/tmp` would make provenance and resume unverifiable.
+The benchmark requires explicit adapter and source-repository roots at runtime, verifies the adapter's immutable commit and clean tracked state before dynamically loading it, and binds that identity into preflight and run evidence. A packaged adapter remains preferable for distribution, but no machine-specific worktree path is embedded in the paid runner.
 
 ## Doc impact
 

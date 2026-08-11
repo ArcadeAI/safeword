@@ -15,6 +15,11 @@ const bootstrapResamples = 1_000;
 const trials = 3;
 const systems = ["full", "narrow"] as const;
 const variants = ["buggy", "fixed"] as const;
+const expectedRoute = {
+	expert: "correctness",
+	model: "claude-sonnet-5",
+	provider: "anthropic",
+} as const;
 
 type SystemName = (typeof systems)[number];
 type Variant = (typeof variants)[number];
@@ -93,7 +98,7 @@ for (const relativePath of glob.scanSync(outputRoot)) {
 	rawRecords.push(record);
 }
 const classifiedRecords = rawRecords.map((record) => {
-	const disposition = classifyTrialOutput(record.output, "correctness", {
+	const disposition = classifyTrialOutput(record.output, expectedRoute, {
 		caseId: record.caseId,
 		reviewBaseSha: record.reviewBaseSha,
 		runnerRef: record.runnerRef,

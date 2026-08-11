@@ -125,7 +125,11 @@ try {
 				};
 				const result = await executeWithInfrastructureRetry(
 					() => execute(reviewInput),
-					(output) => classifyTrialOutput(output, "correctness", {
+					(output) => classifyTrialOutput(output, {
+						expert: "correctness",
+						model: "claude-sonnet-5",
+						provider: "anthropic",
+					}, {
 						caseId,
 						reviewBaseSha,
 						runnerRef,
@@ -137,7 +141,11 @@ try {
 				if (result.status !== "completed") throw new Error("expected completion");
 				const output = result.value;
 				assert.equal(
-					classifyTrialOutput(output, "correctness", {
+					classifyTrialOutput(output, {
+						expert: "correctness",
+						model: "claude-sonnet-5",
+						provider: "anthropic",
+					}, {
 						caseId,
 						reviewBaseSha,
 						runnerRef,

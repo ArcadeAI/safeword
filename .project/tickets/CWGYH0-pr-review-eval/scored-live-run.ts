@@ -7,14 +7,7 @@ import {
 } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-
-import {
-	createRunnerExecutor,
-	type DevelopmentCase,
-	type DevelopmentReviewInput,
-	type DevelopmentVariant,
-	loadDevelopmentManifest,
-} from "/Users/alex/.codex/worktrees/ec04/arcade-pr-review/tools/pr-review/src/eval/development-benchmark.ts";
+import { pathToFileURL } from "node:url";
 import {
 	classifyTrialOutput,
 	executeWithInfrastructureRetry,
@@ -35,8 +28,8 @@ import {
 } from "./scored-case-store";
 
 const ticketRoot = import.meta.dir;
-const sourceRepository = "/Users/alex/Projects/arcade-monorepo";
-const adapterRoot = "/Users/alex/.codex/worktrees/ec04/arcade-pr-review";
+const sourceRepository = requireEnvironment("CWGYH0_SOURCE_REPOSITORY");
+const adapterRoot = requireEnvironment("CWGYH0_ADAPTER_ROOT");
 const primaryManifestPath = join(
 	ticketRoot,
 	"scored-cases-frozen-2026-08-01.json",
@@ -67,6 +60,7 @@ const expectedAdapterCommit = "3eb8652324c755ce2fc806b6ab5d3d41c1f1a39f";
 const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@3eb865232";
 const preregisteredRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@8d86720c0";
 const model = "claude-sonnet-5";
+const expectedRoute = { expert: "correctness", model, provider: "anthropic" } as const;
 const trials = 3;
 const seed = 5_453_573;
 const aggregateCostStopUsd = 1_000;
@@ -89,7 +83,24 @@ const cumulativeCostTargetUsd = parseCumulativeCostTarget(
 	aggregateCostStopUsd,
 );
 
-type RawCase = DevelopmentCase & {
+type DevelopmentVariant = "buggy" | "fixed";
+type DevelopmentReviewInput = {
+	caseId: string;
+	causalPaths: string[];
+	failureDescription: unknown;
+	modelCutoff: string;
+	reviewBaseSha: string;
+	runnerRef: string;
+	sourceSha: string;
+	variant: DevelopmentVariant;
+};
+type RawCase = {
+	baseSha: string;
+	causalPaths: string[];
+	failureDescription: unknown;
+	fixedSha: string;
+	id: string;
+	reviewBaseSha: string;
 	testPatchPaths: string[];
 	testPatchSha: string;
 };
@@ -118,6 +129,16 @@ type RunState = {
 	reserveIndex: number;
 	version: 3;
 };
+type AdapterModule = {
+	createRunnerExecutor: (options: {
+		env?: Record<string, string | undefined>;
+		expertsDir: string;
+		forceExpertLane?: "correctness";
+		policy: typeof policy;
+		targetFor: (input: DevelopmentReviewInput) => { baseRef: string; root: string };
+	}) => (input: DevelopmentReviewInput) => Promise<unknown>;
+	loadDevelopmentManifest: (path: string) => unknown;
+};
 
 function requireEnvironment(name: string): string {
 	const value = process.env[name];
@@ -125,6 +146,20 @@ function requireEnvironment(name: string): string {
 		throw new Error(`${name} is required`);
 	}
 	return value;
+}
+
+function requireAdapterModule(value: unknown): AdapterModule {
+	if (
+		typeof value !== "object" ||
+		value === null ||
+		!("createRunnerExecutor" in value) ||
+		typeof value.createRunnerExecutor !== "function" ||
+		!("loadDevelopmentManifest" in value) ||
+		typeof value.loadDevelopmentManifest !== "function"
+	) {
+		throw new Error("pinned adapter does not expose the benchmark contract");
+	}
+	return value as AdapterModule;
 }
 
 function runGit(cwd: string, args: string[]): string {
@@ -297,12 +332,6 @@ function validateFrozenInputs(
 		expectedHashes.narrowCorrectness,
 	);
 	assertHash(join(experts.narrow, "verifier.md"), expectedHashes.narrowVerifier);
-	if (runGit(adapterRoot, ["rev-parse", "HEAD"]) !== expectedAdapterCommit) {
-		throw new Error("adapter commit does not match the frozen runner");
-	}
-	if (runGit(adapterRoot, ["status", "--porcelain", "--untracked-files=no"])) {
-		throw new Error("adapter has tracked modifications");
-	}
 	if (primary.cases.length !== 30 || reserve.cases.length !== 10) {
 		throw new Error("frozen corpus must contain 30 primary and 10 reserve cases");
 	}
@@ -473,6 +502,20 @@ if (existsSync(scratchRoot)) {
 if (!resuming) mkdirSync(outputRoot, { recursive: true });
 mkdirSync(scratchRoot, { recursive: true });
 
+if (runGit(adapterRoot, ["rev-parse", "HEAD"]) !== expectedAdapterCommit) {
+	throw new Error("adapter commit does not match the frozen runner");
+}
+if (runGit(adapterRoot, ["status", "--porcelain", "--untracked-files=no"])) {
+	throw new Error("adapter has tracked modifications");
+}
+const { createRunnerExecutor, loadDevelopmentManifest } = requireAdapterModule(
+	await import(
+		pathToFileURL(
+			join(adapterRoot, "tools/pr-review/src/eval/development-benchmark.ts"),
+		).href
+	),
+);
+
 loadDevelopmentManifest(primaryManifestPath);
 loadDevelopmentManifest(reserveManifestPath);
 const primary = readRawManifest(primaryManifestPath);
@@ -538,17 +581,22 @@ if (preflightOnly) {
 		sourceRepositoryIdentity?: unknown;
 		status?: unknown;
 	};
+	const mismatchedFrozenField = Object.entries(baseFrozenRun).find(
+		([key, expected]) =>
+			JSON.stringify(certifiedPreflight[key]) !== JSON.stringify(expected),
+	)?.[0];
 	if (
 		typeof certifiedPreflight.preflightId !== "string" ||
 		certifiedPreflight.preflightId.length === 0 ||
 		certifiedPreflight.status !== "passed" ||
 		certifiedPreflight.preflightedRepositories !== allCases.length * 2 ||
-		Object.entries(baseFrozenRun).some(
-			([key, expected]) =>
-				JSON.stringify(certifiedPreflight[key]) !== JSON.stringify(expected),
-		)
+		mismatchedFrozenField !== undefined
 	) {
-		throw new Error("certified preflight does not match the frozen benchmark");
+		throw new Error(
+			`certified preflight does not match the frozen benchmark${
+				mismatchedFrozenField === undefined ? "" : `: ${mismatchedFrozenField}`
+			}`,
+		);
 	}
 	frozenRun = {
 		...baseFrozenRun,
@@ -783,7 +831,7 @@ if (preflightOnly) {
 			try {
 				const result = await executeWithInfrastructureRetry(
 					() => execute(reviewInput),
-					(value) => classifyTrialOutput(value, "correctness", {
+					(value) => classifyTrialOutput(value, expectedRoute, {
 						caseId: reviewInput.caseId,
 						reviewBaseSha: reviewInput.reviewBaseSha,
 						runnerRef: reviewInput.runnerRef,

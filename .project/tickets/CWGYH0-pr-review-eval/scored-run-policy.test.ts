@@ -302,7 +302,7 @@ describe("one-retry policy", () => {
 		const successful = completedOutput();
 		const result = await executeWithInfrastructureRetry(
 			async () => (++calls === 1 ? failed : successful),
-			(value) => classifyTrialOutput(value, "correctness", expectedProvenance),
+			(value) => classifyTrialOutput(value, expectedRoute, expectedProvenance),
 		);
 
 		expect(result.status).toBe("completed");
@@ -325,7 +325,7 @@ describe("one-retry policy", () => {
 				calls += 1;
 				return failed;
 			},
-			(value) => classifyTrialOutput(value, "correctness", expectedProvenance),
+			(value) => classifyTrialOutput(value, expectedRoute, expectedProvenance),
 		);
 
 		expect(calls).toBe(1);

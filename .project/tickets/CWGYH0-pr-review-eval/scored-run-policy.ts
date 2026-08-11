@@ -39,6 +39,12 @@ export type TrialProvenance = {
 	variant: string;
 };
 
+export type TrialRoute = {
+	expert: string;
+	model: string;
+	provider: string;
+};
+
 export type TrialDisposition =
 	| { reason: "completed"; retry: "never"; status: "usable" }
 	| {
@@ -56,7 +62,7 @@ export type TrialAttempt<T> =
 	  }
 	| {
 		attempt: 1 | 2;
-		disposition: null;
+		disposition: TrialDisposition | null;
 		error: string;
 		output: null;
 	  };
@@ -147,7 +153,7 @@ function matchesProvenance(
  */
 export function classifyTrialOutput(
 	value: unknown,
-	expectedExpert: string,
+	expectedRoute: TrialRoute,
 	expectedProvenance: TrialProvenance,
 ): TrialDisposition {
 	if (value === undefined || value === null || value === "") {
@@ -191,13 +197,21 @@ export function classifyTrialOutput(
 			status: "invalid",
 		};
 	}
-	const routedModel = value.models.some(
-		(model) => isRecord(model) && model.expert === expectedExpert,
+	const routedModels = value.models.filter(
+		(model) =>
+			isRecord(model) &&
+			model.expert === expectedRoute.expert &&
+			model.model === expectedRoute.model &&
+			model.provider === expectedRoute.provider,
 	);
 	const routedOutcomes = report.expertOutcomes.filter(
-		(outcome) => isRecord(outcome) && outcome.expert === expectedExpert,
+		(outcome) =>
+			isRecord(outcome) &&
+			outcome.expert === expectedRoute.expert &&
+			outcome.model === expectedRoute.model &&
+			outcome.provider === expectedRoute.provider,
 	);
-	if (!routedModel || routedOutcomes.length !== 1) {
+	if (routedModels.length !== 1 || routedOutcomes.length !== 1) {
 		return { reason: "routing-invalid", retry: "never", status: "invalid" };
 	}
 
@@ -303,6 +317,17 @@ function errorSummary(error: unknown): string {
 	return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 }
 
+function thrownDisposition(error: unknown): TrialDisposition | null {
+	if (!isErrorLike(error) || typeof error.name !== "string") return null;
+	if (error.name === "SchemaViolationError") {
+		return { reason: "schema-invalid", retry: "never", status: "invalid" };
+	}
+	if (error.name === "ProviderRequestError" && typeof error.status === "number") {
+		return { reason: "provider-failure", retry: "never", status: "invalid" };
+	}
+	return null;
+}
+
 /**
  * The benchmark retries only failures external to reviewer judgment. Provider
  * shape failures, parser failures, budget exhaustion, and ordinary 4xx errors
@@ -379,8 +404,24 @@ export async function executeWithInfrastructureRetry<T>(
 				value,
 			};
 		} catch (error) {
-			if (!isInfrastructureError(error)) throw error;
 			const summary = errorSummary(error);
+			if (!isInfrastructureError(error)) {
+				const disposition = thrownDisposition(error);
+				if (disposition === null) throw error;
+				attemptRecords.push({
+					attempt: attempts,
+					disposition,
+					error: summary,
+					output: null,
+				});
+				return {
+					attempts,
+					attemptRecords,
+					disposition,
+					infrastructureErrors,
+					status: "exclude-case",
+				};
+			}
 			infrastructureErrors.push(summary);
 			attemptRecords.push({
 				attempt: attempts,

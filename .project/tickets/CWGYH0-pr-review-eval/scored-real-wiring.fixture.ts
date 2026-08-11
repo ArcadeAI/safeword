@@ -98,7 +98,11 @@ try {
 	const result = await executeCaseWork({
 		caseState,
 		classify: (value) =>
-			classifyTrialOutput(value, "correctness", {
+			classifyTrialOutput(value, {
+				expert: "correctness",
+				model: "claude-sonnet-5",
+				provider: "anthropic",
+			}, {
 				caseId: reviewInput.caseId,
 				reviewBaseSha: reviewInput.reviewBaseSha,
 				runnerRef: reviewInput.runnerRef,
