@@ -72,12 +72,12 @@ function syncDirectory(path: string): void {
 	}
 }
 
-export function writeJsonDurably(path: string, value: unknown): void {
+export function writeBytesDurably(path: string, value: string | Uint8Array): void {
 	const temporaryPath = `${path}.tmp-${process.pid}-${randomUUID()}`;
 	try {
 		const descriptor = openSync(temporaryPath, "wx");
 		try {
-			writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`);
+			writeFileSync(descriptor, value);
 			fsyncSync(descriptor);
 		} finally {
 			closeSync(descriptor);
@@ -88,6 +88,10 @@ export function writeJsonDurably(path: string, value: unknown): void {
 		if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
 		throw error;
 	}
+}
+
+export function writeJsonDurably(path: string, value: unknown): void {
+	writeBytesDurably(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function safeSegment(value: string, field: string): string {

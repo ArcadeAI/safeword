@@ -1,5 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 
 import { mean, pairedBootstrapInterval } from "./scored-analysis";
 import {
@@ -65,9 +64,6 @@ function isNamedFinding(record: RecordFile, finding: Finding): boolean {
 const outputRoot = requireArgument(2, "scored output directory");
 const resultsPath = requireArgument(3, "results path");
 const verificationIdentity = process.argv[4];
-const preflightPath =
-	process.env.CWGYH0_PREFLIGHT_PATH ??
-	requireArgument(5, "contamination preflight path");
 if (existsSync(resultsPath)) throw new Error(`refusing to overwrite ${resultsPath}`);
 
 const rawAnchor = await loadGitHubEvidenceAnchor(
@@ -96,10 +92,13 @@ const verifiedRaw = verifyRawArtifactManifest({
 const verifiedBytes = new Map(
 	verifiedRaw.artifacts.map((artifact) => [artifact.identity, artifact.bytes]),
 );
-const readVerifiedJson = <T>(identity: string): T => {
+const readVerifiedText = (identity: string): string => {
 	const bytes = verifiedBytes.get(identity);
 	if (bytes === undefined) throw new Error(`verified raw artifact is missing: ${identity}`);
-	return JSON.parse(new TextDecoder().decode(bytes)) as T;
+	return new TextDecoder().decode(bytes);
+};
+const readVerifiedJson = <T>(identity: string): T => {
+	return JSON.parse(readVerifiedText(identity)) as T;
 };
 
 const summary = readVerifiedJson<{
@@ -115,7 +114,8 @@ const summary = readVerifiedJson<{
 if (summary.status !== "completed") {
 	throw new Error("scored run is incomplete");
 }
-const preflight = bindContaminationPreflight(readFileSync(preflightPath, "utf8"), {
+const preflight = bindContaminationPreflight(
+	readVerifiedText("contamination-preflight.json"), {
 	preflightId: summary.preflightId,
 	preflightSha256: summary.preflightSha256,
 	sourceRepositoryIdentity: summary.sourceRepositoryIdentity,

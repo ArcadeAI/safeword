@@ -106,6 +106,27 @@ function hasUsage(value: unknown): boolean {
 	);
 }
 
+function usageOf(value: unknown): { inputTokens: number; outputTokens: number } | null {
+	if (!hasUsage(value)) return null;
+	return {
+		inputTokens: value.inputTokens as number,
+		outputTokens: value.outputTokens as number,
+	};
+}
+
+function isToolCall(value: unknown): boolean {
+	return (
+		isRecord(value) &&
+		isRecord(value.args) &&
+		typeof value.name === "string" &&
+		value.name.length > 0 &&
+		typeof value.ok === "boolean" &&
+		(value.path === null || (typeof value.path === "string" && value.path.length > 0)) &&
+		typeof value.summary === "string" &&
+		value.summary.length > 0
+	);
+}
+
 function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 	if (
 		!Number.isInteger(outcome.turns) ||
@@ -115,6 +136,8 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 	) {
 		return false;
 	}
+	let inputTokens = 0;
+	let outputTokens = 0;
 	for (const evidence of outcome.providerResponses) {
 		if (
 			!isRecord(evidence) ||
@@ -127,11 +150,24 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 		}
 		try {
 			const raw = JSON.parse(evidence.raw) as unknown;
-			if (!isRecord(raw) || raw.stop_reason !== evidence.stopReason) return false;
+			if (!isRecord(raw) || raw.stop_reason !== evidence.stopReason || !isRecord(raw.usage)) return false;
+			const rawUsage = usageOf({
+				inputTokens: raw.usage.input_tokens,
+				outputTokens: raw.usage.output_tokens,
+			});
+			if (rawUsage === null) return false;
+			inputTokens += rawUsage.inputTokens;
+			outputTokens += rawUsage.outputTokens;
 		} catch {
 			return false;
 		}
 	}
+	const outcomeUsage = usageOf(outcome.usage);
+	if (
+		outcomeUsage === null ||
+		outcomeUsage.inputTokens !== inputTokens ||
+		outcomeUsage.outputTokens !== outputTokens
+	) return false;
 	const terminal = outcome.providerResponses.at(-1) as UnknownRecord;
 	if (terminal.stopReason !== "tool_use" || typeof terminal.raw !== "string") {
 		return false;
@@ -319,7 +355,13 @@ export function classifyTrialOutput(
 			status: "invalid",
 		};
 	}
-	if (!Array.isArray(value.trace) || value.trace.length === 0) {
+	if (
+		!Array.isArray(value.trace) ||
+		value.trace.length === 0 ||
+		!value.trace.every(isToolCall) ||
+		!Array.isArray(outcome.toolCalls) ||
+		JSON.stringify(value.trace) !== JSON.stringify(outcome.toolCalls)
+	) {
 		return {
 			reason: "provenance-incomplete",
 			retry: "never",
@@ -339,6 +381,20 @@ export function classifyTrialOutput(
 		};
 	}
 	if (!hasUsage(report.usage)) {
+		return {
+			reason: "provenance-incomplete",
+			retry: "never",
+			status: "invalid",
+		};
+	}
+	const outcomeUsage = usageOf(outcome.usage);
+	const reportUsage = usageOf(report.usage);
+	if (
+		outcomeUsage === null ||
+		reportUsage === null ||
+		outcomeUsage.inputTokens !== reportUsage.inputTokens ||
+		outcomeUsage.outputTokens !== reportUsage.outputTokens
+	) {
 		return {
 			reason: "provenance-incomplete",
 			retry: "never",

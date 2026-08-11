@@ -18,6 +18,13 @@ function rawOutput(index: number) {
 		sourceSha: `source-${index + 1}`,
 		variant: index % 4 < 2 ? "buggy" : "fixed",
 	};
+	const toolCall = {
+		args: { path: "src/example.ts" },
+		name: "read_file",
+		ok: true,
+		path: "src/example.ts",
+		summary: "10 line(s)",
+	};
 	return {
 		output: {
 			models: [route],
@@ -39,10 +46,12 @@ function rawOutput(index: number) {
 								type: "tool_use",
 							}],
 							stop_reason: "tool_use",
+							usage: { input_tokens: 10, output_tokens: 2 },
 						}),
 						stopReason: "tool_use",
 					}],
 					summary: "Complete.",
+					toolCalls: [toolCall],
 					turns: 1,
 					usage: { inputTokens: 10, outputTokens: 2 },
 				}],
@@ -54,7 +63,7 @@ function rawOutput(index: number) {
 				reviewValid: true,
 			},
 			terminalState: "completed",
-			trace: [{ type: "report" }],
+			trace: [toolCall],
 		},
 		provenance,
 	};

@@ -23,6 +23,13 @@ const expectedRoute = {
 };
 
 function completedOutput(findings: unknown[] = []) {
+	const toolCall = {
+		args: { path: "src/example.ts" },
+		name: "read_file",
+		ok: true,
+		path: "src/example.ts",
+		summary: "10 line(s)",
+	};
 	return {
 		models: [{ expert: "correctness", model: "claude-sonnet-5", provider: "anthropic" }],
 		provenance: expectedProvenance,
@@ -36,7 +43,7 @@ function completedOutput(findings: unknown[] = []) {
 				model: "claude-sonnet-5",
 				provider: "anthropic",
 				providerResponses: [
-					{ raw: '{"content":[{"type":"tool_use","name":"read_file","input":{}}],"stop_reason":"tool_use"}', stopReason: "tool_use" },
+					{ raw: '{"content":[{"type":"tool_use","name":"read_file","input":{}}],"stop_reason":"tool_use","usage":{"input_tokens":6,"output_tokens":1}}', stopReason: "tool_use" },
 					{
 						raw: JSON.stringify({
 							content: [{
@@ -45,11 +52,13 @@ function completedOutput(findings: unknown[] = []) {
 								type: "tool_use",
 							}],
 							stop_reason: "tool_use",
+							usage: { input_tokens: 4, output_tokens: 1 },
 						}),
 						stopReason: "tool_use",
 					},
 				],
 				summary: "Complete.",
+				toolCalls: [toolCall],
 				failure: null as unknown,
 				findings,
 				turns: 2,
@@ -59,7 +68,7 @@ function completedOutput(findings: unknown[] = []) {
 		},
 		score: { matchingFindings: [], namedFailure: false, reviewValid: true },
 		terminalState: "completed",
-		trace: [{ type: "tool-call" }],
+		trace: [toolCall],
 	};
 }
 
@@ -86,6 +95,29 @@ describe("positive trial admission", () => {
 			retry: "never",
 			status: "usable",
 		});
+	});
+
+	test.each([
+		["a malformed trace entry", (output: ReturnType<typeof completedOutput>) => {
+			output.trace = [{ ...output.trace[0]!, ok: "true" as never }];
+		}],
+		["trace that differs from the retained expert calls", (output: ReturnType<typeof completedOutput>) => {
+			output.trace = [{ ...output.trace[0]!, summary: "fabricated" }];
+		}],
+		["missing raw per-turn usage", (output: ReturnType<typeof completedOutput>) => {
+			const evidence = output.report.expertOutcomes[0]!.providerResponses[0]!;
+			evidence.raw = evidence.raw.replace(',"usage":{"input_tokens":6,"output_tokens":1}', "");
+		}],
+		["aggregate usage that differs from retained turns", (output: ReturnType<typeof completedOutput>) => {
+			output.report.expertOutcomes[0]!.usage.inputTokens += 1;
+		}],
+		["report usage that differs from the expert aggregate", (output: ReturnType<typeof completedOutput>) => {
+			output.report.usage.outputTokens += 1;
+		}],
+	] as const)("rejects %s", (_name, mutate) => {
+		const output = completedOutput();
+		mutate(output);
+		expect(classifyWithFrozenProvenance(output)).toMatchObject({ status: "invalid" });
 	});
 
 	test("rejects a successful frozen route when any extra outcome failed", () => {

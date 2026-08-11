@@ -30,6 +30,7 @@ import {
 	recordTrialAttempt,
 	recordTrialAttemptIntent,
 	sealActiveCase,
+	writeBytesDurably,
 	writeJsonDurably,
 } from "./scored-case-store";
 import { estimateAttemptUsage } from "./scored-cost";
@@ -565,6 +566,14 @@ if (preflightOnly) {
 				mismatchedFrozenField === undefined ? "" : `: ${mismatchedFrozenField}`
 			}`,
 		);
+	}
+	const retainedPreflightPath = join(outputRoot, "contamination-preflight.json");
+	if (existsSync(retainedPreflightPath)) {
+		if (readFileSync(retainedPreflightPath, "utf8") !== certifiedPreflightBytes) {
+			throw new Error("retained contamination preflight differs from certified bytes");
+		}
+	} else {
+		writeBytesDurably(retainedPreflightPath, certifiedPreflightBytes);
 	}
 	frozenRun = {
 		...baseFrozenRun,
