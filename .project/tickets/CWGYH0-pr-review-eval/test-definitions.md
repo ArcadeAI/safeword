@@ -222,7 +222,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The adapter checkout is explicit and commit-pinned
 
-- [ ] RED
+- [x] RED f948a4a36
 - [ ] GREEN
 - [ ] REFACTOR
 
