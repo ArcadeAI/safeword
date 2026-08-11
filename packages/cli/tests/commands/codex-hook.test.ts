@@ -398,14 +398,36 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('SAFEWORD Agent Instructions');
+    expect(result.stdout).toContain('Safeword session bootstrap');
+    expect(result.stdout).toContain('the packaged Safeword handbook');
     expect(result.stdout).toContain('.project/');
     expect(result.stdout).toContain('.safeword/guides/');
     expect(result.stdout).toContain('supersede');
-    expect(result.stdout.indexOf('.project/')).toBeLessThan(
-      result.stdout.indexOf('SAFEWORD Agent Instructions'),
-    );
+    expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
+    expect(result.stdout.length).toBeLessThanOrEqual(1000);
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
+  });
+
+  it('keeps the packaged SessionStart fallback compact when its dispatcher is unavailable', () => {
+    const { packageDirectory, projectDirectory } = createPackagedCliFixture();
+    rmSync(nodePath.join(packageDirectory, 'templates', 'hooks', 'session-codex-start.ts'));
+
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(packageDirectory, 'dist', 'cli.js'), 'hook', 'codex', 'session-start'],
+      {
+        cwd: projectDirectory,
+        input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
+        encoding: 'utf8',
+        env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('Safeword session bootstrap');
+    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).not.toContain('SAFEWORD Agent Instructions');
+    expect(result.stdout.length).toBeLessThanOrEqual(1000);
   });
 
   it('keeps an unconfigured repository unchanged through SessionStart', () => {
@@ -422,7 +444,9 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('SAFEWORD Agent Instructions');
+    expect(result.stdout).toContain('Safeword session bootstrap');
+    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout.length).toBeLessThanOrEqual(1000);
     expect(rootEntries(projectDirectory)).toEqual(before);
   });
 
