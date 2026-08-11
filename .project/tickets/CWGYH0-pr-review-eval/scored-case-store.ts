@@ -162,9 +162,10 @@ function readLockOwner(lockPath: string): LockOwner | null {
 }
 
 function lockOwnerIsAlive(owner: LockOwner | null): boolean {
-	if (owner === null || typeof owner.processIdentity !== "string") return false;
+	if (owner === null) return true;
 	try {
 		process.kill(owner.pid, 0);
+		if (typeof owner.processIdentity !== "string") return true;
 		const identity = processIdentity(owner.pid);
 		return identity === null || identity === owner.processIdentity;
 	} catch (error) {
@@ -204,15 +205,17 @@ export function acquireRunLock(outputRoot: string): RunLock {
 	let acquired = false;
 	try {
 		for (let attempt = 0; attempt < 16 && !acquired; attempt += 1) {
-			try {
-				renameSync(candidatePath, lockPath);
-				syncDirectory(outputRoot);
-				acquired = true;
-				break;
-			} catch (error) {
-				if (!existsSync(lockPath)) {
-					if (!existsSync(candidatePath)) throw error;
-					continue;
+			if (!existsSync(lockPath)) {
+				try {
+					renameSync(candidatePath, lockPath);
+					syncDirectory(outputRoot);
+					acquired = true;
+					break;
+				} catch (error) {
+					if (!existsSync(lockPath)) {
+						if (!existsSync(candidatePath)) throw error;
+						continue;
+					}
 				}
 			}
 

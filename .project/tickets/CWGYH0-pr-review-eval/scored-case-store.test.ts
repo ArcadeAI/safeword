@@ -103,16 +103,27 @@ describe("durable case lifecycle", () => {
 		lock.release();
 	});
 
-	test("reclaims an empty lock left by a crash during acquisition", () => {
+	test("preserves an empty lock with ambiguous ownership", () => {
 		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
 		mkdirSync(join(outputRoot, ".run.lock"));
 
-		const lock = acquireRunLock(outputRoot);
+		expect(() => acquireRunLock(outputRoot)).toThrow("already locked");
+	});
 
-		expect(
-			JSON.parse(readFileSync(join(outputRoot, ".run.lock", "owner.json"), "utf8")),
-		).toMatchObject({ pid: process.pid });
-		lock.release();
+	test("preserves a legacy lock whose PID is still alive", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		writeFileSync(join(outputRoot, ".run.lock"), `${process.pid}\n`);
+
+		expect(() => acquireRunLock(outputRoot)).toThrow("already locked");
+	});
+
+	test("preserves a malformed owner record", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const lockPath = join(outputRoot, ".run.lock");
+		mkdirSync(lockPath);
+		writeFileSync(join(lockPath, "owner.json"), "not-json");
+
+		expect(() => acquireRunLock(outputRoot)).toThrow("already locked");
 	});
 
 	test("reclaims a stale lock after its PID is reused", () => {
