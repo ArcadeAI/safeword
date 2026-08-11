@@ -223,7 +223,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The adapter checkout is explicit and commit-pinned
 
 - [x] RED f948a4a36
-- [ ] GREEN
+- [x] GREEN 0aa2de93a
 - [ ] REFACTOR
 
 ### Scenario: Successful wiring advances durable run state
