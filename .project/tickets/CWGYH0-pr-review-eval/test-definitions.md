@@ -80,7 +80,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A thrown semantic provider failure quarantines without retry
 
-- [ ] RED
+- [x] RED f948a4a36
 - [ ] GREEN
 - [ ] REFACTOR
 
