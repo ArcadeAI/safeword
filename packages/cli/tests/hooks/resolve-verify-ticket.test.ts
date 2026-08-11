@@ -9,7 +9,7 @@ import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.j
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const helperPath = nodePath.join(repoRoot, 'packages/cli/templates/hooks/resolve-verify-ticket.ts');
 
-const context = { projectDirectory: '' };
+const context = { projectDirectory: '', temporaryRoot: '' };
 
 function isolatedGitEnvironment(): NodeJS.ProcessEnv {
   return {
@@ -67,6 +67,7 @@ function runResolver(
 
 beforeEach(() => {
   context.projectDirectory = createTemporaryDirectory();
+  context.temporaryRoot = context.projectDirectory;
   mkdirSync(nodePath.join(context.projectDirectory, '.project', 'tickets'), { recursive: true });
   git('init', '--initial-branch=main');
   git('config', 'user.email', 'verify-ticket@example.test');
@@ -76,7 +77,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  removeTemporaryDirectory(context.projectDirectory);
+  removeTemporaryDirectory(context.temporaryRoot);
 });
 
 describe('resolve-verify-ticket', () => {
@@ -127,7 +128,34 @@ describe('resolve-verify-ticket', () => {
     expect(result.stderr).toContain(changedTicket);
   });
 
-  it('keeps the session-bound ticket when current work only adds a follow-up ticket', () => {
+  it('fails closed when both the session ticket and another existing ticket changed', () => {
+    const sessionTicket = writeTicket('SESSION1-bound-ticket', 'SESSION1');
+    const changedTicket = writeTicket('CHANGED1-diff-ticket', 'CHANGED1');
+    commitAll('add ticket baseline');
+    writeTicket('SESSION1-bound-ticket', 'SESSION1', 'done');
+    writeTicket('CHANGED1-diff-ticket', 'CHANGED1', 'done');
+    writeFileSync(
+      nodePath.join(
+        context.projectDirectory,
+        '.project',
+        'quality-state-claude-review-session.json',
+      ),
+      JSON.stringify({ activeTicket: 'SESSION1' }),
+    );
+
+    const environment = cleanRunEnvironment();
+    environment.SAFEWORD_AGENT_RUNTIME = 'claude';
+    environment.CLAUDE_SESSION_ID = 'review-session';
+    const result = runResolver({ env: environment });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('Session-bound ticket conflicts');
+    expect(result.stderr).toContain(sessionTicket);
+    expect(result.stderr).toContain(changedTicket);
+  });
+
+  it('fails closed when a session binding cannot distinguish a newly added ticket', () => {
     const sessionTicket = writeTicket('SESSION1-bound-ticket', 'SESSION1');
     commitAll('add session ticket');
     writeTicket('FOLLOW1-new-follow-up', 'FOLLOW1');
@@ -145,9 +173,13 @@ describe('resolve-verify-ticket', () => {
     environment.CLAUDE_SESSION_ID = 'review-session';
     const result = runResolver({ env: environment });
 
-    expect(result.status).toBe(0);
-    expect(result.stderr).toBe('');
-    expect(result.stdout.trim()).toBe(sessionTicket);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('Session-bound ticket conflicts');
+    expect(result.stderr).toContain(sessionTicket);
+    expect(result.stderr).toContain(
+      nodePath.join(context.projectDirectory, '.project/tickets/FOLLOW1-new-follow-up/ticket.md'),
+    );
   });
 
   it('uses a valid session binding when the Git base is unavailable', () => {
@@ -195,6 +227,28 @@ describe('resolve-verify-ticket', () => {
     expect(result.stdout.trim()).toBe(changedTicket);
   });
 
+  it('continues ticketless when a stale session binding has no current-work candidate', () => {
+    writeFileSync(
+      nodePath.join(
+        context.projectDirectory,
+        '.project',
+        'quality-state-claude-review-session.json',
+      ),
+      JSON.stringify({ activeTicket: 'MISSING1' }),
+    );
+
+    const environment = cleanRunEnvironment();
+    environment.SAFEWORD_AGENT_RUNTIME = 'claude';
+    environment.CLAUDE_SESSION_ID = 'review-session';
+    const result = runResolver({ env: environment });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain(
+      'No current-work ticket found; continue without an active ticket.',
+    );
+  });
+
   it('selects an already-done ticket changed by the current worktree', () => {
     const ticketPath = writeTicket('DONE123-current-change', 'DONE123', 'done');
 
@@ -214,6 +268,22 @@ describe('resolve-verify-ticket', () => {
     const result = runResolver();
 
     expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(ticketPath);
+  });
+
+  it('resolves committed ticket evidence when the project is below the Git root', () => {
+    const gitRoot = context.projectDirectory;
+    const projectDirectory = nodePath.join(gitRoot, 'packages/app');
+    mkdirSync(projectDirectory, { recursive: true });
+    context.projectDirectory = projectDirectory;
+    git('checkout', '-b', 'feature/subproject-ticket');
+    const ticketPath = writeTicket('SUBPR01-current-pr', 'SUBPR01', 'done');
+    commitAll('add subproject ticket');
+
+    const result = runResolver();
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
     expect(result.stdout.trim()).toBe(ticketPath);
   });
 
@@ -340,6 +410,7 @@ describe('resolve-verify-ticket', () => {
     state => {
       removeTemporaryDirectory(context.projectDirectory);
       context.projectDirectory = createTemporaryDirectory();
+      context.temporaryRoot = context.projectDirectory;
       mkdirSync(nodePath.join(context.projectDirectory, '.project', 'tickets'), {
         recursive: true,
       });
@@ -353,4 +424,49 @@ describe('resolve-verify-ticket', () => {
       expect(result.stdout.trim()).toBe(ticketPath);
     },
   );
+
+  it('fails closed when a session binding cannot distinguish new tickets in a repository with no HEAD', () => {
+    removeTemporaryDirectory(context.projectDirectory);
+    context.projectDirectory = createTemporaryDirectory();
+    context.temporaryRoot = context.projectDirectory;
+    mkdirSync(nodePath.join(context.projectDirectory, '.project', 'tickets'), {
+      recursive: true,
+    });
+    git('init', '--initial-branch=main');
+    const sessionTicket = writeTicket('SESSION1-bound-ticket', 'SESSION1');
+    writeTicket('FOLLOW1-new-follow-up', 'FOLLOW1');
+    writeFileSync(
+      nodePath.join(
+        context.projectDirectory,
+        '.project',
+        'quality-state-claude-review-session.json',
+      ),
+      JSON.stringify({ activeTicket: 'SESSION1' }),
+    );
+
+    const environment = cleanRunEnvironment();
+    environment.SAFEWORD_AGENT_RUNTIME = 'claude';
+    environment.CLAUDE_SESSION_ID = 'review-session';
+    const result = runResolver({ env: environment });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('Session-bound ticket conflicts');
+    expect(result.stderr).toContain(sessionTicket);
+    expect(result.stderr).toContain(
+      nodePath.join(context.projectDirectory, '.project/tickets/FOLLOW1-new-follow-up/ticket.md'),
+    );
+  });
+
+  it.each(['--help', '--tickets'])('rejects the unknown option %s', option => {
+    const result = spawnSync('bun', [helperPath, option, 'EXPL123'], {
+      encoding: 'utf8',
+      cwd: context.projectDirectory,
+      env: cleanRunEnvironment(),
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('Usage: resolve-verify-ticket.ts');
+  });
 });

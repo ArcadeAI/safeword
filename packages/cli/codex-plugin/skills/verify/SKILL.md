@@ -57,6 +57,10 @@ identity to the helper, rerun with `--ticket <id>`. Multiple changed tickets
 fail closed with the same instruction. No candidate means continue without an
 active ticket.
 
+Git cannot infer current work from commits made directly on an up-to-date
+default branch because there is no distinct merge-base range. In that case,
+pass `--ticket <id>` when ticket context is required.
+
 If a ticket is found, read it to get:
 
 - `parent:` field (if any)

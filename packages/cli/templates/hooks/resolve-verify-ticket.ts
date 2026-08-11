@@ -21,8 +21,7 @@ interface ResolveVerifyTicketOptions {
 }
 
 type ChangedPathsResult =
-  | { state: 'available'; paths: string[]; preexistingPaths: string[] }
-  | { state: 'error'; message: string };
+  { state: 'available'; paths: string[] } | { state: 'error'; message: string };
 
 const DEFAULT_BASE_REFS = [
   'refs/remotes/origin/HEAD',
@@ -80,11 +79,10 @@ function addNulSeparatedPaths(target: Set<string>, output: string): void {
 function changedPaths(projectDirectory: string): ChangedPathsResult {
   const insideWorktree = runGit(projectDirectory, ['rev-parse', '--is-inside-work-tree']);
   if (insideWorktree.status !== 0 || insideWorktree.stdout.trim() !== 'true') {
-    return { state: 'available', paths: [], preexistingPaths: [] };
+    return { state: 'available', paths: [] };
   }
 
   const paths = new Set<string>();
-  const preexistingPaths = new Set<string>();
   const hasHead = runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']);
 
   if (hasHead.status === 0) {
@@ -110,6 +108,7 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
     }
     const committed = runGit(projectDirectory, [
       'diff',
+      '--relative',
       '--name-only',
       '-z',
       `${mergeBase.stdout.trim()}...HEAD`,
@@ -119,23 +118,11 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
     }
     addNulSeparatedPaths(paths, committed.stdout);
 
-    const working = runGit(projectDirectory, ['diff', '--name-only', '-z', 'HEAD']);
+    const working = runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', 'HEAD']);
     if (working.status !== 0) {
       return { state: 'error', message: 'Unable to read working-tree Git changes' };
     }
     addNulSeparatedPaths(paths, working.stdout);
-
-    const preexisting = runGit(projectDirectory, [
-      'diff',
-      '--diff-filter=MRTUXB',
-      '--name-only',
-      '-z',
-      mergeBase.stdout.trim(),
-    ]);
-    if (preexisting.status !== 0) {
-      return { state: 'error', message: 'Unable to classify current-work Git changes' };
-    }
-    addNulSeparatedPaths(preexistingPaths, preexisting.stdout);
   } else {
     const staged = runGit(projectDirectory, ['diff', '--cached', '--name-only', '-z']);
     if (staged.status !== 0) {
@@ -149,11 +136,7 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
     return { state: 'error', message: 'Unable to read untracked Git changes' };
   }
   addNulSeparatedPaths(paths, untracked.stdout);
-  return {
-    state: 'available',
-    paths: [...paths],
-    preexistingPaths: [...preexistingPaths],
-  };
+  return { state: 'available', paths: [...paths] };
 }
 
 function existingTicketPaths(projectDirectory: string, prefix: string, paths: string[]): string[] {
@@ -168,7 +151,7 @@ function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
   const namespaceRelative = nodePath.relative(projectDirectory, namespaceRoot);
   if (namespaceRelative.startsWith('..') || nodePath.isAbsolute(namespaceRelative)) {
-    return { state: 'available', paths: [], preexistingPaths: [] };
+    return { state: 'available', paths: [] };
   }
 
   const normalizedNamespace = namespaceRelative.split(nodePath.sep).join('/');
@@ -178,7 +161,6 @@ function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   return {
     state: 'available',
     paths: existingTicketPaths(projectDirectory, prefix, changed.paths),
-    preexistingPaths: existingTicketPaths(projectDirectory, prefix, changed.preexistingPaths),
   };
 }
 
@@ -205,10 +187,8 @@ export function resolveVerifyTicket(
   }
   const candidates = changed.paths;
   if (sessionResolution?.state === 'resolved') {
-    if (candidates.length === 0 || candidates.includes(sessionResolution.ticketPath)) {
-      return sessionResolution;
-    }
-    const conflicts = candidates.filter(candidate => changed.preexistingPaths.includes(candidate));
+    if (candidates.length === 0) return sessionResolution;
+    const conflicts = candidates.filter(candidate => candidate !== sessionResolution.ticketPath);
     if (conflicts.length === 0) return sessionResolution;
     return {
       state: 'error',
@@ -218,7 +198,7 @@ export function resolveVerifyTicket(
     };
   }
   if (sessionResolution?.state === 'error' && candidates.length === 0) {
-    return sessionResolution;
+    return { state: 'none' };
   }
 
   if (candidates.length === 0) return { state: 'none' };
@@ -245,6 +225,9 @@ function parseArguments(args: string[]): {
       projectDirectory: process.cwd(),
       error: USAGE,
     };
+  }
+  if (args[0]?.startsWith('--')) {
+    return { projectDirectory: process.cwd(), error: USAGE };
   }
   const projectDirectory = args[0] ?? process.cwd();
   if (args.length <= 1) return { projectDirectory };
