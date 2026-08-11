@@ -238,7 +238,7 @@ function scanTopLevelParagraphs(reply: string): ParagraphScan {
   let examinedCharacters = reply.length + normalized.length;
   const paragraphs: MarkdownParagraph[] = [];
   let lines: string[] = [];
-  let grammarOpaque = false;
+  let excludedFromDecisionGrammar = false;
   let fenceMarker: string | null = null;
   let htmlEnd: string | null = null;
   let rawHtmlTag: string | null = null;
@@ -246,12 +246,16 @@ function scanTopLevelParagraphs(reply: string): ParagraphScan {
   let listContentIndent: number | null = null;
 
   const flush = () => {
-    if (lines.length > 0) paragraphs.push({ text: lines.join('\n').trim(), grammarOpaque });
+    if (lines.length > 0)
+      paragraphs.push({
+        text: lines.join('\n').trim(),
+        grammarOpaque: excludedFromDecisionGrammar,
+      });
     lines = [];
-    grammarOpaque = false;
+    excludedFromDecisionGrammar = false;
   };
-  const flushVisibleParagraph = () => {
-    if (lines.length > 0 && !grammarOpaque) flush();
+  const flushBeforeExcludedBlock = () => {
+    if (lines.length > 0 && !excludedFromDecisionGrammar) flush();
   };
 
   for (const line of normalized.split('\n')) {
@@ -272,11 +276,11 @@ function scanTopLevelParagraphs(reply: string): ParagraphScan {
     let endsExplicitHtmlBlock = false;
 
     if (fenceMarker) {
-      grammarOpaque = true;
+      excludedFromDecisionGrammar = true;
       if (closesFence) fenceMarker = null;
     } else if (opensFence) {
-      flushVisibleParagraph();
-      grammarOpaque = true;
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
       fenceMarker = fence ?? null;
     }
 
@@ -288,49 +292,49 @@ function scanTopLevelParagraphs(reply: string): ParagraphScan {
     }
 
     if (htmlEnd) {
-      grammarOpaque = true;
+      excludedFromDecisionGrammar = true;
       if (trimmed.includes(htmlEnd)) {
         htmlEnd = null;
         endsExplicitHtmlBlock = true;
       }
     } else if (trimmed.startsWith('<!--')) {
-      flushVisibleParagraph();
-      grammarOpaque = true;
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
       if (trimmed.includes('-->')) endsExplicitHtmlBlock = true;
       else htmlEnd = '-->';
     } else if (trimmed.startsWith('<![CDATA[')) {
-      flushVisibleParagraph();
-      grammarOpaque = true;
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
       if (trimmed.includes(']]>')) endsExplicitHtmlBlock = true;
       else htmlEnd = ']]>';
     } else if (trimmed.startsWith('<?')) {
-      flushVisibleParagraph();
-      grammarOpaque = true;
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
       if (trimmed.includes('?>')) endsExplicitHtmlBlock = true;
       else htmlEnd = '?>';
     } else if (/^<![A-Z]/iu.test(trimmed)) {
-      flushVisibleParagraph();
-      grammarOpaque = true;
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
       if (trimmed.includes('>')) endsExplicitHtmlBlock = true;
       else htmlEnd = '>';
     }
 
     if (rawHtmlTag) {
-      grammarOpaque = true;
+      excludedFromDecisionGrammar = true;
       if (trimmed.toLowerCase().includes(`</${rawHtmlTag}>`)) {
         rawHtmlTag = null;
         endsExplicitHtmlBlock = true;
       }
     } else if (insideBlockHtml) {
-      grammarOpaque = true;
+      excludedFromDecisionGrammar = true;
     } else if (!htmlEnd) {
       const openingTag = HTML_OPEN.exec(line)?.[1]?.toLowerCase();
       const interruptsParagraph =
         openingTag !== undefined &&
         (RAW_HTML_TAGS.has(openingTag) || BLOCK_HTML_TAGS.has(openingTag));
       if (openingTag && (lines.length === 0 || interruptsParagraph)) {
-        flushVisibleParagraph();
-        grammarOpaque = true;
+        flushBeforeExcludedBlock();
+        excludedFromDecisionGrammar = true;
         if (
           RAW_HTML_TAGS.has(openingTag) &&
           !trimmed.toLowerCase().includes(`</${openingTag}>`) &&
@@ -348,15 +352,17 @@ function scanTopLevelParagraphs(reply: string): ParagraphScan {
     const listMarker = LIST_MARKER.exec(line);
     const indentation = line.match(/^ */u)?.[0].length ?? 0;
     if (listContentIndent !== null && trimmed !== '') {
-      if (indentation >= listContentIndent) grammarOpaque = true;
+      if (indentation >= listContentIndent) excludedFromDecisionGrammar = true;
       else listContentIndent = null;
     }
     if (listMarker) {
-      flushVisibleParagraph();
-      grammarOpaque = true;
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
       listContentIndent = listMarker[0].length;
     }
-    if (lines.length === 0 && BLOCK_QUOTE_OR_CODE.test(line)) grammarOpaque = true;
+    if (lines.length === 0 && BLOCK_QUOTE_OR_CODE.test(line)) {
+      excludedFromDecisionGrammar = true;
+    }
 
     if (trimmed === '') {
       flush();

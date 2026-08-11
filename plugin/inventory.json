@@ -315,7 +315,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "68abd2c522e9a5385991930f7a759135015f058e0d125f26acbc2c2d46b03275"
+      "sha256": "3791e5767bccf96e8e1ce27234fc1bcb7d14020192efe597e0daf385f0a27d5e"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
