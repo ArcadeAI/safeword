@@ -270,6 +270,11 @@ Feature: Keep failed reviews out of benchmark scores
       Then the raw injected response is preserved in one failed attempt classified as provider-failure
       And no scoreable record is produced
 
+    Scenario: A successful reviewer matrix is scored through real wiring
+      Given successful provider responses are injected only at the network boundary
+      When the real runner and writer seal every frozen cell and the actual scorer runs
+      Then every admitted record contributes to the completed case result
+
     Scenario: A clean canary authorizes the next checkpoint
       Given every frozen no-cost fixture outcome matches its expected rejection reason
       And every canonical R2 operational failure-injection record passes
