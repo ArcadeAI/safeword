@@ -14,9 +14,11 @@ import { describe, expect, test } from "vitest";
 import {
 	acquireRunLock,
 	beginProvisionalCase,
+	caseStateFor,
 	executeCaseWork,
 	quarantineCaseAndAllocateReserve,
 	recoverInterruptedQuarantine,
+	recordAdmittedTrial,
 	recordTrialResult,
 	sealActiveCase,
 } from "./scored-case-store";
@@ -35,6 +37,40 @@ class RequestError extends Error {
 }
 
 describe("durable case lifecycle", () => {
+	test("keeps admitted records invisible until the whole case is sealed", async () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const pendingCase = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		recordAdmittedTrial(pendingCase, "full--buggy--t1", {
+			caseId: "SCORE-example",
+			system: "full",
+			trial: 1,
+			variant: "buggy",
+		});
+
+		const scoreable = new Bun.Glob("active/*/*--record.json");
+		expect([...scoreable.scanSync(outputRoot)]).toEqual([]);
+		expect(
+			beginProvisionalCase({
+				caseId: "SCORE-example",
+				ordinal: 1,
+				outputRoot,
+				resume: true,
+			}),
+		).toEqual(pendingCase);
+		expect(caseStateFor({ caseId: "SCORE-example", ordinal: 1, outputRoot }))
+			.toEqual(pendingCase);
+
+		sealActiveCase(pendingCase);
+
+		expect([...scoreable.scanSync(outputRoot)]).toEqual([
+			"active/01--SCORE-example/full--buggy--t1--record.json",
+		]);
+	});
+
 	test("reclaims a lock whose owning process is dead", () => {
 		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
 		writeFileSync(join(outputRoot, ".run.lock"), "2147483647\n");
