@@ -101,7 +101,8 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
     expect(skill).toContain('invoke the `safeword:retro-filer` skill');
     expect(skill).toMatch(/skip.*retro.*does not/i);
     expect(skill).toMatch(/missing.*expired.*binding/i);
-    expect(skill).toMatch(/no\s+environment-only\s+or\s+newest-session\s+fallback/i);
+    expect(skill).toMatch(/authenticated\s+current\s+`CODEX_THREAD_ID`/i);
+    expect(skill).toMatch(/no\s+newest-session\s+fallback/i);
     expect(skill).toMatch(/failed extraction.*failed filing.*pending drafts/is);
     expect(skill).toMatch(/no cleanup/i);
   });

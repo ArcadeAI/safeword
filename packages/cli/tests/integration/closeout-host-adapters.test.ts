@@ -1217,7 +1217,8 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         encoding: 'utf8',
       });
       expect(execution.status).toBe(2);
-      expect(execution.stderr).toContain('a fresh host session binding are required');
+      expect(execution.stderr).not.toContain('a fresh host session binding are required');
+      expect(execution.stdout).toContain('"blockers"');
     } finally {
       removeTemporaryDirectory(directory);
     }

@@ -79,9 +79,10 @@ A missing, stale, malformed, dirty-state, or wrong-head receipt blocks cleanup.
 
 After merge is independently confirmed, invoke the cleanup guard in preview
 mode. Its host hook supplies a short-lived, single-consumer binding to this exact
-session and transcript. A missing or expired binding or identity fails closed;
-there is no environment-only or newest-session fallback, and callers cannot
-nominate another receipt, session, transcript, or spool.
+session (and Cursor transcript). Codex Desktop may instead supply its authenticated
+current `CODEX_THREAD_ID`, consistent with SafeWord's other Codex identity bridges.
+A missing or expired binding or identity fails closed; there is no newest-session
+fallback and callers cannot nominate another receipt, session, transcript, or spool.
 
 The guard runs `safeword retro run --json` itself and accepts only a
 successful result whose `data.agent_filing_needed` is `false` and whose derived
