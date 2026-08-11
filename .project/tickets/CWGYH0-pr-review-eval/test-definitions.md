@@ -178,6 +178,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 8d29f64bd
 - [x] REFACTOR skip: the production adapter, lifecycle writer, and scorer validator are composed directly
 
+### Scenario: A successful reviewer matrix is scored through real wiring
+
+- [x] RED skip: quality-review requested proof for behavior already implemented
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A clean canary authorizes the next checkpoint
 
 - [ ] RED
