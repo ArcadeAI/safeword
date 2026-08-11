@@ -112,7 +112,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: A structurally incomplete paired case is not scoreable
 
-- [ ] RED
+- [x] RED e2f3fdfda
 - [ ] GREEN
 - [ ] REFACTOR
 
