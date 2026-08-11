@@ -168,7 +168,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED baff4f129
 - [x] GREEN 9f8db4b55
-- [ ] REFACTOR
+- [x] REFACTOR skip: one binding module owns digest and identity checks used by the scorer
 
 ## Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
 
