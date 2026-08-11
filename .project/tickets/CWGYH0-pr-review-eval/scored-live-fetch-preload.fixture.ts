@@ -2,7 +2,16 @@ import { appendFileSync } from "node:fs";
 
 let providerTurn = 0;
 globalThis.fetch = Object.assign(
-	() => {
+	(input: string | URL | Request) => {
+		const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+		if (url.startsWith("https://api.github.com/repos/ArcadeAI/safeword/issues/comments/")) {
+			const response = process.env.CWGYH0_ANCHOR_RESPONSE;
+			if (!response) throw new Error("missing fixture anchor response");
+			return Promise.resolve(new Response(response, {
+				headers: { "content-type": "application/json" },
+				status: 200,
+			}));
+		}
 		providerTurn += 1;
 		const logPath = process.env.CWGYH0_FETCH_LOG;
 		if (logPath) appendFileSync(logPath, `${providerTurn}\n`);

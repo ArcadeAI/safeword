@@ -172,6 +172,8 @@ try {
 		repositoryIdentity: "https://example.test/hidden-failure-manifest.git",
 	});
 	const scorer = spawnSync("bun", [
+		"--preload",
+		join(import.meta.dirname, "scored-live-fetch-preload.fixture.ts"),
 		join(import.meta.dirname, "score-results.ts"),
 		outputRoot,
 		resultsPath,

@@ -11,10 +11,12 @@ function validInput() {
 		expectedReason: reason,
 		fixtureId: `fixture-${reason}`,
 		observedReason: reason,
+		recordedAt: "2026-08-01T00:00:00.000Z",
 	}));
 	const operational = CANONICAL_OPERATIONAL_CLASSES.map((failureClass) => ({
 		failureClass,
 		passed: true,
+		recordedAt: "2026-08-01T00:00:00.000Z",
 		scenarioId: `scenario-${failureClass}`,
 	}));
 	const paidOutcomes = Array.from({ length: 10 }, (_, index) => ({
@@ -24,12 +26,14 @@ function validInput() {
 		expectedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
 		observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
 		provenanceComplete: true,
+		recordedAt: "2026-08-01T00:00:00.000Z",
 		system: index % 2 === 0 ? "full" : "narrow",
 		usageCostUsd: 0.01,
 		usable: true,
 		variant: index % 4 < 2 ? "buggy" : "fixed",
 	}));
 	return {
+		anchorCreatedAt: "2026-08-02T00:00:00.000Z",
 		attempts: [
 			{ attemptId: "usable", costComplete: true, costUsd: 0.1, usable: true },
 			{ attemptId: "retry", costComplete: true, costUsd: 0.02, usable: false },

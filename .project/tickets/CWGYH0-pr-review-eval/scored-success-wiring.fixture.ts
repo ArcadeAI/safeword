@@ -221,6 +221,8 @@ try {
 	execFileSync(
 		"bun",
 		[
+			"--preload",
+			join(import.meta.dirname, "scored-live-fetch-preload.fixture.ts"),
 			join(import.meta.dirname, "score-results.ts"),
 			outputRoot,
 			resultsPath,

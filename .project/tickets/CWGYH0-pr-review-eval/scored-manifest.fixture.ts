@@ -21,24 +21,42 @@ export function freezeFixtureArtifacts(input: {
 	outputRoot: string;
 	repositoryIdentity: string;
 }): Record<string, string> {
-	mkdirSync(input.gitRoot, { recursive: true });
-	execFileSync("git", ["init", "-q"], { cwd: input.gitRoot });
-	execFileSync("git", ["remote", "add", "origin", input.repositoryIdentity], {
-		cwd: input.gitRoot,
-	});
+	const createdAt = new Date(Date.now() - 1_000).toISOString();
 	const manifest = {
 		algorithm: "sha256",
 		artifacts: files(input.outputRoot).map((identity) => ({
 			digest: sha256(readFileSync(join(input.outputRoot, identity))),
 			identity,
 		})),
-		createdAt: new Date(Date.now() - 1_000).toISOString(),
+		createdAt,
 		source: "raw-attempts",
 	};
-	const manifestBytes = `${JSON.stringify(manifest, null, 2)}\n`;
-	writeFileSync(join(input.gitRoot, "manifest.json"), manifestBytes);
-	writeFileSync(join(input.gitRoot, "manifest.sha256"), `${sha256(manifestBytes)}\n`);
-	execFileSync("git", ["add", "manifest.json", "manifest.sha256"], {
+	return freezeFixtureBlob({
+		blobPath: "manifest.json",
+		bytes: `${JSON.stringify(manifest, null, 2)}\n`,
+		digestPath: "manifest.sha256",
+		gitRoot: input.gitRoot,
+		marker: "raw-manifest",
+		repositoryIdentity: input.repositoryIdentity,
+	});
+}
+
+export function freezeFixtureBlob(input: {
+	blobPath: string;
+	bytes: string;
+	digestPath: string;
+	gitRoot: string;
+	marker: "canary" | "raw-manifest";
+	repositoryIdentity: string;
+}): Record<string, string> {
+	mkdirSync(input.gitRoot, { recursive: true });
+	execFileSync("git", ["init", "-q"], { cwd: input.gitRoot });
+	execFileSync("git", ["remote", "add", "origin", input.repositoryIdentity], {
+		cwd: input.gitRoot,
+	});
+	writeFileSync(join(input.gitRoot, input.blobPath), input.bytes);
+	writeFileSync(join(input.gitRoot, input.digestPath), `${sha256(input.bytes)}\n`);
+	execFileSync("git", ["add", input.blobPath, input.digestPath], {
 		cwd: input.gitRoot,
 	});
 	execFileSync(
@@ -60,11 +78,23 @@ export function freezeFixtureArtifacts(input: {
 		cwd: input.gitRoot,
 		encoding: "utf8",
 	}).trim();
+	const anchor = {
+		blobPath: input.blobPath,
+		commit,
+		digest: sha256(input.bytes),
+		digestPath: input.digestPath,
+		repositoryIdentity: input.repositoryIdentity,
+	};
+	const anchorUrl = `https://api.github.com/repos/ArcadeAI/safeword/issues/comments/${input.marker === "canary" ? "1001" : "1002"}`;
+	const createdAt = new Date().toISOString();
 	return {
-		CWGYH0_RAW_MANIFEST_COMMIT: commit,
-		CWGYH0_RAW_MANIFEST_DIGEST_PATH: "manifest.sha256",
+		CWGYH0_ANCHOR_RESPONSE: JSON.stringify({
+			body: `<!-- cwgyh0-${input.marker}-anchor:v1 -->\n${JSON.stringify(anchor)}`,
+			created_at: createdAt,
+			html_url: `https://github.com/ArcadeAI/safeword/issues/1910#issuecomment-${input.marker === "canary" ? "1001" : "1002"}`,
+			updated_at: createdAt,
+		}),
+		CWGYH0_RAW_MANIFEST_ANCHOR_URL: anchorUrl,
 		CWGYH0_RAW_MANIFEST_GIT_ROOT: input.gitRoot,
-		CWGYH0_RAW_MANIFEST_PATH: "manifest.json",
-		CWGYH0_RAW_MANIFEST_REPOSITORY: input.repositoryIdentity,
 	};
 }

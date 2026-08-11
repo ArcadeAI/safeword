@@ -65,6 +65,7 @@ describe("immutable raw artifact reuse", () => {
 		const verified = verifyRawArtifactManifest({
 			expectedManifestDigest: fixture.digest,
 			manifestBytes: fixture.bytes,
+			retainedAt: "2026-08-01T12:00:00.000Z",
 			reusedAt: "2026-08-02T00:00:00.000Z",
 			root: fixture.root,
 		});
@@ -82,6 +83,7 @@ describe("immutable raw artifact reuse", () => {
 		expect(() => verifyRawArtifactManifest({
 			expectedManifestDigest: fixture.digest,
 			manifestBytes: fixture.bytes,
+			retainedAt: "2026-08-01T12:00:00.000Z",
 			reusedAt: "2026-08-02T00:00:00.000Z",
 			root: fixture.root,
 		})).toThrow();
@@ -93,7 +95,7 @@ describe("immutable raw artifact reuse", () => {
 		const manifest = JSON.parse(fixture.bytes);
 		manifest.artifacts = [{ identity: "../escape", digest: "0".repeat(64) }];
 		const bytes = JSON.stringify(manifest);
-		expect(() => verifyRawArtifactManifest({ expectedManifestDigest: sha256(bytes), manifestBytes: bytes, reusedAt: "2026-08-02T00:00:00.000Z", root: fixture.root })).toThrow();
+		expect(() => verifyRawArtifactManifest({ expectedManifestDigest: sha256(bytes), manifestBytes: bytes, retainedAt: "2026-08-01T12:00:00.000Z", reusedAt: "2026-08-02T00:00:00.000Z", root: fixture.root })).toThrow();
 	});
 });
 

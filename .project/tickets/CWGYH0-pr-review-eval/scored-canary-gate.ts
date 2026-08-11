@@ -22,6 +22,7 @@ export const CANONICAL_OPERATIONAL_CLASSES = [
 ] as const;
 
 type CanaryInput = {
+	anchorCreatedAt: string;
 	attempts: Array<{
 		attemptId: string;
 		costComplete: boolean;
@@ -33,11 +34,12 @@ type CanaryInput = {
 		expectedReason: string;
 		fixtureId: string;
 		observedReason: string;
+		recordedAt: string;
 	}>;
 	hiddenFailureRejected: boolean;
 	nextCheckpoint: string;
 	observedBindings: Record<string, string>;
-	operational: Array<{ failureClass: string; passed: boolean; scenarioId: string }>;
+	operational: Array<{ failureClass: string; passed: boolean; recordedAt: string; scenarioId: string }>;
 	paidOutcomes: Array<{
 		callId: string;
 		costComplete: boolean;
@@ -45,6 +47,7 @@ type CanaryInput = {
 		expectedLabel: string;
 		observedLabel: string;
 		provenanceComplete: boolean;
+		recordedAt: string;
 		system: string;
 		usageCostUsd: number;
 		usable: boolean;
@@ -85,6 +88,12 @@ function roundedCost(value: number): number {
 
 export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	const reasons: string[] = [];
+	const anchorTime = new Date(input.anchorCreatedAt).valueOf();
+	if (!Number.isFinite(anchorTime)) reasons.push("authorization anchor timestamp is invalid");
+	const retainedBeforeAnchor = (recordedAt: string): boolean => {
+		const time = new Date(recordedAt).valueOf();
+		return Number.isFinite(time) && time <= anchorTime;
+	};
 	if (input.runId.length === 0) reasons.push("run identity is missing");
 	const fixtureIds = input.fixtures.map(({ fixtureId }) => fixtureId);
 	if (fixtureIds.some((id) => id.length === 0) || duplicates(fixtureIds).length > 0) {
@@ -99,6 +108,7 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		reasons.push("fixture inventory does not exactly cover the canonical R1 taxonomy");
 	}
 	for (const fixture of input.fixtures) {
+		if (!retainedBeforeAnchor(fixture.recordedAt)) reasons.push(`fixture ${fixture.fixtureId} was not retained before authorization`);
 		if (fixture.observedReason !== fixture.expectedReason) {
 			reasons.push(`fixture ${fixture.fixtureId} disagrees with its frozen reason`);
 		}
@@ -117,6 +127,7 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		reasons.push("operational evidence does not exactly cover the canonical R2 taxonomy");
 	}
 	for (const outcome of input.operational) {
+		if (!retainedBeforeAnchor(outcome.recordedAt)) reasons.push(`operational scenario ${outcome.scenarioId} was not retained before authorization`);
 		if (!outcome.passed) reasons.push(`operational scenario ${outcome.scenarioId} failed`);
 	}
 
@@ -140,6 +151,7 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		}
 	}
 	for (const outcome of input.paidOutcomes) {
+		if (!retainedBeforeAnchor(outcome.recordedAt)) reasons.push(`paid call ${outcome.callId} was not retained before authorization`);
 		if (!outcome.usable) reasons.push(`paid call ${outcome.callId} is unusable`);
 		if (!outcome.provenanceComplete) {
 			reasons.push(`paid call ${outcome.callId} has incomplete provenance`);

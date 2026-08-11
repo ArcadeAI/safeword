@@ -6,6 +6,7 @@ import {
 	loadPinnedManifestFromGit,
 	verifyRawArtifactManifest,
 } from "./scored-artifact-manifest";
+import { loadGitHubEvidenceAnchor } from "./scored-evidence-anchor";
 import { deriveScoreableMatrix } from "./scored-matrix";
 import { classifyTrialOutput } from "./scored-run-policy";
 import {
@@ -73,21 +74,26 @@ const preflightPath =
 	requireArgument(5, "contamination preflight path");
 if (existsSync(resultsPath)) throw new Error(`refusing to overwrite ${resultsPath}`);
 
+const rawAnchor = await loadGitHubEvidenceAnchor(
+	process.env.CWGYH0_RAW_MANIFEST_ANCHOR_URL ??
+		requireArgument(6, "raw manifest anchor URL"),
+	"raw-manifest",
+);
 const pinnedManifest = loadPinnedManifestFromGit({
-	commit: process.env.CWGYH0_RAW_MANIFEST_COMMIT ??
-		requireArgument(6, "raw manifest commit"),
-	digestPath: process.env.CWGYH0_RAW_MANIFEST_DIGEST_PATH ??
-		requireArgument(7, "raw manifest digest path"),
-	expectedRepositoryIdentity: process.env.CWGYH0_RAW_MANIFEST_REPOSITORY ??
-		requireArgument(8, "raw manifest repository identity"),
+	commit: rawAnchor.commit,
+	digestPath: rawAnchor.digestPath,
+	expectedRepositoryIdentity: rawAnchor.repositoryIdentity,
 	gitRoot: process.env.CWGYH0_RAW_MANIFEST_GIT_ROOT ??
-		requireArgument(9, "raw manifest Git root"),
-	manifestPath: process.env.CWGYH0_RAW_MANIFEST_PATH ??
-		requireArgument(10, "raw manifest path"),
+		requireArgument(7, "raw manifest Git root"),
+	manifestPath: rawAnchor.blobPath,
 });
+if (pinnedManifest.digest !== rawAnchor.digest) {
+	throw new Error("raw manifest differs from independently retained issue anchor");
+}
 const verifiedRaw = verifyRawArtifactManifest({
 	expectedManifestDigest: pinnedManifest.digest,
 	manifestBytes: pinnedManifest.manifestBytes,
+	retainedAt: rawAnchor.createdAt,
 	reusedAt: new Date().toISOString(),
 	root: outputRoot,
 });

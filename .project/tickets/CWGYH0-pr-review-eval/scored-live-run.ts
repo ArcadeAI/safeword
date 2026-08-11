@@ -33,6 +33,8 @@ import {
 } from "./scored-case-store";
 import { estimateAttemptUsage } from "./scored-cost";
 import { evaluateCanaryGate } from "./scored-canary-gate";
+import { loadPinnedManifestFromGit } from "./scored-artifact-manifest";
+import { loadGitHubEvidenceAnchor } from "./scored-evidence-anchor";
 
 const ticketRoot = import.meta.dir;
 const sourceRepository = requireEnvironment("CWGYH0_SOURCE_REPOSITORY");
@@ -564,9 +566,22 @@ if (preflightOnly) {
 		preflightId: certifiedPreflight.preflightId,
 		preflightSha256: sha256Text(certifiedPreflightBytes),
 	};
-	const gatePath = requireEnvironment("CWGYH0_CANARY_GATE_PATH");
 	const checkpointId = requireEnvironment("CWGYH0_CHECKPOINT_ID");
-	const gateEvidence = JSON.parse(readFileSync(gatePath, "utf8")) as Parameters<
+	const gateAnchor = await loadGitHubEvidenceAnchor(
+		requireEnvironment("CWGYH0_CANARY_GATE_ANCHOR_URL"),
+		"canary",
+	);
+	const pinnedGate = loadPinnedManifestFromGit({
+		commit: gateAnchor.commit,
+		digestPath: gateAnchor.digestPath,
+		expectedRepositoryIdentity: gateAnchor.repositoryIdentity,
+		gitRoot: requireEnvironment("CWGYH0_CANARY_GATE_GIT_ROOT"),
+		manifestPath: gateAnchor.blobPath,
+	});
+	if (pinnedGate.digest !== gateAnchor.digest) {
+		throw new Error("canary gate differs from independently retained issue anchor");
+	}
+	const gateEvidence = JSON.parse(pinnedGate.manifestBytes) as Parameters<
 		typeof evaluateCanaryGate
 	>[0];
 	const observedBindings = {
@@ -585,7 +600,11 @@ if (preflightOnly) {
 			scorer: sha256(join(ticketRoot, "score-results.ts")),
 			writer: sha256(join(ticketRoot, "scored-case-store.ts")),
 	};
-	const gate = evaluateCanaryGate({ ...gateEvidence, observedBindings });
+	const gate = evaluateCanaryGate({
+		...gateEvidence,
+		anchorCreatedAt: gateAnchor.createdAt,
+		observedBindings,
+	});
 	if (!gate.authorized) {
 		throw new Error(`paid checkpoint blocked: ${gate.reasons.join("; ")}`);
 	}
@@ -680,21 +699,29 @@ if (preflightOnly) {
 					if (durableRecords.length !== state.nextWorkIndex + 1) {
 						throw new Error("provisional records are ahead of state by more than one work item");
 					}
-					const recoveredCosts = durableRecords.map((name) => {
+					const recoveredEvidence = durableRecords.map((name) => {
 						const record = JSON.parse(
 							readFileSync(join(interruptedCase.provisionalPath, name), "utf8"),
-						) as { cumulativeCostUsd?: unknown };
-						return record.cumulativeCostUsd;
+						) as { cumulativeCostUsd?: unknown; usage?: { complete?: unknown } };
+						return record;
 					});
 					if (
-						recoveredCosts.some(
-							(cost) => typeof cost !== "number" || !Number.isFinite(cost),
+						recoveredEvidence.some(
+							(record) =>
+								typeof record.cumulativeCostUsd !== "number" ||
+								!Number.isFinite(record.cumulativeCostUsd) ||
+								typeof record.usage?.complete !== "boolean",
 						)
 					) {
-						throw new Error("recovered record has invalid cumulative cost");
+						throw new Error("recovered record has invalid cumulative cost evidence");
 					}
 					state.nextWorkIndex = durableRecords.length;
-					state.cumulativeCostUsd = Math.max(...(recoveredCosts as number[]));
+					state.cumulativeCostUsd = Math.max(
+						...recoveredEvidence.map((record) => record.cumulativeCostUsd as number),
+					);
+					state.costAccountingComplete =
+						state.costAccountingComplete &&
+						recoveredEvidence.every((record) => record.usage?.complete === true);
 					await writeJsonAtomically(statePath, state);
 				}
 			}

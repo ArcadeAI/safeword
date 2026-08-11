@@ -86,6 +86,7 @@ export function loadPinnedManifestFromGit(input: {
 export function verifyRawArtifactManifest(input: {
 	expectedManifestDigest: string;
 	manifestBytes: string | Uint8Array;
+	retainedAt: string;
 	reusedAt: string;
 	root: string;
 }): { artifacts: Array<{ bytes: Uint8Array; identity: string }>; manifestDigest: string } {
@@ -109,7 +110,10 @@ export function verifyRawArtifactManifest(input: {
 	) {
 		throw new Error("raw manifest has an unsupported source or hash algorithm");
 	}
-	if (parseTime(manifest.createdAt, "manifest creation") > parseTime(input.reusedAt, "reuse")) {
+	const manifestCreatedAt = parseTime(manifest.createdAt, "manifest creation");
+	const retainedAt = parseTime(input.retainedAt, "independent retention");
+	const reusedAt = parseTime(input.reusedAt, "reuse");
+	if (manifestCreatedAt > retainedAt || retainedAt > reusedAt) {
 		throw new Error("raw manifest was retained after artifact reuse");
 	}
 
