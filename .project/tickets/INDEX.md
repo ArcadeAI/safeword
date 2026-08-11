@@ -140,6 +140,7 @@
   Give every BDD quality mechanism a shared corpus that rejects historical false-green patterns without rejecting legitimate shared test designs.
   blocks: Stop hollow acceptance proofs before implementation (7B1AMC), Measure BDD skill quality across coding agents (FY1NHB), Prove high-risk acceptance tests detect real regressions (RXSGXP), Warn developers when acceptance tests only look scenario-specific (SH5GSP)
   external issue: https://github.com/ArcadeAI/safeword/issues/2335
+  external PRs: https://github.com/ArcadeAI/safeword/pull/2459
   → `.project/tickets/BX1T7H-preserve-bdd-proof-regression-corpus`
 - **Reassess broader BDD mutation automation from measured evidence (EBTNER)** (in_progress, epic: —)
   Decide whether any general mutation automation is justified after review, corpus, skill-evaluation, and curated-falsification data exist.

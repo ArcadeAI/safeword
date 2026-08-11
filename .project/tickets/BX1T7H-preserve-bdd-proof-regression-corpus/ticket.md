@@ -8,8 +8,9 @@ parent: AK0QJR
 depends_on: []
 relates_to: [1698, Y9P3ZC, 21RAT9]
 external_issue: https://github.com/ArcadeAI/safeword/issues/2335
+external_prs: [https://github.com/ArcadeAI/safeword/pull/2459]
 created: 2026-08-10T07:58:17.621Z
-last_modified: 2026-08-11T02:00:00Z
+last_modified: 2026-08-11T02:04:00Z
 ---
 
 # Preserve trustworthy and hollow BDD examples for maintainers
@@ -62,3 +63,4 @@ last_modified: 2026-08-11T02:00:00Z
 - 2026-08-10T23:49:23Z Completed the requested quality and refactor improvements: added exact argv mutation modes; AST-based emitted-module discovery; fail-closed unresolved edges, source-map and facade mutations; explicit wrong-stage RED rejection; manifest validation; per-run temp cleanup with crash leftovers isolated beneath the ignored dependency cache; proof syntax checks; fixture-runner self-validation; explicit timeouts; and reusable report-classification helpers. Final focused corpus verification passes 9/9. Prettier, ESLint, Gherkin lint, TypeScript, diff checks, and dependency audit pass with no vulnerabilities. The earlier full-lane cross-worktree timeout evidence limits remain recorded; ticket stays in progress pending explicit user confirmation.
 - 2026-08-11T01:56:04Z Full red-team/refactor pass: made defect tags injective through safe IDs, derived the parent timeout from the per-proof budget, resolved paths from the package rather than cwd, isolated temp files under an ignored package test directory, removed accepted-fixture global environment mutation, allowlisted lifecycle-fixture environment inputs, rejected signaled child processes, and guarded malformed manifest shapes. Full units passed 7,196/7,196. Full BDD passed 1,483 scenarios, skipped 3, and had three load-sensitive failures; all three passed together in isolation (3/3 scenarios, 133/133 steps). Customer runtime exposure is none because corpus/tests are excluded from the published package; remaining risk is moderate release-confidence brittleness from the long, process-heavy BDD lane.
 - 2026-08-11T02:00:00Z Done: User accepted the delivery and requested publication. Final independent review found no actionable correctness or customer-brittleness findings; proceeding to commit and pull request.
+- 2026-08-11T02:04:00Z Published: Opened draft pull request https://github.com/ArcadeAI/safeword/pull/2459 from `codex/trustworthy-bdd-corpus`.
