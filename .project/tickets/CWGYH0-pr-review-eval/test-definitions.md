@@ -150,6 +150,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN a90b2edd3
 - [x] REFACTOR skip: recovery exposes one typed evidence callback and keeps accounting policy in the live runner
 
+### Scenario: Missing usage cannot bypass quarantine or authorize more spend
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
 
 - [x] RED f7b7d089b
@@ -193,6 +199,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED baff4f129
 - [x] GREEN 9f8db4b55
 - [x] REFACTOR skip: one binding module owns digest and identity checks used by the scorer
+
+### Scenario: Finding verification belongs to one system trial
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
 

@@ -222,6 +222,13 @@ Feature: Keep failed reviews out of benchmark scores
       Then the exclusion retains both attempts, its replacement, and their cost exactly once
 
     @rejection
+    Scenario: Missing usage cannot bypass quarantine or authorize more spend
+      Given a non-null invalid provider output has missing or malformed usage
+      When the live runner handles the failed work item
+      Then it quarantines the case without throwing from cost extraction
+      And it records incomplete cost accounting and makes no later provider call
+
+    @rejection
     Scenario Outline: Interrupted quarantine is never partially scoreable
       Given a failure is injected <boundary>
       When scoring reads cases before and after harness restart
@@ -290,6 +297,11 @@ Feature: Keep failed reviews out of benchmark scores
       And the live run binds the SHA-256 digest of those exact preflight bytes
       When the scorer evaluates the run
       Then changed, stale, or differently identified preflight evidence is rejected
+
+    Scenario: Finding verification belongs to one system trial
+      Given the same finding identity appears across systems or repeated trials
+      When verification evidence adjudicates one occurrence
+      Then only the matching case, variant, system, and trial occurrence is classified
 
   @pr-review-eval.SWM1.R4
   Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend

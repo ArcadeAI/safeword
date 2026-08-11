@@ -11,7 +11,9 @@ const finding = {
 	caseId: "CASE-A",
 	file: "src/example.ts",
 	line: 7,
+	system: "full" as const,
 	title: "Wrong result",
+	trial: 2,
 	variant: "buggy" as const,
 };
 
@@ -41,6 +43,18 @@ describe("scorer evidence validation", () => {
 		expect(() => validateVerifications({ entries: [entry, entry] }, [finding])).toThrow(
 			"duplicate verification",
 		);
+	});
+
+	test("does not reuse one verification across systems or trials", () => {
+		const entry = { ...finding, classification: "proved", evidence: "proof" };
+		const otherTrial = { ...finding, trial: 3 };
+		expect(validateVerifications({ entries: [entry] }, [finding, otherTrial])).toHaveLength(1);
+		expect(() =>
+			validateVerifications(
+				{ entries: [{ ...entry, trial: 4 }] },
+				[finding, otherTrial],
+			),
+		).toThrow("scoreable finding");
 	});
 
 	test("binds contamination evidence to the exact preflight bytes and run identity", () => {
