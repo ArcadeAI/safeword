@@ -295,7 +295,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Total cost includes every attempt
 
 - [x] RED a7d8259d1
-- [ ] GREEN
+- [x] GREEN 47d0ed48c
 - [ ] REFACTOR
 
 ### Scenario Outline: Incomplete canary cost data blocks more spend
