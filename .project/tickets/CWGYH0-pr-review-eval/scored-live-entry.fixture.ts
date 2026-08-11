@@ -94,6 +94,7 @@ try {
 					CWGYH0_CASE_TARGET: "1",
 					CWGYH0_FETCH_LOG: input.fetchLog,
 					CWGYH0_FETCH_MODE: input.mode,
+					CWGYH0_NO_COST_FIXTURE: "1",
 					CWGYH0_OUTPUT_ROOT: input.outputRoot,
 					CWGYH0_PREFLIGHT_PATH: preflightPath,
 					CWGYH0_SCRATCH_ROOT: join(root, input.scratchName),
