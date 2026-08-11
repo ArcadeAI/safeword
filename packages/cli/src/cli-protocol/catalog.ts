@@ -110,22 +110,27 @@ function alias(name: string, aliasFor: string): CommandDefinition {
 function scopedInstallAlias(name: string, agent: 'claude' | 'codex'): CommandDefinition {
   const canonical = canonicalDefinition('install');
   return {
-    ...command(name, `Deprecated alias for install --agents=${agent}`, canonical.effectClass, {
-      promptPolicy: canonical.promptPolicy,
-      networkPolicy: canonical.networkPolicy,
-      commandOptions: agent === 'claude' ? [claudeScopeOption()] : [],
-      // The retained spelling keeps its shipped safety guarantee: profile-only
-      // installation that leaves the repository untouched (main's Rule
-      // codex-plugin-install.TBU1.R2). `install --agents=<agent>` is the
-      // canonical route that also reconciles project configuration.
-      handler: publicHandler(name),
-    }),
+    ...command(
+      name,
+      `Deprecated profile-only install; install --agents=${agent} also reconciles the project`,
+      canonical.effectClass,
+      {
+        promptPolicy: canonical.promptPolicy,
+        networkPolicy: canonical.networkPolicy,
+        commandOptions: agent === 'claude' ? [claudeScopeOption()] : [],
+        // The retained spelling keeps its shipped safety guarantee: profile-only
+        // installation that leaves the repository untouched (main's Rule
+        // codex-plugin-install.TBU1.R2). `install --agents=<agent>` is the
+        // canonical route that also reconciles project configuration.
+        handler: publicHandler(name),
+      },
+    ),
     aliasFor: 'install',
     classification: 'retained-alias',
     visibility: 'hidden',
     compatibility: {
       ...RETAINED_ALIAS,
-      replacement: `install --agents=${agent}`,
+      replacement: `install --agents=${agent} (also reconciles the project)`,
     },
   };
 }
