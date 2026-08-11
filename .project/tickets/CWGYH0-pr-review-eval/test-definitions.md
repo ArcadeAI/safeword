@@ -120,7 +120,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e2f3fdfda
 - [x] GREEN 251bde01d
-- [ ] REFACTOR
+- [x] REFACTOR c230e01c4
 
 ## Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
 
