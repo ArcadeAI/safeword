@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
 	existsSync,
 	mkdirSync,
@@ -17,7 +18,6 @@ import {
 	beginProvisionalCase,
 	executeCaseWork,
 } from "./scored-case-store";
-import { deriveScoreableMatrix } from "./scored-matrix";
 import { classifyTrialOutput } from "./scored-run-policy";
 
 function git(root: string, ...arguments_: string[]): string {
@@ -142,24 +142,39 @@ try {
 		readFileSync(join(caseState.quarantinePath, quarantined[1]!), "utf8"),
 		/overloaded/,
 	);
-	assert.throws(
-		() =>
-			deriveScoreableMatrix({
-				allocations: [],
-				preflight: {
-					expectedRepositoryCount: 2,
-					observedRepositoryCount: 2,
-					status: "passed",
-				},
-				primaryCaseIds: [reviewInput.caseId],
-				records: [],
-				reserveCaseIds: ["RESERVE-A"],
-				systems: ["full"],
-				trials: [1],
-				variants: ["buggy"],
-			}),
-		/one frozen case missing entirely/,
-	);
+	const preflightPath = join(outputRoot, "preflight.json");
+	const preflightId = "hidden-failure-wiring-preflight";
+	const sourceRepositoryIdentity = "local-hidden-failure-wiring-repository";
+	const preflightBytes = `${JSON.stringify({
+		preflightId,
+		preflightedRepositories: 4,
+		primaryCases: [reviewInput.caseId],
+		reserveCases: ["RESERVE-A"],
+		sourceRepositoryIdentity,
+		status: "passed",
+	})}\n`;
+	writeFileSync(preflightPath, preflightBytes);
+	writeFileSync(join(outputRoot, "run-summary.json"), `${JSON.stringify({
+		completedCaseIds: ["RESERVE-A"],
+		exclusions: [{ caseId: reviewInput.caseId, replacementId: "RESERVE-A" }],
+		preflightId,
+		preflightSha256: createHash("sha256").update(preflightBytes).digest("hex"),
+		primaryCases: [reviewInput.caseId],
+		reserveCases: ["RESERVE-A"],
+		sourceRepositoryIdentity,
+		status: "completed",
+	})}\n`);
+	const resultsPath = join(outputRoot, "results.json");
+	const scorer = spawnSync("bun", [
+		join(import.meta.dirname, "score-results.ts"),
+		outputRoot,
+		resultsPath,
+		"",
+		preflightPath,
+	], { encoding: "utf8" });
+	assert.notEqual(scorer.status, 0);
+	assert.match(scorer.stderr, /one frozen case missing entirely/);
+	assert.equal(existsSync(resultsPath), false);
 } finally {
 	rmSync(root, { force: true, recursive: true });
 }

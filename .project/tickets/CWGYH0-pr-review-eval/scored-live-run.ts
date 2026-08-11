@@ -541,13 +541,12 @@ if (preflightOnly) {
 		preflightId: certifiedPreflight.preflightId,
 		preflightSha256: sha256Text(certifiedPreflightBytes),
 	};
-	if (process.env.CWGYH0_NO_COST_FIXTURE !== "1") {
-		const gatePath = requireEnvironment("CWGYH0_CANARY_GATE_PATH");
-		const checkpointId = requireEnvironment("CWGYH0_CHECKPOINT_ID");
-		const gateEvidence = JSON.parse(readFileSync(gatePath, "utf8")) as Parameters<
-			typeof evaluateCanaryGate
-		>[0];
-		const observedBindings = {
+	const gatePath = requireEnvironment("CWGYH0_CANARY_GATE_PATH");
+	const checkpointId = requireEnvironment("CWGYH0_CHECKPOINT_ID");
+	const gateEvidence = JSON.parse(readFileSync(gatePath, "utf8")) as Parameters<
+		typeof evaluateCanaryGate
+	>[0];
+	const observedBindings = {
 			adapter: sha256Text(expectedAdapterCommit),
 			classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
 			preflight: sha256Text(certifiedPreflightBytes),
@@ -556,16 +555,15 @@ if (preflightOnly) {
 			runner: sha256(join(ticketRoot, "scored-live-run.ts")),
 			scorer: sha256(join(ticketRoot, "score-results.ts")),
 			writer: sha256(join(ticketRoot, "scored-case-store.ts")),
-		};
-		const gate = evaluateCanaryGate({ ...gateEvidence, observedBindings });
-		if (!gate.authorized) {
-			throw new Error(`paid checkpoint blocked: ${gate.reasons.join("; ")}`);
-		}
-		if (gate.nextCheckpoint !== checkpointId) {
-			throw new Error(
-				`paid checkpoint blocked: authorization is for ${gate.nextCheckpoint}, not ${checkpointId}`,
-			);
-		}
+	};
+	const gate = evaluateCanaryGate({ ...gateEvidence, observedBindings });
+	if (!gate.authorized) {
+		throw new Error(`paid checkpoint blocked: ${gate.reasons.join("; ")}`);
+	}
+	if (gate.nextCheckpoint !== checkpointId) {
+		throw new Error(
+			`paid checkpoint blocked: authorization is for ${gate.nextCheckpoint}, not ${checkpointId}`,
+		);
 	}
 	const runLock = acquireRunLock(outputRoot);
 	try {
