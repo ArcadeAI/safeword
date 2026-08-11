@@ -1,9 +1,10 @@
 # Behavior source for W42G34 (#644 G3). The executable backing is Vitest hook
 # coverage: unit tests over the pure command-classification predicate, plus
-# integration tests spawning the Bun hook scripts (Claude gate, Codex adapter)
+# integration tests in packages/cli/tests/integration/bash-ledger-write-gate.test.ts
+# spawning the Bun hook scripts (Claude gate, Codex adapter)
 # against temp projects. Cucumber step definitions would duplicate that harness
-# without adding confidence, so the feature is @wip like its siblings.
-@wip
+# without adding confidence, so the feature is @proof.vitest.
+@proof.vitest
 Feature: Bash-channel writes to the R/G/R ledger are gated
 
   The SHA-or-skip annotation rules for test-definitions.md only fire on the

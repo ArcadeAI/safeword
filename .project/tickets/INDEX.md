@@ -138,10 +138,11 @@
   blocks: Measure BDD skill quality across coding agents (FY1NHB)
   external issue: https://github.com/ArcadeAI/safeword/issues/2336
   → `.project/tickets/7B1AMC-review-executable-red-before-implementation`
-- **Preserve trustworthy and hollow BDD examples for maintainers (BX1T7H)** (in_progress, epic: —)
+- **Preserve trustworthy and hollow BDD examples for maintainers (BX1T7H)** (done, epic: —)
   Give every BDD quality mechanism a shared corpus that rejects historical false-green patterns without rejecting legitimate shared test designs.
   blocks: Stop hollow acceptance proofs before implementation (7B1AMC), Measure BDD skill quality across coding agents (FY1NHB), Prove high-risk acceptance tests detect real regressions (RXSGXP), Warn developers when acceptance tests only look scenario-specific (SH5GSP)
   external issue: https://github.com/ArcadeAI/safeword/issues/2335
+  external PRs: https://github.com/ArcadeAI/safeword/pull/2459
   → `.project/tickets/BX1T7H-preserve-bdd-proof-regression-corpus`
 - **Reassess broader BDD mutation automation from measured evidence (EBTNER)** (in_progress, epic: —)
   Decide whether any general mutation automation is justified after review, corpus, skill-evaluation, and curated-falsification data exist.
@@ -154,13 +155,13 @@
   → `.project/tickets/FY1NHB-measure-bdd-skill-agent-quality`
 - **Prove high-risk acceptance tests detect real regressions (RXSGXP)** (in_progress, epic: —)
   Maintain curated defects for migration, deletion, concurrency, release, and host-boundary behavior that the mapped acceptance scenarios must detect.
-  blocked by: Preserve trustworthy and hollow BDD examples for maintainers (BX1T7H)
+  blocked by: Preserve trustworthy and hollow BDD examples for maintainers (BX1T7H), Warn developers when acceptance tests only look scenario-specific (SH5GSP)
   external issue: https://github.com/ArcadeAI/safeword/issues/2340
   → `.project/tickets/RXSGXP-falsify-high-risk-safeword-behaviors`
 - **Warn developers when acceptance tests only look scenario-specific (SH5GSP)** (in_progress, epic: —)
   Detect high-confidence hollow BDD patterns early while preserving legitimate shared steps, tables, contracts, and CLI assertions.
   blocked by: Preserve trustworthy and hollow BDD examples for maintainers (BX1T7H)
-  blocks: Measure BDD skill quality across coding agents (FY1NHB)
+  blocks: Measure BDD skill quality across coding agents (FY1NHB), Prove high-risk acceptance tests detect real regressions (RXSGXP)
   external issue: https://github.com/ArcadeAI/safeword/issues/2337
   → `.project/tickets/SH5GSP-surface-known-hollow-bdd-patterns`
 

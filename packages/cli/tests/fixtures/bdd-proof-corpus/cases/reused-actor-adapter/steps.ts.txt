@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+When('I observe settings through the {string} actor adapter', async function (host: string) {
+  const { observeInstalledReviewSettings } = await import(
+    process.env.BDD_CORPUS_ACTOR_ADAPTER!
+  );
+  this.evidence = observeInstalledReviewSettings(
+    host,
+    () => process.env.BDD_CORPUS_DEFECT !== '1',
+  );
+  this.expectedHost = host;
+});
+Then('the evidence names that actor and its observed state', function () {
+  assert.equal(this.evidence.host, this.expectedHost);
+  assert.equal(this.evidence.reviewSettingsInstalled, true);
+  assert.equal(this.evidence.observationClass, 'host-adapter');
+});

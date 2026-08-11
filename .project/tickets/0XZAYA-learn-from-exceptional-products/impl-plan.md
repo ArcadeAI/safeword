@@ -123,7 +123,7 @@ before adding any successful evidence row.
 | 1. Structure enforces; instructions suggest | Existing transition hooks require durable evidence structure; qualitative research quality and safety boundaries stay in guidance and independent review. OpenAI Codex Cloud remains guidance-only because Safeword owns no blockable transition boundary there. | `packages/cli/tests/hooks/inspiration.test.ts` | explicit-conflict |
 | 2. Fire at boundaries, not every turn | Validation runs only when entering `define-behavior` or `implement`, and research refresh is guidance for significant new choices rather than every TDD loop. | `packages/cli/features/learn-from-exceptional-products.feature` | |
 | 3. Add, never replace | New sections and helpers extend existing specs, plans, gates, and generated surfaces; signal-free pre-v1 tickets remain valid across upgrade, while downgrade/uninstall preserves customer artifacts. | `packages/cli/tests/hooks/inspiration.test.ts` | |
-| 5. Clarity before correctness | A single named helper and exact v1 record shapes are preferred over a generic Markdown framework or duplicated stage parsers. | `packages/cli/templates/hooks/lib/inspiration.ts` | |
+| 5. Correct and safe; then clear; then simple | A single named helper and exact v1 record shapes are preferred over a generic Markdown framework or duplicated stage parsers. | `packages/cli/templates/hooks/lib/inspiration.ts` | |
 
 Architecture decisions honored:
 

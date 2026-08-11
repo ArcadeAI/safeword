@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { Before, Then, When } from '@cucumber/cucumber';
+
+Before(function () {
+  throw new Error('Missing test registry credential');
+});
+When('I publish an unsigned package', function () {
+  this.productBoundaryReached = true;
+});
+Then('publishing is refused', function () {
+  assert.equal(this.productBoundaryReached, true);
+});

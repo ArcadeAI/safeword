@@ -17343,8 +17343,11 @@ ${managedPrettierPaths(ctx).join(`
           "REPLY_FORMAT_LEAD",
           "REPLY_FORMAT_REMINDER",
           "DECISION_BRIEF_GRAMMAR",
+          "GENERIC_REVIEW_EVIDENCE",
           "renderDecisionBriefContract",
-          "evaluateDecisionBriefCompliance"
+          "renderDecisionBriefCorrection",
+          "evaluateDecisionBriefCompliance",
+          "getQualityEvidence"
         ]
       },
       "packages/cli/templates/doc-templates/test-definitions-feature.md": {
@@ -21763,7 +21766,8 @@ var init_cucumber_template_revisions = __esm(() => {
     "761b20d508207b58e234fdcf592ae4cd0e916548ef46177469e2165c1e13832b",
     "3d22842f73c62e497a525dbe0a126b42bf2202fb8369ede29ba45b6d1e493fb6",
     "929014fb4ce6ca1483b292757b6044be89932028f5bb21ba82c28ffd66b09e53",
-    "1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f"
+    "1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f",
+    "0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27"
   ]);
 });
 

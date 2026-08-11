@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+When('plugin installation finishes', function () {
+  this.result = {
+    exitCode: process.env.BDD_CORPUS_DEFECT === '1' ? 1 : 0,
+    ok: process.env.BDD_CORPUS_DEFECT !== '1',
+    effects: ['installed safeword'],
+    recovery: ['/reload-plugins'],
+  };
+});
+Then('installation succeeds and reload guidance is shown', function () {
+  assert.equal(this.result.effects.includes('installed safeword'), true);
+  assert.match(this.result.recovery.join('\n'), /reload-plugins/);
+});

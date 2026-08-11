@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+When('I run the Claude-only setup scenario', async function () {
+  const { reviewerEnvironment } = await import(process.env.BDD_CORPUS_REVIEW_ENVIRONMENT!);
+  const hostile = {
+    HOME: '/hostile', PATH: '/hostile/bin', CLAUDE_CONFIG_DIR: '/hostile/.claude',
+    INSTALLED_CODEX_PLUGIN: 'safeword@0.1.0',
+  };
+  const defect = process.env.BDD_CORPUS_DEFECT;
+  const source = defect === 'ambient-process-state'
+    ? hostile
+    : {
+        ...hostile,
+        HOME: '/fixture',
+        PATH: '/usr/bin:/bin',
+        CLAUDE_CONFIG_DIR:
+          defect === 'claude-config-contamination' ? hostile.CLAUDE_CONFIG_DIR : '/fixture/.claude',
+      };
+  this.environment = reviewerEnvironment('claude', source);
+});
+Then('only Claude state influences the result', function () {
+  assert.equal(this.environment.HOME, '/fixture');
+  assert.equal(this.environment.PATH, '/usr/bin:/bin');
+  assert.equal(this.environment.CLAUDE_CONFIG_DIR, '/fixture/.claude');
+  assert.equal(this.environment.INSTALLED_CODEX_PLUGIN, undefined);
+});
