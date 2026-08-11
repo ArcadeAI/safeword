@@ -105,7 +105,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Recovery preserves failed-attempt evidence and cost
 
 - [x] RED 183420791
-- [ ] GREEN
+- [x] GREEN a90b2edd3
 - [ ] REFACTOR
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
