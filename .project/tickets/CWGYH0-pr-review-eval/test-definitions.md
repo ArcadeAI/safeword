@@ -114,7 +114,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e2f3fdfda
 - [x] GREEN 251bde01d
-- [ ] REFACTOR
+- [x] REFACTOR skip: table-driven partitions already share the production matrix validator
 
 ### Scenario: Validity gates change when admitted evidence changes
 
