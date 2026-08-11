@@ -34,7 +34,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d6e1c25ad
 - [x] GREEN 7f16dffb1
-- [ ] REFACTOR
+- [x] REFACTOR skip: terminal-state emission and positive admission checks are already single-purpose and linear
 
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
