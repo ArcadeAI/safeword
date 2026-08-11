@@ -160,7 +160,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Malformed finding verification cannot change a score
 
-- [ ] RED
+- [x] RED baff4f129
 - [ ] GREEN
 - [ ] REFACTOR
 
