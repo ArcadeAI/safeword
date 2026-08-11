@@ -8,9 +8,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Complete retained Terra fixtures are accepted as route-valid
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Stubbed production wiring targets OpenAI for reading and verification
 
@@ -20,9 +20,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Registered provenance is copied by repeatable fixtures
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Terra performs every provider turn over the legacy development corpus
 
@@ -36,9 +36,9 @@ Authorization is inapplicable to non-authorization fixtures because they cannot 
 
 ### Scenario Outline: Provider evidence cannot be relabeled as Terra
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario Outline: Legacy corpus provenance cannot be replaced
 
@@ -200,33 +200,33 @@ Authorization is inapplicable to non-authorization fixtures because they cannot 
 
 ### Scenario Outline: Context pricing switches only above 272000 input tokens
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario Outline: Detailed usage components use the frozen standard rates
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An absent OpenAI cache-write usage field normalizes to zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario Outline: Mixed detailed usage produces one observable total cost
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A multi-turn attempt sums every turn cost exactly once
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Crossing the cost threshold during a turn does not truncate the started attempt
 
