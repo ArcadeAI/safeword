@@ -36165,29 +36165,52 @@ function filesystemFailureToken(error2) {
   const code = error2.code;
   return code === "ENOENT" || code === "ENOTDIR" ? "missing" : `error:${code ?? "unknown"}`;
 }
-function hashPath(hash, absolutePath, readFile2) {
+function hashField(hash, tag, value) {
+  const bytes = typeof value === "string" ? Buffer.from(value) : value;
+  const length = Buffer.allocUnsafe(8);
+  length.writeBigUInt64BE(BigInt(bytes.length));
+  hash.update(tag);
+  hash.update(Buffer.from([0]));
+  hash.update(length);
+  hash.update(bytes);
+}
+function filesystemNodeType(stat) {
+  if (stat.isSymbolicLink())
+    return "link";
+  if (stat.isDirectory())
+    return "directory";
+  if (stat.isFile())
+    return "file";
+  return "other";
+}
+function hashPath(hash, absolutePath, relativePath, readFile2) {
   try {
     const stat = lstatSync10(absolutePath);
-    hash.update(stat.isSymbolicLink() ? `link:${readlinkSync2(absolutePath)}` : stat.mode.toString());
+    hashField(hash, "node-type", filesystemNodeType(stat));
+    hashField(hash, "relative-path", relativePath);
+    hashField(hash, "mode", stat.mode.toString());
+    if (stat.isSymbolicLink())
+      hashField(hash, "link-target", readlinkSync2(absolutePath));
     if (stat.isDirectory()) {
       const entries = readdirSync20(absolutePath).toSorted((left, right) => left.localeCompare(right));
       for (const name of entries) {
-        hash.update(name);
-        hashPath(hash, nodePath59.join(absolutePath, name), readFile2);
+        hashPath(hash, nodePath59.join(absolutePath, name), nodePath59.join(relativePath, name), readFile2);
       }
     } else if (stat.isFile()) {
-      hash.update(readFile2(absolutePath));
+      hashField(hash, "file-content", readFile2(absolutePath));
     }
   } catch (error2) {
-    hash.update(filesystemFailureToken(error2));
+    hashField(hash, "node-type", "error");
+    hashField(hash, "relative-path", relativePath);
+    hashField(hash, "error", filesystemFailureToken(error2));
   }
 }
 function preconditionDigestForPaths(cwd, paths, readFile2 = readFileForDigest) {
   const hash = createHash15("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
-    hash.update(target);
-    hashPath(hash, nodePath59.join(cwd, target), readFile2);
+    hashField(hash, "target", target);
+    hashPath(hash, nodePath59.join(cwd, target), target, readFile2);
   }
   return hash.digest("hex");
 }
