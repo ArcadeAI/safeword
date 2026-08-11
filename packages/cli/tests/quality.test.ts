@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type BddPhase,
+  GENERIC_REVIEW_EVIDENCE,
   getDisqualificationMessage,
   getQualityMessage,
   QUALITY_REVIEW_MESSAGE,
@@ -75,11 +76,26 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
       }
     });
 
-    it('unknown phase falls back to default (implement-style) binary form', () => {
+    it('unknown phase uses phase-neutral evidence instead of claiming implementation', () => {
       const message = getQualityMessage('unknown-phase');
       expect(message).toContain('**CONFIDENT**');
       expect(message).toContain('**BLOCKED**');
-      expect(message).toBe(QUALITY_REVIEW_MESSAGE);
+      expect(message).toContain(GENERIC_REVIEW_EVIDENCE);
+      expect(message).not.toContain('Phase: implement');
+      expect(message).not.toBe(QUALITY_REVIEW_MESSAGE);
+    });
+
+    it('uses phase-neutral evidence for an inherited phase name', () => {
+      const message = getQualityMessage('toString');
+      expect(message).toContain(GENERIC_REVIEW_EVIDENCE);
+      expect(message).not.toContain('function toString()');
+    });
+
+    it('uses implementation evidence for an inherited TDD step name', () => {
+      const message = getQualityMessage('implement', 'toString');
+
+      expect(message).toContain('Phase: implement.');
+      expect(message).not.toContain('function toString()');
     });
   });
 
