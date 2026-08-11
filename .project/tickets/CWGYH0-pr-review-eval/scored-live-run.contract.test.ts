@@ -23,4 +23,10 @@ describe("live scored-run lifecycle wiring", () => {
 		expect(scorer).toContain('new Bun.Glob("active/*/*--record.json")');
 		expect(runner).toContain("version: 3");
 	});
+
+	test("describes the aggregate spend guard as a stop rather than a hard ceiling", () => {
+		const runner = readFileSync(join(ticketRoot, "scored-live-run.ts"), "utf8");
+		expect(runner).toContain("aggregateCostStopUsd");
+		expect(runner).not.toContain("aggregateCostCeilingUsd");
+	});
 });

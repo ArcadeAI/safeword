@@ -248,6 +248,19 @@ Feature: Keep failed reviews out of benchmark scores
       When the scorer computes their validity gates
       Then the first run passes completeness and the second run fails completeness
 
+    @rejection
+    Scenario: Malformed finding verification cannot change a score
+      Given verification evidence is malformed, duplicated, unsupported, or names no admitted finding
+      When the scorer evaluates the run
+      Then scoring stops before any verification classification changes a result
+
+    @rejection
+    Scenario: Contamination evidence belongs to exactly one frozen run
+      Given contamination preflight evidence records its repository identity and unique run identity
+      And the live run binds the SHA-256 digest of those exact preflight bytes
+      When the scorer evaluates the run
+      Then changed, stale, or differently identified preflight evidence is rejected
+
   @pr-review-eval.SWM1.R4
   Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
 
@@ -280,6 +293,16 @@ Feature: Keep failed reviews out of benchmark scores
       Given successful provider responses are injected only at the network boundary
       When the real runner and writer seal every frozen cell and the actual scorer runs
       Then every admitted record contributes to the completed case result
+
+    Scenario: Successful wiring advances durable run state
+      Given successful provider responses are injected only at the network boundary
+      When the production retry and admitted-work commit boundaries process every frozen cell
+      Then each record is durable before its matching run-state advancement
+
+    Scenario: Aggregate cost is an observed stop, not a prepaid ceiling
+      Given provider cost is known only after a completed attempt
+      When the runner reports its aggregate spend guard
+      Then it calls the value a cost stop and never promises a hard prepaid ceiling
 
     Scenario: A clean canary authorizes the next checkpoint
       Given every frozen no-cost fixture outcome matches its expected rejection reason

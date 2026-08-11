@@ -158,6 +158,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 251bde01d
 - [x] REFACTOR c230e01c4
 
+### Scenario: Malformed finding verification cannot change a score
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Contamination evidence belongs to exactly one frozen run
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
 
 ### Scenario: The no-cost fixture inventory is independently checkable
@@ -189,6 +201,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED skip: quality-review requested proof for behavior already implemented
 - [x] GREEN f9c092874
 - [x] REFACTOR skip: the fixture composes production boundaries without a new abstraction
+
+### Scenario: Successful wiring advances durable run state
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Aggregate cost is an observed stop, not a prepaid ceiling
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: A clean canary authorizes the next checkpoint
 

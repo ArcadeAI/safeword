@@ -13,10 +13,13 @@ import { join } from "node:path";
 import { createRunnerExecutor } from "/Users/alex/.codex/worktrees/ec04/arcade-pr-review/tools/pr-review/src/eval/development-benchmark.ts";
 import {
 	beginProvisionalCase,
-	recordAdmittedTrial,
+	commitAdmittedCaseWork,
 	sealActiveCase,
 } from "./scored-case-store";
-import { classifyTrialOutput } from "./scored-run-policy";
+import {
+	classifyTrialOutput,
+	executeWithInfrastructureRetry,
+} from "./scored-run-policy";
 
 function git(root: string, ...arguments_: string[]): string {
 	return execFileSync("git", arguments_, { cwd: root, encoding: "utf8" }).trim();
@@ -101,6 +104,8 @@ try {
 	});
 	const outputRoot = join(root, "output");
 	const caseState = beginProvisionalCase({ caseId, ordinal: 1, outputRoot });
+	const statePath = join(outputRoot, "run-state.json");
+	let nextWorkIndex = 0;
 	for (const system of ["full", "narrow"] as const) {
 		for (const variant of ["buggy", "fixed"] as const) {
 			for (const trial of [1, 2, 3]) {
@@ -117,7 +122,19 @@ try {
 					sourceSha: variant === "buggy" ? buggySha : fixedSha,
 					variant,
 				};
-				const output = await execute(reviewInput);
+				const result = await executeWithInfrastructureRetry(
+					() => execute(reviewInput),
+					(output) => classifyTrialOutput(output, "correctness", {
+						caseId,
+						reviewBaseSha,
+						runnerRef,
+						sourceSha: reviewInput.sourceSha,
+						variant,
+					}),
+				);
+				assert.equal(result.status, "completed");
+				if (result.status !== "completed") throw new Error("expected completion");
+				const output = result.value;
 				assert.equal(
 					classifyTrialOutput(output, "correctness", {
 						caseId,
@@ -128,16 +145,29 @@ try {
 					}).status,
 					"usable",
 				);
-				recordAdmittedTrial(caseState, `${system}--${variant}--t${trial}`, {
+				nextWorkIndex += 1;
+				commitAdmittedCaseWork({
+					caseState,
+					state: { nextWorkIndex },
+					statePath,
+					workId: `${system}--${variant}--t${trial}`,
+					record: {
 					...reviewInput,
+					attemptRecords: result.attemptRecords,
+					attempts: result.attempts,
 					output,
 					system,
 					trial,
+					},
 				});
 			}
 		}
 	}
 	sealActiveCase(caseState);
+	assert.equal(
+		(JSON.parse(readFileSync(statePath, "utf8")) as { nextWorkIndex: number }).nextWorkIndex,
+		12,
+	);
 
 	writeFileSync(
 		join(outputRoot, "run-summary.json"),
