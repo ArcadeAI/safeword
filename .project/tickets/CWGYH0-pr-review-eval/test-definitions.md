@@ -82,7 +82,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED f948a4a36
 - [x] GREEN 0aa2de93a
-- [ ] REFACTOR
+- [x] REFACTOR skip: one thrown-disposition mapper keeps semantic and infrastructure exception handling disjoint
 
 ### Scenario: An early failure cancels pending paired work
 
