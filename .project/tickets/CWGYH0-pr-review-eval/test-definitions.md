@@ -284,7 +284,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a7d8259d1
 - [x] GREEN 47d0ed48c
-- [ ] REFACTOR
+- [x] REFACTOR skip: the same paid-outcome predicate adds a call-specific blocking reason
 
 ### Scenario: One canary label disagreement blocks more spend
 
