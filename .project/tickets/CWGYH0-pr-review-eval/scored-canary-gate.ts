@@ -30,6 +30,7 @@ export const CANONICAL_OPERATIONAL_CLASSES = [
 export const REQUIRED_AUTHORIZATION_BINDINGS = [
 	"adapter",
 	"classifier",
+	"corpusRole",
 	"costPolicy",
 	"effectiveMatrixDeriver",
 	"fixtures",

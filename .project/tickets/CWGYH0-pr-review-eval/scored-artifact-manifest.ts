@@ -165,7 +165,12 @@ export function validateConfirmatoryCorpus(input: {
 	if (input.caseIds.length < input.minimumPoweredCases) throw new Error("confirmatory holdout is underpowered");
 	if (new Set(input.caseIds).size !== input.caseIds.length) throw new Error("duplicate holdout case");
 	const development = new Set(input.developmentCaseIds);
-	if (input.caseIds.some((id) => development.has(id))) throw new Error("holdout overlaps scorer development cases");
+	if ([...input.caseIds, ...input.reserveIds].some((id) => development.has(id))) {
+		throw new Error("holdout or reserve overlaps scorer development cases");
+	}
+	if (input.reserveIds.some((id) => input.caseIds.includes(id))) {
+		throw new Error("confirmatory reserves overlap the primary holdout");
+	}
 	if (parseTime(input.preregisteredAt, "preregistration") >= parseTime(input.reviewStartedAt, "review start")) {
 		throw new Error("confirmatory corpus was not preregistered before review");
 	}

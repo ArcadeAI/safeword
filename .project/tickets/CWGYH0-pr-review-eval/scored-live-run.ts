@@ -35,16 +35,17 @@ import {
 } from "./scored-case-store";
 import { estimateAttemptUsage } from "./scored-cost";
 import { evaluateCanaryGate } from "./scored-canary-gate";
-import { loadPinnedManifestFromGit } from "./scored-artifact-manifest";
+import {
+	loadPinnedManifestFromGit,
+	validateConfirmatoryCorpus,
+} from "./scored-artifact-manifest";
 import { loadGitHubEvidenceAnchor } from "./scored-evidence-anchor";
 
 const ticketRoot = import.meta.dir;
 const sourceRepository = requireEnvironment("CWGYH0_SOURCE_REPOSITORY");
 const adapterRoot = requireEnvironment("CWGYH0_ADAPTER_ROOT");
-const primaryManifestPath = process.env.CWGYH0_PRIMARY_MANIFEST_PATH ??
-	join(ticketRoot, "scored-cases-frozen-2026-08-01.json");
-const reserveManifestPath = process.env.CWGYH0_RESERVE_MANIFEST_PATH ??
-	join(ticketRoot, "reserve-cases-frozen-2026-08-01.json");
+const primaryManifestPath = requireEnvironment("CWGYH0_PRIMARY_MANIFEST_PATH");
+const reserveManifestPath = requireEnvironment("CWGYH0_RESERVE_MANIFEST_PATH");
 const expectedPrimaryCaseCount = parseExpectedCount(
 	process.env.CWGYH0_EXPECTED_PRIMARY_CASES,
 	30,
@@ -539,6 +540,19 @@ if (preflightOnly) {
 } else {
 	const certifiedPreflightPath = requireEnvironment("CWGYH0_PREFLIGHT_PATH");
 	const certifiedPreflightBytes = readFileSync(certifiedPreflightPath, "utf8");
+	const corpusRoleBytes = readFileSync(
+		requireEnvironment("CWGYH0_CORPUS_ROLE_PATH"),
+		"utf8",
+	);
+	const corpusRole = JSON.parse(corpusRoleBytes) as {
+		developmentCaseIds?: unknown;
+		minimumPoweredCases?: unknown;
+		preregisteredAt?: unknown;
+		primaryCaseIds?: unknown;
+		reserveCaseIds?: unknown;
+		role?: unknown;
+		voidForInstrumentFailure?: unknown;
+	};
 	const certifiedPreflight = JSON.parse(certifiedPreflightBytes) as Record<
 		string,
 		unknown
@@ -625,12 +639,51 @@ if (preflightOnly) {
 	if (pinnedGate.digest !== gateAnchor.digest) {
 		throw new Error("canary gate differs from independently retained issue anchor");
 	}
+	if (
+		corpusRole.role !== "confirmatory" ||
+		!Array.isArray(corpusRole.primaryCaseIds) ||
+		!Array.isArray(corpusRole.reserveCaseIds) ||
+		JSON.stringify(corpusRole.primaryCaseIds) !==
+			JSON.stringify(primary.cases.map(({ id }) => id)) ||
+		JSON.stringify(corpusRole.reserveCaseIds) !==
+			JSON.stringify(reserve.cases.map(({ id }) => id)) ||
+		!Array.isArray(corpusRole.developmentCaseIds) ||
+		typeof corpusRole.minimumPoweredCases !== "number" ||
+		typeof corpusRole.preregisteredAt !== "string" ||
+		typeof corpusRole.voidForInstrumentFailure !== "boolean"
+	) {
+		throw new Error("corpus role does not match the frozen confirmatory manifests");
+	}
+	validateConfirmatoryCorpus({
+		caseIds: corpusRole.primaryCaseIds as string[],
+		developmentCaseIds: corpusRole.developmentCaseIds as string[],
+		minimumPoweredCases: corpusRole.minimumPoweredCases,
+		preregisteredAt: corpusRole.preregisteredAt,
+		preregisteredReserveIds: corpusRole.reserveCaseIds as string[],
+		reserveIds: reserve.cases.map(({ id }) => id),
+		reviewStartedAt: gateAnchor.createdAt,
+		voidForInstrumentFailure: corpusRole.voidForInstrumentFailure,
+	});
+	const retainedCorpusRolePath = join(outputRoot, "corpus-role.json");
+	if (existsSync(retainedCorpusRolePath)) {
+		if (readFileSync(retainedCorpusRolePath, "utf8") !== corpusRoleBytes) {
+			throw new Error("retained corpus role differs from preregistered bytes");
+		}
+	} else {
+		writeBytesDurably(retainedCorpusRolePath, corpusRoleBytes);
+	}
+	frozenRun = {
+		...frozenRun,
+		corpusRoleSha256: sha256Text(corpusRoleBytes),
+		reviewStartedAt: gateAnchor.createdAt,
+	};
 	const gateEvidence = JSON.parse(pinnedGate.manifestBytes) as Parameters<
 		typeof evaluateCanaryGate
 	>[0];
 	const observedBindings = () => ({
 		adapter: sha256Text(expectedAdapterCommit),
 		classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
+		corpusRole: sha256Text(corpusRoleBytes),
 		costPolicy: sha256Text(JSON.stringify({
 			aggregateCostStopUsd,
 			cumulativeCostTargetUsd,

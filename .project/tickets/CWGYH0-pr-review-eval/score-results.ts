@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 
 import { mean, pairedBootstrapInterval } from "./scored-analysis";
 import {
 	loadPinnedManifestFromGit,
+	validateConfirmatoryCorpus,
 	verifyRawArtifactManifest,
 } from "./scored-artifact-manifest";
 import { loadGitHubEvidenceAnchor } from "./scored-evidence-anchor";
@@ -103,17 +105,54 @@ const readVerifiedJson = <T>(identity: string): T => {
 
 const summary = readVerifiedJson<{
 	completedCaseIds: string[];
+	corpusRoleSha256: string;
 	exclusions: Array<{ caseId: string; replacementId: string }>;
 	primaryCases: string[];
 	preflightId: string;
 	preflightSha256: string;
 	reserveCases: string[];
+	reviewStartedAt: string;
 	sourceRepositoryIdentity: string;
 	status: string;
 }>("run-summary.json");
 if (summary.status !== "completed") {
 	throw new Error("scored run is incomplete");
 }
+const corpusRoleBytes = readVerifiedText("corpus-role.json");
+if (
+	createHash("sha256").update(corpusRoleBytes).digest("hex") !==
+	summary.corpusRoleSha256
+) {
+	throw new Error("verified corpus role differs from the completed run");
+}
+const corpusRole = JSON.parse(corpusRoleBytes) as {
+	developmentCaseIds: string[];
+	minimumPoweredCases: number;
+	preregisteredAt: string;
+	primaryCaseIds: string[];
+	reserveCaseIds: string[];
+	role: string;
+	voidForInstrumentFailure: boolean;
+};
+if (
+	corpusRole.role !== "confirmatory" ||
+	JSON.stringify(corpusRole.primaryCaseIds) !==
+		JSON.stringify(summary.primaryCases) ||
+	JSON.stringify(corpusRole.reserveCaseIds) !==
+		JSON.stringify(summary.reserveCases)
+) {
+	throw new Error("verified corpus role does not match the completed run");
+}
+validateConfirmatoryCorpus({
+	caseIds: corpusRole.primaryCaseIds,
+	developmentCaseIds: corpusRole.developmentCaseIds,
+	minimumPoweredCases: corpusRole.minimumPoweredCases,
+	preregisteredAt: corpusRole.preregisteredAt,
+	preregisteredReserveIds: corpusRole.reserveCaseIds,
+	reserveIds: summary.reserveCases,
+	reviewStartedAt: summary.reviewStartedAt,
+	voidForInstrumentFailure: corpusRole.voidForInstrumentFailure,
+});
 const preflight = bindContaminationPreflight(
 	readVerifiedText("contamination-preflight.json"), {
 	preflightId: summary.preflightId,

@@ -55,6 +55,16 @@ describe("live scored-run lifecycle wiring", () => {
 		expect(scorer).not.toContain("readFileSync(preflightPath");
 	});
 
+	test("enforces corpus-role evidence in both the paid runner and scorer", () => {
+		const runner = readFileSync(join(ticketRoot, "scored-live-run.ts"), "utf8");
+		const scorer = readFileSync(join(ticketRoot, "score-results.ts"), "utf8");
+		expect(runner).toContain('requireEnvironment("CWGYH0_CORPUS_ROLE_PATH")');
+		expect(runner).toContain("validateConfirmatoryCorpus({");
+		expect(runner).not.toContain('join(ticketRoot, "scored-cases-frozen-2026-08-01.json")');
+		expect(scorer).toContain('readVerifiedText("corpus-role.json")');
+		expect(scorer).toContain("validateConfirmatoryCorpus({");
+	});
+
 	test("loads the pinned adapter and source repository from explicit runtime paths", () => {
 		const runner = readFileSync(join(ticketRoot, "scored-live-run.ts"), "utf8");
 		expect(runner).toContain('requireEnvironment("CWGYH0_ADAPTER_ROOT")');

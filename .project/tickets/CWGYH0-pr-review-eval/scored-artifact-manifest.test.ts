@@ -116,6 +116,8 @@ describe("corpus role separation", () => {
 	test.each([
 		["void corpus", { voidForInstrumentFailure: true }],
 		["development overlap", { caseIds: ["d1", "h2"] }],
+		["development reserve overlap", { developmentCaseIds: ["r1"] }],
+		["primary reserve overlap", { reserveIds: ["h1"], preregisteredReserveIds: ["h1"] }],
 		["late registration", { preregisteredAt: "2026-08-03T00:00:00.000Z" }],
 		["unregistered reserve", { reserveIds: ["r2"] }],
 		["underpowered holdout", { minimumPoweredCases: 3 }],

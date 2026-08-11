@@ -101,6 +101,17 @@ try {
 	};
 	writeFileSync(fixturePrimaryPath, `${JSON.stringify(fixturePrimary, null, 2)}\n`);
 	writeFileSync(fixtureReservePath, `${JSON.stringify(fixtureReserve, null, 2)}\n`);
+	const corpusRolePath = join(root, "corpus-role.json");
+	const corpusRoleBytes = `${JSON.stringify({
+		developmentCaseIds: ["development-only"],
+		minimumPoweredCases: 1,
+		preregisteredAt: "2026-07-01T00:00:00.000Z",
+		primaryCaseIds: fixturePrimary.cases.map(({ id }) => id),
+		reserveCaseIds: fixtureReserve.cases.map(({ id }) => id),
+		role: "confirmatory",
+		voidForInstrumentFailure: false,
+	}, null, 2)}\n`;
+	writeFileSync(corpusRolePath, corpusRoleBytes);
 	const preflightPath = join(root, "preflight.json");
 	const fetchLog = join(root, "fetch.log");
 	const fixturePreflight = {
@@ -264,6 +275,7 @@ try {
 		const expectedBindings = {
 			adapter: sha256Text(expectedAdapterCommit),
 			classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
+			corpusRole: sha256Text(corpusRoleBytes),
 			costPolicy: sha256Text(JSON.stringify({
 				aggregateCostStopUsd: 1_000,
 				cumulativeCostTargetUsd: 1_000,
@@ -374,6 +386,7 @@ try {
 					CWGYH0_CANARY_LABEL_GIT_ROOT: gateEnvironment.labelGitRoot,
 					CWGYH0_CASE_TARGET: "1",
 					CWGYH0_CHECKPOINT_ID: checkpointId,
+					CWGYH0_CORPUS_ROLE_PATH: corpusRolePath,
 					CWGYH0_FETCH_LOG: input.fetchLog,
 					CWGYH0_FETCH_MODE: input.mode,
 					CWGYH0_EXPECTED_PRIMARY_CASES: "1",
@@ -508,6 +521,39 @@ try {
 	assert.deepEqual(scorerResults.caseRows.map(({ caseId }) => caseId), [
 		exclusion.replacementId,
 	]);
+
+	const retainedRolePath = join(failureOutputRoot, "corpus-role.json");
+	const voidRole = JSON.parse(readFileSync(retainedRolePath, "utf8")) as {
+		voidForInstrumentFailure: boolean;
+	};
+	voidRole.voidForInstrumentFailure = true;
+	const voidRoleBytes = `${JSON.stringify(voidRole, null, 2)}\n`;
+	writeFileSync(retainedRolePath, voidRoleBytes);
+	const failureSummaryPath = join(failureOutputRoot, "run-summary.json");
+	const voidSummary = JSON.parse(readFileSync(failureSummaryPath, "utf8")) as {
+		corpusRoleSha256: string;
+	};
+	voidSummary.corpusRoleSha256 = sha256Text(voidRoleBytes);
+	writeFileSync(failureSummaryPath, `${JSON.stringify(voidSummary, null, 2)}\n`);
+	const voidManifestEnvironment = freezeFixtureArtifacts({
+		gitRoot: join(root, "void-manifest-repository"),
+		outputRoot: failureOutputRoot,
+		repositoryIdentity: "https://example.test/void-manifest.git",
+	});
+	assert.throws(
+		() => execFileSync("bun", [
+			"--preload",
+			join(ticketRoot, "scored-live-fetch-preload.fixture.ts"),
+			join(ticketRoot, "score-results.ts"),
+			failureOutputRoot,
+			join(root, "void-scorer-results.json"),
+		], {
+			encoding: "utf8",
+			env: { ...process.env, ...voidManifestEnvironment },
+			stdio: "pipe",
+		}),
+		/diagnostic-only/,
+	);
 } finally {
 	rmSync(root, { force: true, recursive: true });
 }
