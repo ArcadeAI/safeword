@@ -96,8 +96,9 @@ export function prepareReviewPacket(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
+  context: readonly string[] = [],
 ): PreparedReviewPacket {
-  if (targets.length > MAX_FILE_COUNT) {
+  if (targets.length + context.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
@@ -105,39 +106,43 @@ export function prepareReviewPacket(
   const tracked: { source: string; snapshot: string; sha256: string }[] = [];
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
+  let contextFiles: { path: string; content: string }[];
   try {
     let packetBytes = 0;
-    logicalFiles = targets.map(target => {
-      const source = nodePath.resolve(cwd, target);
-      const relative = nodePath.relative(cwd, source);
-      if (escapes(cwd, source)) {
-        throw new Error(`Review target escapes the project: ${target}`);
-      }
-      const stats = lstatSync(source);
-      if (!stats.isFile() || stats.isSymbolicLink()) {
-        throw new Error(`Review target is not a regular file: ${target}`);
-      }
-      const { bytes, content } = readContainedText(canonicalRoot, source, target);
-      const fileBytes = bytes.byteLength;
-      if (fileBytes > MAX_FILE_BYTES) {
-        throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
-      }
-      packetBytes += fileBytes;
-      if (packetBytes > MAX_PACKET_BYTES) {
-        throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
-      }
-      const snapshot = nodePath.join(workspace, relative);
-      mkdirSync(nodePath.dirname(snapshot), { recursive: true });
-      writeFileSync(snapshot, bytes, { mode: 0o600 });
-      let parent = nodePath.dirname(relative);
-      while (parent !== '.') {
-        expectedSnapshotEntries.add(`directory:${parent}`);
-        parent = nodePath.dirname(parent);
-      }
-      expectedSnapshotEntries.add(`file:${relative}`);
-      tracked.push({ source, snapshot, sha256: digest(bytes) });
-      return { path: relative, content };
-    });
+    const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
+      files.map(target => {
+        const source = nodePath.resolve(cwd, target);
+        const relative = nodePath.relative(cwd, source);
+        if (escapes(cwd, source)) {
+          throw new Error(`Review target escapes the project: ${target}`);
+        }
+        const stats = lstatSync(source);
+        if (!stats.isFile() || stats.isSymbolicLink()) {
+          throw new Error(`Review target is not a regular file: ${target}`);
+        }
+        const { bytes, content } = readContainedText(canonicalRoot, source, target);
+        const fileBytes = bytes.byteLength;
+        if (fileBytes > MAX_FILE_BYTES) {
+          throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+        }
+        packetBytes += fileBytes;
+        if (packetBytes > MAX_PACKET_BYTES) {
+          throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+        }
+        const snapshot = nodePath.join(workspace, relative);
+        mkdirSync(nodePath.dirname(snapshot), { recursive: true });
+        writeFileSync(snapshot, bytes, { mode: 0o600 });
+        let parent = nodePath.dirname(relative);
+        while (parent !== '.') {
+          expectedSnapshotEntries.add(`directory:${parent}`);
+          parent = nodePath.dirname(parent);
+        }
+        expectedSnapshotEntries.add(`file:${relative}`);
+        tracked.push({ source, snapshot, sha256: digest(bytes) });
+        return { path: relative, content };
+      });
+    logicalFiles = captureFiles(targets);
+    contextFiles = captureFiles(context);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;
@@ -147,6 +152,7 @@ export function prepareReviewPacket(
     dispatch_id: randomUUID(),
     kind,
     logical_files: logicalFiles,
+    ...(contextFiles.length > 0 && { context_files: contextFiles }),
   };
   return {
     packet,
@@ -155,11 +161,15 @@ export function prepareReviewPacket(
     sourceChanged: () => tracked.some(file => fileDigest(file.source) !== file.sha256),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
-      const actualEntries = snapshotEntries(workspace);
-      return (
-        actualEntries.length !== expectedSnapshotEntries.size ||
-        actualEntries.some(entry => !expectedSnapshotEntries.has(entry))
-      );
+      try {
+        const actualEntries = snapshotEntries(workspace);
+        return (
+          actualEntries.length !== expectedSnapshotEntries.size ||
+          actualEntries.some(entry => !expectedSnapshotEntries.has(entry))
+        );
+      } catch {
+        return true;
+      }
     },
     cleanup: () => {
       rmSync(workspace, { recursive: true, force: true });

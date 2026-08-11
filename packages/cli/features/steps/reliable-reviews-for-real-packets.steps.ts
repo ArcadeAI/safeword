@@ -509,9 +509,12 @@ Then("the review returns the Codex reviewer's verdict", function (this: Safeword
   assert.equal(payload(this).data.actual_reviewer, 'codex');
 });
 
-Then('the review reports that no compatible reviewer is installed', function (this: SafewordWorld) {
-  assert.equal(payload(this).data.preferred_failure, 'not_installed');
-});
+Then(
+  'the review reports that the installed reviewer is unsupported',
+  function (this: SafewordWorld) {
+    assert.equal(payload(this).data.preferred_failure, 'unsupported');
+  },
+);
 
 Then('the answer is accepted', function (this: SafewordWorld) {
   assert.equal(payload(this).data.independence, 'cross-agent');

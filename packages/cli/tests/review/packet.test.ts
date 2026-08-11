@@ -66,6 +66,15 @@ describe('review packet containment and change accounting', () => {
     prepared.cleanup();
   });
 
+  it('treats an unreadable snapshot traversal as reviewer mutation', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'input.md'), 'original\n');
+    const prepared = prepareReviewPacket(project, 'quality-review', ['input.md']);
+    rmSync(prepared.workspace, { recursive: true, force: true });
+
+    expect(prepared.snapshotChanged()).toBe(true);
+  });
+
   it('rejects an individual target that is too large for a bounded review', () => {
     const project = temporaryDirectory();
     writeFileSync(nodePath.join(project, 'large.md'), 'x'.repeat(256 * 1024 + 1));
@@ -114,5 +123,34 @@ describe('review packet containment and change accounting', () => {
     expect(prepared.snapshotChanged()).toBe(false);
     expect(prepared.sourceChanged()).toBe(false);
     prepared.cleanup();
+  });
+
+  it('separates supporting context from the work product under review', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'target.md'), 'review this\n');
+    writeFileSync(nodePath.join(project, 'context.md'), 'supporting evidence\n');
+
+    const prepared = prepareReviewPacket(project, 'quality-review', ['target.md'], ['context.md']);
+
+    expect(prepared.packet.logical_files).toEqual([
+      { path: 'target.md', content: 'review this\n' },
+    ]);
+    expect(prepared.packet.context_files).toEqual([
+      { path: 'context.md', content: 'supporting evidence\n' },
+    ]);
+    prepared.cleanup();
+  });
+
+  it('applies the aggregate packet bound across targets and supporting context', () => {
+    const project = temporaryDirectory();
+    const targets = Array.from({ length: 3 }, (_, index) => `target-${index}.md`);
+    const context = Array.from({ length: 2 }, (_, index) => `context-${index}.md`);
+    for (const path of [...targets, ...context]) {
+      writeFileSync(nodePath.join(project, path), 'x'.repeat(220 * 1024));
+    }
+
+    expect(() => prepareReviewPacket(project, 'quality-review', targets, context)).toThrow(
+      '1048576-byte limit',
+    );
   });
 });

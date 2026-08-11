@@ -92,10 +92,10 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review returns the second executable's verdict
 
     @rejection
-    Scenario: No reviewer executable supporting typed output means no reviewer is available
+    Scenario: No reviewer executable supporting typed output reports an unsupported reviewer
       Given every installed reviewer executable cannot produce typed output
       When the independent review runs
-      Then the review reports that no compatible reviewer is installed
+      Then the review reports that the installed reviewer is unsupported
 
   @reliable-reviews-for-real-packets.TBU2.R3 @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.TBU2.R3 — A result that violates the contract is still rejected, whatever produced it

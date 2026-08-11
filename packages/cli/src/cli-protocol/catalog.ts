@@ -430,6 +430,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     syntax: 'run <kind> <targets...>',
     commandOptions: [
       {
+        flags: '--context <paths...>',
+        description: 'Bounded supporting evidence that is not work under review',
+      },
+      {
         flags: '--agent-handoff',
         description: 'Treat action-required output as a successful author-agent handoff',
       },

@@ -678,8 +678,21 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
   const targets = Array.isArray(rawTargets)
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
+  const rawContext = invocation.options.context;
+  let context: string[] = [];
+  if (Array.isArray(rawContext)) {
+    context = rawContext.filter((target): target is string => typeof target === 'string');
+  } else if (typeof rawContext === 'string') {
+    context = [rawContext];
+  }
   const { runReview } = await import('../review/coordinator.js');
-  return runReview({ cwd: invocation.cwd, kind: rawKind, targets, progress: invocation.progress });
+  return runReview({
+    cwd: invocation.cwd,
+    kind: rawKind,
+    targets,
+    context,
+    progress: invocation.progress,
+  });
 }
 
 async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<CliResult> {
