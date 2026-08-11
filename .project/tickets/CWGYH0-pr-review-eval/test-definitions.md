@@ -277,7 +277,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A clean canary authorizes the next checkpoint
 
 - [x] RED a7d8259d1
-- [ ] GREEN
+- [x] GREEN 47d0ed48c
 - [ ] REFACTOR
 
 ### Scenario: One failed canary call blocks more spend
