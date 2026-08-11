@@ -163,10 +163,14 @@ function collectRefBlockers(
 function collectWorktreeBlockers(
   plan: CleanupPlan,
   pullRequest: PullRequestIdentity,
+  deliveryWorktree: WorktreeIdentity | undefined,
   topicWorktrees: WorktreeIdentity[],
   defaultBranchWorktrees: WorktreeIdentity[],
   deliveryWorktreePath: string,
 ): void {
+  if (deliveryWorktree?.branch === '') {
+    block(plan, `the delivery worktree is detached: ${deliveryWorktree.path}`);
+  }
   if (defaultBranchWorktrees.length !== 1) {
     block(plan, 'exactly one surviving default-branch worktree is required');
   }
@@ -254,6 +258,10 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
   collectWorktreeBlockers(
     plan,
     pullRequest,
+    observation.worktrees.find(
+      worktree =>
+        nodePath.resolve(worktree.path) === nodePath.resolve(observation.deliveryWorktreePath),
+    ),
     topicWorktrees,
     defaultBranchWorktrees,
     observation.deliveryWorktreePath,
@@ -267,7 +275,16 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
 }
 
 export function cleanupPlanDigest(plan: CleanupPlan): string {
-  return createHash('sha256').update(JSON.stringify(plan)).digest('hex');
+  // The digest is an authorization for exact cleanup targets, not a snapshot of
+  // host-session evidence. Codex appends the apply tool call to its transcript
+  // between preview and apply, so retro evidence must be refreshed independently.
+  const authorization = {
+    version: plan.version,
+    identity: plan.identity,
+    stateHash: plan.stateHash,
+    operations: plan.operations,
+  };
+  return createHash('sha256').update(JSON.stringify(authorization)).digest('hex');
 }
 
 export function operationCommand(operation: CleanupOperation): string[] {
@@ -376,6 +393,9 @@ export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlan
   }
 
   const current = buildCleanupPlan(input.observe());
+  if (current.blockers.length > 0) {
+    return blockedApply(input.plan, [...current.blockers]);
+  }
   if (current.stateHash !== input.plan.stateHash) {
     return blockedApply(input.plan, ['repository state changed after preview']);
   }
@@ -1185,13 +1205,13 @@ export function parseWorktrees(root: string): WorktreeIdentity[] {
     const path = fields.get('worktree');
     const oid = fields.get('HEAD');
     const branchRef = fields.get('branch');
-    if (!path || !oid || !branchRef?.startsWith('refs/heads/')) return [];
+    if (!path || !oid) return [];
     const status = git(path, 'status', '--porcelain=v1');
     return [
       {
         path,
         oid,
-        branch: branchRef.slice('refs/heads/'.length),
+        branch: branchRef?.startsWith('refs/heads/') ? branchRef.slice('refs/heads/'.length) : '',
         main: index === 0,
         dirty: status.status !== 0 || status.stdout.trim() !== '',
         locked: fields.has('locked'),

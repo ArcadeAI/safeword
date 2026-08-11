@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -708,13 +709,13 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(cleanupPlanDigest(plan)).toBe(cleanupPlanDigest(buildCleanupPlan(observation)));
   });
 
-  it('makes transcript growth stale against an earlier preview', () => {
+  it('keeps exact cleanup authorization stable across refreshed transcript evidence', () => {
     const first = buildCleanupPlan(safeObservation());
     const later = buildCleanupPlan(
       safeObservation({ retro: { ...safeObservation().retro, evidenceHash: 'retro-appended' } }),
     );
 
-    expect(cleanupPlanDigest(later)).not.toBe(cleanupPlanDigest(first));
+    expect(cleanupPlanDigest(later)).toBe(cleanupPlanDigest(first));
   });
 
   it('uses the unique default-branch worktree when the primary worktree is detached', () => {
@@ -979,6 +980,68 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(executed.flat()).not.toContain('--force');
   });
 
+  it('applies after transcript growth when refreshed retro evidence is complete', () => {
+    const preview = safeObservation();
+    const refreshed = safeObservation({
+      retro: { ...preview.retro, evidenceHash: 'retro-appended-and-reviewed' },
+    });
+    const plan = buildCleanupPlan(preview);
+    let current = refreshed;
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => current,
+      execute: operation => {
+        if (operation.kind === 'remove-worktree') {
+          current = { ...refreshed, worktrees: [worktree(0)] };
+        } else if (operation.kind === 'delete-remote-ref') {
+          current = {
+            ...refreshed,
+            worktrees: [worktree(0)],
+            remote: undefined,
+            remoteResolution: 'absent',
+          };
+        } else {
+          current = {
+            ...refreshed,
+            worktrees: [worktree(0)],
+            remote: undefined,
+            remoteResolution: 'absent',
+            localRefOid: undefined,
+          };
+        }
+      },
+    });
+
+    expect(result.applied).toBe(true);
+  });
+
+  it('blocks transcript growth until refreshed retrospective work is complete', () => {
+    const preview = safeObservation();
+    const plan = buildCleanupPlan(preview);
+    const execute = () => {
+      throw new Error('must not execute');
+    };
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () =>
+        safeObservation({
+          retro: {
+            ...preview.retro,
+            complete: false,
+            evidenceHash: 'retro-appended-not-reviewed',
+          },
+        }),
+      execute,
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.blockers).toContain('the current session retrospective is incomplete');
+  });
+
   it('invalidates stale digests and changed observations before mutation', () => {
     const plan = buildCleanupPlan(safeObservation());
     const execute = () => {
@@ -1006,7 +1069,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         observe: () => safeObservation({ protection: 'protected' }),
         execute,
       }).blockers,
-    ).toContain('cleanup targets changed after preview');
+    ).toContain('the topic branch is protected');
   });
 
   it('re-observes each remaining target and stops after a concurrent ref change', () => {
@@ -1251,6 +1314,112 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
+  it('converges through the public CLI when the Codex transcript grows after preview', () => {
+    const sandbox = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-cli-wiring-'));
+    const bare = nodePath.join(sandbox, 'remote.git');
+    const main = nodePath.join(sandbox, 'main');
+    const topic = nodePath.join(sandbox, 'topic');
+    const bin = nodePath.join(sandbox, 'bin');
+    const transcript = nodePath.join(sandbox, 'codex-thread-42.jsonl');
+    const fakeSafeword = nodePath.join(sandbox, 'fake-safeword.ts');
+    const script = nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts');
+    try {
+      runGit('init', '--bare', bare);
+      runGit('init', '--initial-branch=main', main);
+      runGit('-C', main, 'config', 'user.email', 'closeout@example.test');
+      runGit('-C', main, 'config', 'user.name', 'Closeout Test');
+      mkdirSync(nodePath.join(main, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(main, '.safeword', 'SAFEWORD.md'), '# SafeWord\n');
+      writeFileSync(nodePath.join(main, 'README.md'), 'main\n');
+      runGit('-C', main, 'add', '.');
+      runGit('-C', main, 'commit', '-m', 'main');
+      runGit('-C', main, 'remote', 'add', 'origin', 'git@github.com:acme/widget.git');
+      runGit('-C', main, 'worktree', 'add', '-b', 'feature/closeout', topic);
+      writeFileSync(nodePath.join(topic, 'topic.txt'), 'topic\n');
+      runGit('-C', topic, 'add', 'topic.txt');
+      runGit('-C', topic, 'commit', '-m', 'topic');
+      const oid = runGit('-C', topic, 'rev-parse', 'HEAD');
+      runGit('-C', main, 'push', `file://${bare}`, 'main:main');
+      runGit('-C', topic, 'push', `file://${bare}`, 'feature/closeout:feature/closeout');
+
+      mkdirSync(bin);
+      const gh = nodePath.join(bin, 'gh');
+      const ssh = nodePath.join(bin, 'ssh');
+      const pullRequestJson = JSON.stringify({
+        url: 'https://github.com/acme/widget/pull/42',
+        state: 'MERGED',
+        headRefName: 'feature/closeout',
+        headRefOid: oid,
+        headRepositoryOwner: { login: 'acme' },
+        headRepository: { name: 'widget' },
+        statusCheckRollup: [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }],
+      });
+      writeFileSync(
+        gh,
+        `#!/usr/bin/env bun\nconst args = process.argv.slice(2).join(' ');\nif (args.startsWith('pr view ')) console.log(${JSON.stringify(pullRequestJson)});\nelse if (args.startsWith('pr checks ')) console.log('[]');\nelse if (args.startsWith('repo view ')) console.log(JSON.stringify({ defaultBranchRef: { name: 'main' } }));\nelse if (args.startsWith('api ')) console.log(JSON.stringify({ protected: false }));\nelse process.exit(1);\n`,
+      );
+      chmodSync(gh, 0o755);
+      writeFileSync(
+        ssh,
+        `#!/bin/sh\nfor argument do command="$argument"; done\ncase "$command" in\n  "git-upload-pack 'acme/widget.git'") exec git-upload-pack "$SAFEWORD_TEST_BARE" ;;\n  "git-receive-pack 'acme/widget.git'") exec git-receive-pack "$SAFEWORD_TEST_BARE" ;;\n  *) exit 1 ;;\nesac\n`,
+      );
+      chmodSync(ssh, 0o755);
+      writeFileSync(
+        fakeSafeword,
+        `process.stdout.write(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false }, errors: [] }));\n`,
+      );
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({ type: 'session_meta', payload: { id: 'codex-thread-42' } })}\n`,
+      );
+      rememberCloseoutBinding({
+        projectDirectory: topic,
+        runtime: 'codex',
+        id: 'codex-thread-42',
+        transcriptPath: transcript,
+      });
+
+      const environment = {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CLI: fakeSafeword,
+        GIT_SSH_COMMAND: ssh,
+        SAFEWORD_TEST_BARE: bare,
+      };
+      const preview = spawnSync('bun', [script, '--pr', '42'], {
+        cwd: topic,
+        encoding: 'utf8',
+        env: environment,
+      });
+      expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+      const digest = (JSON.parse(preview.stdout) as { digest: string }).digest;
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({ type: 'custom_tool_call', name: 'apply' })}\n`,
+        {
+          flag: 'a',
+        },
+      );
+
+      const apply = spawnSync('bun', [script, '--pr', '42', '--yes', '--plan', digest], {
+        cwd: topic,
+        encoding: 'utf8',
+        env: environment,
+      });
+
+      expect(apply.status, apply.stderr).toBe(0);
+      expect((JSON.parse(apply.stdout) as { result: { applied: boolean } }).result.applied).toBe(
+        true,
+      );
+      expect(existsSync(topic)).toBe(false);
+      expect(runGit('-C', main, 'ls-remote', '--heads', `file://${bare}`, 'feature/closeout')).toBe(
+        '',
+      );
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
   it('preserves a live topic worktree whose path contains blank lines', () => {
     const sandbox = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-newline-'));
     const main = nodePath.join(sandbox, 'main');
@@ -1305,6 +1474,11 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       runGit('-C', primary, 'worktree', 'add', '-b', 'feature/closeout', topic);
 
       const worktrees = parseWorktrees(primary);
+      const primaryWorktree = {
+        path: realpathSync(primary),
+        branch: '',
+        main: true,
+      };
       const survivingWorktree = {
         path: realpathSync(surviving),
         branch: 'main',
@@ -1317,6 +1491,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       };
       expect(worktrees).toEqual(
         expect.arrayContaining([
+          expect.objectContaining(primaryWorktree),
           expect.objectContaining(survivingWorktree),
           expect.objectContaining(topicWorktree),
         ]),
@@ -1342,6 +1517,19 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
     }
+  });
+
+  it('blocks instead of silently abandoning a detached delivery worktree', () => {
+    const detached = { ...worktree(1), branch: '' };
+    const plan = buildCleanupPlan(
+      safeObservation({
+        deliveryWorktreePath: detached.path,
+        worktrees: [worktree(0), detached],
+      }),
+    );
+
+    expect(plan.blockers).toContain(`the delivery worktree is detached: ${detached.path}`);
+    expect(plan.operations).toEqual([]);
   });
 
   it('accepts an exact bound session after its original worktree is removed', () => {
