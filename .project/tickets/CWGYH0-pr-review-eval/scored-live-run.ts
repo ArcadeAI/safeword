@@ -584,35 +584,40 @@ if (preflightOnly) {
 	const gateEvidence = JSON.parse(pinnedGate.manifestBytes) as Parameters<
 		typeof evaluateCanaryGate
 	>[0];
-	const observedBindings = {
-			adapter: sha256Text(expectedAdapterCommit),
-			classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
-			preflight: sha256Text(certifiedPreflightBytes),
-			primaryManifest: sha256(primaryManifestPath),
-			reserveManifest: sha256(reserveManifestPath),
-			runner: sha256(join(ticketRoot, "scored-live-run.ts")),
-			runIdentity: sha256Text(JSON.stringify({
-				checkpointId,
-				outputRoot: resolve(outputRoot),
-				preflightId: certifiedPreflight.preflightId,
-				runId: gateEvidence.runId,
-			})),
-			scorer: sha256(join(ticketRoot, "score-results.ts")),
-			writer: sha256(join(ticketRoot, "scored-case-store.ts")),
-	};
-	const gate = evaluateCanaryGate({
-		...gateEvidence,
-		anchorCreatedAt: gateAnchor.createdAt,
-		observedBindings,
+	const observedBindings = () => ({
+		adapter: sha256Text(expectedAdapterCommit),
+		classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
+		preflight: sha256Text(certifiedPreflightBytes),
+		primaryManifest: sha256(primaryManifestPath),
+		reserveManifest: sha256(reserveManifestPath),
+		runner: sha256(join(ticketRoot, "scored-live-run.ts")),
+		runIdentity: sha256Text(JSON.stringify({
+			checkpointId,
+			cumulativeCaseTarget,
+			cumulativeCostTargetUsd,
+			outputRoot: resolve(outputRoot),
+			preflightId: certifiedPreflight.preflightId,
+			runId: gateEvidence.runId,
+		})),
+		scorer: sha256(join(ticketRoot, "score-results.ts")),
+		writer: sha256(join(ticketRoot, "scored-case-store.ts")),
 	});
-	if (!gate.authorized) {
-		throw new Error(`paid checkpoint blocked: ${gate.reasons.join("; ")}`);
-	}
-	if (gate.nextCheckpoint !== checkpointId) {
-		throw new Error(
-			`paid checkpoint blocked: authorization is for ${gate.nextCheckpoint}, not ${checkpointId}`,
-		);
-	}
+	const assertPaidAuthorization = (): void => {
+		const gate = evaluateCanaryGate({
+			...gateEvidence,
+			anchorCreatedAt: gateAnchor.createdAt,
+			observedBindings: observedBindings(),
+		});
+		if (!gate.authorized) {
+			throw new Error(`paid checkpoint blocked: ${gate.reasons.join("; ")}`);
+		}
+		if (gate.nextCheckpoint !== checkpointId) {
+			throw new Error(
+				`paid checkpoint blocked: authorization is for ${gate.nextCheckpoint}, not ${checkpointId}`,
+			);
+		}
+	};
+	assertPaidAuthorization();
 	const runLock = acquireRunLock(outputRoot);
 	try {
 	mkdirSync(join(outputRoot, "active"), { recursive: true });
@@ -767,6 +772,35 @@ if (preflightOnly) {
 			`case target ${cumulativeCaseTarget} is behind ${state.completedCases} completed cases`,
 		);
 	}
+	const authorizationIdentity = sha256Text(JSON.stringify({
+		checkpointId,
+		cumulativeCaseTarget,
+		cumulativeCostTargetUsd,
+		gateDigest: pinnedGate.digest,
+		outputRoot: resolve(outputRoot),
+		preflightId: certifiedPreflight.preflightId,
+		runId: gateEvidence.runId,
+	}));
+	const authorizationDirectory = join(outputRoot, "authorizations");
+	mkdirSync(authorizationDirectory, { recursive: true });
+	const authorizationMarkerPath = join(
+		authorizationDirectory,
+		`${safeName(checkpointId)}.json`,
+	);
+	if (existsSync(authorizationMarkerPath)) {
+		const marker = JSON.parse(readFileSync(authorizationMarkerPath, "utf8")) as {
+			authorizationIdentity?: unknown;
+		};
+		if (marker.authorizationIdentity !== authorizationIdentity) {
+			throw new Error("paid checkpoint authorization was already consumed by another target");
+		}
+	} else {
+		writeJsonDurably(authorizationMarkerPath, {
+			authorizationIdentity,
+			checkpointId,
+			status: "active",
+		});
+	}
 
 	while (
 		state.completedCases < primary.cases.length &&
@@ -816,6 +850,16 @@ if (preflightOnly) {
 			if (state.cumulativeCostUsd >= cumulativeCostTargetUsd) break;
 			if (state.cumulativeCostUsd >= aggregateCostStopUsd) {
 				break;
+			}
+			assertPaidAuthorization();
+			const currentMarker = JSON.parse(
+				readFileSync(authorizationMarkerPath, "utf8"),
+			) as { authorizationIdentity?: unknown; status?: unknown };
+			if (
+				currentMarker.authorizationIdentity !== authorizationIdentity ||
+				currentMarker.status !== "active"
+			) {
+				throw new Error("paid checkpoint authorization changed before provider call");
 			}
 			const safeRepositoryKey = `${item.id}:${current.variant}`;
 			let safeRepository = safeRepositories.get(safeRepositoryKey);
@@ -963,6 +1007,13 @@ if (preflightOnly) {
 		cumulativeCostUsd: state.cumulativeCostUsd,
 		exclusions: state.exclusions,
 		status,
+	});
+	writeJsonDurably(authorizationMarkerPath, {
+		authorizationIdentity,
+		checkpointId,
+		completedCases: state.completedCases,
+		cumulativeCostUsd: state.cumulativeCostUsd,
+		status: "consumed",
 	});
 	console.log(
 		`${status}: ${state.completedCases}/30 cases with ${state.exclusions.length} exclusion(s), estimated cost $${state.cumulativeCostUsd.toFixed(2)}`,

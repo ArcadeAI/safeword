@@ -20,8 +20,20 @@ describe("live scored-run lifecycle wiring", () => {
 			expect(runner).toContain(lifecycleCall);
 		}
 		expect(runner).not.toMatch(/join\(\s*outputRoot,\s*"active",/);
-		expect(scorer).toContain('new Bun.Glob("active/*/*--record.json")');
+		expect(scorer).toContain("verifyRawArtifactManifest({");
+		expect(scorer).toContain("for (const relativePath of [...verifiedBytes.keys()]");
+		expect(scorer).toContain('/^active\\/[^/]+\\/[^/]+--record\\.json$/');
 		expect(runner).toContain("version: 3");
+	});
+
+	test("revalidates and consumes target-bound authorization at the paid-call boundary", () => {
+		const runner = readFileSync(join(ticketRoot, "scored-live-run.ts"), "utf8");
+		expect(runner).toContain("cumulativeCaseTarget,");
+		expect(runner).toContain("cumulativeCostTargetUsd,");
+		expect(runner).toContain("assertPaidAuthorization();");
+		expect(runner).toContain('currentMarker.status !== "active"');
+		expect(runner).toContain('status: "consumed"');
+		expect(runner).toContain('const authorizationDirectory = join(outputRoot, "authorizations")');
 	});
 
 	test("describes the aggregate spend guard as a stop rather than a hard ceiling", () => {
