@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED c03099d0d
 - [x] GREEN 8cb41393a
-- [ ] REFACTOR
+- [x] REFACTOR skip: quarantine sealing and durable reserve allocation form one ordered crash-safety transition with no duplication worth extracting
 
 ### Scenario Outline: A non-infrastructure failure gets no silent retry
 
