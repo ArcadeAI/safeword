@@ -172,7 +172,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: quality-review requested an explicit proof for behavior already implemented
 - [x] GREEN c0e9f9512
-- [ ] REFACTOR
+- [x] REFACTOR skip: reserve lookup precedes every quarantine and queue mutation
 
 ## Rule: pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
 
