@@ -15,11 +15,13 @@ workflow into “merge succeeded, so we are done.”
 
 ## 1. Prove delivery readiness
 
-Run `/verify` for the current pull request head. Then observe the pull request
-directly with structured `gh pr view --json` output. Require all of these before
-any merge:
+Observe the pull request directly with structured `gh pr view --json` output.
+A non-empty hosted check rollup whose checks are all terminal and green is
+authoritative exact-head verification. When CI is absent, incomplete, failing,
+or unobservable, run `/verify` for the current pull request head instead. Require
+all of these before any merge:
 
-- local verification covers the current pull request head;
+- green hosted CI or local verification covers the current pull request head;
 - all required checks pass;
 - review requirements are satisfied; and
 - the pull request is not a draft.
@@ -68,7 +70,8 @@ is merged, its retrospective is complete, and its exact branch and worktree are
 already absent, report that the session is already closed.
 
 The guard records a private, atomic verification receipt in Git's shared common
-directory only after every verification lane passes on a clean exact PR head.
+directory after green hosted CI covers a clean exact PR head, or after every
+local verification lane passes on that head.
 For 24 hours, that receipt can prove the immutable head when an interrupted
 cleanup must resume from a surviving worktree after the topic worktree is gone.
 A missing, stale, malformed, dirty-state, or wrong-head receipt blocks cleanup.
@@ -100,13 +103,17 @@ Run the guard from the delivery worktree; preview is the default:
 bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts --pr PR_NUMBER
 ```
 
-At the exact delivery head, the post-merge preview reruns the project's
-verification, build, typecheck, and BDD plans. It does not rerun dependency audit:
-that changing intelligence is enforced at the delivery-time, pre-merge boundary
-and cannot repair an immutable merged head. After that worktree is gone, preview
-requires its fresh clean-head receipt instead. It binds the resulting repository
-state and exact PR identity to `PLAN_DIGEST`. Report the complete operation list
-and all blockers. Do not apply a blocked plan.
+At the exact clean delivery head, the post-merge preview reuses a fresh receipt
+or mints one from terminal green hosted CI. Only when neither proof is available
+does it run the project's verification, build, typecheck, and BDD plans. It does not rerun
+dependency audit: that changing intelligence is enforced at the
+delivery-time, pre-merge boundary and cannot repair an immutable merged head.
+It reuses the exact verification and retrospective snapshots through matching
+preview and apply invocations. New transcript content or changed repository
+state makes the plan stale instead of silently expanding its evidence window.
+After the topic worktree is gone, preview requires its fresh clean-head receipt.
+It binds the resulting repository state and exact PR identity to `PLAN_DIGEST`.
+Report the complete operation list and all blockers. Do not apply a blocked plan.
 
 With the user's cleanup intent already established by invoking closeout, apply
 only the unchanged preview:

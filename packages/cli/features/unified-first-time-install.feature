@@ -199,7 +199,7 @@ Feature: One coherent Safeword command model
     @rejection
     Scenario: A stale uninstall plan is refused
       Given selected state changed after an uninstall plan was previewed
-      When the user confirms the stale plan
+      When the user confirms that stale uninstall plan
       Then no removal occurs and a fresh plan is required
 
     @rejection

@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "c1b4aaac9beaff37ccca791e621c6f91081c5269f2b81333bf11462734a573a4"
+      "sha256": "76204badce88a4de06fbbcd3a527cb57f2d5651011e68be7dda92c39f4dd5295"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "32ad1be00e734c37614cfb1aba2b98706c5ac65da96b0bde6b8e95f3ebd5bf6c"
+      "sha256": "665ca076a58cb624339f4904530f2581bfad53b1b1a084f6cef2680477ef677c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "c99254495b84951192f7af43595d180f4a4165394bf171942dbd0b9b1439d849"
+      "sha256": "421ef4c5a5d1ec4121091f55a288c7d38c5e87f0eb76dba4711eef0b3e1087af"
     },
     {
       "path": "runtime/event-groups.json",
@@ -619,7 +619,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "4880f44b0bcfaaaf743c5b31b9fbcb507aa884897158c53471bbf06a1ca82425"
+      "sha256": "d7560e1fcee221e1d75cedbf0ccbcd0c495c9b730e96b33c39948e31b815f61c"
     },
     {
       "path": "skills/debug/SKILL.md",

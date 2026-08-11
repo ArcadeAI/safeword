@@ -32,11 +32,13 @@ function canonicalSkill(): string {
 }
 
 describe('closeout delivery evidence (93C14D NTB1.R1)', () => {
-  it('requires current local and hosted evidence before merge or cleanup', () => {
+  it('accepts exact-head green CI and falls back to local verification', () => {
     const skill = canonicalSkill();
 
     expect(skill).toContain('current pull request head');
     expect(skill).toContain('required checks');
+    expect(skill).toMatch(/green hosted CI or local verification/);
+    expect(skill).toMatch(/When CI is absent[\s\S]*run `\/verify`/);
     expect(skill).toContain('review requirements');
     expect(skill).toContain('draft');
     expect(skill).toMatch(/no merge or cleanup/i);
@@ -74,9 +76,11 @@ describe('closeout observed resumption (93C14D NTB1.R3)', () => {
   it('keeps dependency audit in delivery readiness without rerunning it after merge', () => {
     const skill = canonicalSkill();
 
-    expect(skill).toMatch(/Run `\/verify`[\s\S]*before[\s\S]*merge/i);
+    expect(skill).toMatch(/green hosted CI[\s\S]*or[\s\S]*local verification/i);
     expect(skill).toMatch(/dependency audit[\s\S]*delivery-time/i);
-    expect(skill).toMatch(/post-merge[\s\S]*verification, build, typecheck, and BDD/i);
+    expect(skill).toMatch(
+      /post-merge[\s\S]*green hosted CI[\s\S]*verification, build, typecheck, and BDD/i,
+    );
     expect(skill).toMatch(/does not rerun[\s\S]*dependency audit/i);
   });
 });

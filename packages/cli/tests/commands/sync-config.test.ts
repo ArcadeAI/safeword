@@ -5,6 +5,8 @@
  * See: .safeword/planning/test-definitions/feature-architecture-audit.md
  */
 
+import { unlinkSync } from 'node:fs';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -167,6 +169,27 @@ describe('Sync Config Command', () => {
       const after = readTestFile(temporaryDirectory, '.safeword/depcruise-config.cjs');
       expect(after).toBe(driftedContent);
     });
+
+    it('reports regeneration of an existing drifted config as an update', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      await runCli(['sync-config'], { cwd: temporaryDirectory });
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/depcruise-config.cjs',
+        '// drifted\nmodule.exports = {};',
+      );
+
+      const result = await runCli(['sync-config', '--json'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        effects: {
+          files: expect.arrayContaining([
+            { kind: 'update', target: '.safeword/depcruise-config.cjs' },
+          ]),
+        },
+      });
+    });
   });
 
   describe('Test 2.9: --check exits non-zero and writes nothing when on-disk missing', () => {
@@ -184,13 +207,19 @@ describe('Sync Config Command', () => {
   });
 
   describe('Test 2.10: --check does not create .dependency-cruiser.cjs even when missing', () => {
-    it('should leave the wrapper file alone in check mode', async () => {
+    it('should report the missing wrapper and leave it alone in check mode', async () => {
       await createConfiguredProject(temporaryDirectory);
+      await runCli(['sync-config'], { cwd: temporaryDirectory });
+      writeTestFile(temporaryDirectory, '.dependency-cruiser.cjs', 'temporary wrapper');
+      const generated = readTestFile(temporaryDirectory, '.safeword/depcruise-config.cjs');
+      unlinkSync(`${temporaryDirectory}/.dependency-cruiser.cjs`);
       expect(fileExists(temporaryDirectory, '.dependency-cruiser.cjs')).toBe(false);
 
-      await runCli(['sync-config', '--check'], { cwd: temporaryDirectory });
+      const result = await runCli(['sync-config', '--check'], { cwd: temporaryDirectory });
 
+      expect(result.exitCode).not.toBe(0);
       expect(fileExists(temporaryDirectory, '.dependency-cruiser.cjs')).toBe(false);
+      expect(readTestFile(temporaryDirectory, '.safeword/depcruise-config.cjs')).toBe(generated);
     });
   });
 });
