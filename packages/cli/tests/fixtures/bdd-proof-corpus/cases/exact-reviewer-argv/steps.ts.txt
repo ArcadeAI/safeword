@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+const schema = '/tmp/review-output.json';
+const expected = [
+  'exec', '--json', '--sandbox', 'read-only', '--skip-git-repo-check', '--ephemeral',
+  '--ignore-user-config', '--ignore-rules', '--disable', 'hooks', '--config',
+  'mcp_servers={}', '--model', 'gpt-5.6-sol', '--output-schema', schema, '-',
+];
+When('the review coordinator invokes Codex', async function () {
+  const runtime = await import(process.env.BDD_CORPUS_REVIEW_RUNTIME!);
+  this.argv = runtime.reviewerArguments('codex', 'gpt-5.6-sol', schema);
+  switch (process.env.BDD_CORPUS_DEFECT) {
+    case 'duplicate-flag':
+      this.argv.splice(2, 0, '--json');
+      break;
+    case 'reordered-command':
+      [this.argv[0], this.argv[1]] = [this.argv[1], this.argv[0]];
+      break;
+    case 'duplicate-prompt':
+      this.argv.push('-');
+      break;
+    case 'alternate-model':
+      this.argv[this.argv.indexOf('gpt-5.6-sol')] = 'gpt-5.6-terra';
+      break;
+  }
+});
+Then('Codex receives the exact ordered collaborator arguments', function () {
+  assert.deepEqual(this.argv, expected);
+});
