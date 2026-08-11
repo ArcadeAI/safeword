@@ -1,20 +1,31 @@
-import { chmodSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 type ReviewAgent = 'claude' | 'codex';
 
-function installFakeReviewer(directory: string, agent: ReviewAgent): string {
-  const fixture = Buffer.from(directory).toString('hex');
-  const bin = nodePath.join(
-    tmpdir(),
-    `safeword-reviewer-${fixture}-${nodePath.basename(directory)}`,
-    'bin',
+const trustedReviewerRoots = new Map<string, string>();
+
+afterAll(() => {
+  for (const root of trustedReviewerRoots.values()) rmSync(root, { recursive: true, force: true });
+});
+
+function trustedReviewerRoot(directory: string): string {
+  const existing = trustedReviewerRoots.get(directory);
+  if (existing !== undefined) return existing;
+  const created = createTrustedReviewerDirectory(
+    `safeword-reviewer-${nodePath.basename(directory)}-`,
   );
+  trustedReviewerRoots.set(directory, created);
+  return created;
+}
+
+function installFakeReviewer(directory: string, agent: ReviewAgent): string {
+  const bin = nodePath.join(trustedReviewerRoot(directory), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
   writeFileSync(
@@ -99,12 +110,7 @@ fi
 }
 
 function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log: string): string {
-  const fixture = Buffer.from(directory).toString('hex');
-  const bin = nodePath.join(
-    tmpdir(),
-    `safeword-reviewer-${fixture}-${nodePath.basename(directory)}`,
-    'bin',
-  );
+  const bin = nodePath.join(trustedReviewerRoot(directory), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
   writeFileSync(

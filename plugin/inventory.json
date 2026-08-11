@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "26af801c028717b7c43acac19ef725963af1bbd0b72510460c3372baa84f2880"
+      "sha256": "7dcd6df3ae51eb694e71d32311cef6b165dd6c601fa31d3fa92061e0cb10b06d"
     },
     {
       "path": "runtime/dispatch.js",
@@ -371,7 +371,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "7b76d145dc4b40cc41afd8f4c3719333ed407349631f030f193d71cd2057bc38"
+      "sha256": "0a6c0ce2cfaea5f1555ab4830ff5eb8ede22adfb06518064181897ac239723c5"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -519,7 +519,7 @@
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",
-      "sha256": "5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1"
+      "sha256": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773"
     },
     {
       "path": "runtime/hooks/session-cursor-auto-upgrade.ts",

@@ -137,11 +137,14 @@ jobs:
         run: bun run --cwd packages/cli test:slow:install-proof
 
       - name: Acceptance lane (cucumber)
+        if: matrix.node-version == '24.18.1'
         # Guards the Gherkin acceptance lane against features merged with no step
         # definitions and no @wip tag — a persistently-red lane masks real
         # regressions (issue #341). Runs after Build because some step defs spawn
-        # the built CLI (dist/cli.js). Features whose proof lives in vitest are
-        # @wip-excluded by convention, each with a one-line pointer in the .feature.
+        # the built CLI (dist/cli.js). Package and release gates run on both Node
+        # versions; this version-independent behavior lane runs once per commit.
+        # Features whose proof lives in Vitest use @proof.vitest, with a pointer
+        # to their executable proof in the .feature file.
         run: bun run test:bdd
 
       - name: Release-gate tests (supply-chain + dogfood parity)

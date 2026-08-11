@@ -21966,7 +21966,8 @@ var init_cucumber_template_revisions = __esm(() => {
     "761b20d508207b58e234fdcf592ae4cd0e916548ef46177469e2165c1e13832b",
     "3d22842f73c62e497a525dbe0a126b42bf2202fb8369ede29ba45b6d1e493fb6",
     "929014fb4ce6ca1483b292757b6044be89932028f5bb21ba82c28ffd66b09e53",
-    "1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f"
+    "1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f",
+    "0ec4cb6d65b39e01f8aff27c4ca3841e0271a43b5435492676450f0fb3cfac27"
   ]);
 });
 
@@ -22417,7 +22418,7 @@ var init_feature_source = __esm(() => {
   init_workspaces();
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/AstNode.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/AstNode.js
 class AstNode {
   ruleType;
   subItems = new Map;
@@ -22446,7 +22447,7 @@ class AstNode {
   }
 }
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/Errors.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/Errors.js
 var GherkinException, ParserException, CompositeParserException, AstBuilderException, NoSuchLanguageException;
 var init_Errors = __esm(() => {
   GherkinException = class GherkinException extends Error {
@@ -22500,7 +22501,7 @@ ${errors.map((e) => e.message).join(`
   };
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/TokenExceptions.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/TokenExceptions.js
 function tokenLocation(token) {
   return token.location?.line && token.line && token.line.indent !== undefined ? {
     line: token.location.line,
@@ -22526,7 +22527,7 @@ var init_TokenExceptions = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/TokenScanner.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/TokenScanner.js
 class TokenScanner {
   makeToken;
   lineNumber = 0;
@@ -22547,7 +22548,7 @@ class TokenScanner {
   }
 }
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/countSymbols.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/countSymbols.js
 function countSymbols(s) {
   return s.replace(regexAstralSymbols, "_").length;
 }
@@ -22556,7 +22557,7 @@ var init_countSymbols = __esm(() => {
   regexAstralSymbols = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/GherkinLine.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinLine.js
 class GherkinLine {
   lineText;
   lineNumber;
@@ -22638,7 +22639,7 @@ var init_GherkinLine = __esm(() => {
   init_countSymbols();
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/Parser.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/Parser.js
 class Token {
   line;
   location;
@@ -26576,7 +26577,7 @@ var init_Parser = __esm(() => {
   })(RuleType || (RuleType = {}));
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/AstBuilder.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/AstBuilder.js
 class AstBuilder {
   stack;
   comments;
@@ -26867,7 +26868,7 @@ var init_AstBuilder = __esm(() => {
   init_Parser();
 });
 
-// ../../node_modules/.bun/@cucumber+messages@34.2.0/node_modules/@cucumber/messages/dist/IdGenerator.js
+// ../../node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/IdGenerator.js
 var exports_IdGenerator = {};
 __export(exports_IdGenerator, {
   uuid: () => uuid,
@@ -26881,7 +26882,7 @@ function incrementing() {
   return () => (next++).toString();
 }
 
-// ../../node_modules/.bun/@cucumber+messages@34.2.0/node_modules/@cucumber/messages/dist/messages.js
+// ../../node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/messages.js
 var AttachmentContentEncoding, HookType, PickleStepType, SourceMediaType, StepDefinitionPatternType, StepKeywordType, TestStepResultStatus;
 var init_messages = __esm(() => {
   (function(AttachmentContentEncoding2) {
@@ -26928,17 +26929,17 @@ var init_messages = __esm(() => {
   })(TestStepResultStatus || (TestStepResultStatus = {}));
 });
 
-// ../../node_modules/.bun/@cucumber+messages@34.2.0/node_modules/@cucumber/messages/dist/index.js
+// ../../node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/index.js
 var init_dist2 = __esm(() => {
   init_messages();
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/compareStepKeywords.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/compareStepKeywords.js
 function compareStepKeywords(a, b) {
   return b.length - a.length;
 }
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/gherkin-languages.json
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/gherkin-languages.json
 var gherkin_languages_default;
 var init_gherkin_languages = __esm(() => {
   gherkin_languages_default = {
@@ -30842,7 +30843,7 @@ var init_gherkin_languages = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/GherkinClassicTokenMatcher.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinClassicTokenMatcher.js
 function addKeywordTypeMappings(h, keywords, keywordType) {
   for (const k of keywords) {
     if (!(k in h)) {
@@ -31051,7 +31052,7 @@ var init_GherkinClassicTokenMatcher = __esm(() => {
   LANGUAGE_PATTERN = /^\s*#\s*language\s*:\s*([a-zA-Z\-_]+)\s*$/;
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/GherkinInMarkdownTokenMatcher.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinInMarkdownTokenMatcher.js
 var KeywordPrefix;
 var init_GherkinInMarkdownTokenMatcher = __esm(() => {
   init_Errors();
@@ -31063,10 +31064,10 @@ var init_GherkinInMarkdownTokenMatcher = __esm(() => {
   })(KeywordPrefix || (KeywordPrefix = {}));
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/makeSourceEnvelope.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/makeSourceEnvelope.js
 var init_makeSourceEnvelope = () => {};
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/pickles/compile.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/pickles/compile.js
 var pickleStepTypeFromKeyword;
 var init_compile = __esm(() => {
   init_dist2();
@@ -31079,7 +31080,7 @@ var init_compile = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/generateMessages.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/generateMessages.js
 var init_generateMessages = __esm(() => {
   init_AstBuilder();
   init_GherkinClassicTokenMatcher();
@@ -31089,7 +31090,7 @@ var init_generateMessages = __esm(() => {
   init_compile();
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.0/node_modules/@cucumber/gherkin/dist/index.js
+// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/index.js
 var init_dist3 = __esm(() => {
   init_AstBuilder();
   init_Errors();
@@ -54667,11 +54668,16 @@ function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
+  if (!readFileSync57(instructionsPath, "utf8").trim())
+    return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
     "These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
     "",
-    readFileSync57(instructionsPath, "utf8")
+    "Safeword session bootstrap:",
+    "Before non-trivial work, read the packaged Safeword handbook and the applicable guide in `.safeword/guides/`.",
+    "Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).",
+    "Follow the active Safeword workflow and its gates."
   ].join(`
 `);
 }

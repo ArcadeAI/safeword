@@ -1,5 +1,5 @@
-# Automated by packages/cli/tests/cli-protocol/*contract.test.ts and check:cli-contract.
-@wip
+# Automated by packages/cli/tests/cli-protocol/cli-contract.test.ts and check:cli-contract.
+@proof.vitest
 @surface.safeword-cli
 Feature: Prevent public CLI contracts from drifting again
   Maintainers need one production-derived contract gate so every shipped invocation

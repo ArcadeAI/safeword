@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { chmodSync, existsSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -377,20 +377,26 @@ describe("python-importlinter-scaffold.TB1.R5 — installed with the pack's othe
   it(
     "setup installs import-linter alongside the pack's other Python tools",
     async () => {
-      // uv-managed fixture: the "Installing Python tools (…)" intent line names
-      // the tool set regardless of whether the local uv install then succeeds.
+      // Use a deterministic failing uv boundary. The assertion is about the
+      // complete requested tool set and recovery command, not whether the host
+      // runner happens to have uv or can reach a package registry.
       createPythonProject(state.projectDirectory, { manager: 'uv' });
       createSafewordBasePackageJson(state.projectDirectory);
       writeTestFile(state.projectDirectory, 'mypkg/__init__.py', '');
+      writeTestFile(state.projectDirectory, 'bin/uv', '#!/bin/sh\nexit 1\n');
+      chmodSync(nodePath.join(state.projectDirectory, 'bin/uv'), 0o755);
       initGitRepo(state.projectDirectory);
 
       const result = await runCli(['setup'], {
         cwd: state.projectDirectory,
+        env: {
+          PATH: `${nodePath.join(state.projectDirectory, 'bin')}:/usr/bin:/bin`,
+        },
         timeout: TIMEOUT_SETUP,
       });
 
-      expect(result.stdout).toMatch(
-        /Python tools installed \(.*import-linter.*\)|Install Python tools: uv add --dev .*import-linter/,
+      expect(result.stdout + result.stderr).toMatch(
+        /Install Python tools: uv add --dev .*import-linter/,
       );
     },
     TIMEOUT_SETUP,

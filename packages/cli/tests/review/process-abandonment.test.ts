@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ReviewPacket } from '../../src/review/contract.js';
 import { runHeadlessReviewer } from '../../src/review/runtime.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 const packet: ReviewPacket = {
   schema_version: 1,
@@ -25,7 +25,7 @@ describe('an uncleanable reviewer process group', () => {
     if (process.platform === 'win32') return;
 
     const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-abandoned-project-'));
-    const host = mkdtempSync(nodePath.join(tmpdir(), 'safeword-abandoned-bin-'));
+    const host = createTrustedReviewerDirectory('safeword-abandoned-bin-');
     const bin = nodePath.join(host, 'bin');
     mkdirSync(bin);
     const executable = nodePath.join(bin, 'codex');
@@ -36,7 +36,7 @@ describe('an uncleanable reviewer process group', () => {
     );
     chmodSync(executable, 0o755);
 
-    const fallbackHost = mkdtempSync(nodePath.join(tmpdir(), 'safeword-abandoned-fallback-'));
+    const fallbackHost = createTrustedReviewerDirectory('safeword-abandoned-fallback-');
     const fallbackBin = nodePath.join(fallbackHost, 'bin');
     const fallbackLaunch = nodePath.join(fallbackHost, 'launched');
     mkdirSync(fallbackBin);

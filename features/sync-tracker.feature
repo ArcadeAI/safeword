@@ -1,11 +1,12 @@
 # Acceptance is proven by the vitest lanes, not cucumber step definitions: the
 # payload builder, the single call site, the two mocked writers, the sidecar
 # idempotency/resume, field ownership, egress, and secret resolution are all
-# driven through injected fake clients in packages/cli/tests (done-when: "no live
-# tracker in tests"). Tagged @wip to exclude this feature from the cucumber
+# driven through injected fake clients in packages/cli/tests/tracker-sync/wiring.test.ts
+# and its focused siblings (done-when: "no live
+# tracker in tests"). Tagged @proof.vitest to exclude this feature from the cucumber
 # acceptance lane (proof lives in vitest) while staying discoverable for
 # `safeword check` AC-coverage.
-@sync-tracker.TB1 @wip
+@sync-tracker.TB1 @proof.vitest
 Feature: safeword sync-tracker — one-way projection to Linear + GitHub Issues
   Project the local ticket corpus one-way (file → tracker) into Linear or GitHub
   Issues as flat, label-grouped issues, while the local files stay canonical. One

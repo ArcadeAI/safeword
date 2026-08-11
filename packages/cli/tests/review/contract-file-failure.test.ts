@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ReviewPacket } from '../../src/review/contract.js';
 import { ReviewRuntimeError, runHeadlessReviewer } from '../../src/review/runtime.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 const packet: ReviewPacket = {
   schema_version: 1,
@@ -26,7 +26,7 @@ async function withUnwritableTemporaryRoot(
   // The executable must live OUTSIDE the untrusted root, or candidate
   // selection discards it and the run fails as not_installed before the
   // contract file is ever written — a vacuous pass.
-  const binRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-contract-bin-'));
+  const binRoot = createTrustedReviewerDirectory('safeword-contract-bin-');
   const bin = nodePath.join(binRoot, 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, 'codex');
