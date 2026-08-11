@@ -1,11 +1,11 @@
-# Tagged @wip to exclude this feature from the cucumber acceptance lane: the plan
+# Tagged @proof.vitest to exclude this feature from the cucumber acceptance lane: the plan
 # and apply-results code is pure (no CLI-driven live tracker), and the executor that
 # actually calls GitHub is external (agent/gh), so there is no live-tracker-free way
 # to drive the end-to-end mirror here ("no live tracker in tests", per #363 — same
 # stance as sync-tracker.feature and tracker-identity-and-join.feature). Behavior is
-# proven by vitest unit tests over the pure plan + apply-results functions; this
+# proven by packages/cli/tests/tracker-sync/plan.test.ts and apply-results.test.ts;
 # .feature is the canonical scenario source (feature-files-as-source).
-@wip
+@proof.vitest
 Feature: Environment-portable tracker transport
   safeword computes a network-free sync plan (create/update/close intents from local
   tickets diffed against the tracker-map) and folds an executor's results back into the

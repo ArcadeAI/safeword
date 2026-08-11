@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from './helpers';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
+const AUTOMATED_TAGS = 'not @wip and not @proof.vitest and not @manual and not @live';
 
 interface CucumberConfig {
   import: string[];
@@ -41,6 +42,26 @@ describe('Cucumber config targeted path handling', () => {
 
     expect(packageJson.scripts?.['test:bdd']).toContain("NODE_OPTIONS='--import tsx'");
     expect(packageJson.scripts?.['test:bdd:live']).toContain("NODE_OPTIONS='--import tsx'");
+  });
+
+  it('excludes unfinished and separately proven behavior from the automated lane', async () => {
+    const packageJson = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, 'package.json'), 'utf8'),
+    ) as { scripts?: Record<string, string> };
+    const cliPackageJson = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, 'packages/cli/package.json'), 'utf8'),
+    ) as { scripts?: Record<string, string> };
+    const cliConfig = (await import(
+      pathToFileURL(nodePath.join(REPO_ROOT, 'packages/cli/cucumber.mjs')).href
+    )) as { default: { tags: string } };
+
+    expect(packageJson.scripts?.['test:bdd']).toContain(AUTOMATED_TAGS);
+    expect(cliPackageJson.scripts?.['test:bdd']).toContain(AUTOMATED_TAGS);
+    expect(cliConfig.default.tags).toBe(AUTOMATED_TAGS);
+    for (const [, relativePath] of CONFIG_SURFACES) {
+      const configModule = await loadConfigModule(relativePath);
+      expect(configModule.buildCucumberConfig([]).tags).toBe(AUTOMATED_TAGS);
+    }
   });
 
   it.each(CONFIG_SURFACES)(

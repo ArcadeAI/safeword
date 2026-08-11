@@ -37,7 +37,7 @@
     "dev": "tsup --watch",
     "test": "node scripts/run-vitest-with-build-lock.mjs",
     "pretest:bdd": "tsup",
-    "test:bdd": "NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @manual and not @live'",
+    "test:bdd": "NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @proof.vitest and not @manual and not @live'",
     "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --tags '@live and not @manual'",
     "test:done": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts",
     "test:integration": "node scripts/run-vitest-with-build-lock.mjs tests/integration/",
