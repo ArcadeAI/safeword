@@ -10,9 +10,10 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
-import type {
-	RetriedResult,
-	TrialDisposition,
+import {
+	executeWithInfrastructureRetry,
+	type RetriedResult,
+	type TrialDisposition,
 } from "./scored-run-policy";
 
 export type RunLock = { release: () => void };
@@ -191,7 +192,7 @@ export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: 
 	return { replacementId, state };
 }
 
-export async function executeCaseWork<T, TState extends ReserveState>(_input: {
+export async function executeCaseWork<T, TState extends ReserveState>(input: {
 	caseState: ProvisionalCase;
 	classify: (value: T) => TrialDisposition;
 	execute: () => Promise<T>;
@@ -200,5 +201,25 @@ export async function executeCaseWork<T, TState extends ReserveState>(_input: {
 	state: TState;
 	workId: string;
 }): Promise<CaseWorkResult<T, TState>> {
-	throw new Error("case work orchestration not implemented");
+	const result = await executeWithInfrastructureRetry(
+		input.execute,
+		input.classify,
+	);
+	recordTrialResult(input.caseState, input.workId, result);
+	if (result.status === "completed") {
+		return { result, status: "completed" };
+	}
+
+	const transition = quarantineCaseAndAllocateReserve({
+		caseState: input.caseState,
+		exclusion: {
+			disposition: result.disposition ?? null,
+			infrastructureErrors: result.infrastructureErrors,
+			workId: input.workId,
+		},
+		outputRoot: input.outputRoot,
+		reserveIds: input.reserveIds,
+		state: input.state,
+	});
+	return { ...transition, result, status: "excluded" };
 }
