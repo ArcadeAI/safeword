@@ -141,12 +141,40 @@ export function sealActiveCase(caseState: ProvisionalCase): void {
 	syncDirectory(dirname(caseState.activePath));
 }
 
-export function quarantineCaseAndAllocateReserve<T extends ReserveState>(_input: {
+export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: {
 	caseState: ProvisionalCase;
 	exclusion: unknown;
 	outputRoot: string;
 	reserveIds: readonly string[];
 	state: T;
 }): { replacementId: string; state: T } {
-	throw new Error("quarantine transition not implemented");
+	const replacementId = input.reserveIds[input.state.reserveIndex];
+	if (replacementId === undefined) {
+		throw new Error("frozen reserves exhausted");
+	}
+	safeSegment(replacementId, "reserve ID");
+	if (existsSync(input.caseState.quarantinePath)) {
+		throw new Error(
+			`quarantined case already exists: ${input.caseState.quarantinePath}`,
+		);
+	}
+
+	writeJsonDurably(
+		join(input.caseState.provisionalPath, "EXCLUSION.json"),
+		input.exclusion,
+	);
+	renameSync(input.caseState.provisionalPath, input.caseState.quarantinePath);
+	syncDirectory(dirname(input.caseState.provisionalPath));
+	syncDirectory(dirname(input.caseState.quarantinePath));
+
+	const state = {
+		...input.state,
+		candidateQueueIds: [replacementId, ...input.state.candidateQueueIds],
+		currentCaseId: null,
+		nextWorkIndex: 0,
+		reserveIndex: input.state.reserveIndex + 1,
+	} as T;
+	writeJsonDurably(join(input.outputRoot, "run-state.json"), state);
+
+	return { replacementId, state };
 }
