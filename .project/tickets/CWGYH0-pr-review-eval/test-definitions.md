@@ -302,7 +302,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a7d8259d1
 - [x] GREEN 47d0ed48c
-- [ ] REFACTOR
+- [x] REFACTOR skip: one finite completeness predicate covers attempt and usage-derived cost
 
 ## Rule: pr-review-eval.SWM1.R5 — Raw evidence and corpus roles cannot drift
 
