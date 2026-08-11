@@ -153,7 +153,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Missing usage cannot bypass quarantine or authorize more spend
 
 - [x] RED ca0993b71
-- [ ] GREEN
+- [x] GREEN 94d3cc83e
 - [ ] REFACTOR
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
