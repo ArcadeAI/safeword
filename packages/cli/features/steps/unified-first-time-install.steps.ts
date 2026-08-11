@@ -879,6 +879,10 @@ Given(
   },
 );
 
+When('the user confirms that stale uninstall plan', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['uninstall', '--yes', '--plan', requiredValue(this.planId, 'plan id')]);
+});
+
 Then('no removal occurs and a fresh plan is required', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
   assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
