@@ -310,7 +310,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d6d054141
 - [x] GREEN d832b5ba1
-- [ ] REFACTOR
+- [x] REFACTOR skip: one verifier returns only bytes read after identity, type, and digest validation
 
 ### Scenario Outline: Drifted raw evidence cannot be reused
 
