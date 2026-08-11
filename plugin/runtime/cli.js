@@ -36151,9 +36151,6 @@ function hashPath(hash, absolutePath, readFile2) {
     hash.update(filesystemFailureToken(error2));
   }
 }
-function preconditionDigest2(cwd, actions, readFile2 = readFileForDigest) {
-  return preconditionDigestForPaths(cwd, actions.flatMap((action) => actionTargets(action)), readFile2);
-}
 function preconditionDigestForPaths(cwd, paths, readFile2 = readFileForDigest) {
   const hash = createHash15("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
@@ -36193,7 +36190,10 @@ async function createReconciliationPlan(cwd, mode, schema = SAFEWORD_SCHEMA, con
     dryRun,
     plan: createPlan({
       command: mode === "install" || mode === "upgrade" ? "setup" : "remove",
-      preconditionDigest: preconditionDigest2(cwd, dryRun.actions),
+      preconditionDigest: preconditionDigestForPaths(cwd, [
+        ...dryRun.actions.flatMap((action) => actionTargets(action)),
+        ...PACKAGE_MANAGER_INPUTS
+      ]),
       effects,
       requiresConfirmation: mode !== "install" && mode !== "upgrade",
       verification: [{ description: "Re-run safeword status" }]
@@ -36203,12 +36203,25 @@ async function createReconciliationPlan(cwd, mode, schema = SAFEWORD_SCHEMA, con
 async function applyReconciliation(cwd, mode, schema = SAFEWORD_SCHEMA) {
   return reconcile(schema, mode, createProjectContext(cwd));
 }
-var readFileForDigest = (path4) => readFileSync34(path4);
+var PACKAGE_MANAGER_INPUTS, readFileForDigest = (path4) => readFileSync34(path4);
 var init_reconciliation = __esm(() => {
   init_reconcile();
   init_schema();
   init_context();
   init_plan();
+  PACKAGE_MANAGER_INPUTS = [
+    "package.json",
+    "bun.lock",
+    "bun.lockb",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "pyproject.toml",
+    "uv.lock",
+    "poetry.lock",
+    "Pipfile",
+    "Pipfile.lock"
+  ];
 });
 
 // src/cli-protocol/file-effects.ts
@@ -38510,18 +38523,32 @@ function profileUninstallEffects(agent, scope) {
   };
 }
 function agentInstallEffects(agent, scope) {
-  const labels = {
-    claude: scope === "project" ? "Claude project plugin" : "Claude profile plugin",
-    codex: "Codex profile plugin",
-    cursor: "Cursor project integration"
-  };
-  const label = labels[agent];
-  const operation = agent === "claude" && scope === "project" ? "project" : "profile";
+  if (agent === "claude") {
+    return {
+      files: [],
+      packages: [],
+      configuration: [
+        { kind: "add", target: "safeword", operation: scope },
+        { kind: "enable", target: "safeword marketplace auto-update", operation: scope },
+        {
+          kind: "enable",
+          target: "safeword last-known-good marketplace fallback",
+          operation: scope
+        },
+        { kind: "install", target: "safeword@safeword", operation: scope }
+      ],
+      network: [
+        { kind: "add", target: "Claude plugin marketplace", operation: scope },
+        { kind: "install", target: "Claude plugin marketplace", operation: scope }
+      ],
+      destructive: []
+    };
+  }
   return {
     files: [],
     packages: [],
-    configuration: [{ kind: "activate", target: label, operation }],
-    network: [{ kind: "plugin-marketplace", target: label, operation: "install" }],
+    configuration: [{ kind: "enable", target: "Safeword Codex profile plugin" }],
+    network: [],
     destructive: []
   };
 }
@@ -38588,7 +38615,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
       effects: observedAgentEffects(operation, agent, agent === "cursor" ? undefined : observationByAgent.get(agent), scope)
     }))
   ];
-  const preconditionDigest3 = createHash17("sha256").update(JSON.stringify([project.plan.preconditionDigest, agents, scope, observations])).digest("hex");
+  const preconditionDigest2 = createHash17("sha256").update(JSON.stringify([project.plan.preconditionDigest, agents, scope, observations])).digest("hex");
   return {
     agents,
     projectSchema,
@@ -38598,7 +38625,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
     surfaces,
     plan: createPlan({
       command: operation,
-      preconditionDigest: preconditionDigest3,
+      preconditionDigest: preconditionDigest2,
       effects: combineEffects(surfaces.map((surface) => surface.effects)),
       requiresConfirmation: uninstalling,
       verification: [{ description: "Re-run safeword status", command: "safeword status" }]
