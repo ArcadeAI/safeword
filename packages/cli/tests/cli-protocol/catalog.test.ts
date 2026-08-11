@@ -212,12 +212,12 @@ describe('CLI command catalog', () => {
         { route: 'bare safeword', replacement: 'status', retention: 'indefinite' },
         {
           route: 'claude install',
-          replacement: 'install --agents=claude',
+          replacement: 'install --agents=claude (also reconciles the project)',
           retention: 'indefinite',
         },
         {
           route: 'codex install',
-          replacement: 'install --agents=codex',
+          replacement: 'install --agents=codex (also reconciles the project)',
           retention: 'indefinite',
         },
         {
