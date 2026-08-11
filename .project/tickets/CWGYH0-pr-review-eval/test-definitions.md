@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: A non-infrastructure failure gets no silent retry
 
-- [ ] RED
+- [x] RED 6a5ff56e0
 - [ ] GREEN
 - [ ] REFACTOR
 
