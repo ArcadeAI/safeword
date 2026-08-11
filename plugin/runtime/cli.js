@@ -19144,7 +19144,14 @@ var init_python = __esm(() => {
 });
 
 // src/packs/rust/setup.ts
-import { existsSync as existsSync23, readdirSync as readdirSync11, readFileSync as readFileSync22, realpathSync, writeFileSync as writeFileSync10 } from "fs";
+import {
+  existsSync as existsSync23,
+  lstatSync as lstatSync3,
+  readdirSync as readdirSync11,
+  readFileSync as readFileSync22,
+  realpathSync,
+  writeFileSync as writeFileSync10
+} from "fs";
 import nodePath36 from "path";
 function isContainedPath(root, candidate) {
   const relative = nodePath36.relative(root, candidate);
@@ -19162,6 +19169,12 @@ function containedWorkspaceMember(cwd, member) {
   }
   return nodePath36.relative(root, candidate);
 }
+function isSafeCargoManifest(cwd, cargoPath) {
+  if (!existsSync23(cargoPath))
+    return false;
+  const stat = lstatSync3(cargoPath);
+  return stat.isFile() && !stat.isSymbolicLink() && isContainedPath(realpathSync(cwd), realpathSync(cargoPath));
+}
 function detectWorkspaceType(cargoContent) {
   const hasWorkspace = cargoContent.includes("[workspace]");
   const hasPackage = cargoContent.includes("[package]");
@@ -19177,7 +19190,7 @@ function hasExistingLints(cargoContent) {
 function rustToolingTargets(cwd) {
   const rootTarget = "Cargo.toml";
   const cargoPath = nodePath36.join(cwd, rootTarget);
-  if (!existsSync23(cargoPath))
+  if (!isSafeCargoManifest(cwd, cargoPath))
     return [];
   const content = readFileSync22(cargoPath, "utf8");
   const targets = hasExistingLints(content) ? [] : [rootTarget];
@@ -19186,7 +19199,7 @@ function rustToolingTargets(cwd) {
   for (const member of parseWorkspaceMembers(content, cwd)) {
     const target = nodePath36.join(member, "Cargo.toml");
     const memberPath = nodePath36.join(cwd, target);
-    if (!existsSync23(memberPath))
+    if (!isSafeCargoManifest(cwd, memberPath))
       continue;
     if (!hasExistingLints(readFileSync22(memberPath, "utf8")))
       targets.push(target);
@@ -19235,8 +19248,8 @@ function parseWorkspaceMembers(cargoContent, cwd) {
   }
   return expandedMembers;
 }
-function addWorkspaceLints(memberCargoPath) {
-  if (!existsSync23(memberCargoPath))
+function addWorkspaceLints(cwd, memberCargoPath) {
+  if (!isSafeCargoManifest(cwd, memberCargoPath))
     return;
   const content = readFileSync22(memberCargoPath, "utf8");
   if (hasExistingLints(content))
@@ -19262,12 +19275,12 @@ function addMemberLints(cwd, content) {
   const members = parseWorkspaceMembers(content, cwd);
   for (const member of members) {
     const memberCargoPath = nodePath36.join(cwd, member, "Cargo.toml");
-    addWorkspaceLints(memberCargoPath);
+    addWorkspaceLints(cwd, memberCargoPath);
   }
 }
 function setupRustTooling(cwd) {
   const cargoPath = nodePath36.join(cwd, "Cargo.toml");
-  if (!existsSync23(cargoPath))
+  if (!isSafeCargoManifest(cwd, cargoPath))
     return { files: [] };
   const content = readFileSync22(cargoPath, "utf8");
   const workspaceType = detectWorkspaceType(content);
@@ -19500,7 +19513,7 @@ var init_workspaces = __esm(() => {
 });
 
 // src/reconcile.ts
-import { lstatSync as lstatSync3, readlinkSync, unlinkSync as unlinkSync2 } from "fs";
+import { lstatSync as lstatSync4, readlinkSync, unlinkSync as unlinkSync2 } from "fs";
 import nodePath40 from "path";
 function getConditionalPackages(conditionalPackages, projectType) {
   const packages = [];
@@ -19711,7 +19724,7 @@ function planExistingFilesRemoval(files, cwd) {
 }
 function lstatIfExists(path3) {
   try {
-    return lstatSync3(path3);
+    return lstatSync4(path3);
   } catch (error2) {
     const code = error2.code;
     if (code === "ENOENT" || code === "ENOTDIR")
@@ -20093,7 +20106,7 @@ function executePlan(plan, ctx) {
 }
 function observePath(path3) {
   try {
-    const stat = lstatSync3(path3);
+    const stat = lstatSync4(path3);
     if (stat.isSymbolicLink())
       return `link:${stat.mode}:${readlinkSync(path3)}`;
     if (stat.isDirectory())
@@ -31545,7 +31558,7 @@ import { createHash as createHash9, randomUUID as randomUUID2 } from "crypto";
 import {
   chmodSync as chmodSync2,
   existsSync as existsSync28,
-  lstatSync as lstatSync4,
+  lstatSync as lstatSync5,
   mkdirSync as mkdirSync8,
   mkdtempSync as mkdtempSync2,
   readdirSync as readdirSync19,
@@ -31576,7 +31589,7 @@ function codexFinalizationIsComplete(cwd) {
 }
 function pathEntryExists(path4) {
   try {
-    lstatSync4(path4);
+    lstatSync5(path4);
     return true;
   } catch (error2) {
     if (error2.code === "ENOENT")
@@ -31609,7 +31622,7 @@ function assertSafeComponents(cwd, relativePath) {
     cursor = nodePath48.join(cursor, segment);
     let metadata;
     try {
-      metadata = lstatSync4(cursor);
+      metadata = lstatSync5(cursor);
     } catch (error2) {
       if (error2.code === "ENOENT")
         continue;
@@ -31639,7 +31652,7 @@ function beforeImage(cwd, backupDirectory, mutation, index, beforePreparationSte
   writeDurable(nodePath48.join(backupDirectory, payload), content, 384);
   return {
     kind: "file",
-    mode: lstatSync4(path4).mode & 511,
+    mode: lstatSync5(path4).mode & 511,
     sha256: sha2563(content),
     payload
   };
@@ -31696,7 +31709,7 @@ function observedImage(cwd, relativePath) {
   const content = readFileSync25(path4);
   return {
     kind: "file",
-    mode: lstatSync4(path4).mode & 511,
+    mode: lstatSync5(path4).mode & 511,
     sha256: sha2563(content)
   };
 }
@@ -32191,7 +32204,7 @@ import { createHash as createHash11 } from "crypto";
 import {
   closeSync as closeSync2,
   existsSync as existsSync30,
-  lstatSync as lstatSync5,
+  lstatSync as lstatSync6,
   mkdtempSync as mkdtempSync3,
   openSync as openSync2,
   readFileSync as readFileSync26,
@@ -32366,7 +32379,7 @@ function recordMarketplaceSafetyEffects(effects, scope, options) {
 }
 function enableMarketplaceAutoUpdate(cwd, scope, effects) {
   const path4 = scopedSettingsPath(cwd, scope);
-  const metadata = lstatSync5(path4);
+  const metadata = lstatSync6(path4);
   if (!metadata.isFile()) {
     invalidScopeSettings(scope, `settings are not a regular file: ${path4}`);
   }
@@ -32602,7 +32615,7 @@ function assertInstalledAsset(installPath, asset) {
     throw new TypeError("installed inventory contains an unsafe asset");
   }
   const path4 = nodePath51.join(installPath, asset.path);
-  if (!lstatSync5(path4).isFile() || fileSha256(path4) !== asset.sha256) {
+  if (!lstatSync6(path4).isFile() || fileSha256(path4) !== asset.sha256) {
     throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
   }
 }
@@ -32619,7 +32632,7 @@ function assertRequiredNativeAssets(assets) {
   }
 }
 function validateNativePayload(plugin) {
-  if (typeof plugin.installPath !== "string" || !lstatSync5(plugin.installPath).isDirectory()) {
+  if (typeof plugin.installPath !== "string" || !lstatSync6(plugin.installPath).isDirectory()) {
     throw new TypeError("installed plugin path is missing");
   }
   const identityPath = nodePath51.join(plugin.installPath, "identity.json");
@@ -34144,11 +34157,11 @@ var init_legacy_command = __esm(() => {
 });
 
 // src/codex-plugin/legacy-authority.ts
-import { accessSync, constants, lstatSync as lstatSync6, readFileSync as readFileSync28 } from "fs";
+import { accessSync, constants, lstatSync as lstatSync7, readFileSync as readFileSync28 } from "fs";
 import nodePath53 from "path";
 function regularFile(path4) {
   try {
-    return lstatSync6(path4).isFile();
+    return lstatSync7(path4).isFile();
   } catch {
     return false;
   }
@@ -34215,7 +34228,7 @@ var init_legacy_authority = __esm(() => {
 });
 
 // src/codex-plugin/legacy-config.ts
-import { lstatSync as lstatSync7, readFileSync as readFileSync29 } from "fs";
+import { lstatSync as lstatSync8, readFileSync as readFileSync29 } from "fs";
 import nodePath54 from "path";
 function hookHeaderEntries(event) {
   const eventKeys = [event, `"${event}"`, `'${event}'`];
@@ -34444,7 +34457,7 @@ function prepareLegacyCodexHookBlocks(content) {
 }
 function metadataOrMissing(path4) {
   try {
-    return lstatSync7(path4);
+    return lstatSync8(path4);
   } catch (error2) {
     const code = error2.code;
     if (code === "ENOENT" || code === "ENOTDIR")
@@ -35211,7 +35224,7 @@ __export(exports_operations, {
 });
 import { spawnSync as spawnSync5 } from "child_process";
 import { createHash as createHash14 } from "crypto";
-import { existsSync as existsSync33, lstatSync as lstatSync8, readFileSync as readFileSync33 } from "fs";
+import { existsSync as existsSync33, lstatSync as lstatSync9, readFileSync as readFileSync33 } from "fs";
 import { homedir as homedir7 } from "os";
 import nodePath58 from "path";
 function run(command, arguments_) {
@@ -35384,7 +35397,7 @@ function verifyCodexPluginIsEnabled(options = {}) {
 }
 function pathExistsIncludingDanglingSymlink(path4) {
   try {
-    lstatSync8(path4);
+    lstatSync9(path4);
     return true;
   } catch (error2) {
     const code = error2.code;
@@ -35675,7 +35688,7 @@ function snapshotCodexFinalizationInputs(cwd, mutations) {
     const path4 = nodePath58.join(cwd, mutation.path);
     let metadata;
     try {
-      metadata = lstatSync8(path4);
+      metadata = lstatSync9(path4);
     } catch (error2) {
       if (error2.code === "ENOENT") {
         return { path: mutation.path, state: "absent" };
@@ -36112,7 +36125,7 @@ var init_doctor = __esm(() => {
 
 // src/cli-protocol/reconciliation.ts
 import { createHash as createHash15 } from "crypto";
-import { lstatSync as lstatSync9, readdirSync as readdirSync20, readFileSync as readFileSync34, readlinkSync as readlinkSync2 } from "fs";
+import { lstatSync as lstatSync10, readdirSync as readdirSync20, readFileSync as readFileSync34, readlinkSync as readlinkSync2 } from "fs";
 import nodePath59 from "path";
 function actionTargets(action) {
   return action.type === "chmod" ? action.paths : [action.path];
@@ -36123,7 +36136,7 @@ function filesystemFailureToken(error2) {
 }
 function hashPath(hash, absolutePath, readFile2) {
   try {
-    const stat = lstatSync9(absolutePath);
+    const stat = lstatSync10(absolutePath);
     hash.update(stat.isSymbolicLink() ? `link:${readlinkSync2(absolutePath)}` : stat.mode.toString());
     if (stat.isDirectory()) {
       const entries = readdirSync20(absolutePath).toSorted((left, right) => left.localeCompare(right));
@@ -37322,7 +37335,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
-import { existsSync as existsSync37, lstatSync as lstatSync10, readdirSync as readdirSync24, readFileSync as readFileSync41, readlinkSync as readlinkSync3 } from "fs";
+import { existsSync as existsSync37, lstatSync as lstatSync11, readdirSync as readdirSync24, readFileSync as readFileSync41, readlinkSync as readlinkSync3 } from "fs";
 import nodePath71 from "path";
 function ensurePackageJson(cwd) {
   const packageJsonPath = nodePath71.join(cwd, "package.json");
@@ -37630,7 +37643,7 @@ function versionRefusal(code, message, recovery = []) {
   };
 }
 function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) {
-  const metadata = lstatSync10(projectVersionPath, { throwIfNoEntry: false });
+  const metadata = lstatSync11(projectVersionPath, { throwIfNoEntry: false });
   if (metadata === undefined) {
     return { kind: "version", value: "0.0.0", replaceEntry: false };
   }
@@ -37671,7 +37684,7 @@ function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) 
 }
 function checkProjectVersion(cwd, repairVersionMarker) {
   const safewordDirectoryPath = nodePath71.join(cwd, ".safeword");
-  const safewordDirectoryMetadata = lstatSync10(safewordDirectoryPath, {
+  const safewordDirectoryMetadata = lstatSync11(safewordDirectoryPath, {
     throwIfNoEntry: false
   });
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
@@ -37801,7 +37814,7 @@ function snapshotFiles(cwd, targets) {
   const visit3 = (absolutePath) => {
     if (!existsSync37(absolutePath))
       return;
-    const stat = lstatSync10(absolutePath);
+    const stat = lstatSync11(absolutePath);
     const relativePath = nodePath71.relative(cwd, absolutePath);
     if (stat.isSymbolicLink()) {
       snapshot.set(relativePath, `link:${readlinkSync3(absolutePath)}`);
@@ -38738,7 +38751,7 @@ import { createHash as createHash17, randomUUID as randomUUID5 } from "crypto";
 import {
   chmodSync as chmodSync3,
   existsSync as existsSync38,
-  lstatSync as lstatSync11,
+  lstatSync as lstatSync12,
   mkdirSync as mkdirSync10,
   readdirSync as readdirSync25,
   readFileSync as readFileSync42,
@@ -38818,10 +38831,10 @@ function entryFor(cwd, mutation) {
     path: mutation.path,
     before_sha256: sha2564(before),
     before_base64: before.toString("base64"),
-    before_mode: lstatSync11(path4).mode & 511,
+    before_mode: lstatSync12(path4).mode & 511,
     after_sha256: after === null ? null : sha2564(after),
     after_base64: after === null ? null : after.toString("base64"),
-    after_mode: after === null ? null : lstatSync11(path4).mode & 511
+    after_mode: after === null ? null : lstatSync12(path4).mode & 511
   };
 }
 function observedSha(path4) {
@@ -39259,7 +39272,7 @@ __export(exports_architecture, {
 import { execFileSync as execFileSync6 } from "child_process";
 import {
   copyFileSync as copyFileSync2,
-  lstatSync as lstatSync12,
+  lstatSync as lstatSync13,
   mkdirSync as mkdirSync11,
   mkdtempSync as mkdtempSync4,
   readFileSync as readFileSync43,
@@ -39562,7 +39575,7 @@ function assertPhysicalContainment(rootDirectory, candidatePath) {
   let existingAncestor = candidatePath;
   for (;; ) {
     try {
-      lstatSync12(existingAncestor);
+      lstatSync13(existingAncestor);
       break;
     } catch (error_) {
       if (error_.code !== "ENOENT")
@@ -39594,7 +39607,7 @@ function replaceArchitectureDocumentWith(destination, allowedRoot, writeTemporar
   assertPhysicalContainment(allowedRoot, destination);
   mkdirSync11(destinationDirectory, { recursive: true });
   let temporaryDirectory = mkdtempSync4(nodePath73.join(tmpdir2(), "safeword-architecture-replacement-"));
-  if (lstatSync12(temporaryDirectory).dev !== lstatSync12(destinationDirectory).dev) {
+  if (lstatSync13(temporaryDirectory).dev !== lstatSync13(destinationDirectory).dev) {
     rmSync9(temporaryDirectory, { recursive: true, force: true });
     temporaryDirectory = mkdtempSync4(nodePath73.join(destinationDirectory, ".safeword-architecture-"));
   }
@@ -40600,7 +40613,7 @@ import {
   closeSync as closeSync3,
   constants as constants2,
   fstatSync,
-  lstatSync as lstatSync13,
+  lstatSync as lstatSync14,
   openSync as openSync3,
   readFileSync as readFileSync47,
   realpathSync as realpathSync7
@@ -40686,7 +40699,7 @@ function parsePersonalPreference(content, path4) {
 function readPersonalExecutionPreference(cwd) {
   const { namespaceRoot, path: path4 } = personalPath(cwd);
   try {
-    const metadata = lstatSync13(path4, { throwIfNoEntry: false });
+    const metadata = lstatSync14(path4, { throwIfNoEntry: false });
     if (metadata === undefined)
       return { path: path4 };
     const fileError = validatePersonalFile(metadata, path4);
@@ -41114,7 +41127,7 @@ import {
   closeSync as closeSync4,
   constants as constants3,
   fstatSync as fstatSync2,
-  lstatSync as lstatSync14,
+  lstatSync as lstatSync15,
   mkdirSync as mkdirSync12,
   mkdtempSync as mkdtempSync5,
   openSync as openSync4,
@@ -41145,7 +41158,7 @@ function readContainedText(root, source, target) {
     const resolved = realpathSync8(source);
     if (escapes(root, resolved))
       throw new Error(`Review target escapes the project: ${target}`);
-    const observed = lstatSync14(resolved);
+    const observed = lstatSync15(resolved);
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
       throw new Error(`Review target changed while it was being captured: ${target}`);
     }
@@ -41169,7 +41182,7 @@ function snapshotEntries(root, directory = root) {
   return readdirSync28(directory).flatMap((name) => {
     const path4 = nodePath81.join(directory, name);
     const relative = nodePath81.relative(root, path4);
-    const stats = lstatSync14(path4);
+    const stats = lstatSync15(path4);
     if (stats.isDirectory())
       return [`directory:${relative}`, ...snapshotEntries(root, path4)];
     if (stats.isFile())
@@ -41194,7 +41207,7 @@ function prepareReviewPacket(cwd, kind, targets) {
       if (escapes(cwd, source)) {
         throw new Error(`Review target escapes the project: ${target}`);
       }
-      const stats = lstatSync14(source);
+      const stats = lstatSync15(source);
       if (!stats.isFile() || stats.isSymbolicLink()) {
         throw new Error(`Review target is not a regular file: ${target}`);
       }
@@ -56391,7 +56404,7 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync44, lstatSync as lstatSync15, readFileSync as readFileSync56, readlinkSync as readlinkSync4 } from "fs";
+import { existsSync as existsSync44, lstatSync as lstatSync16, readFileSync as readFileSync56, readlinkSync as readlinkSync4 } from "fs";
 import nodePath90 from "path";
 
 // src/cli-protocol/option-values.ts
@@ -58102,7 +58115,7 @@ function snapshotBytes(path7, stats) {
 }
 function observeFile(path7) {
   try {
-    const stats = lstatSync15(path7);
+    const stats = lstatSync16(path7);
     const kind = snapshotKind(stats);
     const bytes = snapshotBytes(path7, stats);
     return { kind, mode: stats.mode & 511, ...bytes !== undefined && { bytes } };
