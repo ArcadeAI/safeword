@@ -171,7 +171,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Reserve exhaustion stops the run
 
 - [x] RED skip: quality-review requested an explicit proof for behavior already implemented
-- [ ] GREEN
+- [x] GREEN c0e9f9512
 - [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
