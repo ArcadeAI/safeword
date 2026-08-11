@@ -19144,8 +19144,24 @@ var init_python = __esm(() => {
 });
 
 // src/packs/rust/setup.ts
-import { existsSync as existsSync23, readdirSync as readdirSync11, readFileSync as readFileSync22, writeFileSync as writeFileSync10 } from "fs";
+import { existsSync as existsSync23, readdirSync as readdirSync11, readFileSync as readFileSync22, realpathSync, writeFileSync as writeFileSync10 } from "fs";
 import nodePath36 from "path";
+function isContainedPath(root, candidate) {
+  const relative = nodePath36.relative(root, candidate);
+  return relative === "" || !relative.startsWith(`..${nodePath36.sep}`) && !nodePath36.isAbsolute(relative);
+}
+function containedWorkspaceMember(cwd, member) {
+  if (nodePath36.isAbsolute(member))
+    return;
+  const root = nodePath36.resolve(cwd);
+  const candidate = nodePath36.resolve(root, member);
+  if (!isContainedPath(root, candidate))
+    return;
+  if (existsSync23(candidate) && !isContainedPath(realpathSync(root), realpathSync(candidate))) {
+    return;
+  }
+  return nodePath36.relative(root, candidate);
+}
 function detectWorkspaceType(cargoContent) {
   const hasWorkspace = cargoContent.includes("[workspace]");
   const hasPackage = cargoContent.includes("[package]");
@@ -19179,7 +19195,9 @@ function rustToolingTargets(cwd) {
 }
 function expandMemberPattern(cwd, pattern) {
   if (pattern.endsWith("/*")) {
-    const baseDirectory = pattern.slice(0, -2);
+    const baseDirectory = containedWorkspaceMember(cwd, pattern.slice(0, -2));
+    if (baseDirectory === undefined)
+      return [];
     const fullPath = nodePath36.join(cwd, baseDirectory);
     if (!existsSync23(fullPath))
       return [];
@@ -19195,7 +19213,8 @@ function expandMemberPattern(cwd, pattern) {
       return [];
     }
   }
-  return [pattern];
+  const member = containedWorkspaceMember(cwd, pattern);
+  return member === undefined ? [] : [member];
 }
 function parseWorkspaceMembers(cargoContent, cwd) {
   const membersMatch = /\[workspace\][^[]*members\s*=\s*\[([\s\S]*?)\]/.exec(cargoContent);
@@ -32125,7 +32144,7 @@ var init_hook_manifest = __esm(() => {
 
 // src/claude-plugin/project-root.ts
 import { spawnSync as spawnSync2 } from "child_process";
-import { realpathSync, statSync as statSync3 } from "fs";
+import { realpathSync as realpathSync2, statSync as statSync3 } from "fs";
 import nodePath50 from "path";
 function canonicalDirectory(path4) {
   if (typeof path4 !== "string" || path4.trim() === "")
@@ -32133,7 +32152,7 @@ function canonicalDirectory(path4) {
   try {
     if (!statSync3(path4).isDirectory())
       return;
-    return nodePath50.normalize(realpathSync(path4));
+    return nodePath50.normalize(realpathSync2(path4));
   } catch {
     return;
   }
@@ -32176,7 +32195,7 @@ import {
   mkdtempSync as mkdtempSync3,
   openSync as openSync2,
   readFileSync as readFileSync26,
-  realpathSync as realpathSync2,
+  realpathSync as realpathSync3,
   rmSync as rmSync5,
   statSync as statSync4
 } from "fs";
@@ -32267,7 +32286,7 @@ function canonicalDirectory2(path4) {
   try {
     if (!statSync4(path4).isDirectory())
       return;
-    return nodePath51.normalize(realpathSync2(path4));
+    return nodePath51.normalize(realpathSync3(path4));
   } catch {
     return;
   }
@@ -32884,7 +32903,7 @@ __export(exports_status, {
   equivalentClaudeInstallations: () => equivalentClaudeInstallations
 });
 import { createHash as createHash12 } from "crypto";
-import { existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync3 } from "fs";
+import { existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync4 } from "fs";
 import { homedir as homedir4 } from "os";
 import nodePath52 from "path";
 function claudeConfigDirectory3(environment = process.env) {
@@ -32925,7 +32944,7 @@ function proofIsCurrent(plugin, cwd) {
   let canonicalRoot;
   let canonicalProjectRoot;
   try {
-    canonicalRoot = realpathSync3(plugin.installPath);
+    canonicalRoot = realpathSync4(plugin.installPath);
     canonicalProjectRoot = canonicalClaudeProjectRoot(cwd);
   } catch {
     return false;
@@ -33021,7 +33040,7 @@ function equivalentClaudeInstallations(installations) {
       return false;
     }
     try {
-      return realpathSync3(left.installPath) === realpathSync3(right.installPath);
+      return realpathSync4(left.installPath) === realpathSync4(right.installPath);
     } catch {
       return false;
     }
@@ -34806,7 +34825,7 @@ var init_host_process = () => {};
 
 // src/codex-plugin/profile-proof.ts
 import { createHash as createHash13, randomUUID as randomUUID4 } from "crypto";
-import { existsSync as existsSync32, readFileSync as readFileSync31, realpathSync as realpathSync4, rmSync as rmSync7 } from "fs";
+import { existsSync as existsSync32, readFileSync as readFileSync31, realpathSync as realpathSync5, rmSync as rmSync7 } from "fs";
 import { homedir as homedir6 } from "os";
 import nodePath56 from "path";
 function codexProfileDirectory(environment = process.env) {
@@ -34817,7 +34836,7 @@ function codexProofPath(environment = process.env, event = "session-start") {
 }
 function canonicalProjectDirectory(projectDirectory) {
   try {
-    return realpathSync4(projectDirectory);
+    return realpathSync5(projectDirectory);
   } catch {
     return nodePath56.resolve(projectDirectory);
   }
@@ -39247,7 +39266,7 @@ import {
   mkdirSync as mkdirSync11,
   mkdtempSync as mkdtempSync4,
   readFileSync as readFileSync43,
-  realpathSync as realpathSync5,
+  realpathSync as realpathSync6,
   renameSync as renameSync6,
   rmSync as rmSync9,
   writeFileSync as writeFileSync15
@@ -39502,8 +39521,8 @@ function resolveGitContext(cwd) {
   }
   if (rootDirectory.length === 0)
     return;
-  const canonicalRoot = realpathSync5(rootDirectory);
-  const canonicalProject = realpathSync5(cwd);
+  const canonicalRoot = realpathSync6(rootDirectory);
+  const canonicalProject = realpathSync6(cwd);
   const projectRelativeDirectory = nodePath73.relative(canonicalRoot, canonicalProject);
   if (nodePath73.isAbsolute(projectRelativeDirectory) || projectRelativeDirectory === ".." || projectRelativeDirectory.startsWith(`..${nodePath73.sep}`)) {
     throw new Error("The architecture project directory is outside the Git worktree.");
@@ -39557,8 +39576,8 @@ function assertPhysicalContainment(rootDirectory, candidatePath) {
       existingAncestor = parent;
     }
   }
-  const canonicalRoot = realpathSync5(rootDirectory);
-  const canonicalAncestor = realpathSync5(existingAncestor);
+  const canonicalRoot = realpathSync6(rootDirectory);
+  const canonicalAncestor = realpathSync6(existingAncestor);
   if (toRepoDirectory(canonicalRoot, canonicalAncestor) === undefined) {
     throw new Error("The architecture path physically escapes its allowed root.");
   }
@@ -40587,7 +40606,7 @@ import {
   lstatSync as lstatSync13,
   openSync as openSync3,
   readFileSync as readFileSync47,
-  realpathSync as realpathSync6
+  realpathSync as realpathSync7
 } from "fs";
 import nodePath78 from "path";
 function isExecutionMode(value) {
@@ -40618,8 +40637,8 @@ function validatePersonalFile(metadata, path4) {
   return;
 }
 function validatePersonalDirectory(namespaceRoot, path4) {
-  const rootRealPath = realpathSync6(namespaceRoot);
-  const personalDirectoryRealPath = realpathSync6(nodePath78.dirname(path4));
+  const rootRealPath = realpathSync7(namespaceRoot);
+  const personalDirectoryRealPath = realpathSync7(nodePath78.dirname(path4));
   if (personalDirectoryRealPath !== nodePath78.join(rootRealPath, "personal")) {
     return { path: path4, error: "must remain inside the resolved namespace root" };
   }
@@ -41104,7 +41123,7 @@ import {
   openSync as openSync4,
   readdirSync as readdirSync28,
   readFileSync as readFileSync49,
-  realpathSync as realpathSync7,
+  realpathSync as realpathSync8,
   rmSync as rmSync10,
   writeFileSync as writeFileSync18
 } from "fs";
@@ -41126,7 +41145,7 @@ function readContainedText(root, source, target) {
     const opened = fstatSync2(descriptor);
     if (!opened.isFile())
       throw new Error(`Review target is not a regular file: ${target}`);
-    const resolved = realpathSync7(source);
+    const resolved = realpathSync8(source);
     if (escapes(root, resolved))
       throw new Error(`Review target escapes the project: ${target}`);
     const observed = lstatSync14(resolved);
@@ -41166,7 +41185,7 @@ function prepareReviewPacket(cwd, kind, targets) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
   const workspace = mkdtempSync5(nodePath81.join(tmpdir3(), "safeword-review-"));
-  const canonicalRoot = realpathSync7(cwd);
+  const canonicalRoot = realpathSync8(cwd);
   const tracked = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
@@ -41358,7 +41377,7 @@ var init_environment = __esm(() => {
 
 // src/review/runtime.ts
 import { spawn } from "child_process";
-import { accessSync as accessSync2, constants as constants4, mkdtempSync as mkdtempSync6, realpathSync as realpathSync8, rmSync as rmSync11, writeFileSync as writeFileSync19 } from "fs";
+import { accessSync as accessSync2, constants as constants4, mkdtempSync as mkdtempSync6, realpathSync as realpathSync9, rmSync as rmSync11, writeFileSync as writeFileSync19 } from "fs";
 import { tmpdir as tmpdir4 } from "os";
 import nodePath83 from "path";
 function reviewerArguments(reviewer, model, schemaPath) {
@@ -41467,7 +41486,7 @@ function outsideUntrustedRoot(root, candidate) {
   if (inside(root, candidate))
     return false;
   try {
-    return !inside(root, realpathSync8(candidate));
+    return !inside(root, realpathSync9(candidate));
   } catch {
     return false;
   }
@@ -41486,7 +41505,7 @@ function executableCandidates(reviewer, untrustedRoot) {
     if (inside(untrustedRoot, candidate))
       return [];
     try {
-      const canonical = realpathSync8(candidate);
+      const canonical = realpathSync9(candidate);
       if (!outsideUntrustedRoot(untrustedRoot, canonical))
         return [];
       accessSync2(canonical, constants4.X_OK);
@@ -52234,7 +52253,7 @@ import {
   mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync55,
-  realpathSync as realpathSync9,
+  realpathSync as realpathSync10,
   statSync as statSync6,
   writeFileSync as writeFileSync22
 } from "fs";
@@ -52578,10 +52597,10 @@ function unavailableTransport() {
 }
 function physicalProjectPath(projectDirectory) {
   try {
-    return realpathSync9(projectDirectory);
+    return realpathSync10(projectDirectory);
   } catch {
     try {
-      return nodePath89.join(realpathSync9(nodePath89.dirname(projectDirectory)), nodePath89.basename(projectDirectory));
+      return nodePath89.join(realpathSync10(nodePath89.dirname(projectDirectory)), nodePath89.basename(projectDirectory));
     } catch {
       return;
     }
@@ -52589,7 +52608,7 @@ function physicalProjectPath(projectDirectory) {
 }
 function physicalOutboxPath(outboxDirectory) {
   try {
-    const physicalOutbox = realpathSync9(outboxDirectory);
+    const physicalOutbox = realpathSync10(outboxDirectory);
     return statSync6(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
