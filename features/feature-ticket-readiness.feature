@@ -1,11 +1,12 @@
 # Behavior source for 9S6HFC. The executable backing is Vitest hook coverage:
-# pre-tool-quality integration tests drive phase-entry denials, prompt hook tests
+# packages/cli/tests/hooks/feature-ticket-readiness.test.ts and pre-tool-quality
+# integration tests drive phase-entry denials, while prompt hook tests
 # drive legacy resume messaging, and unit tests cover the shared readiness helper.
 #
-# The feature is @wip because hook behavior is already exercised more directly
+# The feature is @proof.vitest because hook behavior is exercised more directly
 # by spawning the Bun hook scripts against temp projects; cucumber step
 # definitions would duplicate that harness without adding confidence.
-@wip
+@proof.vitest
 Feature: Feature ticket readiness before define-behavior
 
   Feature tickets require complete intake artifacts before scenario formulation
