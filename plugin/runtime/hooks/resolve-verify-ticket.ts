@@ -31,6 +31,7 @@ const DEFAULT_BASE_REFS = [
   'refs/heads/main',
   'refs/heads/master',
 ] as const;
+const USAGE = 'Usage: resolve-verify-ticket.ts [project-directory] [--ticket <id>]';
 
 function runGit(projectDirectory: string, args: string[]): { status: number; stdout: string } {
   const result = spawnSync('git', ['-C', projectDirectory, ...args], {
@@ -242,7 +243,7 @@ function parseArguments(args: string[]): {
     }
     return {
       projectDirectory: process.cwd(),
-      error: 'Usage: resolve-verify-ticket.ts [project-directory] [--ticket <id>]',
+      error: USAGE,
     };
   }
   const projectDirectory = args[0] ?? process.cwd();
@@ -252,7 +253,7 @@ function parseArguments(args: string[]): {
   }
   return {
     projectDirectory,
-    error: 'Usage: resolve-verify-ticket.ts [project-directory] [--ticket <id>]',
+    error: USAGE,
   };
 }
 
