@@ -16,6 +16,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 
+import { estimateAttemptUsage } from "./scored-cost";
 import {
 	executeWithInfrastructureRetry,
 	type RetriedResult,
@@ -470,6 +471,7 @@ export async function executeCaseWork<T, TState extends ReserveState>(input: {
 		input.execute,
 		input.classify,
 		{
+			canRetryAttempt: (attempt) => estimateAttemptUsage([attempt]).complete,
 			onAttempt: (attempt) => recordTrialAttempt(input.caseState, input.workId, attempt),
 			onBeforeAttempt: (attempt) =>
 				recordTrialAttemptIntent(input.caseState, input.workId, attempt),

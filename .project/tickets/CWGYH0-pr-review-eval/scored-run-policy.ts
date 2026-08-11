@@ -593,8 +593,7 @@ export async function executeWithInfrastructureRetry<T>(
 		if (
 			prior.attempt === 2 ||
 			(prior.disposition !== null && prior.disposition.retry === "never") ||
-			(options.canRetryAttempt !== undefined &&
-				!options.canRetryAttempt(prior))
+			options.canRetryAttempt?.(prior) !== true
 		) {
 			return {
 				attempts: prior.attempt,
@@ -640,8 +639,7 @@ export async function executeWithInfrastructureRetry<T>(
 					infrastructureErrors.push(summary);
 					if (
 						attempts === 1 &&
-						(options.canRetryAttempt === undefined ||
-							options.canRetryAttempt(attempt))
+						options.canRetryAttempt?.(attempt) === true
 					) continue;
 				}
 				return {
@@ -693,10 +691,7 @@ export async function executeWithInfrastructureRetry<T>(
 			} as TrialAttempt<T>;
 			attemptRecords.push(attempt);
 			persistAttempt(options.onAttempt, attempt);
-			if (
-				options.canRetryAttempt !== undefined &&
-				!options.canRetryAttempt(attempt)
-			) {
+			if (options.canRetryAttempt?.(attempt) !== true) {
 				return {
 					attempts,
 					attemptRecords,

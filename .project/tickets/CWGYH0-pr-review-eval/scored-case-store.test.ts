@@ -164,6 +164,7 @@ describe("durable case lifecycle", () => {
 				retry: "never",
 				status: "usable",
 			}),
+			{ canRetryAttempt: () => true },
 		);
 
 		recordTrialResult(pendingCase, "full--buggy--t1", result);
@@ -197,6 +198,7 @@ describe("durable case lifecycle", () => {
 		};
 		await expect(
 			executeWithInfrastructureRetry(execute, undefined, {
+				canRetryAttempt: () => true,
 				onAttempt: (attempt) => {
 					recordTrialAttempt(pendingCase, "full--buggy--t1", attempt);
 					throw new Error("injected process crash after durable attempt");
@@ -207,12 +209,57 @@ describe("durable case lifecycle", () => {
 		expect(readTrialAttempts(pendingCase, "full--buggy--t1")).toHaveLength(1);
 
 		const resumed = await executeWithInfrastructureRetry(execute, undefined, {
+			canRetryAttempt: () => true,
 			onAttempt: (attempt) => recordTrialAttempt(pendingCase, "full--buggy--t1", attempt),
 			priorAttemptRecords: readTrialAttempts(pendingCase, "full--buggy--t1"),
 		});
 		expect(calls).toBe(2);
 		expect(resumed.status).toBe("completed");
 		expect(resumed.attemptRecords).toHaveLength(2);
+	});
+
+	test("does not resume paid case work until the prior attempt cost is complete", async () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const pendingCase = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		recordTrialAttempt(pendingCase, "full--buggy--t1", {
+			attempt: 1,
+			disposition: {
+				reason: "provider-failure",
+				retry: "infrastructure-once",
+				status: "invalid",
+			},
+			error: "ProviderRequestError: request failed with HTTP 503",
+			output: null,
+		});
+		let calls = 0;
+		const result = await executeCaseWork({
+			caseState: pendingCase,
+			classify: () => ({ reason: "completed", retry: "never", status: "usable" }),
+			execute: async () => {
+				calls += 1;
+				return { report: { usage: { inputTokens: 1, outputTokens: 1 } } };
+			},
+			outputRoot,
+			reserveIds: [],
+			state: {
+				candidateQueueIds: [],
+				currentCaseId: "SCORE-example",
+				nextWorkIndex: 0,
+				reserveIndex: 0,
+				version: 3,
+			},
+			workId: "full--buggy--t1",
+		});
+
+		expect(calls).toBe(0);
+		expect(result).toMatchObject({
+			result: { attempts: 1, status: "exclude-case" },
+			status: "reserve-exhausted",
+		});
 	});
 
 	test("fails closed when a provider call was in flight at process death", () => {
@@ -264,10 +311,14 @@ describe("durable case lifecycle", () => {
 		}));
 		recordTrialResult(pendingCase, "narrow--fixed--t1", sibling);
 		let calls = 0;
-		const failed = await executeWithInfrastructureRetry(async () => {
-			calls += 1;
-			throw new RequestError();
-		});
+		const failed = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				throw new RequestError();
+			},
+			undefined,
+			{ canRetryAttempt: () => true },
+		);
 		recordTrialResult(pendingCase, "full--buggy--t1", failed);
 
 		const transition = quarantineCaseAndAllocateReserve({
@@ -549,9 +600,13 @@ describe("quarantine crash recovery", () => {
 			report: { usage: { inputTokens: 10, outputTokens: 5 } },
 		}));
 		recordTrialResult(caseState, "narrow--fixed--t1", sibling);
-		const failed = await executeWithInfrastructureRetry(async () => {
-			throw new RequestError();
-		});
+		const failed = await executeWithInfrastructureRetry(
+			async () => {
+				throw new RequestError();
+			},
+			undefined,
+			{ canRetryAttempt: () => true },
+		);
 		recordTrialResult(caseState, "full--buggy--t1", failed);
 		const state = {
 			candidateQueueIds: ["SCORE-next"],

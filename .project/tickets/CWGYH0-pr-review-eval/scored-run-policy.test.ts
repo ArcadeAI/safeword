@@ -439,11 +439,15 @@ describe("one-retry policy", () => {
 
 	test("retries one infrastructure failure and preserves the successful result", async () => {
 		let calls = 0;
-		const result = await executeWithInfrastructureRetry(async () => {
-			calls += 1;
-			if (calls === 1) throw new RequestError(503);
-			return "ok";
-		});
+		const result = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				if (calls === 1) throw new RequestError(503);
+				return "ok";
+			},
+			undefined,
+			{ canRetryAttempt: () => true },
+		);
 
 		expect(result).toMatchObject({
 			attempts: 2,
@@ -452,6 +456,17 @@ describe("one-retry policy", () => {
 			value: "ok",
 		});
 		expect(result.attemptRecords).toHaveLength(2);
+	});
+
+	test("fails closed when retry cost authorization is omitted", async () => {
+		let calls = 0;
+		const result = await executeWithInfrastructureRetry(async () => {
+			calls += 1;
+			throw new RequestError(503);
+		});
+
+		expect(calls).toBe(1);
+		expect(result).toMatchObject({ attempts: 1, status: "exclude-case" });
 	});
 
 	test("does not retry a thrown provider failure whose cost is unknown", async () => {
@@ -511,6 +526,7 @@ describe("one-retry policy", () => {
 		const result = await executeWithInfrastructureRetry(
 			async () => (++calls === 1 ? failed : successful),
 			(value) => classifyTrialOutput(value, expectedRoute, expectedProvenance),
+			{ canRetryAttempt: () => true },
 		);
 
 		expect(result.status).toBe("completed");
@@ -528,6 +544,7 @@ describe("one-retry policy", () => {
 				return { kind: "schema-invalid" };
 			},
 			() => ({ reason: "schema-invalid", retry: "never", status: "invalid" }),
+			{ canRetryAttempt: () => true },
 		);
 
 		expect(calls).toBe(2);
@@ -562,6 +579,7 @@ describe("one-retry policy", () => {
 			},
 			undefined,
 			{
+				canRetryAttempt: () => true,
 				priorAttemptRecords: [{
 					attempt: 1,
 					disposition: {
@@ -577,6 +595,32 @@ describe("one-retry policy", () => {
 
 		expect(calls).toBe(1);
 		expect(result).toMatchObject({ attempts: 2, status: "completed", value: "ok" });
+	});
+
+	test("does not resume a retryable provider exception without cost authorization", async () => {
+		let calls = 0;
+		const result = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				return "ok";
+			},
+			undefined,
+			{
+				priorAttemptRecords: [{
+					attempt: 1,
+					disposition: {
+						reason: "provider-failure",
+						retry: "infrastructure-once",
+						status: "invalid",
+					},
+					error: "ProviderRequestError: request failed with HTTP 503",
+					output: null,
+				}],
+			},
+		);
+
+		expect(calls).toBe(0);
+		expect(result).toMatchObject({ attempts: 1, status: "exclude-case" });
 	});
 
 	test("does not retry an embedded schema failure", async () => {
@@ -603,10 +647,14 @@ describe("one-retry policy", () => {
 
 	test("excludes after the second infrastructure failure", async () => {
 		let calls = 0;
-		const result = await executeWithInfrastructureRetry(async () => {
-			calls += 1;
-			throw new RequestError(429);
-		});
+		const result = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				throw new RequestError(429);
+			},
+			undefined,
+			{ canRetryAttempt: () => true },
+		);
 
 		expect(calls).toBe(2);
 		expect(result).toMatchObject({
