@@ -72,6 +72,10 @@ function nulSeparated(output: string): string[] {
   return output.split('\0').filter(Boolean);
 }
 
+function addNulSeparatedPaths(target: Set<string>, output: string): void {
+  for (const path of nulSeparated(output)) target.add(path);
+}
+
 function changedPaths(projectDirectory: string): ChangedPathsResult {
   const insideWorktree = runGit(projectDirectory, ['rev-parse', '--is-inside-work-tree']);
   if (insideWorktree.status !== 0 || insideWorktree.stdout.trim() !== 'true') {
@@ -112,13 +116,13 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
     if (committed.status !== 0) {
       return { state: 'error', message: 'Unable to read committed current-work Git changes' };
     }
-    for (const path of nulSeparated(committed.stdout)) paths.add(path);
+    addNulSeparatedPaths(paths, committed.stdout);
 
     const working = runGit(projectDirectory, ['diff', '--name-only', '-z', 'HEAD']);
     if (working.status !== 0) {
       return { state: 'error', message: 'Unable to read working-tree Git changes' };
     }
-    for (const path of nulSeparated(working.stdout)) paths.add(path);
+    addNulSeparatedPaths(paths, working.stdout);
 
     const preexisting = runGit(projectDirectory, [
       'diff',
@@ -130,20 +134,20 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
     if (preexisting.status !== 0) {
       return { state: 'error', message: 'Unable to classify current-work Git changes' };
     }
-    for (const path of nulSeparated(preexisting.stdout)) preexistingPaths.add(path);
+    addNulSeparatedPaths(preexistingPaths, preexisting.stdout);
   } else {
     const staged = runGit(projectDirectory, ['diff', '--cached', '--name-only', '-z']);
     if (staged.status !== 0) {
       return { state: 'error', message: 'Unable to read staged Git changes' };
     }
-    for (const path of nulSeparated(staged.stdout)) paths.add(path);
+    addNulSeparatedPaths(paths, staged.stdout);
   }
 
   const untracked = runGit(projectDirectory, ['ls-files', '--others', '--exclude-standard', '-z']);
   if (untracked.status !== 0) {
     return { state: 'error', message: 'Unable to read untracked Git changes' };
   }
-  for (const path of nulSeparated(untracked.stdout)) paths.add(path);
+  addNulSeparatedPaths(paths, untracked.stdout);
   return {
     state: 'available',
     paths: [...paths],
