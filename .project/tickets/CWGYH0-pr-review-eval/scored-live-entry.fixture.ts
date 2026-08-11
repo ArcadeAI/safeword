@@ -72,7 +72,12 @@ try {
 	const preflightPath = join(root, "preflight.json");
 	const fetchLog = join(root, "fetch.log");
 	writeFileSync(preflightPath, `${JSON.stringify(preflight, null, 2)}\n`);
-	const run = (scratchName: string) =>
+	const run = (input: {
+		fetchLog: string;
+		mode?: string;
+		outputRoot: string;
+		scratchName: string;
+	}) =>
 		execFileSync(
 			process.execPath,
 			[
@@ -87,17 +92,21 @@ try {
 					ANTHROPIC_API_KEY: "network-boundary-test",
 					CWGYH0_ADAPTER_ROOT: adapterRoot,
 					CWGYH0_CASE_TARGET: "1",
-					CWGYH0_FETCH_LOG: fetchLog,
-					CWGYH0_OUTPUT_ROOT: outputRoot,
+					CWGYH0_FETCH_LOG: input.fetchLog,
+					CWGYH0_FETCH_MODE: input.mode,
+					CWGYH0_OUTPUT_ROOT: input.outputRoot,
 					CWGYH0_PREFLIGHT_PATH: preflightPath,
-					CWGYH0_SCRATCH_ROOT: join(root, scratchName),
+					CWGYH0_SCRATCH_ROOT: join(root, input.scratchName),
 					CWGYH0_SOURCE_REPOSITORY: adapterRoot,
 				},
 				stdio: "pipe",
 			},
 		);
 
-	assert.match(run("scratch-first"), /checkpoint: 1\/30 cases/);
+	assert.match(
+		run({ fetchLog, outputRoot, scratchName: "scratch-first" }),
+		/checkpoint: 1\/30 cases/,
+	);
 	const summary = JSON.parse(
 		readFileSync(join(outputRoot, "run-summary.json"), "utf8"),
 	) as { completedCases: number; status: string };
@@ -113,8 +122,29 @@ try {
 	);
 	assert.equal(readFileSync(fetchLog, "utf8").trim().split("\n").length, 24);
 
-	assert.match(run("scratch-resume"), /checkpoint: 1\/30 cases/);
+	assert.match(
+		run({ fetchLog, outputRoot, scratchName: "scratch-resume" }),
+		/checkpoint: 1\/30 cases/,
+	);
 	assert.equal(readFileSync(fetchLog, "utf8").trim().split("\n").length, 24);
+
+	const failureOutputRoot = join(root, "failure-output");
+	const failureFetchLog = join(root, "failure-fetch.log");
+	assert.match(
+		run({
+			fetchLog: failureFetchLog,
+			mode: "first-schema-failure",
+			outputRoot: failureOutputRoot,
+			scratchName: "scratch-failure",
+		}),
+		/checkpoint: 1\/30 cases with 1 exclusion/,
+	);
+	const failureSummary = JSON.parse(
+		readFileSync(join(failureOutputRoot, "run-summary.json"), "utf8"),
+	) as { completedCases: number; exclusions: unknown[] };
+	assert.equal(failureSummary.completedCases, 1);
+	assert.equal(failureSummary.exclusions.length, 1);
+	assert.equal(readdirSync(join(failureOutputRoot, "quarantine")).length, 1);
 } finally {
 	rmSync(root, { force: true, recursive: true });
 }

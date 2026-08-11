@@ -6,7 +6,22 @@ globalThis.fetch = Object.assign(
 		providerTurn += 1;
 		const logPath = process.env.CWGYH0_FETCH_LOG;
 		if (logPath) appendFileSync(logPath, `${providerTurn}\n`);
-		const content = providerTurn % 2 === 1
+		if (
+			process.env.CWGYH0_FETCH_MODE === "first-schema-failure" &&
+			providerTurn === 1
+		) {
+			return Promise.resolve(
+				new Response('{"type":"unexpected"}', {
+					headers: { "content-type": "application/json" },
+					status: 200,
+				}),
+			);
+		}
+		const successfulTurn =
+			process.env.CWGYH0_FETCH_MODE === "first-schema-failure"
+				? providerTurn - 1
+				: providerTurn;
+		const content = successfulTurn % 2 === 1
 			? [{
 				id: `read-${providerTurn}`,
 				input: { path: "package.json" },
