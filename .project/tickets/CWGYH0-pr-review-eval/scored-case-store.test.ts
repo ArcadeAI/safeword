@@ -51,8 +51,7 @@ describe("durable case lifecycle", () => {
 			variant: "buggy",
 		});
 
-		const scoreable = new Bun.Glob("active/*/*--record.json");
-		expect([...scoreable.scanSync(outputRoot)]).toEqual([]);
+		expect(readdirSync(join(outputRoot, "active"))).toEqual([]);
 		expect(
 			beginProvisionalCase({
 				caseId: "SCORE-example",
@@ -66,8 +65,8 @@ describe("durable case lifecycle", () => {
 
 		sealActiveCase(pendingCase);
 
-		expect([...scoreable.scanSync(outputRoot)]).toEqual([
-			"active/01--SCORE-example/full--buggy--t1--record.json",
+		expect(readdirSync(pendingCase.activePath)).toEqual([
+			"full--buggy--t1--record.json",
 		]);
 	});
 

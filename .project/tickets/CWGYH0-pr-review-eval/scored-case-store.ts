@@ -152,28 +152,45 @@ export function beginProvisionalCase(input: {
 	caseId: string;
 	ordinal: number;
 	outputRoot: string;
+	resume?: boolean;
+}): ProvisionalCase {
+	const caseState = caseStateFor(input);
+	const { activePath, provisionalPath, quarantinePath } = caseState;
+	for (const directory of [
+		dirname(provisionalPath),
+		dirname(activePath),
+		dirname(quarantinePath),
+	]) {
+		mkdirSync(directory, { recursive: true });
+	}
+	syncDirectory(input.outputRoot);
+	if (existsSync(activePath) || existsSync(quarantinePath)) {
+		throw new Error(`case is already sealed: ${basename(provisionalPath)}`);
+	}
+	if (existsSync(provisionalPath)) {
+		if (input.resume === true) return caseState;
+		throw new Error(`provisional case already exists: ${basename(provisionalPath)}`);
+	}
+	mkdirSync(provisionalPath);
+	syncDirectory(dirname(provisionalPath));
+	return caseState;
+}
+
+export function caseStateFor(input: {
+	caseId: string;
+	ordinal: number;
+	outputRoot: string;
 }): ProvisionalCase {
 	if (!Number.isInteger(input.ordinal) || input.ordinal < 1) {
 		throw new Error("case ordinal must be a positive integer");
 	}
 	const caseId = safeSegment(input.caseId, "case ID");
 	const caseName = `${String(input.ordinal).padStart(2, "0")}--${caseId}`;
-	const provisionalRoot = join(input.outputRoot, "provisional");
-	const activeRoot = join(input.outputRoot, "active");
-	const quarantineRoot = join(input.outputRoot, "quarantine");
-	for (const directory of [provisionalRoot, activeRoot, quarantineRoot]) {
-		mkdirSync(directory, { recursive: true });
-	}
-	syncDirectory(input.outputRoot);
-	const provisionalPath = join(provisionalRoot, caseName);
-	const activePath = join(activeRoot, caseName);
-	const quarantinePath = join(quarantineRoot, caseName);
-	if (existsSync(activePath) || existsSync(quarantinePath)) {
-		throw new Error(`case is already sealed: ${caseName}`);
-	}
-	mkdirSync(provisionalPath);
-	syncDirectory(provisionalRoot);
-	return { activePath, provisionalPath, quarantinePath };
+	return {
+		activePath: join(input.outputRoot, "active", caseName),
+		provisionalPath: join(input.outputRoot, "provisional", caseName),
+		quarantinePath: join(input.outputRoot, "quarantine", caseName),
+	};
 }
 
 export function recordTrialResult<T>(
@@ -191,6 +208,18 @@ export function recordTrialResult<T>(
 			attempt,
 		);
 	}
+}
+
+export function recordAdmittedTrial(
+	caseState: ProvisionalCase,
+	workId: string,
+	record: unknown,
+): void {
+	const safeWorkId = safeSegment(workId, "work ID");
+	writeJsonDurably(
+		join(caseState.provisionalPath, `${safeWorkId}--record.json`),
+		record,
+	);
 }
 
 export function sealActiveCase(caseState: ProvisionalCase): void {
