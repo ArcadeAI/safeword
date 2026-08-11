@@ -7,6 +7,7 @@ import {
   commandInvokesCloseoutCleanup,
   readFreshCloseoutBinding,
   rememberCloseoutBinding,
+  resolveExactCodexTranscript,
 } from '../../templates/hooks/lib/closeout-binding.ts';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
@@ -85,6 +86,19 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(readFreshCloseoutBinding({ projectDirectory, now })).toBeUndefined();
   });
 
+  it('resolves an exact Codex transcript only inside the hook-owned sessions root', () => {
+    const codexHome = project();
+    const sessions = nodePath.join(codexHome, 'sessions', '2026', '08');
+    mkdirSync(sessions, { recursive: true });
+    const transcript = nodePath.join(sessions, 'rollout-thread-42.jsonl');
+    writeFileSync(transcript, '{}\n');
+
+    expect(resolveExactCodexTranscript('thread-42', { CODEX_HOME: codexHome })).toBe(transcript);
+    expect(
+      resolveExactCodexTranscript('another-thread', { CODEX_HOME: codexHome }),
+    ).toBeUndefined();
+  });
+
   it('consumes and rejects expired or malformed bindings', () => {
     const projectDirectory = project();
     rememberCloseoutBinding({
@@ -104,6 +118,23 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(rememberCloseoutBinding({ projectDirectory, runtime: 'codex', id: undefined })).toBe(
       false,
     );
+  });
+
+  it('rejects a binding dated in the future', () => {
+    const projectDirectory = project();
+    rememberCloseoutBinding({
+      projectDirectory,
+      runtime: 'codex',
+      id: 'future-thread',
+      now: new Date('2026-08-02T12:01:00.000Z'),
+    });
+
+    expect(
+      readFreshCloseoutBinding({
+        projectDirectory,
+        now: new Date('2026-08-02T12:00:00.000Z'),
+      }),
+    ).toBeUndefined();
   });
 
   it('consumes a claimed cache exactly once', () => {

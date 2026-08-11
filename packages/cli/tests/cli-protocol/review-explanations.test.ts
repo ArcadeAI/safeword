@@ -66,8 +66,10 @@ describe('explaining an exhausted run', () => {
         env: {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_TIMEOUT_MS: '800',
-          SAFEWORD_REVIEW_RUN_BOUND_MS: '4000',
+          // Leave enough fallback budget under full-suite CPU contention: this
+          // fixture owns the failure classes, not scheduler timing.
+          SAFEWORD_REVIEW_TIMEOUT_MS: '2000',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '6000',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },

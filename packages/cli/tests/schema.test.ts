@@ -682,6 +682,7 @@ describe('Schema - Single Source of Truth', () => {
         'resolve-verify-ticket.ts',
         'audit-principle-trace.ts',
         'record-skill-invocation.ts',
+        'run-review.ts',
         'pre-tool-quality-helpers.ts',
       ]);
 

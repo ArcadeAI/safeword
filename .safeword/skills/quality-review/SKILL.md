@@ -166,10 +166,11 @@ Each pass:
 
 1. **Run the shared independent-review coordinator.** After gathering any
    current-source evidence needed by §1–3, pass only the bounded work-product
-   and scope to the host-owned coordinator:
+   and scope to the host-owned coordinator. Resolve a review-capable Safeword
+   CLI first; source checkouts do not guarantee a bare `safeword` on `PATH`:
 
    ```bash
-   safeword review run quality-review changed-file [more-changed-files...] --agent-handoff --json
+   bun .safeword/hooks/run-review.ts review run quality-review changed-file [more-changed-files...] --agent-handoff --json
    ```
 
    Claude-authored work prefers headless Codex; Codex-authored work prefers
