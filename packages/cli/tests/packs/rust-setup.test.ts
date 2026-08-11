@@ -11,8 +11,14 @@ import {
   detectRustPackage,
   detectWorkspaceType,
   parseWorkspaceMembers,
+  setupRustTooling,
 } from '../../src/packs/rust/setup.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from '../helpers.js';
+import {
+  createTemporaryDirectory,
+  readTestFile,
+  removeTemporaryDirectory,
+  writeTestFile,
+} from '../helpers.js';
 
 describe('detectWorkspaceType', () => {
   it('detects single-crate project (only [package])', () => {
@@ -219,6 +225,43 @@ members = ["nonexistent/*"]
 
     expect(members).toEqual([]);
   });
+
+  it.each([
+    ['an absolute member', (outside: string) => outside],
+    ['a parent-traversing member', (outside: string) => `../${outside.split('/').at(-1)}`],
+    ['a parent-traversing glob', (outside: string) => `../${outside.split('/').at(-1)}/*`],
+  ])('rejects %s outside the project root', (_description, workspaceMember) => {
+    const outsideDirectory = createTemporaryDirectory();
+    writeTestFile(outsideDirectory, 'crate/Cargo.toml', '[package]\nname = "outside"\n');
+    const cargoContent = `[workspace]\nmembers = ["${workspaceMember(outsideDirectory)}"]\n`;
+
+    try {
+      expect(parseWorkspaceMembers(cargoContent, testDirectory)).toEqual([]);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
+  });
+
+  it.each([
+    ['an absolute member', (outside: string) => outside],
+    ['a parent-traversing member', (outside: string) => `../${outside.split('/').at(-1)}`],
+  ])('does not update %s outside the project root', (_description, workspaceMember) => {
+    const outsideDirectory = createTemporaryDirectory();
+    const original = '[package]\nname = "outside"\n';
+    writeTestFile(outsideDirectory, 'Cargo.toml', original);
+    writeTestFile(
+      testDirectory,
+      'Cargo.toml',
+      `[workspace]\nmembers = ["${workspaceMember(outsideDirectory)}"]\n`,
+    );
+
+    try {
+      setupRustTooling(testDirectory);
+      expect(readTestFile(outsideDirectory, 'Cargo.toml')).toBe(original);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
+  });
 });
 
 describe('detectRustPackage', () => {
@@ -358,5 +401,17 @@ version = "0.1.0"
     const packageName = detectRustPackage(filePath, testDirectory);
 
     expect(packageName).toBeUndefined();
+  });
+
+  it('returns undefined for a file in a sibling directory sharing the root prefix', () => {
+    const siblingDirectory = `${testDirectory}-sibling`;
+    writeTestFile(siblingDirectory, 'Cargo.toml', '[package]\nname = "outside"\n');
+    writeTestFile(siblingDirectory, 'src/lib.rs', '// Outside');
+
+    try {
+      expect(detectRustPackage(`${siblingDirectory}/src/lib.rs`, testDirectory)).toBeUndefined();
+    } finally {
+      removeTemporaryDirectory(siblingDirectory);
+    }
   });
 });

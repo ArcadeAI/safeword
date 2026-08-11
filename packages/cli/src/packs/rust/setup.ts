@@ -5,7 +5,7 @@
  * - Cargo.toml [lints.clippy] merge
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { SetupResult } from '../types.js';
@@ -39,6 +39,24 @@ unsafe_code = "deny"
  * template files must be self-contained (they're copied to user projects).
  */
 const CARGO_PACKAGE_NAME_REGEX = /\[package\][^[]*name\s*=\s*"([^"]+)"/;
+
+function isContainedPath(root: string, candidate: string): boolean {
+  const relative = nodePath.relative(root, candidate);
+  return (
+    relative === '' || (!relative.startsWith(`..${nodePath.sep}`) && !nodePath.isAbsolute(relative))
+  );
+}
+
+function containedWorkspaceMember(cwd: string, member: string): string | undefined {
+  if (nodePath.isAbsolute(member)) return undefined;
+  const root = nodePath.resolve(cwd);
+  const candidate = nodePath.resolve(root, member);
+  if (!isContainedPath(root, candidate)) return undefined;
+  if (existsSync(candidate) && !isContainedPath(realpathSync(root), realpathSync(candidate))) {
+    return undefined;
+  }
+  return nodePath.relative(root, candidate);
+}
 
 const SAFEWORD_WORKSPACE_LINTS = `[workspace.lints.clippy]
 # Enable pedantic for stricter linting (priority -1 allows individual overrides)
@@ -76,7 +94,13 @@ export function detectRustPackage(filePath: string, cwd: string): string | undef
   // Normalize paths for comparison
   const normalizedCwd = nodePath.resolve(cwd);
 
-  while (currentDirectory.startsWith(normalizedCwd)) {
+  while (isContainedPath(normalizedCwd, currentDirectory)) {
+    if (
+      existsSync(currentDirectory) &&
+      !isContainedPath(realpathSync(normalizedCwd), realpathSync(currentDirectory))
+    ) {
+      return undefined;
+    }
     const cargoPath = nodePath.join(currentDirectory, 'Cargo.toml');
 
     if (existsSync(cargoPath)) {
@@ -148,7 +172,8 @@ export function rustToolingTargets(cwd: string): string[] {
 function expandMemberPattern(cwd: string, pattern: string): string[] {
   // Simple glob: only handle trailing /* (most common Cargo workspace pattern)
   if (pattern.endsWith('/*')) {
-    const baseDirectory = pattern.slice(0, -2); // Remove /*
+    const baseDirectory = containedWorkspaceMember(cwd, pattern.slice(0, -2));
+    if (baseDirectory === undefined) return [];
     const fullPath = nodePath.join(cwd, baseDirectory);
 
     if (!existsSync(fullPath)) return [];
@@ -169,7 +194,8 @@ function expandMemberPattern(cwd: string, pattern: string): string[] {
   }
 
   // Not a glob pattern, return as-is
-  return [pattern];
+  const member = containedWorkspaceMember(cwd, pattern);
+  return member === undefined ? [] : [member];
 }
 
 /**
