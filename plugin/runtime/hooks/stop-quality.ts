@@ -31,9 +31,11 @@ import {
 } from './lib/review-ledger.ts';
 import {
   type BddPhase,
+  evaluateDecisionBriefCompliance,
   getDisqualificationMessage,
+  getQualityEvidence,
   getQualityMessage,
-  isDecisionBriefCompliant,
+  renderDecisionBriefCorrection,
 } from './lib/quality.ts';
 import {
   EXPLAIN_HINT,
@@ -79,6 +81,9 @@ interface TranscriptMessage {
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 /** How many recent assistant messages to scan for edit tool usage. */
 const MAX_MESSAGES_FOR_TOOLS = 5;
+const MAX_TRANSCRIPT_TAIL_BYTES = 256 * 1024;
+const MAX_CURRENT_TURN_SCAN_RECORDS = 512;
+const CURRENT_TURN_BOUNDARY_EXHAUSTED = 'boundary-exhausted' as const;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
 /**
  * A background-task completion the harness injects as a user-role message. It
@@ -157,9 +162,11 @@ function recordStopReviewState(
     // Partial, not QualityState: the file may be absent (fresh session) or
     // predate a field. The shared contract names the shape; the runtime
     // boundary below keeps a stale or malformed file from crashing the hook.
-    const state: Partial<QualityState> = existsSync(stateFile)
+    const parsed: unknown = existsSync(stateFile)
       ? JSON.parse(readFileSync(stateFile, 'utf8'))
       : {};
+    const state: Partial<QualityState> =
+      typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
     Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
@@ -366,8 +373,15 @@ if (!(await transcriptFile.exists())) {
   process.exit(0);
 }
 
-// Read transcript (JSONL format)
-const transcriptText = await transcriptFile.text();
+// Read a bounded JSONL tail. Drop a partial first record when slicing starts
+// mid-file. Record traversal may exceed the legacy 400-line cap when a genuine
+// turn boundary is present, but the byte budget keeps the read bounded.
+const transcriptStart = Math.max(0, transcriptFile.size - MAX_TRANSCRIPT_TAIL_BYTES);
+let transcriptText = await transcriptFile.slice(transcriptStart).text();
+if (transcriptStart > 0) {
+  const firstNewline = transcriptText.indexOf('\n');
+  transcriptText = firstNewline === -1 ? '' : transcriptText.slice(firstNewline + 1);
+}
 const lines = transcriptText.trim().split('\n');
 
 checkUsageLimit(lines);
@@ -392,12 +406,16 @@ checkImplPlanArtifact(ticketInfo);
 checkArchitectureReviewGate(ticketInfo);
 
 // No edit tools used in the current user turn → skip the review path (a
-// conversational follow-up has nothing to review). If the transcript cannot
-// recover that turn boundary, retain the prior bounded scan. The done phase is
-// the exception: fall through to its gate.
+// conversational follow-up has nothing to review). If the record cap is
+// exhausted before a boundary, review conservatively instead of pretending the
+// recent window can be attributed to this turn. A byte-truncated tail retains
+// the prior bounded fallback. The done phase always falls through to its gate.
 const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(lines);
 
-const editsToReview = editsInCurrentTurn ?? detectEditToolsUsed(lines);
+const editsToReview =
+  editsInCurrentTurn === CURRENT_TURN_BOUNDARY_EXHAUSTED
+    ? true
+    : (editsInCurrentTurn ?? detectEditToolsUsed(lines));
 if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
 }
@@ -452,22 +470,28 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
  * Stop at whatever started this turn — a human prompt, or a background-task
  * notification that re-invoked the agent — but not at the user-role tool-result
  * message Claude emits while completing that same turn. The transcript is
- * already resident in memory, so walk to the actual boundary instead of using
- * a line cap that can recreate the missed-edit bug on sufficiently large turns.
- * Returns undefined only when the available transcript has no turn boundary,
- * so callers preserve the existing fallback for truncated transcripts.
+ * already bounded by bytes; cap record traversal too. Exhausting that cap is
+ * explicitly unknown because neither edits nor boundaries in the recent window
+ * can be attributed to the current turn. Returns undefined only when the entire
+ * available tail has no turn boundary, preserving the legacy fallback for a
+ * byte-truncated transcript.
  */
-function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
-  for (let i = transcriptLines.length - 1; i >= 0; i--) {
+function detectEditToolsUsedInCurrentUserTurn(
+  transcriptLines: string[],
+): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
+  let foundEdit = false;
+  const firstRecord = Math.max(0, transcriptLines.length - MAX_CURRENT_TURN_SCAN_RECORDS);
+  for (let i = transcriptLines.length - 1; i >= firstRecord; i--) {
     // An unparseable line is skipped, not a boundary: preserve the legacy
     // fallback when no turn start is found.
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
-    if (startsNewTurn(message)) return false;
+    if (startsNewTurn(message)) return foundEdit;
     if (isAssistantMessage(message)) {
-      if (containsEditToolUse(normalizeContentItems(message.message?.content))) return true;
+      foundEdit ||= containsEditToolUse(normalizeContentItems(message.message?.content));
     }
   }
+  if (firstRecord > 0) return CURRENT_TURN_BOUNDARY_EXHAUSTED;
   return undefined;
 }
 
@@ -845,12 +869,17 @@ const recentRelevant = relevantPattern
   ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
       ?.pattern
   : undefined;
-const baseMessage = getQualityMessage(currentPhase, tddStep);
 const disqual = getDisqualificationMessage({
   pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
   recentRelevantFailure: recentRelevant,
 });
-if (!disqual && isDecisionBriefCompliant(combinedText)) {
+if (disqual) {
+  softBlock(`${getQualityMessage(currentPhase, tddStep)}\n\n${disqual}`);
+}
+const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText);
+if (decisionBriefEvaluation.compliant) {
   process.exit(0);
 }
-softBlock(disqual ? `${baseMessage}\n\n${disqual}` : baseMessage);
+softBlock(
+  renderDecisionBriefCorrection(decisionBriefEvaluation, getQualityEvidence(currentPhase, tddStep)),
+);
