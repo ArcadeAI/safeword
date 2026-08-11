@@ -260,7 +260,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED bad6d0a87
 - [x] GREEN 821d371ed
-- [ ] REFACTOR
+- [x] REFACTOR skip: one clean-tree guard precedes dynamic import
 
 ### Scenario: Successful wiring advances durable run state
 
