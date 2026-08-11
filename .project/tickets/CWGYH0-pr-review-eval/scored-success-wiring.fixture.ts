@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 import { loadPinnedAdapter } from "./scored-adapter";
+import { freezeFixtureArtifacts } from "./scored-manifest.fixture";
 import {
 	beginProvisionalCase,
 	commitAdmittedCaseWork,
@@ -212,6 +213,11 @@ try {
 		})}\n`,
 	);
 	const resultsPath = join(outputRoot, "results.json");
+	const manifestEnvironment = freezeFixtureArtifacts({
+		gitRoot: join(root, "manifest-repository"),
+		outputRoot,
+		repositoryIdentity: "https://example.test/success-manifest.git",
+	});
 	execFileSync(
 		"bun",
 		[
@@ -221,7 +227,7 @@ try {
 			"",
 			preflightPath,
 		],
-		{ encoding: "utf8" },
+		{ encoding: "utf8", env: { ...process.env, ...manifestEnvironment } },
 	);
 	const results = JSON.parse(readFileSync(resultsPath, "utf8")) as {
 		caseRows: unknown[];

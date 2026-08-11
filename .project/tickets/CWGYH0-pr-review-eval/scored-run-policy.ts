@@ -327,6 +327,9 @@ export function classifyTrialOutput(
 		findingIdentity(finding as UnknownRecord),
 	);
 	if (
+		outcomeFindingKeys.size !== outcome.findings.length ||
+		new Set(matchingFindingKeys).size !== matchingFindingKeys.length ||
+		new Set(consolidatedFindingKeys).size !== consolidatedFindingKeys.length ||
 		value.score.namedFailure !== (matchingFindingKeys.length > 0) ||
 		matchingFindingKeys.some((key) => !outcomeFindingKeys.has(key)) ||
 		consolidatedFindingKeys.some((key) => !outcomeFindingKeys.has(key))

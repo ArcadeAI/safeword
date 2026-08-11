@@ -86,6 +86,28 @@ describe("positive trial admission", () => {
 		});
 	});
 
+	test.each(["outcome", "matching", "consolidated"] as const)(
+		"rejects duplicate %s finding identities",
+		(collection) => {
+			const finding = { file: "a.ts", line: 1, title: "duplicate" };
+			const output = completedOutput([finding]);
+			if (collection === "outcome") {
+				output.report.expertOutcomes[0]!.findings = [finding, finding];
+			}
+			if (collection === "matching") {
+				output.score.matchingFindings = [finding, finding];
+				output.score.namedFailure = true;
+			}
+			if (collection === "consolidated") {
+				output.report.consolidated.findings = [finding, finding];
+			}
+			expect(classifyWithFrozenProvenance(output)).toMatchObject({
+				reason: "schema-invalid",
+				status: "invalid",
+			});
+		},
+	);
+
 	test.each([
 		["matching finding absent from the routed outcome", (() => {
 			const output = completedOutput();

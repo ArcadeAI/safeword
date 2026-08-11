@@ -11,6 +11,8 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
+import { freezeFixtureArtifacts } from "./scored-manifest.fixture";
+
 function git(root: string, ...args: string[]): string {
 	return execFileSync("/usr/bin/git", args, { cwd: root, encoding: "utf8" }).trim();
 }
@@ -33,9 +35,13 @@ const primaryPath = join(ticketRoot, "scored-cases-frozen-2026-08-01.json");
 const reservePath = join(ticketRoot, "reserve-cases-frozen-2026-08-01.json");
 const primary = JSON.parse(readFileSync(primaryPath, "utf8")) as {
 	cases: Array<{ id: string }>;
+	modelCutoff: string;
+	runnerRef: string;
 };
 const reserve = JSON.parse(readFileSync(reservePath, "utf8")) as {
 	cases: Array<{ id: string }>;
+	modelCutoff: string;
+	runnerRef: string;
 };
 const sourceRepositoryIdentity = git(adapterRoot, "remote", "get-url", "origin");
 const preflightId = "live-entry-no-cost-preflight";
@@ -73,9 +79,32 @@ const preflight = {
 const root = mkdtempSync(join(tmpdir(), "cwgyh0-live-entry-"));
 try {
 	const outputRoot = join(root, "output");
+	const fixturePrimaryPath = join(root, "primary.json");
+	const fixtureReservePath = join(root, "reserve.json");
+	writeFileSync(fixturePrimaryPath, `${JSON.stringify({
+		...primary,
+		cases: [primary.cases[0]],
+	}, null, 2)}\n`);
+	writeFileSync(fixtureReservePath, `${JSON.stringify({
+		...reserve,
+		cases: [reserve.cases[0]],
+	}, null, 2)}\n`);
 	const preflightPath = join(root, "preflight.json");
 	const fetchLog = join(root, "fetch.log");
-	const preflightBytes = `${JSON.stringify(preflight, null, 2)}\n`;
+	const fixturePreflight = {
+		...preflight,
+		expectedHashes: {
+			...preflight.expectedHashes,
+			primaryManifest: sha256(fixturePrimaryPath),
+			reserveManifest: sha256(fixtureReservePath),
+		},
+		expectedPrimaryCaseCount: 1,
+		expectedReserveCaseCount: 1,
+		preflightedRepositories: 4,
+		primaryCases: [primary.cases[0]!.id],
+		reserveCases: [reserve.cases[0]!.id],
+	};
+	const preflightBytes = `${JSON.stringify(fixturePreflight, null, 2)}\n`;
 	writeFileSync(preflightPath, preflightBytes);
 	const rejectionReasons = [
 		"provider-failure",
@@ -111,8 +140,8 @@ try {
 			adapter: sha256Text(expectedAdapterCommit),
 			classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
 			preflight: sha256Text(preflightBytes),
-			primaryManifest: sha256(primaryPath),
-			reserveManifest: sha256(reservePath),
+			primaryManifest: sha256(fixturePrimaryPath),
+			reserveManifest: sha256(fixtureReservePath),
 			runner: sha256(join(ticketRoot, "scored-live-run.ts")),
 			runIdentity: sha256Text(JSON.stringify({ checkpointId, outputRoot: resolve(input.outputRoot), preflightId, runId })),
 			scorer: sha256(join(ticketRoot, "score-results.ts")),
@@ -158,8 +187,14 @@ try {
 					CWGYH0_CHECKPOINT_ID: checkpointId,
 					CWGYH0_FETCH_LOG: input.fetchLog,
 					CWGYH0_FETCH_MODE: input.mode,
+					CWGYH0_EXPECTED_PRIMARY_CASES: "1",
+					CWGYH0_EXPECTED_RESERVE_CASES: "1",
 					CWGYH0_OUTPUT_ROOT: input.outputRoot,
+					CWGYH0_PRIMARY_MANIFEST_PATH: fixturePrimaryPath,
+					CWGYH0_PRIMARY_MANIFEST_SHA256: sha256(fixturePrimaryPath),
 					CWGYH0_PREFLIGHT_PATH: preflightPath,
+					CWGYH0_RESERVE_MANIFEST_PATH: fixtureReservePath,
+					CWGYH0_RESERVE_MANIFEST_SHA256: sha256(fixtureReservePath),
 					CWGYH0_SCRATCH_ROOT: join(root, input.scratchName),
 					CWGYH0_SOURCE_REPOSITORY: adapterRoot,
 				},
@@ -170,13 +205,13 @@ try {
 
 	assert.match(
 		run({ fetchLog, outputRoot, scratchName: "scratch-first" }),
-		/checkpoint: 1\/30 cases/,
+		/completed: 1\/30 cases/,
 	);
 	const summary = JSON.parse(
 		readFileSync(join(outputRoot, "run-summary.json"), "utf8"),
 	) as { completedCases: number; status: string };
 	assert.equal(summary.completedCases, 1);
-	assert.equal(summary.status, "checkpoint");
+	assert.equal(summary.status, "completed");
 	const activeCases = readdirSync(join(outputRoot, "active"));
 	assert.equal(activeCases.length, 1);
 	assert.equal(
@@ -189,7 +224,7 @@ try {
 
 	assert.match(
 		run({ fetchLog, outputRoot, scratchName: "scratch-resume" }),
-		/checkpoint: 1\/30 cases/,
+		/completed: 1\/30 cases/,
 	);
 	assert.equal(readFileSync(fetchLog, "utf8").trim().split("\n").length, 24);
 
@@ -202,7 +237,7 @@ try {
 			outputRoot: failureOutputRoot,
 			scratchName: "scratch-failure",
 		}),
-		/checkpoint: 1\/30 cases with 1 exclusion/,
+		/completed: 1\/30 cases with 1 exclusion/,
 	);
 	const failureSummary = JSON.parse(
 		readFileSync(join(failureOutputRoot, "run-summary.json"), "utf8"),
@@ -219,35 +254,23 @@ try {
 		"one failed fetch plus one replacement case; no pending sibling from the failed case ran",
 	);
 	const exclusion = failureSummary.exclusions[0]!;
-	const scorerPreflightPath = join(root, "failure-scorer-preflight.json");
-	const scorerPreflightId = "live-entry-hidden-failure-scorer";
-	const scorerPreflightBytes = `${JSON.stringify({
-		preflightId: scorerPreflightId,
-		preflightedRepositories: 4,
-		primaryCases: [exclusion.caseId],
-		reserveCases: [exclusion.replacementId],
-		sourceRepositoryIdentity,
-		status: "passed",
-	})}\n`;
-	writeFileSync(scorerPreflightPath, scorerPreflightBytes);
-	writeFileSync(join(failureOutputRoot, "run-summary.json"), `${JSON.stringify({
-		completedCaseIds: [exclusion.replacementId],
-		exclusions: [exclusion],
-		preflightId: scorerPreflightId,
-		preflightSha256: sha256Text(scorerPreflightBytes),
-		primaryCases: [exclusion.caseId],
-		reserveCases: [exclusion.replacementId],
-		sourceRepositoryIdentity,
-		status: "completed",
-	})}\n`);
 	const scorerResultsPath = join(root, "failure-scorer-results.json");
+	const manifestEnvironment = freezeFixtureArtifacts({
+		gitRoot: join(root, "failure-manifest-repository"),
+		outputRoot: failureOutputRoot,
+		repositoryIdentity: "https://example.test/live-entry-manifest.git",
+	});
 	execFileSync("bun", [
 		join(ticketRoot, "score-results.ts"),
 		failureOutputRoot,
 		scorerResultsPath,
 		"",
-		scorerPreflightPath,
-	], { encoding: "utf8", stdio: "pipe" });
+		preflightPath,
+	], {
+		encoding: "utf8",
+		env: { ...process.env, ...manifestEnvironment },
+		stdio: "pipe",
+	});
 	const scorerResults = JSON.parse(readFileSync(scorerResultsPath, "utf8")) as {
 		caseRows: Array<{ caseId: string }>;
 		exclusions: Array<{ caseId: string; replacementId: string }>;

@@ -2,6 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { mean, pairedBootstrapInterval } from "./scored-analysis";
+import {
+	loadPinnedManifestFromGit,
+	verifyRawArtifactManifest,
+} from "./scored-artifact-manifest";
 import { deriveScoreableMatrix } from "./scored-matrix";
 import { classifyTrialOutput } from "./scored-run-policy";
 import {
@@ -69,7 +73,34 @@ const preflightPath =
 	requireArgument(5, "contamination preflight path");
 if (existsSync(resultsPath)) throw new Error(`refusing to overwrite ${resultsPath}`);
 
-const summary = readJson<{
+const pinnedManifest = loadPinnedManifestFromGit({
+	commit: process.env.CWGYH0_RAW_MANIFEST_COMMIT ??
+		requireArgument(6, "raw manifest commit"),
+	digestPath: process.env.CWGYH0_RAW_MANIFEST_DIGEST_PATH ??
+		requireArgument(7, "raw manifest digest path"),
+	expectedRepositoryIdentity: process.env.CWGYH0_RAW_MANIFEST_REPOSITORY ??
+		requireArgument(8, "raw manifest repository identity"),
+	gitRoot: process.env.CWGYH0_RAW_MANIFEST_GIT_ROOT ??
+		requireArgument(9, "raw manifest Git root"),
+	manifestPath: process.env.CWGYH0_RAW_MANIFEST_PATH ??
+		requireArgument(10, "raw manifest path"),
+});
+const verifiedRaw = verifyRawArtifactManifest({
+	expectedManifestDigest: pinnedManifest.digest,
+	manifestBytes: pinnedManifest.manifestBytes,
+	reusedAt: new Date().toISOString(),
+	root: outputRoot,
+});
+const verifiedBytes = new Map(
+	verifiedRaw.artifacts.map((artifact) => [artifact.identity, artifact.bytes]),
+);
+const readVerifiedJson = <T>(identity: string): T => {
+	const bytes = verifiedBytes.get(identity);
+	if (bytes === undefined) throw new Error(`verified raw artifact is missing: ${identity}`);
+	return JSON.parse(new TextDecoder().decode(bytes)) as T;
+};
+
+const summary = readVerifiedJson<{
 	completedCaseIds: string[];
 	exclusions: Array<{ caseId: string; replacementId: string }>;
 	primaryCases: string[];
@@ -78,7 +109,7 @@ const summary = readJson<{
 	reserveCases: string[];
 	sourceRepositoryIdentity: string;
 	status: string;
-}>(join(outputRoot, "run-summary.json"));
+}>("run-summary.json");
 if (summary.status !== "completed") {
 	throw new Error("scored run is incomplete");
 }
@@ -89,9 +120,10 @@ const preflight = bindContaminationPreflight(readFileSync(preflightPath, "utf8")
 });
 
 const rawRecords: RecordFile[] = [];
-const glob = new Bun.Glob("active/*/*--record.json");
-for (const relativePath of glob.scanSync(outputRoot)) {
-	const record = readJson<RecordFile>(join(outputRoot, relativePath));
+for (const relativePath of [...verifiedBytes.keys()].filter((identity) =>
+	/^active\/[^/]+\/[^/]+--record\.json$/.test(identity)
+)) {
+	const record = readVerifiedJson<RecordFile>(relativePath);
 	if (!systems.includes(record.system) || !variants.includes(record.variant)) {
 		throw new Error(`unexpected record dimensions in ${relativePath}`);
 	}

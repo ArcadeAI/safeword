@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 import { loadPinnedAdapter } from "./scored-adapter";
+import { freezeFixtureArtifacts } from "./scored-manifest.fixture";
 import {
 	beginProvisionalCase,
 	executeCaseWork,
@@ -165,13 +166,18 @@ try {
 		status: "completed",
 	})}\n`);
 	const resultsPath = join(outputRoot, "results.json");
+	const manifestEnvironment = freezeFixtureArtifacts({
+		gitRoot: join(root, "manifest-repository"),
+		outputRoot,
+		repositoryIdentity: "https://example.test/hidden-failure-manifest.git",
+	});
 	const scorer = spawnSync("bun", [
 		join(import.meta.dirname, "score-results.ts"),
 		outputRoot,
 		resultsPath,
 		"",
 		preflightPath,
-	], { encoding: "utf8" });
+	], { encoding: "utf8", env: { ...process.env, ...manifestEnvironment } });
 	assert.notEqual(scorer.status, 0);
 	assert.match(scorer.stderr, /one frozen case missing entirely/);
 	assert.equal(existsSync(resultsPath), false);

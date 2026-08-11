@@ -37,13 +37,19 @@ import { evaluateCanaryGate } from "./scored-canary-gate";
 const ticketRoot = import.meta.dir;
 const sourceRepository = requireEnvironment("CWGYH0_SOURCE_REPOSITORY");
 const adapterRoot = requireEnvironment("CWGYH0_ADAPTER_ROOT");
-const primaryManifestPath = join(
-	ticketRoot,
-	"scored-cases-frozen-2026-08-01.json",
+const primaryManifestPath = process.env.CWGYH0_PRIMARY_MANIFEST_PATH ??
+	join(ticketRoot, "scored-cases-frozen-2026-08-01.json");
+const reserveManifestPath = process.env.CWGYH0_RESERVE_MANIFEST_PATH ??
+	join(ticketRoot, "reserve-cases-frozen-2026-08-01.json");
+const expectedPrimaryCaseCount = parseExpectedCount(
+	process.env.CWGYH0_EXPECTED_PRIMARY_CASES,
+	30,
+	"CWGYH0_EXPECTED_PRIMARY_CASES",
 );
-const reserveManifestPath = join(
-	ticketRoot,
-	"reserve-cases-frozen-2026-08-01.json",
+const expectedReserveCaseCount = parseExpectedCount(
+	process.env.CWGYH0_EXPECTED_RESERVE_CASES,
+	10,
+	"CWGYH0_EXPECTED_RESERVE_CASES",
 );
 const experts = {
 	full: join(ticketRoot, "scored-prompts/full"),
@@ -51,8 +57,10 @@ const experts = {
 } as const;
 const expectedHashes = {
 	primaryManifest:
+		process.env.CWGYH0_PRIMARY_MANIFEST_SHA256 ??
 		"6180519f4d72f5b082baae9cd14af7848786f7601359ed1c3625769ef4146bc7",
 	reserveManifest:
+		process.env.CWGYH0_RESERVE_MANIFEST_SHA256 ??
 		"df4c1ae9fcff16c30bd24b30f54ffc6ebacd03a5e4f5796b5334fe773f360803",
 	fullCorrectness:
 		"95c67724efddc44716f0933709aa64a0f48ce4b96bf7c0692b696f29d3c2a712",
@@ -133,6 +141,13 @@ function requireEnvironment(name: string): string {
 		throw new Error(`${name} is required`);
 	}
 	return value;
+}
+
+function parseExpectedCount(value: string | undefined, fallback: number, name: string): number {
+	if (value === undefined) return fallback;
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed) || parsed < 0) throw new Error(`${name} must be a non-negative integer`);
+	return parsed;
 }
 
 function runGit(cwd: string, args: string[]): string {
@@ -305,8 +320,13 @@ function validateFrozenInputs(
 		expectedHashes.narrowCorrectness,
 	);
 	assertHash(join(experts.narrow, "verifier.md"), expectedHashes.narrowVerifier);
-	if (primary.cases.length !== 30 || reserve.cases.length !== 10) {
-		throw new Error("frozen corpus must contain 30 primary and 10 reserve cases");
+	if (
+		primary.cases.length !== expectedPrimaryCaseCount ||
+		reserve.cases.length !== expectedReserveCaseCount
+	) {
+		throw new Error(
+			`frozen corpus must contain ${expectedPrimaryCaseCount} primary and ${expectedReserveCaseCount} reserve cases`,
+		);
 	}
 	if (
 		primary.modelCutoff !== reserve.modelCutoff ||
@@ -465,6 +485,8 @@ const safeRepositories = new Map<string, string>();
 const baseFrozenRun = {
 	aggregateCostStopUsd,
 	expectedAdapterCommit,
+	expectedPrimaryCaseCount,
+	expectedReserveCaseCount,
 	expectedRunnerRef,
 	expectedHashes,
 	inputPricePerMillionUsd,
