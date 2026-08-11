@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 32c2b0a28
 - [x] GREEN b20381597
-- [ ] REFACTOR
+- [x] REFACTOR skip: unique temporary names and one cleanup path keep the writer linear
 
 ### Scenario Outline: Injected crashes exercise the durable quarantine transaction
 
