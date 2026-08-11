@@ -41361,6 +41361,11 @@ var init_run_identity = __esm(() => {
 });
 
 // src/review/packet.ts
+var exports_packet = {};
+__export(exports_packet, {
+  prepareReviewPacket: () => prepareReviewPacket,
+  ReviewPacketError: () => ReviewPacketError
+});
 import { createHash as createHash19, randomUUID as randomUUID6 } from "crypto";
 import {
   closeSync as closeSync4,
@@ -41388,12 +41393,31 @@ function fileDigest(path4) {
     return;
   }
 }
-function readContainedText(root, source, target) {
+function sourceFileChanged(file) {
+  let descriptor;
+  try {
+    descriptor = openSync4(file.source, constants3.O_RDONLY | (constants3.O_NOFOLLOW ?? 0));
+    const current = fstatSync2(descriptor);
+    return !current.isFile() || current.dev !== file.device || current.ino !== file.inode || digest2(readFileSync49(descriptor)) !== file.sha256;
+  } catch {
+    return true;
+  } finally {
+    if (descriptor !== undefined)
+      closeSync4(descriptor);
+  }
+}
+function readContainedText(root, source, target, packetBytesRemaining) {
   const descriptor = openSync4(source, constants3.O_RDONLY | (constants3.O_NOFOLLOW ?? 0));
   try {
     const opened = fstatSync2(descriptor);
     if (!opened.isFile())
       throw new Error(`Review target is not a regular file: ${target}`);
+    if (opened.size > MAX_FILE_BYTES) {
+      throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+    }
+    if (opened.size > packetBytesRemaining) {
+      throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+    }
     const resolved = realpathSync8(source);
     if (escapes(root, resolved))
       throw new Error(`Review target escapes the project: ${target}`);
@@ -41408,7 +41432,7 @@ function readContainedText(root, source, target) {
     } catch {
       throw new Error(`Review target is not valid UTF-8 text: ${target}`);
     }
-    return { bytes, content };
+    return { bytes, content, device: opened.dev, inode: opened.ino };
   } finally {
     closeSync4(descriptor);
   }
@@ -41429,12 +41453,12 @@ function snapshotEntries(root, directory = root) {
     return [`other:${relative}`];
   });
 }
-function prepareReviewPacket(cwd, kind, targets, context = []) {
+function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
   if (targets.length + context.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
-  const workspace = mkdtempSync5(nodePath81.join(tmpdir3(), "safeword-review-"));
   const canonicalRoot = realpathSync8(cwd);
+  const workspace = mkdtempSync5(nodePath81.join(tmpdir3(), "safeword-review-"));
   const tracked = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
@@ -41442,16 +41466,16 @@ function prepareReviewPacket(cwd, kind, targets, context = []) {
   try {
     let packetBytes = 0;
     const captureFiles = (files) => files.map((target) => {
-      const source = nodePath81.resolve(cwd, target);
-      const relative = nodePath81.relative(cwd, source);
-      if (escapes(cwd, source)) {
+      const source = nodePath81.resolve(canonicalRoot, target);
+      const relative = nodePath81.relative(canonicalRoot, source);
+      if (escapes(canonicalRoot, source)) {
         throw new Error(`Review target escapes the project: ${target}`);
       }
       const stats = lstatSync15(source);
-      if (!stats.isFile() || stats.isSymbolicLink()) {
+      if (!stats.isFile()) {
         throw new Error(`Review target is not a regular file: ${target}`);
       }
-      const { bytes, content } = readContainedText(canonicalRoot, source, target);
+      const { bytes, content, device, inode } = readContainedText(canonicalRoot, source, target, MAX_PACKET_BYTES - packetBytes);
       const fileBytes = bytes.byteLength;
       if (fileBytes > MAX_FILE_BYTES) {
         throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
@@ -41469,9 +41493,21 @@ function prepareReviewPacket(cwd, kind, targets, context = []) {
         parent = nodePath81.dirname(parent);
       }
       expectedSnapshotEntries.add(`file:${relative}`);
-      tracked.push({ source, snapshot, sha256: digest2(bytes) });
+      tracked.push({ source, snapshot, sha256: digest2(bytes), device, inode });
       return { path: relative, content };
     });
+    const seen = new Set;
+    const rejectDuplicate = (target) => {
+      const relative = nodePath81.relative(canonicalRoot, nodePath81.resolve(canonicalRoot, target));
+      if (seen.has(relative)) {
+        throw new Error(`Review packet contains a duplicate file: ${target}`);
+      }
+      seen.add(relative);
+    };
+    for (const target of targets)
+      rejectDuplicate(target);
+    for (const target of context)
+      rejectDuplicate(target);
     logicalFiles = captureFiles(targets);
     contextFiles = captureFiles(context);
   } catch (error2) {
@@ -41485,11 +41521,15 @@ function prepareReviewPacket(cwd, kind, targets, context = []) {
     logical_files: logicalFiles,
     ...contextFiles.length > 0 && { context_files: contextFiles }
   };
+  if (Buffer.byteLength(JSON.stringify(packet), "utf8") > MAX_PACKET_BYTES) {
+    rmSync10(workspace, { recursive: true, force: true });
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+  }
   return {
     packet,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some((file) => fileDigest(file.source) !== file.sha256),
+    sourceChanged: () => tracked.some((file) => sourceFileChanged(file)),
     snapshotChanged: () => {
       if (tracked.some((file) => fileDigest(file.snapshot) !== file.sha256))
         return true;
@@ -41505,10 +41545,23 @@ function prepareReviewPacket(cwd, kind, targets, context = []) {
     }
   };
 }
-var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES;
+function prepareReviewPacket(cwd, kind, targets, context = []) {
+  try {
+    return prepareReviewPacketUnsafe(cwd, kind, targets, context);
+  } catch (error2) {
+    if (error2 instanceof ReviewPacketError)
+      throw error2;
+    const message = error2 instanceof Error ? error2.message : "";
+    throw new ReviewPacketError(message.startsWith("Review ") ? message : "Review packet could not be prepared. Check that every target and context path exists and is readable.");
+  }
+}
+var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, ReviewPacketError;
 var init_packet = __esm(() => {
   MAX_FILE_BYTES = 256 * 1024;
   MAX_PACKET_BYTES = 1024 * 1024;
+  ReviewPacketError = class ReviewPacketError extends Error {
+    name = "ReviewPacketError";
+  };
 });
 
 // templates/hooks/lib/review-ledger.ts
@@ -57434,14 +57487,34 @@ async function reviewRunHandler(invocation) {
   } else if (typeof rawContext === "string") {
     context = [rawContext];
   }
-  const { runReview: runReview2 } = await Promise.resolve().then(() => (init_coordinator(), exports_coordinator));
-  return runReview2({
-    cwd: invocation.cwd,
-    kind: rawKind,
-    targets,
-    context,
-    progress: invocation.progress
-  });
+  const [{ runReview: runReview2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
+    Promise.resolve().then(() => (init_coordinator(), exports_coordinator)),
+    Promise.resolve().then(() => (init_packet(), exports_packet))
+  ]);
+  try {
+    return await runReview2({
+      cwd: invocation.cwd,
+      kind: rawKind,
+      targets,
+      context,
+      progress: invocation.progress
+    });
+  } catch (error2) {
+    if (!(error2 instanceof ReviewPacketError2))
+      throw error2;
+    return createResult({
+      state: "failed",
+      errors: [{ code: "REVIEW_PACKET_INVALID", message: error2.message, retryable: false }],
+      recovery: [
+        {
+          command: "safeword review run <kind> <targets...>",
+          description: "Correct the review target and context paths or reduce the packet, then run the review again.",
+          requiresHuman: true
+        }
+      ],
+      data: { command: "review run", status: "blocked" }
+    });
+  }
 }
 async function reviewPrInspectHandler(invocation) {
   if (invocation.offline)

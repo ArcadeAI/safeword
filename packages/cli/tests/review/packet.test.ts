@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -54,6 +62,49 @@ describe('review packet containment and change accounting', () => {
     prepared.cleanup();
   });
 
+  it('treats source deletion as drift from the captured packet', () => {
+    const project = temporaryDirectory();
+    const source = nodePath.join(project, 'input.md');
+    writeFileSync(source, 'original\n');
+    const prepared = prepareReviewPacket(project, 'quality-review', ['input.md']);
+
+    unlinkSync(source);
+
+    expect(prepared.sourceChanged()).toBe(true);
+    expect(prepared.snapshotChanged()).toBe(false);
+    prepared.cleanup();
+  });
+
+  it('detects a same-content source replacement with a different file identity', () => {
+    const project = temporaryDirectory();
+    const source = nodePath.join(project, 'input.md');
+    const replacement = nodePath.join(project, 'replacement.md');
+    writeFileSync(source, 'same bytes\n');
+    const prepared = prepareReviewPacket(project, 'quality-review', ['input.md']);
+
+    writeFileSync(replacement, 'same bytes\n');
+    renameSync(replacement, source);
+
+    expect(prepared.sourceChanged()).toBe(true);
+    prepared.cleanup();
+  });
+
+  it('detects a captured source replaced by a same-content symlink', () => {
+    const project = temporaryDirectory();
+    const outside = temporaryDirectory();
+    const source = nodePath.join(project, 'input.md');
+    const replacement = nodePath.join(outside, 'replacement.md');
+    writeFileSync(source, 'same bytes\n');
+    writeFileSync(replacement, 'same bytes\n');
+    const prepared = prepareReviewPacket(project, 'quality-review', ['input.md']);
+
+    unlinkSync(source);
+    symlinkSync(replacement, source);
+
+    expect(prepared.sourceChanged()).toBe(true);
+    prepared.cleanup();
+  });
+
   it('detects files newly created inside the disposable snapshot', () => {
     const project = temporaryDirectory();
     writeFileSync(nodePath.join(project, 'input.md'), 'original\n');
@@ -89,6 +140,25 @@ describe('review packet containment and change accounting', () => {
     const targets = Array.from({ length: 65 }, (_, index) => `input-${index}.md`);
 
     expect(() => prepareReviewPacket(project, 'quality-review', targets)).toThrow('64-file limit');
+  });
+
+  it('applies the file-count bound across targets and supporting context', () => {
+    const project = temporaryDirectory();
+    const targets = Array.from({ length: 32 }, (_, index) => `target-${index}.md`);
+    const context = Array.from({ length: 33 }, (_, index) => `context-${index}.md`);
+
+    expect(() => prepareReviewPacket(project, 'quality-review', targets, context)).toThrow(
+      '64-file limit',
+    );
+  });
+
+  it('rejects the same file appearing more than once or in both packet roles', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'input.md'), 'review me\n');
+
+    expect(() =>
+      prepareReviewPacket(project, 'quality-review', ['input.md'], ['./input.md']),
+    ).toThrow('duplicate file');
   });
 
   it('rejects a packet whose individually valid files exceed the aggregate limit', () => {
@@ -150,6 +220,18 @@ describe('review packet containment and change accounting', () => {
     }
 
     expect(() => prepareReviewPacket(project, 'quality-review', targets, context)).toThrow(
+      '1048576-byte limit',
+    );
+  });
+
+  it('bounds the serialized packet after JSON escaping expands source content', () => {
+    const project = temporaryDirectory();
+    const targets = Array.from({ length: 4 }, (_, index) => `escaped-${index}.md`);
+    for (const target of targets) {
+      writeFileSync(nodePath.join(project, target), '\\'.repeat(250 * 1024));
+    }
+
+    expect(() => prepareReviewPacket(project, 'quality-review', targets)).toThrow(
       '1048576-byte limit',
     );
   });

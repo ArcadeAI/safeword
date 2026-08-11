@@ -56,6 +56,7 @@ interface ReviewScenario {
   environment: Record<string, string>;
   launchLog: string;
   targets: string[];
+  context: string[];
 }
 
 type ReviewWorld = SafewordWorld & { review?: ReviewScenario };
@@ -70,6 +71,7 @@ function state(world: SafewordWorld): ReviewScenario {
     binaries: [],
     launchLog: nodePath.join(project, 'reviewer-launches.log'),
     targets: ['review-input.md'],
+    context: [],
     environment: {
       SAFEWORD_AGENT_RUNTIME: 'claude',
       SAFEWORD_REVIEW_TIMEOUT_MS: '2000',
@@ -86,8 +88,12 @@ function behaviourScript(agent: Agent, behaviour: Behaviour): string {
   // invalid output, which quietly turns a "reviewer answered" fixture into a
   // "reviewer failed" one.
   const body = String.raw`payload=$(cat)
+summary=reviewed
+if printf '%s' "$payload" | /usr/bin/grep -q '"logical_files":\[{"path":"review-input.md"' && printf '%s' "$payload" | /usr/bin/grep -q '"context_files":\[{"path":"supporting-evidence.md"'; then
+  summary=roles-separated
+fi
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
-answer=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"AGENT","verdict":"approve","summary":"reviewed","findings":[]}' "$dispatch_id")`
+answer=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"AGENT","verdict":"approve","summary":"%s","findings":[]}' "$dispatch_id" "$summary")`
     .split('AGENT')
     .join(agent);
   const emit =
@@ -168,6 +174,7 @@ async function runReview(world: SafewordWorld): Promise<void> {
         'run',
         'quality-review',
         ...current.targets,
+        ...(current.context.length > 0 ? ['--context', ...current.context] : []),
         '--json',
         '--no-input',
         '--cwd',
@@ -187,6 +194,7 @@ async function runReview(world: SafewordWorld): Promise<void> {
 }
 
 interface ReviewPayload {
+  state: string;
   findings: { message: string }[];
   recovery: { description: string }[];
   data: Record<string, unknown>;
@@ -321,11 +329,21 @@ Given('a second installed reviewer executable that can', function (this: Safewor
 });
 
 Given(
-  'every installed reviewer executable cannot produce typed output',
+  'an installed reviewer that cannot honor the review contract',
   function (this: SafewordWorld) {
     installReviewer(state(this), 'codex', 'no typed output', 'old');
   },
 );
+
+Given('no reviewer executable is installed', function (this: SafewordWorld) {
+  state(this);
+});
+
+Given('a review target with supporting context', function (this: SafewordWorld) {
+  const current = state(this);
+  writeFileSync(nodePath.join(current.project, 'supporting-evidence.md'), 'supporting evidence\n');
+  current.context = ['supporting-evidence.md'];
+});
 
 Given('a reviewer answer that follows the result contract', function (this: SafewordWorld) {
   installReviewer(state(this), 'codex', 'answers');
@@ -431,6 +449,19 @@ Given(
   },
 );
 
+Given(
+  'a {word}-authored change with {word} alternate model {string}',
+  function (this: SafewordWorld, authorName: string, reviewerName: string, model: string) {
+    const current = state(this);
+    const author = authorName.toLowerCase() as Agent;
+    const reviewer = reviewerName.toLowerCase() as Agent;
+    assert.notEqual(author, reviewer);
+    current.environment.SAFEWORD_AGENT_RUNTIME = author;
+    writeConfig(current, { crossAgentReviewAlternateModel: { [reviewer]: model } });
+    installReviewer(current, reviewer, 'answers only with a model');
+  },
+);
+
 // ----------------------------------------------------------------- When
 
 When('the independent review runs', async function (this: SafewordWorld) {
@@ -465,6 +496,17 @@ Then("the review returns the reviewer's verdict", function (this: SafewordWorld)
 
 Then('no reviewer is asked to review it', function (this: SafewordWorld) {
   assert.deepEqual(reviewerLaunches(this), []);
+});
+
+Then('the command rejects the packet through a typed result', function (this: SafewordWorld) {
+  const result = payload(this);
+  assert.equal(result.state, 'failed');
+  assert.equal(
+    (result as { errors?: { code: string }[] }).errors?.[0]?.code,
+    'REVIEW_PACKET_INVALID',
+  );
+  assert.equal(result.data.status, 'blocked');
+  assert.equal(result.recovery.length, 1);
 });
 
 Then('the configured deadline is used', function (this: SafewordWorld) {
@@ -510,9 +552,60 @@ Then("the review returns the Codex reviewer's verdict", function (this: Safeword
 });
 
 Then(
-  'the review reports that the installed reviewer is unsupported',
+  'the review is blocked because the installed reviewer is unsupported',
   function (this: SafewordWorld) {
-    assert.equal(payload(this).data.preferred_failure, 'unsupported');
+    const result = payload(this);
+    assert.equal(result.state, 'action_required');
+    assert.equal(result.data.status, 'blocked');
+    assert.equal(result.data.preferred_failure, 'unsupported');
+  },
+);
+
+Then('the recovery tells the builder to update the reviewer', function (this: SafewordWorld) {
+  assert.deepEqual(
+    payload(this).recovery.map(item => item.description),
+    ['Update Codex, then run the review again.'],
+  );
+});
+
+Then('the incompatible reviewer is not asked to review', function (this: SafewordWorld) {
+  assert.deepEqual(reviewerLaunches(this), []);
+});
+
+Then('the review is blocked because the reviewer is not installed', function (this: SafewordWorld) {
+  const result = payload(this);
+  assert.equal(result.state, 'action_required');
+  assert.equal(result.data.status, 'blocked');
+  assert.equal(result.data.preferred_failure, 'not_installed');
+});
+
+Then(
+  'the recovery tells the builder to install or update the reviewer',
+  function (this: SafewordWorld) {
+    assert.deepEqual(
+      payload(this).recovery.map(item => item.description),
+      ['Install or update Codex, then run the review again.'],
+    );
+  },
+);
+
+Then(
+  'the reviewer receives the target as work and the evidence as context',
+  function (this: SafewordWorld) {
+    assert.equal(
+      (payload(this).data.reviewer_output as { summary?: string } | undefined)?.summary,
+      'roles-separated',
+    );
+  },
+);
+
+Then(
+  'the alternate model receives the same target and context roles',
+  function (this: SafewordWorld) {
+    assert.equal(
+      (payload(this).data.reviewer_output as { summary?: string } | undefined)?.summary,
+      'roles-separated',
+    );
   },
 );
 
@@ -533,6 +626,18 @@ Then("the review returns the alternate model's verdict", function (this: Safewor
 Then('the review reports that the check was not independent', function (this: SafewordWorld) {
   assert.notEqual(payload(this).data.independence, 'cross-agent');
 });
+
+Then(
+  'both reviewer models were attempted before the author runtime completed',
+  function (this: SafewordWorld) {
+    const launches = reviewerLaunches(this);
+    assert.equal(payload(this).data.actual_reviewer, 'claude');
+    assert.equal(launches.length, 3);
+    assert.match(launches[0] ?? '', /^codex\t(?!.*--model)/u);
+    assert.match(launches[1] ?? '', /^codex\t.*--model vendor-model-2(?:\s|$)/u);
+    assert.match(launches[2] ?? '', /^claude\t/u);
+  },
+);
 
 Then('the result reports a full cross-agent check', function (this: SafewordWorld) {
   assert.equal(payload(this).data.independence, 'cross-agent');
@@ -580,6 +685,16 @@ Then('the command reports a full cross-agent check by Codex', function (this: Sa
   assert.equal(data.independence, 'cross-agent');
   assert.equal(data.actual_reviewer, 'codex');
 });
+
+Then(
+  'the command reports a full cross-agent check by {word} using {string}',
+  function (this: SafewordWorld, reviewerName: string, model: string) {
+    const data = payload(this).data;
+    assert.equal(data.independence, 'cross-agent');
+    assert.equal(data.actual_reviewer, reviewerName.toLowerCase());
+    assert.equal(data.reviewer_model, model);
+  },
+);
 
 Then('the command reports the required check as unsatisfied', function (this: SafewordWorld) {
   assert.equal(payload(this).data.status, 'blocked');

@@ -31,6 +31,18 @@ export interface PreparedReviewPacket {
   readonly cleanup: () => void;
 }
 
+export class ReviewPacketError extends Error {
+  readonly name = 'ReviewPacketError';
+}
+
+interface CapturedFile {
+  readonly source: string;
+  readonly snapshot: string;
+  readonly sha256: string;
+  readonly device: number;
+  readonly inode: number;
+}
+
 function digest(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
@@ -39,7 +51,27 @@ function fileDigest(path: string): string | undefined {
   try {
     return digest(readFileSync(path));
   } catch {
+    // Integrity checks fail closed: deletion and unreadability both mean the
+    // source can no longer be proven equal to the captured packet.
     return undefined;
+  }
+}
+
+function sourceFileChanged(file: CapturedFile): boolean {
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(file.source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const current = fstatSync(descriptor);
+    return (
+      !current.isFile() ||
+      current.dev !== file.device ||
+      current.ino !== file.inode ||
+      digest(readFileSync(descriptor)) !== file.sha256
+    );
+  } catch {
+    return true;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
   }
 }
 
@@ -47,14 +79,23 @@ function readContainedText(
   root: string,
   source: string,
   target: string,
+  packetBytesRemaining: number,
 ): {
   readonly bytes: Buffer;
   readonly content: string;
+  readonly device: number;
+  readonly inode: number;
 } {
   const descriptor = openSync(source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
     const opened = fstatSync(descriptor);
     if (!opened.isFile()) throw new Error(`Review target is not a regular file: ${target}`);
+    if (opened.size > MAX_FILE_BYTES) {
+      throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+    }
+    if (opened.size > packetBytesRemaining) {
+      throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+    }
     const resolved = realpathSync(source);
     if (escapes(root, resolved)) throw new Error(`Review target escapes the project: ${target}`);
     const observed = lstatSync(resolved);
@@ -68,7 +109,7 @@ function readContainedText(
     } catch {
       throw new Error(`Review target is not valid UTF-8 text: ${target}`);
     }
-    return { bytes, content };
+    return { bytes, content, device: opened.dev, inode: opened.ino };
   } finally {
     closeSync(descriptor);
   }
@@ -92,7 +133,7 @@ function snapshotEntries(root: string, directory = root): string[] {
   });
 }
 
-export function prepareReviewPacket(
+function prepareReviewPacketUnsafe(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
@@ -101,9 +142,9 @@ export function prepareReviewPacket(
   if (targets.length + context.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
-  const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
   const canonicalRoot = realpathSync(cwd);
-  const tracked: { source: string; snapshot: string; sha256: string }[] = [];
+  const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
+  const tracked: CapturedFile[] = [];
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
   let contextFiles: { path: string; content: string }[];
@@ -111,16 +152,23 @@ export function prepareReviewPacket(
     let packetBytes = 0;
     const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
       files.map(target => {
-        const source = nodePath.resolve(cwd, target);
-        const relative = nodePath.relative(cwd, source);
-        if (escapes(cwd, source)) {
+        const source = nodePath.resolve(canonicalRoot, target);
+        const relative = nodePath.relative(canonicalRoot, source);
+        if (escapes(canonicalRoot, source)) {
           throw new Error(`Review target escapes the project: ${target}`);
         }
         const stats = lstatSync(source);
-        if (!stats.isFile() || stats.isSymbolicLink()) {
+        if (!stats.isFile()) {
           throw new Error(`Review target is not a regular file: ${target}`);
         }
-        const { bytes, content } = readContainedText(canonicalRoot, source, target);
+        // A hard link inside the project is intentionally treated as a regular
+        // in-project file; containment is path-based, and its bytes are copied.
+        const { bytes, content, device, inode } = readContainedText(
+          canonicalRoot,
+          source,
+          target,
+          MAX_PACKET_BYTES - packetBytes,
+        );
         const fileBytes = bytes.byteLength;
         if (fileBytes > MAX_FILE_BYTES) {
           throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
@@ -138,9 +186,19 @@ export function prepareReviewPacket(
           parent = nodePath.dirname(parent);
         }
         expectedSnapshotEntries.add(`file:${relative}`);
-        tracked.push({ source, snapshot, sha256: digest(bytes) });
+        tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
         return { path: relative, content };
       });
+    const seen = new Set<string>();
+    const rejectDuplicate = (target: string): void => {
+      const relative = nodePath.relative(canonicalRoot, nodePath.resolve(canonicalRoot, target));
+      if (seen.has(relative)) {
+        throw new Error(`Review packet contains a duplicate file: ${target}`);
+      }
+      seen.add(relative);
+    };
+    for (const target of targets) rejectDuplicate(target);
+    for (const target of context) rejectDuplicate(target);
     logicalFiles = captureFiles(targets);
     contextFiles = captureFiles(context);
   } catch (error) {
@@ -154,11 +212,15 @@ export function prepareReviewPacket(
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
   };
+  if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
+    rmSync(workspace, { recursive: true, force: true });
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+  }
   return {
     packet,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some(file => fileDigest(file.source) !== file.sha256),
+    sourceChanged: () => tracked.some(file => sourceFileChanged(file)),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {
@@ -175,4 +237,23 @@ export function prepareReviewPacket(
       rmSync(workspace, { recursive: true, force: true });
     },
   };
+}
+
+export function prepareReviewPacket(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[] = [],
+): PreparedReviewPacket {
+  try {
+    return prepareReviewPacketUnsafe(cwd, kind, targets, context);
+  } catch (error) {
+    if (error instanceof ReviewPacketError) throw error;
+    const message = error instanceof Error ? error.message : '';
+    throw new ReviewPacketError(
+      message.startsWith('Review ')
+        ? message
+        : 'Review packet could not be prepared. Check that every target and context path exists and is readable.',
+    );
+  }
 }

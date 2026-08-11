@@ -2,8 +2,8 @@
 id: 3FK4DC
 slug: reliable-independent-review
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/2386
 created: 2026-08-11T16:09:09.448Z
 last_modified: 2026-08-11T17:55:00.000Z
@@ -17,6 +17,10 @@ last_modified: 2026-08-11T17:55:00.000Z
 
 ## Work Log
 
+- 2026-08-11T22:35:00Z DONE: Added symmetric public-lifecycle coverage for Claude and Codex reviewers using explicit small- and large-tier model identifiers; all four routes pass end to end. Final lint, typecheck, packet, wiring, and isolated saturation-retry gates are green.
+- 2026-08-11T22:15:00Z REFACTOR: Extracted source-identity verification into a focused descriptor helper and kept the capture pipeline fail-closed without changing behavior.
+- 2026-08-11T21:50:00Z REVIEW FIX: Converted packet-construction failures into typed public results, bounded serialized packet bytes, verified source device/inode identity, and corrected stale Claude cleanup documentation.
+- 2026-08-11T18:20:00Z REVIEW FIX: Expanded lifecycle BDD proof to cover actionable missing-versus-incompatible recovery, non-launch of incompatible reviewers, target/context role separation, and alternate-model context preservation. Added packet hardening for early size rejection, duplicate-role rejection, source deletion, combined file-count bounds, and invalid-root cleanup ordering.
 - 2026-08-11T17:55:00Z REVIEW: Final focused packet hardening completed through Claude with `actual_reviewer: claude`, `independence: cross-agent`, and an approve verdict with no blocking findings.
 - 2026-08-11T17:48:00Z REVIEW FIX: Reviewer-controlled snapshot traversal failures now fail closed as typed mutation; 64 focused packet/public-wiring tests pass.
 - 2026-08-11T17:25:00Z VERIFY: Full unit/integration suite passed (7,603 tests; 6 skipped), build/type/dependency gates passed, and the three affected acceptance scenarios passed in isolation. The full 1,517-scenario lane had two unrelated retro-relay setup timeouts under load; both pass in 15 seconds when isolated.
@@ -33,6 +37,7 @@ last_modified: 2026-08-11T17:55:00.000Z
 - Report distinct reviewer discovery, compatibility-probe timeout, unsupported-capability, authentication, and launch failures through the public review result.
 - Prove Claude selection through the public CLI with both a normal PATH fixture and a constrained-PATH failure.
 - Let callers identify supporting context separately from review targets while keeping both bounded and untrusted.
+- Fail closed on duplicate packet paths and packet/source integrity ambiguity without leaking disposable workspaces.
 
 ## Out of Scope
 
@@ -52,6 +57,9 @@ last_modified: 2026-08-11T17:55:00.000Z
 - [x] RED/GREEN/REFACTOR: public CLI classifies each reviewer discovery/probe/launch boundary.
 - [x] RED/GREEN/REFACTOR: review packet labels targets and context while enforcing shared containment and size bounds.
 - [x] RED/GREEN/REFACTOR: legacy target-only command remains compatible.
+- [x] COVERAGE HARDENING: public lifecycle BDD proves blocked state, recovery guidance, non-launch, and context preservation across the alternate route.
+- [x] RED/GREEN/REFACTOR: packet capture rejects duplicate roles early and detects source deletion across combined bounds.
+- [x] PARITY: public lifecycle scenarios cover Claude and Codex as both author and reviewer, with small- and large-tier configured model identifiers.
 
 ## Root Cause
 
