@@ -327,7 +327,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Confirmatory estimates use a fresh holdout
 
 - [x] RED d6d054141
-- [ ] GREEN
+- [x] GREEN d832b5ba1
 - [ ] REFACTOR
 
 ### Scenario Outline: Invalid holdout construction cannot produce confirmatory estimates
