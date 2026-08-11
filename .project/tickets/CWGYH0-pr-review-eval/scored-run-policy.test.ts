@@ -35,7 +35,8 @@ function completedOutput(findings: unknown[] = []) {
 			usage: { inputTokens: 10, outputTokens: 2 },
 		},
 		score: { reviewValid: true },
-		trace: [],
+		terminalState: "completed",
+		trace: [{ type: "tool-call" }],
 	};
 }
 
@@ -193,6 +194,20 @@ describe("positive trial admission", () => {
 	] as const)("rejects %s with canonical reason %s", (_name, output, reason) => {
 		expect(classifyWithFrozenProvenance(output)).toMatchObject({
 			reason,
+			status: "invalid",
+		});
+	});
+
+	test.each([
+		["missing review-valid evidence", { ...completedOutput(), score: {} }, "schema-invalid"],
+		["non-boolean review-valid evidence", { ...completedOutput(), score: { reviewValid: "true" } }, "schema-invalid"],
+		["an empty execution trace", { ...completedOutput(), trace: [] }, "provenance-incomplete"],
+		["no explicit terminal state", { ...completedOutput(), terminalState: undefined }, "unexpected-finish"],
+		["a non-completed terminal state", { ...completedOutput(), terminalState: "failed" }, "unexpected-finish"],
+	] as const)("rejects %s rather than inferring completion", (_name, output, reason) => {
+		expect(classifyWithFrozenProvenance(output)).toEqual({
+			reason,
+			retry: "never",
 			status: "invalid",
 		});
 	});

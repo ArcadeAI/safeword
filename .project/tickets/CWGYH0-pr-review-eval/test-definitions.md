@@ -30,6 +30,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 2145bb94f
 - [x] REFACTOR skip: classifier partitions and adapter provenance remain single-purpose with no structural duplication to remove
 
+### Scenario Outline: Positive completion evidence cannot be inferred
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
 ### Scenario: One infrastructure failure is retried once

@@ -44,6 +44,20 @@ Feature: Keep failed reviews out of benchmark scores
         | mismatched frozen provenance         | provenance-mismatch       |
         | an unrecognized completion state     | unknown-state             |
 
+    @rejection
+    Scenario Outline: Positive completion evidence cannot be inferred
+      Given an otherwise completed trial has <defect>
+      When the evaluation harness classifies the trial
+      Then the trial is rejected with reason <reason>
+
+      Examples:
+        | defect                              | reason                |
+        | missing review-valid evidence       | schema-invalid        |
+        | non-boolean review-valid evidence   | schema-invalid        |
+        | an empty execution trace            | provenance-incomplete |
+        | no explicit terminal state          | unexpected-finish     |
+        | a non-completed terminal state      | unexpected-finish     |
+
   @pr-review-eval.SWM1.R2
   Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
