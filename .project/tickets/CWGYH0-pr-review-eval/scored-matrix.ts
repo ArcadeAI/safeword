@@ -46,30 +46,27 @@ function requireUnique(values: readonly (number | string)[], label: string): voi
 function deriveEffectiveCaseIds(input: ScoreableMatrixInput<MatrixRecord>): string[] {
 	requireUnique(input.primaryCaseIds, "primary case IDs");
 	requireUnique(input.reserveCaseIds, "reserve case IDs");
-	const primarySet = new Set(input.primaryCaseIds);
-	const quarantined = new Set<string>();
-	const replacements = new Map<string, string>();
+	const allCaseIds = [...input.primaryCaseIds, ...input.reserveCaseIds];
+	requireUnique(allCaseIds, "primary and reserve case IDs");
+	const effectiveCaseIds = [...input.primaryCaseIds];
 
 	input.allocations.forEach((allocation, index) => {
-		if (!primarySet.has(allocation.quarantinedCaseId)) {
-			throw new Error(`allocation names unknown primary: ${allocation.quarantinedCaseId}`);
-		}
-		if (quarantined.has(allocation.quarantinedCaseId)) {
-			throw new Error(`primary allocated more than once: ${allocation.quarantinedCaseId}`);
-		}
 		const expectedReplacement = input.reserveCaseIds[index];
 		if (allocation.replacementCaseId !== expectedReplacement) {
 			throw new Error(
 				`reserve allocation ${index + 1} must use ${expectedReplacement ?? "no exhausted reserve"}`,
 			);
 		}
-		quarantined.add(allocation.quarantinedCaseId);
-		replacements.set(allocation.quarantinedCaseId, allocation.replacementCaseId);
+		const replacedIndex = effectiveCaseIds.indexOf(allocation.quarantinedCaseId);
+		if (replacedIndex === -1) {
+			throw new Error(
+				`allocation does not replace a currently effective case: ${allocation.quarantinedCaseId}`,
+			);
+		}
+		effectiveCaseIds[replacedIndex] = allocation.replacementCaseId;
 	});
 
-	return input.primaryCaseIds.map(
-		(caseId) => replacements.get(caseId) ?? caseId,
-	);
+	return effectiveCaseIds;
 }
 
 function trialList(records: readonly MatrixRecord[]): string {

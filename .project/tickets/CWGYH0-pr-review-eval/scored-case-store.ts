@@ -7,6 +7,7 @@ import {
 	readFileSync,
 	readdirSync,
 	renameSync,
+	rmSync,
 	unlinkSync,
 	writeFileSync,
 } from "node:fs";
@@ -110,11 +111,29 @@ function nextReserveTransition<T extends ReserveState>(
 	};
 }
 
-function lockOwnerIsAlive(lockPath: string): boolean {
-	const owner = Number.parseInt(readFileSync(lockPath, "utf8").trim(), 10);
-	if (!Number.isSafeInteger(owner) || owner <= 0) return true;
+type LockOwner = { pid: number; token?: string };
+
+function readLockOwner(lockPath: string): LockOwner | null {
 	try {
-		process.kill(owner, 0);
+		const value = JSON.parse(
+			readFileSync(join(lockPath, "owner.json"), "utf8"),
+		) as Partial<LockOwner>;
+		if (!Number.isSafeInteger(value.pid) || (value.pid ?? 0) <= 0) return null;
+		return { pid: value.pid as number, token: value.token };
+	} catch {
+		try {
+			const pid = Number.parseInt(readFileSync(lockPath, "utf8").trim(), 10);
+			return Number.isSafeInteger(pid) && pid > 0 ? { pid } : null;
+		} catch {
+			return null;
+		}
+	}
+}
+
+function lockOwnerIsAlive(owner: LockOwner | null): boolean {
+	if (owner === null) return false;
+	try {
+		process.kill(owner.pid, 0);
 		return true;
 	} catch (error) {
 		return !(
@@ -128,34 +147,66 @@ function lockOwnerIsAlive(lockPath: string): boolean {
 export function acquireRunLock(outputRoot: string): RunLock {
 	mkdirSync(outputRoot, { recursive: true });
 	const lockPath = join(outputRoot, ".run.lock");
-	let descriptor: number;
-	try {
-		descriptor = openSync(lockPath, "wx");
-	} catch (error) {
-		if (!existsSync(lockPath)) throw error;
-		if (lockOwnerIsAlive(lockPath)) {
-			throw new Error(`benchmark output is already locked: ${lockPath}`);
-		}
-		unlinkSync(lockPath);
-		syncDirectory(outputRoot);
-		try {
-			descriptor = openSync(lockPath, "wx");
-		} catch {
-			throw new Error(`benchmark output is already locked: ${lockPath}`);
-		}
-	}
-	try {
-		writeFileSync(descriptor, `${process.pid}\n`);
-		fsyncSync(descriptor);
-	} finally {
-		closeSync(descriptor);
-	}
+	const token = randomUUID();
+	const candidatePath = join(outputRoot, `.run-lock-candidate-${process.pid}-${token}`);
+	mkdirSync(candidatePath);
+	writeJsonDurably(join(candidatePath, "owner.json"), { pid: process.pid, token });
 	syncDirectory(outputRoot);
+	let acquired = false;
+	try {
+		for (let attempt = 0; attempt < 16 && !acquired; attempt += 1) {
+			try {
+				renameSync(candidatePath, lockPath);
+				syncDirectory(outputRoot);
+				acquired = true;
+				break;
+			} catch (error) {
+				if (!existsSync(lockPath)) {
+					if (!existsSync(candidatePath)) throw error;
+					continue;
+				}
+			}
+
+			if (lockOwnerIsAlive(readLockOwner(lockPath))) {
+				throw new Error(`benchmark output is already locked: ${lockPath}`);
+			}
+
+			const stalePath = join(
+				outputRoot,
+				`.run-lock-stale-${process.pid}-${randomUUID()}`,
+			);
+			try {
+				renameSync(lockPath, stalePath);
+			} catch {
+				continue;
+			}
+			syncDirectory(outputRoot);
+			rmSync(stalePath, { force: true, recursive: true });
+			syncDirectory(outputRoot);
+		}
+		if (!acquired) {
+			throw new Error(`benchmark output lock changed too often: ${lockPath}`);
+		}
+	} catch (error) {
+		rmSync(candidatePath, { force: true, recursive: true });
+		throw error;
+	}
 	let released = false;
 	return {
 		release: () => {
 			if (released) return;
-			unlinkSync(lockPath);
+			const owner = readLockOwner(lockPath);
+			if (owner?.token !== token) {
+				released = true;
+				return;
+			}
+			const releasedPath = join(
+				outputRoot,
+				`.run-lock-released-${process.pid}-${token}`,
+			);
+			renameSync(lockPath, releasedPath);
+			syncDirectory(outputRoot);
+			rmSync(releasedPath, { force: true, recursive: true });
 			syncDirectory(outputRoot);
 			released = true;
 		},
