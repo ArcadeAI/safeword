@@ -308,7 +308,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Frozen raw artifacts can be reused
 
-- [ ] RED
+- [x] RED d6d054141
 - [ ] GREEN
 - [ ] REFACTOR
 
