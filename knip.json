@@ -10,6 +10,7 @@
     "packages/cli/vitest.slow.config.ts"
   ],
   "ignoreBinaries": [
+    "hook",
     "shfmt",
     "dot",
     "shellcheck",
@@ -43,6 +44,7 @@
   ],
   "ignoreUnresolved": [
     "\\.safeword/",
+    "scripts/generate-claude-historical-catalogue.ts",
     "scripts/check-claude-plugin-release.ts",
     "scripts/parity-check.ts"
   ],
