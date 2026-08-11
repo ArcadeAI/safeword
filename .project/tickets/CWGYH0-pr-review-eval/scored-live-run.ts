@@ -30,6 +30,7 @@ import {
 	sealActiveCase,
 	writeJsonDurably,
 } from "./scored-case-store";
+import { estimateAttemptUsage } from "./scored-cost";
 
 const ticketRoot = import.meta.dir;
 const sourceRepository = requireEnvironment("CWGYH0_SOURCE_REPOSITORY");
@@ -114,6 +115,7 @@ type RunState = {
 	candidateQueueIds: string[];
 	completedCaseIds: string[];
 	completedCases: number;
+	costAccountingComplete: boolean;
 	cumulativeCostUsd: number;
 	currentCaseId: string | null;
 	exclusions: Array<Record<string, unknown>>;
@@ -419,38 +421,13 @@ function serializeError(error: unknown): Record<string, unknown> {
 	return details;
 }
 
-function estimatedCost(output: {
-	report: unknown;
-}): { costUsd: number; inputTokens: number; outputTokens: number } {
-	const report = output.report as {
-		usage: { inputTokens: number; outputTokens: number };
-	};
-	const { inputTokens, outputTokens } = report.usage;
-	return {
-		costUsd:
-			(inputTokens * inputPricePerMillionUsd +
-				outputTokens * outputPricePerMillionUsd) /
-			1_000_000,
-		inputTokens,
-		outputTokens,
-	};
-}
-
 function estimatedAttemptCost(
-	attemptRecords: readonly { output: { report: unknown } | null }[],
-): { costUsd: number; inputTokens: number; outputTokens: number } {
-	return attemptRecords.reduce(
-		(total, attempt) => {
-			if (attempt.output === null) return total;
-			const usage = estimatedCost(attempt.output);
-			return {
-				costUsd: total.costUsd + usage.costUsd,
-				inputTokens: total.inputTokens + usage.inputTokens,
-				outputTokens: total.outputTokens + usage.outputTokens,
-			};
-		},
-		{ costUsd: 0, inputTokens: 0, outputTokens: 0 },
-	);
+	attemptRecords: readonly { output: unknown | null }[],
+) {
+	return estimateAttemptUsage(attemptRecords, {
+		inputPerMillionUsd: inputPricePerMillionUsd,
+		outputPerMillionUsd: outputPricePerMillionUsd,
+	});
 }
 
 async function writeJsonAtomically(path: string, value: unknown): Promise<void> {
@@ -600,6 +577,7 @@ if (preflightOnly) {
 			candidateQueueIds: shuffleFrozen(primary.cases, seed).map((item) => item.id),
 			completedCaseIds: [],
 			completedCases: 0,
+			costAccountingComplete: true,
 			cumulativeCostUsd: 0,
 			currentCaseId: null,
 			exclusions: [],
@@ -682,6 +660,8 @@ if (preflightOnly) {
 							: {};
 					return {
 						...current,
+						costAccountingComplete:
+							current.costAccountingComplete && usage.complete,
 						cumulativeCostUsd: current.cumulativeCostUsd + usage.costUsd,
 						exclusions: [
 							...current.exclusions,
@@ -710,6 +690,7 @@ if (preflightOnly) {
 	while (
 		state.completedCases < primary.cases.length &&
 		state.completedCases < cumulativeCaseTarget &&
+		state.costAccountingComplete &&
 		state.cumulativeCostUsd < cumulativeCostTargetUsd
 	) {
 		const continuingCase = state.currentCaseId !== null;
@@ -828,6 +809,8 @@ if (preflightOnly) {
 						reserveIds: reserve.cases.map((candidate) => candidate.id),
 						state: {
 							...state,
+							costAccountingComplete:
+								state.costAccountingComplete && usage.complete,
 							cumulativeCostUsd: state.cumulativeCostUsd + usage.costUsd,
 							exclusions: [...state.exclusions, exclusion],
 						},
@@ -892,6 +875,7 @@ if (preflightOnly) {
 		completedAt: new Date().toISOString(),
 		completedCaseIds: state.completedCaseIds,
 		completedCases: state.completedCases,
+		costAccountingComplete: state.costAccountingComplete,
 		cumulativeCaseTarget,
 		cumulativeCostTargetUsd,
 		cumulativeCostUsd: state.cumulativeCostUsd,

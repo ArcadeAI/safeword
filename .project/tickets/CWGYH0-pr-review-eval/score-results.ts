@@ -48,8 +48,8 @@ function readJson<T>(path: string): T {
 	return JSON.parse(readFileSync(path, "utf8")) as T;
 }
 
-function findingKey(input: Finding & { caseId: string; variant: Variant }): string {
-	return `${input.caseId}\u0000${input.variant}\u0000${input.file}\u0000${input.line}\u0000${input.title}`;
+function findingKey(input: EvidenceFinding): string {
+	return `${input.caseId}\u0000${input.variant}\u0000${input.system}\u0000${input.trial}\u0000${input.file}\u0000${input.line}\u0000${input.title}`;
 }
 
 function isNamedFinding(record: RecordFile, finding: Finding): boolean {
@@ -178,6 +178,8 @@ const scoreableFindings: EvidenceFinding[] = records.flatMap((record) =>
 		.map((finding) => ({
 			...finding,
 			caseId: record.caseId,
+			system: record.system,
+			trial: record.trial,
 			variant: record.variant,
 		})),
 );
@@ -198,7 +200,13 @@ for (const record of records) {
 			continue;
 		}
 		const verified = verificationByFinding.get(
-			findingKey({ ...finding, caseId: record.caseId, variant: record.variant }),
+			findingKey({
+				...finding,
+				caseId: record.caseId,
+				system: record.system,
+				trial: record.trial,
+				variant: record.variant,
+			}),
 		);
 		if (verified === undefined) {
 			classifications[record.system].unverifiedPending += 1;

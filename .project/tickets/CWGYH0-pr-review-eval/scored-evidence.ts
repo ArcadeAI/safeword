@@ -4,7 +4,9 @@ export type EvidenceFinding = {
 	caseId: string;
 	file: string;
 	line: number;
+	system: string;
 	title: string;
+	trial: number;
 	variant: "buggy" | "fixed";
 };
 
@@ -38,7 +40,7 @@ function isNonemptyString(value: unknown): value is string {
 }
 
 function findingKey(input: EvidenceFinding): string {
-	return `${input.caseId}\u0000${input.variant}\u0000${input.file}\u0000${input.line}\u0000${input.title}`;
+	return `${input.caseId}\u0000${input.variant}\u0000${input.system}\u0000${input.trial}\u0000${input.file}\u0000${input.line}\u0000${input.title}`;
 }
 
 function parseFinding(value: unknown, label: string): EvidenceFinding {
@@ -49,6 +51,9 @@ function parseFinding(value: unknown, label: string): EvidenceFinding {
 		!Number.isSafeInteger(value.line) ||
 		(value.line as number) <= 0 ||
 		!isNonemptyString(value.title) ||
+		!isNonemptyString(value.system) ||
+		!Number.isSafeInteger(value.trial) ||
+		(value.trial as number) <= 0 ||
 		(value.variant !== "buggy" && value.variant !== "fixed")
 	) {
 		throw new Error(`${label} has a malformed finding identity`);
