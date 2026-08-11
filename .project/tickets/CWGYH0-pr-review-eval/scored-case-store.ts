@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import {
 	closeSync,
 	existsSync,
@@ -136,7 +137,7 @@ function nextReserveTransition<T extends ReserveState>(
 	};
 }
 
-type LockOwner = { pid: number; token?: string };
+type LockOwner = { pid: number; processIdentity?: string; token?: string };
 
 function readLockOwner(lockPath: string): LockOwner | null {
 	try {
@@ -144,7 +145,11 @@ function readLockOwner(lockPath: string): LockOwner | null {
 			readFileSync(join(lockPath, "owner.json"), "utf8"),
 		) as Partial<LockOwner>;
 		if (!Number.isSafeInteger(value.pid) || (value.pid ?? 0) <= 0) return null;
-		return { pid: value.pid as number, token: value.token };
+		return {
+			pid: value.pid as number,
+			processIdentity: value.processIdentity,
+			token: value.token,
+		};
 	} catch {
 		try {
 			const pid = Number.parseInt(readFileSync(lockPath, "utf8").trim(), 10);
@@ -156,10 +161,10 @@ function readLockOwner(lockPath: string): LockOwner | null {
 }
 
 function lockOwnerIsAlive(owner: LockOwner | null): boolean {
-	if (owner === null) return false;
+	if (owner === null || typeof owner.processIdentity !== "string") return false;
 	try {
 		process.kill(owner.pid, 0);
-		return true;
+		return processIdentity(owner.pid) === owner.processIdentity;
 	} catch (error) {
 		return !(
 			error instanceof Error &&
@@ -169,13 +174,30 @@ function lockOwnerIsAlive(owner: LockOwner | null): boolean {
 	}
 }
 
+function processIdentity(pid: number): string | null {
+	const result = spawnSync("ps", ["-p", String(pid), "-o", "lstart="], {
+		encoding: "utf8",
+	});
+	if (result.status !== 0 || result.error !== undefined) return null;
+	const identity = result.stdout.trim();
+	return identity.length > 0 ? identity : null;
+}
+
 export function acquireRunLock(outputRoot: string): RunLock {
 	mkdirSync(outputRoot, { recursive: true });
 	const lockPath = join(outputRoot, ".run.lock");
 	const token = randomUUID();
+	const ownerProcessIdentity = processIdentity(process.pid);
+	if (ownerProcessIdentity === null) {
+		throw new Error("cannot establish benchmark lock process identity");
+	}
 	const candidatePath = join(outputRoot, `.run-lock-candidate-${process.pid}-${token}`);
 	mkdirSync(candidatePath);
-	writeJsonDurably(join(candidatePath, "owner.json"), { pid: process.pid, token });
+	writeJsonDurably(join(candidatePath, "owner.json"), {
+		pid: process.pid,
+		processIdentity: ownerProcessIdentity,
+		token,
+	});
 	syncDirectory(outputRoot);
 	let acquired = false;
 	try {

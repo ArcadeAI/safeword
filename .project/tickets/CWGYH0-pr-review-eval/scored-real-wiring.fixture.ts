@@ -171,6 +171,7 @@ try {
 	writeFileSync(join(outputRoot, "corpus-role.json"), corpusRoleBytes);
 	writeFileSync(join(outputRoot, "run-summary.json"), `${JSON.stringify({
 		completedCaseIds: ["RESERVE-A"],
+		corpusRegisteredAt: "2026-07-01T00:00:00.000Z",
 		corpusRoleSha256: createHash("sha256").update(corpusRoleBytes).digest("hex"),
 		exclusions: [{ caseId: reviewInput.caseId, replacementId: "RESERVE-A" }],
 		preflightId,

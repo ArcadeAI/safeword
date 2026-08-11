@@ -115,6 +115,23 @@ describe("durable case lifecycle", () => {
 		lock.release();
 	});
 
+	test("reclaims a stale lock after its PID is reused", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const lockPath = join(outputRoot, ".run.lock");
+		mkdirSync(lockPath);
+		writeFileSync(join(lockPath, "owner.json"), JSON.stringify({
+			pid: process.pid,
+			processIdentity: "a different process start",
+			token: "stale-owner",
+		}));
+
+		const lock = acquireRunLock(outputRoot);
+		expect(
+			JSON.parse(readFileSync(join(lockPath, "owner.json"), "utf8")),
+		).toMatchObject({ pid: process.pid });
+		lock.release();
+	});
+
 	test("one infrastructure failure is retried once before atomic admission", async () => {
 		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
 		const lock = acquireRunLock(outputRoot);

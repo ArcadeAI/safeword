@@ -46,7 +46,7 @@ export function freezeFixtureBlob(input: {
 	bytes: string;
 	digestPath: string;
 	gitRoot: string;
-	marker: "canary" | "canary-labels" | "raw-manifest";
+	marker: "canary" | "canary-labels" | "corpus-registration" | "raw-manifest";
 	repositoryIdentity: string;
 	anchorCreatedAt?: string;
 }): Record<string, string> {
@@ -86,7 +86,13 @@ export function freezeFixtureBlob(input: {
 		digestPath: input.digestPath,
 		repositoryIdentity: input.repositoryIdentity,
 	};
-	const commentId = input.marker === "canary" ? "1001" : input.marker === "raw-manifest" ? "1002" : "1003";
+	const commentId = input.marker === "canary"
+		? "1001"
+		: input.marker === "raw-manifest"
+		? "1002"
+		: input.marker === "canary-labels"
+		? "1003"
+		: "1004";
 	const anchorUrl = `https://api.github.com/repos/ArcadeAI/safeword/issues/comments/${commentId}`;
 	const createdAt = input.anchorCreatedAt ?? new Date().toISOString();
 	return {

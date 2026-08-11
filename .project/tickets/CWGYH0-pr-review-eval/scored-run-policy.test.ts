@@ -114,6 +114,12 @@ describe("positive trial admission", () => {
 			const evidence = output.report.expertOutcomes[0]!.providerResponses[0]!;
 			evidence.raw = evidence.raw.replace(',"usage":{"input_tokens":6,"output_tokens":1}', "");
 		}],
+		["fractional raw token usage", (output: ReturnType<typeof completedOutput>) => {
+			const first = output.report.expertOutcomes[0]!.providerResponses[0]!;
+			const raw = JSON.parse(first.raw) as { usage: { input_tokens: number } };
+			raw.usage.input_tokens = 5.5;
+			first.raw = JSON.stringify(raw);
+		}],
 		["aggregate usage that differs from retained turns", (output: ReturnType<typeof completedOutput>) => {
 			output.report.expertOutcomes[0]!.usage.inputTokens += 1;
 		}],

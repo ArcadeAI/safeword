@@ -60,13 +60,7 @@ const experts = {
 	full: join(ticketRoot, "scored-prompts/full"),
 	narrow: join(ticketRoot, "scored-prompts/narrow"),
 } as const;
-const expectedHashes = {
-	primaryManifest:
-		process.env.CWGYH0_PRIMARY_MANIFEST_SHA256 ??
-		"6180519f4d72f5b082baae9cd14af7848786f7601359ed1c3625769ef4146bc7",
-	reserveManifest:
-		process.env.CWGYH0_RESERVE_MANIFEST_SHA256 ??
-		"df4c1ae9fcff16c30bd24b30f54ffc6ebacd03a5e4f5796b5334fe773f360803",
+const expectedPromptHashes = {
 	fullCorrectness:
 		"95c67724efddc44716f0933709aa64a0f48ce4b96bf7c0692b696f29d3c2a712",
 	fullVerifier:
@@ -316,19 +310,20 @@ function certifyCase(item: RawCase, cutoff: Date): void {
 function validateFrozenInputs(
 	primary: RawManifest,
 	reserve: RawManifest,
+	expectedManifestHashes: { primaryManifest: string; reserveManifest: string },
 ): RawCase[] {
-	assertHash(primaryManifestPath, expectedHashes.primaryManifest);
-	assertHash(reserveManifestPath, expectedHashes.reserveManifest);
+	assertHash(primaryManifestPath, expectedManifestHashes.primaryManifest);
+	assertHash(reserveManifestPath, expectedManifestHashes.reserveManifest);
 	assertHash(
 		join(experts.full, "correctness.md"),
-		expectedHashes.fullCorrectness,
+		expectedPromptHashes.fullCorrectness,
 	);
-	assertHash(join(experts.full, "verifier.md"), expectedHashes.fullVerifier);
+	assertHash(join(experts.full, "verifier.md"), expectedPromptHashes.fullVerifier);
 	assertHash(
 		join(experts.narrow, "correctness.md"),
-		expectedHashes.narrowCorrectness,
+		expectedPromptHashes.narrowCorrectness,
 	);
-	assertHash(join(experts.narrow, "verifier.md"), expectedHashes.narrowVerifier);
+	assertHash(join(experts.narrow, "verifier.md"), expectedPromptHashes.narrowVerifier);
 	if (
 		primary.cases.length !== expectedPrimaryCaseCount ||
 		reserve.cases.length !== expectedReserveCaseCount
@@ -488,7 +483,45 @@ loadDevelopmentManifest(primaryManifestPath);
 loadDevelopmentManifest(reserveManifestPath);
 const primary = readRawManifest(primaryManifestPath);
 const reserve = readRawManifest(reserveManifestPath);
-const allCases = validateFrozenInputs(primary, reserve);
+const trustedAnchorAuthor = requireEnvironment("CWGYH0_TRUSTED_ANCHOR_AUTHOR");
+const registrationAnchor = await loadGitHubEvidenceAnchor(
+	requireEnvironment("CWGYH0_CORPUS_REGISTRATION_ANCHOR_URL"),
+	"corpus-registration",
+	trustedAnchorAuthor,
+);
+const pinnedRegistration = loadPinnedManifestFromGit({
+	commit: registrationAnchor.commit,
+	digestPath: registrationAnchor.digestPath,
+	expectedRepositoryIdentity: registrationAnchor.repositoryIdentity,
+	gitRoot: requireEnvironment("CWGYH0_CORPUS_REGISTRATION_GIT_ROOT"),
+	manifestPath: registrationAnchor.blobPath,
+});
+if (pinnedRegistration.digest !== registrationAnchor.digest) {
+	throw new Error("corpus registration differs from independently retained issue anchor");
+}
+const corpusRoleBytes = pinnedRegistration.manifestBytes;
+const corpusRole = JSON.parse(corpusRoleBytes) as {
+	developmentCaseIds?: unknown;
+	minimumPoweredCases?: unknown;
+	primaryCaseIds?: unknown;
+	primaryManifestSha256?: unknown;
+	reserveCaseIds?: unknown;
+	reserveManifestSha256?: unknown;
+	role?: unknown;
+	voidForInstrumentFailure?: unknown;
+};
+if (
+	typeof corpusRole.primaryManifestSha256 !== "string" ||
+	typeof corpusRole.reserveManifestSha256 !== "string"
+) {
+	throw new Error("corpus registration does not pin both manifest digests");
+}
+const expectedManifestHashes = {
+	primaryManifest: corpusRole.primaryManifestSha256,
+	reserveManifest: corpusRole.reserveManifestSha256,
+};
+const expectedHashes = { ...expectedManifestHashes, ...expectedPromptHashes };
+const allCases = validateFrozenInputs(primary, reserve, expectedManifestHashes);
 const safeRepositories = new Map<string, string>();
 
 const baseFrozenRun = {
@@ -498,6 +531,8 @@ const baseFrozenRun = {
 	expectedReserveCaseCount,
 	expectedRunnerRef,
 	expectedHashes,
+	corpusRegistrationDigest: pinnedRegistration.digest,
+	corpusRegisteredAt: registrationAnchor.createdAt,
 	inputPricePerMillionUsd,
 	model,
 	outputPricePerMillionUsd,
@@ -538,22 +573,8 @@ if (preflightOnly) {
 	);
 	console.log(`preflight passed for ${allCases.length} cases / ${safeRepositories.size} snapshots`);
 } else {
-	const trustedAnchorAuthor = requireEnvironment("CWGYH0_TRUSTED_ANCHOR_AUTHOR");
 	const certifiedPreflightPath = requireEnvironment("CWGYH0_PREFLIGHT_PATH");
 	const certifiedPreflightBytes = readFileSync(certifiedPreflightPath, "utf8");
-	const corpusRoleBytes = readFileSync(
-		requireEnvironment("CWGYH0_CORPUS_ROLE_PATH"),
-		"utf8",
-	);
-	const corpusRole = JSON.parse(corpusRoleBytes) as {
-		developmentCaseIds?: unknown;
-		minimumPoweredCases?: unknown;
-		preregisteredAt?: unknown;
-		primaryCaseIds?: unknown;
-		reserveCaseIds?: unknown;
-		role?: unknown;
-		voidForInstrumentFailure?: unknown;
-	};
 	const certifiedPreflight = JSON.parse(certifiedPreflightBytes) as Record<
 		string,
 		unknown
@@ -652,7 +673,6 @@ if (preflightOnly) {
 			JSON.stringify(reserve.cases.map(({ id }) => id)) ||
 		!Array.isArray(corpusRole.developmentCaseIds) ||
 		typeof corpusRole.minimumPoweredCases !== "number" ||
-		typeof corpusRole.preregisteredAt !== "string" ||
 		typeof corpusRole.voidForInstrumentFailure !== "boolean"
 	) {
 		throw new Error("corpus role does not match the frozen confirmatory manifests");
@@ -661,7 +681,7 @@ if (preflightOnly) {
 		caseIds: corpusRole.primaryCaseIds as string[],
 		developmentCaseIds: corpusRole.developmentCaseIds as string[],
 		minimumPoweredCases: corpusRole.minimumPoweredCases,
-		preregisteredAt: corpusRole.preregisteredAt,
+		preregisteredAt: registrationAnchor.createdAt,
 		preregisteredReserveIds: corpusRole.reserveCaseIds as string[],
 		reserveIds: reserve.cases.map(({ id }) => id),
 		reviewStartedAt: gateAnchor.createdAt,

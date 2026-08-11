@@ -107,6 +107,7 @@ const readVerifiedJson = <T>(identity: string): T => {
 
 const summary = readVerifiedJson<{
 	completedCaseIds: string[];
+	corpusRegisteredAt: string;
 	corpusRoleSha256: string;
 	exclusions: Array<{ caseId: string; replacementId: string }>;
 	primaryCases: string[];
@@ -130,7 +131,6 @@ if (
 const corpusRole = JSON.parse(corpusRoleBytes) as {
 	developmentCaseIds: string[];
 	minimumPoweredCases: number;
-	preregisteredAt: string;
 	primaryCaseIds: string[];
 	reserveCaseIds: string[];
 	role: string;
@@ -149,7 +149,7 @@ validateConfirmatoryCorpus({
 	caseIds: corpusRole.primaryCaseIds,
 	developmentCaseIds: corpusRole.developmentCaseIds,
 	minimumPoweredCases: corpusRole.minimumPoweredCases,
-	preregisteredAt: corpusRole.preregisteredAt,
+	preregisteredAt: summary.corpusRegisteredAt,
 	preregisteredReserveIds: corpusRole.reserveCaseIds,
 	reserveIds: summary.reserveCases,
 	reviewStartedAt: summary.reviewStartedAt,

@@ -9,7 +9,7 @@ export type EvidenceAnchor = {
 
 export async function loadGitHubEvidenceAnchor(
 	url: string,
-	marker: "canary" | "canary-labels" | "raw-manifest",
+	marker: "canary" | "canary-labels" | "corpus-registration" | "raw-manifest",
 	trustedAuthor: string,
 ): Promise<EvidenceAnchor> {
 	if (trustedAuthor.length === 0) throw new Error("trusted evidence-anchor author is required");

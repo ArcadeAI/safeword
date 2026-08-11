@@ -114,21 +114,32 @@ try {
 	};
 	writeFileSync(fixturePrimaryPath, `${JSON.stringify(fixturePrimary, null, 2)}\n`);
 	writeFileSync(fixtureReservePath, `${JSON.stringify(fixtureReserve, null, 2)}\n`);
-	const corpusRolePath = join(root, "corpus-role.json");
+	const corpusRegisteredAt = "2026-07-01T00:00:00.000Z";
 	const corpusRoleBytes = `${JSON.stringify({
 		developmentCaseIds: ["development-only"],
 		minimumPoweredCases: 1,
-		preregisteredAt: "2026-07-01T00:00:00.000Z",
 		primaryCaseIds: fixturePrimary.cases.map(({ id }) => id),
+		primaryManifestSha256: sha256(fixturePrimaryPath),
 		reserveCaseIds: fixtureReserve.cases.map(({ id }) => id),
+		reserveManifestSha256: sha256(fixtureReservePath),
 		role: "confirmatory",
 		voidForInstrumentFailure: false,
 	}, null, 2)}\n`;
-	writeFileSync(corpusRolePath, corpusRoleBytes);
+	const registrationEnvironment = freezeFixtureBlob({
+		anchorCreatedAt: corpusRegisteredAt,
+		blobPath: "corpus-registration.json",
+		bytes: corpusRoleBytes,
+		digestPath: "corpus-registration.sha256",
+		gitRoot: join(root, "corpus-registration-repository"),
+		marker: "corpus-registration",
+		repositoryIdentity: "https://example.test/corpus-registration.git",
+	});
 	const preflightPath = join(root, "preflight.json");
 	const fetchLog = join(root, "fetch.log");
 	const fixturePreflight = {
 		...preflight,
+		corpusRegisteredAt,
+		corpusRegistrationDigest: sha256Text(corpusRoleBytes),
 		expectedHashes: {
 			...preflight.expectedHashes,
 			primaryManifest: sha256(fixturePrimaryPath),
@@ -386,6 +397,8 @@ try {
 				anchorResponses: JSON.stringify({
 					[frozen.CWGYH0_RAW_MANIFEST_ANCHOR_URL]: frozen.CWGYH0_ANCHOR_RESPONSE,
 					[frozenLabels.CWGYH0_RAW_MANIFEST_ANCHOR_URL]: frozenLabels.CWGYH0_ANCHOR_RESPONSE,
+					[registrationEnvironment.CWGYH0_RAW_MANIFEST_ANCHOR_URL]:
+						registrationEnvironment.CWGYH0_ANCHOR_RESPONSE,
 				}),
 				anchorUrl: frozen.CWGYH0_RAW_MANIFEST_ANCHOR_URL,
 				gitRoot: gateGitRoot,
@@ -414,17 +427,18 @@ try {
 					CWGYH0_CANARY_LABEL_GIT_ROOT: gateEnvironment.labelGitRoot,
 					CWGYH0_CASE_TARGET: "1",
 					CWGYH0_CHECKPOINT_ID: checkpointId,
-					CWGYH0_CORPUS_ROLE_PATH: corpusRolePath,
+					CWGYH0_CORPUS_REGISTRATION_ANCHOR_URL:
+						registrationEnvironment.CWGYH0_RAW_MANIFEST_ANCHOR_URL,
+					CWGYH0_CORPUS_REGISTRATION_GIT_ROOT:
+						registrationEnvironment.CWGYH0_RAW_MANIFEST_GIT_ROOT,
 					CWGYH0_FETCH_LOG: input.fetchLog,
 					CWGYH0_FETCH_MODE: input.mode,
 					CWGYH0_EXPECTED_PRIMARY_CASES: "1",
 					CWGYH0_EXPECTED_RESERVE_CASES: "1",
 					CWGYH0_OUTPUT_ROOT: input.outputRoot,
 					CWGYH0_PRIMARY_MANIFEST_PATH: fixturePrimaryPath,
-					CWGYH0_PRIMARY_MANIFEST_SHA256: sha256(fixturePrimaryPath),
 					CWGYH0_PREFLIGHT_PATH: preflightPath,
 					CWGYH0_RESERVE_MANIFEST_PATH: fixtureReservePath,
-					CWGYH0_RESERVE_MANIFEST_SHA256: sha256(fixtureReservePath),
 					CWGYH0_SCRATCH_ROOT: join(root, input.scratchName),
 					CWGYH0_SOURCE_REPOSITORY: adapterRoot,
 					CWGYH0_TRUSTED_ANCHOR_AUTHOR: "fixture-anchor-author",

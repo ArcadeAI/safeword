@@ -97,10 +97,10 @@ function hasUsage(value: unknown): boolean {
 	const outputTokens = value.outputTokens;
 	return (
 		typeof inputTokens === "number" &&
-		Number.isFinite(inputTokens) &&
+		Number.isSafeInteger(inputTokens) &&
 		inputTokens >= 0 &&
 		typeof outputTokens === "number" &&
-		Number.isFinite(outputTokens) &&
+		Number.isSafeInteger(outputTokens) &&
 		outputTokens >= 0 &&
 		inputTokens + outputTokens > 0
 	);

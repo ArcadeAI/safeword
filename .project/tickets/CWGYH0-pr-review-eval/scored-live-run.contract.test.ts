@@ -58,9 +58,11 @@ describe("live scored-run lifecycle wiring", () => {
 	test("enforces corpus-role evidence in both the paid runner and scorer", () => {
 		const runner = readFileSync(join(ticketRoot, "scored-live-run.ts"), "utf8");
 		const scorer = readFileSync(join(ticketRoot, "score-results.ts"), "utf8");
-		expect(runner).toContain('requireEnvironment("CWGYH0_CORPUS_ROLE_PATH")');
+		expect(runner).toContain('requireEnvironment("CWGYH0_CORPUS_REGISTRATION_ANCHOR_URL")');
+		expect(runner).toContain('"corpus-registration"');
 		expect(runner).toContain("validateConfirmatoryCorpus({");
 		expect(runner).not.toContain('join(ticketRoot, "scored-cases-frozen-2026-08-01.json")');
+		expect(runner).not.toContain("CWGYH0_PRIMARY_MANIFEST_SHA256");
 		expect(scorer).toContain('readVerifiedText("corpus-role.json")');
 		expect(scorer).toContain("validateConfirmatoryCorpus({");
 	});

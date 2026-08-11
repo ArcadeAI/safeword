@@ -214,6 +214,7 @@ try {
 		join(outputRoot, "run-summary.json"),
 		`${JSON.stringify({
 			completedCaseIds: [caseId],
+			corpusRegisteredAt: "2026-07-01T00:00:00.000Z",
 			corpusRoleSha256: createHash("sha256").update(corpusRoleBytes).digest("hex"),
 			exclusions: [],
 			preflightId,
