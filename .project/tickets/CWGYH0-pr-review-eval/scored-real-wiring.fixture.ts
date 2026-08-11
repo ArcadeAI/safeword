@@ -92,18 +92,13 @@ try {
 		},
 		targetFor: () => ({ baseRef: "eval-base", root }),
 	});
-	const output = await execute(reviewInput);
-	const outcome = (output.report as {
-		expertOutcomes: Array<{ failure: { raw?: string } | null }>;
-	}).expertOutcomes[0];
-	assert.equal(outcome?.failure?.raw, raw);
-
 	const outputRoot = join(root, "output");
 	const caseState = beginProvisionalCase({
 		caseId: reviewInput.caseId,
 		ordinal: 1,
 		outputRoot,
 	});
+	let output: Awaited<ReturnType<typeof execute>> | undefined;
 	const result = await executeCaseWork({
 		caseState,
 		classify: (value) =>
@@ -118,7 +113,10 @@ try {
 				sourceSha: reviewInput.sourceSha,
 				variant: reviewInput.variant,
 			}),
-		execute: async () => output,
+		execute: async () => {
+			output = await execute(reviewInput);
+			return output;
+		},
 		outputRoot,
 		reserveIds: ["RESERVE-A"],
 		state: {
@@ -130,6 +128,11 @@ try {
 		},
 		workId: "full--buggy--t1",
 	});
+	if (output === undefined) throw new Error("real provider boundary did not execute");
+	const outcome = (output.report as {
+		expertOutcomes: Array<{ failure: { raw?: string } | null }>;
+	}).expertOutcomes[0];
+	assert.equal(outcome?.failure?.raw, raw);
 	assert.equal(result.status, "excluded");
 	if (result.status !== "excluded") throw new Error("expected exclusion");
 	assert.equal(result.result.disposition?.reason, "provider-failure");
