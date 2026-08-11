@@ -518,6 +518,7 @@ export async function executeWithInfrastructureRetry<T>(
 	execute: () => Promise<T>,
 	classify?: (value: T) => TrialDisposition,
 	options: {
+		canRetryAttempt?: (attempt: TrialAttempt<T>) => boolean;
 		onAttempt?: (attempt: TrialAttempt<T>) => void;
 		onBeforeAttempt?: (attempt: 1 | 2) => void;
 		priorAttemptRecords?: readonly TrialAttempt<T>[];
@@ -549,7 +550,9 @@ export async function executeWithInfrastructureRetry<T>(
 		}
 		if (
 			prior.attempt === 2 ||
-			(prior.disposition !== null && prior.disposition.retry === "never")
+			(prior.disposition !== null && prior.disposition.retry === "never") ||
+			(options.canRetryAttempt !== undefined &&
+				!options.canRetryAttempt(prior))
 		) {
 			return {
 				attempts: prior.attempt,
@@ -593,7 +596,11 @@ export async function executeWithInfrastructureRetry<T>(
 						? failed.error
 						: disposition.reason;
 					infrastructureErrors.push(summary);
-					if (attempts === 1) continue;
+					if (
+						attempts === 1 &&
+						(options.canRetryAttempt === undefined ||
+							options.canRetryAttempt(attempt))
+					) continue;
 				}
 				return {
 					attempts,
@@ -644,6 +651,18 @@ export async function executeWithInfrastructureRetry<T>(
 			} as TrialAttempt<T>;
 			attemptRecords.push(attempt);
 			persistAttempt(options.onAttempt, attempt);
+			if (
+				options.canRetryAttempt !== undefined &&
+				!options.canRetryAttempt(attempt)
+			) {
+				return {
+					attempts,
+					attemptRecords,
+					disposition: attempt.disposition ?? undefined,
+					infrastructureErrors,
+					status: "exclude-case",
+				};
+			}
 			if (attempts === 2) {
 				return {
 					attempts,

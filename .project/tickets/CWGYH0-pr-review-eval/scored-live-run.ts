@@ -1041,6 +1041,8 @@ if (preflightOnly) {
 						variant: reviewInput.variant,
 					}),
 					{
+						canRetryAttempt: (attempt) =>
+							estimatedAttemptCost([attempt]).complete,
 						onAttempt: (attempt) => recordTrialAttempt(caseState, workId, attempt),
 						onBeforeAttempt: (attempt) =>
 							recordTrialAttemptIntent(caseState, workId, attempt),

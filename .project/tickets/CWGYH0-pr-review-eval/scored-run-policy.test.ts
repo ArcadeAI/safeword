@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { estimateAttemptUsage } from "./scored-cost";
 import {
 	classifyTrialOutput,
 	executeWithInfrastructureRetry,
@@ -423,6 +424,50 @@ describe("one-retry policy", () => {
 			value: "ok",
 		});
 		expect(result.attemptRecords).toHaveLength(2);
+	});
+
+	test("does not retry a thrown provider failure whose cost is unknown", async () => {
+		let calls = 0;
+		const result = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				throw new RequestError(503);
+			},
+			undefined,
+			{
+				canRetryAttempt: (attempt) =>
+					estimateAttemptUsage([attempt]).complete,
+			},
+		);
+
+		expect(calls).toBe(1);
+		expect(result).toMatchObject({ attempts: 1, status: "exclude-case" });
+	});
+
+	test("does not retry a provider output with missing usage", async () => {
+		let calls = 0;
+		const failed = completedOutput();
+		failed.report.expertOutcomes[0] = {
+			...failed.report.expertOutcomes[0],
+			error: "anthropic request failed with HTTP 503",
+			failure: { kind: "provider-request", status: 503 },
+		};
+		failed.report.usage = undefined as never;
+		failed.score.reviewValid = false;
+		const result = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				return failed;
+			},
+			(value) => classifyTrialOutput(value, expectedRoute, expectedProvenance),
+			{
+				canRetryAttempt: (attempt) =>
+					estimateAttemptUsage([attempt]).complete,
+			},
+		);
+
+		expect(calls).toBe(1);
+		expect(result).toMatchObject({ attempts: 1, status: "exclude-case" });
 	});
 
 	test("retries one embedded provider failure and preserves both paid outputs", async () => {
