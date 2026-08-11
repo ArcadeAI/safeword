@@ -50,6 +50,32 @@ describe("scoreable matrix derivation", () => {
 		});
 	});
 
+	test("resolves a failed reserve to the next deterministic reserve", () => {
+		const input = completeInput();
+		input.allocations.push({
+			quarantinedCaseId: "RESERVE-A",
+			replacementCaseId: "RESERVE-B",
+		});
+		input.records = completeRecords(["PRIMARY-A", "RESERVE-B"]);
+
+		const result = deriveScoreableMatrix(input);
+
+		expect(result.effectiveCaseIds).toEqual(["PRIMARY-A", "RESERVE-B"]);
+		expect(result.gates.allCasesComplete).toBe(true);
+	});
+
+	test("rejects an allocation that does not replace a currently effective case", () => {
+		const input = completeInput();
+		input.allocations.push({
+			quarantinedCaseId: "PRIMARY-B",
+			replacementCaseId: "RESERVE-B",
+		});
+
+		expect(() => deriveScoreableMatrix(input)).toThrow(
+			"allocation does not replace a currently effective case: PRIMARY-B",
+		);
+	});
+
 	test.each([
 		["one unusable reviewer trial", (records: MatrixRecord[]) => {
 			records[0] = { ...records[0]!, usable: false };

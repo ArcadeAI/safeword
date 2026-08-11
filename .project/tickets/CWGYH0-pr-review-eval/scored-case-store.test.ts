@@ -1,5 +1,6 @@
 import {
 	existsSync,
+	mkdirSync,
 	readFileSync,
 	readdirSync,
 	renameSync,
@@ -93,9 +94,21 @@ describe("durable case lifecycle", () => {
 
 		const lock = acquireRunLock(outputRoot);
 
-		expect(readFileSync(join(outputRoot, ".run.lock"), "utf8")).toBe(
-			`${process.pid}\n`,
-		);
+		expect(
+			JSON.parse(readFileSync(join(outputRoot, ".run.lock", "owner.json"), "utf8")),
+		).toMatchObject({ pid: process.pid });
+		lock.release();
+	});
+
+	test("reclaims an empty lock left by a crash during acquisition", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		mkdirSync(join(outputRoot, ".run.lock"));
+
+		const lock = acquireRunLock(outputRoot);
+
+		expect(
+			JSON.parse(readFileSync(join(outputRoot, ".run.lock", "owner.json"), "utf8")),
+		).toMatchObject({ pid: process.pid });
 		lock.release();
 	});
 

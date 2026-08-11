@@ -163,6 +163,12 @@ Feature: Keep failed reviews out of benchmark scores
       When the harness restarts against the same output directory
       Then it safely reclaims the stale lock and becomes the sole owner
 
+    Scenario: Contending restarts cannot both reclaim one stale lock
+      Given one stale run lock and two harness processes waiting to restart
+      When both processes try to reclaim the lock at the same time
+      Then exactly one process becomes the sole owner
+      And the other process stops without disturbing the new owner's lock
+
     Scenario: A failed durable write does not poison the next write
       Given serializing a state update fails after its temporary file is created
       When the harness retries the same state target with valid data

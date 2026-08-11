@@ -102,6 +102,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN c6c15a9d5
 - [x] REFACTOR skip: ownership probing and recovery ordering are already isolated helpers
 
+### Scenario: Contending restarts cannot both reclaim one stale lock
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A failed durable write does not poison the next write
 
 - [x] RED 32c2b0a28
