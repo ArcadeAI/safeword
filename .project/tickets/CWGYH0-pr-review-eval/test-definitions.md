@@ -105,7 +105,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A failed durable write does not poison the next write
 
 - [x] RED 32c2b0a28
-- [ ] GREEN
+- [x] GREEN b20381597
 - [ ] REFACTOR
 
 ### Scenario Outline: Injected crashes exercise the durable quarantine transaction
