@@ -217,7 +217,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The live entry point is exercised without provider spend
 
 - [x] RED skip: quality-review requested process-level proof after the orchestration was already implemented
-- [ ] GREEN
+- [x] GREEN 0aa2de93a
 - [ ] REFACTOR
 
 ### Scenario: The adapter checkout is explicit and commit-pinned
