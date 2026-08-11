@@ -56,7 +56,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Scored finding views agree with the routed reviewer output
 
-- [ ] RED
+- [x] RED 8eb575194
 - [ ] GREEN
 - [ ] REFACTOR
 
