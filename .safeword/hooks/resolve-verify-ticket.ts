@@ -151,6 +151,14 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
   };
 }
 
+function existingTicketPaths(projectDirectory: string, prefix: string, paths: string[]): string[] {
+  return paths
+    .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
+    .map(path => nodePath.resolve(projectDirectory, path))
+    .filter(path => existsSync(path))
+    .sort();
+}
+
 function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
   const namespaceRelative = nodePath.relative(projectDirectory, namespaceRoot);
@@ -164,16 +172,8 @@ function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   if (changed.state === 'error') return changed;
   return {
     state: 'available',
-    paths: changed.paths
-      .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
-      .map(path => nodePath.resolve(projectDirectory, path))
-      .filter(path => existsSync(path))
-      .sort(),
-    preexistingPaths: changed.preexistingPaths
-      .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
-      .map(path => nodePath.resolve(projectDirectory, path))
-      .filter(path => existsSync(path))
-      .sort(),
+    paths: existingTicketPaths(projectDirectory, prefix, changed.paths),
+    preexistingPaths: existingTicketPaths(projectDirectory, prefix, changed.preexistingPaths),
   };
 }
 
