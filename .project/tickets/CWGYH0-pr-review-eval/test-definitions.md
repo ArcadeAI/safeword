@@ -158,7 +158,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A thrown attempt is not assumed to be free
 
-- [ ] RED
+- [x] RED bad6d0a87
 - [ ] GREEN
 - [ ] REFACTOR
 
