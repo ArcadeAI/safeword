@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { mean, pairedBootstrapInterval } from "./scored-analysis";
+import { deriveScoreableMatrix } from "./scored-matrix";
 import { classifyTrialOutput } from "./scored-run-policy";
 
 const seed = 5_453_573;
@@ -59,24 +60,38 @@ function isNamedFinding(record: RecordFile, finding: Finding): boolean {
 const outputRoot = requireArgument(2, "scored output directory");
 const resultsPath = requireArgument(3, "results path");
 const verificationPath = process.argv[4];
+const preflightPath =
+	process.env.CWGYH0_PREFLIGHT_PATH ??
+	requireArgument(5, "contamination preflight path");
 if (existsSync(resultsPath)) throw new Error(`refusing to overwrite ${resultsPath}`);
 
 const summary = readJson<{
 	completedCaseIds: string[];
-	exclusions: unknown[];
+	exclusions: Array<{ caseId: string }>;
+	primaryCases: string[];
+	reserveCases: string[];
 	status: string;
 }>(join(outputRoot, "run-summary.json"));
-if (summary.status !== "completed" || summary.completedCaseIds.length !== 30) {
+if (summary.status !== "completed") {
 	throw new Error("scored run is incomplete");
 }
+const preflight = readJson<{
+	preflightedRepositories: number;
+	primaryCases: string[];
+	reserveCases: string[];
+	status: string;
+}>(preflightPath);
 
-const records: RecordFile[] = [];
+const rawRecords: RecordFile[] = [];
 const glob = new Bun.Glob("active/*/*.json");
 for (const relativePath of glob.scanSync(outputRoot)) {
 	const record = readJson<RecordFile>(join(outputRoot, relativePath));
 	if (!systems.includes(record.system) || !variants.includes(record.variant)) {
 		throw new Error(`unexpected record dimensions in ${relativePath}`);
 	}
+	rawRecords.push(record);
+}
+const classifiedRecords = rawRecords.map((record) => {
 	const disposition = classifyTrialOutput(record.output, "correctness", {
 		caseId: record.caseId,
 		reviewBaseSha: record.reviewBaseSha,
@@ -84,36 +99,44 @@ for (const relativePath of glob.scanSync(outputRoot)) {
 		sourceSha: record.sourceSha,
 		variant: record.variant,
 	});
-	if (disposition.status !== "usable") {
-		throw new Error(
-			`unusable scored record ${relativePath}: ${disposition.reason}`,
-		);
-	}
-	records.push(record);
-}
-if (records.length !== 30 * systems.length * variants.length * trials) {
-	throw new Error(`expected 360 completed records, found ${records.length}`);
-}
+	return { ...record, usable: disposition.status === "usable" };
+});
+const expectedRepositories =
+	(summary.primaryCases.length + summary.reserveCases.length) * variants.length;
+const matrix = deriveScoreableMatrix({
+	allocations: summary.exclusions.map((exclusion, index) => ({
+		quarantinedCaseId: exclusion.caseId,
+		replacementCaseId: summary.reserveCases[index] ?? "",
+	})),
+	preflight: {
+		expectedRepositoryCount: expectedRepositories,
+		observedRepositoryCount: preflight.preflightedRepositories,
+		status:
+			JSON.stringify(preflight.primaryCases) ===
+				JSON.stringify(summary.primaryCases) &&
+			JSON.stringify(preflight.reserveCases) ===
+				JSON.stringify(summary.reserveCases)
+				? preflight.status
+				: "mismatched",
+	},
+	primaryCaseIds: summary.primaryCases,
+	records: classifiedRecords,
+	reserveCaseIds: summary.reserveCases,
+	systems,
+	trials: Array.from({ length: trials }, (_, index) => index + 1),
+	variants,
+});
+const records = matrix.admittedRecords;
 
-const byCell = new Map<string, RecordFile[]>();
-for (const record of records) {
+const byCell = new Map<string, typeof records>();
+for (const record of matrix.admittedRecords) {
 	const key = `${record.caseId}:${record.system}:${record.variant}`;
 	const cell = byCell.get(key) ?? [];
 	cell.push(record);
 	byCell.set(key, cell);
 }
-for (const caseId of summary.completedCaseIds) {
-	for (const system of systems) {
-		for (const variant of variants) {
-			const cell = byCell.get(`${caseId}:${system}:${variant}`) ?? [];
-			if (cell.length !== trials || new Set(cell.map((record) => record.trial)).size !== trials) {
-				throw new Error(`${caseId}:${system}:${variant} does not have trials 1..3`);
-			}
-		}
-	}
-}
 
-const caseRows = summary.completedCaseIds.map((caseId) => {
+const caseRows = matrix.effectiveCaseIds.map((caseId) => {
 	const hitRate = (system: SystemName, variant: Variant): number =>
 		mean(
 			(byCell.get(`${caseId}:${system}:${variant}`) ?? []).map((record) =>
@@ -190,8 +213,7 @@ const verificationComplete =
 	classifications.full.unverifiedPending === 0 &&
 	classifications.narrow.unverifiedPending === 0;
 const gates = {
-	allCasesComplete: true,
-	contaminationPreflightPassed: true,
+	...matrix.gates,
 	fullHasNoDirectlyFalsifiedFindings: classifications.full.falsified === 0,
 	fullHasNoFixedNamedHits: fullFixedNamedHits === 0,
 	recallLower95AboveZero: recallInterval.lower95 > 0,
