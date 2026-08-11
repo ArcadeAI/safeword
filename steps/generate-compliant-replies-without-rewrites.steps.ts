@@ -104,11 +104,21 @@ function assertNoCorrection(world: SafewordWorld): void {
   assert.equal(world.result.stdout.trim(), '');
 }
 
-function assertCanonicalCorrection(world: SafewordWorld): void {
+function correctionReason(world: SafewordWorld): string {
   assert.equal(world.result.exitCode, 0, world.result.stderr);
   const output = JSON.parse(world.result.stdout) as { decision?: string; reason?: string };
   assert.equal(output.decision, 'block');
-  assert.match(output.reason ?? '', /\*\*CONFIDENT\*\*[\s\S]*\*\*BLOCKED\*\*/u);
+  return output.reason ?? '';
+}
+
+function assertConfidentCorrection(world: SafewordWorld): void {
+  const reason = correctionReason(world);
+  assert.match(reason, /\*\*CONFIDENT\*\*[\s\S]*\*\*Next:\*\*/u);
+  assert.doesNotMatch(reason, /\*\*BLOCKED\*\*/u);
+}
+
+function assertVerdictChoiceCorrection(world: SafewordWorld): void {
+  assert.match(correctionReason(world), /\*\*CONFIDENT\*\*[\s\S]*\*\*BLOCKED\*\*/u);
 }
 
 After(function (this: SafewordWorld) {
@@ -215,12 +225,12 @@ Then('no format-correction continuation is emitted', function (this: SafewordWor
 });
 
 Then('the canonical format correction is emitted', function (this: SafewordWorld) {
-  assertCanonicalCorrection(this);
+  assertConfidentCorrection(this);
 });
 
 Then('exactly one canonical format correction is emitted', function (this: SafewordWorld) {
   assert.equal(this.result.stdout.trim().split('\n').length, 1);
-  assertCanonicalCorrection(this);
+  assertVerdictChoiceCorrection(this);
 });
 
 Then('no further format-correction continuation is emitted', function (this: SafewordWorld) {

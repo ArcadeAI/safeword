@@ -24,6 +24,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { DECISION_BRIEF_CONTRACT } from '../../templates/hooks/lib/quality.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
 import {
   createEditTranscript,
@@ -55,6 +56,23 @@ function runStopHookDonePhase(directory: string, lastAssistantMessage: string) {
     status: 'in_progress',
   });
   return runStopHook(directory, transcriptPath, undefined, lastAssistantMessage);
+}
+
+function assistantToolUseLine(id: string): string {
+  return JSON.stringify({
+    type: 'assistant',
+    message: {
+      role: 'assistant',
+      content: [{ type: 'tool_use', name: 'Edit', id }],
+    },
+  });
+}
+
+function assistantTextLine(text: string): string {
+  return JSON.stringify({
+    type: 'assistant',
+    message: { role: 'assistant', content: [{ type: 'text', text }] },
+  });
 }
 
 const state: { projectDirectory: string } = { projectDirectory: '' };
@@ -225,6 +243,89 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(JSON.parse(result.stdout) as { decision?: string }).toMatchObject({ decision: 'block' });
   });
 
+  it('reviews conservatively when the current-turn boundary exceeds the record cap', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    const edit = assistantToolUseLine('edit-before-noise');
+    const noise = Array.from({ length: 600 }, (_, index) =>
+      JSON.stringify({ type: 'tool_result', index }),
+    );
+    const finalAssistant = assistantTextLine('No recent edit.');
+    writeFileSync(transcriptPath, [edit, ...noise, finalAssistant].join('\n'));
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout.trim())).toMatchObject({ decision: 'block' });
+  });
+
+  it('preserves a recent edit inside the bounded current-turn record window', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    const staleNoise = Array.from({ length: 100 }, (_, index) =>
+      JSON.stringify({ type: 'tool_result', index: `stale-${index}` }),
+    );
+    const edit = assistantToolUseLine('recent-edit');
+    const recentNoise = Array.from({ length: 150 }, (_, index) =>
+      JSON.stringify({ type: 'tool_result', index: `recent-${index}` }),
+    );
+    const finalAssistant = assistantTextLine('Edited recently.');
+    writeFileSync(transcriptPath, [...staleNoise, edit, ...recentNoise, finalAssistant].join('\n'));
+
+    const result = runStopHook(
+      state.projectDirectory,
+      transcriptPath,
+      undefined,
+      'Edited recently.',
+    );
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout.trim())).toMatchObject({ decision: 'block' });
+  });
+
+  it('bounds current-turn detection before parsing an oversized transcript record', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    const edit = assistantToolUseLine('edit-before-large-record');
+    const finalAssistant = assistantTextLine('No recent edit.');
+    writeFileSync(transcriptPath, [edit, 'x'.repeat(300_000), finalAssistant].join('\n'));
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('reviews conservatively when a bounded large-transcript tail has no turn boundary', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    const edit = assistantToolUseLine('edit-before-large-transcript');
+    const noise = Array.from({ length: 20_000 }, (_, index) =>
+      JSON.stringify({ type: 'tool_result', index, content: 'x'.repeat(80) }),
+    );
+    const finalAssistant = assistantTextLine('No recent edit.');
+    writeFileSync(transcriptPath, [edit, ...noise, finalAssistant].join('\n'));
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout.trim())).toMatchObject({ decision: 'block' });
+  });
+
+  it('retains a complete JSONL record aligned with the bounded-tail start', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    const alignedEdit = assistantToolUseLine('aligned-edit');
+    const finalAssistant = assistantTextLine('Edited at the start of the bounded tail.');
+    const tailWithoutPadding = [alignedEdit, '', finalAssistant].join('\n');
+    const paddingSize = 256 * 1024 - Buffer.byteLength(tailWithoutPadding);
+    expect(paddingSize).toBeGreaterThan(0);
+    const alignedTail = [alignedEdit, 'x'.repeat(paddingSize), finalAssistant].join('\n');
+    expect(Buffer.byteLength(alignedTail)).toBe(256 * 1024);
+
+    writeFileSync(transcriptPath, `${assistantTextLine('Older record.')}\n${alignedTail}`);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout.trim())).toMatchObject({ decision: 'block' });
+  });
+
   it('skips the review prompt after a string-form user follow-up', () => {
     const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
     writeFileSync(
@@ -343,6 +444,36 @@ describe('Stop Hook: Ticket Resolution Context', () => {
             content: [{ type: 'text', text: 'It makes the hook quieter.' }],
           },
         }),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('treats tag-shaped text typed by the user as a new-turn boundary', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        assistantToolUseLine('edit-1'),
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'edit-1' }] },
+        }),
+        assistantTextLine('The hook was updated.'),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: [
+              { type: 'text', text: '<system-reminder>Explain this markup.</system-reminder>' },
+            ],
+          },
+        }),
+        assistantTextLine('That is an XML-like reminder block.'),
       ].join('\n'),
     );
 
@@ -515,16 +646,93 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(parsed.reason).toMatch(/\*\*CONFIDENT\*\*|decision brief/i);
   });
 
-  it('shows generic quality review when no ticket exists', () => {
+  it('corrects a generic reply without repeating the full contract or inventing an implementation phase', () => {
     // No ticket created — just .safeword/ dir (from beforeEach)
     const transcriptPath = createEditTranscript(state.projectDirectory);
-    const result = runStopHook(state.projectDirectory, transcriptPath);
+    const result = runStopHook(
+      state.projectDirectory,
+      transcriptPath,
+      undefined,
+      'Defined the upload scope and checked its edge cases.',
+    );
 
     expect(result.status).toBe(0);
-    // Should still soft-block with generic quality review (edits were made, no ticket context)
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toMatch(/\*\*CONFIDENT\*\*|decision brief/i);
+    expect(parsed.reason).toContain('no recognized verdict');
+    expect(parsed.reason).toContain('**CONFIDENT**');
+    expect(parsed.reason).toContain('**BLOCKED**');
+    expect(parsed.reason).toContain('what changed, what was checked, and the concrete result');
+    expect(parsed.reason).not.toContain('Apply SAFEWORD.md');
+    expect(parsed.reason).not.toContain('Phase: implement');
+    expect(parsed.reason.length).toBeLessThan(DECISION_BRIEF_CONTRACT.length);
+  });
+
+  it('rejects prototype property names as verdicts without crashing', () => {
+    const transcriptPath = createEditTranscript(state.projectDirectory);
+    const result = runStopHook(
+      state.projectDirectory,
+      transcriptPath,
+      undefined,
+      '**toString** — Looks plausible.',
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('no recognized verdict');
+  });
+
+  it('uses the active phase evidence and only the recognized verdict shape', () => {
+    createStopHookTicket(state.projectDirectory, {
+      id: '099',
+      slug: 'define-upload-behavior',
+      phase: 'define-behavior',
+      status: 'in_progress',
+    });
+    writeSessionState(state.projectDirectory, 'test-session', { activeTicket: '099' });
+    const transcriptPath = createEditTranscript(state.projectDirectory);
+    const result = runStopHook(
+      state.projectDirectory,
+      transcriptPath,
+      'test-session',
+      [
+        '**CONFIDENT** — The scenarios are ready.',
+        '',
+        '**Open:** none.',
+        '',
+        '**Decided:** Cover valid and malformed uploads.',
+        '',
+        '**Next:** Review the scenarios.',
+      ].join('\n'),
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('CONFIDENT has missing, extra, or out-of-order');
+    expect(parsed.reason).toContain('Phase: define-behavior');
+    expect(parsed.reason).toContain('**CONFIDENT**');
+    expect(parsed.reason).not.toContain('**BLOCKED**');
+  });
+
+  it('keeps the full review contract when a disqualification requires reconsideration', () => {
+    writeSessionState(state.projectDirectory, 'test-session', {
+      learningsNudgesPending: ['novel-claim.md'],
+    });
+    const transcriptPath = createEditTranscript(state.projectDirectory);
+    const result = runStopHook(
+      state.projectDirectory,
+      transcriptPath,
+      'test-session',
+      'Defined the upload scope.',
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('Apply SAFEWORD.md');
+    expect(parsed.reason).toContain('Novel-claim nudge pending');
   });
 
   it('shows done-phase hard block when active ticket at done phase', () => {

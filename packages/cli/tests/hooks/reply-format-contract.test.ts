@@ -9,7 +9,9 @@ import {
   DECISION_BRIEF_GRAMMAR,
   DECISION_BRIEF_MAX_WORK_FACTOR,
   evaluateDecisionBriefCompliance,
+  GENERIC_REVIEW_EVIDENCE,
   renderDecisionBriefContract,
+  renderDecisionBriefCorrection,
 } from '../../templates/hooks/lib/quality.js';
 import { createDecisionBriefContextResponse } from '../../templates/hooks/session-reply-format.js';
 
@@ -91,6 +93,137 @@ const BLOCKED = [
 const brief = (paragraphs: readonly string[], separator = '\n\n') => paragraphs.join(separator);
 
 describe('terminal decision-brief parser', () => {
+  it('renders a self-contained phase-neutral correction when no verdict is recognized', () => {
+    const evaluation = evaluateDecisionBriefCompliance('Defined the upload scope.');
+    const correction = renderDecisionBriefCorrection(evaluation, GENERIC_REVIEW_EVIDENCE);
+
+    expect(evaluation.violation).toEqual({ kind: 'verdict-count', count: 0 });
+    expect(correction).toContain('no recognized verdict');
+    expect(correction).toMatch(/\*\*CONFIDENT\*\*[^\n]*\n\n\*\*Decided:\*\*/u);
+    expect(correction).toMatch(/\*\*BLOCKED\*\*[^\n]*\n\n\*\*Tried:\*\*/u);
+    expect(correction).toContain('only if human input is required');
+    expect(correction).toContain(GENERIC_REVIEW_EVIDENCE);
+    expect(correction).not.toContain('Phase: implement');
+    expect(correction).not.toContain('Apply SAFEWORD.md');
+    expect(correction.length).toBeLessThan(DECISION_BRIEF_CONTRACT.length);
+  });
+
+  it.each([
+    ['multiple verdicts', `${brief(CONFIDENT)}\n\n${brief(BLOCKED)}`, 'verdict-count'],
+    ['labels before verdict', `**Open:** none.\n\n${brief(CONFIDENT)}`, 'labels-before-verdict'],
+    [
+      'wrong label sequence',
+      brief([CONFIDENT[0], CONFIDENT[2], CONFIDENT[1], CONFIDENT[3]]),
+      'label-sequence',
+    ],
+  ])('classifies %s for a specific correction', (_name, reply, expectedKind) => {
+    expect(evaluateDecisionBriefCompliance(reply).violation?.kind).toBe(expectedKind);
+  });
+
+  it('uses a self-contained generic correction when no classified violation is available', () => {
+    const correction = renderDecisionBriefCorrection(
+      { compliant: false, examinedCharacters: 0 },
+      GENERIC_REVIEW_EVIDENCE,
+    );
+
+    expect(correction).toContain('does not match the decision-brief grammar');
+    expect(correction).toContain('**CONFIDENT**');
+    expect(correction).toContain('**BLOCKED**');
+    expect(correction).toContain(GENERIC_REVIEW_EVIDENCE);
+  });
+
+  it('rejects prototype property names as unrecognized verdicts', () => {
+    const evaluation = evaluateDecisionBriefCompliance('**toString** — Looks plausible.');
+
+    expect(evaluation).toMatchObject({
+      compliant: false,
+      violation: { kind: 'verdict-count', count: 0 },
+    });
+  });
+
+  it('recognizes a valid brief after a blank line ends a generic HTML block', () => {
+    const reply = `<span>\n\n${brief(CONFIDENT)}`;
+
+    expect(evaluateDecisionBriefCompliance(reply).compliant).toBe(true);
+  });
+
+  it('recognizes a valid brief after a blank line ends block-tag HTML', () => {
+    const reply = `<div>\nexample\n\n${brief(CONFIDENT)}`;
+
+    expect(evaluateDecisionBriefCompliance(reply).compliant).toBe(true);
+  });
+
+  it('recognizes lone carriage returns as CommonMark line endings', () => {
+    expect(evaluateDecisionBriefCompliance(brief(CONFIDENT, '\r\r')).compliant).toBe(true);
+  });
+
+  it.each([
+    ['verdict', `${brief(CONFIDENT, '\r\r')}\r\r${BLOCKED[0]}`],
+    ['label', `${brief(CONFIDENT, '\r\r')}\r\r**Open:** hidden.`],
+  ])('rejects a trailing %s separated by lone carriage returns', (_name, reply) => {
+    expect(evaluateDecisionBriefCompliance(reply).compliant).toBe(false);
+  });
+
+  it('keeps block-tag HTML active through a closing tag until a blank line', () => {
+    const reply = `<div>\nexample\n</div>\n${brief(CONFIDENT)}`;
+
+    expect(evaluateDecisionBriefCompliance(reply).compliant).toBe(false);
+  });
+
+  it.each([
+    ['unclosed HTML comment', '<!--'],
+    ['unclosed raw HTML tag', '<script>'],
+    ['list-looking content', '- example'],
+  ])('keeps %s inside a closed fence opaque', (_name, example) => {
+    const reply = `\`\`\`md\n${example}\n\`\`\`\n${brief(CONFIDENT)}`;
+
+    expect(evaluateDecisionBriefCompliance(reply).compliant).toBe(true);
+  });
+
+  it.each([
+    ['backtick', '```'],
+    ['tilde', '~~~'],
+  ])('does not treat a %s fence with trailing text as a closing fence', (_name, fence) => {
+    const reply = `${fence}\nexample\n${fence}not-closed\n${brief(CONFIDENT)}`;
+
+    expect(evaluateDecisionBriefCompliance(reply).compliant).toBe(false);
+  });
+
+  it.each([
+    ['single-line HTML comment', '<!-- example -->'],
+    ['multiline HTML comment', '<!--\nexample\n-->'],
+    ['single-line raw HTML tag', '<script>example</script>'],
+    ['multiline raw HTML tag', '<script>\nexample\n</script>'],
+    ['CDATA block', '<![CDATA[example]]>'],
+    ['processing instruction', '<?example?>'],
+    ['declaration', '<!DOCTYPE html>'],
+  ])('recognizes a valid brief immediately after a closed %s', (_name, html) => {
+    expect(evaluateDecisionBriefCompliance(`${html}\n${brief(CONFIDENT)}`).compliant).toBe(true);
+  });
+
+  it.each([
+    ['fenced block', '```text\ntrailing\n```'],
+    ['blockquote', '> trailing'],
+    ['list', '- trailing'],
+    ['indented code', '    trailing'],
+    ['HTML block', '<div>\ntrailing'],
+    ['HTML comment', '<!-- trailing -->'],
+  ])('rejects %s after an otherwise valid terminal brief', (_name, trailing) => {
+    expect(evaluateDecisionBriefCompliance(`${brief(CONFIDENT)}\n\n${trailing}`).compliant).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ['label before a fence', `**Open:** must remain visible.\n\`\`\`\nexample\n\`\`\``],
+    ['extra verdict before an HTML block', `${CONFIDENT[0]}\n<div>\nexample\n</div>`],
+    ['extra verdict before a list', `${CONFIDENT[0]}\n- example`],
+  ])('keeps top-level content visible when interrupted by %s', (_name, prefix) => {
+    expect(evaluateDecisionBriefCompliance(`${prefix}\n\n${brief(CONFIDENT)}`).compliant).toBe(
+      false,
+    );
+  });
+
   it.each([
     [
       'CONFIDENT with optional Rejected',
@@ -119,14 +252,14 @@ describe('terminal decision-brief parser', () => {
     ['fenced block', fenced],
     ['indented code', brief(CONFIDENT.map(paragraph => `    ${paragraph}`))],
     ['HTML comment', `<!--\n${brief(CONFIDENT)}\n-->`],
-    ['HTML block', `<div>\n${brief(CONFIDENT)}\n</div>`],
+    ['HTML block', `<div>\n${brief(CONFIDENT, '\n')}\n</div>`],
     ['nested bullet continuation', `- example\n\n${nestedBulletBrief}`],
     ['ordered-list continuation', `1. example\n\n${orderedListBrief}`],
     ['HTML declaration', `<!DOCTYPE html\n${brief(CONFIDENT)}\n>`],
     ['HTML processing instruction', `<?example\n${brief(CONFIDENT)}\n?>`],
     ['HTML CDATA block', `<![CDATA[\n${brief(CONFIDENT)}\n]]>`],
     ['multiline script block', `<script\n${brief(CONFIDENT)}\n</script>`],
-    ['multiline generic HTML block', `<div\n${brief(CONFIDENT)}\n</div>`],
+    ['multiline generic HTML block', `<div\n${brief(CONFIDENT, '\n')}\n</div>`],
     ['lowercase HTML declaration', `<!doctype\n${brief(CONFIDENT)}\n>`],
   ];
 

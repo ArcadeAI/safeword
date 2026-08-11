@@ -1505,8 +1505,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         'REPLY_FORMAT_LEAD',
         'REPLY_FORMAT_REMINDER',
         'DECISION_BRIEF_GRAMMAR',
+        'GENERIC_REVIEW_EVIDENCE',
         'renderDecisionBriefContract',
+        'renderDecisionBriefCorrection',
         'evaluateDecisionBriefCompliance',
+        'getQualityEvidence',
       ],
     },
     'packages/cli/templates/doc-templates/test-definitions-feature.md': {
