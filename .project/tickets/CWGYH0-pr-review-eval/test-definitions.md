@@ -76,7 +76,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario a0c82b18d
+- [x] cross-scenario ad3fe6163
 
 ### Scenario Outline: A non-infrastructure failure gets no silent retry
 
