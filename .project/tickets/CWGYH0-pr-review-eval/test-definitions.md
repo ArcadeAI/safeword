@@ -210,7 +210,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Aggregate cost is an observed stop, not a prepaid ceiling
 
-- [ ] RED
+- [x] RED baff4f129
 - [ ] GREEN
 - [ ] REFACTOR
 
