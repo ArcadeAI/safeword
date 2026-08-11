@@ -88,7 +88,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 473dbe7d1
 - [x] GREEN 110a239b3
-- [ ] REFACTOR
+- [x] REFACTOR skip: one ordered effective-case list directly models chained reserve replacement
 
 ### Scenario Outline: Crash recovery preserves one quarantine and reserve decision
 
