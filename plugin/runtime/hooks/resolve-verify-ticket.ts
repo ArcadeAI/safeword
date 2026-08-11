@@ -20,6 +20,9 @@ interface ResolveVerifyTicketOptions {
   explicitTicket?: string;
 }
 
+type ChangedPathsResult =
+  { state: 'available'; paths: string[] } | { state: 'error'; message: string };
+
 const DEFAULT_BASE_REFS = [
   'refs/remotes/origin/HEAD',
   'refs/remotes/origin/main',
@@ -63,9 +66,11 @@ function nulSeparated(output: string): string[] {
   return output.split('\0').filter(Boolean);
 }
 
-function changedPaths(projectDirectory: string): string[] {
+function changedPaths(projectDirectory: string): ChangedPathsResult {
   const insideWorktree = runGit(projectDirectory, ['rev-parse', '--is-inside-work-tree']);
-  if (insideWorktree.status !== 0 || insideWorktree.stdout.trim() !== 'true') return [];
+  if (insideWorktree.status !== 0 || insideWorktree.stdout.trim() !== 'true') {
+    return { state: 'available', paths: [] };
+  }
 
   const paths = new Set<string>();
   const hasHead = runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']);
@@ -76,52 +81,73 @@ function changedPaths(projectDirectory: string): string[] {
         runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', `${candidate}^{commit}`])
           .status === 0,
     );
-    if (baseRef !== undefined) {
-      const mergeBase = runGit(projectDirectory, ['merge-base', 'HEAD', baseRef]);
-      if (mergeBase.status === 0 && mergeBase.stdout.trim() !== '') {
-        const committed = runGit(projectDirectory, [
-          'diff',
-          '--name-only',
-          '-z',
-          `${mergeBase.stdout.trim()}...HEAD`,
-        ]);
-        if (committed.status === 0) {
-          for (const path of nulSeparated(committed.stdout)) paths.add(path);
-        }
-      }
+    if (baseRef === undefined) {
+      return {
+        state: 'error',
+        message:
+          'Unable to determine the current-work Git base; fetch the default branch or pass --ticket <id>',
+      };
     }
+    const mergeBase = runGit(projectDirectory, ['merge-base', 'HEAD', baseRef]);
+    if (mergeBase.status !== 0 || mergeBase.stdout.trim() === '') {
+      return {
+        state: 'error',
+        message:
+          'Unable to determine the current-work Git merge base; fetch the default branch or pass --ticket <id>',
+      };
+    }
+    const committed = runGit(projectDirectory, [
+      'diff',
+      '--name-only',
+      '-z',
+      `${mergeBase.stdout.trim()}...HEAD`,
+    ]);
+    if (committed.status !== 0) {
+      return { state: 'error', message: 'Unable to read committed current-work Git changes' };
+    }
+    for (const path of nulSeparated(committed.stdout)) paths.add(path);
 
     const working = runGit(projectDirectory, ['diff', '--name-only', '-z', 'HEAD']);
-    if (working.status === 0) {
-      for (const path of nulSeparated(working.stdout)) paths.add(path);
+    if (working.status !== 0) {
+      return { state: 'error', message: 'Unable to read working-tree Git changes' };
     }
+    for (const path of nulSeparated(working.stdout)) paths.add(path);
   } else {
     const staged = runGit(projectDirectory, ['diff', '--cached', '--name-only', '-z']);
-    if (staged.status === 0) {
-      for (const path of nulSeparated(staged.stdout)) paths.add(path);
+    if (staged.status !== 0) {
+      return { state: 'error', message: 'Unable to read staged Git changes' };
     }
+    for (const path of nulSeparated(staged.stdout)) paths.add(path);
   }
 
   const untracked = runGit(projectDirectory, ['ls-files', '--others', '--exclude-standard', '-z']);
-  if (untracked.status === 0) {
-    for (const path of nulSeparated(untracked.stdout)) paths.add(path);
+  if (untracked.status !== 0) {
+    return { state: 'error', message: 'Unable to read untracked Git changes' };
   }
-  return [...paths];
+  for (const path of nulSeparated(untracked.stdout)) paths.add(path);
+  return { state: 'available', paths: [...paths] };
 }
 
-function changedTicketPaths(projectDirectory: string): string[] {
+function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
   const namespaceRelative = nodePath.relative(projectDirectory, namespaceRoot);
-  if (namespaceRelative.startsWith('..') || nodePath.isAbsolute(namespaceRelative)) return [];
+  if (namespaceRelative.startsWith('..') || nodePath.isAbsolute(namespaceRelative)) {
+    return { state: 'available', paths: [] };
+  }
 
   const normalizedNamespace = namespaceRelative.split(nodePath.sep).join('/');
   const prefix = normalizedNamespace === '' ? 'tickets/' : `${normalizedNamespace}/tickets/`;
-  return changedPaths(projectDirectory)
-    .map(path => path.split(nodePath.sep).join('/'))
-    .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
-    .map(path => nodePath.resolve(projectDirectory, path))
-    .filter(path => existsSync(path))
-    .sort();
+  const changed = changedPaths(projectDirectory);
+  if (changed.state === 'error') return changed;
+  return {
+    state: 'available',
+    paths: changed.paths
+      .map(path => path.split(nodePath.sep).join('/'))
+      .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
+      .map(path => nodePath.resolve(projectDirectory, path))
+      .filter(path => existsSync(path))
+      .sort(),
+  };
 }
 
 export function resolveVerifyTicket(
@@ -133,7 +159,9 @@ export function resolveVerifyTicket(
     return resolveTicketId(absoluteProject, options.explicitTicket.trim(), 'explicit');
   }
 
-  const candidates = changedTicketPaths(absoluteProject);
+  const changed = changedTicketPaths(absoluteProject);
+  if (changed.state === 'error') return changed;
+  const candidates = changed.paths;
   const identity = resolveRunIdentity({}, { env: options.env ?? process.env });
   if (identity.sessionKey !== null) {
     const ticketId = sessionTicketId(absoluteProject, identity);

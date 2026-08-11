@@ -6,7 +6,7 @@ subtype: bug-investigated
 phase: verify
 status: in_progress
 created: 2026-08-08T16:58:54.423Z
-last_modified: 2026-08-10T20:53:27.000Z
+last_modified: 2026-08-11T01:34:55.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/2083
 ---
 
@@ -60,3 +60,4 @@ Ruled out:
 - 2026-08-10T20:53:27.000Z Main catch-up: Fast-forwarded through incoming waves to `3977112bc`, preserving the shared worktree in named safety stashes. Catch-up exposed and corrected one #2083 regression where the canonical verify skill had reverted to the global `in_progress | head -1` scan; generated conflicts were resolved from canonical sources and parity returned clean.
 - 2026-08-10T20:53:27.000Z Revalidated: Final focused proof passes 102/102 CLI resolver/schema/skill tests and 167 relay tests with 1 skipped. Diff audit passed with no dependency violations across 459 modules and 832 dependencies. Full shared-tree verification remains red only in unrelated active work: 7,588 tests pass, 6 skip, 36 fail; BDD and Python mypy also retain unrelated failures. Builds, ESLint, Prettier, TypeScript typechecks, parity, and reachable dependency scans pass.
 - 2026-08-10T20:53:27.000Z Quality/refactor re-pass: Current primary Git/Node/Bun sources support the resolver primitives and shell-free subprocess boundary. Independent review degraded after Claude timed out and repeated only the known out-of-scope aggregate-exit defect. The refactor ledger is exhausted; no further behavior-preserving change is justified in #2083 scope.
+- 2026-08-11T01:34:55.000Z Behavioral hardening: Added the exact committed-PR ticket transition, nonstandard default branch via `origin/HEAD`, missing-base fail-closed behavior, and Codex thread binding. Git fixtures now ignore global/system configuration, and the verify-surface contract asserts the executable command rather than incidental prose. Focused resolver/skill/schema proof passes 106/106.

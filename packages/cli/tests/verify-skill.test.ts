@@ -65,12 +65,11 @@ describe('verify.md artifact step (7PG694)', () => {
 
 describe('verify current-ticket resolution (#2083)', () => {
   it.each(allVerifySurfaces)(
-    '%s delegates current-work resolution to the installed helper',
+    '%s runs the installed current-work resolver with the project root',
     (_name, content) => {
-      expect(content).toContain('.safeword/hooks/resolve-verify-ticket.ts');
-      expect(content).toContain('--ticket');
-      expect(content).not.toContain('done | head -1');
-      expect(content).not.toContain('grep -q "^status: in_progress" "$f"');
+      expect(content).toMatch(
+        /bun "\$PROJECT_DIR\/\.safeword\/hooks\/resolve-verify-ticket\.ts" "\$PROJECT_DIR"/,
+      );
     },
   );
 });

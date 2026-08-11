@@ -2,18 +2,18 @@
 
 ## Verify Checklist
 
-**Test Suite:** ❌ 36 unrelated shared-worktree failures; 7,588 tests pass and 6 skip across relay + CLI. The focused #2083 lane passes 102/102, and relay passes 167/167 with 1 skipped.
-**Gherkin:** ❌ Failed in unrelated active feature work; #2083 uses two inline resolver contracts rather than a Gherkin lane.
+**Test Suite:** ❌ 36 unrelated shared-worktree failures; 7,588 tests pass and 6 skip across relay + CLI. The focused #2083 resolver/skill/schema lane passes 106/106, and relay passes 167/167 with 1 skipped.
+**Gherkin:** ⏭️ N/A — #2083 is a bug task; its behavior is covered through subprocess integration scenarios against real Git repositories rather than a feature-level Gherkin lane.
 **Build:** ✅ Success — relay and CLI package builds completed.
 **Lint:** ❌ 1 unrelated Python mypy error (`experiments/python-skill-eval/control/*/solution.py` duplicate module). ESLint, Prettier, and both TypeScript typechecks pass.
-**Scenarios:** All 2 inline scenarios marked complete.
+**Scenarios:** All 14 executable resolver scenarios pass, including committed PR work, nonstandard default branches, missing-base failure, Claude/Codex session binding, ambiguity, explicit override, and unborn repositories.
 **PR Scope:** ✅ #2083 changes match ticket scope — canonical helper/verify skill, generated and dogfood mirrors, schema registration, behavioral/static regression coverage, and ticket evidence. The shared branch also contains unrelated work owned elsewhere.
 **Dep Drift:** ✅ Clean — no dependencies changed.
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation — canonical template remains the source; parity sync and Codex catalogue generation produced the mirrors.
 **Experience:** ⏭️ N/A — internal verification plumbing.
 **Surface Evidence:** ✅ 5/5 affected surfaces have recorded proof.
-**Evidence limits:** ⚠️ The shared dirty checkout contains multiple concurrent tickets. Full-suite, BDD, plugin-integrity, and Python failures are not #2083 product evidence. Clean-branch replay passed relay, parity, formatting, ESLint, builds, and TypeScript typechecks; its focused CLI runner timed out after 20 minutes without starting because another worktree held the global lock, so the 102/102 resolver result comes from the identical caught-up source immediately before isolation.
+**Evidence limits:** ⚠️ The shared dirty checkout contains multiple concurrent tickets. Full-suite, unrelated BDD, plugin-integrity, and Python failures are not #2083 product evidence. The caught-up clean branch directly passes 106/106 focused resolver/skill/schema tests, parity, formatting, ESLint, builds, and both TypeScript typechecks.
 
 Audit passed — diff-scoped configuration, dependency boundaries, learnings, principle trace, domain docs, and #2083 test quality have no ticket-specific findings.
 
@@ -24,7 +24,7 @@ Audit passed — diff-scoped configuration, dependency boundaries, learnings, pr
 | Canonical verify template | `packages/cli/tests/verify-skill.test.ts` | Current-work helper contract passes after both main catch-ups |
 | Dogfood Claude verify skill | parity check + focused contract | In sync; resolver contract passes |
 | Generated Codex verify skill | catalogue generation + focused contract | Generated; resolver contract passes |
-| Installed resolver helper | `packages/cli/tests/hooks/resolve-verify-ticket.test.ts` | Real Git/session fixtures pass for session, diff, conflict, ambiguity, explicit CLI, and unborn-repository behavior |
+| Installed resolver helper | `packages/cli/tests/hooks/resolve-verify-ticket.test.ts` | Hermetic real Git/session fixtures pass for committed PR and worktree diffs, standard/nonstandard bases, missing-base failure, Claude/Codex binding, conflict, ambiguity, explicit CLI, and unborn-repository behavior |
 | Managed-file schema | `packages/cli/tests/schema.test.ts` + parity check | Registered as a non-lifecycle helper; all 253 pairs and 8 contracts are synchronized |
 
 ## Review, Audit, and Refactor

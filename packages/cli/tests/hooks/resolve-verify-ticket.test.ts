@@ -11,9 +11,19 @@ const helperPath = nodePath.join(repoRoot, 'packages/cli/templates/hooks/resolve
 
 const context = { projectDirectory: '' };
 
+function isolatedGitEnvironment(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_SYSTEM: '/dev/null',
+  };
+}
+
 function git(...args: string[]): string {
   return execFileSync('git', ['-C', context.projectDirectory, ...args], {
     encoding: 'utf8',
+    env: isolatedGitEnvironment(),
   }).trim();
 }
 
@@ -34,7 +44,7 @@ function commitAll(message: string): void {
 }
 
 function cleanRunEnvironment(): NodeJS.ProcessEnv {
-  const environment = { ...process.env };
+  const environment = isolatedGitEnvironment();
   delete environment.CLAUDE_SESSION_ID;
   delete environment.CLAUDE_CODE_SESSION_ID;
   delete environment.CODEX_THREAD_ID;
@@ -58,12 +68,11 @@ function runResolver(
 beforeEach(() => {
   context.projectDirectory = createTemporaryDirectory();
   mkdirSync(nodePath.join(context.projectDirectory, '.project', 'tickets'), { recursive: true });
-  git('init');
+  git('init', '--initial-branch=main');
   git('config', 'user.email', 'verify-ticket@example.test');
   git('config', 'user.name', 'Verify Ticket Test');
   writeFileSync(nodePath.join(context.projectDirectory, 'README.md'), '# Fixture\n');
   commitAll('base');
-  git('branch', '-M', 'main');
 });
 
 afterEach(() => {
@@ -126,6 +135,46 @@ describe('resolve-verify-ticket', () => {
     expect(result.stdout.trim()).toBe(ticketPath);
   });
 
+  it('selects a ticket committed on the current feature branch relative to main', () => {
+    const ticketPath = writeTicket('PR12345-current-pr', 'PR12345');
+    commitAll('add ticket on main');
+    git('checkout', '-b', 'feature/verify-ticket');
+    writeTicket('PR12345-current-pr', 'PR12345', 'done');
+    commitAll('complete current PR ticket');
+
+    const result = runResolver();
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(ticketPath);
+  });
+
+  it('uses origin HEAD to resolve committed work from a nonstandard default branch', () => {
+    git('branch', '-M', 'trunk');
+    git('update-ref', 'refs/remotes/origin/trunk', 'HEAD');
+    git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk');
+    git('checkout', '-b', 'feature/verify-ticket');
+    const ticketPath = writeTicket('PR12345-current-pr', 'PR12345', 'done');
+    commitAll('add current PR ticket');
+
+    const result = runResolver();
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(ticketPath);
+  });
+
+  it('fails closed when committed work has no discoverable base', () => {
+    git('branch', '-M', 'trunk');
+    git('checkout', '-b', 'feature/verify-ticket');
+    writeTicket('PR12345-current-pr', 'PR12345', 'done');
+    commitAll('add current PR ticket');
+
+    const result = runResolver();
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('Unable to determine the current-work Git base');
+  });
+
   it('continues ticketless instead of selecting unrelated committed active state', () => {
     writeTicket('STALE01-unrelated-active', 'STALE01');
     commitAll('add unrelated active ticket');
@@ -162,6 +211,23 @@ describe('resolve-verify-ticket', () => {
     expect(result.stdout.trim()).toBe(ticketPath);
   });
 
+  it('uses a Codex thread binding to resolve its session ticket', () => {
+    const ticketPath = writeTicket('CODEX01-thread-ticket', 'CODEX01');
+    commitAll('add Codex session ticket');
+    writeFileSync(
+      nodePath.join(context.projectDirectory, '.project', 'quality-state-codex-thread-2083.json'),
+      JSON.stringify({ activeTicket: 'CODEX01' }),
+    );
+
+    const environment = cleanRunEnvironment();
+    environment.SAFEWORD_AGENT_RUNTIME = 'codex';
+    environment.CODEX_THREAD_ID = 'thread/2083';
+    const result = runResolver({ env: environment });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(ticketPath);
+  });
+
   it('accepts --ticket without an explicit project directory', () => {
     const ticketPath = writeTicket('EXPL123-explicit-context', 'EXPL123', 'done');
 
@@ -187,7 +253,7 @@ describe('resolve-verify-ticket', () => {
       mkdirSync(nodePath.join(context.projectDirectory, '.project', 'tickets'), {
         recursive: true,
       });
-      git('init');
+      git('init', '--initial-branch=main');
       const ticketPath = writeTicket('FIRST01-initial-staged-ticket', 'FIRST01');
       if (state === 'staged') git('add', '.');
 
