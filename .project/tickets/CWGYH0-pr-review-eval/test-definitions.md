@@ -163,7 +163,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A hidden provider failure is rejected through real wiring
 
 - [x] RED 217916be9
-- [ ] GREEN
+- [x] GREEN 8d29f64bd
 - [ ] REFACTOR
 
 ### Scenario: A clean canary authorizes the next checkpoint
