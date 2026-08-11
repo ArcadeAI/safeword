@@ -99,7 +99,9 @@ describe('canonical help and compatibility aliases', () => {
       ).toBe(false);
     }
     expect(result.stdout).toContain('Compatibility routes (retained indefinitely):');
-    expect(result.stdout).toContain('claude install -> install --agents=claude');
+    expect(result.stdout).toContain(
+      'claude install -> install --agents=claude (also reconciles the project)',
+    );
     expect(result.stdout).toContain(
       'project architecture --stage -> project architecture --from-index --stage-output',
     );
