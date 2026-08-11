@@ -309,7 +309,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Frozen raw artifacts can be reused
 
 - [x] RED d6d054141
-- [ ] GREEN
+- [x] GREEN d832b5ba1
 - [ ] REFACTOR
 
 ### Scenario Outline: Drifted raw evidence cannot be reused
