@@ -2,8 +2,8 @@
 id: 92NVVY
 slug: correct-repeated-stop-feedback
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-08-08T18:16:37.779Z
 last_modified: 2026-08-11T05:10:09.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1758
