@@ -104,7 +104,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A retryable failure followed by a semantic failure ends the pair
 
-- [ ] RED
+- [x] RED skip: quality-review requested an explicit proof for behavior already implemented
 - [ ] GREEN
 - [ ] REFACTOR
 
