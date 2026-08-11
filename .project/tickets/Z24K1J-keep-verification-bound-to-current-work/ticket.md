@@ -6,7 +6,7 @@ subtype: bug-investigated
 phase: verify
 status: in_progress
 created: 2026-08-08T16:58:54.423Z
-last_modified: 2026-08-11T01:34:55.000Z
+last_modified: 2026-08-11T15:17:00.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/2083
 ---
 
@@ -18,19 +18,21 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/2083
 
 **Type:** Bug
 
-**Scope:** Ticket resolution used by verification when multiple ticket signals exist in a PR worktree. The resolver must prefer evidence tied to the current work and avoid returning stale or unrelated active-ticket state.
+**Scope:** Ticket resolution used by verification when multiple ticket signals exist in a PR worktree. The resolver must prefer evidence tied to the current work and avoid returning stale or unrelated active-ticket state. The verification shell must also preserve any required-lane failure while continuing later lanes, because reliable ticket selection is not useful if the resulting evidence can collapse to a false green.
 
-**Out of Scope:** Changing ticket lifecycle semantics, verification evidence requirements, or unrelated active-ticket presentation.
+**Out of Scope:** Changing ticket lifecycle semantics, individual verification-lane requirements, or unrelated active-ticket presentation.
 
 **Done When:**
 
 - [x] Verification resolves the ticket associated with the current PR or worktree when unrelated active state is present.
 - [x] Verification does not emit a stale or unrelated ticket path when current-work evidence is absent or contradictory.
+- [x] Verification exits non-zero when any required lane fails, even if later lanes succeed.
 
 **Tests:**
 
 - [x] Regression: current-work ticket evidence wins over unrelated active-ticket state.
 - [x] Boundary: stale active-ticket state is not returned as the current verification ticket.
+- [x] Regression: early verify and BDD failures cannot be masked by later green lanes.
 
 ## Root Cause
 
@@ -61,3 +63,6 @@ Ruled out:
 - 2026-08-10T20:53:27.000Z Revalidated: Final focused proof passes 102/102 CLI resolver/schema/skill tests and 167 relay tests with 1 skipped. Diff audit passed with no dependency violations across 459 modules and 832 dependencies. Full shared-tree verification remains red only in unrelated active work: 7,588 tests pass, 6 skip, 36 fail; BDD and Python mypy also retain unrelated failures. Builds, ESLint, Prettier, TypeScript typechecks, parity, and reachable dependency scans pass.
 - 2026-08-10T20:53:27.000Z Quality/refactor re-pass: Current primary Git/Node/Bun sources support the resolver primitives and shell-free subprocess boundary. Independent review degraded after Claude timed out and repeated only the known out-of-scope aggregate-exit defect. The refactor ledger is exhausted; no further behavior-preserving change is justified in #2083 scope.
 - 2026-08-11T01:34:55.000Z Behavioral hardening: Added the exact committed-PR ticket transition, nonstandard default branch via `origin/HEAD`, missing-base fail-closed behavior, and Codex thread binding. Git fixtures now ignore global/system configuration, and the verify-surface contract asserts the executable command rather than incidental prose. Focused resolver/skill/schema proof passes 106/106.
+- 2026-08-11T15:17:00.000Z Quality review: Made session/diff precedence resilient to unavailable Git bases, stale session pointers, and newly added follow-up tickets; added `origin/master`, explicit-path existence checks, and installed-surface diff proof. The focused resolver/schema/smoke/skill gate passes 119/119.
+- 2026-08-11T15:17:00.000Z Review expansion: Fixed the previously deferred verification aggregate false-green because the user explicitly requested every quality-review improvement. Every required lane now runs, the first failure survives later success, and behavioral shell tests cover verify and BDD masking.
+- 2026-08-11T15:17:00.000Z Refactor: Centralized changed-ticket filtering, NUL-delimited Git path accumulation, and the CLI usage contract in three independently tested commits. Kept the ordered Git evidence collector cohesive so fail-closed precedence remains readable.

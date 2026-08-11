@@ -372,4 +372,60 @@ describe('verify report structure (146)', () => {
       expect(stdout).toContain('RAN_PLAN');
     });
   });
+
+  describe('Rule: later successful lanes cannot mask an earlier failure', () => {
+    const helperMatch = /# >>> run_plan[\s\S]*?# <<< run_plan/.exec(skillContent);
+    const lanesMatch = /# >>> verification_lanes[\s\S]*?# <<< verification_lanes/.exec(
+      skillContent,
+    );
+    const verificationScript = `${helperMatch?.[0] ?? ''}\n${lanesMatch?.[0] ?? ''}\n`;
+
+    function runVerification(stub: string): number {
+      try {
+        execSync('bash', {
+          input: `${stub}\n${verificationScript}`,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        return 0;
+      } catch (error) {
+        return (error as { status?: number }).status ?? 1;
+      }
+    }
+
+    it('embeds an extractable aggregate lane contract', () => {
+      expect(verificationScript).toContain('record_verification_status()');
+      expect(verificationScript).toContain('exit "$verification_status"');
+    });
+
+    it('returns the early verify failure after later lanes succeed', () => {
+      const status = runVerification(`
+run_safeword() {
+  case "$4" in
+    verify) printf 'exit 7' ;;
+    *) printf 'exit 0' ;;
+  esac
+}`);
+
+      expect(status).toBe(7);
+    });
+
+    it('returns the BDD failure after later lanes succeed', () => {
+      const status = runVerification(`
+run_safeword() {
+  case "$4" in
+    bdd) printf 'exit 6' ;;
+    *) printf 'exit 0' ;;
+  esac
+}`);
+
+      expect(status).toBe(6);
+    });
+
+    it('returns success when every generated lane succeeds', () => {
+      const status = runVerification(`run_safeword() { printf 'exit 0'; }`);
+
+      expect(status).toBe(0);
+    });
+  });
 });
