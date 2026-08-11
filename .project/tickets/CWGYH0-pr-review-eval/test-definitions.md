@@ -160,7 +160,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED bad6d0a87
 - [x] GREEN 821d371ed
-- [ ] REFACTOR
+- [x] REFACTOR skip: null output is represented by the same completeness bit consumed by the spend loop
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
 
