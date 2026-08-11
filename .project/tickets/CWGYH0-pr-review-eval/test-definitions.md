@@ -87,7 +87,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Frozen reserves are selected deterministically
 
 - [x] RED 473dbe7d1
-- [ ] GREEN
+- [x] GREEN 110a239b3
 - [ ] REFACTOR
 
 ### Scenario Outline: Crash recovery preserves one quarantine and reserve decision
