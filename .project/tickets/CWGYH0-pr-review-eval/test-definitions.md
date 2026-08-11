@@ -161,7 +161,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Malformed finding verification cannot change a score
 
 - [x] RED baff4f129
-- [ ] GREEN
+- [x] GREEN 9f8db4b55
 - [ ] REFACTOR
 
 ### Scenario: Contamination evidence belongs to exactly one frozen run
