@@ -32,7 +32,7 @@ const adapterRoot = process.env.CWGYH0_ADAPTER_ROOT ??
 	join(dirname(safewordRoot), "arcade-pr-review");
 const { createRunnerExecutor } = await loadPinnedAdapter({
 	adapterRoot,
-	expectedCommit: "3eb8652324c755ce2fc806b6ab5d3d41c1f1a39f",
+	expectedCommit: "d7baf0333001dcd462a12111351dc68757af605c",
 });
 
 const root = mkdtempSync(join(tmpdir(), "cwgyh0-success-wiring-"));
@@ -97,7 +97,7 @@ try {
 	process.env.ANTHROPIC_API_KEY = "network-boundary-test";
 
 	const caseId = "SCORE-success-wiring";
-	const runnerRef = "codex/cwgyh0-dev-benchmark-adapter@3eb865232";
+	const runnerRef = "codex/cwgyh0-dev-benchmark-adapter@d7baf0333";
 	const execute = createRunnerExecutor({
 		env: { ANTHROPIC_API_KEY: "network-boundary-test" },
 		expertsDir,

@@ -46,8 +46,9 @@ export function freezeFixtureBlob(input: {
 	bytes: string;
 	digestPath: string;
 	gitRoot: string;
-	marker: "canary" | "raw-manifest";
+	marker: "canary" | "canary-labels" | "raw-manifest";
 	repositoryIdentity: string;
+	anchorCreatedAt?: string;
 }): Record<string, string> {
 	mkdirSync(input.gitRoot, { recursive: true });
 	execFileSync("git", ["init", "-q"], { cwd: input.gitRoot });
@@ -85,13 +86,14 @@ export function freezeFixtureBlob(input: {
 		digestPath: input.digestPath,
 		repositoryIdentity: input.repositoryIdentity,
 	};
-	const anchorUrl = `https://api.github.com/repos/ArcadeAI/safeword/issues/comments/${input.marker === "canary" ? "1001" : "1002"}`;
-	const createdAt = new Date().toISOString();
+	const commentId = input.marker === "canary" ? "1001" : input.marker === "raw-manifest" ? "1002" : "1003";
+	const anchorUrl = `https://api.github.com/repos/ArcadeAI/safeword/issues/comments/${commentId}`;
+	const createdAt = input.anchorCreatedAt ?? new Date().toISOString();
 	return {
 		CWGYH0_ANCHOR_RESPONSE: JSON.stringify({
 			body: `<!-- cwgyh0-${input.marker}-anchor:v1 -->\n${JSON.stringify(anchor)}`,
 			created_at: createdAt,
-			html_url: `https://github.com/ArcadeAI/safeword/issues/1910#issuecomment-${input.marker === "canary" ? "1001" : "1002"}`,
+			html_url: `https://github.com/ArcadeAI/safeword/issues/1910#issuecomment-${commentId}`,
 			updated_at: createdAt,
 		}),
 		CWGYH0_RAW_MANIFEST_ANCHOR_URL: anchorUrl,

@@ -12,7 +12,7 @@ import {
 const expectedProvenance = {
 	caseId: "SCORE-example",
 	reviewBaseSha: "base-sha",
-	runnerRef: "codex/cwgyh0-dev-benchmark-adapter@3eb865232",
+	runnerRef: "codex/cwgyh0-dev-benchmark-adapter@d7baf0333",
 	sourceSha: "source-sha",
 	variant: "buggy",
 };
@@ -34,6 +34,10 @@ function completedOutput(findings: unknown[] = []) {
 				expert: "correctness",
 				model: "claude-sonnet-5",
 				provider: "anthropic",
+				providerResponses: [
+					{ raw: '{"content":[],"stop_reason":"tool_use"}', stopReason: "tool_use" },
+					{ raw: '{"content":[],"stop_reason":"tool_use"}', stopReason: "tool_use" },
+				],
 				failure: null as unknown,
 				findings,
 				turns: 2,
@@ -162,6 +166,9 @@ describe("positive trial admission", () => {
 		["missing findings", { ...completedOutput(), report: { ...completedOutput().report, expertOutcomes: [{ ...completedOutput().report.expertOutcomes[0], findings: undefined }] } }, "schema-invalid"],
 		["missing usage", { ...completedOutput(), report: { ...completedOutput().report, usage: undefined } }, "provenance-incomplete"],
 		["invalid score", { ...completedOutput(), score: { reviewValid: false } }, "reviewer-failed"],
+		["missing raw provider evidence", { ...completedOutput(), report: { ...completedOutput().report, expertOutcomes: [{ ...completedOutput().report.expertOutcomes[0], providerResponses: [] }] } }, "incomplete-provider-output"],
+		["mismatched raw stop reason", { ...completedOutput(), report: { ...completedOutput().report, expertOutcomes: [{ ...completedOutput().report.expertOutcomes[0], providerResponses: [{ raw: '{"stop_reason":"end_turn"}', stopReason: "tool_use" }, { raw: '{"stop_reason":"tool_use"}', stopReason: "tool_use" }] }] } }, "incomplete-provider-output"],
+		["unexpected provider finish", { ...completedOutput(), report: { ...completedOutput().report, expertOutcomes: [{ ...completedOutput().report.expertOutcomes[0], providerResponses: [{ raw: '{"stop_reason":"tool_use"}', stopReason: "tool_use" }, { raw: '{"stop_reason":"end_turn"}', stopReason: "end_turn" }] }] } }, "incomplete-provider-output"],
 	] as const)("rejects %s", (_name, output, reason) => {
 		expect(classifyWithFrozenProvenance(output)).toEqual({
 			reason,

@@ -74,8 +74,8 @@ const expectedHashes = {
 	narrowVerifier:
 		"cfbabd76b53d0c41a955bd4330c4103bed357f905214718fc4e6819ff79454c5",
 };
-const expectedAdapterCommit = "3eb8652324c755ce2fc806b6ab5d3d41c1f1a39f";
-const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@3eb865232";
+const expectedAdapterCommit = "d7baf0333001dcd462a12111351dc68757af605c";
+const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@d7baf0333";
 const preregisteredRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@8d86720c0";
 const model = "claude-sonnet-5";
 const expectedRoute = { expert: "correctness", model, provider: "anthropic" } as const;
@@ -572,6 +572,31 @@ if (preflightOnly) {
 		preflightSha256: sha256Text(certifiedPreflightBytes),
 	};
 	const checkpointId = requireEnvironment("CWGYH0_CHECKPOINT_ID");
+	const labelAnchor = await loadGitHubEvidenceAnchor(
+		requireEnvironment("CWGYH0_CANARY_LABEL_ANCHOR_URL"),
+		"canary-labels",
+	);
+	const pinnedLabels = loadPinnedManifestFromGit({
+		commit: labelAnchor.commit,
+		digestPath: labelAnchor.digestPath,
+		expectedRepositoryIdentity: labelAnchor.repositoryIdentity,
+		gitRoot: requireEnvironment("CWGYH0_CANARY_LABEL_GIT_ROOT"),
+		manifestPath: labelAnchor.blobPath,
+	});
+	if (pinnedLabels.digest !== labelAnchor.digest) {
+		throw new Error("canary labels differ from their independently retained issue anchor");
+	}
+	const labelManifest = JSON.parse(pinnedLabels.manifestBytes) as {
+		createdAt?: unknown;
+		labels?: Parameters<typeof evaluateCanaryGate>[0]["preregisteredLabels"];
+	};
+	if (
+		typeof labelManifest.createdAt !== "string" ||
+		!Array.isArray(labelManifest.labels) ||
+		new Date(labelManifest.createdAt).valueOf() > new Date(labelAnchor.createdAt).valueOf()
+	) {
+		throw new Error("canary label manifest was not retained before use");
+	}
 	const gateAnchor = await loadGitHubEvidenceAnchor(
 		requireEnvironment("CWGYH0_CANARY_GATE_ANCHOR_URL"),
 		"canary",
@@ -603,12 +628,7 @@ if (preflightOnly) {
 			fixtures: gateEvidence.fixtures,
 			operational: gateEvidence.operational,
 		})),
-		labels: sha256Text(JSON.stringify(gateEvidence.paidOutcomes.map((outcome) => ({
-			callId: outcome.callId,
-			expectedLabel: outcome.expectedLabel,
-			system: outcome.system,
-			variant: outcome.variant,
-		})))),
+		labels: sha256Text(pinnedLabels.manifestBytes),
 		preflight: sha256Text(certifiedPreflightBytes),
 		preregisteredMatrix: sha256Text(JSON.stringify({
 			primaryCaseIds: primary.cases.map(({ id }) => id),
@@ -648,7 +668,9 @@ if (preflightOnly) {
 		const gate = evaluateCanaryGate({
 			...gateEvidence,
 			anchorCreatedAt: gateAnchor.createdAt,
+			labelAnchorCreatedAt: labelAnchor.createdAt,
 			observedBindings: observedBindings(),
+			preregisteredLabels: labelManifest.labels,
 		});
 		if (!gate.authorized) {
 			throw new Error(`paid checkpoint blocked: ${gate.reasons.join("; ")}`);
@@ -819,6 +841,7 @@ if (preflightOnly) {
 		cumulativeCaseTarget,
 		cumulativeCostTargetUsd,
 		gateDigest: pinnedGate.digest,
+		labelDigest: pinnedLabels.digest,
 		outputRoot: resolve(outputRoot),
 		preflightId: certifiedPreflight.preflightId,
 		runId: gateEvidence.runId,

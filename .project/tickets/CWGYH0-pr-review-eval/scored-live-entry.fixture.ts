@@ -31,7 +31,7 @@ function sha256Text(value: string): string {
 const ticketRoot = import.meta.dirname;
 const safewordRoot = resolve(ticketRoot, "../../..");
 const adapterRoot = join(dirname(safewordRoot), "arcade-pr-review");
-const expectedAdapterCommit = "3eb8652324c755ce2fc806b6ab5d3d41c1f1a39f";
+const expectedAdapterCommit = "d7baf0333001dcd462a12111351dc68757af605c";
 assert.equal(git(adapterRoot, "rev-parse", "HEAD"), expectedAdapterCommit);
 
 const primaryPath = join(ticketRoot, "scored-cases-frozen-2026-08-01.json");
@@ -58,7 +58,7 @@ const preflightId = "live-entry-no-cost-preflight";
 const preflight = {
 	aggregateCostStopUsd: 1_000,
 	expectedAdapterCommit,
-	expectedRunnerRef: "codex/cwgyh0-dev-benchmark-adapter@3eb865232",
+	expectedRunnerRef: "codex/cwgyh0-dev-benchmark-adapter@d7baf0333",
 	expectedHashes: {
 		primaryManifest: sha256(primaryPath),
 		reserveManifest: sha256(reservePath),
@@ -140,9 +140,11 @@ try {
 		"reserve-exhaustion",
 	];
 	const gateByOutput = new Map<string, {
-		anchorResponse: string;
+		anchorResponses: string;
 		anchorUrl: string;
 		gitRoot: string;
+		labelAnchorUrl: string;
+		labelGitRoot: string;
 	}>();
 	const run = (input: {
 		fetchLog: string;
@@ -153,7 +155,11 @@ try {
 		const checkpointId = "no-cost-fixture";
 		const runId = `fixture-${sha256Text(input.outputRoot)}`;
 		const gateGitRoot = join(root, `${sha256Text(input.outputRoot)}-gate-repository`);
-		const recordedAt = new Date(Date.now() - 2_000).toISOString();
+		const labelGitRoot = join(root, `${sha256Text(input.outputRoot)}-label-repository`);
+		const labelCreatedAt = new Date(Date.now() - 5_000).toISOString();
+		const labelAnchorCreatedAt = new Date(Date.now() - 4_000).toISOString();
+		const recordedAt = new Date(Date.now() - 3_000).toISOString();
+		const gateAnchorCreatedAt = new Date(Date.now() - 2_000).toISOString();
 		const fixtures = rejectionReasons.map((reason) => ({ expectedReason: reason, fixtureId: `fixture-${reason}`, observedReason: reason, recordedAt }));
 		const operational = operationalClasses.map((failureClass) => ({ failureClass, passed: true, recordedAt, scenarioId: `scenario-${failureClass}` }));
 		const paidOutcomes = Array.from({ length: 10 }, (_, index) => ({
@@ -161,7 +167,6 @@ try {
 			callId: `fixture-call-${index + 1}`,
 			costComplete: true,
 			costUsd: 0,
-			expectedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
 			observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
 			provenanceComplete: true,
 			recordedAt,
@@ -170,6 +175,69 @@ try {
 			usable: true,
 			variant: index % 4 < 2 ? "buggy" : "fixed",
 		}));
+		const preregisteredLabels = paidOutcomes.map((outcome) => ({
+			callId: outcome.callId,
+			expectedAdmission: "usable",
+			expectedOutputClass: outcome.observedLabel,
+			expectedReason: "completed",
+			system: outcome.system,
+			variant: outcome.variant,
+		}));
+		const canaryAttempts = paidOutcomes.map((outcome, index) => {
+			const findings = index === 0
+				? [{ file: "src/example.ts", line: 1, title: "finding" }]
+				: [];
+			const expectedProvenance = {
+				caseId: `canary-${index + 1}`,
+				reviewBaseSha: `base-${index + 1}`,
+				runnerRef: "codex/cwgyh0-dev-benchmark-adapter@d7baf0333",
+				sourceSha: `source-${index + 1}`,
+				variant: outcome.variant,
+			};
+			const expectedRoute = {
+				expert: "correctness",
+				model: "claude-sonnet-5",
+				provider: "anthropic",
+			};
+			return {
+				attemptId: `fixture-attempt-${index + 1}`,
+				callId: outcome.callId,
+				costComplete: true,
+				costUsd: 0,
+				expectedProvenance,
+				expectedRoute,
+				output: {
+					models: [expectedRoute],
+					provenance: expectedProvenance,
+					report: {
+						consolidated: { findings },
+						expertOutcomes: [{
+							...expectedRoute,
+							cappedBy: null,
+							error: null,
+							failure: null,
+							findings,
+							providerResponses: [{ raw: '{"stop_reason":"tool_use"}', stopReason: "tool_use" }],
+							turns: 1,
+							usage: { inputTokens: 10, outputTokens: 5 },
+						}],
+						usage: { inputTokens: 10, outputTokens: 5 },
+					},
+					score: {
+						matchingFindings: findings,
+						namedFailure: findings.length > 0,
+						reviewValid: true,
+					},
+					terminalState: "completed",
+					trace: [{ type: "report" }],
+				},
+				usable: true,
+			};
+		});
+		const labelBytes = `${JSON.stringify({
+			createdAt: labelCreatedAt,
+			labels: preregisteredLabels,
+		}, null, 2)}\n`;
 		const expectedBindings = {
 			adapter: sha256Text(expectedAdapterCommit),
 			classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
@@ -181,12 +249,7 @@ try {
 			})),
 			effectiveMatrixDeriver: sha256(join(ticketRoot, "scored-matrix.ts")),
 			fixtures: sha256Text(JSON.stringify({ fixtures, operational })),
-			labels: sha256Text(JSON.stringify(paidOutcomes.map((outcome) => ({
-				callId: outcome.callId,
-				expectedLabel: outcome.expectedLabel,
-				system: outcome.system,
-				variant: outcome.variant,
-			})))),
+			labels: sha256Text(labelBytes),
 			preflight: sha256Text(preflightBytes),
 			preregisteredMatrix: sha256Text(JSON.stringify({
 				primaryCaseIds: fixturePrimary.cases.map(({ id }) => id),
@@ -226,15 +289,18 @@ try {
 		};
 		let gateEnvironment = gateByOutput.get(input.outputRoot);
 		if (gateEnvironment === undefined) {
+			const frozenLabels = freezeFixtureBlob({
+				anchorCreatedAt: labelAnchorCreatedAt,
+				blobPath: "labels.json",
+				bytes: labelBytes,
+				digestPath: "labels.sha256",
+				gitRoot: labelGitRoot,
+				marker: "canary-labels",
+				repositoryIdentity: "https://example.test/canary-labels.git",
+			});
 			const gateBytes = `${JSON.stringify({
 				anchorCreatedAt: recordedAt,
-				attempts: Array.from({ length: 10 }, (_, index) => ({
-					attemptId: `fixture-attempt-${index + 1}`,
-					callId: `fixture-call-${index + 1}`,
-					costComplete: true,
-					costUsd: 0,
-					usable: true,
-				})),
+				attempts: canaryAttempts,
 				expectedBindings,
 				fixtures,
 				hiddenFailureRejected: true,
@@ -245,6 +311,7 @@ try {
 				runId,
 			}, null, 2)}\n`;
 			const frozen = freezeFixtureBlob({
+				anchorCreatedAt: gateAnchorCreatedAt,
 				blobPath: "gate.json",
 				bytes: gateBytes,
 				digestPath: "gate.sha256",
@@ -253,9 +320,14 @@ try {
 				repositoryIdentity: "https://example.test/canary-gate.git",
 			});
 			gateEnvironment = {
-				anchorResponse: frozen.CWGYH0_ANCHOR_RESPONSE,
+				anchorResponses: JSON.stringify({
+					[frozen.CWGYH0_RAW_MANIFEST_ANCHOR_URL]: frozen.CWGYH0_ANCHOR_RESPONSE,
+					[frozenLabels.CWGYH0_RAW_MANIFEST_ANCHOR_URL]: frozenLabels.CWGYH0_ANCHOR_RESPONSE,
+				}),
 				anchorUrl: frozen.CWGYH0_RAW_MANIFEST_ANCHOR_URL,
 				gitRoot: gateGitRoot,
+				labelAnchorUrl: frozenLabels.CWGYH0_RAW_MANIFEST_ANCHOR_URL,
+				labelGitRoot,
 			};
 			gateByOutput.set(input.outputRoot, gateEnvironment);
 		}
@@ -272,9 +344,11 @@ try {
 					...process.env,
 					ANTHROPIC_API_KEY: "network-boundary-test",
 					CWGYH0_ADAPTER_ROOT: adapterRoot,
-					CWGYH0_ANCHOR_RESPONSE: gateEnvironment.anchorResponse,
+					CWGYH0_ANCHOR_RESPONSES: gateEnvironment.anchorResponses,
 					CWGYH0_CANARY_GATE_ANCHOR_URL: gateEnvironment.anchorUrl,
 					CWGYH0_CANARY_GATE_GIT_ROOT: gateEnvironment.gitRoot,
+					CWGYH0_CANARY_LABEL_ANCHOR_URL: gateEnvironment.labelAnchorUrl,
+					CWGYH0_CANARY_LABEL_GIT_ROOT: gateEnvironment.labelGitRoot,
 					CWGYH0_CASE_TARGET: "1",
 					CWGYH0_CHECKPOINT_ID: checkpointId,
 					CWGYH0_FETCH_LOG: input.fetchLog,

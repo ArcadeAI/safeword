@@ -5,7 +5,10 @@ globalThis.fetch = Object.assign(
 	(input: string | URL | Request) => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 		if (url.startsWith("https://api.github.com/repos/ArcadeAI/safeword/issues/comments/")) {
-			const response = process.env.CWGYH0_ANCHOR_RESPONSE;
+			const responses = process.env.CWGYH0_ANCHOR_RESPONSES === undefined
+				? undefined
+				: JSON.parse(process.env.CWGYH0_ANCHOR_RESPONSES) as Record<string, string>;
+			const response = responses?.[url] ?? process.env.CWGYH0_ANCHOR_RESPONSE;
 			if (!response) throw new Error("missing fixture anchor response");
 			return Promise.resolve(new Response(response, {
 				headers: { "content-type": "application/json" },

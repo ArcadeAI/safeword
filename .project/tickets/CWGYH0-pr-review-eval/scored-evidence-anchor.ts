@@ -9,7 +9,7 @@ export type EvidenceAnchor = {
 
 export async function loadGitHubEvidenceAnchor(
 	url: string,
-	marker: "canary" | "raw-manifest",
+	marker: "canary" | "canary-labels" | "raw-manifest",
 ): Promise<EvidenceAnchor> {
 	const parsed = new URL(url);
 	if (

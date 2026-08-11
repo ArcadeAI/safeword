@@ -1,3 +1,9 @@
+import {
+	classifyTrialOutput,
+	type TrialProvenance,
+	type TrialRoute,
+} from "./scored-run-policy";
+
 export const CANONICAL_REJECTION_REASONS = [
 	"provider-failure",
 	"incomplete-provider-output",
@@ -42,11 +48,15 @@ export const REQUIRED_AUTHORIZATION_BINDINGS = [
 
 type CanaryInput = {
 	anchorCreatedAt: string;
+	labelAnchorCreatedAt: string;
 	attempts: Array<{
 		attemptId: string;
 		callId: string;
 		costComplete: boolean;
 		costUsd: number;
+		expectedProvenance: TrialProvenance;
+		expectedRoute: TrialRoute;
+		output: unknown;
 		usable: boolean;
 	}>;
 	expectedBindings: Record<string, string>;
@@ -65,7 +75,6 @@ type CanaryInput = {
 		callId: string;
 		costComplete: boolean;
 		costUsd: number;
-		expectedLabel: string;
 		observedLabel: string;
 		provenanceComplete: boolean;
 		recordedAt: string;
@@ -73,6 +82,14 @@ type CanaryInput = {
 		usageCostUsd: number;
 		usable: boolean;
 		variant: string;
+	}>;
+	preregisteredLabels: Array<{
+		callId: string;
+		expectedAdmission: "usable";
+		expectedOutputClass: "clean" | "finding" | "genuine-empty";
+		expectedReason: "completed";
+		system: "full" | "narrow";
+		variant: "buggy" | "fixed";
 	}>;
 	runId: string;
 };
@@ -110,7 +127,11 @@ function roundedCost(value: number): number {
 export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	const reasons: string[] = [];
 	const anchorTime = new Date(input.anchorCreatedAt).valueOf();
+	const labelAnchorTime = new Date(input.labelAnchorCreatedAt).valueOf();
 	if (!Number.isFinite(anchorTime)) reasons.push("authorization anchor timestamp is invalid");
+	if (!Number.isFinite(labelAnchorTime) || labelAnchorTime >= anchorTime) {
+		reasons.push("label anchor must be valid and predate authorization");
+	}
 	const retainedBeforeAnchor = (recordedAt: string): boolean => {
 		const time = new Date(recordedAt).valueOf();
 		return Number.isFinite(time) && time <= anchorTime;
@@ -156,6 +177,26 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	if (callIds.length !== 10 || callIds.some((id) => id.length === 0) || duplicates(callIds).length > 0) {
 		reasons.push("paid canary must contain exactly ten unique call outcomes");
 	}
+	const labelCallIds = input.preregisteredLabels.map(({ callId }) => callId);
+	if (
+		labelCallIds.length !== 10 ||
+		labelCallIds.some((id) => id.length === 0) ||
+		duplicates(labelCallIds).length > 0 ||
+		!exactMembers(labelCallIds, callIds)
+	) {
+		reasons.push("pre-call labels must identify exactly the ten paid calls");
+	}
+	for (const label of input.preregisteredLabels) {
+		if (
+			label.expectedAdmission !== "usable" ||
+			label.expectedReason !== "completed" ||
+			!["clean", "finding", "genuine-empty"].includes(label.expectedOutputClass) ||
+			!["full", "narrow"].includes(label.system) ||
+			!["buggy", "fixed"].includes(label.variant)
+		) {
+			reasons.push(`pre-call label ${label.callId} has an unsupported mechanical contract`);
+		}
+	}
 	for (const required of ["full", "narrow"]) {
 		if (!input.paidOutcomes.some(({ system }) => system === required)) {
 			reasons.push(`paid canary does not cover ${required} system`);
@@ -167,17 +208,26 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		}
 	}
 	for (const required of ["finding", "genuine-empty"]) {
-		if (!input.paidOutcomes.some(({ expectedLabel }) => expectedLabel === required)) {
+		if (!input.preregisteredLabels.some(({ expectedOutputClass }) => expectedOutputClass === required)) {
 			reasons.push(`paid canary does not cover ${required} outcome`);
 		}
 	}
 	for (const outcome of input.paidOutcomes) {
+		const label = input.preregisteredLabels.find(({ callId }) => callId === outcome.callId);
 		if (!retainedBeforeAnchor(outcome.recordedAt)) reasons.push(`paid call ${outcome.callId} was not retained before authorization`);
+		if (new Date(outcome.recordedAt).valueOf() <= labelAnchorTime) {
+			reasons.push(`paid call ${outcome.callId} does not postdate its frozen label anchor`);
+		}
 		if (!outcome.usable) reasons.push(`paid call ${outcome.callId} is unusable`);
 		if (!outcome.provenanceComplete) {
 			reasons.push(`paid call ${outcome.callId} has incomplete provenance`);
 		}
-		if (outcome.observedLabel !== outcome.expectedLabel) {
+		if (
+			label === undefined ||
+			outcome.observedLabel !== label.expectedOutputClass ||
+			outcome.system !== label.system ||
+			outcome.variant !== label.variant
+		) {
 			reasons.push(`paid call ${outcome.callId} disagrees with its frozen label`);
 		}
 		if (
@@ -198,6 +248,14 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		if (!attempt.costComplete || !validCost(attempt.costUsd)) {
 			reasons.push(`attempt ${attempt.attemptId} has incomplete cost`);
 		}
+		const disposition = classifyTrialOutput(
+			attempt.output,
+			attempt.expectedRoute,
+			attempt.expectedProvenance,
+		);
+		if (attempt.usable !== (disposition.status === "usable")) {
+			reasons.push(`attempt ${attempt.attemptId} usable flag disagrees with its raw output`);
+		}
 	}
 	const referencedAttemptIds = input.paidOutcomes.flatMap(({ attemptIds: ids }) => ids);
 	if (
@@ -208,6 +266,7 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		reasons.push("paid outcomes do not reference the complete attempt ledger exactly once");
 	}
 	for (const outcome of input.paidOutcomes) {
+		const label = input.preregisteredLabels.find(({ callId }) => callId === outcome.callId);
 		if (outcome.attemptIds.length === 0 || new Set(outcome.attemptIds).size !== outcome.attemptIds.length) {
 			reasons.push(`paid call ${outcome.callId} has no complete unique attempt set`);
 			continue;
@@ -223,6 +282,23 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		const reconciledCost = roundedCost(attempts.reduce((total, attempt) => total + attempt.costUsd, 0));
 		if (Math.abs(reconciledCost - outcome.costUsd) > 1e-9) {
 			reasons.push(`paid call ${outcome.callId} cost does not equal its complete attempt set`);
+		}
+		const terminalAttempt = attempts.at(-1);
+		const rawOutput = terminalAttempt?.output;
+		const rawFindings =
+			rawOutput !== null && typeof rawOutput === "object" &&
+			"report" in rawOutput && rawOutput.report !== null && typeof rawOutput.report === "object" &&
+			"consolidated" in rawOutput.report && rawOutput.report.consolidated !== null && typeof rawOutput.report.consolidated === "object" &&
+			"findings" in rawOutput.report.consolidated && Array.isArray(rawOutput.report.consolidated.findings)
+				? rawOutput.report.consolidated.findings
+				: null;
+		const expectedRawClass = label?.expectedOutputClass === "finding" ? "finding" : "empty";
+		const observedRawClass = rawFindings === null ? null : rawFindings.length > 0 ? "finding" : "empty";
+		if (
+			terminalAttempt?.usable !== true ||
+			observedRawClass !== expectedRawClass
+		) {
+			reasons.push(`paid call ${outcome.callId} raw output disagrees with its frozen output class`);
 		}
 	}
 	if (!input.hiddenFailureRejected) reasons.push("real-wiring hidden failure was admitted");

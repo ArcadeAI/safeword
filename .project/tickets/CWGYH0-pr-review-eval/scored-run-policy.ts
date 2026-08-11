@@ -106,6 +106,36 @@ function hasUsage(value: unknown): boolean {
 	);
 }
 
+function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
+	if (
+		!Number.isInteger(outcome.turns) ||
+		!Array.isArray(outcome.providerResponses) ||
+		outcome.providerResponses.length !== outcome.turns ||
+		outcome.providerResponses.length === 0
+	) {
+		return false;
+	}
+	for (const evidence of outcome.providerResponses) {
+		if (
+			!isRecord(evidence) ||
+			typeof evidence.raw !== "string" ||
+			evidence.raw.length === 0 ||
+			typeof evidence.stopReason !== "string" ||
+			evidence.stopReason.length === 0
+		) {
+			return false;
+		}
+		try {
+			const raw = JSON.parse(evidence.raw) as unknown;
+			if (!isRecord(raw) || raw.stop_reason !== evidence.stopReason) return false;
+		} catch {
+			return false;
+		}
+	}
+	const terminal = outcome.providerResponses.at(-1) as UnknownRecord;
+	return terminal.stopReason === "tool_use";
+}
+
 function isScoredFinding(value: unknown): boolean {
 	return (
 		isRecord(value) &&
@@ -286,6 +316,13 @@ export function classifyTrialOutput(
 		return {
 			reason: "reviewer-failed",
 			retry: retryForFailure(outcome.failure),
+			status: "invalid",
+		};
+	}
+	if (!hasRetainedProviderCompletion(outcome)) {
+		return {
+			reason: "incomplete-provider-output",
+			retry: "never",
 			status: "invalid",
 		};
 	}
