@@ -162,7 +162,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED baff4f129
 - [x] GREEN 9f8db4b55
-- [ ] REFACTOR
+- [x] REFACTOR skip: one validator owns shape, vocabulary, uniqueness, and scoreable-key checks
 
 ### Scenario: Contamination evidence belongs to exactly one frozen run
 
