@@ -87,7 +87,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Paired-case quarantine is atomic
 
 - [x] RED skip: quality-review requested an explicit proof for behavior already implemented
-- [ ] GREEN
+- [x] GREEN c0e9f9512
 - [ ] REFACTOR
 
 ### Scenario: A thrown semantic provider failure quarantines without retry
