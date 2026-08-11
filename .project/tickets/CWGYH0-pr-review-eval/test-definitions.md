@@ -204,7 +204,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Successful wiring advances durable run state
 
-- [ ] RED
+- [x] RED baff4f129
 - [ ] GREEN
 - [ ] REFACTOR
 
