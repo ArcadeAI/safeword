@@ -4,14 +4,25 @@ export type BootstrapInterval = {
 	upper95: number;
 };
 
+function requireFinite(values: readonly number[], label: string): void {
+	if (values.some((value) => !Number.isFinite(value))) {
+		throw new Error(`${label} requires finite values`);
+	}
+}
+
 export function mean(values: readonly number[]): number {
 	if (values.length === 0) throw new Error("mean requires at least one value");
+	requireFinite(values, "mean");
 	return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
 export function percentile(sortedValues: readonly number[], probability: number): number {
 	if (sortedValues.length === 0) {
 		throw new Error("percentile requires at least one value");
+	}
+	requireFinite(sortedValues, "percentile");
+	if (!Number.isFinite(probability)) {
+		throw new Error("percentile requires a finite probability");
 	}
 	if (probability < 0 || probability > 1) {
 		throw new Error("percentile probability must be between zero and one");
@@ -44,8 +55,14 @@ export function pairedBootstrapInterval(
 	if (caseDifferences.length === 0) {
 		throw new Error("paired bootstrap requires at least one independent case");
 	}
+	if (caseDifferences.some((value) => !Number.isFinite(value))) {
+		throw new Error("paired bootstrap requires finite case differences");
+	}
 	if (!Number.isInteger(resamples) || resamples < 1) {
 		throw new Error("paired bootstrap requires a positive resample count");
+	}
+	if (!Number.isSafeInteger(seed)) {
+		throw new Error("paired bootstrap requires a safe-integer seed");
 	}
 	const random = frozenRandom(seed);
 	const bootstrapMeans = Array.from({ length: resamples }, () => {
