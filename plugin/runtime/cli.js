@@ -36152,8 +36152,11 @@ function hashPath(hash, absolutePath, readFile2) {
   }
 }
 function preconditionDigest2(cwd, actions, readFile2 = readFileForDigest) {
+  return preconditionDigestForPaths(cwd, actions.flatMap((action) => actionTargets(action)), readFile2);
+}
+function preconditionDigestForPaths(cwd, paths, readFile2 = readFileForDigest) {
   const hash = createHash15("sha256");
-  const targets = [...new Set(actions.flatMap((action) => actionTargets(action)))].toSorted((left, right) => left.localeCompare(right));
+  const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hash.update(target);
     hashPath(hash, nodePath59.join(cwd, target), readFile2);
@@ -37335,6 +37338,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
+import { createHash as createHash16 } from "crypto";
 import { existsSync as existsSync37, lstatSync as lstatSync11, readdirSync as readdirSync24, readFileSync as readFileSync41, readlinkSync as readlinkSync3 } from "fs";
 import nodePath71 from "path";
 function ensurePackageJson(cwd) {
@@ -37532,6 +37536,27 @@ function setupPlanningContext(cwd, configured) {
 function plannedOptionalEslintEffects(cwd, context, noModify) {
   return noModify === true ? [] : plannedEslintEffects(cwd, context);
 }
+function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, options) {
+  const observationTargets = [
+    ".safeword",
+    ".safeword-project",
+    ".project",
+    ".codex/config.toml",
+    ".dependency-cruiser.cjs",
+    "Cargo.toml",
+    ...JAVASCRIPT_PACKAGE_FILES,
+    ...PYTHON_PACKAGE_FILES,
+    ...effects.files.map((effect) => effect.target),
+    ...effects.destructive.map((effect) => effect.target)
+  ].filter((target) => !target.includes(" \u2192 "));
+  return createHash16("sha256").update(JSON.stringify([
+    reconciliationDigest,
+    effects,
+    context,
+    options,
+    preconditionDigestForPaths(cwd, observationTargets)
+  ])).digest("hex");
+}
 function plannedVersionMarkerEffects(cwd, repair) {
   if (repair !== true)
     return [];
@@ -37578,7 +37603,7 @@ async function createSetupPlan(cwd, schema, options = {}) {
   const effects = mergeEffects(combined);
   return createPlan({
     command: "setup",
-    preconditionDigest: reconciliation.plan.preconditionDigest,
+    preconditionDigest: setupPreconditionDigest(cwd, reconciliation.plan.preconditionDigest, effects, context, options),
     effects,
     verification: [{ description: "Re-run safeword status" }]
   });
@@ -38335,7 +38360,7 @@ __export(exports_commands, {
   planLifecycle: () => planLifecycle,
   installLifecycle: () => installLifecycle
 });
-import { createHash as createHash16 } from "crypto";
+import { createHash as createHash17 } from "crypto";
 function codexLegacyHandoffDeferred(result) {
   return result.findings.some((finding) => finding.code === "CODEX_PLUGIN_HANDOFF_DEFERRED");
 }
@@ -38563,7 +38588,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
       effects: observedAgentEffects(operation, agent, agent === "cursor" ? undefined : observationByAgent.get(agent), scope)
     }))
   ];
-  const preconditionDigest3 = createHash16("sha256").update(JSON.stringify([project.plan.preconditionDigest, agents, scope, observations])).digest("hex");
+  const preconditionDigest3 = createHash17("sha256").update(JSON.stringify([project.plan.preconditionDigest, agents, scope, observations])).digest("hex");
   return {
     agents,
     projectSchema,
@@ -38714,17 +38739,22 @@ async function uninstallProfileSurfaces(cwd, agents, scope) {
 async function applyPreparedLifecycle(cwd, prepared) {
   const cursorSelected = prepared.agents.includes("cursor");
   const cursorHadAssets = cursorSelected && hasCursorProjectAssets(cwd, prepared.projectSchema);
-  const completed = await uninstallProfileSurfaces(cwd, prepared.agents, prepared.scope);
   const projectResult = await removeProject(cwd, {
     full: prepared.full,
     yes: true,
     plan: prepared.projectPlan.id,
     schema: prepared.projectSchema
   });
-  completed.unshift({
-    name: "project",
-    result: projectResult
-  });
+  const completed = [
+    {
+      name: "project",
+      result: projectResult
+    }
+  ];
+  if (projectResult.state === "failed" || projectResult.state === "action_required") {
+    return combinedUninstallResult(prepared, completed);
+  }
+  completed.push(...await uninstallProfileSurfaces(cwd, prepared.agents, prepared.scope));
   if (cursorSelected) {
     const cursorRemoved = cursorHadAssets && !hasCursorProjectAssets(cwd, prepared.projectSchema);
     completed.push({
@@ -38732,6 +38762,9 @@ async function applyPreparedLifecycle(cwd, prepared) {
       result: createResult({ state: cursorRemoved ? "changed" : "healthy" })
     });
   }
+  return combinedUninstallResult(prepared, completed);
+}
+function combinedUninstallResult(prepared, completed) {
   const results = completed.map((surface) => surface.result);
   return createResult({
     state: combinedResultState(results),
@@ -38847,7 +38880,7 @@ __export(exports_cleanup, {
   claudeLegacyMutations: () => claudeLegacyMutations,
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
-import { createHash as createHash17, randomUUID as randomUUID5 } from "crypto";
+import { createHash as createHash18, randomUUID as randomUUID5 } from "crypto";
 import {
   chmodSync as chmodSync3,
   existsSync as existsSync38,
@@ -38860,7 +38893,7 @@ import {
 } from "fs";
 import nodePath72 from "path";
 function sha2564(content) {
-  return createHash17("sha256").update(content).digest("hex");
+  return createHash18("sha256").update(content).digest("hex");
 }
 function containsJsonComments(content) {
   let found = false;
@@ -41222,7 +41255,7 @@ var init_run_identity = __esm(() => {
 });
 
 // src/review/packet.ts
-import { createHash as createHash18, randomUUID as randomUUID6 } from "crypto";
+import { createHash as createHash19, randomUUID as randomUUID6 } from "crypto";
 import {
   closeSync as closeSync4,
   constants as constants3,
@@ -41240,7 +41273,7 @@ import {
 import { tmpdir as tmpdir3 } from "os";
 import nodePath81 from "path";
 function digest2(content) {
-  return createHash18("sha256").update(content).digest("hex");
+  return createHash19("sha256").update(content).digest("hex");
 }
 function fileDigest(path4) {
   try {
@@ -43690,7 +43723,7 @@ __export(exports_retro_draft_spool, {
   canonicalSignatureForDraft: () => canonicalSignatureForDraft,
   ackFilePath: () => ackFilePath
 });
-import { createHash as createHash19 } from "crypto";
+import { createHash as createHash20 } from "crypto";
 import nodePath87 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
@@ -43753,7 +43786,7 @@ function draftForPosting(draft) {
 function verifyDraftBody(draft) {
   if (draft.bodyDigest === undefined)
     return true;
-  return createHash19("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
+  return createHash20("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
 function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   try {
@@ -49998,9 +50031,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash20 } from "crypto";
+import { createHash as createHash21 } from "crypto";
 function shortHash(material) {
-  return createHash20("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash21("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -50267,7 +50300,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash21, randomUUID as randomUUID7 } from "crypto";
+import { createHash as createHash22, randomUUID as randomUUID7 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path6 from "path";
 function normalizeRelayOrigin(value) {
@@ -50304,10 +50337,10 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash21("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash22("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash21("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash22("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
@@ -50319,7 +50352,7 @@ function createRelayRequest(input, dependencies) {
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash21("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash22("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path6.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -50359,7 +50392,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path6.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash21("sha256").update(sourceKey).digest("hex");
+  const key = createHash22("sha256").update(sourceKey).digest("hex");
   return path6.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -51884,7 +51917,7 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash22 } from "crypto";
+import { createHash as createHash23 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
@@ -52015,7 +52048,7 @@ async function validateRelayReadiness(manifest, dependencies) {
   }
 }
 function manifestSha256(manifest) {
-  return createHash22("sha256").update(JSON.stringify(manifest)).digest("hex");
+  return createHash23("sha256").update(JSON.stringify(manifest)).digest("hex");
 }
 function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
   if (!manifest.enabled || !attestation.enabled || attestation.manifestSha256 !== manifestSha256(manifest)) {
