@@ -218,7 +218,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: quality-review requested process-level proof after the orchestration was already implemented
 - [x] GREEN 0aa2de93a
-- [ ] REFACTOR
+- [x] REFACTOR skip: the process fixture shares one runner invocation helper across success, resume, and exclusion
 
 ### Scenario: The adapter checkout is explicit and commit-pinned
 
