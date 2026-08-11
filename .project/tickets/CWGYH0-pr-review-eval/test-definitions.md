@@ -113,7 +113,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: A structurally incomplete paired case is not scoreable
 
 - [x] RED e2f3fdfda
-- [ ] GREEN
+- [x] GREEN 251bde01d
 - [ ] REFACTOR
 
 ### Scenario: Validity gates change when admitted evidence changes
