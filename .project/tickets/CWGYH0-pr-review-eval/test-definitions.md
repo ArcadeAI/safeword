@@ -205,7 +205,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Successful wiring advances durable run state
 
 - [x] RED baff4f129
-- [ ] GREEN
+- [x] GREEN 9f8db4b55
 - [ ] REFACTOR
 
 ### Scenario: Aggregate cost is an observed stop, not a prepaid ceiling
