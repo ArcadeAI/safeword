@@ -182,7 +182,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: quality-review requested proof for behavior already implemented
 - [x] GREEN f9c092874
-- [ ] REFACTOR
+- [x] REFACTOR skip: the fixture composes production boundaries without a new abstraction
 
 ### Scenario: A clean canary authorizes the next checkpoint
 
