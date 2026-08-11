@@ -5,6 +5,7 @@ import {
 	readFileSync,
 	renameSync,
 } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
 import {
@@ -25,9 +26,9 @@ import {
 	acquireRunLock,
 	beginProvisionalCase,
 	caseStateFor,
+	commitAdmittedCaseWork,
 	quarantineCaseAndAllocateReserve,
 	recoverInterruptedQuarantine,
-	recordAdmittedTrial,
 	recordTrialResult,
 	sealActiveCase,
 	writeJsonDurably,
@@ -68,7 +69,7 @@ const preregisteredRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@8d86720c0";
 const model = "claude-sonnet-5";
 const trials = 3;
 const seed = 5_453_573;
-const aggregateCostCeilingUsd = 1_000;
+const aggregateCostStopUsd = 1_000;
 const inputPricePerMillionUsd = 3;
 const outputPricePerMillionUsd = 15;
 const policy = {
@@ -85,7 +86,7 @@ const cumulativeCaseTarget = parseCumulativeCaseTarget(
 );
 const cumulativeCostTargetUsd = parseCumulativeCostTarget(
 	process.env.CWGYH0_COST_TARGET_USD,
-	aggregateCostCeilingUsd,
+	aggregateCostStopUsd,
 );
 
 type RawCase = DevelopmentCase & {
@@ -155,6 +156,12 @@ function objectExists(repository: string, sha: string): boolean {
 function sha256(path: string): string {
 	const hasher = new Bun.CryptoHasher("sha256");
 	hasher.update(readFileSync(path));
+	return hasher.digest("hex");
+}
+
+function sha256Text(value: string): string {
+	const hasher = new Bun.CryptoHasher("sha256");
+	hasher.update(value);
 	return hasher.digest("hex");
 }
 
@@ -473,8 +480,8 @@ const reserve = readRawManifest(reserveManifestPath);
 const allCases = validateFrozenInputs(primary, reserve);
 const safeRepositories = new Map<string, string>();
 
-const frozenRun = {
-	aggregateCostCeilingUsd,
+const baseFrozenRun = {
+	aggregateCostStopUsd,
 	expectedAdapterCommit,
 	expectedRunnerRef,
 	expectedHashes,
@@ -486,10 +493,15 @@ const frozenRun = {
 	primaryCases: primary.cases.map((item) => item.id),
 	reserveCases: reserve.cases.map((item) => item.id),
 	seed,
+	sourceRepositoryIdentity: runGit(sourceRepository, ["remote", "get-url", "origin"]),
 	trials,
 };
 
+let frozenRun: Record<string, unknown>;
+
 if (preflightOnly) {
+	const preflightId = randomUUID();
+	frozenRun = { ...baseFrozenRun, preflightId };
 	for (const item of allCases) {
 		for (const variant of ["buggy", "fixed"] as const) {
 			safeRepositories.set(
@@ -513,6 +525,36 @@ if (preflightOnly) {
 	);
 	console.log(`preflight passed for ${allCases.length} cases / ${safeRepositories.size} snapshots`);
 } else {
+	const certifiedPreflightPath = requireEnvironment("CWGYH0_PREFLIGHT_PATH");
+	const certifiedPreflightBytes = readFileSync(certifiedPreflightPath, "utf8");
+	const certifiedPreflight = JSON.parse(certifiedPreflightBytes) as Record<
+		string,
+		unknown
+	> & {
+		preflightId?: unknown;
+		preflightedRepositories?: unknown;
+		primaryCases?: unknown;
+		reserveCases?: unknown;
+		sourceRepositoryIdentity?: unknown;
+		status?: unknown;
+	};
+	if (
+		typeof certifiedPreflight.preflightId !== "string" ||
+		certifiedPreflight.preflightId.length === 0 ||
+		certifiedPreflight.status !== "passed" ||
+		certifiedPreflight.preflightedRepositories !== allCases.length * 2 ||
+		Object.entries(baseFrozenRun).some(
+			([key, expected]) =>
+				JSON.stringify(certifiedPreflight[key]) !== JSON.stringify(expected),
+		)
+	) {
+		throw new Error("certified preflight does not match the frozen benchmark");
+	}
+	frozenRun = {
+		...baseFrozenRun,
+		preflightId: certifiedPreflight.preflightId,
+		preflightSha256: sha256Text(certifiedPreflightBytes),
+	};
 	const runLock = acquireRunLock(outputRoot);
 	try {
 	mkdirSync(join(outputRoot, "active"), { recursive: true });
@@ -702,8 +744,8 @@ if (preflightOnly) {
 			if (workIndex < state.nextWorkIndex) continue;
 			const callOrdinal = workIndex + 1;
 			if (state.cumulativeCostUsd >= cumulativeCostTargetUsd) break;
-			if (state.cumulativeCostUsd >= aggregateCostCeilingUsd) {
-				throw new Error(`aggregate cost ceiling reached: $${state.cumulativeCostUsd.toFixed(2)}`);
+			if (state.cumulativeCostUsd >= aggregateCostStopUsd) {
+				break;
 			}
 			const safeRepositoryKey = `${item.id}:${current.variant}`;
 			let safeRepository = safeRepositories.get(safeRepositoryKey);
@@ -801,12 +843,8 @@ if (preflightOnly) {
 					trial: current.trial,
 					usage,
 				};
-				recordAdmittedTrial(caseState, workId, record);
 				state.nextWorkIndex = callOrdinal;
-				await writeJsonAtomically(statePath, state);
-				if (state.cumulativeCostUsd > aggregateCostCeilingUsd) {
-					throw new Error(`aggregate cost ceiling exceeded: $${state.cumulativeCostUsd.toFixed(2)}`);
-				}
+				commitAdmittedCaseWork({ caseState, record, state, statePath, workId });
 			} catch (error) {
 				await Bun.write(
 					join(caseState.provisionalPath, `${String(callOrdinal).padStart(2, "0")}--FAILED.json`),

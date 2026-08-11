@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -169,24 +170,29 @@ try {
 		12,
 	);
 
+	const preflightPath = join(outputRoot, "preflight.json");
+	const preflightId = "success-wiring-preflight";
+	const sourceRepositoryIdentity = "local-success-wiring-repository";
+	const preflightBytes = `${JSON.stringify({
+			preflightId,
+			preflightedRepositories: 2,
+			primaryCases: [caseId],
+			reserveCases: [],
+			sourceRepositoryIdentity,
+			status: "passed",
+		})}\n`;
+	writeFileSync(preflightPath, preflightBytes);
 	writeFileSync(
 		join(outputRoot, "run-summary.json"),
 		`${JSON.stringify({
 			completedCaseIds: [caseId],
 			exclusions: [],
+			preflightId,
+			preflightSha256: createHash("sha256").update(preflightBytes).digest("hex"),
 			primaryCases: [caseId],
 			reserveCases: [],
+			sourceRepositoryIdentity,
 			status: "completed",
-		})}\n`,
-	);
-	const preflightPath = join(outputRoot, "preflight.json");
-	writeFileSync(
-		preflightPath,
-		`${JSON.stringify({
-			preflightedRepositories: 2,
-			primaryCases: [caseId],
-			reserveCases: [],
-			status: "passed",
 		})}\n`,
 	);
 	const resultsPath = join(outputRoot, "results.json");

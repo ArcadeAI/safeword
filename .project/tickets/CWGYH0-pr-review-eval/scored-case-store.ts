@@ -287,6 +287,17 @@ export function recordAdmittedTrial(
 	);
 }
 
+export function commitAdmittedCaseWork(input: {
+	caseState: ProvisionalCase;
+	record: unknown;
+	state: unknown;
+	statePath: string;
+	workId: string;
+}): void {
+	recordAdmittedTrial(input.caseState, input.workId, input.record);
+	writeJsonDurably(input.statePath, input.state);
+}
+
 export function sealActiveCase(caseState: ProvisionalCase): void {
 	if (existsSync(caseState.activePath)) {
 		throw new Error(`active case already exists: ${caseState.activePath}`);

@@ -13,7 +13,7 @@ describe("live scored-run lifecycle wiring", () => {
 		for (const lifecycleCall of [
 			"acquireRunLock(outputRoot)",
 			"beginProvisionalCase(",
-			"recordAdmittedTrial(caseState, workId, record)",
+			"commitAdmittedCaseWork({ caseState, record, state, statePath, workId })",
 			"quarantineCaseAndAllocateReserve({",
 			"sealActiveCase(caseState)",
 		]) {

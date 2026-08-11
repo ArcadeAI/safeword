@@ -4,6 +4,11 @@ import { join } from "node:path";
 import { mean, pairedBootstrapInterval } from "./scored-analysis";
 import { deriveScoreableMatrix } from "./scored-matrix";
 import { classifyTrialOutput } from "./scored-run-policy";
+import {
+	bindContaminationPreflight,
+	type EvidenceFinding,
+	validateVerifications,
+} from "./scored-evidence";
 
 const seed = 5_453_573;
 const bootstrapResamples = 1_000;
@@ -25,12 +30,6 @@ type RecordFile = {
 	sourceSha: string;
 	system: SystemName;
 	trial: number;
-	variant: Variant;
-};
-type Verification = Finding & {
-	caseId: string;
-	classification: "proved" | "falsified" | "unverifiable";
-	evidence: string;
 	variant: Variant;
 };
 
@@ -69,18 +68,20 @@ const summary = readJson<{
 	completedCaseIds: string[];
 	exclusions: Array<{ caseId: string; replacementId: string }>;
 	primaryCases: string[];
+	preflightId: string;
+	preflightSha256: string;
 	reserveCases: string[];
+	sourceRepositoryIdentity: string;
 	status: string;
 }>(join(outputRoot, "run-summary.json"));
 if (summary.status !== "completed") {
 	throw new Error("scored run is incomplete");
 }
-const preflight = readJson<{
-	preflightedRepositories: number;
-	primaryCases: string[];
-	reserveCases: string[];
-	status: string;
-}>(preflightPath);
+const preflight = bindContaminationPreflight(readFileSync(preflightPath, "utf8"), {
+	preflightId: summary.preflightId,
+	preflightSha256: summary.preflightSha256,
+	sourceRepositoryIdentity: summary.sourceRepositoryIdentity,
+});
 
 const rawRecords: RecordFile[] = [];
 const glob = new Bun.Glob("active/*/*--record.json");
@@ -166,8 +167,17 @@ const recallInterval = pairedBootstrapInterval(
 	seed,
 );
 
+const scoreableFindings: EvidenceFinding[] = records.flatMap((record) =>
+	record.output.report.consolidated.findings
+		.filter((finding) => !isNamedFinding(record, finding))
+		.map((finding) => ({
+			...finding,
+			caseId: record.caseId,
+			variant: record.variant,
+		})),
+);
 const verifications = verificationPath
-	? readJson<{ entries: Verification[] }>(verificationPath).entries
+	? validateVerifications(readJson<unknown>(verificationPath), scoreableFindings)
 	: [];
 const verificationByFinding = new Map(
 	verifications.map((entry) => [findingKey(entry), entry]),
