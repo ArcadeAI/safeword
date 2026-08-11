@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -9,6 +10,7 @@ import { createPlan } from '../cli-protocol/plan.js';
 import {
   createReconciliationPlan,
   effectsForReconciliation,
+  preconditionDigestForPaths,
 } from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
 import {
@@ -369,6 +371,38 @@ function plannedOptionalEslintEffects(
   return noModify === true ? [] : plannedEslintEffects(cwd, context);
 }
 
+function setupPreconditionDigest(
+  cwd: string,
+  reconciliationDigest: string,
+  effects: Effects,
+  context: ReturnType<typeof createProjectContext>,
+  options: SetupPlanOptions,
+): string {
+  const observationTargets = [
+    '.safeword',
+    '.safeword-project',
+    '.project',
+    '.codex/config.toml',
+    '.dependency-cruiser.cjs',
+    'Cargo.toml',
+    ...JAVASCRIPT_PACKAGE_FILES,
+    ...PYTHON_PACKAGE_FILES,
+    ...effects.files.map(effect => effect.target),
+    ...effects.destructive.map(effect => effect.target),
+  ].filter(target => !target.includes(' → '));
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        reconciliationDigest,
+        effects,
+        context,
+        options,
+        preconditionDigestForPaths(cwd, observationTargets),
+      ]),
+    )
+    .digest('hex');
+}
+
 function plannedVersionMarkerEffects(cwd: string, repair: boolean | undefined): Effect[] {
   if (repair !== true) return [];
   const target = '.safeword/version';
@@ -432,7 +466,13 @@ export async function createSetupPlan(
   const effects = mergeEffects(combined);
   return createPlan({
     command: 'setup',
-    preconditionDigest: reconciliation.plan.preconditionDigest,
+    preconditionDigest: setupPreconditionDigest(
+      cwd,
+      reconciliation.plan.preconditionDigest,
+      effects,
+      context,
+      options,
+    ),
     effects,
     verification: [{ description: 'Re-run safeword status' }],
   });

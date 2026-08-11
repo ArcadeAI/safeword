@@ -55,10 +55,20 @@ export function preconditionDigest(
   actions: readonly Action[],
   readFile: ReadFileForDigest = readFileForDigest,
 ): string {
-  const hash = createHash('sha256');
-  const targets = [...new Set(actions.flatMap(action => actionTargets(action)))].toSorted(
-    (left, right) => left.localeCompare(right),
+  return preconditionDigestForPaths(
+    cwd,
+    actions.flatMap(action => actionTargets(action)),
+    readFile,
   );
+}
+
+export function preconditionDigestForPaths(
+  cwd: string,
+  paths: readonly string[],
+  readFile: ReadFileForDigest = readFileForDigest,
+): string {
+  const hash = createHash('sha256');
+  const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hash.update(target);
     hashPath(hash, nodePath.join(cwd, target), readFile);

@@ -28,7 +28,9 @@ interface Effect {
 
 interface LifecycleEnvelope {
   readonly effects: Record<string, Effect[]>;
-  readonly data: { readonly plan: { readonly effects: Record<string, Effect[]> } };
+  readonly data: {
+    readonly plan: { readonly id: string; readonly effects: Record<string, Effect[]> };
+  };
 }
 
 const temporaryDirectories: string[] = [];
@@ -137,6 +139,21 @@ describe('install plan completeness', () => {
     ).toEqual([]);
   });
 
+  it('changes plan identity when a non-reconciliation target changes', async () => {
+    const directory = temporaryDirectory();
+    configureProject(directory);
+    writeFileSync(nodePath.join(directory, 'Cargo.toml'), '[package]\nname = "app"\n');
+
+    const first = await planProject(directory);
+    writeFileSync(
+      nodePath.join(directory, 'Cargo.toml'),
+      '[package]\nname = "app"\nversion = "0.1.0"\n',
+    );
+    const second = await planProject(directory);
+
+    expect(second.envelope.data.plan.id).not.toBe(first.envelope.data.plan.id);
+  });
+
   it('previews namespace migration and version-marker repair options', async () => {
     const directory = temporaryDirectory();
     configureProject(directory, ['typescript']);
@@ -175,6 +192,14 @@ describe('install plan completeness', () => {
     );
     expect(installed.exitCode).toBe(0);
     const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
+    expect(installEnvelope.effects.files).toEqual(
+      expect.arrayContaining([
+        { kind: 'update', target: '.safeword/version' },
+        { kind: 'move', target: '.safeword-project → .project' },
+        { kind: 'delete', target: '.safeword-project/tickets/legacy.md' },
+        { kind: 'create', target: '.project/tickets/legacy.md' },
+      ]),
+    );
     const planned = new Set((planEnvelope.data.plan.effects.files ?? []).map(effectIdentity));
     expect(
       (installEnvelope.effects.files ?? []).filter(effect => !planned.has(effectIdentity(effect))),

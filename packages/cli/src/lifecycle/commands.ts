@@ -583,17 +583,22 @@ async function applyPreparedLifecycle(
 ): Promise<CliResult> {
   const cursorSelected = prepared.agents.includes('cursor');
   const cursorHadAssets = cursorSelected && hasCursorProjectAssets(cwd, prepared.projectSchema);
-  const completed = await uninstallProfileSurfaces(cwd, prepared.agents, prepared.scope);
   const projectResult = await removeProject(cwd, {
     full: prepared.full,
     yes: true,
     plan: prepared.projectPlan.id,
     schema: prepared.projectSchema,
   });
-  completed.unshift({
-    name: 'project',
-    result: projectResult,
-  });
+  const completed: SurfaceResult[] = [
+    {
+      name: 'project',
+      result: projectResult,
+    },
+  ];
+  if (projectResult.state === 'failed' || projectResult.state === 'action_required') {
+    return combinedUninstallResult(prepared, completed);
+  }
+  completed.push(...(await uninstallProfileSurfaces(cwd, prepared.agents, prepared.scope)));
   if (cursorSelected) {
     const cursorRemoved = cursorHadAssets && !hasCursorProjectAssets(cwd, prepared.projectSchema);
     completed.push({
@@ -601,6 +606,13 @@ async function applyPreparedLifecycle(
       result: createResult({ state: cursorRemoved ? 'changed' : 'healthy' }),
     });
   }
+  return combinedUninstallResult(prepared, completed);
+}
+
+function combinedUninstallResult(
+  prepared: PreparedLifecycle,
+  completed: readonly SurfaceResult[],
+): CliResult {
   const results = completed.map(surface => surface.result);
   return createResult({
     state: combinedResultState(results),
