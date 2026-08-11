@@ -314,7 +314,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Drifted raw evidence cannot be reused
 
-- [ ] RED
+- [x] RED d6d054141
 - [ ] GREEN
 - [ ] REFACTOR
 
