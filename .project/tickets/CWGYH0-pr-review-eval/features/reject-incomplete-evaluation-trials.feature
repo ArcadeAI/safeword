@@ -325,11 +325,13 @@ Feature: Keep failed reviews out of benchmark scores
       Then each canonical R2 class has exactly one passing failure-injection record with a stable scenario identity
 
     Scenario: The paid canary outcomes are independently checkable
-      Given ten unique expected labels cover both systems and both variants with at least one finding success and one genuine-empty success
+      Given ten unique mechanical labels were retained in a separate immutable external anchor before any paid call
+      And the labels cover both systems and both variants with at least one finding success and one genuine-empty success
       And all ten paid calls are usable with complete attempt costs and provenance
       And every observed classification exactly matches its frozen expected label
       When the maintainer inspects individual canary records
       Then each frozen label has exactly one independently recorded matching outcome
+      And every outcome is reclassified from its retained raw provider responses rather than trusted as a summary
 
     Scenario: A hidden provider failure is rejected through real wiring
       Given a provider HTTP-200 error envelope is injected only at the network boundary
