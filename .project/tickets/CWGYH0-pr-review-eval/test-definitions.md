@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A complete run is scoreable
 
-- [ ] RED
+- [x] RED e2f3fdfda
 - [ ] GREEN
 - [ ] REFACTOR
 
