@@ -34,6 +34,15 @@ import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 
+function executableDirectory(name: string): string {
+  const executableName = process.platform === 'win32' ? `${name}.exe` : name;
+  const directory = (process.env.PATH ?? '')
+    .split(nodePath.delimiter)
+    .find(candidate => existsSync(nodePath.join(candidate, executableName)));
+  assert.ok(directory, `${name} must be available on the acceptance runner PATH`);
+  return directory;
+}
+
 interface UnifiedInstallWorld extends SafewordWorld {
   fixtureRoot?: string;
   projectRoot?: string;
@@ -332,16 +341,9 @@ exit 1
   world.claudeFailure = claudeFailure;
   world.cursorBefore = directoryDigest(nodePath.join(project, '.cursor'));
   world.hostEnvironment = {
-    PATH: [
-      bin,
-      process.env.BUN_INSTALL === undefined
-        ? nodePath.dirname(process.execPath)
-        : nodePath.join(process.env.BUN_INSTALL, 'bin'),
-      '/usr/bin',
-      '/bin',
-      '/usr/sbin',
-      '/sbin',
-    ].join(nodePath.delimiter),
+    PATH: [bin, executableDirectory('bun'), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(
+      nodePath.delimiter,
+    ),
     CODEX_HOME: profile,
     SAFEWORD_CLAUDE_MARKETPLACE: claudeMarketplace,
     SAFEWORD_CLAUDE_LOG: claudeLog,
