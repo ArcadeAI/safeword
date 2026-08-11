@@ -687,16 +687,13 @@ Then('SessionStart performs no implicit upgrade', function (this: SafewordWorld)
 });
 
 Then(
-  'it emits SessionStart additionalContext containing package-owned SAFEWORD.md',
+  'it emits SessionStart additionalContext containing the compact package-owned bootstrap',
   function (this: SafewordWorld) {
     const parsed = JSON.parse(this.result.stdout) as {
       hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
     };
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-    assert.match(
-      parsed.hookSpecificOutput?.additionalContext ?? '',
-      /SAFEWORD Agent Instructions/u,
-    );
+    assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /Safeword session bootstrap/u);
   },
 );
 
@@ -710,10 +707,7 @@ Then(
     };
     assert.doesNotMatch(parsed.systemMessage ?? '', /v2\.0\.0 available \(major\)/u);
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-    assert.match(
-      parsed.hookSpecificOutput?.additionalContext ?? '',
-      /SAFEWORD Agent Instructions/u,
-    );
+    assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /Safeword session bootstrap/u);
   },
 );
 

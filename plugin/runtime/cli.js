@@ -39480,8 +39480,14 @@ function migrateClaudeLegacyAutomatically(cwd, options) {
 }
 function recoveredAutomaticResult(projectRoot) {
   const recovered = recoverClaudeCleanup(projectRoot);
-  if (recovered.state !== "failed")
-    return { state: "complete", unresolvedPaths: [] };
+  if (recovered.state !== "failed") {
+    const marker = readClaudePluginMode(projectRoot);
+    return {
+      state: "complete",
+      advisory: marker?.advisory,
+      unresolvedPaths: marker?.unresolved_paths ?? []
+    };
+  }
   const detail = recovered.errors?.[0]?.message ?? "the recorded cleanup transaction could not be read safely";
   return {
     state: "attention",

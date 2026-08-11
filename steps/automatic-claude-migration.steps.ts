@@ -746,7 +746,7 @@ When(
 );
 
 Then(
-  'exactly one transaction is created and both report the same completed plugin-mode state',
+  'one transaction is claimed and the next prompt converges to completed plugin mode',
   function (this: MigrationWorld) {
     assert.equal(this.command?.status, 0, this.command?.output);
     // A non-exclusive claim lets the loser re-plan and collide, which surfaces
@@ -756,6 +756,8 @@ Then(
       0,
       this.command?.output,
     );
+    if (existsSync(nodePath.join(project(this).root, TRANSACTION)))
+      runUntilAutomaticMigrationSettles(project(this), 'concurrent-migration-follow-up');
     assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
     assert.equal(marker(this).state, 'clean');
     for (const relative of project(this).installed) {

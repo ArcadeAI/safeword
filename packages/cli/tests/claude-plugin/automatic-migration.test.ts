@@ -129,6 +129,26 @@ describe('automatic Claude migration', () => {
     expect(readClaudePluginMode(root)?.state).toBe('clean');
   });
 
+  it('preserves the unresolved-path advisory when a deferred transaction recovers', () => {
+    const { root } = fixture();
+    const conflictingPath = Object.keys(CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].files)[1];
+    expect(conflictingPath).toBeDefined();
+    const conflict = nodePath.join(root, conflictingPath ?? 'missing');
+    mkdirSync(nodePath.dirname(conflict), { recursive: true });
+    writeFileSync(conflict, 'user-owned change\n');
+
+    let reads = 0;
+    expect(migrate(root, () => (reads++ === 0 ? 0 : 10)).state).toBe('deferred');
+
+    const recovered = migrate(root);
+    expect(recovered).toMatchObject({
+      state: 'complete',
+      unresolvedPaths: [conflictingPath],
+    });
+    expect(recovered.advisory).toContain(conflictingPath);
+    expect(readFileSync(conflict, 'utf8')).toBe('user-owned change\n');
+  });
+
   it('removes the directories contracted legacy assets leave behind', () => {
     const { root, installedPath } = fixture();
     const keptPath = nodePath.join(nodePath.dirname(installedPath), 'notes.md');

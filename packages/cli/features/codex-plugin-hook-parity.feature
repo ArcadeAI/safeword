@@ -76,7 +76,7 @@ Feature: Codex plugin hook parity
       Given a Codex project with no applicable Safeword upgrade
       When the packaged Codex SessionStart command runs
       Then SessionStart performs no implicit upgrade
-      And it emits SessionStart additionalContext containing package-owned SAFEWORD.md
+      And it emits SessionStart additionalContext containing the compact package-owned bootstrap
 
     @codex-plugin-hook-parity.TB1.R4 @surface.openai-codex @surface.safeword-cli
     Scenario: Packaged SessionStart ignores cached upgrade notices

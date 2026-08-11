@@ -416,9 +416,9 @@ Then('the contract appears exactly once', function (this: SafewordWorld) {
   );
 });
 
-Then('existing SAFEWORD standing instructions remain intact', function (this: SafewordWorld) {
+Then('the compact Safeword session bootstrap remains intact', function (this: SafewordWorld) {
   assert.ok(
-    stateFor(this).sessionContexts?.every(context => /SAFEWORD Agent Instructions/u.test(context)),
+    stateFor(this).sessionContexts?.every(context => /Safeword session bootstrap/u.test(context)),
   );
 });
 

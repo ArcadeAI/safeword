@@ -259,11 +259,11 @@ Then('Cursor sessionStart runs the SAFEWORD context hook', function (this: Safew
 });
 
 Then(
-  'each output contains the SAFEWORD.md standing instructions as model-visible context',
+  'each output contains the compact Safeword bootstrap as model-visible context',
   function (this: SafewordMdWorld) {
     const outputs = this.hookOutputs ?? {};
-    assert.match(JSON.stringify(outputs.claude), /SAFEWORD Agent Instructions/);
-    assert.match(JSON.stringify(outputs.cursor), /SAFEWORD Agent Instructions/);
+    assert.match(JSON.stringify(outputs.claude), /Safeword session bootstrap/);
+    assert.match(JSON.stringify(outputs.cursor), /Safeword session bootstrap/);
   },
 );
 

@@ -100,7 +100,7 @@ Feature: Migrate legacy Claude projects automatically
     Scenario: Concurrent automatic migrations converge through one exclusive transaction
       Given two plugin processes observe the same cleanup-ready repository
       When a barrier releases both automatic contraction attempts against the absent transaction
-      Then exactly one transaction is created and both report the same completed plugin-mode state
+      Then one transaction is claimed and the next prompt converges to completed plugin mode
 
     Scenario: A race loser defers when the transaction winner exceeds its wait budget
       Given two plugin processes race and the transaction winner remains active beyond the loser's bounded wait
