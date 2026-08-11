@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 183420791
 - [x] GREEN a90b2edd3
-- [ ] REFACTOR
+- [x] REFACTOR skip: recovery exposes one typed evidence callback and keeps accounting policy in the live runner
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
 
