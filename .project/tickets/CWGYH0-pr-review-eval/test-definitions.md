@@ -44,7 +44,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Frozen reviewer routing cannot drift
 
-- [ ] RED
+- [x] RED f948a4a36
 - [ ] GREEN
 - [ ] REFACTOR
 
