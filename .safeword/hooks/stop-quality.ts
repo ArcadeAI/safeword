@@ -162,16 +162,26 @@ function recordStopReviewState(
     // Partial, not QualityState: the file may be absent (fresh session) or
     // predate a field. The shared contract names the shape; the runtime
     // boundary below keeps a stale or malformed file from crashing the hook.
-    const parsed: unknown = existsSync(stateFile)
-      ? JSON.parse(readFileSync(stateFile, 'utf8'))
-      : {};
-    const state: Partial<QualityState> =
-      typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+    let parsed: unknown = {};
+    if (existsSync(stateFile)) {
+      try {
+        parsed = JSON.parse(readFileSync(stateFile, 'utf8'));
+      } catch {
+        // A torn write must not leave the Stop correction permanently
+        // undeduplicated. Recover to an empty root and replace it below.
+      }
+    }
+    const state = normalizeQualityStateRoot(parsed);
     Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
     // Best effort — don't crash stop hook on state write failure
   }
+}
+
+/** Normalize stale or user-edited state before applying a Stop-review patch. */
+function normalizeQualityStateRoot(parsed: unknown): Partial<QualityState> {
+  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
 }
 
 /** Global scan fallback — used when no session state exists */
@@ -486,7 +496,8 @@ function detectEditToolsUsedInCurrentUserTurn(
     // fallback when no turn start is found.
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
-    if (startsNewTurn(message)) return foundEdit;
+    const precedingMessage = i > 0 ? parseTranscriptLine(transcriptLines[i - 1]) : undefined;
+    if (startsNewTurn(message, precedingMessage)) return foundEdit;
     if (isAssistantMessage(message)) {
       foundEdit ||= containsEditToolUse(normalizeContentItems(message.message?.content));
     }
@@ -543,9 +554,41 @@ function isBackgroundTaskNotification(message: TranscriptMessage): boolean {
   return TRANSCRIPT_TURN_START_NOTIFICATION_PATTERN.test(userMessageText(message));
 }
 
+/**
+ * A user-role record made entirely of reminder markup is ambiguous unless the
+ * adjacent older record proves it belongs to an active tool exchange. Treat an
+ * unproven record as human input so quoted markup cannot erase a turn boundary.
+ */
+function isUnprovenSystemOnlyPrompt(
+  message: TranscriptMessage,
+  precedingMessage: TranscriptMessage | undefined,
+): boolean {
+  const text = userMessageText(message);
+  if (
+    text.length === 0 ||
+    !TRANSCRIPT_SYSTEM_MESSAGE_PATTERN.test(text) ||
+    humanPromptText(message).length > 0
+  ) {
+    return false;
+  }
+
+  const precedingContent = normalizeContentItems(precedingMessage?.message?.content);
+  const followsToolExchange = precedingContent.some(
+    item => item.type === 'tool_use' || item.type === 'tool_result',
+  );
+  return !followsToolExchange;
+}
+
 /** Whether this message opened the turn the transcript currently ends in. */
-function startsNewTurn(message: TranscriptMessage): boolean {
-  return isGenuineUserPrompt(message) || isBackgroundTaskNotification(message);
+function startsNewTurn(
+  message: TranscriptMessage,
+  precedingMessage: TranscriptMessage | undefined,
+): boolean {
+  return (
+    isGenuineUserPrompt(message) ||
+    isBackgroundTaskNotification(message) ||
+    isUnprovenSystemOnlyPrompt(message, precedingMessage)
+  );
 }
 
 function containsEditToolUse(content: ContentItem[]): boolean {

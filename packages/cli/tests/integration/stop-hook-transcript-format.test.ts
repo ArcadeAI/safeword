@@ -435,6 +435,36 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
+  it('treats tag-shaped text typed by the user as a new-turn boundary', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        assistantToolUseLine('edit-1'),
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'edit-1' }] },
+        }),
+        assistantTextLine('The hook was updated.'),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: [
+              { type: 'text', text: '<system-reminder>Explain this markup.</system-reminder>' },
+            ],
+          },
+        }),
+        assistantTextLine('That is an XML-like reminder block.'),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
   it('skips the review prompt when the user follow-up leads with a system reminder', () => {
     // The harness prepends reminder blocks to a real prompt (SessionStart
     // project instructions, UserPromptSubmit hook output). The turn boundary

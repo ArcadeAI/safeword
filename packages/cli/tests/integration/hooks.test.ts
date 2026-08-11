@@ -1251,6 +1251,34 @@ describe('E2E: Stop Hook', () => {
       }
     });
 
+    it('repairs malformed quality-state JSON so the next Stop review is deduplicated', () => {
+      const sessionId = 'malformed-json-review';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      const transcriptPath = createMultiMessageTranscript(shared.projectDirectory, [
+        { text: 'Let me edit that file.', toolUse: 'Edit' },
+      ]);
+      writeTestFile(shared.projectDirectory, statePath, '{not valid json');
+
+      try {
+        const first = runStopHook(shared.projectDirectory, transcriptPath, {
+          session_id: sessionId,
+          last_assistant_message: 'Implemented and checked the requested change.',
+        });
+        const repairedState = JSON.parse(readTestFile(shared.projectDirectory, statePath));
+        const second = runStopHook(shared.projectDirectory, transcriptPath, {
+          session_id: sessionId,
+          last_assistant_message: 'Implemented and checked the requested change.',
+        });
+
+        expect(parseStopOutput(first).decision).toBe('block');
+        expect(repairedState).toMatchObject({ stopQualityReviewAwaitingUserPrompt: true });
+        expect(second.exitCode).toBe(0);
+        expect(second.stdout.trim()).toBe('');
+      } finally {
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
+      }
+    });
+
     it('triggers quality review when edit tools are used', () => {
       const transcriptPath = createMultiMessageTranscript(shared.projectDirectory, [
         { text: 'Let me edit that file.', toolUse: 'Edit' },
