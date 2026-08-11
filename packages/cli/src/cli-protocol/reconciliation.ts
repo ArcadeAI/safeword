@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { Stats } from 'node:fs';
 import { lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -36,31 +37,56 @@ function filesystemFailureToken(error: unknown): string {
   return code === 'ENOENT' || code === 'ENOTDIR' ? 'missing' : `error:${code ?? 'unknown'}`;
 }
 
+function hashField(hash: ReturnType<typeof createHash>, tag: string, value: string | Buffer): void {
+  const bytes = typeof value === 'string' ? Buffer.from(value) : value;
+  const length = Buffer.allocUnsafe(8);
+  length.writeBigUInt64BE(BigInt(bytes.length));
+  hash.update(tag);
+  hash.update(Buffer.from([0]));
+  hash.update(length);
+  hash.update(bytes);
+}
+
+function filesystemNodeType(stat: Stats): string {
+  if (stat.isSymbolicLink()) return 'link';
+  if (stat.isDirectory()) return 'directory';
+  if (stat.isFile()) return 'file';
+  return 'other';
+}
+
 function hashPath(
   hash: ReturnType<typeof createHash>,
   absolutePath: string,
+  relativePath: string,
   readFile: ReadFileForDigest,
 ): void {
   try {
     const stat = lstatSync(absolutePath);
-    hash.update(
-      stat.isSymbolicLink() ? `link:${readlinkSync(absolutePath)}` : stat.mode.toString(),
-    );
+    hashField(hash, 'node-type', filesystemNodeType(stat));
+    hashField(hash, 'relative-path', relativePath);
+    hashField(hash, 'mode', stat.mode.toString());
+    if (stat.isSymbolicLink()) hashField(hash, 'link-target', readlinkSync(absolutePath));
     if (stat.isDirectory()) {
       const entries = readdirSync(absolutePath).toSorted((left, right) =>
         left.localeCompare(right),
       );
       for (const name of entries) {
-        hash.update(name);
-        hashPath(hash, nodePath.join(absolutePath, name), readFile);
+        hashPath(
+          hash,
+          nodePath.join(absolutePath, name),
+          nodePath.join(relativePath, name),
+          readFile,
+        );
       }
     } else if (stat.isFile()) {
       // Exact bytes intentionally bind plan consent more strongly than
       // size/mtime metadata, which can be preserved across content changes.
-      hash.update(readFile(absolutePath));
+      hashField(hash, 'file-content', readFile(absolutePath));
     }
   } catch (error) {
-    hash.update(filesystemFailureToken(error));
+    hashField(hash, 'node-type', 'error');
+    hashField(hash, 'relative-path', relativePath);
+    hashField(hash, 'error', filesystemFailureToken(error));
   }
 }
 
@@ -84,8 +110,8 @@ export function preconditionDigestForPaths(
   const hash = createHash('sha256');
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
-    hash.update(target);
-    hashPath(hash, nodePath.join(cwd, target), readFile);
+    hashField(hash, 'target', target);
+    hashPath(hash, nodePath.join(cwd, target), target, readFile);
   }
   return hash.digest('hex');
 }
