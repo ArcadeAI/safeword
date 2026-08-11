@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A second infrastructure failure excludes the paired case
 
-- [ ] RED
+- [x] RED c03099d0d
 - [ ] GREEN
 - [ ] REFACTOR
 
