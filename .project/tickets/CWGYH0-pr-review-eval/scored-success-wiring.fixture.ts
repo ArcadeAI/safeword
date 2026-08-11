@@ -187,7 +187,7 @@ try {
 		12,
 	);
 
-	const preflightPath = join(outputRoot, "preflight.json");
+	const preflightPath = join(outputRoot, "contamination-preflight.json");
 	const preflightId = "success-wiring-preflight";
 	const sourceRepositoryIdentity = "local-success-wiring-repository";
 	const preflightBytes = `${JSON.stringify({
@@ -199,15 +199,28 @@ try {
 			status: "passed",
 		})}\n`;
 	writeFileSync(preflightPath, preflightBytes);
+	const reviewStartedAt = new Date().toISOString();
+	const corpusRoleBytes = `${JSON.stringify({
+		developmentCaseIds: ["development-only"],
+		minimumPoweredCases: 1,
+		preregisteredAt: "2026-07-01T00:00:00.000Z",
+		primaryCaseIds: [caseId],
+		reserveCaseIds: [],
+		role: "confirmatory",
+		voidForInstrumentFailure: false,
+	})}\n`;
+	writeFileSync(join(outputRoot, "corpus-role.json"), corpusRoleBytes);
 	writeFileSync(
 		join(outputRoot, "run-summary.json"),
 		`${JSON.stringify({
 			completedCaseIds: [caseId],
+			corpusRoleSha256: createHash("sha256").update(corpusRoleBytes).digest("hex"),
 			exclusions: [],
 			preflightId,
 			preflightSha256: createHash("sha256").update(preflightBytes).digest("hex"),
 			primaryCases: [caseId],
 			reserveCases: [],
+			reviewStartedAt,
 			sourceRepositoryIdentity,
 			status: "completed",
 		})}\n`,
@@ -227,7 +240,6 @@ try {
 			outputRoot,
 			resultsPath,
 			"",
-			preflightPath,
 		],
 		{ encoding: "utf8", env: { ...process.env, ...manifestEnvironment } },
 	);

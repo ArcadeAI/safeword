@@ -460,7 +460,15 @@ describe("one-retry policy", () => {
 		expect(calls).toBe(2);
 		expect(result).toMatchObject({
 			attemptRecords: [
-				{ attempt: 1, disposition: null, output: null },
+				{
+					attempt: 1,
+					disposition: {
+						reason: "provider-failure",
+						retry: "infrastructure-once",
+						status: "invalid",
+					},
+					output: null,
+				},
 				{
 					attempt: 2,
 					disposition: { reason: "schema-invalid", retry: "never", status: "invalid" },
@@ -470,6 +478,32 @@ describe("one-retry policy", () => {
 			attempts: 2,
 			status: "exclude-case",
 		});
+	});
+
+	test("resumes a durably recorded retryable provider exception", async () => {
+		let calls = 0;
+		const result = await executeWithInfrastructureRetry(
+			async () => {
+				calls += 1;
+				return "ok";
+			},
+			undefined,
+			{
+				priorAttemptRecords: [{
+					attempt: 1,
+					disposition: {
+						reason: "provider-failure",
+						retry: "infrastructure-once",
+						status: "invalid",
+					},
+					error: "ProviderRequestError: request failed with HTTP 503",
+					output: null,
+				}],
+			},
+		);
+
+		expect(calls).toBe(1);
+		expect(result).toMatchObject({ attempts: 2, status: "completed", value: "ok" });
 	});
 
 	test("does not retry an embedded schema failure", async () => {

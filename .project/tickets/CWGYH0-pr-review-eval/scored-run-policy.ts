@@ -461,7 +461,11 @@ function thrownDisposition(error: unknown): TrialDisposition | null {
 		return { reason: "schema-invalid", retry: "never", status: "invalid" };
 	}
 	if (error.name === "ProviderRequestError" && typeof error.status === "number") {
-		return { reason: "provider-failure", retry: "never", status: "invalid" };
+		return {
+			reason: "provider-failure",
+			retry: retryForFailure({ kind: "provider-request", status: error.status }),
+			status: "invalid",
+		};
 	}
 	return null;
 }
@@ -634,7 +638,7 @@ export async function executeWithInfrastructureRetry<T>(
 			infrastructureErrors.push(summary);
 			const attempt = {
 				attempt: attempts,
-				disposition: null,
+				disposition: thrownDisposition(error),
 				error: summary,
 				output: null,
 			} as TrialAttempt<T>;
