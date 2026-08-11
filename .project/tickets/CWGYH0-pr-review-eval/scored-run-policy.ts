@@ -164,11 +164,7 @@ export function classifyTrialOutput(
 	) {
 		return { reason: "schema-invalid", retry: "never", status: "invalid" };
 	}
-	if (
-		!Array.isArray(value.trace) ||
-		value.trace.length === 0 ||
-		!isRecord(value.provenance)
-	) {
+	if (!isRecord(value.provenance)) {
 		return {
 			reason: "provenance-incomplete",
 			retry: "never",
@@ -182,14 +178,6 @@ export function classifyTrialOutput(
 			status: "invalid",
 		};
 	}
-	if (value.terminalState !== "completed") {
-		return {
-			reason: "unexpected-finish",
-			retry: "never",
-			status: "invalid",
-		};
-	}
-
 	const routedModel = value.models.some(
 		(model) => isRecord(model) && model.expert === expectedExpert,
 	);
@@ -240,6 +228,20 @@ export function classifyTrialOutput(
 	}
 	if (outcome.failure !== null) {
 		return { reason: "unknown-state", retry: "never", status: "invalid" };
+	}
+	if (value.terminalState !== "completed") {
+		return {
+			reason: "unexpected-finish",
+			retry: "never",
+			status: "invalid",
+		};
+	}
+	if (!Array.isArray(value.trace) || value.trace.length === 0) {
+		return {
+			reason: "provenance-incomplete",
+			retry: "never",
+			status: "invalid",
+		};
 	}
 	if (
 		typeof outcome.turns !== "number" ||
