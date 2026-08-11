@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 473dbe7d1
 - [x] GREEN 110a239b3
-- [ ] REFACTOR
+- [x] REFACTOR skip: candidate publication and stale reclamation are already separate atomic rename steps
 
 ### Scenario: A failed durable write does not poison the next write
 
