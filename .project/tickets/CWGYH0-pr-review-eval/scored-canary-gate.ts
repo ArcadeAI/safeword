@@ -88,6 +88,8 @@ type CanaryInput = {
 		quarantinedAttemptIdentities: string[];
 		recordedAt: string;
 		scorer: {
+			admittedCaseIds?: string[];
+			excludedCaseIds?: string[];
 			exitStatus: number;
 			resultsExists: boolean;
 			stderr: string;
@@ -400,6 +402,17 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	if (!retainedBeforeAnchor(hidden.recordedAt)) {
 		reasons.push("real-wiring evidence was not retained before authorization");
 	}
+	const scorerRejected =
+		hidden.scorer.exitStatus !== 0 &&
+		!hidden.scorer.resultsExists &&
+		hidden.scorer.stderr.includes("missing");
+	const scorerExcluded =
+		hidden.scorer.exitStatus === 0 &&
+		hidden.scorer.resultsExists &&
+		Array.isArray(hidden.scorer.admittedCaseIds) &&
+		Array.isArray(hidden.scorer.excludedCaseIds) &&
+		!hidden.scorer.admittedCaseIds.includes(hidden.expectedProvenance.caseId) &&
+		hidden.scorer.excludedCaseIds.includes(hidden.expectedProvenance.caseId);
 	if (
 		hidden.attemptId.length === 0 ||
 		hiddenDisposition.status !== "invalid" ||
@@ -407,9 +420,7 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		hidden.activeRecordIdentities.length !== 0 ||
 		hidden.quarantinedAttemptIdentities.length !== 1 ||
 		hidden.quarantinedAttemptIdentities[0] !== hidden.attemptId ||
-		hidden.scorer.exitStatus === 0 ||
-		hidden.scorer.resultsExists ||
-		!hidden.scorer.stderr.includes("missing")
+		(!scorerRejected && !scorerExcluded)
 	) {
 		reasons.push("real-wiring hidden failure was not proven quarantined and unscoreable");
 	}

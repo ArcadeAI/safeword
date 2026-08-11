@@ -98,7 +98,7 @@ try {
 		},
 		stdio: "pipe",
 	});
-	const hiddenFailureEvidence = JSON.parse(
+	let hiddenFailureEvidence = JSON.parse(
 		readFileSync(realWiringEvidencePath, "utf8"),
 	) as Record<string, unknown>;
 	const outputRoot = join(root, "output");
@@ -528,6 +528,9 @@ try {
 	);
 	const failedAttempt = JSON.parse(readFileSync(failedAttemptPath, "utf8")) as {
 		disposition: { reason: string };
+		output: {
+			provenance: Record<string, string>;
+		};
 	};
 	assert.equal(failedAttempt.disposition.reason, "provider-failure");
 	assert.match(readFileSync(failedAttemptPath, "utf8"), /overloaded/);
@@ -564,6 +567,35 @@ try {
 	assert.deepEqual(scorerResults.caseRows.map(({ caseId }) => caseId), [
 		exclusion.replacementId,
 	]);
+	hiddenFailureEvidence = {
+		activeRecordIdentities: [],
+		attemptId: failedAttemptPath.split("/").at(-1)!,
+		expectedProvenance: failedAttempt.output.provenance,
+		expectedRoute: {
+			expert: "correctness",
+			model: "claude-sonnet-5",
+			provider: "anthropic",
+		},
+		output: failedAttempt.output,
+		quarantinedAttemptIdentities: [failedAttemptPath.split("/").at(-1)!],
+		recordedAt: new Date().toISOString(),
+		scorer: {
+			admittedCaseIds: scorerResults.caseRows.map(({ caseId }) => caseId),
+			excludedCaseIds: scorerResults.exclusions.map(({ caseId }) => caseId),
+			exitStatus: 0,
+			resultsExists: true,
+			stderr: "",
+		},
+	};
+	const boundEvidenceOutputRoot = join(root, "bound-evidence-output");
+	assert.match(
+		run({
+			fetchLog: join(root, "bound-evidence-fetch.log"),
+			outputRoot: boundEvidenceOutputRoot,
+			scratchName: "scratch-bound-evidence",
+		}),
+		/completed: 1\/30 cases/,
+	);
 
 	const retainedRolePath = join(failureOutputRoot, "corpus-role.json");
 	const voidRole = JSON.parse(readFileSync(retainedRolePath, "utf8")) as {

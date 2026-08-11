@@ -3,6 +3,7 @@ import {
 	closeSync,
 	existsSync,
 	fsyncSync,
+	lstatSync,
 	mkdirSync,
 	openSync,
 	readFileSync,
@@ -164,7 +165,8 @@ function lockOwnerIsAlive(owner: LockOwner | null): boolean {
 	if (owner === null || typeof owner.processIdentity !== "string") return false;
 	try {
 		process.kill(owner.pid, 0);
-		return processIdentity(owner.pid) === owner.processIdentity;
+		const identity = processIdentity(owner.pid);
+		return identity === null || identity === owner.processIdentity;
 	} catch (error) {
 		return !(
 			error instanceof Error &&
@@ -214,21 +216,19 @@ export function acquireRunLock(outputRoot: string): RunLock {
 				}
 			}
 
-			if (lockOwnerIsAlive(readLockOwner(lockPath))) {
+			const observedOwner = readLockOwner(lockPath);
+			if (lockOwnerIsAlive(observedOwner)) {
 				throw new Error(`benchmark output is already locked: ${lockPath}`);
 			}
-
-			const stalePath = join(
-				outputRoot,
-				`.run-lock-stale-${process.pid}-${randomUUID()}`,
-			);
+			const lockStat = lstatSync(lockPath);
+			const reclaimIdentity = observedOwner?.token ??
+				`${lockStat.dev}-${lockStat.ino}`;
+			const stalePath = join(outputRoot, `.run-lock-reclaimed-${reclaimIdentity}`);
 			try {
 				renameSync(lockPath, stalePath);
 			} catch {
 				continue;
 			}
-			syncDirectory(outputRoot);
-			rmSync(stalePath, { force: true, recursive: true });
 			syncDirectory(outputRoot);
 		}
 		if (!acquired) {
