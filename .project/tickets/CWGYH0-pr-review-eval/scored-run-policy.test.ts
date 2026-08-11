@@ -315,6 +315,26 @@ describe("infrastructure classification", () => {
 });
 
 describe("one-retry policy", () => {
+	test("turns an unclassified thrown attempt into a terminal unknown failure", async () => {
+		let calls = 0;
+		const result = await executeWithInfrastructureRetry(async () => {
+			calls += 1;
+			throw new Error("unexpected adapter failure");
+		});
+
+		expect(calls).toBe(1);
+		expect(result).toMatchObject({
+			attemptRecords: [
+				{
+					attempt: 1,
+					disposition: { reason: "unknown-state", retry: "never", status: "invalid" },
+					output: null,
+				},
+			],
+			status: "exclude-case",
+		});
+	});
+
 	test("retries one infrastructure failure and preserves the successful result", async () => {
 		let calls = 0;
 		const result = await executeWithInfrastructureRetry(async () => {
