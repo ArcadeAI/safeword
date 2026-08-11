@@ -104,7 +104,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
 
-- [ ] RED
+- [x] RED f7b7d089b
 - [ ] GREEN
 - [ ] REFACTOR
 
