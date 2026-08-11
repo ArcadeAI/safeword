@@ -74,39 +74,39 @@ Authorization is inapplicable to non-authorization fixtures because they cannot 
 
 ### Scenario: Explicit initialization bootstraps empty durable accounting
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An uninitialized canary cannot execute
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Deleted ledgers cannot reset an initialized canary
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario Outline: Untrusted initialization state cannot authorize planted ledgers
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario Outline: Explicit re-initialization cannot reset an initialized canary
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario Outline: Initialization fails closed when trusted upstream state cannot be read
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario Outline: Durable attempt count bounds same-process and resumed execution
 
