@@ -105,7 +105,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Contending restarts cannot both reclaim one stale lock
 
 - [x] RED 473dbe7d1
-- [ ] GREEN
+- [x] GREEN 110a239b3
 - [ ] REFACTOR
 
 ### Scenario: A failed durable write does not poison the next write
