@@ -41,7 +41,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A second infrastructure failure excludes the paired case
 
 - [x] RED c03099d0d
-- [ ] GREEN
+- [x] GREEN 8cb41393a
 - [ ] REFACTOR
 
 ### Scenario Outline: A non-infrastructure failure gets no silent retry
