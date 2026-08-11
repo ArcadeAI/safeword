@@ -156,6 +156,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 94d3cc83e
 - [x] REFACTOR skip: one tolerant extractor carries completeness beside known cost and the loop consumes that state
 
+### Scenario: A thrown attempt is not assumed to be free
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
 
 - [x] RED f7b7d089b
@@ -249,6 +255,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED f948a4a36
 - [x] GREEN 0aa2de93a
 - [x] REFACTOR skip: runtime path resolution is isolated from immutable commit and clean-tree verification
+
+### Scenario: Untracked adapter files invalidate the pinned collaborator
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Successful wiring advances durable run state
 

@@ -229,6 +229,12 @@ Feature: Keep failed reviews out of benchmark scores
       And it records incomplete cost accounting and makes no later provider call
 
     @rejection
+    Scenario: A thrown attempt is not assumed to be free
+      Given a provider or network attempt ends without a returned output
+      When the live runner accounts for the attempt
+      Then it marks cost accounting incomplete and authorizes no later provider call
+
+    @rejection
     Scenario Outline: Interrupted quarantine is never partially scoreable
       Given a failure is injected <boundary>
       When scoring reads cases before and after harness restart
@@ -346,6 +352,12 @@ Feature: Keep failed reviews out of benchmark scores
       When the live entry point starts or resumes
       Then it verifies the frozen adapter commit before loading code
       And no machine-specific worktree path is embedded in the runner
+
+    @rejection
+    Scenario: Untracked adapter files invalidate the pinned collaborator
+      Given the adapter checkout matches the frozen commit but contains an untracked file
+      When the runner tries to load the adapter
+      Then it rejects the checkout before importing executable code
 
     Scenario: Successful wiring advances durable run state
       Given successful provider responses are injected only at the network boundary

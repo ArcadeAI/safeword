@@ -17,12 +17,12 @@ describe("attempt cost evidence", () => {
 		});
 	});
 
-	test("totals complete usage for every returned attempt", () => {
+	test("marks a null-output attempt as unknown rather than free", () => {
 		expect(
 			estimateAttemptUsage([
 				{ output: { report: { usage: { inputTokens: 10, outputTokens: 5 } } } },
 				{ output: null },
 			]),
-		).toMatchObject({ complete: true, inputTokens: 10, outputTokens: 5 });
+		).toMatchObject({ complete: false, inputTokens: 10, outputTokens: 5 });
 	});
 });
