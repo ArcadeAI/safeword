@@ -100,7 +100,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 779847571
 - [x] GREEN 665898cbe
-- [ ] REFACTOR
+- [x] REFACTOR skip: the optional failure callback is a test seam with no production branching
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
 
