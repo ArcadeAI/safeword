@@ -29,4 +29,12 @@ describe("live scored-run lifecycle wiring", () => {
 		expect(runner).toContain("aggregateCostStopUsd");
 		expect(runner).not.toContain("aggregateCostCeilingUsd");
 	});
+
+	test("loads the pinned adapter and source repository from explicit runtime paths", () => {
+		const runner = readFileSync(join(ticketRoot, "scored-live-run.ts"), "utf8");
+		expect(runner).toContain('requireEnvironment("CWGYH0_ADAPTER_ROOT")');
+		expect(runner).toContain('requireEnvironment("CWGYH0_SOURCE_REPOSITORY")');
+		expect(runner).not.toContain("/Users/alex/.codex/worktrees");
+		expect(runner).not.toContain("/Users/alex/Projects");
+	});
 });

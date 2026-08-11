@@ -16,6 +16,11 @@ const expectedProvenance = {
 	sourceSha: "source-sha",
 	variant: "buggy",
 };
+const expectedRoute = {
+	expert: "correctness",
+	model: "claude-sonnet-5",
+	provider: "anthropic",
+};
 
 function completedOutput(findings: unknown[] = []) {
 	return {
@@ -27,6 +32,8 @@ function completedOutput(findings: unknown[] = []) {
 				cappedBy: null,
 				error: null,
 				expert: "correctness",
+				model: "claude-sonnet-5",
+				provider: "anthropic",
 				failure: null as unknown,
 				findings,
 				turns: 2,
@@ -43,10 +50,10 @@ function completedOutput(findings: unknown[] = []) {
 function classifyWithFrozenProvenance(output: unknown) {
 	const classify = classifyTrialOutput as unknown as (
 		value: unknown,
-		expert: string,
+		route: typeof expectedRoute,
 		provenance: typeof expectedProvenance,
 	) => ReturnType<typeof classifyTrialOutput>;
-	return classify(output, "correctness", expectedProvenance);
+	return classify(output, expectedRoute, expectedProvenance);
 }
 
 describe("positive trial admission", () => {
@@ -62,6 +69,22 @@ describe("positive trial admission", () => {
 			reason: "completed",
 			retry: "never",
 			status: "usable",
+		});
+	});
+
+	test.each([
+		["wrong provider", { provider: "openai" }],
+		["wrong model", { model: "another-model" }],
+	])("rejects a routed outcome with the %s", (_label, replacement) => {
+		const output = completedOutput();
+		output.models[0] = { ...output.models[0]!, ...replacement };
+		output.report.expertOutcomes[0] = {
+			...output.report.expertOutcomes[0],
+			...replacement,
+		};
+		expect(classifyWithFrozenProvenance(output)).toMatchObject({
+			reason: "routing-invalid",
+			status: "invalid",
 		});
 	});
 
@@ -328,18 +351,21 @@ describe("one-retry policy", () => {
 		});
 	});
 
-	test("does not retry a model/content failure", async () => {
-		let calls = 0;
-		await expect(
-			executeWithInfrastructureRetry(async () => {
-				calls += 1;
-				throw Object.assign(new Error("unusable response"), {
-					name: "SchemaViolationError",
+		test("quarantines a thrown model/content failure without retry", async () => {
+			let calls = 0;
+			const result = await executeWithInfrastructureRetry(async () => {
+					calls += 1;
+					throw Object.assign(new Error("unusable response"), {
+						name: "SchemaViolationError",
+					});
 				});
-			}),
-		).rejects.toThrow("unusable response");
-		expect(calls).toBe(1);
-	});
+			expect(calls).toBe(1);
+			expect(result).toMatchObject({
+				attempts: 1,
+				disposition: { reason: "schema-invalid", retry: "never", status: "invalid" },
+				status: "exclude-case",
+			});
+		});
 });
 
 test("frozen shuffle is deterministic without mutating its input", () => {

@@ -71,6 +71,17 @@ Feature: Keep failed reviews out of benchmark scores
         | a malformed matching finding        |
         | a malformed consolidated finding    |
 
+    @rejection
+    Scenario Outline: Frozen reviewer routing cannot drift
+      Given an otherwise complete output uses the wrong <routing field>
+      When the evaluation harness classifies the trial
+      Then the trial is rejected as routing-invalid
+
+      Examples:
+        | routing field |
+        | provider      |
+        | model         |
+
   @pr-review-eval.SWM1.R2
   Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
@@ -293,6 +304,17 @@ Feature: Keep failed reviews out of benchmark scores
       Given successful provider responses are injected only at the network boundary
       When the real runner and writer seal every frozen cell and the actual scorer runs
       Then every admitted record contributes to the completed case result
+
+    Scenario: The live entry point is exercised without provider spend
+      Given a pinned no-cost adapter returns frozen successful and failing outputs
+      When the actual live-run entry point starts and resumes a benchmark
+      Then work ordering, exclusion, durable state, cost stops, and summary generation use the production path
+
+    Scenario: The adapter checkout is explicit and commit-pinned
+      Given the adapter root and source repository are supplied at runtime
+      When the live entry point starts or resumes
+      Then it verifies the frozen adapter commit before loading code
+      And no machine-specific worktree path is embedded in the runner
 
     Scenario: Successful wiring advances durable run state
       Given successful provider responses are injected only at the network boundary

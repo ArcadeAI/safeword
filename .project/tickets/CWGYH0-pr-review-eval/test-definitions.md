@@ -42,6 +42,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN b20381597
 - [x] REFACTOR skip: one finding-shape predicate covers every scorer-consumed collection
 
+### Scenario Outline: Frozen reviewer routing cannot drift
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
 ### Scenario: One infrastructure failure is retried once
@@ -201,6 +207,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED skip: quality-review requested proof for behavior already implemented
 - [x] GREEN f9c092874
 - [x] REFACTOR skip: the fixture composes production boundaries without a new abstraction
+
+### Scenario: The live entry point is exercised without provider spend
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The adapter checkout is explicit and commit-pinned
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Successful wiring advances durable run state
 
