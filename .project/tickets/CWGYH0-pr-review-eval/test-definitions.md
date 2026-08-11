@@ -166,7 +166,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Contamination evidence belongs to exactly one frozen run
 
-- [ ] RED
+- [x] RED baff4f129
 - [ ] GREEN
 - [ ] REFACTOR
 
