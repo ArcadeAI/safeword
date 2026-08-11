@@ -289,7 +289,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: One canary label disagreement blocks more spend
 
 - [x] RED a7d8259d1
-- [ ] GREEN
+- [x] GREEN 47d0ed48c
 - [ ] REFACTOR
 
 ### Scenario: Total cost includes every attempt
