@@ -162,7 +162,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A hidden provider failure is rejected through real wiring
 
-- [ ] RED
+- [x] RED 217916be9
 - [ ] GREEN
 - [ ] REFACTOR
 
