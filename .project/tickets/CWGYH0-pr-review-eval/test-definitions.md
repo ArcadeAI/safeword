@@ -78,6 +78,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A thrown semantic provider failure quarantines without retry
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An early failure cancels pending paired work
 
 - [ ] RED

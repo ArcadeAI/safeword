@@ -132,6 +132,13 @@ Feature: Keep failed reviews out of benchmark scores
       Then no member of that case remains admitted and every member is retained together in quarantine
 
     @rejection
+    Scenario: A thrown semantic provider failure quarantines without retry
+      Given the provider throws a schema or content failure before returning an output
+      When the evaluation harness executes the work item
+      Then it records one terminal invalid attempt and makes no second call
+      And it quarantines the paired case so restart cannot repeat the paid work
+
+    @rejection
     Scenario: An early failure cancels pending paired work
       Given no sibling trial has completed for the paired case
       And the first trial makes the case unusable
