@@ -216,7 +216,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The no-cost fixture inventory is independently checkable
 
-- [ ] RED
+- [x] RED a7d8259d1
 - [ ] GREEN
 - [ ] REFACTOR
 
