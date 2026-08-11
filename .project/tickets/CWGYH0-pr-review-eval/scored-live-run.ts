@@ -51,8 +51,8 @@ const expectedHashes = {
 	narrowVerifier:
 		"cfbabd76b53d0c41a955bd4330c4103bed357f905214718fc4e6819ff79454c5",
 };
-const expectedAdapterCommit = "e691a230520ea013b66a43e99f01c02d7ecb45de";
-const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@e691a2305";
+const expectedAdapterCommit = "3eb8652324c755ce2fc806b6ab5d3d41c1f1a39f";
+const expectedRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@3eb865232";
 const preregisteredRunnerRef = "codex/cwgyh0-dev-benchmark-adapter@8d86720c0";
 const model = "claude-sonnet-5";
 const trials = 3;

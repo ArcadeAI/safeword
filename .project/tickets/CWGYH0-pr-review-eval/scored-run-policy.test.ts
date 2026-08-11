@@ -12,7 +12,7 @@ import {
 const expectedProvenance = {
 	caseId: "SCORE-example",
 	reviewBaseSha: "base-sha",
-	runnerRef: "codex/cwgyh0-dev-benchmark-adapter@e691a2305",
+	runnerRef: "codex/cwgyh0-dev-benchmark-adapter@3eb865232",
 	sourceSha: "source-sha",
 	variant: "buggy",
 };

@@ -164,7 +164,11 @@ export function classifyTrialOutput(
 	) {
 		return { reason: "schema-invalid", retry: "never", status: "invalid" };
 	}
-	if (!Array.isArray(value.trace) || !isRecord(value.provenance)) {
+	if (
+		!Array.isArray(value.trace) ||
+		value.trace.length === 0 ||
+		!isRecord(value.provenance)
+	) {
 		return {
 			reason: "provenance-incomplete",
 			retry: "never",
@@ -174,6 +178,13 @@ export function classifyTrialOutput(
 	if (!matchesProvenance(value.provenance, expectedProvenance)) {
 		return {
 			reason: "provenance-mismatch",
+			retry: "never",
+			status: "invalid",
+		};
+	}
+	if (value.terminalState !== "completed") {
+		return {
+			reason: "unexpected-finish",
 			retry: "never",
 			status: "invalid",
 		};
@@ -252,8 +263,14 @@ export function classifyTrialOutput(
 	if (!isRecord(value.score)) {
 		return { reason: "schema-invalid", retry: "never", status: "invalid" };
 	}
-	if (value.score.reviewValid === false) {
-		return { reason: "reviewer-failed", retry: "never", status: "invalid" };
+	if (value.score.reviewValid !== true) {
+		return {
+			reason: typeof value.score.reviewValid === "boolean"
+				? "reviewer-failed"
+				: "schema-invalid",
+			retry: "never",
+			status: "invalid",
+		};
 	}
 	return { reason: "completed", retry: "never", status: "usable" };
 }
