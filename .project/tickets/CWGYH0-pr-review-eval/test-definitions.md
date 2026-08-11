@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED f7b7d089b
 - [x] GREEN b39d3c7b5
-- [ ] REFACTOR
+- [x] REFACTOR skip: one filename contract separates attempt evidence from admitted records
 
 ### Scenario: Reserve exhaustion stops the run
 
