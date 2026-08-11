@@ -167,7 +167,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Contamination evidence belongs to exactly one frozen run
 
 - [x] RED baff4f129
-- [ ] GREEN
+- [x] GREEN 9f8db4b55
 - [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
