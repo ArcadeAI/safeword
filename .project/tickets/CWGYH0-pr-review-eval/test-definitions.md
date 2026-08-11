@@ -223,7 +223,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Operational failure injection covers the R2 taxonomy
 
 - [x] RED a7d8259d1
-- [ ] GREEN
+- [x] GREEN 47d0ed48c
 - [ ] REFACTOR
 
 ### Scenario: The paid canary outcomes are independently checkable
