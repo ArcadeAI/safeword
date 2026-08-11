@@ -82,6 +82,18 @@ Feature: Keep failed reviews out of benchmark scores
         | provider      |
         | model         |
 
+    @rejection
+    Scenario: Every emitted reviewer outcome must match the frozen route
+      Given one expected reviewer outcome succeeds and another emitted outcome fails or drifts
+      When the evaluation harness classifies the trial
+      Then the whole trial is rejected as routing-invalid
+
+    @rejection
+    Scenario: Scored finding views agree with the routed reviewer output
+      Given named-failure, matching-finding, consolidated-finding, and routed-outcome evidence disagree
+      When the evaluation harness classifies the trial
+      Then the whole trial is rejected as schema-invalid
+
   @pr-review-eval.SWM1.R2
   Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 

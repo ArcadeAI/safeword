@@ -37,4 +37,16 @@ describe("live scored-run lifecycle wiring", () => {
 		expect(runner).not.toContain("/Users/alex/.codex/worktrees");
 		expect(runner).not.toContain("/Users/alex/Projects");
 	});
+
+	test("all wiring fixtures use the same pinned adapter loader as production", () => {
+		for (const filename of [
+			"scored-live-run.ts",
+			"scored-real-wiring.fixture.ts",
+			"scored-success-wiring.fixture.ts",
+		]) {
+			const source = readFileSync(join(ticketRoot, filename), "utf8");
+			expect(source).toContain("loadPinnedAdapter");
+			expect(source).not.toContain("/Users/alex/");
+		}
+	});
 });

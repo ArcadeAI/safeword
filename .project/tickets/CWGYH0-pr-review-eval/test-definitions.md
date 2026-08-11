@@ -48,6 +48,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 0aa2de93a
 - [x] REFACTOR skip: one route tuple binds expert, provider, and model in both model and outcome evidence
 
+### Scenario: Every emitted reviewer outcome must match the frozen route
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Scored finding views agree with the routed reviewer output
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
 ### Scenario: One infrastructure failure is retried once

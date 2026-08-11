@@ -72,6 +72,46 @@ describe("positive trial admission", () => {
 		});
 	});
 
+	test("rejects a successful frozen route when any extra outcome failed", () => {
+		const output = completedOutput();
+		output.models.push({ expert: "security", model: "claude-sonnet-5", provider: "anthropic" });
+		output.report.expertOutcomes.push({
+			...output.report.expertOutcomes[0],
+			error: "secondary expert failed",
+			expert: "security",
+		});
+		expect(classifyWithFrozenProvenance(output)).toMatchObject({
+			reason: "routing-invalid",
+			status: "invalid",
+		});
+	});
+
+	test.each([
+		["matching finding absent from the routed outcome", (() => {
+			const output = completedOutput();
+			output.score = {
+				matchingFindings: [{ file: "a.ts", line: 1, title: "bug" }],
+				namedFailure: true,
+				reviewValid: true,
+			};
+			return output;
+		})()],
+		["consolidated finding absent from the routed outcome", completedOutput([
+			{ file: "a.ts", line: 1, title: "bug" },
+		])],
+		["named-failure flag inconsistent with matching findings", (() => {
+			const finding = { file: "a.ts", line: 1, title: "bug" };
+			const output = completedOutput([finding]);
+			output.score = { matchingFindings: [finding], namedFailure: false, reviewValid: true };
+			return output;
+		})()],
+	])("rejects %s", (_label, output) => {
+		expect(classifyWithFrozenProvenance(output)).toMatchObject({
+			reason: "schema-invalid",
+			status: "invalid",
+		});
+	});
+
 	test.each([
 		["wrong provider", { provider: "openai" }],
 		["wrong model", { model: "another-model" }],
