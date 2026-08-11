@@ -607,8 +607,10 @@ try {
 	const failureSummaryPath = join(failureOutputRoot, "run-summary.json");
 	const voidSummary = JSON.parse(readFileSync(failureSummaryPath, "utf8")) as {
 		corpusRoleSha256: string;
+		frozenRun: { corpusRoleSha256: string };
 	};
 	voidSummary.corpusRoleSha256 = sha256Text(voidRoleBytes);
+	voidSummary.frozenRun.corpusRoleSha256 = voidSummary.corpusRoleSha256;
 	writeFileSync(failureSummaryPath, `${JSON.stringify(voidSummary, null, 2)}\n`);
 	const voidManifestEnvironment = freezeFixtureArtifacts({
 		gitRoot: join(root, "void-manifest-repository"),
