@@ -94,7 +94,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 751aaf339
 - [x] GREEN c6c15a9d5
-- [ ] REFACTOR
+- [x] REFACTOR skip: ownership probing and recovery ordering are already isolated helpers
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
 
