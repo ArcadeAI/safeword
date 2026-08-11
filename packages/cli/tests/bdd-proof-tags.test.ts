@@ -1,9 +1,36 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
+const WORKSPACE_DIRECTORIES = ['packages', 'apps', 'libs', 'modules'] as const;
+
+function featureFilesUnder(relativeDirectory: string): string[] {
+  const absoluteDirectory = nodePath.join(REPO_ROOT, relativeDirectory);
+  if (!existsSync(absoluteDirectory)) return [];
+
+  return readdirSync(absoluteDirectory, { withFileTypes: true }).flatMap(entry => {
+    const relativePath = nodePath.join(relativeDirectory, entry.name);
+    if (entry.isDirectory()) return featureFilesUnder(relativePath);
+    return entry.isFile() && entry.name.endsWith('.feature') ? [relativePath] : [];
+  });
+}
+
+function configuredFeatureFiles(): string[] {
+  const workspaceFeatures = WORKSPACE_DIRECTORIES.flatMap(workspaceDirectory => {
+    const absoluteDirectory = nodePath.join(REPO_ROOT, workspaceDirectory);
+    if (!existsSync(absoluteDirectory)) return [];
+
+    return readdirSync(absoluteDirectory, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .flatMap(entry =>
+        featureFilesUnder(nodePath.join(workspaceDirectory, entry.name, 'features')),
+      );
+  });
+
+  return [...featureFilesUnder('features'), ...workspaceFeatures];
+}
 
 const VITEST_PROVEN_FEATURES = [
   [
@@ -48,9 +75,7 @@ const VITEST_PROVEN_FEATURES = [
 
 describe('BDD proof provenance', () => {
   it('keeps the proof manifest complete', () => {
-    const taggedFeatures = readdirSync(nodePath.join(REPO_ROOT, 'features'))
-      .filter(name => name.endsWith('.feature'))
-      .map(name => `features/${name}`)
+    const taggedFeatures = configuredFeatureFiles()
       .filter(featurePath =>
         readFileSync(nodePath.join(REPO_ROOT, featurePath), 'utf8').includes('@proof.vitest'),
       )
