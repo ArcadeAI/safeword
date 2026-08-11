@@ -222,7 +222,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Operational failure injection covers the R2 taxonomy
 
-- [ ] RED
+- [x] RED a7d8259d1
 - [ ] GREEN
 - [ ] REFACTOR
 
