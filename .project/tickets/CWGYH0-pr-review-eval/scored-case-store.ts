@@ -72,6 +72,25 @@ function safeSegment(value: string, field: string): string {
 	return value;
 }
 
+function nextReserveTransition<T extends ReserveState>(
+	reserveIds: readonly string[],
+	state: T,
+): { replacementId: string; state: T } {
+	const replacementId = reserveIds[state.reserveIndex];
+	if (replacementId === undefined) throw new Error("frozen reserves exhausted");
+	safeSegment(replacementId, "reserve ID");
+	return {
+		replacementId,
+		state: {
+			...state,
+			candidateQueueIds: [replacementId, ...state.candidateQueueIds],
+			currentCaseId: null,
+			nextWorkIndex: 0,
+			reserveIndex: state.reserveIndex + 1,
+		} as T,
+	};
+}
+
 export function acquireRunLock(outputRoot: string): RunLock {
 	mkdirSync(outputRoot, { recursive: true });
 	const lockPath = join(outputRoot, ".run.lock");
@@ -163,11 +182,7 @@ export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: 
 	reserveIds: readonly string[];
 	state: T;
 }): { replacementId: string; state: T } {
-	const replacementId = input.reserveIds[input.state.reserveIndex];
-	if (replacementId === undefined) {
-		throw new Error("frozen reserves exhausted");
-	}
-	safeSegment(replacementId, "reserve ID");
+	const transition = nextReserveTransition(input.reserveIds, input.state);
 	if (existsSync(input.caseState.quarantinePath)) {
 		throw new Error(
 			`quarantined case already exists: ${input.caseState.quarantinePath}`,
@@ -182,16 +197,9 @@ export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: 
 	syncDirectory(dirname(input.caseState.provisionalPath));
 	syncDirectory(dirname(input.caseState.quarantinePath));
 
-	const state = {
-		...input.state,
-		candidateQueueIds: [replacementId, ...input.state.candidateQueueIds],
-		currentCaseId: null,
-		nextWorkIndex: 0,
-		reserveIndex: input.state.reserveIndex + 1,
-	} as T;
-	writeJsonDurably(join(input.outputRoot, "run-state.json"), state);
+	writeJsonDurably(join(input.outputRoot, "run-state.json"), transition.state);
 
-	return { replacementId, state };
+	return transition;
 }
 
 export async function executeCaseWork<T, TState extends ReserveState>(input: {
@@ -243,9 +251,7 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 		throw new Error("current case has no durable provisional or quarantine record");
 	}
 
-	const replacementId = input.reserveIds[input.state.reserveIndex];
-	if (replacementId === undefined) throw new Error("frozen reserves exhausted");
-	safeSegment(replacementId, "reserve ID");
+	const transition = nextReserveTransition(input.reserveIds, input.state);
 
 	if (provisionalExists) {
 		const exclusionPath = join(input.caseState.provisionalPath, "EXCLUSION.json");
@@ -278,13 +284,6 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 		syncDirectory(dirname(input.caseState.quarantinePath));
 	}
 
-	const state = {
-		...input.state,
-		candidateQueueIds: [replacementId, ...input.state.candidateQueueIds],
-		currentCaseId: null,
-		nextWorkIndex: 0,
-		reserveIndex: input.state.reserveIndex + 1,
-	} as T;
-	writeJsonDurably(join(input.outputRoot, "run-state.json"), state);
-	return state;
+	writeJsonDurably(join(input.outputRoot, "run-state.json"), transition.state);
+	return transition.state;
 }
