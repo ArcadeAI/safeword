@@ -2,10 +2,10 @@
 # hook gate is driven via stdin payloads in
 # packages/cli/tests/integration/blocked-on-gate.test.ts; warn-only validation +
 # stale-override in tests/commands/check.test.ts; INDEX/override surfacing in
-# tests/ticket-sync/ticket-sync.test.ts. Tagged @wip to exclude this feature
+# packages/cli/tests/ticket-sync/ticket-sync.test.ts. Tagged @proof.vitest to exclude this feature
 # from the cucumber acceptance lane (proof lives in vitest), while staying
 # discoverable for `safeword check` AC-coverage.
-@ticket-deps-schema.TB1 @wip
+@ticket-deps-schema.TB1 @proof.vitest
 Feature: epic + blocked_on schema and the blocked_on phase gate
   Two canonical optional frontmatter fields (epic, blocked_on) with warn-only
   validation, plus one hard gate: blocked_on denies advancing a ticket's phase

@@ -168,6 +168,7 @@ Given(
       writePersonalPreference(directory, 'remote-preferred');
     this.expectedExit = preferences.includes('no personal') ? 23 : 0;
     writeRunnableProject(directory, this.expectedExit);
+    this.configurationSnapshot = snapshotConfig(directory);
   },
 );
 
@@ -328,6 +329,7 @@ Then(
     assert.deepEqual(data.effective, { mode: 'local', source: 'command' });
     assert.deepEqual(data.dispatch, { attempted: false });
     assert.equal(data.executed, 1);
+    assert.equal(snapshotConfig(project(this)), this.configurationSnapshot);
   },
 );
 
