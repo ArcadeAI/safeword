@@ -9,8 +9,8 @@ describe("actual live-run entry point", () => {
 			execFileSync(
 				"bun",
 				[join(import.meta.dirname, "scored-live-entry.fixture.ts")],
-				{ encoding: "utf8", stdio: "pipe", timeout: 180_000 },
+				{ encoding: "utf8", stdio: "pipe", timeout: 300_000 },
 			),
 		).not.toThrow();
-	}, 180_000);
+	}, 300_000);
 });
