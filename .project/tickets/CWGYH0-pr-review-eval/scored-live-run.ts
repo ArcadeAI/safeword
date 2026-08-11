@@ -28,6 +28,7 @@ import {
 	recoverInterruptedQuarantine,
 	readTrialAttempts,
 	recordTrialAttempt,
+	recordTrialAttemptIntent,
 	sealActiveCase,
 	writeJsonDurably,
 } from "./scored-case-store";
@@ -950,6 +951,8 @@ if (preflightOnly) {
 					}),
 					{
 						onAttempt: (attempt) => recordTrialAttempt(caseState, workId, attempt),
+						onBeforeAttempt: (attempt) =>
+							recordTrialAttemptIntent(caseState, workId, attempt),
 						priorAttemptRecords: readTrialAttempts(caseState, workId),
 					},
 				);

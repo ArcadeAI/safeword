@@ -27,8 +27,20 @@ globalThis.fetch = Object.assign(
 				}),
 			);
 		}
+		if (
+			process.env.CWGYH0_FETCH_MODE === "first-provider-error" &&
+			providerTurn === 1
+		) {
+			return Promise.resolve(
+				new Response('{"error":{"message":"overloaded"},"type":"error"}', {
+					headers: { "content-type": "application/json" },
+					status: 200,
+				}),
+			);
+		}
 		const successfulTurn =
-			process.env.CWGYH0_FETCH_MODE === "first-schema-failure"
+			process.env.CWGYH0_FETCH_MODE === "first-schema-failure" ||
+			process.env.CWGYH0_FETCH_MODE === "first-provider-error"
 				? providerTurn - 1
 				: providerTurn;
 		const content = successfulTurn % 2 === 1

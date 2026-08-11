@@ -348,7 +348,7 @@ try {
 	assert.match(
 		run({
 			fetchLog: failureFetchLog,
-			mode: "first-schema-failure",
+			mode: "first-provider-error",
 			outputRoot: failureOutputRoot,
 			scratchName: "scratch-failure",
 		}),
@@ -363,6 +363,21 @@ try {
 	assert.equal(failureSummary.completedCases, 1);
 	assert.equal(failureSummary.exclusions.length, 1);
 	assert.equal(readdirSync(join(failureOutputRoot, "quarantine")).length, 1);
+	const failedAttemptPath = join(
+		failureOutputRoot,
+		"quarantine",
+		readdirSync(join(failureOutputRoot, "quarantine"))[0]!,
+		readdirSync(join(
+			failureOutputRoot,
+			"quarantine",
+			readdirSync(join(failureOutputRoot, "quarantine"))[0]!,
+		)).find((name) => name.endsWith("--attempt-1.json"))!,
+	);
+	const failedAttempt = JSON.parse(readFileSync(failedAttemptPath, "utf8")) as {
+		disposition: { reason: string };
+	};
+	assert.equal(failedAttempt.disposition.reason, "provider-failure");
+	assert.match(readFileSync(failedAttemptPath, "utf8"), /overloaded/);
 	assert.equal(
 		readFileSync(failureFetchLog, "utf8").trim().split("\n").length,
 		25,

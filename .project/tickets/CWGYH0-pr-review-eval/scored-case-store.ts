@@ -300,6 +300,32 @@ export function recordTrialAttempt<T>(
 		join(caseState.provisionalPath, `${safeWorkId}--attempt-${attempt.attempt}.json`),
 		attempt,
 	);
+	const intentPath = join(
+		caseState.provisionalPath,
+		`${safeWorkId}--attempt-${attempt.attempt}.in-flight.json`,
+	);
+	if (existsSync(intentPath)) {
+		unlinkSync(intentPath);
+		syncDirectory(caseState.provisionalPath);
+	}
+}
+
+export function recordTrialAttemptIntent(
+	caseState: ProvisionalCase,
+	workId: string,
+	attempt: 1 | 2,
+): void {
+	const safeWorkId = safeSegment(workId, "work ID");
+	writeJsonDurably(
+		join(caseState.provisionalPath, `${safeWorkId}--attempt-${attempt}.in-flight.json`),
+		{
+			attempt,
+			costAccountingComplete: false,
+			startedAt: new Date().toISOString(),
+			status: "provider-call-in-flight",
+			workId: safeWorkId,
+		},
+	);
 }
 
 export function readTrialAttempts<T>(
@@ -307,6 +333,24 @@ export function readTrialAttempts<T>(
 	workId: string,
 ): TrialAttempt<T>[] {
 	const safeWorkId = safeSegment(workId, "work ID");
+	const inFlightPattern = new RegExp(
+		`^${safeWorkId.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")}--attempt-([12])\\.in-flight\\.json$`,
+	);
+	for (const filename of readdirSync(caseState.provisionalPath)) {
+		const match = inFlightPattern.exec(filename);
+		if (match === null) continue;
+		const attemptPath = join(
+			caseState.provisionalPath,
+			`${safeWorkId}--attempt-${match[1]}.json`,
+		);
+		if (!existsSync(attemptPath)) {
+			throw new Error(
+				`unreconciled paid attempt ${match[1]} for ${safeWorkId}; cost and outcome are unknown`,
+			);
+		}
+		unlinkSync(join(caseState.provisionalPath, filename));
+		syncDirectory(caseState.provisionalPath);
+	}
 	const attempts: TrialAttempt<T>[] = [];
 	for (const attemptNumber of [1, 2] as const) {
 		const path = join(
@@ -398,6 +442,8 @@ export async function executeCaseWork<T, TState extends ReserveState>(input: {
 		input.classify,
 		{
 			onAttempt: (attempt) => recordTrialAttempt(input.caseState, input.workId, attempt),
+			onBeforeAttempt: (attempt) =>
+				recordTrialAttemptIntent(input.caseState, input.workId, attempt),
 			priorAttemptRecords: readTrialAttempts<T>(input.caseState, input.workId),
 		},
 	);

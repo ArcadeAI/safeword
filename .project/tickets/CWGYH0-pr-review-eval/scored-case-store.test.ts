@@ -22,6 +22,7 @@ import {
 	readTrialAttempts,
 	recordAdmittedTrial,
 	recordTrialAttempt,
+	recordTrialAttemptIntent,
 	recordTrialResult,
 	sealActiveCase,
 	writeJsonDurably,
@@ -184,6 +185,43 @@ describe("durable case lifecycle", () => {
 		expect(calls).toBe(2);
 		expect(resumed.status).toBe("completed");
 		expect(resumed.attemptRecords).toHaveLength(2);
+	});
+
+	test("fails closed when a provider call was in flight at process death", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const pendingCase = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		recordTrialAttemptIntent(pendingCase, "full--buggy--t1", 1);
+
+		expect(() => readTrialAttempts(pendingCase, "full--buggy--t1"))
+			.toThrow("unreconciled paid attempt 1");
+		expect(readdirSync(pendingCase.provisionalPath)).toEqual([
+			"full--buggy--t1--attempt-1.in-flight.json",
+		]);
+	});
+
+	test("clears a stale in-flight marker only after its attempt is durable", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const pendingCase = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		recordTrialAttemptIntent(pendingCase, "full--buggy--t1", 1);
+		recordTrialAttempt(pendingCase, "full--buggy--t1", {
+			attempt: 1,
+			disposition: { reason: "completed", retry: "never", status: "usable" },
+			error: null,
+			output: { report: { findings: [] } },
+		});
+
+		expect(readTrialAttempts(pendingCase, "full--buggy--t1")).toHaveLength(1);
+		expect(readdirSync(pendingCase.provisionalPath)).toEqual([
+			"full--buggy--t1--attempt-1.json",
+		]);
 	});
 
 	test("a second infrastructure failure quarantines the pair before allocating a reserve", async () => {

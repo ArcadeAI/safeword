@@ -403,6 +403,7 @@ export async function executeWithInfrastructureRetry<T>(
 	classify?: (value: T) => TrialDisposition,
 	options: {
 		onAttempt?: (attempt: TrialAttempt<T>) => void;
+		onBeforeAttempt?: (attempt: 1 | 2) => void;
 		priorAttemptRecords?: readonly TrialAttempt<T>[];
 	} = {},
 ): Promise<RetriedResult<T>> {
@@ -446,6 +447,11 @@ export async function executeWithInfrastructureRetry<T>(
 	for (const attempts of [1, 2] as const) {
 		if (attempts <= attemptRecords.length) continue;
 		try {
+			try {
+				options.onBeforeAttempt?.(attempts);
+			} catch (error) {
+				throw new AttemptPersistenceError(error);
+			}
 			const value = await execute();
 			const disposition = classify?.(value) ?? {
 				reason: "completed",
