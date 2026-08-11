@@ -36,6 +36,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 7f16dffb1
 - [x] REFACTOR skip: terminal-state emission and positive admission checks are already single-purpose and linear
 
+### Scenario Outline: Every scorer-consumed field is validated before admission
+
+- [x] RED 32c2b0a28
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
 ### Scenario: One infrastructure failure is retried once
@@ -95,6 +101,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 751aaf339
 - [x] GREEN c6c15a9d5
 - [x] REFACTOR skip: ownership probing and recovery ordering are already isolated helpers
+
+### Scenario: A failed durable write does not poison the next write
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario Outline: Injected crashes exercise the durable quarantine transaction
 
