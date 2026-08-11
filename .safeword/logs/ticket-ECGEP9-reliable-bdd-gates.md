@@ -13,3 +13,4 @@
 - GREEN: the three focused Vitest contract files pass 28/28 assertions; the command-override Cucumber feature passes 28/28 scenarios and 1,204/1,204 steps; `bun run lint:gherkin` reports Healthy/unchanged; `git diff --check` is clean.
 - Follow-up: filed GitHub issue #2583 to split the 1,646-line offload specification along its 16 existing Rule boundaries, preserving this branch's narrow reliability/provenance scope.
 - Verification: repository lint and typecheck pass; dependency audit reports no vulnerabilities; Claude plugin release contract is aligned at 0.75.0; proof provenance now requires an exact existing test-file pointer for every `@proof.vitest` feature.
+- CI repair: Node 22 and Node 24 exposed the shipped-template revision guard. Registered the new Cucumber template SHA-256 so Safeword continues recognizing and maintaining its own scaffold instead of misclassifying it as a customer harness.
