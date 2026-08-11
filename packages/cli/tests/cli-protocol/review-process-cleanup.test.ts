@@ -1,9 +1,15 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+} from '../review-fixtures.js';
+
+afterAll(cleanupTrustedReviewerDirectories);
 
 const CODEX_CAPABILITIES =
   '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --model --output-schema';
@@ -48,7 +54,7 @@ function isRunning(pid: number): boolean {
 describe('stopping a reviewer', () => {
   it('reaches the descendants it left behind, and does not wait on them', async () => {
     const directory = createTemporaryDirectory();
-    const host = createTemporaryDirectory();
+    const host = createTrustedReviewerDirectory('safeword-process-cleanup-');
     const pidFile = nodePath.join(host, 'grandchild.pid');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const bin = installReviewerWithSurvivingChild(host, pidFile);

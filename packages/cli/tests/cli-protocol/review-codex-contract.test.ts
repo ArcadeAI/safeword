@@ -1,11 +1,16 @@
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
+
+afterAll(cleanupTrustedReviewerDirectories);
 
 /**
  * A Codex reviewer that answers in its own natural vocabulary — `high`/`medium`
@@ -17,12 +22,8 @@ import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
  * It records the schema path it was given so the test can read back the exact
  * contract Safeword delivered.
  */
-function installSchemaAwareCodex(directory: string): string {
-  const bin = nodePath.join(
-    tmpdir(),
-    `safeword-codexcontract-${Buffer.from(directory).toString('hex')}`,
-    'bin',
-  );
+function installSchemaAwareCodex(): string {
+  const bin = nodePath.join(createTrustedReviewerDirectory('safeword-codexcontract-'), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, 'codex');
   writeFileSync(
@@ -92,7 +93,7 @@ describe('Codex typed-output contract', () => {
   it('hands Codex the result contract so its review is accepted', async () => {
     const directory = createTemporaryDirectory();
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installSchemaAwareCodex(directory);
+    const bin = installSchemaAwareCodex();
 
     const result = await runReview(directory, bin);
 
@@ -109,7 +110,7 @@ describe('Codex typed-output contract', () => {
   it('delivers a contract that permits exactly what the check enforces', async () => {
     const directory = createTemporaryDirectory();
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installSchemaAwareCodex(directory);
+    const bin = installSchemaAwareCodex();
 
     await runReview(directory, bin);
 

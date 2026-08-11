@@ -1,11 +1,16 @@
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
+
+afterAll(cleanupTrustedReviewerDirectories);
 
 type ReviewAgent = 'claude' | 'codex';
 
@@ -15,12 +20,8 @@ type ReviewAgent = 'claude' | 'codex';
  * records the model it was given so the test can prove the configured value
  * reached the executable as a real argument rather than as routing metadata.
  */
-function installModelDependentReviewer(directory: string, agent: ReviewAgent): string {
-  const bin = nodePath.join(
-    tmpdir(),
-    `safeword-altmodel-${Buffer.from(directory).toString('hex')}`,
-    'bin',
-  );
+function installModelDependentReviewer(agent: ReviewAgent): string {
+  const bin = nodePath.join(createTrustedReviewerDirectory('safeword-altmodel-'), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
   writeFileSync(
@@ -52,12 +53,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verd
   return bin;
 }
 
-function installAlwaysAnsweringReviewer(directory: string, agent: ReviewAgent): string {
-  const bin = nodePath.join(
-    tmpdir(),
-    `safeword-answering-${Buffer.from(directory).toString('hex')}`,
-    'bin',
-  );
+function installAlwaysAnsweringReviewer(agent: ReviewAgent): string {
+  const bin = nodePath.join(createTrustedReviewerDirectory('safeword-answering-'), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
   writeFileSync(
@@ -100,7 +97,7 @@ describe('alternate-model review route', () => {
         crossAgentReview: 'require',
         crossAgentReviewAlternateModel: { [reviewer]: 'vendor-model-2' },
       });
-      const bin = installModelDependentReviewer(directory, reviewer);
+      const bin = installModelDependentReviewer(reviewer);
 
       const result = await runCli(
         [
@@ -156,7 +153,7 @@ describe('alternate-model review route', () => {
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     writeConfig(directory, { crossAgentReview: 'require' });
     // Only the author's own runtime is installed, and it answers happily.
-    const bin = installAlwaysAnsweringReviewer(directory, 'claude');
+    const bin = installAlwaysAnsweringReviewer('claude');
 
     const result = await runCli(
       [
@@ -190,7 +187,7 @@ describe('alternate-model review route', () => {
     const modelLog = nodePath.join(directory, 'model.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     writeConfig(directory, { crossAgentReview: 'prefer' });
-    const bin = installModelDependentReviewer(directory, 'codex');
+    const bin = installModelDependentReviewer('codex');
 
     const result = await runCli(
       [

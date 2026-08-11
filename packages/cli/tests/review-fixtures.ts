@@ -1,3 +1,16 @@
+import { chmodSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
+import nodePath from 'node:path';
+
+const trustedReviewerDirectories = new Set<string>();
+
+export function cleanupTrustedReviewerDirectories(): void {
+  for (const directory of trustedReviewerDirectories) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+  trustedReviewerDirectories.clear();
+}
+
 /**
  * What a compatible reviewer advertises when asked what it supports.
  *
@@ -44,8 +57,7 @@ export function createTrustedReviewerDirectory(prefix: string): string {
   const root = nodePath.join(homedir(), '.cache', 'safeword-test-reviewers');
   mkdirSync(root, { recursive: true, mode: 0o700 });
   chmodSync(root, 0o700);
-  return mkdtempSync(nodePath.join(root, prefix));
+  const directory = mkdtempSync(nodePath.join(root, prefix));
+  trustedReviewerDirectories.add(directory);
+  return directory;
 }
-import { chmodSync, mkdirSync, mkdtempSync } from 'node:fs';
-import { homedir } from 'node:os';
-import nodePath from 'node:path';
