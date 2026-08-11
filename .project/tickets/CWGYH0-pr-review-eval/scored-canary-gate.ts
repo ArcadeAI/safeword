@@ -50,6 +50,7 @@ type CanaryInput = {
 	anchorCreatedAt: string;
 	labelAnchorCreatedAt: string;
 	attempts: Array<{
+		attempt: 1 | 2;
 		attemptId: string;
 		callId: string;
 		costComplete: boolean;
@@ -274,9 +275,14 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 			reasons.push(`paid call ${outcome.callId} has no complete unique attempt set`);
 			continue;
 		}
-		const attempts = input.attempts.filter((attempt) => outcome.attemptIds.includes(attempt.attemptId));
+		const attempts = input.attempts
+			.filter((attempt) => outcome.attemptIds.includes(attempt.attemptId))
+			.sort((left, right) => left.attempt - right.attempt);
 		if (
 			attempts.length !== outcome.attemptIds.length ||
+			attempts.length < 1 ||
+			attempts.length > 2 ||
+			attempts.some((attempt, index) => attempt.attempt !== index + 1) ||
 			attempts.some(
 				(attempt) =>
 					attempt.callId !== outcome.callId ||
@@ -287,11 +293,26 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 			reasons.push(`paid call ${outcome.callId} references an absent or unrelated attempt`);
 			continue;
 		}
+		const dispositions = attempts.map((attempt) =>
+			classifyTrialOutput(
+				attempt.output,
+				attempt.expectedRoute,
+				attempt.expectedProvenance,
+			)
+		);
+		if (
+			dispositions.length === 2 &&
+			(dispositions[0]?.status !== "invalid" ||
+				dispositions[0].retry !== "infrastructure-once")
+		) {
+			reasons.push(`paid call ${outcome.callId} retry was not eligible exactly once`);
+		}
 		const reconciledCost = roundedCost(attempts.reduce((total, attempt) => total + attempt.costUsd, 0));
 		if (Math.abs(reconciledCost - outcome.costUsd) > 1e-9) {
 			reasons.push(`paid call ${outcome.callId} cost does not equal its complete attempt set`);
 		}
 		const terminalAttempt = attempts.at(-1);
+		const terminalDisposition = dispositions.at(-1);
 		const rawOutput = terminalAttempt?.output;
 		const rawFindings =
 			rawOutput !== null && typeof rawOutput === "object" &&
@@ -304,6 +325,7 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		const observedRawClass = rawFindings === null ? null : rawFindings.length > 0 ? "finding" : "empty";
 		if (
 			terminalAttempt?.usable !== true ||
+			terminalDisposition?.status !== "usable" ||
 			observedRawClass !== expectedRawClass
 		) {
 			reasons.push(`paid call ${outcome.callId} raw output disagrees with its frozen output class`);

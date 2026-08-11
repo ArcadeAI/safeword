@@ -133,7 +133,26 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 		}
 	}
 	const terminal = outcome.providerResponses.at(-1) as UnknownRecord;
-	return terminal.stopReason === "tool_use";
+	if (terminal.stopReason !== "tool_use" || typeof terminal.raw !== "string") {
+		return false;
+	}
+	const raw = JSON.parse(terminal.raw) as UnknownRecord;
+	if (!Array.isArray(raw.content)) return false;
+	const reports = raw.content.filter(
+		(block) =>
+			isRecord(block) &&
+			block.type === "tool_use" &&
+			block.name === "report_findings" &&
+			isRecord(block.input),
+	);
+	if (reports.length !== 1) return false;
+	const report = reports[0] as UnknownRecord;
+	const input = report.input as UnknownRecord;
+	return (
+		JSON.stringify(input.findings) === JSON.stringify(outcome.findings) &&
+		JSON.stringify(input.couldNotVerify) === JSON.stringify(outcome.couldNotVerify) &&
+		input.summary === outcome.summary
+	);
 }
 
 function isScoredFinding(value: unknown): boolean {
@@ -319,13 +338,6 @@ export function classifyTrialOutput(
 			status: "invalid",
 		};
 	}
-	if (!hasRetainedProviderCompletion(outcome)) {
-		return {
-			reason: "incomplete-provider-output",
-			retry: "never",
-			status: "invalid",
-		};
-	}
 	if (!hasUsage(report.usage)) {
 		return {
 			reason: "provenance-incomplete",
@@ -372,6 +384,13 @@ export function classifyTrialOutput(
 		consolidatedFindingKeys.some((key) => !outcomeFindingKeys.has(key))
 	) {
 		return { reason: "schema-invalid", retry: "never", status: "invalid" };
+	}
+	if (!hasRetainedProviderCompletion(outcome)) {
+		return {
+			reason: "incomplete-provider-output",
+			retry: "never",
+			status: "invalid",
+		};
 	}
 	return { reason: "completed", retry: "never", status: "usable" };
 }

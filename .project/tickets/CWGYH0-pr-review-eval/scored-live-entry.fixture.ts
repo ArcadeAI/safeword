@@ -200,6 +200,7 @@ try {
 				provider: "anthropic",
 			};
 			return {
+				attempt: 1,
 				attemptId: `fixture-attempt-${index + 1}`,
 				callId: outcome.callId,
 				costComplete: true,
@@ -214,10 +215,22 @@ try {
 						expertOutcomes: [{
 							...expectedRoute,
 							cappedBy: null,
+							couldNotVerify: [],
 							error: null,
 							failure: null,
 							findings,
-							providerResponses: [{ raw: '{"stop_reason":"tool_use"}', stopReason: "tool_use" }],
+							providerResponses: [{
+								raw: JSON.stringify({
+									content: [{
+										input: { couldNotVerify: [], findings, summary: "Complete." },
+										name: "report_findings",
+										type: "tool_use",
+									}],
+									stop_reason: "tool_use",
+								}),
+								stopReason: "tool_use",
+							}],
+							summary: "Complete.",
 							turns: 1,
 							usage: { inputTokens: 10, outputTokens: 5 },
 						}],

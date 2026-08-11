@@ -27,10 +27,22 @@ function rawOutput(index: number) {
 				expertOutcomes: [{
 					...route,
 					cappedBy: null,
+					couldNotVerify: [],
 					error: null,
 					failure: null,
 					findings,
-					providerResponses: [{ raw: '{"stop_reason":"tool_use"}', stopReason: "tool_use" }],
+					providerResponses: [{
+						raw: JSON.stringify({
+							content: [{
+								input: { couldNotVerify: [], findings, summary: "Complete." },
+								name: "report_findings",
+								type: "tool_use",
+							}],
+							stop_reason: "tool_use",
+						}),
+						stopReason: "tool_use",
+					}],
+					summary: "Complete.",
 					turns: 1,
 					usage: { inputTokens: 10, outputTokens: 2 },
 				}],
@@ -46,6 +58,18 @@ function rawOutput(index: number) {
 		},
 		provenance,
 	};
+}
+
+function retryableRawOutput(index: number) {
+	const value = rawOutput(index);
+	value.output.report.expertOutcomes[0]!.error = "provider unavailable" as never;
+	value.output.report.expertOutcomes[0]!.failure = {
+		kind: "provider-request",
+		status: 503,
+	} as never;
+	value.output.score.reviewValid = false;
+	value.output.terminalState = "failed" as never;
+	return value;
 }
 
 function validInput() {
@@ -98,10 +122,11 @@ function validInput() {
 		anchorCreatedAt: "2026-08-02T00:00:00.000Z",
 		labelAnchorCreatedAt: "2026-07-31T00:00:00.000Z",
 		attempts: [
-			{ attemptId: "retry", callId: "call-1", costComplete: true, costUsd: 0.02, expectedProvenance: rawOutput(0).provenance, expectedRoute: route, output: null, system: "full" as const, usable: false },
-			{ attemptId: "failed", callId: "call-2", costComplete: true, costUsd: 0.03, expectedProvenance: rawOutput(1).provenance, expectedRoute: route, output: null, system: "narrow" as const, usable: false },
+			{ attempt: 1 as const, attemptId: "retry", callId: "call-1", costComplete: true, costUsd: 0.02, expectedProvenance: retryableRawOutput(0).provenance, expectedRoute: route, output: retryableRawOutput(0).output, system: "full" as const, usable: false },
+			{ attempt: 1 as const, attemptId: "failed", callId: "call-2", costComplete: true, costUsd: 0.03, expectedProvenance: retryableRawOutput(1).provenance, expectedRoute: route, output: retryableRawOutput(1).output, system: "narrow" as const, usable: false },
 			...Array.from({ length: 10 }, (_, index) => ({
 				...rawOutput(index),
+				attempt: index < 2 ? 2 as const : 1 as const,
 				attemptId: `attempt-${index + 1}`,
 				callId: `call-${index + 1}`,
 				costComplete: true,

@@ -30,14 +30,26 @@ function completedOutput(findings: unknown[] = []) {
 			consolidated: { findings },
 			expertOutcomes: [{
 				cappedBy: null,
+				couldNotVerify: [],
 				error: null,
 				expert: "correctness",
 				model: "claude-sonnet-5",
 				provider: "anthropic",
 				providerResponses: [
-					{ raw: '{"content":[],"stop_reason":"tool_use"}', stopReason: "tool_use" },
-					{ raw: '{"content":[],"stop_reason":"tool_use"}', stopReason: "tool_use" },
+					{ raw: '{"content":[{"type":"tool_use","name":"read_file","input":{}}],"stop_reason":"tool_use"}', stopReason: "tool_use" },
+					{
+						raw: JSON.stringify({
+							content: [{
+								input: { couldNotVerify: [], findings, summary: "Complete." },
+								name: "report_findings",
+								type: "tool_use",
+							}],
+							stop_reason: "tool_use",
+						}),
+						stopReason: "tool_use",
+					},
 				],
+				summary: "Complete.",
 				failure: null as unknown,
 				findings,
 				turns: 2,

@@ -590,10 +590,15 @@ if (preflightOnly) {
 		createdAt?: unknown;
 		labels?: Parameters<typeof evaluateCanaryGate>[0]["preregisteredLabels"];
 	};
+	const labelManifestCreatedAt = typeof labelManifest.createdAt === "string"
+		? new Date(labelManifest.createdAt).valueOf()
+		: Number.NaN;
+	const labelAnchorTime = new Date(labelAnchor.createdAt).valueOf();
 	if (
-		typeof labelManifest.createdAt !== "string" ||
+		!Number.isFinite(labelManifestCreatedAt) ||
+		!Number.isFinite(labelAnchorTime) ||
 		!Array.isArray(labelManifest.labels) ||
-		new Date(labelManifest.createdAt).valueOf() > new Date(labelAnchor.createdAt).valueOf()
+		labelManifestCreatedAt > labelAnchorTime
 	) {
 		throw new Error("canary label manifest was not retained before use");
 	}
