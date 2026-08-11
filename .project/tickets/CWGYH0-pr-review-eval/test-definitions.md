@@ -290,7 +290,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a7d8259d1
 - [x] GREEN 47d0ed48c
-- [ ] REFACTOR
+- [x] REFACTOR skip: the same paid-outcome predicate compares each frozen and observed label
 
 ### Scenario: Total cost includes every attempt
 
