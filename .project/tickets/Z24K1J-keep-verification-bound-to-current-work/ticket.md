@@ -6,7 +6,7 @@ subtype: bug-investigated
 phase: verify
 status: in_progress
 created: 2026-08-08T16:58:54.423Z
-last_modified: 2026-08-11T15:17:00.000Z
+last_modified: 2026-08-11T18:38:00.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/2083
 ---
 
@@ -66,3 +66,6 @@ Ruled out:
 - 2026-08-11T15:17:00.000Z Quality review: Made session/diff precedence resilient to unavailable Git bases, stale session pointers, and newly added follow-up tickets; added `origin/master`, explicit-path existence checks, and installed-surface diff proof. The focused resolver/schema/smoke/skill gate passes 119/119.
 - 2026-08-11T15:17:00.000Z Review expansion: Fixed the previously deferred verification aggregate false-green because the user explicitly requested every quality-review improvement. Every required lane now runs, the first failure survives later success, and behavioral shell tests cover verify and BDD masking.
 - 2026-08-11T15:17:00.000Z Refactor: Centralized changed-ticket filtering, NUL-delimited Git path accumulation, and the CLI usage contract in three independently tested commits. Kept the ordered Git evidence collector cohesive so fail-closed precedence remains readable.
+- 2026-08-11T18:38:00.000Z Final quality improvements: Fail closed on every distinct changed ticket, support project directories below the Git root with relative diff paths, reject unknown options, continue ticketless for stale bindings without current-work evidence, and prove exact installed/template parity through a hermetic committed-branch smoke fixture.
+- 2026-08-11T18:38:00.000Z BDD reliability: Full verification exposed a feature-wide adapter that launched nested Vitest and timed out on the global test lock. Classified `operate-retry-safe-retro-relay.feature` as `@proof.vitest` and added manifest coverage so contributor BDD stays behavior-focused while the full unit lane retains executable proof.
+- 2026-08-11T18:38:00.000Z Authoritative verification: Relay 167 pass/1 skip; CLI 7,484 pass/5 skip; BDD 1,464 pass/3 skip with 64,326 steps pass/4 skip; builds, TypeScript, parity, and dependency audit green. Aggregate verification exits 0.
