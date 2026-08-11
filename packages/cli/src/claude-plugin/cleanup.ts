@@ -1,15 +1,24 @@
 /* eslint-disable unicorn/no-null -- null is the versioned absent-file image */
 
+import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
+import type { Stats } from 'node:fs';
 import {
-  chmodSync,
+  closeSync,
+  constants as fsConstants,
   existsSync,
+  fchmodSync,
+  fstatSync,
+  fsyncSync,
+  ftruncateSync,
   lstatSync,
   mkdirSync,
-  readdirSync,
+  openSync,
   readFileSync,
+  readSync,
   rmdirSync,
   rmSync,
+  writeSync,
 } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -18,6 +27,11 @@ import { applyEdits, modify, parse, visit } from 'jsonc-parser';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile, writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
 import { assertSafeClaudeCleanupTarget, containedClaudeCleanupPath } from './cleanup-target.js';
+import {
+  cataloguedClaudeLegacyPaths,
+  isAcceptedHistoricalFile,
+  isAcceptedHistoricalHook,
+} from './historical-ownership.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import { type ClaudeLegacyObservation, observeClaudeLegacy } from './legacy-classifier.js';
 import {
@@ -42,7 +56,9 @@ interface CleanupEntry {
 interface CleanupTransaction {
   readonly schema_version: 1;
   readonly transaction_id: string;
-  readonly disposition: 'complete-forward' | 'restore-backup';
+  readonly disposition: 'complete-forward';
+  readonly state: 'active' | 'recoverable';
+  readonly owner_pid: number;
   readonly entries: CleanupEntry[];
   readonly plugin_mode?: {
     readonly plugin_version: string;
@@ -85,6 +101,28 @@ function settingsMutation(
   const path = nodePath.join(cwd, relative);
   if (!existsSync(path) || legacy.recognizedHooks.length === 0) return undefined;
   const original = readFileSync(path, 'utf8');
+  return { path: relative, content: settingsMutationFromContent(original, legacy.recognizedHooks) };
+}
+
+function expectedSettingsMutation(original: string): string | null {
+  const parsed = parse(original) as Record<string, unknown>;
+  const hooks = (parsed.hooks as Record<string, unknown[]> | undefined) ?? {};
+  const recognizedHooks = Object.entries(hooks).flatMap(([event, entries]) =>
+    Array.isArray(entries)
+      ? entries.flatMap((entry, index) =>
+          isAcceptedHistoricalHook(event, entry) ? [{ event, index, entry }] : [],
+        )
+      : [],
+  );
+  if (recognizedHooks.length === 0)
+    throw new Error('Claude settings transaction has no legacy hooks.');
+  return settingsMutationFromContent(original, recognizedHooks);
+}
+
+function settingsMutationFromContent(
+  original: string,
+  recognizedHooks: ClaudeLegacyObservation['recognizedHooks'],
+): string | null {
   const parsed = parse(original) as Record<string, unknown>;
   const hooks = (parsed.hooks as Record<string, unknown[]> | undefined) ?? {};
   const allHookValuesAreArrays = Object.values(hooks).every(entries => Array.isArray(entries));
@@ -92,15 +130,17 @@ function settingsMutation(
     (count, entries) => count + (Array.isArray(entries) ? entries.length : 0),
     0,
   );
-  const generatedHookOnlyFile =
+  if (
     Object.keys(parsed).length === 1 &&
     allHookValuesAreArrays &&
-    hookCount === legacy.recognizedHooks.length &&
-    !containsJsonComments(original);
-  if (generatedHookOnlyFile) return { path: relative, content: null };
-
+    Object.values(hooks).every(entries => entries.length > 0) &&
+    hookCount === recognizedHooks.length &&
+    !containsJsonComments(original)
+  ) {
+    return null;
+  }
   let content = original;
-  const references = legacy.recognizedHooks.toSorted((left, right) => {
+  const references = recognizedHooks.toSorted((left, right) => {
     const eventOrder = right.event.localeCompare(left.event);
     return eventOrder === 0 ? right.index - left.index : eventOrder;
   });
@@ -112,10 +152,7 @@ function settingsMutation(
       }),
     );
   }
-  return {
-    path: relative,
-    content,
-  };
+  return content;
 }
 
 export function claudeLegacyMutations(cwd: string): { path: string; content: string | null }[] {
@@ -174,38 +211,153 @@ function observedSha(path: string): string | null {
   return existsSync(path) ? sha256(readFileSync(path)) : null;
 }
 
-/**
- * Removes the directories a contracted file leaves behind. Legacy Claude
- * delivery is nested (`.claude/skills/<skill>/SKILL.md`), so deleting the files
- * alone strands a husk tree the user then has to clean up by hand. Pruning
- * stops at the first non-empty ancestor and never leaves the project root, so
- * it can only ever remove directories Safeword just emptied.
- */
-function pruneEmptyAncestors(root: string, path: string): void {
-  const canonicalRoot = nodePath.resolve(root);
-  let directory = nodePath.dirname(nodePath.resolve(path));
-  while (directory.startsWith(`${canonicalRoot}${nodePath.sep}`)) {
-    try {
-      if (readdirSync(directory).length > 0) return;
-      rmdirSync(directory);
-    } catch {
-      // A concurrent writer repopulated or removed the directory. The files
-      // Safeword owns are already gone, so the prompt must not fail for a husk.
-      return;
+function sameFile(left: Stats, right: Stats): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+interface OpenCleanupTarget {
+  readonly descriptor: number;
+  readonly parentDescriptor: number;
+  readonly path: string;
+  readonly target: Stats;
+  readonly parent: Stats;
+}
+
+function isValidOpenCleanupTarget(snapshot: {
+  targetBefore: Stats;
+  opened: Stats;
+  targetAfter: Stats;
+  parentBefore: Stats;
+  openedParent: Stats;
+  parentAfter: Stats;
+}): boolean {
+  const { targetBefore, opened, targetAfter, parentBefore, openedParent, parentAfter } = snapshot;
+  return (
+    opened.isFile() &&
+    opened.nlink === 1 &&
+    sameFile(targetBefore, opened) &&
+    sameFile(opened, targetAfter) &&
+    sameFile(parentBefore, openedParent) &&
+    sameFile(parentBefore, parentAfter)
+  );
+}
+
+function openCleanupTarget(root: string, relative: string, flags: number): OpenCleanupTarget {
+  const path = assertSafeClaudeCleanupTarget(root, relative);
+  const parentPath = nodePath.dirname(path);
+  const targetBefore = lstatSync(path);
+  const parentBefore = lstatSync(parentPath);
+  const parentDescriptor = openSync(
+    parentPath,
+    fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0) | (fsConstants.O_NOFOLLOW ?? 0),
+  );
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(path, flags | (fsConstants.O_NOFOLLOW ?? 0));
+    const targetAfter = lstatSync(path);
+    const parentAfter = lstatSync(parentPath);
+    const opened = fstatSync(descriptor);
+    const openedParent = fstatSync(parentDescriptor);
+    if (
+      !isValidOpenCleanupTarget({
+        targetBefore,
+        opened,
+        targetAfter,
+        parentBefore,
+        openedParent,
+        parentAfter,
+      })
+    ) {
+      throw new Error(`Claude cleanup target changed during validation: ${relative}`);
     }
-    directory = nodePath.dirname(directory);
+    return { descriptor, parentDescriptor, path, target: opened, parent: parentAfter };
+  } catch (error) {
+    if (descriptor !== undefined) closeSync(descriptor);
+    closeSync(parentDescriptor);
+    throw error;
   }
 }
 
-function writeImage(root: string, path: string, content: string | null, mode: number | null): void {
-  if (content === null) {
-    rmSync(path, { force: true });
-    pruneEmptyAncestors(root, path);
-    return;
+const UNLINK_AT_SCRIPT = String.raw`
+import { dlopen } from 'bun:ffi';
+const library = process.platform === 'darwin' ? '/usr/lib/libSystem.B.dylib' : 'libc.so.6';
+const handle = dlopen(library, { unlinkat: { args: ['i32', 'cstring', 'i32'], returns: 'i32' } });
+const name = Buffer.from(process.argv[1] + '\0');
+const result = handle.symbols.unlinkat(3, name, 0);
+handle.close();
+process.exit(result === 0 ? 0 : 1);
+`;
+
+function unlinkFromOpenParent(parentDescriptor: number, basename: string): void {
+  if (process.platform !== 'darwin' && process.platform !== 'linux') {
+    throw new Error('Atomic Claude cleanup deletion is unavailable on this platform.');
   }
-  mkdirSync(nodePath.dirname(path), { recursive: true });
-  writeDurableFile(path, Buffer.from(content, 'base64'), { mode: mode ?? 0o644 });
-  chmodSync(path, mode ?? 0o644);
+  const result = spawnSync('bun', ['-e', UNLINK_AT_SCRIPT, basename], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe', parentDescriptor],
+  });
+  if (result.status !== 0) {
+    throw new Error(`Atomic Claude cleanup deletion failed: ${result.stderr.trim()}`);
+  }
+}
+
+function revalidateOpenTarget(root: string, relative: string, opened: OpenCleanupTarget): void {
+  const path = assertSafeClaudeCleanupTarget(root, relative);
+  const target = lstatSync(path);
+  const parent = lstatSync(nodePath.dirname(path));
+  const descriptor = fstatSync(opened.descriptor);
+  if (
+    path !== opened.path ||
+    !sameFile(opened.target, descriptor) ||
+    !sameFile(descriptor, target) ||
+    !sameFile(opened.parent, parent) ||
+    descriptor.nlink !== 1
+  ) {
+    throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
+  }
+}
+
+function descriptorSha256(descriptor: number, size: number): string {
+  if (size > MAX_CLAUDE_TRANSACTION_BYTES) throw new Error('Claude cleanup target is too large.');
+  const bytes = Buffer.alloc(size);
+  let offset = 0;
+  while (offset < bytes.length) {
+    const count = readSync(descriptor, bytes, offset, bytes.length - offset, offset);
+    if (count === 0) break;
+    offset += count;
+  }
+  return sha256(bytes.subarray(0, offset));
+}
+
+function writeImage(
+  root: string,
+  relative: string,
+  expectedSha256: string,
+  content: string | null,
+  mode: number | null,
+): void {
+  const opened = openCleanupTarget(root, relative, fsConstants.O_RDWR);
+  try {
+    revalidateOpenTarget(root, relative, opened);
+    if (descriptorSha256(opened.descriptor, opened.target.size) !== expectedSha256) {
+      throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
+    }
+    if (content === null) {
+      unlinkFromOpenParent(opened.parentDescriptor, nodePath.basename(opened.path));
+      return;
+    }
+    const bytes = Buffer.from(content, 'base64');
+    ftruncateSync(opened.descriptor, 0);
+    let offset = 0;
+    while (offset < bytes.length) {
+      offset += writeSync(opened.descriptor, bytes, offset, bytes.length - offset, offset);
+    }
+    fchmodSync(opened.descriptor, mode ?? 0o644);
+    fsyncSync(opened.descriptor);
+  } finally {
+    closeSync(opened.descriptor);
+    closeSync(opened.parentDescriptor);
+  }
 }
 
 function applyEntries(
@@ -219,9 +371,32 @@ function applyEntries(
     if (observedSha(path) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
-    writeImage(cwd, path, entry.after_base64, entry.after_mode);
+    writeImage(cwd, entry.path, entry.before_sha256, entry.after_base64, entry.after_mode);
   }
   return true;
+}
+
+function pruneEmptyLegacyDirectories(cwd: string, entries: readonly CleanupEntry[]): void {
+  const candidates = new Set<string>();
+  for (const entry of entries) {
+    if (entry.after_sha256 !== null) continue;
+    let directory = nodePath.dirname(entry.path);
+    while (directory === '.claude' || directory.startsWith('.claude/')) {
+      candidates.add(directory);
+      directory = nodePath.dirname(directory);
+    }
+  }
+  const deepestFirst = [...candidates].toSorted(
+    (left, right) => right.split('/').length - left.split('/').length,
+  );
+  for (const directory of deepestFirst) {
+    try {
+      rmdirSync(nodePath.join(cwd, directory));
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT' && code !== 'ENOTEMPTY' && code !== 'ENOTDIR') throw error;
+    }
+  }
 }
 
 function writePluginModeMarker(cwd: string, transactionId: string): void {
@@ -363,6 +538,17 @@ function writeObservedPluginMode(
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
 
+const CONCURRENT_MIGRATION_ADVISORY =
+  'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.';
+
+function deferredConcurrentMigration(paths: readonly string[]): AutomaticClaudeMigrationResult {
+  return {
+    state: 'deferred',
+    advisory: CONCURRENT_MIGRATION_ADVISORY,
+    unresolvedPaths: paths,
+  };
+}
+
 function claimAutomaticTransaction(
   projectRoot: string,
   transaction: CleanupTransaction,
@@ -378,12 +564,7 @@ function claimAutomaticTransaction(
     if (waitForPluginMode(projectRoot, options.deadline, now)) {
       return { state: 'complete', unresolvedPaths: unresolved };
     }
-    return {
-      state: 'deferred',
-      advisory:
-        'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
-      unresolvedPaths: unresolved,
-    };
+    return deferredConcurrentMigration(unresolved);
   }
 }
 
@@ -398,14 +579,16 @@ function concurrentMigrationResult(
     return { state: 'complete', unresolvedPaths: [] };
   }
   if (now() >= options.deadline) {
-    return {
-      state: 'deferred',
-      advisory:
-        'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
-      unresolvedPaths: [],
-    };
+    return deferredConcurrentMigration([]);
   }
-  return recoveredAutomaticResult(projectRoot);
+  try {
+    const transaction = parseTransaction(projectRoot);
+    return transactionCanRecover(transaction)
+      ? recoveredAutomaticResult(projectRoot)
+      : deferredConcurrentMigration([]);
+  } catch {
+    return recoveredAutomaticResult(projectRoot);
+  }
 }
 
 /**
@@ -456,6 +639,8 @@ function performAutomaticMigration(
     schema_version: 1,
     transaction_id: randomUUID(),
     disposition: 'complete-forward',
+    state: 'active',
+    owner_pid: process.pid,
     entries,
     plugin_mode: {
       plugin_version: options.pluginVersion,
@@ -468,35 +653,270 @@ function performAutomaticMigration(
   const contention = claimAutomaticTransaction(projectRoot, transaction, options, now, unresolved);
   if (contention !== undefined) return contention;
   if (!applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline)) {
+    writeDurableFile(
+      transactionPath(projectRoot),
+      `${JSON.stringify({ ...transaction, state: 'recoverable' }, undefined, 2)}\n`,
+      { mode: 0o600 },
+    );
     return {
       state: 'deferred',
       advisory: 'Safeword will finish removing its old Claude integration on the next prompt.',
       unresolvedPaths: unresolved,
     };
   }
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   writeAutomaticPluginMode(projectRoot, transaction);
   rmSync(transactionPath(projectRoot), { force: true });
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
 
-function parseTransaction(cwd: string): CleanupTransaction {
-  const value = JSON.parse(readFileSync(transactionPath(cwd), 'utf8')) as CleanupTransaction;
-  if (value.schema_version !== 1 || !Array.isArray(value.entries))
+const MAX_CLAUDE_TRANSACTION_BYTES = 8 * 1024 * 1024;
+const SHA256_PATTERN = /^[\da-f]{64}$/u;
+const UUID_PATTERN = /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/iu;
+
+function isTransactionFile(before: Stats, opened: Stats, after: Stats): boolean {
+  return (
+    isSafeTransactionMetadata(before) &&
+    isSafeTransactionMetadata(opened) &&
+    isSafeTransactionMetadata(after) &&
+    before.dev === opened.dev &&
+    before.ino === opened.ino &&
+    opened.dev === after.dev &&
+    opened.ino === after.ino
+  );
+}
+
+function isSafeTransactionMetadata(metadata: Stats): boolean {
+  return (
+    metadata.isFile() &&
+    !metadata.isSymbolicLink() &&
+    metadata.nlink === 1 &&
+    metadata.size <= MAX_CLAUDE_TRANSACTION_BYTES
+  );
+}
+
+function readTransactionBytes(path: string): Buffer {
+  let descriptor: number | undefined;
+  try {
+    const before = lstatSync(path);
+    descriptor = openSync(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NONBLOCK | (fsConstants.O_NOFOLLOW ?? 0),
+    );
+    const opened = fstatSync(descriptor);
+    const after = lstatSync(path);
+    if (!isTransactionFile(before, opened, after)) throw new Error('Unsafe transaction file.');
+    const buffer = Buffer.alloc(MAX_CLAUDE_TRANSACTION_BYTES + 1);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const count = readSync(descriptor, buffer, offset, buffer.length - offset, offset);
+      if (count === 0) break;
+      offset += count;
+    }
+    const final = fstatSync(descriptor);
+    if (
+      offset > MAX_CLAUDE_TRANSACTION_BYTES ||
+      !isTransactionFile(before, final, lstatSync(path))
+    ) {
+      throw new Error('Unsafe transaction file.');
+    }
+    return buffer.subarray(0, offset);
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+function record(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('Claude cleanup transaction is malformed.');
-  return value;
+  }
+  return value as Record<string, unknown>;
+}
+
+function canonicalBase64(value: unknown): Buffer {
+  if (typeof value !== 'string') throw new Error('Claude cleanup image is malformed.');
+  const bytes = Buffer.from(value, 'base64');
+  if (bytes.toString('base64') !== value) throw new Error('Claude cleanup image is malformed.');
+  return bytes;
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const actual = Object.keys(value).toSorted((left, right) => left.localeCompare(right));
+  return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
+}
+
+const CLEANUP_ENTRY_KEYS = [
+  'after_base64',
+  'after_mode',
+  'after_sha256',
+  'before_base64',
+  'before_mode',
+  'before_sha256',
+  'path',
+] as const;
+
+function hasValidBeforeImage(entry: Record<string, unknown>, before: Buffer): boolean {
+  return (
+    hasExactKeys(entry, CLEANUP_ENTRY_KEYS) &&
+    typeof entry.path === 'string' &&
+    typeof entry.before_sha256 === 'string' &&
+    SHA256_PATTERN.test(entry.before_sha256) &&
+    sha256(before) === entry.before_sha256 &&
+    Number.isSafeInteger(entry.before_mode) &&
+    (entry.before_mode as number) >= 0 &&
+    (entry.before_mode as number) <= 0o777
+  );
+}
+
+function deterministicAfterImage(path: string, before: Buffer): string | null | undefined {
+  if (path === '.claude/settings.json') return expectedSettingsMutation(before.toString('utf8'));
+  if (cataloguedClaudeLegacyPaths().includes(path) && isAcceptedHistoricalFile(path, before)) {
+    return null;
+  }
+  return undefined;
+}
+
+function hasExpectedAfterImage(
+  entry: Record<string, unknown>,
+  expectedBytes: Buffer | null,
+): boolean {
+  const expectedHash = expectedBytes === null ? null : sha256(expectedBytes);
+  const expectedBase64 = expectedBytes === null ? null : expectedBytes.toString('base64');
+  const expectedMode = expectedBytes === null ? null : entry.before_mode;
+  return (
+    entry.after_sha256 === expectedHash &&
+    entry.after_base64 === expectedBase64 &&
+    entry.after_mode === expectedMode
+  );
+}
+
+function validateCleanupEntry(value: unknown): CleanupEntry {
+  const entry = record(value);
+  const before = canonicalBase64(entry.before_base64);
+  if (!hasValidBeforeImage(entry, before)) {
+    throw new Error('Claude cleanup entry is malformed.');
+  }
+  const expectedAfter = deterministicAfterImage(entry.path as string, before);
+  if (expectedAfter === undefined) throw new Error('Claude cleanup entry is not catalogued.');
+  const expectedBytes = expectedAfter === null ? null : Buffer.from(expectedAfter);
+  if (!hasExpectedAfterImage(entry, expectedBytes)) {
+    throw new Error('Claude cleanup after-image is not the deterministic legacy contraction.');
+  }
+  return entry as unknown as CleanupEntry;
+}
+
+function expectedPluginModeKeys(pluginMode: Record<string, unknown>): string[] {
+  return [
+    ...(pluginMode.advisory === undefined ? [] : ['advisory']),
+    'catalogue_sha256',
+    'hook_manifest_sha256',
+    'plugin_version',
+    'unresolved_paths',
+  ].toSorted((left, right) => left.localeCompare(right));
+}
+
+function hasValidPluginModeDigests(pluginMode: Record<string, unknown>): boolean {
+  return (
+    typeof pluginMode.hook_manifest_sha256 === 'string' &&
+    SHA256_PATTERN.test(pluginMode.hook_manifest_sha256) &&
+    typeof pluginMode.catalogue_sha256 === 'string' &&
+    SHA256_PATTERN.test(pluginMode.catalogue_sha256)
+  );
+}
+
+function hasValidPluginModeMetadata(pluginMode: Record<string, unknown>): boolean {
+  return (
+    typeof pluginMode.plugin_version === 'string' &&
+    Array.isArray(pluginMode.unresolved_paths) &&
+    pluginMode.unresolved_paths.every(path => typeof path === 'string') &&
+    (pluginMode.advisory === undefined || typeof pluginMode.advisory === 'string')
+  );
+}
+
+function validatePluginMode(value: unknown): CleanupTransaction['plugin_mode'] {
+  const pluginMode = record(value);
+  const expectedKeys = expectedPluginModeKeys(pluginMode);
+  if (
+    !hasExactKeys(pluginMode, expectedKeys) ||
+    !hasValidPluginModeDigests(pluginMode) ||
+    !hasValidPluginModeMetadata(pluginMode)
+  ) {
+    throw new Error('Claude cleanup plugin mode is malformed.');
+  }
+  return pluginMode as unknown as CleanupTransaction['plugin_mode'];
+}
+
+function hasValidTransactionHeader(value: Record<string, unknown>): boolean {
+  return (
+    hasExactKeys(value, [
+      'disposition',
+      'entries',
+      'owner_pid',
+      'plugin_mode',
+      'schema_version',
+      'state',
+      'transaction_id',
+    ]) &&
+    value.schema_version === 1 &&
+    typeof value.transaction_id === 'string' &&
+    UUID_PATTERN.test(value.transaction_id) &&
+    value.disposition === 'complete-forward' &&
+    (value.state === 'active' || value.state === 'recoverable') &&
+    Number.isSafeInteger(value.owner_pid) &&
+    (value.owner_pid as number) > 0
+  );
+}
+
+function hasValidTransactionEntries(value: Record<string, unknown>): boolean {
+  return Array.isArray(value.entries) && value.entries.length > 0 && value.entries.length <= 1024;
+}
+
+function parseTransaction(cwd: string): CleanupTransaction {
+  const bytes = readTransactionBytes(transactionPath(cwd));
+  const parsed = JSON.parse(bytes.toString('utf8')) as unknown;
+  const value = record(parsed);
+  if (!hasValidTransactionHeader(value) || !hasValidTransactionEntries(value)) {
+    throw new Error('Claude cleanup transaction is malformed.');
+  }
+  const entryValues = value.entries as unknown[];
+  const entries = entryValues.map(entry => validateCleanupEntry(entry));
+  if (new Set(entries.map(entry => entry.path)).size !== entries.length) {
+    throw new Error('Claude cleanup transaction repeats a target.');
+  }
+  return {
+    schema_version: 1,
+    transaction_id: value.transaction_id as string,
+    disposition: 'complete-forward',
+    state: value.state as CleanupTransaction['state'],
+    owner_pid: value.owner_pid as number,
+    entries,
+    plugin_mode: validatePluginMode(value.plugin_mode),
+  };
+}
+
+function processIsRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+function transactionCanRecover(transaction: CleanupTransaction): boolean {
+  return transaction.state === 'recoverable' || !processIsRunning(transaction.owner_pid);
 }
 
 function pendingRecoveryEntries(
   projectRoot: string,
   transaction: CleanupTransaction,
 ): CleanupEntry[] {
-  const forward = transaction.disposition === 'complete-forward';
   const pending: CleanupEntry[] = [];
   for (const entry of transaction.entries) {
     const path = assertSafeClaudeCleanupTarget(projectRoot, entry.path);
     const current = observedSha(path);
-    const source = forward ? entry.before_sha256 : entry.after_sha256;
-    const destination = forward ? entry.after_sha256 : entry.before_sha256;
+    const source = entry.before_sha256;
+    const destination = entry.after_sha256;
     if (current === destination) continue;
     if (current !== source) throw new Error(`Claude recovery conflict at ${entry.path}`);
     pending.push(entry);
@@ -504,34 +924,21 @@ function pendingRecoveryEntries(
   return pending;
 }
 
-function applyRecoveryEntries(
-  projectRoot: string,
-  transaction: CleanupTransaction,
-  pending: readonly CleanupEntry[],
-): void {
-  const forward = transaction.disposition === 'complete-forward';
+function applyRecoveryEntries(projectRoot: string, pending: readonly CleanupEntry[]): void {
   for (const entry of pending) {
-    const path = containedClaudeCleanupPath(projectRoot, entry.path);
-    writeImage(
-      projectRoot,
-      path,
-      forward ? entry.after_base64 : entry.before_base64,
-      forward ? entry.after_mode : entry.before_mode,
-    );
+    writeImage(projectRoot, entry.path, entry.before_sha256, entry.after_base64, entry.after_mode);
   }
 }
 
 function completedRecoveryResult(projectRoot: string, transaction: CleanupTransaction): CliResult {
-  if (transaction.disposition === 'complete-forward') {
-    writeAutomaticPluginMode(projectRoot, transaction);
-  }
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
+  writeAutomaticPluginMode(projectRoot, transaction);
   rmSync(transactionPath(projectRoot), { force: true });
   return createResult({
     state: 'changed',
     data: {
       command: 'claude recover',
-      classification:
-        transaction.disposition === 'complete-forward' ? 'plugin-mode' : 'cleanup-ready',
+      classification: 'plugin-mode',
     },
   });
 }
@@ -551,11 +958,12 @@ export function recoverClaudeCleanup(cwd: string): CliResult {
   }
   try {
     const transaction = parseTransaction(projectRoot);
-    applyRecoveryEntries(
-      projectRoot,
-      transaction,
-      pendingRecoveryEntries(projectRoot, transaction),
-    );
+    if (!transactionCanRecover(transaction)) {
+      throw new Error(
+        `Claude cleanup transaction is still owned by process ${transaction.owner_pid}.`,
+      );
+    }
+    applyRecoveryEntries(projectRoot, pendingRecoveryEntries(projectRoot, transaction));
     return completedRecoveryResult(projectRoot, transaction);
   } catch (error) {
     return createResult({

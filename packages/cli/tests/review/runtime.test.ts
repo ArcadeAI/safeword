@@ -25,6 +25,12 @@ function temporaryDirectory(): string {
   return directory;
 }
 
+function trustedTemporaryDirectory(): string {
+  const directory = mkdtempSync(nodePath.join(process.cwd(), '.safeword-review-runtime-'));
+  temporaryDirectories.push(directory);
+  return directory;
+}
+
 const output: ReviewerOutput = {
   schema_version: 1,
   dispatch_id: 'dispatch-1',
@@ -36,10 +42,10 @@ const output: ReviewerOutput = {
 
 describe('headless reviewer timeout budgets', () => {
   // 91 real review runs put successful reviews at 47s median, 75s slowest, so
-  // 300s is four times the observed ceiling — see runtime.ts's
+  // 120s leaves headroom while preserving a fallback inside the host deadline — see runtime.ts's
   // DEFAULT_ATTEMPT_DEADLINE_MS for the full evidence trail.
-  it.each(['claude', 'codex'] as const)('gives %s a five-minute default budget', reviewer => {
-    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(300_000);
+  it.each(['claude', 'codex'] as const)('gives %s a two-minute default budget', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(120_000);
   });
 
   it.each(['claude', 'codex'] as const)('honors the explicit timeout override for %s', reviewer => {
@@ -121,7 +127,7 @@ describe('headless reviewer process lifecycle', () => {
   it.skipIf(process.platform === 'win32')(
     'kills reviewer descendants after a timeout',
     async () => {
-      const bin = temporaryDirectory();
+      const bin = trustedTemporaryDirectory();
       const project = temporaryDirectory();
       const untrustedRoot = temporaryDirectory();
       const childPidPath = nodePath.join(project, 'child.pid');

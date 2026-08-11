@@ -112,6 +112,22 @@ function advisory(world: MigrationWorld): string {
   return world.hook?.advisory ?? world.migration?.advisory ?? '';
 }
 
+function runUntilAutomaticMigrationSettles(
+  target: LegacyProject,
+  sessionId: string,
+  maximumPrompts = 3,
+): HookRun {
+  let run: HookRun | undefined;
+  for (let prompt = 1; prompt <= maximumPrompts; prompt += 1) {
+    run = runPluginHook(target, { sessionId });
+    assert.equal(run.status, 0, run.stderr);
+    if (!DEFERRALS.some(deferral => run?.advisory.includes(deferral))) return run;
+  }
+  assert.fail(
+    `migration never settled across ${String(maximumPrompts)} prompts: ${run?.advisory ?? ''}`,
+  );
+}
+
 /** Asserts a Safeword advisory appears, naming each expected path, exactly once. */
 function assertSingleAdvisory(text: string, sentence: string, names: readonly string[] = []): void {
   assert.equal(
@@ -161,12 +177,7 @@ When('its UserPromptSubmit event completes successfully', function (this: Migrat
   // under test is that contraction converges, not that it fits in one budget,
   // so keep prompting while the hook says it deferred. A regression that never
   // converges still fails, on the bound.
-  for (let prompt = 1; prompt <= 3; prompt += 1) {
-    this.hook = runPluginHook(project(this), { sessionId: 'automatic-migration-session' });
-    assert.equal(this.hook.status, 0, this.hook.stderr);
-    if (!DEFERRALS.some(deferral => this.hook?.advisory.includes(deferral))) return;
-  }
-  assert.fail(`migration never settled across three prompts: ${this.hook?.advisory ?? ''}`);
+  this.hook = runUntilAutomaticMigrationSettles(project(this), 'automatic-migration-session');
 });
 
 Then(
@@ -995,8 +1006,7 @@ Then(
 Then(
   'the first successful prompt in a new session permits one automatic recovery attempt',
   function (this: MigrationWorld) {
-    const run = runPluginHook(project(this), { sessionId: 'a-brand-new-session' });
-    assert.equal(run.status, 0, run.stderr);
+    runUntilAutomaticMigrationSettles(project(this), 'a-brand-new-session', 2);
     assert.equal(marker(this).state, 'clean');
     for (const relative of project(this).installed) {
       assert.ok(!existsSync(nodePath.join(project(this).root, relative)));
@@ -1076,8 +1086,7 @@ Given(
 );
 
 When('automatic contraction completes', function (this: MigrationWorld) {
-  this.hook = runPluginHook(project(this));
-  assert.equal(this.hook.status, 0, this.hook.stderr);
+  this.hook = runUntilAutomaticMigrationSettles(project(this), 'automatic-migration-session');
 });
 
 Then('the project declaration remains in Claude settings', function (this: MigrationWorld) {

@@ -66,7 +66,15 @@ if [ "$(printenv SAFEWORD_FAKE_UNSUPPORTED_MODEL 2>/dev/null || true)" = "1" ]; 
   exit 7
 fi
 for event in session-start user-prompt-submit pre-tool-use post-tool-use stop; do
-  printf '%s\n' '{}' | "$SAFEWORD_BUN" "$SAFEWORD_CLI_PATH" hook codex "$event" --plugin-hook >/dev/null
+  case "$event" in
+    session-start) input_event=SessionStart ;;
+    user-prompt-submit) input_event=UserPromptSubmit ;;
+    pre-tool-use) input_event=PreToolUse ;;
+    post-tool-use) input_event=PostToolUse ;;
+    stop) input_event=Stop ;;
+  esac
+  printf '{"session_id":"fixture-session","hook_event_name":"%s"}\n' "$input_event" \
+    | "$SAFEWORD_BUN" "$SAFEWORD_CLI_PATH" hook codex "$event" --plugin-hook >/dev/null
 done
 if [ "$(printenv SAFEWORD_FAKE_FUTURE_RECEIPT 2>/dev/null || true)" = "1" ]; then
   receipt="$CODEX_HOME/safeword/activation-current-v1.json"

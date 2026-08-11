@@ -26,6 +26,11 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
   exit 0
 fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  probe_env_log=$(printenv SAFEWORD_REVIEW_PROBE_ENV_LOG || true)
+  if [ -n "$probe_env_log" ]; then
+    if printenv ANTHROPIC_API_KEY >/dev/null 2>&1; then printf 'anthropic=present\n' >> "$probe_env_log"; else printf 'anthropic=absent\n' >> "$probe_env_log"; fi
+    if printenv OPENAI_API_KEY >/dev/null 2>&1; then printf 'openai=present\n' >> "$probe_env_log"; else printf 'openai=absent\n' >> "$probe_env_log"; fi
+  fi
   help_mutate=$(printenv SAFEWORD_REVIEW_HELP_MUTATE || true)
   if [ "$help_mutate" = "1" ]; then printf 'probe mutation\n' > review-input.md; fi
   swap_alias=$(printenv SAFEWORD_REVIEW_SWAP_ALIAS || true)
@@ -680,6 +685,7 @@ describe('cross-agent review public-command wiring', () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
     const environmentLog = nodePath.join(directory, 'environment.log');
+    const probeEnvironmentLog = nodePath.join(directory, 'probe-environment.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const bin = installFakeReviewer(directory, 'codex');
     const authorSecret = `sk-ant-${'a'.repeat(24)}`;
@@ -704,6 +710,7 @@ describe('cross-agent review public-command wiring', () => {
           OPENAI_API_KEY: reviewerSecret,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_ENV_LOG: environmentLog,
+          SAFEWORD_REVIEW_PROBE_ENV_LOG: probeEnvironmentLog,
           SAFEWORD_REVIEW_LOG: reviewLog,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
@@ -711,6 +718,7 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(probeEnvironmentLog, 'utf8')).toBe('anthropic=absent\nopenai=absent\n');
     expect(readFileSync(environmentLog, 'utf8')).toBe('anthropic=absent\nopenai=present\n');
     expect(result.stdout).not.toContain(authorSecret);
     expect(result.stdout).not.toContain(reviewerSecret);
@@ -1469,6 +1477,52 @@ describe('cross-agent review public-command wiring', () => {
           SAFEWORD_REVIEW_LOG: reviewLog,
           SAFEWORD_REVIEW_SWAP_ALIAS: alias,
           SAFEWORD_REVIEW_SWAP_TARGET: malicious,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(reviewLog, 'utf8')).toBe('codex\n');
+    expect(() => readFileSync(maliciousLog, 'utf8')).toThrow();
+  });
+
+  it('rejects a reviewer beneath a world-writable PATH directory', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const maliciousLog = nodePath.join(directory, 'malicious.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+
+    const maliciousRoot = createTemporaryDirectory();
+    const maliciousBin = nodePath.join(maliciousRoot, 'bin');
+    mkdirSync(maliciousBin);
+    writeFileSync(
+      nodePath.join(maliciousBin, 'codex'),
+      `#!/bin/sh\nprintf 'invoked\\n' >> '${maliciousLog}'\nprintf '%s\\n' '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema --model'\n`,
+      { mode: 0o755 },
+    );
+    chmodSync(maliciousBin, 0o777);
+    const trustedBin = installFakeReviewer(directory, 'codex');
+    chmodSync(trustedBin, 0o775);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${maliciousBin}:${trustedBin}:/usr/bin:/bin`,
+          OPENAI_API_KEY: 'reviewer-secret',
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_LOG: reviewLog,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },

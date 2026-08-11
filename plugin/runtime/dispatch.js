@@ -1,11 +1,11 @@
 // claude-plugin/runtime/dispatch.ts
-import { spawnSync as spawnSync2 } from 'node:child_process';
+import { spawnSync as spawnSync3 } from 'node:child_process';
 import { createHash as createHash4 } from 'node:crypto';
 import {
-  existsSync as existsSync5,
-  lstatSync as lstatSync4,
-  readFileSync as readFileSync4,
-  realpathSync as realpathSync2,
+  existsSync as existsSync6,
+  lstatSync as lstatSync5,
+  readFileSync as readFileSync5,
+  realpathSync as realpathSync3,
 } from 'node:fs';
 import nodePath8 from 'node:path';
 
@@ -1630,16 +1630,24 @@ function durableRename(source, destination) {
 }
 
 // claude-plugin/cleanup.ts
+import { spawnSync as spawnSync2 } from 'node:child_process';
 import { createHash as createHash3, randomUUID as randomUUID2 } from 'node:crypto';
 import {
-  chmodSync,
-  existsSync as existsSync4,
-  lstatSync as lstatSync3,
-  mkdirSync as mkdirSync3,
-  readdirSync as readdirSync2,
-  readFileSync as readFileSync3,
-  rmdirSync,
-  rmSync as rmSync3,
+  closeSync as closeSync3,
+  constants as fsConstants2,
+  existsSync as existsSync5,
+  fchmodSync,
+  fstatSync as fstatSync2,
+  fsyncSync as fsyncSync2,
+  ftruncateSync,
+  lstatSync as lstatSync4,
+  mkdirSync as mkdirSync4,
+  openSync as openSync3,
+  readFileSync as readFileSync4,
+  readSync as readSync2,
+  rmdirSync as rmdirSync2,
+  rmSync as rmSync4,
+  writeSync,
 } from 'node:fs';
 import nodePath7 from 'node:path';
 
@@ -1702,54 +1710,6 @@ function assertSafeClaudeCleanupTarget(cwd, relative) {
   }
   return target;
 }
-
-// claude-plugin/inventory.ts
-import { readdirSync } from 'node:fs';
-import nodePath3 from 'node:path';
-var CLAUDE_MIGRATION_SCHEMA = {
-  paths: {
-    proof: 'plugins/data/safeword-safeword/execution-proof-v1.json',
-    proofDirectory: 'plugins/data/safeword-safeword/execution-proofs-v2',
-    pluginMarker: '.safeword/claude-plugin/plugin-mode-v1.json',
-    pluginMarkerV2: '.safeword/claude-plugin/plugin-mode-v2.json',
-    attention: '.safeword/claude-plugin/attention-v1.json',
-    attemptsDirectory: '.safeword/claude-plugin/attempts-v1',
-    transaction: '.safeword/claude-plugin/cleanup-transaction-v1.json',
-  },
-};
-var CLAUDE_NATIVE_REQUIRED_ASSETS = [
-  '.claude-plugin/plugin.json',
-  'hooks/hooks.json',
-  'runtime/cli.js',
-  'runtime/dispatch.js',
-  'runtime/event-groups.json',
-];
-var CLAUDE_NATIVE_METADATA_FILES = ['README.md', 'identity.json', 'inventory.json'];
-var BENIGN_CACHE_METADATA_BASENAMES = /* @__PURE__ */ new Set([
-  '.DS_Store',
-  'Thumbs.db',
-  'desktop.ini',
-]);
-function claudeNativePayloadFiles(root) {
-  const files = [];
-  const visit3 = (physicalDirectory, logicalDirectory) => {
-    const entries = readdirSync(physicalDirectory, { withFileTypes: true });
-    for (const entry of entries) {
-      if (logicalDirectory === '' && entry.isDirectory() && entry.name === '.in_use') continue;
-      const physicalPath = nodePath3.join(physicalDirectory, entry.name);
-      const logicalPath =
-        logicalDirectory === '' ? entry.name : nodePath3.posix.join(logicalDirectory, entry.name);
-      if (entry.isDirectory()) visit3(physicalPath, logicalPath);
-      else if (!BENIGN_CACHE_METADATA_BASENAMES.has(entry.name)) files.push(logicalPath);
-    }
-  };
-  visit3(root, '');
-  return files;
-}
-
-// claude-plugin/legacy-classifier.ts
-import { existsSync as existsSync2, lstatSync as lstatSync2, readFileSync } from 'node:fs';
-import nodePath4 from 'node:path';
 
 // claude-plugin/historical-ownership.ts
 import { createHash } from 'node:crypto';
@@ -3210,7 +3170,163 @@ function cataloguedClaudeLegacyPaths() {
   );
 }
 
+// claude-plugin/inventory.ts
+import {
+  closeSync as closeSync2,
+  constants as fsConstants,
+  fstatSync,
+  lstatSync as lstatSync2,
+  openSync as openSync2,
+  readdirSync,
+  readSync,
+  realpathSync,
+} from 'node:fs';
+import nodePath3 from 'node:path';
+var CLAUDE_MIGRATION_SCHEMA = {
+  paths: {
+    proof: 'plugins/data/safeword-safeword/execution-proof-v1.json',
+    proofDirectory: 'plugins/data/safeword-safeword/execution-proofs-v2',
+    pluginMarker: '.safeword/claude-plugin/plugin-mode-v1.json',
+    pluginMarkerV2: '.safeword/claude-plugin/plugin-mode-v2.json',
+    attention: '.safeword/claude-plugin/attention-v1.json',
+    attemptsDirectory: '.safeword/claude-plugin/attempts-v1',
+    transaction: '.safeword/claude-plugin/cleanup-transaction-v1.json',
+  },
+};
+var CLAUDE_NATIVE_REQUIRED_ASSETS = [
+  '.claude-plugin/plugin.json',
+  'hooks/hooks.json',
+  'runtime/cli.js',
+  'runtime/dispatch.js',
+  'runtime/event-groups.json',
+];
+var CLAUDE_NATIVE_METADATA_FILES = ['README.md', 'identity.json', 'inventory.json'];
+var MAX_CLAUDE_CACHE_METADATA_BYTES = 1024;
+function isSmallRegularMetadata(metadata) {
+  return (
+    metadata.isFile() &&
+    !metadata.isSymbolicLink() &&
+    metadata.size <= MAX_CLAUDE_CACHE_METADATA_BYTES
+  );
+}
+function isSameSmallMetadata(before, opened, after) {
+  return (
+    opened.isFile() &&
+    isSmallRegularMetadata(after) &&
+    opened.dev === before.dev &&
+    opened.ino === before.ino &&
+    opened.dev === after.dev &&
+    opened.ino === after.ino &&
+    opened.nlink === 1 &&
+    opened.size <= MAX_CLAUDE_CACHE_METADATA_BYTES
+  );
+}
+function readSmallDescriptor(descriptor) {
+  const buffer = Buffer.alloc(MAX_CLAUDE_CACHE_METADATA_BYTES + 1);
+  let offset = 0;
+  while (offset < buffer.length) {
+    const count = readSync(descriptor, buffer, offset, buffer.length - offset, offset);
+    if (count === 0) break;
+    offset += count;
+  }
+  return offset > MAX_CLAUDE_CACHE_METADATA_BYTES
+    ? void 0
+    : buffer.subarray(0, offset).toString('utf8');
+}
+function readSmallMetadataFile(path) {
+  let descriptor;
+  try {
+    const linkedBefore = lstatSync2(path);
+    if (!isSmallRegularMetadata(linkedBefore)) return void 0;
+    descriptor = openSync2(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NONBLOCK | (fsConstants.O_NOFOLLOW ?? 0),
+    );
+    const opened = fstatSync(descriptor);
+    const linkedAfter = lstatSync2(path);
+    if (!isSameSmallMetadata(linkedBefore, opened, linkedAfter)) return void 0;
+    const content = readSmallDescriptor(descriptor);
+    const final = fstatSync(descriptor);
+    return content !== void 0 && isSameSmallMetadata(linkedBefore, final, linkedAfter)
+      ? content
+      : void 0;
+  } catch {
+    return void 0;
+  } finally {
+    if (descriptor !== void 0) closeSync2(descriptor);
+  }
+}
+function isLeaseRecord(value, expectedPid) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const record2 = value;
+  const hasExactFields =
+    Object.keys(record2).length === 2 &&
+    Object.hasOwn(record2, 'pid') &&
+    Object.hasOwn(record2, 'procStart');
+  return (
+    hasExactFields &&
+    Number.isSafeInteger(record2.pid) &&
+    record2.pid === expectedPid &&
+    typeof record2.procStart === 'string' &&
+    record2.procStart.length > 0
+  );
+}
+function isClaudeLeaseMarker(path, name) {
+  if (!/^\d+$/u.test(name)) return false;
+  const content = readSmallMetadataFile(path);
+  if (content === void 0) return false;
+  try {
+    return isLeaseRecord(JSON.parse(content), Number(name));
+  } catch {
+    return false;
+  }
+}
+function isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry) {
+  if (!entry.isFile()) return false;
+  if (logicalDirectory === '.in_use') return isClaudeLeaseMarker(physicalPath, entry.name);
+  if (logicalDirectory !== '' || entry.name !== '.orphaned_at') return false;
+  return /^\d{13}\n?$/u.test(readSmallMetadataFile(physicalPath) ?? '');
+}
+function directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot) {
+  const metadata = lstatSync2(physicalDirectory);
+  const canonical = realpathSync(physicalDirectory);
+  const insideRoot =
+    canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath3.sep}`);
+  if (!metadata.isDirectory() || !insideRoot) {
+    throw new Error(`Claude plugin cache traversal escaped its root: ${logicalDirectory || '.'}`);
+  }
+  return { canonical, device: metadata.dev, inode: metadata.ino };
+}
+function claudeNativePayloadFiles(root) {
+  const files = [];
+  const canonicalRoot = realpathSync(root);
+  const visit3 = (physicalDirectory, logicalDirectory) => {
+    const before = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
+    const entries = readdirSync(physicalDirectory, { withFileTypes: true });
+    const after = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
+    if (
+      before.device !== after.device ||
+      before.inode !== after.inode ||
+      before.canonical !== after.canonical
+    ) {
+      throw new Error(`Claude plugin cache changed during traversal: ${logicalDirectory || '.'}`);
+    }
+    for (const entry of entries) {
+      const physicalPath = nodePath3.join(physicalDirectory, entry.name);
+      const logicalPath =
+        logicalDirectory === '' ? entry.name : nodePath3.posix.join(logicalDirectory, entry.name);
+      if (isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry)) continue;
+      if (entry.isDirectory()) visit3(physicalPath, logicalPath);
+      else files.push(logicalPath);
+    }
+  };
+  visit3(root, '');
+  return files;
+}
+
 // claude-plugin/legacy-classifier.ts
+import { existsSync as existsSync2, lstatSync as lstatSync3, readFileSync } from 'node:fs';
+import nodePath4 from 'node:path';
 function referencesLegacyHook(value) {
   if (typeof value === 'string') return value.includes('.safeword/hooks/');
   if (Array.isArray(value)) return value.some(child => referencesLegacyHook(child));
@@ -3225,7 +3341,7 @@ function observeFiles(cwd) {
     if (!existsSync2(path)) continue;
     try {
       const safePath = assertSafeClaudeCleanupTarget(cwd, relativePath);
-      const regular = lstatSync2(safePath).isFile();
+      const regular = lstatSync3(safePath).isFile();
       if (regular && isAcceptedHistoricalFile(relativePath, readFileSync(safePath))) {
         recognizedFiles.push(relativePath);
       } else {
@@ -3240,7 +3356,7 @@ function observeFiles(cwd) {
 function observeSettings(cwd) {
   const settingsPath = nodePath4.join(cwd, '.claude/settings.json');
   if (!existsSync2(settingsPath)) return { recognizedHooks: [], conflictingHooks: [] };
-  if (!lstatSync2(settingsPath).isFile()) {
+  if (!lstatSync3(settingsPath).isFile()) {
     return {
       recognizedHooks: [],
       conflictingHooks: [],
@@ -3464,17 +3580,33 @@ function removeLegacyClaudePluginMode(cwd) {
 
 // claude-plugin/project-root.ts
 import { spawnSync } from 'node:child_process';
-import { realpathSync, statSync } from 'node:fs';
+
+// utils/fs.ts
+import {
+  chmodSync,
+  existsSync as existsSync4,
+  mkdirSync as mkdirSync3,
+  readdirSync as readdirSync2,
+  readFileSync as readFileSync3,
+  realpathSync as realpathSync2,
+  rmdirSync,
+  rmSync as rmSync3,
+  statSync,
+  writeFileSync as writeFileSync2,
+} from 'node:fs';
 import nodePath6 from 'node:path';
+var __dirname = import.meta.dirname;
 function canonicalDirectory(path) {
   if (typeof path !== 'string' || path.trim() === '') return void 0;
   try {
     if (!statSync(path).isDirectory()) return void 0;
-    return nodePath6.normalize(realpathSync(path));
+    return nodePath6.normalize(realpathSync2(path));
   } catch {
     return void 0;
   }
 }
+
+// claude-plugin/project-root.ts
 function canonicalClaudeProjectRoot(cwd) {
   const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
   const environmentRoot = configuredRoot === void 0 ? void 0 : configuredRoot.trim();
@@ -3507,8 +3639,25 @@ function containsJsonComments(content) {
 function settingsMutation(cwd, legacy) {
   const relative = '.claude/settings.json';
   const path = nodePath7.join(cwd, relative);
-  if (!existsSync4(path) || legacy.recognizedHooks.length === 0) return void 0;
-  const original = readFileSync3(path, 'utf8');
+  if (!existsSync5(path) || legacy.recognizedHooks.length === 0) return void 0;
+  const original = readFileSync4(path, 'utf8');
+  return { path: relative, content: settingsMutationFromContent(original, legacy.recognizedHooks) };
+}
+function expectedSettingsMutation(original) {
+  const parsed = parse2(original);
+  const hooks = parsed.hooks ?? {};
+  const recognizedHooks = Object.entries(hooks).flatMap(([event, entries]) =>
+    Array.isArray(entries)
+      ? entries.flatMap((entry, index) =>
+          isAcceptedHistoricalHook(event, entry) ? [{ event, index, entry }] : [],
+        )
+      : [],
+  );
+  if (recognizedHooks.length === 0)
+    throw new Error('Claude settings transaction has no legacy hooks.');
+  return settingsMutationFromContent(original, recognizedHooks);
+}
+function settingsMutationFromContent(original, recognizedHooks) {
   const parsed = parse2(original);
   const hooks = parsed.hooks ?? {};
   const allHookValuesAreArrays = Object.values(hooks).every(entries => Array.isArray(entries));
@@ -3516,14 +3665,17 @@ function settingsMutation(cwd, legacy) {
     (count, entries) => count + (Array.isArray(entries) ? entries.length : 0),
     0,
   );
-  const generatedHookOnlyFile =
+  if (
     Object.keys(parsed).length === 1 &&
     allHookValuesAreArrays &&
-    hookCount === legacy.recognizedHooks.length &&
-    !containsJsonComments(original);
-  if (generatedHookOnlyFile) return { path: relative, content: null };
+    Object.values(hooks).every(entries => entries.length > 0) &&
+    hookCount === recognizedHooks.length &&
+    !containsJsonComments(original)
+  ) {
+    return null;
+  }
   let content = original;
-  const references = legacy.recognizedHooks.toSorted((left, right) => {
+  const references = recognizedHooks.toSorted((left, right) => {
     const eventOrder = right.event.localeCompare(left.event);
     return eventOrder === 0 ? right.index - left.index : eventOrder;
   });
@@ -3535,10 +3687,7 @@ function settingsMutation(cwd, legacy) {
       }),
     );
   }
-  return {
-    path: relative,
-    content,
-  };
+  return content;
 }
 function claudeLegacyMutations(cwd) {
   const legacy = observeClaudeLegacy(cwd);
@@ -3555,7 +3704,7 @@ function transactionPath(cwd) {
 }
 function writeTransaction(cwd, transaction) {
   const path = transactionPath(cwd);
-  mkdirSync3(nodePath7.dirname(path), { recursive: true, mode: 448 });
+  mkdirSync4(nodePath7.dirname(path), { recursive: true, mode: 448 });
   writeDurableFileExclusive(
     path,
     `${JSON.stringify(transaction, void 0, 2)}
@@ -3567,43 +3716,140 @@ function writeTransaction(cwd, transaction) {
 }
 function entryFor(cwd, mutation) {
   const path = assertSafeClaudeCleanupTarget(cwd, mutation.path);
-  const before = readFileSync3(path);
+  const before = readFileSync4(path);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
   return {
     path: mutation.path,
     before_sha256: sha2562(before),
     before_base64: before.toString('base64'),
-    before_mode: lstatSync3(path).mode & 511,
+    before_mode: lstatSync4(path).mode & 511,
     after_sha256: after === null ? null : sha2562(after),
     after_base64: after === null ? null : after.toString('base64'),
-    after_mode: after === null ? null : lstatSync3(path).mode & 511,
+    after_mode: after === null ? null : lstatSync4(path).mode & 511,
   };
 }
 function observedSha(path) {
-  return existsSync4(path) ? sha2562(readFileSync3(path)) : null;
+  return existsSync5(path) ? sha2562(readFileSync4(path)) : null;
 }
-function pruneEmptyAncestors(root, path) {
-  const canonicalRoot = nodePath7.resolve(root);
-  let directory = nodePath7.dirname(nodePath7.resolve(path));
-  while (directory.startsWith(`${canonicalRoot}${nodePath7.sep}`)) {
-    try {
-      if (readdirSync2(directory).length > 0) return;
-      rmdirSync(directory);
-    } catch {
+function sameFile(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+function isValidOpenCleanupTarget(snapshot) {
+  const { targetBefore, opened, targetAfter, parentBefore, openedParent, parentAfter } = snapshot;
+  return (
+    opened.isFile() &&
+    opened.nlink === 1 &&
+    sameFile(targetBefore, opened) &&
+    sameFile(opened, targetAfter) &&
+    sameFile(parentBefore, openedParent) &&
+    sameFile(parentBefore, parentAfter)
+  );
+}
+function openCleanupTarget(root, relative, flags) {
+  const path = assertSafeClaudeCleanupTarget(root, relative);
+  const parentPath = nodePath7.dirname(path);
+  const targetBefore = lstatSync4(path);
+  const parentBefore = lstatSync4(parentPath);
+  const parentDescriptor = openSync3(
+    parentPath,
+    fsConstants2.O_RDONLY | (fsConstants2.O_DIRECTORY ?? 0) | (fsConstants2.O_NOFOLLOW ?? 0),
+  );
+  let descriptor;
+  try {
+    descriptor = openSync3(path, flags | (fsConstants2.O_NOFOLLOW ?? 0));
+    const targetAfter = lstatSync4(path);
+    const parentAfter = lstatSync4(parentPath);
+    const opened = fstatSync2(descriptor);
+    const openedParent = fstatSync2(parentDescriptor);
+    if (
+      !isValidOpenCleanupTarget({
+        targetBefore,
+        opened,
+        targetAfter,
+        parentBefore,
+        openedParent,
+        parentAfter,
+      })
+    ) {
+      throw new Error(`Claude cleanup target changed during validation: ${relative}`);
+    }
+    return { descriptor, parentDescriptor, path, target: opened, parent: parentAfter };
+  } catch (error) {
+    if (descriptor !== void 0) closeSync3(descriptor);
+    closeSync3(parentDescriptor);
+    throw error;
+  }
+}
+var UNLINK_AT_SCRIPT = String.raw`
+import { dlopen } from 'bun:ffi';
+const library = process.platform === 'darwin' ? '/usr/lib/libSystem.B.dylib' : 'libc.so.6';
+const handle = dlopen(library, { unlinkat: { args: ['i32', 'cstring', 'i32'], returns: 'i32' } });
+const name = Buffer.from(process.argv[1] + '\0');
+const result = handle.symbols.unlinkat(3, name, 0);
+handle.close();
+process.exit(result === 0 ? 0 : 1);
+`;
+function unlinkFromOpenParent(parentDescriptor, basename) {
+  if (process.platform !== 'darwin' && process.platform !== 'linux') {
+    throw new Error('Atomic Claude cleanup deletion is unavailable on this platform.');
+  }
+  const result = spawnSync2('bun', ['-e', UNLINK_AT_SCRIPT, basename], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe', parentDescriptor],
+  });
+  if (result.status !== 0) {
+    throw new Error(`Atomic Claude cleanup deletion failed: ${result.stderr.trim()}`);
+  }
+}
+function revalidateOpenTarget(root, relative, opened) {
+  const path = assertSafeClaudeCleanupTarget(root, relative);
+  const target = lstatSync4(path);
+  const parent = lstatSync4(nodePath7.dirname(path));
+  const descriptor = fstatSync2(opened.descriptor);
+  if (
+    path !== opened.path ||
+    !sameFile(opened.target, descriptor) ||
+    !sameFile(descriptor, target) ||
+    !sameFile(opened.parent, parent) ||
+    descriptor.nlink !== 1
+  ) {
+    throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
+  }
+}
+function descriptorSha256(descriptor, size) {
+  if (size > MAX_CLAUDE_TRANSACTION_BYTES) throw new Error('Claude cleanup target is too large.');
+  const bytes = Buffer.alloc(size);
+  let offset = 0;
+  while (offset < bytes.length) {
+    const count = readSync2(descriptor, bytes, offset, bytes.length - offset, offset);
+    if (count === 0) break;
+    offset += count;
+  }
+  return sha2562(bytes.subarray(0, offset));
+}
+function writeImage(root, relative, expectedSha256, content, mode) {
+  const opened = openCleanupTarget(root, relative, fsConstants2.O_RDWR);
+  try {
+    revalidateOpenTarget(root, relative, opened);
+    if (descriptorSha256(opened.descriptor, opened.target.size) !== expectedSha256) {
+      throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
+    }
+    if (content === null) {
+      unlinkFromOpenParent(opened.parentDescriptor, nodePath7.basename(opened.path));
       return;
     }
-    directory = nodePath7.dirname(directory);
+    const bytes = Buffer.from(content, 'base64');
+    ftruncateSync(opened.descriptor, 0);
+    let offset = 0;
+    while (offset < bytes.length) {
+      offset += writeSync(opened.descriptor, bytes, offset, bytes.length - offset, offset);
+    }
+    fchmodSync(opened.descriptor, mode ?? 420);
+    fsyncSync2(opened.descriptor);
+  } finally {
+    closeSync3(opened.descriptor);
+    closeSync3(opened.parentDescriptor);
   }
-}
-function writeImage(root, path, content, mode) {
-  if (content === null) {
-    rmSync3(path, { force: true });
-    pruneEmptyAncestors(root, path);
-    return;
-  }
-  mkdirSync3(nodePath7.dirname(path), { recursive: true });
-  writeDurableFile(path, Buffer.from(content, 'base64'), { mode: mode ?? 420 });
-  chmodSync(path, mode ?? 420);
 }
 function applyEntries(cwd, entries, shouldDefer = () => false) {
   for (const entry of entries) {
@@ -3612,13 +3858,35 @@ function applyEntries(cwd, entries, shouldDefer = () => false) {
     if (observedSha(path) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
-    writeImage(cwd, path, entry.after_base64, entry.after_mode);
+    writeImage(cwd, entry.path, entry.before_sha256, entry.after_base64, entry.after_mode);
   }
   return true;
 }
+function pruneEmptyLegacyDirectories(cwd, entries) {
+  const candidates = /* @__PURE__ */ new Set();
+  for (const entry of entries) {
+    if (entry.after_sha256 !== null) continue;
+    let directory = nodePath7.dirname(entry.path);
+    while (directory === '.claude' || directory.startsWith('.claude/')) {
+      candidates.add(directory);
+      directory = nodePath7.dirname(directory);
+    }
+  }
+  const deepestFirst = [...candidates].toSorted(
+    (left, right) => right.split('/').length - left.split('/').length,
+  );
+  for (const directory of deepestFirst) {
+    try {
+      rmdirSync2(nodePath7.join(cwd, directory));
+    } catch (error) {
+      const code = error.code;
+      if (code !== 'ENOENT' && code !== 'ENOTEMPTY' && code !== 'ENOTDIR') throw error;
+    }
+  }
+}
 function writePluginModeMarker(cwd, transactionId) {
   const marker = containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
-  mkdirSync3(nodePath7.dirname(marker), { recursive: true });
+  mkdirSync4(nodePath7.dirname(marker), { recursive: true });
   writeDurableFile(
     marker,
     `${JSON.stringify({ schema_version: 1, mode: 'plugin', transaction_id: transactionId })}
@@ -3655,11 +3923,11 @@ function waitForPluginMode(cwd, deadline, now) {
   const pause = new Int32Array(new SharedArrayBuffer(4));
   const maximumChecks = 25;
   for (let checks = 0; checks < maximumChecks && now() < deadline; checks += 1) {
-    if (existsSync4(marker)) return true;
+    if (existsSync5(marker)) return true;
     const remaining = Math.max(1, deadline - now());
     Atomics.wait(pause, 0, 0, Math.min(20, remaining));
   }
-  return existsSync4(marker);
+  return existsSync5(marker);
 }
 function writeAutomaticPluginMode(cwd, transaction) {
   const pluginMode = transaction.plugin_mode;
@@ -3731,6 +3999,15 @@ function writeObservedPluginMode(projectRoot, options, unresolved, advisory) {
   );
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
+var CONCURRENT_MIGRATION_ADVISORY =
+  'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.';
+function deferredConcurrentMigration(paths) {
+  return {
+    state: 'deferred',
+    advisory: CONCURRENT_MIGRATION_ADVISORY,
+    unresolvedPaths: paths,
+  };
+}
 function claimAutomaticTransaction(projectRoot, transaction, options, now, unresolved) {
   try {
     writeTransaction(projectRoot, transaction);
@@ -3740,12 +4017,7 @@ function claimAutomaticTransaction(projectRoot, transaction, options, now, unres
     if (waitForPluginMode(projectRoot, options.deadline, now)) {
       return { state: 'complete', unresolvedPaths: unresolved };
     }
-    return {
-      state: 'deferred',
-      advisory:
-        'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
-      unresolvedPaths: unresolved,
-    };
+    return deferredConcurrentMigration(unresolved);
   }
 }
 function concurrentMigrationResult(projectRoot, options, now) {
@@ -3754,20 +4026,22 @@ function concurrentMigrationResult(projectRoot, options, now) {
     return { state: 'complete', unresolvedPaths: [] };
   }
   if (now() >= options.deadline) {
-    return {
-      state: 'deferred',
-      advisory:
-        'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
-      unresolvedPaths: [],
-    };
+    return deferredConcurrentMigration([]);
   }
-  return recoveredAutomaticResult(projectRoot);
+  try {
+    const transaction = parseTransaction(projectRoot);
+    return transactionCanRecover(transaction)
+      ? recoveredAutomaticResult(projectRoot)
+      : deferredConcurrentMigration([]);
+  } catch {
+    return recoveredAutomaticResult(projectRoot);
+  }
 }
 function planCleanupEntries(projectRoot, mutations) {
   try {
     return mutations.map(mutation => entryFor(projectRoot, mutation));
   } catch (error) {
-    if (existsSync4(transactionPath(projectRoot))) return void 0;
+    if (existsSync5(transactionPath(projectRoot))) return void 0;
     throw error;
   }
 }
@@ -3779,7 +4053,7 @@ function performAutomaticMigration(projectRoot, options, now) {
       unresolvedPaths: [],
     };
   }
-  if (existsSync4(transactionPath(projectRoot)))
+  if (existsSync5(transactionPath(projectRoot)))
     return concurrentMigrationResult(projectRoot, options, now);
   const legacy = observeClaudeLegacy(projectRoot);
   const unresolved = unresolvedPaths(legacy);
@@ -3794,6 +4068,8 @@ function performAutomaticMigration(projectRoot, options, now) {
     schema_version: 1,
     transaction_id: randomUUID2(),
     disposition: 'complete-forward',
+    state: 'active',
+    owner_pid: process.pid,
     entries,
     plugin_mode: {
       plugin_version: options.pluginVersion,
@@ -3806,59 +4082,263 @@ function performAutomaticMigration(projectRoot, options, now) {
   const contention = claimAutomaticTransaction(projectRoot, transaction, options, now, unresolved);
   if (contention !== void 0) return contention;
   if (!applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline)) {
+    writeDurableFile(
+      transactionPath(projectRoot),
+      `${JSON.stringify({ ...transaction, state: 'recoverable' }, void 0, 2)}
+`,
+      { mode: 384 },
+    );
     return {
       state: 'deferred',
       advisory: 'Safeword will finish removing its old Claude integration on the next prompt.',
       unresolvedPaths: unresolved,
     };
   }
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync3(transactionPath(projectRoot), { force: true });
+  rmSync4(transactionPath(projectRoot), { force: true });
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
-function parseTransaction(cwd) {
-  const value = JSON.parse(readFileSync3(transactionPath(cwd), 'utf8'));
-  if (value.schema_version !== 1 || !Array.isArray(value.entries))
+var MAX_CLAUDE_TRANSACTION_BYTES = 8 * 1024 * 1024;
+var SHA256_PATTERN = /^[\da-f]{64}$/u;
+var UUID_PATTERN = /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/iu;
+function isTransactionFile(before, opened, after) {
+  return (
+    isSafeTransactionMetadata(before) &&
+    isSafeTransactionMetadata(opened) &&
+    isSafeTransactionMetadata(after) &&
+    before.dev === opened.dev &&
+    before.ino === opened.ino &&
+    opened.dev === after.dev &&
+    opened.ino === after.ino
+  );
+}
+function isSafeTransactionMetadata(metadata) {
+  return (
+    metadata.isFile() &&
+    !metadata.isSymbolicLink() &&
+    metadata.nlink === 1 &&
+    metadata.size <= MAX_CLAUDE_TRANSACTION_BYTES
+  );
+}
+function readTransactionBytes(path) {
+  let descriptor;
+  try {
+    const before = lstatSync4(path);
+    descriptor = openSync3(
+      path,
+      fsConstants2.O_RDONLY | fsConstants2.O_NONBLOCK | (fsConstants2.O_NOFOLLOW ?? 0),
+    );
+    const opened = fstatSync2(descriptor);
+    const after = lstatSync4(path);
+    if (!isTransactionFile(before, opened, after)) throw new Error('Unsafe transaction file.');
+    const buffer = Buffer.alloc(MAX_CLAUDE_TRANSACTION_BYTES + 1);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const count = readSync2(descriptor, buffer, offset, buffer.length - offset, offset);
+      if (count === 0) break;
+      offset += count;
+    }
+    const final = fstatSync2(descriptor);
+    if (
+      offset > MAX_CLAUDE_TRANSACTION_BYTES ||
+      !isTransactionFile(before, final, lstatSync4(path))
+    ) {
+      throw new Error('Unsafe transaction file.');
+    }
+    return buffer.subarray(0, offset);
+  } finally {
+    if (descriptor !== void 0) closeSync3(descriptor);
+  }
+}
+function record(value) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('Claude cleanup transaction is malformed.');
+  }
   return value;
 }
+function canonicalBase64(value) {
+  if (typeof value !== 'string') throw new Error('Claude cleanup image is malformed.');
+  const bytes = Buffer.from(value, 'base64');
+  if (bytes.toString('base64') !== value) throw new Error('Claude cleanup image is malformed.');
+  return bytes;
+}
+function hasExactKeys(value, keys) {
+  const actual = Object.keys(value).toSorted((left, right) => left.localeCompare(right));
+  return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
+}
+var CLEANUP_ENTRY_KEYS = [
+  'after_base64',
+  'after_mode',
+  'after_sha256',
+  'before_base64',
+  'before_mode',
+  'before_sha256',
+  'path',
+];
+function hasValidBeforeImage(entry, before) {
+  return (
+    hasExactKeys(entry, CLEANUP_ENTRY_KEYS) &&
+    typeof entry.path === 'string' &&
+    typeof entry.before_sha256 === 'string' &&
+    SHA256_PATTERN.test(entry.before_sha256) &&
+    sha2562(before) === entry.before_sha256 &&
+    Number.isSafeInteger(entry.before_mode) &&
+    entry.before_mode >= 0 &&
+    entry.before_mode <= 511
+  );
+}
+function deterministicAfterImage(path, before) {
+  if (path === '.claude/settings.json') return expectedSettingsMutation(before.toString('utf8'));
+  if (cataloguedClaudeLegacyPaths().includes(path) && isAcceptedHistoricalFile(path, before)) {
+    return null;
+  }
+  return void 0;
+}
+function hasExpectedAfterImage(entry, expectedBytes) {
+  const expectedHash = expectedBytes === null ? null : sha2562(expectedBytes);
+  const expectedBase64 = expectedBytes === null ? null : expectedBytes.toString('base64');
+  const expectedMode = expectedBytes === null ? null : entry.before_mode;
+  return (
+    entry.after_sha256 === expectedHash &&
+    entry.after_base64 === expectedBase64 &&
+    entry.after_mode === expectedMode
+  );
+}
+function validateCleanupEntry(value) {
+  const entry = record(value);
+  const before = canonicalBase64(entry.before_base64);
+  if (!hasValidBeforeImage(entry, before)) {
+    throw new Error('Claude cleanup entry is malformed.');
+  }
+  const expectedAfter = deterministicAfterImage(entry.path, before);
+  if (expectedAfter === void 0) throw new Error('Claude cleanup entry is not catalogued.');
+  const expectedBytes = expectedAfter === null ? null : Buffer.from(expectedAfter);
+  if (!hasExpectedAfterImage(entry, expectedBytes)) {
+    throw new Error('Claude cleanup after-image is not the deterministic legacy contraction.');
+  }
+  return entry;
+}
+function expectedPluginModeKeys(pluginMode) {
+  return [
+    ...(pluginMode.advisory === void 0 ? [] : ['advisory']),
+    'catalogue_sha256',
+    'hook_manifest_sha256',
+    'plugin_version',
+    'unresolved_paths',
+  ].toSorted((left, right) => left.localeCompare(right));
+}
+function hasValidPluginModeDigests(pluginMode) {
+  return (
+    typeof pluginMode.hook_manifest_sha256 === 'string' &&
+    SHA256_PATTERN.test(pluginMode.hook_manifest_sha256) &&
+    typeof pluginMode.catalogue_sha256 === 'string' &&
+    SHA256_PATTERN.test(pluginMode.catalogue_sha256)
+  );
+}
+function hasValidPluginModeMetadata(pluginMode) {
+  return (
+    typeof pluginMode.plugin_version === 'string' &&
+    Array.isArray(pluginMode.unresolved_paths) &&
+    pluginMode.unresolved_paths.every(path => typeof path === 'string') &&
+    (pluginMode.advisory === void 0 || typeof pluginMode.advisory === 'string')
+  );
+}
+function validatePluginMode(value) {
+  const pluginMode = record(value);
+  const expectedKeys = expectedPluginModeKeys(pluginMode);
+  if (
+    !hasExactKeys(pluginMode, expectedKeys) ||
+    !hasValidPluginModeDigests(pluginMode) ||
+    !hasValidPluginModeMetadata(pluginMode)
+  ) {
+    throw new Error('Claude cleanup plugin mode is malformed.');
+  }
+  return pluginMode;
+}
+function hasValidTransactionHeader(value) {
+  return (
+    hasExactKeys(value, [
+      'disposition',
+      'entries',
+      'owner_pid',
+      'plugin_mode',
+      'schema_version',
+      'state',
+      'transaction_id',
+    ]) &&
+    value.schema_version === 1 &&
+    typeof value.transaction_id === 'string' &&
+    UUID_PATTERN.test(value.transaction_id) &&
+    value.disposition === 'complete-forward' &&
+    (value.state === 'active' || value.state === 'recoverable') &&
+    Number.isSafeInteger(value.owner_pid) &&
+    value.owner_pid > 0
+  );
+}
+function hasValidTransactionEntries(value) {
+  return Array.isArray(value.entries) && value.entries.length > 0 && value.entries.length <= 1024;
+}
+function parseTransaction(cwd) {
+  const bytes = readTransactionBytes(transactionPath(cwd));
+  const parsed = JSON.parse(bytes.toString('utf8'));
+  const value = record(parsed);
+  if (!hasValidTransactionHeader(value) || !hasValidTransactionEntries(value)) {
+    throw new Error('Claude cleanup transaction is malformed.');
+  }
+  const entryValues = value.entries;
+  const entries = entryValues.map(entry => validateCleanupEntry(entry));
+  if (new Set(entries.map(entry => entry.path)).size !== entries.length) {
+    throw new Error('Claude cleanup transaction repeats a target.');
+  }
+  return {
+    schema_version: 1,
+    transaction_id: value.transaction_id,
+    disposition: 'complete-forward',
+    state: value.state,
+    owner_pid: value.owner_pid,
+    entries,
+    plugin_mode: validatePluginMode(value.plugin_mode),
+  };
+}
+function processIsRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+}
+function transactionCanRecover(transaction) {
+  return transaction.state === 'recoverable' || !processIsRunning(transaction.owner_pid);
+}
 function pendingRecoveryEntries(projectRoot, transaction) {
-  const forward = transaction.disposition === 'complete-forward';
   const pending = [];
   for (const entry of transaction.entries) {
     const path = assertSafeClaudeCleanupTarget(projectRoot, entry.path);
     const current = observedSha(path);
-    const source = forward ? entry.before_sha256 : entry.after_sha256;
-    const destination = forward ? entry.after_sha256 : entry.before_sha256;
+    const source = entry.before_sha256;
+    const destination = entry.after_sha256;
     if (current === destination) continue;
     if (current !== source) throw new Error(`Claude recovery conflict at ${entry.path}`);
     pending.push(entry);
   }
   return pending;
 }
-function applyRecoveryEntries(projectRoot, transaction, pending) {
-  const forward = transaction.disposition === 'complete-forward';
+function applyRecoveryEntries(projectRoot, pending) {
   for (const entry of pending) {
-    const path = containedClaudeCleanupPath(projectRoot, entry.path);
-    writeImage(
-      projectRoot,
-      path,
-      forward ? entry.after_base64 : entry.before_base64,
-      forward ? entry.after_mode : entry.before_mode,
-    );
+    writeImage(projectRoot, entry.path, entry.before_sha256, entry.after_base64, entry.after_mode);
   }
 }
 function completedRecoveryResult(projectRoot, transaction) {
-  if (transaction.disposition === 'complete-forward') {
-    writeAutomaticPluginMode(projectRoot, transaction);
-  }
-  rmSync3(transactionPath(projectRoot), { force: true });
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
+  writeAutomaticPluginMode(projectRoot, transaction);
+  rmSync4(transactionPath(projectRoot), { force: true });
   return createResult({
     state: 'changed',
     data: {
       command: 'claude recover',
-      classification:
-        transaction.disposition === 'complete-forward' ? 'plugin-mode' : 'cleanup-ready',
+      classification: 'plugin-mode',
     },
   });
 }
@@ -3869,7 +4349,7 @@ function recoverClaudeCleanup(cwd) {
   } catch (error) {
     return cleanupFailure(error, 'recovery-required');
   }
-  if (!existsSync4(transactionPath(projectRoot))) {
+  if (!existsSync5(transactionPath(projectRoot))) {
     return createResult({
       state: 'healthy',
       data: { command: 'claude recover', classification: 'plugin-mode' },
@@ -3877,11 +4357,12 @@ function recoverClaudeCleanup(cwd) {
   }
   try {
     const transaction = parseTransaction(projectRoot);
-    applyRecoveryEntries(
-      projectRoot,
-      transaction,
-      pendingRecoveryEntries(projectRoot, transaction),
-    );
+    if (!transactionCanRecover(transaction)) {
+      throw new Error(
+        `Claude cleanup transaction is still owned by process ${transaction.owner_pid}.`,
+      );
+    }
+    applyRecoveryEntries(projectRoot, pendingRecoveryEntries(projectRoot, transaction));
     return completedRecoveryResult(projectRoot, transaction);
   } catch (error) {
     return createResult({
@@ -3904,7 +4385,7 @@ function legacyHookCommand(value, projectRoot) {
       const hooksRoot = nodePath8.resolve(projectRoot, '.safeword/hooks');
       const target = nodePath8.resolve(projectRoot, reference);
       if (!target.startsWith(`${hooksRoot}${nodePath8.sep}`)) return false;
-      return lstatSync4(target).isFile();
+      return lstatSync5(target).isFile();
     } catch {
       return false;
     }
@@ -3917,9 +4398,9 @@ function viableLegacyAuthority(event) {
   const projectRoot = process.env.CLAUDE_PROJECT_DIR;
   if (projectRoot === void 0 || projectRoot === '') return false;
   const settingsPath = nodePath8.join(projectRoot, '.claude/settings.json');
-  if (!existsSync5(settingsPath)) return false;
+  if (!existsSync6(settingsPath)) return false;
   try {
-    const settings = parse2(readFileSync4(settingsPath, 'utf8'));
+    const settings = parse2(readFileSync5(settingsPath, 'utf8'));
     return legacyHookCommand(settings.hooks?.[event], projectRoot);
   } catch {
     return false;
@@ -3931,7 +4412,7 @@ function requiredEnvironment(name) {
   return value;
 }
 function readIdentity(pluginRoot) {
-  const value = JSON.parse(readFileSync4(nodePath8.join(pluginRoot, 'identity.json'), 'utf8'));
+  const value = JSON.parse(readFileSync5(nodePath8.join(pluginRoot, 'identity.json'), 'utf8'));
   if (
     value.schema_version !== 1 ||
     typeof value.plugin_version !== 'string' ||
@@ -3956,10 +4437,10 @@ function assertSafeInventoryAsset(asset) {
 function verifyInventoryAsset(pluginRoot, asset) {
   assertSafeInventoryAsset(asset);
   const assetPath = nodePath8.join(pluginRoot, asset.path);
-  if (!lstatSync4(assetPath).isFile()) {
+  if (!lstatSync5(assetPath).isFile()) {
     throw new Error(`Safeword Claude plugin asset is not a regular file: ${asset.path}`);
   }
-  const content = readFileSync4(assetPath);
+  const content = readFileSync5(assetPath);
   const actualDigest = createHash4('sha256').update(content).digest('hex');
   if (actualDigest !== asset.sha256) {
     throw new Error(
@@ -3969,7 +4450,7 @@ function verifyInventoryAsset(pluginRoot, asset) {
   return content;
 }
 function verifyInventory(pluginRoot, identity) {
-  const inventoryContent = readFileSync4(nodePath8.join(pluginRoot, 'inventory.json'), 'utf8');
+  const inventoryContent = readFileSync5(nodePath8.join(pluginRoot, 'inventory.json'), 'utf8');
   const inventoryDigest = createHash4('sha256').update(inventoryContent).digest('hex');
   if (inventoryDigest !== identity.inventory_sha256) {
     throw new Error('Safeword Claude plugin inventory does not match its bundled identity.');
@@ -4004,16 +4485,16 @@ function verifyInventory(pluginRoot, identity) {
   return verifiedAssets;
 }
 function verifyManifest(pluginRoot, identity) {
-  const manifest = readFileSync4(nodePath8.join(pluginRoot, 'hooks', 'hooks.json'));
+  const manifest = readFileSync5(nodePath8.join(pluginRoot, 'hooks', 'hooks.json'));
   const digest2 = createHash4('sha256').update(manifest).digest('hex');
   if (digest2 !== identity.hook_manifest_sha256) {
     throw new Error('Safeword Claude plugin hook manifest does not match its bundled identity.');
   }
 }
-function writeDurableRecord(pluginData, filename, record) {
+function writeDurableRecord(pluginData, filename, record2) {
   writeDurableFile(
     nodePath8.join(pluginData, filename),
-    `${JSON.stringify(record, void 0, 2)}
+    `${JSON.stringify(record2, void 0, 2)}
 `,
     {
       mode: 384,
@@ -4023,9 +4504,9 @@ function writeDurableRecord(pluginData, filename, record) {
 function setupRanForSession(pluginData, sessionId) {
   if (sessionId === void 0) return false;
   const path = nodePath8.join(pluginData, 'cache-smoke-v1.json');
-  if (!existsSync5(path)) return false;
+  if (!existsSync6(path)) return false;
   try {
-    const smoke = JSON.parse(readFileSync4(path, 'utf8'));
+    const smoke = JSON.parse(readFileSync5(path, 'utf8'));
     return smoke.event === 'Setup' && smoke.session_id === sessionId;
   } catch {
     return false;
@@ -4065,7 +4546,7 @@ function runFunctionalCommand(arguments_, input, captureOutput = false) {
   if (arguments_.length === 0) return { status: 0, stdout: '' };
   const [executable, ...parameters] = arguments_;
   if (executable === void 0) return { status: 0, stdout: '' };
-  const result = spawnSync2(executable, parameters, {
+  const result = spawnSync3(executable, parameters, {
     // Bun snapshots the parent environment for child_process unless it is
     // passed explicitly. The dispatcher sets SAFEWORD_PLUGIN_CLI at runtime,
     // so aggregate child hooks need the current environment rather than the
@@ -4221,8 +4702,8 @@ function stableJson(value) {
     .join(',')}}`;
 }
 function scopeDeclaration(path) {
-  if (!existsSync5(path)) return { enabled: false, marketplace: void 0 };
-  const settings = parse2(readFileSync4(path, 'utf8'));
+  if (!existsSync6(path)) return { enabled: false, marketplace: void 0 };
+  const settings = parse2(readFileSync5(path, 'utf8'));
   return {
     enabled: settings?.enabledPlugins?.['safeword@safeword'] === true,
     marketplace: settings?.extraKnownMarketplaces?.safeword,
@@ -4278,7 +4759,7 @@ function matchingAttention(projectRoot, identity, catalogueSha256) {
   return attention;
 }
 function automaticMigrationAttemptKind(projectRoot) {
-  return existsSync5(nodePath8.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
+  return existsSync6(nodePath8.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
     ? 'recovery'
     : 'migration';
 }
@@ -4450,9 +4931,9 @@ function mainUnsafe(event, mode, command) {
   if (mode !== void 0 && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
   }
-  const pluginRoot = realpathSync2(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
+  const pluginRoot = realpathSync3(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
   process.env.SAFEWORD_PLUGIN_CLI = nodePath8.join(pluginRoot, 'runtime', 'cli.js');
-  const standardInput = readFileSync4(0);
+  const standardInput = readFileSync5(0);
   const hookInput = parseHookInput(standardInput);
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === void 0) return 0;

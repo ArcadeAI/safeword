@@ -21,7 +21,7 @@ all-green cross-scenario reconciliation as their shared evidence.
 
 Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `source: "git"` marketplace shape; GREEN 883d99432 accepts only its exact URL/ref identity.
 
-### Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
+### Scenario: Fresh setup installs the project-scoped plugin without writing legacy Claude assets
 
 - [x] RED cd1d3272f
 - [x] GREEN efc416145

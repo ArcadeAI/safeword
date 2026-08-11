@@ -1,4 +1,14 @@
-import { readdirSync } from 'node:fs';
+import {
+  closeSync,
+  constants as fsConstants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readdirSync,
+  readSync,
+  realpathSync,
+  type Stats,
+} from 'node:fs';
 import nodePath from 'node:path';
 export const CLAUDE_PLUGIN_ID = 'safeword@safeword';
 
@@ -29,24 +39,151 @@ export const CLAUDE_NATIVE_METADATA_FILES = [
   'inventory.json',
 ] as const;
 
-const BENIGN_CACHE_METADATA_BASENAMES = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
+const MAX_CLAUDE_CACHE_METADATA_BYTES = 1024;
+
+function isSmallRegularMetadata(metadata: Stats): boolean {
+  return (
+    metadata.isFile() &&
+    !metadata.isSymbolicLink() &&
+    metadata.size <= MAX_CLAUDE_CACHE_METADATA_BYTES
+  );
+}
+
+function isSameSmallMetadata(before: Stats, opened: Stats, after: Stats): boolean {
+  return (
+    opened.isFile() &&
+    isSmallRegularMetadata(after) &&
+    opened.dev === before.dev &&
+    opened.ino === before.ino &&
+    opened.dev === after.dev &&
+    opened.ino === after.ino &&
+    opened.nlink === 1 &&
+    opened.size <= MAX_CLAUDE_CACHE_METADATA_BYTES
+  );
+}
+
+function readSmallDescriptor(descriptor: number): string | undefined {
+  const buffer = Buffer.alloc(MAX_CLAUDE_CACHE_METADATA_BYTES + 1);
+  let offset = 0;
+  while (offset < buffer.length) {
+    const count = readSync(descriptor, buffer, offset, buffer.length - offset, offset);
+    if (count === 0) break;
+    offset += count;
+  }
+  return offset > MAX_CLAUDE_CACHE_METADATA_BYTES
+    ? undefined
+    : buffer.subarray(0, offset).toString('utf8');
+}
+
+function readSmallMetadataFile(path: string): string | undefined {
+  let descriptor: number | undefined;
+  try {
+    const linkedBefore = lstatSync(path);
+    if (!isSmallRegularMetadata(linkedBefore)) return undefined;
+    descriptor = openSync(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NONBLOCK | (fsConstants.O_NOFOLLOW ?? 0),
+    );
+    const opened = fstatSync(descriptor);
+    const linkedAfter = lstatSync(path);
+    if (!isSameSmallMetadata(linkedBefore, opened, linkedAfter)) return undefined;
+    const content = readSmallDescriptor(descriptor);
+    const final = fstatSync(descriptor);
+    return content !== undefined && isSameSmallMetadata(linkedBefore, final, linkedAfter)
+      ? content
+      : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+function isLeaseRecord(value: unknown, expectedPid: number): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const hasExactFields =
+    Object.keys(record).length === 2 &&
+    Object.hasOwn(record, 'pid') &&
+    Object.hasOwn(record, 'procStart');
+  return (
+    hasExactFields &&
+    Number.isSafeInteger(record.pid) &&
+    record.pid === expectedPid &&
+    typeof record.procStart === 'string' &&
+    record.procStart.length > 0
+  );
+}
+
+function isClaudeLeaseMarker(path: string, name: string): boolean {
+  if (!/^\d+$/u.test(name)) return false;
+  const content = readSmallMetadataFile(path);
+  if (content === undefined) return false;
+  try {
+    return isLeaseRecord(JSON.parse(content) as unknown, Number(name));
+  } catch {
+    return false;
+  }
+}
+
+function isClaudeCacheMetadataFile(
+  logicalDirectory: string,
+  physicalPath: string,
+  entry: { readonly name: string; isFile(): boolean },
+): boolean {
+  if (!entry.isFile()) return false;
+  if (logicalDirectory === '.in_use') return isClaudeLeaseMarker(physicalPath, entry.name);
+  if (logicalDirectory !== '' || entry.name !== '.orphaned_at') return false;
+  return /^\d{13}\n?$/u.test(readSmallMetadataFile(physicalPath) ?? '');
+}
+
+interface DirectoryIdentity {
+  readonly canonical: string;
+  readonly device: number;
+  readonly inode: number;
+}
+
+function directoryIdentity(
+  physicalDirectory: string,
+  logicalDirectory: string,
+  canonicalRoot: string,
+): DirectoryIdentity {
+  const metadata = lstatSync(physicalDirectory);
+  const canonical = realpathSync(physicalDirectory);
+  const insideRoot =
+    canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath.sep}`);
+  if (!metadata.isDirectory() || !insideRoot) {
+    throw new Error(`Claude plugin cache traversal escaped its root: ${logicalDirectory || '.'}`);
+  }
+  return { canonical, device: metadata.dev, inode: metadata.ino };
+}
 
 /** Enumerate files without following untrusted symlinks in an installed plugin cache. */
 export function claudeNativePayloadFiles(root: string): string[] {
   const files: string[] = [];
+  const canonicalRoot = realpathSync(root);
   const visit = (physicalDirectory: string, logicalDirectory: string): void => {
+    const before = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
     const entries = readdirSync(physicalDirectory, { withFileTypes: true });
+    const after = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
+    if (
+      before.device !== after.device ||
+      before.inode !== after.inode ||
+      before.canonical !== after.canonical
+    ) {
+      throw new Error(`Claude plugin cache changed during traversal: ${logicalDirectory || '.'}`);
+    }
     for (const entry of entries) {
-      // Claude owns this root-level lease directory and rotates PID markers
-      // while sessions use the cached plugin. It is host metadata, not payload.
-      if (logicalDirectory === '' && entry.isDirectory() && entry.name === '.in_use') continue;
       const physicalPath = nodePath.join(physicalDirectory, entry.name);
       const logicalPath =
         logicalDirectory === '' ? entry.name : nodePath.posix.join(logicalDirectory, entry.name);
+      // Claude owns cache lifecycle metadata next to the copied plugin payload.
+      // Validate its exact shape so this exception cannot conceal payload files.
+      if (isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry)) continue;
       // Symlinks are returned as leaf paths. Callers must reject them with lstat
       // when listed, or as unexpected paths when they are absent from inventory.
       if (entry.isDirectory()) visit(physicalPath, logicalPath);
-      else if (!BENIGN_CACHE_METADATA_BASENAMES.has(entry.name)) files.push(logicalPath);
+      else files.push(logicalPath);
     }
   };
   visit(root, '');

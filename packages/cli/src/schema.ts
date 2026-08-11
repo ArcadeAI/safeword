@@ -45,7 +45,7 @@ import type {
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
 import { getTemplatesDirectory, readFile, readFileSafe } from './utils/fs.js';
-import { filterOutSafewordHooks } from './utils/hooks.js';
+import { filterOutEquivalentSafewordHooks, filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
@@ -572,6 +572,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // gitignore) — per-session JSONL the hooks write; without this entry the
     // schema-drift test fails for any session that recorded a signal.
     '.safeword/self-reports',
+    // Authored collisions retained during automatic .safeword-project → .project
+    // migration. Recovery copies are user data, not deployed framework assets.
+    '.safeword/namespace-migration-conflicts-v1',
     '.safeword-project/tickets',
     '.safeword-project/tickets/completed',
     '.safeword-project/tmp',
@@ -1281,10 +1284,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
         for (const [event, newHooks] of Object.entries(SETTINGS_HOOKS)) {
           const eventHooks = mergedHooks[event] ?? [];
-          const nonSafewordHooks = filterOutSafewordHooks(eventHooks, [
-            ...newHooks,
-            ...acceptedHistoricalHookEntries(event),
-          ]);
+          const withoutCurrentHooks = filterOutEquivalentSafewordHooks(eventHooks, newHooks);
+          const nonSafewordHooks = filterOutSafewordHooks(
+            withoutCurrentHooks,
+            acceptedHistoricalHookEntries(event),
+          );
           mergedHooks[event] = [...nonSafewordHooks, ...newHooks];
         }
 
@@ -1296,10 +1300,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         const cleanedHooks: Record<string, unknown[]> = {};
 
         for (const [event, eventHooks] of Object.entries(existingHooks)) {
-          const nonSafewordHooks = filterOutSafewordHooks(eventHooks, [
-            ...(SETTINGS_HOOKS[event as keyof typeof SETTINGS_HOOKS] ?? []),
-            ...acceptedHistoricalHookEntries(event),
-          ]);
+          const withoutCurrentHooks = filterOutEquivalentSafewordHooks(
+            eventHooks,
+            SETTINGS_HOOKS[event as keyof typeof SETTINGS_HOOKS] ?? [],
+          );
+          const nonSafewordHooks = filterOutSafewordHooks(
+            withoutCurrentHooks,
+            acceptedHistoricalHookEntries(event),
+          );
           if (nonSafewordHooks.length > 0) {
             cleanedHooks[event] = nonSafewordHooks;
           }
@@ -1335,7 +1343,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         const hooks: Record<string, unknown[]> = { ...existingHooks };
         for (const [event, newHooks] of Object.entries(CURSOR_HOOKS)) {
           const eventHooks = hooks[event] ?? [];
-          const nonSafewordHooks = filterOutSafewordHooks(eventHooks, newHooks);
+          const nonSafewordHooks = filterOutEquivalentSafewordHooks(eventHooks, newHooks);
           hooks[event] = [...nonSafewordHooks, ...newHooks];
         }
         return {
@@ -1357,7 +1365,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
               ([name, eventHooks]) =>
                 [
                   name,
-                  filterOutSafewordHooks(
+                  filterOutEquivalentSafewordHooks(
                     eventHooks,
                     CURSOR_HOOKS[name as keyof typeof CURSOR_HOOKS] ?? [],
                   ),

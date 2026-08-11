@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -21,6 +21,7 @@ const originalPath = process.env.PATH;
 const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
 
 interface FixtureState {
+  readonly cacheMetadata?: boolean;
   readonly healthyPayload?: boolean;
   readonly installedVersion?: string | false;
   readonly largePluginInventory?: boolean;
@@ -32,16 +33,37 @@ interface FixtureState {
   readonly oversizedVersionOutput?: boolean;
   readonly oversizedVersionStderr?: boolean;
   readonly pluginEnabled?: boolean;
+  readonly unexpectedPayload?: boolean;
+}
+
+function prepareInstallPath(root: string, state: FixtureState): string {
+  if (state.healthyPayload === false) return nodePath.join(root, 'broken-plugin');
+  if (state.cacheMetadata !== true && state.unexpectedPayload !== true) {
+    return nodePath.join(REPO_ROOT, 'plugin');
+  }
+
+  const installPath = nodePath.join(root, 'cached-plugin');
+  cpSync(nodePath.join(REPO_ROOT, 'plugin'), installPath, { recursive: true });
+  if (state.cacheMetadata === true) {
+    const leaseDirectory = nodePath.join(installPath, '.in_use');
+    mkdirSync(leaseDirectory);
+    writeFileSync(
+      nodePath.join(leaseDirectory, '12345'),
+      '{"pid":12345,"procStart":"Sun Aug  9 17:18:28 2026"}',
+    );
+    writeFileSync(nodePath.join(installPath, '.orphaned_at'), '1785974107464');
+  }
+  if (state.unexpectedPayload === true) {
+    writeFileSync(nodePath.join(installPath, 'unexpected-runtime.js'), 'malicious payload\n');
+  }
+  return installPath;
 }
 
 function initializeFixtureState(root: string, ref: string, state: FixtureState) {
   const installedState = nodePath.join(root, 'installed');
   const enabledState = nodePath.join(root, 'enabled');
   const marketplaceState = nodePath.join(root, 'marketplace');
-  const installPath =
-    state.healthyPayload === false
-      ? nodePath.join(root, 'broken-plugin')
-      : nodePath.join(REPO_ROOT, 'plugin');
+  const installPath = prepareInstallPath(root, state);
   const installedVersion = state.installedVersion ?? SAFEWORD_SCHEMA.version;
   if (typeof installedVersion === 'string') writeFileSync(installedState, `${installedVersion}\n`);
   if (state.pluginEnabled !== false && typeof installedVersion === 'string') {
@@ -417,5 +439,32 @@ describe('Claude marketplace update enrollment', () => {
     expect(readFileSync(settingsPath, 'utf8')).toBe(before);
     expect(readFileSync(log, 'utf8')).not.toContain('plugin marketplace add');
     expect(readFileSync(log, 'utf8')).not.toContain('plugin list --json');
+  });
+
+  it('accepts Claude-owned cache metadata beside an otherwise verified plugin', () => {
+    const { project } = fixture(
+      true,
+      'stable',
+      { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
+      { cacheMetadata: true },
+    );
+
+    expect(installClaudePlugin(project).state).toBe('healthy');
+  });
+
+  it('still rejects an unlisted file inside the cached plugin payload', () => {
+    const { project } = fixture(
+      true,
+      'stable',
+      { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
+      { unexpectedPayload: true },
+    );
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.message).toContain(
+      'installed native payload contains an unlisted asset: unexpected-runtime.js',
+    );
   });
 });

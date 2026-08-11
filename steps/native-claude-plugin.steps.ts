@@ -70,6 +70,7 @@ interface NativeClaudePluginWorld {
     legacySentinel?: string;
     effectLog?: string;
     priorProof?: string;
+    lifecycleLease?: { path: string; content: string };
   };
 }
 
@@ -257,6 +258,18 @@ Given(
   },
 );
 
+Given(
+  'its .in_use lifecycle lease has exact Claude ownership metadata',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.cacheFixture);
+    const path = nodePath.join(this.cacheFixture.plugin, '.in_use', '3455');
+    const content = `${JSON.stringify({ pid: 3455, procStart: '2026-08-09T00:00:00.000Z' })}\n`;
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(path, content);
+    this.cacheFixture.lifecycleLease = { path, content };
+  },
+);
+
 When('a Safeword plugin hook executes', function (this: NativeClaudePluginWorld) {
   assert.ok(this.cacheFixture);
   const manifest = JSON.parse(
@@ -370,6 +383,24 @@ Then(
     assert.equal(proof.canonical_plugin_root, realpathSync(this.cacheFixture.plugin));
   },
 );
+
+Then(
+  'it writes plugin proof without reporting an unlisted plugin asset',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.doesNotMatch(this.cacheFixture?.result?.output ?? '', /unlisted asset/u);
+    assert.ok(this.cacheFixture);
+    assert.ok(existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)));
+  },
+);
+
+Then('the exact lifecycle lease remains byte-identical', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.cacheFixture?.lifecycleLease);
+  assert.equal(
+    readFileSync(this.cacheFixture.lifecycleLease.path, 'utf8'),
+    this.cacheFixture.lifecycleLease.content,
+  );
+});
 
 Then(
   'execution proof is written beneath CLAUDE_PLUGIN_DATA',

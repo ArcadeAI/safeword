@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -55,11 +55,13 @@ interface CodexJsonEvent {
 }
 
 interface HookProofFile {
-  schema_version: 2;
+  schema_version: 3;
   event: CodexPluginHookEvent;
   plugin_version: string;
   manifest_sha256: string;
   activation_id: string;
+  project_directory: string;
+  session_id: string;
   recorded_at: string;
 }
 
@@ -99,15 +101,29 @@ function isCodexJsonEvent(value: unknown): value is CodexJsonEvent {
   return isRecord(value) && typeof value.type === 'string';
 }
 
+function hasHookProofIdentity(value: Record<string, unknown>): boolean {
+  return (
+    typeof value.plugin_version === 'string' &&
+    typeof value.manifest_sha256 === 'string' &&
+    typeof value.activation_id === 'string'
+  );
+}
+
+function hasBoundHookProofFields(value: Record<string, unknown>): boolean {
+  return (
+    typeof value.project_directory === 'string' &&
+    typeof value.session_id === 'string' &&
+    typeof value.recorded_at === 'string'
+  );
+}
+
 function isHookProofFile(value: unknown): value is HookProofFile {
   return (
     isRecord(value) &&
-    value.schema_version === 2 &&
+    value.schema_version === 3 &&
     CODEX_PLUGIN_HOOK_EVENTS.includes(value.event as CodexPluginHookEvent) &&
-    typeof value.plugin_version === 'string' &&
-    typeof value.manifest_sha256 === 'string' &&
-    typeof value.activation_id === 'string' &&
-    typeof value.recorded_at === 'string'
+    hasHookProofIdentity(value) &&
+    hasBoundHookProofFields(value)
   );
 }
 
@@ -316,32 +332,51 @@ function assertCodexRunSucceeded(input: {
   );
 }
 
+function assertHookProof(
+  path: string,
+  event: CodexPluginHookEvent,
+  input: {
+    canonicalProject: string;
+    expectedActivationId: string;
+    finishedAt: Date;
+    identity: ReturnType<typeof currentCodexPluginIdentity>;
+    startedAt: Date;
+  },
+): void {
+  if (!existsSync(path)) throw new Error(`Headless Codex task did not exercise ${event}.`);
+  const proof = parseJsonFile(path);
+  if (!isHookProofFile(proof) || proof.event !== event) {
+    throw new Error(`Headless Codex task wrote malformed ${event} proof.`);
+  }
+  if (
+    proof.plugin_version !== input.identity.plugin_version ||
+    proof.manifest_sha256 !== input.identity.manifest_sha256
+  ) {
+    throw new Error(`Headless Codex task wrote stale ${event} plugin identity.`);
+  }
+  if (proof.activation_id !== input.expectedActivationId) {
+    throw new Error(`Headless Codex task wrote ${event} proof for another activation ID.`);
+  }
+  if (proof.project_directory !== input.canonicalProject || !proof.session_id.trim()) {
+    throw new Error(`Headless Codex task wrote unbound ${event} proof.`);
+  }
+  if (!isTimestampWithin(proof.recorded_at, input.startedAt, input.finishedAt)) {
+    throw new Error(`Headless Codex task did not write a current ${event} timestamp.`);
+  }
+}
+
 function assertHookProofs(input: {
   codexHome: string;
   expectedActivationId: string;
   finishedAt: Date;
+  projectDirectory: string;
   startedAt: Date;
 }): void {
   const identity = currentCodexPluginIdentity();
+  const canonicalProject = realpathSync(input.projectDirectory);
   for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
     const path = nodePath.join(input.codexHome, 'safeword/hook-proof-v2', `${event}.json`);
-    if (!existsSync(path)) throw new Error(`Headless Codex task did not exercise ${event}.`);
-    const proof = parseJsonFile(path);
-    if (!isHookProofFile(proof) || proof.event !== event) {
-      throw new Error(`Headless Codex task wrote malformed ${event} proof.`);
-    }
-    if (
-      proof.plugin_version !== identity.plugin_version ||
-      proof.manifest_sha256 !== identity.manifest_sha256
-    ) {
-      throw new Error(`Headless Codex task wrote stale ${event} plugin identity.`);
-    }
-    if (proof.activation_id !== input.expectedActivationId) {
-      throw new Error(`Headless Codex task wrote ${event} proof for another activation ID.`);
-    }
-    if (!isTimestampWithin(proof.recorded_at, input.startedAt, input.finishedAt)) {
-      throw new Error(`Headless Codex task did not write a current ${event} timestamp.`);
-    }
+    assertHookProof(path, event, { ...input, canonicalProject, identity });
   }
 }
 
@@ -405,6 +440,7 @@ export function runHeadlessCodexActivationCheck(
     codexHome,
     expectedActivationId: options.expectedActivationId,
     finishedAt,
+    projectDirectory: options.cwd,
     startedAt,
   });
   const activatedHost = assertActivationState({

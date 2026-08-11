@@ -1,4 +1,16 @@
-import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
+import type { Stats } from 'node:fs';
+import {
+  closeSync,
+  constants as fsConstants,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  readSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
@@ -15,6 +27,7 @@ import {
   type Finding,
 } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
+import { codexFinalizationIsComplete } from '../codex-plugin/finalization.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
 import { automaticallyMigrateLegacyCodex } from '../codex-plugin/operations.js';
 import { installCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
@@ -29,10 +42,10 @@ import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
   detectPythonPackageManager,
+  getMissingPythonToolDependencies,
   getPythonInstallCommand,
-  getPythonTools,
-  hasRuffDependency,
   installPythonDependencies,
+  type PythonTool,
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
@@ -41,7 +54,12 @@ import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import { type DependencyInstallResult, installDependencies } from '../utils/install.js';
-import { executeNamespaceMigration, planNamespaceMigration } from '../utils/namespace-migration.js';
+import {
+  executeNamespaceMigration,
+  NamespaceMergeIncompleteError,
+  NamespaceStructuralCollisionError,
+  planNamespaceMigration,
+} from '../utils/namespace-migration.js';
 import {
   stripDeadConfigVersion,
   syncPackageJsonSafewordVersion,
@@ -105,7 +123,7 @@ const DEFAULT_SETUP_ADAPTERS: SetupAdapters = {
 };
 
 interface PythonSetupResult {
-  readonly tools: readonly string[];
+  readonly tools: readonly PythonTool[];
   readonly command?: string;
   readonly attempted: boolean;
   readonly installed: boolean;
@@ -115,10 +133,12 @@ function configurePython(
   cwd: string,
   context: ReturnType<typeof createProjectContext>,
 ): PythonSetupResult {
-  if (!context.languages?.python || hasRuffDependency(cwd)) {
+  if (!context.languages?.python) {
     return { tools: [], attempted: false, installed: false };
   }
-  const tools = getPythonTools(hasImportLinterScaffoldTarget(cwd));
+  const tools = getMissingPythonToolDependencies(cwd, hasImportLinterScaffoldTarget(cwd));
+  if (tools.length === 0) return { tools, attempted: false, installed: false };
+
   const command = getPythonInstallCommand(cwd, tools);
   const shouldInstall =
     !process.env.SAFEWORD_SKIP_INSTALL && detectPythonPackageManager(cwd) !== 'pip';
@@ -175,11 +195,19 @@ export async function convergeSetup(
     };
     const namespaceTargets = ['.safeword-project', '.project', '.safeword/config.json'];
     const namespaceBefore = snapshotFiles(cwd, namespaceTargets);
-    namespaceMigration = convergeNamespace(
-      cwd,
-      options.migrateNamespace,
-      adapters.executeNamespaceMigration,
-    );
+    try {
+      namespaceMigration = convergeNamespace(
+        cwd,
+        options.migrateNamespace,
+        adapters.executeNamespaceMigration,
+      );
+    } catch (error) {
+      namespaceMigration = {
+        effects: diffFileSnapshots(namespaceBefore, snapshotFiles(cwd, namespaceTargets)),
+        findings: [],
+      };
+      throw error;
+    }
     namespaceMigration = {
       ...namespaceMigration,
       effects: uniqueEffects([
@@ -222,13 +250,11 @@ function convergeNamespace(
   migrateNamespace: typeof executeNamespaceMigration,
 ): NamespaceConvergence {
   const plan = planNamespaceMigration(cwd);
-  if (plan !== 'offer') {
+  if (plan !== 'offer' && plan !== 'both-dirs') {
     const messages: Partial<Record<typeof plan, string>> = {
-      'both-dirs':
-        'Namespace migration skipped: .project/ already exists alongside .safeword-project/.',
       blocked: 'Namespace migration skipped: .project exists but is not a directory.',
     };
-    const message = migrate === true ? messages[plan] : undefined;
+    const message = messages[plan];
     return {
       effects: [],
       findings:
@@ -237,31 +263,31 @@ function convergeNamespace(
           : [{ code: 'NAMESPACE_MIGRATION_BLOCKED', message, severity: 'warning' }],
     };
   }
-  if (migrate !== true) {
+  if (migrate === false) {
     return {
       effects: [],
-      findings:
-        migrate === false
-          ? []
-          : [
-              {
-                code: 'NAMESPACE_MIGRATION_AVAILABLE',
-                message:
-                  'This project still uses .safeword-project; run `safeword install --migrate-namespace` to move it to .project.',
-                severity: 'info',
-              },
-            ],
+      findings: [
+        {
+          code: 'NAMESPACE_MIGRATION_AVAILABLE',
+          message:
+            'This project still uses .safeword-project because automatic namespace migration was explicitly disabled.',
+          severity: 'info',
+        },
+      ],
     };
   }
   try {
-    migrateNamespace(cwd);
+    const migration = migrateNamespace(cwd);
     const staleConfigs = scanStaleNamespaceConfigs(cwd);
     return {
       effects: [{ kind: 'move', target: '.safeword-project → .project' }],
       findings: [
         {
           code: 'NAMESPACE_MIGRATED',
-          message: 'Project namespace moved to .project.',
+          message:
+            migration.method === 'merge'
+              ? `Project namespace merged into .project; ${migration.conflicts.length} conflicting file(s) were retained under .safeword/namespace-migration-conflicts-v1/.`
+              : 'Project namespace moved to .project.',
           severity: 'info',
         },
         ...staleConfigs.map(target => ({
@@ -272,6 +298,12 @@ function convergeNamespace(
       ],
     };
   } catch (migrationError) {
+    if (
+      migrationError instanceof NamespaceStructuralCollisionError ||
+      migrationError instanceof NamespaceMergeIncompleteError
+    ) {
+      throw migrationError;
+    }
     return {
       effects: [],
       findings: [
@@ -310,6 +342,64 @@ function versionRefusal(
   };
 }
 
+const MAX_PROJECT_VERSION_BYTES = 256;
+
+function isSafeProjectVersionMetadata(metadata: Stats, allowMultipleLinks: boolean): boolean {
+  return (
+    metadata.isFile() &&
+    !metadata.isSymbolicLink() &&
+    metadata.size <= MAX_PROJECT_VERSION_BYTES &&
+    (allowMultipleLinks || metadata.nlink === 1)
+  );
+}
+
+function isSameProjectVersionFile(before: Stats, opened: Stats, after: Stats): boolean {
+  return (
+    opened.isFile() &&
+    after.isFile() &&
+    !after.isSymbolicLink() &&
+    opened.dev === before.dev &&
+    opened.ino === before.ino &&
+    opened.dev === after.dev &&
+    opened.ino === after.ino
+  );
+}
+
+function readProjectVersionDescriptor(descriptor: number): string | undefined {
+  const buffer = Buffer.alloc(MAX_PROJECT_VERSION_BYTES + 1);
+  const count = readSync(descriptor, buffer, 0, buffer.length, 0);
+  const final = fstatSync(descriptor);
+  if (count > MAX_PROJECT_VERSION_BYTES || final.size > MAX_PROJECT_VERSION_BYTES) {
+    return undefined;
+  }
+  return buffer.subarray(0, count).toString('utf8').trim();
+}
+
+function readProjectVersionFile(path: string, allowMultipleLinks: boolean): string | undefined {
+  let descriptor: number | undefined;
+  try {
+    const before = lstatSync(path);
+    if (!isSafeProjectVersionMetadata(before, allowMultipleLinks)) return undefined;
+    descriptor = openSync(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NONBLOCK | (fsConstants.O_NOFOLLOW ?? 0),
+    );
+    const opened = fstatSync(descriptor);
+    const after = lstatSync(path);
+    if (
+      !isSameProjectVersionFile(before, opened, after) ||
+      !isSafeProjectVersionMetadata(opened, allowMultipleLinks)
+    ) {
+      return undefined;
+    }
+    return readProjectVersionDescriptor(descriptor);
+  } catch {
+    return undefined;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
 function readProjectVersionMarker(
   cwd: string,
   projectVersionPath: string,
@@ -320,9 +410,19 @@ function readProjectVersionMarker(
     return { kind: 'version', value: '0.0.0', replaceEntry: false };
   }
   if (metadata.isFile() && metadata.nlink === 1) {
+    const version = readProjectVersionFile(projectVersionPath, false);
+    if (version === undefined) {
+      return {
+        kind: 'gate',
+        value: versionRefusal(
+          'PROJECT_VERSION_MARKER_UNSAFE',
+          'Project version marker changed while it was being validated. Inspect .safeword/version and retry setup.',
+        ),
+      };
+    }
     return {
       kind: 'version',
-      value: readFileSync(projectVersionPath, 'utf8').trim(),
+      value: version,
       replaceEntry: false,
     };
   }
@@ -336,9 +436,19 @@ function readProjectVersionMarker(
     };
   }
   if (repairVersionMarker) {
+    const version = readProjectVersionFile(projectVersionPath, true);
+    if (version === undefined) {
+      return {
+        kind: 'gate',
+        value: versionRefusal(
+          'PROJECT_VERSION_MARKER_UNSAFE',
+          'Project version marker changed while it was being validated. Inspect .safeword/version and retry setup.',
+        ),
+      };
+    }
     return {
       kind: 'version',
-      value: readFileSync(projectVersionPath, 'utf8').trim(),
+      value: version,
       replaceEntry: true,
     };
   }
@@ -456,7 +566,7 @@ function pythonFindings(pythonSetup: PythonSetupResult): Finding[] {
       message: pythonSetup.installed
         ? `Python tools installed (${pythonSetup.tools.join(', ')}).`
         : `Install Python tools: ${pythonSetup.command ?? pythonSetup.tools.join(' ')}`,
-      severity: 'info',
+      severity: pythonSetup.installed ? 'info' : 'warning',
     },
   ];
 }
@@ -649,6 +759,7 @@ function setupResult(input: SetupResultInput): CliResult {
     actionRequired,
     claudePluginReloadEligible,
     installCommand: installation.command,
+    pythonInstallCommand: pythonSetup.installed ? undefined : pythonSetup.command,
   });
   return createResult({
     state,
@@ -664,10 +775,11 @@ function setupNextAction(input: {
   readonly actionRequired: boolean;
   readonly claudePluginReloadEligible: boolean;
   readonly installCommand?: string;
+  readonly pythonInstallCommand?: string;
 }): { command: string; mutates: boolean; requiresHuman: boolean } {
   if (input.actionRequired) {
     return {
-      command: input.installCommand ?? 'safeword install',
+      command: input.pythonInstallCommand ?? input.installCommand ?? 'safeword install',
       mutates: true,
       requiresHuman: true,
     };
@@ -751,6 +863,7 @@ function migrateLegacyCodexDuringSetup(
     CODEX_MIGRATION_SCHEMA.paths.config,
     CODEX_MIGRATION_SCHEMA.paths.backupRoot,
     CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
+    CODEX_MIGRATION_SCHEMA.paths.handoffReceipt,
     CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
     ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
   ];
@@ -759,11 +872,13 @@ function migrateLegacyCodexDuringSetup(
       automaticallyMigrateLegacyCodex(cwd),
     );
     if (!migrated) return [];
+    const finalized = codexFinalizationIsComplete(cwd);
     return [
       {
-        code: 'CODEX_PLUGIN_HANDOFF_COMPLETE',
-        message:
-          'Codex moved from legacy project assets to the native profile plugin; the project bootstrap will enroll other developers automatically.',
+        code: finalized ? 'CODEX_PLUGIN_HANDOFF_COMPLETE' : 'CODEX_PLUGIN_HANDOFF_PENDING_PROOF',
+        message: finalized
+          ? 'Codex verified the native profile plugin, backed up the legacy state, and retired the legacy project assets automatically.'
+          : 'Codex enabled the native profile plugin and retained legacy project protection. After a restarted task records current hook proof, the next setup will finish the recoverable cleanup automatically.',
         severity: 'info',
       },
     ];
@@ -891,6 +1006,7 @@ function verifiedSetupResult(
     ...health.issues,
     ...health.missingPackages.map(packageName => `Missing package: ${packageName}`),
     ...health.missingPacks.map(pack => `Missing language pack: ${pack}`),
+    ...health.missingPythonTools.map(tool => `Missing Python tool: ${tool}`),
   ];
   if (!health.configured || healthProblems.length > 0) {
     if (wasConfigured && health.configured) {

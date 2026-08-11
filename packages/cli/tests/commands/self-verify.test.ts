@@ -11,7 +11,7 @@
  * command (BBJKR5). Seam scenarios import the extracted health module.
  */
 
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -234,15 +234,18 @@ describe('3293WH: upgrade self-verify (advisories only)', () => {
     async () => {
       dir = createTemporaryDirectory();
       await createConfiguredProject(dir);
-      // Both namespace roots present → the 9MMWS7 both-dirs advisory, the
-      // canonical advisories-but-no-issues health state.
+      // Both namespace roots present → upgrade converges them automatically
+      // before the post-install health check runs.
       mkdirSync(nodePath.join(dir, '.safeword-project'), { recursive: true });
 
       const result = await runCli(['upgrade'], { cwd: dir });
       const output = result.stdout + result.stderr;
 
       expect(result.exitCode).toBe(0);
-      expect(occurrences(output, 'Both .project/ and .safeword-project/ exist')).toBe(1);
+      expect(occurrences(output, 'Both .project/ and .safeword-project/ exist')).toBe(0);
+      expect(output).toContain('Project namespace merged into .project');
+      expect(existsSync(nodePath.join(dir, '.project'))).toBe(true);
+      expect(existsSync(nodePath.join(dir, '.safeword-project'))).toBe(false);
       expect(output).toContain(HEALTHY_LINE);
     },
     TIMEOUT_SETUP * 2,
@@ -289,6 +292,7 @@ describe('3293WH: reportHealthSummary remediation hint', () => {
     advisories: [],
     missingPackages: [],
     missingPacks: [],
+    missingPythonTools: [],
   };
 
   const failureBranches: { name: string; health: HealthStatus }[] = [

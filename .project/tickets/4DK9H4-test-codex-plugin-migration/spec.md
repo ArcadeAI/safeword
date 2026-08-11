@@ -58,6 +58,7 @@ Unaffected:
 - **Package-runner entrypoint** — a command such as `bunx safeword@... codex-hook pre-tool-quality` or `npx safeword@... codex-hook pre-tool-quality` that runs Safe Word logic from the package instead of from repo-local hook scripts.
 - **Project-local Codex install shape** — today's Safe Word Codex assets in the customer repo, especially `.agents/skills`, `.codex/config.toml`, and `.safeword/hooks/codex`.
 - **Prompt surface** — the model-visible Codex prompt input, including available skills and project instructions, inspectable through `codex debug prompt-input`.
+- **Current exact native proof** — proof emitted after successful host invocation of the installed Safe Word plugin in the current Codex task, bound to the canonical project, task identity, plugin version, activation identity, and complete required hook-event set. Stale, replayed, partial, cross-project, cross-version, pre-activation, untrusted, or failed-event proof cannot authorize cleanup. Automatic cleanup persists these bindings in a transaction-protected authorization receipt.
 
 ## Decisions
 
@@ -79,7 +80,7 @@ Unaffected:
 
 #### test-codex-plugin-migration.TB1.R3 — Safe Word Codex hooks execute the packaged CLI entrypoints and preserve the existing deny, allow, context, and continuation semantics
 
-#### test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and fallback assets intact until an explicit proven handoff
+#### test-codex-plugin-migration.TB1.R4 — Normal Codex use automatically completes a proven handoff while preserving user-owned project data
 
 ### test-codex-plugin-migration.SM1 — Trust the migration through targeted evidence, not a fragile monolith
 
@@ -106,11 +107,14 @@ future change safe.
 
 ## Outcomes
 
-- A maintainer can run a fast default suite and know whether the plugin package, manifest, skills, hooks, and migration rules are structurally sound.
+- A maintainer can run the fast default BDD suite for packaging, hook boundaries, proof provenance, and the successful migration path; final destructive-path confidence additionally requires the serialized finalization and recovery unit lane named in the test ledger.
 - A maintainer can run an isolated local Codex plugin install test without mutating their real `~/.codex`.
 - A maintainer can run deterministic hook-entrypoint tests that fail before any live model run is needed.
 - A maintainer can opt into one live Codex smoke that proves Codex itself loads the plugin and invokes the hooks.
-- A technical builder's authored project data survives both a declined handoff and a successful proven handoff; fallback assets remain until success, then managed assets are removed.
+- A technical builder's authored project data survives both unavailable native proof and a successful proven handoff; fallback assets remain until exact proof, then ordinary maintenance backs them up and removes them automatically.
+- Automatic cleanup verifies a byte-and-mode-complete backup before removal, rolls back interrupted transactions, rejects symbolic-link legacy assets before mutation, and supports restoring the pre-migration project.
+- Release evidence binds the marketplace entry, plugin manifest, package version, and every packaged hook command to the same exact release.
+- Deterministic hook fixtures cover every packaged event, malformed input, the exact 1,048,576-byte input ceiling, and the manifest's event-specific 30/120/600-second host deadlines.
 
 ## Open Questions
 

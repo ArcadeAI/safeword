@@ -18,9 +18,16 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { claudeLegacyMutations, recoverClaudeCleanup } from '../../src/claude-plugin/cleanup.js';
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
-import { historicalHookEntry } from '../../src/claude-plugin/historical-ownership.js';
+import {
+  historicalCatalogueDigest,
+  historicalHookEntry,
+} from '../../src/claude-plugin/historical-ownership.js';
 
 const fixtures: string[] = [];
+const recognizedLegacy = readFileSync(
+  new URL('../../templates/skills/debug/SKILL.md', import.meta.url),
+  'utf8',
+);
 
 function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
@@ -38,15 +45,17 @@ function fixture(): { root: string; target: string; transaction: string } {
 
 function writeTransaction(
   path: string,
-  disposition: 'complete-forward' | 'restore-backup',
   before: string,
+  overrides: Record<string, unknown> = {},
 ): void {
   writeFileSync(
     path,
     `${JSON.stringify({
       schema_version: 1,
       transaction_id: '00000000-0000-4000-8000-000000000000',
-      disposition,
+      disposition: 'complete-forward',
+      state: 'recoverable',
+      owner_pid: process.pid,
       entries: [
         {
           path: '.claude/skills/debug/SKILL.md',
@@ -58,6 +67,13 @@ function writeTransaction(
           after_mode: null,
         },
       ],
+      plugin_mode: {
+        plugin_version: '0.74.0',
+        hook_manifest_sha256: 'a'.repeat(64),
+        catalogue_sha256: historicalCatalogueDigest(),
+        unresolved_paths: [],
+      },
+      ...overrides,
     })}\n`,
   );
 }
@@ -71,31 +87,32 @@ afterEach(() => {
 describe('Claude cleanup recovery', () => {
   it('completes the recorded forward image only from the recorded before fingerprint', () => {
     const { root, target, transaction } = fixture();
-    writeFileSync(target, 'recognized legacy\n');
-    writeTransaction(transaction, 'complete-forward', 'recognized legacy\n');
+    writeFileSync(target, recognizedLegacy);
+    writeTransaction(transaction, recognizedLegacy);
 
     expect(recoverClaudeCleanup(root).state).toBe('changed');
     expect(existsSync(target)).toBe(false);
     expect(existsSync(transaction)).toBe(false);
   });
 
-  it('restores the durable backup only from the recorded after fingerprint', () => {
+  it('rejects legacy restore-backup journals instead of trusting their images', () => {
     const { root, target, transaction } = fixture();
-    writeTransaction(transaction, 'restore-backup', 'recognized legacy\n');
+    writeTransaction(transaction, recognizedLegacy, { disposition: 'restore-backup' });
 
-    expect(recoverClaudeCleanup(root).state).toBe('changed');
-    expect(readFileSync(target, 'utf8')).toBe('recognized legacy\n');
+    expect(recoverClaudeCleanup(root).state).toBe('failed');
+    expect(existsSync(target)).toBe(false);
+    expect(existsSync(transaction)).toBe(true);
   });
 
   it('accepts an all-after forward transaction and retires it idempotently', () => {
     const { root, target, transaction } = fixture();
-    writeTransaction(transaction, 'complete-forward', 'recognized legacy\n');
+    writeTransaction(transaction, recognizedLegacy);
     expect(existsSync(target)).toBe(false);
 
     expect(recoverClaudeCleanup(root).state).toBe('changed');
     expect(existsSync(target)).toBe(false);
     expect(existsSync(transaction)).toBe(false);
-    expect(existsSync(nodePath.join(root, '.safeword/claude-plugin/plugin-mode-v1.json'))).toBe(
+    expect(existsSync(nodePath.join(root, '.safeword/claude-plugin/plugin-mode-v2.json'))).toBe(
       true,
     );
   });
@@ -103,7 +120,7 @@ describe('Claude cleanup recovery', () => {
   it('preserves unknown concurrent bytes and retains recovery evidence', () => {
     const { root, target, transaction } = fixture();
     writeFileSync(target, 'concurrent user bytes\n');
-    writeTransaction(transaction, 'complete-forward', 'recognized legacy\n');
+    writeTransaction(transaction, recognizedLegacy);
 
     const result = recoverClaudeCleanup(root);
     expect(result.state).toBe('failed');
@@ -116,10 +133,41 @@ describe('Claude cleanup recovery', () => {
     const external = nodePath.join(root, 'external');
     writeFileSync(external, 'external bytes\n');
     symlinkSync(external, target);
-    writeTransaction(transaction, 'complete-forward', 'external bytes\n');
+    writeTransaction(transaction, recognizedLegacy);
 
     expect(recoverClaudeCleanup(root).state).toBe('failed');
     expect(readFileSync(external, 'utf8')).toBe('external bytes\n');
+  });
+
+  it('rejects an attacker-selected after-image even for a catalogued target', () => {
+    const { root, target, transaction } = fixture();
+    writeFileSync(target, recognizedLegacy);
+    writeTransaction(transaction, recognizedLegacy);
+    const crafted = JSON.parse(readFileSync(transaction, 'utf8')) as {
+      entries: { after_base64: string; after_mode: number; after_sha256: string }[];
+    };
+    const entry = crafted.entries[0];
+    if (entry === undefined) throw new Error('Missing transaction entry fixture.');
+    const malicious = 'attacker-selected instructions\n';
+    entry.after_base64 = Buffer.from(malicious).toString('base64');
+    entry.after_sha256 = sha256(malicious);
+    entry.after_mode = 0o644;
+    writeFileSync(transaction, `${JSON.stringify(crafted)}\n`);
+
+    expect(recoverClaudeCleanup(root).state).toBe('failed');
+    expect(readFileSync(target, 'utf8')).toBe(recognizedLegacy);
+  });
+
+  it('refuses to follow a symlinked transaction journal', () => {
+    const { root, target, transaction } = fixture();
+    const external = nodePath.join(root, 'external-transaction.json');
+    writeFileSync(target, recognizedLegacy);
+    writeTransaction(external, recognizedLegacy);
+    symlinkSync(external, transaction);
+
+    expect(recoverClaudeCleanup(root).state).toBe('failed');
+    expect(readFileSync(target, 'utf8')).toBe(recognizedLegacy);
+    expect(existsSync(external)).toBe(true);
   });
 
   it('is a healthy no-op after recovery has completed', () => {
@@ -132,8 +180,8 @@ describe('Claude cleanup recovery', () => {
     const nested = nodePath.join(root, 'packages/example');
     mkdirSync(nested, { recursive: true });
     execFileSync('git', ['init', '--quiet', root]);
-    writeFileSync(target, 'recognized legacy\n');
-    writeTransaction(transaction, 'complete-forward', 'recognized legacy\n');
+    writeFileSync(target, recognizedLegacy);
+    writeTransaction(transaction, recognizedLegacy);
 
     expect(recoverClaudeCleanup(nested).state).toBe('changed');
     expect(existsSync(target)).toBe(false);
@@ -186,6 +234,25 @@ describe('Claude settings contraction', () => {
     expect(claudeLegacyMutations(root)).toContainEqual({
       path: '.claude/settings.json',
       content: null,
+    });
+  });
+
+  it('preserves unrelated empty hook events when contracting generated hooks', () => {
+    const { root } = fixture();
+    const settings = nodePath.join(root, '.claude/settings.json');
+    writeFileSync(
+      settings,
+      `${JSON.stringify({
+        hooks: { UserPromptSubmit: [acceptedPromptHook()], CustomEvent: [] },
+      })}\n`,
+    );
+
+    const mutation = claudeLegacyMutations(root).find(
+      entry => entry.path === '.claude/settings.json',
+    );
+    expect(mutation?.content).not.toBeNull();
+    expect(JSON.parse(mutation?.content ?? '{}')).toEqual({
+      hooks: { UserPromptSubmit: [], CustomEvent: [] },
     });
   });
 });

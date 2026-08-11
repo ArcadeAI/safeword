@@ -368,8 +368,8 @@ describe("python-importlinter-scaffold.TB1.R5 — installed with the pack's othe
         timeout: TIMEOUT_SETUP,
       });
 
-      expect(result.stdout).toContain('Install Python tools');
-      expect(result.stdout).toMatch(/pip install .*import-linter/);
+      expect(result.stdout + result.stderr).toContain('Install Python tools');
+      expect(result.stdout + result.stderr).toMatch(/pip install .*import-linter/);
     },
     TIMEOUT_SETUP,
   );

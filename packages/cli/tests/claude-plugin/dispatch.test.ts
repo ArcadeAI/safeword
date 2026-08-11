@@ -391,7 +391,7 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
-  it('ignores known operating-system metadata in an otherwise verified cache', () => {
+  it('rejects unlisted operating-system metadata in an otherwise verified cache', () => {
     const projectDirectory = temporary('safeword-plugin-os-metadata-project-');
     const pluginData = temporary('safeword-plugin-os-metadata-data-');
     const configDirectory = temporary('safeword-plugin-os-metadata-config-');
@@ -403,7 +403,8 @@ describe('Claude plugin dispatcher', () => {
       pluginRoot,
     });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).not.toContain('damaged native plugin cache');
+    expect(result.stdout).toContain('damaged native plugin cache');
+    expect(result.stdout).toContain('contains an unlisted asset: .DS_Store');
   });
 
   it('returns one JSON response when a direct prompt hook also needs an advisory', () => {
