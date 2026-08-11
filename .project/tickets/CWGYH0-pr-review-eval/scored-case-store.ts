@@ -10,7 +10,10 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
-import type { RetriedResult } from "./scored-run-policy";
+import type {
+	RetriedResult,
+	TrialDisposition,
+} from "./scored-run-policy";
 
 export type RunLock = { release: () => void };
 
@@ -27,6 +30,15 @@ export type ReserveState = {
 	reserveIndex: number;
 	version: number;
 };
+
+export type CaseWorkResult<T, TState extends ReserveState> =
+	| { result: RetriedResult<T>; status: "completed" }
+	| {
+			replacementId: string;
+			result: RetriedResult<T>;
+			state: TState;
+			status: "excluded";
+	  };
 
 function syncDirectory(path: string): void {
 	const descriptor = openSync(path, "r");
@@ -177,4 +189,16 @@ export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: 
 	writeJsonDurably(join(input.outputRoot, "run-state.json"), state);
 
 	return { replacementId, state };
+}
+
+export async function executeCaseWork<T, TState extends ReserveState>(_input: {
+	caseState: ProvisionalCase;
+	classify: (value: T) => TrialDisposition;
+	execute: () => Promise<T>;
+	outputRoot: string;
+	reserveIds: readonly string[];
+	state: TState;
+	workId: string;
+}): Promise<CaseWorkResult<T, TState>> {
+	throw new Error("case work orchestration not implemented");
 }

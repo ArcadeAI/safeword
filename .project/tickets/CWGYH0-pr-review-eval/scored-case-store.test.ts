@@ -8,6 +8,7 @@ import { describe, expect, test } from "vitest";
 import {
 	acquireRunLock,
 	beginProvisionalCase,
+	executeCaseWork,
 	quarantineCaseAndAllocateReserve,
 	recordTrialResult,
 	sealActiveCase,
@@ -118,5 +119,67 @@ describe("durable case lifecycle", () => {
 		});
 		expect(JSON.parse(readFileSync(join(outputRoot, "run-state.json"), "utf8")))
 			.toEqual(transition.state);
+	});
+});
+
+describe("semantic failure handling", () => {
+	test.each([
+		["parsing failure", "schema-invalid"],
+		["content-policy failure", "reviewer-failed"],
+		["schema-invalid report", "schema-invalid"],
+		["HTTP-200 provider error envelope", "provider-failure"],
+		["empty provider response", "incomplete-provider-output"],
+		["truncated provider response", "incomplete-provider-output"],
+		["missing reviewer route", "routing-invalid"],
+		["reviewer error outcome", "reviewer-failed"],
+		["unexpected terminal finish", "unexpected-finish"],
+		["incomplete provenance", "provenance-incomplete"],
+		["mismatched provenance", "provenance-mismatch"],
+		["unknown completion state", "unknown-state"],
+	] as const)("quarantines %s after one attempt", async (_label, reason) => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const pendingCase = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		let calls = 0;
+		const result = await executeCaseWork({
+			caseState: pendingCase,
+			classify: () => ({ reason, retry: "never", status: "invalid" }),
+			execute: async () => {
+				calls += 1;
+				return { raw: _label };
+			},
+			outputRoot,
+			reserveIds: ["RESERVE-A"],
+			state: {
+				candidateQueueIds: ["SCORE-next"],
+				currentCaseId: "SCORE-example",
+				nextWorkIndex: 3,
+				reserveIndex: 0,
+				version: 3,
+			},
+			workId: "full--buggy--t1",
+		});
+
+		expect(calls).toBe(1);
+		expect(result).toMatchObject({
+			replacementId: "RESERVE-A",
+			state: { reserveIndex: 1 },
+			status: "excluded",
+		});
+		expect(existsSync(pendingCase.provisionalPath)).toBe(false);
+		expect(readdirSync(pendingCase.quarantinePath).sort()).toEqual([
+			"EXCLUSION.json",
+			"full--buggy--t1--attempt-1.json",
+		]);
+		const exclusion = JSON.parse(
+			readFileSync(join(pendingCase.quarantinePath, "EXCLUSION.json"), "utf8"),
+		);
+		expect(exclusion).toMatchObject({
+			disposition: { reason, retry: "never", status: "invalid" },
+			workId: "full--buggy--t1",
+		});
 	});
 });
