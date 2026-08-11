@@ -334,7 +334,9 @@ describe("quarantine crash recovery", () => {
 		recordTrialResult(caseState, "full--buggy--t1", failed);
 		const state = {
 			candidateQueueIds: ["SCORE-next"],
+			cumulativeCostUsd: 0,
 			currentCaseId: "SCORE-example",
+			exclusions: [] as unknown[],
 			nextWorkIndex: 0,
 			reserveIndex: 0,
 			version: 3,
@@ -343,13 +345,26 @@ describe("quarantine crash recovery", () => {
 		const recovered = recoverInterruptedQuarantine({
 			caseState,
 			outputRoot,
+			reconcileExclusion: (current, evidence) => ({
+				...current,
+				cumulativeCostUsd: current.cumulativeCostUsd + 2,
+				exclusions: [...current.exclusions, evidence],
+			}),
 			reserveIds: ["RESERVE-A"],
 			state,
 		});
 
 		expect(recovered).toMatchObject({
 			candidateQueueIds: ["RESERVE-A", "SCORE-next"],
+			cumulativeCostUsd: 2,
 			currentCaseId: null,
+			exclusions: [
+				{
+					attemptRecords: [{ attempt: 1 }, { attempt: 2 }],
+					caseId: "SCORE-example",
+					replacementId: "RESERVE-A",
+				},
+			],
 			reserveIndex: 1,
 		});
 		expect(readdirSync(caseState.quarantinePath).sort()).toEqual([

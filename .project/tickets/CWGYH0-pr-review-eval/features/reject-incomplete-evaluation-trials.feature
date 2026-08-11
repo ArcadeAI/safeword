@@ -162,6 +162,11 @@ Feature: Keep failed reviews out of benchmark scores
         | after the quarantine rename      |
         | after the run-state write        |
 
+    Scenario: Recovery preserves failed-attempt evidence and cost
+      Given a crash leaves two durable infrastructure attempts before quarantine
+      When the live-run state is recovered
+      Then the exclusion retains both attempts, its replacement, and their cost exactly once
+
     @rejection
     Scenario Outline: Interrupted quarantine is never partially scoreable
       Given a failure is injected <boundary>
