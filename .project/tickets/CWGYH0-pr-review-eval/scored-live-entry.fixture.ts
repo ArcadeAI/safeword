@@ -206,7 +206,10 @@ try {
 	);
 	const failureSummary = JSON.parse(
 		readFileSync(join(failureOutputRoot, "run-summary.json"), "utf8"),
-	) as { completedCases: number; exclusions: unknown[] };
+	) as {
+		completedCases: number;
+		exclusions: Array<{ caseId: string; replacementId: string }>;
+	};
 	assert.equal(failureSummary.completedCases, 1);
 	assert.equal(failureSummary.exclusions.length, 1);
 	assert.equal(readdirSync(join(failureOutputRoot, "quarantine")).length, 1);
@@ -215,6 +218,44 @@ try {
 		25,
 		"one failed fetch plus one replacement case; no pending sibling from the failed case ran",
 	);
+	const exclusion = failureSummary.exclusions[0]!;
+	const scorerPreflightPath = join(root, "failure-scorer-preflight.json");
+	const scorerPreflightId = "live-entry-hidden-failure-scorer";
+	const scorerPreflightBytes = `${JSON.stringify({
+		preflightId: scorerPreflightId,
+		preflightedRepositories: 4,
+		primaryCases: [exclusion.caseId],
+		reserveCases: [exclusion.replacementId],
+		sourceRepositoryIdentity,
+		status: "passed",
+	})}\n`;
+	writeFileSync(scorerPreflightPath, scorerPreflightBytes);
+	writeFileSync(join(failureOutputRoot, "run-summary.json"), `${JSON.stringify({
+		completedCaseIds: [exclusion.replacementId],
+		exclusions: [exclusion],
+		preflightId: scorerPreflightId,
+		preflightSha256: sha256Text(scorerPreflightBytes),
+		primaryCases: [exclusion.caseId],
+		reserveCases: [exclusion.replacementId],
+		sourceRepositoryIdentity,
+		status: "completed",
+	})}\n`);
+	const scorerResultsPath = join(root, "failure-scorer-results.json");
+	execFileSync("bun", [
+		join(ticketRoot, "score-results.ts"),
+		failureOutputRoot,
+		scorerResultsPath,
+		"",
+		scorerPreflightPath,
+	], { encoding: "utf8", stdio: "pipe" });
+	const scorerResults = JSON.parse(readFileSync(scorerResultsPath, "utf8")) as {
+		caseRows: Array<{ caseId: string }>;
+		exclusions: Array<{ caseId: string; replacementId: string }>;
+	};
+	assert.deepEqual(scorerResults.exclusions, [exclusion]);
+	assert.deepEqual(scorerResults.caseRows.map(({ caseId }) => caseId), [
+		exclusion.replacementId,
+	]);
 } finally {
 	rmSync(root, { force: true, recursive: true });
 }
