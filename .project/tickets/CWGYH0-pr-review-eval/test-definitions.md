@@ -107,7 +107,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A complete run is scoreable
 
 - [x] RED e2f3fdfda
-- [ ] GREEN
+- [x] GREEN 251bde01d
 - [ ] REFACTOR
 
 ### Scenario Outline: A structurally incomplete paired case is not scoreable
