@@ -118,7 +118,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Validity gates change when admitted evidence changes
 
-- [ ] RED
+- [x] RED e2f3fdfda
 - [ ] GREEN
 - [ ] REFACTOR
 
