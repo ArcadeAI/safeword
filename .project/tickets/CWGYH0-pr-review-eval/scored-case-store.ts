@@ -4,6 +4,8 @@ import {
 	fsyncSync,
 	mkdirSync,
 	openSync,
+	readFileSync,
+	readdirSync,
 	renameSync,
 	unlinkSync,
 	writeFileSync,
@@ -230,5 +232,59 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 	reserveIds: readonly string[];
 	state: T;
 }): T {
-	throw new Error("quarantine recovery not implemented");
+	const input = _input;
+	if (input.state.currentCaseId === null) return input.state;
+	const provisionalExists = existsSync(input.caseState.provisionalPath);
+	const quarantineExists = existsSync(input.caseState.quarantinePath);
+	if (provisionalExists && quarantineExists) {
+		throw new Error("case exists in both provisional and quarantine storage");
+	}
+	if (!provisionalExists && !quarantineExists) {
+		throw new Error("current case has no durable provisional or quarantine record");
+	}
+
+	const replacementId = input.reserveIds[input.state.reserveIndex];
+	if (replacementId === undefined) throw new Error("frozen reserves exhausted");
+	safeSegment(replacementId, "reserve ID");
+
+	if (provisionalExists) {
+		const exclusionPath = join(input.caseState.provisionalPath, "EXCLUSION.json");
+		if (!existsSync(exclusionPath)) {
+			const invalidAttempt = readdirSync(input.caseState.provisionalPath)
+				.filter((filename) => /--attempt-[12]\.json$/.test(filename))
+				.sort()
+				.map((filename) => ({
+					filename,
+					record: JSON.parse(
+						readFileSync(join(input.caseState.provisionalPath, filename), "utf8"),
+					) as {
+						attempt?: number;
+						disposition?: TrialDisposition | null;
+						error?: string | null;
+					},
+				}))
+				.findLast(({ record }) =>
+					record.disposition?.status === "invalid" &&
+					(record.disposition.retry === "never" || record.attempt === 2),
+				);
+			if (invalidAttempt === undefined) return input.state;
+			writeJsonDurably(exclusionPath, {
+				disposition: invalidAttempt.record.disposition,
+				workId: invalidAttempt.filename.replace(/--attempt-[12]\.json$/, ""),
+			});
+		}
+		renameSync(input.caseState.provisionalPath, input.caseState.quarantinePath);
+		syncDirectory(dirname(input.caseState.provisionalPath));
+		syncDirectory(dirname(input.caseState.quarantinePath));
+	}
+
+	const state = {
+		...input.state,
+		candidateQueueIds: [replacementId, ...input.state.candidateQueueIds],
+		currentCaseId: null,
+		nextWorkIndex: 0,
+		reserveIndex: input.state.reserveIndex + 1,
+	} as T;
+	writeJsonDurably(join(input.outputRoot, "run-state.json"), state);
+	return state;
 }
