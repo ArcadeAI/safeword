@@ -411,12 +411,7 @@ checkArchitectureReviewGate(ticketInfo);
 // exhausted before a boundary, review conservatively instead of pretending the
 // recent window can be attributed to this turn. A byte-truncated tail retains
 // the prior bounded fallback. The done phase always falls through to its gate.
-const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(lines);
-
-const editsToReview =
-  editsInCurrentTurn === CURRENT_TURN_BOUNDARY_EXHAUSTED
-    ? true
-    : (editsInCurrentTurn ?? detectEditToolsUsed(lines));
+const editsToReview = detectEditsToReview(lines);
 if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
 }
@@ -465,6 +460,13 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
     }
   }
   return false;
+}
+
+/** Resolve bounded current-turn attribution, including its legacy tail fallback. */
+function detectEditsToReview(transcriptLines: string[]): boolean {
+  const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(transcriptLines);
+  if (editsInCurrentTurn === CURRENT_TURN_BOUNDARY_EXHAUSTED) return true;
+  return editsInCurrentTurn ?? detectEditToolsUsed(transcriptLines);
 }
 
 /**
