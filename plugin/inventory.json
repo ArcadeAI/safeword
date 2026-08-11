@@ -7,7 +7,7 @@
     },
     {
       "path": "agents/safeword-retro-filer.md",
-      "sha256": "4306ff38d060614a19dee126e807f6d4f0c126edbe587fc0ca7b147186a39257"
+      "sha256": "27aaba757efed1bd1f169e5477cab588ca911c9f9052038db845f025b48d63a4"
     },
     {
       "path": "agents/safeword-reviewer.md",
@@ -63,7 +63,7 @@
     },
     {
       "path": "resources/guides/self-report-filing.md",
-      "sha256": "3ed2e052366d21602f6a5b30897255d952bdf93ef3a56bc8bd34db59a732fd70"
+      "sha256": "4f7c22d5012a894c5ea3a72f3ca3c87308c2a9762fcf50fea71cedbf25120cc0"
     },
     {
       "path": "resources/guides/skill-eval-optimization-guide.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "63e20c76169f0e97279f64f234966d3fef34d74c7349bacf9abc8a40e3cf3cbb"
+      "sha256": "59a0d80884db3f938aa851b5297edba7052a5bfeb2d9ef94fe69ab6cd89c0631"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "6f33932407ac7aaee0fd1a2a1bca37f085a291d12cf5b0a6a6fd25ada90e7597"
+      "sha256": "887cfb565c0cd1f68d82d30adbd97293c09818f9ba5de948e95c0e40592e6cf6"
     },
     {
       "path": "runtime/event-groups.json",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "281b52dba00cc257c2b8098a0ca70994e531c8ded32a63eeb6f5f1ddfc11e88d"
+      "sha256": "46e0b74d9cde5067aae5c253a89feca10ccc9c48bb1d9259bdd7f2596d19b3ac"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -219,7 +219,7 @@
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
-      "sha256": "4cf68e893669ffd335db24816d8b7d92d2e08df76b010bb7210616d6ede73b5e"
+      "sha256": "2817e85ecbc68cc53c55a253a9bbd25e06ac2d1a270d77c6ae8fb7a8f667afda"
     },
     {
       "path": "runtime/hooks/lib/feature-provenance.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "d7560e1fcee221e1d75cedbf0ccbcd0c495c9b730e96b33c39948e31b815f61c"
+      "sha256": "11bbe164c568668f67a31b60b1e23b2f43c80560d15942875e5ebc3e24c4a276"
     },
     {
       "path": "skills/debug/SKILL.md",
@@ -659,7 +659,7 @@
     },
     {
       "path": "skills/retro-filer/SKILL.md",
-      "sha256": "d85794d0df143784382363f577d2ae8716bdac87978b6bbbc2fee82722906505"
+      "sha256": "27675c6a2fedfdb207365e7605264c40589cfcff66c1461634bae0173e1cfcda"
     },
     {
       "path": "skills/retro/SKILL.md",
