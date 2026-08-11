@@ -212,7 +212,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED baff4f129
 - [x] GREEN 9f8db4b55
-- [ ] REFACTOR
+- [x] REFACTOR skip: the renamed frozen field states the existing post-attempt behavior directly
 
 ### Scenario: A clean canary authorizes the next checkpoint
 
