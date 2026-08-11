@@ -111,12 +111,7 @@ export function renderDecisionBriefContract(grammar = DECISION_BRIEF_GRAMMAR): s
   const endings = Object.entries(grammar.variants)
     .map(([verdict, variant]) => `**${variant.terminalLabel}:** for ${verdict}`)
     .join(' or ');
-  const shapes = Object.entries(grammar.variants)
-    .flatMap(([verdict, variant]) => [
-      `**${verdict}** — ${variant.claim}`,
-      ...variant.paragraphs.map(paragraph => `**${paragraph.label}:** ${paragraph.placeholder}`),
-    ])
-    .join('\n\n');
+  const shapes = renderDecisionBriefShapes(grammar);
 
   return `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with ${endings}.
 
@@ -135,11 +130,20 @@ export interface DecisionBriefCompliance {
   compliant: boolean;
   /** Deterministic work counter used to assert the scanner's fixed linear bound. */
   examinedCharacters: number;
+  /** First structural reason a noncompliant reply cannot satisfy the grammar. */
+  violation?: DecisionBriefViolation;
 }
+
+export type DecisionBriefVerdict = keyof DecisionBriefGrammar['variants'];
+
+export type DecisionBriefViolation =
+  | { kind: 'verdict-count'; count: number }
+  | { kind: 'labels-before-verdict'; verdict: DecisionBriefVerdict }
+  | { kind: 'label-sequence'; verdict: DecisionBriefVerdict };
 
 interface MarkdownParagraph {
   text: string;
-  ignored: boolean;
+  grammarOpaque: boolean;
 }
 
 /** Public test contract: all explicitly counted passes remain below this fixed factor. */
@@ -147,8 +151,73 @@ export const DECISION_BRIEF_MAX_WORK_FACTOR = 8;
 
 const BLOCK_QUOTE_OR_CODE = /^(?: {0,3}>| {4}|\t)/u;
 const LIST_MARKER = /^( {0,3})(?:[-+*]|\d+[.)])([ \t]+)/u;
-const FENCE = /^ {0,3}(`{3,}|~{3,})/u;
+const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/u;
 const HTML_OPEN = /^ {0,3}<([A-Za-z][\w-]*)(?:[ \t]*$|[ \t]+|\/?>)/u;
+const RAW_HTML_TAGS = new Set(['script', 'pre', 'style', 'textarea']);
+const BLOCK_HTML_TAGS = new Set([
+  'address',
+  'article',
+  'aside',
+  'base',
+  'basefont',
+  'blockquote',
+  'body',
+  'caption',
+  'center',
+  'col',
+  'colgroup',
+  'dd',
+  'details',
+  'dialog',
+  'dir',
+  'div',
+  'dl',
+  'dt',
+  'fieldset',
+  'figcaption',
+  'figure',
+  'footer',
+  'form',
+  'frame',
+  'frameset',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'head',
+  'header',
+  'hr',
+  'html',
+  'iframe',
+  'legend',
+  'li',
+  'link',
+  'main',
+  'menu',
+  'menuitem',
+  'nav',
+  'noframes',
+  'ol',
+  'optgroup',
+  'option',
+  'p',
+  'param',
+  'search',
+  'section',
+  'summary',
+  'table',
+  'tbody',
+  'td',
+  'tfoot',
+  'th',
+  'thead',
+  'title',
+  'tr',
+  'track',
+  'ul',
+]);
 const VERDICT = /^\*\*([^*\n]+)\*\*\s+—\s+\S[^\n]*$/u;
 const LABEL = /^\*\*([^*\n]+):\*\*\s+\S[^\n]*(?:\n[^\n]+)*$/u;
 
@@ -163,88 +232,149 @@ interface ParagraphScan {
  * later grammar checks advance once through the retained paragraphs.
  */
 function scanTopLevelParagraphs(reply: string): ParagraphScan {
-  const normalized = reply.replaceAll('\r\n', '\n');
+  const normalized = reply.replace(/\r\n?/gu, '\n');
   // Count every whole-input and per-line pass. Parser changes must increment this
   // counter where work occurs so the public bound can detect accidental rescans.
   let examinedCharacters = reply.length + normalized.length;
   const paragraphs: MarkdownParagraph[] = [];
   let lines: string[] = [];
-  let ignored = false;
+  let excludedFromDecisionGrammar = false;
   let fenceMarker: string | null = null;
   let htmlEnd: string | null = null;
-  let htmlTag: string | null = null;
+  let rawHtmlTag: string | null = null;
+  let insideBlockHtml = false;
   let listContentIndent: number | null = null;
 
   const flush = () => {
-    if (lines.length > 0) paragraphs.push({ text: lines.join('\n').trim(), ignored });
+    if (lines.length > 0)
+      paragraphs.push({
+        text: lines.join('\n').trim(),
+        grammarOpaque: excludedFromDecisionGrammar,
+      });
     lines = [];
-    ignored = false;
+    excludedFromDecisionGrammar = false;
+  };
+  const flushBeforeExcludedBlock = () => {
+    if (lines.length > 0 && !excludedFromDecisionGrammar) flush();
   };
 
   for (const line of normalized.split('\n')) {
     examinedCharacters += line.length + 1;
     const trimmed = line.trim();
-    const fence = FENCE.exec(line)?.[1];
+    const fenceMatch = FENCE.exec(line);
+    const fence = fenceMatch?.[1];
+    const fenceRemainder = fenceMatch?.[2] ?? '';
+    const wasInsideFence = fenceMarker !== null;
+    const closesFence =
+      fenceMarker !== null &&
+      fence !== undefined &&
+      fence[0] === fenceMarker[0] &&
+      fence.length >= fenceMarker.length &&
+      /^[\t ]*$/u.test(fenceRemainder);
+    const opensFence =
+      !wasInsideFence && fence !== undefined && (fence[0] !== '`' || !fenceRemainder.includes('`'));
+    let endsExplicitHtmlBlock = false;
 
     if (fenceMarker) {
-      ignored = true;
-      if (fence && fence[0] === fenceMarker[0] && fence.length >= fenceMarker.length) {
-        fenceMarker = null;
-      }
-    } else if (fence) {
-      ignored = true;
-      fenceMarker = fence;
+      excludedFromDecisionGrammar = true;
+      if (closesFence) fenceMarker = null;
+    } else if (opensFence) {
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
+      fenceMarker = fence ?? null;
+    }
+
+    if (wasInsideFence || opensFence) {
+      if (trimmed === '') flush();
+      else lines.push(line);
+      if (wasInsideFence && fenceMarker === null) flush();
+      continue;
     }
 
     if (htmlEnd) {
-      ignored = true;
-      if (trimmed.includes(htmlEnd)) htmlEnd = null;
+      excludedFromDecisionGrammar = true;
+      if (trimmed.includes(htmlEnd)) {
+        htmlEnd = null;
+        endsExplicitHtmlBlock = true;
+      }
     } else if (trimmed.startsWith('<!--')) {
-      ignored = true;
-      if (!trimmed.includes('-->')) htmlEnd = '-->';
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
+      if (trimmed.includes('-->')) endsExplicitHtmlBlock = true;
+      else htmlEnd = '-->';
     } else if (trimmed.startsWith('<![CDATA[')) {
-      ignored = true;
-      if (!trimmed.includes(']]>')) htmlEnd = ']]>';
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
+      if (trimmed.includes(']]>')) endsExplicitHtmlBlock = true;
+      else htmlEnd = ']]>';
     } else if (trimmed.startsWith('<?')) {
-      ignored = true;
-      if (!trimmed.includes('?>')) htmlEnd = '?>';
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
+      if (trimmed.includes('?>')) endsExplicitHtmlBlock = true;
+      else htmlEnd = '?>';
     } else if (/^<![A-Z]/iu.test(trimmed)) {
-      ignored = true;
-      if (!trimmed.includes('>')) htmlEnd = '>';
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
+      if (trimmed.includes('>')) endsExplicitHtmlBlock = true;
+      else htmlEnd = '>';
     }
 
-    if (htmlTag) {
-      ignored = true;
-      if (trimmed.toLowerCase().includes(`</${htmlTag}>`)) htmlTag = null;
+    if (rawHtmlTag) {
+      excludedFromDecisionGrammar = true;
+      if (trimmed.toLowerCase().includes(`</${rawHtmlTag}>`)) {
+        rawHtmlTag = null;
+        endsExplicitHtmlBlock = true;
+      }
+    } else if (insideBlockHtml) {
+      excludedFromDecisionGrammar = true;
     } else if (!htmlEnd) {
       const openingTag = HTML_OPEN.exec(line)?.[1]?.toLowerCase();
-      if (openingTag) {
-        ignored = true;
-        if (!trimmed.includes(`</${openingTag}>`) && !trimmed.endsWith('/>')) htmlTag = openingTag;
+      const interruptsParagraph =
+        openingTag !== undefined &&
+        (RAW_HTML_TAGS.has(openingTag) || BLOCK_HTML_TAGS.has(openingTag));
+      if (openingTag && (lines.length === 0 || interruptsParagraph)) {
+        flushBeforeExcludedBlock();
+        excludedFromDecisionGrammar = true;
+        if (
+          RAW_HTML_TAGS.has(openingTag) &&
+          !trimmed.toLowerCase().includes(`</${openingTag}>`) &&
+          !trimmed.endsWith('/>')
+        ) {
+          rawHtmlTag = openingTag;
+        } else if (RAW_HTML_TAGS.has(openingTag)) {
+          endsExplicitHtmlBlock = true;
+        } else if (BLOCK_HTML_TAGS.has(openingTag)) {
+          insideBlockHtml = true;
+        }
       }
     }
 
     const listMarker = LIST_MARKER.exec(line);
     const indentation = line.match(/^ */u)?.[0].length ?? 0;
     if (listContentIndent !== null && trimmed !== '') {
-      if (indentation >= listContentIndent) ignored = true;
+      if (indentation >= listContentIndent) excludedFromDecisionGrammar = true;
       else listContentIndent = null;
     }
     if (listMarker) {
-      ignored = true;
+      flushBeforeExcludedBlock();
+      excludedFromDecisionGrammar = true;
       listContentIndent = listMarker[0].length;
     }
-    if (lines.length === 0 && BLOCK_QUOTE_OR_CODE.test(line)) ignored = true;
+    if (lines.length === 0 && BLOCK_QUOTE_OR_CODE.test(line)) {
+      excludedFromDecisionGrammar = true;
+    }
 
     if (trimmed === '') {
       flush();
+      insideBlockHtml = false;
     } else {
       lines.push(line);
+      if (endsExplicitHtmlBlock) flush();
     }
   }
   flush();
   return {
-    paragraphs: paragraphs.filter(paragraph => !paragraph.ignored),
+    paragraphs,
     examinedCharacters,
   };
 }
@@ -256,22 +386,30 @@ export function evaluateDecisionBriefCompliance(
 ): DecisionBriefCompliance {
   const scan = scanTopLevelParagraphs(reply);
   let examinedCharacters = scan.examinedCharacters;
-  const result = (compliant: boolean): DecisionBriefCompliance => ({
+  const result = (
+    compliant: boolean,
+    violation?: DecisionBriefViolation,
+  ): DecisionBriefCompliance => ({
     compliant,
     examinedCharacters,
+    ...(violation ? { violation } : {}),
   });
   const paragraphs = scan.paragraphs;
   const verdicts = paragraphs.flatMap((paragraph, index) => {
     examinedCharacters += paragraph.text.length;
+    if (paragraph.grammarOpaque) return [];
     const match = VERDICT.exec(paragraph.text);
     const verdict = match?.[1];
-    return verdict && verdict in grammar.variants ? [{ index, verdict }] : [];
+    return verdict && Object.hasOwn(grammar.variants, verdict) ? [{ index, verdict }] : [];
   });
-  if (verdicts.length !== 1) return result(false);
+  if (verdicts.length !== 1) {
+    return result(false, { kind: 'verdict-count', count: verdicts.length });
+  }
 
   const verdictEntry = verdicts[0];
-  if (!verdictEntry) return result(false);
-  const { index: verdictIndex, verdict } = verdictEntry;
+  if (!verdictEntry) return result(false, { kind: 'verdict-count', count: 0 });
+  const { index: verdictIndex, verdict: rawVerdict } = verdictEntry;
+  const verdict = rawVerdict as DecisionBriefVerdict;
   const grammarLabels = new Set(
     Object.values(grammar.variants).flatMap(variant =>
       variant.paragraphs.map(paragraph => paragraph.label),
@@ -279,17 +417,21 @@ export function evaluateDecisionBriefCompliance(
   );
   const labelsBeforeVerdict = paragraphs.slice(0, verdictIndex).some(paragraph => {
     examinedCharacters += paragraph.text.length;
+    if (paragraph.grammarOpaque) return false;
     const label = LABEL.exec(paragraph.text)?.[1];
     return label !== undefined && grammarLabels.has(label);
   });
-  if (labelsBeforeVerdict) return result(false);
+  if (labelsBeforeVerdict) {
+    return result(false, { kind: 'labels-before-verdict', verdict });
+  }
 
   const labels = paragraphs.slice(verdictIndex + 1).map(paragraph => {
     examinedCharacters += paragraph.text.length;
+    if (paragraph.grammarOpaque) return undefined;
     return LABEL.exec(paragraph.text)?.[1];
   });
   const variant = grammar.variants[verdict as keyof DecisionBriefGrammar['variants']];
-  if (!variant) return result(false);
+  if (!variant) return result(false, { kind: 'verdict-count', count: 0 });
   const sequences = variant.paragraphs.reduce<string[][]>(
     (variants, paragraph) => [
       ...variants.map(sequence => [...sequence, paragraph.label]),
@@ -301,12 +443,97 @@ export function evaluateDecisionBriefCompliance(
     sequence =>
       labels.length === sequence.length && labels.every((label, i) => label === sequence[i]),
   );
-  return result(compliant);
+  return compliant ? result(true) : result(false, { kind: 'label-sequence', verdict });
 }
 
 /** Whether a reply already ends in the canonical phase-neutral decision brief. */
 export function isDecisionBriefCompliant(reply: string): boolean {
   return evaluateDecisionBriefCompliance(reply).compliant;
+}
+
+function getDecisionBriefVerdicts(grammar: DecisionBriefGrammar): DecisionBriefVerdict[] {
+  return Object.keys(grammar.variants) as DecisionBriefVerdict[];
+}
+
+function renderDecisionBriefShapes(
+  grammar: DecisionBriefGrammar,
+  verdicts: readonly DecisionBriefVerdict[] = getDecisionBriefVerdicts(grammar),
+): string {
+  return verdicts
+    .flatMap(verdict => {
+      const variant = grammar.variants[verdict];
+      return [
+        `**${verdict}** — ${variant.claim}`,
+        ...variant.paragraphs.map(paragraph => `**${paragraph.label}:** ${paragraph.placeholder}`),
+      ];
+    })
+    .join('\n\n');
+}
+
+/** Evidence request for generic work that has no trustworthy BDD phase. */
+export const GENERIC_REVIEW_EVIDENCE =
+  'Work update: CONFIDENT names what changed, what was checked, and the concrete result.';
+
+function describeDecisionBriefViolation(
+  violation: DecisionBriefViolation | undefined,
+  grammar: DecisionBriefGrammar,
+): { problem: string; verdicts: readonly DecisionBriefVerdict[] } {
+  const allVerdicts = getDecisionBriefVerdicts(grammar);
+  if (violation?.kind === 'verdict-count') {
+    return {
+      problem:
+        violation.count === 0
+          ? 'Your reply has no recognized verdict.'
+          : `Your reply has ${violation.count} recognized verdicts; choose exactly one.`,
+      verdicts: allVerdicts,
+    };
+  }
+  if (violation?.kind === 'labels-before-verdict') {
+    return {
+      problem: `Decision-brief labels appear before the ${violation.verdict} verdict.`,
+      verdicts: [violation.verdict],
+    };
+  }
+  if (violation?.kind === 'label-sequence') {
+    return {
+      problem: `${violation.verdict} has missing, extra, or out-of-order decision-brief labels.`,
+      verdicts: [violation.verdict],
+    };
+  }
+  return {
+    problem: 'Your reply does not match the decision-brief grammar.',
+    verdicts: allVerdicts,
+  };
+}
+
+/**
+ * Render a self-contained correction from the parser's observed failure. The
+ * standing contract remains at SessionStart; Stop repeats only the exact shape
+ * needed to repair this reply plus the evidence relevant to this review.
+ */
+export function renderDecisionBriefCorrection(
+  evaluation: DecisionBriefCompliance,
+  evidence: string,
+  grammar = DECISION_BRIEF_GRAMMAR,
+): string {
+  const { problem, verdicts } = describeDecisionBriefViolation(evaluation.violation, grammar);
+
+  const choice =
+    verdicts.length === 1
+      ? 'Preserve the useful content, then rewrite the contiguous top-level ending exactly as follows, with blank lines between paragraphs:'
+      : 'Preserve the useful content, then end with exactly one of these top-level shapes, with blank lines between paragraphs:';
+  const shapes =
+    verdicts.length === 1
+      ? renderDecisionBriefShapes(grammar, verdicts)
+      : verdicts
+          .map(verdict => renderDecisionBriefShapes(grammar, [verdict]))
+          .join('\n\nOr, only if human input is required:\n\n');
+
+  return `${problem} ${choice}
+
+${shapes}
+
+${evidence}`;
 }
 
 /** Per-phase evidence templates appended to the universal header. */
@@ -335,6 +562,17 @@ const TDD_STEP_EVIDENCE: Record<string, string> = {
     'Phase: implement (TDD: REFACTOR). CONFIDENT cites one refactoring applied (not batched), the smell it addressed (duplication / long-fn / nesting / magic / dead-code / naming), no behavior change, and X/X tests still pass.',
 };
 
+/** Phase-aware evidence without inventing an implementation phase for generic work. */
+export function getQualityEvidence(phase?: BddPhase | string, tddStep?: string | null): string {
+  if (phase === 'implement' && tddStep && Object.hasOwn(TDD_STEP_EVIDENCE, tddStep)) {
+    return TDD_STEP_EVIDENCE[tddStep] ?? GENERIC_REVIEW_EVIDENCE;
+  }
+  if (phase && Object.hasOwn(PHASE_EVIDENCE, phase)) {
+    return PHASE_EVIDENCE[phase as BddPhase];
+  }
+  return GENERIC_REVIEW_EVIDENCE;
+}
+
 /**
  * The default quality review prompt (backwards compatible export).
  * Used when no phase is detected. Cursor's stop hook consumes this directly.
@@ -344,16 +582,10 @@ export const QUALITY_REVIEW_MESSAGE = DECISION_BRIEF_CONTRACT + PHASE_EVIDENCE.i
 /**
  * Get phase-appropriate quality review message.
  * During implement phase, uses TDD-step-specific evidence when tddStep is provided.
- * Falls back to default (implement) if phase unknown.
+ * Falls back to phase-neutral evidence when the phase is unknown.
  */
 export function getQualityMessage(phase?: BddPhase | string, tddStep?: string | null): string {
-  if (phase === 'implement' && tddStep && tddStep in TDD_STEP_EVIDENCE) {
-    return DECISION_BRIEF_CONTRACT + TDD_STEP_EVIDENCE[tddStep];
-  }
-  if (phase && phase in PHASE_EVIDENCE) {
-    return DECISION_BRIEF_CONTRACT + PHASE_EVIDENCE[phase as BddPhase];
-  }
-  return QUALITY_REVIEW_MESSAGE;
+  return DECISION_BRIEF_CONTRACT + getQualityEvidence(phase, tddStep);
 }
 
 /**
