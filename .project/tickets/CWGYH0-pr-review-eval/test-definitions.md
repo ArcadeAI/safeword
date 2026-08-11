@@ -164,7 +164,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 217916be9
 - [x] GREEN 8d29f64bd
-- [ ] REFACTOR
+- [x] REFACTOR skip: the production adapter, lifecycle writer, and scorer validator are composed directly
 
 ### Scenario: A clean canary authorizes the next checkpoint
 
