@@ -91,6 +91,21 @@ function nextReserveTransition<T extends ReserveState>(
 	};
 }
 
+function lockOwnerIsAlive(lockPath: string): boolean {
+	const owner = Number.parseInt(readFileSync(lockPath, "utf8").trim(), 10);
+	if (!Number.isSafeInteger(owner) || owner <= 0) return true;
+	try {
+		process.kill(owner, 0);
+		return true;
+	} catch (error) {
+		return !(
+			error instanceof Error &&
+			"code" in error &&
+			error.code === "ESRCH"
+		);
+	}
+}
+
 export function acquireRunLock(outputRoot: string): RunLock {
 	mkdirSync(outputRoot, { recursive: true });
 	const lockPath = join(outputRoot, ".run.lock");
@@ -98,10 +113,17 @@ export function acquireRunLock(outputRoot: string): RunLock {
 	try {
 		descriptor = openSync(lockPath, "wx");
 	} catch (error) {
-		if (existsSync(lockPath)) {
+		if (!existsSync(lockPath)) throw error;
+		if (lockOwnerIsAlive(lockPath)) {
 			throw new Error(`benchmark output is already locked: ${lockPath}`);
 		}
-		throw error;
+		unlinkSync(lockPath);
+		syncDirectory(outputRoot);
+		try {
+			descriptor = openSync(lockPath, "wx");
+		} catch {
+			throw new Error(`benchmark output is already locked: ${lockPath}`);
+		}
 	}
 	try {
 		writeFileSync(descriptor, `${process.pid}\n`);
@@ -251,8 +273,6 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 		throw new Error("current case has no durable provisional or quarantine record");
 	}
 
-	const transition = nextReserveTransition(input.reserveIds, input.state);
-
 	if (provisionalExists) {
 		const exclusionPath = join(input.caseState.provisionalPath, "EXCLUSION.json");
 		if (!existsSync(exclusionPath)) {
@@ -270,12 +290,17 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 					},
 				}))
 				.findLast(({ record }) =>
-					record.disposition?.status === "invalid" &&
-					(record.disposition.retry === "never" || record.attempt === 2),
+					(record.disposition?.status === "invalid" &&
+						(record.disposition.retry === "never" || record.attempt === 2)) ||
+					(record.attempt === 2 &&
+						record.disposition === null &&
+						typeof record.error === "string" &&
+						record.error.length > 0),
 				);
 			if (invalidAttempt === undefined) return input.state;
 			writeJsonDurably(exclusionPath, {
 				disposition: invalidAttempt.record.disposition,
+				error: invalidAttempt.record.error ?? null,
 				workId: invalidAttempt.filename.replace(/--attempt-[12]\.json$/, ""),
 			});
 		}
@@ -284,6 +309,7 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 		syncDirectory(dirname(input.caseState.quarantinePath));
 	}
 
+	const transition = nextReserveTransition(input.reserveIds, input.state);
 	writeJsonDurably(join(input.outputRoot, "run-state.json"), transition.state);
 	return transition.state;
 }
