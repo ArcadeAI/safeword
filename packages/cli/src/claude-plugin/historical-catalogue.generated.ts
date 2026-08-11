@@ -4,7 +4,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
   current: {
     files: {
       '.claude/agents/safeword-retro-filer.md':
-        'd897ee5de427ff715e4ffe3e7416bfb7bbf98cf3b5d0a41d2f12f1fc313fe668',
+        '008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904',
       '.claude/agents/safeword-reviewer.md':
         '13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470',
       '.claude/skills/audit/SKILL.md':
@@ -30,7 +30,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/cleanup-zombies/SKILL.md':
         'e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289',
       '.claude/skills/closeout/SKILL.md':
-        '75027f884c584d4c344cdcc99fe63adfb7b1a664e737646528bc0b928cde3d0d',
+        'f984539a5c6d9b942fa2ac5814431b6fc048713a131272237711a94f7f86d5d2',
       '.claude/skills/debug/SKILL.md':
         'ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0',
       '.claude/skills/elicit/SKILL.md':
@@ -50,7 +50,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
-        'a4c12dcff328f6e9adb3569c81d2ebda4618aa842fa3bfe15c3c1a486164db02',
+        'ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0',
       '.claude/skills/retro/SKILL.md':
         '166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379',
       '.claude/skills/review-spec/SKILL.md':
