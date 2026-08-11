@@ -98,7 +98,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An early failure cancels pending paired work
 
-- [ ] RED
+- [x] RED skip: quality-review requested an explicit proof for behavior already implemented
 - [ ] GREEN
 - [ ] REFACTOR
 
