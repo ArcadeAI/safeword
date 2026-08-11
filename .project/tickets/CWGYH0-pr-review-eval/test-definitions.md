@@ -52,7 +52,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6a5ff56e0
 - [x] GREEN bf4b85235
-- [ ] REFACTOR
+- [x] REFACTOR skip: the coordinator has one ordered responsibility and reuses the existing retry, attempt-write, and quarantine primitives
 
 ### Scenario: Paired-case quarantine is atomic
 
