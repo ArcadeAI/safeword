@@ -308,6 +308,24 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(JSON.parse(result.stdout.trim())).toMatchObject({ decision: 'block' });
   });
 
+  it('retains a complete JSONL record aligned with the bounded-tail start', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    const alignedEdit = assistantToolUseLine('aligned-edit');
+    const finalAssistant = assistantTextLine('Edited at the start of the bounded tail.');
+    const tailWithoutPadding = [alignedEdit, '', finalAssistant].join('\n');
+    const paddingSize = 256 * 1024 - Buffer.byteLength(tailWithoutPadding);
+    expect(paddingSize).toBeGreaterThan(0);
+    const alignedTail = [alignedEdit, 'x'.repeat(paddingSize), finalAssistant].join('\n');
+    expect(Buffer.byteLength(alignedTail)).toBe(256 * 1024);
+
+    writeFileSync(transcriptPath, `${assistantTextLine('Older record.')}\n${alignedTail}`);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout.trim())).toMatchObject({ decision: 'block' });
+  });
+
   it('skips the review prompt after a string-form user follow-up', () => {
     const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
     writeFileSync(

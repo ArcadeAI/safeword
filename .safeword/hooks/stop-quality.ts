@@ -383,16 +383,7 @@ if (!(await transcriptFile.exists())) {
   process.exit(0);
 }
 
-// Read a bounded JSONL tail. Drop a partial first record when slicing starts
-// mid-file. Record traversal may exceed the legacy 400-line cap when a genuine
-// turn boundary is present, but the byte budget keeps the read bounded.
-const transcriptStart = Math.max(0, transcriptFile.size - MAX_TRANSCRIPT_TAIL_BYTES);
-let transcriptText = await transcriptFile.slice(transcriptStart).text();
-if (transcriptStart > 0) {
-  const firstNewline = transcriptText.indexOf('\n');
-  transcriptText = firstNewline === -1 ? '' : transcriptText.slice(firstNewline + 1);
-}
-const lines = transcriptText.trim().split('\n');
+const lines = await readBoundedTranscriptLines(transcriptFile);
 
 checkUsageLimit(lines);
 
@@ -474,6 +465,29 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Read a byte-bounded JSONL tail without discarding a complete first record.
+ * The byte immediately before the slice distinguishes an aligned record from
+ * a partial one; it does not expand the effective payload budget.
+ */
+async function readBoundedTranscriptLines(
+  transcriptFile: ReturnType<typeof Bun.file>,
+): Promise<string[]> {
+  const transcriptStart = Math.max(0, transcriptFile.size - MAX_TRANSCRIPT_TAIL_BYTES);
+  let transcriptText = await transcriptFile.slice(transcriptStart).text();
+
+  if (transcriptStart > 0) {
+    const precedingByte = await transcriptFile.slice(transcriptStart - 1, transcriptStart).text();
+    if (precedingByte !== '\n') {
+      const firstNewline = transcriptText.indexOf('\n');
+      transcriptText = firstNewline === -1 ? '' : transcriptText.slice(firstNewline + 1);
+    }
+  }
+
+  const trimmedTranscript = transcriptText.trim();
+  return trimmedTranscript.length === 0 ? [] : trimmedTranscript.split('\n');
 }
 
 /**
