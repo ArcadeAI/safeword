@@ -2124,6 +2124,11 @@ Then(
   function (this: UnifiedInstallWorld) {
     assert.equal(this.result.exitCode, 1);
     assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
+    assert.notEqual(
+      this.result.stdout.trim(),
+      '',
+      `expected a JSON rejection envelope on stdout: ${this.result.stderr || 'no stderr'}`,
+    );
     const envelope = JSON.parse(this.result.stdout) as { errors?: { message?: string }[] };
     assert.match(JSON.stringify(envelope.errors), /unknown option/iu);
   },

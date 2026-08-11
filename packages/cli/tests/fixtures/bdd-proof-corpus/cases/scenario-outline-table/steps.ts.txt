@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+When('I quote shipping to {string}', function (country: string) {
+  const prices = { US: 5, AU: 12 };
+  this.quote = {
+    price:
+      process.env.BDD_CORPUS_DEFECT === '1'
+        ? (country === 'US' ? 12 : 5)
+        : prices[country as keyof typeof prices],
+  };
+});
+Then('the price is {int}', function (price: number) {
+  assert.equal(this.quote.price, price);
+});

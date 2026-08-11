@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { Then, When } from '@cucumber/cucumber';
+
+When(/I run (an unknown safeword command|safeword help)/, function (kind: string) {
+  const help = kind === 'safeword help';
+  const defect = process.env.BDD_CORPUS_DEFECT === '1';
+  const arguments_ = defect
+    ? (help ? ['definitely-not-a-command'] : ['--help'])
+    : (help ? ['--help'] : ['definitely-not-a-command']);
+  const execution = spawnSync(process.execPath, [process.env.BDD_CORPUS_CLI!, ...arguments_], {
+    encoding: 'utf8',
+    env: { PATH: process.env.PATH, SAFEWORD_NO_UPDATE_CHECK: '1' },
+  });
+  if (execution.error) throw execution.error;
+  this.result = {
+    exitCode: execution.status,
+    output: `${execution.stdout}\n${execution.stderr}`,
+  };
+});
+Then('the CLI exits nonzero and reports the unknown command', function () {
+  assert.notEqual(this.result.exitCode, 0);
+  assert.match(this.result.output, /definitely-not-a-command|unknown command/i);
+});
+Then('the CLI exits 0 and prints usage', function () {
+  assert.equal(this.result.exitCode, 0);
+  assert.match(this.result.output, /Usage: safeword/);
+});

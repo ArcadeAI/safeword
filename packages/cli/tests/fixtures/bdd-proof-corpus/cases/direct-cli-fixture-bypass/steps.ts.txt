@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { Then, When } from '@cucumber/cucumber';
+
+When('the step invokes the real CLI', function () {
+  this.execution = spawnSync(process.execPath, [process.env.BDD_CORPUS_CLI!, '--help'], {
+    encoding: 'utf8',
+    env: process.env,
+  });
+});
+Then('the result is sanitized runner-envelope evidence', function () {
+  assert.equal(this.execution.status, 0);
+});

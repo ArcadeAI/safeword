@@ -29,6 +29,7 @@ import {
   type GeneratedClaudePluginAsset,
 } from '../packages/cli/src/claude-plugin/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
+import { installFakeCodexRuntime } from '../packages/cli/tests/helpers/fake-codex-runtime.js';
 
 interface NativeClaudePluginWorld {
   generation?: { status: number; output: string };
@@ -38,6 +39,8 @@ interface NativeClaudePluginWorld {
     project: string;
     commandCwd?: string;
     configRoot?: string;
+    codexHome: string;
+    codexLogPath: string;
     statePath: string;
     projectSnapshot: string;
     profileSnapshot: string;
@@ -755,6 +758,11 @@ function createLifecycleFixture(
   mkdirSync(project, { recursive: true });
   mkdirSync(fakeBin, { recursive: true });
   mkdirSync(configRoot, { recursive: true });
+  const codexRuntime = installFakeCodexRuntime(nodePath.join(root, 'codex-runtime'), {
+    pluginEnabled: false,
+    pluginInitiallyInstalled: false,
+  });
+  cpSync(nodePath.join(codexRuntime.bin, 'codex'), nodePath.join(fakeBin, 'codex'));
   writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
   const state = {
     hostVersion: '2.1.170 (Claude Code)',
@@ -777,6 +785,8 @@ function createLifecycleFixture(
     root,
     project,
     configRoot,
+    codexHome: codexRuntime.codexHome,
+    codexLogPath: codexRuntime.logPath,
     statePath,
     projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
     profileSnapshot,
@@ -1099,6 +1109,11 @@ function runLifecycleCommand(
   json = true,
 ): { status: number; output: string } {
   assert.ok(world.lifecycle);
+  const inheritedEnvironment = Object.fromEntries(
+    ['PATH', 'TMPDIR', 'TMP', 'TEMP', 'SystemRoot', 'WINDIR', 'COMSPEC', 'PATHEXT']
+      .map(name => [name, process.env[name]])
+      .filter((entry): entry is [string, string] => entry[1] !== undefined),
+  );
   const result = spawnSync(
     'bun',
     [
@@ -1112,9 +1127,11 @@ function runLifecycleCommand(
     {
       cwd: REPO_ROOT,
       env: {
-        ...process.env,
+        ...inheritedEnvironment,
         CLAUDE_CONFIG_DIR: world.lifecycle.configRoot,
+        CODEX_HOME: world.lifecycle.codexHome,
         FAKE_CLAUDE_STATE: world.lifecycle.statePath,
+        SAFEWORD_CODEX_LOG: world.lifecycle.codexLogPath,
         PATH: `${nodePath.join(world.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
       },
       encoding: 'utf8',

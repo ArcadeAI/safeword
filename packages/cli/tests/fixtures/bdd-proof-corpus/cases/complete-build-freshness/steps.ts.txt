@@ -1,0 +1,150 @@
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import nodePath from 'node:path';
+import { Then, When } from '@cucumber/cucumber';
+import ts from 'typescript';
+
+When('I inspect the built CLI artifacts', function () {
+  const entrypoint = process.env.BDD_CORPUS_CLI!;
+  const distribution = nodePath.dirname(entrypoint);
+  const artifactsBeneath = (directory: string): string[] =>
+    readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+      const path = nodePath.join(directory, entry.name);
+      if (entry.isDirectory()) return artifactsBeneath(path);
+      return entry.isFile() && entry.name.endsWith('.js') ? [path] : [];
+    });
+  const artifacts = artifactsBeneath(distribution);
+  const resolveReference = (artifact: string, reference: string): string | null => {
+    const path = nodePath.resolve(nodePath.dirname(artifact), reference);
+    if (nodePath.extname(path) !== '') return nodePath.extname(path) === '.js' ? path : null;
+    const candidates = [`${path}.js`, nodePath.join(path, 'index.js')];
+    return candidates.find(existsSync) ?? candidates[0];
+  };
+  const moduleReferences = (artifact: string, source: string): string[] => {
+    const parsed = ts.createSourceFile(artifact, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const references: string[] = [];
+    const staticReference = (expression: ts.Expression | undefined): string | undefined =>
+      expression !== undefined &&
+      (ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression))
+        ? expression.text
+        : undefined;
+    const record = (node: ts.Node): void => {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)
+      ) {
+        references.push(node.moduleSpecifier.text);
+      } else if (
+        ts.isCallExpression(node) &&
+        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+          (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
+      ) {
+        const reference = staticReference(node.arguments[0]);
+        references.push(reference ?? './__unsupported-module-expression__.js');
+      }
+      ts.forEachChild(node, record);
+    };
+    record(parsed);
+    return references.filter(reference => reference.startsWith('./') || reference.startsWith('../'));
+  };
+  const defect = process.env.BDD_CORPUS_DEFECT;
+  let injected = defect === '0';
+  const graph = new Map(artifacts.map(artifact => {
+    let artifactSource = readFileSync(artifact, 'utf8');
+    if (defect === 'missing-chunk' && artifact === entrypoint) {
+      artifactSource += '\nimport("./missing-dynamic-chunk.js");';
+      injected = true;
+    }
+    return [artifact, moduleReferences(artifact, artifactSource).flatMap(reference => {
+      const resolved = resolveReference(artifact, reference);
+      return resolved === null ? [] : [resolved];
+    })] as const;
+  }));
+  const reachable = new Set<string>();
+  const visit = (artifact: string): void => {
+    if (reachable.has(artifact) || !existsSync(artifact)) return;
+    reachable.add(artifact);
+    for (const reference of graph.get(artifact) ?? []) visit(reference);
+  };
+  visit(entrypoint);
+  const reachableArtifacts = [...reachable];
+  const referencedArtifacts = reachableArtifacts.flatMap(artifact => graph.get(artifact) ?? []);
+  const sourceComparisons = reachableArtifacts.flatMap((artifact, artifactIndex) => {
+    const mapPath = `${artifact}.map`;
+    if (defect === 'missing-map' && artifactIndex === 0) {
+      injected = true;
+      return [{ matches: false }];
+    }
+    if (!existsSync(mapPath)) {
+      return [{ matches: false }];
+    }
+    const map = JSON.parse(readFileSync(mapPath, 'utf8')) as {
+      sources: string[];
+      sourcesContent: (string | null)[];
+      sourceRoot?: string;
+    };
+    if (map.sources.length === 0 && map.sourcesContent.length === 0) {
+      let facadeSource = readFileSync(artifact, 'utf8');
+      if (defect === 'stale-empty-facade' && artifact !== entrypoint && !injected) {
+        facadeSource += '\nconsole.log("stale replacement");';
+        injected = true;
+      }
+      const parsed = ts.createSourceFile(
+        artifact, facadeSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS,
+      );
+      const isGeneratedFacade = parsed.statements.every(statement =>
+        ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement),
+      );
+      return [{ matches: isGeneratedFacade, excluded: 'verified-generated-facade' }];
+    }
+    if (map.sources.length !== map.sourcesContent.length) {
+      return [{ matches: false }];
+    }
+    return map.sources.map((source, sourceIndex) => {
+      if (source.startsWith('<') && source.endsWith('>')) {
+        return { matches: true, excluded: 'virtual-bundler-source' };
+      }
+      let sourceRoot = map.sourceRoot ?? '';
+      if (defect === 'source-root-mismatch' && !injected) {
+        sourceRoot = 'missing-source-root';
+        injected = true;
+      }
+      const sourcePath = nodePath.resolve(nodePath.dirname(mapPath), sourceRoot, source);
+      let embeddedSource = map.sourcesContent[sourceIndex];
+      if (defect === 'null-source-content' && !injected) {
+        embeddedSource = null;
+        injected = true;
+      }
+      if (defect === 'stale-source-content' && !injected) {
+        embeddedSource = `${embeddedSource ?? ''}\n// stale build`;
+        injected = true;
+      }
+      return {
+        matches:
+          existsSync(sourcePath) &&
+          embeddedSource !== null &&
+          readFileSync(sourcePath, 'utf8') === embeddedSource,
+      };
+    });
+  });
+  this.build = {
+    entrypointExists: existsSync(entrypoint),
+    chunksDiscovered: reachableArtifacts.length > 1 && referencedArtifacts.length > 0,
+    chunksComplete: referencedArtifacts.every(existsSync),
+    sourceTreeMatches:
+      sourceComparisons.length > 0 && sourceComparisons.every(comparison => comparison.matches),
+  };
+  this.defectInjected = injected;
+});
+Then('every reachable artifact has current source-map provenance', function () {
+  assert.equal(this.defectInjected, true, `defect mode was not injected: ${process.env.BDD_CORPUS_DEFECT}`);
+  if (process.env.BDD_CORPUS_DEFECT === '0' && !this.build.sourceTreeMatches) {
+    throw new Error('Built CLI is stale relative to the source tree; rebuild dist first');
+  }
+  assert.deepEqual(this.build, {
+    entrypointExists: true,
+    chunksDiscovered: true,
+    chunksComplete: true,
+    sourceTreeMatches: true,
+  });
+});

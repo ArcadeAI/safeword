@@ -1,0 +1,170 @@
+{
+  "schema_version": 2,
+  "cases": [
+    {
+      "id": "historical-umbrella-verdict",
+      "expected_verdict": "reject",
+      "pattern": "umbrella-verdict",
+      "reason": "Distinct scenarios read one cached suite-level success flag and ignore the injected-defect marker, so none observes its claimed CLI contract.",
+      "neighboring_valid_case": "real-cli-exit-code",
+      "provenance": "ArcadeAI/safeword#2328-pre-hardening"
+    },
+    {
+      "id": "no-op-step",
+      "expected_verdict": "reject",
+      "pattern": "no-op-step",
+      "reason": "The outcome step makes no observation and therefore passes for every product implementation.",
+      "neighboring_valid_case": "legitimate-shared-steps"
+    },
+    {
+      "id": "feature-driven-registration",
+      "expected_verdict": "reject",
+      "pattern": "feature-driven-test-registration",
+      "reason": "The proof reads feature text to manufacture tests, so the specification and implementation can agree without touching product behavior.",
+      "neighboring_valid_case": "scenario-outline-table"
+    },
+    {
+      "id": "shared-order-dependent-state",
+      "expected_verdict": "reject",
+      "pattern": "shared-mutable-state",
+      "reason": "The baseline succeeds through shared module state while the injected-defect marker is ignored, so the proof provides no scenario-local isolation evidence.",
+      "neighboring_valid_case": "scenario-local-shared-setup"
+    },
+    {
+      "id": "setup-failure-as-product-red",
+      "expected_verdict": "reject",
+      "baseline_failure": "setup",
+      "pattern": "wrong-red-reason",
+      "reason": "The executable proof fails while importing unavailable setup, before it reaches the product actor boundary.",
+      "neighboring_valid_case": "contract-test"
+    },
+    {
+      "id": "simulated-host-as-live-evidence",
+      "expected_verdict": "reject",
+      "pattern": "evidence-class-mismatch",
+      "reason": "A simulated host adapter is asserted as proof of a live host lifecycle that was never exercised.",
+      "neighboring_valid_case": "reused-actor-adapter"
+    },
+    {
+      "id": "legitimate-shared-steps",
+      "expected_verdict": "accept",
+      "pattern": "shared-step-control",
+      "reason": "The reused outcome step reads each scenario's actor result and asserts the scenario-specific observable value."
+    },
+    {
+      "id": "scenario-outline-table",
+      "expected_verdict": "accept",
+      "pattern": "scenario-outline-control",
+      "reason": "Each examples row drives a distinct actor input and compares the resulting observable output with that row's expectation."
+    },
+    {
+      "id": "scenario-local-shared-setup",
+      "expected_verdict": "accept",
+      "pattern": "isolated-world-control",
+      "reason": "Setup logic is reused but stores state on the fresh scenario World, keeping scenarios order-independent."
+    },
+    {
+      "id": "contract-test",
+      "expected_verdict": "accept",
+      "pattern": "contract-test-control",
+      "reason": "The proof imports the production result contract and asserts the public state-combination function's returned value."
+    },
+    {
+      "id": "real-cli-exit-code",
+      "expected_verdict": "accept",
+      "pattern": "cli-boundary-control",
+      "reason": "Each scenario invokes the real CLI entrypoint and asserts the observed exit code and output for an unknown command or help request."
+    },
+    {
+      "id": "reused-actor-adapter",
+      "expected_verdict": "accept",
+      "pattern": "actor-adapter-control",
+      "reason": "The shared actor adapter is imported as a collaborator and preserves each scenario's actor identity and independently supplied observation."
+    },
+    {
+      "id": "permissive-reviewer-argv",
+      "expected_verdict": "reject",
+      "pattern": "permissive-collaborator-protocol",
+      "reason": "The fake reviewer checks only for flag presence, so duplicated flags, reordered commands, repeated prompts, and alternate models can satisfy the scenario.",
+      "neighboring_valid_case": "exact-reviewer-argv",
+      "provenance": "ArcadeAI/safeword#2328"
+    },
+    {
+      "id": "entrypoint-only-build-freshness",
+      "expected_verdict": "reject",
+      "pattern": "asserted-entrypoint-freshness",
+      "reason": "The proof trusts a constant entrypoint-freshness claim and ignores missing dynamic chunks and reachable artifacts whose embedded source-map content differs from the current source tree.",
+      "neighboring_valid_case": "complete-build-freshness",
+      "provenance": "ArcadeAI/safeword#2328"
+    },
+    {
+      "id": "host-state-contamination",
+      "expected_verdict": "reject",
+      "pattern": "unsanitized-host-state",
+      "reason": "A Claude-only scenario inherits user HOME, configuration, PATH, and unrelated installed-agent state, so its result depends on the runner machine.",
+      "neighboring_valid_case": "sanitized-agent-scoped-host",
+      "provenance": "ArcadeAI/safeword#2328"
+    },
+    {
+      "id": "success-content-in-failure-envelope",
+      "expected_verdict": "reject",
+      "pattern": "content-before-typed-outcome",
+      "reason": "The assertion accepts success-looking effects and advice without first rejecting a nonzero, not-ok, failed, or error-bearing result envelope.",
+      "neighboring_valid_case": "typed-success-before-content",
+      "provenance": "ArcadeAI/safeword#2328"
+    },
+    {
+      "id": "direct-cli-fixture-bypass",
+      "expected_verdict": "reject",
+      "pattern": "fixture-boundary-bypass",
+      "reason": "The BDD step spawns the real CLI directly and bypasses the approved runner's sanitized environment, requested host-scope envelope, and evidence classification.",
+      "neighboring_valid_case": "approved-fixture-runner",
+      "provenance": "ArcadeAI/safeword#2328"
+    },
+    {
+      "id": "exact-reviewer-argv",
+      "expected_verdict": "accept",
+      "defect_modes": [
+        "duplicate-flag",
+        "reordered-command",
+        "duplicate-prompt",
+        "alternate-model"
+      ],
+      "pattern": "exact-collaborator-protocol-control",
+      "reason": "The collaborator records and compares the complete ordered argv vector, including command position, prompt cardinality, and selected model."
+    },
+    {
+      "id": "complete-build-freshness",
+      "expected_verdict": "accept",
+      "defect_modes": [
+        "missing-chunk",
+        "missing-map",
+        "null-source-content",
+        "stale-source-content",
+        "source-root-mismatch",
+        "stale-empty-facade"
+      ],
+      "pattern": "reachable-source-map-provenance-control",
+      "reason": "The proof parses emitted JavaScript to recursively follow every resolvable local module reference reachable from the CLI entrypoint, validates that graph, and compares each reachable artifact's filesystem-backed source-map content with the current working source tree while explicitly accounting for bundler-virtual sources and syntactically verified import/export-only facades."
+    },
+    {
+      "id": "sanitized-agent-scoped-host",
+      "expected_verdict": "accept",
+      "defect_modes": ["ambient-process-state", "claude-config-contamination"],
+      "pattern": "hermetic-host-control",
+      "reason": "The fixture starts from an explicit sanitized environment and invokes setup for Claude only, making unrelated user and Codex state irrelevant."
+    },
+    {
+      "id": "typed-success-before-content",
+      "expected_verdict": "accept",
+      "pattern": "typed-outcome-control",
+      "reason": "The scenario proves exit status, ok, state, and empty errors before checking the expected effect and reload advice."
+    },
+    {
+      "id": "approved-fixture-runner",
+      "expected_verdict": "accept",
+      "pattern": "fixture-runner-control",
+      "reason": "The BDD step imports the corpus fixture runner, verifies a child observes its sanitized environment and requested Claude scope, and records the real CLI help invocation's exit status as classified runner-envelope evidence without claiming the CLI consumed that scope."
+    }
+  ]
+}

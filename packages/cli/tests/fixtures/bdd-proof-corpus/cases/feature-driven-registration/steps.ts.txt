@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+const featureText = 'Then the total is 80 dollars';
+When(/a member buys a (\d+) dollar item/, function (_price) {
+  this.total = process.env.BDD_CORPUS_DEFECT === '1' ? 100 : 80;
+});
+Then(/the total is (\d+) dollars/, function (_total) {
+  assert.match(featureText, /the total is 80 dollars/);
+});

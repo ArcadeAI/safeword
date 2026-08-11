@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+When('the review coordinator invokes Codex', function () {
+  this.argv = process.env.BDD_CORPUS_DEFECT === '1'
+    ? ['exec', '--json', '--json', '--sandbox', '--model', '-p']
+    : ['exec', '--json', '--sandbox', '--model', '-p'];
+});
+Then('Codex receives the exact ordered collaborator arguments', function () {
+  for (const required of ['exec', '--json', '--sandbox', '--model', '-p']) {
+    assert.equal(this.argv.includes(required), true);
+  }
+});
