@@ -99,7 +99,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Injected crashes exercise the durable quarantine transaction
 
 - [x] RED 779847571
-- [ ] GREEN
+- [x] GREEN 665898cbe
 - [ ] REFACTOR
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
