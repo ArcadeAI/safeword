@@ -320,7 +320,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The void corpus cannot confirm or tune the replacement scorer
 
-- [ ] RED
+- [x] RED d6d054141
 - [ ] GREEN
 - [ ] REFACTOR
 
