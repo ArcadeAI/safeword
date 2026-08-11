@@ -230,7 +230,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a7d8259d1
 - [x] GREEN 47d0ed48c
-- [ ] REFACTOR
+- [x] REFACTOR skip: one individual-outcome loop validates identity, coverage, label, provenance, and cost
 
 ### Scenario: A hidden provider failure is rejected through real wiring
 
