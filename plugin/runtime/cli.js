@@ -37619,7 +37619,7 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
   return createHash16("sha256").update(JSON.stringify([
     reconciliationDigest,
     effects,
-    context,
+    JSON.stringify(context, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value),
     options,
     preconditionDigestForPaths(cwd, observationTargets)
   ])).digest("hex");
@@ -38610,6 +38610,9 @@ function agentInstallEffects(agent, scope) {
     destructive: []
   };
 }
+function serializedProfilePreconditions(cwd, observations) {
+  return JSON.stringify(observations, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value);
+}
 async function profilePreconditions(cwd, agents, scope, operation) {
   const observations = [];
   if (agents.includes("claude")) {
@@ -38673,7 +38676,12 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
       effects: observedAgentEffects(operation, agent, agent === "cursor" ? undefined : observationByAgent.get(agent), scope)
     }))
   ];
-  const preconditionDigest2 = createHash17("sha256").update(JSON.stringify([project.plan.preconditionDigest, agents, scope, observations])).digest("hex");
+  const preconditionDigest2 = createHash17("sha256").update(JSON.stringify([
+    project.plan.preconditionDigest,
+    agents,
+    scope,
+    serializedProfilePreconditions(cwd, observations)
+  ])).digest("hex");
   return {
     agents,
     projectSchema,
