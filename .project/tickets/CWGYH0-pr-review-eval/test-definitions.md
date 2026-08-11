@@ -108,7 +108,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e2f3fdfda
 - [x] GREEN 251bde01d
-- [ ] REFACTOR
+- [x] REFACTOR skip: matrix derivation is already isolated as one pure validation boundary
 
 ### Scenario Outline: A structurally incomplete paired case is not scoreable
 
