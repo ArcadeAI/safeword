@@ -88,6 +88,15 @@ serde = "1.0"
     expect(detectWorkspaceType(cargoContent)).toBe('single-crate');
   });
 
+  it('ignores table names inside comments and strings', () => {
+    const cargoContent = `[package]
+name = "mentions [workspace] without declaring it"
+# [workspace]
+`;
+
+    expect(detectWorkspaceType(cargoContent)).toBe('single-crate');
+  });
+
   it('is case-sensitive (TOML is case-sensitive)', () => {
     const cargoContent = `[PACKAGE]
 name = "test"
@@ -149,6 +158,13 @@ members = [
     const members = parseWorkspaceMembers(cargoContent, testDirectory);
 
     expect(members).toEqual(['crates/core', 'crates/cli']);
+  });
+
+  it('parses TOML literal-string member paths', () => {
+    const cargoContent = "[workspace]\nmembers = ['crates/core']\n";
+    writeTestFile(testDirectory, 'crates/core/Cargo.toml', '[package]\nname = "core"');
+
+    expect(parseWorkspaceMembers(cargoContent, testDirectory)).toEqual(['crates/core']);
   });
 
   it('expands glob pattern crates/*', () => {
@@ -285,6 +301,19 @@ members = ["nonexistent/*"]
     } finally {
       removeTemporaryDirectory(outsideDirectory);
     }
+  });
+
+  it('does not treat lint table names in comments or strings as configured lints', () => {
+    writeTestFile(
+      testDirectory,
+      'Cargo.toml',
+      `[package]
+name = "mentions [lints] only"
+# [lints.clippy]
+`,
+    );
+
+    expect(rustToolingTargets(testDirectory)).toEqual(['Cargo.toml']);
   });
 });
 
