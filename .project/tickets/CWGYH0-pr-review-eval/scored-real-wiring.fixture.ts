@@ -143,7 +143,7 @@ try {
 		readFileSync(join(caseState.quarantinePath, quarantined[1]!), "utf8"),
 		/overloaded/,
 	);
-	const preflightPath = join(outputRoot, "preflight.json");
+	const preflightPath = join(outputRoot, "contamination-preflight.json");
 	const preflightId = "hidden-failure-wiring-preflight";
 	const sourceRepositoryIdentity = "local-hidden-failure-wiring-repository";
 	const preflightBytes = `${JSON.stringify({
@@ -155,13 +155,26 @@ try {
 		status: "passed",
 	})}\n`;
 	writeFileSync(preflightPath, preflightBytes);
+	const reviewStartedAt = new Date().toISOString();
+	const corpusRoleBytes = `${JSON.stringify({
+		developmentCaseIds: ["development-only"],
+		minimumPoweredCases: 1,
+		preregisteredAt: "2026-07-01T00:00:00.000Z",
+		primaryCaseIds: [reviewInput.caseId],
+		reserveCaseIds: ["RESERVE-A"],
+		role: "confirmatory",
+		voidForInstrumentFailure: false,
+	})}\n`;
+	writeFileSync(join(outputRoot, "corpus-role.json"), corpusRoleBytes);
 	writeFileSync(join(outputRoot, "run-summary.json"), `${JSON.stringify({
 		completedCaseIds: ["RESERVE-A"],
+		corpusRoleSha256: createHash("sha256").update(corpusRoleBytes).digest("hex"),
 		exclusions: [{ caseId: reviewInput.caseId, replacementId: "RESERVE-A" }],
 		preflightId,
 		preflightSha256: createHash("sha256").update(preflightBytes).digest("hex"),
 		primaryCases: [reviewInput.caseId],
 		reserveCases: ["RESERVE-A"],
+		reviewStartedAt,
 		sourceRepositoryIdentity,
 		status: "completed",
 	})}\n`);
@@ -178,11 +191,37 @@ try {
 		outputRoot,
 		resultsPath,
 		"",
-		preflightPath,
 	], { encoding: "utf8", env: { ...process.env, ...manifestEnvironment } });
 	assert.notEqual(scorer.status, 0);
 	assert.match(scorer.stderr, /one frozen case missing entirely/);
 	assert.equal(existsSync(resultsPath), false);
+	const evidencePath = process.env.CWGYH0_REAL_WIRING_EVIDENCE_PATH;
+	if (evidencePath) {
+		writeFileSync(evidencePath, `${JSON.stringify({
+			activeRecordIdentities: [],
+			attemptId: quarantined[1],
+			expectedProvenance: {
+				caseId: reviewInput.caseId,
+				reviewBaseSha: reviewInput.reviewBaseSha,
+				runnerRef: reviewInput.runnerRef,
+				sourceSha: reviewInput.sourceSha,
+				variant: reviewInput.variant,
+			},
+			expectedRoute: {
+				expert: "correctness",
+				model: "claude-sonnet-5",
+				provider: "anthropic",
+			},
+			output,
+			quarantinedAttemptIdentities: [quarantined[1]],
+			recordedAt: new Date().toISOString(),
+			scorer: {
+				exitStatus: scorer.status ?? -1,
+				resultsExists: existsSync(resultsPath),
+				stderr: scorer.stderr,
+			},
+		}, null, 2)}\n`);
+	}
 } finally {
 	rmSync(root, { force: true, recursive: true });
 }

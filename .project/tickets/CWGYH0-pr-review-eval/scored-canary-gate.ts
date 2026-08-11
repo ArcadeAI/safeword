@@ -39,6 +39,7 @@ export const REQUIRED_AUTHORIZATION_BINDINGS = [
 	"preregisteredMatrix",
 	"primaryManifest",
 	"providerConfiguration",
+	"realWiring",
 	"reserveManifest",
 	"runner",
 	"runIdentity",
@@ -69,7 +70,20 @@ type CanaryInput = {
 		observedReason: string;
 		recordedAt: string;
 	}>;
-	hiddenFailureRejected: boolean;
+	hiddenFailureEvidence: {
+		activeRecordIdentities: string[];
+		attemptId: string;
+		expectedProvenance: TrialProvenance;
+		expectedRoute: TrialRoute;
+		output: unknown;
+		quarantinedAttemptIdentities: string[];
+		recordedAt: string;
+		scorer: {
+			exitStatus: number;
+			resultsExists: boolean;
+			stderr: string;
+		};
+	};
 	nextCheckpoint: string;
 	observedBindings: Record<string, string>;
 	operational: Array<{ failureClass: string; passed: boolean; recordedAt: string; scenarioId: string }>;
@@ -332,7 +346,28 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 			reasons.push(`paid call ${outcome.callId} raw output disagrees with its frozen output class`);
 		}
 	}
-	if (!input.hiddenFailureRejected) reasons.push("real-wiring hidden failure was admitted");
+	const hidden = input.hiddenFailureEvidence;
+	const hiddenDisposition = classifyTrialOutput(
+		hidden.output,
+		hidden.expectedRoute,
+		hidden.expectedProvenance,
+	);
+	if (!retainedBeforeAnchor(hidden.recordedAt)) {
+		reasons.push("real-wiring evidence was not retained before authorization");
+	}
+	if (
+		hidden.attemptId.length === 0 ||
+		hiddenDisposition.status !== "invalid" ||
+		hiddenDisposition.reason !== "provider-failure" ||
+		hidden.activeRecordIdentities.length !== 0 ||
+		hidden.quarantinedAttemptIdentities.length !== 1 ||
+		hidden.quarantinedAttemptIdentities[0] !== hidden.attemptId ||
+		hidden.scorer.exitStatus === 0 ||
+		hidden.scorer.resultsExists ||
+		!hidden.scorer.stderr.includes("missing")
+	) {
+		reasons.push("real-wiring hidden failure was not proven quarantined and unscoreable");
+	}
 	if (input.nextCheckpoint.length === 0) reasons.push("next checkpoint is missing");
 
 	const expectedBindingNames = Object.keys(input.expectedBindings).sort();

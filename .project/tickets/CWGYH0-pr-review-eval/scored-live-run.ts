@@ -711,6 +711,7 @@ if (preflightOnly) {
 			model,
 			policy,
 		})),
+		realWiring: sha256Text(JSON.stringify(gateEvidence.hiddenFailureEvidence)),
 		reserveManifest: sha256(reserveManifestPath),
 		runner: sha256(join(ticketRoot, "scored-live-run.ts")),
 		runIdentity: sha256Text(JSON.stringify({

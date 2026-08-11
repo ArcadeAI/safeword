@@ -127,6 +127,7 @@ function validInput() {
 			(index + 10).toString(16).padStart(64, "0"),
 		]),
 	);
+	const hiddenFailure = retryableRawOutput(9);
 	return {
 		anchorCreatedAt: "2026-08-02T00:00:00.000Z",
 		labelAnchorCreatedAt: "2026-07-31T00:00:00.000Z",
@@ -148,7 +149,20 @@ function validInput() {
 		],
 		expectedBindings,
 		fixtures,
-		hiddenFailureRejected: true,
+		hiddenFailureEvidence: {
+			activeRecordIdentities: [],
+			attemptId: "hidden-attempt-1",
+			expectedProvenance: hiddenFailure.provenance,
+			expectedRoute: route,
+			output: hiddenFailure.output,
+			quarantinedAttemptIdentities: ["hidden-attempt-1"],
+			recordedAt: "2026-08-01T00:00:00.000Z",
+			scorer: {
+				exitStatus: 1,
+				resultsExists: false,
+				stderr: "one frozen case missing entirely",
+			},
+		},
 		nextCheckpoint: "20-calls",
 		observedBindings: { ...expectedBindings },
 		operational,
@@ -181,7 +195,9 @@ describe("paid canary authorization", () => {
 		["missing attempt ledger", (input: ReturnType<typeof validInput>) => { input.attempts = []; }],
 		["unreferenced retry", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[0]!.attemptIds.pop(); }],
 		["cost inconsistent with usage", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[2]!.usageCostUsd = 0.02; }],
-		["hidden failure admitted", (input: ReturnType<typeof validInput>) => { input.hiddenFailureRejected = false; }],
+		["hidden failure admitted", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.activeRecordIdentities.push("active/record.json"); }],
+		["hidden failure not quarantined", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.quarantinedAttemptIdentities = []; }],
+		["hidden failure scorer succeeded", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.scorer.exitStatus = 0; }],
 		["changed executable binding", (input: ReturnType<typeof validInput>) => { input.observedBindings.runner = "c".repeat(64); }],
 		["missing required binding", (input: ReturnType<typeof validInput>) => { delete input.expectedBindings.labels; delete input.observedBindings.labels; }],
 	] as const)("blocks more spend for %s", (_label, mutate) => {

@@ -88,6 +88,19 @@ const preflight = {
 
 const root = mkdtempSync(join(tmpdir(), "cwgyh0-live-entry-"));
 try {
+	const realWiringEvidencePath = join(root, "real-wiring-evidence.json");
+	execFileSync("bun", [join(ticketRoot, "scored-real-wiring.fixture.ts")], {
+		encoding: "utf8",
+		env: {
+			...process.env,
+			CWGYH0_ADAPTER_ROOT: adapterRoot,
+			CWGYH0_REAL_WIRING_EVIDENCE_PATH: realWiringEvidencePath,
+		},
+		stdio: "pipe",
+	});
+	const hiddenFailureEvidence = JSON.parse(
+		readFileSync(realWiringEvidencePath, "utf8"),
+	) as Record<string, unknown>;
 	const outputRoot = join(root, "output");
 	const fixturePrimaryPath = join(root, "primary.json");
 	const fixtureReservePath = join(root, "reserve.json");
@@ -170,7 +183,7 @@ try {
 		const labelCreatedAt = new Date(Date.now() - 5_000).toISOString();
 		const labelAnchorCreatedAt = new Date(Date.now() - 4_000).toISOString();
 		const recordedAt = new Date(Date.now() - 3_000).toISOString();
-		const gateAnchorCreatedAt = new Date(Date.now() - 2_000).toISOString();
+		const gateAnchorCreatedAt = new Date(Date.now() + 1_000).toISOString();
 		const fixtures = rejectionReasons.map((reason) => ({ expectedReason: reason, fixtureId: `fixture-${reason}`, observedReason: reason, recordedAt }));
 		const operational = operationalClasses.map((failureClass) => ({ failureClass, passed: true, recordedAt, scenarioId: `scenario-${failureClass}` }));
 		const paidOutcomes = Array.from({ length: 10 }, (_, index) => ({
@@ -300,6 +313,7 @@ try {
 				model: "claude-sonnet-5",
 				policy: preflight.policy,
 			})),
+			realWiring: sha256Text(JSON.stringify(hiddenFailureEvidence)),
 			reserveManifest: sha256(fixtureReservePath),
 			runner: sha256(join(ticketRoot, "scored-live-run.ts")),
 			runIdentity: sha256Text(JSON.stringify({
@@ -338,7 +352,7 @@ try {
 				attempts: canaryAttempts,
 				expectedBindings,
 				fixtures,
-				hiddenFailureRejected: true,
+				hiddenFailureEvidence,
 				nextCheckpoint: checkpointId,
 				observedBindings: expectedBindings,
 				operational,
