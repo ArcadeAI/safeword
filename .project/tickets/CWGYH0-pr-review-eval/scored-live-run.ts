@@ -819,6 +819,8 @@ if (preflightOnly) {
 					break;
 				}
 				const usage = estimatedAttemptCost(result.attemptRecords);
+				state.costAccountingComplete =
+					state.costAccountingComplete && usage.complete;
 				state.cumulativeCostUsd += usage.costUsd;
 				const record = {
 					...reviewInput,

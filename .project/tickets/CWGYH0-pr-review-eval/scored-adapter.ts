@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -29,17 +30,16 @@ export type AdapterModule = {
 };
 
 function runGit(cwd: string, args: string[]): string {
-	const result = Bun.spawnSync(["git", ...args], {
+	const result = spawnSync("git", args, {
 		cwd,
-		stderr: "pipe",
-		stdout: "pipe",
+		encoding: "utf8",
 	});
-	if (result.exitCode !== 0) {
+	if (result.status !== 0) {
 		throw new Error(
-			`git ${args[0] ?? "command"} failed: ${result.stderr.toString().trim()}`,
+			`git ${args[0] ?? "command"} failed: ${result.stderr.trim()}`,
 		);
 	}
-	return result.stdout.toString().trim();
+	return result.stdout.trim();
 }
 
 function requireAdapterModule(value: unknown): AdapterModule {
@@ -64,9 +64,9 @@ export async function loadPinnedAdapter(input: {
 		throw new Error("adapter commit does not match the frozen runner");
 	}
 	if (
-		runGit(input.adapterRoot, ["status", "--porcelain", "--untracked-files=no"])
+		runGit(input.adapterRoot, ["status", "--porcelain"])
 	) {
-		throw new Error("adapter has tracked modifications");
+		throw new Error("adapter has tracked or untracked modifications");
 	}
 	return requireAdapterModule(
 		await import(

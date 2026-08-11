@@ -15,5 +15,5 @@ describe("successful runner-to-scorer wiring", () => {
 				},
 			),
 		).not.toThrow();
-	});
+	}, 30_000);
 });

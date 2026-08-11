@@ -43,7 +43,7 @@ export function estimateAttemptUsage(
 ): AttemptUsage {
 	return attempts.reduce<AttemptUsage>(
 		(total, attempt) => {
-			if (attempt.output === null) return total;
+			if (attempt.output === null) return { ...total, complete: false };
 			const usage = usageFromOutput(attempt.output);
 			if (usage === null) return { ...total, complete: false };
 			return {

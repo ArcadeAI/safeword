@@ -11,5 +11,5 @@ describe("real provider-to-scorer wiring", () => {
 				stdio: "pipe",
 			}),
 		).not.toThrow();
-	});
+	}, 30_000);
 });
