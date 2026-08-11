@@ -32,6 +32,7 @@ type Variant = (typeof variants)[number];
 type Finding = { file: string; line: number; title: string };
 type RecordFile = {
 	caseId: string;
+	frozenRun: unknown;
 	output: {
 		report: { consolidated: { findings: Finding[] } };
 		score: { matchingFindings: Finding[]; namedFailure: boolean };
@@ -43,6 +44,64 @@ type RecordFile = {
 	trial: number;
 	variant: Variant;
 };
+
+const frozenRunKeys = [
+	"aggregateCostStopUsd",
+	"expectedAdapterCommit",
+	"expectedPrimaryCaseCount",
+	"expectedReserveCaseCount",
+	"expectedRunnerRef",
+	"expectedHashes",
+	"corpusRegistrationDigest",
+	"corpusRegisteredAt",
+	"inputPricePerMillionUsd",
+	"model",
+	"outputPricePerMillionUsd",
+	"policy",
+	"preregisteredRunnerRef",
+	"primaryCases",
+	"reserveCases",
+	"seed",
+	"sourceRepositoryIdentity",
+	"trials",
+	"preflightId",
+	"preflightSha256",
+	"corpusRoleSha256",
+	"reviewStartedAt",
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function canonicalJson(value: unknown): string {
+	if (value === null || typeof value === "string" || typeof value === "boolean") {
+		return JSON.stringify(value);
+	}
+	if (typeof value === "number" && Number.isFinite(value)) {
+		return JSON.stringify(value);
+	}
+	if (Array.isArray(value)) {
+		return `[${value.map(canonicalJson).join(",")}]`;
+	}
+	if (isRecord(value)) {
+		return `{${Object.keys(value).sort().map((key) =>
+			`${JSON.stringify(key)}:${canonicalJson(value[key])}`
+		).join(",")}}`;
+	}
+	throw new Error("frozen run contains a non-JSON value");
+}
+
+function validateFrozenRun(value: unknown): Record<string, unknown> {
+	if (!isRecord(value)) throw new Error("completed run has no frozen run identity");
+	const keys = Object.keys(value).sort();
+	const expectedKeys = [...frozenRunKeys].sort();
+	if (JSON.stringify(keys) !== JSON.stringify(expectedKeys)) {
+		throw new Error("completed run has an incomplete frozen run identity");
+	}
+	canonicalJson(value);
+	return value;
+}
 
 function requireArgument(index: number, name: string): string {
 	const value = process.argv[index];
@@ -110,6 +169,7 @@ const summary = readVerifiedJson<{
 	corpusRegisteredAt: string;
 	corpusRoleSha256: string;
 	exclusions: Array<{ caseId: string; replacementId: string }>;
+	frozenRun: unknown;
 	primaryCases: string[];
 	preflightId: string;
 	preflightSha256: string;
@@ -121,6 +181,22 @@ const summary = readVerifiedJson<{
 if (summary.status !== "completed") {
 	throw new Error("scored run is incomplete");
 }
+const frozenRun = validateFrozenRun(summary.frozenRun);
+for (const key of [
+	"corpusRegisteredAt",
+	"corpusRoleSha256",
+	"preflightId",
+	"preflightSha256",
+	"primaryCases",
+	"reserveCases",
+	"reviewStartedAt",
+	"sourceRepositoryIdentity",
+] as const) {
+	if (canonicalJson(frozenRun[key]) !== canonicalJson(summary[key])) {
+		throw new Error(`frozen run ${key} differs from the completed run`);
+	}
+}
+const frozenRunIdentity = canonicalJson(frozenRun);
 const corpusRoleBytes = readVerifiedText("corpus-role.json");
 if (
 	createHash("sha256").update(corpusRoleBytes).digest("hex") !==
@@ -167,6 +243,9 @@ for (const relativePath of [...verifiedBytes.keys()].filter((identity) =>
 	/^active\/[^/]+\/[^/]+--record\.json$/.test(identity)
 )) {
 	const record = readVerifiedJson<RecordFile>(relativePath);
+	if (canonicalJson(record.frozenRun) !== frozenRunIdentity) {
+		throw new Error(`record frozen run differs from the completed run: ${relativePath}`);
+	}
 	if (!systems.includes(record.system) || !variants.includes(record.variant)) {
 		throw new Error(`unexpected record dimensions in ${relativePath}`);
 	}

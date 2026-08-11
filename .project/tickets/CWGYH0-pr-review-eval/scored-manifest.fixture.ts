@@ -7,6 +7,52 @@ function sha256(value: string | Uint8Array): string {
 	return createHash("sha256").update(value).digest("hex");
 }
 
+export function fixtureFrozenRun(input: {
+	corpusRegisteredAt: string;
+	corpusRoleSha256: string;
+	preflightId: string;
+	preflightSha256: string;
+	primaryCases: string[];
+	reserveCases: string[];
+	reviewStartedAt: string;
+	runnerRef: string;
+	sourceRepositoryIdentity: string;
+}): Record<string, unknown> {
+	return {
+		aggregateCostStopUsd: 500,
+		expectedAdapterCommit: "d7baf0333001dcd462a12111351dc68757af605c",
+		expectedPrimaryCaseCount: input.primaryCases.length,
+		expectedReserveCaseCount: input.reserveCases.length,
+		expectedRunnerRef: input.runnerRef,
+		expectedHashes: {
+			primaryManifest: "1".repeat(64),
+			reserveManifest: "2".repeat(64),
+			reviewerPrompt: "3".repeat(64),
+			verifierPrompt: "4".repeat(64),
+		},
+		corpusRegistrationDigest: "5".repeat(64),
+		corpusRegisteredAt: input.corpusRegisteredAt,
+		inputPricePerMillionUsd: 3,
+		model: "claude-sonnet-5",
+		outputPricePerMillionUsd: 15,
+		policy: {
+			maxVerifications: 2,
+			toolCallsPerExpert: 3,
+			wallClockMsPerExpert: 4_000,
+		},
+		preregisteredRunnerRef: input.runnerRef,
+		primaryCases: input.primaryCases,
+		reserveCases: input.reserveCases,
+		seed: 5_453_573,
+		sourceRepositoryIdentity: input.sourceRepositoryIdentity,
+		trials: 3,
+		preflightId: input.preflightId,
+		preflightSha256: input.preflightSha256,
+		corpusRoleSha256: input.corpusRoleSha256,
+		reviewStartedAt: input.reviewStartedAt,
+	};
+}
+
 function files(root: string, directory = root): string[] {
 	return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
 		const path = join(directory, entry.name);

@@ -144,7 +144,7 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 		name: string;
 		path: string | null;
 	}> = [];
-	for (const evidence of outcome.providerResponses) {
+	for (const [responseIndex, evidence] of outcome.providerResponses.entries()) {
 		if (
 			!isRecord(evidence) ||
 			typeof evidence.raw !== "string" ||
@@ -158,9 +158,25 @@ function hasRetainedProviderCompletion(outcome: UnknownRecord): boolean {
 			const raw = JSON.parse(evidence.raw) as unknown;
 			if (
 				!isRecord(raw) ||
+				raw.type === "error" ||
+				raw.error !== undefined ||
 				raw.stop_reason !== evidence.stopReason ||
+				evidence.stopReason !== "tool_use" ||
 				!isRecord(raw.usage) ||
 				!Array.isArray(raw.content)
+			) return false;
+			const providerToolCalls = raw.content.filter(
+				(block) => isRecord(block) && block.type === "tool_use",
+			);
+			const reportCalls = providerToolCalls.filter(
+				(block) => block.name === "report_findings" && isRecord(block.input),
+			);
+			const isTerminal = responseIndex === outcome.providerResponses.length - 1;
+			if (
+				(isTerminal &&
+					(reportCalls.length !== 1 || providerToolCalls.length !== 1)) ||
+				(!isTerminal &&
+					(reportCalls.length !== 0 || providerToolCalls.length === 0))
 			) return false;
 			for (const block of raw.content) {
 				if (

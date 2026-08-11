@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
+	readdirSync,
 	rmSync,
 	writeFileSync,
 } from "node:fs";
@@ -12,7 +13,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 import { loadPinnedAdapter } from "./scored-adapter";
-import { freezeFixtureArtifacts } from "./scored-manifest.fixture";
+import {
+	fixtureFrozenRun,
+	freezeFixtureArtifacts,
+} from "./scored-manifest.fixture";
 import {
 	beginProvisionalCase,
 	commitAdmittedCaseWork,
@@ -210,15 +214,37 @@ try {
 		voidForInstrumentFailure: false,
 	})}\n`;
 	writeFileSync(join(outputRoot, "corpus-role.json"), corpusRoleBytes);
+	const corpusRegisteredAt = "2026-07-01T00:00:00.000Z";
+	const corpusRoleSha256 = createHash("sha256").update(corpusRoleBytes).digest("hex");
+	const preflightSha256 = createHash("sha256").update(preflightBytes).digest("hex");
+	const frozenRun = fixtureFrozenRun({
+		corpusRegisteredAt,
+		corpusRoleSha256,
+		preflightId,
+		preflightSha256,
+		primaryCases: [caseId],
+		reserveCases: [],
+		reviewStartedAt,
+		runnerRef,
+		sourceRepositoryIdentity,
+	});
+	const recordPaths = readdirSync(caseState.activePath)
+		.filter((name) => name.endsWith("--record.json"))
+		.map((name) => join(caseState.activePath, name));
+	for (const recordPath of recordPaths) {
+		const record = JSON.parse(readFileSync(recordPath, "utf8")) as Record<string, unknown>;
+		writeFileSync(recordPath, `${JSON.stringify({ ...record, frozenRun })}\n`);
+	}
 	writeFileSync(
 		join(outputRoot, "run-summary.json"),
 		`${JSON.stringify({
 			completedCaseIds: [caseId],
-			corpusRegisteredAt: "2026-07-01T00:00:00.000Z",
-			corpusRoleSha256: createHash("sha256").update(corpusRoleBytes).digest("hex"),
+			corpusRegisteredAt,
+			corpusRoleSha256,
 			exclusions: [],
+			frozenRun,
 			preflightId,
-			preflightSha256: createHash("sha256").update(preflightBytes).digest("hex"),
+			preflightSha256,
 			primaryCases: [caseId],
 			reserveCases: [],
 			reviewStartedAt,
@@ -226,6 +252,34 @@ try {
 			status: "completed",
 		})}\n`,
 	);
+	const driftedRecordPath = recordPaths[0]!;
+	const originalRecordBytes = readFileSync(driftedRecordPath, "utf8");
+	const driftedRecord = JSON.parse(originalRecordBytes) as {
+		frozenRun: { policy: { toolCallsPerExpert: number } };
+	};
+	driftedRecord.frozenRun.policy.toolCallsPerExpert += 1;
+	writeFileSync(driftedRecordPath, `${JSON.stringify(driftedRecord)}\n`);
+	const driftManifestEnvironment = freezeFixtureArtifacts({
+		gitRoot: join(root, "drift-manifest-repository"),
+		outputRoot,
+		repositoryIdentity: "https://example.test/drift-manifest.git",
+	});
+	const driftResultsPath = join(outputRoot, "drift-results.json");
+	const driftScore = spawnSync(
+		"bun",
+		[
+			"--preload",
+			join(import.meta.dirname, "scored-live-fetch-preload.fixture.ts"),
+			join(import.meta.dirname, "score-results.ts"),
+			outputRoot,
+			driftResultsPath,
+			"",
+		],
+		{ encoding: "utf8", env: { ...process.env, ...driftManifestEnvironment } },
+	);
+	assert.notEqual(driftScore.status, 0);
+	assert.match(driftScore.stderr, /record frozen run differs from the completed run/);
+	writeFileSync(driftedRecordPath, originalRecordBytes);
 	const resultsPath = join(outputRoot, "results.json");
 	const manifestEnvironment = freezeFixtureArtifacts({
 		gitRoot: join(root, "manifest-repository"),

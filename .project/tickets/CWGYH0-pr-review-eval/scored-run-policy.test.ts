@@ -120,6 +120,29 @@ describe("positive trial admission", () => {
 			raw.usage.input_tokens = 5.5;
 			first.raw = JSON.stringify(raw);
 		}],
+		["an early terminal response followed by more provider output", (output: ReturnType<typeof completedOutput>) => {
+			const first = output.report.expertOutcomes[0]!.providerResponses[0]!;
+			const raw = JSON.parse(first.raw) as { stop_reason: string };
+			raw.stop_reason = "end_turn";
+			first.raw = JSON.stringify(raw);
+			first.stopReason = "end_turn";
+		}],
+		["an early report followed by another provider response", (output: ReturnType<typeof completedOutput>) => {
+			const first = output.report.expertOutcomes[0]!.providerResponses[0]!;
+			const raw = JSON.parse(first.raw) as { content: unknown[] };
+			raw.content.push({
+				input: { couldNotVerify: [], findings: [], summary: "premature" },
+				name: "report_findings",
+				type: "tool_use",
+			});
+			first.raw = JSON.stringify(raw);
+		}],
+		["an error-marked envelope with fabricated success fields", (output: ReturnType<typeof completedOutput>) => {
+			const first = output.report.expertOutcomes[0]!.providerResponses[0]!;
+			const raw = JSON.parse(first.raw) as Record<string, unknown>;
+			raw.error = { message: "overloaded", type: "overloaded_error" };
+			first.raw = JSON.stringify(raw);
+		}],
 		["raw token usage whose aggregate exceeds the safe integer range", (output: ReturnType<typeof completedOutput>) => {
 			const first = output.report.expertOutcomes[0]!.providerResponses[0]!;
 			const second = output.report.expertOutcomes[0]!.providerResponses[1]!;

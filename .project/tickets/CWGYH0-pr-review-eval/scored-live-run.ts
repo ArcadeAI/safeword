@@ -1158,6 +1158,7 @@ if (preflightOnly) {
 		: "failed-reserve-exhausted";
 	await writeJsonAtomically(join(outputRoot, "run-summary.json"), {
 		...frozenRun,
+		frozenRun,
 		completedAt: new Date().toISOString(),
 		completedCaseIds: state.completedCaseIds,
 		completedCases: state.completedCases,

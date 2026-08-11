@@ -14,7 +14,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 import { loadPinnedAdapter } from "./scored-adapter";
-import { freezeFixtureArtifacts } from "./scored-manifest.fixture";
+import {
+	fixtureFrozenRun,
+	freezeFixtureArtifacts,
+} from "./scored-manifest.fixture";
 import {
 	beginProvisionalCase,
 	executeCaseWork,
@@ -169,13 +172,28 @@ try {
 		voidForInstrumentFailure: false,
 	})}\n`;
 	writeFileSync(join(outputRoot, "corpus-role.json"), corpusRoleBytes);
+	const corpusRegisteredAt = "2026-07-01T00:00:00.000Z";
+	const corpusRoleSha256 = createHash("sha256").update(corpusRoleBytes).digest("hex");
+	const preflightSha256 = createHash("sha256").update(preflightBytes).digest("hex");
+	const frozenRun = fixtureFrozenRun({
+		corpusRegisteredAt,
+		corpusRoleSha256,
+		preflightId,
+		preflightSha256,
+		primaryCases: [reviewInput.caseId],
+		reserveCases: ["RESERVE-A"],
+		reviewStartedAt,
+		runnerRef: reviewInput.runnerRef,
+		sourceRepositoryIdentity,
+	});
 	writeFileSync(join(outputRoot, "run-summary.json"), `${JSON.stringify({
 		completedCaseIds: ["RESERVE-A"],
-		corpusRegisteredAt: "2026-07-01T00:00:00.000Z",
-		corpusRoleSha256: createHash("sha256").update(corpusRoleBytes).digest("hex"),
+		corpusRegisteredAt,
+		corpusRoleSha256,
 		exclusions: [{ caseId: reviewInput.caseId, replacementId: "RESERVE-A" }],
+		frozenRun,
 		preflightId,
-		preflightSha256: createHash("sha256").update(preflightBytes).digest("hex"),
+		preflightSha256,
 		primaryCases: [reviewInput.caseId],
 		reserveCases: ["RESERVE-A"],
 		reviewStartedAt,
