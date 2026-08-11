@@ -51,7 +51,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: A non-infrastructure failure gets no silent retry
 
 - [x] RED 6a5ff56e0
-- [ ] GREEN
+- [x] GREEN bf4b85235
 - [ ] REFACTOR
 
 ### Scenario: Paired-case quarantine is atomic
