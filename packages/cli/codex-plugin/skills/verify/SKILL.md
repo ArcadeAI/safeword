@@ -153,9 +153,21 @@ else
   exit 1
 fi
 
+# >>> verification_lanes (behavior covered by verify-skill.test.ts)
+# Run every lane for complete evidence, but preserve the first non-zero status
+# so a later successful lane cannot turn the aggregate invocation green.
+verification_status=0
+record_verification_status() {
+  if [ "$lane_status" -ne 0 ] && [ "$verification_status" -eq 0 ]; then
+    verification_status="$lane_status"
+  fi
+}
+
 # --- Test suite (resolved by safeword project test-plan — one source of truth) ---
 plan_kind=verify
 run_plan
+lane_status=$?
+record_verification_status
 
 # --- Gherkin acceptance lane (resolved by safeword project test-plan --kind bdd:
 #     cucumber-js, behave, … — godog/cucumber-rs fold into the Go/Rust test lanes).
@@ -165,15 +177,21 @@ bdd_plan="$(run_safeword project test-plan --kind bdd --format sh)"
 rc=$?
 if [ "$rc" -ne 0 ]; then
   echo "❌ Evidence generation failed: safeword project test-plan --kind bdd exited $rc (red, not a passed check)" >&2
+  lane_status=$rc
+  record_verification_status
 elif [ -z "$bdd_plan" ]; then
   echo "Gherkin acceptance lane: ⏭️ Skipped — no acceptance lane detected"
 else
   bash -c "$bdd_plan"
+  lane_status=$?
+  record_verification_status
 fi
 
 # --- Build check (resolved by safeword project test-plan) ---
 plan_kind=build
 run_plan
+lane_status=$?
+record_verification_status
 
 # --- Typecheck: static type-check where the stack has one — `tsc --noEmit` for
 #     TypeScript (the same signal CI's lint job runs, #436), mypy/pyright for
@@ -185,12 +203,19 @@ run_plan
 #     it isn't a gap. ---
 plan_kind=typecheck
 run_plan
+lane_status=$?
+record_verification_status
 
 # --- Supply-chain: JavaScript's package-manager audit, Python's `uv audit` or
 #     `pip-audit`, Go's pinned `govulncheck`, and Rust's cargo-deny advisories.
 #     A missing scanner prints a visible skip, never a false green. ---
 plan_kind=deps
 run_plan
+lane_status=$?
+record_verification_status
+
+exit "$verification_status"
+# <<< verification_lanes
 ```
 
 The `$safeword:lint` command handles linting with auto-fix. Report any remaining unfixable errors. Aggregate every attempted stack test into the final `**Test Suite:**` status, and every attempted stack build into the final `**Build:**` status. **Typecheck is part of the gate, not optional:** when the ticket changed TypeScript, a passing targeted-test run is not "ready" until `test-plan --kind typecheck` (or `$safeword:lint`, which runs `tsc --noEmit`) is green — CI's lint job runs it and will go red otherwise. A skipped or empty test-plan is not a failure when the project lacks a matching automated check; it is an explicit evidence gap to mention when the ticket touched that stack.
