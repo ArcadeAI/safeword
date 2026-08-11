@@ -1,0 +1,79 @@
+import { describe, expect, test } from "vitest";
+
+import {
+	CANONICAL_OPERATIONAL_CLASSES,
+	CANONICAL_REJECTION_REASONS,
+	evaluateCanaryGate,
+} from "./scored-canary-gate";
+
+function validInput() {
+	const fixtures = CANONICAL_REJECTION_REASONS.map((reason) => ({
+		expectedReason: reason,
+		fixtureId: `fixture-${reason}`,
+		observedReason: reason,
+	}));
+	const operational = CANONICAL_OPERATIONAL_CLASSES.map((failureClass) => ({
+		failureClass,
+		passed: true,
+		scenarioId: `scenario-${failureClass}`,
+	}));
+	const paidOutcomes = Array.from({ length: 10 }, (_, index) => ({
+		callId: `call-${index + 1}`,
+		costComplete: true,
+		costUsd: 0.01,
+		expectedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
+		observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
+		provenanceComplete: true,
+		system: index % 2 === 0 ? "full" : "narrow",
+		usageCostUsd: 0.01,
+		usable: true,
+		variant: index % 4 < 2 ? "buggy" : "fixed",
+	}));
+	return {
+		attempts: [
+			{ attemptId: "usable", costComplete: true, costUsd: 0.1, usable: true },
+			{ attemptId: "retry", costComplete: true, costUsd: 0.02, usable: false },
+			{ attemptId: "failed", costComplete: true, costUsd: 0.03, usable: false },
+		],
+		expectedBindings: { runner: "a".repeat(64), scorer: "b".repeat(64) },
+		fixtures,
+		hiddenFailureRejected: true,
+		nextCheckpoint: "20-calls",
+		observedBindings: { runner: "a".repeat(64), scorer: "b".repeat(64) },
+		operational,
+		paidOutcomes,
+	};
+}
+
+describe("paid canary authorization", () => {
+	test("authorizes one bound checkpoint from complete individual evidence", () => {
+		expect(evaluateCanaryGate(validInput())).toEqual({
+			authorized: true,
+			nextCheckpoint: "20-calls",
+			totalCostUsd: 0.15,
+			usableCostUsd: 0.1,
+		});
+	});
+
+	test.each([
+		["missing fixture taxonomy", (input: ReturnType<typeof validInput>) => input.fixtures.pop()],
+		["failed operational injection", (input: ReturnType<typeof validInput>) => { input.operational[0]!.passed = false; }],
+		["unusable paid call", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[3]!.usable = false; }],
+		["label disagreement", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[4]!.observedLabel = "finding"; }],
+		["incomplete cost", (input: ReturnType<typeof validInput>) => { input.attempts[1]!.costComplete = false; }],
+		["cost inconsistent with usage", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[2]!.usageCostUsd = 0.02; }],
+		["hidden failure admitted", (input: ReturnType<typeof validInput>) => { input.hiddenFailureRejected = false; }],
+		["changed executable binding", (input: ReturnType<typeof validInput>) => { input.observedBindings.runner = "c".repeat(64); }],
+	] as const)("blocks more spend for %s", (_label, mutate) => {
+		const input = validInput();
+		mutate(input);
+		const result = evaluateCanaryGate(input);
+		expect(result.authorized).toBe(false);
+		if (!result.authorized) expect(result.reasons.length).toBeGreaterThan(0);
+	});
+
+	test("reports all-attempt cost separately from usable cost", () => {
+		const result = evaluateCanaryGate(validInput());
+		expect(result).toMatchObject({ totalCostUsd: 0.15, usableCostUsd: 0.1 });
+	});
+});
