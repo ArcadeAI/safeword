@@ -145,6 +145,11 @@ Feature: Keep failed reviews out of benchmark scores
         | after quarantine before reserve allocation|
         | after reserve allocation before next work|
 
+    Scenario: A process crash does not strand the run lock
+      Given the run lock names a process that is no longer alive
+      When the harness restarts against the same output directory
+      Then it safely reclaims the stale lock and becomes the sole owner
+
     @rejection
     Scenario Outline: Interrupted quarantine is never partially scoreable
       Given a failure is injected <boundary>

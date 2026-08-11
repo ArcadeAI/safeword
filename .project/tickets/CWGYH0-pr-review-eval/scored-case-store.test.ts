@@ -35,6 +35,18 @@ class RequestError extends Error {
 }
 
 describe("durable case lifecycle", () => {
+	test("reclaims a lock whose owning process is dead", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		writeFileSync(join(outputRoot, ".run.lock"), "2147483647\n");
+
+		const lock = acquireRunLock(outputRoot);
+
+		expect(readFileSync(join(outputRoot, ".run.lock"), "utf8")).toBe(
+			`${process.pid}\n`,
+		);
+		lock.release();
+	});
+
 	test("one infrastructure failure is retried once before atomic admission", async () => {
 		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
 		const lock = acquireRunLock(outputRoot);
@@ -192,6 +204,69 @@ describe("semantic failure handling", () => {
 });
 
 describe("quarantine crash recovery", () => {
+	test("does not inspect reserve exhaustion until a terminal failure is durable", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const caseState = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		const state = {
+			candidateQueueIds: [],
+			currentCaseId: "SCORE-example",
+			nextWorkIndex: 0,
+			reserveIndex: 0,
+			version: 3,
+		};
+
+		expect(
+			recoverInterruptedQuarantine({
+				caseState,
+				outputRoot,
+				reserveIds: [],
+				state,
+			}),
+		).toEqual(state);
+	});
+
+	test("recovers two thrown infrastructure attempts as one terminal exclusion", async () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const caseState = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		const failed = await executeWithInfrastructureRetry(async () => {
+			throw new RequestError();
+		});
+		recordTrialResult(caseState, "full--buggy--t1", failed);
+		const state = {
+			candidateQueueIds: ["SCORE-next"],
+			currentCaseId: "SCORE-example",
+			nextWorkIndex: 0,
+			reserveIndex: 0,
+			version: 3,
+		};
+
+		const recovered = recoverInterruptedQuarantine({
+			caseState,
+			outputRoot,
+			reserveIds: ["RESERVE-A"],
+			state,
+		});
+
+		expect(recovered).toMatchObject({
+			candidateQueueIds: ["RESERVE-A", "SCORE-next"],
+			currentCaseId: null,
+			reserveIndex: 1,
+		});
+		expect(readdirSync(caseState.quarantinePath).sort()).toEqual([
+			"EXCLUSION.json",
+			"full--buggy--t1--attempt-1.json",
+			"full--buggy--t1--attempt-2.json",
+		]);
+	});
+
 	test.each([
 		"before the atomic quarantine transition",
 		"during the quarantine state transaction",
