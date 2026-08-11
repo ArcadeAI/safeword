@@ -11,7 +11,12 @@ import type {
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
-import { oppositeReviewPair, readAlternateReviewerModel, readReviewPolicy } from './policy.js';
+import {
+  oppositeReviewPair,
+  readAlternateReviewerModel,
+  readPrimaryReviewerModel,
+  readReviewPolicy,
+} from './policy.js';
 import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
 
 /** The command runner owns reporter shutdown; review routing only updates it. */
@@ -770,6 +775,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     });
   }
   const { reviewer } = pair;
+  const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
   const prepared = preparePrimaryReview(input, reviewer);
   // One bound for reviewer work across the whole run. Initial packet sealing is
@@ -778,7 +784,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     reviewer,
     prepared,
-    undefined,
+    primaryModel,
     runDeadline,
   );
   const changedResult = changedReviewResult({
@@ -823,12 +829,12 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredFailure: 'invalid_output',
+      preferredFailure: provenance.code,
       policy,
       runDeadline,
     });
   }
   const output = provenance.output;
 
-  return independentReviewResult({ author: pair.author, reviewer, output });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }

@@ -11,6 +11,8 @@ export type ReviewFailure =
   | 'process_failed'
   | 'timed_out'
   | 'invalid_output'
+  | 'REVIEWER_PROVENANCE_MISSING'
+  | 'REVIEWER_PROVENANCE_CONTRADICTORY'
   | 'source_changed';
 
 interface ReviewFinding {

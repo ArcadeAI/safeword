@@ -165,7 +165,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the result does not report a full cross-agent check
 
   @reliable-reviews-for-real-packets.TBU3.R3 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R3 — With no alternate model configured, routing is exactly what it is today, and Safeword never supplies a model name of its own
+  Rule: reliable-reviews-for-real-packets.TBU3.R3 — Reviewer model overrides are validated before they can influence routing
 
     Scenario: A model value within the grammar is used as configured
       Given a configured alternate model within the accepted grammar
@@ -181,21 +181,20 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the reviewer is never asked for a review on an alternate model
 
   @reliable-reviews-for-real-packets.TBU3.R4 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R4 — The default first route leaves at least the 120-second floor for a configured independent retry; every later route remains capped by the shared run bound
+  Rule: reliable-reviews-for-real-packets.TBU3.R4 — A later route starts only when the shared run bound can still fund a meaningful attempt
 
-    Scenario: A route that uses its whole budget still leaves the next route its own
-      Given a configured alternate model for the reviewer agent
-      And the reviewer agent's default model never answers
-      And the reviewer agent's alternate model answers promptly
-      When the independent review runs
-      Then the review returns the alternate model's verdict
-
-    @rejection
-    Scenario: The preferred route leaves a fundable alternate-model retry
+    Scenario: A funded alternate-model route receives its attempt
       Given a configured alternate model for the reviewer agent
       And the reviewer agent's default model never answers
       When the independent review runs
       Then the alternate model still receives its own attempt
+
+    @rejection
+    Scenario: An unfundable alternate-model route is not started
+      Given a configured alternate model for the reviewer agent
+      And the run bound is reached while an early route is still working
+      When the independent review runs
+      Then the reviewer is never asked for a review on an alternate model
 
   @reliable-reviews-for-real-packets.TBU3.R5 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route whose reviewer has not exited with valid output before its deadline

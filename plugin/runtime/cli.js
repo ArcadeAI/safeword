@@ -41684,19 +41684,25 @@ function oppositeReviewPair(author) {
     return { author, reviewer: "claude" };
   return;
 }
-function readAlternateReviewerModel(cwd, reviewer) {
-  const sources = [
-    process.env[`SAFEWORD_REVIEW_ALTERNATE_MODEL_${reviewer.toUpperCase()}`],
-    readConfiguredAlternateModel(cwd, reviewer)
-  ];
-  return sources.find((value) => value !== undefined && MODEL_NAME.test(value));
+function readPrimaryReviewerModel(cwd, reviewer) {
+  return readReviewerModel(cwd, reviewer, "PRIMARY", "crossAgentReviewPrimaryModel") ?? DEFAULT_PRIMARY_MODEL[reviewer];
 }
-function readConfiguredAlternateModel(cwd, reviewer) {
+function readAlternateReviewerModel(cwd, reviewer) {
+  return readReviewerModel(cwd, reviewer, "ALTERNATE", "crossAgentReviewAlternateModel") ?? DEFAULT_ALTERNATE_MODEL[reviewer];
+}
+function readReviewerModel(cwd, reviewer, route, configKey) {
+  const environmentValue = process.env[`SAFEWORD_REVIEW_${route}_MODEL_${reviewer.toUpperCase()}`];
+  if (environmentValue !== undefined && MODEL_NAME.test(environmentValue))
+    return environmentValue;
+  const configuredValue = readConfiguredModel(cwd, reviewer, configKey);
+  return configuredValue !== undefined && MODEL_NAME.test(configuredValue) ? configuredValue : undefined;
+}
+function readConfiguredModel(cwd, reviewer, configKey) {
   try {
     const raw = JSON.parse(readFileSync50(nodePath82.join(cwd, ".safeword", "config.json"), "utf8"));
     if (typeof raw !== "object" || raw === null)
       return;
-    const models = raw.crossAgentReviewAlternateModel;
+    const models = raw[configKey];
     if (typeof models !== "object" || models === null)
       return;
     const value = models[reviewer];
@@ -41708,15 +41714,20 @@ function readConfiguredAlternateModel(cwd, reviewer) {
 function readReviewPolicy(cwd) {
   try {
     const raw = readFileSync50(nodePath82.join(cwd, ".safeword", "config.json"), "utf8");
+    const config = JSON.parse(raw);
+    if (typeof config !== "object" || config === null || Array.isArray(config))
+      return "require";
     return readCrossAgentReviewPolicy(raw);
-  } catch {
-    return "prefer";
+  } catch (error2) {
+    return error2.code === "ENOENT" ? "prefer" : "require";
   }
 }
-var MODEL_NAME;
+var MODEL_NAME, DEFAULT_PRIMARY_MODEL, DEFAULT_ALTERNATE_MODEL;
 var init_policy = __esm(() => {
   init_review_ledger();
   MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
+  DEFAULT_PRIMARY_MODEL = { claude: "opus" };
+  DEFAULT_ALTERNATE_MODEL = { claude: "sonnet" };
 });
 
 // src/review/environment.ts
@@ -42818,9 +42829,10 @@ async function runReview(input) {
     });
   }
   const { reviewer } = pair;
+  const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
   const prepared = preparePrimaryReview(input, reviewer);
   const runDeadline = Date.now() + runBoundMs();
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared, undefined, runDeadline);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared, primaryModel, runDeadline);
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -42858,13 +42870,13 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredFailure: "invalid_output",
+      preferredFailure: provenance.code,
       policy,
       runDeadline
     });
   }
   const output = provenance.output;
-  return independentReviewResult({ author: pair.author, reviewer, output });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }
 var FAILURE_CAUSES;
 var init_coordinator = __esm(() => {
