@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: quality-review requested an explicit proof for behavior already implemented
 - [x] GREEN c0e9f9512
-- [ ] REFACTOR
+- [x] REFACTOR skip: one retry loop already terminates on the second attempt's semantic disposition
 
 ### Scenario: Frozen reserves are selected deterministically
 
