@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, test } from "vitest";
 
 import {
@@ -82,6 +84,13 @@ function retryableRawOutput(index: number) {
 }
 
 function validInput() {
+	const costPolicy = {
+		aggregateCostStopUsd: 1_000,
+		cumulativeCostTargetUsd: 1_000,
+		inputPricePerMillionUsd: 3,
+		outputPricePerMillionUsd: 15,
+	};
+	const attemptCostUsd = 0.000_06;
 	const fixtures = CANONICAL_REJECTION_REASONS.map((reason) => ({
 		expectedReason: reason,
 		fixtureId: `fixture-${reason}`,
@@ -98,11 +107,11 @@ function validInput() {
 		attemptIds: [`attempt-${index + 1}`],
 		callId: `call-${index + 1}`,
 		costComplete: true,
-		costUsd: 0.01,
+		costUsd: attemptCostUsd,
 		provenanceComplete: true,
 		recordedAt: "2026-08-01T00:00:00.000Z",
 		system: index % 2 === 0 ? "full" : "narrow",
-		usageCostUsd: 0.01,
+		usageCostUsd: attemptCostUsd,
 		usable: true,
 		variant: index % 4 < 2 ? "buggy" : "fixed",
 	}));
@@ -116,37 +125,41 @@ function validInput() {
 		variant: outcome.variant as "buggy" | "fixed",
 	}));
 	paidOutcomes[0]!.attemptIds.push("retry");
-	paidOutcomes[0]!.costUsd = 0.03;
-	paidOutcomes[0]!.usageCostUsd = 0.03;
+	paidOutcomes[0]!.costUsd = attemptCostUsd * 2;
+	paidOutcomes[0]!.usageCostUsd = attemptCostUsd * 2;
 	paidOutcomes[1]!.attemptIds.push("failed");
-	paidOutcomes[1]!.costUsd = 0.04;
-	paidOutcomes[1]!.usageCostUsd = 0.04;
+	paidOutcomes[1]!.costUsd = attemptCostUsd * 2;
+	paidOutcomes[1]!.usageCostUsd = attemptCostUsd * 2;
 	const expectedBindings = Object.fromEntries(
 		REQUIRED_AUTHORIZATION_BINDINGS.map((name, index) => [
 			name,
 			(index + 10).toString(16).padStart(64, "0"),
 		]),
 	);
+	expectedBindings.costPolicy = createHash("sha256")
+		.update(JSON.stringify(costPolicy))
+		.digest("hex");
 	const hiddenFailure = retryableRawOutput(9);
 	return {
 		anchorCreatedAt: "2026-08-02T00:00:00.000Z",
 		labelAnchorCreatedAt: "2026-07-31T00:00:00.000Z",
 		attempts: [
-			{ attempt: 1 as const, attemptId: "retry", callId: "call-1", costComplete: true, costUsd: 0.02, expectedProvenance: retryableRawOutput(0).provenance, expectedRoute: route, output: retryableRawOutput(0).output, system: "full" as const, usable: false },
-			{ attempt: 1 as const, attemptId: "failed", callId: "call-2", costComplete: true, costUsd: 0.03, expectedProvenance: retryableRawOutput(1).provenance, expectedRoute: route, output: retryableRawOutput(1).output, system: "narrow" as const, usable: false },
+			{ attempt: 1 as const, attemptId: "retry", callId: "call-1", costComplete: true, costUsd: attemptCostUsd, expectedProvenance: retryableRawOutput(0).provenance, expectedRoute: route, output: retryableRawOutput(0).output, system: "full" as const, usable: false },
+			{ attempt: 1 as const, attemptId: "failed", callId: "call-2", costComplete: true, costUsd: attemptCostUsd, expectedProvenance: retryableRawOutput(1).provenance, expectedRoute: route, output: retryableRawOutput(1).output, system: "narrow" as const, usable: false },
 			...Array.from({ length: 10 }, (_, index) => ({
 				...rawOutput(index),
 				attempt: index < 2 ? 2 as const : 1 as const,
 				attemptId: `attempt-${index + 1}`,
 				callId: `call-${index + 1}`,
 				costComplete: true,
-				costUsd: 0.01,
+				costUsd: attemptCostUsd,
 				expectedProvenance: rawOutput(index).provenance,
 				expectedRoute: route,
 				system: index % 2 === 0 ? "full" as const : "narrow" as const,
 				usable: true,
 			})),
 		],
+		costPolicy,
 		expectedBindings,
 		fixtures,
 		hiddenFailureEvidence: {
@@ -177,8 +190,8 @@ describe("paid canary authorization", () => {
 		expect(evaluateCanaryGate(validInput())).toEqual({
 			authorized: true,
 			nextCheckpoint: "20-calls",
-			totalCostUsd: 0.15,
-			usableCostUsd: 0.1,
+			totalCostUsd: 0.000_72,
+			usableCostUsd: 0.000_6,
 		});
 	});
 
@@ -195,6 +208,7 @@ describe("paid canary authorization", () => {
 		["missing attempt ledger", (input: ReturnType<typeof validInput>) => { input.attempts = []; }],
 		["unreferenced retry", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[0]!.attemptIds.pop(); }],
 		["cost inconsistent with usage", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[2]!.usageCostUsd = 0.02; }],
+		["attempt cost inconsistent with raw usage", (input: ReturnType<typeof validInput>) => { input.attempts[2]!.costUsd = 0; }],
 		["hidden failure admitted", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.activeRecordIdentities.push("active/record.json"); }],
 		["hidden failure not quarantined", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.quarantinedAttemptIdentities = []; }],
 		["hidden failure scorer succeeded", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.scorer.exitStatus = 0; }],
@@ -210,6 +224,9 @@ describe("paid canary authorization", () => {
 
 	test("reports all-attempt cost separately from usable cost", () => {
 		const result = evaluateCanaryGate(validInput());
-		expect(result).toMatchObject({ totalCostUsd: 0.15, usableCostUsd: 0.1 });
+		expect(result).toMatchObject({
+			totalCostUsd: 0.000_72,
+			usableCostUsd: 0.000_6,
+		});
 	});
 });

@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+
+import { estimateAttemptUsage } from "./scored-cost";
 import {
 	classifyTrialOutput,
 	type TrialProvenance,
@@ -63,6 +66,12 @@ type CanaryInput = {
 		system: "full" | "narrow";
 		usable: boolean;
 	}>;
+	costPolicy: {
+		aggregateCostStopUsd: number;
+		cumulativeCostTargetUsd: number;
+		inputPricePerMillionUsd: number;
+		outputPricePerMillionUsd: number;
+	};
 	expectedBindings: Record<string, string>;
 	fixtures: Array<{
 		expectedReason: string;
@@ -141,8 +150,18 @@ function roundedCost(value: number): number {
 	return Math.round(value * 1_000_000_000) / 1_000_000_000;
 }
 
+function sha256(value: string): string {
+	return createHash("sha256").update(value).digest("hex");
+}
+
 export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	const reasons: string[] = [];
+	if (
+		sha256(JSON.stringify(input.costPolicy)) !==
+		input.observedBindings.costPolicy
+	) {
+		reasons.push("cost policy evidence differs from its authorization binding");
+	}
 	const anchorTime = new Date(input.anchorCreatedAt).valueOf();
 	const labelAnchorTime = new Date(input.labelAnchorCreatedAt).valueOf();
 	if (!Number.isFinite(anchorTime)) reasons.push("authorization anchor timestamp is invalid");
@@ -275,6 +294,13 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		if (attempt.usable !== (disposition.status === "usable")) {
 			reasons.push(`attempt ${attempt.attemptId} usable flag disagrees with its raw output`);
 		}
+		const derived = estimateAttemptUsage([{ output: attempt.output }], {
+			inputPerMillionUsd: input.costPolicy.inputPricePerMillionUsd,
+			outputPerMillionUsd: input.costPolicy.outputPricePerMillionUsd,
+		});
+		if (!derived.complete || Math.abs(derived.costUsd - attempt.costUsd) > 1e-9) {
+			reasons.push(`attempt ${attempt.attemptId} cost disagrees with retained provider usage`);
+		}
 	}
 	const referencedAttemptIds = input.paidOutcomes.flatMap(({ attemptIds: ids }) => ids);
 	if (
@@ -322,8 +348,15 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		) {
 			reasons.push(`paid call ${outcome.callId} retry was not eligible exactly once`);
 		}
-		const reconciledCost = roundedCost(attempts.reduce((total, attempt) => total + attempt.costUsd, 0));
-		if (Math.abs(reconciledCost - outcome.costUsd) > 1e-9) {
+		const derivedCost = roundedCost(attempts.reduce((total, attempt) =>
+			total + estimateAttemptUsage([{ output: attempt.output }], {
+				inputPerMillionUsd: input.costPolicy.inputPricePerMillionUsd,
+				outputPerMillionUsd: input.costPolicy.outputPricePerMillionUsd,
+			}).costUsd, 0));
+		if (
+			Math.abs(derivedCost - outcome.costUsd) > 1e-9 ||
+			Math.abs(derivedCost - outcome.usageCostUsd) > 1e-9
+		) {
 			reasons.push(`paid call ${outcome.callId} cost does not equal its complete attempt set`);
 		}
 		const terminalAttempt = attempts.at(-1);

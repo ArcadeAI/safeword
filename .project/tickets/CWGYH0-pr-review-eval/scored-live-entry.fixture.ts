@@ -186,15 +186,22 @@ try {
 		const gateAnchorCreatedAt = new Date(Date.now() + 1_000).toISOString();
 		const fixtures = rejectionReasons.map((reason) => ({ expectedReason: reason, fixtureId: `fixture-${reason}`, observedReason: reason, recordedAt }));
 		const operational = operationalClasses.map((failureClass) => ({ failureClass, passed: true, recordedAt, scenarioId: `scenario-${failureClass}` }));
+		const costPolicy = {
+			aggregateCostStopUsd: 1_000,
+			cumulativeCostTargetUsd: 1_000,
+			inputPricePerMillionUsd: 3,
+			outputPricePerMillionUsd: 15,
+		};
+		const attemptCostUsd = 0.000_105;
 		const paidOutcomes = Array.from({ length: 10 }, (_, index) => ({
 			attemptIds: [`fixture-attempt-${index + 1}`],
 			callId: `fixture-call-${index + 1}`,
 			costComplete: true,
-			costUsd: 0,
+			costUsd: attemptCostUsd,
 			provenanceComplete: true,
 			recordedAt,
 			system: index % 2 === 0 ? "full" : "narrow",
-			usageCostUsd: 0,
+			usageCostUsd: attemptCostUsd,
 			usable: true,
 			variant: index % 4 < 2 ? "buggy" : "fixed",
 		}));
@@ -235,7 +242,7 @@ try {
 				attemptId: `fixture-attempt-${index + 1}`,
 				callId: outcome.callId,
 				costComplete: true,
-				costUsd: 0,
+				costUsd: attemptCostUsd,
 				expectedProvenance,
 				expectedRoute,
 				output: {
@@ -289,12 +296,7 @@ try {
 			adapter: sha256Text(expectedAdapterCommit),
 			classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
 			corpusRole: sha256Text(corpusRoleBytes),
-			costPolicy: sha256Text(JSON.stringify({
-				aggregateCostStopUsd: 1_000,
-				cumulativeCostTargetUsd: 1_000,
-				inputPricePerMillionUsd: 3,
-				outputPricePerMillionUsd: 15,
-			})),
+			costPolicy: sha256Text(JSON.stringify(costPolicy)),
 			effectiveMatrixDeriver: sha256(join(ticketRoot, "scored-matrix.ts")),
 			fixtures: sha256Text(JSON.stringify({ fixtures, operational })),
 			labels: sha256Text(labelBytes),
@@ -350,6 +352,7 @@ try {
 			const gateBytes = `${JSON.stringify({
 				anchorCreatedAt: recordedAt,
 				attempts: canaryAttempts,
+				costPolicy,
 				expectedBindings,
 				fixtures,
 				hiddenFailureEvidence,
