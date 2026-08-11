@@ -217,7 +217,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The no-cost fixture inventory is independently checkable
 
 - [x] RED a7d8259d1
-- [ ] GREEN
+- [x] GREEN 47d0ed48c
 - [ ] REFACTOR
 
 ### Scenario: Operational failure injection covers the R2 taxonomy
