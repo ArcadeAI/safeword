@@ -294,7 +294,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Total cost includes every attempt
 
-- [ ] RED
+- [x] RED a7d8259d1
 - [ ] GREEN
 - [ ] REFACTOR
 
