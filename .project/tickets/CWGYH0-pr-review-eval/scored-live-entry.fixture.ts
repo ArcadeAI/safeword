@@ -74,20 +74,9 @@ const root = mkdtempSync(join(tmpdir(), "cwgyh0-live-entry-"));
 try {
 	const outputRoot = join(root, "output");
 	const preflightPath = join(root, "preflight.json");
-	const gatePath = join(root, "canary-gate.json");
 	const fetchLog = join(root, "fetch.log");
 	const preflightBytes = `${JSON.stringify(preflight, null, 2)}\n`;
 	writeFileSync(preflightPath, preflightBytes);
-	const expectedBindings = {
-		adapter: sha256Text(expectedAdapterCommit),
-		classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
-		preflight: sha256Text(preflightBytes),
-		primaryManifest: sha256(primaryPath),
-		reserveManifest: sha256(reservePath),
-		runner: sha256(join(ticketRoot, "scored-live-run.ts")),
-		scorer: sha256(join(ticketRoot, "score-results.ts")),
-		writer: sha256(join(ticketRoot, "scored-case-store.ts")),
-	};
 	const rejectionReasons = [
 		"provider-failure",
 		"incomplete-provider-output",
@@ -109,34 +98,49 @@ try {
 		"reserve-order",
 		"reserve-exhaustion",
 	];
-	writeFileSync(gatePath, `${JSON.stringify({
-		attempts: [{ attemptId: "fixture-attempt", costComplete: true, costUsd: 0, usable: true }],
-		expectedBindings,
-		fixtures: rejectionReasons.map((reason) => ({ expectedReason: reason, fixtureId: `fixture-${reason}`, observedReason: reason })),
-		hiddenFailureRejected: true,
-		nextCheckpoint: "no-cost-fixture",
-		observedBindings: expectedBindings,
-		operational: operationalClasses.map((failureClass) => ({ failureClass, passed: true, scenarioId: `scenario-${failureClass}` })),
-		paidOutcomes: Array.from({ length: 10 }, (_, index) => ({
-			callId: `fixture-call-${index + 1}`,
-			costComplete: true,
-			costUsd: 0,
-			expectedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
-			observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
-			provenanceComplete: true,
-			system: index % 2 === 0 ? "full" : "narrow",
-			usageCostUsd: 0,
-			usable: true,
-			variant: index % 4 < 2 ? "buggy" : "fixed",
-		})),
-	}, null, 2)}\n`);
 	const run = (input: {
 		fetchLog: string;
 		mode?: string;
 		outputRoot: string;
 		scratchName: string;
-	}) =>
-		execFileSync(
+	}) => {
+		const checkpointId = "no-cost-fixture";
+		const runId = `fixture-${sha256Text(input.outputRoot)}`;
+		const gatePath = join(root, `${sha256Text(input.outputRoot)}.gate.json`);
+		const expectedBindings = {
+			adapter: sha256Text(expectedAdapterCommit),
+			classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
+			preflight: sha256Text(preflightBytes),
+			primaryManifest: sha256(primaryPath),
+			reserveManifest: sha256(reservePath),
+			runner: sha256(join(ticketRoot, "scored-live-run.ts")),
+			runIdentity: sha256Text(JSON.stringify({ checkpointId, outputRoot: resolve(input.outputRoot), preflightId, runId })),
+			scorer: sha256(join(ticketRoot, "score-results.ts")),
+			writer: sha256(join(ticketRoot, "scored-case-store.ts")),
+		};
+		writeFileSync(gatePath, `${JSON.stringify({
+			attempts: [{ attemptId: "fixture-attempt", costComplete: true, costUsd: 0, usable: true }],
+			expectedBindings,
+			fixtures: rejectionReasons.map((reason) => ({ expectedReason: reason, fixtureId: `fixture-${reason}`, observedReason: reason })),
+			hiddenFailureRejected: true,
+			nextCheckpoint: checkpointId,
+			observedBindings: expectedBindings,
+			operational: operationalClasses.map((failureClass) => ({ failureClass, passed: true, scenarioId: `scenario-${failureClass}` })),
+			paidOutcomes: Array.from({ length: 10 }, (_, index) => ({
+				callId: `fixture-call-${index + 1}`,
+				costComplete: true,
+				costUsd: 0,
+				expectedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
+				observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
+				provenanceComplete: true,
+				system: index % 2 === 0 ? "full" : "narrow",
+				usageCostUsd: 0,
+				usable: true,
+				variant: index % 4 < 2 ? "buggy" : "fixed",
+			})),
+			runId,
+		}, null, 2)}\n`);
+		return execFileSync(
 			process.execPath,
 			[
 				"--preload",
@@ -151,7 +155,7 @@ try {
 					CWGYH0_ADAPTER_ROOT: adapterRoot,
 					CWGYH0_CANARY_GATE_PATH: gatePath,
 					CWGYH0_CASE_TARGET: "1",
-					CWGYH0_CHECKPOINT_ID: "no-cost-fixture",
+					CWGYH0_CHECKPOINT_ID: checkpointId,
 					CWGYH0_FETCH_LOG: input.fetchLog,
 					CWGYH0_FETCH_MODE: input.mode,
 					CWGYH0_OUTPUT_ROOT: input.outputRoot,
@@ -162,6 +166,7 @@ try {
 				stdio: "pipe",
 			},
 		);
+	};
 
 	assert.match(
 		run({ fetchLog, outputRoot, scratchName: "scratch-first" }),

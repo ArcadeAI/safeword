@@ -17,6 +17,7 @@ import { basename, dirname, join } from "node:path";
 import {
 	executeWithInfrastructureRetry,
 	type RetriedResult,
+	type TrialAttempt,
 	type TrialDisposition,
 } from "./scored-run-policy";
 
@@ -265,14 +266,39 @@ export function recordTrialResult<T>(
 ): void {
 	const safeWorkId = safeSegment(workId, "work ID");
 	for (const attempt of result.attemptRecords) {
-		writeJsonDurably(
-			join(
-				caseState.provisionalPath,
-				`${safeWorkId}--attempt-${attempt.attempt}.json`,
-			),
-			attempt,
-		);
+		recordTrialAttempt(caseState, safeWorkId, attempt);
 	}
+}
+
+export function recordTrialAttempt<T>(
+	caseState: ProvisionalCase,
+	workId: string,
+	attempt: TrialAttempt<T>,
+): void {
+	const safeWorkId = safeSegment(workId, "work ID");
+	writeJsonDurably(
+		join(caseState.provisionalPath, `${safeWorkId}--attempt-${attempt.attempt}.json`),
+		attempt,
+	);
+}
+
+export function readTrialAttempts<T>(
+	caseState: ProvisionalCase,
+	workId: string,
+): TrialAttempt<T>[] {
+	const safeWorkId = safeSegment(workId, "work ID");
+	const attempts: TrialAttempt<T>[] = [];
+	for (const attemptNumber of [1, 2] as const) {
+		const path = join(
+			caseState.provisionalPath,
+			`${safeWorkId}--attempt-${attemptNumber}.json`,
+		);
+		if (!existsSync(path)) break;
+		const attempt = JSON.parse(readFileSync(path, "utf8")) as TrialAttempt<T>;
+		if (attempt.attempt !== attemptNumber) throw new Error("durable attempt number mismatch");
+		attempts.push(attempt);
+	}
+	return attempts;
 }
 
 export function recordAdmittedTrial(
@@ -350,8 +376,11 @@ export async function executeCaseWork<T, TState extends ReserveState>(input: {
 	const result = await executeWithInfrastructureRetry(
 		input.execute,
 		input.classify,
+		{
+			onAttempt: (attempt) => recordTrialAttempt(input.caseState, input.workId, attempt),
+			priorAttemptRecords: readTrialAttempts<T>(input.caseState, input.workId),
+		},
 	);
-	recordTrialResult(input.caseState, input.workId, result);
 	if (result.status === "completed") {
 		return { result, status: "completed" };
 	}

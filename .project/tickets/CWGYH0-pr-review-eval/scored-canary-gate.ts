@@ -50,6 +50,7 @@ type CanaryInput = {
 		usable: boolean;
 		variant: string;
 	}>;
+	runId: string;
 };
 
 type CanaryDecision = {
@@ -84,6 +85,7 @@ function roundedCost(value: number): number {
 
 export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	const reasons: string[] = [];
+	if (input.runId.length === 0) reasons.push("run identity is missing");
 	const fixtureIds = input.fixtures.map(({ fixtureId }) => fixtureId);
 	if (fixtureIds.some((id) => id.length === 0) || duplicates(fixtureIds).length > 0) {
 		reasons.push("fixture identities must be non-empty and unique");

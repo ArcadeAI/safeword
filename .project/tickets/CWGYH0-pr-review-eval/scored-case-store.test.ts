@@ -19,7 +19,9 @@ import {
 	executeCaseWork,
 	quarantineCaseAndAllocateReserve,
 	recoverInterruptedQuarantine,
+	readTrialAttempts,
 	recordAdmittedTrial,
+	recordTrialAttempt,
 	recordTrialResult,
 	sealActiveCase,
 	writeJsonDurably,
@@ -149,6 +151,39 @@ describe("durable case lifecycle", () => {
 		expect(existsSync(pendingCase.provisionalPath)).toBe(false);
 		expect(readdirSync(pendingCase.activePath)).toHaveLength(2);
 		lock.release();
+	});
+
+	test("resumes from a durable first attempt without exceeding the retry budget", async () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const pendingCase = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		let calls = 0;
+		const execute = async () => {
+			calls += 1;
+			if (calls === 1) throw new RequestError();
+			return { report: { findings: [] } };
+		};
+		await expect(
+			executeWithInfrastructureRetry(execute, undefined, {
+				onAttempt: (attempt) => {
+					recordTrialAttempt(pendingCase, "full--buggy--t1", attempt);
+					throw new Error("injected process crash after durable attempt");
+				},
+			}),
+		).rejects.toThrow("injected process crash");
+		expect(calls).toBe(1);
+		expect(readTrialAttempts(pendingCase, "full--buggy--t1")).toHaveLength(1);
+
+		const resumed = await executeWithInfrastructureRetry(execute, undefined, {
+			onAttempt: (attempt) => recordTrialAttempt(pendingCase, "full--buggy--t1", attempt),
+			priorAttemptRecords: readTrialAttempts(pendingCase, "full--buggy--t1"),
+		});
+		expect(calls).toBe(2);
+		expect(resumed.status).toBe("completed");
+		expect(resumed.attemptRecords).toHaveLength(2);
 	});
 
 	test("a second infrastructure failure quarantines the pair before allocating a reserve", async () => {

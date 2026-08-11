@@ -351,6 +351,23 @@ function thrownDisposition(error: unknown): TrialDisposition | null {
 	return null;
 }
 
+class AttemptPersistenceError extends Error {
+	constructor(readonly original: unknown) {
+		super(original instanceof Error ? original.message : "attempt persistence failed");
+	}
+}
+
+function persistAttempt<T>(
+	onAttempt: ((attempt: TrialAttempt<T>) => void) | undefined,
+	attempt: TrialAttempt<T>,
+): void {
+	try {
+		onAttempt?.(attempt);
+	} catch (error) {
+		throw new AttemptPersistenceError(error);
+	}
+}
+
 /**
  * The benchmark retries only failures external to reviewer judgment. Provider
  * shape failures, parser failures, budget exhaustion, and ordinary 4xx errors
@@ -381,10 +398,50 @@ export function isInfrastructureError(error: unknown): boolean {
 export async function executeWithInfrastructureRetry<T>(
 	execute: () => Promise<T>,
 	classify?: (value: T) => TrialDisposition,
+	options: {
+		onAttempt?: (attempt: TrialAttempt<T>) => void;
+		priorAttemptRecords?: readonly TrialAttempt<T>[];
+	} = {},
 ): Promise<RetriedResult<T>> {
-	const infrastructureErrors: string[] = [];
-	const attemptRecords: TrialAttempt<T>[] = [];
+	const attemptRecords = [...(options.priorAttemptRecords ?? [])];
+	if (
+		attemptRecords.length > 2 ||
+		attemptRecords.some((record, index) => record.attempt !== index + 1)
+	) {
+		throw new Error("durable attempt history is not a contiguous one-or-two-attempt prefix");
+	}
+	const infrastructureErrors = attemptRecords
+		.filter((record) =>
+			record.error !== null &&
+			(record.disposition === null || record.disposition.retry === "infrastructure-once")
+		)
+		.map((record) => record.error as string);
+	const prior = attemptRecords.at(-1);
+	if (prior !== undefined) {
+		if (prior.output !== null && prior.disposition.status === "usable") {
+			return {
+				attempts: prior.attempt,
+				attemptRecords,
+				infrastructureErrors,
+				status: "completed",
+				value: prior.output,
+			};
+		}
+		if (
+			prior.attempt === 2 ||
+			(prior.disposition !== null && prior.disposition.retry === "never")
+		) {
+			return {
+				attempts: prior.attempt,
+				attemptRecords,
+				disposition: prior.disposition ?? undefined,
+				infrastructureErrors,
+				status: "exclude-case",
+			};
+		}
+	}
 	for (const attempts of [1, 2] as const) {
+		if (attempts <= attemptRecords.length) continue;
 		try {
 			const value = await execute();
 			const disposition = classify?.(value) ?? {
@@ -392,12 +449,14 @@ export async function executeWithInfrastructureRetry<T>(
 				retry: "never",
 				status: "usable",
 			} as const;
-			attemptRecords.push({
+			const attempt = {
 				attempt: attempts,
 				disposition,
 				error: null,
 				output: value,
-			});
+			} as TrialAttempt<T>;
+			attemptRecords.push(attempt);
+			persistAttempt(options.onAttempt, attempt);
 			if (disposition.status === "invalid") {
 				if (disposition.retry === "infrastructure-once") {
 					const report = isRecord(value) && isRecord(value.report) ? value.report : null;
@@ -427,6 +486,7 @@ export async function executeWithInfrastructureRetry<T>(
 				value,
 			};
 		} catch (error) {
+			if (error instanceof AttemptPersistenceError) throw error.original;
 			const summary = errorSummary(error);
 			if (!isInfrastructureError(error)) {
 				const disposition = thrownDisposition(error) ?? {
@@ -434,12 +494,14 @@ export async function executeWithInfrastructureRetry<T>(
 					retry: "never",
 					status: "invalid",
 				} as const;
-				attemptRecords.push({
+				const attempt = {
 					attempt: attempts,
 					disposition,
 					error: summary,
 					output: null,
-				});
+				} as TrialAttempt<T>;
+				attemptRecords.push(attempt);
+				persistAttempt(options.onAttempt, attempt);
 				return {
 					attempts,
 					attemptRecords,
@@ -449,12 +511,14 @@ export async function executeWithInfrastructureRetry<T>(
 				};
 			}
 			infrastructureErrors.push(summary);
-			attemptRecords.push({
+			const attempt = {
 				attempt: attempts,
 				disposition: null,
 				error: summary,
 				output: null,
-			});
+			} as TrialAttempt<T>;
+			attemptRecords.push(attempt);
+			persistAttempt(options.onAttempt, attempt);
 			if (attempts === 2) {
 				return {
 					attempts,

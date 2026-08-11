@@ -42,6 +42,7 @@ function validInput() {
 		observedBindings: { runner: "a".repeat(64), scorer: "b".repeat(64) },
 		operational,
 		paidOutcomes,
+		runId: "run-fixture-1",
 	};
 }
 

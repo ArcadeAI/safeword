@@ -6,7 +6,7 @@ import {
 	renameSync,
 } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
 	type DevelopmentReviewInput,
 	type DevelopmentVariant,
@@ -26,7 +26,8 @@ import {
 	commitAdmittedCaseWork,
 	quarantineCaseAndAllocateReserve,
 	recoverInterruptedQuarantine,
-	recordTrialResult,
+	readTrialAttempts,
+	recordTrialAttempt,
 	sealActiveCase,
 	writeJsonDurably,
 } from "./scored-case-store";
@@ -553,6 +554,12 @@ if (preflightOnly) {
 			primaryManifest: sha256(primaryManifestPath),
 			reserveManifest: sha256(reserveManifestPath),
 			runner: sha256(join(ticketRoot, "scored-live-run.ts")),
+			runIdentity: sha256Text(JSON.stringify({
+				checkpointId,
+				outputRoot: resolve(outputRoot),
+				preflightId: certifiedPreflight.preflightId,
+				runId: gateEvidence.runId,
+			})),
 			scorer: sha256(join(ticketRoot, "score-results.ts")),
 			writer: sha256(join(ticketRoot, "scored-case-store.ts")),
 	};
@@ -806,8 +813,11 @@ if (preflightOnly) {
 						sourceSha: reviewInput.sourceSha,
 						variant: reviewInput.variant,
 					}),
+					{
+						onAttempt: (attempt) => recordTrialAttempt(caseState, workId, attempt),
+						priorAttemptRecords: readTrialAttempts(caseState, workId),
+					},
 				);
-				recordTrialResult(caseState, workId, result);
 				if (result.status === "exclude-case") {
 					const usage = estimatedAttemptCost(result.attemptRecords);
 					excluded = true;
