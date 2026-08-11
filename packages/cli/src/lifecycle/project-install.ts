@@ -241,11 +241,11 @@ function plannedPackEffects(cwd: string): Effect[] {
 
 function plannedPythonEffects(cwd: string): Effects {
   if (!createProjectContext(cwd).languages?.python || hasRuffDependency(cwd)) {
-    return { files: [], packages: [], configuration: [], network: [], destructive: [] };
+    return emptyEffects();
   }
   const packageManager = detectPythonPackageManager(cwd);
   if (packageManager === 'pip') {
-    return { files: [], packages: [], configuration: [], network: [], destructive: [] };
+    return emptyEffects();
   }
   const tools = getPythonTools(hasImportLinterScaffoldTarget(cwd));
   const lockfiles = {
@@ -321,13 +321,7 @@ export async function createSetupPlan(cwd: string, schema: SafewordSchema): Prom
     },
     python,
   ]);
-  const effects: Effects = {
-    files: uniqueEffects(combined.files),
-    packages: uniqueEffects(combined.packages),
-    configuration: uniqueEffects(combined.configuration),
-    network: uniqueEffects(combined.network),
-    destructive: uniqueEffects(combined.destructive),
-  };
+  const effects = mergeEffects(combined);
   return createPlan({
     command: 'setup',
     preconditionDigest: reconciliation.plan.preconditionDigest,
@@ -804,6 +798,10 @@ function uniqueEffects(effects: readonly Effect[]): Effect[] {
     seen.add(identity);
     return true;
   });
+}
+
+function emptyEffects(): Effects {
+  return { files: [], packages: [], configuration: [], network: [], destructive: [] };
 }
 
 function setupResult(input: SetupResultInput): CliResult {
