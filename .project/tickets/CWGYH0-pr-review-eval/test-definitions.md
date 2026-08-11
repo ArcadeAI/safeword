@@ -93,7 +93,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A process crash does not strand the run lock
 
 - [x] RED 751aaf339
-- [ ] GREEN
+- [x] GREEN c6c15a9d5
 - [ ] REFACTOR
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
