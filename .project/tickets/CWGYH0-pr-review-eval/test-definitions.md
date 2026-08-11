@@ -259,7 +259,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Untracked adapter files invalidate the pinned collaborator
 
 - [x] RED bad6d0a87
-- [ ] GREEN
+- [x] GREEN 821d371ed
 - [ ] REFACTOR
 
 ### Scenario: Successful wiring advances durable run state
