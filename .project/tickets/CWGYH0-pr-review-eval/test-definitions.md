@@ -52,7 +52,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 8eb575194
 - [x] GREEN 8eb31e5ca
-- [ ] REFACTOR
+- [x] REFACTOR skip: one exact route-set check rejects both missing and additional outcomes
 
 ### Scenario: Scored finding views agree with the routed reviewer output
 
