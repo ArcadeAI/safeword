@@ -321,7 +321,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The void corpus cannot confirm or tune the replacement scorer
 
 - [x] RED d6d054141
-- [ ] GREEN
+- [x] GREEN d832b5ba1
 - [ ] REFACTOR
 
 ### Scenario: Confirmatory estimates use a fresh holdout
