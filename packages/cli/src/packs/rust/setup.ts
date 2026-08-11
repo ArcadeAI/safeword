@@ -125,6 +125,23 @@ function hasExistingLints(cargoContent: string): boolean {
   );
 }
 
+/** Cargo manifests the Rust pack will update, without changing the project. */
+export function rustToolingTargets(cwd: string): string[] {
+  const rootTarget = 'Cargo.toml';
+  const cargoPath = nodePath.join(cwd, rootTarget);
+  if (!existsSync(cargoPath)) return [];
+  const content = readFileSync(cargoPath, 'utf8');
+  const targets = hasExistingLints(content) ? [] : [rootTarget];
+  if (detectWorkspaceType(content) === 'single-crate') return targets;
+  for (const member of parseWorkspaceMembers(content, cwd)) {
+    const target = nodePath.join(member, 'Cargo.toml');
+    const memberPath = nodePath.join(cwd, target);
+    if (!existsSync(memberPath)) continue;
+    if (!hasExistingLints(readFileSync(memberPath, 'utf8'))) targets.push(target);
+  }
+  return targets;
+}
+
 /**
  * Expand a single member pattern (handles glob patterns like "crates/*")
  */

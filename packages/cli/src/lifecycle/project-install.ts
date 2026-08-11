@@ -4,7 +4,12 @@ import nodePath from 'node:path';
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { CLAUDE_PLUGIN_ID } from '../claude-plugin/inventory.js';
 import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
-import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
+import type { CliPlan } from '../cli-protocol/plan.js';
+import { createPlan } from '../cli-protocol/plan.js';
+import {
+  createReconciliationPlan,
+  effectsForReconciliation,
+} from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
 import {
   type CliResult,
@@ -17,7 +22,10 @@ import {
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
 import { automaticallyMigrateLegacyCodex } from '../codex-plugin/operations.js';
-import { installCodexProjectBootstrap } from '../codex-plugin/project-bootstrap.js';
+import {
+  installCodexProjectBootstrap,
+  preparedCodexProjectBootstrap,
+} from '../codex-plugin/project-bootstrap.js';
 import {
   buildArchitecture,
   hasArchitectureDetected,
@@ -35,12 +43,17 @@ import {
   installPythonDependencies,
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
+import { rustToolingTargets } from '../packs/rust/setup.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
 import type { SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
-import { type DependencyInstallResult, installDependencies } from '../utils/install.js';
+import {
+  type DependencyInstallResult,
+  detectPackageManager,
+  installDependencies,
+} from '../utils/install.js';
 import { executeNamespaceMigration, planNamespaceMigration } from '../utils/namespace-migration.js';
 import {
   stripDeadConfigVersion,
@@ -53,6 +66,7 @@ import {
 import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import {
   applyVendoredIgnoresPolicy,
+  shouldEmitVendoredIgnoresNudge,
   type VendoredIgnoresPolicyResult,
 } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
@@ -103,6 +117,224 @@ const DEFAULT_SETUP_ADAPTERS: SetupAdapters = {
   configurePython,
   executeNamespaceMigration,
 };
+
+const JAVASCRIPT_PACKAGE_FILES = [
+  'package.json',
+  'bun.lock',
+  'bun.lockb',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+] as const;
+
+const PYTHON_PACKAGE_FILES = [
+  'pyproject.toml',
+  'uv.lock',
+  'poetry.lock',
+  'Pipfile',
+  'Pipfile.lock',
+] as const;
+
+function plannedFileEffect(cwd: string, target: string): Effect {
+  return { kind: existsSync(nodePath.join(cwd, target)) ? 'update' : 'create', target };
+}
+
+function existingFileEffects(cwd: string, targets: readonly string[]): Effect[] {
+  return targets.flatMap(target =>
+    existsSync(nodePath.join(cwd, target)) ? [{ kind: 'update', target }] : [],
+  );
+}
+
+function plannedJavaScriptPackageFiles(cwd: string): Effect[] {
+  const lockfiles = {
+    bun: 'bun.lock',
+    npm: 'package-lock.json',
+    pnpm: 'pnpm-lock.yaml',
+    yarn: 'yarn.lock',
+  } as const;
+  const selectedLockfile = lockfiles[detectPackageManager(cwd)];
+  return uniqueEffects([
+    ...existingFileEffects(cwd, JAVASCRIPT_PACKAGE_FILES),
+    plannedFileEffect(cwd, selectedLockfile),
+  ]);
+}
+
+function configNeedsCompatibilityUpdate(cwd: string): boolean {
+  if (getMissingPacks(cwd).length > 0) return true;
+  try {
+    const config = JSON.parse(
+      readFileSync(nodePath.join(cwd, '.safeword/config.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    return 'version' in config;
+  } catch {
+    return false;
+  }
+}
+
+function plannedCodexBootstrapEffect(cwd: string): Effect[] {
+  const target = '.codex/config.toml';
+  const path = nodePath.join(cwd, target);
+  const original = existsSync(path) ? readFileSync(path, 'utf8') : '';
+  try {
+    return preparedCodexProjectBootstrap(cwd) === original ? [] : [plannedFileEffect(cwd, target)];
+  } catch {
+    // Apply will fail before mutating an unsafe or malformed config. There is
+    // no file effect to promise in that state.
+    return [];
+  }
+}
+
+function plannedArchitectureEffects(cwd: string): Effect[] {
+  const architecture = buildArchitecture(cwd);
+  if (!hasArchitectureDetected(architecture)) return [];
+  const generated = inspectConfig(cwd, architecture);
+  return [
+    ...(generated.matches ? [] : [plannedFileEffect(cwd, '.safeword/depcruise-config.cjs')]),
+    ...(existsSync(nodePath.join(cwd, '.dependency-cruiser.cjs'))
+      ? []
+      : [{ kind: 'create', target: '.dependency-cruiser.cjs' }]),
+  ];
+}
+
+function plannedWorkspaceEffects(
+  cwd: string,
+  context: ReturnType<typeof createProjectContext>,
+): Effect[] {
+  return workspacePackageJsonTargets(cwd, context).flatMap(target => {
+    try {
+      const manifest = JSON.parse(readFileSync(nodePath.join(cwd, target), 'utf8')) as {
+        scripts?: Record<string, string>;
+      };
+      return manifest.scripts?.format === undefined ? [{ kind: 'update', target }] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function plannedEslintEffects(
+  cwd: string,
+  context: ReturnType<typeof createProjectContext>,
+): Effect[] {
+  const target = context.projectType.existingEslintConfig;
+  if (
+    target === undefined ||
+    !shouldEmitVendoredIgnoresNudge({
+      cwd,
+      existingEslintConfig: target,
+      hasJavaScript: context.languages?.javascript ?? false,
+    })
+  ) {
+    return [];
+  }
+  // The textual patch can bail on an unfamiliar export shape. Listing both
+  // possible writes is deliberately conservative: a plan may be a superset,
+  // but apply must never expand beyond it.
+  return [{ kind: 'update', target }, plannedFileEffect(cwd, `${target}.safeword-bak`)];
+}
+
+function plannedPackEffects(cwd: string): Effect[] {
+  return getMissingPacks(cwd).includes('rust')
+    ? rustToolingTargets(cwd).map(target => ({ kind: 'update', target }))
+    : [];
+}
+
+function plannedPythonEffects(cwd: string): Effects {
+  if (!createProjectContext(cwd).languages?.python || hasRuffDependency(cwd)) {
+    return { files: [], packages: [], configuration: [], network: [], destructive: [] };
+  }
+  const packageManager = detectPythonPackageManager(cwd);
+  if (packageManager === 'pip') {
+    return { files: [], packages: [], configuration: [], network: [], destructive: [] };
+  }
+  const tools = getPythonTools(hasImportLinterScaffoldTarget(cwd));
+  const lockfiles = {
+    uv: 'uv.lock',
+    poetry: 'poetry.lock',
+    pipenv: 'Pipfile.lock',
+  } as const;
+  return {
+    files: uniqueEffects([
+      ...existingFileEffects(cwd, PYTHON_PACKAGE_FILES),
+      plannedFileEffect(cwd, lockfiles[packageManager]),
+    ]),
+    packages: tools.map(target => ({ kind: 'install', target })),
+    configuration: [],
+    network: tools.map(target => ({ kind: 'package-registry', target, operation: 'install' })),
+    destructive: [],
+  };
+}
+
+function staleSafewordRegistryDependency(cwd: string): boolean {
+  try {
+    const manifest = JSON.parse(readFileSync(nodePath.join(cwd, 'package.json'), 'utf8')) as Record<
+      'dependencies' | 'devDependencies' | 'optionalDependencies',
+      Record<string, string> | undefined
+    >;
+    const spec =
+      manifest.devDependencies?.safeword ??
+      manifest.dependencies?.safeword ??
+      manifest.optionalDependencies?.safeword;
+    if (spec === undefined) return false;
+    if (
+      /^(?:file:|link:|portal:|workspace:|git\+|github:|gitlab:|bitbucket:|https?:|\.{0,2}\/)/u.test(
+        spec,
+      )
+    ) {
+      return false;
+    }
+    return ![VERSION, `^${VERSION}`, `~${VERSION}`].includes(spec);
+  } catch {
+    return false;
+  }
+}
+
+/** Read-only counterpart of convergeSetup's complete project mutation pipeline. */
+export async function createSetupPlan(cwd: string, schema: SafewordSchema): Promise<CliPlan> {
+  const reconciliation = await createReconciliationPlan(cwd, 'upgrade', schema);
+  const context = createProjectContext(cwd);
+  const reconciliationPackages = reconciliation.plan.effects.packages.length > 0;
+  const compatibilityFiles = configNeedsCompatibilityUpdate(cwd)
+    ? [plannedFileEffect(cwd, '.safeword/config.json')]
+    : [];
+  const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
+  const python = plannedPythonEffects(cwd);
+  const staleSafeword = staleSafewordRegistryDependency(cwd);
+  const compatibilityPackage = `safeword@${VERSION}`;
+  const combined = combineEffects([
+    reconciliation.plan.effects,
+    {
+      files: uniqueEffects([
+        ...compatibilityFiles,
+        ...plannedPackEffects(cwd),
+        ...plannedCodexBootstrapEffect(cwd),
+        ...plannedArchitectureEffects(cwd),
+        ...plannedWorkspaceEffects(cwd, context),
+        ...plannedEslintEffects(cwd, context),
+        ...packageFiles,
+        ...(staleSafeword ? plannedJavaScriptPackageFiles(cwd) : []),
+      ]),
+      packages: staleSafeword ? [{ kind: 'update', target: compatibilityPackage }] : [],
+      network: staleSafeword
+        ? [{ kind: 'package-registry', target: compatibilityPackage, operation: 'update' }]
+        : [],
+    },
+    python,
+  ]);
+  const effects: Effects = {
+    files: uniqueEffects(combined.files),
+    packages: uniqueEffects(combined.packages),
+    configuration: uniqueEffects(combined.configuration),
+    network: uniqueEffects(combined.network),
+    destructive: uniqueEffects(combined.destructive),
+  };
+  return createPlan({
+    command: 'setup',
+    preconditionDigest: reconciliation.plan.preconditionDigest,
+    effects,
+    verification: [{ description: 'Re-run safeword status' }],
+  });
+}
 
 interface PythonSetupResult {
   readonly tools: readonly string[];

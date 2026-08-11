@@ -16,7 +16,7 @@ import {
 import { removeProject } from '../commands/remove.js';
 import type { SafewordSchema } from '../schema.js';
 import { hasCursorProjectAssets, observeCursorProject } from './cursor.js';
-import { convergeSetup } from './project-install.js';
+import { convergeSetup, createSetupPlan } from './project-install.js';
 import { projectLifecycleSchema } from './schema.js';
 
 interface LifecycleInstallAdapters {
@@ -365,11 +365,12 @@ async function prepareLifecycle(
   const uninstalling = operation === 'uninstall';
   const projectSchema = projectLifecycleSchema(cwd, agents);
   const uninstallOperation = full ? 'uninstall-full' : 'uninstall';
-  const project = await createReconciliationPlan(
-    cwd,
-    uninstalling ? uninstallOperation : 'upgrade',
-    projectSchema,
-  );
+  const project = uninstalling
+    ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema)
+    : {
+        plan: await createSetupPlan(cwd, projectSchema),
+        dryRun: undefined,
+      };
   const observations = await profilePreconditions(cwd, agents, scope, operation);
   const observationByAgent = new Map(
     observations.map(observation => [observation.agent, observation.observation]),
