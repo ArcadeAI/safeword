@@ -224,7 +224,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED f948a4a36
 - [x] GREEN 0aa2de93a
-- [ ] REFACTOR
+- [x] REFACTOR skip: runtime path resolution is isolated from immutable commit and clean-tree verification
 
 ### Scenario: Successful wiring advances durable run state
 
