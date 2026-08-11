@@ -111,6 +111,14 @@ interface SetupAdapters {
   readonly executeNamespaceMigration: typeof executeNamespaceMigration;
 }
 
+const EMPTY_LANGUAGES = {
+  javascript: false,
+  python: false,
+  golang: false,
+  rust: false,
+  sql: false,
+} as const;
+
 const DEFAULT_SETUP_ADAPTERS: SetupAdapters = {
   configureArchitecture,
   configureWorkspaces: setupWorkspaceFormatScripts,
@@ -289,28 +297,128 @@ function staleSafewordRegistryDependency(cwd: string): boolean {
   }
 }
 
-/** Read-only counterpart of convergeSetup's complete project mutation pipeline. */
-export async function createSetupPlan(cwd: string, schema: SafewordSchema): Promise<CliPlan> {
-  const reconciliation = await createReconciliationPlan(cwd, 'upgrade', schema);
-  const context = createProjectContext(cwd);
-  const reconciliationPackages = reconciliation.plan.effects.packages.length > 0;
-  const compatibilityFiles = configNeedsCompatibilityUpdate(cwd)
-    ? [plannedFileEffect(cwd, '.safeword/config.json')]
+export interface SetupPlanOptions {
+  readonly migrateNamespace?: boolean;
+  readonly noModify?: boolean;
+  readonly repairVersionMarker?: boolean;
+}
+
+function plannedNamespaceEffects(cwd: string, migrate: boolean | undefined): Effect[] {
+  if (migrate !== true || planNamespaceMigration(cwd) !== 'offer') return [];
+  const movedFiles = snapshotFiles(cwd, ['.safeword-project']).keys().toArray();
+  return [
+    { kind: 'move', target: '.safeword-project → .project' },
+    ...movedFiles.flatMap(target => [
+      { kind: 'delete', target },
+      { kind: 'create', target: target.replace(/^\.safeword-project(?=\/|$)/u, '.project') },
+    ]),
+    ...(existsSync(nodePath.join(cwd, '.safeword/config.json'))
+      ? [{ kind: 'update', target: '.safeword/config.json' }]
+      : []),
+  ];
+}
+
+function plannedPackageJsonEffects(cwd: string, configured: boolean): Effect[] {
+  return !configured && !existsSync(nodePath.join(cwd, 'package.json'))
+    ? [
+        { kind: 'create', target: 'package.json' },
+        { kind: 'update', target: 'package.json' },
+      ]
     : [];
+}
+
+function retargetLegacyNamespace(effect: Effect): Effect {
+  return {
+    ...effect,
+    target: effect.target.replace(/^\.safeword-project(?=\/|$)/u, '.project'),
+  };
+}
+
+function plannedReconciliationEffects(effects: Effects, migrate: boolean | undefined): Effects {
+  if (migrate !== true) return effects;
+  return {
+    files: effects.files.map(effect => retargetLegacyNamespace(effect)),
+    packages: effects.packages.map(effect => retargetLegacyNamespace(effect)),
+    configuration: effects.configuration.map(effect => retargetLegacyNamespace(effect)),
+    network: effects.network.map(effect => retargetLegacyNamespace(effect)),
+    destructive: effects.destructive.map(effect => retargetLegacyNamespace(effect)),
+  };
+}
+
+function setupPlanningContext(
+  cwd: string,
+  configured: boolean,
+): ReturnType<typeof createProjectContext> {
+  const context = createProjectContext(cwd);
+  if (configured || existsSync(nodePath.join(cwd, 'package.json'))) return context;
+  return {
+    ...context,
+    languages: {
+      ...EMPTY_LANGUAGES,
+      ...context.languages,
+      javascript: true,
+    },
+  };
+}
+
+function plannedOptionalEslintEffects(
+  cwd: string,
+  context: ReturnType<typeof createProjectContext>,
+  noModify: boolean | undefined,
+): Effect[] {
+  return noModify === true ? [] : plannedEslintEffects(cwd, context);
+}
+
+function plannedVersionMarkerEffects(cwd: string, repair: boolean | undefined): Effect[] {
+  if (repair !== true) return [];
+  const target = '.safeword/version';
+  const path = nodePath.join(cwd, target);
+  const metadata = lstatSync(path, { throwIfNoEntry: false });
+  if (metadata?.isFile() !== true || metadata.isSymbolicLink()) return [];
+  const version = readFileSync(path, 'utf8').trim();
+  return metadata.nlink > 1 || !isSafePackageVersion(version) ? [{ kind: 'update', target }] : [];
+}
+
+/** Read-only counterpart of convergeSetup's complete project mutation pipeline. */
+export async function createSetupPlan(
+  cwd: string,
+  schema: SafewordSchema,
+  options: SetupPlanOptions = {},
+): Promise<CliPlan> {
+  const configured = existsSync(nodePath.join(cwd, '.safeword'));
+  const context = setupPlanningContext(cwd, configured);
+  const reconciliation = await createReconciliationPlan(
+    cwd,
+    configured ? 'upgrade' : 'install',
+    schema,
+    context,
+  );
+  const reconciliationEffects = plannedReconciliationEffects(
+    reconciliation.plan.effects,
+    options.migrateNamespace,
+  );
+  const reconciliationPackages = reconciliationEffects.packages.length > 0;
+  const compatibilityFiles =
+    !configured || configNeedsCompatibilityUpdate(cwd)
+      ? [plannedFileEffect(cwd, '.safeword/config.json')]
+      : [];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);
   const staleSafeword = staleSafewordRegistryDependency(cwd);
   const compatibilityPackage = `safeword@${VERSION}`;
   const combined = combineEffects([
-    reconciliation.plan.effects,
+    reconciliationEffects,
     {
       files: uniqueEffects([
+        ...plannedPackageJsonEffects(cwd, configured),
+        ...plannedVersionMarkerEffects(cwd, options.repairVersionMarker),
+        ...plannedNamespaceEffects(cwd, options.migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
         ...plannedCodexBootstrapEffect(cwd),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
-        ...plannedEslintEffects(cwd, context),
+        ...plannedOptionalEslintEffects(cwd, context, options.noModify),
         ...packageFiles,
         ...(staleSafeword ? plannedJavaScriptPackageFiles(cwd) : []),
       ]),

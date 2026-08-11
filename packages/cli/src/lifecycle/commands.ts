@@ -16,7 +16,7 @@ import {
 import { removeProject } from '../commands/remove.js';
 import type { SafewordSchema } from '../schema.js';
 import { hasCursorProjectAssets, observeCursorProject } from './cursor.js';
-import { convergeSetup, createSetupPlan } from './project-install.js';
+import { convergeSetup, createSetupPlan, type SetupPlanOptions } from './project-install.js';
 import { projectLifecycleSchema } from './schema.js';
 
 interface LifecycleInstallAdapters {
@@ -277,6 +277,12 @@ interface PreparedLifecycle {
   readonly plan: CliPlan;
 }
 
+interface PrepareLifecycleOptions {
+  readonly full?: boolean;
+  readonly install?: SetupPlanOptions;
+  readonly scope?: 'project' | 'user';
+}
+
 interface ProfilePrecondition {
   readonly agent: 'claude' | 'codex';
   readonly observation: unknown;
@@ -359,16 +365,16 @@ async function prepareLifecycle(
   cwd: string,
   operation: 'install' | 'uninstall',
   agents: readonly AgentIntegration[],
-  full = false,
-  scope: 'project' | 'user' = 'project',
+  options: PrepareLifecycleOptions = {},
 ): Promise<PreparedLifecycle> {
+  const { full = false, install: installOptions = {}, scope = 'project' } = options;
   const uninstalling = operation === 'uninstall';
   const projectSchema = projectLifecycleSchema(cwd, agents);
   const uninstallOperation = full ? 'uninstall-full' : 'uninstall';
   const project = uninstalling
     ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema)
     : {
-        plan: await createSetupPlan(cwd, projectSchema),
+        plan: await createSetupPlan(cwd, projectSchema, installOptions),
         dryRun: undefined,
       };
   const observations = await profilePreconditions(cwd, agents, scope, operation);
@@ -410,10 +416,12 @@ async function prepareLifecycle(
 function lifecyclePlanResult(
   operation: 'install' | 'uninstall',
   prepared: PreparedLifecycle,
+  installOptions: SetupPlanOptions = {},
 ): CliResult {
   const hasEffects = Object.values(prepared.plan.effects).some(effects => effects.length > 0);
   const selected = prepared.agents.length === 0 ? 'none' : prepared.agents.join(',');
   const scopeFlag = prepared.agents.includes('claude') ? ` --scope=${prepared.scope}` : '';
+  const installFlags = installReplayFlags(installOptions);
   return createResult({
     state: hasEffects ? 'action_required' : 'healthy',
     findings: hasEffects
@@ -430,7 +438,7 @@ function lifecyclePlanResult(
           {
             command:
               operation === 'install'
-                ? `safeword install --agents=${selected}${scopeFlag}`
+                ? `safeword install --agents=${selected}${scopeFlag}${installFlags}`
                 : `safeword uninstall --agents=${selected}${scopeFlag} --yes --plan ${prepared.plan.id}`,
             mutates: true,
             requiresHuman: operation === 'uninstall',
@@ -449,6 +457,18 @@ function lifecyclePlanResult(
       plan: toWirePlan(prepared.plan),
     },
   });
+}
+
+function installReplayFlags(options: SetupPlanOptions): string {
+  return [
+    options.noModify === true ? '--no-modify' : undefined,
+    options.migrateNamespace === true ? '--migrate-namespace' : undefined,
+    options.migrateNamespace === false ? '--no-migrate-namespace' : undefined,
+    options.repairVersionMarker === true ? '--repair-version-marker' : undefined,
+  ]
+    .filter(flag => flag !== undefined)
+    .map(flag => ` ${flag}`)
+    .join('');
 }
 
 function lifecycleScope(
@@ -506,23 +526,23 @@ export async function planLifecycle(invocation: CommandInvocation): Promise<CliR
   }
   const scope = lifecycleScope(invocation.options.scope, 'plan', parsed.selection.agents);
   if (!scope.ok) return scope.result;
+  const installOptions: SetupPlanOptions = {
+    noModify: invocation.options.modify === false,
+    repairVersionMarker: invocation.options.repairVersionMarker === true,
+    ...(typeof invocation.options.migrateNamespace === 'boolean' && {
+      migrateNamespace: invocation.options.migrateNamespace,
+    }),
+  };
   const prepared =
     operation === 'install'
-      ? await prepareLifecycle(
-          invocation.cwd,
-          'install',
-          parsed.selection.agents,
-          false,
-          scope.value,
-        )
-      : await prepareLifecycle(
-          invocation.cwd,
-          'uninstall',
-          parsed.selection.agents,
-          false,
-          scope.value,
-        );
-  return lifecyclePlanResult(operation, prepared);
+      ? await prepareLifecycle(invocation.cwd, 'install', parsed.selection.agents, {
+          install: installOptions,
+          scope: scope.value,
+        })
+      : await prepareLifecycle(invocation.cwd, 'uninstall', parsed.selection.agents, {
+          scope: scope.value,
+        });
+  return lifecyclePlanResult(operation, prepared, installOptions);
 }
 
 function staleUninstallPlan(plan: CliPlan): CliResult {
@@ -650,13 +670,10 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
   if (invocation.offline && full) return onlineRequired('uninstall');
   const scope = lifecycleScope(invocation.options.scope, 'uninstall', parsed.selection.agents);
   if (!scope.ok) return scope.result;
-  const prepared = await prepareLifecycle(
-    invocation.cwd,
-    'uninstall',
-    parsed.selection.agents,
+  const prepared = await prepareLifecycle(invocation.cwd, 'uninstall', parsed.selection.agents, {
     full,
-    scope.value,
-  );
+    scope: scope.value,
+  });
   const suppliedPlan =
     typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
   if (invocation.options.yes === true && suppliedPlan !== undefined) {

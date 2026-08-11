@@ -3,12 +3,12 @@ import { lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type Action, reconcile, type ReconcileResult } from '../reconcile.js';
-import { SAFEWORD_SCHEMA, type SafewordSchema } from '../schema.js';
+import { type ProjectContext, SAFEWORD_SCHEMA, type SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { type CliPlan, createPlan } from './plan.js';
 import type { Effects } from './result.js';
 
-type PlanMode = 'upgrade' | 'uninstall' | 'uninstall-full';
+type PlanMode = 'install' | 'upgrade' | 'uninstall' | 'uninstall-full';
 type ReadFileForDigest = (path: string) => Buffer;
 
 const readFileForDigest: ReadFileForDigest = path => readFileSync(path);
@@ -70,24 +70,24 @@ export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode
   const created = result.created.map(target => ({ kind: 'create', target }));
   const updated = result.updated.map(target => ({ kind: 'update', target }));
   const removed = result.removed.map(target => ({ kind: 'remove', target }));
-  const packageNames = mode === 'upgrade' ? result.packagesToInstall : result.packagesToRemove;
+  const installing = mode === 'install' || mode === 'upgrade';
+  const packageNames = installing ? result.packagesToInstall : result.packagesToRemove;
   const plannedPackageNames = result.applied ? [] : packageNames;
   const packageEffects = plannedPackageNames.map(target => ({
-    kind: mode === 'upgrade' ? 'install' : 'remove',
+    kind: installing ? 'install' : 'remove',
     target,
   }));
   return {
     files: [...created, ...updated],
     packages: packageEffects,
     configuration: [],
-    network:
-      mode === 'upgrade'
-        ? plannedPackageNames.map(target => ({
-            kind: 'package-registry',
-            target,
-            operation: 'install',
-          }))
-        : [],
+    network: installing
+      ? plannedPackageNames.map(target => ({
+          kind: 'package-registry',
+          target,
+          operation: 'install',
+        }))
+      : [],
     destructive: removed,
   };
 }
@@ -101,17 +101,17 @@ export async function createReconciliationPlan(
   cwd: string,
   mode: PlanMode,
   schema: SafewordSchema = SAFEWORD_SCHEMA,
+  context: ProjectContext = createProjectContext(cwd),
 ): Promise<ReconciliationPlan> {
-  const context = createProjectContext(cwd);
   const dryRun = await reconcile(schema, mode, context, { dryRun: true });
   const effects = effectsForReconciliation(dryRun, mode);
   return {
     dryRun,
     plan: createPlan({
-      command: mode === 'upgrade' ? 'setup' : 'remove',
+      command: mode === 'install' || mode === 'upgrade' ? 'setup' : 'remove',
       preconditionDigest: preconditionDigest(cwd, dryRun.actions),
       effects,
-      requiresConfirmation: mode !== 'upgrade',
+      requiresConfirmation: mode !== 'install' && mode !== 'upgrade',
       verification: [{ description: 'Re-run safeword status' }],
     }),
   };

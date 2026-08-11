@@ -89,10 +89,20 @@ function effectIdentity(effect: Effect): string {
 async function planProject(
   directory: string,
   agents = 'none',
+  options: readonly string[] = [],
 ): Promise<{ envelope: LifecycleEnvelope; stdout: string }> {
   const before = treeDigest(directory);
   const result = await runCliWithoutInstall(
-    ['plan', `--agents=${agents}`, '--scope=project', '--json', '--offline', '--cwd', directory],
+    [
+      'plan',
+      `--agents=${agents}`,
+      '--scope=project',
+      ...options,
+      '--json',
+      '--offline',
+      '--cwd',
+      directory,
+    ],
     { cwd: directory },
   );
   expect(result.exitCode).toBe(2);
@@ -109,6 +119,68 @@ function expectEffectsInclude(
 }
 
 describe('install plan completeness', () => {
+  it('previews package.json creation for a fresh project', async () => {
+    const directory = temporaryDirectory();
+
+    const { envelope: planEnvelope } = await planProject(directory);
+    expectEffectsInclude(planEnvelope, 'files', [{ kind: 'create', target: 'package.json' }]);
+
+    const installed = await runCliWithoutInstall(
+      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      { cwd: directory },
+    );
+    expect(installed.exitCode).toBe(0);
+    const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
+    const planned = new Set((planEnvelope.data.plan.effects.files ?? []).map(effectIdentity));
+    expect(
+      (installEnvelope.effects.files ?? []).filter(effect => !planned.has(effectIdentity(effect))),
+    ).toEqual([]);
+  });
+
+  it('previews namespace migration and version-marker repair options', async () => {
+    const directory = temporaryDirectory();
+    configureProject(directory, ['typescript']);
+    writeFileSync(nodePath.join(directory, '.safeword/version'), 'not-semver\n');
+    mkdirSync(nodePath.join(directory, '.safeword-project/tickets'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword-project/tickets/legacy.md'), '# Legacy\n');
+    writeJson(directory, '.safeword/config.json', {
+      installedPacks: ['typescript'],
+      paths: { tickets: '.safeword-project/tickets' },
+    });
+
+    const options = ['--migrate-namespace', '--repair-version-marker'] as const;
+    const { envelope: planEnvelope, stdout } = await planProject(directory, 'none', options);
+    expectEffectsInclude(planEnvelope, 'files', [
+      { kind: 'update', target: '.safeword/version' },
+      { kind: 'move', target: '.safeword-project → .project' },
+      { kind: 'delete', target: '.safeword-project/tickets/legacy.md' },
+      { kind: 'create', target: '.project/tickets/legacy.md' },
+      { kind: 'update', target: '.safeword/config.json' },
+    ]);
+    expect(stdout).toContain('--migrate-namespace');
+    expect(stdout).toContain('--repair-version-marker');
+
+    const installed = await runCliWithoutInstall(
+      [
+        'install',
+        '--agents=none',
+        '--no-input',
+        '--no-modify',
+        ...options,
+        '--json',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+    expect(installed.exitCode).toBe(0);
+    const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
+    const planned = new Set((planEnvelope.data.plan.effects.files ?? []).map(effectIdentity));
+    expect(
+      (installEnvelope.effects.files ?? []).filter(effect => !planned.has(effectIdentity(effect))),
+    ).toEqual([]);
+  });
+
   it('previews every project effect that install applies from the unchanged state', async () => {
     const directory = temporaryDirectory();
     configureProject(directory, ['typescript']);
