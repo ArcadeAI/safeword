@@ -82,7 +82,7 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
  * land before it. Claude takes the prompt on stdin with no positional marker,
  * so appending is safe there.
  */
-function reviewerArguments(
+export function reviewerArguments(
   reviewer: ReviewAgent,
   model: string | undefined,
   schemaPath: string | undefined,

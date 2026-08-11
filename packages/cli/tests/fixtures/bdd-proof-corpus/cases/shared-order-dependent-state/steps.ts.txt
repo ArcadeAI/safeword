@@ -1,0 +1,8 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+const accounts = new Set<string>();
+When('I create account A', () => accounts.add('A'));
+Then('account A exists', () => assert.equal(accounts.has('A'), true));
+When('I delete account A', () => accounts.delete('A'));
+Then('account A is absent', () => assert.equal(accounts.has('A'), false));

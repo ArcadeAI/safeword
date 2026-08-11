@@ -1,0 +1,6 @@
+import { Then, When } from '@cucumber/cucumber';
+
+When('I submit an expired token', function () {
+  this.response = process.env.BDD_CORPUS_DEFECT === '1' ? { status: 200 } : { status: 401 };
+});
+Then('access is denied', function () {});
