@@ -204,7 +204,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED ca0993b71
 - [x] GREEN 94d3cc83e
-- [ ] REFACTOR
+- [x] REFACTOR skip: one evidence identity key includes every scored record dimension
 
 ## Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
 
