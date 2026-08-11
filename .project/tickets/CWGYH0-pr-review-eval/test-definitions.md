@@ -332,6 +332,6 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Invalid holdout construction cannot produce confirmatory estimates
 
-- [ ] RED
+- [x] RED d6d054141
 - [ ] GREEN
 - [ ] REFACTOR
