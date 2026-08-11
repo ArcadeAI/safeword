@@ -39,23 +39,27 @@ export type ReserveState = {
 	currentCaseId: string | null;
 	nextWorkIndex: number;
 	reserveIndex: number;
+	terminalFailure?: {
+		caseId: string;
+		reason: "reserve-exhausted";
+	};
 	version: number;
 };
 
 export type CaseWorkResult<T, TState extends ReserveState> =
 	| { result: RetriedResult<T>; status: "completed" }
 	| {
-			replacementId: string;
+			replacementId: string | null;
 			result: RetriedResult<T>;
 			state: TState;
-			status: "excluded";
-	  };
+			status: "excluded" | "reserve-exhausted";
+		  };
 
 export type RecoveryEvidence = {
 	attemptRecords: unknown[];
 	caseId: string;
 	exclusion: unknown;
-	replacementId: string;
+	replacementId: string | null;
 	workId: string;
 };
 
@@ -96,9 +100,25 @@ function safeSegment(value: string, field: string): string {
 function nextReserveTransition<T extends ReserveState>(
 	reserveIds: readonly string[],
 	state: T,
-): { replacementId: string; state: T } {
+): { replacementId: string | null; state: T } {
 	const replacementId = reserveIds[state.reserveIndex];
-	if (replacementId === undefined) throw new Error("frozen reserves exhausted");
+	if (replacementId === undefined) {
+		if (state.currentCaseId === null) {
+			throw new Error("reserve exhaustion has no current case identity");
+		}
+		return {
+			replacementId: null,
+			state: {
+				...state,
+				currentCaseId: null,
+				nextWorkIndex: 0,
+				terminalFailure: {
+					caseId: state.currentCaseId,
+					reason: "reserve-exhausted",
+				},
+			} as T,
+		};
+	}
 	safeSegment(replacementId, "reserve ID");
 	return {
 		replacementId,
@@ -340,8 +360,7 @@ export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: 
 	outputRoot: string;
 	reserveIds: readonly string[];
 	state: T;
-}): { replacementId: string; state: T } {
-	const transition = nextReserveTransition(input.reserveIds, input.state);
+}): { replacementId: string | null; state: T } {
 	if (existsSync(input.caseState.quarantinePath)) {
 		throw new Error(
 			`quarantined case already exists: ${input.caseState.quarantinePath}`,
@@ -358,6 +377,7 @@ export function quarantineCaseAndAllocateReserve<T extends ReserveState>(input: 
 	syncDirectory(dirname(input.caseState.quarantinePath));
 	input.failurePoint?.("after-quarantine-rename");
 
+	const transition = nextReserveTransition(input.reserveIds, input.state);
 	writeJsonDurably(join(input.outputRoot, "run-state.json"), transition.state);
 	input.failurePoint?.("after-state-write");
 
@@ -396,7 +416,11 @@ export async function executeCaseWork<T, TState extends ReserveState>(input: {
 		reserveIds: input.reserveIds,
 		state: input.state,
 	});
-	return { ...transition, result, status: "excluded" };
+	return {
+		...transition,
+		result,
+		status: transition.replacementId === null ? "reserve-exhausted" : "excluded",
+	};
 }
 
 export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
@@ -461,8 +485,6 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 		syncDirectory(dirname(input.caseState.quarantinePath));
 	}
 
-	const replacementId = input.reserveIds[input.state.reserveIndex];
-	if (replacementId === undefined) throw new Error("frozen reserves exhausted");
 	const recordedWorkId =
 		typeof exclusion === "object" &&
 		exclusion !== null &&
@@ -476,6 +498,7 @@ export function recoverInterruptedQuarantine<T extends ReserveState>(_input: {
 	if (workId === undefined) {
 		throw new Error("durable exclusion does not identify its failed work item");
 	}
+	const replacementId = input.reserveIds[input.state.reserveIndex] ?? null;
 	const reconciledState = input.reconcileExclusion?.(input.state, {
 		attemptRecords: attemptArtifacts
 			.filter(({ filename }) => filename.startsWith(`${workId}--attempt-`))

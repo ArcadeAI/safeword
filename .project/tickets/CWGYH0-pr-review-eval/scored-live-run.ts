@@ -134,6 +134,10 @@ type RunState = {
 	frozenRun: Record<string, unknown>;
 	nextWorkIndex: number;
 	reserveIndex: number;
+	terminalFailure?: {
+		caseId: string;
+		reason: "reserve-exhausted";
+	};
 	version: 3;
 };
 
@@ -587,8 +591,38 @@ if (preflightOnly) {
 	const observedBindings = () => ({
 		adapter: sha256Text(expectedAdapterCommit),
 		classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
+		costPolicy: sha256Text(JSON.stringify({
+			aggregateCostStopUsd,
+			cumulativeCostTargetUsd,
+			inputPricePerMillionUsd,
+			outputPricePerMillionUsd,
+		})),
+		effectiveMatrixDeriver: sha256(join(ticketRoot, "scored-matrix.ts")),
+		fixtures: sha256Text(JSON.stringify({
+			fixtures: gateEvidence.fixtures,
+			operational: gateEvidence.operational,
+		})),
+		labels: sha256Text(JSON.stringify(gateEvidence.paidOutcomes.map((outcome) => ({
+			callId: outcome.callId,
+			expectedLabel: outcome.expectedLabel,
+			system: outcome.system,
+			variant: outcome.variant,
+		})))),
 		preflight: sha256Text(certifiedPreflightBytes),
+		preregisteredMatrix: sha256Text(JSON.stringify({
+			primaryCaseIds: primary.cases.map(({ id }) => id),
+			reserveCaseIds: reserve.cases.map(({ id }) => id),
+			seed,
+			systems: ["full", "narrow"],
+			trials,
+			variants: ["buggy", "fixed"],
+		})),
 		primaryManifest: sha256(primaryManifestPath),
+		providerConfiguration: sha256Text(JSON.stringify({
+			expectedRoute,
+			model,
+			policy,
+		})),
 		reserveManifest: sha256(reserveManifestPath),
 		runner: sha256(join(ticketRoot, "scored-live-run.ts")),
 		runIdentity: sha256Text(JSON.stringify({
@@ -600,6 +634,13 @@ if (preflightOnly) {
 			runId: gateEvidence.runId,
 		})),
 		scorer: sha256(join(ticketRoot, "score-results.ts")),
+		sourceCommits: sha256Text(JSON.stringify(allCases.map((item) => ({
+			baseSha: item.baseSha,
+			fixedSha: item.fixedSha,
+			id: item.id,
+			reviewBaseSha: item.reviewBaseSha,
+			testPatchSha: item.testPatchSha,
+		})))),
 		writer: sha256(join(ticketRoot, "scored-case-store.ts")),
 	});
 	const assertPaidAuthorization = (): void => {
@@ -806,7 +847,8 @@ if (preflightOnly) {
 		state.completedCases < primary.cases.length &&
 		state.completedCases < cumulativeCaseTarget &&
 		state.costAccountingComplete &&
-		state.cumulativeCostUsd < cumulativeCostTargetUsd
+		state.cumulativeCostUsd < cumulativeCostTargetUsd &&
+		state.terminalFailure === undefined
 	) {
 		const continuingCase = state.currentCaseId !== null;
 		const itemId = state.currentCaseId ?? state.candidateQueueIds.shift();
@@ -915,9 +957,6 @@ if (preflightOnly) {
 					const usage = estimatedAttemptCost(result.attemptRecords);
 					excluded = true;
 					const replacement = reserve.cases[state.reserveIndex];
-					if (replacement === undefined) {
-						throw new Error("frozen reserves exhausted after case exclusions");
-					}
 					const exclusion = {
 						attemptRecords: result.attemptRecords,
 						attempts: result.attempts,
@@ -925,7 +964,7 @@ if (preflightOnly) {
 						disposition: result.disposition,
 						failedWork: current,
 						infrastructureErrors: result.infrastructureErrors,
-						replacementId: replacement.id,
+						replacementId: replacement?.id ?? null,
 						recordedAt: new Date().toISOString(),
 						usage,
 						workId,
@@ -995,7 +1034,9 @@ if (preflightOnly) {
 		await writeJsonAtomically(statePath, state);
 	}
 
-	const status = state.completedCases === primary.cases.length ? "completed" : "checkpoint";
+	const status = state.terminalFailure === undefined
+		? state.completedCases === primary.cases.length ? "completed" : "checkpoint"
+		: "failed-reserve-exhausted";
 	await writeJsonAtomically(join(outputRoot, "run-summary.json"), {
 		...frozenRun,
 		completedAt: new Date().toISOString(),
@@ -1007,6 +1048,7 @@ if (preflightOnly) {
 		cumulativeCostUsd: state.cumulativeCostUsd,
 		exclusions: state.exclusions,
 		status,
+		terminalFailure: state.terminalFailure ?? null,
 	});
 	writeJsonDurably(authorizationMarkerPath, {
 		authorizationIdentity,

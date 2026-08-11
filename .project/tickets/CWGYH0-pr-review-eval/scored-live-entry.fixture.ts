@@ -36,13 +36,20 @@ assert.equal(git(adapterRoot, "rev-parse", "HEAD"), expectedAdapterCommit);
 
 const primaryPath = join(ticketRoot, "scored-cases-frozen-2026-08-01.json");
 const reservePath = join(ticketRoot, "reserve-cases-frozen-2026-08-01.json");
+type FixtureCase = {
+	baseSha: string;
+	fixedSha: string;
+	id: string;
+	reviewBaseSha: string;
+	testPatchSha: string;
+};
 const primary = JSON.parse(readFileSync(primaryPath, "utf8")) as {
-	cases: Array<{ id: string }>;
+	cases: FixtureCase[];
 	modelCutoff: string;
 	runnerRef: string;
 };
 const reserve = JSON.parse(readFileSync(reservePath, "utf8")) as {
-	cases: Array<{ id: string }>;
+	cases: FixtureCase[];
 	modelCutoff: string;
 	runnerRef: string;
 };
@@ -84,14 +91,16 @@ try {
 	const outputRoot = join(root, "output");
 	const fixturePrimaryPath = join(root, "primary.json");
 	const fixtureReservePath = join(root, "reserve.json");
-	writeFileSync(fixturePrimaryPath, `${JSON.stringify({
+	const fixturePrimary = {
 		...primary,
 		cases: [primary.cases[0]],
-	}, null, 2)}\n`);
-	writeFileSync(fixtureReservePath, `${JSON.stringify({
+	};
+	const fixtureReserve = {
 		...reserve,
 		cases: [reserve.cases[0]],
-	}, null, 2)}\n`);
+	};
+	writeFileSync(fixturePrimaryPath, `${JSON.stringify(fixturePrimary, null, 2)}\n`);
+	writeFileSync(fixtureReservePath, `${JSON.stringify(fixtureReserve, null, 2)}\n`);
 	const preflightPath = join(root, "preflight.json");
 	const fetchLog = join(root, "fetch.log");
 	const fixturePreflight = {
@@ -144,11 +153,55 @@ try {
 		const checkpointId = "no-cost-fixture";
 		const runId = `fixture-${sha256Text(input.outputRoot)}`;
 		const gateGitRoot = join(root, `${sha256Text(input.outputRoot)}-gate-repository`);
+		const recordedAt = new Date(Date.now() - 2_000).toISOString();
+		const fixtures = rejectionReasons.map((reason) => ({ expectedReason: reason, fixtureId: `fixture-${reason}`, observedReason: reason, recordedAt }));
+		const operational = operationalClasses.map((failureClass) => ({ failureClass, passed: true, recordedAt, scenarioId: `scenario-${failureClass}` }));
+		const paidOutcomes = Array.from({ length: 10 }, (_, index) => ({
+			attemptIds: [`fixture-attempt-${index + 1}`],
+			callId: `fixture-call-${index + 1}`,
+			costComplete: true,
+			costUsd: 0,
+			expectedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
+			observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
+			provenanceComplete: true,
+			recordedAt,
+			system: index % 2 === 0 ? "full" : "narrow",
+			usageCostUsd: 0,
+			usable: true,
+			variant: index % 4 < 2 ? "buggy" : "fixed",
+		}));
 		const expectedBindings = {
 			adapter: sha256Text(expectedAdapterCommit),
 			classifier: sha256(join(ticketRoot, "scored-run-policy.ts")),
+			costPolicy: sha256Text(JSON.stringify({
+				aggregateCostStopUsd: 1_000,
+				cumulativeCostTargetUsd: 1_000,
+				inputPricePerMillionUsd: 3,
+				outputPricePerMillionUsd: 15,
+			})),
+			effectiveMatrixDeriver: sha256(join(ticketRoot, "scored-matrix.ts")),
+			fixtures: sha256Text(JSON.stringify({ fixtures, operational })),
+			labels: sha256Text(JSON.stringify(paidOutcomes.map((outcome) => ({
+				callId: outcome.callId,
+				expectedLabel: outcome.expectedLabel,
+				system: outcome.system,
+				variant: outcome.variant,
+			})))),
 			preflight: sha256Text(preflightBytes),
+			preregisteredMatrix: sha256Text(JSON.stringify({
+				primaryCaseIds: fixturePrimary.cases.map(({ id }) => id),
+				reserveCaseIds: fixtureReserve.cases.map(({ id }) => id),
+				seed: 5_453_573,
+				systems: ["full", "narrow"],
+				trials: 3,
+				variants: ["buggy", "fixed"],
+			})),
 			primaryManifest: sha256(fixturePrimaryPath),
+			providerConfiguration: sha256Text(JSON.stringify({
+				expectedRoute: { expert: "correctness", model: "claude-sonnet-5", provider: "anthropic" },
+				model: "claude-sonnet-5",
+				policy: preflight.policy,
+			})),
 			reserveManifest: sha256(fixtureReservePath),
 			runner: sha256(join(ticketRoot, "scored-live-run.ts")),
 			runIdentity: sha256Text(JSON.stringify({
@@ -160,11 +213,19 @@ try {
 				runId,
 			})),
 			scorer: sha256(join(ticketRoot, "score-results.ts")),
+			sourceCommits: sha256Text(JSON.stringify(
+				[...fixturePrimary.cases, ...fixtureReserve.cases].map((item) => ({
+					baseSha: item.baseSha,
+					fixedSha: item.fixedSha,
+					id: item.id,
+					reviewBaseSha: item.reviewBaseSha,
+					testPatchSha: item.testPatchSha,
+				})),
+			)),
 			writer: sha256(join(ticketRoot, "scored-case-store.ts")),
 		};
 		let gateEnvironment = gateByOutput.get(input.outputRoot);
 		if (gateEnvironment === undefined) {
-			const recordedAt = new Date(Date.now() - 2_000).toISOString();
 			const gateBytes = `${JSON.stringify({
 				anchorCreatedAt: recordedAt,
 				attempts: Array.from({ length: 10 }, (_, index) => ({
@@ -175,25 +236,12 @@ try {
 					usable: true,
 				})),
 				expectedBindings,
-				fixtures: rejectionReasons.map((reason) => ({ expectedReason: reason, fixtureId: `fixture-${reason}`, observedReason: reason, recordedAt })),
+				fixtures,
 				hiddenFailureRejected: true,
 				nextCheckpoint: checkpointId,
 				observedBindings: expectedBindings,
-				operational: operationalClasses.map((failureClass) => ({ failureClass, passed: true, recordedAt, scenarioId: `scenario-${failureClass}` })),
-				paidOutcomes: Array.from({ length: 10 }, (_, index) => ({
-					attemptIds: [`fixture-attempt-${index + 1}`],
-					callId: `fixture-call-${index + 1}`,
-					costComplete: true,
-					costUsd: 0,
-					expectedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
-					observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
-					provenanceComplete: true,
-					recordedAt,
-					system: index % 2 === 0 ? "full" : "narrow",
-					usageCostUsd: 0,
-					usable: true,
-					variant: index % 4 < 2 ? "buggy" : "fixed",
-				})),
+				operational,
+				paidOutcomes,
 				runId,
 			}, null, 2)}\n`;
 			const frozen = freezeFixtureBlob({
@@ -271,6 +319,29 @@ try {
 		/completed: 1\/30 cases/,
 	);
 	assert.equal(readFileSync(fetchLog, "utf8").trim().split("\n").length, 24);
+
+	const exhaustedOutputRoot = join(root, "exhausted-output");
+	const exhaustedFetchLog = join(root, "exhausted-fetch.log");
+	assert.match(
+		run({
+			fetchLog: exhaustedFetchLog,
+			mode: "all-schema-failure",
+			outputRoot: exhaustedOutputRoot,
+			scratchName: "scratch-exhausted",
+		}),
+		/failed-reserve-exhausted: 0\/30 cases with 2 exclusion\(s\)/,
+	);
+	const exhaustedSummary = JSON.parse(
+		readFileSync(join(exhaustedOutputRoot, "run-summary.json"), "utf8"),
+	) as {
+		status: string;
+		terminalFailure: { caseId: string; reason: string };
+	};
+	assert.equal(exhaustedSummary.status, "failed-reserve-exhausted");
+	assert.equal(exhaustedSummary.terminalFailure.reason, "reserve-exhausted");
+	assert.equal(readdirSync(join(exhaustedOutputRoot, "provisional")).length, 0);
+	assert.equal(readdirSync(join(exhaustedOutputRoot, "quarantine")).length, 2);
+	assert.equal(readFileSync(exhaustedFetchLog, "utf8").trim().split("\n").length, 2);
 
 	const failureOutputRoot = join(root, "failure-output");
 	const failureFetchLog = join(root, "failure-fetch.log");

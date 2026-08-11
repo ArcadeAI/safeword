@@ -21,6 +21,25 @@ export const CANONICAL_OPERATIONAL_CLASSES = [
 	"reserve-exhaustion",
 ] as const;
 
+export const REQUIRED_AUTHORIZATION_BINDINGS = [
+	"adapter",
+	"classifier",
+	"costPolicy",
+	"effectiveMatrixDeriver",
+	"fixtures",
+	"labels",
+	"preflight",
+	"preregisteredMatrix",
+	"primaryManifest",
+	"providerConfiguration",
+	"reserveManifest",
+	"runner",
+	"runIdentity",
+	"scorer",
+	"sourceCommits",
+	"writer",
+] as const;
+
 type CanaryInput = {
 	anchorCreatedAt: string;
 	attempts: Array<{
@@ -211,6 +230,9 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 
 	const expectedBindingNames = Object.keys(input.expectedBindings).sort();
 	const observedBindingNames = Object.keys(input.observedBindings).sort();
+	if (!exactMembers(expectedBindingNames, REQUIRED_AUTHORIZATION_BINDINGS)) {
+		reasons.push("authorization binding inventory is incomplete or unsupported");
+	}
 	if (!exactMembers(observedBindingNames, expectedBindingNames)) {
 		reasons.push("authorization binding inventory changed");
 	}

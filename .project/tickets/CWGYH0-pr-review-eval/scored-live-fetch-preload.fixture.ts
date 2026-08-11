@@ -16,8 +16,9 @@ globalThis.fetch = Object.assign(
 		const logPath = process.env.CWGYH0_FETCH_LOG;
 		if (logPath) appendFileSync(logPath, `${providerTurn}\n`);
 		if (
-			process.env.CWGYH0_FETCH_MODE === "first-schema-failure" &&
-			providerTurn === 1
+			process.env.CWGYH0_FETCH_MODE === "all-schema-failure" ||
+			(process.env.CWGYH0_FETCH_MODE === "first-schema-failure" &&
+				providerTurn === 1)
 		) {
 			return Promise.resolve(
 				new Response('{"type":"unexpected"}', {

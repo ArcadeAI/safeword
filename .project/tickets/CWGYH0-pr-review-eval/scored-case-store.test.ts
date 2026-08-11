@@ -242,7 +242,7 @@ describe("durable case lifecycle", () => {
 });
 
 describe("semantic failure handling", () => {
-	test("stops before allocating beyond the frozen reserve list", async () => {
+	test("quarantines the terminal failure before recording reserve exhaustion", async () => {
 		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
 		const pendingCase = beginProvisionalCase({
 			caseId: "SCORE-example",
@@ -251,8 +251,7 @@ describe("semantic failure handling", () => {
 		});
 		let calls = 0;
 
-		await expect(
-			executeCaseWork({
+		const result = await executeCaseWork({
 				caseState: pendingCase,
 				classify: () => ({ reason: "schema-invalid", retry: "never", status: "invalid" }),
 				execute: async () => {
@@ -269,13 +268,64 @@ describe("semantic failure handling", () => {
 					version: 3,
 				},
 				workId: "full--buggy--t1",
-			}),
-		).rejects.toThrow("frozen reserves exhausted");
+			});
 		expect(calls).toBe(1);
-		expect(readdirSync(pendingCase.provisionalPath)).toEqual([
+		expect(existsSync(pendingCase.provisionalPath)).toBe(false);
+		expect(readdirSync(pendingCase.quarantinePath).sort()).toEqual([
+			"EXCLUSION.json",
 			"full--buggy--t1--attempt-1.json",
 		]);
-		expect(existsSync(pendingCase.quarantinePath)).toBe(false);
+		expect(result).toMatchObject({
+			replacementId: null,
+			state: {
+				currentCaseId: null,
+				terminalFailure: {
+					caseId: "SCORE-example",
+					reason: "reserve-exhausted",
+				},
+			},
+			status: "reserve-exhausted",
+		});
+		expect(JSON.parse(readFileSync(join(outputRoot, "run-state.json"), "utf8")))
+			.toEqual(result.state);
+	});
+
+	test("recovers a quarantined terminal failure when no reserve remains", async () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const caseState = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		const failed = await executeWithInfrastructureRetry(
+			async () => ({ raw: "semantic failure" }),
+			() => ({ reason: "schema-invalid", retry: "never", status: "invalid" }),
+		);
+		recordTrialResult(caseState, "full--buggy--t1", failed);
+		const state = {
+			candidateQueueIds: [],
+			currentCaseId: "SCORE-example",
+			nextWorkIndex: 0,
+			reserveIndex: 0,
+			version: 3,
+		};
+
+		const recovered = recoverInterruptedQuarantine({
+			caseState,
+			outputRoot,
+			reserveIds: [],
+			state,
+		});
+
+		expect(existsSync(caseState.provisionalPath)).toBe(false);
+		expect(existsSync(caseState.quarantinePath)).toBe(true);
+		expect(recovered).toMatchObject({
+			currentCaseId: null,
+			terminalFailure: {
+				caseId: "SCORE-example",
+				reason: "reserve-exhausted",
+			},
+		});
 	});
 
 	test.each([

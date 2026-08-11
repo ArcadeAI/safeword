@@ -4,6 +4,7 @@ import {
 	CANONICAL_OPERATIONAL_CLASSES,
 	CANONICAL_REJECTION_REASONS,
 	evaluateCanaryGate,
+	REQUIRED_AUTHORIZATION_BINDINGS,
 } from "./scored-canary-gate";
 
 function validInput() {
@@ -39,6 +40,12 @@ function validInput() {
 	paidOutcomes[1]!.attemptIds.push("failed");
 	paidOutcomes[1]!.costUsd = 0.04;
 	paidOutcomes[1]!.usageCostUsd = 0.04;
+	const expectedBindings = Object.fromEntries(
+		REQUIRED_AUTHORIZATION_BINDINGS.map((name, index) => [
+			name,
+			(index + 10).toString(16).padStart(64, "0"),
+		]),
+	);
 	return {
 		anchorCreatedAt: "2026-08-02T00:00:00.000Z",
 		attempts: [
@@ -52,11 +59,11 @@ function validInput() {
 			{ attemptId: "retry", callId: "call-1", costComplete: true, costUsd: 0.02, usable: false },
 			{ attemptId: "failed", callId: "call-2", costComplete: true, costUsd: 0.03, usable: false },
 		],
-		expectedBindings: { runner: "a".repeat(64), scorer: "b".repeat(64) },
+		expectedBindings,
 		fixtures,
 		hiddenFailureRejected: true,
 		nextCheckpoint: "20-calls",
-		observedBindings: { runner: "a".repeat(64), scorer: "b".repeat(64) },
+		observedBindings: { ...expectedBindings },
 		operational,
 		paidOutcomes,
 		runId: "run-fixture-1",
@@ -84,6 +91,7 @@ describe("paid canary authorization", () => {
 		["cost inconsistent with usage", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[2]!.usageCostUsd = 0.02; }],
 		["hidden failure admitted", (input: ReturnType<typeof validInput>) => { input.hiddenFailureRejected = false; }],
 		["changed executable binding", (input: ReturnType<typeof validInput>) => { input.observedBindings.runner = "c".repeat(64); }],
+		["missing required binding", (input: ReturnType<typeof validInput>) => { delete input.expectedBindings.labels; delete input.observedBindings.labels; }],
 	] as const)("blocks more spend for %s", (_label, mutate) => {
 		const input = validInput();
 		mutate(input);
