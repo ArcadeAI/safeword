@@ -742,6 +742,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/record-skill-invocation.ts': {
       template: 'hooks/record-skill-invocation.ts',
     },
+    '.safeword/hooks/run-review.ts': {
+      template: 'hooks/run-review.ts',
+    },
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },

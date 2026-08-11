@@ -1,7 +1,19 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { reviewCandidates } from '../../templates/hooks/run-review';
 
 const templates = nodePath.resolve(import.meta.dirname, '../../templates');
 
@@ -18,6 +30,88 @@ function markdownFiles(directory: string, prefix = ''): string[] {
   });
 }
 
+function executable(path: string, body: string): void {
+  writeFileSync(path, `#!/bin/sh\n${body}\n`);
+  chmodSync(path, 0o755);
+}
+
+// eslint-disable-next-line complexity -- one fixture intentionally exercises every resolver branch
+function runResolver(
+  route: 'plugin' | 'local' | 'source' | 'fallback',
+  rejectPlugin = false,
+  hangPlugin = false,
+): string[] {
+  const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-resolver-'));
+  try {
+    const bin = nodePath.join(fixture, 'bin');
+    mkdirSync(bin);
+    const log = nodePath.join(fixture, 'calls.log');
+    executable(
+      nodePath.join(bin, 'bun'),
+      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) sleep 2;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
+    );
+    executable(nodePath.join(bin, 'bunx'), String.raw`printf 'bunx:%s\n' "$*" >> "$CALL_LOG"`);
+
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      CALL_LOG: log,
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS: '500',
+    };
+    delete env.CLAUDE_PLUGIN_ROOT;
+    switch (route) {
+      case 'plugin': {
+        const pluginRoot = nodePath.join(fixture, 'plugin');
+        mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+        writeFileSync(nodePath.join(pluginRoot, 'runtime', 'cli.js'), '');
+        env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+        if (rejectPlugin || hangPlugin) {
+          mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
+          writeFileSync(nodePath.join(fixture, '.safeword/version'), '0.74.7\n');
+        }
+
+        break;
+      }
+      case 'local': {
+        mkdirSync(nodePath.join(fixture, 'node_modules/.bin'), { recursive: true });
+        executable(
+          nodePath.join(fixture, 'node_modules/.bin/safeword'),
+          String.raw`printf 'local:%s\n' "$*" >> "$CALL_LOG"`,
+        );
+
+        break;
+      }
+      case 'source': {
+        mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
+        writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+
+        break;
+      }
+      case 'fallback': {
+        mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
+        writeFileSync(nodePath.join(fixture, '.safeword/version'), '0.74.7\n');
+      }
+    }
+
+    execFileSync(
+      process.execPath,
+      [
+        nodePath.join(templates, 'hooks/run-review.ts'),
+        'review',
+        'run',
+        'quality-review',
+        'target',
+        '--agent-handoff',
+        '--json',
+      ],
+      { cwd: fixture, env },
+    );
+    return readFileSync(log, 'utf8').trim().split('\n');
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+}
+
 describe('class-1 review surface parity', () => {
   it.each([
     ['skills/quality-review/SKILL.md', 'quality-review'],
@@ -26,7 +120,106 @@ describe('class-1 review surface parity', () => {
     ['skills/bdd/PLAN_IMPLEMENTATION.md', 'plan-implementation'],
     ['skills/bdd/TDD.md', 'plan-implementation'],
   ])('%s enters the shared %s coordinator', (relativePath, kind) => {
-    expect(readTemplate(relativePath), relativePath).toContain(`safeword review run ${kind}`);
+    const content = readTemplate(relativePath);
+    expect(content, relativePath).toContain(`run-review.ts review run ${kind}`);
+    expect(
+      content.split('\n').some(line => line.trimStart().startsWith('safeword review run ')),
+      relativePath,
+    ).toBe(false);
+    expect(content, relativePath).toContain('bun .safeword/hooks/run-review.ts');
+  });
+
+  it.each([
+    ['plugin', 'bun:', '/runtime/cli.js review run quality-review target --agent-handoff --json'],
+    ['local', 'local:', 'review run quality-review target --agent-handoff --json'],
+    [
+      'source',
+      'bun:',
+      'packages/cli/src/cli.ts review run quality-review target --agent-handoff --json',
+    ],
+    [
+      'fallback',
+      'bunx:',
+      'safeword@0.74.7 review run quality-review target --agent-handoff --json',
+    ],
+  ] as const)('executes the %s resolver route', (route, prefix, invocation) => {
+    const calls = runResolver(route);
+    expect(calls.at(-1)?.startsWith(prefix)).toBe(true);
+    expect(calls.at(-1)).toContain(invocation);
+  });
+
+  it('falls through when a higher-priority CLI lacks review support', () => {
+    const calls = runResolver('plugin', true);
+    expect(calls.at(-1)).toContain('safeword@0.74.7 review run quality-review');
+  });
+
+  it('falls through when a higher-priority CLI probe hangs', () => {
+    const calls = runResolver('plugin', false, true);
+    expect(calls.at(-1)).toContain('safeword@0.74.7 review run quality-review');
+  });
+
+  it('rejects an installed version that is not exact semver', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-version-'));
+    try {
+      mkdirSync(nodePath.join(fixture, '.safeword'));
+      writeFileSync(nodePath.join(fixture, '.safeword/version'), 'npm:untrusted-package\n');
+      expect(reviewCandidates(fixture, {})).not.toContainEqual([
+        'bunx',
+        ['safeword@npm:untrusted-package'],
+      ]);
+      expect(reviewCandidates(fixture, {})).toHaveLength(0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects leading zeroes in numeric semantic-version identifiers', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-version-'));
+    try {
+      mkdirSync(nodePath.join(fixture, '.safeword'));
+      writeFileSync(nodePath.join(fixture, '.safeword/version'), '01.2.3\n');
+      expect(reviewCandidates(fixture, {})).toHaveLength(0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('runs the real source checkout CLI', () => {
+    const output = execFileSync(
+      process.execPath,
+      [nodePath.join(templates, 'hooks/run-review.ts'), 'review', 'run', '--help'],
+      { cwd: nodePath.resolve(import.meta.dirname, '../../../..'), encoding: 'utf8' },
+    );
+    expect(output).toContain('Run an independent adversarial review');
+  });
+
+  it('runs the real bundled Claude plugin CLI', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-plugin-'));
+    try {
+      const output = execFileSync(
+        process.execPath,
+        [nodePath.join(templates, 'hooks/run-review.ts'), 'review', 'run', '--help'],
+        {
+          cwd: fixture,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            CLAUDE_PLUGIN_ROOT: nodePath.resolve(import.meta.dirname, '../../../../plugin'),
+          },
+        },
+      );
+      expect(output).toContain('Run an independent adversarial review');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('ships the bundled-plugin route in generated Claude skills', () => {
+    const generated = readFileSync(
+      nodePath.resolve(import.meta.dirname, '../../../../plugin/skills/quality-review/SKILL.md'),
+      'utf8',
+    );
+    expect(generated).toContain('/runtime/hooks/run-review.ts');
   });
 
   it.each([
@@ -41,7 +234,9 @@ describe('class-1 review surface parity', () => {
   it('wires every canonical coordinator caller to the same typed-exhaustion continuation', () => {
     const skills = nodePath.join(templates, 'skills');
     const callers = markdownFiles(skills).filter(relativePath =>
-      readFileSync(nodePath.join(skills, relativePath), 'utf8').includes('safeword review run'),
+      readFileSync(nodePath.join(skills, relativePath), 'utf8').includes(
+        'run-review.ts review run',
+      ),
     );
 
     expect(callers.length).toBeGreaterThan(0);
