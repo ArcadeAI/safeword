@@ -32,7 +32,7 @@ export type ScoreableMatrix<T extends MatrixRecord> = {
 	admittedRecords: T[];
 	effectiveCaseIds: string[];
 	gates: {
-		allCasesComplete: true;
+		allCasesComplete: boolean;
 		contaminationPreflightPassed: boolean;
 	};
 };
@@ -155,11 +155,18 @@ export function deriveScoreableMatrix<T extends MatrixRecord>(
 		}
 	}
 
+	const expectedRecordCount =
+		effectiveCaseIds.length *
+		input.systems.length *
+		input.variants.length *
+		input.trials.length;
 	return {
 		admittedRecords: [...input.records],
 		effectiveCaseIds,
 		gates: {
-			allCasesComplete: true,
+			allCasesComplete:
+				input.records.length === expectedRecordCount &&
+				input.records.every((record) => record.usable),
 			contaminationPreflightPassed:
 				input.preflight.status === "passed" &&
 				input.preflight.observedRepositoryCount ===
