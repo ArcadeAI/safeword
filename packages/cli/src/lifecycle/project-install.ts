@@ -1070,9 +1070,11 @@ function projectClaudePluginEnrolled(cwd: string): boolean {
 function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
-    observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
-      installPack(packId, cwd),
-    );
+    const targets = [
+      '.safeword/config.json',
+      ...(packId === 'rust' ? rustToolingTargets(cwd) : []),
+    ];
+    observeFileStage(cwd, targets, completedEffects, () => installPack(packId, cwd));
   }
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
     stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),

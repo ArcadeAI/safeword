@@ -397,6 +397,35 @@ esac
       { kind: 'update', target: 'Cargo.toml' },
       { kind: 'update', target: 'crates/api/Cargo.toml' },
     ]);
+
+    const installed = await runCliWithoutInstall(
+      [
+        'install',
+        '--agents=none',
+        '--scope=project',
+        '--no-input',
+        '--no-modify',
+        '--json',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+    expect(installed.exitCode, installed.stdout).toBe(0);
+    const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
+    const plannedFiles = new Set((envelope.data.plan.effects.files ?? []).map(effectIdentity));
+    expect(
+      (installEnvelope.effects.files ?? []).filter(
+        effect => !plannedFiles.has(effectIdentity(effect)),
+      ),
+    ).toEqual([]);
+    expect(installEnvelope.effects.files ?? []).toEqual(
+      expect.arrayContaining([
+        { kind: 'update', target: 'Cargo.toml' },
+        { kind: 'update', target: 'crates/api/Cargo.toml' },
+      ]),
+    );
   });
 
   it('previews conservative ESLint writes without inventing unrelated targets', async () => {
