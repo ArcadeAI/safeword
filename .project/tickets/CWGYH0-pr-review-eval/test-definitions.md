@@ -228,7 +228,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The paid canary outcomes are independently checkable
 
-- [ ] RED
+- [x] RED a7d8259d1
 - [ ] GREEN
 - [ ] REFACTOR
 
