@@ -152,7 +152,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Missing usage cannot bypass quarantine or authorize more spend
 
-- [ ] RED
+- [x] RED ca0993b71
 - [ ] GREEN
 - [ ] REFACTOR
 
