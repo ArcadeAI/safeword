@@ -167,7 +167,6 @@ try {
 			callId: `fixture-call-${index + 1}`,
 			costComplete: true,
 			costUsd: 0,
-			observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
 			provenanceComplete: true,
 			recordedAt,
 			system: index % 2 === 0 ? "full" : "narrow",
@@ -175,11 +174,12 @@ try {
 			usable: true,
 			variant: index % 4 < 2 ? "buggy" : "fixed",
 		}));
-		const preregisteredLabels = paidOutcomes.map((outcome) => ({
+		const preregisteredLabels = paidOutcomes.map((outcome, index) => ({
 			callId: outcome.callId,
 			expectedAdmission: "usable",
-			expectedOutputClass: outcome.observedLabel,
+			expectedOutputClass: index === 0 ? "finding" : "empty",
 			expectedReason: "completed",
+			genuineEmpty: index === 1,
 			system: outcome.system,
 			variant: outcome.variant,
 		}));
@@ -231,6 +231,7 @@ try {
 					terminalState: "completed",
 					trace: [{ type: "report" }],
 				},
+				system: outcome.system,
 				usable: true,
 			};
 		});

@@ -66,7 +66,6 @@ function validInput() {
 		callId: `call-${index + 1}`,
 		costComplete: true,
 		costUsd: 0.01,
-		observedLabel: index === 0 ? "finding" : index === 1 ? "genuine-empty" : "clean",
 		provenanceComplete: true,
 		recordedAt: "2026-08-01T00:00:00.000Z",
 		system: index % 2 === 0 ? "full" : "narrow",
@@ -74,11 +73,12 @@ function validInput() {
 		usable: true,
 		variant: index % 4 < 2 ? "buggy" : "fixed",
 	}));
-	const preregisteredLabels = paidOutcomes.map((outcome) => ({
+	const preregisteredLabels = paidOutcomes.map((outcome, index) => ({
 		callId: outcome.callId,
 		expectedAdmission: "usable" as const,
-		expectedOutputClass: outcome.observedLabel as "clean" | "finding" | "genuine-empty",
+		expectedOutputClass: index === 0 ? "finding" as const : "empty" as const,
 		expectedReason: "completed" as const,
+		genuineEmpty: index === 1,
 		system: outcome.system as "full" | "narrow",
 		variant: outcome.variant as "buggy" | "fixed",
 	}));
@@ -98,8 +98,8 @@ function validInput() {
 		anchorCreatedAt: "2026-08-02T00:00:00.000Z",
 		labelAnchorCreatedAt: "2026-07-31T00:00:00.000Z",
 		attempts: [
-			{ attemptId: "retry", callId: "call-1", costComplete: true, costUsd: 0.02, expectedProvenance: rawOutput(0).provenance, expectedRoute: route, output: null, usable: false },
-			{ attemptId: "failed", callId: "call-2", costComplete: true, costUsd: 0.03, expectedProvenance: rawOutput(1).provenance, expectedRoute: route, output: null, usable: false },
+			{ attemptId: "retry", callId: "call-1", costComplete: true, costUsd: 0.02, expectedProvenance: rawOutput(0).provenance, expectedRoute: route, output: null, system: "full" as const, usable: false },
+			{ attemptId: "failed", callId: "call-2", costComplete: true, costUsd: 0.03, expectedProvenance: rawOutput(1).provenance, expectedRoute: route, output: null, system: "narrow" as const, usable: false },
 			...Array.from({ length: 10 }, (_, index) => ({
 				...rawOutput(index),
 				attemptId: `attempt-${index + 1}`,
@@ -108,6 +108,7 @@ function validInput() {
 				costUsd: 0.01,
 				expectedProvenance: rawOutput(index).provenance,
 				expectedRoute: route,
+				system: index % 2 === 0 ? "full" as const : "narrow" as const,
 				usable: true,
 			})),
 		],
@@ -137,9 +138,11 @@ describe("paid canary authorization", () => {
 		["missing fixture taxonomy", (input: ReturnType<typeof validInput>) => input.fixtures.pop()],
 		["failed operational injection", (input: ReturnType<typeof validInput>) => { input.operational[0]!.passed = false; }],
 		["unusable paid call", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[3]!.usable = false; }],
-		["label disagreement", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[4]!.observedLabel = "finding"; }],
+		["label disagreement", (input: ReturnType<typeof validInput>) => { input.preregisteredLabels[4]!.expectedOutputClass = "finding"; }],
 		["post-outcome label anchor", (input: ReturnType<typeof validInput>) => { input.labelAnchorCreatedAt = "2026-08-01T00:00:00.000Z"; }],
-		["unsupported label vocabulary", (input: ReturnType<typeof validInput>) => { input.preregisteredLabels[2]!.expectedOutputClass = "unsupported" as "clean"; }],
+		["unsupported label vocabulary", (input: ReturnType<typeof validInput>) => { input.preregisteredLabels[2]!.expectedOutputClass = "unsupported" as "empty"; }],
+		["fabricated raw system", (input: ReturnType<typeof validInput>) => { input.attempts.find(({ attemptId }) => attemptId === "attempt-2")!.system = "full"; }],
+		["fabricated raw variant", (input: ReturnType<typeof validInput>) => { input.attempts.find(({ attemptId }) => attemptId === "attempt-3")!.expectedProvenance.variant = "buggy"; }],
 		["incomplete cost", (input: ReturnType<typeof validInput>) => { input.attempts[1]!.costComplete = false; }],
 		["missing attempt ledger", (input: ReturnType<typeof validInput>) => { input.attempts = []; }],
 		["unreferenced retry", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[0]!.attemptIds.pop(); }],

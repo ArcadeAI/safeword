@@ -42,6 +42,12 @@ describe("live scored-run lifecycle wiring", () => {
 		expect(runner).not.toContain("aggregateCostCeilingUsd");
 	});
 
+	test("loads optional finding verification only from manifest-verified bytes", () => {
+		const scorer = readFileSync(join(ticketRoot, "score-results.ts"), "utf8");
+		expect(scorer).toContain("readVerifiedJson<unknown>(verificationIdentity)");
+		expect(scorer).not.toContain("readJson<unknown>(verificationPath)");
+	});
+
 	test("loads the pinned adapter and source repository from explicit runtime paths", () => {
 		const runner = readFileSync(join(ticketRoot, "scored-live-run.ts"), "utf8");
 		expect(runner).toContain('requireEnvironment("CWGYH0_ADAPTER_ROOT")');

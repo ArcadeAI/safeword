@@ -57,6 +57,7 @@ type CanaryInput = {
 		expectedProvenance: TrialProvenance;
 		expectedRoute: TrialRoute;
 		output: unknown;
+		system: "full" | "narrow";
 		usable: boolean;
 	}>;
 	expectedBindings: Record<string, string>;
@@ -75,7 +76,6 @@ type CanaryInput = {
 		callId: string;
 		costComplete: boolean;
 		costUsd: number;
-		observedLabel: string;
 		provenanceComplete: boolean;
 		recordedAt: string;
 		system: string;
@@ -86,8 +86,9 @@ type CanaryInput = {
 	preregisteredLabels: Array<{
 		callId: string;
 		expectedAdmission: "usable";
-		expectedOutputClass: "clean" | "finding" | "genuine-empty";
+		expectedOutputClass: "empty" | "finding";
 		expectedReason: "completed";
+		genuineEmpty: boolean;
 		system: "full" | "narrow";
 		variant: "buggy" | "fixed";
 	}>;
@@ -190,7 +191,9 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		if (
 			label.expectedAdmission !== "usable" ||
 			label.expectedReason !== "completed" ||
-			!["clean", "finding", "genuine-empty"].includes(label.expectedOutputClass) ||
+			!["empty", "finding"].includes(label.expectedOutputClass) ||
+			(typeof label.genuineEmpty !== "boolean") ||
+			(label.genuineEmpty && label.expectedOutputClass !== "empty") ||
 			!["full", "narrow"].includes(label.system) ||
 			!["buggy", "fixed"].includes(label.variant)
 		) {
@@ -207,10 +210,11 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 			reasons.push(`paid canary does not cover ${required} variant`);
 		}
 	}
-	for (const required of ["finding", "genuine-empty"]) {
-		if (!input.preregisteredLabels.some(({ expectedOutputClass }) => expectedOutputClass === required)) {
-			reasons.push(`paid canary does not cover ${required} outcome`);
-		}
+	if (!input.preregisteredLabels.some(({ expectedOutputClass }) => expectedOutputClass === "finding")) {
+		reasons.push("paid canary does not cover finding outcome");
+	}
+	if (!input.preregisteredLabels.some(({ genuineEmpty }) => genuineEmpty)) {
+		reasons.push("paid canary does not cover a preregistered genuine-empty outcome");
 	}
 	for (const outcome of input.paidOutcomes) {
 		const label = input.preregisteredLabels.find(({ callId }) => callId === outcome.callId);
@@ -224,7 +228,6 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		}
 		if (
 			label === undefined ||
-			outcome.observedLabel !== label.expectedOutputClass ||
 			outcome.system !== label.system ||
 			outcome.variant !== label.variant
 		) {
@@ -274,7 +277,12 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		const attempts = input.attempts.filter((attempt) => outcome.attemptIds.includes(attempt.attemptId));
 		if (
 			attempts.length !== outcome.attemptIds.length ||
-			attempts.some((attempt) => attempt.callId !== outcome.callId)
+			attempts.some(
+				(attempt) =>
+					attempt.callId !== outcome.callId ||
+					attempt.system !== outcome.system ||
+					attempt.expectedProvenance.variant !== outcome.variant,
+			)
 		) {
 			reasons.push(`paid call ${outcome.callId} references an absent or unrelated attempt`);
 			continue;
@@ -292,7 +300,7 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 			"findings" in rawOutput.report.consolidated && Array.isArray(rawOutput.report.consolidated.findings)
 				? rawOutput.report.consolidated.findings
 				: null;
-		const expectedRawClass = label?.expectedOutputClass === "finding" ? "finding" : "empty";
+		const expectedRawClass = label?.expectedOutputClass ?? null;
 		const observedRawClass = rawFindings === null ? null : rawFindings.length > 0 ? "finding" : "empty";
 		if (
 			terminalAttempt?.usable !== true ||

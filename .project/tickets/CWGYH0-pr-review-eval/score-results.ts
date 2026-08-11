@@ -49,10 +49,6 @@ function requireArgument(index: number, name: string): string {
 	return value;
 }
 
-function readJson<T>(path: string): T {
-	return JSON.parse(readFileSync(path, "utf8")) as T;
-}
-
 function findingKey(input: EvidenceFinding): string {
 	return `${input.caseId}\u0000${input.variant}\u0000${input.system}\u0000${input.trial}\u0000${input.file}\u0000${input.line}\u0000${input.title}`;
 }
@@ -68,7 +64,7 @@ function isNamedFinding(record: RecordFile, finding: Finding): boolean {
 
 const outputRoot = requireArgument(2, "scored output directory");
 const resultsPath = requireArgument(3, "results path");
-const verificationPath = process.argv[4];
+const verificationIdentity = process.argv[4];
 const preflightPath =
 	process.env.CWGYH0_PREFLIGHT_PATH ??
 	requireArgument(5, "contamination preflight path");
@@ -221,8 +217,8 @@ const scoreableFindings: EvidenceFinding[] = records.flatMap((record) =>
 			variant: record.variant,
 		})),
 );
-const verifications = verificationPath
-	? validateVerifications(readJson<unknown>(verificationPath), scoreableFindings)
+const verifications = verificationIdentity
+	? validateVerifications(readVerifiedJson<unknown>(verificationIdentity), scoreableFindings)
 	: [];
 const verificationByFinding = new Map(
 	verifications.map((entry) => [findingKey(entry), entry]),
