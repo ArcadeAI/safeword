@@ -156,7 +156,13 @@ try {
 		const recordedAt = new Date(Date.now() - 2_000).toISOString();
 		const gateBytes = `${JSON.stringify({
 			anchorCreatedAt: recordedAt,
-			attempts: [{ attemptId: "fixture-attempt", costComplete: true, costUsd: 0, usable: true }],
+			attempts: Array.from({ length: 10 }, (_, index) => ({
+				attemptId: `fixture-attempt-${index + 1}`,
+				callId: `fixture-call-${index + 1}`,
+				costComplete: true,
+				costUsd: 0,
+				usable: true,
+			})),
 			expectedBindings,
 			fixtures: rejectionReasons.map((reason) => ({ expectedReason: reason, fixtureId: `fixture-${reason}`, observedReason: reason, recordedAt })),
 			hiddenFailureRejected: true,
@@ -164,6 +170,7 @@ try {
 			observedBindings: expectedBindings,
 			operational: operationalClasses.map((failureClass) => ({ failureClass, passed: true, recordedAt, scenarioId: `scenario-${failureClass}` })),
 			paidOutcomes: Array.from({ length: 10 }, (_, index) => ({
+				attemptIds: [`fixture-attempt-${index + 1}`],
 				callId: `fixture-call-${index + 1}`,
 				costComplete: true,
 				costUsd: 0,

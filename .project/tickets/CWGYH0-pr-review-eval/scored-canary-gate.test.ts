@@ -20,6 +20,7 @@ function validInput() {
 		scenarioId: `scenario-${failureClass}`,
 	}));
 	const paidOutcomes = Array.from({ length: 10 }, (_, index) => ({
+		attemptIds: [`attempt-${index + 1}`],
 		callId: `call-${index + 1}`,
 		costComplete: true,
 		costUsd: 0.01,
@@ -32,12 +33,24 @@ function validInput() {
 		usable: true,
 		variant: index % 4 < 2 ? "buggy" : "fixed",
 	}));
+	paidOutcomes[0]!.attemptIds.push("retry");
+	paidOutcomes[0]!.costUsd = 0.03;
+	paidOutcomes[0]!.usageCostUsd = 0.03;
+	paidOutcomes[1]!.attemptIds.push("failed");
+	paidOutcomes[1]!.costUsd = 0.04;
+	paidOutcomes[1]!.usageCostUsd = 0.04;
 	return {
 		anchorCreatedAt: "2026-08-02T00:00:00.000Z",
 		attempts: [
-			{ attemptId: "usable", costComplete: true, costUsd: 0.1, usable: true },
-			{ attemptId: "retry", costComplete: true, costUsd: 0.02, usable: false },
-			{ attemptId: "failed", costComplete: true, costUsd: 0.03, usable: false },
+			...Array.from({ length: 10 }, (_, index) => ({
+				attemptId: `attempt-${index + 1}`,
+				callId: `call-${index + 1}`,
+				costComplete: true,
+				costUsd: 0.01,
+				usable: true,
+			})),
+			{ attemptId: "retry", callId: "call-1", costComplete: true, costUsd: 0.02, usable: false },
+			{ attemptId: "failed", callId: "call-2", costComplete: true, costUsd: 0.03, usable: false },
 		],
 		expectedBindings: { runner: "a".repeat(64), scorer: "b".repeat(64) },
 		fixtures,
@@ -66,6 +79,8 @@ describe("paid canary authorization", () => {
 		["unusable paid call", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[3]!.usable = false; }],
 		["label disagreement", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[4]!.observedLabel = "finding"; }],
 		["incomplete cost", (input: ReturnType<typeof validInput>) => { input.attempts[1]!.costComplete = false; }],
+		["missing attempt ledger", (input: ReturnType<typeof validInput>) => { input.attempts = []; }],
+		["unreferenced retry", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[0]!.attemptIds.pop(); }],
 		["cost inconsistent with usage", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[2]!.usageCostUsd = 0.02; }],
 		["hidden failure admitted", (input: ReturnType<typeof validInput>) => { input.hiddenFailureRejected = false; }],
 		["changed executable binding", (input: ReturnType<typeof validInput>) => { input.observedBindings.runner = "c".repeat(64); }],

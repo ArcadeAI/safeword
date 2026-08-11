@@ -25,6 +25,7 @@ type CanaryInput = {
 	anchorCreatedAt: string;
 	attempts: Array<{
 		attemptId: string;
+		callId: string;
 		costComplete: boolean;
 		costUsd: number;
 		usable: boolean;
@@ -41,6 +42,7 @@ type CanaryInput = {
 	observedBindings: Record<string, string>;
 	operational: Array<{ failureClass: string; passed: boolean; recordedAt: string; scenarioId: string }>;
 	paidOutcomes: Array<{
+		attemptIds: string[];
 		callId: string;
 		costComplete: boolean;
 		costUsd: number;
@@ -176,6 +178,32 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	for (const attempt of input.attempts) {
 		if (!attempt.costComplete || !validCost(attempt.costUsd)) {
 			reasons.push(`attempt ${attempt.attemptId} has incomplete cost`);
+		}
+	}
+	const referencedAttemptIds = input.paidOutcomes.flatMap(({ attemptIds: ids }) => ids);
+	if (
+		referencedAttemptIds.length !== attemptIds.length ||
+		duplicates(referencedAttemptIds).length > 0 ||
+		!exactMembers(referencedAttemptIds, attemptIds)
+	) {
+		reasons.push("paid outcomes do not reference the complete attempt ledger exactly once");
+	}
+	for (const outcome of input.paidOutcomes) {
+		if (outcome.attemptIds.length === 0 || new Set(outcome.attemptIds).size !== outcome.attemptIds.length) {
+			reasons.push(`paid call ${outcome.callId} has no complete unique attempt set`);
+			continue;
+		}
+		const attempts = input.attempts.filter((attempt) => outcome.attemptIds.includes(attempt.attemptId));
+		if (
+			attempts.length !== outcome.attemptIds.length ||
+			attempts.some((attempt) => attempt.callId !== outcome.callId)
+		) {
+			reasons.push(`paid call ${outcome.callId} references an absent or unrelated attempt`);
+			continue;
+		}
+		const reconciledCost = roundedCost(attempts.reduce((total, attempt) => total + attempt.costUsd, 0));
+		if (Math.abs(reconciledCost - outcome.costUsd) > 1e-9) {
+			reasons.push(`paid call ${outcome.callId} cost does not equal its complete attempt set`);
 		}
 	}
 	if (!input.hiddenFailureRejected) reasons.push("real-wiring hidden failure was admitted");
