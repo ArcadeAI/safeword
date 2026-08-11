@@ -119,7 +119,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Validity gates change when admitted evidence changes
 
 - [x] RED e2f3fdfda
-- [ ] GREEN
+- [x] GREEN 251bde01d
 - [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
