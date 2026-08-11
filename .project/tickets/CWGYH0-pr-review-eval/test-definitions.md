@@ -80,7 +80,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Crash recovery preserves one quarantine and reserve decision
 
-- [ ] RED
+- [x] RED 99ff95284
 - [ ] GREEN
 - [ ] REFACTOR
 
