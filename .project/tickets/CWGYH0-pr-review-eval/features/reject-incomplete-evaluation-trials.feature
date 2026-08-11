@@ -150,6 +150,18 @@ Feature: Keep failed reviews out of benchmark scores
       When the harness restarts against the same output directory
       Then it safely reclaims the stale lock and becomes the sole owner
 
+    Scenario Outline: Injected crashes exercise the durable quarantine transaction
+      Given a terminal case failure is durable
+      And the production transaction throws <boundary>
+      When the harness resumes from the durable artifacts it actually wrote
+      Then it completes exactly one quarantine and reserve allocation
+
+      Examples:
+        | boundary                         |
+        | after the exclusion marker write |
+        | after the quarantine rename      |
+        | after the run-state write        |
+
     @rejection
     Scenario Outline: Interrupted quarantine is never partially scoreable
       Given a failure is injected <boundary>

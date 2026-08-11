@@ -204,6 +204,63 @@ describe("semantic failure handling", () => {
 });
 
 describe("quarantine crash recovery", () => {
+	test.each([
+		"after-exclusion-write",
+		"after-quarantine-rename",
+		"after-state-write",
+	] as const)("recovers from an injected production failure %s", async (failurePoint) => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const caseState = beginProvisionalCase({
+			caseId: "SCORE-example",
+			ordinal: 1,
+			outputRoot,
+		});
+		const failed = await executeWithInfrastructureRetry(
+			async () => ({ raw: "semantic failure" }),
+			() => ({ reason: "schema-invalid", retry: "never", status: "invalid" }),
+		);
+		recordTrialResult(caseState, "full--buggy--t1", failed);
+		const initialState = {
+			candidateQueueIds: ["SCORE-next"],
+			currentCaseId: "SCORE-example",
+			nextWorkIndex: 1,
+			reserveIndex: 0,
+			version: 3,
+		};
+
+		expect(() =>
+			quarantineCaseAndAllocateReserve({
+				caseState,
+				exclusion: { reason: "schema-invalid" },
+				failurePoint: (point) => {
+					if (point === failurePoint) throw new Error(`injected crash: ${point}`);
+				},
+				outputRoot,
+				reserveIds: ["RESERVE-A"],
+				state: initialState,
+			}),
+		).toThrow(`injected crash: ${failurePoint}`);
+
+		const statePath = join(outputRoot, "run-state.json");
+		const durableState = existsSync(statePath)
+			? JSON.parse(readFileSync(statePath, "utf8"))
+			: initialState;
+		const recovered = recoverInterruptedQuarantine({
+			caseState,
+			outputRoot,
+			reserveIds: ["RESERVE-A"],
+			state: durableState,
+		});
+
+		expect(recovered).toMatchObject({
+			candidateQueueIds: ["RESERVE-A", "SCORE-next"],
+			currentCaseId: null,
+			reserveIndex: 1,
+		});
+		expect(existsSync(caseState.provisionalPath)).toBe(false);
+		expect(existsSync(caseState.quarantinePath)).toBe(true);
+	});
+
 	test("does not inspect reserve exhaustion until a terminal failure is durable", () => {
 		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
 		const caseState = beginProvisionalCase({
