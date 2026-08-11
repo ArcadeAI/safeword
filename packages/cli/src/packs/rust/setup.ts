@@ -5,7 +5,14 @@
  * - Cargo.toml [lints.clippy] merge
  */
 
-import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import type { SetupResult } from '../types.js';
@@ -58,6 +65,16 @@ function containedWorkspaceMember(cwd: string, member: string): string | undefin
   return nodePath.relative(root, candidate);
 }
 
+function isSafeCargoManifest(cwd: string, cargoPath: string): boolean {
+  if (!existsSync(cargoPath)) return false;
+  const stat = lstatSync(cargoPath);
+  return (
+    stat.isFile() &&
+    !stat.isSymbolicLink() &&
+    isContainedPath(realpathSync(cwd), realpathSync(cargoPath))
+  );
+}
+
 const SAFEWORD_WORKSPACE_LINTS = `[workspace.lints.clippy]
 # Enable pedantic for stricter linting (priority -1 allows individual overrides)
 pedantic = { level = "deny", priority = -1 }
@@ -103,7 +120,7 @@ export function detectRustPackage(filePath: string, cwd: string): string | undef
     }
     const cargoPath = nodePath.join(currentDirectory, 'Cargo.toml');
 
-    if (existsSync(cargoPath)) {
+    if (isSafeCargoManifest(normalizedCwd, cargoPath)) {
       const content = readFileSync(cargoPath, 'utf8');
 
       // Check if this Cargo.toml has a [package] section
@@ -153,14 +170,14 @@ function hasExistingLints(cargoContent: string): boolean {
 export function rustToolingTargets(cwd: string): string[] {
   const rootTarget = 'Cargo.toml';
   const cargoPath = nodePath.join(cwd, rootTarget);
-  if (!existsSync(cargoPath)) return [];
+  if (!isSafeCargoManifest(cwd, cargoPath)) return [];
   const content = readFileSync(cargoPath, 'utf8');
   const targets = hasExistingLints(content) ? [] : [rootTarget];
   if (detectWorkspaceType(content) === 'single-crate') return targets;
   for (const member of parseWorkspaceMembers(content, cwd)) {
     const target = nodePath.join(member, 'Cargo.toml');
     const memberPath = nodePath.join(cwd, target);
-    if (!existsSync(memberPath)) continue;
+    if (!isSafeCargoManifest(cwd, memberPath)) continue;
     if (!hasExistingLints(readFileSync(memberPath, 'utf8'))) targets.push(target);
   }
   return targets;
@@ -238,8 +255,8 @@ export function parseWorkspaceMembers(cargoContent: string, cwd: string): string
 /**
  * Add [lints] workspace = true to a member crate's Cargo.toml
  */
-function addWorkspaceLints(memberCargoPath: string): void {
-  if (!existsSync(memberCargoPath)) return;
+function addWorkspaceLints(cwd: string, memberCargoPath: string): void {
+  if (!isSafeCargoManifest(cwd, memberCargoPath)) return;
 
   const content = readFileSync(memberCargoPath, 'utf8');
 
@@ -272,7 +289,7 @@ function addMemberLints(cwd: string, content: string): void {
   const members = parseWorkspaceMembers(content, cwd);
   for (const member of members) {
     const memberCargoPath = nodePath.join(cwd, member, 'Cargo.toml');
-    addWorkspaceLints(memberCargoPath);
+    addWorkspaceLints(cwd, memberCargoPath);
   }
 }
 
@@ -284,7 +301,7 @@ function addMemberLints(cwd: string, content: string): void {
  */
 export function setupRustTooling(cwd: string): SetupResult {
   const cargoPath = nodePath.join(cwd, 'Cargo.toml');
-  if (!existsSync(cargoPath)) return { files: [] };
+  if (!isSafeCargoManifest(cwd, cargoPath)) return { files: [] };
 
   // Read Cargo.toml once
   const content = readFileSync(cargoPath, 'utf8');

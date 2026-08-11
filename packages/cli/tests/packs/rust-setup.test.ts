@@ -5,12 +5,16 @@
  * These run fast and catch edge cases that E2E tests miss.
  */
 
+import { symlinkSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   detectRustPackage,
   detectWorkspaceType,
   parseWorkspaceMembers,
+  rustToolingTargets,
   setupRustTooling,
 } from '../../src/packs/rust/setup.js';
 import {
@@ -256,6 +260,26 @@ members = ["nonexistent/*"]
     );
 
     try {
+      setupRustTooling(testDirectory);
+      expect(readTestFile(outsideDirectory, 'Cargo.toml')).toBe(original);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
+  });
+
+  it('does not update a workspace manifest symlinked outside the project root', () => {
+    const outsideDirectory = createTemporaryDirectory();
+    const original = '[package]\nname = "outside"\n';
+    writeTestFile(outsideDirectory, 'Cargo.toml', original);
+    writeTestFile(testDirectory, 'member/.keep', '');
+    symlinkSync(
+      nodePath.join(outsideDirectory, 'Cargo.toml'),
+      nodePath.join(testDirectory, 'member/Cargo.toml'),
+    );
+    writeTestFile(testDirectory, 'Cargo.toml', '[workspace]\nmembers = ["member"]\n');
+
+    try {
+      expect(rustToolingTargets(testDirectory)).toEqual(['Cargo.toml']);
       setupRustTooling(testDirectory);
       expect(readTestFile(outsideDirectory, 'Cargo.toml')).toBe(original);
     } finally {
