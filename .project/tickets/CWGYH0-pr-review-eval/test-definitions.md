@@ -57,7 +57,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Scored finding views agree with the routed reviewer output
 
 - [x] RED 8eb575194
-- [ ] GREEN
+- [x] GREEN 8eb31e5ca
 - [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
