@@ -203,7 +203,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Finding verification belongs to one system trial
 
 - [x] RED ca0993b71
-- [ ] GREEN
+- [x] GREEN 94d3cc83e
 - [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R4 — A paid canary gates larger spend
