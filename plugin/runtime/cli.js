@@ -19158,6 +19158,25 @@ function detectWorkspaceType(cargoContent) {
 function hasExistingLints(cargoContent) {
   return cargoContent.includes("[lints.clippy]") || cargoContent.includes("[lints.rust]") || cargoContent.includes("[lints]") || cargoContent.includes("[workspace.lints.clippy]") || cargoContent.includes("[workspace.lints.rust]");
 }
+function rustToolingTargets(cwd) {
+  const rootTarget = "Cargo.toml";
+  const cargoPath = nodePath36.join(cwd, rootTarget);
+  if (!existsSync23(cargoPath))
+    return [];
+  const content = readFileSync22(cargoPath, "utf8");
+  const targets = hasExistingLints(content) ? [] : [rootTarget];
+  if (detectWorkspaceType(content) === "single-crate")
+    return targets;
+  for (const member of parseWorkspaceMembers(content, cwd)) {
+    const target = nodePath36.join(member, "Cargo.toml");
+    const memberPath = nodePath36.join(cwd, target);
+    if (!existsSync23(memberPath))
+      continue;
+    if (!hasExistingLints(readFileSync22(memberPath, "utf8")))
+      targets.push(target);
+  }
+  return targets;
+}
 function expandMemberPattern(cwd, pattern) {
   if (pattern.endsWith("/*")) {
     const baseDirectory = pattern.slice(0, -2);
@@ -37317,6 +37336,159 @@ function configureArchitecture(cwd) {
     ...result.createdMainConfig ? [{ kind: "create", target: ".dependency-cruiser.cjs" }] : []
   ];
 }
+function plannedFileEffect(cwd, target) {
+  return { kind: existsSync37(nodePath71.join(cwd, target)) ? "update" : "create", target };
+}
+function existingFileEffects(cwd, targets) {
+  return targets.flatMap((target) => existsSync37(nodePath71.join(cwd, target)) ? [{ kind: "update", target }] : []);
+}
+function plannedJavaScriptPackageFiles(cwd) {
+  const lockfiles = {
+    bun: "bun.lock",
+    npm: "package-lock.json",
+    pnpm: "pnpm-lock.yaml",
+    yarn: "yarn.lock"
+  };
+  const selectedLockfile = lockfiles[detectPackageManager(cwd)];
+  return uniqueEffects([
+    ...existingFileEffects(cwd, JAVASCRIPT_PACKAGE_FILES),
+    plannedFileEffect(cwd, selectedLockfile)
+  ]);
+}
+function configNeedsCompatibilityUpdate(cwd) {
+  if (getMissingPacks(cwd).length > 0)
+    return true;
+  try {
+    const config = JSON.parse(readFileSync41(nodePath71.join(cwd, ".safeword/config.json"), "utf8"));
+    return "version" in config;
+  } catch {
+    return false;
+  }
+}
+function plannedCodexBootstrapEffect(cwd) {
+  const target = ".codex/config.toml";
+  const path4 = nodePath71.join(cwd, target);
+  const original = existsSync37(path4) ? readFileSync41(path4, "utf8") : "";
+  try {
+    return preparedCodexProjectBootstrap(cwd) === original ? [] : [plannedFileEffect(cwd, target)];
+  } catch {
+    return [];
+  }
+}
+function plannedArchitectureEffects(cwd) {
+  const architecture = buildArchitecture(cwd);
+  if (!hasArchitectureDetected(architecture))
+    return [];
+  const generated = inspectConfig(cwd, architecture);
+  return [
+    ...generated.matches ? [] : [plannedFileEffect(cwd, ".safeword/depcruise-config.cjs")],
+    ...existsSync37(nodePath71.join(cwd, ".dependency-cruiser.cjs")) ? [] : [{ kind: "create", target: ".dependency-cruiser.cjs" }]
+  ];
+}
+function plannedWorkspaceEffects(cwd, context) {
+  return workspacePackageJsonTargets(cwd, context).flatMap((target) => {
+    try {
+      const manifest = JSON.parse(readFileSync41(nodePath71.join(cwd, target), "utf8"));
+      return manifest.scripts?.format === undefined ? [{ kind: "update", target }] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+function plannedEslintEffects(cwd, context) {
+  const target = context.projectType.existingEslintConfig;
+  if (target === undefined || !shouldEmitVendoredIgnoresNudge({
+    cwd,
+    existingEslintConfig: target,
+    hasJavaScript: context.languages?.javascript ?? false
+  })) {
+    return [];
+  }
+  return [{ kind: "update", target }, plannedFileEffect(cwd, `${target}.safeword-bak`)];
+}
+function plannedPackEffects(cwd) {
+  return getMissingPacks(cwd).includes("rust") ? rustToolingTargets(cwd).map((target) => ({ kind: "update", target })) : [];
+}
+function plannedPythonEffects(cwd) {
+  if (!createProjectContext(cwd).languages?.python || hasRuffDependency(cwd)) {
+    return { files: [], packages: [], configuration: [], network: [], destructive: [] };
+  }
+  const packageManager = detectPythonPackageManager(cwd);
+  if (packageManager === "pip") {
+    return { files: [], packages: [], configuration: [], network: [], destructive: [] };
+  }
+  const tools = getPythonTools(hasImportLinterScaffoldTarget(cwd));
+  const lockfiles = {
+    uv: "uv.lock",
+    poetry: "poetry.lock",
+    pipenv: "Pipfile.lock"
+  };
+  return {
+    files: uniqueEffects([
+      ...existingFileEffects(cwd, PYTHON_PACKAGE_FILES),
+      plannedFileEffect(cwd, lockfiles[packageManager])
+    ]),
+    packages: tools.map((target) => ({ kind: "install", target })),
+    configuration: [],
+    network: tools.map((target) => ({ kind: "package-registry", target, operation: "install" })),
+    destructive: []
+  };
+}
+function staleSafewordRegistryDependency(cwd) {
+  try {
+    const manifest = JSON.parse(readFileSync41(nodePath71.join(cwd, "package.json"), "utf8"));
+    const spec = manifest.devDependencies?.safeword ?? manifest.dependencies?.safeword ?? manifest.optionalDependencies?.safeword;
+    if (spec === undefined)
+      return false;
+    if (/^(?:file:|link:|portal:|workspace:|git\+|github:|gitlab:|bitbucket:|https?:|\.{0,2}\/)/u.test(spec)) {
+      return false;
+    }
+    return ![VERSION, `^${VERSION}`, `~${VERSION}`].includes(spec);
+  } catch {
+    return false;
+  }
+}
+async function createSetupPlan(cwd, schema) {
+  const reconciliation = await createReconciliationPlan(cwd, "upgrade", schema);
+  const context = createProjectContext(cwd);
+  const reconciliationPackages = reconciliation.plan.effects.packages.length > 0;
+  const compatibilityFiles = configNeedsCompatibilityUpdate(cwd) ? [plannedFileEffect(cwd, ".safeword/config.json")] : [];
+  const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
+  const python = plannedPythonEffects(cwd);
+  const staleSafeword = staleSafewordRegistryDependency(cwd);
+  const compatibilityPackage = `safeword@${VERSION}`;
+  const combined = combineEffects([
+    reconciliation.plan.effects,
+    {
+      files: uniqueEffects([
+        ...compatibilityFiles,
+        ...plannedPackEffects(cwd),
+        ...plannedCodexBootstrapEffect(cwd),
+        ...plannedArchitectureEffects(cwd),
+        ...plannedWorkspaceEffects(cwd, context),
+        ...plannedEslintEffects(cwd, context),
+        ...packageFiles,
+        ...staleSafeword ? plannedJavaScriptPackageFiles(cwd) : []
+      ]),
+      packages: staleSafeword ? [{ kind: "update", target: compatibilityPackage }] : [],
+      network: staleSafeword ? [{ kind: "package-registry", target: compatibilityPackage, operation: "update" }] : []
+    },
+    python
+  ]);
+  const effects = {
+    files: uniqueEffects(combined.files),
+    packages: uniqueEffects(combined.packages),
+    configuration: uniqueEffects(combined.configuration),
+    network: uniqueEffects(combined.network),
+    destructive: uniqueEffects(combined.destructive)
+  };
+  return createPlan({
+    command: "setup",
+    preconditionDigest: reconciliation.plan.preconditionDigest,
+    effects,
+    verification: [{ description: "Re-run safeword status" }]
+  });
+}
 function configurePython(cwd, context) {
   if (!context.languages?.python || hasRuffDependency(cwd)) {
     return { tools: [], attempted: false, installed: false };
@@ -37992,10 +38164,11 @@ function mergeEffects(...groups) {
     destructive: uniqueEffects(combined.destructive)
   };
 }
-var DEFAULT_SETUP_ADAPTERS, SetupApplyError;
+var DEFAULT_SETUP_ADAPTERS, JAVASCRIPT_PACKAGE_FILES, PYTHON_PACKAGE_FILES, SetupApplyError;
 var init_project_install = __esm(() => {
   init_delivery_schema();
   init_inventory2();
+  init_plan();
   init_reconciliation();
   init_result();
   init_durable_write();
@@ -38008,6 +38181,7 @@ var init_project_install = __esm(() => {
   init_files2();
   init_setup();
   init_registry();
+  init_setup2();
   init_reconcile();
   init_context();
   init_fs();
@@ -38025,6 +38199,21 @@ var init_project_install = __esm(() => {
     configurePython,
     executeNamespaceMigration
   };
+  JAVASCRIPT_PACKAGE_FILES = [
+    "package.json",
+    "bun.lock",
+    "bun.lockb",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock"
+  ];
+  PYTHON_PACKAGE_FILES = [
+    "pyproject.toml",
+    "uv.lock",
+    "poetry.lock",
+    "Pipfile",
+    "Pipfile.lock"
+  ];
   SetupApplyError = class SetupApplyError extends Error {
     completedEffects;
     constructor(cause, completedEffects) {
@@ -38256,7 +38445,10 @@ async function prepareLifecycle(cwd, operation, agents, full = false, scope = "p
   const uninstalling = operation === "uninstall";
   const projectSchema = projectLifecycleSchema(cwd, agents);
   const uninstallOperation = full ? "uninstall-full" : "uninstall";
-  const project = await createReconciliationPlan(cwd, uninstalling ? uninstallOperation : "upgrade", projectSchema);
+  const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
+    plan: await createSetupPlan(cwd, projectSchema),
+    dryRun: undefined
+  };
   const observations = await profilePreconditions(cwd, agents, scope, operation);
   const observationByAgent = new Map(observations.map((observation) => [observation.agent, observation.observation]));
   const surfaces = [
