@@ -1,11 +1,12 @@
 # Acceptance is proven by the vitest lanes, not cucumber step definitions: the
 # connect orchestration is driven through real config-writing / sidecar-seeding /
 # opt-in-file logic with only the boundary (keychain, the provider auth/verify
-# client, the interactive prompt) mocked — including a command-level wiring test
-# per the testing lesson in #363. Tagged @wip to exclude from the cucumber
+# client, the interactive prompt) mocked in packages/cli/tests/tracker-connect/connect.test.ts,
+# including a command-level wiring test
+# per the testing lesson in #363. Tagged @proof.vitest to exclude from the cucumber
 # acceptance lane (proof lives in vitest) while staying discoverable for
 # `safeword check` AC-coverage.
-@tracker-connect-flow.TB1 @wip
+@tracker-connect-flow.TB1 @proof.vitest
 Feature: Tracker connect/onboarding flow — interactive wiring
   The agent prepares non-secret config and orchestrates; the human does the auth
   steps only they can; the agent verifies before any sync and seeds the sidecar so

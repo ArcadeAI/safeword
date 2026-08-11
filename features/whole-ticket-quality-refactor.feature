@@ -1,16 +1,17 @@
 # Behavior source for W610WW. The backing implementation is proven end-to-end by
-# vitest, not the cucumber lane: tests/hooks/ledger-validation.test.ts (the
-# wholeTicketPassApplies trigger + cross-scenario row), tests/skill-invocation-gate.test.ts
-# (requiredSkillsForDone), and tests/integration/whole-ticket-quality-refactor.test.ts
+# vitest, not the cucumber lane: packages/cli/tests/hooks/ledger-validation.test.ts
+# (the wholeTicketPassApplies trigger + cross-scenario row),
+# packages/cli/tests/skill-invocation-gate.test.ts (requiredSkillsForDone), and
+# packages/cli/tests/integration/whole-ticket-quality-refactor.test.ts
 # (the done gate spawned against a temp repo).
 #
-# This @wip is BROADER than formatter-aware-lint-hook.feature's: that feature keeps
-# most scenarios live and @wips only the few that need a full install. Here the whole
-# feature is @wip because every scenario's enforcement point is the stop hook, and the
+# This @proof.vitest tag is broader than formatter-aware-lint-hook.feature's: that feature keeps
+# most scenarios live and marks only the full-install cases unfinished. Here the whole
+# feature is excluded because every scenario's enforcement point is the stop hook, and the
 # vitest integration test already drives it against a temp repo — wiring cucumber step
 # defs would duplicate that harness for no added coverage (gherkin-lane policy 7ES3GW:
 # the .feature is the behavior source; the backing layer may be vitest integration).
-@wip @whole-ticket-quality-refactor.TB1.AC2
+@proof.vitest @whole-ticket-quality-refactor.TB1.AC2
 Feature: Whole-ticket quality review and refactor before verify
 
   The end of implementation runs one whole-ticket /quality-review then

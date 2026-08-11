@@ -50,7 +50,7 @@ const workspaceStepImports = [
   ...(configuredStepsDirectory ? [`${configuredStepsDirectory}/**/*.ts`] : []),
 ];
 
-const defaultTags = 'not @manual and not @live';
+const defaultTags = 'not @wip and not @proof.vitest and not @manual and not @live';
 const liveTags = '@live and not @manual';
 
 const cliFeatureDirectories = new Set([

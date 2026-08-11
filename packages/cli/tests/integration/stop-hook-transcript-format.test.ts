@@ -401,6 +401,58 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
+  it.each(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])(
+    'still reviews a turn with %s when its tool result carries a trailing note (S0RYNS)',
+    editToolName => {
+      // A user message may legally carry text blocks after its tool_result blocks,
+      // and the harness uses that to append notes to tool output. Those notes are
+      // not a human prompt: reading one as a turn start ends the turn early and
+      // skips the review on a turn that did edit files.
+      const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+      writeFileSync(
+        transcriptPath,
+        [
+          JSON.stringify({
+            type: 'user',
+            message: { role: 'user', content: [{ type: 'text', text: 'Refactor the parser.' }] },
+          }),
+          JSON.stringify({
+            type: 'assistant',
+            message: {
+              role: 'assistant',
+              content: [{ type: 'tool_use', name: editToolName, id: 'edit-1' }],
+            },
+          }),
+          JSON.stringify({
+            type: 'user',
+            message: {
+              role: 'user',
+              content: [
+                { type: 'tool_result', tool_use_id: 'edit-1' },
+                { type: 'text', text: 'Shell cwd was reset to /home/user/project' },
+              ],
+            },
+          }),
+          JSON.stringify({
+            type: 'assistant',
+            message: {
+              role: 'assistant',
+              content: [{ type: 'text', text: 'Parser refactored.' }],
+            },
+          }),
+        ].join('\n'),
+      );
+
+      const result = runStopHook(state.projectDirectory, transcriptPath);
+
+      expect(result.status).toBe(0);
+      const block = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+      expect(block.decision).toBe('block');
+      expect(block.reason).toMatch(/quality review|\*\*CONFIDENT\*\*/i);
+      expect(block.reason).not.toMatch(/verify\.md/i);
+    },
+  );
+
   it('skips the review prompt when the user follow-up leads with a task notification', () => {
     const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
     writeFileSync(
