@@ -98,9 +98,12 @@ function adaptClaudeSkill(content: string): string {
     '!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && ',
     '!`',
   );
-  return adapted.replaceAll(
-    /^!`([^`\n]*)`$/gmu,
-    (_line, command: string) => `!\`${command.replaceAll('$PROJECT_DIR', '$CLAUDE_PROJECT_DIR')}\``,
+  return stripTrailingWhitespace(
+    adapted.replaceAll(
+      /^!`([^`\n]*)`$/gmu,
+      (_line, command: string) =>
+        `!\`${command.replaceAll('$PROJECT_DIR', '$CLAUDE_PROJECT_DIR')}\``,
+    ),
   );
 }
 

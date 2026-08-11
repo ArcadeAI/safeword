@@ -30,10 +30,12 @@ rest; report EACH. (This does not replace `self-review`'s `spec.md` framing
 gate.)
 
 Run the adversarial judgment through the shared coordinator, passing the
-feature, ticket scope, and any legacy scenario source as bounded targets:
+feature, ticket scope, and any legacy scenario source as bounded targets.
+Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
+a bare `safeword` on `PATH`:
 
 ```bash
-safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
+bun .safeword/hooks/run-review.ts review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and

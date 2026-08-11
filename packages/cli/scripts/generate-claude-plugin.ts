@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -66,6 +66,19 @@ try {
   );
   if (prettier.status !== 0) {
     throw new Error(`Failed to format the Claude plugin: ${prettier.stderr}`);
+  }
+  // Prettier preserves indentation on blank lines inside indented Markdown
+  // fences. Generated assets must remain byte-stable and pass diff hygiene.
+  for (const formattedPath of formattedPaths) {
+    if (!formattedPath.endsWith('.md')) continue;
+    const content = readFileSync(formattedPath, 'utf8');
+    writeFileSync(
+      formattedPath,
+      content
+        .split('\n')
+        .map(line => line.trimEnd())
+        .join('\n'),
+    );
   }
   sealClaudePluginCatalogue(pluginRoot, packageJson.version);
 
