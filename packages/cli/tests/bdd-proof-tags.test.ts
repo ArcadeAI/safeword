@@ -55,6 +55,10 @@ const VITEST_PROVEN_FEATURES = [
     'features/pm-grade-intake-readiness-gate.feature',
     'packages/cli/tests/hooks/readiness-pointer.test.ts',
   ],
+  [
+    'features/operate-retry-safe-retro-relay.feature',
+    'packages/cli/tests/retro/relay-delivery.test.ts',
+  ],
   ['features/portable-tracker-transport.feature', 'packages/cli/tests/tracker-sync/plan.test.ts'],
   [
     'features/prevent-public-cli-contract-drift.feature',

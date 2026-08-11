@@ -1,4 +1,7 @@
-@operate-retry-safe-retro-relay
+# Behavior source for the retry-safe relay. Executable proof lives in
+# packages/cli/tests/retro/relay-delivery.test.ts and the retro-relay package
+# tests; the Cucumber adapter otherwise launches nested Vitest processes.
+@proof.vitest @operate-retry-safe-retro-relay
 Feature: Operate the retry-safe retro relay
 
   The shared safeword retro command durably hands off one immutable request
