@@ -3,6 +3,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.TBU1.R1
   Rule: predictable-safeword-cli.TBU1.R1 — The default command reports project health without changing the project
+    @rejection
     Scenario: Bare Safeword remains read-only after project-only installation
       Given a configured project without native profile plugins
       When the user runs Safeword with no command
@@ -15,6 +16,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.TBU1.R2
   Rule: predictable-safeword-cli.TBU1.R2 — Read-only commands remain read-only on first run, drift, and failure
+    @rejection
     Scenario Outline: Every read-only command has no effects in every project state
       Given a project that is <state>
       When the user runs the read-only command "<command>"
@@ -43,6 +45,7 @@ Feature: One predictable Safeword CLI
         | action-required | 3            | 1          |
         | failed          | 2            | 1          |
 
+    @rejection
     Scenario: Human default output hides implementation detail
       Given a result with repeated warnings and internal identifiers
       When Safeword renders it for a human with verbose disabled
@@ -55,6 +58,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.TBU1.R4
   Rule: predictable-safeword-cli.TBU1.R4 — Destructive work shows an exact plan and requires explicit confirmation
+    @rejection
     Scenario: Remove without consent does not mutate
       Given a configured project
       When the user runs "safeword remove --no-input"
@@ -77,6 +81,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.TBU1.R5
   Rule: predictable-safeword-cli.TBU1.R5 — Setup converges, and the second identical run reports no changes
+    @rejection
     Scenario: A second setup run is unchanged
       Given setup has converged a project
       When the user runs setup again
@@ -84,6 +89,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.NTB1.R1
   Rule: predictable-safeword-cli.NTB1.R1 — Action-required state is distinct from failure and never masquerades as success
+    @rejection
     Scenario Outline: Result state determines the stable exit status
       Given a command result in <state> state
       When Safeword completes the command
@@ -96,6 +102,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.NTB1.R2
   Rule: predictable-safeword-cli.NTB1.R2 — Non-interactive operation never prompts or guesses consent
+    @rejection
     Scenario Outline: Non-interactive destructive commands never prompt
       Given a destructive command has a valid plan
       When it runs in <mode>
@@ -107,6 +114,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.SWM1.R1
   Rule: predictable-safeword-cli.SWM1.R1 — Plans and results have shared typed contracts and renderers own presentation
+    @rejection
     Scenario: A handler describes effects without writing output
       Given a public command handler
       When it observes and plans an operation
@@ -143,6 +151,7 @@ Feature: One predictable Safeword CLI
       When global options precede the command and double dash precedes a flag-like argument
       Then the flag-like argument reaches the handler unchanged
 
+    @rejection
     Scenario: Offline rejects a declared network operation
       Given a public command plan that declares a network effect
       When the agent invokes it with "--offline --json --no-input"
@@ -160,6 +169,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.SWM1.R3
   Rule: predictable-safeword-cli.SWM1.R3 — JSON uses one versioned envelope and stable error and exit semantics
+    @rejection
     Scenario Outline: JSON output is one complete parseable versioned envelope
       Given a command that <outcome>
       When Safeword renders JSON
@@ -172,6 +182,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.SWM1.R4
   Rule: predictable-safeword-cli.SWM1.R4 — Capabilities describe commands and effects without executing them
+    @rejection
     Scenario: Capabilities is complete and effect-free
       Given the public command catalog
       When the agent requests capabilities as JSON
@@ -180,6 +191,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.SWM1.R5
   Rule: predictable-safeword-cli.SWM1.R5 — Normal help exposes the simplified hierarchy while old names remain deprecated aliases
+    @rejection
     Scenario: Help shows the canonical hierarchy only
       Given the Safeword CLI
       When the user requests ordinary help
@@ -229,6 +241,7 @@ Feature: One predictable Safeword CLI
   @surface.openai-codex
   @predictable-safeword-cli.SWM1.R6
   Rule: predictable-safeword-cli.SWM1.R6 — Typed Codex hook entrypoints stay hidden, quiet, offline, and free of install or upgrade effects
+    @rejection
     Scenario Outline: Each real hook adapter is hidden quiet offline and lifecycle-safe
       Given an installed <surface> hook
       When it invokes its real hidden Safeword entrypoint
@@ -246,6 +259,7 @@ Feature: One predictable Safeword CLI
 
   @predictable-safeword-cli.SWM1.R7
   Rule: predictable-safeword-cli.SWM1.R7 — Long-running interactive commands report meaningful progress within 100 milliseconds
+    @rejection
     Scenario: Meaningful feedback is emitted before slow work
       Given an interactive command with an injected monotonic clock and an apply step longer than 100 milliseconds
       When the user confirms the plan

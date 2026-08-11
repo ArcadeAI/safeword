@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "format": "prettier --write .",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",

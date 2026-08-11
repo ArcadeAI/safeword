@@ -1,6 +1,14 @@
 {
-  "installedPacks": ["typescript"],
-  "selfReport": { "capture": true, "surface": true, "file": true },
+  "installedPacks": [
+    "typescript",
+    "golang",
+    "python"
+  ],
+  "selfReport": {
+    "capture": true,
+    "surface": true,
+    "file": true
+  },
   "paths": {
     "architecture": "ARCHITECTURE.md",
     "principles": "PRINCIPLES.md"
