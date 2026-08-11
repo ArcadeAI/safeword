@@ -186,6 +186,21 @@ test -n "$output" || exit 11
 printf '%s\n' '{"findings":[]}' > "$output"
 `,
   );
+  executable(
+    nodePath.join(fixture.bin, 'safeword'),
+    `#!/usr/bin/env bun
+const args = process.argv.slice(2);
+if (args[0] === 'project' && args[1] === 'test-plan') {
+  console.log(JSON.stringify([{ cwd: process.cwd(), command: 'true', available: true }]));
+} else if (args[0] === 'retro' && args[1] === 'run') {
+  console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false }, errors: [] }));
+} else process.exit(1);
+`,
+  );
+}
+
+function boundarySafewordCli(fixture: DeliveryFixture): string {
+  return nodePath.join(fixture.bin, 'safeword');
 }
 
 interface BindHostSessionInput {
@@ -537,7 +552,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
         GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
         SAFEWORD_TEST_BARE: fixture.bare,
-        SAFEWORD_CLI: nodePath.join(repoRoot, 'packages/cli/dist/cli.js'),
+        SAFEWORD_CLI: boundarySafewordCli(fixture),
         CODEX_HOME: codexHome,
         CLAUDE_PROJECT_DIR: fixture.topic,
       };
@@ -708,7 +723,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
         GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
         SAFEWORD_TEST_BARE: fixture.bare,
-        SAFEWORD_CLI: nodePath.join(repoRoot, 'packages/cli/dist/cli.js'),
+        SAFEWORD_CLI: boundarySafewordCli(fixture),
       };
       const initialId = 'claude-closeout-before-interruption';
       const initialTranscript = nodePath.join(sandbox, `${initialId}.jsonl`);
@@ -828,7 +843,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
       GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
       SAFEWORD_TEST_BARE: fixture.bare,
-      SAFEWORD_CLI: nodePath.join(repoRoot, 'packages/cli/dist/cli.js'),
+      SAFEWORD_CLI: boundarySafewordCli(fixture),
     };
     runOrThrow('git', ['worktree', 'remove', fixture.topic], fixture.main);
     const receiptPath = verificationReceiptPath(fixture);
@@ -919,7 +934,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
       GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
       SAFEWORD_TEST_BARE: fixture.bare,
-      SAFEWORD_CLI: nodePath.join(repoRoot, 'packages/cli/dist/cli.js'),
+      SAFEWORD_CLI: boundarySafewordCli(fixture),
       CLAUDE_PROJECT_DIR: fixture.topic,
     };
     bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
@@ -954,7 +969,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
       GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
       SAFEWORD_TEST_BARE: fixture.bare,
-      SAFEWORD_CLI: nodePath.join(repoRoot, 'packages/cli/dist/cli.js'),
+      SAFEWORD_CLI: boundarySafewordCli(fixture),
       CLAUDE_PROJECT_DIR: fixture.topic,
     };
     bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
@@ -983,7 +998,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
       GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
       SAFEWORD_TEST_BARE: fixture.bare,
-      SAFEWORD_CLI: nodePath.join(repoRoot, 'packages/cli/dist/cli.js'),
+      SAFEWORD_CLI: boundarySafewordCli(fixture),
       CLAUDE_PROJECT_DIR: fixture.topic,
     };
     const transcriptFor = (id: string, cwd: string): string => {
@@ -1181,12 +1196,29 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       expect(cursorSharedSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
       expect(codexSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
       expect(readFileSync(installedGuard, 'utf8')).toContain('executeCleanupOperation');
-      const execution = spawnSync('bun', [installedGuard], {
+      const nominatedCodexHome = nodePath.join(directory, 'caller-codex-home');
+      const nominatedTranscript = nodePath.join(
+        nominatedCodexHome,
+        'sessions',
+        'rollout-caller-thread.jsonl',
+      );
+      mkdirSync(nodePath.dirname(nominatedTranscript), { recursive: true });
+      writeFileSync(
+        nominatedTranscript,
+        `${JSON.stringify({ type: 'session_meta', payload: { id: 'caller-thread' } })}\n`,
+      );
+      const execution = spawnSync('bun', [installedGuard, '--pr', '42'], {
         cwd: directory,
+        env: {
+          ...process.env,
+          CODEX_HOME: nominatedCodexHome,
+          CODEX_THREAD_ID: 'caller-thread',
+        },
         encoding: 'utf8',
       });
       expect(execution.status).toBe(2);
-      expect(execution.stderr).toContain('a fresh host session binding are required');
+      expect(execution.stderr).not.toContain('a fresh host session binding are required');
+      expect(execution.stdout).toContain('"blockers"');
     } finally {
       removeTemporaryDirectory(directory);
     }

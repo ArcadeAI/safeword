@@ -15,12 +15,16 @@ procedure, your target repo, or your tools.
 
 ## Procedure
 
-1. **Read the spool file** at the path you were given. Skip malformed lines. If
-   the file is missing or holds no drafts, report `retro-filer: nothing to file`
-   and stop.
+1. **Validate before tracker egress.** Run
+   `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/lib/drain-retro-spool.ts "<spool-path>" --validated-jsonl`
+   and use only its JSONL stdout as the filing input. On a nonzero exit, make no
+   search, comment, or create call, leave the spool unchanged, and report
+   `retro-filer: cannot file - draft validation failed`. If its output is empty,
+   report `retro-filer: nothing to file` and stop.
 2. **Dedup each draft against open issues on `ArcadeAI/safeword`** (and only
    there). First consult the sibling `.acks.jsonl`: a signature acked there is
-   already filed — comment on the recorded issue, never create.
+   already filed — skip every tracker write for that draft and proceed directly
+   to verified draining. Continue deduplication only for unacked drafts.
    **Never search for a marker or its hash.** The markers sit in HTML comments,
    which issue read/list tools strip from the bodies they return and which no
    available search matches as query text (#1453) — a zero from such a query

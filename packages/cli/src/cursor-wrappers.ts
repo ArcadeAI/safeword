@@ -192,7 +192,7 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'safeword-retro-filer',
     alwaysApply: false,
     description:
-      "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+      "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation or authenticated closeout cleanup guard output names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
     referencePath: '.safeword/skills/retro-filer/SKILL.md',
     skill: 'retro-filer',
   },

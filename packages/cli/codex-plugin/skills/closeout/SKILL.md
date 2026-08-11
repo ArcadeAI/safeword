@@ -94,6 +94,12 @@ identity mismatch means no cleanup. Report every failure and its recovery
 action. A request to skip retro does not create a bypass: preserve the worktree
 and branches and explain that the retrospective is required before cleanup.
 
+When the authenticated preview reports pending drafts and includes
+`plan.retro.spoolPath`, invoke the `safeword:retro-filer` skill with that exact
+path, then rerun the preview. This is the closeout recovery continuation: the
+guard derived the path from its short-lived host-session binding, so do not
+substitute, discover, or accept a caller-provided spool path.
+
 ## 5. Preview, confirm, and apply exact cleanup
 
 Run the guard from the delivery worktree; preview is the default:

@@ -97,11 +97,27 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
     expect(guard).toMatch(/'retro',\s*'run',\s*'--json',\s*'--auto-extract'/u);
     expect(skill).toContain('agent_filing_needed');
     expect(skill).toContain('empty filing spool');
+    expect(skill).toContain('authenticated preview');
+    expect(skill).toContain('invoke the `safeword:retro-filer` skill');
     expect(skill).toMatch(/skip.*retro.*does not/i);
     expect(skill).toMatch(/missing.*expired.*binding/i);
+    expect(skill).toMatch(/authenticated\s+current\s+`CODEX_THREAD_ID`/i);
     expect(skill).toMatch(/no\s+newest-session\s+fallback/i);
     expect(skill).toMatch(/failed extraction.*failed filing.*pending drafts/is);
     expect(skill).toMatch(/no cleanup/i);
+  });
+
+  it('wires the authenticated preview field to the shipped Codex filer skill', () => {
+    const skill = canonicalSkill();
+    const generatedFiler = generateCodexPluginAssets(
+      nodePath.join(repoRoot, 'packages/cli/templates/skills'),
+    ).find(asset => asset.relativePath === 'skills/retro-filer/SKILL.md');
+
+    expect(skill).toContain('plan.retro.spoolPath');
+    expect(skill).toContain('`safeword:retro-filer`');
+    expect(generatedFiler?.content).toContain('name: retro-filer');
+    expect(generatedFiler?.content).toContain('`retro.spoolPath` field');
+    expect(generatedFiler?.content).toMatch(/never accept\s+a caller-nominated path/u);
   });
 });
 
