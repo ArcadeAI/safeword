@@ -154,7 +154,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED ca0993b71
 - [x] GREEN 94d3cc83e
-- [ ] REFACTOR
+- [x] REFACTOR skip: one tolerant extractor carries completeness beside known cost and the loop consumes that state
 
 ### Scenario Outline: Interrupted quarantine is never partially scoreable
 
