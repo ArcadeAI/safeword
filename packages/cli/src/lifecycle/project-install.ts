@@ -395,7 +395,9 @@ function setupPreconditionDigest(
       JSON.stringify([
         reconciliationDigest,
         effects,
-        context,
+        JSON.stringify(context, (_key, value: unknown) =>
+          typeof value === 'string' ? value.replaceAll(cwd, '<project>') : value,
+        ),
         options,
         preconditionDigestForPaths(cwd, observationTargets),
       ]),

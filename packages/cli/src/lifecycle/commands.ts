@@ -302,6 +302,15 @@ interface ProfilePrecondition {
   readonly observation: unknown;
 }
 
+function serializedProfilePreconditions(
+  cwd: string,
+  observations: readonly ProfilePrecondition[],
+): string {
+  return JSON.stringify(observations, (_key, value: unknown) =>
+    typeof value === 'string' ? value.replaceAll(cwd, '<project>') : value,
+  );
+}
+
 async function profilePreconditions(
   cwd: string,
   agents: readonly AgentIntegration[],
@@ -408,7 +417,14 @@ async function prepareLifecycle(
     })),
   ];
   const preconditionDigest = createHash('sha256')
-    .update(JSON.stringify([project.plan.preconditionDigest, agents, scope, observations]))
+    .update(
+      JSON.stringify([
+        project.plan.preconditionDigest,
+        agents,
+        scope,
+        serializedProfilePreconditions(cwd, observations),
+      ]),
+    )
     .digest('hex');
   return {
     agents,
