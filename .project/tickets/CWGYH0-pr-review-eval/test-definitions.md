@@ -39,7 +39,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Every scorer-consumed field is validated before admission
 
 - [x] RED 32c2b0a28
-- [ ] GREEN
+- [x] GREEN b20381597
 - [ ] REFACTOR
 
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
