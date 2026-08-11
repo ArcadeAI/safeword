@@ -36164,17 +36164,18 @@ function effectsForReconciliation(result, mode) {
   const created = result.created.map((target) => ({ kind: "create", target }));
   const updated = result.updated.map((target) => ({ kind: "update", target }));
   const removed = result.removed.map((target) => ({ kind: "remove", target }));
-  const packageNames = mode === "upgrade" ? result.packagesToInstall : result.packagesToRemove;
+  const installing = mode === "install" || mode === "upgrade";
+  const packageNames = installing ? result.packagesToInstall : result.packagesToRemove;
   const plannedPackageNames = result.applied ? [] : packageNames;
   const packageEffects = plannedPackageNames.map((target) => ({
-    kind: mode === "upgrade" ? "install" : "remove",
+    kind: installing ? "install" : "remove",
     target
   }));
   return {
     files: [...created, ...updated],
     packages: packageEffects,
     configuration: [],
-    network: mode === "upgrade" ? plannedPackageNames.map((target) => ({
+    network: installing ? plannedPackageNames.map((target) => ({
       kind: "package-registry",
       target,
       operation: "install"
@@ -36182,17 +36183,16 @@ function effectsForReconciliation(result, mode) {
     destructive: removed
   };
 }
-async function createReconciliationPlan(cwd, mode, schema = SAFEWORD_SCHEMA) {
-  const context = createProjectContext(cwd);
+async function createReconciliationPlan(cwd, mode, schema = SAFEWORD_SCHEMA, context = createProjectContext(cwd)) {
   const dryRun = await reconcile(schema, mode, context, { dryRun: true });
   const effects = effectsForReconciliation(dryRun, mode);
   return {
     dryRun,
     plan: createPlan({
-      command: mode === "upgrade" ? "setup" : "remove",
+      command: mode === "install" || mode === "upgrade" ? "setup" : "remove",
       preconditionDigest: preconditionDigest2(cwd, dryRun.actions),
       effects,
-      requiresConfirmation: mode !== "upgrade",
+      requiresConfirmation: mode !== "install" && mode !== "upgrade",
       verification: [{ description: "Re-run safeword status" }]
     })
   };
@@ -37480,25 +37480,93 @@ function staleSafewordRegistryDependency(cwd) {
     return false;
   }
 }
-async function createSetupPlan(cwd, schema) {
-  const reconciliation = await createReconciliationPlan(cwd, "upgrade", schema);
+function plannedNamespaceEffects(cwd, migrate) {
+  if (migrate !== true || planNamespaceMigration(cwd) !== "offer")
+    return [];
+  const movedFiles = snapshotFiles(cwd, [".safeword-project"]).keys().toArray();
+  return [
+    { kind: "move", target: ".safeword-project \u2192 .project" },
+    ...movedFiles.flatMap((target) => [
+      { kind: "delete", target },
+      { kind: "create", target: target.replace(/^\.safeword-project(?=\/|$)/u, ".project") }
+    ]),
+    ...existsSync37(nodePath71.join(cwd, ".safeword/config.json")) ? [{ kind: "update", target: ".safeword/config.json" }] : []
+  ];
+}
+function plannedPackageJsonEffects(cwd, configured) {
+  return !configured && !existsSync37(nodePath71.join(cwd, "package.json")) ? [
+    { kind: "create", target: "package.json" },
+    { kind: "update", target: "package.json" }
+  ] : [];
+}
+function retargetLegacyNamespace(effect) {
+  return {
+    ...effect,
+    target: effect.target.replace(/^\.safeword-project(?=\/|$)/u, ".project")
+  };
+}
+function plannedReconciliationEffects(effects, migrate) {
+  if (migrate !== true)
+    return effects;
+  return {
+    files: effects.files.map((effect) => retargetLegacyNamespace(effect)),
+    packages: effects.packages.map((effect) => retargetLegacyNamespace(effect)),
+    configuration: effects.configuration.map((effect) => retargetLegacyNamespace(effect)),
+    network: effects.network.map((effect) => retargetLegacyNamespace(effect)),
+    destructive: effects.destructive.map((effect) => retargetLegacyNamespace(effect))
+  };
+}
+function setupPlanningContext(cwd, configured) {
   const context = createProjectContext(cwd);
-  const reconciliationPackages = reconciliation.plan.effects.packages.length > 0;
-  const compatibilityFiles = configNeedsCompatibilityUpdate(cwd) ? [plannedFileEffect(cwd, ".safeword/config.json")] : [];
+  if (configured || existsSync37(nodePath71.join(cwd, "package.json")))
+    return context;
+  return {
+    ...context,
+    languages: {
+      ...EMPTY_LANGUAGES,
+      ...context.languages,
+      javascript: true
+    }
+  };
+}
+function plannedOptionalEslintEffects(cwd, context, noModify) {
+  return noModify === true ? [] : plannedEslintEffects(cwd, context);
+}
+function plannedVersionMarkerEffects(cwd, repair) {
+  if (repair !== true)
+    return [];
+  const target = ".safeword/version";
+  const path4 = nodePath71.join(cwd, target);
+  const metadata = lstatSync11(path4, { throwIfNoEntry: false });
+  if (metadata?.isFile() !== true || metadata.isSymbolicLink())
+    return [];
+  const version2 = readFileSync41(path4, "utf8").trim();
+  return metadata.nlink > 1 || !isSafePackageVersion(version2) ? [{ kind: "update", target }] : [];
+}
+async function createSetupPlan(cwd, schema, options = {}) {
+  const configured = existsSync37(nodePath71.join(cwd, ".safeword"));
+  const context = setupPlanningContext(cwd, configured);
+  const reconciliation = await createReconciliationPlan(cwd, configured ? "upgrade" : "install", schema, context);
+  const reconciliationEffects = plannedReconciliationEffects(reconciliation.plan.effects, options.migrateNamespace);
+  const reconciliationPackages = reconciliationEffects.packages.length > 0;
+  const compatibilityFiles = !configured || configNeedsCompatibilityUpdate(cwd) ? [plannedFileEffect(cwd, ".safeword/config.json")] : [];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);
   const staleSafeword = staleSafewordRegistryDependency(cwd);
   const compatibilityPackage = `safeword@${VERSION}`;
   const combined = combineEffects([
-    reconciliation.plan.effects,
+    reconciliationEffects,
     {
       files: uniqueEffects([
+        ...plannedPackageJsonEffects(cwd, configured),
+        ...plannedVersionMarkerEffects(cwd, options.repairVersionMarker),
+        ...plannedNamespaceEffects(cwd, options.migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
         ...plannedCodexBootstrapEffect(cwd),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
-        ...plannedEslintEffects(cwd, context),
+        ...plannedOptionalEslintEffects(cwd, context, options.noModify),
         ...packageFiles,
         ...staleSafeword ? plannedJavaScriptPackageFiles(cwd) : []
       ]),
@@ -38193,7 +38261,7 @@ function mergeEffects(...groups) {
     destructive: uniqueEffects(combined.destructive)
   };
 }
-var DEFAULT_SETUP_ADAPTERS, JAVASCRIPT_PACKAGE_FILES, PYTHON_PACKAGE_FILES, SetupApplyError;
+var EMPTY_LANGUAGES, DEFAULT_SETUP_ADAPTERS, JAVASCRIPT_PACKAGE_FILES, PYTHON_PACKAGE_FILES, SetupApplyError;
 var init_project_install = __esm(() => {
   init_delivery_schema();
   init_inventory2();
@@ -38222,6 +38290,13 @@ var init_project_install = __esm(() => {
   init_stale_config_scan();
   init_vendored_ignores_nudge();
   init_version();
+  EMPTY_LANGUAGES = {
+    javascript: false,
+    python: false,
+    golang: false,
+    rust: false,
+    sql: false
+  };
   DEFAULT_SETUP_ADAPTERS = {
     configureArchitecture,
     configureWorkspaces: setupWorkspaceFormatScripts,
@@ -38470,12 +38545,13 @@ function observedAgentEffects(operation, agent, observation, scope) {
   }
   return observed.plugin?.installed === true ? profileUninstallEffects(agent, scope) : EMPTY_SURFACE_EFFECTS;
 }
-async function prepareLifecycle(cwd, operation, agents, full = false, scope = "project") {
+async function prepareLifecycle(cwd, operation, agents, options = {}) {
+  const { full = false, install: installOptions = {}, scope = "project" } = options;
   const uninstalling = operation === "uninstall";
   const projectSchema = projectLifecycleSchema(cwd, agents);
   const uninstallOperation = full ? "uninstall-full" : "uninstall";
   const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
-    plan: await createSetupPlan(cwd, projectSchema),
+    plan: await createSetupPlan(cwd, projectSchema, installOptions),
     dryRun: undefined
   };
   const observations = await profilePreconditions(cwd, agents, scope, operation);
@@ -38504,10 +38580,11 @@ async function prepareLifecycle(cwd, operation, agents, full = false, scope = "p
     })
   };
 }
-function lifecyclePlanResult(operation, prepared) {
+function lifecyclePlanResult(operation, prepared, installOptions = {}) {
   const hasEffects = Object.values(prepared.plan.effects).some((effects) => effects.length > 0);
   const selected = prepared.agents.length === 0 ? "none" : prepared.agents.join(",");
   const scopeFlag = prepared.agents.includes("claude") ? ` --scope=${prepared.scope}` : "";
+  const installFlags = installReplayFlags(installOptions);
   return createResult({
     state: hasEffects ? "action_required" : "healthy",
     findings: hasEffects ? [
@@ -38519,7 +38596,7 @@ function lifecyclePlanResult(operation, prepared) {
     ] : [],
     nextActions: hasEffects ? [
       {
-        command: operation === "install" ? `safeword install --agents=${selected}${scopeFlag}` : `safeword uninstall --agents=${selected}${scopeFlag} --yes --plan ${prepared.plan.id}`,
+        command: operation === "install" ? `safeword install --agents=${selected}${scopeFlag}${installFlags}` : `safeword uninstall --agents=${selected}${scopeFlag} --yes --plan ${prepared.plan.id}`,
         mutates: true,
         requiresHuman: operation === "uninstall"
       }
@@ -38536,6 +38613,14 @@ function lifecyclePlanResult(operation, prepared) {
       plan: toWirePlan(prepared.plan)
     }
   });
+}
+function installReplayFlags(options) {
+  return [
+    options.noModify === true ? "--no-modify" : undefined,
+    options.migrateNamespace === true ? "--migrate-namespace" : undefined,
+    options.migrateNamespace === false ? "--no-migrate-namespace" : undefined,
+    options.repairVersionMarker === true ? "--repair-version-marker" : undefined
+  ].filter((flag) => flag !== undefined).map((flag) => ` ${flag}`).join("");
 }
 function lifecycleScope(value, command, agents) {
   if (value === undefined || value === "project")
@@ -38585,8 +38670,20 @@ async function planLifecycle(invocation) {
   const scope = lifecycleScope(invocation.options.scope, "plan", parsed2.selection.agents);
   if (!scope.ok)
     return scope.result;
-  const prepared = operation === "install" ? await prepareLifecycle(invocation.cwd, "install", parsed2.selection.agents, false, scope.value) : await prepareLifecycle(invocation.cwd, "uninstall", parsed2.selection.agents, false, scope.value);
-  return lifecyclePlanResult(operation, prepared);
+  const installOptions = {
+    noModify: invocation.options.modify === false,
+    repairVersionMarker: invocation.options.repairVersionMarker === true,
+    ...typeof invocation.options.migrateNamespace === "boolean" && {
+      migrateNamespace: invocation.options.migrateNamespace
+    }
+  };
+  const prepared = operation === "install" ? await prepareLifecycle(invocation.cwd, "install", parsed2.selection.agents, {
+    install: installOptions,
+    scope: scope.value
+  }) : await prepareLifecycle(invocation.cwd, "uninstall", parsed2.selection.agents, {
+    scope: scope.value
+  });
+  return lifecyclePlanResult(operation, prepared, installOptions);
 }
 function staleUninstallPlan(plan) {
   return createResult({
@@ -38704,7 +38801,10 @@ async function uninstallLifecycle(invocation) {
   const scope = lifecycleScope(invocation.options.scope, "uninstall", parsed2.selection.agents);
   if (!scope.ok)
     return scope.result;
-  const prepared = await prepareLifecycle(invocation.cwd, "uninstall", parsed2.selection.agents, full, scope.value);
+  const prepared = await prepareLifecycle(invocation.cwd, "uninstall", parsed2.selection.agents, {
+    full,
+    scope: scope.value
+  });
   const suppliedPlan = typeof invocation.options.plan === "string" ? invocation.options.plan : undefined;
   if (invocation.options.yes === true && suppliedPlan !== undefined) {
     if (suppliedPlan !== prepared.plan.id)
@@ -58343,7 +58443,20 @@ var CANONICAL_COMMANDS = [
   }),
   command("plan", "Preview reconciliation effects", "plan", {
     syntax: "plan [operation]",
-    commandOptions: [agentSelectionOption(), claudeScopeOption()]
+    commandOptions: [
+      agentSelectionOption(),
+      claudeScopeOption(),
+      { flags: "--no-modify", description: "Do not plan an ESLint configuration edit" },
+      {
+        flags: "--migrate-namespace",
+        description: "Plan moving the legacy project namespace to .project"
+      },
+      { flags: "--no-migrate-namespace", description: "Keep the legacy project namespace" },
+      {
+        flags: "--repair-version-marker",
+        description: "Plan replacement of an unreadable project version marker"
+      }
+    ]
   }),
   command("doctor", "Diagnose project configuration", "observe", {
     commandOptions: [agentSelectionOption()]
