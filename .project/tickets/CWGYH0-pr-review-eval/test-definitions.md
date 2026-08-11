@@ -86,7 +86,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Paired-case quarantine is atomic
 
-- [ ] RED
+- [x] RED skip: quality-review requested an explicit proof for behavior already implemented
 - [ ] GREEN
 - [ ] REFACTOR
 
