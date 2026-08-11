@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 32c2b0a28
 - [x] GREEN b20381597
-- [ ] REFACTOR
+- [x] REFACTOR skip: one finding-shape predicate covers every scorer-consumed collection
 
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
