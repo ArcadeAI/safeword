@@ -196,6 +196,14 @@ function validInput() {
 	};
 }
 
+function rebindCostPolicy(input: ReturnType<typeof validInput>): void {
+	const digest = createHash("sha256")
+		.update(JSON.stringify(input.costPolicy))
+		.digest("hex");
+	input.expectedBindings.costPolicy = digest;
+	input.observedBindings.costPolicy = digest;
+}
+
 describe("paid canary authorization", () => {
 	test("authorizes one bound checkpoint from complete individual evidence", () => {
 		expect(evaluateCanaryGate(validInput())).toEqual({
@@ -220,6 +228,18 @@ describe("paid canary authorization", () => {
 		["unreferenced retry", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[0]!.attemptIds.pop(); }],
 		["cost inconsistent with usage", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[2]!.usageCostUsd = 0.02; }],
 		["attempt cost inconsistent with raw usage", (input: ReturnType<typeof validInput>) => { input.attempts[2]!.costUsd = 0; }],
+		["aggregate spend stop exceeded", (input: ReturnType<typeof validInput>) => {
+			input.costPolicy.aggregateCostStopUsd = 0.000_1;
+			rebindCostPolicy(input);
+		}],
+		["checkpoint spend stop exceeded", (input: ReturnType<typeof validInput>) => {
+			input.costPolicy.cumulativeCostTargetUsd = 0.000_1;
+			rebindCostPolicy(input);
+		}],
+		["invalid spend policy", (input: ReturnType<typeof validInput>) => {
+			input.costPolicy.aggregateCostStopUsd = Number.NaN;
+			rebindCostPolicy(input);
+		}],
 		["hidden failure admitted", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.activeRecordIdentities.push("active/record.json"); }],
 		["hidden failure not quarantined", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.quarantinedAttemptIdentities = []; }],
 		["hidden failure scorer succeeded", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.scorer.exitStatus = 0; }],

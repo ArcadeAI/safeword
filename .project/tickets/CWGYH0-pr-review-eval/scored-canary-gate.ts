@@ -157,6 +157,18 @@ function sha256(value: string): string {
 export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	const reasons: string[] = [];
 	if (
+		!validCost(input.costPolicy.aggregateCostStopUsd) ||
+		input.costPolicy.aggregateCostStopUsd === 0 ||
+		!validCost(input.costPolicy.cumulativeCostTargetUsd) ||
+		input.costPolicy.cumulativeCostTargetUsd === 0 ||
+		!validCost(input.costPolicy.inputPricePerMillionUsd) ||
+		input.costPolicy.inputPricePerMillionUsd === 0 ||
+		!validCost(input.costPolicy.outputPricePerMillionUsd) ||
+		input.costPolicy.outputPricePerMillionUsd === 0
+	) {
+		reasons.push("cost policy must contain finite positive prices and spend stops");
+	}
+	if (
 		sha256(JSON.stringify(input.costPolicy)) !==
 		input.observedBindings.costPolicy
 	) {
@@ -428,6 +440,12 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 			0,
 		),
 	);
+	if (
+		totalCostUsd > input.costPolicy.aggregateCostStopUsd ||
+		totalCostUsd > input.costPolicy.cumulativeCostTargetUsd
+	) {
+		reasons.push("complete attempt cost exceeds the frozen spend stop");
+	}
 	return reasons.length === 0
 		? { authorized: true, nextCheckpoint: input.nextCheckpoint, totalCostUsd, usableCostUsd }
 		: {
