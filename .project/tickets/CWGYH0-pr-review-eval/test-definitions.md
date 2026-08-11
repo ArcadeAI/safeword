@@ -218,7 +218,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a7d8259d1
 - [x] GREEN 47d0ed48c
-- [ ] REFACTOR
+- [x] REFACTOR skip: one exact taxonomy validator rejects missing, extra, or duplicate fixtures
 
 ### Scenario: Operational failure injection covers the R2 taxonomy
 
