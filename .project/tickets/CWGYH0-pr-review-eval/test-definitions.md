@@ -202,7 +202,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Finding verification belongs to one system trial
 
-- [ ] RED
+- [x] RED ca0993b71
 - [ ] GREEN
 - [ ] REFACTOR
 
