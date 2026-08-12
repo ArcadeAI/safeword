@@ -35,6 +35,7 @@ export interface GherkinLintIssue {
 }
 
 export interface RuleProofPolicy {
+  issuePrefix: string;
   lineageTagPrefix: string;
   proofTag: string;
   ruleLabel: string;
@@ -391,7 +392,7 @@ function findRuleDeliveryIssue(rule: Rule, policy: RuleProofPolicy): GherkinLint
   if (isWorkInProgress && hasProof) {
     return [
       issue(
-        'offload-proof-conflict',
+        policyIssue(policy, 'proof-conflict'),
         `An ${policy.ruleLabel} cannot declare both ${policy.workInProgressTag} and ${policy.proofTag}; choose unfinished or executable.`,
         rule.location.line,
       ),
@@ -401,7 +402,7 @@ function findRuleDeliveryIssue(rule: Rule, policy: RuleProofPolicy): GherkinLint
 
   return [
     issue(
-      'offload-executable-proof',
+      policyIssue(policy, 'executable-proof'),
       `An ${policy.ruleLabel} that leaves ${policy.workInProgressTag} must declare ${policy.proofTag} so executable coverage is explicit.`,
       rule.location.line,
     ),
@@ -416,7 +417,7 @@ function findMisplacedRuleLineageIssues(
 
   return misplacedTags.map(tag =>
     issue(
-      'offload-lineage-placement',
+      policyIssue(policy, 'lineage-placement'),
       `An ${policy.ruleLabel} lineage tag must be declared on its Rule, not on Feature, Scenario, or Examples scope.`,
       tag.location.line,
     ),
@@ -431,7 +432,7 @@ function findMisplacedRuleProofTagIssues(
     .filter(tag => tag.name === policy.proofTag)
     .map(tag =>
       issue(
-        'offload-proof-placement',
+        policyIssue(policy, 'proof-placement'),
         `${policy.proofTag} must be declared on each ${policy.ruleLabel} it proves, not on Feature, Scenario, or Examples scope.`,
         tag.location.line,
       ),
@@ -458,6 +459,10 @@ function scenarioAndExamplesTags(scenario: Scenario): Tag[] {
 
 function isRuleLineageTag(tag: string, policy: RuleProofPolicy): boolean {
   return tag.startsWith(policy.lineageTagPrefix);
+}
+
+function policyIssue(policy: RuleProofPolicy, suffix: string): string {
+  return `${policy.issuePrefix}-${suffix}`;
 }
 
 function findScenarioLintIssues(scenarios: readonly Scenario[]): GherkinLintIssue[] {

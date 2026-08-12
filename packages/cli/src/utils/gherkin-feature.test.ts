@@ -148,6 +148,7 @@ describe('parseFeatureAcReferences', () => {
 
 describe('findGherkinLintIssues', () => {
   const offloadRuleProofPolicy = {
+    issuePrefix: 'offload',
     lineageTagPrefix: '@offload-tests.',
     proofTag: '@proof.cucumber',
     ruleLabel: 'offload Rule',

@@ -31151,21 +31151,21 @@ function findRuleDeliveryIssue(rule, policy) {
   const isWorkInProgress = ruleTags.has(policy.workInProgressTag);
   if (isWorkInProgress && hasProof) {
     return [
-      issue("offload-proof-conflict", `An ${policy.ruleLabel} cannot declare both ${policy.workInProgressTag} and ${policy.proofTag}; choose unfinished or executable.`, rule.location.line)
+      issue(policyIssue(policy, "proof-conflict"), `An ${policy.ruleLabel} cannot declare both ${policy.workInProgressTag} and ${policy.proofTag}; choose unfinished or executable.`, rule.location.line)
     ];
   }
   if (isWorkInProgress || hasProof)
     return [];
   return [
-    issue("offload-executable-proof", `An ${policy.ruleLabel} that leaves ${policy.workInProgressTag} must declare ${policy.proofTag} so executable coverage is explicit.`, rule.location.line)
+    issue(policyIssue(policy, "executable-proof"), `An ${policy.ruleLabel} that leaves ${policy.workInProgressTag} must declare ${policy.proofTag} so executable coverage is explicit.`, rule.location.line)
   ];
 }
 function findMisplacedRuleLineageIssues(feature, policy) {
   const misplacedTags = nonRuleTags(feature).filter((tag) => isRuleLineageTag(tag.name, policy));
-  return misplacedTags.map((tag) => issue("offload-lineage-placement", `An ${policy.ruleLabel} lineage tag must be declared on its Rule, not on Feature, Scenario, or Examples scope.`, tag.location.line));
+  return misplacedTags.map((tag) => issue(policyIssue(policy, "lineage-placement"), `An ${policy.ruleLabel} lineage tag must be declared on its Rule, not on Feature, Scenario, or Examples scope.`, tag.location.line));
 }
 function findMisplacedRuleProofTagIssues(feature, policy) {
-  return nonRuleTags(feature).filter((tag) => tag.name === policy.proofTag).map((tag) => issue("offload-proof-placement", `${policy.proofTag} must be declared on each ${policy.ruleLabel} it proves, not on Feature, Scenario, or Examples scope.`, tag.location.line));
+  return nonRuleTags(feature).filter((tag) => tag.name === policy.proofTag).map((tag) => issue(policyIssue(policy, "proof-placement"), `${policy.proofTag} must be declared on each ${policy.ruleLabel} it proves, not on Feature, Scenario, or Examples scope.`, tag.location.line));
 }
 function nonRuleTags(feature) {
   return [
@@ -31182,6 +31182,9 @@ function scenarioAndExamplesTags(scenario) {
 }
 function isRuleLineageTag(tag, policy) {
   return tag.startsWith(policy.lineageTagPrefix);
+}
+function policyIssue(policy, suffix) {
+  return `${policy.issuePrefix}-${suffix}`;
 }
 function findScenarioLintIssues(scenarios) {
   const issues = [];
@@ -41332,6 +41335,7 @@ var init_lint_gherkin = __esm(() => {
   init_feature_source();
   init_gherkin_feature();
   OFFLOAD_RULE_PROOF_POLICY = {
+    issuePrefix: "offload",
     lineageTagPrefix: "@offload-tests.",
     proofTag: "@proof.cucumber",
     ruleLabel: "offload Rule",

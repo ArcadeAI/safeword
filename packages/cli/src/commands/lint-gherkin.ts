@@ -11,6 +11,7 @@ import { collectExecutableFeatureFiles } from '../utils/feature-source.js';
 import { findGherkinLintIssues, type GherkinLintIssue } from '../utils/gherkin-feature.js';
 
 const OFFLOAD_RULE_PROOF_POLICY = {
+  issuePrefix: 'offload',
   lineageTagPrefix: '@offload-tests.',
   proofTag: '@proof.cucumber',
   ruleLabel: 'offload Rule',
