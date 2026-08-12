@@ -8,6 +8,7 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 import {
   parseReviewerOutput,
   reviewTimeoutMilliseconds,
+  runBoundMs,
   runHeadlessReviewer,
 } from '../../src/review/runtime.js';
 
@@ -46,6 +47,13 @@ describe('headless reviewer timeout budgets', () => {
     expect(reviewTimeoutMilliseconds(reviewer, { SAFEWORD_REVIEW_TIMEOUT_MS: '45000' })).toBe(
       45_000,
     );
+  });
+
+  it('gives a detached review worker the larger absolute and attempt budgets', () => {
+    vi.stubEnv('SAFEWORD_REVIEW_WORKER', '1');
+
+    expect(runBoundMs()).toBe(1_800_000);
+    expect(reviewTimeoutMilliseconds('claude')).toBe(600_000);
   });
 });
 

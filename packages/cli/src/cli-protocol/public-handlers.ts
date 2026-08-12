@@ -698,7 +698,19 @@ async function runReviewWorker(
   context: readonly string[],
 ): Promise<CliResult> {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
-  if (id === undefined) return invalidOperand('review run', 'Review worker ID is missing.');
+  if (id === undefined) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_WORKER_ID_MISSING',
+          message: 'The detached review worker has no job ID.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'review run', status: 'failed' },
+    });
+  }
   const [{ runReview }, { completeReviewJob }, { ReviewPacketError }] = await Promise.all([
     import('../review/coordinator.js'),
     import('../review/job.js'),
@@ -717,7 +729,24 @@ async function runReviewWorker(
     const packetError = error instanceof ReviewPacketError;
     result = reviewExecutionFailure(error, packetError);
   }
-  completeReviewJob(invocation.cwd, id, result);
+  try {
+    completeReviewJob(invocation.cwd, id, result);
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_RESULT_PERSIST_FAILED',
+          message:
+            error instanceof Error
+              ? `The review finished but its result could not be saved: ${error.message}`
+              : 'The review finished but its result could not be saved.',
+          retryable: true,
+        },
+      ],
+      data: { command: 'review run', status: 'failed', review_id: id },
+    });
+  }
   return result;
 }
 

@@ -172,7 +172,7 @@ function shellQuote(value: string): string {
   return `'${escaped}'`;
 }
 
-function retryCommand(
+export function retryCommand(
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],

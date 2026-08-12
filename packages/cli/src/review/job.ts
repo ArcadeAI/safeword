@@ -1,11 +1,14 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
+  closeSync,
   existsSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
   renameSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -13,6 +16,7 @@ import nodePath from 'node:path';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { isReviewKind, type ReviewKind } from './contract.js';
+import { retryCommand } from './coordinator.js';
 import { prepareReviewPacket } from './packet.js';
 
 type ReviewJobState = 'running' | 'completed' | 'failed' | 'canceled';
@@ -33,13 +37,14 @@ interface ReviewJobRecord {
 
 const COURTESY_WAIT_MS = 75_000;
 const POLL_INTERVAL_MS = 100;
+const JOB_LOCK_WAIT_MS = 2000;
 
 function jobsDirectory(cwd: string): string {
   return nodePath.join(cwd, '.safeword', 'state', 'reviews');
 }
 
 function jobPath(cwd: string, id: string): string {
-  if (!/^[a-f\d-]{36}$/u.test(id)) throw new Error('invalid review job id');
+  if (!isJobId(id)) throw new Error('invalid review job id');
   return nodePath.join(jobsDirectory(cwd), `${id}.json`);
 }
 
@@ -75,6 +80,44 @@ function writeJob(cwd: string, record: ReviewJobRecord): void {
   const temporary = `${destination}.${process.pid}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(record)}\n`, { mode: 0o600 });
   renameSync(temporary, destination);
+}
+
+function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
+  const lock = `${jobPath(cwd, id)}.lock`;
+  const deadline = Date.now() + JOB_LOCK_WAIT_MS;
+  let descriptor: number | undefined;
+  while (descriptor === undefined) {
+    try {
+      descriptor = openSync(lock, 'wx', 0o600);
+    } catch (error) {
+      if (!isFileExistsError(error) || Date.now() >= deadline) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  try {
+    return operation();
+  } finally {
+    closeSync(descriptor);
+    unlinkSync(lock);
+  }
+}
+
+function isFileExistsError(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'EEXIST';
+}
+
+function updateRunningJob(
+  cwd: string,
+  id: string,
+  update: (record: ReviewJobRecord) => ReviewJobRecord,
+): ReviewJobRecord {
+  return withJobLock(cwd, id, () => {
+    const latest = readJob(cwd, id);
+    if (latest.state !== 'running') return latest;
+    const next = update(latest);
+    writeJob(cwd, next);
+    return next;
+  });
 }
 
 function isReviewJobRecord(value: unknown): value is ReviewJobRecord {
@@ -167,7 +210,7 @@ function pendingResult(record: ReviewJobRecord): CliResult {
     ],
     nextActions: [
       {
-        command: `bun .safeword/hooks/run-review.ts --json review status ${record.id}`,
+        command: `safeword review status ${record.id}`,
         mutates: false,
         requiresHuman: false,
       },
@@ -193,11 +236,7 @@ function staleResult(record: ReviewJobRecord): CliResult {
     ],
     nextActions: [
       {
-        command: `bun .safeword/hooks/run-review.ts --json review run ${record.kind}${
-          record.context === undefined || record.context.length === 0
-            ? ''
-            : ` --context ${record.context.map(target => shellQuote(target)).join(' ')}`
-        } -- ${record.targets.map(target => shellQuote(target)).join(' ')}`,
+        command: retryCommand(record.kind, record.targets, record.context),
         mutates: true,
         requiresHuman: false,
       },
@@ -206,16 +245,9 @@ function staleResult(record: ReviewJobRecord): CliResult {
   });
 }
 
-function shellQuote(value: string): string {
-  if (/^[\w./-]+$/u.test(value)) return value;
-  return ["'", value.replaceAll("'", `'"'"'`), "'"].join('');
-}
-
 function currentResult(cwd: string, record: ReviewJobRecord): CliResult {
   if (record.state === 'running') {
-    if (record.pid !== undefined && !processExists(record.pid)) {
-      const latest = readJob(cwd, record.id);
-      if (latest.state !== 'running') return terminalResult(cwd, latest);
+    if (record.pid !== undefined && !isReviewWorker(record.pid)) {
       const failed = createResult({
         state: 'failed',
         errors: [
@@ -227,13 +259,15 @@ function currentResult(cwd: string, record: ReviewJobRecord): CliResult {
         ],
         data: { command: 'review status', status: 'failed', review_id: record.id },
       });
-      writeJob(cwd, {
-        ...latest,
+      const latest = updateRunningJob(cwd, record.id, current => ({
+        ...current,
         state: 'failed',
         result: failed,
         updated_at: new Date().toISOString(),
-      });
-      return failed;
+      }));
+      return latest.state === 'failed' && latest.result === failed
+        ? failed
+        : terminalResult(cwd, latest);
     }
     return pendingResult(record);
   }
@@ -279,7 +313,7 @@ function configuredCourtesyWait(): number {
 
 function cliEntrypoint(): string {
   const configured = process.env.SAFEWORD_CLI_ENTRYPOINT;
-  if (configured !== undefined) return configured;
+  if (configured !== undefined && process.env.NODE_ENV === 'test') return configured;
   const invoked = process.argv[1];
   if (invoked !== undefined && /^cli\.(?:js|ts)$/u.test(nodePath.basename(invoked))) return invoked;
   const bundled = nodePath.join(import.meta.dirname, 'cli.js');
@@ -345,14 +379,16 @@ export async function startReviewJob(input: {
       ],
       data: { command: 'review run', status: 'failed', review_id: id },
     });
-    const latest = readJob(input.cwd, id);
-    if (latest.state !== 'running') return;
-    writeJob(input.cwd, {
-      ...latest,
-      state: 'failed',
-      result: failed,
-      updated_at: new Date().toISOString(),
-    });
+    try {
+      updateRunningJob(input.cwd, id, latest => ({
+        ...latest,
+        state: 'failed',
+        result: failed,
+        updated_at: new Date().toISOString(),
+      }));
+    } catch {
+      // The initiating command cannot recover a record removed after spawning.
+    }
   });
   child.unref();
   if (child.pid === undefined) {
@@ -375,10 +411,11 @@ export async function startReviewJob(input: {
     });
     return failed;
   }
-  const spawned = readJob(input.cwd, id);
-  if (spawned.state === 'running') {
-    writeJob(input.cwd, { ...spawned, pid: child.pid, updated_at: new Date().toISOString() });
-  }
+  updateRunningJob(input.cwd, id, spawned => ({
+    ...spawned,
+    pid: child.pid,
+    updated_at: new Date().toISOString(),
+  }));
   input.progress?.start('Running the independent review in the background…');
   input.progress?.heartbeat?.('Still waiting for the independent review…');
   const deadline = Date.now() + configuredCourtesyWait();
@@ -391,14 +428,12 @@ export async function startReviewJob(input: {
 }
 
 export function completeReviewJob(cwd: string, id: string, result: CliResult): void {
-  const record = readJob(cwd, id);
-  if (record.state !== 'running') return;
-  writeJob(cwd, {
+  updateRunningJob(cwd, id, record => ({
     ...record,
     state: result.state === 'failed' ? 'failed' : 'completed',
     result,
     updated_at: new Date().toISOString(),
-  });
+  }));
 }
 
 function latestJobId(cwd: string): string | undefined {
@@ -433,7 +468,7 @@ function runningJob(
         record.kind === kind &&
         record.source_fingerprint === sourceFingerprint &&
         record.pid !== undefined &&
-        processExists(record.pid)
+        isReviewWorker(record.pid)
       ) {
         return record;
       }
@@ -464,7 +499,7 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
   try {
     record = readJob(cwd, id);
   } catch {
-    const exists = existsSync(jobPath(cwd, id));
+    const exists = isJobId(id) && existsSync(jobPath(cwd, id));
     return createResult({
       state: 'failed',
       errors: [
@@ -498,25 +533,32 @@ export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
   try {
     const id = requestedId ?? latestJobId(cwd);
     if (id === undefined) return reviewJobStatus(cwd, id);
-    const record = readJob(cwd, id);
-    if (record.state !== 'running') return currentResult(cwd, record);
-    if (record.pid !== undefined && isReviewWorker(record.pid)) {
-      try {
-        process.kill(process.platform === 'win32' ? record.pid : -record.pid, 'SIGTERM');
-      } catch {
-        // The worker may have completed between reading and signaling.
+    const canceled = withJobLock(cwd, id, () => {
+      const record = readJob(cwd, id);
+      if (record.state !== 'running') return record;
+      if (record.pid !== undefined && isReviewWorker(record.pid)) {
+        try {
+          process.kill(process.platform === 'win32' ? record.pid : -record.pid, 'SIGTERM');
+        } catch {
+          // The worker may have completed between reading and signaling.
+        }
       }
-    }
-    const canceled: ReviewJobRecord = {
-      ...record,
-      state: 'canceled',
-      updated_at: new Date().toISOString(),
-    };
-    writeJob(cwd, canceled);
+      const next: ReviewJobRecord = {
+        ...record,
+        state: 'canceled',
+        updated_at: new Date().toISOString(),
+      };
+      writeJob(cwd, next);
+      return next;
+    });
     return currentResult(cwd, canceled);
   } catch {
     return reviewJobStatus(cwd, requestedId);
   }
+}
+
+function isJobId(value: string): boolean {
+  return /^[a-f\d-]{36}$/u.test(value);
 }
 
 function isReviewWorker(pid: number): boolean {

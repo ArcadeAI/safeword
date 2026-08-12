@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 describe('durable review jobs', () => {
-  it('runs the real detached CLI worker through to a stored result', async () => {
+  it('runs the detached CLI path through to a stored no-review result', async () => {
     const cwd = project();
     disableCrossAgentReview(cwd);
     vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
@@ -124,7 +124,7 @@ describe('durable review jobs', () => {
     expect(result.findings[0]?.code).toBe('REVIEW_PENDING');
     const next = result.nextActions[0];
     expect(next !== undefined && 'command' in next ? next.command : undefined).toMatch(
-      /^bun \.safeword\/hooks\/run-review\.ts --json review status /u,
+      /^safeword review status /u,
     );
   });
 
@@ -274,5 +274,15 @@ describe('durable review jobs', () => {
 
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+  });
+
+  it('returns typed failures for malformed and unknown review ids', () => {
+    const cwd = project();
+
+    expect(reviewJobStatus(cwd, 'not-a-uuid').errors[0]?.code).toBe('REVIEW_JOB_NOT_FOUND');
+    expect(cancelReviewJob(cwd, 'not-a-uuid').errors[0]?.code).toBe('REVIEW_JOB_NOT_FOUND');
+    expect(reviewJobStatus(cwd, 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa').errors[0]?.code).toBe(
+      'REVIEW_JOB_NOT_FOUND',
+    );
   });
 });

@@ -24,4 +24,3 @@ Audit passed — diff-scoped structural, learning, test-quality, documentation, 
 | Safeword CLI | Final Node 22/24 CI matrices; durable review job and CLI wiring tests | Pass |
 | Claude Code | Generated Claude plugin freshness, release contract, parity check, and runtime bundle | Pass |
 | OpenAI Codex | Codex skill parity and shared CLI runtime contract | Pass |
-
