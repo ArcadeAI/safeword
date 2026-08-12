@@ -4,7 +4,7 @@
 **Gherkin:** ✅ Acceptance lane passes (1,485 scenarios and 65,244 steps passed; 3 scenarios and 4 steps skipped; proof lane 50/50 scenarios and 240/240 steps passed)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 75 scenarios marked complete
+**Scenarios:** All 30 declared migration scenarios (44 expanded examples) marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
