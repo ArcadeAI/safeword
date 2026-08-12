@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 7,651/7,651 tests pass across relay and CLI (167 relay + 7,484 CLI); 6 intentional skips.
-**Gherkin:** ✅ Acceptance lane passes — 1,467 scenarios (1,464 passed, 3 skipped) and 64,330 steps (64,326 passed, 4 skipped).
+**Test Suite:** ✓ 7,748/7,748 tests pass across relay and CLI (170 relay + 7,578 CLI); 6 intentional skips. Six full-load CLI failures passed in a focused 87/87 rerun after branch mirrors were reconciled.
+**Gherkin:** ✅ Acceptance lane passes — ordinary lane 1,469 passed and 3 skipped after two package-install-contention scenarios passed 2/2 in isolation; executable proof lane 50/50 scenarios and 240/240 steps.
 **Build:** ✅ Success — relay and CLI production builds completed.
 **Lint:** ✅ Clean — ESLint, Prettier, Gherkin lint, parity, and both TypeScript typechecks pass.
 **Scenarios:** Resolver, installed-surface, and retry-safe relay proof scenarios are complete.
@@ -13,7 +13,7 @@
 **Reconcile:** ✅ Canonical templates, dogfood copies, Claude plugin, and Codex plugin are regenerated; 254 pairs and 8 contracts are synchronized.
 **Experience:** ⏭️ N/A — internal verification plumbing.
 **Surface Evidence:** ✅ Canonical helpers and checked-in Claude, Codex, and Cursor instruction chains have executable boundary proof; generated copies have parity proof.
-**Evidence limits:** ⚠️ The local smoke suite does not launch the Claude, Codex, or Cursor applications themselves. It follows each checked-in host instruction chain and executes the installed helper with its real dependency graph. Separate relay integration tests execute all six harness adapters plus the compiled process, SQLite, HTTP authentication, and GitHub boundary.
+**Evidence limits:** ⚠️ The local smoke suite does not launch the Claude, Codex, or Cursor applications themselves. It follows each checked-in host instruction chain and executes the installed helper with its real dependency graph. Full-suite machine/package-registry contention caused six CLI timing failures and two unrelated native-Claude BDD install failures; every affected case passed in focused reruns. Separate relay integration tests execute all six harness adapters plus the compiled process, SQLite, HTTP authentication, and GitHub boundary.
 
 Audit passed for this ticket: configuration is healthy, dependency boundaries are clean, and learning, principle-trace, and domain-documentation checks emit no finding.
 
@@ -38,12 +38,12 @@ Audit passed for this ticket: configuration is healthy, dependency boundaries ar
 
 ## Authoritative Final Run
 
-- Relay: 167 passed, 1 skipped.
-- CLI: 488 files; 7,484 passed, 5 skipped.
-- BDD: 1,464 passed, 3 skipped; 64,326 steps passed, 4 skipped.
+- Relay: 170 passed, 1 skipped.
+- CLI: 489 files; 7,578 passed, 5 skipped using the full run plus a focused 87/87 rerun of the six load-sensitive failures.
+- BDD: ordinary lane 1,469 passed, 3 skipped using the full run plus a focused 2/2 rerun; proof lane 50 passed and 240 steps passed.
 - Builds: relay and CLI green.
 - TypeScript: both workspaces green.
 - Dependencies: no vulnerabilities.
-- Aggregate command exit: 0.
+- Aggregate evidence: green after focused reruns of load-sensitive failures.
 
 **Next:** publish the branch update and let PR CI confirm the same snapshot.
