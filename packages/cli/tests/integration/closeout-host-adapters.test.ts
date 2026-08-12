@@ -20,12 +20,19 @@ import { generateClaudePluginAssets } from '../../src/claude-plugin/catalogue.js
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
 import {
+  draftSpoolPath,
+  readSpooledDrafts,
+  recordFiledAck,
+  spoolDrafts,
+} from '../../templates/hooks/lib/retro-draft-spool.ts';
+import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   initGitRepo,
   INSTALL_DEPENDENCIES_ENV,
   removeTemporaryDirectory,
   repoRoot,
+  sealedRetroDraft,
   setupOrThrow,
 } from '../helpers.js';
 
@@ -308,6 +315,166 @@ function closeoutCommand(directory: string): string {
 }
 
 describe('closeout production host adapters (93C14D TBU1.R4)', () => {
+  it('binds the authenticated Codex Desktop task across linked worktrees without a hook bridge', () => {
+    const fixture = deliveryFixture();
+    installBoundaryFakes(fixture);
+    const sandbox = nodePath.dirname(fixture.bare);
+    const id = 'codex-linked-bootstrap';
+    const codexHome = nodePath.join(sandbox, 'codex-home');
+    const transcriptDirectory = nodePath.join(codexHome, 'sessions');
+    const transcript = nodePath.join(transcriptDirectory, `rollout-${id}.jsonl`);
+    mkdirSync(transcriptDirectory, { recursive: true });
+    writeFileSync(
+      transcript,
+      `${JSON.stringify({ type: 'session_meta', payload: { id, cwd: fixture.main } })}\n`,
+    );
+    const environment = {
+      ...process.env,
+      PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+      GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
+      SAFEWORD_TEST_BARE: fixture.bare,
+      SAFEWORD_CLI: boundarySafewordCli(fixture),
+      CODEX_HOME: codexHome,
+      CODEX_THREAD_ID: id,
+      CLAUDE_PROJECT_DIR: fixture.topic,
+    };
+
+    const preview = spawnSync(
+      'bun',
+      [nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'), '--pr', '42'],
+      { cwd: fixture.topic, env: environment, encoding: 'utf8' },
+    );
+
+    expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+    const receiptPath = nodePath.join(fixture.main, '.git', 'safeword', 'closeout-retro.json');
+    const receipt = JSON.parse(readFileSync(receiptPath, 'utf8')) as {
+      runtime: string;
+      id: string;
+      snapshot: { path: string };
+    };
+    expect(receipt).toMatchObject({
+      runtime: 'codex',
+      id,
+      snapshot: { path: realpathSync(transcript) },
+    });
+  }, 30_000);
+
+  it('blocks post-preview cleanup and carries its fallback spool across worktrees', () => {
+    const fixture = deliveryFixture();
+    installBoundaryFakes(fixture);
+    const sandbox = nodePath.dirname(fixture.bare);
+    const id = 'claude-cross-worktree-fallback';
+    const transcript = nodePath.join(sandbox, `${id}.jsonl`);
+    const cli = nodePath.join(fixture.bin, 'filing-needed-safeword.ts');
+    const retroCounter = nodePath.join(sandbox, 'retro-count.txt');
+    const draft = sealedRetroDraft('retro:crossworktree', 'Cross-worktree fallback');
+    const unrelated = sealedRetroDraft('retro:unrelated0000', 'Unrelated spool');
+    const unrelatedId = 'unrelated-session';
+    writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: fixture.topic })}\n`);
+    executable(
+      cli,
+      `#!/usr/bin/env bun
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+if (args[0] === 'project' && args[1] === 'test-plan') {
+  console.log(JSON.stringify([{ cwd: process.cwd(), command: 'true', available: true }]));
+} else if (args[0] === 'retro' && args[1] === 'run') {
+  const count = existsSync(process.env.SAFEWORD_RETRO_COUNTER)
+    ? Number(readFileSync(process.env.SAFEWORD_RETRO_COUNTER, 'utf8'))
+    : 0;
+  writeFileSync(process.env.SAFEWORD_RETRO_COUNTER, String(count + 1));
+  console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: count > 0 } }));
+} else process.exit(1);
+`,
+    );
+    const environment = {
+      ...process.env,
+      PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+      GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
+      SAFEWORD_TEST_BARE: fixture.bare,
+      SAFEWORD_CLI: cli,
+      SAFEWORD_RETRO_COUNTER: retroCounter,
+      CLAUDE_PROJECT_DIR: fixture.topic,
+    };
+
+    bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
+    const preview = spawnSync(
+      'bun',
+      [nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'), '--pr', '42'],
+      { cwd: fixture.topic, env: environment, encoding: 'utf8' },
+    );
+    expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+    const digest = (JSON.parse(preview.stdout) as { digest: string }).digest;
+
+    writeFileSync(transcript, `${JSON.stringify({ role: 'assistant', text: 'late finding' })}\n`, {
+      flag: 'a',
+    });
+    spoolDrafts(fixture.topic, id, [draft]);
+    spoolDrafts(fixture.topic, unrelatedId, [unrelated]);
+    const unrelatedPath = draftSpoolPath(fixture.topic, unrelatedId);
+    const unrelatedBefore = readFileSync(unrelatedPath);
+    bindHostSession({
+      runtime: 'claude',
+      fixture,
+      environment,
+      id,
+      transcript,
+      guardArguments: `--pr 42 --yes --plan ${digest}`,
+    });
+    const apply = spawnSync(
+      'bun',
+      [
+        nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'),
+        '--pr',
+        '42',
+        '--yes',
+        '--plan',
+        digest,
+      ],
+      { cwd: fixture.topic, env: environment, encoding: 'utf8' },
+    );
+
+    expect(apply.status, `${apply.stderr}\n${apply.stdout}`).toBe(2);
+    expect(apply.stdout, apply.stderr).not.toBe('');
+    const plan = (JSON.parse(apply.stdout) as { plan: { retro?: { spoolPath?: string } } }).plan;
+    const continuation = plan.retro?.spoolPath;
+    expect(continuation).toBe(realpathSync(draftSpoolPath(fixture.topic, id)));
+    if (!continuation) throw new Error('blocked closeout did not expose its filing continuation');
+    expect(existsSync(fixture.topic)).toBe(true);
+    expect(
+      runOrThrow(
+        'git',
+        ['ls-remote', '--refs', 'origin', 'refs/heads/feature/closeout'],
+        fixture.topic,
+        environment,
+      ),
+    ).toContain(fixture.oid);
+
+    const validation = spawnSync(
+      'bun',
+      [
+        nodePath.join(fixture.topic, '.safeword/hooks/lib/drain-retro-spool.ts'),
+        continuation,
+        '--validated-jsonl',
+      ],
+      { cwd: fixture.main, encoding: 'utf8' },
+    );
+    expect(validation.status, validation.stderr).toBe(0);
+    expect(JSON.parse(validation.stdout)).toEqual(draft);
+
+    expect(recordFiledAck(fixture.topic, id, { signature: draft.signature, issue: 1942 })).toBe(
+      true,
+    );
+    const drain = spawnSync(
+      'bun',
+      [nodePath.join(fixture.topic, '.safeword/hooks/lib/drain-retro-spool.ts'), continuation],
+      { cwd: fixture.main, encoding: 'utf8' },
+    );
+    expect(drain.status, drain.stderr).toBe(0);
+    expect(readSpooledDrafts(fixture.topic, id)).toEqual([]);
+    expect(readFileSync(unrelatedPath)).toEqual(unrelatedBefore);
+  }, 30_000);
+
   it('fails closed when a mandatory local verification lane has no commands', () => {
     const fixture = deliveryFixture();
     installBoundaryFakes(fixture, false);
@@ -554,6 +721,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         SAFEWORD_TEST_BARE: fixture.bare,
         SAFEWORD_CLI: boundarySafewordCli(fixture),
         CODEX_HOME: codexHome,
+        ...(runtime === 'codex' && { CODEX_THREAD_ID: id }),
         CLAUDE_PROJECT_DIR: fixture.topic,
       };
       const guard = nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts');
@@ -613,6 +781,56 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     },
     30_000,
   );
+
+  it('rejects a fresh Codex hook binding that conflicts with the authenticated current task', () => {
+    const fixture = deliveryFixture();
+    installBoundaryFakes(fixture);
+    const sandbox = nodePath.dirname(fixture.bare);
+    const codexHome = nodePath.join(sandbox, 'codex-home');
+    const bridgedId = 'codex-bridged-task';
+    const authenticatedId = 'codex-authenticated-task';
+    mkdirSync(nodePath.join(codexHome, 'sessions'), { recursive: true });
+    const transcript = nodePath.join(codexHome, 'sessions', `rollout-${bridgedId}.jsonl`);
+    writeFileSync(
+      transcript,
+      `${JSON.stringify({
+        type: 'session_meta',
+        payload: { id: bridgedId, cwd: fixture.topic },
+      })}\n`,
+    );
+    const environment = {
+      ...process.env,
+      PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+      GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
+      SAFEWORD_TEST_BARE: fixture.bare,
+      SAFEWORD_CLI: boundarySafewordCli(fixture),
+      CODEX_HOME: codexHome,
+      CODEX_THREAD_ID: authenticatedId,
+      CLAUDE_PROJECT_DIR: fixture.topic,
+    };
+
+    bindHostSession({
+      runtime: 'codex',
+      fixture,
+      environment,
+      id: bridgedId,
+      transcript,
+    });
+    const preview = spawnSync(
+      'bun',
+      [nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'), '--pr', '42'],
+      { cwd: fixture.topic, env: environment, encoding: 'utf8' },
+    );
+
+    expect(preview.status).toBe(2);
+    expect(preview.stderr).toContain('a fresh host session binding are required');
+    expect(preview.stderr).toContain(
+      'Start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr 42',
+    );
+    expect(preview.stdout).toBe('');
+    expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
+    expect(existsSync(fixture.topic)).toBe(true);
+  }, 30_000);
 
   it('reuses one exact-head verification and retrospective snapshot from preview through apply', () => {
     const fixture = deliveryFixture();
