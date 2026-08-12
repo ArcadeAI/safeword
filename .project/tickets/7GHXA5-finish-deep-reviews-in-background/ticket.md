@@ -10,6 +10,7 @@ phase_anchors:
   - "plan-implementation: .project/tickets/7GHXA5-finish-deep-reviews-in-background/impl-plan.md"
   - "implement: packages/cli/src/review/job.ts"
   - "verify: .project/tickets/7GHXA5-finish-deep-reviews-in-background/test-definitions.md"
+  - "done: .project/tickets/7GHXA5-finish-deep-reviews-in-background/verify.md"
 scope: Durable local review jobs, foreground courtesy waiting, status collection, source-staleness detection, and agent guidance for collecting pending results.
 out_of_scope: Remote job infrastructure, cross-machine persistence, fabricated percentage progress, and automatic application of findings.
 done_when: Fast reviews still return inline; healthy slow reviews return a durable pending result and survive the caller; status returns the final typed result; changed sources make the result stale; background reviewer work has a bounded absolute deadline.
