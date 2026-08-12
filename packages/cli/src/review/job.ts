@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
+import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { isReviewKind, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
@@ -51,7 +52,10 @@ function fingerprint(
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
   try {
     const hash = createHash('sha256');
-    for (const file of prepared.packet.logical_files) {
+    for (const file of [
+      ...prepared.packet.logical_files,
+      ...(prepared.packet.context_files ?? []),
+    ]) {
       hash.update(file.path);
       hash.update('\0');
       hash.update(file.content);
@@ -290,6 +294,7 @@ export async function startReviewJob(input: {
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
+  readonly progress?: Pick<ProgressReporter, 'start' | 'heartbeat'>;
 }): Promise<CliResult> {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
@@ -374,6 +379,8 @@ export async function startReviewJob(input: {
   if (spawned.state === 'running') {
     writeJob(input.cwd, { ...spawned, pid: child.pid, updated_at: new Date().toISOString() });
   }
+  input.progress?.start('Running the independent review in the background…');
+  input.progress?.heartbeat?.('Still waiting for the independent review…');
   const deadline = Date.now() + configuredCourtesyWait();
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);

@@ -16660,7 +16660,6 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/logs",
       ".safeword/retro-drafts",
       ".safeword/self-reports",
-      ".safeword/state/reviews",
       ".safeword-project/tickets",
       ".safeword-project/tickets/completed",
       ".safeword-project/tmp"
@@ -42840,7 +42839,10 @@ function fingerprint(cwd, kind, targets, context = []) {
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
   try {
     const hash = createHash20("sha256");
-    for (const file of prepared.packet.logical_files) {
+    for (const file of [
+      ...prepared.packet.logical_files,
+      ...prepared.packet.context_files ?? []
+    ]) {
       hash.update(file.path);
       hash.update("\x00");
       hash.update(file.content);
@@ -43126,6 +43128,8 @@ async function startReviewJob(input) {
   if (spawned.state === "running") {
     writeJob(input.cwd, { ...spawned, pid: child.pid, updated_at: new Date().toISOString() });
   }
+  input.progress?.start("Running the independent review in the background\u2026");
+  input.progress?.heartbeat?.("Still waiting for the independent review\u2026");
   const deadline = Date.now() + configuredCourtesyWait();
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);
@@ -57953,7 +57957,7 @@ async function reviewRunHandler(invocation) {
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")
     return runReviewWorker(invocation, rawKind, targets, context);
-  return startReviewInBackground(invocation.cwd, rawKind, targets, context);
+  return startReviewInBackground(invocation, rawKind, targets, context);
 }
 function reviewContext(rawContext) {
   if (Array.isArray(rawContext))
@@ -57998,13 +58002,19 @@ function reviewExecutionFailure(error2, packetError) {
     data: { command: "review run", status: "failed" }
   });
 }
-async function startReviewInBackground(cwd, kind, targets, context) {
+async function startReviewInBackground(invocation, kind, targets, context) {
   const [{ startReviewJob: startReviewJob2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
     Promise.resolve().then(() => (init_job(), exports_job)),
     Promise.resolve().then(() => (init_packet(), exports_packet))
   ]);
   try {
-    return await startReviewJob2({ cwd, kind, targets, context });
+    return await startReviewJob2({
+      cwd: invocation.cwd,
+      kind,
+      targets,
+      context,
+      progress: invocation.progress
+    });
   } catch (error2) {
     const packetError = error2 instanceof ReviewPacketError2;
     return reviewStartFailure(error2, packetError);

@@ -1,4 +1,5 @@
 @proof.vitest
+# Proof: packages/cli/tests/review/job.test.ts
 Feature: Durable independent review
 
   @finish-deep-reviews-in-background.TBU1.R1 @surface.safeword-cli @surface.claude-code @surface.openai-codex

@@ -682,7 +682,7 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === '1')
     return runReviewWorker(invocation, rawKind, targets, context);
-  return startReviewInBackground(invocation.cwd, rawKind, targets, context);
+  return startReviewInBackground(invocation, rawKind, targets, context);
 }
 
 function reviewContext(rawContext: unknown): string[] {
@@ -736,7 +736,7 @@ function reviewExecutionFailure(error: unknown, packetError: boolean): CliResult
 }
 
 async function startReviewInBackground(
-  cwd: string,
+  invocation: CommandInvocation,
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[],
@@ -746,7 +746,13 @@ async function startReviewInBackground(
     import('../review/packet.js'),
   ]);
   try {
-    return await startReviewJob({ cwd, kind, targets, context });
+    return await startReviewJob({
+      cwd: invocation.cwd,
+      kind,
+      targets,
+      context,
+      progress: invocation.progress,
+    });
   } catch (error) {
     const packetError = error instanceof ReviewPacketError;
     return reviewStartFailure(error, packetError);

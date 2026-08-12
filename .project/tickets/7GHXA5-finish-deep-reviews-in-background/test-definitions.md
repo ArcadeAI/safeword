@@ -6,38 +6,38 @@ Feature source: `packages/cli/features/durable-independent-review.feature`
 
 ### Scenario: A quick review returns its verdict inline
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [x] GREEN 77abbe01d
+- [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ### Scenario: A slow healthy review continues as a durable job
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [x] GREEN 77abbe01d
+- [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ### Scenario: A detached review can be collected after its caller exits
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [x] GREEN 77abbe01d
+- [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ## Rule: finish-deep-reviews-in-background.TBU1.R2 — A collected result is bound to the source it reviewed
 
 ### Scenario: Source changes make a completed review stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [x] GREEN 77abbe01d
+- [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ## Rule: finish-deep-reviews-in-background.TBU1.R3 — A builder can stop a review that is no longer useful
 
 ### Scenario: A running review is canceled explicitly
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [x] GREEN 77abbe01d
+- [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: audit found correctness and contract fixes, but no shared structural duplication

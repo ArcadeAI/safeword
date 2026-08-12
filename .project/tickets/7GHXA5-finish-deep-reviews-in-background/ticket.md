@@ -2,7 +2,7 @@
 id: 7GHXA5
 slug: finish-deep-reviews-in-background
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 scope: Durable local review jobs, foreground courtesy waiting, status collection, source-staleness detection, and agent guidance for collecting pending results.
 out_of_scope: Remote job infrastructure, cross-machine persistence, fabricated percentage progress, and automatic application of findings.
@@ -28,3 +28,4 @@ last_modified: 2026-08-12T16:16:43.148Z
 
 - 2026-08-12T16:16:43.148Z Started: Created ticket 7GHXA5
 - 2026-08-12T16:20:00.000Z Resumed at implementation from the accepted durable-review proposal; recording executable lifecycle scenarios before code.
+- 2026-08-12T21:10:00.000Z Verification audit corrected transient-state cleanup, context freshness binding, proof provenance, and foreground progress; focused regressions and parity contracts are green.

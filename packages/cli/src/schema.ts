@@ -573,8 +573,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // gitignore) — per-session JSONL the hooks write; without this entry the
     // schema-drift test fails for any session that recorded a signal.
     '.safeword/self-reports',
-    // Durable local review jobs are runtime state, never install templates.
-    '.safeword/state/reviews',
     '.safeword-project/tickets',
     '.safeword-project/tickets/completed',
     '.safeword-project/tmp',
