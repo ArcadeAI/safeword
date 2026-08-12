@@ -1402,6 +1402,12 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
           flag: 'a',
         },
       );
+      rememberCloseoutBinding({
+        projectDirectory: topic,
+        runtime: 'codex',
+        id: 'codex-thread-42',
+        transcriptPath: transcript,
+      });
 
       const blockedApply = spawnSync('bun', [script, '--pr', '42', '--yes', '--plan', digest], {
         cwd: topic,
@@ -1421,6 +1427,12 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         `${JSON.stringify({ type: 'custom_tool_call', name: 'apply' })}\n`,
         { flag: 'a' },
       );
+      rememberCloseoutBinding({
+        projectDirectory: topic,
+        runtime: 'codex',
+        id: 'codex-thread-42',
+        transcriptPath: transcript,
+      });
       const apply = spawnSync('bun', [script, '--pr', '42', '--yes', '--plan', digest], {
         cwd: topic,
         encoding: 'utf8',

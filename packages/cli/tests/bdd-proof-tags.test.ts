@@ -46,6 +46,10 @@ const VITEST_PROVEN_FEATURES = [
     'packages/cli/tests/integration/bash-ledger-write-gate.test.ts',
   ],
   [
+    'features/close-completed-sessions-safely.feature',
+    'packages/cli/tests/closeout-cleanup.test.ts',
+  ],
+  [
     'features/feature-ticket-readiness.feature',
     'packages/cli/tests/hooks/feature-ticket-readiness.test.ts',
   ],

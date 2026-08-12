@@ -1,5 +1,6 @@
 # Collaborator actions and host invocation require hash-bound independent review;
 # deterministic guard, wiring, and parity behavior remains covered by Vitest.
+# Proof: packages/cli/tests/closeout-cleanup.test.ts
 Feature: Close completed sessions safely
 
   @proof.vitest @close-completed-sessions-safely.NTB1.R1
