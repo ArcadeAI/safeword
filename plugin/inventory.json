@@ -547,7 +547,7 @@
     },
     {
       "path": "runtime/hooks/session-version.ts",
-      "sha256": "60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af"
+      "sha256": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64"
     },
     {
       "path": "runtime/hooks/stop-quality.ts",

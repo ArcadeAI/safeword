@@ -350,7 +350,7 @@ describe('E2E: SessionStart Hooks', () => {
         encoding: 'utf8',
       });
 
-      expect(output).toContain('SAFE WORD');
+      expect(output).toContain('Safeword');
       expect(output).toContain('installed');
       expect(output).toMatch(/v\d+\.\d+\.\d+/); // Version format
     });
