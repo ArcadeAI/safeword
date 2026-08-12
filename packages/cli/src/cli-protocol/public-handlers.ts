@@ -678,8 +678,41 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
   const targets = Array.isArray(rawTargets)
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
-  const { runReview } = await import('../review/coordinator.js');
-  return runReview({ cwd: invocation.cwd, kind: rawKind, targets, progress: invocation.progress });
+  const rawContext = invocation.options.context;
+  let context: string[] = [];
+  if (Array.isArray(rawContext)) {
+    context = rawContext.filter((target): target is string => typeof target === 'string');
+  } else if (typeof rawContext === 'string') {
+    context = [rawContext];
+  }
+  const [{ runReview }, { ReviewPacketError }] = await Promise.all([
+    import('../review/coordinator.js'),
+    import('../review/packet.js'),
+  ]);
+  try {
+    return await runReview({
+      cwd: invocation.cwd,
+      kind: rawKind,
+      targets,
+      context,
+      progress: invocation.progress,
+    });
+  } catch (error) {
+    if (!(error instanceof ReviewPacketError)) throw error;
+    return createResult({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_PACKET_INVALID', message: error.message, retryable: false }],
+      recovery: [
+        {
+          command: 'safeword review run <kind> <targets...>',
+          description:
+            'Correct the review target and context paths or reduce the packet, then run the review again.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'review run', status: 'blocked' },
+    });
+  }
 }
 
 async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<CliResult> {

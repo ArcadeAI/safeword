@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f1c1e82253dcc7976003385940bc841a07e494e331c67d3f985545b626c66931"
+      "sha256": "72246338cc0c8f32920cb86b9a2faf1547a863f65a3d38ae7676d4685c473325"
     },
     {
       "path": "runtime/dispatch.js",
@@ -547,7 +547,7 @@
     },
     {
       "path": "runtime/hooks/session-version.ts",
-      "sha256": "60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af"
+      "sha256": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64"
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
