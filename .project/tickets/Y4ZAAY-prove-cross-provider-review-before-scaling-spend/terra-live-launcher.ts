@@ -2,6 +2,12 @@ import { execFile } from "node:child_process";
 import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
+import {
+  type CanaryInitializationBinding,
+  type CanaryUpstream,
+  runCanaryAttempt,
+} from "./terra-development-canary";
+
 const execFileAsync = promisify(execFile);
 const PAID_CHILD_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
 const CHILD_ENVIRONMENT_ALLOWLIST = [
@@ -288,9 +294,10 @@ export async function runCredentialSeparatedCanary<T>(input: {
   authorization: {
     adapterCommit: string;
     adapterTag: string;
-    canonicalRepository: string;
+    adapterCanonicalRepository: string;
     corpusDigest: string;
     harnessCommit: string;
+    harnessCanonicalRepository: string;
     harnessTag: string;
     registrationCommit: string;
   };
@@ -307,13 +314,13 @@ export async function runCredentialSeparatedCanary<T>(input: {
 }): Promise<T> {
   await Promise.all([
     preflightPinnedCheckout({
-      canonicalRepository: input.authorization.canonicalRepository,
+      canonicalRepository: input.authorization.adapterCanonicalRepository,
       commit: input.authorization.adapterCommit,
       directory: input.adapterDirectory,
       tag: input.authorization.adapterTag,
     }),
     preflightPinnedCheckout({
-      canonicalRepository: input.authorization.canonicalRepository,
+      canonicalRepository: input.authorization.harnessCanonicalRepository,
       commit: input.authorization.harnessCommit,
       directory: input.harnessDirectory,
       tag: input.authorization.harnessTag,
@@ -321,7 +328,7 @@ export async function runCredentialSeparatedCanary<T>(input: {
   ]);
   await verifyCommittedCorpusRegistration({
     checkout: {
-      canonicalRepository: input.authorization.canonicalRepository,
+      canonicalRepository: input.authorization.harnessCanonicalRepository,
       commit: input.authorization.harnessCommit,
       directory: input.harnessDirectory,
       tag: input.authorization.harnessTag,
@@ -340,4 +347,51 @@ export async function runCredentialSeparatedCanary<T>(input: {
       env: paidChildEnvironment(input.environment, openAIKey),
     });
   return input.parent({ dispatch, githubToken });
+}
+
+export async function runTerraPaidCanary(input: {
+  adapterCheckout: PinnedCheckout;
+  attemptId: string;
+  binding: CanaryInitializationBinding;
+  createUpstream(githubToken: string): CanaryUpstream;
+  environment?: NodeJS.ProcessEnv;
+  harnessCheckout: PinnedCheckout;
+  inputPath: string;
+  intentId: string;
+  loadGitHubToken(): Promise<string>;
+  loadOpenAIKey(): Promise<string>;
+  outputDirectory: string;
+  registration: { corpusDigest: string; registrationCommit: string };
+}): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+  return runCredentialSeparatedCanary({
+    adapterDirectory: input.adapterCheckout.directory,
+    authorization: {
+      adapterCommit: input.adapterCheckout.commit,
+      adapterTag: input.adapterCheckout.tag,
+      adapterCanonicalRepository: input.adapterCheckout.canonicalRepository,
+      corpusDigest: input.registration.corpusDigest,
+      harnessCommit: input.harnessCheckout.commit,
+      harnessCanonicalRepository: input.harnessCheckout.canonicalRepository,
+      harnessTag: input.harnessCheckout.tag,
+      registrationCommit: input.registration.registrationCommit,
+    },
+    child: createTerraPaidChildCommand({
+      harnessDirectory: input.harnessCheckout.directory,
+      inputPath: input.inputPath,
+    }),
+    environment: input.environment ?? process.env,
+    harnessDirectory: input.harnessCheckout.directory,
+    loadGitHubToken: input.loadGitHubToken,
+    loadOpenAIKey: input.loadOpenAIKey,
+    parent: ({ dispatch, githubToken }) =>
+      runCanaryAttempt({
+        attemptId: input.attemptId,
+        binding: input.binding,
+        dispatch: async () => parseTerraPaidChildResult(await dispatch()),
+        intentId: input.intentId,
+        outputDirectory: input.outputDirectory,
+        upstream: input.createUpstream(githubToken),
+      }),
+    spawnChild: spawnPaidChild,
+  });
 }
