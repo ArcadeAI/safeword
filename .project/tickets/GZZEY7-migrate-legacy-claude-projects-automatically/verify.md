@@ -4,7 +4,7 @@
 **Gherkin:** ✅ Acceptance lane passes (1,485 scenarios and 65,244 steps passed; 3 scenarios and 4 steps skipped; proof lane 50/50 scenarios and 240/240 steps passed)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 30 declared migration scenarios (44 expanded examples) marked complete
+**Scenarios:** All 90 test-definition scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -13,7 +13,7 @@
 **Surface Evidence:** ⚠️ 1/2 affected surfaces has real-boundary proof; Claude Code has comprehensive simulated coverage but still needs the release-candidate host run named in the implementation plan
 **Evidence limits:** ⚠️ The authenticated disposable-profile Claude Code run was not performed: five cold-start timings, mid-session `/reload-plugins`, same-name user/project scope behavior, and host-enforced termination remain release-candidate evidence
 
-Audit passed with repository-baseline warnings. Dependency Cruiser reported no errors; learning metadata, namespace domain references, migration documentation, and the GZZEY7 principle trace are consistent. The repository audit included nested `.claude/worktrees`, so its 1,149-clone and six-orphan totals are not comparable to the prior root-only baseline. Root Knip findings were reviewed; the low-risk Knip patch was applied, while the 0.x Codex minor update remains a dedicated migration decision. Untracked CKWE2D/WZF6JF files from other sessions caused one proof-manifest failure and five principle-trace findings in the shared checkout; the same proof test passed 17/17 and the full suite passed in a clean Git worktree.
+Audit passed in diff scope. Dependency configuration is healthy; Dependency Cruiser reported no violations across 444 modules and 817 dependencies; learning metadata, namespace domain references, migration documentation, and the GZZEY7 principle trace are consistent. The full suite's two environment-sensitive cases were rerun at their intended boundaries: the machine contract passed 2/2 with an isolated Codex profile, and reviewer process cleanup passed 19/19 from a trusted checkout path.
 
 ## Surface Evidence
 
