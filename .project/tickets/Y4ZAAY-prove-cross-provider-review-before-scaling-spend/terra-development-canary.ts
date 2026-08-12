@@ -36,12 +36,33 @@ export type CanaryUpstreamHead = {
   startedAttempts: number;
 };
 
+export type CanaryAttemptStartReceipt = {
+  attemptId: string;
+  intentId: string;
+  receiptId: string;
+  sequence: number;
+  startedAttempts: number;
+};
+
+export type CanaryAttemptCompletionReceipt = {
+  attemptCostPicodollars: string;
+  attemptId: string;
+  nativeUsageDigest: string;
+  observedCostPicodollars: string;
+  receiptId: string;
+  responseDigest: string;
+  sequence: number;
+  startReceiptId: string;
+};
+
 export type CanaryUpstreamSnapshot =
   | { authorizationId: string; kind: "ready" }
   | {
       head: CanaryUpstreamHead;
       kind: "consumed";
       receipt: CanaryInitializationReceipt;
+      starts: CanaryAttemptStartReceipt[];
+      completions: CanaryAttemptCompletionReceipt[];
     }
   | { kind: "unavailable" | "unreadable" };
 
@@ -233,12 +254,18 @@ function validateReceipt(
   }
 }
 
-function validateHead(head: CanaryUpstreamHead): void {
+function validateHead(
+  head: CanaryUpstreamHead,
+  binding?: Pick<CanaryInitializationBinding, "attemptLimit" | "receiptBudget">
+): void {
   const record = head as unknown as Record<string, unknown>;
   if (
     !hasExactKeys(record, ["observedCostPicodollars", "startedAttempts"]) ||
     !Number.isSafeInteger(head.startedAttempts) ||
     head.startedAttempts < 0 ||
+    (binding !== undefined &&
+      (head.startedAttempts > binding.attemptLimit ||
+        1 + head.startedAttempts > binding.receiptBudget)) ||
     !/^(0|[1-9]\d*)$/.test(head.observedCostPicodollars)
   ) {
     throw new Error("upstream accounting head is invalid");
@@ -355,6 +382,295 @@ async function readRecord(
   }
 }
 
+function parseRecordLines(
+  bytes: string,
+  label: string
+): Record<string, unknown>[] {
+  const lines = bytes.split("\n");
+  if (lines.length < 2 || lines.at(-1) !== "" || lines.slice(0, -1).some((line) => line === "")) {
+    throw new Error(`${label} must be newline-terminated JSONL without blank lines`);
+  }
+  return lines.slice(0, -1).map((line) => {
+    let value: unknown;
+    try {
+      value = JSON.parse(line);
+    } catch {
+      throw new Error(`${label} contains invalid JSON`);
+    }
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new Error(`${label} records must be objects`);
+    }
+    return value as Record<string, unknown>;
+  });
+}
+
+async function readRecords(
+  directory: string,
+  name: string
+): Promise<Record<string, unknown>[] | null> {
+  try {
+    return parseRecordLines(await readFile(join(directory, name), "utf8"), name);
+  } catch {
+    return null;
+  }
+}
+
+function isNonemptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isDecimal(value: unknown): value is string {
+  return typeof value === "string" && /^(0|[1-9]\d*)$/.test(value);
+}
+
+function validateStartReceipts(
+  starts: unknown,
+  head: CanaryUpstreamHead,
+  initializationReceiptId: string
+): CanaryAttemptStartReceipt[] | null {
+  if (
+    !Array.isArray(starts) ||
+    starts.length !== head.startedAttempts ||
+    (head.startedAttempts === 0 && head.observedCostPicodollars !== "0")
+  ) {
+    return null;
+  }
+  const attemptIds = new Set<string>();
+  const intentIds = new Set<string>();
+  const receiptIds = new Set<string>();
+  for (const [index, raw] of starts.entries()) {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+      return null;
+    }
+    const record = raw as Record<string, unknown>;
+    if (
+      !hasExactKeys(record, [
+        "attemptId",
+        "intentId",
+        "receiptId",
+        "sequence",
+        "startedAttempts",
+      ]) ||
+      !isNonemptyString(record.attemptId) ||
+      !isNonemptyString(record.intentId) ||
+      !isNonemptyString(record.receiptId) ||
+      record.sequence !== index + 1 ||
+      record.startedAttempts !== index + 1 ||
+      attemptIds.has(record.attemptId) ||
+      intentIds.has(record.intentId) ||
+      receiptIds.has(record.receiptId) ||
+      record.receiptId === initializationReceiptId
+    ) {
+      return null;
+    }
+    attemptIds.add(record.attemptId);
+    intentIds.add(record.intentId);
+    receiptIds.add(record.receiptId);
+  }
+  return starts as CanaryAttemptStartReceipt[];
+}
+
+function localStartsMatch(
+  records: Record<string, unknown>[] | null,
+  receiptId: string,
+  starts: CanaryAttemptStartReceipt[]
+): boolean {
+  const [genesis, ...localStarts] = records ?? [];
+  if (
+    genesis === undefined ||
+    !hasExactKeys(genesis, [
+      "initializationReceiptId",
+      "kind",
+      "startedAttempts",
+    ]) ||
+    genesis.kind !== "attempt-genesis" ||
+    genesis.initializationReceiptId !== receiptId ||
+    genesis.startedAttempts !== 0 ||
+    localStarts.length !== starts.length
+  ) {
+    return false;
+  }
+  return localStarts.every((local, index) => {
+    const upstream = starts[index];
+    return (
+      upstream !== undefined &&
+      hasExactKeys(local, [
+        "attemptId",
+        "intentId",
+        "kind",
+        "receiptId",
+        "sequence",
+        "startedAttempts",
+      ]) &&
+      local.kind === "attempt-start" &&
+      local.attemptId === upstream.attemptId &&
+      local.intentId === upstream.intentId &&
+      local.receiptId === upstream.receiptId &&
+      local.sequence === upstream.sequence &&
+      local.startedAttempts === upstream.startedAttempts
+    );
+  });
+}
+
+function validateCompletionReceipts(
+  completions: unknown,
+  head: CanaryUpstreamHead,
+  forbiddenReceiptIds: ReadonlySet<string>
+): CanaryAttemptCompletionReceipt[] | null {
+  if (
+    !Array.isArray(completions) ||
+    completions.length !== head.startedAttempts
+  ) {
+    return null;
+  }
+  const attemptIds = new Set<string>();
+  const receiptIds = new Set<string>();
+  const startReceiptIds = new Set<string>();
+  let priorCost = 0n;
+  for (const [index, raw] of completions.entries()) {
+    if (
+      typeof raw !== "object" ||
+      raw === null ||
+      Array.isArray(raw)
+    ) {
+      return null;
+    }
+    const record = raw as Record<string, unknown>;
+    if (
+      !hasExactKeys(record, [
+        "attemptCostPicodollars",
+        "attemptId",
+        "nativeUsageDigest",
+        "observedCostPicodollars",
+        "receiptId",
+        "responseDigest",
+        "sequence",
+        "startReceiptId",
+      ]) ||
+      !isDecimal(record.attemptCostPicodollars) ||
+      !isDecimal(record.observedCostPicodollars) ||
+      !isNonemptyString(record.nativeUsageDigest) ||
+      !isNonemptyString(record.receiptId) ||
+      !isNonemptyString(record.responseDigest) ||
+      !isNonemptyString(record.attemptId) ||
+      !isNonemptyString(record.startReceiptId) ||
+      record.sequence !== index + 1 ||
+      attemptIds.has(record.attemptId) ||
+      receiptIds.has(record.receiptId) ||
+      startReceiptIds.has(record.startReceiptId) ||
+      forbiddenReceiptIds.has(record.receiptId) ||
+      BigInt(record.observedCostPicodollars) !==
+        priorCost + BigInt(record.attemptCostPicodollars)
+    ) {
+      return null;
+    }
+    priorCost = BigInt(record.observedCostPicodollars);
+    attemptIds.add(record.attemptId);
+    receiptIds.add(record.receiptId);
+    startReceiptIds.add(record.startReceiptId);
+  }
+  if (priorCost.toString() !== head.observedCostPicodollars) {
+    return null;
+  }
+  return completions as CanaryAttemptCompletionReceipt[];
+}
+
+function completionsMatchStarts(
+  completions: CanaryAttemptCompletionReceipt[],
+  starts: CanaryAttemptStartReceipt[]
+): boolean {
+  return completions.every((completion, index) => {
+    const start = starts[index];
+    return (
+      start !== undefined &&
+      completion.sequence === start.sequence &&
+      completion.attemptId === start.attemptId &&
+      completion.startReceiptId === start.receiptId
+    );
+  });
+}
+
+function receiptCountWithinBudget(
+  snapshot: Extract<CanaryUpstreamSnapshot, { kind: "consumed" }>,
+  receiptBudget: number
+): boolean {
+  return (
+    Array.isArray(snapshot.starts) &&
+    Array.isArray(snapshot.completions) &&
+    1 + snapshot.starts.length + snapshot.completions.length <= receiptBudget
+  );
+}
+
+function upstreamReceiptIds(
+  initializationReceiptId: string,
+  starts: unknown
+): Set<string> {
+  const ids = new Set([initializationReceiptId]);
+  if (Array.isArray(starts)) {
+    for (const raw of starts) {
+      if (
+        typeof raw === "object" &&
+        raw !== null &&
+        !Array.isArray(raw) &&
+        isNonemptyString((raw as Record<string, unknown>).receiptId)
+      ) {
+        ids.add((raw as Record<string, unknown>).receiptId as string);
+      }
+    }
+  }
+  return ids;
+}
+
+function localCompletionsMatch(
+  records: Record<string, unknown>[] | null,
+  receiptId: string,
+  completions: CanaryAttemptCompletionReceipt[]
+): boolean {
+  const [genesis, ...localCompletions] = records ?? [];
+  if (
+    genesis === undefined ||
+    !hasExactKeys(genesis, [
+      "accountingComplete",
+      "initializationReceiptId",
+      "kind",
+      "observedCostPicodollars",
+    ]) ||
+    genesis.kind !== "cost-genesis" ||
+    genesis.initializationReceiptId !== receiptId ||
+    genesis.accountingComplete !== true ||
+    genesis.observedCostPicodollars !== "0" ||
+    localCompletions.length !== completions.length
+  ) {
+    return false;
+  }
+  return localCompletions.every((local, index) => {
+    const upstream = completions[index];
+    return (
+      upstream !== undefined &&
+      hasExactKeys(local, [
+        "attemptCostPicodollars",
+        "attemptId",
+        "kind",
+        "nativeUsageDigest",
+        "observedCostPicodollars",
+        "receiptId",
+        "responseDigest",
+        "sequence",
+        "startReceiptId",
+      ]) &&
+      local.kind === "attempt-completion" &&
+      local.attemptCostPicodollars === upstream.attemptCostPicodollars &&
+      local.attemptId === upstream.attemptId &&
+      local.nativeUsageDigest === upstream.nativeUsageDigest &&
+      local.observedCostPicodollars === upstream.observedCostPicodollars &&
+      local.receiptId === upstream.receiptId &&
+      local.responseDigest === upstream.responseDigest &&
+      local.sequence === upstream.sequence &&
+      local.startReceiptId === upstream.startReceiptId
+    );
+  });
+}
+
 export async function inspectCanaryAccounting(input: {
   binding: CanaryInitializationBinding;
   outputDirectory: string;
@@ -374,7 +690,10 @@ export async function inspectCanaryAccounting(input: {
 
   try {
     validateReceipt(snapshot.receipt, { bindingDigest: digest });
-    validateHead(snapshot.head);
+    validateHead(snapshot.head, input.binding);
+    if (!receiptCountWithinBudget(snapshot, input.binding.receiptBudget)) {
+      throw new Error("upstream receipt budget is exceeded");
+    }
   } catch {
     return {
       attemptAccountingComplete: false,
@@ -384,10 +703,10 @@ export async function inspectCanaryAccounting(input: {
       startedAttempts: 0,
     };
   }
-  const [marker, attempts, cost] = await Promise.all([
+  const [marker, attemptRecords, costRecords] = await Promise.all([
     readRecord(input.outputDirectory, INITIALIZATION_MARKER),
-    readRecord(input.outputDirectory, ATTEMPT_JOURNAL),
-    readRecord(input.outputDirectory, COST_JOURNAL),
+    readRecords(input.outputDirectory, ATTEMPT_JOURNAL),
+    readRecords(input.outputDirectory, COST_JOURNAL),
   ]);
   const markerValid =
     marker?.kind === "canary-initialization" &&
@@ -409,31 +728,27 @@ export async function inspectCanaryAccounting(input: {
       startedAttempts: 0,
     };
   }
-  const headIsGenesis =
-    snapshot.head.startedAttempts === 0 &&
-    snapshot.head.observedCostPicodollars === "0";
+  const starts = validateStartReceipts(
+    snapshot.starts,
+    snapshot.head,
+    snapshot.receipt.receiptId
+  );
   const attemptAccountingComplete =
-    headIsGenesis &&
-    attempts?.kind === "attempt-genesis" &&
-    hasExactKeys(attempts, [
-      "initializationReceiptId",
-      "kind",
-      "startedAttempts",
-    ]) &&
-    attempts.initializationReceiptId === snapshot.receipt.receiptId &&
-    attempts.startedAttempts === 0;
+    starts !== null &&
+    localStartsMatch(attemptRecords, snapshot.receipt.receiptId, starts);
+  const completions = validateCompletionReceipts(
+    snapshot.completions,
+    snapshot.head,
+    upstreamReceiptIds(snapshot.receipt.receiptId, snapshot.starts)
+  );
   const costAccountingComplete =
-    headIsGenesis &&
-    cost?.kind === "cost-genesis" &&
-    hasExactKeys(cost, [
-      "accountingComplete",
-      "initializationReceiptId",
-      "kind",
-      "observedCostPicodollars",
-    ]) &&
-    cost.initializationReceiptId === snapshot.receipt.receiptId &&
-    cost.accountingComplete === true &&
-    cost.observedCostPicodollars === "0";
+    completions !== null &&
+    (starts === null || completionsMatchStarts(completions, starts)) &&
+    localCompletionsMatch(
+      costRecords,
+      snapshot.receipt.receiptId,
+      completions
+    );
   return {
     attemptAccountingComplete,
     authorizationPresent: true,

@@ -55,6 +55,10 @@ function fakeUpstream(
   consumeCalls: number;
   mutateReceipt(patch: Record<string, unknown>): void;
   setHead(head: { observedCostPicodollars: string; startedAttempts: number }): void;
+  setReceipts(input: {
+    completions: Array<Record<string, unknown>>;
+    starts: Array<Record<string, unknown>>;
+  }): void;
 } {
   let state: "ready" | "consumed" | "unavailable" | "unreadable" = initial;
   let receipt:
@@ -67,10 +71,16 @@ function fakeUpstream(
       }
     | undefined;
   let head = { observedCostPicodollars: "0", startedAttempts: 0 };
+  let starts: Array<Record<string, unknown>> = [];
+  let completions: Array<Record<string, unknown>> = [];
   const upstream: CanaryUpstream & {
     consumeCalls: number;
     mutateReceipt(patch: Record<string, unknown>): void;
     setHead(head: { observedCostPicodollars: string; startedAttempts: number }): void;
+    setReceipts(input: {
+      completions: Array<Record<string, unknown>>;
+      starts: Array<Record<string, unknown>>;
+    }): void;
   } = {
     consumeCalls: 0,
     mutateReceipt: (patch) => {
@@ -82,13 +92,17 @@ function fakeUpstream(
     setHead: (next) => {
       head = next;
     },
+    setReceipts: (next) => {
+      starts = next.starts;
+      completions = next.completions;
+    },
     inspect: async () => {
       if (state === "unavailable" || state === "unreadable") {
         return { kind: state };
       }
       return state === "ready"
         ? { authorizationId: "auth-1", kind: "ready" }
-        : { head, kind: "consumed", receipt: receipt! };
+        : { completions, head, kind: "consumed", receipt: receipt!, starts };
     },
     consumeInitialization: async (input) => {
       upstream.consumeCalls += 1;
@@ -108,6 +122,74 @@ function fakeUpstream(
     },
   };
   return upstream;
+}
+
+function progressedRecords(count: number, costPerAttempt = 100n) {
+  const starts = Array.from({ length: count }, (_, index) => ({
+    attemptId: `attempt-${index + 1}`,
+    intentId: `intent-${index + 1}`,
+    receiptId: `start-receipt-${index + 1}`,
+    sequence: index + 1,
+    startedAttempts: index + 1,
+  }));
+  const completions = starts.map((start, index) => ({
+    attemptCostPicodollars: costPerAttempt.toString(),
+    attemptId: start.attemptId,
+    nativeUsageDigest: `usage-${index + 1}`,
+    observedCostPicodollars: (BigInt(index + 1) * costPerAttempt).toString(),
+    receiptId: `completion-receipt-${index + 1}`,
+    responseDigest: `response-${index + 1}`,
+    sequence: index + 1,
+    startReceiptId: start.receiptId,
+  }));
+  return { completions, starts };
+}
+
+function progressedRecordsForTotal(count: number, totalCost: bigint) {
+  const records = progressedRecords(count, 0n);
+  const baseCost = totalCost / BigInt(count);
+  const remainder = totalCost % BigInt(count);
+  let cumulativeCost = 0n;
+  records.completions.forEach((completion, index) => {
+    const attemptCost = baseCost + (BigInt(index) < remainder ? 1n : 0n);
+    cumulativeCost += attemptCost;
+    completion.attemptCostPicodollars = attemptCost.toString();
+    completion.observedCostPicodollars = cumulativeCost.toString();
+  });
+  return records;
+}
+
+function writeProgressedRecords(
+  directory: string,
+  records: ReturnType<typeof progressedRecords>
+): void {
+  const attemptGenesis = JSON.parse(
+    readFileSync(join(directory, ATTEMPT_JOURNAL), "utf8")
+  ) as Record<string, unknown>;
+  const costGenesis = JSON.parse(
+    readFileSync(join(directory, COST_JOURNAL), "utf8")
+  ) as Record<string, unknown>;
+  writeFileSync(
+    join(directory, ATTEMPT_JOURNAL),
+    [
+      attemptGenesis,
+      ...records.starts.map((start) => ({ kind: "attempt-start", ...start })),
+    ]
+      .map((record) => JSON.stringify(record))
+      .join("\n") + "\n"
+  );
+  writeFileSync(
+    join(directory, COST_JOURNAL),
+    [
+      costGenesis,
+      ...records.completions.map((completion) => ({
+        kind: "attempt-completion",
+        ...completion,
+      })),
+    ]
+      .map((record) => JSON.stringify(record))
+      .join("\n") + "\n"
+  );
 }
 
 function retainedBytes(directory: string): Map<string, string | null> {
@@ -663,5 +745,289 @@ describe("Terra canary initialization and reload", () => {
       costAccountingComplete: false,
     });
     expect(retainedBytes(directory)).toEqual(before);
+  });
+
+  test.each([1, 9, 10])(
+    "reconciles %i matching non-zero attempts across a fresh resume",
+    async (count) => {
+      const directory = outputDirectory();
+      const upstream = fakeUpstream();
+      await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+      const totalCost =
+        count === 9
+          ? 14n * PICODOLLARS_PER_DOLLAR
+          : BigInt(count) * 100n;
+      const records = progressedRecordsForTotal(count, totalCost);
+      upstream.setReceipts(records);
+      upstream.setHead({
+        observedCostPicodollars: totalCost.toString(),
+        startedAttempts: count,
+      });
+      writeProgressedRecords(directory, records);
+
+      const inspected = await inspectCanaryAccounting({
+        binding: BINDING,
+        outputDirectory: directory,
+        upstream,
+      });
+      expect(inspected).toEqual({
+        attemptAccountingComplete: true,
+        authorizationPresent: true,
+        costAccountingComplete: true,
+        observedCostPicodollars: totalCost,
+        startedAttempts: count,
+      });
+      expect(decision(inspected)).toMatchObject({
+        eligible: count < 10,
+        reasons: count < 10 ? ["eligible"] : ["attempt-stop"],
+      });
+    }
+  );
+
+  test("an unfinished tenth start consumes the cap and leaves cost incomplete", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const records = progressedRecords(10);
+    records.completions.pop();
+    upstream.setReceipts(records);
+    upstream.setHead({ observedCostPicodollars: "900", startedAttempts: 10 });
+    writeProgressedRecords(directory, records);
+
+    const inspected = await inspectCanaryAccounting({
+      binding: BINDING,
+      outputDirectory: directory,
+      upstream,
+    });
+    expect(inspected).toMatchObject({
+      attemptAccountingComplete: true,
+      costAccountingComplete: false,
+      startedAttempts: 10,
+    });
+    expect(decision(inspected)).toEqual({
+      eligible: false,
+      reasons: ["attempt-stop", "incomplete-cost-accounting"],
+    });
+  });
+
+  test.each([
+    "duplicate-start-sequence",
+    "out-of-order-start-sequence",
+    "different-local-attempt-id",
+    "missing-local-start",
+  ] as const)("rejects attempt-chain defect %s without editing bytes", async (defect) => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const upstreamRecords = progressedRecords(2);
+    const localRecords = structuredClone(upstreamRecords);
+    if (defect === "duplicate-start-sequence") {
+      upstreamRecords.starts[1]!.sequence = 1;
+    } else if (defect === "out-of-order-start-sequence") {
+      upstreamRecords.starts.reverse();
+    } else if (defect === "different-local-attempt-id") {
+      localRecords.starts[1]!.attemptId = "attempt-local-other";
+    } else {
+      localRecords.starts.pop();
+    }
+    upstream.setReceipts(upstreamRecords);
+    upstream.setHead({ observedCostPicodollars: "200", startedAttempts: 2 });
+    writeProgressedRecords(directory, localRecords);
+    const before = retainedBytes(directory);
+
+    const inspected = await inspectCanaryAccounting({
+      binding: BINDING,
+      outputDirectory: directory,
+      upstream,
+    });
+    expect(inspected.attemptAccountingComplete).toBe(false);
+    expect(inspected.costAccountingComplete).toBe(true);
+    expect(retainedBytes(directory)).toEqual(before);
+  });
+
+  test.each([
+    "duplicate-attempt-id",
+    "duplicate-intent-id",
+    "duplicate-start-receipt-id",
+    "initialization-receipt-collision",
+  ] as const)("rejects upstream attempt identity defect %s", async (defect) => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const records = progressedRecords(2);
+    if (defect === "duplicate-attempt-id") {
+      records.starts[1]!.attemptId = records.starts[0]!.attemptId;
+    } else if (defect === "duplicate-intent-id") {
+      records.starts[1]!.intentId = records.starts[0]!.intentId;
+    } else if (defect === "duplicate-start-receipt-id") {
+      records.starts[1]!.receiptId = records.starts[0]!.receiptId;
+    } else {
+      records.starts[1]!.receiptId = "receipt-1";
+    }
+    upstream.setReceipts(records);
+    upstream.setHead({ observedCostPicodollars: "200", startedAttempts: 2 });
+    writeProgressedRecords(directory, records);
+
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: false,
+      costAccountingComplete: true,
+    });
+  });
+
+  test("rejects an upstream head whose count disagrees with both chains", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const records = progressedRecords(2);
+    upstream.setReceipts(records);
+    upstream.setHead({ observedCostPicodollars: "200", startedAttempts: 3 });
+    writeProgressedRecords(directory, records);
+
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: false,
+      costAccountingComplete: false,
+    });
+  });
+
+  test("rejects an internally consistent chain above the authorized attempt cap", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const records = progressedRecords(11);
+    upstream.setReceipts(records);
+    upstream.setHead({ observedCostPicodollars: "1100", startedAttempts: 11 });
+    writeProgressedRecords(directory, records);
+
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: false,
+      authorizationPresent: false,
+      costAccountingComplete: false,
+    });
+  });
+
+  test("rejects an internally consistent chain above its authorized receipt budget", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    const binding = {
+      ...BINDING,
+      outputIdentity: "terra-canary-receipt-budget-test",
+      receiptBudget: 20,
+    };
+    await initializeCanary({ binding, outputDirectory: directory, upstream });
+    const records = progressedRecords(10);
+    upstream.setReceipts(records);
+    upstream.setHead({ observedCostPicodollars: "1000", startedAttempts: 10 });
+    writeProgressedRecords(directory, records);
+
+    await expect(
+      inspectCanaryAccounting({ binding, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: false,
+      authorizationPresent: false,
+      costAccountingComplete: false,
+    });
+  });
+
+  test.each([
+    "different-response-digest",
+    "different-native-usage-digest",
+    "different-cost",
+    "missing-local-completion",
+  ] as const)("rejects cost-chain defect %s without editing bytes", async (defect) => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const upstreamRecords = progressedRecords(2);
+    const localRecords = structuredClone(upstreamRecords);
+    if (defect === "different-response-digest") {
+      localRecords.completions[1]!.responseDigest = "response-local-other";
+    } else if (defect === "different-native-usage-digest") {
+      localRecords.completions[1]!.nativeUsageDigest = "usage-local-other";
+    } else if (defect === "different-cost") {
+      localRecords.completions[1]!.observedCostPicodollars = "201";
+    } else {
+      localRecords.completions.pop();
+    }
+    upstream.setReceipts(upstreamRecords);
+    upstream.setHead({ observedCostPicodollars: "200", startedAttempts: 2 });
+    writeProgressedRecords(directory, localRecords);
+    const before = retainedBytes(directory);
+
+    const inspected = await inspectCanaryAccounting({
+      binding: BINDING,
+      outputDirectory: directory,
+      upstream,
+    });
+    expect(inspected.costAccountingComplete).toBe(false);
+    expect(retainedBytes(directory)).toEqual(before);
+  });
+
+  test.each([
+    "duplicate-completion-sequence",
+    "duplicate-attempt-id",
+    "duplicate-completion-receipt-id",
+    "initialization-receipt-collision",
+    "start-receipt-collision",
+    "duplicate-start-receipt-reference",
+    "foreign-attempt-binding",
+    "foreign-start-receipt-binding",
+    "swapped-attempt-bindings",
+    "swapped-start-receipt-bindings",
+    "broken-cumulative-cost",
+    "head-cost-mismatch",
+  ] as const)("rejects upstream cost-chain defect %s", async (defect) => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const records = progressedRecords(2);
+    let headCost = "200";
+    if (defect === "duplicate-completion-sequence") {
+      records.completions[1]!.sequence = 1;
+    } else if (defect === "duplicate-attempt-id") {
+      records.completions[1]!.attemptId = records.completions[0]!.attemptId;
+    } else if (defect === "duplicate-completion-receipt-id") {
+      records.completions[1]!.receiptId = records.completions[0]!.receiptId;
+    } else if (defect === "initialization-receipt-collision") {
+      records.completions[1]!.receiptId = "receipt-1";
+    } else if (defect === "start-receipt-collision") {
+      records.completions[1]!.receiptId = records.starts[0]!.receiptId;
+    } else if (defect === "duplicate-start-receipt-reference") {
+      records.completions[1]!.startReceiptId =
+        records.completions[0]!.startReceiptId;
+    } else if (defect === "foreign-attempt-binding") {
+      records.completions[1]!.attemptId = "foreign-attempt";
+    } else if (defect === "foreign-start-receipt-binding") {
+      records.completions[1]!.startReceiptId = "foreign-start-receipt";
+    } else if (defect === "swapped-attempt-bindings") {
+      const firstAttemptId = records.completions[0]!.attemptId;
+      records.completions[0]!.attemptId = records.completions[1]!.attemptId;
+      records.completions[1]!.attemptId = firstAttemptId;
+    } else if (defect === "swapped-start-receipt-bindings") {
+      const firstStartReceiptId = records.completions[0]!.startReceiptId;
+      records.completions[0]!.startReceiptId =
+        records.completions[1]!.startReceiptId;
+      records.completions[1]!.startReceiptId = firstStartReceiptId;
+    } else if (defect === "broken-cumulative-cost") {
+      records.completions[1]!.observedCostPicodollars = "201";
+      headCost = "201";
+    } else {
+      headCost = "201";
+    }
+    upstream.setReceipts(records);
+    upstream.setHead({ observedCostPicodollars: headCost, startedAttempts: 2 });
+    writeProgressedRecords(directory, records);
+
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: true,
+      costAccountingComplete: false,
+    });
   });
 });
