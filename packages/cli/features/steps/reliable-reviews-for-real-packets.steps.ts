@@ -708,6 +708,11 @@ Then(
   'the reviewer is never asked for a review on an alternate model',
   function (this: SafewordWorld) {
     assert.equal(payload(this).data.reviewer_model, undefined);
+    assert.ok(
+      reviewerLaunches(this).every(
+        launch => !launch.includes('--model') && !launch.includes('--help'),
+      ),
+    );
   },
 );
 
