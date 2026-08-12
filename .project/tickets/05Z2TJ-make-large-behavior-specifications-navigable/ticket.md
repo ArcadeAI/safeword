@@ -2,10 +2,10 @@
 id: 05Z2TJ
 slug: make-large-behavior-specifications-navigable
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-08-11T23:26:44.983Z
-last_modified: 2026-08-12T02:21:38Z
+last_modified: 2026-08-12T03:30:59Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/2583
 external_prs: [https://github.com/ArcadeAI/safeword/pull/2596]
 ---
@@ -37,6 +37,7 @@ external_prs: [https://github.com/ArcadeAI/safeword/pull/2596]
 
 ## Work Log
 
+- 2026-08-12T03:30:59Z Complete: User confirmed completion; draft CI passed every gate on Node 22 and Node 24, and the ready-PR closure check required this verified ticket to ship as `status: done`.
 - 2026-08-12T02:21:38Z Verified: Merged three intervening `main` commits with no overlap, reran the preservation suite (8/8), Gherkin lint, ESLint, typecheck, and dependency audit successfully; recorded broad-suite environment/concurrency limits in `verify.md`.
 - 2026-08-12T00:11:47Z Improved: Refactor and quality-review findings aligned feature discovery with the shared resolver and made preservation independently reproducible from immutable pre-split commit `1f8056ed8`; 8/8 focused tests pass.
 - 2026-08-11T23:36:00Z Green: Gherkin lint, the two-test preservation/maintainability contract, focused ESLint, and TypeScript typecheck pass.

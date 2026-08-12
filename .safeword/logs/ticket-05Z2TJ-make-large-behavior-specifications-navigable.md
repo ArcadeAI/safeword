@@ -4,6 +4,7 @@
 
 ## Session: 2026-08-11
 
+- [03:30] COMPLETE: User confirmed completion. Draft PR CI was fully green across Node 22/24, acceptance, release, lint, parity, contract, and physical-install gates; marked PR ready and transitioned the verified ticket to `phase: done`, `status: done` as required by the ready-PR closure gate.
 - [02:21] VERIFY: caught up to `origin/main` (`03b7a49bb`) with no overlapping offload-spec changes. Post-merge checks pass: focused preservation/feature-source suite 8/8, retro-relay 167 passed/1 skipped, Gherkin lint, ESLint, typecheck, build, and `bun audit`.
 - [02:19] Full-lane evidence: CLI Vitest passed 7,490 tests with 15 failures across 12 unrelated files; Cucumber passed 1,497 scenarios/66,487 steps with 17 failures. Failures were attributable to registry DNS, shared-machine timeouts, review-runner environment state, and concurrent `dist` rebuild races; see `verify.md`. No failure referenced an offload feature or the new guard.
 - [00:26] QUALITY REVIEW: approved after two improvements—derive preservation facts from the immutable pre-split Git object and compare canonical Rule sources in addition to expanded semantics. Preferred Claude reviewer timed out; a separate headless Codex reviewer completed the independent review.
