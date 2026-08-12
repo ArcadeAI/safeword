@@ -543,12 +543,7 @@ export function migrateClaudeLegacyAutomatically(
 function recoveredAutomaticResult(projectRoot: string): AutomaticClaudeMigrationResult {
   const recovered = recoverClaudeCleanup(projectRoot);
   if (recovered.state !== 'failed') {
-    const marker = readClaudePluginMode(projectRoot);
-    return {
-      state: 'complete',
-      advisory: marker?.advisory,
-      unresolvedPaths: marker?.unresolved_paths ?? [],
-    };
+    return observedPluginModeResult(projectRoot);
   }
   const detail =
     recovered.errors?.[0]?.message ?? 'the recorded cleanup transaction could not be read safely';
@@ -556,6 +551,15 @@ function recoveredAutomaticResult(projectRoot: string): AutomaticClaudeMigration
     state: 'attention',
     advisory: `Safeword preserved the old Claude integration because automatic recovery could not finish: ${detail} Your prompt was not blocked; run \`safeword claude recover\` to repair it.`,
     unresolvedPaths: [],
+  };
+}
+
+function observedPluginModeResult(projectRoot: string): AutomaticClaudeMigrationResult {
+  const marker = readClaudePluginMode(projectRoot);
+  return {
+    state: 'complete',
+    advisory: marker?.advisory,
+    unresolvedPaths: marker?.unresolved_paths ?? [],
   };
 }
 
@@ -602,7 +606,7 @@ function claimAutomaticTransaction(
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
     if (waitForPluginMode(projectRoot, options.deadline, now)) {
-      return recoveredAutomaticResult(projectRoot);
+      return observedPluginModeResult(projectRoot);
     }
     return deferredConcurrentMigration(unresolved);
   }
@@ -616,7 +620,7 @@ function concurrentMigrationResult(
 ): AutomaticClaudeMigrationResult {
   const concurrentDeadline = Math.min(options.deadline, now() + 500);
   if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
-    return recoveredAutomaticResult(projectRoot);
+    return observedPluginModeResult(projectRoot);
   }
   if (now() >= options.deadline) {
     return deferredConcurrentMigration([]);
