@@ -761,9 +761,10 @@ Then(
 Then(
   'the explanation contains neither that output nor the credential',
   function (this: SafewordWorld) {
-    const rendered = JSON.stringify(payload(this));
-    assert.ok(!rendered.includes(CREDENTIAL));
-    assert.ok(!rendered.includes('not-a-review'));
+    for (const output of [this.result.stdout, this.result.stderr]) {
+      assert.ok(!output.includes(CREDENTIAL));
+      assert.ok(!output.includes('not-a-review'));
+    }
   },
 );
 
