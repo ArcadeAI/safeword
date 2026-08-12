@@ -1,0 +1,46 @@
+# Safeword golangci-lint config - merged with project config
+# Used by hooks for LLM enforcement. Human pre-commits use project config.
+# Re-run `safeword install` to regenerate after project config changes.
+#
+# NOTE: Safeword adds linters via 'enable' without changing your 'default'.
+# Your disable list and exclusion presets are preserved (union, not replaced).
+
+version: "2"
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - nilerr
+    - sqlclosecheck
+    - rowserrcheck
+    - noctx
+    - reassign
+    - cyclop
+    - nestif
+    - gocognit
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - prealloc
+    - gosec
+    - goconst
+    - misspell
+    - errorlint
+    - gocritic
+    - revive
+    - perfsprint
+    - copyloopvar
+    - intrange
+  disable:
+    - forbidigo
+  exclusions:
+    presets:
+      - std-error-handling
+      - common-false-positives
+  settings:
+    nestif:
+      min-complexity: 4
+formatters:
+  enable:
+    - gofumpt

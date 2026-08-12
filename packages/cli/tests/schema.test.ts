@@ -678,6 +678,8 @@ describe('Schema - Single Source of Truth', () => {
         'write-review-stamp.ts',
         'resolve-namespace-root.ts',
         'resolve-project-knowledge.ts',
+        // Callable verify-skill helper; it resolves ticket context on demand.
+        'resolve-verify-ticket.ts',
         'audit-principle-trace.ts',
         'record-skill-invocation.ts',
         'run-review.ts',

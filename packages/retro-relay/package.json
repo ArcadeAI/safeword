@@ -8,6 +8,7 @@
     "node": "^22.23.2 || ^24.18.1 || >=26.5.1"
   },
   "scripts": {
+    "format": "prettier --write .",
     "build": "tsup",
     "spike": "bun scripts/railway-spike.ts",
     "start": "node dist/main.js",

@@ -285,231 +285,239 @@ async function githubFixture(): Promise<{
 }
 
 describe('real shared CLI to relay wiring', () => {
-  it('routes all six installed surfaces through one persisted request and collaborator chain', async () => {
-    const relayDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-server-'));
-    const durableOutbox = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-outbox-'));
-    directories.push(relayDirectory, durableOutbox);
-    const github = await githubFixture();
-    const registry = new CredentialRegistry('pepper');
-    const issueCredential = (harness: RelayHarness, character: string) =>
-      registry.issue({
-        credentialId: `${harness}-retry`,
-        harness,
-        installationId: 42,
-        repository: 'arcadeai/safeword',
-        roles: ['file'],
-        secret: character.repeat(64),
-        subject: harness,
-        tenantId: 'tenant-1',
-      });
-    const credentials = {
-      claude: issueCredential('claude', 'a'),
-      codex: issueCredential('codex', 'b'),
-      cursor: issueCredential('cursor', 'c'),
-    };
-    const credentialFor = (harness: RelayHarness) => {
-      if (harness === 'claude') return credentials.claude;
-      if (harness === 'codex') return credentials.codex;
-      return credentials.cursor;
-    };
-    const store = RelayStore.open(path.join(relayDirectory, 'relay.sqlite'));
-    const relay = await startRelayServer({
-      allowUnlockedForTests: true,
-      credentials: registry,
-      github: new GitHubRestClient({
-        baseUrl: github.baseUrl,
-        installationToken: () => Promise.resolve('ghs_installation_secret'),
-      }),
-      payloadKey: Buffer.alloc(32, 7),
-      store,
-    });
-    servers.push(relay.server);
-    const nativeFetch = globalThis.fetch;
-    const secureRelayFetch: typeof fetch = (input, init) => {
-      let requested: URL;
-      if (typeof input === 'string') requested = new URL(input);
-      else if (input instanceof URL) requested = input;
-      else requested = new URL(input.url);
-      expect(requested.origin).toBe('https://relay.test');
-      return nativeFetch(new URL(`${requested.pathname}${requested.search}`, relay.url), init);
-    };
-    const finding = {
-      category: 'rough-edge',
-      repro: 'run safeword retro after a lost response',
-      safeword_surface: 'hooks/stop-quality.ts',
-      title: 'Relay response can be lost',
-      what_happened: 'The response was lost after durable acceptance.',
-      why_friction: 'The next harness could open a duplicate.',
-    };
-    const report = await prepareEncounters([finding]);
-    const encounter = report.encounters[0];
-    const relayDraft = {
-      body: encounter.draft.body,
-      canonicalKey: encounter.draft.canonicalSignature,
-      installationId: 42,
-      labels: encounter.draft.labels,
-      legacySignature: encounter.draft.signature,
-      repository: 'arcadeai/safeword',
-      title: encounter.draft.title,
-    };
-    let deliveryNow = Date.now();
-    vi.spyOn(Date, 'now').mockImplementation(() => deliveryNow);
-    const sharedRequest = createRelayRequest(
-      {
-        ...relayDraft,
-        sourceKey: relaySourceKey('session-1479', 0, relayDraft),
-      },
-      {
-        now: Date.now,
-        randomUUID: () => '00000000-0000-4000-8000-000000001479',
-      },
-    );
-    await persistRelayRequest(durableOutbox, sharedRequest);
-    const run = async (
-      project: string,
-      arguments_: string[],
-      harnessName: string,
-      credential: string,
-      relayFetch?: typeof fetch,
-    ): Promise<RetroOutcome> => {
-      let outcome: RetroOutcome | undefined;
-      await parseRetroCommandArguments(arguments_, async options => {
-        outcome = await executeRetroCommand(options, {
-          environment: {
-            SAFEWORD_RETRO_RELAY_CREDENTIAL: credential,
-            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
-            SAFEWORD_RETRO_RELAY_OUTBOX: durableOutbox,
-            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
-            SAFEWORD_RETRO_RELAY_URL: 'https://relay.test',
-          },
-          extract: () => Promise.resolve([finding]),
-          extractionSucceeded: () => true,
-          harness: harnessName,
-          output: noOutput(),
-          projectDirectory: project,
-          relay: {
-            buildCommit,
-            ...(relayFetch && { fetch: relayFetch }),
-            isAncestor: () => Promise.resolve(true),
-            manifest: readinessManifest,
-            now: new Date('2026-07-26T00:00:00.000Z'),
-            readArtifactAtCommit: (_commit, artifactPath) =>
-              Promise.resolve({
-                content: readinessArtifactContent(artifactPath),
-                sha256: artifactHash,
-              }),
-          },
-          sessionId: 'session-1479',
-          restTransportAvailable: false,
-          transport: forbiddenNativeTransport(),
+  it.each([
+    '[ORR-001] routes all six installed surfaces through one persisted request and collaborator chain',
+    '[ORR-036] keeps one external durable outbox across disposable harness workspaces',
+    '[ORR-009] keeps the same persisted draft retryable after a durable receipt response is lost',
+  ])(
+    '%s',
+    async () => {
+      const relayDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-server-'));
+      const durableOutbox = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-outbox-'));
+      directories.push(relayDirectory, durableOutbox);
+      const github = await githubFixture();
+      const registry = new CredentialRegistry('pepper');
+      const issueCredential = (harness: RelayHarness, character: string) =>
+        registry.issue({
+          credentialId: `${harness}-retry`,
+          harness,
+          installationId: 42,
+          repository: 'arcadeai/safeword',
+          roles: ['file'],
+          secret: character.repeat(64),
+          subject: harness,
+          tenantId: 'tenant-1',
         });
+      const credentials = {
+        claude: issueCredential('claude', 'a'),
+        codex: issueCredential('codex', 'b'),
+        cursor: issueCredential('cursor', 'c'),
+      };
+      const credentialFor = (harness: RelayHarness) => {
+        if (harness === 'claude') return credentials.claude;
+        if (harness === 'codex') return credentials.codex;
+        return credentials.cursor;
+      };
+      const store = RelayStore.open(path.join(relayDirectory, 'relay.sqlite'));
+      const relay = await startRelayServer({
+        allowUnlockedForTests: true,
+        credentials: registry,
+        github: new GitHubRestClient({
+          baseUrl: github.baseUrl,
+          installationToken: () => Promise.resolve('ghs_installation_secret'),
+        }),
+        payloadKey: Buffer.alloc(32, 7),
+        store,
       });
-      if (outcome === undefined) throw new Error('retro CLI action did not execute');
-      return outcome;
-    };
-
-    const lostResponseFetch: typeof fetch = async (input, init) => {
-      const response = await secureRelayFetch(input, init);
-      await response.arrayBuffer();
-      throw new Error('simulated lost receipt response');
-    };
-    const surfaces = [
-      {
-        harness: 'Claude Code',
-        kind: 'claude',
-      },
-      {
-        harness: 'Claude Code Cloud',
-        kind: 'claude',
-      },
-      {
-        harness: 'OpenAI Codex',
-        kind: 'codex',
-      },
-      {
-        harness: 'OpenAI Codex Cloud',
-        kind: 'codex',
-      },
-      { harness: 'Cursor', kind: 'cursor' },
-      {
-        harness: 'Cursor Cloud Agents',
-        kind: 'cursor',
-      },
-    ];
-    for (const [index, surface] of surfaces.entries()) {
-      if (index === surfaces.length - 1) deliveryNow += 61_000;
-      const project = mkdtempSync(path.join(tmpdir(), `safeword-${surface.kind}-runtime-`));
-      directories.push(project);
-      const installed = await installSurfaceFixtures(project);
-      const transcript = substantialTranscript(project);
-      const findings = path.join(project, 'findings.json');
-      writeFileSync(findings, JSON.stringify([finding]));
-      let arguments_: string[];
-      if (surface.kind === 'claude') {
-        arguments_ = captureClaudeHookArguments(
-          project,
-          installed.claudeHook,
-          transcript,
-          `${surface.harness}-${process.pid}`,
-        );
-      } else if (surface.kind === 'codex') {
-        arguments_ = instructionArguments(
-          readFileSync(installed.codexSkill, 'utf8'),
-          transcript,
-          findings,
-        );
-      } else {
-        arguments_ = cursorInstructionArguments(
-          installed.cursorCommand,
-          project,
-          transcript,
-          findings,
-        );
-      }
-      const harness = relayHarness(surface.harness);
-      const outcome = await run(
-        project,
-        arguments_,
-        surface.harness,
-        credentialFor(harness),
-        index === surfaces.length - 1 ? secureRelayFetch : lostResponseFetch,
+      servers.push(relay.server);
+      const nativeFetch = globalThis.fetch;
+      const secureRelayFetch: typeof fetch = (input, init) => {
+        let requested: URL;
+        if (typeof input === 'string') requested = new URL(input);
+        else if (input instanceof URL) requested = input;
+        else requested = new URL(input.url);
+        expect(requested.origin).toBe('https://relay.test');
+        return nativeFetch(new URL(`${requested.pathname}${requested.search}`, relay.url), init);
+      };
+      const finding = {
+        category: 'rough-edge',
+        repro: 'run safeword retro after a lost response',
+        safeword_surface: 'hooks/stop-quality.ts',
+        title: 'Relay response can be lost',
+        what_happened: 'The response was lost after durable acceptance.',
+        why_friction: 'The next harness could open a duplicate.',
+      };
+      const report = await prepareEncounters([finding]);
+      const encounter = report.encounters[0];
+      const relayDraft = {
+        body: encounter.draft.body,
+        canonicalKey: encounter.draft.canonicalSignature,
+        installationId: 42,
+        labels: encounter.draft.labels,
+        legacySignature: encounter.draft.signature,
+        repository: 'arcadeai/safeword',
+        title: encounter.draft.title,
+      };
+      let deliveryNow = Date.now();
+      vi.spyOn(Date, 'now').mockImplementation(() => deliveryNow);
+      const sharedRequest = createRelayRequest(
+        {
+          ...relayDraft,
+          sourceKey: relaySourceKey('session-1479', 0, relayDraft),
+        },
+        {
+          now: Date.now,
+          randomUUID: () => '00000000-0000-4000-8000-000000001479',
+        },
       );
-      expect(outcome.relay, JSON.stringify(relay.observability)).toEqual(
-        index === surfaces.length - 1
-          ? {
-              accepted: 1,
-              deadLetterBacklog: 0,
-              deadLetteredThisRun: 0,
-              retryable: 0,
-              spoolFailed: 0,
-            }
-          : {
-              accepted: 0,
-              deadLetterBacklog: 0,
-              deadLetteredThisRun: 0,
-              retryable: 1,
-              spoolFailed: 0,
+      await persistRelayRequest(durableOutbox, sharedRequest);
+      const run = async (
+        project: string,
+        arguments_: string[],
+        harnessName: string,
+        credential: string,
+        relayFetch?: typeof fetch,
+      ): Promise<RetroOutcome> => {
+        let outcome: RetroOutcome | undefined;
+        await parseRetroCommandArguments(arguments_, async options => {
+          outcome = await executeRetroCommand(options, {
+            environment: {
+              SAFEWORD_RETRO_RELAY_CREDENTIAL: credential,
+              SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+              SAFEWORD_RETRO_RELAY_OUTBOX: durableOutbox,
+              SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+              SAFEWORD_RETRO_RELAY_URL: 'https://relay.test',
             },
+            extract: () => Promise.resolve([finding]),
+            extractionSucceeded: () => true,
+            harness: harnessName,
+            output: noOutput(),
+            projectDirectory: project,
+            relay: {
+              buildCommit,
+              ...(relayFetch && { fetch: relayFetch }),
+              isAncestor: () => Promise.resolve(true),
+              manifest: readinessManifest,
+              now: new Date('2026-07-26T00:00:00.000Z'),
+              readArtifactAtCommit: (_commit, artifactPath) =>
+                Promise.resolve({
+                  content: readinessArtifactContent(artifactPath),
+                  sha256: artifactHash,
+                }),
+            },
+            sessionId: 'session-1479',
+            restTransportAvailable: false,
+            transport: forbiddenNativeTransport(),
+          });
+        });
+        if (outcome === undefined) throw new Error('retro CLI action did not execute');
+        return outcome;
+      };
+
+      const lostResponseFetch: typeof fetch = async (input, init) => {
+        const response = await secureRelayFetch(input, init);
+        await response.arrayBuffer();
+        throw new Error('simulated lost receipt response');
+      };
+      const surfaces = [
+        {
+          harness: 'Claude Code',
+          kind: 'claude',
+        },
+        {
+          harness: 'Claude Code Cloud',
+          kind: 'claude',
+        },
+        {
+          harness: 'OpenAI Codex',
+          kind: 'codex',
+        },
+        {
+          harness: 'OpenAI Codex Cloud',
+          kind: 'codex',
+        },
+        { harness: 'Cursor', kind: 'cursor' },
+        {
+          harness: 'Cursor Cloud Agents',
+          kind: 'cursor',
+        },
+      ];
+      for (const [index, surface] of surfaces.entries()) {
+        if (index === surfaces.length - 1) deliveryNow += 61_000;
+        const project = mkdtempSync(path.join(tmpdir(), `safeword-${surface.kind}-runtime-`));
+        directories.push(project);
+        const installed = await installSurfaceFixtures(project);
+        const transcript = substantialTranscript(project);
+        const findings = path.join(project, 'findings.json');
+        writeFileSync(findings, JSON.stringify([finding]));
+        let arguments_: string[];
+        if (surface.kind === 'claude') {
+          arguments_ = captureClaudeHookArguments(
+            project,
+            installed.claudeHook,
+            transcript,
+            `${surface.harness}-${process.pid}`,
+          );
+        } else if (surface.kind === 'codex') {
+          arguments_ = instructionArguments(
+            readFileSync(installed.codexSkill, 'utf8'),
+            transcript,
+            findings,
+          );
+        } else {
+          arguments_ = cursorInstructionArguments(
+            installed.cursorCommand,
+            project,
+            transcript,
+            findings,
+          );
+        }
+        const harness = relayHarness(surface.harness);
+        const outcome = await run(
+          project,
+          arguments_,
+          surface.harness,
+          credentialFor(harness),
+          index === surfaces.length - 1 ? secureRelayFetch : lostResponseFetch,
+        );
+        expect(outcome.relay, JSON.stringify(relay.observability)).toEqual(
+          index === surfaces.length - 1
+            ? {
+                accepted: 1,
+                deadLetterBacklog: 0,
+                deadLetteredThisRun: 0,
+                retryable: 0,
+                spoolFailed: 0,
+              }
+            : {
+                accepted: 0,
+                deadLetterBacklog: 0,
+                deadLetteredThisRun: 0,
+                retryable: 1,
+                spoolFailed: 0,
+              },
+        );
+        rmSync(project, { force: true, recursive: true });
+        directories.splice(directories.indexOf(project), 1);
+      }
+
+      const requestIds = relay.observability.logs.map(log => log.requestId);
+      // The first lost response and the later cross-harness retry reach the
+      // relay exactly once each. Intermediate surfaces observe the shared
+      // durable retry deferral instead of redundantly POSTing the request.
+      expect(requestIds).toHaveLength(2);
+      expect(new Set(requestIds).size).toBe(1);
+      expect(requestIds[0]).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
       );
-      rmSync(project, { force: true, recursive: true });
-      directories.splice(directories.indexOf(project), 1);
-    }
+      expect(github.createdBodies).toHaveLength(1);
+      expect(JSON.stringify(relay.observability)).not.toContain('ghs_installation_secret');
+      store.close();
+    },
+    30_000,
+  );
 
-    const requestIds = relay.observability.logs.map(log => log.requestId);
-    // The first lost response and the later cross-harness retry reach the
-    // relay exactly once each. Intermediate surfaces observe the shared
-    // durable retry deferral instead of redundantly POSTing the request.
-    expect(requestIds).toHaveLength(2);
-    expect(new Set(requestIds).size).toBe(1);
-    expect(requestIds[0]).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
-    );
-    expect(github.createdBodies).toHaveLength(1);
-    expect(JSON.stringify(relay.observability)).not.toContain('ghs_installation_secret');
-    store.close();
-  }, 30_000);
-
-  it('keeps the real CLI composition on native filing with the checked-in disabled manifest', async () => {
+  it('[ORR-010] keeps the real CLI composition on native filing with the checked-in disabled manifest', async () => {
     const project = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-disabled-'));
     directories.push(project);
     const transcript = substantialTranscript(project);
