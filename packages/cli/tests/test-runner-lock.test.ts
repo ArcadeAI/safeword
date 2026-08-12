@@ -15,6 +15,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 const cliRoot = nodePath.resolve(import.meta.dirname, '..');
 const runnerPath = nodePath.join(cliRoot, 'scripts/run-vitest-with-build-lock.mjs');
+const githubLiveRunnerPath = nodePath.join(cliRoot, 'scripts/run-github-live-smokes.mjs');
+const packageManifestPath = nodePath.join(cliRoot, 'package.json');
 
 const temporaryDirectories: string[] = [];
 
@@ -144,6 +146,58 @@ async function seedOwnerFile(lockDirectory: string, owner: unknown) {
 }
 
 describe('package test runner lock (379)', () => {
+  it('keeps the GitHub provenance smokes as a bounded source-only live lane (#1484)', () => {
+    const manifest = JSON.parse(readFileSync(packageManifestPath, 'utf8')) as {
+      scripts?: Record<string, unknown>;
+    };
+    const command = manifest.scripts?.['test:smoke:live:github'];
+
+    expect(command).toBe('node scripts/run-github-live-smokes.mjs');
+    expect(command).not.toContain('run-vitest-with-build-lock');
+    expect(command).not.toContain('build');
+
+    const runner = readFileSync(githubLiveRunnerPath, 'utf8');
+    expect(runner).toContain("'--maxWorkers=1'");
+    expect(runner).toContain("'--no-file-parallelism'");
+    expect(runner).toContain("'tests/smoke/retro-dedup.live.test.ts'");
+    expect(runner).toContain("'tests/smoke/reconcile.live.test.ts'");
+    expect(runner).not.toContain('run-vitest-with-build-lock');
+    expect(runner).not.toContain("['bun', 'run', 'build']");
+  });
+
+  it('rejects arguments to the bounded GitHub provenance live lane (#1484)', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const result = await runNodeScript(githubLiveRunnerPath, ['tests/other.live.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('test:smoke:live:github accepts no arguments.');
+    expect(existsSync(logPath)).toBe(false);
+  });
+
+  it('runs only the fixed GitHub provenance live-smoke arguments without the package lock (#1484)', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'held-package-test-lock');
+    await seedOwnerFile(lockDirectory, { pid: process.pid });
+    const result = await runNodeScript(githubLiveRunnerPath, [], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+    });
+
+    expect(result.status).toBe(0);
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(
+        /^vitest:start:\d+:run,--config,vitest\.live\.config\.ts,--maxWorkers=1,--no-file-parallelism,tests\/smoke\/retro-dedup\.live\.test\.ts,tests\/smoke\/reconcile\.live\.test\.ts$/,
+      ),
+      expect.stringMatching(/^vitest:end:\d+$/),
+    ]);
+  });
+
   it('serializes build and vitest for concurrent focused test commands', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
