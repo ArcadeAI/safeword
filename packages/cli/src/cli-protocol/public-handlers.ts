@@ -779,7 +779,7 @@ function reviewStartFailure(error: unknown, packetError: boolean): CliResult {
           },
         ]
       : [],
-    data: { command: 'review run', status: 'failed' },
+    data: { command: 'review run', status: packetError ? 'blocked' : 'failed' },
   });
 }
 

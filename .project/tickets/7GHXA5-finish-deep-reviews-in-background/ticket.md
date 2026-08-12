@@ -4,6 +4,12 @@ slug: finish-deep-reviews-in-background
 type: feature
 phase: verify
 status: in_progress
+phase_anchors:
+  - "define-behavior: .project/tickets/7GHXA5-finish-deep-reviews-in-background/spec.md"
+  - "scenario-gate: packages/cli/features/durable-independent-review.feature"
+  - "plan-implementation: .project/tickets/7GHXA5-finish-deep-reviews-in-background/impl-plan.md"
+  - "implement: packages/cli/src/review/job.ts"
+  - "verify: .project/tickets/7GHXA5-finish-deep-reviews-in-background/test-definitions.md"
 scope: Durable local review jobs, foreground courtesy waiting, status collection, source-staleness detection, and agent guidance for collecting pending results.
 out_of_scope: Remote job infrastructure, cross-machine persistence, fabricated percentage progress, and automatic application of findings.
 done_when: Fast reviews still return inline; healthy slow reviews return a durable pending result and survive the caller; status returns the final typed result; changed sources make the result stale; background reviewer work has a bounded absolute deadline.
