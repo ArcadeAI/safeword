@@ -527,87 +527,91 @@ function registryEntryMatches(
   );
 }
 
+function removeWorktreeSafely(
+  operation: Extract<CleanupOperation, { kind: 'remove-worktree' }>,
+  runner: ProcessRunner,
+  inspectIdentity: (path: string) => PathIdentity | undefined,
+): ProcessResult {
+  const registry = runner(
+    'git',
+    ['-C', operation.cwd, 'worktree', 'list', '--porcelain', '-z'],
+    operation.cwd,
+  );
+  if (registry.status !== 0 || !registryEntryMatches(operation, registry.stdout)) {
+    return { status: 1, stdout: '', stderr: 'worktree registration changed before removal' };
+  }
+  const quarantinePath = nodePath.join(
+    nodePath.dirname(operation.path),
+    `.${nodePath.basename(operation.path)}.safeword-closeout-${randomUUID()}`,
+  );
+  const moved = runner(
+    'git',
+    ['-C', operation.cwd, 'worktree', 'move', operation.path, quarantinePath],
+    operation.cwd,
+  );
+  if (moved.status !== 0) {
+    return { status: 1, stdout: '', stderr: 'worktree could not be quarantined before removal' };
+  }
+  const blockedAfterQuarantine = (message: string): ProcessResult => {
+    const restored = runner(
+      'git',
+      ['-C', operation.cwd, 'worktree', 'move', quarantinePath, operation.path],
+      operation.cwd,
+    );
+    return {
+      status: 1,
+      stdout: '',
+      stderr:
+        restored.status === 0
+          ? message
+          : `${message}; worktree restoration failed: ${restored.stderr.trim() || 'unknown error'}`,
+    };
+  };
+  const identity = inspectIdentity(quarantinePath);
+  if (!identity || identity.device !== operation.device || identity.inode !== operation.inode) {
+    return blockedAfterQuarantine('worktree filesystem identity changed before removal');
+  }
+  const quarantinedRegistry = runner(
+    'git',
+    ['-C', operation.cwd, 'worktree', 'list', '--porcelain', '-z'],
+    operation.cwd,
+  );
+  if (
+    quarantinedRegistry.status !== 0 ||
+    !registryEntryMatches(operation, quarantinedRegistry.stdout, quarantinePath)
+  ) {
+    return blockedAfterQuarantine('quarantined worktree registration changed');
+  }
+  const gitDirectory = runner(
+    'git',
+    ['-C', quarantinePath, 'rev-parse', '--absolute-git-dir'],
+    operation.cwd,
+  );
+  if (gitDirectory.status !== 0 || gitDirectory.stdout.trim() !== operation.gitDirectory) {
+    return blockedAfterQuarantine('worktree git identity changed before removal');
+  }
+  const head = runner('git', ['-C', quarantinePath, 'rev-parse', 'HEAD'], operation.cwd);
+  if (head.status !== 0 || head.stdout.trim() !== operation.oid) {
+    return blockedAfterQuarantine('worktree HEAD changed before removal');
+  }
+  const status = runner(
+    'git',
+    ['-C', quarantinePath, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
+    operation.cwd,
+  );
+  if (status.status !== 0 || status.stdout !== '') {
+    return blockedAfterQuarantine('worktree became dirty before removal');
+  }
+  return runner('git', ['-C', operation.cwd, 'worktree', 'remove', quarantinePath], operation.cwd);
+}
+
 export function executeCleanupOperation(
   operation: CleanupOperation,
   runner: ProcessRunner = run,
   inspectIdentity: (path: string) => PathIdentity | undefined = inspectPathIdentity,
 ): ProcessResult {
   if (operation.kind === 'remove-worktree') {
-    const registry = runner(
-      'git',
-      ['-C', operation.cwd, 'worktree', 'list', '--porcelain', '-z'],
-      operation.cwd,
-    );
-    if (registry.status !== 0 || !registryEntryMatches(operation, registry.stdout)) {
-      return { status: 1, stdout: '', stderr: 'worktree registration changed before removal' };
-    }
-    const quarantinePath = nodePath.join(
-      nodePath.dirname(operation.path),
-      `.${nodePath.basename(operation.path)}.safeword-closeout-${randomUUID()}`,
-    );
-    const moved = runner(
-      'git',
-      ['-C', operation.cwd, 'worktree', 'move', operation.path, quarantinePath],
-      operation.cwd,
-    );
-    if (moved.status !== 0) {
-      return { status: 1, stdout: '', stderr: 'worktree could not be quarantined before removal' };
-    }
-    const blockedAfterQuarantine = (message: string): ProcessResult => {
-      const restored = runner(
-        'git',
-        ['-C', operation.cwd, 'worktree', 'move', quarantinePath, operation.path],
-        operation.cwd,
-      );
-      return {
-        status: 1,
-        stdout: '',
-        stderr:
-          restored.status === 0
-            ? message
-            : `${message}; worktree restoration failed: ${restored.stderr.trim() || 'unknown error'}`,
-      };
-    };
-    const identity = inspectIdentity(quarantinePath);
-    if (!identity || identity.device !== operation.device || identity.inode !== operation.inode) {
-      return blockedAfterQuarantine('worktree filesystem identity changed before removal');
-    }
-    const quarantinedRegistry = runner(
-      'git',
-      ['-C', operation.cwd, 'worktree', 'list', '--porcelain', '-z'],
-      operation.cwd,
-    );
-    if (
-      quarantinedRegistry.status !== 0 ||
-      !registryEntryMatches(operation, quarantinedRegistry.stdout, quarantinePath)
-    ) {
-      return blockedAfterQuarantine('quarantined worktree registration changed');
-    }
-    const gitDirectory = runner(
-      'git',
-      ['-C', quarantinePath, 'rev-parse', '--absolute-git-dir'],
-      operation.cwd,
-    );
-    if (gitDirectory.status !== 0 || gitDirectory.stdout.trim() !== operation.gitDirectory) {
-      return blockedAfterQuarantine('worktree git identity changed before removal');
-    }
-    const head = runner('git', ['-C', quarantinePath, 'rev-parse', 'HEAD'], operation.cwd);
-    if (head.status !== 0 || head.stdout.trim() !== operation.oid) {
-      return blockedAfterQuarantine('worktree HEAD changed before removal');
-    }
-    const status = runner(
-      'git',
-      ['-C', quarantinePath, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
-      operation.cwd,
-    );
-    if (status.status !== 0 || status.stdout !== '') {
-      return blockedAfterQuarantine('worktree became dirty before removal');
-    }
-    return runner(
-      'git',
-      ['-C', operation.cwd, 'worktree', 'remove', quarantinePath],
-      operation.cwd,
-    );
+    return removeWorktreeSafely(operation, runner, inspectIdentity);
   }
   const [command, ...arguments_] = operationCommand(operation);
   if (!command) return { status: 1, stdout: '', stderr: 'cleanup command is empty' };
