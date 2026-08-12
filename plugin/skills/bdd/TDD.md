@@ -41,6 +41,10 @@ same actor-facing entry point and actor-visible result that the `When` and
 - **Observe the `Then` as the actor-visible result.** Store, editor, or component
   state is supporting evidence; it does not prove a visible UI result, emitted
   CLI output, or external API response.
+- **Assert the result's material values.** A proxy property is not enough: when a
+  `Then` names an actor or typed result, assert those fields in the emitted
+  output. Assert attempt order only when that order is part of the promised
+  behavior.
 - **Keep evidence limits explicit.** When the real boundary cannot be automated
   reliably, use the existing `@manual` or `@live` path and perform and record
   that check separately. A tag, skip reason, or narrower automated test does
