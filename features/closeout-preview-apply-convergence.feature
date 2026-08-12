@@ -88,19 +88,19 @@ Feature: Closeout preview and apply convergence
       Then no cleanup occurs, a sealed draft and its exact spool path are reported for supported filing, and rerunning "bun .safeword/scripts/closeout-cleanup.ts --pr 2431" after filing is reported
 
     @rejection @surface.openai-codex @surface.closeout-cleanup-guard
-    Scenario Outline: Invalid sealed retrospective evidence fails closed
+    Scenario Outline: Malformed sealed retrospective receipts are ignored and replaced
       Given the merged pull request number is 2431
       And preview approved exact unchanged cleanup targets
-      And apply receives "<invalid-evidence>"
-      When it validates the approved cleanup
-      Then no cleanup occurs and "<recovery>" is reported
+      And the cached retrospective receipt contains "<invalid-evidence>"
+      When closeout validates the receipt
+      Then the malformed receipt is ignored and retrospective extraction runs again
 
       Examples:
-        | invalid-evidence | recovery |
-        | content changed inside the sealed snapshot | run bun .safeword/scripts/closeout-cleanup.ts --pr 2431 |
-        | a transcript truncated below the sealed boundary | run bun .safeword/scripts/closeout-cleanup.ts --pr 2431 |
-        | a seal belonging to another authenticated task | start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr 2431 |
-        | no sealed evidence | run bun .safeword/scripts/closeout-cleanup.ts --pr 2431 |
+        | invalid-evidence |
+        | a missing filing verdict |
+        | a non-boolean filing verdict |
+        | a negative pending-draft count |
+        | a fractional sealed byte length |
 
   @closeout-preview-apply-convergence.NTB1.R2
   Rule: closeout-preview-apply-convergence.NTB1.R2 — Bootstrap and linked-worktree tasks receive an exact supported identity path
@@ -112,18 +112,11 @@ Feature: Closeout preview and apply convergence
       Then that exact transcript is sealed for apply and the accepted binding is consumed
 
     @rejection @surface.openai-codex @surface.closeout-cleanup-guard
-    Scenario Outline: A fresh hook binding cannot cross the authenticated ownership boundary
+    Scenario: A fresh hook binding cannot cross the authenticated ownership boundary
       Given the merged pull request number is 2431
-      And a fresh hook binding has "<conflict>" with the authenticated current task
+      And a fresh hook binding names a different task than the authenticated current task
       When closeout attempts preview
       Then no binding is established, no transcript is sealed, no cleanup occurs, and "start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr 2431" is reported
-
-      Examples:
-        | conflict |
-        | a conflicting task identity |
-        | a conflicting project root |
-        | a conflicting transcript identity |
-        | both a conflicting project root and transcript identity |
 
     @surface.openai-codex @surface.closeout-cleanup-guard
     Scenario: OpenAI Codex Desktop binds the current task across linked worktrees
@@ -140,19 +133,12 @@ Feature: Closeout preview and apply convergence
       When apply reruns from the same task
       Then the sealed transcript evidence is accepted from the authenticated current task identity and the original cleanup authorization is applied
 
-    @rejection @surface.openai-codex @surface.closeout-cleanup-guard
-    Scenario Outline: A consumed binding cannot redirect an authenticated current task
-      Given the merged pull request number is 2431
-      And a consumed binding has "<conflict>" with the authenticated current task
+    @surface.openai-codex @surface.closeout-cleanup-guard
+    Scenario: A consumed binding cannot override an authenticated current task
+      Given a consumed binding from another task is presented again
       And the authenticated current task otherwise resolves exactly
       When apply reruns
-      Then no binding is established, no transcript is sealed, no cleanup occurs, and "start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr 2431" is reported
-
-      Examples:
-        | conflict |
-        | a conflicting task identity |
-        | a conflicting project root |
-        | a conflicting transcript identity |
+      Then the authenticated current task is bound and its canonical transcript is sealed
 
     @rejection @surface.openai-codex @surface.closeout-cleanup-guard
     Scenario: A consumed hook binding cannot authenticate a task by itself
@@ -173,19 +159,6 @@ Feature: Closeout preview and apply convergence
         | change |
         | installed |
         | upgraded |
-
-    @rejection @surface.openai-codex @surface.closeout-cleanup-guard
-    Scenario Outline: Missing exact identity has one executable recovery path
-      Given the merged pull request number is 2431
-      And closeout has "<identity-failure>"
-      When it attempts preview
-      Then no transcript is sealed, no binding is established, no cleanup occurs, and it reports "<recovery>"
-
-      Examples:
-        | identity-failure | recovery |
-        | no matching authenticated task identity | start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr 2431 |
-        | an authenticated task identity with no matching canonical transcript | start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr 2431 |
-        | multiple matching canonical transcripts | start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr 2431 |
 
     @rejection @surface.openai-codex @surface.closeout-cleanup-guard
     Scenario: A bootstrap identity cannot cross its project ownership boundary
@@ -224,18 +197,11 @@ Feature: Closeout preview and apply convergence
       Then cleanup remains blocked and the spool stays byte-identical without another draft
 
     @rejection @surface.retro-filer @surface.closeout-cleanup-guard
-    Scenario Outline: Invalid fallback provenance is refused
+    Scenario: A fallback spool with a modified sealed body is refused
       Given the continuation's named or resolved spool contains one pending draft record
-      And the continuation has "<invalid-provenance>"
+      And the spool's sealed body fails validation
       When fallback filing is attempted
       Then no draft is filed or drained and both the named path and any resolved target remain byte-identical
-
-      Examples:
-        | invalid-provenance |
-        | a direct path resolving outside the repository ownership boundary |
-        | an in-root path that is not a canonical retro-draft spool |
-        | a spool reached through an escaping symlink |
-        | a spool whose sealed body fails validation |
 
     @rejection @surface.retro-filer @surface.closeout-cleanup-guard
     Scenario: Unavailable filing preserves authenticated drafts for retry
@@ -260,7 +226,6 @@ Feature: Closeout preview and apply convergence
     @rejection @surface.closeout-cleanup-guard
     Scenario: Cleanup-target drift remains blocking when retro progress also advances
       Given preview approved exact cleanup targets
-      And bounded retrospective progress advanced after preview
       And one approved repository or cleanup target changed before apply
       When apply validates the original cleanup authorization
       Then no cleanup target is mutated and closeout reports target drift

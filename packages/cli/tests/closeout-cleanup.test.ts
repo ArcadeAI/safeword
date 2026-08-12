@@ -57,7 +57,11 @@ function normalizedCloseoutScript(path: string): string {
       /import \{\s*draftSpoolPath,\s*readAcks,\s*readSpooledDrafts,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/retro-draft-spool\.ts';/u,
       "import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';",
     )
-    .replace('../../runtime/hooks/lib/run-identity.ts', '../hooks/lib/run-identity.ts');
+    .replace('../../runtime/hooks/lib/run-identity.ts', '../hooks/lib/run-identity.ts')
+    .replace(
+      'bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts',
+      'bun .safeword/scripts/closeout-cleanup.ts',
+    );
 }
 
 function safeObservation(overrides: Partial<CloseoutObservation> = {}): CloseoutObservation {
@@ -161,9 +165,10 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(POST_MERGE_VERIFICATION_KINDS).not.toContain('deps');
   });
 
-  it('uses Codex Desktop thread identity when the one-shot hook bridge is unavailable', () => {
+  it('uses Codex Desktop identity only when a fresh bridge agrees with the authenticated task', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-codex-desktop-'));
     try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
       mkdirSync(nodePath.join(root, '.safeword'));
       writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# SafeWord\n');
 
@@ -176,15 +181,27 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
       rememberCloseoutBinding({
         projectDirectory: root,
-        runtime: 'claude',
-        id: 'hook-session-42',
-        transcriptPath: '/exact/hook-session-42.jsonl',
+        runtime: 'codex',
+        id: 'different-thread',
+      });
+      expect(
+        resolveCloseoutBinding(root, { CODEX_THREAD_ID: 'desktop-thread-42' }),
+      ).toBeUndefined();
+      expect(resolveCloseoutBinding(root, { CODEX_THREAD_ID: 'desktop-thread-42' })).toEqual({
+        runtime: 'codex',
+        id: 'desktop-thread-42',
+        projectRoot: realpathSync(root),
+      });
+
+      rememberCloseoutBinding({
+        projectDirectory: root,
+        runtime: 'codex',
+        id: 'desktop-thread-42',
       });
       expect(resolveCloseoutBinding(root, { CODEX_THREAD_ID: 'desktop-thread-42' })).toEqual({
-        runtime: 'claude',
-        id: 'hook-session-42',
+        runtime: 'codex',
+        id: 'desktop-thread-42',
         projectRoot: realpathSync(root),
-        transcriptPath: '/exact/hook-session-42.jsonl',
       });
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -440,7 +457,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
-  it('leaves transcript content appended during extraction for the next invocation', () => {
+  it('blocks cleanup until transcript content appended during extraction is evaluated', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-concurrent-append-'));
     const id = 'codex-concurrent-append';
     const transcript = nodePath.join(root, 'transcript.jsonl');
@@ -464,7 +481,10 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         return completedRetroResult();
       };
 
-      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runBoundRetro(root, binding, runner)).toMatchObject({
+        complete: false,
+        failure: 'unknown',
+      });
       expect(runBoundRetro(root, binding, runner).complete).toBe(true);
       expect(windows).toEqual(['full', String(firstRecord.length)]);
     } finally {
@@ -807,6 +827,31 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(cleanupPlanDigest(later)).toBe(cleanupPlanDigest(first));
   });
 
+  it('exposes pending filing recovery without changing cleanup authorization', () => {
+    const pendingRetro = {
+      ...safeObservation().retro,
+      complete: false,
+      pendingDrafts: 1,
+      failure: 'filing' as const,
+    };
+    const completed = buildCleanupPlan(safeObservation());
+    const withPath = buildCleanupPlan(
+      safeObservation({
+        retro: {
+          ...pendingRetro,
+          spoolPath: '/repo/.safeword/retro-drafts/claude-task.jsonl',
+        },
+      }),
+    );
+
+    expect(withPath.retro).toEqual({
+      spoolPath: '/repo/.safeword/retro-drafts/claude-task.jsonl',
+    });
+    expect(withPath.blockers).toContain('the current session filing spool has pending drafts');
+    expect(withPath.operations).toEqual(completed.operations);
+    expect(cleanupPlanDigest(withPath)).toBe(cleanupPlanDigest(completed));
+  });
+
   it('exposes only the binding-derived spool path when retrospective filing is pending', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-spool-path-'));
     const id = 'claude-spool-path';
@@ -1024,9 +1069,20 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   ] satisfies [string, Partial<CloseoutObservation>, string][])(
     '%s blocks every deletion',
     (_name, overrides, expectedBlocker) => {
-      const plan = buildCleanupPlan(safeObservation(overrides));
+      const observation = safeObservation(overrides);
+      const plan = buildCleanupPlan(observation);
+      let executions = 0;
       expect(plan.blockers).toContain(expectedBlocker);
-      expect(plan.operations).toEqual([]);
+      const result = applyCleanupPlan({
+        plan,
+        digest: cleanupPlanDigest(plan),
+        observe: () => observation,
+        execute: () => {
+          executions += 1;
+        },
+      });
+      expect(result.applied).toBe(false);
+      expect(executions).toBe(0);
     },
   );
 

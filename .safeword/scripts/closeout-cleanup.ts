@@ -85,6 +85,7 @@ export interface CleanupPlan {
   identity?: PullRequestIdentity;
   stateHash: string;
   retroStateHash: string;
+  retro?: { spoolPath: string };
   blockers: string[];
   completed: string[];
   operations: CleanupOperation[];
@@ -100,6 +101,17 @@ function normalizedRepository(url: string): string | undefined {
 
 function block(plan: CleanupPlan, message: string): void {
   if (!plan.blockers.includes(message)) plan.blockers.push(message);
+}
+
+const RETROSPECTIVE_BLOCKERS = new Set([
+  'retrospective extraction failed; resolve the extraction failure',
+  'retrospective filing failed; resolve the filing failure',
+  'the current session retrospective is incomplete',
+  'the current session filing spool has pending drafts',
+]);
+
+function hasCleanupAuthorizationBlocker(plan: CleanupPlan): boolean {
+  return plan.blockers.some(blocker => !RETROSPECTIVE_BLOCKERS.has(blocker));
 }
 
 function collectPrerequisiteBlockers(
@@ -234,6 +246,7 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     blockers: [],
     completed: [],
     operations: [],
+    ...(observation.retro.spoolPath ? { retro: { spoolPath: observation.retro.spoolPath } } : {}),
   };
 
   if (observation.pullRequests.length !== 1) {
@@ -260,7 +273,7 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     observation.deliveryWorktreePath,
   );
   const survivingWorktree = defaultBranchWorktrees[0];
-  if (plan.blockers.length === 0 && survivingWorktree) {
+  if (!hasCleanupAuthorizationBlocker(plan) && survivingWorktree) {
     assembleOperations(plan, observation, pullRequest, topicWorktrees[0], survivingWorktree);
   }
 
@@ -268,7 +281,11 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
 }
 
 export function cleanupPlanDigest(plan: CleanupPlan): string {
-  const { retroStateHash: _retroStateHash, ...authorization } = plan;
+  const { retroStateHash: _retroStateHash, retro: _retro, blockers, ...stableAuthorization } = plan;
+  const authorization = {
+    ...stableAuthorization,
+    blockers: blockers.filter(blocker => !RETROSPECTIVE_BLOCKERS.has(blocker)),
+  };
   return createHash('sha256').update(JSON.stringify(authorization)).digest('hex');
 }
 
@@ -703,7 +720,9 @@ export function runBoundRetro(
     retro.status === 0 &&
     (result?.state === 'healthy' || result?.state === 'changed') &&
     typeof agentFilingNeeded === 'boolean';
-  const complete = successful && agentFilingNeeded === false && pendingDrafts === 0;
+  const transcriptAdvanced = transcriptSnapshot(transcript).byteLength > snapshot.byteLength;
+  const complete =
+    successful && agentFilingNeeded === false && pendingDrafts === 0 && !transcriptAdvanced;
   const errorText = [result?.errors?.map(error => error.message ?? '').join('\n'), retro.stderr]
     .filter(Boolean)
     .join('\n');
@@ -732,7 +751,7 @@ export function runBoundRetro(
     pendingDrafts,
     evidenceHash: snapshot.digest,
     ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, binding.id)) } : {}),
-    failure,
+    ...(failure === undefined ? {} : { failure }),
   };
 }
 
@@ -1081,24 +1100,47 @@ function runVerification(
   return verification;
 }
 
+function authenticatedCodexId(env: Record<string, string | undefined>): string | undefined {
+  const identity = resolveRunIdentity({}, { env });
+  return identity.runtime === 'codex' &&
+    identity.source === 'CODEX_THREAD_ID' &&
+    identity.sessionKey !== null
+    ? identity.sessionKey
+    : undefined;
+}
+
+function bridgeAgreesWithCodexTask(bridged: CloseoutBinding, id: string, root: string): boolean {
+  try {
+    return (
+      bridged.runtime === 'codex' &&
+      bridged.id === id &&
+      realpathSync(bridged.projectRoot) === realpathSync(root) &&
+      (bridged.transcriptPath === undefined ||
+        transcriptMatchesBinding(bridged.transcriptPath, bridged, root))
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function resolveCloseoutBinding(
   root: string,
   env: Record<string, string | undefined> = process.env,
 ): CloseoutBinding | undefined {
   const bridged = readFreshCloseoutBinding({ projectDirectory: root });
-  if (bridged !== undefined) return bridged;
+  const codexId = authenticatedCodexId(env);
 
-  const identity = resolveRunIdentity({}, { env });
-  if (
-    identity.runtime !== 'codex' ||
-    identity.source !== 'CODEX_THREAD_ID' ||
-    identity.sessionKey === null
-  ) {
-    return undefined;
-  }
+  if (bridged !== undefined)
+    return bridged.runtime !== 'codex' ||
+      codexId === undefined ||
+      bridgeAgreesWithCodexTask(bridged, codexId, root)
+      ? bridged
+      : undefined;
+
+  if (codexId === undefined) return undefined;
   return {
     runtime: 'codex',
-    id: identity.sessionKey,
+    id: codexId,
     projectRoot: realpathSync(root),
   };
 }
@@ -1415,8 +1457,12 @@ if (import.meta.main) {
   const pr = argumentValue('--pr');
   const binding = root ? resolveCloseoutBinding(root) : undefined;
   if (!root || !pr || !binding) {
+    const recovery =
+      root && pr && !binding
+        ? ` Start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr ${pr}.`
+        : '';
     console.error(
-      'closeout blocked: repository, --pr, and a fresh host session binding are required',
+      `closeout blocked: repository, --pr, and a fresh host session binding are required.${recovery}`,
     );
     process.exit(2);
   }

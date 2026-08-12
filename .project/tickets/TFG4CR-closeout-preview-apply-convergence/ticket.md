@@ -2,8 +2,10 @@
 id: TFG4CR
 slug: closeout-preview-apply-convergence
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
+phase_anchors:
+  - done: .project/tickets/TFG4CR-closeout-preview-apply-convergence/verify.md
 phase_skips:
   - intake: The user supplied the primary issues, binding edge cases, regression contract, JTBD, scope, and explicit delivery process before this ticket artifact was created.
   - define-behavior: The committed spec and feature capture the user-provided behavior contract, including bounded transcript evidence, exact task binding, fallback filing, and fail-closed cleanup.
@@ -42,3 +44,4 @@ Motivation and user behavior are defined in `spec.md`.
 - 2026-08-11T15:05:00.000Z Reviewed: Cross-agent scenario gate approved the 18-scenario contract after adversarial revisions.
 - 2026-08-11T23:05:00.000Z Verified: Changed-scope proof passed 115 tests; generated release contracts, audit, lint, build, and typecheck passed. Repository-wide review-process fixtures remain host-probe limited and are recorded in verify.md.
 - 2026-08-12T09:10:00.000Z Improved BDD proof: Added an enforced 27-scenario evidence map plus real concurrency, linked-worktree ownership, separate-clone rejection, and noncanonical fallback tests; focused proof passed 121 tests.
+- 2026-08-12T14:30:00.000Z Complete: Rebased onto current main, closed every quality-review finding, and passed 7,593 Vitest tests plus 1,519 BDD scenarios. Ready-PR CI now carries the verified ticket as done.

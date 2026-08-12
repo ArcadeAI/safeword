@@ -1,6 +1,6 @@
 # Verification: Closeout preview and apply convergence
 
-Verified on 2026-08-12 against `origin/main` at `077e50b4d`.
+Verified on 2026-08-12 against `origin/main` at `b51fee4bc`.
 
 ## Acceptance evidence
 
@@ -19,7 +19,7 @@ Focused changed-scope verification passed: 3 files, 121 tests. Every one of the 
 
 Additional boundary proof covers transcript content appended while extraction is running, Codex repository ownership across a real linked worktree versus a separate clone, and byte-preserving rejection of noncanonical fallback spool paths.
 
-The repository-wide run reached 7,516 passing tests (9 skipped) and 1,517 passing BDD scenarios (3 skipped). Its remaining failures reproduce in unchanged review-process tests under this host because reviewer capability probes time out before their fixtures execute; they are outside this ticket's diff and contract. `bun audit` also could not reach the registry audit service (`ConnectionRefused`). Build and both package typechecks passed.
+The repository-wide run passed 7,593 tests (5 skipped), 1,469 acceptance scenarios (3 skipped), and 50 Vitest-backed proof scenarios. Build, lint, formatting, dependency rules, and both package typechecks passed. Remote Node 22 and Node 24 lanes initially hit a transient `golangci-lint` installer failure before dependencies or tests; their rerun reached the project test lanes successfully.
 
 ## Persona walk
 
