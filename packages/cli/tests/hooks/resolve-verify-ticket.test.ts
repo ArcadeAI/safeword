@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -339,6 +339,29 @@ describe('resolve-verify-ticket', () => {
       'No current-work ticket found; continue without an active ticket.',
     );
   });
+
+  it.each(['staged', 'unstaged', 'committed'] as const)(
+    'fails closed when current work contains a %s ticket deletion',
+    state => {
+      const ticketPath = writeTicket('DELETE1-current-ticket', 'DELETE1');
+      commitAll('add ticket baseline');
+      git('checkout', '-b', 'feature/delete-ticket');
+
+      if (state === 'staged') {
+        git('rm', nodePath.relative(context.projectDirectory, ticketPath));
+      } else {
+        unlinkSync(ticketPath);
+        if (state === 'committed') commitAll('delete current ticket');
+      }
+
+      const result = runResolver();
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain('Current-work ticket file was deleted');
+      expect(result.stderr).toContain(ticketPath);
+    },
+  );
 
   it('fails closed when multiple changed tickets need disambiguation', () => {
     const first = writeTicket('FIRST01-first-change', 'FIRST01');

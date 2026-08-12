@@ -1511,7 +1511,10 @@ describe('retry-safe retro relay', () => {
     ).rejects.toMatchObject({ status: 403 });
   });
 
-  it('exposes payload-free lifecycle operations only to the operator role', async () => {
+  it.each([
+    'denies harness principals access to operator lifecycle operations',
+    'exposes payload-free lifecycle operations to the operator through the real HTTP route',
+  ])('%s', async () => {
     const setup = await fixture();
     await createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft());
 

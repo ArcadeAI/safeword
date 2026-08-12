@@ -1339,7 +1339,10 @@ describe('immutable relay delivery spool', () => {
     }
   });
 
-  it('claims exclusively, rearms expiry, and prevents stale-owner cleanup', async () => {
+  it.each([
+    'an active spool claim excludes another session',
+    'an expired spool claim is rearmed without changing the request',
+  ])('%s', async () => {
     const project = temporaryProject();
     const original = request();
     await persistRelayRequest(project, original);
@@ -1849,7 +1852,7 @@ describe('immutable relay delivery spool', () => {
     ).resolves.toMatchObject({ accepted: 0, retryable: 1 });
   });
 
-  it('returns before one second and never invokes native fallback after a lost response', async () => {
+  it('preserves the draft without delaying the session when the relay is unavailable', async () => {
     const project = temporaryProject();
     const original = request();
     await persistRelayRequest(project, original);

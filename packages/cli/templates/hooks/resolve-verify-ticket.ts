@@ -21,7 +21,7 @@ interface ResolveVerifyTicketOptions {
 }
 
 type ChangedPathsResult =
-  { state: 'available'; paths: string[] } | { state: 'error'; message: string };
+  { state: 'available'; paths: string[] } | { state: 'error'; message: string; fatal?: boolean };
 
 const DEFAULT_BASE_REFS = [
   'refs/remotes/origin/HEAD',
@@ -139,11 +139,10 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
   return { state: 'available', paths: [...paths] };
 }
 
-function existingTicketPaths(projectDirectory: string, prefix: string, paths: string[]): string[] {
+function matchingTicketPaths(projectDirectory: string, prefix: string, paths: string[]): string[] {
   return paths
     .filter(path => path.startsWith(prefix) && path.endsWith('/ticket.md'))
     .map(path => nodePath.resolve(projectDirectory, path))
-    .filter(path => existsSync(path))
     .sort();
 }
 
@@ -158,9 +157,18 @@ function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   const prefix = normalizedNamespace === '' ? 'tickets/' : `${normalizedNamespace}/tickets/`;
   const changed = changedPaths(projectDirectory);
   if (changed.state === 'error') return changed;
+  const ticketPaths = matchingTicketPaths(projectDirectory, prefix, changed.paths);
+  const deletedTicketPaths = ticketPaths.filter(path => !existsSync(path));
+  if (deletedTicketPaths.length > 0) {
+    return {
+      state: 'error',
+      fatal: true,
+      message: `Current-work ticket file was deleted; restore it or pass --ticket <id>: ${deletedTicketPaths.join(', ')}`,
+    };
+  }
   return {
     state: 'available',
-    paths: existingTicketPaths(projectDirectory, prefix, changed.paths),
+    paths: ticketPaths,
   };
 }
 
@@ -183,7 +191,7 @@ export function resolveVerifyTicket(
 
   const changed = changedTicketPaths(absoluteProject);
   if (changed.state === 'error') {
-    return sessionResolution?.state === 'resolved' ? sessionResolution : changed;
+    return !changed.fatal && sessionResolution?.state === 'resolved' ? sessionResolution : changed;
   }
   const candidates = changed.paths;
   if (sessionResolution?.state === 'resolved') {

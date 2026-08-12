@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -12,6 +12,22 @@ const templateHelper = nodePath.join(
   repoRoot,
   'packages/cli/templates/hooks/resolve-verify-ticket.ts',
 );
+const installedSkill = nodePath.join(repoRoot, '.safeword/skills/verify/SKILL.md');
+
+const hostSurfaces = [
+  {
+    name: 'Claude',
+    surface: nodePath.join(repoRoot, '.claude/skills/verify/SKILL.md'),
+  },
+  {
+    name: 'Codex',
+    surface: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/verify/SKILL.md'),
+  },
+  {
+    name: 'Cursor',
+    surface: nodePath.join(repoRoot, '.cursor/commands/verify.md'),
+  },
+] as const;
 
 function isolatedGitEnvironment(): NodeJS.ProcessEnv {
   return {
@@ -41,6 +57,11 @@ describe('installed resolve-verify-ticket.ts smoke', () => {
     git(projectDirectory, 'add', '.');
     git(projectDirectory, 'commit', '-m', 'base');
     git(projectDirectory, 'checkout', '-b', 'feature/verify-ticket');
+    const hooksDirectory = nodePath.join(projectDirectory, '.safeword/hooks');
+    const skillsDirectory = nodePath.join(projectDirectory, '.safeword/skills/verify');
+    cpSync(nodePath.join(repoRoot, '.safeword/hooks'), hooksDirectory, { recursive: true });
+    mkdirSync(skillsDirectory, { recursive: true });
+    copyFileSync(installedSkill, nodePath.join(skillsDirectory, 'SKILL.md'));
     const ticketDirectory = nodePath.join(
       projectDirectory,
       '.project/tickets/SMOKE1-current-ticket',
@@ -61,6 +82,41 @@ describe('installed resolve-verify-ticket.ts smoke', () => {
   it('matches the canonical resolver template exactly', () => {
     expect(readFileSync(installedHelper, 'utf8')).toBe(readFileSync(templateHelper, 'utf8'));
   });
+
+  it.each(hostSurfaces)(
+    'executes the installed $name verify surface against current-work evidence',
+    ({ surface }) => {
+      let surfaceSource = readFileSync(surface, 'utf8');
+      if (surface.endsWith('.cursor/commands/verify.md')) {
+        const pointer =
+          /^Read and follow the instructions in (?<path>\.safeword\/skills\/verify\/SKILL\.md)$/mu.exec(
+            surfaceSource,
+          );
+        expect(pointer?.groups?.path).toBe('.safeword/skills/verify/SKILL.md');
+        surfaceSource = readFileSync(
+          nodePath.join(projectDirectory, pointer?.groups?.path ?? ''),
+          'utf8',
+        );
+      }
+      const command =
+        /^bun "\$PROJECT_DIR\/\.safeword\/hooks\/resolve-verify-ticket\.ts" "\$PROJECT_DIR"$/mu.exec(
+          surfaceSource,
+        )?.[0];
+      expect(command).toBeDefined();
+
+      const result = spawnSync('/bin/bash', ['-c', command ?? 'exit 127'], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+        env: { ...isolatedGitEnvironment(), PROJECT_DIR: projectDirectory },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(result.stdout.trim()).toBe(
+        nodePath.join(projectDirectory, '.project/tickets/SMOKE1-current-ticket/ticket.md'),
+      );
+    },
+  );
 
   it('resolves an explicit ticket through the installed command surface', () => {
     const result = spawnSync('bun', [installedHelper, projectDirectory, '--ticket', 'SMOKE1'], {

@@ -1,18 +1,22 @@
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
 import { promisify } from 'node:util';
 
 import { Before, defineStep } from '@cucumber/cucumber';
 
+import {
+  type ScenarioProof,
+  validateScenarioProofRegistry,
+} from './lib/scenario-proof-registry.js';
 import type { SafewordWorld } from './world.js';
 
 const execFileAsync = promisify(execFile);
 const RELAY_PROOF_TIMEOUT_MS = 180_000;
 
-type ScenarioProof = { packageDirectory: string; pattern: string; testFile: string };
-
-const scenarioProofs: Record<string, ScenarioProof> = {
+export const scenarioProofs: Record<string, ScenarioProof> = {
   'Each harness submits the exact request persisted by another harness': {
     packageDirectory: 'packages/retro-relay',
     pattern: 'routes all six installed surfaces',
@@ -25,22 +29,22 @@ const scenarioProofs: Record<string, ScenarioProof> = {
   },
   'Relay unavailability preserves the draft without delaying the session': {
     packageDirectory: 'packages/cli',
-    pattern: 'returns before one second',
+    pattern: 'preserves the draft without delaying the session when the relay is unavailable',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'A multi-draft drain shares one aggregate latency budget': {
     packageDirectory: 'packages/cli',
-    pattern: 'bounds a multi-draft blackhole below one second',
+    pattern: 'bounds a multi-draft blackhole below 1.5 seconds',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'An active spool claim excludes another session': {
     packageDirectory: 'packages/cli',
-    pattern: 'claims exclusively',
+    pattern: 'an active spool claim excludes another session',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'An expired spool claim is rearmed without changing the request': {
     packageDirectory: 'packages/cli',
-    pattern: 'claims exclusively',
+    pattern: 'an expired spool claim is rearmed without changing the request',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Persisting a new request while another request drains cannot lose either draft': {
@@ -54,9 +58,9 @@ const scenarioProofs: Record<string, ScenarioProof> = {
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Losing the durable receipt response leaves the same draft retryable': {
-    packageDirectory: 'packages/cli',
-    pattern: 'returns before one second',
-    testFile: 'tests/retro/relay-delivery.test.ts',
+    packageDirectory: 'packages/retro-relay',
+    pattern: 'keeps the same persisted draft retryable after a durable receipt response is lost',
+    testFile: 'tests/cli-wiring.integration.test.ts',
   },
   'Incomplete readiness proof preserves the existing filing path': {
     packageDirectory: 'packages/retro-relay',
@@ -70,17 +74,20 @@ const scenarioProofs: Record<string, ScenarioProof> = {
   },
   'Stale or malformed readiness proof fails closed': {
     packageDirectory: 'packages/cli',
-    pattern: 'fails closed for',
+    pattern: 'fails closed for (?:stale measurement|malformed artifact) evidence',
+    sourcePattern: 'fails closed for %s evidence',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Closed but unlanded or wrong-repository evidence fails closed': {
     packageDirectory: 'packages/cli',
-    pattern: 'fails closed for',
+    pattern: 'fails closed for (?:unlanded prerequisite|wrong repository) evidence',
+    sourcePattern: 'fails closed for %s evidence',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Readiness for another build fails closed': {
     packageDirectory: 'packages/cli',
-    pattern: 'fails closed for other build',
+    pattern: 'fails closed for other build evidence',
+    sourcePattern: 'fails closed for %s evidence',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Headless extraction receives no filing credential': {
@@ -105,7 +112,7 @@ const scenarioProofs: Record<string, ScenarioProof> = {
   },
   'A harness principal cannot read operator operations': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'exposes payload-free lifecycle operations',
+    pattern: 'denies harness principals access to operator lifecycle operations',
     testFile: 'tests/relay.integration.test.ts',
   },
   'Each principal is denied every excluded role': {
@@ -171,7 +178,8 @@ const scenarioProofs: Record<string, ScenarioProof> = {
   },
   'The operator sees lifecycle counts through the real HTTP route without secret content': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'exposes payload-free lifecycle operations',
+    pattern:
+      'exposes payload-free lifecycle operations to the operator through the real HTTP route',
     testFile: 'tests/relay.integration.test.ts',
   },
   'Maintenance emits a deduplicable structured alert for each newly terminal request': {
@@ -191,7 +199,7 @@ const scenarioProofs: Record<string, ScenarioProof> = {
   },
   'One external durable outbox survives disposable harness workspaces': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'routes all six installed surfaces',
+    pattern: 'keeps one external durable outbox across disposable harness workspaces',
     testFile: 'tests/cli-wiring.integration.test.ts',
   },
   'Persistence success is not reported before file and directory sync': {
@@ -218,6 +226,7 @@ async function runProof(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const scenarioProof = scenarioProofs[scenarioName];
   assert.ok(scenarioProof, `missing Vitest proof mapping for ${scenarioName}`);
+  const proofTempDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-proof-'));
   try {
     const result = await execFileAsync(
       'bun',
@@ -230,7 +239,10 @@ async function runProof(
         '-t',
         scenarioProof.pattern,
       ],
-      { cwd: process.cwd() },
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, NODE_OPTIONS: undefined, TMPDIR: proofTempDirectory },
+      },
     );
     return {
       exitCode: 0,
@@ -244,6 +256,8 @@ async function runProof(
       stderr: failure.stderr ?? '',
       stdout: failure.stdout ?? '',
     };
+  } finally {
+    rmSync(proofTempDirectory, { force: true, recursive: true });
   }
 }
 
@@ -260,6 +274,7 @@ const feature = readFileSync(
   new URL('../features/operate-retry-safe-retro-relay.feature', import.meta.url),
   'utf8',
 );
+validateScenarioProofRegistry(scenarioProofs, feature, process.cwd());
 const stepTexts = new Set(
   feature
     .split(/\r?\n/u)
