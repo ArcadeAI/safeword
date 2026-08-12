@@ -12,6 +12,7 @@ const CHILD_ENVIRONMENT_ALLOWLIST = [
 ] as const;
 
 export type PinnedCheckout = {
+  canonicalRepository: string;
   commit: string;
   directory: string;
   tag: string;
@@ -136,6 +137,13 @@ async function git(directory: string, args: string[]): Promise<string> {
   }
 }
 
+function canonicalRepositoryUrl(repository: string): string {
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+    throw new Error("canonical repository identity is invalid");
+  }
+  return `https://github.com/${repository}.git`;
+}
+
 export async function preflightPinnedCheckout(
   checkout: PinnedCheckout
 ): Promise<void> {
@@ -149,7 +157,7 @@ export async function preflightPinnedCheckout(
     throw new Error("pinned tag is invalid");
   }
 
-  const [head, status, tagType, taggedCommit] = await Promise.all([
+  const [head, status, tagType, taggedCommit, originUrl, remoteRefs] = await Promise.all([
     git(checkout.directory, ["rev-parse", "--verify", "HEAD"]),
     git(checkout.directory, ["status", "--porcelain=v1", "--untracked-files=all"]),
     git(checkout.directory, ["cat-file", "-t", `refs/tags/${checkout.tag}`]),
@@ -158,7 +166,18 @@ export async function preflightPinnedCheckout(
       "--verify",
       `refs/tags/${checkout.tag}^{commit}`,
     ]),
+    git(checkout.directory, ["config", "--get", "remote.origin.url"]),
+    git(checkout.directory, [
+      "ls-remote",
+      "origin",
+      "refs/heads/main",
+      `refs/tags/${checkout.tag}`,
+      `refs/tags/${checkout.tag}^{}`,
+    ]),
   ]);
+  if (originUrl !== canonicalRepositoryUrl(checkout.canonicalRepository)) {
+    throw new Error("origin does not match the canonical repository");
+  }
   if (status !== "") {
     throw new Error("authorized checkout must be clean");
   }
@@ -170,6 +189,29 @@ export async function preflightPinnedCheckout(
   }
   if (taggedCommit !== checkout.commit) {
     throw new Error("pinned tag does not resolve to its authorized commit");
+  }
+  const refs = new Map(
+    remoteRefs.split("\n").filter(Boolean).map((line) => {
+      const [sha, ref] = line.split("\t");
+      return [ref, sha];
+    })
+  );
+  if (
+    refs.get(`refs/tags/${checkout.tag}^{}`) !== checkout.commit ||
+    refs.get(`refs/tags/${checkout.tag}`) === undefined
+  ) {
+    throw new Error("pinned tag is not durably reachable from canonical origin");
+  }
+  const mainCommit = refs.get("refs/heads/main");
+  if (mainCommit === undefined) {
+    throw new Error("canonical origin main is unavailable");
+  }
+  try {
+    await execFileAsync("git", ["merge-base", "--is-ancestor", checkout.commit, mainCommit], {
+      cwd: checkout.directory,
+    });
+  } catch {
+    throw new Error("pinned commit is not reachable from canonical origin main");
   }
 }
 
@@ -201,6 +243,7 @@ export async function runCredentialSeparatedCanary<T>(input: {
   authorization: {
     adapterCommit: string;
     adapterTag: string;
+    canonicalRepository: string;
     harnessCommit: string;
     harnessTag: string;
   };
@@ -217,11 +260,13 @@ export async function runCredentialSeparatedCanary<T>(input: {
 }): Promise<T> {
   await Promise.all([
     preflightPinnedCheckout({
+      canonicalRepository: input.authorization.canonicalRepository,
       commit: input.authorization.adapterCommit,
       directory: input.adapterDirectory,
       tag: input.authorization.adapterTag,
     }),
     preflightPinnedCheckout({
+      canonicalRepository: input.authorization.canonicalRepository,
       commit: input.authorization.harnessCommit,
       directory: input.harnessDirectory,
       tag: input.authorization.harnessTag,

@@ -20,6 +20,10 @@ const execFileAsync = promisify(execFile);
 
 async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
   const directory = await mkdtemp(join(tmpdir(), `${name}-`));
+  const remote = await mkdtemp(join(tmpdir(), `${name}-remote-`));
+  const canonicalRepository = "ArcadeAI/safeword";
+  const canonicalUrl = `https://github.com/${canonicalRepository}.git`;
+  await execFileAsync("git", ["init", "--quiet", "--bare", remote]);
   await execFileAsync("git", ["init", "--quiet", directory]);
   await execFileAsync("git", ["config", "user.email", "canary@example.com"], {
     cwd: directory,
@@ -40,7 +44,16 @@ async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
   await execFileAsync("git", ["tag", "-a", tag, "-m", `${name} canary`], {
     cwd: directory,
   });
-  return { commit, directory, tag };
+  await execFileAsync("git", ["config", `url.${remote}.insteadOf`, canonicalUrl], {
+    cwd: directory,
+  });
+  await execFileAsync("git", ["remote", "add", "origin", canonicalUrl], {
+    cwd: directory,
+  });
+  await execFileAsync("git", ["push", "--quiet", "origin", "HEAD:main", tag], {
+    cwd: directory,
+  });
+  return { canonicalRepository, commit, directory, tag };
 }
 
 describe("credential-separated live launcher", () => {
@@ -150,6 +163,7 @@ describe("credential-separated live launcher", () => {
       authorization: {
         adapterCommit: adapter.commit,
         adapterTag: adapter.tag,
+        canonicalRepository: adapter.canonicalRepository,
         harnessCommit: harness.commit,
         harnessTag: harness.tag,
       },
@@ -213,6 +227,7 @@ describe("credential-separated live launcher", () => {
         authorization: {
           adapterCommit: adapter.commit,
           adapterTag: adapter.tag,
+          canonicalRepository: adapter.canonicalRepository,
           harnessCommit: harness.commit,
           harnessTag: harness.tag,
         },
@@ -279,6 +294,7 @@ describe("credential-separated live launcher", () => {
         authorization: {
           adapterCommit: adapter.commit,
           adapterTag: adapter.tag,
+          canonicalRepository: adapter.canonicalRepository,
           harnessCommit: harness.commit,
           harnessTag: harness.tag,
         },
