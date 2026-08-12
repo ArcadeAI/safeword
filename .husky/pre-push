@@ -25,3 +25,4 @@ fi
 # Boundary reconciliation gate (CDRJTW, #810 slice 1): history-backed evidence
 # checks over the outgoing range. Warn-and-record only — never blocks.
 bun packages/cli/src/cli.ts boundary --at push || true
+[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at push || true # Safeword boundary gate: warn-only; removed by `safeword uninstall --agents=none`
