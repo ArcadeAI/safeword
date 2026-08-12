@@ -1,3 +1,6 @@
+[features]
+hooks = true
+
 [mcp_servers.context7]
 url = "https://mcp.context7.com/mcp"
 
@@ -15,3 +18,12 @@ command = "bunx --bun safeword@latest codex bootstrap"
 timeout = 120
 statusMessage = "Checking Safeword for this project"
 # --- safeword codex bootstrap: end ---
+
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'SAFEWORD_PROJECT_ROOT="$(git rev-parse --show-toplevel)" && bun "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" "$SAFEWORD_PROJECT_ROOT"'
+timeout = 120
+statusMessage = "Preparing safeword dependencies"

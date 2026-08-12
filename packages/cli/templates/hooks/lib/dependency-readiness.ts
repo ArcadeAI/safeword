@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
@@ -54,6 +55,11 @@ export interface DependencyReadinessState {
   message?: string;
   updatedAt: string;
 }
+
+export type DependencyBootstrapResult =
+  | { status: 'ready' | 'unsupported' }
+  | { status: 'bootstrapped'; message: string }
+  | { status: 'action_required' | 'failed'; message: string };
 
 const INSTALL_ARTIFACT = 'node_modules';
 const INSTALL_MARKER_FILENAME = '.safeword-deps-fingerprint';
@@ -149,6 +155,7 @@ export function detectDependencyPlan(projectDirectory: string): DependencyPlan |
     case 'npm':
       return buildNpmPlan(projectDirectory, packageJson);
     case 'yarn':
+      if (usesYarnPlugAndPlay(projectDirectory, packageManager)) return undefined;
       return buildYarnPlan(projectDirectory, packageJson, packageManager);
     default:
       return undefined;
@@ -254,18 +261,18 @@ function buildNpmPlan(
 }
 
 /**
- * yarn readiness plan. Classic (v1) uses `--frozen-lockfile`; berry (v2+) uses
- * `--immutable` (its rename of the same CI guard), detected via a `yarn@<major>`
- * declaration or a `.yarnrc.yml`.
+ * yarn readiness plan. Classic (v1) uses `--frozen-lockfile`; Berry (v2+) uses
+ * `--immutable` (its rename of the same CI guard). Berry is supported only
+ * with an explicit node-modules linker because Plug'n'Play has no node_modules
+ * artifact for this readiness contract to validate.
  */
 function buildYarnPlan(
   projectDirectory: string,
   packageJson: Record<string, unknown>,
   packageManager: string | undefined,
 ): DependencyPlan {
-  const args = isYarnBerry(projectDirectory, packageManager)
-    ? ['install', '--immutable']
-    : ['install', '--frozen-lockfile'];
+  const yarnBerry = isYarnBerry(projectDirectory, packageManager);
+  const args = yarnBerry ? ['install', '--immutable'] : ['install', '--frozen-lockfile'];
   return {
     manager: 'yarn',
     installCommand: { binary: 'yarn', args, display: `yarn ${args.join(' ')}` },
@@ -273,6 +280,7 @@ function buildYarnPlan(
     inputPaths: uniqueSorted([
       'package.json',
       'yarn.lock',
+      ...(yarnBerry ? ['.yarnrc.yml'] : []),
       ...collectWorkspacePackageJsonPaths(projectDirectory, packageJson),
     ]),
   };
@@ -284,6 +292,21 @@ function isYarnBerry(projectDirectory: string, packageManager: string | undefine
     return Number.isFinite(major) && major >= 2;
   }
   return existsSync(nodePath.join(projectDirectory, '.yarnrc.yml'));
+}
+
+function usesYarnPlugAndPlay(
+  projectDirectory: string,
+  packageManager: string | undefined,
+): boolean {
+  if (!isYarnBerry(projectDirectory, packageManager)) return false;
+
+  try {
+    const yarnConfig = readFileSync(nodePath.join(projectDirectory, '.yarnrc.yml'), 'utf8');
+    return !/^\s*nodeLinker\s*:\s*(['"]?)node-modules\1\s*(?:#.*)?$/mu.test(yarnConfig);
+  } catch {
+    // Yarn Berry defaults to Plug'n'Play when nodeLinker is not configured.
+    return true;
+  }
 }
 
 export function dependencyInputFingerprint(projectDirectory: string, plan: DependencyPlan): string {
@@ -373,7 +396,7 @@ export function readDependencyBootstrapConfig(projectDirectory: string): Depende
 }
 
 /**
- * Whether SessionStart should auto-install dependencies for this readiness
+ * Whether a trusted project's SessionStart should auto-install dependencies for this readiness
  * status. A `missing` install artifact (no `node_modules` — e.g. a fresh git
  * worktree) is bootstrapped UNCONDITIONALLY: the worktree is unusable and a
  * commit would bypass the husky guard chain (lint-staged can't resolve its
@@ -388,6 +411,77 @@ export function shouldBootstrapDependencies(
   if (status === 'missing') return true;
   if (status === 'stale') return autoInstall;
   return false;
+}
+
+/**
+ * Reconcile dependency readiness without assuming a host hook protocol.
+ * Host adapters decide how to surface the typed result: Claude emits
+ * SessionStart JSON, while Codex/local setup uses plain output and exit status.
+ */
+export function bootstrapDependencies(projectDirectory: string): DependencyBootstrapResult {
+  let readiness = getDependencyReadiness(projectDirectory);
+
+  if (readiness.status === 'unsupported') return { status: 'unsupported' };
+
+  if (readiness.status === 'ready') {
+    writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
+    writeInstallMarker(projectDirectory, readiness);
+    return { status: 'ready' };
+  }
+
+  const config = readDependencyBootstrapConfig(projectDirectory);
+  if (
+    shouldBootstrapDependencies(readiness.status, config.autoInstall) &&
+    readiness.plan !== undefined
+  ) {
+    const { binary, args, display } = readiness.plan.installCommand;
+    const result = spawnSync(binary, args, {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    readiness = getDependencyReadiness(projectDirectory);
+    if (
+      result.status === 0 &&
+      readiness.plan !== undefined &&
+      isDirectory(nodePath.join(projectDirectory, readiness.plan.installArtifact))
+    ) {
+      // A successful stale install commonly preserves our old marker. Refresh
+      // that Safeword-owned proof before asking readiness to validate it.
+      writeInstallMarker(projectDirectory, readiness);
+      readiness = getDependencyReadiness(projectDirectory);
+    }
+    if (result.status === 0 && readiness.status === 'ready') {
+      writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
+      writeInstallMarker(projectDirectory, readiness);
+      return { status: 'bootstrapped', message: `dependencies bootstrapped with \`${display}\`.` };
+    }
+
+    const message = [
+      `dependency bootstrap failed while running \`${display}\`.`,
+      'Run the install command manually, inspect the package manager output, then retry.',
+      trimBootstrapOutput(result.stderr) || trimBootstrapOutput(result.stdout),
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    writeDependencyReadinessState(projectDirectory, {
+      status: 'failed',
+      reason: readiness.reason,
+      fingerprint: readiness.fingerprint,
+      installCommand: readiness.installCommand,
+      message,
+    });
+    return { status: 'failed', message };
+  }
+
+  writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
+  return { status: 'action_required', message: formatDependencyRecovery(readiness) };
+}
+
+function trimBootstrapOutput(output: string | undefined): string {
+  return output?.trim().split('\n').slice(-20).join('\n') ?? '';
 }
 
 export function isDependencyBackedCommand(command: string): boolean {

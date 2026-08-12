@@ -669,6 +669,8 @@ describe('Schema - Single Source of Truth', () => {
       const NON_LIFECYCLE_HOOK_MODULES = new Set([
         // Codex-only dispatcher wired through .codex/config.toml, not Claude SETTINGS_HOOKS.
         'session-codex-start.ts',
+        // Codex invokes this bootstrap directly; Claude uses the lifecycle adapter.
+        'dependency-bootstrap.ts',
         // Codex-only Stop adapter wired through .codex/config.toml, not Claude SETTINGS_HOOKS.
         'stop.ts',
         // Cursor-only wrapper wired through .cursor/hooks.json, not Claude SETTINGS_HOOKS.

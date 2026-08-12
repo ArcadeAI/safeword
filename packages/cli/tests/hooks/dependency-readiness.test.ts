@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 
+import { parse } from 'smol-toml';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -36,6 +37,10 @@ const SESSION_HOOK = path.resolve(
   import.meta.dirname,
   '../../templates/hooks/session-dependency-readiness.ts',
 );
+const DEPENDENCY_BOOTSTRAP_HOOK = path.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/dependency-bootstrap.ts',
+);
 const PRE_TOOL_HOOK = path.resolve(
   import.meta.dirname,
   '../../templates/hooks/pre-tool-dependency-readiness.ts',
@@ -58,6 +63,36 @@ it('keeps the dogfood dependency-readiness helper identical to its source templa
   );
 
   expect(dogfood).toBe(template);
+});
+
+it('keeps the dogfood dependency bootstrap identical to its source template', () => {
+  const template = readFileSync(
+    path.join(REPOSITORY_ROOT, 'packages/cli/templates/hooks/dependency-bootstrap.ts'),
+    'utf8',
+  );
+  const dogfood = readFileSync(
+    path.join(REPOSITORY_ROOT, '.safeword/hooks/dependency-bootstrap.ts'),
+    'utf8',
+  );
+
+  expect(dogfood).toBe(template);
+});
+
+it('wires the dogfood Codex SessionStart to the managed dependency bootstrap', () => {
+  const config = parse(readFileSync(path.join(REPOSITORY_ROOT, '.codex/config.toml'), 'utf8')) as {
+    features?: { hooks?: boolean };
+    hooks?: { SessionStart?: { hooks?: { command?: string }[] }[] };
+  };
+  const commands =
+    config.hooks?.SessionStart?.flatMap(entry => entry.hooks ?? []).map(hook => hook.command) ?? [];
+
+  expect(config.features?.hooks).toBe(true);
+  expect(commands).toContain(
+    'SAFEWORD_PROJECT_ROOT="$(git rev-parse --show-toplevel)" && bun "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" "$SAFEWORD_PROJECT_ROOT"',
+  );
+  expect(existsSync(path.join(REPOSITORY_ROOT, '.safeword/hooks/dependency-bootstrap.ts'))).toBe(
+    true,
+  );
 });
 
 describe('dependency readiness hook support', () => {
@@ -285,13 +320,11 @@ describe('dependency readiness hook support', () => {
     );
   });
 
-  it('plans an immutable install for yarn berry (#327)', () => {
+  it("abstains from yarn berry Plug'n'Play projects (#327)", () => {
     writeJson('package.json', { name: 'yarn-berry', packageManager: 'yarn@4.3.1' });
     writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
 
-    expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
-      'yarn install --immutable',
-    );
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
   });
 
   it('detects yarn berry from .yarnrc.yml when no packageManager is declared (#327)', () => {
@@ -302,6 +335,29 @@ describe('dependency readiness hook support', () => {
     const plan = detectDependencyPlan(projectDirectory);
     expect(plan?.manager).toBe('yarn');
     expect(plan?.installCommand.display).toBe('yarn install --immutable');
+    expect(plan?.installArtifact).toBe('node_modules');
+    expect(plan?.inputPaths).toContain('.yarnrc.yml');
+  });
+
+  it.each(['"node-modules"', "'node-modules'"])(
+    'accepts quoted yarn berry nodeLinker %s (#327)',
+    nodeLinker => {
+      writeJson('package.json', { name: 'yarn-berry-quoted', packageManager: 'yarn@4.3.1' });
+      writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+      writeTestFile(projectDirectory, '.yarnrc.yml', `nodeLinker: ${nodeLinker}\n`);
+
+      expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
+        'yarn install --immutable',
+      );
+    },
+  );
+
+  it("abstains when yarn berry explicitly selects Plug'n'Play (#327)", () => {
+    writeJson('package.json', { name: 'yarn-berry-pnp', packageManager: 'yarn@4.3.1' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+    writeTestFile(projectDirectory, '.yarnrc.yml', 'nodeLinker: pnp\n');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
   });
 
   it('tracks pnpm workspace package manifests globbed from pnpm-workspace.yaml (#327)', () => {
@@ -616,8 +672,9 @@ describe('dependency readiness hook support', () => {
   });
 
   it('bootstraps a missing install artifact even when auto-install is off (JNVP4W)', () => {
-    // The fix: a fresh worktree (no node_modules) installs unconditionally, so a
-    // commit never bypasses the husky guard chain — even with autoInstall off.
+    // Host trust gates run before project SessionStart hooks. Once trusted, a
+    // fresh worktree installs unconditionally so it cannot bypass the husky
+    // guard chain merely because node_modules was absent.
     expect(shouldBootstrapDependencies('missing', false)).toBe(true);
     expect(shouldBootstrapDependencies('missing', true)).toBe(true);
   });
@@ -782,6 +839,53 @@ describe('dependency readiness hook support', () => {
       status: 'ready',
       installCommand: 'bun ci',
     });
+  });
+
+  it('host-neutral bootstrap prepares a fresh worktree without Claude hook output', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('dependencies bootstrapped with `bun ci`.');
+    expect(result.stdout).not.toContain('hookSpecificOutput');
+    expect(existsSync(path.join(projectDirectory, 'node_modules'))).toBe(true);
+
+    const state = JSON.parse(readTestFile(projectDirectory, '.project/dependency-readiness.json'));
+    expect(state).toMatchObject({
+      status: 'ready',
+      installCommand: 'bun ci',
+    });
+  });
+
+  it('host-neutral bootstrap refreshes a stale marker after a successful install', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+    writeJson('.safeword/config.json', { dependencyBootstrap: { autoInstall: true } });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('dependencies bootstrapped with `bun ci`.');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('host-neutral bootstrap fails loudly when a fresh worktree cannot be prepared', () => {
+    writeBunProject();
+    markSafewordProject();
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('dependency bootstrap failed while running `bun ci`.');
+    expect(result.stderr).toContain('Run the install command manually');
+    expect(result.stdout).not.toContain('hookSpecificOutput');
   });
 
   it('session hook reports an attempted install that fails', () => {
