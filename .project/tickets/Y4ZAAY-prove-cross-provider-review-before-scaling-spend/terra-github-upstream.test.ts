@@ -290,18 +290,66 @@ describe("GitHub canary upstream", () => {
       runCanaryAttempt({
         attemptId: "attempt-1",
         binding,
-        dispatch: async () => ({
-          attemptCostPicodollars: 123n,
-          nativeUsageBytes: '{"input_tokens":1,"output_tokens":1}',
-          rawResponseBytes: '{"id":"response-1"}',
-        }),
+        dispatch: async () => {
+          const rawUsage = {
+            input_tokens: 10,
+            input_tokens_details: { cached_tokens: 2 },
+            output_tokens: 3,
+          };
+          return {
+            attemptCostPicodollars: 52_400_000n,
+            nativeUsageBytes: JSON.stringify({
+              turns: [{
+                rawUsage,
+                requestId: "req-terra-1",
+                responseId: "resp-terra-1",
+                stage: "repository-reading",
+              }],
+            }),
+            rawResponseBytes: JSON.stringify({
+              intent: { attemptId: "attempt-1", intentId: "intent-1", sequence: 1 },
+              requests: [{
+                endpoint: "https://api.openai.com/v1/responses",
+                intentId: "intent-1",
+                model: "gpt-5.6-terra",
+                sequence: 2,
+                serviceTier: "default",
+                stage: "repository-reading",
+                turnIntentId: "turn-intent-1",
+              }],
+              responses: [{
+                errorMessage: null,
+                errorName: null,
+                httpStatus: 200,
+                intentId: "intent-1",
+                nativeUsage: rawUsage,
+                outcome: "response",
+                rawBody: JSON.stringify({
+                  id: "resp-terra-1",
+                  model: "gpt-5.6-terra",
+                  output: [],
+                  service_tier: "default",
+                  status: "completed",
+                  usage: rawUsage,
+                }),
+                requestId: "req-terra-1",
+                responseId: "resp-terra-1",
+                returnedModel: "gpt-5.6-terra",
+                returnedServiceTier: "default",
+                sequence: 3,
+                stage: "repository-reading",
+                turnIntentId: "turn-intent-1",
+              }],
+            }),
+          };
+        },
         intentId: "intent-1",
         outputDirectory,
         upstream,
       })
     ).resolves.toEqual({
       attemptId: "attempt-1",
-      observedCostPicodollars: 123n,
+      observedCostPicodollars: 52_400_000n,
       sequence: 1,
       startedAttempts: 1,
     });
@@ -309,15 +357,15 @@ describe("GitHub canary upstream", () => {
       {
         completions: [
           {
-            attemptCostPicodollars: "123",
+            attemptCostPicodollars: "52400000",
             attemptId: "attempt-1",
-            observedCostPicodollars: "123",
+            observedCostPicodollars: "52400000",
             receiptId: "receipt-3",
             sequence: 1,
             startReceiptId: "receipt-2",
           },
         ],
-        head: { observedCostPicodollars: "123", startedAttempts: 1 },
+        head: { observedCostPicodollars: "52400000", startedAttempts: 1 },
         kind: "consumed",
         starts: [
           {
