@@ -1046,6 +1046,7 @@ describe('cross-agent review public-command wiring', () => {
       data: {
         status: 'approved',
         preferred_failure: 'process_failed',
+        alternate_model: 'vendor-model-2',
         alternate_model_failure: 'process_failed',
         independence: 'degraded',
       },

@@ -44,6 +44,8 @@ fi
 printf '%s\n' "$model" >> "$SAFEWORD_REVIEW_MODEL_LOG"
 accepted_model=$(printenv SAFEWORD_REVIEW_ACCEPTED_MODEL || true)
 if [ -n "$accepted_model" ] && [ "$model" != "$accepted_model" ]; then
+  rejected_model_behaviour=$(printenv SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR || true)
+  if [ "$rejected_model_behaviour" = "timeout" ]; then exec /bin/sleep 3600; fi
   printf 'model unavailable\n' >&2
   exit 7
 fi
@@ -223,6 +225,9 @@ describe('alternate-model review route', () => {
           SAFEWORD_AGENT_RUNTIME: 'codex',
           SAFEWORD_REVIEW_MODEL_LOG: modelLog,
           SAFEWORD_REVIEW_ACCEPTED_MODEL: 'sonnet',
+          SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR: 'timeout',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '1500',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '5000',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
@@ -234,6 +239,8 @@ describe('alternate-model review route', () => {
         assigned_reviewer: 'claude',
         actual_reviewer: 'claude',
         reviewer_model: 'sonnet',
+        preferred_model: 'opus',
+        preferred_failure: 'timed_out',
         independence: 'cross-agent',
       },
     });

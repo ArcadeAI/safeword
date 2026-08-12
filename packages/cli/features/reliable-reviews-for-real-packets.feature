@@ -183,11 +183,11 @@ Feature: Keep independent reviews reliable for real ticket packets
   @reliable-reviews-for-real-packets.TBU3.R4 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU3.R4 — A later route starts only when the shared run bound can still fund a meaningful attempt
 
-    Scenario: A funded alternate-model route receives its attempt
-      Given a configured alternate model for the reviewer agent
-      And the reviewer agent's default model never answers
+    Scenario: A timed-out Claude Opus review leaves a funded Sonnet attempt
+      Given the default Claude Opus model never answers
       When the independent review runs
-      Then the alternate model still receives its own attempt
+      Then the Sonnet review returns an independent verdict
+      And the result names Opus as the timed-out primary model
 
     @rejection
     Scenario: An unfundable alternate-model route is not started
