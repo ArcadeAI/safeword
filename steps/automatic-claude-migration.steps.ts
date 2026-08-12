@@ -1321,3 +1321,21 @@ Then(
     );
   },
 );
+
+// ---------------------------------------------------------------------------
+// SWM1.R3 — the safeword dev repo is exempt from automatic contraction
+// ---------------------------------------------------------------------------
+
+Given(
+  'a proven legacy project is the safeword dev repository itself',
+  function (this: MigrationWorld) {
+    // `isDogfoodRepo` (packages/cli/templates/hooks/lib/dogfood.ts) treats a
+    // `package.json` named "safeword" as one of its two OR'd signals — the
+    // cheaper one to plant here without copying the whole templates tree.
+    this.project = createLegacyProject({
+      release: '0.72.0',
+      extraFiles: { 'package.json': '{"name":"safeword"}\n' },
+    });
+    this.before = snapshotTree(project(this).root);
+  },
+);

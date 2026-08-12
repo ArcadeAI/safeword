@@ -188,3 +188,13 @@ Feature: Migrate legacy Claude projects automatically
       Given the canonical dispatcher can migrate but the generated plugin cannot reach that behavior
       When the automatic Claude migration release catalogue is validated
       Then validation fails naming the missing runtime dependency or wiring proof
+
+  @automatic-claude-migration.SWM1.R3 @surface.claude-code @surface.safeword-cli
+  Rule: automatic-claude-migration.SWM1.R3 — Automatic contraction never mutates the safeword dev repository itself
+
+    @rejection
+    Scenario: The safeword dev repo's own legacy delivery survives automatic contraction
+      Given a proven legacy project is the safeword dev repository itself
+      When its UserPromptSubmit event completes successfully
+      Then every project byte is unchanged
+      And no execution proof or migration transaction is written
