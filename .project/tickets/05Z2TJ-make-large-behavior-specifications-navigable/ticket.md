@@ -7,6 +7,7 @@ status: in_progress
 created: 2026-08-11T23:26:44.983Z
 last_modified: 2026-08-12T02:21:38Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/2583
+external_prs: [https://github.com/ArcadeAI/safeword/pull/2596]
 ---
 
 # Make large behavior specifications navigable for maintainers
