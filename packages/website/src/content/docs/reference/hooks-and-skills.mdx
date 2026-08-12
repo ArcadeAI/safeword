@@ -41,7 +41,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     ### Plugin lifecycle
 
-    The native workflow and hook files are versioned inside Claude's installed plugin cache; do not edit that cache. After an update, run `/reload-plugins`. Use `safeword claude status` to inspect the exact installed version and migration state. Legacy project hooks remain active until current plugin execution is proven and you explicitly approve the `safeword claude cleanup` plan; custom and third-party Claude settings are preserved.
+    The native workflow and hook files are versioned inside Claude's installed plugin cache; do not edit that cache. After an update, run `/reload-plugins`. Use `safeword claude status` to inspect the exact installed version and migration state. Once current project-bound plugin execution is proven, Safeword automatically backs up and removes fully recognized legacy project hooks; failed proof stays non-blocking, and custom or third-party Claude settings are preserved.
 
   </TabItem>
   <TabItem label="Cursor">
@@ -214,7 +214,7 @@ Deep review that checks your code against latest research using web search.
 
 Your agent will check against official library docs, look for known security issues, and verify you're using current versions.
 
-Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. It snapshots only the named files, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records raw machine provenance as `cross-agent`, `degraded`, or `none`. Human output presents validated cross-agent results as independent coverage and permitted same-agent results as standard coverage.
+Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. Positional files are the bounded work product; `--context <paths...>` adds bounded supporting evidence without making it review targets. The coordinator snapshots and integrity-checks both roles, treats their contents as untrusted, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records raw machine provenance as `cross-agent`, `degraded`, or `none`. Human output presents validated cross-agent results as independent coverage and permitted same-agent results as standard coverage. Discovery, unsupported capabilities, compatibility-probe timeout, launch failure, authentication, and runtime failure remain distinct typed outcomes with targeted recovery guidance.
 
 The coordinator tries the opposite agent's default and configured alternate model before same-agent headless review. If every CLI route fails, foreground agent workflows can continue once through the internal `finish-review` skill: first one host-native fresh-context reviewer, then one bounded main-thread self-review. This continuation is best-effort because only the foreground host can invoke its session agent. It is reported as supplemental feedback with its live-worktree source limits; it never becomes completed standard or independent machine coverage, never creates an independent stamp, and cannot satisfy `crossAgentReview: "require"`. Project-owned Claude assets make the fresh-context route available in Claude Code Cloud even when no external agent CLI is installed. See [Configuration](/reference/configuration#review-gates).
 
