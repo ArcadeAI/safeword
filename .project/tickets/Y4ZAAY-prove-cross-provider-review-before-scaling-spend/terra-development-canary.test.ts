@@ -54,6 +54,75 @@ function outputDirectory(): string {
   return join(mkdtempSync(join(tmpdir(), "terra-canary-")), "live-output");
 }
 
+function validDispatchEvidence(
+  attemptId = "attempt-1",
+  intentId = "intent-1"
+): {
+  attemptCostPicodollars: bigint;
+  nativeUsageBytes: string;
+  rawResponseBytes: string;
+} {
+  const rawUsage = {
+    input_tokens: 10,
+    input_tokens_details: { cached_tokens: 2 },
+    output_tokens: 3,
+  };
+  const rawBody = JSON.stringify({
+    id: "resp-terra-1",
+    model: "gpt-5.6-terra",
+    output: [],
+    service_tier: "default",
+    status: "completed",
+    usage: rawUsage,
+  });
+  const inventory = {
+    intent: { attemptId, intentId, sequence: 1 },
+    requests: [
+      {
+        endpoint: "https://api.openai.com/v1/responses",
+        intentId,
+        model: "gpt-5.6-terra",
+        sequence: 2,
+        serviceTier: "default",
+        stage: "repository-reading",
+        turnIntentId: "turn-intent-1",
+      },
+    ],
+    responses: [
+      {
+        errorMessage: null,
+        errorName: null,
+        httpStatus: 200,
+        intentId,
+        nativeUsage: rawUsage,
+        outcome: "response",
+        rawBody,
+        requestId: "req-terra-1",
+        responseId: "resp-terra-1",
+        returnedModel: "gpt-5.6-terra",
+        returnedServiceTier: "default",
+        sequence: 3,
+        stage: "repository-reading",
+        turnIntentId: "turn-intent-1",
+      },
+    ],
+  };
+  return {
+    attemptCostPicodollars: 52_400_000n,
+    nativeUsageBytes: JSON.stringify({
+      turns: [
+        {
+          rawUsage,
+          requestId: "req-terra-1",
+          responseId: "resp-terra-1",
+          stage: "repository-reading",
+        },
+      ],
+    }),
+    rawResponseBytes: JSON.stringify(inventory),
+  };
+}
+
 function fakeUpstream(
   initial: "ready" | "unavailable" | "unreadable" = "ready",
   beforeConsume?: () => void,
@@ -487,11 +556,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
         expect(readFileSync(join(directory, ATTEMPT_JOURNAL), "utf8")).toContain(
           '"kind":"attempt-start"'
         );
-        return {
-          attemptCostPicodollars: 100n,
-          nativeUsageBytes: '{"input_tokens":1}',
-          rawResponseBytes: '{"id":"resp-1"}',
-        };
+        return validDispatchEvidence();
       },
       intentId: "intent-1",
       outputDirectory: directory,
@@ -505,7 +570,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
     ]);
     expect(result).toMatchObject({
       attemptId: "attempt-1",
-      observedCostPicodollars: 100n,
+      observedCostPicodollars: 52_400_000n,
       sequence: 1,
       startedAttempts: 1,
     });
@@ -514,15 +579,37 @@ describe("Terra canary write-side attempt lifecycle", () => {
     );
     expect(
       readFileSync(join(directory, EVIDENCE_DIRECTORY, "attempt-1.json"), "utf8")
-    ).toBe('{"id":"resp-1"}');
+    ).toBe(validDispatchEvidence().rawResponseBytes);
     await expect(
       inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
     ).resolves.toMatchObject({
       attemptAccountingComplete: true,
       costAccountingComplete: true,
-      observedCostPicodollars: 100n,
+      observedCostPicodollars: 52_400_000n,
       startedAttempts: 1,
     });
+  });
+
+  test("rejects dispatch evidence that bypasses native inventory validation", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => ({
+          attemptCostPicodollars: 100n,
+          nativeUsageBytes: '{"input_tokens":1}',
+          rawResponseBytes: '{"id":"invented"}',
+        }),
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("provider inventory");
+    expect(upstream.events).not.toContain("upstream-completion");
   });
 
   test("persists the provider turn intent before the physical HTTP request", async () => {
@@ -607,11 +694,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
     await runCanaryAttempt({
       attemptId: "attempt-1",
       binding: BINDING,
-      dispatch: async () => ({
-        attemptCostPicodollars: 100n,
-        nativeUsageBytes: '{"input_tokens":1}',
-        rawResponseBytes: '{"id":"resp-1"}',
-      }),
+      dispatch: async () => validDispatchEvidence(),
       intentId: "intent-1",
       outputDirectory: directory,
       upstream,
@@ -691,11 +774,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
       runCanaryAttempt({
         attemptId: "attempt-1",
         binding: BINDING,
-        dispatch: async () => ({
-          attemptCostPicodollars: 100n,
-          nativeUsageBytes: '{"input_tokens":1}',
-          rawResponseBytes: '{"id":"resp-1"}',
-        }),
+        dispatch: async () => validDispatchEvidence(),
         intentId: "intent-1",
         outputDirectory: directory,
         upstream,
@@ -731,11 +810,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
       dispatch: async () => {
         signalDispatch();
         await dispatchReleased;
-        return {
-          attemptCostPicodollars: 100n,
-          nativeUsageBytes: '{"input_tokens":1}',
-          rawResponseBytes: '{"id":"resp-1"}',
-        };
+        return validDispatchEvidence();
       },
       intentId: "intent-1",
       outputDirectory: directory,
@@ -877,11 +952,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
       runCanaryAttempt({
         attemptId: "attempt-1",
         binding: BINDING,
-        dispatch: async () => ({
-          attemptCostPicodollars: 100n,
-          nativeUsageBytes: '{"input_tokens":1}',
-          rawResponseBytes: '{"id":"resp-1"}',
-        }),
+        dispatch: async () => validDispatchEvidence(),
         intentId: "intent-1",
         outputDirectory: directory,
         upstream,
@@ -889,7 +960,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
     ).rejects.toThrow("lost completion response");
     expect(
       readFileSync(join(directory, EVIDENCE_DIRECTORY, "attempt-1.json"), "utf8")
-    ).toBe('{"id":"resp-1"}');
+    ).toBe(validDispatchEvidence().rawResponseBytes);
     expect(readFileSync(join(directory, COST_JOURNAL), "utf8")).not.toContain(
       '"kind":"attempt-completion"'
     );
@@ -938,11 +1009,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
       runCanaryAttempt({
         attemptId: "attempt-1",
         binding: BINDING,
-        dispatch: async () => ({
-          attemptCostPicodollars: 100n,
-          nativeUsageBytes: '{"input_tokens":1}',
-          rawResponseBytes: '{"id":"resp-1"}',
-        }),
+        dispatch: async () => validDispatchEvidence(),
         intentId: "intent-1",
         outputDirectory: directory,
         upstream,
@@ -963,11 +1030,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
       runCanaryAttempt({
         attemptId: "attempt-1",
         binding: BINDING,
-        dispatch: async () => ({
-          attemptCostPicodollars: 100n,
-          nativeUsageBytes: '{"input_tokens":1}',
-          rawResponseBytes: '{"id":"resp-1"}',
-        }),
+        dispatch: async () => validDispatchEvidence(),
         intentId: "intent-1",
         outputDirectory: directory,
         upstream,

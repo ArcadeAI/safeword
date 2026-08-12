@@ -1328,6 +1328,34 @@ async function runCanaryAttemptWhileLocked(input: {
   ) {
     throw new Error("completed attempt evidence must be strings");
   }
+  let inventory: unknown;
+  try {
+    inventory = JSON.parse(completed.rawResponseBytes);
+  } catch {
+    throw new Error("completed attempt response evidence is invalid JSON");
+  }
+  const validatedInventory = validateProviderInventory(inventory);
+  if (
+    validatedInventory.attemptId !== input.attemptId ||
+    validatedInventory.intentId !== input.intentId
+  ) {
+    throw new Error("completed provider inventory belongs to another attempt");
+  }
+  const expectedUsageBytes = JSON.stringify({
+    turns: validatedInventory.turns.map((turn) => ({
+      rawUsage: turn.rawUsage,
+      requestId: turn.requestId,
+      responseId: turn.responseId,
+      stage: turn.stage,
+    })),
+  });
+  if (
+    completed.attemptCostPicodollars !==
+      validatedInventory.totalCostPicodollars ||
+    completed.nativeUsageBytes !== expectedUsageBytes
+  ) {
+    throw new Error("completed attempt cost or usage contradicts native evidence");
+  }
   const responseDigest = digestBytes(completed.rawResponseBytes);
   const nativeUsageDigest = digestBytes(completed.nativeUsageBytes);
   await writeExclusiveBytes(
