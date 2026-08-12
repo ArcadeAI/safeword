@@ -1,24 +1,27 @@
 # Dimensions: Prove cross-provider review before scaling spend
 
-| Dimension | Partitions and boundaries | Rule |
-| --- | --- | --- |
-| Provider route | every repository-reading and finding-verification turn has an OpenAI Terra envelope; provider/model mismatch; an unrecorded or zero-turn inventory | SWM1.R1 |
-| Corpus role | anchored legacy author provenance retained; any relabeling; any attempt to treat development evidence as confirmatory | SWM1.R1, SWM1.R3 |
-| Started attempts | 9 permits the tenth; 10 blocks the eleventh; an infrastructure retry increments the same durable count | SWM1.R2 |
-| Observed spend before an attempt | below $15 permits; exactly $15 blocks; above $15 on resume blocks; incomplete accounting blocks | SWM1.R2 |
-| Reaching spend | a completed attempt lands exactly on or crosses $15; its evidence and threshold result remain durable; no next attempt starts | SWM1.R2 |
-| Context price boundary | 271,999 and 272,000 input tokens use short-context; 272,001 uses long-context | SWM1.R2 |
-| Detailed usage price | uncached, cached, cache-write, and output rates in short- and long-context tiers | SWM1.R2 |
-| Cost arithmetic | exact integer picodollars; exact and above-$15 classification | SWM1.R2 |
-| In-attempt crossing | remaining turns of the already-started attempt complete; no later attempt starts | SWM1.R2 |
-| In-flight crash | started intent is durable before provider request; unfinished attempt still consumes the cap after resume | SWM1.R2 |
-| Invalid paid attempt | a route-invalid attempt is unusable but still consumes the durable cap | SWM1.R1, SWM1.R2 |
-| Missing intent | retained paid usage without prior durable attempt intent blocks resume | SWM1.R2 |
-| Simultaneous stops | attempt and cost stops reached together report both reasons | SWM1.R2 |
-| Confirmation guard control | independently anchored confirmatory evidence is admitted; development evidence remains rejected after path, marker, label, local-anchor removal, self-issued-anchor changes, trusted-registry failure, or unknown digest | SWM1.R3 |
-| Lifecycle | explicit initialization; same-process decision; resumed-process decision from ticket-scoped durable state | SWM1.R2 |
-| Total ledger deletion | trusted initialization marker exists with both ledgers absent; fail closed without recreating state | SWM1.R2 |
-| Route-invalid cost | native standard Terra usage stays priceable; foreign/non-native usage makes accounting incomplete | SWM1.R2 |
-| Authorization | explicit durable authorization permits live execution; absence blocks before a request or attempt | SWM1.R2 |
+The feature file uses one representative acceptance scenario per meaningful
+behavioral partition. Exhaustive malformed-input permutations remain in the
+ticket-local contract tests named in `test-definitions.md`.
 
-The first checkpoint is deliberately fixed at ten started review attempts. Larger development checkpoints and fresh confirmatory corpus generation are outside this feature.
+| Dimension | Acceptance partitions and boundaries | Detailed contract coverage | Rule |
+| --- | --- | --- | --- |
+| Provider route | complete Terra inventory; untrustworthy inventory; one manual paid proof | provider/model/tier variants, envelope truncation/duplication/pairing, zero turns | SWM1.R1 |
+| Corpus provenance | exact trusted value copied; altered or absent value rejected | mixed-case provenance, unsupported authorship claims, unknown registrations | SWM1.R1 |
+| Initialization | unused authorization creates zero checkpoint | planted, partial, deleted, forged, already-consumed, unavailable upstream state | SWM1.R2 |
+| Attempt limit | nine permits attempt ten; ten blocks another; same-process and resumed decisions | duplicate IDs/sequences, divergent local/upstream heads, missing intent ordering | SWM1.R2 |
+| Spend limit | below $15 permits; exactly $15 blocks; simultaneous limits report both | adjacent picodollar values, above-limit resume, exhaustive reason combinations | SWM1.R2 |
+| Attempt lifecycle | multiple turns count once; one provider failure is not invisibly retried | crash windows, incomplete response/cost, physical request counting | SWM1.R2 |
+| Completed threshold crossing | the full started attempt is retained; only a later attempt is blocked | exact and above-threshold totals, per-turn retention and summation | SWM1.R2 |
+| Invalid paid work | priceable Terra usage counts once; unpriceable usage blocks later work | route-invalid provider/tier/native-shape permutations | SWM1.R2 |
+| Native pricing | 272,000 short; 272,001 long; omitted cache-write detail means zero | every component rate, cached/uncached/cache-write/output/reasoning arithmetic | SWM1.R2 |
+| Authorization | exact durable authority permits; weak, replayed, mismatched, or dirty authority blocks | author, repository, corpus, output, route, code-pin, limit, and receipt mutations | SWM1.R2 |
+| Corpus role | development output is diagnostic; local relabeling cannot promote it | path, marker, local-anchor, self-issued-anchor, foreign-digest, and lookup failures | SWM1.R3 |
+| Confirmation positive control | independently anchored confirmation remains usable despite stale local development state | estimate/spend-action parity and lookup variants | SWM1.R3 |
+
+Default and continuous-integration selection exclusion for `@paid-canary` and
+`@manual` is a test-runner contract, not a product behavior scenario.
+
+The first checkpoint is deliberately fixed at ten started review attempts.
+Larger development checkpoints and fresh confirmatory corpus generation remain
+outside this feature.

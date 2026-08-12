@@ -2,51 +2,47 @@
 
 Feature source: `features/prove-cross-provider-review-before-scaling-spend.feature`
 
-test-definitions.md is the R/G/R ledger.
+test-definitions.md is the R/G/R ledger. Detailed native-envelope parsing, exact
+pricing arithmetic, receipt corruption, ordering mutations, and authorization
+field mutations remain in table-driven ticket-local contract tests; they are not
+duplicated here as acceptance scenarios.
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R1 — The recorded provider identity matches the provider that performed every paid turn
 
-### Scenario: Complete retained Terra fixtures are accepted as route-valid
+### Scenario: The development runner uses Terra for every review stage
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: Stubbed production wiring targets OpenAI for reading and verification
+### Scenario: A complete Terra call inventory is accepted
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario Outline: Registered provenance is copied by repeatable fixtures
+### Scenario Outline: Untrustworthy provider evidence is rejected
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: Terra performs every provider turn over the legacy development corpus
+### Scenario Outline: Trusted corpus provenance is copied without embellishment
 
-RED is established by `Complete retained Terra fixtures are accepted as route-valid` and the registered-provenance fixture before the one authorized live canary exercises the same assertions.
-The `@paid-canary` tag is excluded from default and CI runs. Its single authorized execution uses the same durable state and cannot be repeated after either guard blocks it.
-Authorization is inapplicable to non-authorization fixtures because they cannot dispatch; live authorization scenarios exercise that guard explicitly.
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario Outline: Development provenance cannot be replaced
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Provider evidence cannot be relabeled as Terra
+### Scenario: One authorized live attempt proves the paid route
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario Outline: Legacy corpus provenance cannot be replaced
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Provenance-invalid paid usage is never refunded
+This manual, one-time operational proof must produce its own evidence. Passing
+fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 - [ ] RED
 - [ ] GREEN
@@ -54,205 +50,55 @@ Authorization is inapplicable to non-authorization fixtures because they cannot 
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
 
-### Scenario: An infrastructure retry consumes another review attempt
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A retryable OpenAI transport failure is never retried invisibly
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: One multi-turn review counts as one attempt
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Explicit initialization bootstraps empty durable accounting
+### Scenario: Explicit initialization creates an empty authorized checkpoint
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: An uninitialized canary cannot execute
+### Scenario Outline: Complete accounting enforces both paid limits after restart
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Missing or contradictory accounting fails closed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A multi-turn review consumes one attempt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A provider failure is not retried invisibly
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A completed attempt that reaches the spend limit is retained
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Invalid paid work is never refunded or assigned an invented price
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Frozen native usage determines the exact pricing policy
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: Deleted ledgers cannot reset an initialized canary
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario Outline: Untrusted initialization state cannot authorize planted ledgers
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario Outline: Explicit re-initialization cannot reset an initialized canary
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario Outline: Initialization fails closed when trusted upstream state cannot be read
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario Outline: Durable attempt count bounds same-process and resumed execution
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An unfinished paid attempt still consumes the cap after resume
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A provider request without prior durable attempt intent blocks resume
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: A present intent must precede and uniquely authorize each request
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A route-invalid paid attempt still consumes the cap
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Route-invalid usage never receives an invented price
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Untrustworthy attempt-count evidence blocks resume
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Simultaneously incomplete accounting reports both reasons
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Partial initialized state fails closed
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Durable spend state bounds same-process and resumed execution
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Both durable limits are reported when both have been reached
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Incomplete cost evidence blocks the next attempt
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A reached attempt stop is reported alongside incomplete cost accounting
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A reached cost stop is reported alongside incomplete attempt accounting
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: A completed threshold-reaching attempt retains correctly priced evidence
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Context pricing switches only above 272000 input tokens
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario Outline: Detailed usage components use the frozen standard rates
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario: An absent OpenAI cache-write usage field normalizes to zero
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario Outline: Mixed detailed usage produces one observable total cost
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario: A multi-turn attempt sums every turn cost exactly once
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario: Crossing the cost threshold during a turn does not truncate the started attempt
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Live execution without explicit authorization makes no paid request
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Default selectors cannot execute the paid canary
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Authorization cannot be replayed or weakened
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: Missing authorization is reported with every simultaneous accounting outcome
+### Scenario Outline: Weak or replayed authorization cannot dispatch paid work
 
 - [ ] RED
 - [ ] GREEN
@@ -260,29 +106,33 @@ Authorization is inapplicable to non-authorization fixtures because they cannot 
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R3 — Development evidence remains permanently separate from confirmatory evidence
 
-### Scenario Outline: Independently anchored confirmatory evidence remains usable
+### Scenario: A development result is durably diagnostic-only
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A produced canary artifact is durably diagnostic-only
+### Scenario Outline: Development evidence cannot authorize confirmation
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: A successful development canary cannot become confirmation
+### Scenario: Independently anchored confirmatory evidence remains usable
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Trusted registration lookup failures deny confirmation
+## Lower-level contract coverage retained outside BDD
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- Strict native response schemas and request/response pairing permutations.
+- Every short- and long-context component rate in integer picodollars.
+- Cached, uncached, cache-write, output, and reasoning-token arithmetic.
+- Every local/upstream receipt deletion, duplication, sequence, digest, and head mismatch.
+- Every authorization author, repository, corpus, output, route, code-pin, and limit mutation.
+- Same-process pure-decision combinations and exhaustive simultaneous reason sets.
+- Default and continuous-integration selector exclusion of `@paid-canary` and `@manual`.
 
 ## Feature-level cross-scenario refactor
 
