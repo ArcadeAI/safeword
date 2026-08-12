@@ -14,16 +14,13 @@ import nodePath from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 
-import { After, Given, setDefaultTimeout, Then, When } from '@cucumber/cucumber';
+import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import type { SafewordWorld } from './world.js';
 
-// Cucumber's built-in step timeout is 5000ms. A route-exhaustion scenario can
-// legitimately wait through three sequential real subprocess timeouts (up to
-// SAFEWORD_REVIEW_TIMEOUT_MS each) before the run bound settles it — 3 × 2000ms
-// alone already exceeds the default, before process-spawn and cleanup
-// overhead. This is real subprocess wall-clock time, not a hang to tighten.
-setDefaultTimeout(20_000);
+// Review scenarios use real subprocess timeouts. Scope their longer budget to
+// the steps that invoke the CLI so unrelated Cucumber scenarios still fail fast.
+const REVIEW_STEP_TIMEOUT_MS = 20_000;
 
 const execFileAsync = promisify(execFile);
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -490,29 +487,49 @@ Given(
 
 // ----------------------------------------------------------------- When
 
-When('the independent review runs', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'the independent review runs',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
-When('a builder runs the public review command', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'a builder runs the public review command',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
-When('the attempt deadline is derived', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'the attempt deadline is derived',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
-When('the answer is checked', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'the answer is checked',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
 When('the review result is reported', function (this: SafewordWorld) {
   state(this);
 });
 
-When('the exhausted-route result is reported', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'the exhausted-route result is reported',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
 // ----------------------------------------------------------------- Then
 
