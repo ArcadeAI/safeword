@@ -14,16 +14,13 @@ import nodePath from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 
-import { After, Given, setDefaultTimeout, Then, When } from '@cucumber/cucumber';
+import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import type { SafewordWorld } from './world.js';
 
-// Cucumber's built-in step timeout is 5000ms. A route-exhaustion scenario can
-// legitimately wait through three sequential real subprocess timeouts (up to
-// SAFEWORD_REVIEW_TIMEOUT_MS each) before the run bound settles it — 3 × 2000ms
-// alone already exceeds the default, before process-spawn and cleanup
-// overhead. This is real subprocess wall-clock time, not a hang to tighten.
-setDefaultTimeout(20_000);
+// Review scenarios use real subprocess timeouts. Scope their longer budget to
+// the steps that invoke the CLI so unrelated Cucumber scenarios still fail fast.
+const REVIEW_STEP_TIMEOUT_MS = 20_000;
 
 const execFileAsync = promisify(execFile);
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -55,6 +52,7 @@ interface ReviewScenario {
   binaries: string[];
   environment: Record<string, string>;
   launchLog: string;
+  elapsedMs?: number;
   targets: string[];
   context: string[];
 }
@@ -119,6 +117,9 @@ exec /bin/sleep 3600`;
   if (behaviour === 'emits a credential') {
     return `printf 'trace token=${CREDENTIAL}\\n' >&2\nprintf 'not-a-review\\n'`;
   }
+  if (behaviour === 'answers off contract') {
+    return `${body}\nanswer=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[{"severity":"fatal","message":"invalid severity"}]}' "$dispatch_id")\n${emit}`;
+  }
   return String.raw`printf 'not-a-review\n'`;
 }
 function installReviewer(
@@ -159,6 +160,7 @@ function writeConfig(current: ReviewScenario, config: Record<string, unknown>): 
 
 async function runReview(world: SafewordWorld): Promise<void> {
   const current = state(world);
+  const startedAt = performance.now();
   const environment: Record<string, string> = {
     ...current.environment,
     SAFEWORD_REVIEW_LAUNCH_LOG: current.launchLog,
@@ -190,6 +192,8 @@ async function runReview(world: SafewordWorld): Promise<void> {
       stderr: failure.stderr ?? '',
       exitCode: failure.code ?? 1,
     };
+  } finally {
+    current.elapsedMs = performance.now() - startedAt;
   }
 }
 
@@ -219,6 +223,23 @@ function explanation(world: SafewordWorld): string {
 function reviewerLaunches(world: SafewordWorld): string[] {
   const launchLog = state(world).launchLog;
   return existsSync(launchLog) ? readFileSync(launchLog, 'utf8').split('\n').filter(Boolean) : [];
+}
+
+function reviewerOutput(world: SafewordWorld): Record<string, unknown> {
+  const output = payload(world).data.reviewer_output;
+  assert.ok(output !== null && typeof output === 'object' && !Array.isArray(output));
+  return output as Record<string, unknown>;
+}
+
+function assertApprovedCodexVerdict(world: SafewordWorld): void {
+  const data = payload(world).data;
+  assert.equal(data.independence, 'cross-agent');
+  assert.equal(data.actual_reviewer, 'codex');
+  assert.equal(data.status, 'approved');
+
+  const output = reviewerOutput(world);
+  assert.equal(output.reviewer_agent, 'codex');
+  assert.equal(output.verdict, 'approve');
 }
 
 After(function (this: SafewordWorld) {
@@ -264,7 +285,11 @@ Given('no later route can complete either', function (this: SafewordWorld) {
 Given(
   'two installed reviewer executables that both accept the review contract',
   function (this: SafewordWorld) {
-    installReviewer(state(this), 'codex', 'never answers', 'stale');
+    const current = state(this);
+    // The first candidate may consume its five-second capability probe budget;
+    // leave the second candidate enough time to probe and return a real review.
+    current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '12000';
+    installReviewer(current, 'codex', 'never answers', 'stale');
   },
 );
 
@@ -464,34 +489,54 @@ Given(
 
 // ----------------------------------------------------------------- When
 
-When('the independent review runs', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'the independent review runs',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
-When('a builder runs the public review command', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'a builder runs the public review command',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
-When('the attempt deadline is derived', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'the attempt deadline is derived',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
-When('the answer is checked', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'the answer is checked',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
 When('the review result is reported', function (this: SafewordWorld) {
   state(this);
 });
 
-When('the exhausted-route result is reported', async function (this: SafewordWorld) {
-  await runReview(this);
-});
+When(
+  'the exhausted-route result is reported',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    await runReview(this);
+  },
+);
 
 // ----------------------------------------------------------------- Then
 
 Then("the review returns the reviewer's verdict", function (this: SafewordWorld) {
-  assert.equal(payload(this).data.independence, 'cross-agent');
+  assertApprovedCodexVerdict(this);
 });
 
 Then('no reviewer is asked to review it', function (this: SafewordWorld) {
@@ -512,6 +557,8 @@ Then('the command rejects the packet through a typed result', function (this: Sa
 Then('the configured deadline is used', function (this: SafewordWorld) {
   assert.equal(payload(this).data.preferred_failure, 'timed_out');
   assert.equal(reviewerLaunches(this).length, 1);
+  const elapsedMs = state(this).elapsedMs;
+  assert.ok(elapsedMs !== undefined && elapsedMs >= 2600 && elapsedMs < 4500);
 });
 
 Then('the assigned reviewer route is reported as timed out', function (this: SafewordWorld) {
@@ -519,8 +566,18 @@ Then('the assigned reviewer route is reported as timed out', function (this: Saf
 });
 
 Then("the review returns the second executable's verdict", function (this: SafewordWorld) {
-  assert.equal(payload(this).data.independence, 'cross-agent');
+  assertApprovedCodexVerdict(this);
 });
+
+Then(
+  'the stale executable was tried before the working executable',
+  function (this: SafewordWorld) {
+    assert.deepEqual(
+      reviewerLaunches(this).map(launch => launch.split('\t', 1)[0]),
+      ['stale', 'working'],
+    );
+  },
+);
 
 Then(
   'no process grouped with that reviewer is still running afterwards',
@@ -659,6 +716,11 @@ Then(
   'the reviewer is never asked for a review on an alternate model',
   function (this: SafewordWorld) {
     assert.equal(payload(this).data.reviewer_model, undefined);
+    assert.ok(
+      reviewerLaunches(this).every(
+        launch => !launch.includes('--model') && !launch.includes('--help'),
+      ),
+    );
   },
 );
 
@@ -729,9 +791,10 @@ Then(
 Then(
   'the explanation contains neither that output nor the credential',
   function (this: SafewordWorld) {
-    const rendered = JSON.stringify(payload(this));
-    assert.ok(!rendered.includes(CREDENTIAL));
-    assert.ok(!rendered.includes('not-a-review'));
+    for (const output of [this.result.stdout, this.result.stderr]) {
+      assert.ok(!output.includes(CREDENTIAL));
+      assert.ok(!output.includes('not-a-review'));
+    }
   },
 );
 

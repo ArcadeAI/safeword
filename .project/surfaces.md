@@ -77,6 +77,24 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Coverage notes:** Tag feature scenarios with `@surface.safeword-cli` when the behavior is the CLI tool's own — file scaffolding/reconciliation, config validation, index generation — rather than something that must work through a specific agent runtime.
 **Do not confuse with:** Claude Code / OpenAI Codex / Cursor — the agent runtimes that *invoke* safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
 
+## Closeout Cleanup Guard
+
+**Kind:** Destructive-operation guard
+**Description:** The installed closeout preview/apply boundary that verifies the exact merged pull request, current-session retrospective evidence, repository state, worktree, and branch targets before cleanup.
+**Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
+**Examples:** `.safeword/scripts/closeout-cleanup.ts`, preview plan digests, sealed transcript receipts, exact worktree and branch deletion
+**Coverage notes:** Tag scenarios with `@surface.closeout-cleanup-guard` when behavior is observable at the preview/apply safety boundary, including convergence and fail-closed target drift.
+**Do not confuse with:** Safeword CLI — the general command surface; this guard owns the destructive closeout authorization contract.
+
+## Retro Filer
+
+**Kind:** Recovery workflow
+**Description:** The supported authenticated continuation that files sanitized retrospective drafts from the exact session-bound spool and records durable acknowledgements before draining them.
+**Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
+**Examples:** `safeword:retro-filer`, `.safeword/retro-drafts/<session>.jsonl`, filed-ack ledgers, cross-worktree fallback filing
+**Coverage notes:** Tag scenarios with `@surface.retro-filer` when behavior depends on exact spool provenance, acknowledgement-gated drain, or fallback filing from another active worktree/session.
+**Do not confuse with:** Retrospective extraction — extraction creates sanitized drafts; the retro filer transports and acknowledges them.
+
 ## GitHub Pull Request Conversation
 
 **Kind:** Collaboration surface
