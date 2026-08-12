@@ -572,7 +572,7 @@ function claimAutomaticTransaction(
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
     if (waitForPluginMode(projectRoot, options.deadline, now)) {
-      return { state: 'complete', unresolvedPaths: unresolved };
+      return recoveredAutomaticResult(projectRoot);
     }
     return deferredConcurrentMigration(unresolved);
   }
@@ -586,7 +586,7 @@ function concurrentMigrationResult(
 ): AutomaticClaudeMigrationResult {
   const concurrentDeadline = Math.min(options.deadline, now() + 500);
   if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
-    return { state: 'complete', unresolvedPaths: [] };
+    return recoveredAutomaticResult(projectRoot);
   }
   if (now() >= options.deadline) {
     return deferredConcurrentMigration([]);
