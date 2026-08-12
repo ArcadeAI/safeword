@@ -153,7 +153,7 @@ function sanitizeErrorClass(value: string): string {
  * undefined. Separator-bounded segment match (`/` and `\`) + internal-prefix
  * allowlist — see SAFEWORD_SEGMENTS / INTERNAL_TAIL_PREFIXES. Tries safeword
  * segments from last to first so the most specific (e.g. materialized
- * `"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/…`) wins.
+ * `"\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/…`) wins.
  */
 export function safewordInternalTail(location: string): string | undefined {
   const segments = location.split(/[/\\]/);
@@ -589,7 +589,7 @@ export function formatSelfReportSurfacing(
   // the guide, so this stays context (not an out-of-band command Claude surfaces).
   const filing = options.file
     ? ' Filing is enabled (`selfReport.file`); the procedure for turning these into ' +
-      'GitHub issues is in `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/self-report-filing.md`.'
+      'GitHub issues is in `"\${CLAUDE_PLUGIN_ROOT}"/resources/guides/self-report-filing.md`.'
     : '';
   return (
     `Safeword recorded ${records.length} of its own internal signal(s) this session: ${breakdown}. ` +

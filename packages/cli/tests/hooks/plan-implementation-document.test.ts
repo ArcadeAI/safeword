@@ -6,8 +6,7 @@
  * (pattern: impl-plan.test.ts).
  */
 
-import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -16,6 +15,11 @@ const repoRoot = nodePath.resolve(__dirname, '../../../..');
 const bddCopies = [
   nodePath.join(repoRoot, 'packages/cli/templates/skills/bdd'),
   nodePath.join(repoRoot, '.claude/skills/bdd'),
+];
+const planCopyDirectories = [
+  ...bddCopies,
+  nodePath.join(repoRoot, 'plugin/skills/bdd'),
+  nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/bdd/references'),
 ];
 
 function readCopies(file: string): { path: string; text: string }[] {
@@ -26,9 +30,12 @@ function readCopies(file: string): { path: string; text: string }[] {
 }
 
 describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
-  const planCopies = readCopies('PLAN_IMPLEMENTATION.md');
+  const planCopies = planCopyDirectories.map(directory => {
+    const path = nodePath.join(directory, 'PLAN_IMPLEMENTATION.md');
+    return { path, text: readFileSync(path, 'utf8') };
+  });
 
-  it('owns the impl-plan authoring steps with the five design sections (TB1.R3)', () => {
+  it('owns the impl-plan authoring steps with all six design sections (TB1.R3)', () => {
     for (const { path, text } of planCopies) {
       expect(text, path).toContain('impl-plan.md');
       for (const section of [
@@ -36,6 +43,7 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
         'Decisions',
         'Design alignment',
         'Known deviations',
+        'Doc impact',
         'Assessment triggers',
       ]) {
         expect(text, path).toContain(section);
@@ -167,6 +175,12 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
     }
   });
 
+  it('links an unsuccessful search to the affected recorded decision', () => {
+    for (const { path, text } of planCopies) {
+      expect(text, path).toMatch(/Decision informed.*exactly match.*Decision.*Recorded Decisions/i);
+    }
+  });
+
   it('surfaces relevant language skills, never the full inventory (TB3.R4)', () => {
     for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/language skills?/i);
@@ -225,11 +239,14 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
   /** Assert a literal appears nowhere under the given shipped roots. */
   function expectNoShippedSurfaceMatches(literal: string, roots: string[]): void {
     for (const root of roots) {
-      const out = execSync(`grep -rlF "${literal}" ${root} 2>/dev/null || true`, {
-        cwd: repoRoot,
-        encoding: 'utf8',
-      }).trim();
-      expect(out, `"${literal}" under ${root}: ${out}`).toBe('');
+      const matches = readdirSync(nodePath.join(repoRoot, root), {
+        recursive: true,
+        withFileTypes: true,
+      })
+        .filter(entry => entry.isFile())
+        .map(entry => nodePath.join(entry.parentPath, entry.name))
+        .filter(path => readFileSync(path, 'utf8').includes(literal));
+      expect(matches, `"${literal}" under ${root}: ${matches.join(', ')}`).toEqual([]);
     }
   }
 

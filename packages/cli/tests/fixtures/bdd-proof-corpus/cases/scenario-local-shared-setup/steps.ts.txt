@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { Given, Then, When } from '@cucumber/cucumber';
+
+Given('a fresh account store', function () {
+  this.accounts = new Set<string>();
+  if (process.env.BDD_CORPUS_DEFECT === '1') this.accounts.add('unexpected');
+});
+When('I create account A', function () {
+  if (process.env.BDD_CORPUS_DEFECT !== '1') this.accounts.add('A');
+});
+Then('this store contains account A', function () {
+  assert.equal(this.accounts.has('A'), true);
+});
+Then('this store contains {int} accounts', function (count: number) {
+  assert.equal(this.accounts.size, count);
+});

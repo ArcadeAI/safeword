@@ -2,7 +2,7 @@
 # packages/cli/tests/hooks/host-toolchain.test.ts, which drives the real resolver,
 # runner, and lint hook through isolated filesystem and subprocess fixtures.
 # Cucumber steps would duplicate that harness without adding another boundary.
-@wip
+@proof.vitest
 Feature: Honor host JavaScript toolchains during agent edits
   Safeword preserves a project's declared JavaScript quality owner while keeping
   its own workflow and evidence gates active.

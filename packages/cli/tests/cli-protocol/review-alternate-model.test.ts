@@ -217,7 +217,7 @@ describe('alternate-model review route', () => {
     );
 
     // The reviewer refuses without a model, so no route completes — proving
-    // Safe Word never supplied a model of its own choosing.
+    // Safeword never supplied a model of its own choosing.
     const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
     expect(payload.data.independence).not.toBe('cross-agent');
     expect(payload.data).not.toHaveProperty('reviewer_model');

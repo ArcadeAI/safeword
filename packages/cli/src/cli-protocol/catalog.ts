@@ -41,7 +41,7 @@ export interface CommandDefinition {
       readonly flags: string;
       readonly description: string;
       readonly defaultValue?: string;
-      readonly valueKind?: 'claude-plugin-scope' | 'plan-identity';
+      readonly valueKind?: 'claude-plugin-scope' | 'execution-mode-list' | 'plan-identity';
       readonly compatibilityReplacement?: string;
       readonly hidden?: boolean;
     }[];
@@ -180,14 +180,27 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('plan', 'Preview reconciliation effects', 'plan', {
     syntax: 'plan [operation]',
-    commandOptions: [agentSelectionOption(), claudeScopeOption()],
+    commandOptions: [
+      agentSelectionOption(),
+      claudeScopeOption(),
+      { flags: '--no-modify', description: 'Do not plan an ESLint configuration edit' },
+      {
+        flags: '--migrate-namespace',
+        description: 'Plan moving the legacy project namespace to .project',
+      },
+      { flags: '--no-migrate-namespace', description: 'Keep the legacy project namespace' },
+      {
+        flags: '--repair-version-marker',
+        description: 'Plan replacement of an unreadable project version marker',
+      },
+    ],
   }),
   command('doctor', 'Diagnose project configuration', 'observe', {
     commandOptions: [agentSelectionOption()],
   }),
   command(
     'uninstall',
-    'Deactivate selected Safe Word project and agent state; preserve authored content; reinstall to recover',
+    'Deactivate selected Safeword project and agent state; preserve authored content; reinstall to recover',
     'destructive',
     {
       promptPolicy: 'confirm',
@@ -258,6 +271,30 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     ],
   }),
+  command('project test', 'Run repository test commands', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'test',
+    commandOptions: [
+      {
+        flags: '--lane <lane>',
+        description: 'done or full',
+        defaultValue: 'done',
+      },
+      {
+        flags: '--execution <mode>',
+        description: 'local or remote-preferred',
+        valueKind: 'execution-mode-list',
+      },
+    ],
+  }),
+  command(
+    'project test-execution status',
+    'Show the effective test execution preference',
+    'observe',
+    {
+      syntax: 'status',
+    },
+  ),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),
@@ -334,7 +371,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   ),
   command(
     'codex clean-guidance',
-    'Deactivate exact legacy Safe Word profile guidance, preserve unrelated content, and retain a recovery backup',
+    'Deactivate exact legacy Safeword profile guidance, preserve unrelated content, and retain a recovery backup',
     'destructive',
     {
       promptPolicy: 'confirm',
@@ -392,6 +429,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
     syntax: 'run <kind> <targets...>',
     commandOptions: [
+      {
+        flags: '--context <paths...>',
+        description: 'Bounded supporting evidence that is not work under review',
+      },
       {
         flags: '--agent-handoff',
         description: 'Treat action-required output as a successful author-agent handoff',
@@ -631,6 +672,11 @@ export const publicCommands = commandCatalog.filter(
 
 export const commandFamilies = [
   { route: 'project', description: 'Manage project-local Safeword state', visibility: 'public' },
+  {
+    route: 'project test-execution',
+    description: 'Manage test execution preferences',
+    visibility: 'public',
+  },
   {
     route: 'tracker',
     description: 'Manage tracker connections and synchronization',

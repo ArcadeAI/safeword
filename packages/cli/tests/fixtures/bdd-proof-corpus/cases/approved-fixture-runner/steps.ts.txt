@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { Then, When } from '@cucumber/cucumber';
+
+When('the step invokes the real CLI', function () {
+  if (process.env.BDD_CORPUS_DEFECT === '1') {
+    const execution = spawnSync(process.execPath, [process.env.BDD_CORPUS_CLI!, '--help'], {
+      encoding: 'utf8', env: process.env,
+    });
+    this.evidence = {
+      environment: 'ambient', evidenceClass: 'unclassified', requestedHostScope: 'all',
+      status: execution.status,
+    };
+    return;
+  }
+  this.evidencePromise = import(process.env.BDD_CORPUS_FIXTURE_RUNNER!).then(
+    ({ runApprovedCliFixture }) => runApprovedCliFixture(
+      process.env.BDD_CORPUS_CLI!,
+      'claude',
+      { ...process.env, SAFEWORD_UNRELATED_PLUGIN: 'codex' },
+    ),
+  );
+});
+Then('the result is sanitized runner-envelope evidence', async function () {
+  if (this.evidencePromise) this.evidence = await this.evidencePromise;
+  assert.equal(this.evidence.status, 0);
+  assert.deepEqual(this.evidence, {
+    environment: 'sanitized', requestedHostScope: 'claude', evidenceClass: 'fixture',
+    unrelatedPluginVisible: false, status: 0,
+  });
+});

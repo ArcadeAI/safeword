@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+When('I map a blocked review result', async function () {
+  const { combinedResultState, createResult } = await import(
+    process.env.BDD_CORPUS_RESULT_RUNTIME!
+  );
+  const blocked = createResult({ state: 'action_required' });
+  this.result = {
+    state: process.env.BDD_CORPUS_DEFECT === '1'
+      ? combinedResultState([])
+      : combinedResultState([blocked]),
+  };
+});
+Then('the contract state is {string}', function (state: string) {
+  assert.equal(this.result.state, state);
+});

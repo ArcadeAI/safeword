@@ -9,6 +9,7 @@ import type {
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
+import { isWouldChangeAction, type SelfHealAction } from '../utils/architecture-document.js';
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
@@ -74,6 +75,28 @@ function configCheckResult(inspection: ConfigInspection): CliResult {
       },
     ],
     data: { command: 'project sync-config', in_sync: false },
+  });
+}
+
+function completeConfigInspection(
+  generated: ConfigInspection,
+  mainConfigExists: boolean,
+): ConfigInspection {
+  return generated.matches && !mainConfigExists ? { matches: false, reason: 'missing' } : generated;
+}
+
+function syncedConfigResult(
+  inspection: ConfigInspection,
+  files: CliResult['effects']['files'],
+): CliResult {
+  let state: CliResult['state'] = files.length === 0 ? 'healthy' : 'changed';
+  if (!inspection.matches) state = 'action_required';
+  return createResult({
+    state,
+    changed: files.length > 0,
+    effects: { files },
+    findings: inspection.matches ? [] : configCheckResult(inspection).findings,
+    data: { command: 'project sync-config', in_sync: inspection.matches },
   });
 }
 
@@ -171,9 +194,15 @@ async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResu
     await import('../commands/sync-config.js');
   const architecture = buildArchitecture(invocation.cwd);
   const before = inspectConfig(invocation.cwd, architecture);
-  if (invocation.options.check === true) return configCheckResult(before);
+  const mainConfigExists = existsSync(nodePath.join(invocation.cwd, '.dependency-cruiser.cjs'));
+  const generatedConfigExists = existsSync(
+    nodePath.join(invocation.cwd, '.safeword/depcruise-config.cjs'),
+  );
+  if (invocation.options.check === true) {
+    return configCheckResult(completeConfigInspection(before, mainConfigExists));
+  }
 
-  if (before.matches && existsSync(nodePath.join(invocation.cwd, '.dependency-cruiser.cjs'))) {
+  if (before.matches && mainConfigExists) {
     return createResult({
       state: 'healthy',
       data: { command: 'project sync-config', in_sync: true },
@@ -185,18 +214,18 @@ async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResu
     ...(synced.generatedConfig
       ? [
           {
-            kind: before.matches ? 'update' : 'create',
+            kind: generatedConfigExists ? 'update' : 'create',
             target: '.safeword/depcruise-config.cjs',
           },
         ]
       : []),
     ...(synced.createdMainConfig ? [{ kind: 'create', target: '.dependency-cruiser.cjs' }] : []),
   ];
-  return createResult({
-    state: files.length === 0 ? 'healthy' : 'changed',
-    effects: { files },
-    data: { command: 'project sync-config', in_sync: true },
-  });
+  const after = completeConfigInspection(
+    inspectConfig(invocation.cwd, architecture),
+    mainConfigExists || synced.createdMainConfig,
+  );
+  return syncedConfigResult(after, files);
 }
 
 type ArchitectureAdvisory = {
@@ -205,7 +234,7 @@ type ArchitectureAdvisory = {
   readonly severity: 'info';
 };
 
-type HealedDocument = { readonly action: string; readonly path: string };
+type HealedDocument = { readonly action: SelfHealAction; readonly path: string };
 
 function architectureAdvisories(
   unreadableWorkspaces: readonly {
@@ -285,16 +314,15 @@ function architectureModeResult(input: {
   readonly messages: readonly ArchitectureModeMessage[];
   readonly errors: readonly string[];
 }): CliResult {
-  const changed = input.results.filter(result =>
-    ['created', 'healed', 'regenerated'].includes(result.action),
-  );
+  const changed = input.results.filter(result => isWouldChangeAction(result.action));
+  const mutated = changed.length > 0 || input.stagedPaths.length > 0;
   let state: CliResult['state'] = 'healthy';
   if (input.failed) state = 'failed';
-  else if (changed.length > 0) state = 'changed';
+  else if (mutated) state = 'changed';
 
   return createResult({
     state,
-    changed: changed.length > 0,
+    changed: mutated,
     effects: {
       files: [
         ...changed.map(result => ({
@@ -371,6 +399,12 @@ function architectureCliMode(options: Readonly<Record<string, unknown>>): Archit
   };
 }
 
+function architectureOptionsConflict(options: Readonly<Record<string, unknown>>): boolean {
+  const legacyCount = Number(options.stage === true) + Number(options.staged === true);
+  const canonicalSelected = options.fromIndex === true || options.stageOutput === true;
+  return legacyCount > 1 || (legacyCount > 0 && canonicalSelected);
+}
+
 function withArchitectureOptionCompatibility(
   result: CliResult,
   legacy: ArchitectureCliMode['legacy'],
@@ -392,13 +426,27 @@ function withArchitectureOptionCompatibility(
 }
 
 async function architectureHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { isWouldChangeAction, planSelfHealProject, selfHealProject } =
+  const { planSelfHealProject, selfHealProject } =
     await import('../utils/architecture-document.js');
   const { discoverUnreadableWorkspaces, extractMonorepoArchitectureSnapshot } =
     await import('../utils/architecture-monorepo.js');
   const { isArchitectureDocumentEnforcementEnabled } = await import('../utils/configured-paths.js');
 
   const enforcementEnabled = isArchitectureDocumentEnforcementEnabled(invocation.cwd);
+  if (architectureOptionsConflict(invocation.options)) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message:
+            'Choose either one legacy architecture option or the canonical --from-index/--stage-output options.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'project architecture' },
+    });
+  }
   const mode = architectureCliMode(invocation.options);
   if (mode.stageOutput && !mode.fromIndex) {
     return createResult({
@@ -414,7 +462,7 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
       data: { command: 'project architecture' },
     });
   }
-  if (!enforcementEnabled && (invocation.options.check || mode.stageOutput)) {
+  if (!enforcementEnabled) {
     return architectureEnforcementDisabledResult(
       architectureAdvisories(discoverUnreadableWorkspaces(invocation.cwd)),
     );
@@ -444,9 +492,6 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
     cwd: invocation.cwd,
     changed,
     advisories,
-    staged: [],
-    stageFailures: [],
-    stageRequested: false,
   });
 }
 
@@ -477,54 +522,21 @@ function architectureHealResult(input: {
   readonly cwd: string;
   readonly changed: readonly HealedDocument[];
   readonly advisories: readonly ArchitectureAdvisory[];
-  readonly staged: readonly { kind: string; target: string }[];
-  readonly stageFailures: readonly string[];
-  readonly stageRequested: boolean;
 }): CliResult {
-  const staleStaging = input.stageFailures.length > 0;
   const changedDocuments = input.changed.length > 0;
-  let state: CliResult['state'] = changedDocuments ? 'changed' : 'healthy';
-  if (staleStaging) state = 'action_required';
 
   return createResult({
-    state,
+    state: changedDocuments ? 'changed' : 'healthy',
     changed: changedDocuments,
     effects: {
-      files: [
-        ...input.changed.map(result => ({
-          kind: result.action === 'created' ? 'create' : 'update',
-          target: nodePath.relative(input.cwd, result.path),
-        })),
-        ...input.staged.map(effect => ({ ...effect, operation: 'stage' })),
-      ],
+      files: input.changed.map(result => ({
+        kind: result.action === 'created' ? 'create' : 'update',
+        target: nodePath.relative(input.cwd, result.path),
+      })),
     },
-    findings: [
-      ...healedDocumentFindings(input.cwd, input.changed),
-      ...input.advisories,
-      ...(staleStaging
-        ? [
-            {
-              code: 'ARCHITECTURE_STAGE_FAILED',
-              message: `Architecture documents were refreshed but could not be staged (${input.stageFailures.join(', ')}).`,
-              severity: 'warning' as const,
-            },
-          ]
-        : []),
-    ],
-    nextActions: staleStaging
-      ? [
-          {
-            command: 'safeword project architecture --from-index --stage-output',
-            mutates: true,
-            requiresHuman: false,
-          },
-        ]
-      : [],
+    findings: [...healedDocumentFindings(input.cwd, input.changed), ...input.advisories],
     data: {
       command: 'project architecture',
-      staged: input.stageRequested && !staleStaging,
-      staged_files: input.staged.map(effect => effect.target),
-      stage_failures: input.stageFailures,
       enforcement: true,
     },
   });
@@ -588,11 +600,11 @@ async function codifyHandler(invocation: CommandInvocation): Promise<CliResult> 
 
 async function testPlanHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeTestPlan } = await import('../commands/test-plan.js');
-  const result = await observeTestPlan(
-    invocation.cwd,
-    invocation.operands[0] as string | undefined,
-    invocation.options,
-  );
+  const rawKind = invocation.operands[0];
+  if (rawKind !== undefined && typeof rawKind !== 'string') {
+    return invalidOperand('project test-plan', 'test-plan kind must be text.');
+  }
+  const result = await observeTestPlan(invocation.cwd, rawKind, invocation.options);
   return withLegacyRawJsonGuidance(result, invocation.options, 'project test-plan');
 }
 
@@ -616,12 +628,35 @@ function withLegacyRawJsonGuidance(
   };
 }
 
+async function testExecutionStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeTestExecutionStatus } = await import('../commands/test-execution.js');
+  return observeTestExecutionStatus(invocation.cwd);
+}
+
+async function projectTestHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('project test');
+  const { runProjectTests } = await import('../commands/test-execution.js');
+  return runProjectTests(invocation.cwd, invocation.options, { json: invocation.json === true });
+}
+
 async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeGherkinLint } = await import('../commands/lint-gherkin.js');
-  return observeGherkinLint(
-    invocation.cwd,
-    (invocation.operands[0] as readonly string[] | undefined) ?? [],
-  );
+  const rawFiles = invocation.operands[0];
+  if (
+    rawFiles !== undefined &&
+    (!Array.isArray(rawFiles) || rawFiles.some(file => typeof file !== 'string'))
+  ) {
+    return invalidOperand('project lint-gherkin', 'lint-gherkin files must be text paths.');
+  }
+  return observeGherkinLint(invocation.cwd, (rawFiles as string[] | undefined) ?? []);
+}
+
+function invalidOperand(command: string, message: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ code: 'CLI_ARGUMENT_INVALID', message, retryable: false }],
+    data: { command },
+  });
 }
 
 async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -643,8 +678,41 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
   const targets = Array.isArray(rawTargets)
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
-  const { runReview } = await import('../review/coordinator.js');
-  return runReview({ cwd: invocation.cwd, kind: rawKind, targets, progress: invocation.progress });
+  const rawContext = invocation.options.context;
+  let context: string[] = [];
+  if (Array.isArray(rawContext)) {
+    context = rawContext.filter((target): target is string => typeof target === 'string');
+  } else if (typeof rawContext === 'string') {
+    context = [rawContext];
+  }
+  const [{ runReview }, { ReviewPacketError }] = await Promise.all([
+    import('../review/coordinator.js'),
+    import('../review/packet.js'),
+  ]);
+  try {
+    return await runReview({
+      cwd: invocation.cwd,
+      kind: rawKind,
+      targets,
+      context,
+      progress: invocation.progress,
+    });
+  } catch (error) {
+    if (!(error instanceof ReviewPacketError)) throw error;
+    return createResult({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_PACKET_INVALID', message: error.message, retryable: false }],
+      recovery: [
+        {
+          command: 'safeword review run <kind> <targets...>',
+          description:
+            'Correct the review target and context paths or reduce the packet, then run the review again.',
+          requiresHuman: true,
+        },
+      ],
+      data: { command: 'review run', status: 'blocked' },
+    });
+  }
 }
 
 async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -706,14 +774,14 @@ async function reviewPrPublicationHandler(
   invocation: CommandInvocation,
 ): Promise<CliResult> {
   if (invocation.offline) return onlineRequired(`review-pr ${stage}`);
+  const resultPath = invocation.operands[0];
+  if (stage === 'publish' && typeof resultPath !== 'string') {
+    return invalidOperand('review-pr publish', 'review-pr publish requires a result path.');
+  }
   try {
     const { createGitHubReviewBoundary, invalidatePullRequestCommand, publishPullRequestCommand } =
       await import('../commands/review-pr-publication.js');
     const github = createGitHubReviewBoundary();
-    const resultPath = invocation.operands[0];
-    if (stage === 'publish' && typeof resultPath !== 'string') {
-      throw new Error('review-pr publish requires a result path');
-    }
     const outcome =
       stage === 'publish' && typeof resultPath === 'string'
         ? await publishPullRequestCommand(github, resultPath)
@@ -726,13 +794,13 @@ async function reviewPrPublicationHandler(
       },
       data: { command: `review-pr ${stage}`, outcome },
     });
-  } catch {
+  } catch (error: unknown) {
     return createResult({
       state: 'failed',
       errors: [
         {
           code: 'PR_REVIEW_PUBLICATION_FAILED',
-          message: `Pull-request ${stage} failed without changing merge eligibility.`,
+          message: `Pull-request ${stage} failed: ${error instanceof Error ? error.message : String(error)}`,
           retryable: false,
         },
       ],
@@ -793,7 +861,7 @@ function cleanGuidanceRefusal(cleanup: LegacyGlobalGuidanceCleanupResult): CliRe
     UNSAFE_GUIDANCE: 'The active profile guidance is not an exact registered revision.',
     BACKUP_OCCUPIED: `Cleanup refused because ${cleanup.backupPath} already exists.`,
     SOURCE_CHANGED_DURING_MOVE:
-      'The guidance changed during cleanup. Safe Word preserved the moved artifact and refused cleanup.',
+      'The guidance changed during cleanup. Safeword preserved the moved artifact and refused cleanup.',
   } as const;
   return createResult({
     state: 'action_required',
@@ -802,7 +870,7 @@ function cleanGuidanceRefusal(cleanup: LegacyGlobalGuidanceCleanupResult): CliRe
         code: cleanup.code ?? 'CODEX_GUIDANCE_CLEANUP_REFUSED',
         message:
           cleanup.code === undefined
-            ? 'Safe Word could not safely clean the profile guidance.'
+            ? 'Safeword could not safely clean the profile guidance.'
             : messages[cleanup.code],
         severity: 'warning',
       },
@@ -1047,10 +1115,18 @@ async function runCodexFinalization(
     nodePath.join(invocation.cwd, effect.target),
   );
   const before = paths.map(path => ({ path, snapshot: observeFile(path) }));
-  const changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
-    yes: true,
-    report: false,
-  });
+  let changed: boolean;
+  try {
+    changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
+      yes: true,
+      report: false,
+    });
+  } catch (finalizationError) {
+    const fileEffects = before.flatMap(snapshot =>
+      observedFileEffect(invocation.cwd, snapshot.path, snapshot.snapshot),
+    );
+    return codexFailure(finalizationError, 'codex migrate', true, fileEffects);
+  }
   const observed = migration.observeCodexMigration(invocation.cwd);
   return {
     ...observed,
@@ -1130,7 +1206,7 @@ function codexFailureCode(
   const specific = (
     [
       [/Plugin installation succeeded, but enablement is unknown/iu, 'PLUGIN_ENABLEMENT_UNKNOWN'],
-      [/did not report the Safe Word plugin as enabled/iu, 'PLUGIN_ENABLEMENT_FAILED'],
+      [/did not report the Safeword plugin as enabled/iu, 'PLUGIN_ENABLEMENT_FAILED'],
       [/marketplace unavailable/iu, 'PLUGIN_MARKETPLACE_FAILED'],
       [/ambiguous|cannot safely identify/iu, 'AMBIGUOUS_LEGACY_CONFIG'],
       [
@@ -1226,7 +1302,7 @@ function codexFailure(
     });
   }
   const partialInstall =
-    /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(
+    /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(
       message,
     );
   const partialMarketplace = error instanceof CodexMigrationError && error.profileChanged;
@@ -1287,7 +1363,7 @@ function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
       {
         code: 'PLUGIN_UPDATE_REQUIRED',
         message:
-          'Finalization requires the packaged Safe Word plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.',
+          'Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.',
         retryable: true,
       },
     ],
@@ -1351,7 +1427,7 @@ async function codexMutationPreflight(
   return undefined;
 }
 
-async function codexMutationHandler(
+async function codexMutationHandlerCore(
   name: CodexMutationName,
   invocation: CommandInvocation,
 ): Promise<CliResult> {
@@ -1371,6 +1447,30 @@ async function codexMutationHandler(
   } catch (codexError) {
     return codexFailure(codexError, name, isFinalization);
   }
+}
+
+async function codexMutationHandler(
+  name: CodexMutationName,
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const result = await codexMutationHandlerCore(name, invocation);
+  if (name !== 'codex migrate' || invocation.options.removeLegacyHooks !== true) return result;
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: 'CLI_OPTION_DEPRECATED',
+        message: '--remove-legacy-hooks is deprecated; use --finalize.',
+        severity: 'warning',
+        metadata: {
+          legacy: '--remove-legacy-hooks',
+          replacement: '--finalize',
+          retention: 'indefinite',
+        },
+      },
+    ],
+  };
 }
 
 async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -1570,13 +1670,13 @@ function relayRetryResult(
 
 async function retroRelayRetryHandler(invocation: CommandInvocation): Promise<CliResult> {
   const requestId = invocation.operands[0];
-  if (requestId !== undefined && typeof requestId !== 'string') {
+  if (requestId !== undefined && (typeof requestId !== 'string' || !isRelayRequestId(requestId))) {
     return createResult({
       state: 'failed',
       errors: [
         {
           code: 'CLI_ARGUMENT_INVALID',
-          message: 'retro-relay-retry request identity must be text.',
+          message: 'retro-relay-retry request identity must be a lowercase UUIDv4.',
           retryable: false,
         },
       ],
@@ -1607,13 +1707,13 @@ async function retroRelayRetryHandler(invocation: CommandInvocation): Promise<Cl
 
 async function retroRelayDiscardHandler(invocation: CommandInvocation): Promise<CliResult> {
   const requestId = invocation.operands[0];
-  if (typeof requestId !== 'string') {
+  if (typeof requestId !== 'string' || !isRelayRequestId(requestId)) {
     return createResult({
       state: 'failed',
       errors: [
         {
           code: 'CLI_ARGUMENT_INVALID',
-          message: 'retro-relay-discard requires one request identity.',
+          message: 'retro-relay-discard requires one lowercase UUIDv4 request identity.',
           retryable: false,
         },
       ],
@@ -1675,6 +1775,10 @@ async function retroRelayDiscardHandler(invocation: CommandInvocation): Promise<
   });
 }
 
+function isRelayRequestId(value: string): boolean {
+  return /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u.test(value);
+}
+
 function retroOptions(invocation: CommandInvocation, transcript: string): RetroCliOptions {
   const findings = stringOption(invocation.options, 'findings');
   return {
@@ -1709,21 +1813,35 @@ function retroNetworkEffects(execution: RetroCommandExecution): CliResult['effec
   return [{ kind: 'retro-triage', target: 'GitHub', operation: 'read-write' }];
 }
 
+function retroRunFailureMessage(execution: RetroCommandExecution): string | undefined {
+  if (execution.outcome.ok) {
+    return execution.extractionSucceeded ? undefined : 'Retro extraction failed.';
+  }
+  return execution.outcome.errorMessage ?? 'Retro execution failed.';
+}
+
+function retroRunState(failureMessage: string | undefined, changed: boolean): CliResult['state'] {
+  if (failureMessage !== undefined) return 'failed';
+  return changed ? 'changed' : 'healthy';
+}
+
 function retroRunResult(
   execution: RetroCommandExecution,
   fileEffects: CliResult['effects']['files'],
 ): CliResult {
-  if (!execution.outcome.ok) {
-    return retroFailure(execution.outcome.errorMessage ?? 'Retro execution failed.');
-  }
-  if (!execution.extractionSucceeded) return retroFailure('Retro extraction failed.');
   const result = execution.outcome.result;
   const changed = retroMutationCount(execution) > 0 || fileEffects.length > 0;
+  const failureMessage = retroRunFailureMessage(execution);
+  const errors: CliResult['errors'][number][] = [];
+  if (failureMessage !== undefined) {
+    errors.push({ code: 'RETRO_COMMAND_FAILED', message: failureMessage, retryable: true });
+  }
   return createResult({
-    state: changed ? 'changed' : 'healthy',
+    state: retroRunState(failureMessage, changed),
     changed,
     effects: { files: fileEffects, network: retroNetworkEffects(execution) },
     findings: retroDropFindings(execution),
+    errors,
     data: {
       command: 'retro run',
       result,
@@ -1787,7 +1905,12 @@ async function retroRunHandler(invocation: CommandInvocation): Promise<CliResult
   const spoolBefore = observeFile(spoolPath);
   const { executeRetroCommand } = await import('../commands/retro.js');
   invocation.progress?.start('Extracting and filing retro findings…');
-  const execution = await executeRetroCommand(options, invocation.cwd);
+  let execution;
+  try {
+    execution = await executeRetroCommand(options, invocation.cwd);
+  } catch (error: unknown) {
+    return retroFailure(error instanceof Error ? error.message : String(error));
+  }
   return retroRunResult(execution, observedFileEffect(invocation.cwd, spoolPath, spoolBefore));
 }
 
@@ -1831,6 +1954,8 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project sync-tickets': syncTicketsHandler,
   'project codify': codifyHandler,
   'project test-plan': testPlanHandler,
+  'project test': projectTestHandler,
+  'project test-execution status': testExecutionStatusHandler,
   'project lint-gherkin': lintGherkinHandler,
   'tracker sync': invocation => trackerHandler('tracker sync', invocation),
   'tracker connect': invocation => trackerHandler('tracker connect', invocation),
@@ -1877,6 +2002,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
 };
 
 export function publicHandler(name: string): CommandHandler {
+  if (!Object.hasOwn(HANDLERS, name)) {
+    throw new Error(`No typed public handler registered for ${name}`);
+  }
   const handler = HANDLERS[name];
   if (handler === undefined) throw new Error(`No typed public handler registered for ${name}`);
   return handler;

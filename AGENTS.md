@@ -8,7 +8,7 @@ A CLI tool that installs AI coding agent configurations into projects. **This re
 
 2. **Reconciliation Over Copy**: The CLI computes diffs between installed and template versions, enabling clean upgrades without clobbering user changes.
 
-3. **Agent Parity**: Claude Code, Cursor, and Codex expose the same Safe Word workflows through host-native skills, commands/rules, and hooks. Schema, catalogue, and parity tests enforce the shared contract.
+3. **Agent Parity**: Claude Code, Cursor, and Codex expose the same Safeword workflows through host-native skills, commands/rules, and hooks. Schema, catalogue, and parity tests enforce the shared contract.
 
 4. **Dogfooding**: This repo runs safeword on itself. Template changes are tested in real usage before release.
 
@@ -76,7 +76,7 @@ Claude Code has three mechanisms for controlling agent behavior. Understanding t
 
 **Hooks** execute commands at lifecycle events (PreToolUse, PostToolUse, Stop, and others). They provide deterministic enforcement where the host event is blockable:
 
-- Exit code 2 blocks blockable events such as PreToolUse and Stop; post-event hooks can only report because the action already happened
+- Exit code 2 blocks blockable events such as PreToolUse and Stop; PostToolUse (and other after-the-fact events) can only report, since the action already happened — not every event supports blocking, so check the current hooks reference for a given event before relying on it to stop something
 - Run at app level, not relying on Claude to decide
 - Use structured output when the host needs a typed allow/deny/context decision
 
@@ -118,7 +118,7 @@ See `ARCHITECTURE.md` for full structure including all packages and templates.
 
 **Location**: `<namespace-root>/`
 
-Use for project-owned tickets, learnings, and supporting product context. Install and uninstall preserve authored ticket/learning content; generated indexes and transient Safe Word state may be reconciled by the CLI.
+Use for project-owned tickets, learnings, and supporting product context. Install and uninstall preserve authored ticket/learning content; generated indexes and transient Safeword state may be reconciled by the CLI.
 
 **Read the matching guide when ANY trigger fires:**
 

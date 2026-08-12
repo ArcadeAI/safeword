@@ -1,7 +1,8 @@
 ---
 name: finish-review
-description: Use when the shared review coordinator returns typed route
-  exhaustion; bounded internal fallback, not a user workflow.
+description: Use only right after the shared review coordinator reports it's run
+  out of reviewer routes; a bounded internal fallback, not something a user
+  invokes directly.
 ---
 
 # Finish Review After Route Exhaustion

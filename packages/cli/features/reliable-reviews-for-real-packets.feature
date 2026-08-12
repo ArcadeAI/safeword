@@ -21,6 +21,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Given a review packet larger than the accepted maximum
       When the independent review runs
       Then no reviewer is asked to review it
+      And the command rejects the packet through a typed result
 
   @reliable-reviews-for-real-packets.TBU1.R2 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU1.R2 — A reviewer that never finishes is still stopped at its deadline and reported as a timeout
@@ -55,7 +56,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the assigned reviewer route is reported as timed out
 
   @reliable-reviews-for-real-packets.TBU1.R4 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safe Word stops it and the descendants its platform lets it reach, never waits on what the system will not kill, never claims to have stopped what escaped, and never uses a late answer
+  Rule: reliable-reviews-for-real-packets.TBU1.R4 — However a reviewer ends, Safeword stops it and the descendants its platform lets it reach, never waits on what the system will not kill, never claims to have stopped what escaped, and never uses a late answer
 
     Scenario: Cleanup reaches every descendant the platform groups with the reviewer
       Given a reviewer that never answers and leaves a grandchild grouped with it
@@ -76,6 +77,12 @@ Feature: Keep independent reviews reliable for real ticket packets
       When the independent review runs
       Then the review returns the Codex reviewer's verdict
 
+    Scenario: Supporting evidence stays separate from the work being reviewed
+      Given a review target with supporting context
+      And an installed Codex reviewer that answers in the review result contract
+      When the independent review runs
+      Then the reviewer receives the target as work and the evidence as context
+
     @rejection
     Scenario: A reviewer that cannot be given the contract is not asked to review
       Given the review result contract cannot be written
@@ -92,10 +99,19 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the review returns the second executable's verdict
 
     @rejection
-    Scenario: No reviewer executable supporting typed output means no reviewer is available
-      Given every installed reviewer executable cannot produce typed output
+    Scenario: An installed incompatible reviewer explains how to recover
+      Given an installed reviewer that cannot honor the review contract
       When the independent review runs
-      Then the review reports that no compatible reviewer is installed
+      Then the review is blocked because the installed reviewer is unsupported
+      And the recovery tells the builder to update the reviewer
+      And the incompatible reviewer is not asked to review
+
+    @rejection
+    Scenario: A missing reviewer explains how to recover
+      Given no reviewer executable is installed
+      When the independent review runs
+      Then the review is blocked because the reviewer is not installed
+      And the recovery tells the builder to install or update the reviewer
 
   @reliable-reviews-for-real-packets.TBU2.R3 @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.TBU2.R3 — A result that violates the contract is still rejected, whatever produced it
@@ -116,10 +132,12 @@ Feature: Keep independent reviews reliable for real ticket packets
 
     Scenario: An exhausted reviewer agent is retried on its alternate model
       Given a configured alternate model for the reviewer agent
+      And a review target with supporting context
       And the reviewer agent's default model never answers
       And the reviewer agent's alternate model answers promptly
       When the independent review runs
       Then the review returns the alternate model's verdict
+      And the alternate model receives the same target and context roles
 
     @rejection
     Scenario: An alternate model that fails promptly falls back to the author's own runtime
@@ -128,9 +146,10 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the author's own runtime answers promptly
       When the independent review runs
       Then the review reports that the check was not independent
+      And both reviewer models were attempted before the author runtime completed
 
   @reliable-reviews-for-real-packets.TBU3.R2 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R2 — A review completed by the reviewer agent on its alternate model is still a full cross-agent check, and Safe Word's own review result names the model that reviewed
+  Rule: reliable-reviews-for-real-packets.TBU3.R2 — A review completed by the reviewer agent on its alternate model is still a full cross-agent check, and Safeword's own review result names the model that reviewed
 
     Scenario: An alternate-model review still counts as a full independent check
       Given the reviewer agent's alternate model completed the review
@@ -145,7 +164,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the result does not report a full cross-agent check
 
   @reliable-reviews-for-real-packets.TBU3.R3 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.TBU3.R3 — With no alternate model configured, routing is exactly what it is today, and Safe Word never supplies a model name of its own
+  Rule: reliable-reviews-for-real-packets.TBU3.R3 — With no alternate model configured, routing is exactly what it is today, and Safeword never supplies a model name of its own
 
     Scenario: A model value within the grammar is used as configured
       Given a configured alternate model within the accepted grammar
@@ -196,11 +215,17 @@ Feature: Keep independent reviews reliable for real ticket packets
   @reliable-reviews-for-real-packets.TBU3.R6 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.TBU3.R6 — The public review command carries all of this end to end, and the required-review policy decides on what it reports
 
-    Scenario: The public review command completes through the alternate-model route
-      Given a Claude-authored change and a configured alternate model for the reviewer agent
-      And the reviewer agent's default model never answers
+    Scenario Outline: The public review command completes through either agent's configured model tier
+      Given a <author>-authored change with <reviewer> alternate model "<model>"
       When a builder runs the public review command
-      Then the command reports a full cross-agent check by Codex
+      Then the command reports a full cross-agent check by <reviewer> using "<model>"
+
+      Examples:
+        | author | reviewer | model                |
+        | Claude | Codex    | codex-small-review   |
+        | Claude | Codex    | codex-large-review   |
+        | Codex  | Claude   | claude-small-review  |
+        | Codex  | Claude   | claude-large-review  |
 
     @rejection
     Scenario: A required review refuses an author-runtime result
@@ -230,7 +255,7 @@ Feature: Keep independent reviews reliable for real ticket packets
   @reliable-reviews-for-real-packets.NTB1.R2 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.NTB1.R2 — An explanation never carries raw reviewer output, diagnostic noise, or credentials
 
-    Scenario: An explanation is built only from Safe Word's own failure classification
+    Scenario: An explanation is built only from Safeword's own failure classification
       Given a reviewer that fails while emitting a credential
       When the exhausted-route result is reported
       Then the explanation names only the route and its classified cause

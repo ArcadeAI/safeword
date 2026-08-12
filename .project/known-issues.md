@@ -16,6 +16,18 @@ Systemic issues with the hook system, Claude Code bugs, and gaps in enforcement.
 
 ---
 
+## Upstream Codex Bugs (out of our control)
+
+Our Codex hooks ship as a plugin: `.codex-plugin/plugin.json` declares `"hooks": "./hooks.json"` at the plugin root, and that `hooks.json` registers SessionStart, PreToolUse, PostToolUse, UserPromptSubmit, and Stop. Three open upstream issues describe Codex failing to fire hooks in ways that could touch this path:
+
+**openai/codex#16430 (open, unconfirmed):** Claims the plugin manifest parser doesn't recognize a `hooks` key at all — only `~/.codex/hooks.json` (global, not plugin-scoped) actually runs, per source lines the reporter cites in `codex-rs/core/src/plugins/manifest.rs` and `codex-rs/hooks/src/engine/discovery.rs`. **Contradicted by our own evidence:** ARCHITECTURE.md's Codex plugin decisions record live rc.1 verification of profile-local SessionStart proof bound to the exact hook-manifest digest — that proof can only exist if our plugin-declared SessionStart hook actually ran. Likely doesn't reproduce against the Codex version/install path we target, but worth a quick recheck if a future Codex upgrade makes `safeword codex status` stop reporting fresh SessionStart proof.
+
+**openai/codex#17532 (open, unconfirmed):** `codex_hooks` configured via repo-local `.codex/config.toml` (a `hooks = "<path>"` key, separate from the plugin system) don't fire in interactive sessions. Doesn't apply to us — our installed `.codex/config.toml` carries no `hooks` key; hooks come from the plugin only.
+
+**openai/codex#35306 (open, unconfirmed):** No trust prompt is shown for project-level hooks, so they're silently skipped until a user explicitly reviews them. This matches behavior we already document and design around: README's Codex section notes "Codex visibly skips unreviewed or changed plugin hooks and directs the builder to `/hooks`," and `safeword codex status` exists partly to surface exactly this gap.
+
+---
+
 ## Our System Gaps
 
 **Done-phase Goodhart's Law:** Evidence patterns (`✓ X/X tests pass`, `Audit passed`) match anywhere in Claude's last message text — including prose Claude writes without running the tools. Tracked in 049c (scope to Bash output) and 049d (hook runs tests directly).
@@ -28,7 +40,7 @@ Systemic issues with the hook system, Claude Code bugs, and gaps in enforcement.
 
 ## Research Findings
 
-See `.safeword-project/guides/stop-hook-research.md` for full analysis, including:
+See `.project/guides/stop-hook-research.md` for full analysis, including:
 
 - What the research says about intrinsic self-review vs. external feedback
 - The Goodhart's Law problem with evidence pattern matching

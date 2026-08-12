@@ -1,9 +1,10 @@
 # Behavior source for E32M4P (#772). The executable backing is Vitest hook
 # coverage: unit tests over the pure transition-detection/append helpers, plus
-# integration tests spawning the Bun hook script against temp projects.
+# integration tests in packages/cli/tests/hooks/phase-provenance.test.ts spawning
+# the Bun hook script against temp projects.
 # Cucumber step definitions would duplicate that harness without adding
-# confidence, so the feature is @wip like its siblings.
-@wip
+# confidence, so the feature is @proof.vitest.
+@proof.vitest
 Feature: Phase transitions stamp the ticket work log with real time
 
   The bdd phase files used to end with "add a work-log entry" templates whose

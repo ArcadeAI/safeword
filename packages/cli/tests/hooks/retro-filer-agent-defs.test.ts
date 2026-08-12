@@ -60,6 +60,29 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
     expect(text).toContain('drain-retro-spool.ts');
   });
 
+  it.each([
+    ['Claude agent', mdText],
+    ['Claude fallback skill', claudeSkillText],
+    ['Codex plugin skill', codexSkillText],
+    ['filing guide', guideText],
+  ])('%s skips tracker writes for an already-acked draft', (_label, text) => {
+    expect(text.toLowerCase()).toMatch(/acked[\s\S]*skip every tracker write/);
+    expect(text.toLowerCase()).toMatch(/acked[\s\S]*verified draining/);
+  });
+
+  it.each([
+    ['Claude agent', mdText],
+    ['Claude fallback skill', claudeSkillText],
+    ['Codex plugin skill', codexSkillText],
+    ['filing guide', guideText],
+  ])('%s requires code-owned validation before tracker egress', (_label, text) => {
+    expect(text).toContain('drain-retro-spool.ts');
+    expect(text).toContain('--validated-jsonl');
+    expect(text.toLowerCase()).toMatch(
+      /nonzero[\s\S]*no\s+(search, comment, or create|tracker call)/,
+    );
+  });
+
   it('the dispatch text states that only the filer drains the spool', async () => {
     const { formatFilingDispatch } = await import('../../templates/hooks/lib/retro-filing-gate.js');
     expect(formatFilingDispatch(1, '/p/s.jsonl').toLowerCase()).toContain(
@@ -137,7 +160,7 @@ describe('canonical spool dedupe contract (#1031)', () => {
         name: 'safeword-retro-filer',
         alwaysApply: false,
         description:
-          "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+          "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation or authenticated closeout cleanup guard output names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
         referencePath: '.safeword/skills/retro-filer/SKILL.md',
         skill: 'retro-filer',
       },
@@ -147,7 +170,7 @@ describe('canonical spool dedupe contract (#1031)', () => {
       name: 'safeword-retro-filer',
       alwaysApply: false,
       description:
-        "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+        "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation or authenticated closeout cleanup guard output names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
       referencePath: '.safeword/skills/retro-filer/SKILL.md',
       skill: 'retro-filer',
     });

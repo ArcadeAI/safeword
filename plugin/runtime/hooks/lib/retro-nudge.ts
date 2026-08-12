@@ -69,7 +69,7 @@ export function formatRetroNudge(count: number, spoolPath: string): string {
     `this boundary observed them queued for the safeword-retro-filer subagent (or the live ` +
     `agent's GitHub access). This handoff uses safeword's normal recovery lane for unfiled drafts; ` +
     `the filing path re-reads the spool before reporting what remains. ` +
-    `The filing procedure is in "${CLAUDE_PLUGIN_ROOT}"/resources/guides/self-report-filing.md.`
+    `The filing procedure is in "\${CLAUDE_PLUGIN_ROOT}"/resources/guides/self-report-filing.md.`
   );
 }
 

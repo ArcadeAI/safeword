@@ -16,7 +16,7 @@ import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';
-import { readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
+import { readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
 import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
@@ -28,11 +28,13 @@ export interface PullRequestIdentity {
   headRepository: string;
   headRefName: string;
   headRefOid: string;
+  ciChecks: 'passed' | 'failed' | 'pending' | 'absent' | 'unknown';
 }
 
 export interface RemoteIdentity {
   name: string;
   url: string;
+  pushUrl: string;
   oid: string;
 }
 
@@ -60,19 +62,28 @@ export interface CloseoutObservation {
     bound: boolean;
     complete: boolean;
     pendingDrafts: number;
+    evidenceHash: string;
     failure?: 'extraction' | 'filing' | 'unknown';
   };
 }
 
 export type CleanupOperation =
   | { kind: 'remove-worktree'; cwd: string; path: string; oid: string }
-  | { kind: 'delete-remote-ref'; cwd: string; remote: string; ref: string; oid: string }
+  | {
+      kind: 'delete-remote-ref';
+      cwd: string;
+      remote: string;
+      pushUrl: string;
+      ref: string;
+      oid: string;
+    }
   | { kind: 'delete-local-ref'; cwd: string; ref: string; oid: string };
 
 export interface CleanupPlan {
   version: 1;
   identity?: PullRequestIdentity;
   stateHash: string;
+  retroStateHash: string;
   blockers: string[];
   completed: string[];
   operations: CleanupOperation[];
@@ -137,7 +148,10 @@ function collectRefBlockers(
     block(plan, 'the local branch no longer matches the pull request head');
   }
   if (observation.remote) {
-    if (normalizedRepository(observation.remote.url) !== expectedRepository) {
+    if (
+      normalizedRepository(observation.remote.url) !== expectedRepository ||
+      normalizedRepository(observation.remote.pushUrl) !== expectedRepository
+    ) {
       block(plan, 'the pull request head repository does not match the selected git remote');
     }
     if (observation.remote.oid !== pullRequest.headRefOid) {
@@ -192,6 +206,7 @@ function assembleOperations(
       kind: 'delete-remote-ref',
       cwd: survivingWorktree.path,
       remote: observation.remote.name,
+      pushUrl: observation.remote.pushUrl,
       ref: `refs/heads/${pullRequest.headRefName}`,
       oid: pullRequest.headRefOid,
     });
@@ -214,6 +229,7 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
   const plan: CleanupPlan = {
     version: 1,
     stateHash: observation.verification.stateHash,
+    retroStateHash: observation.retro.evidenceHash,
     blockers: [],
     completed: [],
     operations: [],
@@ -265,7 +281,7 @@ export function operationCommand(operation: CleanupOperation): string[] {
         operation.cwd,
         'push',
         `--force-with-lease=${operation.ref}:${operation.oid}`,
-        operation.remote,
+        operation.pushUrl,
         `:${operation.ref}`,
       ];
     case 'delete-local-ref':
@@ -319,9 +335,14 @@ function operationTargetMatches(
     );
   }
   if (operation.kind === 'delete-remote-ref') {
+    const expectedRepository = `${identity.headOwner}/${identity.headRepository}`.toLowerCase();
     return (
+      observation.protection === 'unprotected' &&
       observation.remoteResolution === 'matched' &&
       observation.remote?.name === operation.remote &&
+      normalizedRepository(observation.remote.url) === expectedRepository &&
+      normalizedRepository(observation.remote.pushUrl) === expectedRepository &&
+      observation.remote.pushUrl === operation.pushUrl &&
       observation.remote.oid === operation.oid &&
       operation.ref === `refs/heads/${identity.headRefName}`
     );
@@ -331,6 +352,19 @@ function operationTargetMatches(
     operation.ref === `refs/heads/${identity.headRefName}` &&
     !observation.worktrees.some(worktree => worktree.branch === identity.headRefName)
   );
+}
+
+function operationTargetAbsent(
+  operation: CleanupOperation,
+  observation: CloseoutObservation,
+): boolean {
+  if (operation.kind === 'remove-worktree') {
+    return !observation.worktrees.some(worktree => worktree.path === operation.path);
+  }
+  if (operation.kind === 'delete-remote-ref') {
+    return observation.remoteResolution === 'absent' && observation.remote === undefined;
+  }
+  return observation.localRefOid === undefined;
 }
 
 export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlanResult {
@@ -358,6 +392,8 @@ export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlan
       !expected ||
       actual?.state !== 'MERGED' ||
       actual.url !== expected.url ||
+      actual.headOwner !== expected.headOwner ||
+      actual.headRepository !== expected.headRepository ||
       actual.headRefName !== expected.headRefName ||
       actual.headRefOid !== expected.headRefOid
     ) {
@@ -372,11 +408,18 @@ export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlan
     }
     try {
       input.execute(operation);
-      completed.push(operation.kind);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return blockedApply(input.plan, [`${operation.kind} failed: ${message}`], completed);
     }
+    if (!operationTargetAbsent(operation, input.observe())) {
+      return blockedApply(
+        input.plan,
+        [`${operation.kind} did not remove the exact target`],
+        completed,
+      );
+    }
+    completed.push(operation.kind);
   }
 
   return { applied: true, blockers: [], completed, remaining: [] };
@@ -413,6 +456,20 @@ export function executeCleanupOperation(
   operation: CleanupOperation,
   runner: ProcessRunner = run,
 ): ProcessResult {
+  if (operation.kind === 'remove-worktree') {
+    const head = runner('git', ['-C', operation.path, 'rev-parse', 'HEAD'], operation.cwd);
+    if (head.status !== 0 || head.stdout.trim() !== operation.oid) {
+      return { status: 1, stdout: '', stderr: 'worktree HEAD changed before removal' };
+    }
+    const status = runner(
+      'git',
+      ['-C', operation.path, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
+      operation.cwd,
+    );
+    if (status.status !== 0 || status.stdout !== '') {
+      return { status: 1, stdout: '', stderr: 'worktree became dirty before removal' };
+    }
+  }
   const [command, ...arguments_] = operationCommand(operation);
   if (!command) return { status: 1, stdout: '', stderr: 'cleanup command is empty' };
   return runner(command, arguments_, operation.cwd);
@@ -552,6 +609,7 @@ function resolveTranscript(binding: CloseoutBinding, root: string): string | und
 interface RetroFailureInput {
   complete: boolean;
   errorText: string;
+  processStatus: number;
   agentFilingNeeded: boolean | undefined;
   pendingDrafts: number;
 }
@@ -562,6 +620,7 @@ export function classifyRetroFailure(
   if (input.complete) return undefined;
   if (/extract/iu.test(input.errorText)) return 'extraction';
   if (input.agentFilingNeeded === true || input.pendingDrafts > 0) return 'filing';
+  if (input.processStatus !== 0) return 'extraction';
   return 'unknown';
 }
 
@@ -571,7 +630,9 @@ export function runBoundRetro(
   runner: SafewordRunner = runSafeword,
 ): CloseoutObservation['retro'] {
   const transcript = resolveTranscript(binding, root);
-  if (!transcript) return { bound: false, complete: false, pendingDrafts: 0 };
+  if (!transcript) return { bound: false, complete: false, pendingDrafts: 0, evidenceHash: '' };
+  const cached = readRetroReceipt(root, binding, transcript);
+  if (cached) return retroObservationFromReceipt(root, binding.id, cached);
   const retro = runner(
     root,
     [
@@ -591,23 +652,41 @@ export function runBoundRetro(
     data?: { agent_filing_needed?: boolean };
     errors?: { message?: string }[];
   }>(retro);
-  const pendingDrafts = readSpooledDrafts(root, binding.id).length;
-  const complete =
+  const pendingDraftRecords = readSpooledDrafts(root, binding.id);
+  const pendingDrafts = pendingDraftRecords.length;
+  const agentFilingNeeded = result?.data?.agent_filing_needed;
+  const successful =
     retro.status === 0 &&
     (result?.state === 'healthy' || result?.state === 'changed') &&
-    result.data?.agent_filing_needed === false &&
-    pendingDrafts === 0;
-  const errorText = result?.errors?.map(error => error.message ?? '').join('\n') ?? '';
+    typeof agentFilingNeeded === 'boolean';
+  const complete = successful && agentFilingNeeded === false && pendingDrafts === 0;
+  const errorText = [result?.errors?.map(error => error.message ?? '').join('\n'), retro.stderr]
+    .filter(Boolean)
+    .join('\n');
   const failure = classifyRetroFailure({
     complete,
     errorText,
+    processStatus: retro.status,
     agentFilingNeeded: result?.data?.agent_filing_needed,
     pendingDrafts,
   });
+  if (successful && (!agentFilingNeeded || pendingDrafts > 0)) {
+    writeRetroReceipt(root, {
+      runtime: binding.runtime,
+      id: binding.id,
+      projectRoot: realpathSync(binding.projectRoot),
+      snapshot: transcriptSnapshot(transcript),
+      agentFilingNeeded,
+      pendingDrafts,
+      pendingDraftSignatures: pendingDraftRecords.map(draft => draft.signature),
+      recordedAt: new Date().toISOString(),
+    });
+  }
   return {
     bound: true,
     complete,
     pendingDrafts,
+    evidenceHash: transcriptSnapshot(transcript).digest,
     failure,
   };
 }
@@ -625,18 +704,152 @@ interface VerificationReceipt {
   recordedAt: string;
 }
 
+interface TranscriptSnapshot {
+  path: string;
+  byteLength: number;
+  digest: string;
+}
+
+interface RetroReceipt {
+  version: 1;
+  runtime: CloseoutBinding['runtime'];
+  id: string;
+  projectRoot: string;
+  snapshot: TranscriptSnapshot;
+  agentFilingNeeded: boolean;
+  pendingDrafts: number;
+  pendingDraftSignatures: string[];
+  recordedAt: string;
+}
+
 const VERIFICATION_RECEIPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 function cleanWorkingStateHash(headOid: string): string {
   return createHash('sha256').update(`${headOid}\0`).digest('hex');
 }
 
-function verificationReceiptPath(root: string): string | undefined {
+function closeoutReceiptPath(root: string, filename: string): string | undefined {
   const commonDirectory = git(root, 'rev-parse', '--git-common-dir');
   const path = commonDirectory.stdout.trim();
   return commonDirectory.status === 0 && path !== ''
-    ? nodePath.join(nodePath.resolve(root, path), 'safeword', 'closeout-verification.json')
+    ? nodePath.join(nodePath.resolve(root, path), 'safeword', filename)
     : undefined;
+}
+
+function verificationReceiptPath(root: string): string | undefined {
+  return closeoutReceiptPath(root, 'closeout-verification.json');
+}
+
+function retroReceiptPath(root: string): string | undefined {
+  return closeoutReceiptPath(root, 'closeout-retro.json');
+}
+
+function transcriptSnapshot(path: string): TranscriptSnapshot {
+  const content = readFileSync(path);
+  return {
+    path: realpathSync(path),
+    byteLength: content.byteLength,
+    digest: createHash('sha256').update(content).digest('hex'),
+  };
+}
+
+function snapshotStillMatches(snapshot: TranscriptSnapshot): boolean {
+  try {
+    const content = readFileSync(snapshot.path);
+    return (
+      content.byteLength === snapshot.byteLength &&
+      createHash('sha256').update(content).digest('hex') === snapshot.digest
+    );
+  } catch {
+    return false;
+  }
+}
+
+function readRetroReceipt(
+  root: string,
+  binding: CloseoutBinding,
+  transcript: string,
+  now = new Date(),
+): RetroReceipt | undefined {
+  const path = retroReceiptPath(root);
+  if (!path || !existsSync(path)) return undefined;
+  try {
+    const receipt = JSON.parse(readFileSync(path, 'utf8')) as Partial<RetroReceipt>;
+    const recordedAt =
+      typeof receipt.recordedAt === 'string' ? Date.parse(receipt.recordedAt) : Number.NaN;
+    return receipt.version === 1 &&
+      receipt.runtime === binding.runtime &&
+      receipt.id === binding.id &&
+      typeof receipt.projectRoot === 'string' &&
+      receipt.projectRoot === realpathSync(binding.projectRoot) &&
+      typeof receipt.snapshot?.path === 'string' &&
+      receipt.snapshot?.path === realpathSync(transcript) &&
+      typeof receipt.snapshot.byteLength === 'number' &&
+      receipt.snapshot.byteLength >= 0 &&
+      typeof receipt.snapshot.digest === 'string' &&
+      typeof receipt.agentFilingNeeded === 'boolean' &&
+      Number.isInteger(receipt.pendingDrafts) &&
+      (receipt.pendingDrafts ?? -1) >= 0 &&
+      Array.isArray(receipt.pendingDraftSignatures) &&
+      receipt.pendingDraftSignatures.length === receipt.pendingDrafts &&
+      receipt.pendingDraftSignatures.every(
+        signature => typeof signature === 'string' && signature.length > 0,
+      ) &&
+      Number.isFinite(recordedAt) &&
+      recordedAt <= now.getTime() &&
+      now.getTime() - recordedAt <= VERIFICATION_RECEIPT_MAX_AGE_MS &&
+      snapshotStillMatches(receipt.snapshot)
+      ? (receipt as RetroReceipt)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writePrivateReceipt(path: string | undefined, receipt: object): boolean {
+  if (!path) return false;
+  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(temporaryPath, `${JSON.stringify(receipt)}\n`, {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    renameSync(temporaryPath, path);
+    return true;
+  } catch {
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    return false;
+  }
+}
+
+function writeRetroReceipt(root: string, receipt: Omit<RetroReceipt, 'version'>): boolean {
+  return writePrivateReceipt(retroReceiptPath(root), { version: 1, ...receipt });
+}
+
+function retroObservationFromReceipt(
+  root: string,
+  sessionId: string,
+  receipt: RetroReceipt,
+): CloseoutObservation['retro'] {
+  const pendingDrafts = readSpooledDrafts(root, sessionId).length;
+  const acknowledgedSignatures = new Set(readAcks(root, sessionId).map(ack => ack.signature));
+  const capturedDraftsAcknowledged =
+    receipt.pendingDraftSignatures.length > 0 &&
+    receipt.pendingDraftSignatures.every(signature => acknowledgedSignatures.has(signature)) &&
+    pendingDrafts === 0;
+  const complete =
+    pendingDrafts === 0 &&
+    (receipt.pendingDraftSignatures.length > 0
+      ? capturedDraftsAcknowledged
+      : !receipt.agentFilingNeeded);
+  return {
+    bound: true,
+    complete,
+    pendingDrafts,
+    evidenceHash: transcriptSnapshot(receipt.snapshot.path).digest,
+    failure: complete ? undefined : 'filing',
+  };
 }
 
 function readVerificationReceipt(
@@ -678,32 +891,62 @@ function writeVerificationReceipt(
   root: string,
   receipt: Omit<VerificationReceipt, 'version'>,
 ): boolean {
-  const path = verificationReceiptPath(root);
-  if (!path) return false;
-  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
-  try {
-    mkdirSync(nodePath.dirname(path), { recursive: true });
-    writeFileSync(temporaryPath, `${JSON.stringify({ version: 1, ...receipt })}\n`, {
-      flag: 'wx',
-      mode: 0o600,
-    });
-    renameSync(temporaryPath, path);
-    return true;
-  } catch {
-    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
-    return false;
-  }
+  return writePrivateReceipt(verificationReceiptPath(root), { version: 1, ...receipt });
 }
 
-function workingStateHash(root: string, headOid: string): string {
+export function workingStateHash(root: string, headOid: string): string | undefined {
   const status = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
-  return createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex');
+  return status.status === 0
+    ? createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex')
+    : undefined;
 }
 
-function runVerification(root: string, expectedOid: string): CloseoutObservation['verification'] {
+function unobservableWorkingStateHash(headOid: string): string {
+  return createHash('sha256').update(`${headOid}\0unobservable`).digest('hex');
+}
+
+function passedVerification(
+  root: string,
+  headOid: string,
+  stateHash: string,
+): CloseoutObservation['verification'] {
+  const passed = writeVerificationReceipt(root, {
+    headOid,
+    stateHash,
+    recordedAt: new Date().toISOString(),
+  });
+  return { current: true, passed, headOid, stateHash };
+}
+
+function runVerification(
+  root: string,
+  expectedOid: string,
+  ciChecks: PullRequestIdentity['ciChecks'],
+): CloseoutObservation['verification'] {
   const observedHead = git(root, 'rev-parse', 'HEAD').stdout.trim();
+  const observedStateHash = workingStateHash(root, observedHead);
+  if (!observedStateHash) {
+    invalidateVerificationReceipt(root);
+    return {
+      current: observedHead === expectedOid,
+      passed: false,
+      headOid: observedHead,
+      stateHash: unobservableWorkingStateHash(observedHead),
+    };
+  }
+  const receipt = readVerificationReceipt(root, expectedOid);
+  if (receipt && observedHead === expectedOid && observedStateHash === receipt.stateHash) {
+    return {
+      current: true,
+      passed: true,
+      headOid: receipt.headOid,
+      stateHash: receipt.stateHash,
+    };
+  }
+  if (observedHead === expectedOid && observedStateHash === cleanWorkingStateHash(expectedOid)) {
+    if (ciChecks === 'passed') return passedVerification(root, observedHead, observedStateHash);
+  }
   if (observedHead !== expectedOid) {
-    const receipt = readVerificationReceipt(root, expectedOid);
     return receipt
       ? {
           current: true,
@@ -715,7 +958,7 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
           current: false,
           passed: false,
           headOid: observedHead,
-          stateHash: workingStateHash(root, observedHead),
+          stateHash: observedStateHash,
         };
   }
   let passed = invalidateVerificationReceipt(root);
@@ -730,7 +973,7 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
       'json',
     ]);
     const plan = json<TestPlanEntry[]>(planResult);
-    if (!plan || plan.some(entry => !entry.available)) {
+    if (!plan || plan.length === 0 || plan.some(entry => !entry.available)) {
       passed = false;
       continue;
     }
@@ -748,13 +991,8 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
     headOid,
     stateHash: createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex'),
   };
-  if (verification.current && verification.passed) {
-    verification.passed = writeVerificationReceipt(root, {
-      headOid,
-      stateHash: verification.stateHash,
-      recordedAt: new Date().toISOString(),
-    });
-  }
+  if (verification.current && verification.passed)
+    verification.passed = passedVerification(root, headOid, verification.stateHash).passed;
   return verification;
 }
 
@@ -787,9 +1025,65 @@ interface GhPullRequest {
   headRefOid: string;
   headRepositoryOwner?: { login?: string };
   headRepository?: { name?: string; nameWithOwner?: string };
+  statusCheckRollup?: GhStatusCheck[];
 }
 
-export function pullRequestIdentity(value: GhPullRequest): PullRequestIdentity | undefined {
+interface GhStatusCheck {
+  __typename?: string;
+  status?: string;
+  conclusion?: string;
+  state?: string;
+}
+
+interface GhRequiredCheck {
+  bucket?: string;
+  state?: string;
+}
+
+export function resolveRequiredChecks(
+  checks: GhRequiredCheck[] | undefined,
+): PullRequestIdentity['ciChecks'] {
+  if (!checks) return 'unknown';
+  if (checks.length === 0) return 'absent';
+  if (checks.some(check => ['fail', 'cancel'].includes(check.bucket ?? ''))) return 'failed';
+  if (checks.some(check => check.bucket === 'pending')) return 'pending';
+  return checks.every(check => ['pass', 'skipping'].includes(check.bucket ?? ''))
+    ? 'passed'
+    : 'unknown';
+}
+
+export function resolveHostedCheckRollup(
+  checks: GhStatusCheck[] | undefined,
+): PullRequestIdentity['ciChecks'] {
+  if (!checks) return 'unknown';
+  if (checks.length === 0) return 'absent';
+  let pending = false;
+  for (const check of checks) {
+    if (check.__typename === 'CheckRun') {
+      if (check.status !== 'COMPLETED') pending = true;
+      else if (!['SUCCESS', 'NEUTRAL', 'SKIPPED'].includes(check.conclusion ?? '')) return 'failed';
+    } else if (check.__typename === 'StatusContext') {
+      if (check.state === 'PENDING' || check.state === 'EXPECTED') pending = true;
+      else if (check.state !== 'SUCCESS') return 'failed';
+    } else return 'unknown';
+  }
+  return pending ? 'pending' : 'passed';
+}
+
+export function resolveHostedVerification(
+  required: PullRequestIdentity['ciChecks'],
+  rollup: PullRequestIdentity['ciChecks'],
+): PullRequestIdentity['ciChecks'] {
+  if (required === 'failed' || rollup === 'failed') return 'failed';
+  if (required === 'pending' || rollup === 'pending') return 'pending';
+  const requiredChecksSatisfied = required === 'passed' || required === 'absent';
+  return requiredChecksSatisfied && rollup === 'passed' ? 'passed' : 'unknown';
+}
+
+export function pullRequestIdentity(
+  value: GhPullRequest,
+  ciChecks: PullRequestIdentity['ciChecks'] = 'unknown',
+): PullRequestIdentity | undefined {
   const owner =
     value.headRepositoryOwner?.login ?? value.headRepository?.nameWithOwner?.split('/')[0];
   const repository =
@@ -802,6 +1096,7 @@ export function pullRequestIdentity(value: GhPullRequest): PullRequestIdentity |
         headRepository: repository,
         headRefName: value.headRefName,
         headRefOid: value.headRefOid,
+        ciChecks,
       }
     : undefined;
 }
@@ -814,12 +1109,23 @@ function observePullRequest(root: string, pr: string): PullRequestIdentity[] {
       'view',
       pr,
       '--json',
-      'url,state,headRefName,headRefOid,headRepositoryOwner,headRepository',
+      'url,state,headRefName,headRefOid,headRepositoryOwner,headRepository,statusCheckRollup',
     ],
     root,
   );
   const parsed = json<GhPullRequest>(result);
-  const identity = parsed && pullRequestIdentity(parsed);
+  const requiredResult = run(
+    'gh',
+    ['pr', 'checks', pr, '--required', '--json', 'bucket,state'],
+    root,
+  );
+  const requiredChecks =
+    requiredResult.status === 0 ? json<GhRequiredCheck[]>(requiredResult) : undefined;
+  const ciChecks = resolveHostedVerification(
+    resolveRequiredChecks(requiredChecks),
+    resolveHostedCheckRollup(parsed?.statusCheckRollup),
+  );
+  const identity = parsed && pullRequestIdentity(parsed, ciChecks);
   return identity ? [identity] : [];
 }
 
@@ -830,9 +1136,16 @@ function observeRemote(
   const names = git(root, 'remote').stdout.trim().split('\n').filter(Boolean);
   const matching = names.flatMap(name => {
     const url = git(root, 'remote', 'get-url', name).stdout.trim();
-    return normalizedRepository(url) ===
-      `${identity.headOwner}/${identity.headRepository}`.toLowerCase()
-      ? [{ name, url }]
+    const pushUrls = git(root, 'remote', 'get-url', '--push', '--all', name)
+      .stdout.trim()
+      .split('\n')
+      .filter(Boolean);
+    const pushUrl = pushUrls[0] ?? '';
+    const expectedRepository = `${identity.headOwner}/${identity.headRepository}`.toLowerCase();
+    return normalizedRepository(url) === expectedRepository &&
+      pushUrls.length === 1 &&
+      normalizedRepository(pushUrl) === expectedRepository
+      ? [{ name, url, pushUrl }]
       : [];
   });
   if (matching.length !== 1) return { remoteResolution: 'ambiguous' };
@@ -904,6 +1217,17 @@ function observeProtection(
   return resolveProtection('matched', parsed?.protected);
 }
 
+function observeCurrentProtection(
+  root: string,
+  identity: PullRequestIdentity | undefined,
+  remoteResolution: CloseoutObservation['remoteResolution'],
+): CloseoutObservation['protection'] {
+  if (!identity) return 'unknown';
+  return remoteResolution === 'absent'
+    ? resolveProtection(remoteResolution)
+    : observeProtection(root, identity);
+}
+
 export function resolveProtection(
   remoteResolution: CloseoutObservation['remoteResolution'],
   observed?: boolean,
@@ -939,9 +1263,27 @@ function observeMutableCleanupTargets(root: string, pr: string): MutableCleanupT
   return {
     pullRequests,
     ...remoteObservation,
+    remote: remoteObservation.remote,
     localRefOid: localReference?.status === 0 ? localReference.stdout.trim() : undefined,
     worktrees: parseWorktrees(root),
   };
+}
+
+export function retroForMergedPullRequest(
+  root: string,
+  binding: CloseoutBinding,
+  pullRequests: PullRequestIdentity[],
+  runRetro: typeof runBoundRetro = runBoundRetro,
+): CloseoutObservation['retro'] {
+  if (pullRequests.length !== 1 || pullRequests[0]?.state !== 'MERGED') {
+    return {
+      bound: true,
+      complete: false,
+      pendingDrafts: 0,
+      evidenceHash: 'pull-request-not-confirmed-merged',
+    };
+  }
+  return runRetro(root, binding);
 }
 
 function observeCloseout(root: string, pr: string, binding: CloseoutBinding): CloseoutObservation {
@@ -957,15 +1299,10 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
   return {
     ...mutableTargets,
     defaultBranch,
-    protection:
-      identity && mutableTargets.remoteResolution === 'absent'
-        ? resolveProtection(mutableTargets.remoteResolution)
-        : identity
-          ? observeProtection(root, identity)
-          : 'unknown',
+    protection: observeCurrentProtection(root, identity, mutableTargets.remoteResolution),
     deliveryWorktreePath: nodePath.resolve(root),
-    verification: runVerification(root, expectedOid),
-    retro: runBoundRetro(root, binding),
+    verification: runVerification(root, expectedOid, identity?.ciChecks ?? 'unknown'),
+    retro: retroForMergedPullRequest(root, binding, mutableTargets.pullRequests),
   };
 }
 
@@ -974,9 +1311,12 @@ function reobserveCleanupTargets(
   pr: string,
   baseline: CloseoutObservation,
 ): CloseoutObservation {
+  const mutableTargets = observeMutableCleanupTargets(root, pr);
+  const identity = mutableTargets.pullRequests[0];
   return {
     ...baseline,
-    ...observeMutableCleanupTargets(root, pr),
+    ...mutableTargets,
+    protection: observeCurrentProtection(root, identity, mutableTargets.remoteResolution),
   };
 }
 

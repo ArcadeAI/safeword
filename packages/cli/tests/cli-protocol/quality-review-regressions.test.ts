@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { findCommandDefinition, publicCommands } from '../../src/cli-protocol/catalog.js';
 import { addGlobalOptions, reportResult } from '../../src/cli-protocol/execute.js';
+import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import { registerPublicCommandCatalog } from '../../src/cli-protocol/register.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
@@ -22,6 +23,28 @@ describe('quality-review regressions for the public CLI boundary', () => {
         expect.objectContaining({ handler: expect.any(Function) }),
       );
     }
+  });
+
+  it('rejects inherited object keys as unknown handler names', () => {
+    expect(() => publicHandler('toString')).toThrow('No typed public handler registered');
+  });
+
+  it('reports a missing review publication path as invalid input', async () => {
+    const result = await runCli(['review-pr', 'publish', '--json']);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      errors: [{ code: 'CLI_ARGUMENT_INVALID' }],
+    });
+  });
+
+  it('rejects an unsafe relay retry identity at the public boundary', async () => {
+    const result = await runCli(['retro-relay-retry', '../outside', '--json']);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      errors: [{ code: 'CLI_ARGUMENT_INVALID' }],
+    });
   });
 
   it('keeps command-family help canonical when the family is also a retained alias', async () => {

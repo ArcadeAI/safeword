@@ -4,10 +4,12 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   rmSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from './namespace-root.js';
@@ -22,6 +24,27 @@ export interface CloseoutBinding {
   id: string;
   projectRoot: string;
   transcriptPath?: string;
+}
+
+/** Resolve one exact Codex transcript from the hook's host-owned environment. */
+export function resolveExactCodexTranscript(
+  id: string,
+  env: Record<string, string | undefined> = process.env,
+): string | undefined {
+  const root = nodePath.join(env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'), 'sessions');
+  if (!existsSync(root)) return undefined;
+  const matches: string[] = [];
+  const visit = (directory: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = nodePath.join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isFile() && entry.name.endsWith('.jsonl') && entry.name.includes(id)) {
+        matches.push(path);
+      }
+    }
+  };
+  visit(root);
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 interface CloseoutBindingCache extends CloseoutBinding {
@@ -64,6 +87,7 @@ function parseFreshBindingRecord(
       id === undefined ||
       !isCloseoutRuntime(parsed.runtime) ||
       !Number.isFinite(recordedAt) ||
+      recordedAt > now ||
       now - recordedAt > maxAgeMs
     ) {
       return undefined;
@@ -89,9 +113,9 @@ function isCloseoutCleanupPath(token: string | undefined, pluginRoot?: string): 
     ? nodePath.join(pluginRoot, 'resources/scripts/closeout-cleanup.ts').replaceAll('\\', '/')
     : undefined;
   return (
-    normalized === '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts' ||
-    normalized.endsWith('/"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts') ||
-    normalized === '${CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts' ||
+    normalized === '"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts' ||
+    normalized.endsWith('/"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts') ||
+    normalized === '\${CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts' ||
     normalized === pluginPath
   );
 }

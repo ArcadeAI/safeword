@@ -29,6 +29,7 @@ import {
   type GeneratedClaudePluginAsset,
 } from '../packages/cli/src/claude-plugin/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
+import { installFakeCodexRuntime } from '../packages/cli/tests/helpers/fake-codex-runtime.js';
 
 interface NativeClaudePluginWorld {
   generation?: { status: number; output: string };
@@ -38,6 +39,8 @@ interface NativeClaudePluginWorld {
     project: string;
     commandCwd?: string;
     configRoot?: string;
+    codexHome: string;
+    codexLogPath: string;
     statePath: string;
     projectSnapshot: string;
     profileSnapshot: string;
@@ -347,7 +350,7 @@ Then(
       .map(response => response.hookSpecificOutput?.additionalContext ?? '')
       .join('\n\n');
     assert.match(contexts, /SAFEWORD\.md/u);
-    assert.match(contexts, /SAFE WORD Claude Config/u);
+    assert.match(contexts, /Safeword Claude Config/u);
     const contractContext = responses
       .map(response => response.hookSpecificOutput?.additionalContext ?? '')
       .find(context => context.includes('**CONFIDENT**'));
@@ -755,6 +758,11 @@ function createLifecycleFixture(
   mkdirSync(project, { recursive: true });
   mkdirSync(fakeBin, { recursive: true });
   mkdirSync(configRoot, { recursive: true });
+  const codexRuntime = installFakeCodexRuntime(nodePath.join(root, 'codex-runtime'), {
+    pluginEnabled: false,
+    pluginInitiallyInstalled: false,
+  });
+  cpSync(nodePath.join(codexRuntime.bin, 'codex'), nodePath.join(fakeBin, 'codex'));
   writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
   const state = {
     hostVersion: '2.1.170 (Claude Code)',
@@ -777,6 +785,8 @@ function createLifecycleFixture(
     root,
     project,
     configRoot,
+    codexHome: codexRuntime.codexHome,
+    codexLogPath: codexRuntime.logPath,
     statePath,
     projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
     profileSnapshot,
@@ -1099,6 +1109,11 @@ function runLifecycleCommand(
   json = true,
 ): { status: number; output: string } {
   assert.ok(world.lifecycle);
+  const inheritedEnvironment = Object.fromEntries(
+    ['PATH', 'TMPDIR', 'TMP', 'TEMP', 'SystemRoot', 'WINDIR', 'COMSPEC', 'PATHEXT']
+      .map(name => [name, process.env[name]])
+      .filter((entry): entry is [string, string] => entry[1] !== undefined),
+  );
   const result = spawnSync(
     'bun',
     [
@@ -1112,9 +1127,11 @@ function runLifecycleCommand(
     {
       cwd: REPO_ROOT,
       env: {
-        ...process.env,
+        ...inheritedEnvironment,
         CLAUDE_CONFIG_DIR: world.lifecycle.configRoot,
+        CODEX_HOME: world.lifecycle.codexHome,
         FAKE_CLAUDE_STATE: world.lifecycle.statePath,
+        SAFEWORD_CODEX_LOG: world.lifecycle.codexLogPath,
         PATH: `${nodePath.join(world.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
       },
       encoding: 'utf8',
@@ -1413,30 +1430,11 @@ Given(
 
 When('ordinary safeword setup upgrades the project', function (this: NativeClaudePluginWorld) {
   assert.ok(this.lifecycle);
-  const result = spawnSync(
-    'bun',
-    [
-      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
-      'setup',
-      '--json',
-      '--no-input',
-      '--cwd',
-      this.lifecycle.project,
-    ],
-    {
-      cwd: REPO_ROOT,
-      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
-      encoding: 'utf8',
-    },
-  );
-  this.lifecycle.result = {
-    status: result.status ?? 1,
-    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
-  };
+  this.lifecycle.result = runLifecycleCommand(this, ['setup', '--agents=claude']);
 });
 
 Then(
-  'every viable legacy asset and the complete Claude profile are byte-identical',
+  'every viable legacy asset and unrelated Claude profile state are preserved',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
     assert.equal(
@@ -1446,21 +1444,38 @@ Then(
         'utf8',
       ),
     );
-    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      unrelated?: unknown;
+    };
+    assert.deepEqual(state.unrelated, this.lifecycle.unrelatedProfile);
   },
 );
 
 Then(
-  'the result recommends the canonical Claude install command without invoking it',
+  'the result records the project plugin install and recommends reloading it',
   function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
     const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      ok?: boolean;
+      state?: string;
+      errors?: unknown[];
       next_actions?: { command?: string }[];
+      effects?: { configuration?: { kind?: string; operation?: string; target?: string }[] };
     };
+    assert.equal(result.ok, true);
+    assert.equal(result.state, 'action_required');
+    assert.deepEqual(result.errors, []);
     assert.ok(
-      result.next_actions?.some(action => action.command === 'safeword install --agents=claude'),
+      result.effects?.configuration?.some(
+        effect =>
+          effect.kind === 'install' &&
+          effect.target === 'safeword@safeword' &&
+          effect.operation === 'project',
+      ),
+      JSON.stringify(result),
     );
+    assert.ok(result.next_actions?.some(action => action.command === '/reload-plugins'));
     assert.ok(this.lifecycle);
-    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
   },
 );
 

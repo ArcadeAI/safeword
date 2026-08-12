@@ -47,7 +47,7 @@ async function recoveryCommandFor(name: string): Promise<string> {
   }
 }
 
-describe('the recovery command Safe Word suggests', () => {
+describe('the recovery command Safeword suggests', () => {
   it.each([
     ['a name that looks like a flag', '--help'],
     ['a name that looks like an option with a value', '--cwd'],
@@ -66,6 +66,32 @@ describe('the recovery command Safe Word suggests', () => {
     const command = await recoveryCommandFor('review-input.md');
 
     expect(command).toBe('safeword review run quality-review -- review-input.md');
+  });
+
+  it('preserves supporting context in the suggested retry', async () => {
+    const directory = projectWithTarget('review-input.md');
+    writeFileSync(nodePath.join(directory, 'evidence.md'), 'supporting evidence\n');
+    const originalPath = process.env.PATH;
+    const originalRuntime = process.env.SAFEWORD_AGENT_RUNTIME;
+    process.env.PATH = '/nonexistent-for-this-test';
+    process.env.SAFEWORD_AGENT_RUNTIME = 'claude';
+    try {
+      const result = await runReview({
+        cwd: directory,
+        kind: 'quality-review',
+        targets: ['review-input.md'],
+        context: ['evidence.md'],
+      });
+
+      expect(result.recovery?.[0]?.command).toBe(
+        'safeword review run quality-review --context evidence.md -- review-input.md',
+      );
+    } finally {
+      if (originalPath === undefined) delete process.env.PATH;
+      else process.env.PATH = originalPath;
+      if (originalRuntime === undefined) delete process.env.SAFEWORD_AGENT_RUNTIME;
+      else process.env.SAFEWORD_AGENT_RUNTIME = originalRuntime;
+    }
   });
 
   it('passes a flag-shaped target through the public command as a filename', async () => {

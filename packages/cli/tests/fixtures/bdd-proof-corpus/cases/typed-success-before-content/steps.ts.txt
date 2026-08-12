@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+When('plugin installation finishes', async function () {
+  const { createResult, exitStatusFor } = await import(process.env.BDD_CORPUS_RESULT_RUNTIME!);
+  const failed = process.env.BDD_CORPUS_DEFECT === '1';
+  this.result = createResult({
+    state: failed ? 'failed' : 'healthy',
+    effects: {
+      configuration: [{ kind: 'plugin', target: 'safeword', operation: 'installed' }],
+    },
+    errors: failed ? [{ code: 'INSTALL_FAILED', message: 'failed', retryable: false }] : [],
+    recovery: [
+      { command: '/reload-plugins', description: 'Reload installed plugins', requiresHuman: true },
+    ],
+  });
+  this.exitCode = exitStatusFor(this.result);
+});
+Then('installation succeeds and reload guidance is shown', function () {
+  assert.equal(this.exitCode, 0);
+  assert.equal(this.result.ok, true);
+  assert.equal(this.result.state, 'healthy');
+  assert.deepEqual(this.result.errors, []);
+  assert.deepEqual(this.result.effects.configuration, [
+    { kind: 'plugin', target: 'safeword', operation: 'installed' },
+  ]);
+  assert.equal(this.result.recovery[0].command, '/reload-plugins');
+});

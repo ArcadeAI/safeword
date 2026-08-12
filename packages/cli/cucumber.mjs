@@ -5,5 +5,5 @@
 export default {
   import: ['features/steps/**/*.ts'],
   paths: ['features/**/*.feature'],
-  tags: 'not @wip and not @manual and not @live',
+  tags: 'not @wip and not @proof.vitest and not @manual and not @live',
 };

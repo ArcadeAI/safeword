@@ -2,9 +2,10 @@
 name: review-spec
 description: Use when reviewing a ticket's scenarios (`.feature` source, with
   legacy test-definitions.md fallback) — auto-fired by the bdd scenario-gate and
-  re-invokable after scenario edits. Runs vacuous-pass, AODI, determinism,
-  negative-case, and cross-cutting checks and produces a structured findings
-  report. NOT for spec.md JTBD/criteria/persona framing — that is self-review.
+  re-invokable after scenario edits. Runs vacuous-pass, AODI
+  (Atomic/Observable/Deterministic/Independent), determinism, negative-case, and
+  cross-cutting checks and produces a structured findings report. NOT for
+  spec.md JTBD/criteria/persona framing — that is self-review.
 ---
 
 # Review Spec — Scenario Quality Gate
@@ -29,10 +30,12 @@ rest; report EACH. (This does not replace `self-review`'s `spec.md` framing
 gate.)
 
 Run the adversarial judgment through the shared coordinator, passing the
-feature, ticket scope, and any legacy scenario source as bounded targets:
+feature, ticket scope, and any legacy scenario source as bounded targets.
+Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
+a bare `safeword` on `PATH`:
 
 ```bash
-safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
+bun .safeword/hooks/run-review.ts review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and

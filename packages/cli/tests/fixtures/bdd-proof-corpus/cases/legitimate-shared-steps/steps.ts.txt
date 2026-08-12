@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { Then, When } from '@cucumber/cucumber';
+
+When('I submit token {string}', function (token: string) {
+  const statuses = { expired: 401, current: 200 };
+  this.response = {
+    status:
+      process.env.BDD_CORPUS_DEFECT === '1'
+        ? (token === 'expired' ? 200 : 401)
+        : statuses[token as keyof typeof statuses],
+  };
+});
+Then('the response status is {int}', function (status: number) {
+  assert.equal(this.response.status, status);
+});

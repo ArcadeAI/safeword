@@ -71,6 +71,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'manual audit helper; covered through its real Bun entry point by tests/hooks/principle-trace.test.ts',
   'record-skill-invocation.ts':
     'manual helper for skill/command invocation proof; covered by tests/hooks/record-skill-invocation.test.ts',
+  'run-review.ts':
+    'manual review launcher; route fallthrough and real source/plugin wiring are covered by tests/review/surface-parity.test.ts',
   'stop-reentry.ts': 'stop hook, fires at session end — not assertable in a tool-based live run',
   'stop-self-report.ts':
     'stop hook, fires at session end — not assertable in a tool-based live run; covered deterministically by tests/integration/stop-self-report.test.ts',

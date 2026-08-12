@@ -1,15 +1,15 @@
 @surface.openai-codex @surface.safeword-cli
-Feature: Give Codex users the full Safe Word workflow
+Feature: Give Codex users the full Safeword workflow
 
   @codex-workflow.TBU1.R1
   Rule: codex-workflow.TBU1.R1 - Every canonical workflow is available with the reference material it dispatches to
 
     @live
     Scenario: Complete profile plugin exposes every workflow entry and phase reference
-      Given the canonical Safe Word catalogue contains workflows with supporting phase material
+      Given the canonical Safeword catalogue contains workflows with supporting phase material
       And the generated plugin is installed in an otherwise empty Codex profile
       When the builder starts a new Codex session
-      Then every canonical workflow is available as a scoped Safe Word skill
+      Then every canonical workflow is available as a scoped Safeword skill
       And each workflow's supporting phase material is available from that skill
 
     @rejection
@@ -20,89 +20,89 @@ Feature: Give Codex users the full Safe Word workflow
       Then the release is rejected
 
   @codex-workflow.TBU1.R2
-  Rule: codex-workflow.TBU1.R2 - A project's Safe Word workflow files stay outside the repository throughout Codex installation and migration
+  Rule: codex-workflow.TBU1.R2 - A project's Safeword workflow files stay outside the repository throughout Codex installation and migration
 
     Scenario: Fresh Codex installation keeps workflow material out of the project
-      Given an empty project has no Safe Word workflow material
-      When the builder installs Safe Word for Codex
+      Given an empty project has no Safeword workflow material
+      When the builder installs Safeword for Codex
       Then the project bootstrap will enroll each Codex profile automatically
       And no Codex-owned workflow tree is written to .agents or .codex while shared Cursor skills remain available
 
     @rejection
     Scenario: Project-local workflow output rejects the integration
-      Given a generated plugin writes Safe Word workflow material into the target project
+      Given a generated plugin writes Safeword workflow material into the target project
       When the Codex integration contract runs
       Then the integration is rejected
 
   @codex-workflow.TBU1.R3
-  Rule: codex-workflow.TBU1.R3 - Migration retains legacy Safe Word hooks until the builder explicitly completes the trusted-plugin handoff
+  Rule: codex-workflow.TBU1.R3 - Migration retains legacy Safeword hooks until the builder explicitly completes the trusted-plugin handoff
 
     Scenario: Initial plugin migration preserves legacy hooks and explains the handoff
-      Given a project has Safe Word legacy hooks and custom Codex configuration
-      And the Safe Word plugin is installed but its hooks have not been reviewed
+      Given a project has Safeword legacy hooks and custom Codex configuration
+      And the Safeword plugin is installed but its hooks have not been reviewed
       When the builder migrates Codex to the plugin
-      Then the legacy Safe Word hooks remain in the project
-      And the builder is told to review the Safe Word hooks in Codex before cleanup
+      Then the legacy Safeword hooks remain in the project
+      And the builder is told to review the Safeword hooks in Codex before cleanup
 
-    Scenario: Completed handoff removes only legacy Safe Word hooks
-      Given a project has Safe Word legacy hooks and custom Codex configuration
-      And the Safe Word plugin is installed and the legacy hooks remain
+    Scenario: Completed handoff removes only legacy Safeword hooks
+      Given a project has Safeword legacy hooks and custom Codex configuration
+      And the Safeword plugin is installed and the legacy hooks remain
       When the builder explicitly confirms hook review and requests handoff cleanup
-      Then the project has no legacy Safe Word hooks
+      Then the project has no legacy Safeword hooks
       And the custom Codex configuration remains unchanged
 
     @rejection
     Scenario: Initial migration does not clean up hooks without an explicit handoff request
-      Given a project has Safe Word legacy hooks
-      And the Safe Word plugin is already installed
+      Given a project has Safeword legacy hooks
+      And the Safeword plugin is already installed
       When the builder runs the initial Codex plugin migration without requesting handoff cleanup
-      Then Safe Word reports the installed plugin and the required hook-review handoff
-      And the legacy Safe Word hooks remain unchanged
+      Then Safeword reports the installed plugin and the required hook-review handoff
+      And the legacy Safeword hooks remain unchanged
 
     @rejection
     Scenario: Failed plugin installation retains legacy hooks
-      Given a project has Safe Word legacy hooks
-      And the Safe Word plugin cannot be installed
+      Given a project has Safeword legacy hooks
+      And the Safeword plugin cannot be installed
       When the builder migrates Codex to the plugin
       Then the migration fails with remediation instructions
-      And the legacy Safe Word hooks remain unchanged
+      And the legacy Safeword hooks remain unchanged
 
   @codex-workflow.TBU1.R4
-  Rule: codex-workflow.TBU1.R4 - An unreviewed or changed Safe Word plugin hook is visibly skipped until the builder trusts it in Codex
+  Rule: codex-workflow.TBU1.R4 - An unreviewed or changed Safeword plugin hook is visibly skipped until the builder trusts it in Codex
 
     @live @manual
     Scenario: New plugin hooks require review before they run
-      Given the generated Safe Word plugin is installed in a fresh isolated Codex profile
-      And an unreviewed Safe Word plugin hook writes a unique marker when invoked
+      Given the generated Safeword plugin is installed in a fresh isolated Codex profile
+      And an unreviewed Safeword plugin hook writes a unique marker when invoked
       When the builder starts a real Codex session without a hook-trust bypass flag
       Then the session displays Codex's review-required warning with /hooks remediation
-      And the Safe Word hook marker is absent
+      And the Safeword hook marker is absent
 
     @rejection @live @manual
     Scenario: Changed plugin hooks require review again
-      Given the builder previously reviewed a Safe Word plugin hook through Codex /hooks
-      And the generated Safe Word plugin is installed in an isolated Codex profile
+      Given the builder previously reviewed a Safeword plugin hook through Codex /hooks
+      And the generated Safeword plugin is installed in an isolated Codex profile
       And the reviewed hook definition changed and writes a unique marker when invoked
       When the builder starts a real Codex session without a hook-trust bypass flag
       Then the session displays Codex's review-required warning with /hooks remediation
-      And the Safe Word hook marker is absent
+      And the Safeword hook marker is absent
 
   @workflow-maintenance.SWM1.R1
   Rule: workflow-maintenance.SWM1.R1 - The packaged Codex catalogue is a deterministic, allowlisted transformation of the canonical workflow catalogue
 
     Scenario: Allowed adaptations preserve workflow meaning
-      Given a canonical Safe Word workflow
-      When Safe Word generates its Codex plugin skill
+      Given a canonical Safeword workflow
+      When Safeword generates its Codex plugin skill
       Then the output differs only in supported metadata, scoped invocation, and reference-path adaptations
 
     Scenario: Generated skill metadata fits Codex's documented fallback discovery budget
-      Given the generated Safe Word plugin catalogue
+      Given the generated Safeword plugin catalogue
       When the release contract measures its skill metadata inventory
       Then the inventory is no more than 8000 characters
 
     @rejection
     Scenario: Over-budget skill metadata rejects the plugin release
-      Given a generated Safe Word plugin catalogue has metadata inventory over 8000 characters
+      Given a generated Safeword plugin catalogue has metadata inventory over 8000 characters
       When the plugin release contract runs
       Then the release is rejected
 
@@ -116,13 +116,13 @@ Feature: Give Codex users the full Safe Word workflow
   Rule: workflow-maintenance.SWM1.R2 - A published package contains every generated skill and reference asset
 
     Scenario: Packed package contains the complete generated plugin
-      Given the generated Safe Word plugin catalogue
-      When Safe Word packs a release package
+      Given the generated Safeword plugin catalogue
+      When Safeword packs a release package
       Then the package contains every generated skill and reference asset
 
     @rejection
     Scenario: Missing packed plugin asset rejects publication
-      Given a packed Safe Word package omits a generated plugin asset
+      Given a packed Safeword package omits a generated plugin asset
       When the package release contract runs
       Then publication is rejected
 
@@ -131,15 +131,15 @@ Feature: Give Codex users the full Safe Word workflow
 
     @live
     Scenario: Cached installation exposes scoped workflow skills without project files
-      Given a packed Safe Word package is installed in an isolated Codex profile
+      Given a packed Safeword package is installed in an isolated Codex profile
       And the target project is empty
       When the builder starts a new Codex session
-      Then the cached plugin exposes the generated scoped Safe Word skills
-      And the target project contains no Safe Word workflow tree
+      Then the cached plugin exposes the generated scoped Safeword skills
+      And the target project contains no Safeword workflow tree
 
     @rejection
     Scenario: Project copies cannot mask a missing cached plugin asset
-      Given a target project contains a copy of a required Safe Word workflow asset
+      Given a target project contains a copy of a required Safeword workflow asset
       And the installed plugin cache omits that asset
       When the isolated installation contract runs
       Then the installation is rejected
@@ -147,14 +147,14 @@ Feature: Give Codex users the full Safe Word workflow
   @workflow-maintenance.SWM1.R4
   Rule: workflow-maintenance.SWM1.R4 - Plugin hook commands use version-pinned Bunx and never bypass Codex hook trust
 
-    Scenario: Plugin hooks invoke the pinned Safe Word CLI through Bunx
-      Given the generated Safe Word plugin hooks
+    Scenario: Plugin hooks invoke the pinned Safeword CLI through Bunx
+      Given the generated Safeword plugin hooks
       When the hook release contract runs
-      Then every Safe Word hook invokes a version-pinned Bunx command
+      Then every Safeword hook invokes a version-pinned Bunx command
 
     @rejection
     Scenario Outline: Unsafe hook execution path rejects the plugin release
-      Given a Safe Word plugin hook violates the "<policy>" policy
+      Given a Safeword plugin hook violates the "<policy>" policy
       When the hook release contract runs
       Then the release is rejected for "<policy>"
 

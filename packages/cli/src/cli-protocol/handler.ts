@@ -8,6 +8,7 @@ export interface ProgressReporter {
 
 export interface CommandInvocation {
   readonly cwd: string;
+  readonly json?: boolean;
   readonly noInput: boolean;
   readonly offline: boolean;
   readonly options: Readonly<Record<string, unknown>>;

@@ -21,6 +21,7 @@ type ReviewRunInput = {
   readonly cwd: string;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
   readonly progress?: ReviewProgress;
 };
 
@@ -171,12 +172,18 @@ function shellQuote(value: string): string {
   return `'${escaped}'`;
 }
 
-function retryCommand(kind: ReviewKind, targets: readonly string[]): string {
+function retryCommand(
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[] = [],
+): string {
   // `--` ends option parsing, so a reviewed file named `--help` or `-r` reaches
   // the command as a target rather than as a flag. Shell quoting cannot do this:
   // it is the argument parser, not the shell, that would misread the name.
   const quoted = targets.map(target => shellQuote(target)).join(' ');
-  return `safeword review run ${kind} -- ${quoted}`;
+  const contextOption =
+    context.length === 0 ? '' : ` --context ${context.map(target => shellQuote(target)).join(' ')}`;
+  return `safeword review run ${kind}${contextOption} -- ${quoted}`;
 }
 
 /** How an agent is written for a reader: the product name, not the runtime id. */
@@ -184,36 +191,26 @@ function agentName(agent: ReviewAgent): string {
   return agent === 'codex' ? 'Codex' : 'Claude';
 }
 
+const FAILURE_CAUSES: Readonly<Record<string, string>> = {
+  timed_out: 'ran out of time',
+  not_installed: 'was not found on PATH',
+  unsupported: 'does not support the required review flags',
+  probe_timed_out: 'did not complete its compatibility check in time',
+  launch_failed: 'could not launch its compatibility check',
+  not_authenticated: 'is not signed in',
+  invalid_output: 'gave an answer that could not be accepted',
+  source_changed: 'was reviewing files that changed underneath it',
+  REVIEWER_PROVENANCE_MISSING: 'gave an answer that did not identify it as the reviewer',
+  REVIEWER_PROVENANCE_CONTRADICTORY: 'gave an answer that did not identify it as the reviewer',
+};
+
 /**
  * What went wrong on one route, in words a reader who cannot see the code can
- * act on. Built only from Safe Word's own classification — never from anything
+ * act on. Built only from Safeword's own classification — never from anything
  * the reviewer printed, which may carry credentials or a rejected answer.
  */
 function causePhrase(failure: string): string {
-  switch (failure) {
-    case 'timed_out': {
-      return 'ran out of time';
-    }
-    case 'not_installed': {
-      return 'is not installed, or is too old to be used';
-    }
-    case 'not_authenticated': {
-      return 'is not signed in';
-    }
-    case 'invalid_output': {
-      return 'gave an answer that could not be accepted';
-    }
-    case 'source_changed': {
-      return 'was reviewing files that changed underneath it';
-    }
-    case 'REVIEWER_PROVENANCE_MISSING':
-    case 'REVIEWER_PROVENANCE_CONTRADICTORY': {
-      return 'gave an answer that did not identify it as the reviewer';
-    }
-    default: {
-      return 'could not be run';
-    }
-  }
+  return FAILURE_CAUSES[failure] ?? 'could not be run';
 }
 
 /** One sentence per attempted route, each naming its own cause. */
@@ -234,6 +231,10 @@ function exhaustedExplanation(
 function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
   const name = agentName(reviewer);
   if (failure === 'not_installed') return `Install or update ${name}, then run the review again.`;
+  if (failure === 'unsupported') return `Update ${name}, then run the review again.`;
+  if (failure === 'probe_timed_out') return `Run ${name} --help to diagnose it, then retry review.`;
+  if (failure === 'launch_failed')
+    return `Run ${name} --help and fix its launch failure, then retry review.`;
   if (failure === 'not_authenticated') return `Sign in to ${name}, then run the review again.`;
   return 'Run the review again.';
 }
@@ -260,6 +261,7 @@ function unsupportedAuthorResult(input: {
   readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
 }): CliResult {
   return createResult({
     state: 'action_required',
@@ -274,7 +276,7 @@ function unsupportedAuthorResult(input: {
       input.policy === 'require'
         ? [
             {
-              command: retryCommand(input.kind, input.targets),
+              command: retryCommand(input.kind, input.targets, input.context),
               description: 'Run this review in an environment with a usable independent reviewer.',
               requiresHuman: true,
             },
@@ -296,6 +298,7 @@ function changedReviewResult(input: {
   readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
   readonly sourceChanged: boolean;
   readonly snapshotChanged: boolean;
   readonly network?: readonly Effect[];
@@ -342,7 +345,7 @@ function changedReviewResult(input: {
     },
     recovery: [
       {
-        command: retryCommand(input.kind, input.targets),
+        command: retryCommand(input.kind, input.targets, input.context),
         description: 'Retry the independent review against the current source.',
         requiresHuman: false,
       },
@@ -385,7 +388,7 @@ function preparePrimaryReview(
 ): ReturnType<typeof prepareReviewPacket> {
   const name = agentName(reviewer);
   input.progress?.start(`Preparing the review packet for ${name}…`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.start(`Requesting an independent ${name} review…`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}…`);
   return prepared;
@@ -400,7 +403,7 @@ function prepareFallbackReview(
   input.progress?.start(
     `${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback…`);
   return prepared;
 }
@@ -428,6 +431,7 @@ async function runDegradedFallback(
     policy: input.policy,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
     sourceChanged,
     snapshotChanged,
     network: degradedNetworkEffects(
@@ -473,7 +477,7 @@ async function runDegradedFallback(
       },
       recovery: [
         {
-          command: retryCommand(input.kind, input.targets),
+          command: retryCommand(input.kind, input.targets, input.context),
           description: nextStepFor(input.assignedReviewer, input.preferredFailure),
           requiresHuman: true,
         },
@@ -513,7 +517,7 @@ async function runDegradedFallback(
       },
       recovery: [
         {
-          command: retryCommand(input.kind, input.targets),
+          command: retryCommand(input.kind, input.targets, input.context),
           description: `Restore the ${agentName(input.assignedReviewer)} reviewer, then retry the independent review.`,
           requiresHuman: true,
         },
@@ -593,7 +597,7 @@ async function runAlternateModelRoute(
   input.progress?.start(
     `Trying ${agentName(input.reviewer)} again with the configured alternate model…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.heartbeat?.(
     `Still waiting for ${agentName(input.reviewer)} on the alternate model…`,
   );
@@ -609,6 +613,7 @@ async function runAlternateModelRoute(
     policy: input.policy,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
     sourceChanged,
     snapshotChanged,
     network: independentNetworkEffects(input.reviewer, true),
@@ -619,7 +624,8 @@ async function runAlternateModelRoute(
     // A configured model is not a usable route when no installed candidate
     // advertises model selection. Capability rejection is a skip, not a review
     // attempt or failure, so it must not displace the funded fallback route.
-    if (assessment.failure === 'not_installed') return { kind: 'skipped' };
+    if (assessment.failure === 'not_installed' || assessment.failure === 'unsupported')
+      return { kind: 'skipped' };
     return assessment;
   }
   const output = assessment.output;
@@ -651,6 +657,8 @@ async function runRemainingRoutes(
     cwd: input.cwd,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
+    progress: input.progress,
     author: input.author,
     reviewer: input.assignedReviewer,
     preferredFailure: input.preferredFailure,
@@ -675,6 +683,7 @@ function exhaustedRunResult(input: {
   readonly preferredFailure: ReviewFailure;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
   readonly policy: ReviewPolicy;
   readonly alternateFailure?: string;
 }): CliResult {
@@ -710,7 +719,7 @@ function exhaustedRunResult(input: {
     },
     recovery: [
       {
-        command: retryCommand(input.kind, input.targets),
+        command: retryCommand(input.kind, input.targets, input.context),
         description: nextStepFor(input.assignedReviewer, input.preferredFailure),
         requiresHuman: true,
       },
@@ -752,7 +761,13 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   }
   const pair = oppositeReviewPair(author);
   if (pair === undefined) {
-    return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
+    return unsupportedAuthorResult({
+      author,
+      policy,
+      kind: input.kind,
+      targets: input.targets,
+      context: input.context,
+    });
   }
   const { reviewer } = pair;
 
@@ -772,6 +787,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     policy,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
     sourceChanged,
     snapshotChanged,
   });

@@ -21,7 +21,11 @@ import {
   rememberCodexReviewStampIdentity,
   rememberCodexRunIdentity,
 } from '../lib/cursor-run-identity.ts';
-import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
+import {
+  commandInvokesCloseoutCleanup,
+  rememberCloseoutBinding,
+  resolveExactCodexTranscript,
+} from '../lib/closeout-binding.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
 
 installCrashCapture('codex-pre-tool-quality', undefined, 'codex');
@@ -123,10 +127,14 @@ if (failedResult === undefined && commandInvokesWriteReviewStamp(input.tool_inpu
 }
 
 if (failedResult === undefined && commandInvokesCloseoutCleanup(input.tool_input?.command ?? '')) {
+  const transcriptPath = input.session_id
+    ? resolveExactCodexTranscript(input.session_id)
+    : undefined;
   rememberCloseoutBinding({
     projectDirectory: resolveProjectRoot(),
     runtime: 'codex',
     id: input.session_id,
+    transcriptPath,
   });
 }
 

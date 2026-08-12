@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -28,9 +29,19 @@ import {
   recordCodexHookProof,
 } from '../../src/codex-plugin/profile-proof.ts';
 import { SAFEWORD_SCHEMA } from '../../src/schema.ts';
+import { parseShellWords } from '../../templates/hooks/lib/shell-segments.ts';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+
+function executableDirectory(name: string): string {
+  const executableName = process.platform === 'win32' ? `${name}.exe` : name;
+  const directory = (process.env.PATH ?? '')
+    .split(nodePath.delimiter)
+    .find(candidate => existsSync(nodePath.join(candidate, executableName)));
+  assert.ok(directory, `${name} must be available on the acceptance runner PATH`);
+  return directory;
+}
 
 interface UnifiedInstallWorld extends SafewordWorld {
   fixtureRoot?: string;
@@ -40,6 +51,7 @@ interface UnifiedInstallWorld extends SafewordWorld {
   codexState?: string;
   claudeLog?: string;
   codexLog?: string;
+  githubLog?: string;
   claudeFailure?: string;
   cursorBefore?: string;
   hostEnvironment?: NodeJS.ProcessEnv;
@@ -49,7 +61,6 @@ interface UnifiedInstallWorld extends SafewordWorld {
   doctorEnvelope?: Record<string, unknown>;
   planId?: string;
   unrelatedProfilePath?: string;
-  unifiedUninstall?: boolean;
   lifecycleOperation?: string;
   projectBefore?: string;
   unplannedContent?: string;
@@ -62,13 +73,11 @@ interface UnifiedInstallWorld extends SafewordWorld {
   compatibilityAlias?: string;
   compatibilityCanonical?: string;
   compatibilityRoute?: CompatibilityRoute;
-  compatibilityInvariant?: string;
-  referenceHelp?: string;
+  referenceHelp?: Readonly<Record<string, string>>;
   referenceCapabilities?: Record<string, unknown>;
   legacyGuidancePath?: string;
   recoveryCommand?: string;
   unrelatedProfileBefore?: string;
-  architectureFlags?: string;
   architectureLegacyFlags?: string;
   architectureCanonicalFlags?: string;
   architectureDocument?: string;
@@ -95,7 +104,7 @@ function historicalGlobalGuidance(): string {
 }
 
 function createLegacyGuidanceFixture(world: UnifiedInstallWorld): void {
-  const codexHome = requiredPath(world.hostEnvironment?.CODEX_HOME, 'Codex home');
+  const codexHome = requiredValue(world.hostEnvironment?.CODEX_HOME, 'Codex home');
   const guidancePath = nodePath.join(codexHome, 'AGENTS.md');
   const unrelatedPath = nodePath.join(codexHome, 'CUSTOM.md');
   writeFileSync(guidancePath, historicalGlobalGuidance());
@@ -137,23 +146,29 @@ function createClaudePayload(root: string): string {
   return installPath;
 }
 
-function directoryDigest(directory: string, ignoredNames: ReadonlySet<string> = new Set()): string {
+function directoryDigest(directory: string, ignoredPaths: ReadonlySet<string> = new Set()): string {
   if (!existsSync(directory)) return 'missing';
-  const visit = (path: string): unknown => {
+  const visit = (path: string, relativePath = ''): unknown => {
     const stat = lstatSync(path);
+    if (stat.isSymbolicLink()) return { symlink: readlinkSync(path) };
     if (!stat.isDirectory()) return readFileSync(path).toString('base64');
     return readdirSync(path)
-      .filter(name => !ignoredNames.has(name))
+      .filter(name => !ignoredPaths.has(nodePath.join(relativePath, name)))
       .toSorted((left, right) => left.localeCompare(right))
-      .map(name => [name, visit(nodePath.join(path, name))]);
+      .map(name => [name, visit(nodePath.join(path, name), nodePath.join(relativePath, name))]);
   };
   return JSON.stringify(visit(directory));
 }
 
 function fixtureEffectDigest(world: UnifiedInstallWorld): string {
   return directoryDigest(
-    requiredPath(world.fixtureRoot, 'fixture root'),
-    new Set(['claude-log', 'codex-log']),
+    requiredValue(world.fixtureRoot, 'fixture root'),
+    new Set([
+      nodePath.join('profile', 'claude-log'),
+      nodePath.join('profile', 'codex-log'),
+      nodePath.join('profile', 'github-log'),
+      nodePath.join('project', '.git'),
+    ]),
   );
 }
 
@@ -168,17 +183,23 @@ function initializeHosts(world: UnifiedInstallWorld): void {
   const codexMarketplace = nodePath.join(profile, 'codex-marketplace');
   const claudeLog = nodePath.join(profile, 'claude-log');
   const codexLog = nodePath.join(profile, 'codex-log');
+  const githubLog = nodePath.join(profile, 'github-log');
   const claudeFailure = nodePath.join(profile, 'claude-failure');
   const claudePayload = createClaudePayload(root);
   mkdirSync(nodePath.join(project, '.cursor'), { recursive: true });
   mkdirSync(bin, { recursive: true });
   mkdirSync(profile, { recursive: true });
   writeFileSync(nodePath.join(project, '.cursor/customer.json'), '{"ownedBy":"customer"}\n');
-  spawnSync('git', ['init', '--quiet'], { cwd: project });
+  const initialized = spawnSync(
+    'git',
+    ['-c', 'init.templateDir=', '-c', 'core.hooksPath=', 'init', '--quiet'],
+    { cwd: project, encoding: 'utf8' },
+  );
+  assert.equal(initialized.status, 0, initialized.stderr);
   for (const path of [claudeState, codexState, claudeMarketplace, codexMarketplace]) {
     writeFileSync(path, 'absent');
   }
-  for (const path of [claudeLog, codexLog, claudeFailure]) writeFileSync(path, '');
+  for (const path of [claudeLog, codexLog, githubLog, claudeFailure]) writeFileSync(path, '');
 
   const marketplaceUrl = 'https://github.com/ArcadeAI/safeword.git';
   const marketplaceReference = SAFEWORD_SCHEMA.version.includes('-')
@@ -186,7 +207,7 @@ function initializeHosts(world: UnifiedInstallWorld): void {
     : 'stable';
   const officialClaudeSource = `${marketplaceUrl}#${marketplaceReference}`;
   // Claude records project-scope state in the project's .claude/settings.json.
-  // Merge rather than overwrite: Safe Word writes its own keys there too
+  // Merge rather than overwrite: Safeword writes its own keys there too
   // (marketplace auto-update, last-known-good fallback), and clobbering them
   // makes every install re-enable them, so a repeat install never converges.
   const mergeSettings = nodePath.join(bin, 'safeword-merge-claude-settings');
@@ -297,6 +318,16 @@ case "$*" in
 esac
 `,
   );
+  // The unified-install corpus exercises CLI routing, not live GitHub access.
+  // Shadow `gh` as well as removing token variables below so a developer's
+  // keychain cannot turn a compatibility scenario into a real network sweep.
+  writeExecutable(
+    nodePath.join(bin, 'gh'),
+    `#!/bin/sh
+printf '%s|%s|%s\n' "$*" "\${GITHUB_TOKEN-unset}" "\${GH_TOKEN-unset}" >> "$SAFEWORD_GITHUB_LOG"
+exit 1
+`,
+  );
 
   world.fixtureRoot = root;
   world.temporaryDirectory = project;
@@ -306,10 +337,13 @@ esac
   world.codexState = codexState;
   world.claudeLog = claudeLog;
   world.codexLog = codexLog;
+  world.githubLog = githubLog;
   world.claudeFailure = claudeFailure;
   world.cursorBefore = directoryDigest(nodePath.join(project, '.cursor'));
   world.hostEnvironment = {
-    PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+    PATH: [bin, executableDirectory('bun'), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(
+      nodePath.delimiter,
+    ),
     CODEX_HOME: profile,
     SAFEWORD_CLAUDE_MARKETPLACE: claudeMarketplace,
     SAFEWORD_CLAUDE_LOG: claudeLog,
@@ -323,15 +357,53 @@ esac
     SAFEWORD_CLAUDE_STATE: claudeState,
     SAFEWORD_CODEX_MARKETPLACE: codexMarketplace,
     SAFEWORD_CODEX_LOG: codexLog,
+    SAFEWORD_GITHUB_LOG: githubLog,
     SAFEWORD_CODEX_STATE: codexState,
     SAFEWORD_VERSION: SAFEWORD_SCHEMA.version,
   };
   world.fixtureBefore = fixtureEffectDigest(world);
 }
 
-function requiredPath(path: string | undefined, label: string): string {
-  if (path === undefined) throw new Error(`${label} was not initialized`);
-  return path;
+function requiredValue<T>(value: T | undefined, label: string): T {
+  if (value === undefined) throw new Error(`${label} was not initialized`);
+  return value;
+}
+
+function helpListsCommand(help: string, command: string): boolean {
+  return help.split('\n').some(line => line.trimStart().split(/\s+/u, 1)[0] === command);
+}
+
+function assertReferenceCommand(
+  help: Readonly<Record<string, string>>,
+  capabilities: readonly { name?: string; effect_class?: string }[] | undefined,
+  name: string,
+  effectClass: string,
+): void {
+  const definition = commandCatalog.find(candidate => candidate.name === name);
+  assert.equal(definition?.effectClass, effectClass, name);
+  assert.equal(typeof definition?.handler, 'function', name);
+  const [family, nestedCommand] = name.split(' ', 2);
+  assert.equal(helpListsCommand(help[''] ?? '', family ?? ''), true);
+  assert.equal(helpListsCommand(help[family ?? ''] ?? '', nestedCommand ?? ''), true);
+  assert.equal(
+    capabilities?.some(entry => entry.name === name && entry.effect_class === effectClass),
+    true,
+    `${name} is absent from capabilities with effect class ${effectClass}`,
+  );
+}
+
+function fixtureProcessEnvironment(world: UnifiedInstallWorld): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = {
+    LANG: process.env.LANG ?? 'C.UTF-8',
+    LC_ALL: process.env.LC_ALL,
+    TZ: process.env.TZ,
+    ...world.hostEnvironment,
+    SAFEWORD_NO_UPDATE_CHECK: '1',
+    SAFEWORD_SKIP_INSTALL: '1',
+  };
+  delete environment.GITHUB_TOKEN;
+  delete environment.GH_TOKEN;
+  return environment;
 }
 
 interface LifecyclePlanEnvelope {
@@ -362,6 +434,9 @@ function assertSelectedProfilePlan(
     if (profileSelected) assert.ok(effects.network.length > 0);
     return;
   }
+  if (operation !== 'uninstall') {
+    throw new Error(`Unsupported profile plan operation: ${operation ?? 'unset'}`);
+  }
   // The fixture starts with no installed profile plugins. An exact uninstall
   // plan must not fabricate destructive profile effects for absent state.
   if (profileSelected) {
@@ -381,20 +456,14 @@ After(function (this: UnifiedInstallWorld) {
 });
 
 function runInstall(world: UnifiedInstallWorld, arguments_: readonly string[]): void {
-  const project = requiredPath(world.projectRoot, 'project root');
-  const environment = world.hostEnvironment ?? {};
+  const project = requiredValue(world.projectRoot, 'project root');
   const completed = spawnSync(
     process.execPath,
     [CLI_PATH, 'install', ...arguments_, '--json', '--cwd', project],
     {
       cwd: project,
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        ...environment,
-        SAFEWORD_NO_UPDATE_CHECK: '1',
-        SAFEWORD_SKIP_INSTALL: '1',
-      },
+      env: fixtureProcessEnvironment(world),
     },
   );
   world.result = {
@@ -405,16 +474,11 @@ function runInstall(world: UnifiedInstallWorld, arguments_: readonly string[]): 
 }
 
 function runJsonCommand(world: UnifiedInstallWorld, command: string): Record<string, unknown> {
-  const project = requiredPath(world.projectRoot, 'project root');
+  const project = requiredValue(world.projectRoot, 'project root');
   const completed = spawnSync(process.execPath, [CLI_PATH, command, '--json', '--cwd', project], {
     cwd: project,
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      ...world.hostEnvironment,
-      SAFEWORD_NO_UPDATE_CHECK: '1',
-      SAFEWORD_SKIP_INSTALL: '1',
-    },
+    env: fixtureProcessEnvironment(world),
   });
   // status and doctor are observations: action_required (exit 2) is a real
   // health verdict, so only a hard failure invalidates the envelope.
@@ -430,19 +494,14 @@ function runRawCommand(
   arguments_: readonly string[],
   globalJson = true,
 ): void {
-  const project = requiredPath(world.projectRoot, 'project root');
+  const project = requiredValue(world.projectRoot, 'project root');
   const completed = spawnSync(
     process.execPath,
     [CLI_PATH, ...arguments_, ...(globalJson ? ['--json'] : []), '--cwd', project],
     {
       cwd: project,
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        ...world.hostEnvironment,
-        SAFEWORD_NO_UPDATE_CHECK: '1',
-        SAFEWORD_SKIP_INSTALL: '1',
-      },
+      env: fixtureProcessEnvironment(world),
     },
   );
   world.result = {
@@ -465,8 +524,8 @@ function assertCommandDidNotFail(world: UnifiedInstallWorld): void {
 }
 
 function assertRetainedCompatibilityRoute(world: UnifiedInstallWorld): void {
-  const alias = requiredPath(world.compatibilityAlias, 'compatibility alias');
-  const canonical = requiredPath(world.compatibilityCanonical, 'canonical route');
+  const alias = requiredValue(world.compatibilityAlias, 'compatibility alias');
+  const canonical = requiredValue(world.compatibilityCanonical, 'canonical route');
   const route = world.compatibilityRoute;
   assert.ok(route, `No retained compatibility route maps ${alias} to ${canonical}`);
   assert.equal(route.retention, 'indefinite', alias);
@@ -481,19 +540,19 @@ function assertRetainedCompatibilityRoute(world: UnifiedInstallWorld): void {
 }
 
 function assertScopedInstallCompatibility(world: UnifiedInstallWorld, alias: string): void {
-  const canonical = requiredPath(world.compatibilityCanonical, 'canonical route');
+  const canonical = requiredValue(world.compatibilityCanonical, 'canonical route');
   assertCommandDidNotFail(world);
-  const project = requiredPath(world.projectRoot, 'project root');
+  const project = requiredValue(world.projectRoot, 'project root');
   // The retained scoped spellings install the profile plugin only; reconciling
   // the repository is the canonical `install --agents=<agent>` route.
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), false);
   const selected = alias.startsWith('claude') ? 'claude' : 'codex';
   assert.equal(
-    readFileSync(requiredPath(world.claudeState, 'Claude state'), 'utf8'),
+    readFileSync(requiredValue(world.claudeState, 'Claude state'), 'utf8'),
     selected === 'claude' ? 'enabled' : 'absent',
   );
   assert.equal(
-    readFileSync(requiredPath(world.codexState, 'Codex state'), 'utf8'),
+    readFileSync(requiredValue(world.codexState, 'Codex state'), 'utf8'),
     selected === 'codex' ? 'enabled' : 'absent',
   );
   const envelope = JSON.parse(world.result.stdout) as {
@@ -544,15 +603,15 @@ Then(
   'core project configuration and both profile plugins are installed',
   function (this: UnifiedInstallWorld) {
     assertCommandDidNotFail(this);
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
-    assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
-    assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
+    assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+    assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'enabled');
   },
 );
 
 Then('Cursor configuration is unchanged', function (this: UnifiedInstallWorld) {
-  const project = requiredPath(this.projectRoot, 'project root');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
 });
 
@@ -597,7 +656,7 @@ When(
 
 Then('core project configuration is installed', function (this: UnifiedInstallWorld) {
   assertCommandDidNotFail(this);
-  const project = requiredPath(this.projectRoot, 'project root');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
 });
 
@@ -606,14 +665,14 @@ Then(
   function (this: UnifiedInstallWorld, agents: string) {
     const selected = new Set(agents.split(','));
     assert.equal(
-      readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'),
+      readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'),
       selected.has('claude') ? 'enabled' : 'absent',
     );
     assert.equal(
-      readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'),
+      readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'),
       selected.has('codex') ? 'enabled' : 'absent',
     );
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(
       directoryDigest(nodePath.join(project, '.cursor')) === this.cursorBefore,
       !selected.has('cursor'),
@@ -639,7 +698,7 @@ Then(
   'core project configuration and Cursor assets are installed without a network effect',
   function (this: UnifiedInstallWorld) {
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
     assert.notEqual(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
     const result = JSON.parse(this.result.stdout) as { effects?: { network?: unknown[] } };
@@ -648,8 +707,8 @@ Then(
 );
 
 Then('Claude and Codex are unchanged', function (this: UnifiedInstallWorld) {
-  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
-  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'absent');
 });
 
 Given(
@@ -750,10 +809,10 @@ Given(
     initializeHosts(this);
     runInstall(this, []);
     assertCommandDidNotFail(this);
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     writeFileSync(nodePath.join(project, 'CUSTOM.md'), 'customer project content\n');
     const profilePath = nodePath.join(
-      requiredPath(this.fixtureRoot, 'fixture root'),
+      requiredValue(this.fixtureRoot, 'fixture root'),
       'profile/customer.txt',
     );
     writeFileSync(profilePath, 'customer profile content\n');
@@ -766,21 +825,21 @@ Given(
 );
 
 When('the user confirms that exact plan', function (this: UnifiedInstallWorld) {
-  runRawCommand(this, ['uninstall', '--yes', '--plan', requiredPath(this.planId, 'plan id')]);
+  runRawCommand(this, ['uninstall', '--yes', '--plan', requiredValue(this.planId, 'plan id')]);
 });
 
-Then('only recognized Safe Word-owned state is removed', function (this: UnifiedInstallWorld) {
+Then('only recognized Safeword-owned state is removed', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
-  const project = requiredPath(this.projectRoot, 'project root');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), false);
-  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
-  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'absent');
   assert.equal(
     readFileSync(nodePath.join(project, 'CUSTOM.md'), 'utf8'),
     'customer project content\n',
   );
   assert.equal(
-    readFileSync(requiredPath(this.unrelatedProfilePath, 'profile customer content'), 'utf8'),
+    readFileSync(requiredValue(this.unrelatedProfilePath, 'profile customer content'), 'utf8'),
     'customer profile content\n',
   );
   assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
@@ -817,11 +876,14 @@ Given(
     const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
     this.planId = envelope.data?.plan?.id;
     assert.match(this.planId ?? '', /^[a-f\d]{64}$/u);
-    writeFileSync(requiredPath(this.claudeState, 'Claude state'), 'absent');
+    writeFileSync(requiredValue(this.claudeState, 'Claude state'), 'absent');
     this.fixtureBefore = fixtureEffectDigest(this);
-    this.unifiedUninstall = true;
   },
 );
+
+When('the user confirms that stale uninstall plan', function (this: UnifiedInstallWorld) {
+  runRawCommand(this, ['uninstall', '--yes', '--plan', requiredValue(this.planId, 'plan id')]);
+});
 
 Then('no removal occurs and a fresh plan is required', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
@@ -871,7 +933,7 @@ When(
   function (this: UnifiedInstallWorld, operation: string) {
     this.lifecycleOperation = operation;
     const agents = this.selectedAgents?.length === 0 ? 'none' : this.selectedAgents?.join(',');
-    runRawCommand(this, ['plan', operation, '--agents', requiredPath(agents, 'selected agents')]);
+    runRawCommand(this, ['plan', operation, '--agents', requiredValue(agents, 'selected agents')]);
   },
 );
 
@@ -939,17 +1001,17 @@ Given(
 Then(
   'core project configuration and Claude are installed once',
   function (this: UnifiedInstallWorld) {
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
-    assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+    assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
     const envelope = JSON.parse(this.result.stdout) as { data?: { selected_agents?: string[] } };
     assert.deepEqual(envelope.data?.selected_agents, ['claude']);
   },
 );
 
 Then('Codex and Cursor are unchanged', function (this: UnifiedInstallWorld) {
-  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
-  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'absent');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
 });
 
@@ -963,7 +1025,7 @@ Given(
 Then(
   'core project configuration is installed without a network effect',
   function (this: UnifiedInstallWorld) {
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
     const envelope = JSON.parse(this.result.stdout) as { effects?: { network?: unknown[] } };
     assert.deepEqual(envelope.effects?.network, []);
@@ -971,9 +1033,9 @@ Then(
 );
 
 Then('every agent integration is unchanged', function (this: UnifiedInstallWorld) {
-  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
-  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
-  const project = requiredPath(this.projectRoot, 'project root');
+  assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'absent');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
 });
 
@@ -1006,55 +1068,55 @@ Given('a project with customer-owned Cursor configuration', function (this: Unif
 });
 
 Then('every Cursor file remains byte-for-byte unchanged', function (this: UnifiedInstallWorld) {
-  const project = requiredPath(this.projectRoot, 'project root');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(directoryDigest(nodePath.join(project, '.cursor')), this.cursorBefore);
 });
 
 Given('a project with no Cursor configuration', function (this: UnifiedInstallWorld) {
   initializeHosts(this);
-  const project = requiredPath(this.projectRoot, 'project root');
+  const project = requiredValue(this.projectRoot, 'project root');
   rmSync(nodePath.join(project, '.cursor'), { recursive: true, force: true });
   this.cursorBefore = 'missing';
 });
 
 Then('no Cursor file or directory is created', function (this: UnifiedInstallWorld) {
-  const project = requiredPath(this.projectRoot, 'project root');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.cursor')), false);
 });
 
 Then(
-  'core project configuration and Safe Word-owned Cursor assets are installed',
+  'core project configuration and Safeword-owned Cursor assets are installed',
   function (this: UnifiedInstallWorld) {
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
     assert.equal(existsSync(nodePath.join(project, '.cursor')), true);
   },
 );
 
 Then('Claude and Codex profiles are unchanged', function (this: UnifiedInstallWorld) {
-  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'absent');
-  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'absent');
+  assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'absent');
 });
 
 Given(
   'a project with customer and third-party Cursor configuration',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     writeFileSync(nodePath.join(project, '.cursor/third-party.json'), '{"owner":"third-party"}\n');
   },
 );
 
 Then(
-  'Safe Word Cursor entries are reconciled without replacing unrelated content',
+  'Safeword Cursor entries are reconciled without replacing unrelated content',
   function (this: UnifiedInstallWorld) {
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     // The positive half of the claim: a no-op install would preserve both
     // files below and prove nothing, so require the owned entries too.
     const owned = Object.keys(SAFEWORD_SCHEMA.ownedFiles).filter(path =>
       path.startsWith('.cursor/'),
     );
-    assert.ok(owned.length > 0, 'schema declares no Safe Word-owned Cursor files');
+    assert.ok(owned.length > 0, 'schema declares no Safeword-owned Cursor files');
     for (const path of owned) {
       assert.equal(existsSync(nodePath.join(project, path)), true, path);
     }
@@ -1084,8 +1146,8 @@ Then(
   'unified installation runs without inferring additional consent',
   function (this: UnifiedInstallWorld) {
     assertCommandDidNotFail(this);
-    assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
-    assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
+    assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+    assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'enabled');
   },
 );
 
@@ -1122,16 +1184,6 @@ Given(
 );
 
 /**
- * Option aliases have no standalone invocation; they are proven executable by
- * the architecture and Codex migration suites that pass them to their command.
- */
-const OPTION_ALIAS_PROOFS: Readonly<Record<string, string>> = {
-  '--stage': 'tests/commands/architecture-stage.test.ts',
-  '--staged': 'tests/commands/architecture-stage.test.ts',
-  '--remove-legacy-hooks': 'features/migrate-codex-to-plugin.feature',
-};
-
-/**
  * Operands required by an alias before Commander will dispatch it. Argument
  * validation runs ahead of the handler, so an alias missing a required operand
  * exits without compatibility guidance; supplying one exercises the route.
@@ -1141,10 +1193,72 @@ const ALIAS_REQUIRED_OPERANDS: Readonly<Record<string, readonly string[]>> = {
   connect: ['unsupported-provider'],
 };
 
+function invokeOptionAlias(world: UnifiedInstallWorld, alias: string): boolean {
+  if (alias === '--stage' || alias === '--staged') {
+    createDivergentArchitectureFixture(world);
+    runRawCommand(world, ['project', 'architecture', alias]);
+    return true;
+  }
+  if (alias !== '--remove-legacy-hooks') return false;
+
+  initializeHosts(world);
+  for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+    recordCodexHookProof(event, world.hostEnvironment);
+  }
+  const argv = ['codex', 'migrate', alias];
+  runRawCommand(world, argv);
+  return true;
+}
+
+function assertCredentialIsolationInChild(world: UnifiedInstallWorld): void {
+  const observed = spawnSync(
+    process.execPath,
+    [
+      '-e',
+      'process.stdout.write(`${process.env.GITHUB_TOKEN ?? "unset"}|${process.env.GH_TOKEN ?? "unset"}`)',
+    ],
+    { env: fixtureProcessEnvironment(world), encoding: 'utf8' },
+  );
+  assert.equal(observed.status, 0, observed.stderr);
+  assert.equal(observed.stdout, 'unset|unset');
+}
+
+function assertOptionAliasResult(result: string, alias: string, canonical: string): void {
+  const envelope = JSON.parse(result) as {
+    schema_version?: number;
+    data?: { command?: string };
+    findings?: { code?: string; metadata?: { legacy?: string; replacement?: string } }[];
+  };
+  assert.equal(envelope.schema_version, 1, `${alias} did not return a result envelope`);
+  assert.equal(
+    envelope.findings?.some(
+      finding =>
+        finding.code === 'CLI_OPTION_DEPRECATED' &&
+        finding.metadata?.legacy === alias &&
+        canonical.endsWith(finding.metadata?.replacement ?? '\0'),
+    ),
+    true,
+    `${alias} did not dispatch with compatibility guidance: ${result}`,
+  );
+  if (alias === '--remove-legacy-hooks') {
+    assert.equal(envelope.data?.command, 'codex migrate --finalize');
+  }
+}
+
 When('the user invokes it', function (this: UnifiedInstallWorld) {
-  const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
-  if (OPTION_ALIAS_PROOFS[alias] !== undefined) return;
+  const alias = requiredValue(this.compatibilityAlias, 'compatibility alias');
+  if (invokeOptionAlias(this, alias)) return;
   initializeHosts(this);
+  // Reproduce the credential-bearing developer/CI environment that exposed
+  // this fixture's former live-network leak. The fixture process boundary must
+  // remove it before exercising the reconcile alias.
+  if (alias === 'retro-reconcile') {
+    this.hostEnvironment = {
+      ...this.hostEnvironment,
+      GITHUB_TOKEN: `ghp_${'a'.repeat(36)}`,
+    };
+    assertCredentialIsolationInChild(this);
+  }
   const argv = alias === 'bare safeword' ? [] : alias.split(' ');
   runRawCommand(this, [...argv, ...(ALIAS_REQUIRED_OPERANDS[alias] ?? [])]);
 });
@@ -1152,16 +1266,12 @@ When('the user invokes it', function (this: UnifiedInstallWorld) {
 Then(
   'the named canonical behavior runs with compatibility guidance',
   function (this: UnifiedInstallWorld) {
-    const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
-    const canonical = requiredPath(this.compatibilityCanonical, 'canonical route');
+    const alias = requiredValue(this.compatibilityAlias, 'compatibility alias');
+    const canonical = requiredValue(this.compatibilityCanonical, 'canonical route');
     assertRetainedCompatibilityRoute(this);
 
-    const optionProof = OPTION_ALIAS_PROOFS[alias];
-    if (optionProof !== undefined) {
-      const definition = commandCatalog.find(candidate =>
-        candidate.registration.options?.some(o => o.flags.includes(alias)),
-      );
-      assert.ok(definition, `${alias} is not registered on any command (proof: ${optionProof})`);
+    if (alias.startsWith('--')) {
+      assertOptionAliasResult(this.result.stdout, alias, canonical);
       return;
     }
 
@@ -1173,7 +1283,16 @@ Then(
     };
     assert.equal(envelope.schema_version, 1, `${alias} did not return a result envelope`);
 
-    if (alias === 'bare safeword') {
+    if (alias === 'retro-reconcile') {
+      const calls = readFileSync(requiredValue(this.githubLog, 'GitHub log'), 'utf8')
+        .trim()
+        .split('\n')
+        .filter(call => call.length > 0);
+      assert.equal(
+        calls.every(call => call.endsWith('|unset|unset')),
+        true,
+      );
+    } else if (alias === 'bare safeword') {
       // Bare invocation is the default route, not a named alias, so it carries
       // no deprecation finding; it must still resolve to canonical status.
       assert.equal((envelope as { data?: { command?: string } }).data?.command, canonical);
@@ -1251,10 +1370,10 @@ Given('compatibility route {string}', function (this: UnifiedInstallWorld, alias
 
 function assertUnifiedInstallAlias(world: UnifiedInstallWorld, alias: string): void {
   assert.ok(alias === 'setup' || alias === 'upgrade');
-  const project = requiredPath(world.projectRoot, 'project root');
+  const project = requiredValue(world.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
-  assert.equal(readFileSync(requiredPath(world.claudeState, 'Claude state'), 'utf8'), 'enabled');
-  assert.equal(readFileSync(requiredPath(world.codexState, 'Codex state'), 'utf8'), 'enabled');
+  assert.equal(readFileSync(requiredValue(world.claudeState, 'Claude state'), 'utf8'), 'enabled');
+  assert.equal(readFileSync(requiredValue(world.codexState, 'Codex state'), 'utf8'), 'enabled');
   assert.equal(directoryDigest(nodePath.join(project, '.cursor')), world.cursorBefore);
 }
 
@@ -1311,7 +1430,7 @@ const compatibilityInvariantAssertions: Readonly<
 When(
   'its behavior is compared with {string}',
   function (this: UnifiedInstallWorld, canonical: string) {
-    const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
+    const alias = requiredValue(this.compatibilityAlias, 'compatibility alias');
     this.compatibilityCanonical = canonical;
     if (alias === 'setup' || alias === 'upgrade') {
       runRawCommand(this, [alias]);
@@ -1332,7 +1451,7 @@ When(
 Then(
   'the observable contract remains {string}',
   function (this: UnifiedInstallWorld, invariant: string) {
-    const alias = requiredPath(this.compatibilityAlias, 'compatibility alias');
+    const alias = requiredValue(this.compatibilityAlias, 'compatibility alias');
     assertCommandDidNotFail(this);
     const assertInvariant = compatibilityInvariantAssertions[invariant];
     assert.ok(assertInvariant, `Unhandled compatibility invariant: ${invariant}`);
@@ -1348,42 +1467,34 @@ Given(
 );
 
 When('CLI reference and capability fixtures are validated', function (this: UnifiedInstallWorld) {
-  const project = requiredPath(this.projectRoot, 'project root');
-  const environment = { ...process.env, ...this.hostEnvironment, SAFEWORD_NO_UPDATE_CHECK: '1' };
-  const help = spawnSync(process.execPath, [CLI_PATH, '--help'], {
-    cwd: project,
-    encoding: 'utf8',
-    env: environment,
-  });
-  this.referenceHelp = help.stdout;
+  const project = requiredValue(this.projectRoot, 'project root');
+  const environment = fixtureProcessEnvironment(this);
+  this.referenceHelp = Object.fromEntries(
+    ['', 'review', 'codex'].map(command => {
+      const help = spawnSync(
+        process.execPath,
+        [CLI_PATH, ...command.split(' ').filter(Boolean), '--help'],
+        { cwd: project, encoding: 'utf8', env: environment },
+      );
+      assert.equal(help.status, 0, help.stderr);
+      return [command, help.stdout];
+    }),
+  );
   this.referenceCapabilities = runJsonCommand(this, 'capabilities');
 });
 
 Then(
   'both commands are listed with their executable syntax and effect policy',
   function (this: UnifiedInstallWorld) {
-    const help = requiredPath(this.referenceHelp, 'CLI reference help');
+    const help = this.referenceHelp;
+    assert.ok(help, 'CLI reference help was not initialized');
     const capabilities = this.referenceCapabilities?.data as
       { commands?: { name?: string; effect_class?: string }[] } | undefined;
     for (const [name, effectClass] of [
       ['review run', 'mutate'],
       ['codex clean-guidance', 'destructive'],
     ] as const) {
-      const definition = commandCatalog.find(candidate => candidate.name === name);
-      assert.equal(definition?.effectClass, effectClass, name);
-      assert.equal(typeof definition?.handler, 'function', name);
-      // The fixtures gathered by the When must actually carry the command.
-      assert.ok(
-        help.includes(name.split(' ', 1)[0] ?? name),
-        `${name} is absent from the CLI reference help`,
-      );
-      assert.equal(
-        capabilities?.commands?.some(
-          entry => entry.name === name && entry.effect_class === effectClass,
-        ),
-        true,
-        `${name} is absent from capabilities with effect class ${effectClass}`,
-      );
+      assertReferenceCommand(help, capabilities?.commands, name, effectClass);
     }
   },
 );
@@ -1485,38 +1596,43 @@ Then(
 );
 
 Given(
-  'a confirmed cleanup moved recognized Safe Word state into a recovery backup',
+  'a confirmed cleanup moved recognized Safeword state into a recovery backup',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
     createLegacyGuidanceFixture(this);
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     const unrelatedProjectPath = nodePath.join(project, 'customer.txt');
     writeFileSync(unrelatedProjectPath, 'customer project content\n');
     this.projectBefore = readFileSync(unrelatedProjectPath, 'utf8');
     runRawCommand(this, ['codex', 'clean-guidance']);
     const preview = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
-    const planId = requiredPath(preview.data?.plan?.id, 'legacy cleanup plan');
+    const planId = requiredValue(preview.data?.plan?.id, 'legacy cleanup plan');
     runRawCommand(this, ['codex', 'clean-guidance', '--yes', '--plan', planId]);
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const applied = JSON.parse(this.result.stdout) as { recovery?: { command?: string }[] };
-    this.recoveryCommand = requiredPath(applied.recovery?.[0]?.command, 'recovery command');
+    this.recoveryCommand = requiredValue(applied.recovery?.[0]?.command, 'recovery command');
   },
 );
 
 When('the user runs the advertised recovery action', function (this: UnifiedInstallWorld) {
-  const completed = spawnSync(
-    'sh',
-    ['-c', requiredPath(this.recoveryCommand, 'recovery command')],
-    {
-      encoding: 'utf8',
-    },
+  const [executable, separator, ...arguments_] = parseShellWords(
+    requiredValue(this.recoveryCommand, 'recovery command'),
   );
+  assert.equal(executable, 'mv');
+  assert.equal(separator, '--');
+  assert.equal(arguments_.length, 2);
+  const project = requiredValue(this.projectRoot, 'project root');
+  const completed = spawnSync(executable, [separator, ...arguments_], {
+    cwd: project,
+    encoding: 'utf8',
+    env: fixtureProcessEnvironment(this),
+  });
   assert.equal(completed.status, 0, completed.stderr);
 });
 
 Then('the recognized state is restored to service', function (this: UnifiedInstallWorld) {
   assert.equal(
-    readFileSync(requiredPath(this.legacyGuidancePath, 'legacy guidance'), 'utf8'),
+    readFileSync(requiredValue(this.legacyGuidancePath, 'legacy guidance'), 'utf8'),
     historicalGlobalGuidance(),
   );
 });
@@ -1524,10 +1640,10 @@ Then('the recognized state is restored to service', function (this: UnifiedInsta
 Then(
   'unrelated current project and profile content remains unchanged',
   function (this: UnifiedInstallWorld) {
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(readFileSync(nodePath.join(project, 'customer.txt'), 'utf8'), this.projectBefore);
     assert.equal(
-      readFileSync(requiredPath(this.unrelatedProfilePath, 'unrelated profile content'), 'utf8'),
+      readFileSync(requiredValue(this.unrelatedProfilePath, 'unrelated profile content'), 'utf8'),
       this.unrelatedProfileBefore,
     );
   },
@@ -1540,7 +1656,7 @@ Then(
  */
 function createDivergentArchitectureFixture(world: UnifiedInstallWorld): void {
   initializeHosts(world);
-  const project = requiredPath(world.projectRoot, 'project root');
+  const project = requiredValue(world.projectRoot, 'project root');
   const git = (...args: string[]): void => {
     const completed = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
     assert.equal(completed.status, 0, completed.stderr);
@@ -1563,6 +1679,7 @@ function createDivergentArchitectureFixture(world: UnifiedInstallWorld): void {
   // Staged-only module: present in the index, absent from HEAD.
   writeModule('billing');
   git('add', '--', 'src/billing/index.ts');
+  rmSync(nodePath.join(project, 'src/billing'), { recursive: true });
   // Worktree-only module: never staged.
   writeModule('shipping');
   world.architectureDocument = nodePath.join(project, '.project/architecture.generated.md');
@@ -1570,14 +1687,14 @@ function createDivergentArchitectureFixture(world: UnifiedInstallWorld): void {
 
 function stagedArchitecturePaths(world: UnifiedInstallWorld): string[] {
   const completed = spawnSync('git', ['diff', '--cached', '--name-only'], {
-    cwd: requiredPath(world.projectRoot, 'project root'),
+    cwd: requiredValue(world.projectRoot, 'project root'),
     encoding: 'utf8',
   });
   return completed.stdout.split('\n').filter(line => line.length > 0);
 }
 
 function readArchitectureDocument(world: UnifiedInstallWorld): string {
-  const path = requiredPath(world.architectureDocument, 'architecture document');
+  const path = requiredValue(world.architectureDocument, 'architecture document');
   return existsSync(path) ? readFileSync(path, 'utf8') : '';
 }
 
@@ -1591,7 +1708,6 @@ Given(
 When(
   'the user runs architecture with {string}',
   function (this: UnifiedInstallWorld, flags: string) {
-    this.architectureFlags = flags;
     runRawCommand(this, [
       'project',
       'architecture',
@@ -1609,6 +1725,11 @@ Then(
     assert.equal(
       document.includes('shipping'),
       input === 'worktree',
+      `reading ${input} state produced: ${document}`,
+    );
+    assert.equal(
+      document.includes('billing'),
+      input === 'index',
       `reading ${input} state produced: ${document}`,
     );
     assert.equal(
@@ -1636,7 +1757,7 @@ When(
 Then(
   'it behaves like canonical flags {string} and reports compatibility guidance',
   function (this: UnifiedInstallWorld, canonical: string) {
-    const legacy = requiredPath(this.architectureLegacyFlags, 'legacy architecture flag');
+    const legacy = requiredValue(this.architectureLegacyFlags, 'legacy architecture flag');
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const envelope = JSON.parse(this.result.stdout) as {
       findings?: { code?: string; metadata?: { legacy?: string; replacement?: string } }[];
@@ -1714,8 +1835,11 @@ When(
 Then(
   'generated content and index staging effects are identical',
   function (this: UnifiedInstallWorld) {
-    const legacy = requiredPath(this.architectureLegacyFlags, 'legacy architecture flags');
-    const canonical = requiredPath(this.architectureCanonicalFlags, 'canonical architecture flags');
+    const legacy = requiredValue(this.architectureLegacyFlags, 'legacy architecture flags');
+    const canonical = requiredValue(
+      this.architectureCanonicalFlags,
+      'canonical architecture flags',
+    );
     const legacyOutcome = this.architectureLegacyOutcome;
     const canonicalOutcome = this.architectureCanonicalOutcome;
     assert.ok(legacyOutcome && canonicalOutcome, 'both spellings must have run');
@@ -1774,22 +1898,22 @@ Given(
     runInstall(this, []);
     assertCommandDidNotFail(this);
     const environment = this.hostEnvironment ?? {};
-    const codexHome = requiredPath(environment.CODEX_HOME, 'Codex home');
+    const codexHome = requiredValue(environment.CODEX_HOME, 'Codex home');
     rmSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'), { force: true });
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) recordCodexHookProof(event, environment);
     runRawCommand(this, ['codex', 'migrate', '--finalize']);
     const preview = JSON.parse(this.result.stdout) as {
       data?: { plan?: { id?: string } };
     };
-    const planId = requiredPath(preview.data?.plan?.id, 'Codex finalization plan');
+    const planId = requiredValue(preview.data?.plan?.id, 'Codex finalization plan');
     runRawCommand(this, ['codex', 'migrate', '--finalize', '--yes', '--plan', planId]);
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const finalization = JSON.parse(this.result.stdout) as { state?: string };
     assert.equal(finalization.state, 'changed', this.result.stdout);
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     this.projectBefore = readFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), 'utf8');
-    writeFileSync(requiredPath(this.claudeLog, 'Claude log'), '');
-    writeFileSync(requiredPath(this.codexLog, 'Codex log'), '');
+    writeFileSync(requiredValue(this.claudeLog, 'Claude log'), '');
+    writeFileSync(requiredValue(this.codexLog, 'Codex log'), '');
   },
 );
 
@@ -1806,7 +1930,7 @@ Then(
       next_actions?: unknown[];
       data?: { surfaces?: { selected?: boolean; state?: string }[] };
     };
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     assert.equal(
       readFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), 'utf8'),
       this.projectBefore,
@@ -1825,11 +1949,11 @@ Then(
       true,
     );
     assert.doesNotMatch(
-      readFileSync(requiredPath(this.claudeLog, 'Claude log'), 'utf8'),
+      readFileSync(requiredValue(this.claudeLog, 'Claude log'), 'utf8'),
       /plugin (?:install|update|enable)/u,
     );
     assert.doesNotMatch(
-      readFileSync(requiredPath(this.codexLog, 'Codex log'), 'utf8'),
+      readFileSync(requiredValue(this.codexLog, 'Codex log'), 'utf8'),
       /plugin add/u,
     );
   },
@@ -1841,35 +1965,35 @@ Given(
     initializeHosts(this);
     runInstall(this, []);
     assertCommandDidNotFail(this);
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     rmSync(nodePath.join(project, '.safeword/SAFEWORD.md'));
-    writeFileSync(requiredPath(this.codexState, 'Codex state'), 'absent');
-    writeFileSync(requiredPath(this.claudeLog, 'Claude log'), '');
-    writeFileSync(requiredPath(this.codexLog, 'Codex log'), '');
+    writeFileSync(requiredValue(this.codexState, 'Codex state'), 'absent');
+    writeFileSync(requiredValue(this.claudeLog, 'Claude log'), '');
+    writeFileSync(requiredValue(this.codexLog, 'Codex log'), '');
   },
 );
 
 Then('core drift is reconciled and Codex is installed', function (this: UnifiedInstallWorld) {
-  const project = requiredPath(this.projectRoot, 'project root');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
-  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
+  assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'enabled');
 });
 
 Then(
   'healthy Claude state and user-owned content are preserved without duplicate entries',
   function (this: UnifiedInstallWorld) {
-    const project = requiredPath(this.projectRoot, 'project root');
-    assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+    const project = requiredValue(this.projectRoot, 'project root');
+    assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
     assert.equal(
       readFileSync(nodePath.join(project, '.cursor/customer.json'), 'utf8'),
       '{"ownedBy":"customer"}\n',
     );
     assert.doesNotMatch(
-      readFileSync(requiredPath(this.claudeLog, 'Claude log'), 'utf8'),
+      readFileSync(requiredValue(this.claudeLog, 'Claude log'), 'utf8'),
       /plugin (?:install|update|enable)/u,
     );
     assert.equal(
-      readFileSync(requiredPath(this.codexLog, 'Codex log'), 'utf8')
+      readFileSync(requiredValue(this.codexLog, 'Codex log'), 'utf8')
         .split('\n')
         .filter(line => line === 'plugin add safeword@safeword --json').length,
       1,
@@ -1881,7 +2005,7 @@ Given(
   'core and Codex can install but Claude installation fails',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    writeFileSync(requiredValue(this.claudeFailure, 'Claude failure control'), 'fail');
   },
 );
 
@@ -1891,8 +2015,8 @@ Given(
     initializeHosts(this);
     runInstall(this, []);
     assertCommandDidNotFail(this);
-    writeFileSync(requiredPath(this.claudeState, 'Claude state'), 'absent');
-    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    writeFileSync(requiredValue(this.claudeState, 'Claude state'), 'absent');
+    writeFileSync(requiredValue(this.claudeFailure, 'Claude failure control'), 'fail');
   },
 );
 
@@ -1903,9 +2027,9 @@ When('the user runs the default install', function (this: UnifiedInstallWorld) {
 
 Then('successful core and Codex effects remain recorded', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 1);
-  const project = requiredPath(this.projectRoot, 'project root');
+  const project = requiredValue(this.projectRoot, 'project root');
   assert.equal(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md')), true);
-  assert.equal(readFileSync(requiredPath(this.codexState, 'Codex state'), 'utf8'), 'enabled');
+  assert.equal(readFileSync(requiredValue(this.codexState, 'Codex state'), 'utf8'), 'enabled');
   const envelope = JSON.parse(this.result.stdout) as {
     effects?: { configuration?: { target?: string }[] };
     data?: { surfaces?: { name?: string; state?: string }[] };
@@ -1956,16 +2080,16 @@ Given(
   'core and Codex succeeded while Claude failed on the prior install',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    writeFileSync(requiredValue(this.claudeFailure, 'Claude failure control'), 'fail');
     runInstall(this, []);
     assert.equal(this.result.exitCode, 1);
-    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), '');
+    writeFileSync(requiredValue(this.claudeFailure, 'Claude failure control'), '');
     this.projectBefore = directoryDigest(
-      requiredPath(this.projectRoot, 'project root'),
+      requiredValue(this.projectRoot, 'project root'),
       new Set(['.claude']),
     );
-    writeFileSync(requiredPath(this.claudeLog, 'Claude log'), '');
-    writeFileSync(requiredPath(this.codexLog, 'Codex log'), '');
+    writeFileSync(requiredValue(this.claudeLog, 'Claude log'), '');
+    writeFileSync(requiredValue(this.codexLog, 'Codex log'), '');
   },
 );
 
@@ -1980,17 +2104,17 @@ When('the user runs the reported Claude retry', function (this: UnifiedInstallWo
 
 Then('Claude converges to healthy', function (this: UnifiedInstallWorld) {
   assertCommandDidNotFail(this);
-  assert.equal(readFileSync(requiredPath(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
+  assert.equal(readFileSync(requiredValue(this.claudeState, 'Claude state'), 'utf8'), 'enabled');
 });
 
 Then('core and Codex are not installed again', function (this: UnifiedInstallWorld) {
   // `.claude` is the Claude surface's own state, which the retry does rewrite.
   assert.equal(
-    directoryDigest(requiredPath(this.projectRoot, 'project root'), new Set(['.claude'])),
+    directoryDigest(requiredValue(this.projectRoot, 'project root'), new Set(['.claude'])),
     this.projectBefore,
   );
   assert.doesNotMatch(
-    readFileSync(requiredPath(this.codexLog, 'Codex log'), 'utf8'),
+    readFileSync(requiredValue(this.codexLog, 'Codex log'), 'utf8'),
     /plugin (?:marketplace|add)/u,
   );
 });
@@ -2001,7 +2125,7 @@ Given(
     initializeHosts(this);
     runInstall(this, ['--agents', 'none']);
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
-    const project = requiredPath(this.projectRoot, 'project root');
+    const project = requiredValue(this.projectRoot, 'project root');
     const managedPath = nodePath.join(project, '.safeword/templates/work-log-template.md');
     this.unplannedContent = readFileSync(managedPath, 'utf8');
     rmSync(managedPath);
@@ -2021,7 +2145,7 @@ When('the user confirms that plan', function (this: UnifiedInstallWorld) {
     'none',
     '--yes',
     '--plan',
-    requiredPath(this.planId, 'plan id'),
+    requiredValue(this.planId, 'plan id'),
   ]);
 });
 
@@ -2066,7 +2190,7 @@ When('the user requests global JSON output', function (this: UnifiedInstallWorld
     runRawCommand(this, [...this.relayRecoveryCommand.split(' '), '--quiet', '--offline']);
     return;
   }
-  const command = requiredPath(this.canonicalCommand, 'canonical command');
+  const command = requiredValue(this.canonicalCommand, 'canonical command');
   const argumentsByCommand: Readonly<Record<string, readonly string[]>> = {
     install: ['install', '--agents', 'none'],
     status: ['status', '--agents', 'none'],
@@ -2080,18 +2204,19 @@ When('the user requests global JSON output', function (this: UnifiedInstallWorld
 });
 
 Then('capabilities lists the relay recovery command', function (this: UnifiedInstallWorld) {
-  const command = requiredPath(this.relayRecoveryCommand, 'relay recovery command').split(
-    ' ',
-    1,
-  )[0];
-  const project = requiredPath(this.projectRoot, 'project root');
+  const invocation = requiredValue(this.relayRecoveryCommand, 'relay recovery command');
+  const command = commandCatalog.find(
+    candidate => invocation === candidate.name || invocation.startsWith(`${candidate.name} `),
+  )?.name;
+  assert.ok(command, `No catalogue command matches relay recovery invocation: ${invocation}`);
+  const project = requiredValue(this.projectRoot, 'project root');
   const result = spawnSync(
     process.execPath,
     [CLI_PATH, 'capabilities', '--json', '--cwd', project],
     {
       cwd: project,
       encoding: 'utf8',
-      env: { ...process.env, ...this.hostEnvironment, SAFEWORD_NO_UPDATE_CHECK: '1' },
+      env: fixtureProcessEnvironment(this),
     },
   );
   const envelope = JSON.parse(result.stdout) as { data?: { commands?: { name?: string }[] } };
@@ -2112,7 +2237,7 @@ When(
   function (this: UnifiedInstallWorld, option: string) {
     this.irrelevantAliasOption = option;
     runRawCommand(this, [
-      ...requiredPath(this.profileOnlyAlias, 'profile-only alias').split(' '),
+      ...requiredValue(this.profileOnlyAlias, 'profile-only alias').split(' '),
       option,
       '--offline',
     ]);
@@ -2124,13 +2249,18 @@ Then(
   function (this: UnifiedInstallWorld) {
     assert.equal(this.result.exitCode, 1);
     assert.equal(fixtureEffectDigest(this), this.fixtureBefore);
+    assert.notEqual(
+      this.result.stdout.trim(),
+      '',
+      `expected a JSON rejection envelope on stdout: ${this.result.stderr || 'no stderr'}`,
+    );
     const envelope = JSON.parse(this.result.stdout) as { errors?: { message?: string }[] };
-    assert.match(JSON.stringify(envelope.errors), /unknown option/iu);
+    assert.match(JSON.stringify(envelope.errors ?? []), /unknown option/iu);
   },
 );
 
 Then('the alias remains documented as retained indefinitely', function (this: UnifiedInstallWorld) {
-  const alias = requiredPath(this.profileOnlyAlias, 'profile-only alias');
+  const alias = requiredValue(this.profileOnlyAlias, 'profile-only alias');
   const route = compatibilityRoutes.find(candidate => candidate.route === alias);
   assert.equal(route?.retention, 'indefinite');
 });
@@ -2156,7 +2286,7 @@ Given(
 );
 
 When('the user requests its legacy raw format', function (this: UnifiedInstallWorld) {
-  const command = requiredPath(this.historicalCommand, 'historical command');
+  const command = requiredValue(this.historicalCommand, 'historical command');
   runRawCommand(this, [...command.split(' '), '--format', 'json'], false);
 });
 
@@ -2172,8 +2302,8 @@ Then(
 Then(
   'help and capabilities identify global JSON as canonical',
   function (this: UnifiedInstallWorld) {
-    const project = requiredPath(this.projectRoot, 'project root');
-    const environment = { ...process.env, ...this.hostEnvironment, SAFEWORD_NO_UPDATE_CHECK: '1' };
+    const project = requiredValue(this.projectRoot, 'project root');
+    const environment = fixtureProcessEnvironment(this);
     const help = spawnSync(process.execPath, [CLI_PATH, '--help'], {
       cwd: project,
       encoding: 'utf8',
@@ -2211,7 +2341,7 @@ Given(
   'selected surfaces finish with healthy changed and failed outcomes',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    writeFileSync(requiredValue(this.claudeFailure, 'Claude failure control'), 'fail');
   },
 );
 
@@ -2267,7 +2397,7 @@ Then(
       findings?: { message?: string }[];
     };
     assert.equal(envelope.state, 'action_required');
-    assert.doesNotMatch(JSON.stringify(envelope.findings), /\bactive\b/iu);
+    assert.doesNotMatch(JSON.stringify(envelope.findings ?? []), /\bactive\b/iu);
   },
 );
 
@@ -2275,7 +2405,7 @@ Given(
   'core and Codex succeed while the Claude host is unavailable',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'unavailable');
+    writeFileSync(requiredValue(this.claudeFailure, 'Claude failure control'), 'unavailable');
   },
 );
 
@@ -2308,7 +2438,7 @@ Then(
       ),
       true,
     );
-    assert.match(JSON.stringify(envelope.errors), /claude/iu);
+    assert.match(JSON.stringify(envelope.errors ?? []), /claude/iu);
   },
 );
 
@@ -2329,7 +2459,7 @@ Given(
   'one selected profile install fails after another surface succeeds',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    writeFileSync(requiredValue(this.claudeFailure, 'Claude failure control'), 'fail');
     runInstall(this, []);
   },
 );
@@ -2379,7 +2509,7 @@ Given(
   'a unified install completed with mixed per-surface outcomes',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    writeFileSync(requiredPath(this.claudeFailure, 'Claude failure control'), 'fail');
+    writeFileSync(requiredValue(this.claudeFailure, 'Claude failure control'), 'fail');
     runInstall(this, []);
   },
 );

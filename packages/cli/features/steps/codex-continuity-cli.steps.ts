@@ -413,7 +413,7 @@ function transactionMutations(): CodexFinalizationMutation[] {
     { path: '.safeword/codex-plugin.json', content: pluginMarkerContent() },
     {
       path: '.agents/skills/safeword-plugin-setup/SKILL.md',
-      content: '# Install the Safe Word Codex plugin\n',
+      content: '# Install the Safeword Codex plugin\n',
     },
   ];
 }
@@ -491,7 +491,7 @@ Given(
 );
 
 Given(
-  'the active Codex profile cannot install the Safe Word plugin',
+  'the active Codex profile cannot install the Safeword plugin',
   function (this: ContinuityCliWorld) {
     this.continuityEnvironment = {
       ...this.continuityEnvironment,
@@ -511,7 +511,7 @@ Given(
 );
 
 Given(
-  'the active Codex profile does not contain the Safe Word plugin',
+  'the active Codex profile does not contain the Safeword plugin',
   function (this: ContinuityCliWorld) {
     initialize(this, { pluginState: 'absent' });
     rememberBaseline(this);
@@ -519,14 +519,14 @@ Given(
 );
 
 Given(
-  'the active Codex profile reports the Safe Word plugin enabled',
+  'the active Codex profile reports the Safeword plugin enabled',
   function (this: ContinuityCliWorld) {
     initialize(this, { pluginState: 'enabled' });
   },
 );
 
 Given(
-  'the active Codex profile reports an enabled older Safe Word plugin',
+  'the active Codex profile reports an enabled older Safeword plugin',
   function (this: ContinuityCliWorld) {
     initialize(this, { pluginState: 'enabled', pluginVersion: '0.68.0' });
   },
@@ -541,7 +541,7 @@ When('the builder migrates Codex', function (this: ContinuityCliWorld) {
 });
 
 When(
-  'the builder upgrades only the Safe Word project with legacy Codex protection',
+  'the builder upgrades only the Safeword project with legacy Codex protection',
   function (this: ContinuityCliWorld) {
     run(this, ['upgrade', '--agents', 'none', '--no-migrate-namespace']);
   },
@@ -615,7 +615,7 @@ Given('a profile with a current activation-pending marker', function (this: Cont
 });
 
 Given(
-  'the Safe Word profile-plugin SessionStart dispatcher is trusted',
+  'the Safeword profile-plugin SessionStart dispatcher is trusted',
   function (this: ContinuityCliWorld) {
     initialize(this, { pluginState: 'enabled' });
   },
@@ -661,7 +661,7 @@ Then(
 );
 
 Given(
-  'the Safe Word profile-plugin SessionStart proof write is interrupted',
+  'the Safeword profile-plugin SessionStart proof write is interrupted',
   function (this: ContinuityCliWorld) {
     initialize(this, { pluginState: 'enabled' });
     const directory = nodePath.dirname(proofPath(this));
@@ -956,7 +956,7 @@ Given(
   },
 );
 
-When('Safe Word handles the failure', function (this: ContinuityCliWorld) {
+When('Safeword handles the failure', function (this: ContinuityCliWorld) {
   assert.ok(this.finalizationError, 'failure fixture did not fail');
 });
 
@@ -1367,7 +1367,7 @@ When('the builder finalizes migration', function (this: ContinuityCliWorld) {
   runPlannedFinalization(this);
 });
 
-Then('only the finite Safe Word legacy allowlist is removed', function (this: ContinuityCliWorld) {
+Then('only the finite Safeword legacy allowlist is removed', function (this: ContinuityCliWorld) {
   const project = requireProject(this);
   assert.equal(
     existsSync(nodePath.join(project, '.safeword/hooks/codex/pre-tool-quality.ts')),
@@ -1513,7 +1513,7 @@ Then(
   'the result says the Codex app may keep its loaded catalogue and must restart before a new task verifies the installed version',
   function (this: ContinuityCliWorld) {
     const output = `${this.result.stdout}\n${this.result.stderr}`;
-    assert.match(output, /Codex app may keep its loaded Safe Word catalogue/u);
+    assert.match(output, /Codex app may keep its loaded Safeword catalogue/u);
     assert.match(output, /Restart Codex/u);
     assert.match(output, /start a new task/u);
   },
@@ -1705,7 +1705,7 @@ Given('a repository that has never finalized Codex migration', function (this: C
   initialize(this, { pluginState: 'absent' });
 });
 
-When('the builder runs Safe Word setup', function (this: ContinuityCliWorld) {
+When('the builder runs Safeword setup', function (this: ContinuityCliWorld) {
   run(this, ['setup', '--yes', '--agents', 'none', '--no-modify'], {
     SAFEWORD_SKIP_INSTALL: '1',
   });

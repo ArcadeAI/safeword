@@ -2550,6 +2550,26 @@ describe('relay dead-letter recovery command', () => {
     }
   });
 
+  it('rejects an unsafe relay discard identity before advertising a confirmation command', () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        nodePath.resolve(process.cwd(), 'dist', 'cli.js'),
+        'retro-relay-discard',
+        '00000000-0000-4000-8000-000000001486;echo-owned',
+        '--json',
+      ],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'CLI_ARGUMENT_INVALID' }],
+      next_actions: [],
+    });
+  });
+
   it('lists and rearms through the built Commander entry point', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-retry-'));
     const durableOutbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-outbox-'));

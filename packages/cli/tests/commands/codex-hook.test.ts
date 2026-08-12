@@ -835,7 +835,7 @@ command = "npx --yes safeword hook codex pre-tool-use"
     );
 
     expect(result.status).toBe(2);
-    expect(result.stderr).toContain('Safe Word packaged PreToolUse hook failed');
+    expect(result.stderr).toContain('Safeword packaged PreToolUse hook failed');
   });
 
   it('fails PreToolUse visibly when Bun is unavailable', () => {

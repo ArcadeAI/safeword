@@ -32,11 +32,13 @@ function canonicalSkill(): string {
 }
 
 describe('closeout delivery evidence (93C14D NTB1.R1)', () => {
-  it('requires current local and hosted evidence before merge or cleanup', () => {
+  it('accepts exact-head green CI and falls back to local verification', () => {
     const skill = canonicalSkill();
 
     expect(skill).toContain('current pull request head');
     expect(skill).toContain('required checks');
+    expect(skill).toMatch(/green hosted CI or local verification/);
+    expect(skill).toMatch(/When CI is absent[\s\S]*run `\/verify`/);
     expect(skill).toContain('review requirements');
     expect(skill).toContain('draft');
     expect(skill).toMatch(/no merge or cleanup/i);
@@ -74,9 +76,11 @@ describe('closeout observed resumption (93C14D NTB1.R3)', () => {
   it('keeps dependency audit in delivery readiness without rerunning it after merge', () => {
     const skill = canonicalSkill();
 
-    expect(skill).toMatch(/Run `\/verify`[\s\S]*before[\s\S]*merge/i);
+    expect(skill).toMatch(/green hosted CI[\s\S]*or[\s\S]*local verification/i);
     expect(skill).toMatch(/dependency audit[\s\S]*delivery-time/i);
-    expect(skill).toMatch(/post-merge[\s\S]*verification, build, typecheck, and BDD/i);
+    expect(skill).toMatch(
+      /post-merge[\s\S]*green hosted CI[\s\S]*verification, build, typecheck, and BDD/i,
+    );
     expect(skill).toMatch(/does not rerun[\s\S]*dependency audit/i);
   });
 });
@@ -93,11 +97,27 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
     expect(guard).toMatch(/'retro',\s*'run',\s*'--json',\s*'--auto-extract'/u);
     expect(skill).toContain('agent_filing_needed');
     expect(skill).toContain('empty filing spool');
+    expect(skill).toContain('authenticated preview');
+    expect(skill).toContain('invoke the `safeword:retro-filer` skill');
     expect(skill).toMatch(/skip.*retro.*does not/i);
     expect(skill).toMatch(/missing.*expired.*binding/i);
+    expect(skill).toMatch(/authenticated\s+current\s+`CODEX_THREAD_ID`/i);
     expect(skill).toMatch(/no\s+newest-session\s+fallback/i);
     expect(skill).toMatch(/failed extraction.*failed filing.*pending drafts/is);
     expect(skill).toMatch(/no cleanup/i);
+  });
+
+  it('wires the authenticated preview field to the shipped Codex filer skill', () => {
+    const skill = canonicalSkill();
+    const generatedFiler = generateCodexPluginAssets(
+      nodePath.join(repoRoot, 'packages/cli/templates/skills'),
+    ).find(asset => asset.relativePath === 'skills/retro-filer/SKILL.md');
+
+    expect(skill).toContain('plan.retro.spoolPath');
+    expect(skill).toContain('`safeword:retro-filer`');
+    expect(generatedFiler?.content).toContain('name: retro-filer');
+    expect(generatedFiler?.content).toContain('`retro.spoolPath` field');
+    expect(generatedFiler?.content).toMatch(/never accept\s+a caller-nominated path/u);
   });
 });
 
