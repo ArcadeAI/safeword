@@ -231,6 +231,49 @@ describe('plan and remove wiring', () => {
     expect(applied.stdout).toContain('Changed: yes');
   });
 
+  it('rejects a full-uninstall plan after a lockfile changes without mutating', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      `${JSON.stringify({ devDependencies: { safeword: '^0.69.0' } })}\n`,
+    );
+    const lockPath = nodePath.join(directory, 'package-lock.json');
+    writeFileSync(lockPath, '{"lockfileVersion":3}\n');
+
+    const preview = await runCli(
+      ['uninstall', '--agents=none', '--full', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory },
+    );
+    const envelope = JSON.parse(preview.stdout) as { data: { plan: { id: string } } };
+    writeFileSync(lockPath, '{"lockfileVersion":3,"changed":true}\n');
+
+    const applied = await runCli(
+      [
+        'uninstall',
+        '--agents=none',
+        '--full',
+        '--yes',
+        '--plan',
+        envelope.data.plan.id,
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(applied.exitCode).toBe(2);
+    expect(JSON.parse(applied.stdout)).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      findings: [{ code: 'PLAN_STALE' }],
+    });
+    expect(readFileSync(lockPath, 'utf8')).toContain('"changed":true');
+    expect(readFileSync(nodePath.join(directory, '.safeword/version'), 'utf8')).toBe('0.69.0\n');
+  });
+
   it.each([
     { agents: 'none', expected: '--agents=none' },
     { agents: 'claude', expected: '--agents=claude' },
@@ -322,10 +365,10 @@ describe('plan and remove wiring', () => {
     };
 
     expect(envelope.data.plan.effects.configuration).toContainEqual(
-      expect.objectContaining({ target: 'Claude profile plugin' }),
+      expect.objectContaining({ kind: 'add', target: 'safeword', operation: 'user' }),
     );
     expect(envelope.data.plan.effects.network).toContainEqual(
-      expect.objectContaining({ target: 'Claude profile plugin' }),
+      expect.objectContaining({ kind: 'add', target: 'Claude plugin marketplace' }),
     );
   });
 
