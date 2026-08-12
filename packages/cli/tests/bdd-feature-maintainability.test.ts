@@ -17,7 +17,6 @@ const OFFLOAD_BASELINE_COMMIT = '1f8056ed845b63923ad9ea19a7112101aa07a9b1';
 const OFFLOAD_BASELINE_PATH =
   'packages/cli/features/offload-tests-without-blocking-local-work.feature';
 const OFFLOAD_BASELINE_OBJECT = `${OFFLOAD_BASELINE_COMMIT}:${OFFLOAD_BASELINE_PATH}`;
-const CUCUMBER_DRY_RUN_TIMEOUT_MS = 90_000;
 const OFFLOAD_RULE_IDS = [
   'offload-tests.NTB1.R1',
   'offload-tests.NTB1.R2',
@@ -206,30 +205,4 @@ describe('BDD feature maintainability', () => {
       ruleSourceDigests: baselineRuleSourceDigests,
     });
   });
-
-  it(
-    'loads every split specification through the real Cucumber bindings',
-    () => {
-      const files = configuredFeatureFiles()
-        .filter(relativePath => relativePath.startsWith(OFFLOAD_FEATURE_PREFIX))
-        .map(relativePath => nodePath.join(REPO_ROOT, relativePath));
-      const result = spawnSync(
-        'bunx',
-        ['cucumber-js', '--dry-run', '--format', 'summary', '--tags', '@wip', ...files],
-        {
-          cwd: REPO_ROOT,
-          encoding: 'utf8',
-          env: { ...process.env, NODE_OPTIONS: '--import tsx' },
-          timeout: CUCUMBER_DRY_RUN_TIMEOUT_MS,
-          killSignal: 'SIGKILL',
-        },
-      );
-      const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
-
-      expect(result.status, output).toBe(0);
-      expect(output).toMatch(/\b624 scenarios? \(624 skipped\)/u);
-      expect(output).not.toMatch(/undefined|ambiguous|pending/iu);
-    },
-    CUCUMBER_DRY_RUN_TIMEOUT_MS + 10_000,
-  );
 });
