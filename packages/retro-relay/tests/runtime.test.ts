@@ -218,7 +218,7 @@ describe('production runtime configuration', () => {
     }
   });
 
-  it('loads independently rotatable production principals with the exact role matrix', () => {
+  it('[ORR-016] loads independently rotatable production principals with the exact role matrix', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-principals-'));
     runtimeDirectories.push(directory);
     const config = parseRuntimeConfig(productionEnvironment(directory));
@@ -362,7 +362,7 @@ describe('production runtime configuration', () => {
     expect(existsSync(directory)).toBe(false);
   });
 
-  it('exposes health only in spike mode before auth storage or GitHub collaborators', async () => {
+  it('[ORR-021] exposes health only in spike mode before auth storage or GitHub collaborators', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-health-only-'));
     runtimeDirectories.push(directory);
     const environment = validEnvironment(directory);
@@ -400,7 +400,7 @@ describe('production runtime configuration', () => {
     await runtime.close();
   });
 
-  it('denies operator filing and harness reconciliation before GitHub access', async () => {
+  it('[ORR-020] denies operator filing and harness reconciliation before GitHub access', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-role-denials-'));
     runtimeDirectories.push(directory);
     const environment = productionEnvironment(directory);
@@ -432,7 +432,7 @@ describe('production runtime configuration', () => {
     await runtime.close();
   });
 
-  it('rotates one harness credential without invalidating the other principals', async () => {
+  it('[ORR-017] rotates one harness credential without invalidating the other principals', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-rotation-'));
     runtimeDirectories.push(directory);
     const environment = productionEnvironment(directory);
