@@ -705,7 +705,7 @@ async function runCandidate(
     });
     // A validated verdict remains usable even if a descendant is slow to die:
     // executeReview's source/snapshot checks still reject any late mutation.
-    await stopReviewer(child);
+    await stopReviewerOrThrow(child, reviewer);
     return output;
   } catch (error) {
     // Do not let a timed-out reviewer or its descendants overlap integrity

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -196,6 +196,31 @@ describe('durable review jobs', () => {
 
     expect(result.state).toBe('action_required');
     expect(result.findings[0]?.code).toBe('REVIEW_STALE');
+  });
+
+  it('treats a deleted reviewed source as stale and offers a fresh review', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: ['input.md'],
+    });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    await vi.waitFor(() => {
+      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { state: string };
+      expect(record.state).toBe('completed');
+    });
+    unlinkSync(nodePath.join(cwd, 'input.md'));
+
+    const result = reviewJobStatus(cwd, id);
+
+    expect(result.findings[0]?.code).toBe('REVIEW_STALE');
+    expect(result.nextActions[0]).toMatchObject({
+      command: 'safeword review run quality-review -- input.md',
+    });
   });
 
   it('binds detached reviews to their bounded context files', async () => {

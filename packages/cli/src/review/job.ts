@@ -298,8 +298,12 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
       data: { command: 'review status', status: 'canceled', review_id: record.id },
     });
   }
-  if (fingerprint(cwd, record.kind, record.targets, record.context) !== record.source_fingerprint)
+  try {
+    if (fingerprint(cwd, record.kind, record.targets, record.context) !== record.source_fingerprint)
+      return staleResult(record);
+  } catch {
     return staleResult(record);
+  }
   if (record.result !== undefined) return record.result;
   return createResult({
     state: 'failed',
