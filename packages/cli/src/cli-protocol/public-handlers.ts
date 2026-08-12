@@ -9,6 +9,7 @@ import type {
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
+import type { ReviewKind } from '../review/contract.js';
 import { isWouldChangeAction, type SelfHealAction } from '../utils/architecture-document.js';
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
@@ -678,41 +679,114 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
   const targets = Array.isArray(rawTargets)
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
-  const rawContext = invocation.options.context;
-  let context: string[] = [];
-  if (Array.isArray(rawContext)) {
-    context = rawContext.filter((target): target is string => typeof target === 'string');
-  } else if (typeof rawContext === 'string') {
-    context = [rawContext];
-  }
-  const [{ runReview }, { ReviewPacketError }] = await Promise.all([
+  const context = reviewContext(invocation.options.context);
+  if (process.env.SAFEWORD_REVIEW_WORKER === '1')
+    return runReviewWorker(invocation, rawKind, targets, context);
+  return startReviewInBackground(invocation.cwd, rawKind, targets, context);
+}
+
+function reviewContext(rawContext: unknown): string[] {
+  if (Array.isArray(rawContext))
+    return rawContext.filter((target): target is string => typeof target === 'string');
+  return typeof rawContext === 'string' ? [rawContext] : [];
+}
+
+async function runReviewWorker(
+  invocation: CommandInvocation,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[],
+): Promise<CliResult> {
+  const id = process.env.SAFEWORD_REVIEW_JOB_ID;
+  if (id === undefined) return invalidOperand('review run', 'Review worker ID is missing.');
+  const [{ runReview }, { completeReviewJob }, { ReviewPacketError }] = await Promise.all([
     import('../review/coordinator.js'),
+    import('../review/job.js'),
     import('../review/packet.js'),
   ]);
+  let result: CliResult;
   try {
-    return await runReview({
+    result = await runReview({
       cwd: invocation.cwd,
-      kind: rawKind,
+      kind,
       targets,
       context,
       progress: invocation.progress,
     });
   } catch (error) {
-    if (!(error instanceof ReviewPacketError)) throw error;
-    return createResult({
-      state: 'failed',
-      errors: [{ code: 'REVIEW_PACKET_INVALID', message: error.message, retryable: false }],
-      recovery: [
-        {
-          command: 'safeword review run <kind> <targets...>',
-          description:
-            'Correct the review target and context paths or reduce the packet, then run the review again.',
-          requiresHuman: true,
-        },
-      ],
-      data: { command: 'review run', status: 'blocked' },
-    });
+    const packetError = error instanceof ReviewPacketError;
+    result = reviewExecutionFailure(error, packetError);
   }
+  completeReviewJob(invocation.cwd, id, result);
+  return result;
+}
+
+function reviewExecutionFailure(error: unknown, packetError: boolean): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_WORKER_FAILED',
+        message: error instanceof Error ? error.message : 'The review worker failed.',
+        retryable: !packetError,
+      },
+    ],
+    data: { command: 'review run', status: 'failed' },
+  });
+}
+
+async function startReviewInBackground(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[],
+): Promise<CliResult> {
+  const [{ startReviewJob }, { ReviewPacketError }] = await Promise.all([
+    import('../review/job.js'),
+    import('../review/packet.js'),
+  ]);
+  try {
+    return await startReviewJob({ cwd, kind, targets, context });
+  } catch (error) {
+    const packetError = error instanceof ReviewPacketError;
+    return reviewStartFailure(error, packetError);
+  }
+}
+
+function reviewStartFailure(error: unknown, packetError: boolean): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_JOB_START_FAILED',
+        message: error instanceof Error ? error.message : 'The review job could not be started.',
+        retryable: !packetError,
+      },
+    ],
+    recovery: packetError
+      ? [
+          {
+            command: 'safeword review run <kind> <targets...>',
+            description:
+              'Correct the review target and context paths or reduce the packet, then run the review again.',
+            requiresHuman: true,
+          },
+        ]
+      : [],
+    data: { command: 'review run', status: 'failed' },
+  });
+}
+
+async function reviewStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const id = typeof invocation.operands[0] === 'string' ? invocation.operands[0] : undefined;
+  const { reviewJobStatus } = await import('../review/job.js');
+  return reviewJobStatus(invocation.cwd, id);
+}
+
+async function reviewCancelHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const id = typeof invocation.operands[0] === 'string' ? invocation.operands[0] : undefined;
+  const { cancelReviewJob } = await import('../review/job.js');
+  return cancelReviewJob(invocation.cwd, id);
 }
 
 async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -1972,6 +2046,8 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
   'review run': reviewRunHandler,
+  'review status': reviewStatusHandler,
+  'review cancel': reviewCancelHandler,
   'review-pr inspect': reviewPrInspectHandler,
   'review-pr invalidate': invocation => reviewPrPublicationHandler('invalidate', invocation),
   'review-pr publish': invocation => reviewPrPublicationHandler('publish', invocation),

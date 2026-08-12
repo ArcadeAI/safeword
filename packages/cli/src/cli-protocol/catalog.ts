@@ -444,6 +444,21 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command('review status', 'Collect a durable independent review', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'status [review-id]',
+    fixture: {
+      argv: ['review', 'status'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review cancel', 'Cancel a durable independent review', 'mutate', {
+    syntax: 'cancel [review-id]',
+    fixture: {
+      argv: ['review', 'cancel'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command(
     'review-pr inspect',
     'Inspect bounded pull-request evidence as untrusted data',
