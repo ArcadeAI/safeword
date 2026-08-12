@@ -1803,7 +1803,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '319a0b4430a60c23be095c703f5405c14f63c5ad9ed932992c7f846a096618e5',
+        '9cb3e98b453fd3ca4378a43b07e4bd389aa1c6fb40875f9fb50d04319cb8b72b',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
