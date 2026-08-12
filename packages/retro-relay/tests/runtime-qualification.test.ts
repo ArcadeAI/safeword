@@ -199,7 +199,7 @@ describe('retro relay runtime qualification', () => {
     expect(result.status, result.stderr || '<no stderr>').toBe(0);
   });
 
-  it('runs the built production process through SQLite, HTTP auth, and GitHub', async () => {
+  it('[ORR-039] runs the built production process through SQLite, HTTP auth, and GitHub', async () => {
     const packageRoot = fileURLToPath(new URL('..', import.meta.url));
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-relay-main-process-'));
     temporaryDirectories.push(directory);

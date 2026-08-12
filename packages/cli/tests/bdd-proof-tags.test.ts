@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -5,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 const WORKSPACE_DIRECTORIES = ['packages', 'apps', 'libs', 'modules'] as const;
-
 function featureFilesUnder(relativeDirectory: string): string[] {
   const absoluteDirectory = nodePath.join(REPO_ROOT, relativeDirectory);
   if (!existsSync(absoluteDirectory)) return [];
@@ -59,6 +59,10 @@ const VITEST_PROVEN_FEATURES = [
     'features/pm-grade-intake-readiness-gate.feature',
     'packages/cli/tests/hooks/readiness-pointer.test.ts',
   ],
+  [
+    'features/operate-retry-safe-retro-relay.feature',
+    'packages/cli/tests/retro/relay-delivery.test.ts',
+  ],
   ['features/portable-tracker-transport.feature', 'packages/cli/tests/tracker-sync/plan.test.ts'],
   [
     'features/prevent-public-cli-contract-drift.feature',
@@ -102,4 +106,26 @@ describe('BDD proof provenance', () => {
       expect(() => readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8')).not.toThrow();
     },
   );
+
+  it('loads the production step wiring and validates every retry-safe relay proof registration', () => {
+    const result = spawnSync(
+      'bunx',
+      [
+        'cucumber-js',
+        '--config',
+        'packages/cli/tests/fixtures/retry-safe-relay-cucumber.mjs',
+        '--dry-run',
+        '--tags',
+        '@operate-retry-safe-retro-relay',
+        'features/operate-retry-safe-retro-relay.feature',
+      ],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        env: { ...process.env, NODE_OPTIONS: '--import tsx' },
+      },
+    );
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+  });
 });

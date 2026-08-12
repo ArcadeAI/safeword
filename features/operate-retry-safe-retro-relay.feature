@@ -1,4 +1,8 @@
-@operate-retry-safe-retro-relay
+# This is a BDD specification with delegated executable proof. Cucumber owns
+# the behavior vocabulary and scenario-to-proof contract; stable ORR IDs in
+# steps/operate-retry-safe-retro-relay.steps.ts select exact Vitest proofs in
+# packages/cli/tests/retro/relay-delivery.test.ts and packages/retro-relay/tests.
+@proof.vitest @operate-retry-safe-retro-relay
 Feature: Operate the retry-safe retro relay
 
   The shared safeword retro command durably hands off one immutable request
