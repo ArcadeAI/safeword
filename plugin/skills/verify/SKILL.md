@@ -42,15 +42,25 @@ For task, patch, or no-ticket work, this proof isn't required — note it's miss
 
 ### 1. Find Current Ticket (if any)
 
+Use the installed resolver. It reconciles this runtime's session binding with
+the current PR or worktree's Git changes and fails closed when those signals
+conflict. It never scans the global `in_progress` backlog. A session-bound
+ticket remains relevant after its status changes during closeout; a changed
+`done` ticket remains eligible.
+
 ```bash
-# Find in_progress tickets, excluding epics
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-NS_ROOT="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
-for f in "$NS_ROOT"/tickets/*/ticket.md; do
-  [ -f "$f" ] || continue
-  grep -q "^status: in_progress" "$f" && ! grep -q "^type: epic" "$f" && echo "$f"
-done | head -1
+bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR"
 ```
+
+If Safeword's injected context names a ticket but the host exposes no runtime
+identity to the helper, rerun with `--ticket <id>`. Multiple changed tickets
+fail closed with the same instruction. No candidate means continue without an
+active ticket.
+
+Git cannot infer current work from commits made directly on an up-to-date
+default branch because there is no distinct merge-base range. In that case,
+pass `--ticket <id>` when ticket context is required.
 
 If a ticket is found, read it to get:
 
@@ -148,9 +158,21 @@ else
   exit 1
 fi
 
+# >>> verification_lanes (behavior covered by verify-skill.test.ts)
+# Run every lane for complete evidence, but preserve the first non-zero status
+# so a later successful lane cannot turn the aggregate invocation green.
+verification_status=0
+record_verification_status() {
+  if [ "$lane_status" -ne 0 ] && [ "$verification_status" -eq 0 ]; then
+    verification_status="$lane_status"
+  fi
+}
+
 # --- Test suite (resolved by safeword project test-plan — one source of truth) ---
 plan_kind=verify
 run_plan
+lane_status=$?
+record_verification_status
 
 # --- Gherkin acceptance lane (resolved by safeword project test-plan --kind bdd:
 #     cucumber-js, behave, … — godog/cucumber-rs fold into the Go/Rust test lanes).
@@ -160,15 +182,21 @@ bdd_plan="$(run_safeword project test-plan --kind bdd --format sh)"
 rc=$?
 if [ "$rc" -ne 0 ]; then
   echo "❌ Evidence generation failed: safeword project test-plan --kind bdd exited $rc (red, not a passed check)" >&2
+  lane_status=$rc
+  record_verification_status
 elif [ -z "$bdd_plan" ]; then
   echo "Gherkin acceptance lane: ⏭️ Skipped — no acceptance lane detected"
 else
   bash -c "$bdd_plan"
+  lane_status=$?
+  record_verification_status
 fi
 
 # --- Build check (resolved by safeword project test-plan) ---
 plan_kind=build
 run_plan
+lane_status=$?
+record_verification_status
 
 # --- Typecheck: static type-check where the stack has one — `tsc --noEmit` for
 #     TypeScript (the same signal CI's lint job runs, #436), mypy/pyright for
@@ -180,12 +208,19 @@ run_plan
 #     it isn't a gap. ---
 plan_kind=typecheck
 run_plan
+lane_status=$?
+record_verification_status
 
 # --- Supply-chain: JavaScript's package-manager audit, Python's `uv audit` or
 #     `pip-audit`, Go's pinned `govulncheck`, and Rust's cargo-deny advisories.
 #     A missing scanner prints a visible skip, never a false green. ---
 plan_kind=deps
 run_plan
+lane_status=$?
+record_verification_status
+
+exit "$verification_status"
+# <<< verification_lanes
 ```
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors. Aggregate every attempted stack test into the final `**Test Suite:**` status, and every attempted stack build into the final `**Build:**` status. **Typecheck is part of the gate, not optional:** when the ticket changed TypeScript, a passing targeted-test run is not "ready" until `test-plan --kind typecheck` (or `/lint`, which runs `tsc --noEmit`) is green — CI's lint job runs it and will go red otherwise. A skipped or empty test-plan is not a failure when the project lacks a matching automated check; it is an explicit evidence gap to mention when the ticket touched that stack.

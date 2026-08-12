@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "450898247ddff959048e4151534456fdf43810aac21d90552e491b7f22091785"
+      "sha256": "9459a7e602241a022b358a37e70b4b6ca9365a2f7fbf0ba8a16accd286f0433c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "1440698ffe6f40242bc44c99bc0c75890aa9d656d0addb71dd27a806c7052b38"
+      "sha256": "07813c507e06ee3129fb2018ee36297553ba75eff4fc08a6ffa55b8223d83636"
     },
     {
       "path": "runtime/event-groups.json",
@@ -490,6 +490,10 @@
       "sha256": "baa1f87f55c9479bfdca57496ea8b2207277977746fc439888ce899a908756ab"
     },
     {
+      "path": "runtime/hooks/resolve-verify-ticket.ts",
+      "sha256": "0752de0d5d2701235ec00667bda595f11dae9a91a563e630cade52183da5f2bd"
+    },
+    {
       "path": "runtime/hooks/run-review.ts",
       "sha256": "f609448a24711ba5d5bb87228632fe6a34b0a93d12c964c7304e240f3ddd4561"
     },
@@ -691,7 +695,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "dafdf07cacd7fbb65906616b7df5a5933c2f40a7fce6770b0cc44105f80d00dc"
+      "sha256": "441d6bb08a5fe90e79c35679f06720b382492306f8c000ba458a2fe0ea04ecf6"
     }
   ]
 }

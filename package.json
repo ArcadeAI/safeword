@@ -31,7 +31,8 @@
     "deps:graph": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type dot | dot -T svg > dependency-graph.svg",
     "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err",
     "check:cli-contract": "bun run --cwd packages/cli check:cli-contract",
-    "test:bdd": "bun run --cwd packages/retro-relay build && NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @proof.vitest and not @manual and not @live'",
+    "test:bdd": "bun run --cwd packages/retro-relay build && NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @proof.vitest and not @manual and not @live' && bun run test:bdd:proof",
+    "test:bdd:proof": "bun run --cwd packages/retro-relay build && NODE_OPTIONS='--import tsx' cucumber-js --config packages/cli/tests/fixtures/retry-safe-relay-cucumber.mjs --tags '@proof.vitest and not @wip' features/operate-retry-safe-retro-relay.feature",
     "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --profile live"
   },
   "devDependencies": {
