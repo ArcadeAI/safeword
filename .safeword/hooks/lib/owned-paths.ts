@@ -3,14 +3,15 @@
 // Regenerated on every `safeword install`.
 
 export const SAFEWORD_PATHS: readonly string[] = [
-  '.agents/',
   '.claude/',
-  '.codex/',
   '.cursor/',
   '.dprint.json',
   '.dprint.jsonc',
+  '.gitattributes',
+  '.github/',
   '.gitignore',
   '.golangci.yml',
+  '.husky/',
   '.importlinter',
   '.jscpd.json',
   '.markdownlint-cli2.jsonc',
@@ -27,6 +28,7 @@ export const SAFEWORD_PATHS: readonly string[] = [
   'biome.jsonc',
   'clippy.toml',
   'cucumber.mjs',
+  'deny.toml',
   'dprint.json',
   'dprint.jsonc',
   'eslint.config.mjs',

@@ -4,3 +4,14 @@ url = "https://mcp.context7.com/mcp"
 [mcp_servers.playwright]
 command = "bunx"
 args = ["@playwright/mcp@latest"]
+
+# --- safeword codex bootstrap: begin ---
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "bunx --bun safeword@latest codex bootstrap"
+timeout = 120
+statusMessage = "Checking Safeword for this project"
+# --- safeword codex bootstrap: end ---

@@ -7,15 +7,72 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { parseImplPlan } from './impl-plan.js';
+import { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
+import { type ImplPlanResult, parseImplPlan } from './impl-plan.js';
+import { evaluateImplementationInspiration } from './inspiration.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
 const OK: PlanGateVerdict = { ok: true };
 
+function missingSpecVerdict(
+  activationProvenance: ReturnType<typeof inspirationContractProvenance>,
+  specProvenance: ReturnType<typeof specArtifactProvenance>,
+): PlanGateVerdict {
+  if (activationProvenance === 'absent' && specProvenance === 'absent') return OK;
+  return {
+    ok: false,
+    reason:
+      activationProvenance === 'unavailable' || specProvenance === 'unavailable'
+        ? 'Implementation planning cannot be verified because feature provenance is unavailable and spec.md is missing.'
+        : 'This spec-backed feature is missing spec.md, so its inspiration contract and implementation plan cannot be verified.',
+    remediation:
+      activationProvenance === 'activated'
+        ? 'Restore spec.md with its exact v1 inspiration marker and Product Inspiration record, then complete impl-plan.md before entering implement.'
+        : "Restore this feature's spec.md from its phase anchor or repository history, then complete impl-plan.md before entering implement.",
+  };
+}
+
+function validateParsedPlan(parsed: ImplPlanResult, requireDocImpact: boolean): PlanGateVerdict {
+  if (parsed.errors.length > 0) {
+    return {
+      ok: false,
+      reason: `impl-plan.md is not ready: ${parsed.errors.join(' ')}`,
+      remediation:
+        'Fix the named plan sections (content or `skip: <reason>` each), then retry the move to implement.',
+    };
+  }
+  if (requireDocImpact && parsed.sections['Doc impact'] === undefined) {
+    return {
+      ok: false,
+      reason: 'impl-plan.md is not ready: spec-backed feature plans require a Doc impact section.',
+      remediation:
+        'Add `## Doc impact` with the affected docs.sources surfaces or `skip: <reason>`, then retry the move to implement.',
+    };
+  }
+  if (parsed.status !== 'planned') {
+    return {
+      ok: false,
+      reason: `impl-plan.md status reads "${String(parsed.status)}" — entering implement requires a plan that says planned, so the plan describes what is about to be built.`,
+      remediation:
+        'Update the plan for this pass and reset its status line to **Status:** planned, then retry the move to implement.',
+    };
+  }
+  return OK;
+}
+
 /** Gate the plan-implementation → implement transition on a valid, planned plan. */
-export function evaluateImplementEntry(ticketDirectory: string): PlanGateVerdict {
-  if (!existsSync(nodePath.join(ticketDirectory, 'spec.md'))) return OK;
+export function evaluateImplementEntry(
+  ticketDirectory: string,
+  options: { evaluationDate?: string } = {},
+): PlanGateVerdict {
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
+  const activationProvenance = inspirationContractProvenance(ticketDirectory);
+  const specPath = nodePath.join(ticketDirectory, 'spec.md');
+  if (!existsSync(specPath)) {
+    return missingSpecVerdict(activationProvenance, specArtifactProvenance(ticketDirectory));
+  }
 
   const planPath = nodePath.join(ticketDirectory, 'impl-plan.md');
   if (!existsSync(planPath)) {
@@ -28,22 +85,23 @@ export function evaluateImplementEntry(ticketDirectory: string): PlanGateVerdict
     };
   }
 
-  const parsed = parseImplPlan(readFileSync(planPath, 'utf8'));
-  if (parsed.errors.length > 0) {
-    return {
-      ok: false,
-      reason: `impl-plan.md is not ready: ${parsed.errors.join(' ')}`,
-      remediation:
-        'Fix the named plan sections (content or `skip: <reason>` each), then retry the move to implement.',
-    };
-  }
+  const planContent = readFileSync(planPath, 'utf8');
+  const parsed = parseImplPlan(planContent);
+  const planVerdict = validateParsedPlan(parsed, activationProvenance === 'activated');
+  if (!planVerdict.ok) return planVerdict;
 
-  if (parsed.status !== 'planned') {
+  const inspirationVerdict = evaluateImplementationInspiration({
+    ticketContent,
+    specContent: readFileSync(specPath, 'utf8'),
+    planContent,
+    activationProvenance,
+    evaluationDate: options.evaluationDate ?? new Date().toISOString().slice(0, 10),
+  });
+  if (!inspirationVerdict.ok) {
     return {
       ok: false,
-      reason: `impl-plan.md status reads "${String(parsed.status)}" — entering implement requires a plan that says planned, so the plan describes what is about to be built.`,
-      remediation:
-        'Update the plan for this pass and reset its status line to **Status:** planned, then retry the move to implement.',
+      reason: `Implementation Inspiration is not ready: ${inspirationVerdict.reason}`,
+      remediation: inspirationVerdict.remediation,
     };
   }
 

@@ -27,7 +27,7 @@ Depth scales with ambiguity. Clear request → 0 turns. One open question → 1 
 
 If the user references a ticket ID/slug or says "resume" / "continue", skip Clarify and resume at the ticket's current phase.
 
-**Replan on resume.** When you resume and the prompt hook surfaces a `Resume check: N commit(s)…` line, sibling work since the ticket was last touched changed files it references — the plan may be stale. This is opt-in: if the user declines or just proceeds, investigate nothing. If the user accepts ("check the plan"), spawn a fresh sub-agent (`isolation: worktree`) to judge whether scope still holds and report back **in chat only** — proposing one of still-good / change-scope / cancel / split / merge, with rationale. If the verdict is change-scope or split, run `/figure-it-out` before proposing a new approach — scope changed because the world changed, which is exactly when re-deciding from memory is most dangerous. Never edit the ticket without explicit approval. If the sub-agent errors or times out, note it in one line and proceed with the work — don't retry in a loop (the heads-up won't re-fire until new commits land).
+**Replan on resume.** The plan may be stale: a `Resume check: N commit(s)…` line means someone else's commits touched files this ticket references since you last worked on it. This is opt-in: if the user declines or just proceeds, investigate nothing. If the user accepts ("check the plan"), spawn a fresh sub-agent (`isolation: worktree`) to judge whether scope still holds and report back **in chat only** — proposing one of still-good / change-scope / cancel / split / merge, with rationale. If the verdict is change-scope or split, run `/figure-it-out` before proposing a new approach — scope changed because the world changed, which is exactly when re-deciding from memory is most dangerous. Never edit the ticket without explicit approval. If the sub-agent errors or times out, note it in one line and proceed with the work — don't retry in a loop (the heads-up won't re-fire until new commits land).
 
 **Contribution techniques** to weave into proposals (pick the one that fits the gap):
 
@@ -39,9 +39,22 @@ If the user references a ticket ID/slug or says "resume" / "continue", skip Clar
 
 Before proceeding, run the **specificity self-test**: can you describe the behavior that changes, the behavior that stays the same, and an observable "done" state? Any "no" means open questions remain — surface them.
 
-**Readiness triage.** The five-dimension check the prompt pointer abbreviates: intent (why, and for whom), done (a measurable end-state), constraints (what must not break, reversibility), riskiest assumption (and the cheapest way to test it before building), and request shape (is this the problem, or someone's guess at the fix?). Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics. For one-way-door features, intake offers a deeper **cold-start executability check** at exit (`.safeword/guides/cold-start-check.md`) — a context-free agent attempts to plan the work from the captured spec alone, surfacing what it couldn't reconstruct; runnable on demand too.
+**Readiness triage.** The five-dimension check the prompt pointer abbreviates:
 
-**PM-grade intake** is the name for how these fit together, scaled by blast radius: the readiness pointer nudges every turn · the Intake Brief (who asked · cost of inaction · reversibility) is authored for features · the cold-start executability check fires only for one-way-door work — with `/elicit`, `/brainstorm`, and `/figure-it-out` pulled in as the gaps demand (unknown intent · empty option space · options to weigh). One protocol, not three disconnected mechanisms.
+- **Intent** — why, and for whom.
+- **Done** — a measurable end-state.
+- **Constraints** — what must not break, reversibility.
+- **Riskiest assumption** — and the cheapest way to test it before building.
+- **Request shape** — is this the problem, or someone's guess at the fix?
+
+Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics. For one-way-door (irreversible) features, intake offers a deeper **cold-start executability check** at exit (`.safeword/guides/cold-start-check.md`) — a context-free agent attempts to plan the work from the captured spec alone, surfacing what it couldn't reconstruct; runnable on demand too.
+
+**PM-grade intake** is the name for how these fit together, scaled by blast radius — one protocol, not three disconnected mechanisms:
+
+- The readiness pointer nudges every turn.
+- The Intake Brief (who asked · cost of inaction · reversibility) is authored for features.
+- The cold-start executability check fires only for one-way-door work.
+- `/elicit`, `/brainstorm`, and `/figure-it-out` get pulled in as the gaps demand (unknown intent · empty option space · options to weigh).
 
 **Project principles.** Before choosing scope or design, read the configured
 principles file (`paths.principles`, default `<namespace-root>/principles.md`)
@@ -55,7 +68,13 @@ alone — tests prove observable mechanics; user evidence proves the experience.
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
-Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next: load personas, glossary, and surfaces from the configured project-knowledge files; open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the decide-to-build framing that also triages whether this is a feature or a leaner task; then author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into numbered Rules — one testable invariant per `#### <jtbd-id>.R<n>`, the rung define-behavior scenarios later prove (Acceptance Criteria — `#### <jtbd-id>.AC<n>` — are the soft-deprecated legacy alternative, still accepted; one criteria kind per job, never both); then jobs-and-rules anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
+Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next:
+
+1. Load personas, glossary, and surfaces from the configured project-knowledge files.
+2. Open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the framing for the decision to build, which also triages whether this is a feature or a leaner task.
+3. Author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form.
+4. Decompose each job into numbered Rules — one testable invariant per `#### <jtbd-id>.R<n>`, the level that define-behavior scenarios later prove against. (Acceptance Criteria — `#### <jtbd-id>.AC<n>` — is the still-supported legacy alternative; one criteria kind per job, never both.)
+5. Let jobs-and-rules anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
 - **`scope`** — what you're building (derived from accepted choices).
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
@@ -173,6 +192,8 @@ Read the matching guide when its trigger fires:
 **TodoWrite.** Use for 3+ step or non-trivial work, or when the user provides multiple requests. Set it up before diving in; keep one task `in_progress` at a time; mark completed as you finish each.
 
 **Commit frequently.** After each GREEN phase, before and after refactors, when switching tasks. The LOC gate fires near 400 lines — commit to reset it.
+
+**Draft pull requests.** Create every pull request as a draft by default (`gh pr create --draft` on GitHub). Only create or mark a pull request ready for review when the user explicitly asks; a request to push, publish, or open a pull request does not count.
 
 **Worktree entry (all hosts).** At session start and after moving roots or creating a worktree, run `pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD` before evidence gathering or edits. Do not guess a package directory or probe a speculative path. Work from the reported repository root; use `<namespace-root>/architecture.generated.md` to find monorepo packages when present, otherwise inspect the root once. If the path, repo root, branch, or commit is wrong, stop and fix the workspace before touching files.
 

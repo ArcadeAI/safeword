@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE": "1"
+  },
   "permissions": {
     "allow": [
       "mcp__Claude_Code_Remote__send_later",
@@ -31,6 +34,15 @@
           {
             "type": "command",
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-dependency-readiness.ts"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-auto-upgrade.ts",
+            "asyncRewake": true
           }
         ]
       },
@@ -211,8 +223,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git *)",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-git-bare-fix.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-git-bare-fix.sh",
+            "if": "Bash(git *)"
           }
         ]
       },
@@ -221,8 +233,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git commit*)",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-architecture-stage.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-architecture-stage.ts",
+            "if": "Bash(git commit*)"
           }
         ]
       },
@@ -231,8 +243,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git checkout*)",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-stale-main.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-stale-main.ts",
+            "if": "Bash(git checkout*)"
           }
         ]
       },
@@ -241,8 +253,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git switch*)",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-stale-main.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-stale-main.ts",
+            "if": "Bash(git switch*)"
           }
         ]
       }
@@ -322,5 +334,18 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "safeword": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/ArcadeAI/safeword.git",
+        "ref": "stable"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "safeword@safeword": true
   }
 }

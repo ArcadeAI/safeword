@@ -50,10 +50,11 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 The **scenario-gate exit requires** an independent review of the scenarios — not
 your own pass. (Your own inline pass is Tier 1: `/self-review`, per asset, as you
 author.) Invoke the shared host-owned coordinator with only the phase artifacts
-and ticket scope; its typed verdict decides:
+and ticket scope; its typed verdict decides. Resolve a review-capable Safeword
+CLI first; source checkouts do not guarantee a bare `safeword` on `PATH`:
 
 ```bash
-safeword review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
+bun .safeword/hooks/run-review.ts review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
 ```
 
 The coordinator prefers the opposite headless agent and labels a permitted
