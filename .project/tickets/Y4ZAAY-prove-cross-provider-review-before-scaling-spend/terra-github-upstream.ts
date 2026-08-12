@@ -11,6 +11,7 @@ import type {
   CanaryUpstream,
   CanaryUpstreamSnapshot,
 } from "./terra-development-canary";
+import { canaryBindingDigest } from "./terra-development-canary";
 
 const REGISTRATION_MARKER = "<!-- cwgyh0-corpus-registration-anchor:v1 -->";
 const RECEIPT_MARKER = "SAFEWORD_TERRA_CANARY_RECEIPT_V1";
@@ -255,9 +256,32 @@ export function createGitHubCanaryUpstream(input: {
   nextReceiptId(): string;
 }): CanaryUpstream {
   const repository = input.authorization.canonicalRepository;
+  const authorizedBindingDigest = canaryBindingDigest({
+    adapterCommit: input.authorization.adapterCommit,
+    adapterTag: input.authorization.adapterTag,
+    attemptLimit: input.authorization.attemptLimit,
+    canonicalRepository: input.authorization.canonicalRepository,
+    corpusDigest: input.authorization.corpusDigest,
+    costLimitPicodollars: input.authorization.costLimitPicodollars,
+    harnessCommit: input.authorization.harnessCommit,
+    harnessTag: input.authorization.harnessTag,
+    model: input.authorization.model,
+    outputIdentity: input.authorization.outputIdentity,
+    receiptBudget: input.authorization.receiptBudget,
+    serviceTier: input.authorization.serviceTier,
+    ticketId: input.authorization.ticketId,
+  });
+  const requireAuthorizedBinding = (bindingDigest: string): void => {
+    if (bindingDigest !== authorizedBindingDigest) {
+      throw new Error("canary binding does not match its authorization");
+    }
+  };
   const inspect = async (
     bindingDigest: string
   ): Promise<CanaryUpstreamSnapshot> => {
+    if (bindingDigest !== authorizedBindingDigest) {
+      return { kind: "unreadable" };
+    }
     try {
       const comments = await listComments({ ...input, repository });
       return receiptSnapshot({ ...input, bindingDigest, comments });
@@ -279,6 +303,10 @@ export function createGitHubCanaryUpstream(input: {
 
   return {
     consumeInitialization: async ({ authorizationId, bindingDigest }) => {
+      requireAuthorizedBinding(bindingDigest);
+      if (authorizationId !== input.authorization.authorizationId) {
+        throw new Error("canary authorization identity does not match");
+      }
       const receipt: CanaryInitializationReceipt = {
         authorizationId,
         bindingDigest,
@@ -298,6 +326,7 @@ export function createGitHubCanaryUpstream(input: {
     },
     inspect,
     postAttemptCompletion: async ({ bindingDigest, ...fields }) => {
+      requireAuthorizedBinding(bindingDigest);
       const receipt: CanaryAttemptCompletionReceipt = {
         ...fields,
         receiptId: input.nextReceiptId(),
@@ -306,6 +335,7 @@ export function createGitHubCanaryUpstream(input: {
       return receipt;
     },
     postAttemptStart: async ({ bindingDigest, ...fields }) => {
+      requireAuthorizedBinding(bindingDigest);
       const receipt: CanaryAttemptStartReceipt = {
         ...fields,
         receiptId: input.nextReceiptId(),

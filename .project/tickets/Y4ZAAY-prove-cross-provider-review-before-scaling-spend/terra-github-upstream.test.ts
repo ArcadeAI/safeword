@@ -227,6 +227,34 @@ describe("GitHub canary upstream", () => {
     ).resolves.toContain('"receiptId":"initialization-receipt-1"');
   });
 
+  test("rejects reads and writes for a binding not named by the authorization", async () => {
+    const github = memoryGitHub();
+    const upstream = createGitHubCanaryUpstream({
+      allowlistedMaintainers: ["TheMostlyGreat"],
+      authorization,
+      http: github.http,
+      issueNumber: 1910,
+      nextReceiptId: receiptIds(),
+    });
+
+    await expect(upstream.inspect("0".repeat(64))).resolves.toEqual({
+      kind: "unreadable",
+    });
+    await expect(
+      upstream.consumeInitialization({
+        authorizationId: authorization.authorizationId,
+        bindingDigest: "0".repeat(64),
+      })
+    ).rejects.toThrow("binding does not match");
+    await expect(
+      upstream.consumeInitialization({
+        authorizationId: "another-authorization",
+        bindingDigest: canaryBindingDigest(binding),
+      })
+    ).rejects.toThrow("authorization identity does not match");
+    expect(github.comments).toHaveLength(2);
+  });
+
   test("initialization creates no local state when GitHub loses the receipt", async () => {
     const github = memoryGitHub({ retainPosts: false });
     const outputDirectory = await mkdtemp(join(tmpdir(), "terra-github-upstream-"));
