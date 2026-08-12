@@ -281,26 +281,56 @@ function openCleanupTarget(root: string, relative: string, flags: number): OpenC
   }
 }
 
-const UNLINK_AT_SCRIPT = String.raw`
+const RENAME_AT_SCRIPT = String.raw`
 import { dlopen } from 'bun:ffi';
 const library = process.platform === 'darwin' ? '/usr/lib/libSystem.B.dylib' : 'libc.so.6';
-const handle = dlopen(library, { unlinkat: { args: ['i32', 'cstring', 'i32'], returns: 'i32' } });
-const name = Buffer.from(process.argv[1] + '\0');
-const result = handle.symbols.unlinkat(3, name, 0);
+const handle = dlopen(library, { renameat: { args: ['i32', 'cstring', 'i32', 'cstring'], returns: 'i32' } });
+const source = Buffer.from(process.argv[1] + '\0');
+const destination = Buffer.from(process.argv[2] + '\0');
+const result = handle.symbols.renameat(3, source, 4, destination);
 handle.close();
 process.exit(result === 0 ? 0 : 1);
 `;
 
-function unlinkFromOpenParent(parentDescriptor: number, basename: string): void {
+function quarantineOpenTarget(root: string, opened: OpenCleanupTarget): void {
   if (process.platform !== 'darwin' && process.platform !== 'linux') {
-    throw new Error('Atomic Claude cleanup deletion is unavailable on this platform.');
+    throw new Error('Atomic Claude cleanup quarantine is unavailable on this platform.');
   }
-  const result = spawnSync('bun', ['-e', UNLINK_AT_SCRIPT, basename], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe', parentDescriptor],
-  });
-  if (result.status !== 0) {
-    throw new Error(`Atomic Claude cleanup deletion failed: ${result.stderr.trim()}`);
+  const quarantineDirectory = containedClaudeCleanupPath(
+    root,
+    '.safeword/claude-plugin/quarantine',
+  );
+  mkdirSync(quarantineDirectory, { recursive: true, mode: 0o700 });
+  const quarantineDescriptor = openSync(
+    quarantineDirectory,
+    fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0) | (fsConstants.O_NOFOLLOW ?? 0),
+  );
+  const quarantineName = `${randomUUID()}.retired`;
+  try {
+    const result = spawnSync(
+      'bun',
+      ['-e', RENAME_AT_SCRIPT, nodePath.basename(opened.path), quarantineName],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe', opened.parentDescriptor, quarantineDescriptor],
+      },
+    );
+    if (result.status !== 0) {
+      throw new Error(`Atomic Claude cleanup quarantine failed: ${result.stderr.trim()}`);
+    }
+    const quarantined = lstatSync(nodePath.join(quarantineDirectory, quarantineName));
+    const descriptor = fstatSync(opened.descriptor);
+    if (!sameFile(quarantined, descriptor)) {
+      throw new Error('Claude cleanup quarantined a replacement target; retained it for recovery.');
+    }
+    // Destroy bytes only through the descriptor whose identity was validated.
+    // The empty private tombstone remains because POSIX has no conditional
+    // unlink-by-inode primitive that could safely remove it under a same-UID race.
+    ftruncateSync(opened.descriptor, 0);
+    fchmodSync(opened.descriptor, 0o600);
+    fsyncSync(opened.descriptor);
+  } finally {
+    closeSync(quarantineDescriptor);
   }
 }
 
@@ -346,7 +376,7 @@ function writeImage(
       throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
     }
     if (content === null) {
-      unlinkFromOpenParent(opened.parentDescriptor, nodePath.basename(opened.path));
+      quarantineOpenTarget(root, opened);
       return;
     }
     const bytes = Buffer.from(content, 'base64');

@@ -1,5 +1,14 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -75,6 +84,10 @@ describe('automatic Claude migration', () => {
       expect(result.advisory).toBeUndefined();
       expect(existsSync(nodePath.join(root, installedPath))).toBe(false);
       expect(readClaudePluginMode(root)).toMatchObject({ state: 'clean', unresolved_paths: [] });
+      const quarantine = nodePath.join(root, '.safeword/claude-plugin/quarantine');
+      const tombstones = readdirSync(quarantine);
+      expect(tombstones).toHaveLength(1);
+      expect(statSync(nodePath.join(quarantine, tombstones[0] ?? '')).size).toBe(0);
     },
   );
 
