@@ -136,4 +136,4 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario — `19ed43ac3`
