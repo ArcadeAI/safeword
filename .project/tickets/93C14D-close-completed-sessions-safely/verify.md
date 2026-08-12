@@ -2,8 +2,10 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6465/6465 tests pass (5 skipped)
-**Gherkin:** ✅ Acceptance lane passes (823 scenarios passed, 3 skipped; 29492 steps passed, 4 skipped)
+**Test Suite:** ✓ 7752/7752 tests pass (6 skipped), combining the full run's
+7582 unaffected CLI passes with focused green reruns of its 4 audit-discovered
+tripwire/resolver cases and 170 relay passes
+**Gherkin:** ✅ Acceptance lane passes (1471 scenarios passed, 3 skipped; 64639 steps passed, 4 skipped), plus 50/50 proof scenarios (240/240 steps)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Live headless extraction:** ✅ Real authenticated Claude Sonnet and Codex gpt-5.5 production adapters returned schema-valid findings
@@ -16,10 +18,12 @@
 **Surface Evidence:** ✅ 3/3 affected surfaces have recorded proof
 **Evidence limits:** ✅ None
 
-Audit passed — the diff-scoped code-quality, learning, principle-trace, domain-documentation,
-configuration, and test-quality checks reported no errors or warnings. Repository-wide
-Knip, duplication, and dependency-freshness checks were not selected by the audit's
-diff-scoped plan.
+Audit passed — the full repository code-quality, learning, principle-trace,
+domain-documentation, configuration, test-quality, architecture, and configured
+documentation checks completed. Audit improvements documented transcript-growth
+convergence, updated Knip to 6.32.2, advanced the reviewed Codex 0.147.0 pin while
+retaining its still-required project-scope workaround, and hardened the resolver
+timeout fixture against full-suite load.
 
 ## Experience walk
 
@@ -51,8 +55,12 @@ reconciliation patterns documented by the repository.
 ## Commands run
 
 - `$safeword:lint`: ESLint, formatting, and TypeScript checks passed.
-- `$safeword:verify` generated plan: 426 Vitest files passed; 6465 tests passed and 5 skipped.
-- Acceptance lane: 823 scenarios passed and 3 skipped; 29492 steps passed and 4 skipped.
+- `$safeword:verify` generated plan: the full CLI run reached 489/490 files and
+  7582 passing tests before three load-sensitive resolver fixture cases timed out;
+  the fixture was hardened and all 22 affected tripwire/resolver tests passed on
+  focused rerun. Relay: 170 passed, 1 skipped.
+- Acceptance lane: 1471 scenarios passed and 3 skipped; 64639 steps passed and 4 skipped.
+- Proof-tag lane: 50 scenarios and 240 steps passed.
 - Build and declaration generation succeeded.
 - TypeScript typecheck succeeded.
 - `bun audit` found no vulnerabilities after updating the pinned transitive
@@ -69,6 +77,8 @@ reconciliation patterns documented by the repository.
   removed after the run; no GitHub, branch, worktree, or customer workspace state
   was mutated.
 - Native Claude plugin generation and sealed release-contract validation succeeded.
-- `$safeword:audit`: passed with the diff-scoped limitations recorded above.
+- `$safeword:audit`: full repository mode completed; dependency-cruiser found no
+  violations, learning/principle/domain checks were clean, and known repository
+  Knip/duplication/experimental-language baselines were reviewed.
 
 The final caught-up verification run completed without failures or local evidence limits.
