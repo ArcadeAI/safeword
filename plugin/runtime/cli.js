@@ -6062,7 +6062,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/SCENARIOS.md": "2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d",
         ".claude/skills/bdd/SKILL.md": "53b66c5ee888c6d9a1dc05119ee9d197d3d6b01d36b747fe62d686852e3715c9",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "8c73a7a57a3df8c834e77462e2d7ca8a824e15b6ecadf15ba64e0e1c9227a09a",
+        ".claude/skills/bdd/TDD.md": "319a0b4430a60c23be095c703f5405c14f63c5ad9ed932992c7f846a096618e5",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
