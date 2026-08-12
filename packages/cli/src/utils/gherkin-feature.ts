@@ -6,6 +6,7 @@ import {
   type Feature,
   type FeatureChild,
   IdGenerator,
+  type Rule,
   type RuleChild,
   type Scenario,
   type Step,
@@ -376,33 +377,35 @@ function findRuleProofIssues(
   ];
   for (const child of feature.children) {
     const rule = child.rule;
-    const isOffloadRule = rule?.tags.some(tag => isRuleLineageTag(tag.name, policy)) === true;
-    if (!isOffloadRule) continue;
-
-    const ruleTags = new Set(rule.tags.map(tag => tag.name));
-    const hasProof = ruleTags.has(policy.proofTag);
-    const isWorkInProgress = ruleTags.has(policy.workInProgressTag);
-    if (isWorkInProgress && hasProof) {
-      issues.push(
-        issue(
-          'offload-proof-conflict',
-          `An ${policy.ruleLabel} cannot declare both ${policy.workInProgressTag} and ${policy.proofTag}; choose unfinished or executable.`,
-          rule.location.line,
-        ),
-      );
-      continue;
+    if (rule?.tags.some(tag => isRuleLineageTag(tag.name, policy)) === true) {
+      issues.push(...findRuleDeliveryIssue(rule, policy));
     }
-    if (isWorkInProgress || hasProof) continue;
-
-    issues.push(
-      issue(
-        'offload-executable-proof',
-        `An ${policy.ruleLabel} that leaves ${policy.workInProgressTag} must declare ${policy.proofTag} so executable coverage is explicit.`,
-        rule.location.line,
-      ),
-    );
   }
   return issues;
+}
+
+function findRuleDeliveryIssue(rule: Rule, policy: RuleProofPolicy): GherkinLintIssue[] {
+  const ruleTags = new Set(rule.tags.map(tag => tag.name));
+  const hasProof = ruleTags.has(policy.proofTag);
+  const isWorkInProgress = ruleTags.has(policy.workInProgressTag);
+  if (isWorkInProgress && hasProof) {
+    return [
+      issue(
+        'offload-proof-conflict',
+        `An ${policy.ruleLabel} cannot declare both ${policy.workInProgressTag} and ${policy.proofTag}; choose unfinished or executable.`,
+        rule.location.line,
+      ),
+    ];
+  }
+  if (isWorkInProgress || hasProof) return [];
+
+  return [
+    issue(
+      'offload-executable-proof',
+      `An ${policy.ruleLabel} that leaves ${policy.workInProgressTag} must declare ${policy.proofTag} so executable coverage is explicit.`,
+      rule.location.line,
+    ),
+  ];
 }
 
 function findMisplacedRuleLineageIssues(
