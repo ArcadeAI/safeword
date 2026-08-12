@@ -55,6 +55,7 @@ interface ReviewScenario {
   binaries: string[];
   environment: Record<string, string>;
   launchLog: string;
+  elapsedMs?: number;
   targets: string[];
   context: string[];
 }
@@ -119,6 +120,9 @@ exec /bin/sleep 3600`;
   if (behaviour === 'emits a credential') {
     return `printf 'trace token=${CREDENTIAL}\\n' >&2\nprintf 'not-a-review\\n'`;
   }
+  if (behaviour === 'answers off contract') {
+    return `${body}\nanswer=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[{"severity":"fatal","message":"invalid severity"}]}' "$dispatch_id")\n${emit}`;
+  }
   return String.raw`printf 'not-a-review\n'`;
 }
 function installReviewer(
@@ -159,6 +163,7 @@ function writeConfig(current: ReviewScenario, config: Record<string, unknown>): 
 
 async function runReview(world: SafewordWorld): Promise<void> {
   const current = state(world);
+  const startedAt = performance.now();
   const environment: Record<string, string> = {
     ...current.environment,
     SAFEWORD_REVIEW_LAUNCH_LOG: current.launchLog,
@@ -190,6 +195,8 @@ async function runReview(world: SafewordWorld): Promise<void> {
       stderr: failure.stderr ?? '',
       exitCode: failure.code ?? 1,
     };
+  } finally {
+    current.elapsedMs = performance.now() - startedAt;
   }
 }
 
@@ -531,6 +538,8 @@ Then('the command rejects the packet through a typed result', function (this: Sa
 Then('the configured deadline is used', function (this: SafewordWorld) {
   assert.equal(payload(this).data.preferred_failure, 'timed_out');
   assert.equal(reviewerLaunches(this).length, 1);
+  const elapsedMs = state(this).elapsedMs;
+  assert.ok(elapsedMs !== undefined && elapsedMs >= 2600 && elapsedMs < 4500);
 });
 
 Then('the assigned reviewer route is reported as timed out', function (this: SafewordWorld) {
