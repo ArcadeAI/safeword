@@ -15,8 +15,8 @@ import nodePath from 'node:path';
 
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { retryCommand } from './command.js';
 import { isReviewKind, type ReviewKind } from './contract.js';
-import { retryCommand } from './coordinator.js';
 import { prepareReviewPacket } from './packet.js';
 
 type ReviewJobState = 'running' | 'completed' | 'failed' | 'canceled';
