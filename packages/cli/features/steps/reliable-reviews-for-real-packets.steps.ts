@@ -286,7 +286,9 @@ Given(
   'two installed reviewer executables that both accept the review contract',
   function (this: SafewordWorld) {
     const current = state(this);
-    current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '4000';
+    // The first candidate may consume its five-second capability probe budget;
+    // leave the second candidate enough time to probe and return a real review.
+    current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '12000';
     installReviewer(current, 'codex', 'never answers', 'stale');
   },
 );
