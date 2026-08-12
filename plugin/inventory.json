@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "5e7804cfb1647392fafca0762d4605bedca5500b6f2b55332f89977a67701549"
+      "sha256": "6030e2db88687a057cb6e9c44391a108a184a5be121aa02d971dd1961acba48f"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -551,7 +551,7 @@
     },
     {
       "path": "runtime/hooks/session-version.ts",
-      "sha256": "60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af"
+      "sha256": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64"
     },
     {
       "path": "runtime/hooks/stop-quality.ts",

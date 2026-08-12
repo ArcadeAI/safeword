@@ -24,7 +24,7 @@
     },
     "packages/cli": {
       "name": "safeword",
-      "version": "0.74.7-rc.1",
+      "version": "0.76.0",
       "bin": {
         "safeword": "dist/cli.js",
       },
