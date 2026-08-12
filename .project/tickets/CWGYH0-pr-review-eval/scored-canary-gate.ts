@@ -53,6 +53,14 @@ export const REQUIRED_AUTHORIZATION_BINDINGS = [
 
 type CanaryInput = {
 	anchorCreatedAt: string;
+	callIntents: Array<{
+		attemptIds: string[];
+		callId: string;
+		labelBinding: string;
+		runId: string;
+		system: "full" | "narrow";
+		variant: "buggy" | "fixed";
+	}>;
 	labelAnchorCreatedAt: string;
 	attempts: Array<{
 		attempt: 1 | 2;
@@ -104,7 +112,6 @@ type CanaryInput = {
 		costComplete: boolean;
 		costUsd: number;
 		provenanceComplete: boolean;
-		recordedAt: string;
 		system: string;
 		usageCostUsd: number;
 		usable: boolean;
@@ -236,6 +243,15 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	) {
 		reasons.push("pre-call labels must identify exactly the ten paid calls");
 	}
+	const intentCallIds = input.callIntents.map(({ callId }) => callId);
+	if (
+		intentCallIds.length !== 10 ||
+		intentCallIds.some((id) => id.length === 0) ||
+		duplicates(intentCallIds).length > 0 ||
+		!exactMembers(intentCallIds, callIds)
+	) {
+		reasons.push("durable call intents must identify exactly the ten paid calls");
+	}
 	for (const label of input.preregisteredLabels) {
 		if (
 			label.expectedAdmission !== "usable" ||
@@ -267,10 +283,7 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 	}
 	for (const outcome of input.paidOutcomes) {
 		const label = input.preregisteredLabels.find(({ callId }) => callId === outcome.callId);
-		if (!retainedBeforeAnchor(outcome.recordedAt)) reasons.push(`paid call ${outcome.callId} was not retained before authorization`);
-		if (new Date(outcome.recordedAt).valueOf() <= labelAnchorTime) {
-			reasons.push(`paid call ${outcome.callId} does not postdate its frozen label anchor`);
-		}
+		const intent = input.callIntents.find(({ callId }) => callId === outcome.callId);
 		if (!outcome.usable) reasons.push(`paid call ${outcome.callId} is unusable`);
 		if (!outcome.provenanceComplete) {
 			reasons.push(`paid call ${outcome.callId} has incomplete provenance`);
@@ -281,6 +294,16 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 			outcome.variant !== label.variant
 		) {
 			reasons.push(`paid call ${outcome.callId} disagrees with its frozen label`);
+		}
+		if (
+			intent === undefined ||
+			intent.runId !== input.runId ||
+			intent.labelBinding !== input.observedBindings.labels ||
+			intent.system !== outcome.system ||
+			intent.variant !== outcome.variant ||
+			!exactMembers(intent.attemptIds, outcome.attemptIds)
+		) {
+			reasons.push(`paid call ${outcome.callId} disagrees with its durable pre-call intent`);
 		}
 		if (
 			!outcome.costComplete ||

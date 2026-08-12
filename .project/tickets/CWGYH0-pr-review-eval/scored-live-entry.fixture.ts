@@ -210,7 +210,6 @@ try {
 			costComplete: true,
 			costUsd: attemptCostUsd,
 			provenanceComplete: true,
-			recordedAt,
 			system: index % 2 === 0 ? "full" : "narrow",
 			usageCostUsd: attemptCostUsd,
 			usable: true,
@@ -360,6 +359,14 @@ try {
 			)),
 			writer: sha256(join(ticketRoot, "scored-case-store.ts")),
 		};
+		const callIntents = paidOutcomes.map((outcome) => ({
+			attemptIds: [...outcome.attemptIds],
+			callId: outcome.callId,
+			labelBinding: expectedBindings.labels,
+			runId,
+			system: outcome.system,
+			variant: outcome.variant,
+		}));
 		let gateEnvironment = gateByOutput.get(input.outputRoot);
 		if (gateEnvironment === undefined) {
 			const frozenLabels = freezeFixtureBlob({
@@ -374,6 +381,7 @@ try {
 			const gateBytes = `${JSON.stringify({
 				anchorCreatedAt: recordedAt,
 				attempts: canaryAttempts,
+				callIntents,
 				costPolicy,
 				expectedBindings,
 				fixtures,

@@ -120,7 +120,6 @@ function validInput() {
 		costComplete: true,
 		costUsd: attemptCostUsd,
 		provenanceComplete: true,
-		recordedAt: "2026-08-01T00:00:00.000Z",
 		system: index % 2 === 0 ? "full" : "narrow",
 		usageCostUsd: attemptCostUsd,
 		usable: true,
@@ -150,6 +149,14 @@ function validInput() {
 	expectedBindings.costPolicy = createHash("sha256")
 		.update(JSON.stringify(costPolicy))
 		.digest("hex");
+	const callIntents = paidOutcomes.map((outcome) => ({
+		attemptIds: [...outcome.attemptIds],
+		callId: outcome.callId,
+		labelBinding: expectedBindings.labels!,
+		runId: "run-fixture-1",
+		system: outcome.system as "full" | "narrow",
+		variant: outcome.variant as "buggy" | "fixed",
+	}));
 	const hiddenFailure = retryableRawOutput(9);
 	return {
 		anchorCreatedAt: "2026-08-02T00:00:00.000Z",
@@ -170,6 +177,7 @@ function validInput() {
 				usable: true,
 			})),
 		],
+		callIntents,
 		costPolicy,
 		expectedBindings,
 		fixtures,
@@ -218,8 +226,10 @@ describe("paid canary authorization", () => {
 		["missing fixture taxonomy", (input: ReturnType<typeof validInput>) => input.fixtures.pop()],
 		["failed operational injection", (input: ReturnType<typeof validInput>) => { input.operational[0]!.passed = false; }],
 		["unusable paid call", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[3]!.usable = false; }],
+		["missing durable call intent", (input: ReturnType<typeof validInput>) => { input.callIntents.pop(); }],
+		["call intent label mismatch", (input: ReturnType<typeof validInput>) => { input.callIntents[2]!.labelBinding = "0".repeat(64); }],
+		["call intent attempt mismatch", (input: ReturnType<typeof validInput>) => { input.callIntents[0]!.attemptIds = ["attempt-1"]; }],
 		["label disagreement", (input: ReturnType<typeof validInput>) => { input.preregisteredLabels[4]!.expectedOutputClass = "finding"; }],
-		["post-outcome label anchor", (input: ReturnType<typeof validInput>) => { input.labelAnchorCreatedAt = "2026-08-01T00:00:00.000Z"; }],
 		["unsupported label vocabulary", (input: ReturnType<typeof validInput>) => { input.preregisteredLabels[2]!.expectedOutputClass = "unsupported" as "empty"; }],
 		["fabricated raw system", (input: ReturnType<typeof validInput>) => { input.attempts.find(({ attemptId }) => attemptId === "attempt-2")!.system = "full"; }],
 		["fabricated raw variant", (input: ReturnType<typeof validInput>) => { input.attempts.find(({ attemptId }) => attemptId === "attempt-3")!.expectedProvenance.variant = "buggy"; }],
