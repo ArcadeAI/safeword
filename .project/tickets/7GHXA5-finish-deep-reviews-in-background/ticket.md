@@ -2,8 +2,8 @@
 id: 7GHXA5
 slug: finish-deep-reviews-in-background
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - "define-behavior: .project/tickets/7GHXA5-finish-deep-reviews-in-background/spec.md"
   - "scenario-gate: packages/cli/features/durable-independent-review.feature"
@@ -35,3 +35,4 @@ last_modified: 2026-08-12T16:16:43.148Z
 - 2026-08-12T16:16:43.148Z Started: Created ticket 7GHXA5
 - 2026-08-12T16:20:00.000Z Resumed at implementation from the accepted durable-review proposal; recording executable lifecycle scenarios before code.
 - 2026-08-12T21:10:00.000Z Verification audit corrected transient-state cleanup, context freshness binding, proof provenance, and foreground progress; focused regressions and parity contracts are green.
+- 2026-08-12T22:06:00.000Z Verified: final Node 22 and Node 24 CI matrices, lint, CLI contract, dogfood parity, build, typecheck, dependency audit, and diff-scoped audit are green.
