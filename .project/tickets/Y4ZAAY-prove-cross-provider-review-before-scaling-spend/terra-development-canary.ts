@@ -237,7 +237,9 @@ function canonicalize(value: unknown): unknown {
   return value;
 }
 
-function bindingDigest(binding: CanaryInitializationBinding): string {
+export function canaryBindingDigest(
+  binding: CanaryInitializationBinding
+): string {
   return createHash("sha256")
     .update(JSON.stringify(canonicalize(binding)))
     .digest("hex");
@@ -394,7 +396,7 @@ export async function initializeCanary(input: {
   receiptId: string;
   startedAttempts: 0;
 }> {
-  const digest = bindingDigest(input.binding);
+  const digest = canaryBindingDigest(input.binding);
   const snapshot = await input.upstream.inspect(digest);
   if (snapshot.kind === "unavailable" || snapshot.kind === "unreadable") {
     throw new Error(`trusted upstream state is ${snapshot.kind}`);
@@ -957,7 +959,7 @@ export async function inspectCanaryAccounting(input: {
   outputDirectory: string;
   upstream: CanaryUpstream;
 }): Promise<CanaryAccountingInspection> {
-  const digest = bindingDigest(input.binding);
+  const digest = canaryBindingDigest(input.binding);
   const snapshot = await input.upstream.inspect(digest);
   if (snapshot.kind !== "consumed") {
     return {
@@ -1285,7 +1287,7 @@ async function runCanaryAttemptWhileLocked(input: {
   await ensureEvidenceDirectory(input.outputDirectory);
 
   const sequence = inspected.startedAttempts + 1;
-  const digest = bindingDigest(input.binding);
+  const digest = canaryBindingDigest(input.binding);
   const start = await input.upstream.postAttemptStart({
     attemptId: input.attemptId,
     bindingDigest: digest,

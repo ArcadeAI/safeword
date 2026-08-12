@@ -65,7 +65,7 @@ Recommend **the separate OpenAI `AgentRunner` plus shared provider-turn observer
 
 **Premortem:** Assume this design failed after the canary—the most likely cause is a changed OpenAI field replacing a price-affecting documented field, so the parser requires the documented fields, retains harmless additions, rejects contradictory component totals, and records the exact raw envelope for audit.
 
-**Next:** add the narrow GitHub read/write adapter for this frozen comment contract and the existing initialization/start/completion receipt types, with GitHub HTTP faked. Do not add credentials or the paid launcher until that adapter fails closed under pagination, transport, mutation, and receipt-budget fixtures.
+**Next:** add the credential-separated launcher and clean-checkout/tag preflight with both GitHub and OpenAI boundaries faked. It must keep the GitHub credential in the parent, pass only the OpenAI credential to the paid child, disable automatic retries, and refuse dirty or incorrectly pinned checkouts before loading either secret.
 
 ## Design alignment
 
