@@ -134,18 +134,11 @@ jobs:
       - name: Qualify paid-canary wiring against pinned adapter
         if: matrix.node-version == '24.18.1'
         run: |
-          adapter_root="$RUNNER_TEMP/cwgyh0-adapter"
-          git clone --filter=blob:none --depth 1 \
-            --branch codex/cwgyh0-dev-benchmark-adapter \
-            https://github.com/ArcadeAI/monorepo.git "$adapter_root"
-          test "$(git -C "$adapter_root" rev-parse HEAD)" = e1d54b2d12e4a97fba84e8302de31bfe8b60ba17
-          bun install --cwd "$adapter_root" --frozen-lockfile
           (
             cd packages/cli
-            Y4ZAAY_ADAPTER_ROOT="$adapter_root" \
-              node scripts/run-vitest-with-build-lock.mjs \
-                --config ../../.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/vitest.config.ts \
-                terra-real-recorder-wiring.test.ts
+            node scripts/run-vitest-with-build-lock.mjs \
+              --config ../../.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/vitest.config.ts \
+              terra-real-recorder-wiring.test.ts
           )
 
       - name: Non-git physical install proof
