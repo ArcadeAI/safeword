@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -16,6 +16,8 @@ const OFFLOAD_FEATURE_PREFIX = 'packages/cli/features/offload-tests-';
 const OFFLOAD_BASELINE_COMMIT = '1f8056ed845b63923ad9ea19a7112101aa07a9b1';
 const OFFLOAD_BASELINE_PATH =
   'packages/cli/features/offload-tests-without-blocking-local-work.feature';
+const OFFLOAD_BASELINE_OBJECT = `${OFFLOAD_BASELINE_COMMIT}:${OFFLOAD_BASELINE_PATH}`;
+const CUCUMBER_DRY_RUN_TIMEOUT_MS = 90_000;
 const OFFLOAD_RULE_IDS = [
   'offload-tests.NTB1.R1',
   'offload-tests.NTB1.R2',
@@ -87,7 +89,15 @@ function semanticDigest(expandedCases: ReturnType<typeof expandedCasesFor>): str
 function baselineOffloadFeature(): string {
   // The test job fetches full history so the immutable pre-refactor Git object
   // remains independently inspectable instead of trusting new digest literals.
-  return execFileSync('git', ['show', `${OFFLOAD_BASELINE_COMMIT}:${OFFLOAD_BASELINE_PATH}`], {
+  const baselineExists = spawnSync('git', ['cat-file', '-e', OFFLOAD_BASELINE_OBJECT], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  });
+  expect(
+    baselineExists.status,
+    `BDD split baseline ${OFFLOAD_BASELINE_OBJECT} is unavailable. Run this test from a full Git checkout (CI uses fetch-depth: 0).`,
+  ).toBe(0);
+  return execFileSync('git', ['show', OFFLOAD_BASELINE_OBJECT], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
   });
@@ -196,4 +206,30 @@ describe('BDD feature maintainability', () => {
       ruleSourceDigests: baselineRuleSourceDigests,
     });
   });
+
+  it(
+    'loads every split specification through the real Cucumber bindings',
+    () => {
+      const files = configuredFeatureFiles()
+        .filter(relativePath => relativePath.startsWith(OFFLOAD_FEATURE_PREFIX))
+        .map(relativePath => nodePath.join(REPO_ROOT, relativePath));
+      const result = spawnSync(
+        'bunx',
+        ['cucumber-js', '--dry-run', '--format', 'summary', '--tags', '@wip', ...files],
+        {
+          cwd: REPO_ROOT,
+          encoding: 'utf8',
+          env: { ...process.env, NODE_OPTIONS: '--import tsx' },
+          timeout: CUCUMBER_DRY_RUN_TIMEOUT_MS,
+          killSignal: 'SIGKILL',
+        },
+      );
+      const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+
+      expect(result.status, output).toBe(0);
+      expect(output).toMatch(/\b624 scenarios? \(624 skipped\)/u);
+      expect(output).not.toMatch(/undefined|ambiguous|pending/iu);
+    },
+    CUCUMBER_DRY_RUN_TIMEOUT_MS + 10_000,
+  );
 });
