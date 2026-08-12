@@ -10,6 +10,9 @@ const CHILD_ENVIRONMENT_ALLOWLIST = [
   "SSL_CERT_FILE",
   "TMPDIR",
 ] as const;
+const REGISTRATION_PATH =
+  ".project/tickets/CWGYH0-pr-review-eval/corpus-registration-development-2026-08-11.json";
+const REGISTRATION_DIGEST_PATH = `${REGISTRATION_PATH.slice(0, -5)}.sha256`;
 
 export type PinnedCheckout = {
   canonicalRepository: string;
@@ -215,6 +218,48 @@ export async function preflightPinnedCheckout(
   }
 }
 
+async function verifyCommittedCorpusRegistration(input: {
+  checkout: PinnedCheckout;
+  corpusDigest: string;
+  registrationCommit: string;
+}): Promise<void> {
+  if (!/^[0-9a-f]{40}$/.test(input.registrationCommit)) {
+    throw new Error("registration commit must be a full lowercase SHA-1");
+  }
+  try {
+    await execFileAsync(
+      "git",
+      ["merge-base", "--is-ancestor", input.registrationCommit, input.checkout.commit],
+      { cwd: input.checkout.directory }
+    );
+  } catch {
+    throw new Error("registration commit is not reachable from the authorized checkout");
+  }
+  const [registrationBytes, digestBytes] = await Promise.all([
+    git(input.checkout.directory, ["show", `${input.registrationCommit}:${REGISTRATION_PATH}`]),
+    git(input.checkout.directory, [
+      "show",
+      `${input.registrationCommit}:${REGISTRATION_DIGEST_PATH}`,
+    ]),
+  ]);
+  let registration: unknown;
+  try {
+    registration = JSON.parse(registrationBytes);
+  } catch {
+    throw new Error("committed corpus registration is invalid JSON");
+  }
+  if (
+    typeof registration !== "object" ||
+    registration === null ||
+    Array.isArray(registration) ||
+    (registration as Record<string, unknown>).role !== "development" ||
+    (registration as Record<string, unknown>).voidForInstrumentFailure !== true ||
+    digestBytes !== input.corpusDigest
+  ) {
+    throw new Error("committed corpus registration does not match authorization");
+  }
+}
+
 function requireSecret(value: string, label: string): string {
   if (value.length === 0 || value.trim() !== value) {
     throw new Error(`${label} is invalid`);
@@ -244,8 +289,10 @@ export async function runCredentialSeparatedCanary<T>(input: {
     adapterCommit: string;
     adapterTag: string;
     canonicalRepository: string;
+    corpusDigest: string;
     harnessCommit: string;
     harnessTag: string;
+    registrationCommit: string;
   };
   child: { args: string[]; command: string };
   environment: Readonly<Record<string, string | undefined>>;
@@ -272,6 +319,16 @@ export async function runCredentialSeparatedCanary<T>(input: {
       tag: input.authorization.harnessTag,
     }),
   ]);
+  await verifyCommittedCorpusRegistration({
+    checkout: {
+      canonicalRepository: input.authorization.canonicalRepository,
+      commit: input.authorization.harnessCommit,
+      directory: input.harnessDirectory,
+      tag: input.authorization.harnessTag,
+    },
+    corpusDigest: input.authorization.corpusDigest,
+    registrationCommit: input.authorization.registrationCommit,
+  });
 
   const githubToken = requireSecret(await input.loadGitHubToken(), "GitHub token");
   const openAIKey = requireSecret(await input.loadOpenAIKey(), "OpenAI API key");

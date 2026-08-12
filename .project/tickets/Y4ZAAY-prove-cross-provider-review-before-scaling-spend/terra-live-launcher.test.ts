@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -17,6 +17,7 @@ import {
 } from "./terra-live-launcher";
 
 const execFileAsync = promisify(execFile);
+const CORPUS_DIGEST = "4bf3fd10c20222088ccf11bd2b187561021608cb07a646bc4b9294babfc33c75";
 
 async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
   const directory = await mkdtemp(join(tmpdir(), `${name}-`));
@@ -32,7 +33,22 @@ async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
     cwd: directory,
   });
   await writeFile(join(directory, "fixture.txt"), `${name}\n`, "utf8");
-  await execFileAsync("git", ["add", "fixture.txt"], { cwd: directory });
+  const registrationDirectory = join(
+    directory,
+    ".project/tickets/CWGYH0-pr-review-eval"
+  );
+  await mkdir(registrationDirectory, { recursive: true });
+  await writeFile(
+    join(registrationDirectory, "corpus-registration-development-2026-08-11.json"),
+    JSON.stringify({ role: "development", voidForInstrumentFailure: true }),
+    "utf8"
+  );
+  await writeFile(
+    join(registrationDirectory, "corpus-registration-development-2026-08-11.sha256"),
+    `${CORPUS_DIGEST}\n`,
+    "utf8"
+  );
+  await execFileAsync("git", ["add", "."], { cwd: directory });
   await execFileAsync("git", ["commit", "--quiet", "-m", "fixture"], {
     cwd: directory,
   });
@@ -164,8 +180,10 @@ describe("credential-separated live launcher", () => {
         adapterCommit: adapter.commit,
         adapterTag: adapter.tag,
         canonicalRepository: adapter.canonicalRepository,
+        corpusDigest: CORPUS_DIGEST,
         harnessCommit: harness.commit,
         harnessTag: harness.tag,
+        registrationCommit: harness.commit,
       },
       child: { args: ["run-canary"], command: "node" },
       environment: {
@@ -228,8 +246,10 @@ describe("credential-separated live launcher", () => {
           adapterCommit: adapter.commit,
           adapterTag: adapter.tag,
           canonicalRepository: adapter.canonicalRepository,
+          corpusDigest: CORPUS_DIGEST,
           harnessCommit: harness.commit,
           harnessTag: harness.tag,
+          registrationCommit: harness.commit,
         },
         child: { args: [], command: "node" },
         environment: { PATH: "/safe/bin" },
@@ -251,6 +271,46 @@ describe("credential-separated live launcher", () => {
         },
       })
     ).rejects.toThrow("must be clean");
+    expect(events).toEqual([]);
+  });
+
+  test("rejects caller-supplied corpus provenance that is absent from the committed registration", async () => {
+    const adapter = await pinnedCheckout("adapter-fake-corpus");
+    const harness = await pinnedCheckout("harness-fake-corpus");
+    const events: string[] = [];
+
+    await expect(
+      runCredentialSeparatedCanary({
+        adapterDirectory: adapter.directory,
+        authorization: {
+          adapterCommit: adapter.commit,
+          adapterTag: adapter.tag,
+          canonicalRepository: adapter.canonicalRepository,
+          corpusDigest: "0".repeat(64),
+          harnessCommit: harness.commit,
+          harnessTag: harness.tag,
+          registrationCommit: harness.commit,
+        },
+        child: { args: [], command: "node" },
+        environment: { PATH: "/safe/bin" },
+        harnessDirectory: harness.directory,
+        loadGitHubToken: async () => {
+          events.push("github-secret");
+          return "github-token";
+        },
+        loadOpenAIKey: async () => {
+          events.push("openai-secret");
+          return "openai-key";
+        },
+        parent: async () => {
+          events.push("parent");
+        },
+        spawnChild: async () => {
+          events.push("child");
+          return { exitCode: 0, stderr: "", stdout: "" };
+        },
+      })
+    ).rejects.toThrow("committed corpus registration does not match");
     expect(events).toEqual([]);
   });
 
@@ -295,8 +355,10 @@ describe("credential-separated live launcher", () => {
           adapterCommit: adapter.commit,
           adapterTag: adapter.tag,
           canonicalRepository: adapter.canonicalRepository,
+          corpusDigest: CORPUS_DIGEST,
           harnessCommit: harness.commit,
           harnessTag: harness.tag,
+          registrationCommit: harness.commit,
         },
         child: { args: [], command: "node" },
         environment: {},
