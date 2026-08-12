@@ -47,6 +47,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the second executable answers promptly
       When the independent review runs
       Then the review returns the second executable's verdict
+      And the stale executable was tried before the working executable
 
     @rejection
     Scenario: Every reviewer executable failing still reports a timeout
