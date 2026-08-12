@@ -180,7 +180,20 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('plan', 'Preview reconciliation effects', 'plan', {
     syntax: 'plan [operation]',
-    commandOptions: [agentSelectionOption(), claudeScopeOption()],
+    commandOptions: [
+      agentSelectionOption(),
+      claudeScopeOption(),
+      { flags: '--no-modify', description: 'Do not plan an ESLint configuration edit' },
+      {
+        flags: '--migrate-namespace',
+        description: 'Plan moving the legacy project namespace to .project',
+      },
+      { flags: '--no-migrate-namespace', description: 'Keep the legacy project namespace' },
+      {
+        flags: '--repair-version-marker',
+        description: 'Plan replacement of an unreadable project version marker',
+      },
+    ],
   }),
   command('doctor', 'Diagnose project configuration', 'observe', {
     commandOptions: [agentSelectionOption()],
@@ -416,6 +429,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
     syntax: 'run <kind> <targets...>',
     commandOptions: [
+      {
+        flags: '--context <paths...>',
+        description: 'Bounded supporting evidence that is not work under review',
+      },
       {
         flags: '--agent-handoff',
         description: 'Treat action-required output as a successful author-agent handoff',

@@ -141,13 +141,23 @@ function reviewUpgradeSuggestion(
     return undefined;
   }
   const label = `${reviewer.charAt(0).toUpperCase()}${reviewer.slice(1)}`;
-  if (data.preferred_failure === 'not_installed') {
+  return suggestionForFailure(data.preferred_failure, label);
+}
+
+function suggestionForFailure(failure: unknown, label: string): string | undefined {
+  if (failure === 'not_installed') {
     return `To add independent coverage, install or update ${label}, then retry review.`;
   }
-  if (data.preferred_failure === 'not_authenticated') {
+  if (failure === 'unsupported') {
+    return `To add independent coverage, update ${label}, then retry review.`;
+  }
+  if (failure === 'probe_timed_out' || failure === 'launch_failed') {
+    return `To add independent coverage, run ${label} --help to diagnose it, then retry review.`;
+  }
+  if (failure === 'not_authenticated') {
     return `To add independent coverage, sign in to ${label}, then retry review.`;
   }
-  if (RETRYABLE_REVIEW_FAILURES.has(String(data.preferred_failure))) {
+  if (RETRYABLE_REVIEW_FAILURES.has(String(failure))) {
     return `To add independent coverage, retry ${label} review.`;
   }
   return undefined;

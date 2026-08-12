@@ -124,6 +124,41 @@ describe('headless reviewer output adapters', () => {
 });
 
 describe('headless reviewer process lifecycle', () => {
+  it.each([
+    {
+      name: 'unsupported capabilities',
+      help: String.raw`printf '%s\n' '--output-format'`,
+      failure: 'unsupported',
+    },
+    {
+      name: 'capability probe launch failure',
+      help: String.raw`printf '%s\n' 'probe failed' >&2; exit 7`,
+      failure: 'launch_failed',
+    },
+  ])('classifies $name separately from a missing executable', async ({ help, failure }) => {
+    const bin = temporaryDirectory();
+    const project = temporaryDirectory();
+    const untrustedRoot = temporaryDirectory();
+    const executable = nodePath.join(bin, 'claude');
+    writeFileSync(executable, `#!/bin/sh\n${help}\n`, { mode: 0o755 });
+    chmodSync(executable, 0o755);
+    vi.stubEnv('PATH', bin);
+
+    await expect(
+      runHeadlessReviewer(
+        'claude',
+        {
+          schema_version: 1,
+          dispatch_id: 'probe-classification',
+          kind: 'quality-review',
+          logical_files: [],
+        },
+        project,
+        untrustedRoot,
+      ),
+    ).rejects.toMatchObject({ failure });
+  });
+
   it.skipIf(process.platform === 'win32')(
     'kills reviewer descendants after a timeout',
     async () => {

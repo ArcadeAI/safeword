@@ -5,8 +5,17 @@
  * - Cargo.toml [lints.clippy] merge
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
+
+import { parse } from 'smol-toml';
 
 import type { SetupResult } from '../types.js';
 
@@ -39,6 +48,34 @@ unsafe_code = "deny"
  * template files must be self-contained (they're copied to user projects).
  */
 const CARGO_PACKAGE_NAME_REGEX = /\[package\][^[]*name\s*=\s*"([^"]+)"/;
+
+function isContainedPath(root: string, candidate: string): boolean {
+  const relative = nodePath.relative(root, candidate);
+  return (
+    relative === '' || (!relative.startsWith(`..${nodePath.sep}`) && !nodePath.isAbsolute(relative))
+  );
+}
+
+function containedWorkspaceMember(cwd: string, member: string): string | undefined {
+  if (nodePath.isAbsolute(member)) return undefined;
+  const root = nodePath.resolve(cwd);
+  const candidate = nodePath.resolve(root, member);
+  if (!isContainedPath(root, candidate)) return undefined;
+  if (existsSync(candidate) && !isContainedPath(realpathSync(root), realpathSync(candidate))) {
+    return undefined;
+  }
+  return nodePath.relative(root, candidate);
+}
+
+function isSafeCargoManifest(cwd: string, cargoPath: string): boolean {
+  if (!existsSync(cargoPath)) return false;
+  const stat = lstatSync(cargoPath);
+  return (
+    stat.isFile() &&
+    !stat.isSymbolicLink() &&
+    isContainedPath(realpathSync(cwd), realpathSync(cargoPath))
+  );
+}
 
 const SAFEWORD_WORKSPACE_LINTS = `[workspace.lints.clippy]
 # Enable pedantic for stricter linting (priority -1 allows individual overrides)
@@ -76,10 +113,16 @@ export function detectRustPackage(filePath: string, cwd: string): string | undef
   // Normalize paths for comparison
   const normalizedCwd = nodePath.resolve(cwd);
 
-  while (currentDirectory.startsWith(normalizedCwd)) {
+  while (isContainedPath(normalizedCwd, currentDirectory)) {
+    if (
+      existsSync(currentDirectory) &&
+      !isContainedPath(realpathSync(normalizedCwd), realpathSync(currentDirectory))
+    ) {
+      return undefined;
+    }
     const cargoPath = nodePath.join(currentDirectory, 'Cargo.toml');
 
-    if (existsSync(cargoPath)) {
+    if (isSafeCargoManifest(normalizedCwd, cargoPath)) {
       const content = readFileSync(cargoPath, 'utf8');
 
       // Check if this Cargo.toml has a [package] section
@@ -104,25 +147,79 @@ export function detectRustPackage(filePath: string, cwd: string): string | undef
 export function detectWorkspaceType(
   cargoContent: string,
 ): 'virtual' | 'root-package' | 'single-crate' {
-  const hasWorkspace = cargoContent.includes('[workspace]');
-  const hasPackage = cargoContent.includes('[package]');
+  const hasWorkspace = hasExactTableHeader(cargoContent, 'workspace');
+  const hasPackage = hasExactTableHeader(cargoContent, 'package');
 
   if (hasWorkspace && !hasPackage) return 'virtual';
   if (hasWorkspace && hasPackage) return 'root-package';
   return 'single-crate';
 }
 
+function hasExactTableHeader(content: string, table: string): boolean {
+  let multilineDelimiter: '"""' | "'''" | undefined;
+  const header = `[${table}]`;
+  for (const line of content.split(/\r?\n/u)) {
+    if (multilineDelimiter !== undefined) {
+      if (hasOddOccurrences(line, multilineDelimiter)) multilineDelimiter = undefined;
+      continue;
+    }
+    const trimmed = line.trim();
+    if (trimmed === header || trimmed.startsWith(`${header} #`)) return true;
+    multilineDelimiter = openingMultilineDelimiter(line);
+  }
+  return false;
+}
+
+function hasOddOccurrences(line: string, delimiter: string): boolean {
+  return line.split(delimiter).length % 2 === 0;
+}
+
+function openingMultilineDelimiter(line: string): '"""' | "'''" | undefined {
+  const candidates = ['"""', "'''"] as const;
+  return candidates
+    .filter(delimiter => hasOddOccurrences(line, delimiter))
+    .toSorted((left, right) => line.indexOf(left) - line.indexOf(right))[0];
+}
+
 /**
  * Check if Cargo.toml already has lint configuration
  */
 function hasExistingLints(cargoContent: string): boolean {
-  return (
-    cargoContent.includes('[lints.clippy]') ||
-    cargoContent.includes('[lints.rust]') ||
-    cargoContent.includes('[lints]') ||
-    cargoContent.includes('[workspace.lints.clippy]') ||
-    cargoContent.includes('[workspace.lints.rust]')
-  );
+  const manifest = parseCargoManifest(cargoContent);
+  const workspace = isTomlTable(manifest?.workspace) ? manifest.workspace : undefined;
+  return isTomlTable(manifest?.lints) || isTomlTable(workspace?.lints);
+}
+
+type TomlTable = Record<string, unknown>;
+
+function isTomlTable(value: unknown): value is TomlTable {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseCargoManifest(content: string): TomlTable | undefined {
+  try {
+    const manifest = parse(content);
+    return isTomlTable(manifest) ? manifest : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Cargo manifests the Rust pack will update, without changing the project. */
+export function rustToolingTargets(cwd: string): string[] {
+  const rootTarget = 'Cargo.toml';
+  const cargoPath = nodePath.join(cwd, rootTarget);
+  if (!isSafeCargoManifest(cwd, cargoPath)) return [];
+  const content = readFileSync(cargoPath, 'utf8');
+  const targets = hasExistingLints(content) ? [] : [rootTarget];
+  if (detectWorkspaceType(content) === 'single-crate') return targets;
+  for (const member of parseWorkspaceMembers(content, cwd)) {
+    const target = nodePath.join(member, 'Cargo.toml');
+    const memberPath = nodePath.join(cwd, target);
+    if (!isSafeCargoManifest(cwd, memberPath)) continue;
+    if (!hasExistingLints(readFileSync(memberPath, 'utf8'))) targets.push(target);
+  }
+  return targets;
 }
 
 /**
@@ -131,7 +228,8 @@ function hasExistingLints(cargoContent: string): boolean {
 function expandMemberPattern(cwd: string, pattern: string): string[] {
   // Simple glob: only handle trailing /* (most common Cargo workspace pattern)
   if (pattern.endsWith('/*')) {
-    const baseDirectory = pattern.slice(0, -2); // Remove /*
+    const baseDirectory = containedWorkspaceMember(cwd, pattern.slice(0, -2));
+    if (baseDirectory === undefined) return [];
     const fullPath = nodePath.join(cwd, baseDirectory);
 
     if (!existsSync(fullPath)) return [];
@@ -152,7 +250,8 @@ function expandMemberPattern(cwd: string, pattern: string): string[] {
   }
 
   // Not a glob pattern, return as-is
-  return [pattern];
+  const member = containedWorkspaceMember(cwd, pattern);
+  return member === undefined ? [] : [member];
 }
 
 /**
@@ -168,20 +267,10 @@ function expandMemberPattern(cwd: string, pattern: string): string[] {
  * @returns Array of expanded member paths
  */
 export function parseWorkspaceMembers(cargoContent: string, cwd: string): string[] {
-  // Match members = [...] with potential multi-line content
-  const membersMatch = /\[workspace\][^[]*members\s*=\s*\[([\s\S]*?)\]/.exec(cargoContent);
-  if (!membersMatch?.[1]) return [];
-
-  const membersBlock = membersMatch[1];
-  // Extract quoted strings
-  const rawMembers: string[] = [];
-  const stringRegex = /"([^"]+)"/g;
-  let match: RegExpExecArray | null;
-  while ((match = stringRegex.exec(membersBlock)) !== null) {
-    if (match[1]) {
-      rawMembers.push(match[1]);
-    }
-  }
+  const manifest = parseCargoManifest(cargoContent);
+  const members = isTomlTable(manifest?.workspace) ? manifest.workspace.members : undefined;
+  if (!Array.isArray(members)) return [];
+  const rawMembers = members.filter((member): member is string => typeof member === 'string');
 
   // Expand glob patterns
   const expandedMembers: string[] = [];
@@ -195,8 +284,8 @@ export function parseWorkspaceMembers(cargoContent: string, cwd: string): string
 /**
  * Add [lints] workspace = true to a member crate's Cargo.toml
  */
-function addWorkspaceLints(memberCargoPath: string): void {
-  if (!existsSync(memberCargoPath)) return;
+function addWorkspaceLints(cwd: string, memberCargoPath: string): void {
+  if (!isSafeCargoManifest(cwd, memberCargoPath)) return;
 
   const content = readFileSync(memberCargoPath, 'utf8');
 
@@ -229,7 +318,7 @@ function addMemberLints(cwd: string, content: string): void {
   const members = parseWorkspaceMembers(content, cwd);
   for (const member of members) {
     const memberCargoPath = nodePath.join(cwd, member, 'Cargo.toml');
-    addWorkspaceLints(memberCargoPath);
+    addWorkspaceLints(cwd, memberCargoPath);
   }
 }
 
@@ -241,7 +330,7 @@ function addMemberLints(cwd: string, content: string): void {
  */
 export function setupRustTooling(cwd: string): SetupResult {
   const cargoPath = nodePath.join(cwd, 'Cargo.toml');
-  if (!existsSync(cargoPath)) return { files: [] };
+  if (!isSafeCargoManifest(cwd, cargoPath)) return { files: [] };
 
   // Read Cargo.toml once
   const content = readFileSync(cargoPath, 'utf8');

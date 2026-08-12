@@ -41,7 +41,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
   </TabItem>
   <TabItem label="Codex">
-    **Your agent gets scoped safeword plugin skills.** The Safe Word Codex plugin exposes names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain` instead of installing Safe Word workflow files into your repo.
+    **Your agent gets scoped safeword plugin skills.** The Safeword Codex plugin exposes names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain` instead of installing Safeword workflow files into your repo.
 
     **Install enrolls each repository.** Installing a profile plugin does not enroll every repository you open. Until `safeword install` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
 
@@ -96,15 +96,15 @@ Open your project and ask your agent to build something real:
 
 Safeword added a few folders to your project:
 
-| Folder / surface        | What's in it                                                    |
-| ----------------------- | --------------------------------------------------------------- |
-| `.safeword/hooks/`      | Project runtime used by supported project-local surfaces        |
-| Safe Word Claude plugin | Project-scoped by default; user-scoped when explicitly selected |
-| Safe Word Codex plugin  | Project bootstrap plus profile-scoped workflow skills and hooks |
-| `.cursor/hooks.json`    | Hook configuration for Cursor                                   |
-| `.cursor/rules/`        | Rules for Cursor                                                |
-| `.cursor/commands/`     | Slash commands for Cursor                                       |
-| `.safeword/`            | Project configuration, guides, and templates                    |
+| Folder / surface       | What's in it                                                    |
+| ---------------------- | --------------------------------------------------------------- |
+| `.safeword/hooks/`     | Project runtime used by supported project-local surfaces        |
+| Safeword Claude plugin | Project-scoped by default; user-scoped when explicitly selected |
+| Safeword Codex plugin  | Project bootstrap plus profile-scoped workflow skills and hooks |
+| `.cursor/hooks.json`   | Hook configuration for Cursor                                   |
+| `.cursor/rules/`       | Rules for Cursor                                                |
+| `.cursor/commands/`    | Slash commands for Cursor                                       |
+| `.safeword/`           | Project configuration, guides, and templates                    |
 
 Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache and follows the verified stable channel unless native updates were explicitly disabled. Codex install commits one non-blocking SessionStart bootstrap, and each collaborator's first task enrolls only that collaborator's profile. Until a later task records exact native proof, the bootstrap warns that work is unprotected but permits it to continue. Each repository is enrolled with `safeword install`, which creates the project namespace before plugin hooks write project state.
 

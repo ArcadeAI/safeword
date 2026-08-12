@@ -363,7 +363,7 @@ Then(
       .map(response => response.hookSpecificOutput?.additionalContext ?? '')
       .join('\n\n');
     assert.match(contexts, /SAFEWORD\.md/u);
-    assert.match(contexts, /SAFE WORD Claude Config/u);
+    assert.match(contexts, /Safeword Claude Config/u);
     const contractContext = responses
       .map(response => response.hookSpecificOutput?.additionalContext ?? '')
       .find(context => context.includes('**CONFIDENT**'));

@@ -5,14 +5,24 @@
  * These run fast and catch edge cases that E2E tests miss.
  */
 
+import { symlinkSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   detectRustPackage,
   detectWorkspaceType,
   parseWorkspaceMembers,
+  rustToolingTargets,
+  setupRustTooling,
 } from '../../src/packs/rust/setup.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from '../helpers.js';
+import {
+  createTemporaryDirectory,
+  readTestFile,
+  removeTemporaryDirectory,
+  writeTestFile,
+} from '../helpers.js';
 
 describe('detectWorkspaceType', () => {
   it('detects single-crate project (only [package])', () => {
@@ -73,6 +83,15 @@ serde = "1.0"
   it('handles Cargo.toml with only comments', () => {
     const cargoContent = `# This is a comment
 # Another comment
+`;
+
+    expect(detectWorkspaceType(cargoContent)).toBe('single-crate');
+  });
+
+  it('ignores table names inside comments and strings', () => {
+    const cargoContent = `[package]
+name = "mentions [workspace] without declaring it"
+# [workspace]
 `;
 
     expect(detectWorkspaceType(cargoContent)).toBe('single-crate');
@@ -139,6 +158,13 @@ members = [
     const members = parseWorkspaceMembers(cargoContent, testDirectory);
 
     expect(members).toEqual(['crates/core', 'crates/cli']);
+  });
+
+  it('parses TOML literal-string member paths', () => {
+    const cargoContent = "[workspace]\nmembers = ['crates/core']\n";
+    writeTestFile(testDirectory, 'crates/core/Cargo.toml', '[package]\nname = "core"');
+
+    expect(parseWorkspaceMembers(cargoContent, testDirectory)).toEqual(['crates/core']);
   });
 
   it('expands glob pattern crates/*', () => {
@@ -218,6 +244,76 @@ members = ["nonexistent/*"]
     const members = parseWorkspaceMembers(cargoContent, testDirectory);
 
     expect(members).toEqual([]);
+  });
+
+  it.each([
+    ['an absolute member', (outside: string) => outside],
+    ['a parent-traversing member', (outside: string) => `../${outside.split('/').at(-1)}`],
+    ['a parent-traversing glob', (outside: string) => `../${outside.split('/').at(-1)}/*`],
+  ])('rejects %s outside the project root', (_description, workspaceMember) => {
+    const outsideDirectory = createTemporaryDirectory();
+    writeTestFile(outsideDirectory, 'crate/Cargo.toml', '[package]\nname = "outside"\n');
+    const cargoContent = `[workspace]\nmembers = ["${workspaceMember(outsideDirectory)}"]\n`;
+
+    try {
+      expect(parseWorkspaceMembers(cargoContent, testDirectory)).toEqual([]);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
+  });
+
+  it.each([
+    ['an absolute member', (outside: string) => outside],
+    ['a parent-traversing member', (outside: string) => `../${outside.split('/').at(-1)}`],
+  ])('does not update %s outside the project root', (_description, workspaceMember) => {
+    const outsideDirectory = createTemporaryDirectory();
+    const original = '[package]\nname = "outside"\n';
+    writeTestFile(outsideDirectory, 'Cargo.toml', original);
+    writeTestFile(
+      testDirectory,
+      'Cargo.toml',
+      `[workspace]\nmembers = ["${workspaceMember(outsideDirectory)}"]\n`,
+    );
+
+    try {
+      setupRustTooling(testDirectory);
+      expect(readTestFile(outsideDirectory, 'Cargo.toml')).toBe(original);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
+  });
+
+  it('does not update a workspace manifest symlinked outside the project root', () => {
+    const outsideDirectory = createTemporaryDirectory();
+    const original = '[package]\nname = "outside"\n';
+    writeTestFile(outsideDirectory, 'Cargo.toml', original);
+    writeTestFile(testDirectory, 'member/.keep', '');
+    symlinkSync(
+      nodePath.join(outsideDirectory, 'Cargo.toml'),
+      nodePath.join(testDirectory, 'member/Cargo.toml'),
+    );
+    writeTestFile(testDirectory, 'Cargo.toml', '[workspace]\nmembers = ["member"]\n');
+
+    try {
+      expect(rustToolingTargets(testDirectory)).toEqual(['Cargo.toml']);
+      setupRustTooling(testDirectory);
+      expect(readTestFile(outsideDirectory, 'Cargo.toml')).toBe(original);
+    } finally {
+      removeTemporaryDirectory(outsideDirectory);
+    }
+  });
+
+  it('does not treat lint table names in comments or strings as configured lints', () => {
+    writeTestFile(
+      testDirectory,
+      'Cargo.toml',
+      `[package]
+name = "mentions [lints] only"
+# [lints.clippy]
+`,
+    );
+
+    expect(rustToolingTargets(testDirectory)).toEqual(['Cargo.toml']);
   });
 });
 
@@ -358,5 +454,17 @@ version = "0.1.0"
     const packageName = detectRustPackage(filePath, testDirectory);
 
     expect(packageName).toBeUndefined();
+  });
+
+  it('returns undefined for a file in a sibling directory sharing the root prefix', () => {
+    const siblingDirectory = `${testDirectory}-sibling`;
+    writeTestFile(siblingDirectory, 'Cargo.toml', '[package]\nname = "outside"\n');
+    writeTestFile(siblingDirectory, 'src/lib.rs', '// Outside');
+
+    try {
+      expect(detectRustPackage(`${siblingDirectory}/src/lib.rs`, testDirectory)).toBeUndefined();
+    } finally {
+      removeTemporaryDirectory(siblingDirectory);
+    }
   });
 });
