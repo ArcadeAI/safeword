@@ -221,6 +221,23 @@ function reviewerLaunches(world: SafewordWorld): string[] {
   return existsSync(launchLog) ? readFileSync(launchLog, 'utf8').split('\n').filter(Boolean) : [];
 }
 
+function reviewerOutput(world: SafewordWorld): Record<string, unknown> {
+  const output = payload(world).data.reviewer_output;
+  assert.ok(output !== null && typeof output === 'object' && !Array.isArray(output));
+  return output as Record<string, unknown>;
+}
+
+function assertApprovedCodexVerdict(world: SafewordWorld): void {
+  const data = payload(world).data;
+  assert.equal(data.independence, 'cross-agent');
+  assert.equal(data.actual_reviewer, 'codex');
+  assert.equal(data.status, 'approved');
+
+  const output = reviewerOutput(world);
+  assert.equal(output.reviewer_agent, 'codex');
+  assert.equal(output.verdict, 'approve');
+}
+
 After(function (this: SafewordWorld) {
   const current = (this as ReviewWorld).review;
   if (current === undefined) return;
@@ -264,7 +281,9 @@ Given('no later route can complete either', function (this: SafewordWorld) {
 Given(
   'two installed reviewer executables that both accept the review contract',
   function (this: SafewordWorld) {
-    installReviewer(state(this), 'codex', 'never answers', 'stale');
+    const current = state(this);
+    current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '4000';
+    installReviewer(current, 'codex', 'never answers', 'stale');
   },
 );
 
@@ -491,7 +510,7 @@ When('the exhausted-route result is reported', async function (this: SafewordWor
 // ----------------------------------------------------------------- Then
 
 Then("the review returns the reviewer's verdict", function (this: SafewordWorld) {
-  assert.equal(payload(this).data.independence, 'cross-agent');
+  assertApprovedCodexVerdict(this);
 });
 
 Then('no reviewer is asked to review it', function (this: SafewordWorld) {
@@ -519,7 +538,11 @@ Then('the assigned reviewer route is reported as timed out', function (this: Saf
 });
 
 Then("the review returns the second executable's verdict", function (this: SafewordWorld) {
-  assert.equal(payload(this).data.independence, 'cross-agent');
+  assertApprovedCodexVerdict(this);
+  assert.deepEqual(
+    reviewerLaunches(this).map(launch => launch.split('\t', 1)[0]),
+    ['stale', 'working'],
+  );
 });
 
 Then(
