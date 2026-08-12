@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
-import { mkdir, open, readFile, stat } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 
 export const PICODOLLARS_PER_DOLLAR = 1_000_000_000_000n;
 export const INITIALIZATION_MARKER = "initialization.json";
 export const ATTEMPT_JOURNAL = "attempts.jsonl";
 export const COST_JOURNAL = "cost.jsonl";
+export const EVIDENCE_DIRECTORY = "attempt-evidence";
+export const CANARY_LOCK = "canary.lock";
 
 export type CanaryInitializationBinding = {
   adapterCommit: string;
@@ -72,6 +74,22 @@ export type CanaryUpstream = {
     bindingDigest: string;
   }): Promise<CanaryInitializationReceipt>;
   inspect(bindingDigest: string): Promise<CanaryUpstreamSnapshot>;
+  postAttemptStart(input: {
+    attemptId: string;
+    bindingDigest: string;
+    intentId: string;
+    sequence: number;
+  }): Promise<CanaryAttemptStartReceipt>;
+  postAttemptCompletion(input: {
+    attemptCostPicodollars: string;
+    attemptId: string;
+    bindingDigest: string;
+    nativeUsageDigest: string;
+    observedCostPicodollars: string;
+    responseDigest: string;
+    sequence: number;
+    startReceiptId: string;
+  }): Promise<CanaryAttemptCompletionReceipt>;
 };
 
 export type CanaryAccountingInspection = {
@@ -223,6 +241,65 @@ async function writeExclusiveJson(
     await handle.close();
   }
   await syncDirectory(directory);
+}
+
+async function appendDurableJsonLine(
+  directory: string,
+  name: string,
+  value: unknown
+): Promise<void> {
+  const handle = await open(join(directory, name), "r+");
+  try {
+    const current = await handle.stat();
+    const bytes = Buffer.from(`${JSON.stringify(value)}\n`, "utf8");
+    let offset = 0;
+    while (offset < bytes.length) {
+      const { bytesWritten } = await handle.write(
+        bytes,
+        offset,
+        bytes.length - offset,
+        current.size + offset
+      );
+      if (bytesWritten === 0) {
+        throw new Error(`could not append complete ${name} record`);
+      }
+      offset += bytesWritten;
+    }
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+async function writeExclusiveBytes(
+  directory: string,
+  name: string,
+  bytes: string
+): Promise<void> {
+  const handle = await open(join(directory, name), "wx", 0o600);
+  try {
+    await handle.writeFile(bytes, "utf8");
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await syncDirectory(directory);
+}
+
+async function ensureEvidenceDirectory(outputDirectory: string): Promise<void> {
+  const directory = join(outputDirectory, EVIDENCE_DIRECTORY);
+  try {
+    await mkdir(directory, { mode: 0o700 });
+    await syncDirectory(outputDirectory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+      throw error;
+    }
+  }
+  const details = await lstat(directory);
+  if (details.isSymbolicLink() || !details.isDirectory()) {
+    throw new Error("attempt evidence path must be a real directory");
+  }
 }
 
 function validateReceipt(
@@ -671,6 +748,35 @@ function localCompletionsMatch(
   });
 }
 
+async function retainedEvidenceMatches(
+  directory: string,
+  completions: CanaryAttemptCompletionReceipt[]
+): Promise<boolean> {
+  try {
+    const evidenceDirectory = join(directory, EVIDENCE_DIRECTORY);
+    const retained = await Promise.all(
+      completions.map(async (completion) => ({
+        completion,
+        nativeUsageBytes: await readFile(
+          join(evidenceDirectory, `${completion.attemptId}.usage.json`),
+          "utf8"
+        ),
+        rawResponseBytes: await readFile(
+          join(evidenceDirectory, `${completion.attemptId}.json`),
+          "utf8"
+        ),
+      }))
+    );
+    return retained.every(
+      ({ completion, nativeUsageBytes, rawResponseBytes }) =>
+        digestBytes(nativeUsageBytes) === completion.nativeUsageDigest &&
+        digestBytes(rawResponseBytes) === completion.responseDigest
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function inspectCanaryAccounting(input: {
   binding: CanaryInitializationBinding;
   outputDirectory: string;
@@ -748,7 +854,8 @@ export async function inspectCanaryAccounting(input: {
       costRecords,
       snapshot.receipt.receiptId,
       completions
-    );
+    ) &&
+    (await retainedEvidenceMatches(input.outputDirectory, completions));
   return {
     attemptAccountingComplete,
     authorizationPresent: true,
@@ -760,4 +867,363 @@ export async function inspectCanaryAccounting(input: {
       ? snapshot.head.startedAttempts
       : 0,
   };
+}
+
+function digestBytes(bytes: string): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function isSafeIdentifier(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value)
+  );
+}
+
+function validatePostedStart(
+  receipt: CanaryAttemptStartReceipt,
+  expected: {
+    attemptId: string;
+    intentId: string;
+    sequence: number;
+  }
+): void {
+  const record = receipt as unknown as Record<string, unknown>;
+  if (
+    !hasExactKeys(record, [
+      "attemptId",
+      "intentId",
+      "receiptId",
+      "sequence",
+      "startedAttempts",
+    ]) ||
+    receipt.attemptId !== expected.attemptId ||
+    receipt.intentId !== expected.intentId ||
+    !isNonemptyString(receipt.receiptId) ||
+    receipt.sequence !== expected.sequence ||
+    receipt.startedAttempts !== expected.sequence
+  ) {
+    throw new Error("upstream attempt-start receipt is invalid");
+  }
+}
+
+async function readVerifiedConsumedSnapshot(input: {
+  binding: CanaryInitializationBinding;
+  bindingDigest: string;
+  errorMessage: string;
+  upstream: CanaryUpstream;
+}): Promise<Extract<CanaryUpstreamSnapshot, { kind: "consumed" }>> {
+  const snapshot = await input.upstream.inspect(input.bindingDigest);
+  if (snapshot.kind !== "consumed") {
+    throw new Error(input.errorMessage);
+  }
+  try {
+    validateReceipt(snapshot.receipt, { bindingDigest: input.bindingDigest });
+    validateHead(snapshot.head, input.binding);
+  } catch {
+    throw new Error(input.errorMessage);
+  }
+  return snapshot;
+}
+
+async function verifyPostedStartIsDurable(input: {
+  binding: CanaryInitializationBinding;
+  bindingDigest: string;
+  outputDirectory: string;
+  priorObservedCostPicodollars: bigint;
+  receipt: CanaryAttemptStartReceipt;
+  upstream: CanaryUpstream;
+}): Promise<void> {
+  const snapshot = await readVerifiedConsumedSnapshot({
+    binding: input.binding,
+    bindingDigest: input.bindingDigest,
+    errorMessage: "upstream attempt start is not durably visible",
+    upstream: input.upstream,
+  });
+  const starts = validateStartReceipts(
+    snapshot.starts,
+    snapshot.head,
+    snapshot.receipt.receiptId
+  );
+  const lastStart = starts?.at(-1);
+  const priorHead = {
+    observedCostPicodollars: input.priorObservedCostPicodollars.toString(),
+    startedAttempts: input.receipt.sequence - 1,
+  };
+  const completions = validateCompletionReceipts(
+    snapshot.completions,
+    priorHead,
+    upstreamReceiptIds(snapshot.receipt.receiptId, snapshot.starts)
+  );
+  const [attemptRecords, costRecords] = await Promise.all([
+    readRecords(input.outputDirectory, ATTEMPT_JOURNAL),
+    readRecords(input.outputDirectory, COST_JOURNAL),
+  ]);
+  if (
+    starts === null ||
+    lastStart === undefined ||
+    !hasExactKeys(lastStart as unknown as Record<string, unknown>, [
+      "attemptId",
+      "intentId",
+      "receiptId",
+      "sequence",
+      "startedAttempts",
+    ]) ||
+    lastStart.attemptId !== input.receipt.attemptId ||
+    lastStart.intentId !== input.receipt.intentId ||
+    lastStart.receiptId !== input.receipt.receiptId ||
+    lastStart.sequence !== input.receipt.sequence ||
+    lastStart.startedAttempts !== input.receipt.startedAttempts ||
+    snapshot.head.observedCostPicodollars !== priorHead.observedCostPicodollars ||
+    !localStartsMatch(
+      attemptRecords,
+      snapshot.receipt.receiptId,
+      starts.slice(0, -1)
+    ) ||
+    completions === null ||
+    !completionsMatchStarts(completions, starts.slice(0, -1)) ||
+    !localCompletionsMatch(
+      costRecords,
+      snapshot.receipt.receiptId,
+      completions
+    ) ||
+    !(await retainedEvidenceMatches(input.outputDirectory, completions)) ||
+    !receiptCountWithinBudget(snapshot, input.binding.receiptBudget)
+  ) {
+    throw new Error("upstream attempt start is not durably visible");
+  }
+}
+
+function validatePostedCompletion(
+  receipt: CanaryAttemptCompletionReceipt,
+  expected: Omit<CanaryAttemptCompletionReceipt, "receiptId">
+): void {
+  const record = receipt as unknown as Record<string, unknown>;
+  if (
+    !hasExactKeys(record, [
+      "attemptCostPicodollars",
+      "attemptId",
+      "nativeUsageDigest",
+      "observedCostPicodollars",
+      "receiptId",
+      "responseDigest",
+      "sequence",
+      "startReceiptId",
+    ]) ||
+    !isNonemptyString(receipt.receiptId) ||
+    Object.entries(expected).some(
+      ([key, value]) => record[key] !== value
+    )
+  ) {
+    throw new Error("upstream attempt-completion receipt is invalid");
+  }
+}
+
+async function verifyPostedCompletionIsDurable(input: {
+  binding: CanaryInitializationBinding;
+  bindingDigest: string;
+  outputDirectory: string;
+  receipt: CanaryAttemptCompletionReceipt;
+  upstream: CanaryUpstream;
+}): Promise<void> {
+  const snapshot = await readVerifiedConsumedSnapshot({
+    binding: input.binding,
+    bindingDigest: input.bindingDigest,
+    errorMessage: "upstream attempt completion is not durably visible",
+    upstream: input.upstream,
+  });
+  const starts = validateStartReceipts(
+    snapshot.starts,
+    snapshot.head,
+    snapshot.receipt.receiptId
+  );
+  const completions = validateCompletionReceipts(
+    snapshot.completions,
+    snapshot.head,
+    upstreamReceiptIds(snapshot.receipt.receiptId, snapshot.starts)
+  );
+  const lastCompletion = completions?.at(-1);
+  const [attemptRecords, costRecords] = await Promise.all([
+    readRecords(input.outputDirectory, ATTEMPT_JOURNAL),
+    readRecords(input.outputDirectory, COST_JOURNAL),
+  ]);
+  if (
+    starts === null ||
+    completions === null ||
+    lastCompletion === undefined ||
+    Object.entries(input.receipt).some(
+      ([key, value]) =>
+        (lastCompletion as unknown as Record<string, unknown>)[key] !== value
+    ) ||
+    !localStartsMatch(
+      attemptRecords,
+      snapshot.receipt.receiptId,
+      starts
+    ) ||
+    !completionsMatchStarts(completions, starts) ||
+    !localCompletionsMatch(
+      costRecords,
+      snapshot.receipt.receiptId,
+      completions.slice(0, -1)
+    ) ||
+    !(await retainedEvidenceMatches(input.outputDirectory, completions)) ||
+    !receiptCountWithinBudget(snapshot, input.binding.receiptBudget)
+  ) {
+    throw new Error("upstream attempt completion is not durably visible");
+  }
+}
+
+async function runCanaryAttemptWhileLocked(input: {
+  attemptId: string;
+  binding: CanaryInitializationBinding;
+  dispatch(): Promise<{
+    attemptCostPicodollars: bigint;
+    nativeUsageBytes: string;
+    rawResponseBytes: string;
+  }>;
+  intentId: string;
+  outputDirectory: string;
+  upstream: CanaryUpstream;
+}): Promise<{
+  attemptId: string;
+  observedCostPicodollars: bigint;
+  sequence: number;
+  startedAttempts: number;
+}> {
+  if (!isSafeIdentifier(input.attemptId) || !isSafeIdentifier(input.intentId)) {
+    throw new Error("attemptId and intentId must be safe identifiers");
+  }
+  const inspected = await inspectCanaryAccounting(input);
+  const decision = decideCanaryDispatch({
+    ...inspected,
+    attemptLimit: input.binding.attemptLimit,
+    costLimitPicodollars: BigInt(input.binding.costLimitPicodollars),
+  });
+  if (!decision.eligible) {
+    throw new Error(`canary dispatch blocked: ${decision.reasons.join(", ")}`);
+  }
+  const receiptsAfterCompleteAttempt =
+    1 + 2 * (inspected.startedAttempts + 1);
+  if (receiptsAfterCompleteAttempt > input.binding.receiptBudget) {
+    throw new Error("receipt budget cannot fund another complete attempt");
+  }
+  await ensureEvidenceDirectory(input.outputDirectory);
+
+  const sequence = inspected.startedAttempts + 1;
+  const digest = bindingDigest(input.binding);
+  const start = await input.upstream.postAttemptStart({
+    attemptId: input.attemptId,
+    bindingDigest: digest,
+    intentId: input.intentId,
+    sequence,
+  });
+  validatePostedStart(start, {
+    attemptId: input.attemptId,
+    intentId: input.intentId,
+    sequence,
+  });
+  await verifyPostedStartIsDurable({
+    binding: input.binding,
+    bindingDigest: digest,
+    outputDirectory: input.outputDirectory,
+    priorObservedCostPicodollars: inspected.observedCostPicodollars,
+    receipt: start,
+    upstream: input.upstream,
+  });
+  await appendDurableJsonLine(input.outputDirectory, ATTEMPT_JOURNAL, {
+    ...start,
+    kind: "attempt-start",
+  });
+
+  const completed = await input.dispatch();
+  requirePicodollars(
+    completed.attemptCostPicodollars,
+    "attemptCostPicodollars"
+  );
+  if (
+    typeof completed.nativeUsageBytes !== "string" ||
+    typeof completed.rawResponseBytes !== "string"
+  ) {
+    throw new Error("completed attempt evidence must be strings");
+  }
+  const responseDigest = digestBytes(completed.rawResponseBytes);
+  const nativeUsageDigest = digestBytes(completed.nativeUsageBytes);
+  await writeExclusiveBytes(
+    join(input.outputDirectory, EVIDENCE_DIRECTORY),
+    `${input.attemptId}.json`,
+    completed.rawResponseBytes
+  );
+  await writeExclusiveBytes(
+    join(input.outputDirectory, EVIDENCE_DIRECTORY),
+    `${input.attemptId}.usage.json`,
+    completed.nativeUsageBytes
+  );
+
+  const observedCostPicodollars =
+    inspected.observedCostPicodollars + completed.attemptCostPicodollars;
+  const expectedCompletion = {
+    attemptCostPicodollars: completed.attemptCostPicodollars.toString(),
+    attemptId: input.attemptId,
+    nativeUsageDigest,
+    observedCostPicodollars: observedCostPicodollars.toString(),
+    responseDigest,
+    sequence,
+    startReceiptId: start.receiptId,
+  };
+  const completion = await input.upstream.postAttemptCompletion({
+    ...expectedCompletion,
+    bindingDigest: digest,
+  });
+  validatePostedCompletion(completion, expectedCompletion);
+  await verifyPostedCompletionIsDurable({
+    binding: input.binding,
+    bindingDigest: digest,
+    outputDirectory: input.outputDirectory,
+    receipt: completion,
+    upstream: input.upstream,
+  });
+  await appendDurableJsonLine(input.outputDirectory, COST_JOURNAL, {
+    ...completion,
+    kind: "attempt-completion",
+  });
+
+  return {
+    attemptId: input.attemptId,
+    observedCostPicodollars,
+    sequence,
+    startedAttempts: sequence,
+  };
+}
+
+async function withCanaryLock<T>(
+  outputDirectory: string,
+  action: () => Promise<T>
+): Promise<T> {
+  let handle;
+  try {
+    handle = await open(join(outputDirectory, CANARY_LOCK), "wx", 0o600);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error("canary is already running");
+    }
+    throw error;
+  }
+  try {
+    await handle.writeFile("exclusive canary owner\n", "utf8");
+    await handle.sync();
+    await syncDirectory(outputDirectory);
+    return await action();
+  } finally {
+    await handle.close();
+    await unlink(join(outputDirectory, CANARY_LOCK));
+    await syncDirectory(outputDirectory);
+  }
+}
+
+export function runCanaryAttempt(
+  input: Parameters<typeof runCanaryAttemptWhileLocked>[0]
+): ReturnType<typeof runCanaryAttemptWhileLocked> {
+  return withCanaryLock(input.outputDirectory, () =>
+    runCanaryAttemptWhileLocked(input)
+  );
 }

@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,11 +18,14 @@ import {
   type CanaryInitializationBinding,
   type CanaryUpstream,
   COST_JOURNAL,
+  CANARY_LOCK,
   decideCanaryDispatch,
+  EVIDENCE_DIRECTORY,
   initializeCanary,
   inspectCanaryAccounting,
   INITIALIZATION_MARKER,
   PICODOLLARS_PER_DOLLAR,
+  runCanaryAttempt,
 } from "./terra-development-canary";
 
 const LIMITS = {
@@ -50,15 +55,40 @@ function outputDirectory(): string {
 
 function fakeUpstream(
   initial: "ready" | "unavailable" | "unreadable" = "ready",
-  beforeConsume?: () => void
+  beforeConsume?: () => void,
+  hooks: {
+    afterCompletionCommit?: () => void;
+    afterStartCommit?: () => void;
+    returnCompletionWithoutCommit?: boolean;
+    returnStartWithoutCommit?: boolean;
+    throwAfterCompletionCommit?: boolean;
+    throwAfterStartCommit?: boolean;
+  } = {}
 ): CanaryUpstream & {
   consumeCalls: number;
+  events: string[];
   mutateReceipt(patch: Record<string, unknown>): void;
   setHead(head: { observedCostPicodollars: string; startedAttempts: number }): void;
   setReceipts(input: {
     completions: Array<Record<string, unknown>>;
     starts: Array<Record<string, unknown>>;
   }): void;
+  postAttemptStart(input: {
+    attemptId: string;
+    bindingDigest: string;
+    intentId: string;
+    sequence: number;
+  }): Promise<Record<string, unknown>>;
+  postAttemptCompletion(input: {
+    attemptCostPicodollars: string;
+    attemptId: string;
+    bindingDigest: string;
+    nativeUsageDigest: string;
+    observedCostPicodollars: string;
+    responseDigest: string;
+    sequence: number;
+    startReceiptId: string;
+  }): Promise<Record<string, unknown>>;
 } {
   let state: "ready" | "consumed" | "unavailable" | "unreadable" = initial;
   let receipt:
@@ -75,14 +105,32 @@ function fakeUpstream(
   let completions: Array<Record<string, unknown>> = [];
   const upstream: CanaryUpstream & {
     consumeCalls: number;
+    events: string[];
     mutateReceipt(patch: Record<string, unknown>): void;
     setHead(head: { observedCostPicodollars: string; startedAttempts: number }): void;
     setReceipts(input: {
       completions: Array<Record<string, unknown>>;
       starts: Array<Record<string, unknown>>;
     }): void;
+    postAttemptStart(input: {
+      attemptId: string;
+      bindingDigest: string;
+      intentId: string;
+      sequence: number;
+    }): Promise<Record<string, unknown>>;
+    postAttemptCompletion(input: {
+      attemptCostPicodollars: string;
+      attemptId: string;
+      bindingDigest: string;
+      nativeUsageDigest: string;
+      observedCostPicodollars: string;
+      responseDigest: string;
+      sequence: number;
+      startReceiptId: string;
+    }): Promise<Record<string, unknown>>;
   } = {
     consumeCalls: 0,
+    events: [],
     mutateReceipt: (patch) => {
       if (receipt === undefined) {
         throw new Error("no receipt to mutate");
@@ -95,6 +143,47 @@ function fakeUpstream(
     setReceipts: (next) => {
       starts = next.starts;
       completions = next.completions;
+    },
+    postAttemptStart: async (input) => {
+      upstream.events.push("upstream-start");
+      const next = {
+        attemptId: input.attemptId,
+        intentId: input.intentId,
+        receiptId: `start-receipt-${input.sequence}`,
+        sequence: input.sequence,
+        startedAttempts: input.sequence,
+      };
+      if (!hooks.returnStartWithoutCommit) {
+        starts.push(next);
+        head = { ...head, startedAttempts: input.sequence };
+        hooks.afterStartCommit?.();
+        if (hooks.throwAfterStartCommit) {
+          throw new Error("lost start response after commit");
+        }
+      }
+      return next;
+    },
+    postAttemptCompletion: async (input) => {
+      upstream.events.push("upstream-completion");
+      const next = {
+        attemptCostPicodollars: input.attemptCostPicodollars,
+        attemptId: input.attemptId,
+        nativeUsageDigest: input.nativeUsageDigest,
+        observedCostPicodollars: input.observedCostPicodollars,
+        receiptId: `completion-receipt-${input.sequence}`,
+        responseDigest: input.responseDigest,
+        sequence: input.sequence,
+        startReceiptId: input.startReceiptId,
+      };
+      if (!hooks.returnCompletionWithoutCommit) {
+        completions.push(next);
+        head = { ...head, observedCostPicodollars: input.observedCostPicodollars };
+        hooks.afterCompletionCommit?.();
+        if (hooks.throwAfterCompletionCommit) {
+          throw new Error("lost completion response after commit");
+        }
+      }
+      return next;
     },
     inspect: async () => {
       if (state === "unavailable" || state === "unreadable") {
@@ -135,10 +224,14 @@ function progressedRecords(count: number, costPerAttempt = 100n) {
   const completions = starts.map((start, index) => ({
     attemptCostPicodollars: costPerAttempt.toString(),
     attemptId: start.attemptId,
-    nativeUsageDigest: `usage-${index + 1}`,
+    nativeUsageDigest: createHash("sha256")
+      .update(`{"input_tokens":${index + 1}}`)
+      .digest("hex"),
     observedCostPicodollars: (BigInt(index + 1) * costPerAttempt).toString(),
     receiptId: `completion-receipt-${index + 1}`,
-    responseDigest: `response-${index + 1}`,
+    responseDigest: createHash("sha256")
+      .update(`{"id":"resp-${index + 1}"}`)
+      .digest("hex"),
     sequence: index + 1,
     startReceiptId: start.receiptId,
   }));
@@ -190,6 +283,21 @@ function writeProgressedRecords(
       .map((record) => JSON.stringify(record))
       .join("\n") + "\n"
   );
+  mkdirSync(join(directory, EVIDENCE_DIRECTORY), { recursive: true });
+  records.completions.forEach((completion, index) => {
+    writeFileSync(
+      join(directory, EVIDENCE_DIRECTORY, `${completion.attemptId}.json`),
+      `{"id":"resp-${index + 1}"}`
+    );
+    writeFileSync(
+      join(
+        directory,
+        EVIDENCE_DIRECTORY,
+        `${completion.attemptId}.usage.json`
+      ),
+      `{"input_tokens":${index + 1}}`
+    );
+  });
 }
 
 function retainedBytes(directory: string): Map<string, string | null> {
@@ -360,6 +468,483 @@ describe("Terra canary pre-dispatch decision", () => {
     { observedCostPicodollars: 0 },
   ])("rejects malformed durable decision input %#", (overrides) => {
     expect(() => decision(overrides as never)).toThrow();
+  });
+});
+
+describe("Terra canary write-side attempt lifecycle", () => {
+  test("durably brackets one dispatch between its upstream start and completion", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    upstream.events.length = 0;
+
+    const result = await runCanaryAttempt({
+      attemptId: "attempt-1",
+      binding: BINDING,
+      dispatch: async () => {
+        upstream.events.push("dispatch");
+        expect(readFileSync(join(directory, ATTEMPT_JOURNAL), "utf8")).toContain(
+          '"kind":"attempt-start"'
+        );
+        return {
+          attemptCostPicodollars: 100n,
+          nativeUsageBytes: '{"input_tokens":1}',
+          rawResponseBytes: '{"id":"resp-1"}',
+        };
+      },
+      intentId: "intent-1",
+      outputDirectory: directory,
+      upstream,
+    });
+
+    expect(upstream.events).toEqual([
+      "upstream-start",
+      "dispatch",
+      "upstream-completion",
+    ]);
+    expect(result).toMatchObject({
+      attemptId: "attempt-1",
+      observedCostPicodollars: 100n,
+      sequence: 1,
+      startedAttempts: 1,
+    });
+    expect(readFileSync(join(directory, COST_JOURNAL), "utf8")).toContain(
+      '"kind":"attempt-completion"'
+    );
+    expect(
+      readFileSync(join(directory, EVIDENCE_DIRECTORY, "attempt-1.json"), "utf8")
+    ).toBe('{"id":"resp-1"}');
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: true,
+      costAccountingComplete: true,
+      observedCostPicodollars: 100n,
+      startedAttempts: 1,
+    });
+  });
+
+  test("edited retained response evidence makes cost accounting incomplete", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    await runCanaryAttempt({
+      attemptId: "attempt-1",
+      binding: BINDING,
+      dispatch: async () => ({
+        attemptCostPicodollars: 100n,
+        nativeUsageBytes: '{"input_tokens":1}',
+        rawResponseBytes: '{"id":"resp-1"}',
+      }),
+      intentId: "intent-1",
+      outputDirectory: directory,
+      upstream,
+    });
+    const evidencePath = join(directory, EVIDENCE_DIRECTORY, "attempt-1.json");
+    writeFileSync(evidencePath, '{"id":"edited"}');
+
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: true,
+      costAccountingComplete: false,
+      startedAttempts: 1,
+    });
+    expect(readFileSync(evidencePath, "utf8")).toBe('{"id":"edited"}');
+  });
+
+  test.each(["../escaped", "nested/attempt", "..", "attempt\\name"])(
+    "rejects unsafe attempt ID %s before durable start",
+    async (attemptId) => {
+      const directory = outputDirectory();
+      const upstream = fakeUpstream();
+      await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+      upstream.events.length = 0;
+
+      await expect(
+        runCanaryAttempt({
+          attemptId,
+          binding: BINDING,
+          dispatch: async () => {
+            throw new Error("dispatch must not run");
+          },
+          intentId: "intent-1",
+          outputDirectory: directory,
+          upstream,
+        })
+      ).rejects.toThrow("safe identifier");
+      expect(upstream.events).toEqual([]);
+    }
+  );
+
+  test("does not dispatch when a returned start receipt is not durably visible upstream", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream("ready", undefined, {
+      returnStartWithoutCommit: true,
+    });
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    upstream.events.length = 0;
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => {
+          upstream.events.push("dispatch");
+          throw new Error("dispatch must not run");
+        },
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("not durably visible");
+    expect(upstream.events).toEqual(["upstream-start"]);
+    expect(readFileSync(join(directory, ATTEMPT_JOURNAL), "utf8")).not.toContain(
+      '"kind":"attempt-start"'
+    );
+  });
+
+  test("does not admit cost when a returned completion is not durably visible upstream", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream("ready", undefined, {
+      returnCompletionWithoutCommit: true,
+    });
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => ({
+          attemptCostPicodollars: 100n,
+          nativeUsageBytes: '{"input_tokens":1}',
+          rawResponseBytes: '{"id":"resp-1"}',
+        }),
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("completion is not durably visible");
+    expect(readFileSync(join(directory, COST_JOURNAL), "utf8")).not.toContain(
+      '"kind":"attempt-completion"'
+    );
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: true,
+      costAccountingComplete: false,
+      startedAttempts: 1,
+    });
+  });
+
+  test("holds exclusive ownership across dispatch and completion", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    let releaseDispatch!: () => void;
+    let signalDispatch!: () => void;
+    const dispatchStarted = new Promise<void>((resolve) => {
+      signalDispatch = resolve;
+    });
+    const dispatchReleased = new Promise<void>((resolve) => {
+      releaseDispatch = resolve;
+    });
+    const first = runCanaryAttempt({
+      attemptId: "attempt-1",
+      binding: BINDING,
+      dispatch: async () => {
+        signalDispatch();
+        await dispatchReleased;
+        return {
+          attemptCostPicodollars: 100n,
+          nativeUsageBytes: '{"input_tokens":1}',
+          rawResponseBytes: '{"id":"resp-1"}',
+        };
+      },
+      intentId: "intent-1",
+      outputDirectory: directory,
+      upstream,
+    });
+    await dispatchStarted;
+
+    expect(existsSync(join(directory, CANARY_LOCK))).toBe(true);
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-2",
+        binding: BINDING,
+        dispatch: async () => {
+          throw new Error("second dispatch must not run");
+        },
+        intentId: "intent-2",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("already running");
+    releaseDispatch();
+    await first;
+    expect(existsSync(join(directory, CANARY_LOCK))).toBe(false);
+    expect(upstream.events.filter((event) => event === "upstream-start")).toHaveLength(
+      1
+    );
+  });
+
+  test("blocks before durable start when the receipt budget cannot fund a complete attempt", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    const binding = {
+      ...BINDING,
+      outputIdentity: "terra-canary-insufficient-receipt-budget",
+      receiptBudget: 2,
+    };
+    await initializeCanary({ binding, outputDirectory: directory, upstream });
+    upstream.events.length = 0;
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding,
+        dispatch: async () => {
+          throw new Error("dispatch must not run");
+        },
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("receipt budget cannot fund");
+    expect(upstream.events).toEqual([]);
+  });
+
+  test("a lost response after upstream start blocks dispatch and fails closed on resume", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream("ready", undefined, {
+      throwAfterStartCommit: true,
+    });
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    let dispatches = 0;
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => {
+          dispatches += 1;
+          throw new Error("dispatch must not run");
+        },
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("lost start response");
+    expect(dispatches).toBe(0);
+    expect(readFileSync(join(directory, ATTEMPT_JOURNAL), "utf8")).not.toContain(
+      '"kind":"attempt-start"'
+    );
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: false,
+      costAccountingComplete: false,
+    });
+  });
+
+  test("a provider failure after durable intent is never retried and blocks resume", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    let dispatches = 0;
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => {
+          dispatches += 1;
+          throw new Error("provider transport failed");
+        },
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("provider transport failed");
+    expect(dispatches).toBe(1);
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: true,
+      costAccountingComplete: false,
+      startedAttempts: 1,
+    });
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-2",
+        binding: BINDING,
+        dispatch: async () => {
+          dispatches += 1;
+          throw new Error("retry must not run");
+        },
+        intentId: "intent-2",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("incomplete-cost-accounting");
+    expect(dispatches).toBe(1);
+  });
+
+  test("a lost response after upstream completion leaves retained evidence but blocks resume", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream("ready", undefined, {
+      throwAfterCompletionCommit: true,
+    });
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => ({
+          attemptCostPicodollars: 100n,
+          nativeUsageBytes: '{"input_tokens":1}',
+          rawResponseBytes: '{"id":"resp-1"}',
+        }),
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("lost completion response");
+    expect(
+      readFileSync(join(directory, EVIDENCE_DIRECTORY, "attempt-1.json"), "utf8")
+    ).toBe('{"id":"resp-1"}');
+    expect(readFileSync(join(directory, COST_JOURNAL), "utf8")).not.toContain(
+      '"kind":"attempt-completion"'
+    );
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toMatchObject({
+      attemptAccountingComplete: true,
+      costAccountingComplete: false,
+      startedAttempts: 1,
+    });
+  });
+
+  test("local attempt-ledger loss after upstream start prevents dispatch", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream("ready", undefined, {
+      afterStartCommit: () => rmSync(join(directory, ATTEMPT_JOURNAL)),
+    });
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    let dispatches = 0;
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => {
+          dispatches += 1;
+          throw new Error("dispatch must not run");
+        },
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("not durably visible");
+    expect(dispatches).toBe(0);
+    expect(existsSync(join(directory, ATTEMPT_JOURNAL))).toBe(false);
+  });
+
+  test("local cost-ledger loss after upstream completion prevents success", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream("ready", undefined, {
+      afterCompletionCommit: () => rmSync(join(directory, COST_JOURNAL)),
+    });
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => ({
+          attemptCostPicodollars: 100n,
+          nativeUsageBytes: '{"input_tokens":1}',
+          rawResponseBytes: '{"id":"resp-1"}',
+        }),
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("completion is not durably visible");
+    expect(existsSync(join(directory, COST_JOURNAL))).toBe(false);
+  });
+
+  test("pre-existing evidence bytes are preserved and prevent completion", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    mkdirSync(join(directory, EVIDENCE_DIRECTORY));
+    const evidencePath = join(directory, EVIDENCE_DIRECTORY, "attempt-1.json");
+    writeFileSync(evidencePath, "planted evidence");
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => ({
+          attemptCostPicodollars: 100n,
+          nativeUsageBytes: '{"input_tokens":1}',
+          rawResponseBytes: '{"id":"resp-1"}',
+        }),
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toMatchObject({ code: "EEXIST" });
+    expect(readFileSync(evidencePath, "utf8")).toBe("planted evidence");
+    expect(upstream.events).not.toContain("upstream-completion");
+  });
+
+  test("a stale ownership lock is preserved and blocks execution", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const lockPath = join(directory, CANARY_LOCK);
+    writeFileSync(lockPath, "stale owner\n");
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => {
+          throw new Error("dispatch must not run");
+        },
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("already running");
+    expect(readFileSync(lockPath, "utf8")).toBe("stale owner\n");
+  });
+
+  test("a symlinked evidence directory blocks before durable start", async () => {
+    const directory = outputDirectory();
+    const outsideDirectory = mkdtempSync(join(tmpdir(), "terra-canary-outside-"));
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    symlinkSync(outsideDirectory, join(directory, EVIDENCE_DIRECTORY));
+    upstream.events.length = 0;
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => {
+          throw new Error("dispatch must not run");
+        },
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("real directory");
+    expect(upstream.events).toEqual([]);
+    expect(existsSync(join(outsideDirectory, "attempt-1.json"))).toBe(false);
   });
 });
 
