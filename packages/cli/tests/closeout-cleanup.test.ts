@@ -1314,7 +1314,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
-  it('converges through the public CLI when the Codex transcript grows after preview', () => {
+  it('refreshes retro and converges through the public CLI when the Codex transcript grows', () => {
     const sandbox = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-cli-wiring-'));
     const bare = nodePath.join(sandbox, 'remote.git');
     const main = nodePath.join(sandbox, 'main');
@@ -1322,6 +1322,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     const bin = nodePath.join(sandbox, 'bin');
     const transcript = nodePath.join(sandbox, 'codex-thread-42.jsonl');
     const fakeSafeword = nodePath.join(sandbox, 'fake-safeword.ts');
+    const retroLog = nodePath.join(sandbox, 'retro.log');
     const script = nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts');
     try {
       runGit('init', '--bare', bare);
@@ -1366,7 +1367,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       chmodSync(ssh, 0o755);
       writeFileSync(
         fakeSafeword,
-        `process.stdout.write(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false }, errors: [] }));\n`,
+        `import { appendFileSync } from 'node:fs';\nappendFileSync(process.env.SAFEWORD_TEST_RETRO_LOG ?? '', 'run\\n');\nprocess.stdout.write(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: process.env.SAFEWORD_TEST_RETRO_INCOMPLETE === '1' }, errors: [] }));\n`,
       );
       writeFileSync(
         transcript,
@@ -1385,6 +1386,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         SAFEWORD_CLI: fakeSafeword,
         GIT_SSH_COMMAND: ssh,
         SAFEWORD_TEST_BARE: bare,
+        SAFEWORD_TEST_RETRO_LOG: retroLog,
       };
       const preview = spawnSync('bun', [script, '--pr', '42'], {
         cwd: topic,
@@ -1395,12 +1397,30 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       const digest = (JSON.parse(preview.stdout) as { digest: string }).digest;
       writeFileSync(
         transcript,
-        `${JSON.stringify({ type: 'custom_tool_call', name: 'apply' })}\n`,
+        `${JSON.stringify({ type: 'message', role: 'user', text: 'new unresolved friction' })}\n`,
         {
           flag: 'a',
         },
       );
 
+      const blockedApply = spawnSync('bun', [script, '--pr', '42', '--yes', '--plan', digest], {
+        cwd: topic,
+        encoding: 'utf8',
+        env: { ...environment, SAFEWORD_TEST_RETRO_INCOMPLETE: '1' },
+      });
+
+      expect(blockedApply.status, blockedApply.stderr).toBe(2);
+      expect(blockedApply.stderr).toContain(
+        'closeout blocked: --plan must equal the fresh preview digest',
+      );
+      expect(existsSync(topic)).toBe(true);
+      expect(readFileSync(retroLog, 'utf8').trim().split('\n')).toHaveLength(2);
+
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({ type: 'custom_tool_call', name: 'apply' })}\n`,
+        { flag: 'a' },
+      );
       const apply = spawnSync('bun', [script, '--pr', '42', '--yes', '--plan', digest], {
         cwd: topic,
         encoding: 'utf8',
@@ -1415,6 +1435,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       expect(runGit('-C', main, 'ls-remote', '--heads', `file://${bare}`, 'feature/closeout')).toBe(
         '',
       );
+      expect(readFileSync(retroLog, 'utf8').trim().split('\n')).toHaveLength(3);
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
     }
