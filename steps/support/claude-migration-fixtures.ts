@@ -76,6 +76,29 @@ export function legacyReleaseFiles(version: string): ReadonlyMap<string, string>
   return files;
 }
 
+/**
+ * Reads a hook entry directly from a release tag. This is deliberately
+ * independent of the generated ownership catalogue: acceptance tests need an
+ * oracle that still fails when generation silently omits released settings.
+ */
+export function legacyReleaseHookEntry(version: string, event: string): unknown {
+  const temporary = mkdtempSync(nodePath.join(tmpdir(), 'safeword-released-hooks-'));
+  const modulePath = nodePath.join(temporary, 'config.ts');
+  const probePath = nodePath.join(temporary, 'probe.ts');
+  try {
+    writeFileSync(modulePath, git('show', `v${version}:packages/cli/src/templates/config.ts`));
+    writeFileSync(
+      probePath,
+      `import { SETTINGS_HOOKS } from './config.ts';\nprocess.stdout.write(JSON.stringify(SETTINGS_HOOKS[${JSON.stringify(event)}]?.[0]));\n`,
+    );
+    const serialized = execFileSync('bun', [probePath], { encoding: 'utf8' });
+    if (!serialized.trim()) throw new Error(`Release v${version} has no ${event} hook.`);
+    return JSON.parse(serialized) as unknown;
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+}
+
 /** An exact released settings hook entry, for planting accepted legacy hooks. */
 export function acceptedHookEntry(version: string, event: string): unknown {
   const release = CLAUDE_HISTORICAL_CATALOGUE.releases[

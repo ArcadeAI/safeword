@@ -33,6 +33,16 @@ const PROMPT_QUESTIONS = nodePath.join(REPO_ROOT, '.safeword/hooks/prompt-questi
 const SAFEWORD_CLI = nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts');
 const QUALITY_TEMPLATE = nodePath.join(REPO_ROOT, 'packages/cli/templates/hooks/lib/quality.ts');
 const QUALITY_DOGFOOD = nodePath.join(REPO_ROOT, '.safeword/hooks/lib/quality.ts');
+const PROJECT_HANDBOOK_BOOTSTRAP = [
+  'Safeword session bootstrap:',
+  'Before non-trivial work, read `.safeword/SAFEWORD.md` and the applicable guide in `.safeword/guides/`.',
+  'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
+  'Follow the active Safeword workflow and its gates.',
+].join('\n');
+const PACKAGED_HANDBOOK_BOOTSTRAP = PROJECT_HANDBOOK_BOOTSTRAP.replace(
+  'read `.safeword/SAFEWORD.md` and the applicable guide in `.safeword/guides/`',
+  'read the packaged Safeword handbook and the applicable guide in the packaged Safeword guides',
+);
 const CONFIDENT = [
   '**CONFIDENT** — The change is complete.',
   '**Decided:** Keep the implementation focused.',
@@ -416,10 +426,18 @@ Then('the contract appears exactly once', function (this: SafewordWorld) {
   );
 });
 
-Then('the compact Safeword session bootstrap remains intact', function (this: SafewordWorld) {
-  assert.ok(
-    stateFor(this).sessionContexts?.every(context => /Safeword session bootstrap/u.test(context)),
-  );
+Then('the exact compact authority bootstrap appears once', function (this: SafewordWorld) {
+  const contexts = stateFor(this).sessionContexts ?? [];
+  assert.equal(contexts.length, 2);
+  for (const context of contexts) {
+    assert.ok(
+      [PROJECT_HANDBOOK_BOOTSTRAP, PACKAGED_HANDBOOK_BOOTSTRAP].some(bootstrap =>
+        context.includes(bootstrap),
+      ),
+      `missing exact authority bootstrap in:\n${context}`,
+    );
+    assert.equal(context.split('Safeword session bootstrap:').length, 2, context);
+  }
 });
 
 Then(

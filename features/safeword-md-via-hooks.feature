@@ -39,7 +39,7 @@ Feature: Load SAFEWORD.md through safeword-owned hooks
     Scenario: SAFEWORD context hook emits agent-compatible context
       Given an installed safeword project with .safeword/SAFEWORD.md
       When the SAFEWORD context hook runs for Claude and Cursor modes
-      Then each output contains the compact Safeword bootstrap as model-visible context
+      Then each output contains the exact compact project-handbook bootstrap once as model-visible context
       And the output shape matches that agent's hook context contract
 
   Rule: Claude compaction restores SAFEWORD context

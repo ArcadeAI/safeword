@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "40985d016c6f288da6b2ed0d31efa61d2da8da391d17075c32549b1f374745b8"
+      "sha256": "450898247ddff959048e4151534456fdf43810aac21d90552e491b7f22091785"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "c8f2b58287f80a71137484f97fd04bf5035a601bd848d012ff1bdb2d5e0c0966"
+      "sha256": "1440698ffe6f40242bc44c99bc0c75890aa9d656d0addb71dd27a806c7052b38"
     },
     {
       "path": "runtime/event-groups.json",
@@ -371,7 +371,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "0a6c0ce2cfaea5f1555ab4830ff5eb8ede22adfb06518064181897ac239723c5"
+      "sha256": "10882fbe1815bd848c12281be1f6d26e9f0e60bb21b08c7c2e7359d4352cc75e"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",

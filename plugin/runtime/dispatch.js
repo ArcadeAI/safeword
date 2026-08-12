@@ -4088,7 +4088,20 @@ function performAutomaticMigration(projectRoot, options, now) {
   };
   const contention = claimAutomaticTransaction(projectRoot, transaction, options, now, unresolved);
   if (contention !== void 0) return contention;
-  if (!applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline)) {
+  options.beforeApply?.();
+  let applied;
+  try {
+    applied = applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline);
+  } catch (error) {
+    writeDurableFile(
+      transactionPath(projectRoot),
+      `${JSON.stringify({ ...transaction, state: 'recoverable' }, void 0, 2)}
+`,
+      { mode: 384 },
+    );
+    throw error;
+  }
+  if (!applied) {
     writeDurableFile(
       transactionPath(projectRoot),
       `${JSON.stringify({ ...transaction, state: 'recoverable' }, void 0, 2)}

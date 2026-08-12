@@ -8,7 +8,7 @@ Feature: Migrate legacy Claude projects automatically
       Given a clean legacy Claude project installed from Safeword <legacy-version>
       And the exact current plugin is effective for that repository
       When its UserPromptSubmit event completes successfully
-      Then every accepted legacy Claude asset and settings entry is removed
+      Then every asset in that release's independent manifest and its legacy settings entry is removed
       And the project enters durable plugin mode without blocking the prompt
 
       Examples:
@@ -45,7 +45,8 @@ Feature: Migrate legacy Claude projects automatically
       Given a proven accepted legacy target cannot be replaced because the filesystem refuses the operation
       When its UserPromptSubmit event completes successfully
       Then the prompt remains successful with one advisory naming the target and retry action
-      And the durable transaction remains available for recovery without changing that target
+      And the durable transaction records a recoverable before image without changing that target
+      And restoring filesystem access lets recovery complete from that transaction
 
     @rejection
     Scenario: Legacy bytes never change before a durable transaction exists
@@ -87,6 +88,20 @@ Feature: Migrate legacy Claude projects automatically
       And the prompt continues with reload as the sole next action
 
     @rejection
+    Scenario Outline: Mismatched execution proof cannot authorize migration
+      Given a legacy Claude project has a <proof-defect> execution proof
+      When automatic migration observes the repository
+      Then every project byte is unchanged
+      And the prompt continues with reload as the sole next action
+
+      Examples:
+        | proof-defect              |
+        | different-repository      |
+        | previous-plugin-version   |
+        | wrong-event               |
+        | different-plugin-identity |
+
+    @rejection
     Scenario: A failed plugin event cannot authorize contraction
       Given a legacy Claude project whose final plugin UserPromptSubmit sibling fails
       When the failed event finishes
@@ -100,7 +115,8 @@ Feature: Migrate legacy Claude projects automatically
     Scenario: Concurrent automatic migrations converge through one exclusive transaction
       Given two plugin processes observe the same cleanup-ready repository
       When a barrier releases both automatic contraction attempts against the absent transaction
-      Then one transaction is claimed and the next prompt converges to completed plugin mode
+      Then the racing prompts expose one winning transaction without conflicting mutations
+      And the next prompt completes that same winning transaction
 
     Scenario: A race loser defers when the transaction winner exceeds its wait budget
       Given two plugin processes race and the transaction winner remains active beyond the loser's bounded wait
@@ -145,13 +161,32 @@ Feature: Migrate legacy Claude projects automatically
       Then the concurrent bytes and durable recovery evidence remain unchanged
       And the prompt continues with one recovery-conflict advisory
 
+    @rejection
+    Scenario Outline: Recovery rejects hostile or corrupted transaction targets
+      Given an interrupted migration transaction has a <transaction-defect>
+      When automatic recovery runs
+      Then no project or external byte changes and the transaction remains
+
+      Examples:
+        | transaction-defect       |
+        | absolute target          |
+        | parent traversal         |
+        | malformed before digest |
+        | post-claim symlink       |
+
+    @rejection
+    Scenario: Contraction preserves a target replaced after its transaction is claimed
+      Given a cleanup-ready target changes after the durable transaction claim
+      When automatic migration runs against the changed target
+      Then the changed bytes remain and the recoverable transaction records the original preimage
+
   @automatic-claude-migration.SWM1.R1 @surface.claude-code @surface.safeword-cli
   Rule: automatic-claude-migration.SWM1.R1 — Project enrollment survives contraction, identical scope overlap resolves to one effective plugin, and incompatible overlap remains visible
 
     Scenario: Project-scoped enrollment survives contraction for the next teammate
       Given a cleanup-ready project declares the exact marketplace and plugin at project scope
       When automatic contraction completes
-      Then the project declaration remains in Claude settings
+      Then the exact project-scoped declaration and unrelated settings remain byte-for-byte intact
       And no legacy asset exists when Claude evaluates that declaration for a new trusted teammate
 
     Scenario: Identical project and user declarations resolve to one effective plugin
@@ -182,6 +217,26 @@ Feature: Migrate legacy Claude projects automatically
       Given a supported pre-plugin release fixture contains an uncatalogued managed Claude asset
       When the Claude migration release contract runs
       Then validation fails naming the release, path, and missing fingerprint
+
+    @rejection
+    Scenario: Release validation rejects stale or extra catalogue content
+      Given the committed historical catalogue contains content absent from the independent release fixtures
+      When the Claude migration release contract runs
+      Then validation fails naming catalogue drift and the regeneration action
+
+    @rejection
+    Scenario Outline: Release validation rejects malformed catalogue invariants
+      Given the committed historical catalogue has a <catalogue-defect>
+      When the Claude migration release contract runs
+      Then validation fails naming catalogue drift and the regeneration action
+
+      Examples:
+        | catalogue-defect       |
+        | duplicate path         |
+        | ambiguous fingerprint  |
+        | malformed digest       |
+        | nondeterministic order |
+        | escaped managed path   |
 
     @rejection
     Scenario: Generated plugin validation rejects an unwired automatic migration entrypoint

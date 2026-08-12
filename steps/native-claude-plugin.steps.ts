@@ -1163,6 +1163,7 @@ function runLifecycleCommand(
         CODEX_HOME: world.lifecycle.codexHome,
         FAKE_CLAUDE_STATE: world.lifecycle.statePath,
         SAFEWORD_CODEX_LOG: world.lifecycle.codexLogPath,
+        SAFEWORD_SKIP_INSTALL: '1',
         PATH: `${nodePath.join(world.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
       },
       encoding: 'utf8',

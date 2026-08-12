@@ -3,6 +3,8 @@ import nodePath from 'node:path';
 
 declare const Bun: { stdin: { json(): Promise<unknown> } };
 
+// Packaged dependency closure: "\${CLAUDE_PLUGIN_ROOT}"/resources/guides/
+
 export type Agent = 'claude' | 'codex' | 'cursor';
 export type HookInput = {
   cwd?: string;
@@ -10,17 +12,17 @@ export type HookInput = {
 };
 
 const CODEX_AUTHORITY = [
-  'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `"\${CLAUDE_PLUGIN_ROOT}"/resources/guides/`.',
+  'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and the applicable Safeword guides provide the current workflows.',
   'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
 ].join('\n');
 
 // Session-start hooks run repeatedly and their output has a small host-controlled
 // context budget. Keep this durable pointer compact; the handbook stays the source
 // of truth and is read when an agent begins non-trivial work.
-function sessionBootstrap(handbook: string): string {
+function sessionBootstrap(handbook: string, guides: string): string {
   return [
     'Safeword session bootstrap:',
-    `Before non-trivial work, read ${handbook} and the applicable guide in \`"\${CLAUDE_PLUGIN_ROOT}"/resources/guides/\`.`,
+    `Before non-trivial work, read ${handbook} and the applicable guide in ${guides}.`,
     'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
     'Follow the active Safeword workflow and its gates.',
   ].join('\n');
@@ -86,6 +88,7 @@ export function readSafewordContext(projectDir: string): string | null {
 
   return sessionBootstrap(
     packagedPath ? 'the packaged Safeword handbook' : '`.safeword/SAFEWORD.md`',
+    packagedPath ? 'the packaged Safeword guides' : `\`${['.safeword', 'guides'].join('/')}/\``,
   );
 }
 

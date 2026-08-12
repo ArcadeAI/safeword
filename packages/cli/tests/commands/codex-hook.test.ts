@@ -400,9 +400,10 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('Safeword session bootstrap');
     expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).toContain('the packaged Safeword guides');
     expect(result.stdout).toContain('.project/');
-    expect(result.stdout).toContain('.safeword/guides/');
     expect(result.stdout).toContain('supersede');
+    expect(result.stdout).not.toContain('.safeword/guides/');
     expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');

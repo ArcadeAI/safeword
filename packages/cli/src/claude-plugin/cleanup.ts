@@ -76,6 +76,8 @@ export interface AutomaticClaudeMigrationOptions {
   readonly catalogueSha256: string;
   readonly deadline: number;
   readonly now?: () => number;
+  /** Deterministic race seam used to prove compare-before-replace behavior. */
+  readonly beforeApply?: () => void;
 }
 
 export interface AutomaticClaudeMigrationResult {
@@ -660,7 +662,22 @@ function performAutomaticMigration(
   };
   const contention = claimAutomaticTransaction(projectRoot, transaction, options, now, unresolved);
   if (contention !== undefined) return contention;
-  if (!applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline)) {
+  options.beforeApply?.();
+  let applied: boolean;
+  try {
+    applied = applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline);
+  } catch (error) {
+    // The exclusive claim is already durable. Any filesystem refusal after
+    // that point must leave an explicitly recoverable record rather than an
+    // apparently live transaction owned by a process that is about to exit.
+    writeDurableFile(
+      transactionPath(projectRoot),
+      `${JSON.stringify({ ...transaction, state: 'recoverable' }, undefined, 2)}\n`,
+      { mode: 0o600 },
+    );
+    throw error;
+  }
+  if (!applied) {
     writeDurableFile(
       transactionPath(projectRoot),
       `${JSON.stringify({ ...transaction, state: 'recoverable' }, undefined, 2)}\n`,
