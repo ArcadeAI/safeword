@@ -172,3 +172,9 @@ waiting for relay filing or seeing a user-facing interruption.
   slice—not merely the adapter—because a receiver-only release would add public
   ingress without an end-to-end handoff. A future one-question spike must prove
   a detached carrier against the actual public receipt endpoint.
+- 2026-08-11T A detached Claude Cloud `send_later` spike was invalidated before
+  its script could run. Auto mode denied the delayed-message registration twice,
+  including after in-chat approval; no message registered and no workaround was
+  attempted through triggers, cron, or a background timer. A permission rule or
+  another session mode would change the zero-setup contract, so the plan now
+  requires default auto-mode permission as part of any future carrier proof.
