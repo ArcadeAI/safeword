@@ -595,7 +595,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d"
+      "sha256": "3cbe0db990c3a39acacc7d6b2e4a249478cf060eaba98eba373378022a070e8a"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -607,7 +607,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "623bf5e2f73cb5b211a936d3f858eae28d2d4c873602344a124bd567fd8121f8"
+      "sha256": "104b1528e7e120d3b1403e2606240c34680a02b015b4b6389e7546969fc27475"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -671,7 +671,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "28d736c57e615ffd0b916011b233c5a12bb943f2cc225af3b85d150f41e4c044"
+      "sha256": "9485f5194c2396b44a782ee2d14590221b52667e60430de7737f1f42fa1b70b4"
     },
     {
       "path": "skills/self-review/SKILL.md",

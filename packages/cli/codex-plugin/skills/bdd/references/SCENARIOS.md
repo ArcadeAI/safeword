@@ -118,6 +118,9 @@ Write each saved `.feature` scenario to these rules — they head off at authori
 - **Declarative, business language** — name the intent, not the UI mechanics. "When the customer submits the order" ✓, not "When the user clicks `#submit` and waits 200ms" ✗. Reads as living documentation and survives implementation changes.
 - **`Given` is state, not action** — establish the world, don't act in it. "Given the cart holds one item" ✓, not "Given the customer adds an item" ✗ (an action belongs in `When`).
 - **No `or` in the `Then`** — one outcome per scenario; "returns 200 **or** 201" is two scenarios. For one behavior across many inputs, use a `Scenario Outline` with an `Examples` table, not copy-pasted scenarios.
+- **Keep acceptance examples representative** — scenarios cover externally meaningful behavior partitions and boundaries, not every parser permutation or corruption mechanism. Put exhaustive schema, arithmetic, malformed-field, and implementation-level matrices in table-driven lower-level tests.
+- **Keep one Rule boundary** — every asserted outcome must prove the scenario's enclosing Rule. If a `Then` also proves an independently valuable invariant owned by another Rule, split it into that Rule's scenario.
+- **Keep outlines coherent** — rows vary one behavioral dimension and retain the same outcome shape. Unrelated defect mechanisms that merely share a generic rejection belong in separate scenarios or lower-level contract matrices.
 
 Two of these rules mirror gate checks — **one behavior** is AODI's **Atomic**, and externally-observable outcomes are its **Observable** (both in the Scenario Quality Gate below). Author for them here; the gate still validates every scenario adversarially.
 

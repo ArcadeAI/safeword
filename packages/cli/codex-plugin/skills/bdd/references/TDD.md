@@ -48,7 +48,9 @@ same actor-facing entry point and actor-visible result that the `When` and
 - **Keep evidence limits explicit.** When the real boundary cannot be automated
   reliably, use the existing `@manual` or `@live` path and perform and record
   that check separately. A tag, skip reason, or narrower automated test does
-  not prove the broader scenario by itself.
+  not prove the broader scenario by itself. That scenario needs its own recorded
+  RED/GREEN evidence; fixtures and lower-level tests may de-risk it, but cannot
+  lend it their evidence.
 
 If a scenario accidentally names incidental UI mechanics rather than product
 behavior, loop back to define-behavior and rewrite it; do not silently reinterpret

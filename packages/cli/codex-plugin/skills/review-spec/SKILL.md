@@ -78,7 +78,7 @@ Common vacuous patterns, each with its fix (apply only when you can state the do
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
 | **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
-**Atomic** — a single `When`→`Then` is atomic even if the `Then` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two `When` steps, or two `Then`s asserting different system-level effects) — never for a merely compound `Then`.
+**Atomic** — a single `When`→`Then` is atomic even if the `Then` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two `When` steps, two `Then`s asserting different system-level effects, or an outcome owned by a different Rule) — never for a merely compound `Then`.
 
 **Observable** — an assertion on a user/caller-visible outcome ("is denied", "passes the gate", "the plan contains X") IS observable even if the mechanism is internal; flag non-observable only for internal-detail-only assertions ("the cache was populated", "the private field is set").
 
@@ -97,6 +97,8 @@ Assertion strength (weak vs strong `Then`) isn't repeated here — it is `testin
 After AODI validation, argue against your own scenario list: "What breaks that none of these scenarios catch?" Present any findings to the user.
 
 One lens to always run — **negative-case coverage**: for each happy-path scenario, is there a rejection-path counterpart? Partitioning should already have produced the invalid-input classes; this pass is the backstop. Common pairs — create ↔ duplicate, read ↔ not-found, update ↔ not-allowed, act ↔ precondition-failed. Treat a gap as **should-strengthen**, not must-fix — a sibling AC often already covers the rejection: _"Happy path X has no rejection counterpart — add a scenario for path Z?"_ For one behavior across many inputs, use a `Scenario Outline`.
+
+For each `Scenario Outline`, confirm its rows vary one behavioral dimension and keep the same outcome shape. Do not group unrelated defect mechanisms merely because they share a generic rejection. Keep feature scenarios representative; exhaustive parser, schema, arithmetic, malformed-field, and implementation-corruption matrices belong in table-driven lower-level tests.
 
 ## Cross-cutting checks
 
