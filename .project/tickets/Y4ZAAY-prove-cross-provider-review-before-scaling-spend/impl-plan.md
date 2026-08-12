@@ -65,7 +65,7 @@ Recommend **the separate OpenAI `AgentRunner` plus shared provider-turn observer
 
 **Premortem:** Assume this design failed after the canary—the most likely cause is a changed OpenAI field replacing a price-affecting documented field, so the parser requires the documented fields, retains harmless additions, rejects contradictory component totals, and records the exact raw envelope for audit.
 
-**Next:** implement the two-turn Responses fixture integration test in `tools/pr-review/test/openai-loop.test.ts` and make it fail before adding `tools/pr-review/src/agent/openai-loop.ts`.
+**Next:** implement the GitHub-backed authorization/receipt adapter and the credential-separated live launcher, still using fake boundaries until the clean-checkout preflight is green.
 
 ## Design alignment
 

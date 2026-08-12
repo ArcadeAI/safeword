@@ -2,12 +2,48 @@ import { createHash } from "node:crypto";
 import { lstat, mkdir, open, readFile, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 
+import { validateProviderInventory } from "./terra-canary-evidence";
+
 export const PICODOLLARS_PER_DOLLAR = 1_000_000_000_000n;
 export const INITIALIZATION_MARKER = "initialization.json";
 export const ATTEMPT_JOURNAL = "attempts.jsonl";
 export const COST_JOURNAL = "cost.jsonl";
 export const EVIDENCE_DIRECTORY = "attempt-evidence";
 export const CANARY_LOCK = "canary.lock";
+export const PROVIDER_TURN_JOURNAL_SUFFIX = ".turns.jsonl";
+
+type CanaryProviderStage = "finding-verification" | "repository-reading";
+
+export type CanaryDispatchContext = {
+  attemptId: string;
+  intentId: string;
+  outputDirectory: string;
+  sequence: number;
+};
+
+export type CanaryProviderTurnIntent = {
+  endpoint: string;
+  intentId: string;
+  requestBody: Record<string, unknown>;
+  requestedModel: string;
+  requestedServiceTier: "default";
+  stage: CanaryProviderStage;
+};
+
+export type CanaryProviderTurnResponse = {
+  errorMessage: string | null;
+  errorName: string | null;
+  httpStatus: number | null;
+  intentId: string;
+  nativeUsage: unknown;
+  outcome: "response" | "transport-error";
+  rawBody: string;
+  requestId: string | null;
+  responseId: string | null;
+  returnedModel: string | null;
+  returnedServiceTier: string | null;
+  stage: CanaryProviderStage;
+};
 
 export type CanaryInitializationBinding = {
   adapterCommit: string;
@@ -490,6 +526,145 @@ async function readRecords(
   } catch {
     return null;
   }
+}
+
+export async function createCanaryProviderRecorder(
+  input: CanaryDispatchContext
+): Promise<{
+  complete(): Promise<{
+    attemptCostPicodollars: bigint;
+    nativeUsageBytes: string;
+    rawResponseBytes: string;
+  }>;
+  journalPath: string;
+  recordIntent(intent: CanaryProviderTurnIntent): Promise<void>;
+  recordResponse(response: CanaryProviderTurnResponse): Promise<void>;
+}> {
+  if (!isSafeIdentifier(input.attemptId) || !isSafeIdentifier(input.intentId)) {
+    throw new Error("attemptId and intentId must be safe identifiers");
+  }
+  await ensureEvidenceDirectory(input.outputDirectory);
+  const directory = join(input.outputDirectory, EVIDENCE_DIRECTORY);
+  const name = `${input.attemptId}${PROVIDER_TURN_JOURNAL_SUFFIX}`;
+  const journalPath = join(directory, name);
+  let nextSequence = 2;
+  await writeExclusiveJson(directory, name, {
+    attemptId: input.attemptId,
+    intentId: input.intentId,
+    kind: "attempt-intent",
+    sequence: 1,
+  });
+
+  return {
+    complete: async () => {
+      const records = await readRecords(directory, name);
+      if (records === null || records.length < 3) {
+        throw new Error("provider turn journal is incomplete");
+      }
+      const [intent, ...turns] = records;
+      const requests = turns
+        .filter((record) => record.kind === "provider-turn-intent")
+        .map((record) => ({
+          endpoint: record.endpoint,
+          intentId: record.attemptIntentId,
+          model: record.requestedModel,
+          sequence: record.sequence,
+          serviceTier: record.requestedServiceTier,
+          stage: record.stage,
+          turnIntentId: record.turnIntentId,
+        }));
+      const responses = turns
+        .filter((record) => record.kind === "provider-turn-response")
+        .map((record) => ({
+          errorMessage: record.errorMessage,
+          errorName: record.errorName,
+          httpStatus: record.httpStatus,
+          intentId: record.attemptIntentId,
+          nativeUsage: record.nativeUsage,
+          outcome: record.outcome,
+          rawBody: record.rawBody,
+          requestId: record.requestId,
+          responseId: record.responseId,
+          returnedModel: record.returnedModel,
+          returnedServiceTier: record.returnedServiceTier,
+          sequence: record.sequence,
+          stage: record.stage,
+          turnIntentId: record.turnIntentId,
+        }));
+      if (
+        turns.some(
+          (record) =>
+            record.kind !== "provider-turn-intent" &&
+            record.kind !== "provider-turn-response"
+        )
+      ) {
+        throw new Error("provider turn journal contains an unknown record");
+      }
+      const inventory = {
+        intent: {
+          attemptId: intent?.attemptId,
+          intentId: intent?.intentId,
+          sequence: intent?.sequence,
+        },
+        requests,
+        responses,
+      };
+      const validated = validateProviderInventory(inventory);
+      if (
+        validated.attemptId !== input.attemptId ||
+        validated.intentId !== input.intentId
+      ) {
+        throw new Error("provider inventory belongs to a different attempt");
+      }
+      return {
+        attemptCostPicodollars: validated.totalCostPicodollars,
+        nativeUsageBytes: JSON.stringify({
+          turns: validated.turns.map((turn) => ({
+            rawUsage: turn.rawUsage,
+            requestId: turn.requestId,
+            responseId: turn.responseId,
+            stage: turn.stage,
+          })),
+        }),
+        rawResponseBytes: JSON.stringify(inventory),
+      };
+    },
+    journalPath,
+    recordIntent: async (intent) => {
+      await appendDurableJsonLine(directory, name, {
+        attemptId: input.attemptId,
+        attemptIntentId: input.intentId,
+        endpoint: intent.endpoint,
+        kind: "provider-turn-intent",
+        requestBody: intent.requestBody,
+        requestedModel: intent.requestedModel,
+        requestedServiceTier: intent.requestedServiceTier,
+        sequence: nextSequence++,
+        stage: intent.stage,
+        turnIntentId: intent.intentId,
+      });
+    },
+    recordResponse: async (response) => {
+      await appendDurableJsonLine(directory, name, {
+        attemptId: input.attemptId,
+        attemptIntentId: input.intentId,
+        errorMessage: response.errorMessage,
+        errorName: response.errorName,
+        httpStatus: response.httpStatus,
+        kind: "provider-turn-response",
+        nativeUsage: response.nativeUsage,
+        outcome: response.outcome,
+        rawBody: response.rawBody,
+        requestId: response.requestId,
+        responseId: response.responseId,
+        returnedModel: response.returnedModel,
+        returnedServiceTier: response.returnedServiceTier,
+        sequence: nextSequence++,
+        stage: response.stage,
+        turnIntentId: response.intentId,
+      });
+    },
+  };
 }
 
 function isNonemptyString(value: unknown): value is string {
@@ -1076,7 +1251,7 @@ async function verifyPostedCompletionIsDurable(input: {
 async function runCanaryAttemptWhileLocked(input: {
   attemptId: string;
   binding: CanaryInitializationBinding;
-  dispatch(): Promise<{
+  dispatch(context: CanaryDispatchContext): Promise<{
     attemptCostPicodollars: bigint;
     nativeUsageBytes: string;
     rawResponseBytes: string;
@@ -1135,7 +1310,12 @@ async function runCanaryAttemptWhileLocked(input: {
     kind: "attempt-start",
   });
 
-  const completed = await input.dispatch();
+  const completed = await input.dispatch({
+    attemptId: input.attemptId,
+    intentId: input.intentId,
+    outputDirectory: input.outputDirectory,
+    sequence,
+  });
   requirePicodollars(
     completed.attemptCostPicodollars,
     "attemptCostPicodollars"

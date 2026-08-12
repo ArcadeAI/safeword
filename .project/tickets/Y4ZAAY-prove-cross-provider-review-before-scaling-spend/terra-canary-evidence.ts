@@ -32,7 +32,6 @@ type ProviderRequest = {
   endpoint: string;
   intentId: string;
   model: string;
-  requestId: string;
   sequence: number;
   serviceTier: string;
   stage: ProviderStage;
@@ -40,10 +39,19 @@ type ProviderRequest = {
 };
 
 type ProviderResponse = {
+  errorMessage: null;
+  errorName: null;
+  httpStatus: number;
   intentId: string;
+  nativeUsage: JsonObject;
+  outcome: "response";
   rawBody: string;
   requestId: string;
+  responseId: string;
+  returnedModel: string;
+  returnedServiceTier: string;
   sequence: number;
+  stage: ProviderStage;
   turnIntentId: string;
 };
 
@@ -253,7 +261,6 @@ function parseRequest(value: unknown, index: number): ProviderRequest {
       "endpoint",
       "intentId",
       "model",
-      "requestId",
       "sequence",
       "serviceTier",
       "stage",
@@ -271,7 +278,6 @@ function parseRequest(value: unknown, index: number): ProviderRequest {
     endpoint: requireString(object.endpoint, `${label} endpoint`),
     intentId: requireString(object.intentId, `${label} intentId`),
     model: requireString(object.model, `${label} model`),
-    requestId: requireString(object.requestId, `${label} requestId`),
     sequence: requireSequence(object.sequence, `${label} sequence`),
     serviceTier: requireString(object.serviceTier, `${label} serviceTier`),
     stage: object.stage,
@@ -287,19 +293,79 @@ function parseResponse(value: unknown, index: number): ProviderResponse {
   const object = requireObject(value, label);
   requireExactKeys(
     object,
-    ["intentId", "rawBody", "requestId", "sequence", "turnIntentId"],
+    [
+      "errorMessage",
+      "errorName",
+      "httpStatus",
+      "intentId",
+      "nativeUsage",
+      "outcome",
+      "rawBody",
+      "requestId",
+      "responseId",
+      "returnedModel",
+      "returnedServiceTier",
+      "sequence",
+      "stage",
+      "turnIntentId",
+    ],
     label
   );
+  if (
+    object.errorMessage !== null ||
+    object.errorName !== null ||
+    object.outcome !== "response" ||
+    !Number.isInteger(object.httpStatus) ||
+    (object.httpStatus as number) < 200 ||
+    (object.httpStatus as number) > 299
+  ) {
+    throw new Error(`${label} is not a successful physical response`);
+  }
+  if (
+    object.stage !== "repository-reading" &&
+    object.stage !== "finding-verification"
+  ) {
+    throw new Error(`${label} has an invalid stage`);
+  }
   return {
+    errorMessage: null,
+    errorName: null,
+    httpStatus: object.httpStatus as number,
     intentId: requireString(object.intentId, `${label} intentId`),
+    nativeUsage: requireObject(object.nativeUsage, `${label} nativeUsage`),
+    outcome: "response",
     rawBody: requireString(object.rawBody, `${label} rawBody`),
     requestId: requireString(object.requestId, `${label} requestId`),
+    responseId: requireString(object.responseId, `${label} responseId`),
+    returnedModel: requireString(object.returnedModel, `${label} returnedModel`),
+    returnedServiceTier: requireString(
+      object.returnedServiceTier,
+      `${label} returnedServiceTier`
+    ),
     sequence: requireSequence(object.sequence, `${label} sequence`),
+    stage: object.stage,
     turnIntentId: requireString(
       object.turnIntentId,
       `${label} turnIntentId`
     ),
   };
+}
+
+function canonicalJson(value: unknown): string {
+  const canonicalize = (item: unknown): unknown => {
+    if (Array.isArray(item)) {
+      return item.map(canonicalize);
+    }
+    if (isObject(item)) {
+      return Object.fromEntries(
+        Object.entries(item)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, nested]) => [key, canonicalize(nested)])
+      );
+    }
+    return item;
+  };
+  return JSON.stringify(canonicalize(value));
 }
 
 export function validateProviderInventory(
@@ -316,18 +382,19 @@ export function validateProviderInventory(
   }
   const requests = object.requests.map(parseRequest);
   const responses = object.responses.map(parseResponse);
-  const requestsById = new Map<string, ProviderRequest>();
+  const requestsByTurnIntent = new Map<string, ProviderRequest>();
   const turnIntentIds = new Set<string>();
   const sequences = new Set<number>([intent.sequence]);
   for (const request of requests) {
-    if (requestsById.has(request.requestId)) {
-      throw new Error(`duplicate provider request ${request.requestId}`);
-    }
     if (request.intentId !== intent.intentId) {
-      throw new Error(`provider request ${request.requestId} references a foreign intent`);
+      throw new Error(
+        `provider turn intent ${request.turnIntentId} references a foreign attempt intent`
+      );
     }
     if (request.sequence <= intent.sequence) {
-      throw new Error(`provider request ${request.requestId} does not follow its intent`);
+      throw new Error(
+        `provider turn intent ${request.turnIntentId} does not follow its attempt intent`
+      );
     }
     if (sequences.has(request.sequence)) {
       throw new Error(`duplicate journal sequence ${request.sequence}`);
@@ -342,21 +409,24 @@ export function validateProviderInventory(
       request.model !== TERRA_MODEL ||
       request.serviceTier !== STANDARD_TIER
     ) {
-      throw new Error(`provider request ${request.requestId} used the wrong route`);
+      throw new Error(`provider turn intent ${request.turnIntentId} used the wrong route`);
     }
-    requestsById.set(request.requestId, request);
+    requestsByTurnIntent.set(request.turnIntentId, request);
   }
 
-  const responsesByRequest = new Map<string, ProviderResponse>();
+  const responsesByTurnIntent = new Map<string, ProviderResponse>();
+  const providerRequestIds = new Set<string>();
   const responseIds = new Set<string>();
   const turns: ValidatedProviderInventory["turns"] = [];
   for (const response of responses) {
-    if (responsesByRequest.has(response.requestId)) {
-      throw new Error(`duplicate provider response for ${response.requestId}`);
+    if (responsesByTurnIntent.has(response.turnIntentId)) {
+      throw new Error(`duplicate provider response for ${response.turnIntentId}`);
     }
-    const request = requestsById.get(response.requestId);
+    const request = requestsByTurnIntent.get(response.turnIntentId);
     if (request === undefined) {
-      throw new Error(`provider response ${response.requestId} has no request`);
+      throw new Error(
+        `provider response ${response.requestId} has no durable turn intent`
+      );
     }
     if (response.intentId !== intent.intentId) {
       throw new Error(`provider response ${response.requestId} references a foreign intent`);
@@ -364,21 +434,31 @@ export function validateProviderInventory(
     if (response.sequence <= request.sequence) {
       throw new Error(`provider response ${response.requestId} does not follow its request`);
     }
-    if (response.turnIntentId !== request.turnIntentId) {
-      throw new Error(
-        `provider response ${response.requestId} has the wrong turn intent`
-      );
+    if (providerRequestIds.has(response.requestId)) {
+      throw new Error(`duplicate provider request ID ${response.requestId}`);
     }
+    providerRequestIds.add(response.requestId);
     if (sequences.has(response.sequence)) {
       throw new Error(`duplicate journal sequence ${response.sequence}`);
     }
     sequences.add(response.sequence);
     const envelope = validateTerraEnvelope(response.rawBody);
+    if (
+      response.responseId !== envelope.responseId ||
+      response.returnedModel !== envelope.model ||
+      response.returnedServiceTier !== envelope.serviceTier ||
+      response.stage !== request.stage ||
+      canonicalJson(response.nativeUsage) !== canonicalJson(envelope.rawUsage)
+    ) {
+      throw new Error(
+        `provider response ${response.requestId} contradicts its native envelope`
+      );
+    }
     if (responseIds.has(envelope.responseId)) {
       throw new Error(`duplicate native response ${envelope.responseId}`);
     }
     responseIds.add(envelope.responseId);
-    responsesByRequest.set(response.requestId, response);
+    responsesByTurnIntent.set(response.turnIntentId, response);
     turns.push({
       ...envelope,
       requestId: response.requestId,
@@ -386,8 +466,10 @@ export function validateProviderInventory(
     });
   }
   for (const request of requests) {
-    if (!responsesByRequest.has(request.requestId)) {
-      throw new Error(`provider request ${request.requestId} has no retained response`);
+    if (!responsesByTurnIntent.has(request.turnIntentId)) {
+      throw new Error(
+        `provider turn intent ${request.turnIntentId} has no retained response`
+      );
     }
   }
 

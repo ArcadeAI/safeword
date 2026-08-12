@@ -19,6 +19,7 @@ import {
   type CanaryUpstream,
   COST_JOURNAL,
   CANARY_LOCK,
+  createCanaryProviderRecorder,
   decideCanaryDispatch,
   EVIDENCE_DIRECTORY,
   initializeCanary,
@@ -521,6 +522,81 @@ describe("Terra canary write-side attempt lifecycle", () => {
       costAccountingComplete: true,
       observedCostPicodollars: 100n,
       startedAttempts: 1,
+    });
+  });
+
+  test("persists the provider turn intent before the physical HTTP request", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const rawBody = JSON.stringify({
+      id: "resp-terra-1",
+      model: "gpt-5.6-terra",
+      output: [],
+      service_tier: "default",
+      status: "completed",
+      usage: {
+        input_tokens: 10,
+        input_tokens_details: { cached_tokens: 2 },
+        output_tokens: 3,
+      },
+    });
+
+    const result = await runCanaryAttempt({
+      attemptId: "attempt-1",
+      binding: BINDING,
+      dispatch: async (context) => {
+        const recorder = await createCanaryProviderRecorder(context);
+        await recorder.recordIntent({
+          endpoint: "https://api.openai.com/v1/responses",
+          intentId: "turn-intent-1",
+          requestBody: { model: "gpt-5.6-terra" },
+          requestedModel: "gpt-5.6-terra",
+          requestedServiceTier: "default",
+          stage: "repository-reading",
+        });
+
+        const turnJournal = readFileSync(recorder.journalPath, "utf8");
+        expect(readFileSync(join(directory, ATTEMPT_JOURNAL), "utf8")).toContain(
+          '"kind":"attempt-start"'
+        );
+        expect(turnJournal).toContain('"kind":"provider-turn-intent"');
+        expect(turnJournal).not.toContain('"kind":"provider-turn-response"');
+
+        await recorder.recordResponse({
+          errorMessage: null,
+          errorName: null,
+          httpStatus: 200,
+          intentId: "turn-intent-1",
+          nativeUsage: {
+            input_tokens: 10,
+            input_tokens_details: { cached_tokens: 2 },
+            output_tokens: 3,
+          },
+          outcome: "response",
+          rawBody,
+          requestId: "req-terra-1",
+          responseId: "resp-terra-1",
+          returnedModel: "gpt-5.6-terra",
+          returnedServiceTier: "default",
+          stage: "repository-reading",
+        });
+        return recorder.complete();
+      },
+      intentId: "intent-1",
+      outputDirectory: directory,
+      upstream,
+    });
+
+    expect(result.observedCostPicodollars).toBe(52_400_000n);
+    const retained = JSON.parse(
+      readFileSync(join(directory, EVIDENCE_DIRECTORY, "attempt-1.json"), "utf8")
+    );
+    expect(retained.requests[0]).not.toHaveProperty("requestId");
+    expect(retained.responses[0]).toMatchObject({
+      rawBody,
+      requestId: "req-terra-1",
+      turnIntentId: "turn-intent-1",
     });
   });
 

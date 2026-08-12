@@ -39,7 +39,6 @@ function completeInventory() {
         endpoint: RESPONSES_ENDPOINT,
         intentId: "intent-1",
         model: TERRA_MODEL,
-        requestId: "req-read",
         sequence: 2,
         serviceTier: "default",
         stage: "repository-reading",
@@ -49,7 +48,6 @@ function completeInventory() {
         endpoint: RESPONSES_ENDPOINT,
         intentId: "intent-1",
         model: TERRA_MODEL,
-        requestId: "req-verify",
         sequence: 4,
         serviceTier: "default",
         stage: "finding-verification",
@@ -58,17 +56,43 @@ function completeInventory() {
     ],
     responses: [
       {
+        errorMessage: null,
+        errorName: null,
+        httpStatus: 200,
         intentId: "intent-1",
+        nativeUsage: {
+          input_tokens: 100,
+          input_tokens_details: { cached_tokens: 20 },
+          output_tokens: 10,
+        },
+        outcome: "response" as const,
         rawBody: rawEnvelope({ id: "resp-read" }),
         requestId: "req-read",
+        responseId: "resp-read",
+        returnedModel: TERRA_MODEL,
+        returnedServiceTier: "default",
         sequence: 3,
+        stage: "repository-reading" as const,
         turnIntentId: "turn-read",
       },
       {
+        errorMessage: null,
+        errorName: null,
+        httpStatus: 200,
         intentId: "intent-1",
+        nativeUsage: {
+          input_tokens: 100,
+          input_tokens_details: { cached_tokens: 20 },
+          output_tokens: 10,
+        },
+        outcome: "response" as const,
         rawBody: rawEnvelope({ id: "resp-verify" }),
         requestId: "req-verify",
+        responseId: "resp-verify",
+        returnedModel: TERRA_MODEL,
+        returnedServiceTier: "default",
         sequence: 5,
+        stage: "finding-verification" as const,
         turnIntentId: "turn-verify",
       },
     ],
@@ -99,9 +123,9 @@ describe("retained Terra provider evidence", () => {
       value.responses.push({ ...value.responses[0]! });
     }],
     ["swapped response pairings", (value: ReturnType<typeof completeInventory>) => {
-      const first = value.responses[0]!.requestId;
-      value.responses[0]!.requestId = value.responses[1]!.requestId;
-      value.responses[1]!.requestId = first;
+      const first = value.responses[0]!.turnIntentId;
+      value.responses[0]!.turnIntentId = value.responses[1]!.turnIntentId;
+      value.responses[1]!.turnIntentId = first;
     }],
     ["a foreign intent", (value: ReturnType<typeof completeInventory>) => {
       value.requests[0]!.intentId = "intent-foreign";
@@ -132,6 +156,18 @@ describe("retained Terra provider evidence", () => {
     }],
     ["a non-default returned tier", (value: ReturnType<typeof completeInventory>) => {
       value.responses[0]!.rawBody = rawEnvelope({ service_tier: "priority" });
+    }],
+    ["a contradictory returned model", (value: ReturnType<typeof completeInventory>) => {
+      value.responses[0]!.returnedModel = "gpt-5.6";
+    }],
+    ["contradictory native usage", (value: ReturnType<typeof completeInventory>) => {
+      value.responses[0]!.nativeUsage.output_tokens = 11;
+    }],
+    ["a transport-error outcome", (value: ReturnType<typeof completeInventory>) => {
+      value.responses[0]!.outcome = "transport-error" as never;
+    }],
+    ["a non-success HTTP status", (value: ReturnType<typeof completeInventory>) => {
+      value.responses[0]!.httpStatus = 500;
     }],
     ["a truncated envelope", (value: ReturnType<typeof completeInventory>) => {
       value.responses[0]!.rawBody = '{"id":"resp';
