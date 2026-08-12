@@ -7,8 +7,11 @@ import { promisify } from "node:util";
 import { describe, expect, test } from "vitest";
 
 import {
+  createTerraPaidChildCommand,
+  parseTerraPaidChildResult,
   preflightPinnedCheckout,
   runCredentialSeparatedCanary,
+  spawnPaidChild,
   type PaidChildRequest,
   type PinnedCheckout,
 } from "./terra-live-launcher";
@@ -41,6 +44,101 @@ async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
 }
 
 describe("credential-separated live launcher", () => {
+  test("builds the pinned harness child command with absolute paths", () => {
+    expect(
+      createTerraPaidChildCommand({
+        harnessDirectory: "/tmp/pinned-harness",
+        inputPath: "/tmp/attempt-input.json",
+      })
+    ).toEqual({
+      args: [
+        "/tmp/pinned-harness/.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-paid-child.ts",
+        "/tmp/attempt-input.json",
+      ],
+      command: "bun",
+    });
+  });
+
+  test("runs the paid child without a shell and captures its result", async () => {
+    const result = await spawnPaidChild({
+      args: [
+        "-e",
+        "process.stdout.write(process.env.CANARY_MARKER ?? ''); process.stderr.write('diagnostic')",
+      ],
+      command: process.execPath,
+      cwd: process.cwd(),
+      env: { CANARY_MARKER: "complete" },
+    });
+
+    expect(result).toEqual({
+      exitCode: 0,
+      stderr: "diagnostic",
+      stdout: "complete",
+    });
+  });
+
+  test("returns a paid child's non-zero exit and diagnostics", async () => {
+    await expect(
+      spawnPaidChild({
+        args: [
+          "-e",
+          "process.stdout.write('partial'); process.stderr.write('failed'); process.exit(7)",
+        ],
+        command: process.execPath,
+        cwd: process.cwd(),
+        env: {},
+      })
+    ).resolves.toEqual({
+      exitCode: 7,
+      stderr: "failed",
+      stdout: "partial",
+    });
+  });
+
+  test("the physical child refuses execution unless retries are disabled", async () => {
+    const result = await spawnPaidChild({
+      args: [
+        join(import.meta.dirname, "terra-paid-child.ts"),
+        join(tmpdir(), "unused-terra-child-input.json"),
+      ],
+      command: "bun",
+      cwd: process.cwd(),
+      env: {
+        OPENAI_API_KEY: "fake-key",
+        PATH: process.env.PATH ?? "",
+        SAFEWORD_PAID_CANARY_RETRIES: "1",
+      },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("paid canary retries must be disabled");
+  });
+
+  test("strictly converts one successful child result for the controller", () => {
+    expect(
+      parseTerraPaidChildResult({
+        exitCode: 0,
+        stderr: "",
+        stdout:
+          '{"attemptCostPicodollars":"123","nativeUsageBytes":"usage","rawResponseBytes":"response"}\n',
+      })
+    ).toEqual({
+      attemptCostPicodollars: 123n,
+      nativeUsageBytes: "usage",
+      rawResponseBytes: "response",
+    });
+    expect(() =>
+      parseTerraPaidChildResult({ exitCode: 7, stderr: "failed", stdout: "" })
+    ).toThrow("paid child exited 7: failed");
+    expect(() =>
+      parseTerraPaidChildResult({
+        exitCode: 0,
+        stderr: "",
+        stdout: "{}\nextra\n",
+      })
+    ).toThrow("one JSON line");
+  });
+
   test("preflights both pins before loading secrets and isolates child credentials", async () => {
     const adapter = await pinnedCheckout("adapter");
     const harness = await pinnedCheckout("harness");

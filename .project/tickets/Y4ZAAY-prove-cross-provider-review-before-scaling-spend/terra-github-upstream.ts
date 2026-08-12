@@ -23,6 +23,33 @@ export type GitHubHttp = (request: {
   url: string;
 }) => Promise<{ body: string; status: number }>;
 
+export function createAuthenticatedGitHubHttp(input: {
+  fetch?: typeof globalThis.fetch;
+  token: string;
+}): GitHubHttp {
+  if (input.token.length === 0 || input.token.trim() !== input.token) {
+    throw new Error("GitHub token is invalid");
+  }
+  const transport = input.fetch ?? globalThis.fetch;
+  return async (request) => {
+    const url = new URL(request.url);
+    if (url.origin !== "https://api.github.com") {
+      throw new Error("GitHub request must target the canonical HTTPS API");
+    }
+    const response = await transport(request.url, {
+      body: request.body,
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${input.token}`,
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      method: request.method,
+    });
+    return { body: await response.text(), status: response.status };
+  };
+}
+
 type ReceiptEnvelope =
   | {
       bindingDigest: string;

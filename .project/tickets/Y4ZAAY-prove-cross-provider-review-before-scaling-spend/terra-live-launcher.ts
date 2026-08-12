@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process";
-import { isAbsolute } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const PAID_CHILD_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
 const CHILD_ENVIRONMENT_ALLOWLIST = [
   "NODE_EXTRA_CA_CERTS",
   "PATH",
@@ -28,6 +29,99 @@ export type PaidChildResult = {
   stderr: string;
   stdout: string;
 };
+
+export function createTerraPaidChildCommand(input: {
+  harnessDirectory: string;
+  inputPath: string;
+}): { args: string[]; command: string } {
+  if (!isAbsolute(input.harnessDirectory) || !isAbsolute(input.inputPath)) {
+    throw new Error("paid child paths must be absolute");
+  }
+  return {
+    args: [
+      join(
+        input.harnessDirectory,
+        ".project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-paid-child.ts"
+      ),
+      input.inputPath,
+    ],
+    command: "bun",
+  };
+}
+
+export function parseTerraPaidChildResult(result: PaidChildResult): {
+  attemptCostPicodollars: bigint;
+  nativeUsageBytes: string;
+  rawResponseBytes: string;
+} {
+  if (result.exitCode !== 0) {
+    throw new Error(`paid child exited ${result.exitCode}: ${result.stderr}`);
+  }
+  const lines = result.stdout.split("\n");
+  if (lines.length !== 2 || lines[0] === "" || lines[1] !== "") {
+    throw new Error("paid child must emit exactly one JSON line");
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(lines[0]);
+  } catch {
+    throw new Error("paid child output is invalid JSON");
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("paid child output must be an object");
+  }
+  const output = value as Record<string, unknown>;
+  if (
+    Object.keys(output).sort().join(",") !==
+      "attemptCostPicodollars,nativeUsageBytes,rawResponseBytes" ||
+    typeof output.attemptCostPicodollars !== "string" ||
+    !/^(0|[1-9][0-9]*)$/.test(output.attemptCostPicodollars) ||
+    typeof output.nativeUsageBytes !== "string" ||
+    output.nativeUsageBytes.length === 0 ||
+    typeof output.rawResponseBytes !== "string" ||
+    output.rawResponseBytes.length === 0
+  ) {
+    throw new Error("paid child output has an invalid evidence contract");
+  }
+  return {
+    attemptCostPicodollars: BigInt(output.attemptCostPicodollars),
+    nativeUsageBytes: output.nativeUsageBytes,
+    rawResponseBytes: output.rawResponseBytes,
+  };
+}
+
+export async function spawnPaidChild(
+  request: PaidChildRequest
+): Promise<PaidChildResult> {
+  try {
+    const { stderr, stdout } = await execFileAsync(
+      request.command,
+      request.args,
+      {
+        cwd: request.cwd,
+        encoding: "utf8",
+        env: request.env,
+        maxBuffer: PAID_CHILD_MAX_BUFFER_BYTES,
+        shell: false,
+      }
+    );
+    return { exitCode: 0, stderr, stdout };
+  } catch (error) {
+    const failed = error as {
+      code?: unknown;
+      stderr?: unknown;
+      stdout?: unknown;
+    };
+    if (typeof failed.code !== "number") {
+      throw error;
+    }
+    return {
+      exitCode: failed.code,
+      stderr: typeof failed.stderr === "string" ? failed.stderr : "",
+      stdout: typeof failed.stdout === "string" ? failed.stdout : "",
+    };
+  }
+}
 
 async function git(directory: string, args: string[]): Promise<string> {
   try {

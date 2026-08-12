@@ -9,17 +9,25 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 
 import {
   ATTEMPT_JOURNAL,
   type CanaryInitializationBinding,
-  type CanaryUpstream,
-  createCanaryProviderRecorder,
   EVIDENCE_DIRECTORY,
   initializeCanary,
+  PROVIDER_TURN_JOURNAL_SUFFIX,
   runCanaryAttempt,
 } from "./terra-development-canary";
+import {
+  formatCanaryAuthorization,
+  type CanaryAuthorization,
+} from "./terra-github-authorization";
+import {
+  createGitHubCanaryUpstream,
+  formatCorpusRegistrationAnchor,
+  type GitHubHttp,
+} from "./terra-github-upstream";
+import { executeTerraPaidChild } from "./terra-paid-child";
 
 const ADAPTER_COMMIT = "e1d54b2d12e4a97fba84e8302de31bfe8b60ba17";
 
@@ -38,83 +46,45 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
-function createUpstream(): CanaryUpstream {
-  let consumed = false;
-  let receipt: Awaited<ReturnType<CanaryUpstream["consumeInitialization"]>>;
-  let starts: Awaited<ReturnType<CanaryUpstream["postAttemptStart"]>>[] = [];
-  let completions: Awaited<
-    ReturnType<CanaryUpstream["postAttemptCompletion"]>
-  >[] = [];
-  let head = { observedCostPicodollars: "0", startedAttempts: 0 };
+function issueComment(body: string, id: number): Record<string, unknown> {
   return {
-    consumeInitialization: async (input) => {
-      consumed = true;
-      receipt = {
-        authorizationId: input.authorizationId,
-        bindingDigest: input.bindingDigest,
-        observedCostPicodollars: "0",
-        receiptId: "initialization-receipt-1",
-        startedAttempts: 0,
-      };
-      return receipt;
-    },
-    inspect: async () =>
-      consumed
-        ? { completions, head, kind: "consumed", receipt, starts }
-        : { authorizationId: "authorization-1", kind: "ready" },
-    postAttemptCompletion: async (input) => {
-      const completion = {
-        attemptCostPicodollars: input.attemptCostPicodollars,
-        attemptId: input.attemptId,
-        nativeUsageDigest: input.nativeUsageDigest,
-        observedCostPicodollars: input.observedCostPicodollars,
-        receiptId: `completion-receipt-${input.sequence}`,
-        responseDigest: input.responseDigest,
-        sequence: input.sequence,
-        startReceiptId: input.startReceiptId,
-      };
-      completions = [...completions, completion];
-      head = { ...head, observedCostPicodollars: input.observedCostPicodollars };
-      return completion;
-    },
-    postAttemptStart: async (input) => {
-      const start = {
-        attemptId: input.attemptId,
-        intentId: input.intentId,
-        receiptId: `start-receipt-${input.sequence}`,
-        sequence: input.sequence,
-        startedAttempts: input.sequence,
-      };
-      starts = [...starts, start];
-      head = { ...head, startedAttempts: input.sequence };
-      return start;
-    },
+    author_association: "MEMBER",
+    body,
+    created_at: "2026-08-11T18:00:00Z",
+    id,
+    updated_at: "2026-08-11T18:00:00Z",
+    user: { login: "TheMostlyGreat" },
+  };
+}
+
+function createGitHubFixture(authorization: CanaryAuthorization): GitHubHttp {
+  const comments = [
+    issueComment(
+      formatCorpusRegistrationAnchor(authorization),
+      authorization.registrationCommentId
+    ),
+    issueComment(formatCanaryAuthorization(authorization), 6_000_000_001),
+  ];
+  let nextCommentId = 7_000_000_001;
+  return async (request) => {
+    if (request.method === "POST") {
+      const posted = JSON.parse(request.body ?? "{}") as { body?: unknown };
+      assert.equal(typeof posted.body, "string");
+      comments.push(issueComment(posted.body as string, nextCommentId++));
+      return { body: "{}", status: 201 };
+    }
+    const page = Number(new URL(request.url).searchParams.get("page"));
+    const start = (page - 1) * 100;
+    return {
+      body: JSON.stringify(comments.slice(start, start + 100)),
+      status: 200,
+    };
   };
 }
 
 const adapterRoot = requiredEnvironment("Y4ZAAY_ADAPTER_ROOT");
 assert.equal(git(adapterRoot, "rev-parse", "HEAD"), ADAPTER_COMMIT);
 assert.equal(git(adapterRoot, "status", "--porcelain"), "");
-
-const benchmark = (await import(
-  pathToFileURL(
-    join(adapterRoot, "tools/pr-review/src/eval/development-benchmark.ts")
-  ).href
-)) as {
-  createRunnerExecutor(options: Record<string, unknown>): (input: unknown) => Promise<unknown>;
-};
-const openaiLoop = (await import(
-  pathToFileURL(join(adapterRoot, "tools/pr-review/src/agent/openai-loop.ts")).href
-)) as {
-  createOpenAIResponsesAgent(options: Record<string, unknown>): unknown;
-};
-const openaiProvider = (await import(
-  pathToFileURL(
-    join(adapterRoot, "tools/pr-review/src/providers/openai-responses.ts")
-  ).href
-)) as {
-  openaiResponsesProvider(options: Record<string, unknown>): unknown;
-};
 
 const root = mkdtempSync(join(tmpdir(), "terra-real-recorder-wiring-"));
 try {
@@ -252,7 +222,22 @@ try {
     serviceTier: "default",
     ticketId: "Y4ZAAY",
   };
-  const upstream = createUpstream();
+  const authorization: CanaryAuthorization = {
+    ...binding,
+    authorizationId: "authorization-1",
+    diagnosticOnly: true,
+    evidenceRole: "development",
+    registrationCommentId: 5_254_523_549,
+    registrationCommit: "e".repeat(40),
+  };
+  let receiptSequence = 0;
+  const upstream = createGitHubCanaryUpstream({
+    allowlistedMaintainers: ["TheMostlyGreat"],
+    authorization,
+    http: createGitHubFixture(authorization),
+    issueNumber: 1910,
+    nextReceiptId: () => `receipt-${++receiptSequence}`,
+  });
   await initializeCanary({ binding, outputDirectory, upstream });
   let requestCount = 0;
 
@@ -260,10 +245,16 @@ try {
     attemptId: "attempt-1",
     binding,
     dispatch: async (context) => {
-      const recorder = await createCanaryProviderRecorder(context);
       const transport: typeof fetch = Object.assign(
         (_input: string | URL | Request, init?: RequestInit) => {
-          const journal = readFileSync(recorder.journalPath, "utf8");
+          const journal = readFileSync(
+            join(
+              outputDirectory,
+              EVIDENCE_DIRECTORY,
+              `attempt-1${PROVIDER_TURN_JOURNAL_SUFFIX}`
+            ),
+            "utf8"
+          );
           assert.match(
             readFileSync(join(outputDirectory, ATTEMPT_JOURNAL), "utf8"),
             /"kind":"attempt-start"/
@@ -287,47 +278,38 @@ try {
         },
         { preconnect: () => undefined }
       );
-      const execute = benchmark.createRunnerExecutor({
-        agentFor: () =>
-          openaiLoop.createOpenAIResponsesAgent({
-            apiKey: "fake-key",
-            fetch: transport,
-            recorder,
-            serviceTier: "default",
-            stage: "repository-reading",
-          }),
-        env: { OPENAI_API_KEY: "fake-key" },
-        expertsDir: experts,
-        policy: {
-          maxVerifications: 2,
-          toolCallsPerExpert: 3,
-          wallClockMsPerExpert: 4_000,
+      const output = await executeTerraPaidChild({
+        adapterRoot,
+        fetch: transport,
+        openAIKey: "fake-key",
+        request: {
+          context,
+          expertsDirectory: experts,
+          policy: {
+            maxVerifications: 2,
+            toolCallsPerExpert: 3,
+            wallClockMsPerExpert: 4_000,
+          },
+          review: {
+            caseId: "DEV-TERRA",
+            causalPaths: ["apps/engine/example.go"],
+            failureDescription: {
+              consequenceAliases: ["no required effect"],
+              mechanismAliases: ["empty body"],
+            },
+            modelCutoff: "2026-01-01T00:00:00.000Z",
+            reviewBaseSha,
+            runnerRef: `terra-adapter@${ADAPTER_COMMIT}`,
+            sourceSha,
+            variant: "buggy",
+          },
+          target: { baseRef: "eval-base", root: target },
         },
-        provider: () =>
-          openaiProvider.openaiResponsesProvider({
-            apiKey: "fake-key",
-            fetch: transport,
-            recorder,
-            serviceTier: "default",
-            stage: "finding-verification",
-          }),
-        targetFor: () => ({ baseRef: "eval-base", root: target }),
       });
-      const output = (await execute({
-        caseId: "DEV-TERRA",
-        causalPaths: ["apps/engine/example.go"],
-        failureDescription: {
-          consequenceAliases: ["no required effect"],
-          mechanismAliases: ["empty body"],
-        },
-        modelCutoff: "2026-01-01T00:00:00.000Z",
-        reviewBaseSha,
-        runnerRef: `terra-adapter@${ADAPTER_COMMIT}`,
-        sourceSha,
-        variant: "buggy",
-      })) as { terminalState: string };
-      assert.equal(output.terminalState, "completed");
-      return recorder.complete();
+      return {
+        ...output,
+        attemptCostPicodollars: BigInt(output.attemptCostPicodollars),
+      };
     },
     intentId: "intent-1",
     outputDirectory,

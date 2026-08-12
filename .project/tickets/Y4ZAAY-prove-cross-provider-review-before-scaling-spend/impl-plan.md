@@ -65,7 +65,7 @@ Recommend **the separate OpenAI `AgentRunner` plus shared provider-turn observer
 
 **Premortem:** Assume this design failed after the canary—the most likely cause is a changed OpenAI field replacing a price-affecting documented field, so the parser requires the documented fields, retains harmless additions, rejects contradictory component totals, and records the exact raw envelope for audit.
 
-**Next:** wire the pinned adapter's real child command and the GitHub upstream into one no-cost entrypoint, with OpenAI and GitHub HTTP still faked and secret loaders returning fixtures. Then run the complete no-cost preflight from fresh clones before creating the annotated adapter and harness evidence tags; do not load real secrets or create the permanent authorization comment before that is green.
+**Next:** finish the formal ticket suite once the repository-wide single-Vitest lock is free, then run the complete no-cost preflight from fresh clones. Only after that is green, commit and push the exact harness code and create the annotated adapter and harness evidence tags; do not load real secrets or create the permanent authorization comment before those durable pins are verified.
 
 ## Design alignment
 

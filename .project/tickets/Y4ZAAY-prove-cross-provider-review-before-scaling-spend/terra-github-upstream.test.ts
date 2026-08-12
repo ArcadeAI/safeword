@@ -16,6 +16,7 @@ import {
   type CanaryInitializationBinding,
 } from "./terra-development-canary";
 import {
+  createAuthenticatedGitHubHttp,
   createGitHubCanaryUpstream,
   formatCorpusRegistrationAnchor,
   type GitHubHttp,
@@ -107,6 +108,65 @@ function receiptIds(): () => string {
 }
 
 describe("GitHub canary upstream", () => {
+  test("sends authenticated GitHub API requests through one HTTP boundary", async () => {
+    const requests: Array<{ input: string; init?: RequestInit }> = [];
+    const fetch: typeof globalThis.fetch = Object.assign(
+      (input: string | URL | Request, init?: RequestInit) => {
+        requests.push({ input: String(input), init });
+        return Promise.resolve(new Response("[]", { status: 200 }));
+      },
+      { preconnect: () => undefined }
+    );
+    const http = createAuthenticatedGitHubHttp({
+      fetch,
+      token: "github-token",
+    });
+
+    await expect(
+      http({
+        body: JSON.stringify({ body: "receipt" }),
+        method: "POST",
+        url: "https://api.github.com/repos/ArcadeAI/safeword/issues/1910/comments",
+      })
+    ).resolves.toEqual({ body: "[]", status: 200 });
+    expect(requests).toEqual([
+      {
+        input:
+          "https://api.github.com/repos/ArcadeAI/safeword/issues/1910/comments",
+        init: {
+          body: JSON.stringify({ body: "receipt" }),
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: "Bearer github-token",
+            "Content-Type": "application/json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+          method: "POST",
+        },
+      },
+    ]);
+  });
+
+  test("never sends the GitHub token to a foreign origin", async () => {
+    let requests = 0;
+    const fetch: typeof globalThis.fetch = Object.assign(
+      () => {
+        requests += 1;
+        return Promise.resolve(new Response("[]", { status: 200 }));
+      },
+      { preconnect: () => undefined }
+    );
+    const http = createAuthenticatedGitHubHttp({
+      fetch,
+      token: "github-token",
+    });
+
+    await expect(
+      http({ method: "GET", url: "https://example.com/comments" })
+    ).rejects.toThrow("canonical HTTPS API");
+    expect(requests).toBe(0);
+  });
+
   test("finds the trusted registration and authorization after a full page", async () => {
     const filler = Array.from({ length: 100 }, (_, index) =>
       issueComment({ body: `ordinary comment ${index}`, id: index + 1 })
