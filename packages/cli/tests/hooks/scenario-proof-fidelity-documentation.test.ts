@@ -40,6 +40,9 @@ describe('scenario proof fidelity documentation (issue #1698)', () => {
 
     expect(content).toContain('actor-visible result');
     expect(content).toMatch(/Store, editor, or component\s+state is supporting evidence/);
+    expect(content).toContain("Assert the result's material values");
+    expect(content).toContain('A proxy property is not enough');
+    expect(content).toContain('Assert attempt order only when that order is part of the promised');
   });
 
   it.each(bddTddCopies)('%s keeps setup and lower-level checks proportionate', path => {
