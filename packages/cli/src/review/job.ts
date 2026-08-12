@@ -38,7 +38,6 @@ interface ReviewJobRecord {
 
 const COURTESY_WAIT_MS = 75_000;
 const POLL_INTERVAL_MS = 100;
-const HEARTBEAT_INTERVAL_MS = 5000;
 const JOB_LOCK_WAIT_MS = 2000;
 
 function jobsDirectory(cwd: string): string {
@@ -451,15 +450,12 @@ export async function startReviewJob(input: {
     updated_at: new Date().toISOString(),
   }));
   input.progress?.start('Running the independent review in the background…');
+  // ProgressReporter schedules and repeats this heartbeat until command teardown.
+  input.progress?.heartbeat?.('Still waiting for the independent review…');
   const deadline = Date.now() + configuredCourtesyWait();
-  let nextHeartbeat = Date.now() + HEARTBEAT_INTERVAL_MS;
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);
     if (latest.state !== 'running') return currentResult(input.cwd, latest);
-    if (Date.now() >= nextHeartbeat) {
-      input.progress?.heartbeat?.('Still waiting for the independent review…');
-      nextHeartbeat = Date.now() + HEARTBEAT_INTERVAL_MS;
-    }
     await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   return currentResult(input.cwd, readJob(input.cwd, id));
