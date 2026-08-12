@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "5e7804cfb1647392fafca0762d4605bedca5500b6f2b55332f89977a67701549"
+      "sha256": "6030e2db88687a057cb6e9c44391a108a184a5be121aa02d971dd1961acba48f"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "649427c8e45ec9234e6ad09a40c0305c16c727644fa075d14d9f1cd81af544d2"
+      "sha256": "a6b4b15b1da2fd8e352d26b29bc3086ec33d18d7ed413ac5b12a2d2517817771"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "887cfb565c0cd1f68d82d30adbd97293c09818f9ba5de948e95c0e40592e6cf6"
+      "sha256": "f9be3468d81b2694d54806eddc2fbb323572c121bebf547d5d849042446f8eaf"
     },
     {
       "path": "runtime/event-groups.json",
@@ -315,7 +315,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "e70eed9fdae0cda61cb2e9356394e7aae333368aa15dfc8b4242e668a692942a"
+      "sha256": "3791e5767bccf96e8e1ce27234fc1bcb7d14020192efe597e0daf385f0a27d5e"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -547,11 +547,11 @@
     },
     {
       "path": "runtime/hooks/session-version.ts",
-      "sha256": "60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af"
+      "sha256": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64"
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "2a375c66ccc0a2b8a0ee5fbc9c6717fc8f07e60515573c47a48273ae30452b88"
+      "sha256": "eb3bf773ffe0be9b040dd561b92749c5c469e9ca3b238f287c2533cb601875d4"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -603,7 +603,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "1b450ed34f67ce6ee107e3b304f7e3ce2c56a4fc09dd8823e9b84e060eff7b63"
+      "sha256": "623bf5e2f73cb5b211a936d3f858eae28d2d4c873602344a124bd567fd8121f8"
     },
     {
       "path": "skills/bdd/VERIFY.md",

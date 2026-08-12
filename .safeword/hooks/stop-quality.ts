@@ -31,9 +31,11 @@ import {
 } from './lib/review-ledger.ts';
 import {
   type BddPhase,
+  evaluateDecisionBriefCompliance,
   getDisqualificationMessage,
+  getQualityEvidence,
   getQualityMessage,
-  isDecisionBriefCompliant,
+  renderDecisionBriefCorrection,
 } from './lib/quality.ts';
 import {
   EXPLAIN_HINT,
@@ -79,6 +81,9 @@ interface TranscriptMessage {
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 /** How many recent assistant messages to scan for edit tool usage. */
 const MAX_MESSAGES_FOR_TOOLS = 5;
+const MAX_TRANSCRIPT_TAIL_BYTES = 256 * 1024;
+const MAX_CURRENT_TURN_SCAN_RECORDS = 512;
+const CURRENT_TURN_BOUNDARY_EXHAUSTED = 'boundary-exhausted' as const;
 const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
 /**
  * A background-task completion the harness injects as a user-role message. It
@@ -157,14 +162,26 @@ function recordStopReviewState(
     // Partial, not QualityState: the file may be absent (fresh session) or
     // predate a field. The shared contract names the shape; the runtime
     // boundary below keeps a stale or malformed file from crashing the hook.
-    const state: Partial<QualityState> = existsSync(stateFile)
-      ? JSON.parse(readFileSync(stateFile, 'utf8'))
-      : {};
+    let parsed: unknown = {};
+    if (existsSync(stateFile)) {
+      try {
+        parsed = JSON.parse(readFileSync(stateFile, 'utf8'));
+      } catch {
+        // A torn write must not leave the Stop correction permanently
+        // undeduplicated. Recover to an empty root and replace it below.
+      }
+    }
+    const state = normalizeQualityStateRoot(parsed);
     Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
     // Best effort — don't crash stop hook on state write failure
   }
+}
+
+/** Normalize stale or user-edited state before applying a Stop-review patch. */
+function normalizeQualityStateRoot(parsed: unknown): Partial<QualityState> {
+  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
 }
 
 /** Global scan fallback — used when no session state exists */
@@ -366,9 +383,7 @@ if (!(await transcriptFile.exists())) {
   process.exit(0);
 }
 
-// Read transcript (JSONL format)
-const transcriptText = await transcriptFile.text();
-const lines = transcriptText.trim().split('\n');
+const lines = await readBoundedTranscriptLines(transcriptFile);
 
 checkUsageLimit(lines);
 
@@ -392,12 +407,11 @@ checkImplPlanArtifact(ticketInfo);
 checkArchitectureReviewGate(ticketInfo);
 
 // No edit tools used in the current user turn → skip the review path (a
-// conversational follow-up has nothing to review). If the transcript cannot
-// recover that turn boundary, retain the prior bounded scan. The done phase is
-// the exception: fall through to its gate.
-const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(lines);
-
-const editsToReview = editsInCurrentTurn ?? detectEditToolsUsed(lines);
+// conversational follow-up has nothing to review). If the record cap is
+// exhausted before a boundary, review conservatively instead of pretending the
+// recent window can be attributed to this turn. A byte-truncated tail retains
+// the prior bounded fallback. The done phase always falls through to its gate.
+const editsToReview = detectEditsToReview(lines);
 if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
 }
@@ -448,26 +462,63 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
   return false;
 }
 
+/** Resolve bounded current-turn attribution, including its legacy tail fallback. */
+function detectEditsToReview(transcriptLines: string[]): boolean {
+  const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(transcriptLines);
+  if (editsInCurrentTurn === CURRENT_TURN_BOUNDARY_EXHAUSTED) return true;
+  return editsInCurrentTurn ?? detectEditToolsUsed(transcriptLines);
+}
+
+/**
+ * Read a byte-bounded JSONL tail without discarding a complete first record.
+ * The byte immediately before the slice distinguishes an aligned record from
+ * a partial one; it does not expand the effective payload budget.
+ */
+async function readBoundedTranscriptLines(
+  transcriptFile: ReturnType<typeof Bun.file>,
+): Promise<string[]> {
+  const transcriptStart = Math.max(0, transcriptFile.size - MAX_TRANSCRIPT_TAIL_BYTES);
+  let transcriptText = await transcriptFile.slice(transcriptStart).text();
+
+  if (transcriptStart > 0) {
+    const precedingByte = await transcriptFile.slice(transcriptStart - 1, transcriptStart).text();
+    if (precedingByte !== '\n') {
+      const firstNewline = transcriptText.indexOf('\n');
+      transcriptText = firstNewline === -1 ? '' : transcriptText.slice(firstNewline + 1);
+    }
+  }
+
+  const trimmedTranscript = transcriptText.trim();
+  return trimmedTranscript.length === 0 ? [] : trimmedTranscript.split('\n');
+}
+
 /**
  * Stop at whatever started this turn — a human prompt, or a background-task
  * notification that re-invoked the agent — but not at the user-role tool-result
  * message Claude emits while completing that same turn. The transcript is
- * already resident in memory, so walk to the actual boundary instead of using
- * a line cap that can recreate the missed-edit bug on sufficiently large turns.
- * Returns undefined only when the available transcript has no turn boundary,
- * so callers preserve the existing fallback for truncated transcripts.
+ * already bounded by bytes; cap record traversal too. Exhausting that cap is
+ * explicitly unknown because neither edits nor boundaries in the recent window
+ * can be attributed to the current turn. Returns undefined only when the entire
+ * available tail has no turn boundary, preserving the legacy fallback for a
+ * byte-truncated transcript.
  */
-function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
-  for (let i = transcriptLines.length - 1; i >= 0; i--) {
+function detectEditToolsUsedInCurrentUserTurn(
+  transcriptLines: string[],
+): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
+  let foundEdit = false;
+  const firstRecord = Math.max(0, transcriptLines.length - MAX_CURRENT_TURN_SCAN_RECORDS);
+  for (let i = transcriptLines.length - 1; i >= firstRecord; i--) {
     // An unparseable line is skipped, not a boundary: preserve the legacy
     // fallback when no turn start is found.
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
-    if (startsNewTurn(message)) return false;
+    const precedingMessage = i > 0 ? parseTranscriptLine(transcriptLines[i - 1]) : undefined;
+    if (startsNewTurn(message, precedingMessage)) return foundEdit;
     if (isAssistantMessage(message)) {
-      if (containsEditToolUse(normalizeContentItems(message.message?.content))) return true;
+      foundEdit ||= containsEditToolUse(normalizeContentItems(message.message?.content));
     }
   }
+  if (firstRecord > 0) return CURRENT_TURN_BOUNDARY_EXHAUSTED;
   return undefined;
 }
 
@@ -519,9 +570,41 @@ function isBackgroundTaskNotification(message: TranscriptMessage): boolean {
   return TRANSCRIPT_TURN_START_NOTIFICATION_PATTERN.test(userMessageText(message));
 }
 
+/**
+ * A user-role record made entirely of reminder markup is ambiguous unless the
+ * adjacent older record proves it belongs to an active tool exchange. Treat an
+ * unproven record as human input so quoted markup cannot erase a turn boundary.
+ */
+function isUnprovenSystemOnlyPrompt(
+  message: TranscriptMessage,
+  precedingMessage: TranscriptMessage | undefined,
+): boolean {
+  const text = userMessageText(message);
+  if (
+    text.length === 0 ||
+    !TRANSCRIPT_SYSTEM_MESSAGE_PATTERN.test(text) ||
+    humanPromptText(message).length > 0
+  ) {
+    return false;
+  }
+
+  const precedingContent = normalizeContentItems(precedingMessage?.message?.content);
+  const followsToolExchange = precedingContent.some(
+    item => item.type === 'tool_use' || item.type === 'tool_result',
+  );
+  return !followsToolExchange;
+}
+
 /** Whether this message opened the turn the transcript currently ends in. */
-function startsNewTurn(message: TranscriptMessage): boolean {
-  return isGenuineUserPrompt(message) || isBackgroundTaskNotification(message);
+function startsNewTurn(
+  message: TranscriptMessage,
+  precedingMessage: TranscriptMessage | undefined,
+): boolean {
+  return (
+    isGenuineUserPrompt(message) ||
+    isBackgroundTaskNotification(message) ||
+    isUnprovenSystemOnlyPrompt(message, precedingMessage)
+  );
 }
 
 function containsEditToolUse(content: ContentItem[]): boolean {
@@ -845,12 +928,17 @@ const recentRelevant = relevantPattern
   ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
       ?.pattern
   : undefined;
-const baseMessage = getQualityMessage(currentPhase, tddStep);
 const disqual = getDisqualificationMessage({
   pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
   recentRelevantFailure: recentRelevant,
 });
-if (!disqual && isDecisionBriefCompliant(combinedText)) {
+if (disqual) {
+  softBlock(`${getQualityMessage(currentPhase, tddStep)}\n\n${disqual}`);
+}
+const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText);
+if (decisionBriefEvaluation.compliant) {
   process.exit(0);
 }
-softBlock(disqual ? `${baseMessage}\n\n${disqual}` : baseMessage);
+softBlock(
+  renderDecisionBriefCorrection(decisionBriefEvaluation, getQualityEvidence(currentPhase, tddStep)),
+);
