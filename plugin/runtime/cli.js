@@ -58037,7 +58037,7 @@ function reviewStartFailure(error2, packetError) {
         requiresHuman: true
       }
     ] : [],
-    data: { command: "review run", status: "failed" }
+    data: { command: "review run", status: packetError ? "blocked" : "failed" }
   });
 }
 async function reviewStatusHandler(invocation) {
