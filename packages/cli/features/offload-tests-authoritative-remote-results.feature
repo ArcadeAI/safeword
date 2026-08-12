@@ -9,7 +9,9 @@ Feature: Correlate remote verification with authoritative results
     Scenario: The disposable GitHub dispatch returns its authoritative run identity
       Given a disposable real GitHub repository is configured through the public Safeword CLI with the exact managed workflow and an independent transport recorder captures the raw response bytes
       When it dispatches through GitHub API version 2026-03-10
-      Then it observes HTTP 200, parses the raw response's one canonical integer `workflow_run_id` byte-for-byte into the same exact int64 value persisted in the authenticated pending record without numeric rounding, and derives API and HTML URLs containing that exact decimal ID from the frozen canonical owner and repository rather than any response URL
+      Then it observes HTTP 200 with one canonical integer `workflow_run_id`
+      And the authenticated pending record preserves that exact int64 value without numeric rounding
+      And API and HTML URLs use that exact decimal ID with the frozen canonical repository identity
 
     @live @real-github @public-cli @surface.safeword-cli
     Scenario Outline: Live contract evidence distinguishes product incompatibility from fixture unavailability
@@ -90,7 +92,7 @@ Feature: Correlate remote verification with authoritative results
         | an extra ambiguous separator |
         | an extra field |
 
-    @rejection @public-cli @surface.safeword-cli
+    @rejection @public-cli @surface.safeword-cli @proof.pending-vitest
     Scenario: The run-identity mutation manifest covers every field-defect cell
       Given a test-owned literal field inventory contains
         | field |
@@ -126,7 +128,9 @@ Feature: Correlate remote verification with authoritative results
     Scenario: Each complete run-identity mutation fixture fails authority independently
       Given the run-identity mutation manifest passed its independent completeness check and one accepted control
       When the harness starts one isolated public-CLI process per applicable cell while all other fields remain at control values
-      Then it emits one uniquely labeled result per cell, result-label set and cardinality equal the manifest, and each result alone preserves pending recovery, rejects authority, and sends neither POST nor fallback without early-loop termination
+      Then it emits one uniquely labeled result per manifest cell
+      And each isolated result preserves pending recovery and rejects authority
+      And no result sends a POST or fallback or terminates the fixture loop early
 
     @live @real-github @public-cli
     Scenario: Interrupted correlation paginates to one exact visible run
@@ -184,11 +188,14 @@ Feature: Correlate remote verification with authoritative results
         | benign-framing |
         | legal leading and trailing JSON whitespace |
 
-    @public-cli
+    @public-cli @proof.pending-vitest
     Scenario Outline: The pinned HTTP 200 response-member allowlist is independently frozen
-      Given `packages/cli/tests/fixtures/github-dispatch-response-2026-03-10.json` is a literal manifest containing the exact typed members `workflow_run_id`, `run_url`, and `html_url` plus 26 stable fixture IDs: one control, three omissions, one `unexpected`-member addition, six equal-or-unequal member duplications, and fifteen replacements of each member by each other JSON type
+      Given the pinned response manifest defines `workflow_run_id`, `run_url`, and `html_url`
+      And it defines 26 stable fixtures covering control, omission, addition, duplication, and JSON-type replacement
       When an independent raw-token enumerator that imports no production allowlist compares production acceptance with <manifest-mutation>
-      Then expected fixture ID set and cardinality equal generated and executed result sets and cardinalities, only the control is accepted, every member remains unique and correctly typed, and both response URLs are ignored in favor of URLs derived from frozen canonical identity and the exact run ID
+      Then generated and executed fixture IDs exactly equal the manifest
+      And only the unique correctly typed control is accepted
+      And response URLs are ignored in favor of URLs derived from frozen identity and exact run ID
       Examples:
         | manifest-mutation |
         | the unchanged literal manifest |

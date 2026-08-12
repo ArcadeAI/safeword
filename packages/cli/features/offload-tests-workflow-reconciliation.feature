@@ -8,7 +8,9 @@ Feature: Reconcile managed verification workflows safely
     Scenario: An unchanged managed workflow upgrades transactionally
       Given byte-recorded live workflow, identity and installed configuration exactly match the old installed base and independently recorded bundled bytes define the new identity
       When `safeword setup` reconciles the newer managed workflow while a filesystem recorder observes every write, fsync, rename, unlink and directory fsync
-      Then setup exits zero, the recorder shows the required journaled event order, all three live members exactly match the new bundled set, no staged or journal artifact remains, and a second `safeword setup` exits zero without filesystem mutation
+      Then setup exits zero and the recorder shows the required journaled event order
+      And all three live members exactly match the new bundled set with no staged or journal artifact
+      And a second `safeword setup` exits zero without filesystem mutation
 
     @public-cli @surface.safeword-cli
     Scenario Outline: Every reconciliation transaction follows one durable event order
@@ -21,7 +23,7 @@ Feature: Reconcile managed verification workflows safely
         | upgrade from one exact installed set to another | staged new-member writes and fsyncs; journal publication and directory fsync; live renames and directory fsyncs; exact three-member verification; journal unlink and final directory fsync |
         | disable from an exact installed set to absent members | journal publication containing exact deletion intent and directory fsync with no staged tombstone files; live unlinks and directory fsyncs; exact three-member absence verification; journal unlink and final directory fsync |
 
-    @rejection @public-cli @surface.safeword-cli
+    @rejection @public-cli @surface.safeword-cli @proof.pending-vitest
     Scenario: The reconciliation failure manifest covers every production durability site
       Given an independent syscall interceptor enumerates every production write, fsync, rename, unlink and cleanup site
       And a literal failure-class inventory contains EACCES, ENOSPC, EIO, short-write, interruption-before-call and interruption-after-success, with a fixed applicability or impossibility reason for every operation-class cell
@@ -32,13 +34,16 @@ Feature: Reconcile managed verification workflows safely
     Scenario: Each reconciliation syscall failure recovers from its observed state
       Given the reconciliation failure manifest passed completeness and one labeled cell is selected
       When the harness injects only that cell's failure and then retries without the fault
-      Then a uniquely labeled isolated result records actually observable live, staged and journal bytes without predicting un-fsynced durability, restart reaches one complete result, and aggregate result-label set and cardinality equal the complete manifest without early-loop termination
+      Then each isolated result records observable live, staged, and journal bytes without predicting durability
+      And restart reaches one complete result for every manifest label without early termination
 
     @rejection @public-cli @surface.safeword-cli
     Scenario Outline: Reconciliation paths reject hostile objects and replacement races
       Given each workflow, identity, configuration, journal and staged path is independently subjected to <hostile-path-state>
       When the public CLI reconciles while a recorder watches opened object and parent identities
-      Then reconciliation follows no link, writes only through verified parent handles, trusts no substituted bytes, performs no unjournaled mutation, retains any durable journal after late divergence, and restart either completes the classified journal state or reports conflict without further live mutation
+      Then reconciliation follows no link and writes only through verified parent handles
+      And it trusts no substituted bytes and performs no unjournaled mutation
+      And restart completes the classified durable journal state or reports conflict without further mutation
       Examples:
         | hostile-path-state |
         | a symlink or Windows reparse point at the leaf |

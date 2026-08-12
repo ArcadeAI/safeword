@@ -46,7 +46,9 @@ Feature: Fall back locally for ineligible remote requests
 
     @public-cli @surface.safeword-cli
     Scenario Outline: One exact raw rejection response authorizes fallback
-      Given direct canonical TLS returns status <status>, one case-insensitive `X-GitHub-Request-Id` header whose trimmed value matches `[A-Za-z0-9:-]{1,256}`, `Content-Type: application/json`, and a body of at most 65536 bytes with required nonempty string `message`, optional opaque string `documentation_url`, and optional canonical ASCII `status` equal to <status>
+      Given direct canonical TLS returns status <status> with one canonical GitHub request ID
+      And the response is JSON no larger than 65536 bytes with a nonempty `message`
+      And optional `documentation_url` is opaque and optional canonical `status` equals <status>
       When the public CLI raw-token parser parses that valid control response
       Then it classifies one conclusive rejection, closes pending dispatch recovery, and invokes the selected lane locally once
       Examples:

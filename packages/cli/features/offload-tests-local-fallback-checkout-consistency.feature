@@ -6,7 +6,9 @@ Feature: Prove local fallback checkout consistency
   Rule: offload-tests.TBU1.R13 — Local fallback identifies its checkout state at both command-invocation boundaries and refuses evidence when those states differ
 
     Scenario Outline: Matching endpoint fingerprints qualify the raw local result
-      Given an independent recorder enumerates the exact HEAD and Git-visible record bytes at both invocation boundaries, computes the reference SHA-256 including every domain tag and length prefix, and both complete record sets and expected digests are byte-identical
+      Given an independent recorder captures exact HEAD and Git-visible record bytes at both invocation boundaries
+      And it computes each reference SHA-256 with every domain tag and length prefix
+      And both complete record sets and expected digests are byte-identical
       When the real local plan exits <exit>
       Then both production fingerprint bytes equal the independently computed digest, Safeword reports <result> for that exact HEAD and record set, and names every unmeasured evidence limitation
       Examples:

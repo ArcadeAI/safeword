@@ -52,6 +52,19 @@ const DUPLICATE_NAME_FEATURE = [
   '',
 ].join('\n');
 
+const UNCLASSIFIED_OFFLOAD_FEATURE = [
+  'Feature: Remote execution',
+  '',
+  '  @offload-tests.TBU1.R1',
+  '  Rule: offload-tests.TBU1.R1 — Remote execution is explicit',
+  '',
+  '    Scenario: Remote execution starts',
+  '      Given remote execution is available',
+  '      When the builder starts verification',
+  '      Then the request is dispatched',
+  '',
+].join('\n');
+
 describe('codify finds a feature source in a configured directory (TB2.AC1)', () => {
   let directory: string;
 
@@ -127,6 +140,35 @@ describe('an unparseable config file falls back to default discovery (TB2.AC3)',
       const output = `${result.stdout}\n${result.stderr}`;
       expect(output).toContain('features/default-dir.feature');
       expect(output).toContain('no-trailing-spaces');
+    },
+    TIMEOUT_QUICK,
+  );
+});
+
+describe('offload specifications declare when they enter executable coverage', () => {
+  let directory: string;
+
+  beforeAll(() => {
+    directory = createTemporaryDirectory();
+    writeTestFile(
+      directory,
+      'features/offload-tests-remote-execution.feature',
+      UNCLASSIFIED_OFFLOAD_FEATURE,
+    );
+  });
+
+  afterAll(() => {
+    removeTemporaryDirectory(directory);
+  });
+
+  it(
+    'rejects an offload Rule that silently leaves work in progress',
+    async () => {
+      const result = await runCli(['project', 'lint-gherkin'], { cwd: directory });
+      expect(result.exitCode).toBe(1);
+      const output = `${result.stdout}\n${result.stderr}`;
+      expect(output).toContain('[offload-executable-proof]');
+      expect(output).toContain('@proof.cucumber');
     },
     TIMEOUT_QUICK,
   );

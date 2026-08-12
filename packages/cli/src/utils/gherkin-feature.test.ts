@@ -147,6 +147,61 @@ describe('parseFeatureAcReferences', () => {
 });
 
 describe('findGherkinLintIssues', () => {
+  it('requires an explicit executable proof when an offload Rule leaves work in progress', () => {
+    const source = `Feature: Remote execution
+
+  @offload-tests.TBU1.R1
+  Rule: offload-tests.TBU1.R1 — Remote execution is explicit
+
+    Scenario: Remote execution starts
+      Given remote execution is available
+      When the builder starts verification
+      Then the request is dispatched
+`;
+
+    expect(findGherkinLintIssues(source)).toContainEqual({
+      line: 4,
+      message:
+        'An offload Rule that leaves @wip must declare @proof.cucumber so executable coverage is explicit.',
+      rule: 'offload-executable-proof',
+    });
+  });
+
+  it('accepts an offload Rule that remains work in progress at Rule scope', () => {
+    const source = `Feature: Remote execution
+
+  @wip @offload-tests.TBU1.R1
+  Rule: offload-tests.TBU1.R1 — Remote execution is explicit
+
+    Scenario: Remote execution starts
+      Given remote execution is available
+      When the builder starts verification
+      Then the request is dispatched
+`;
+
+    expect(findGherkinLintIssues(source)).not.toContainEqual(
+      expect.objectContaining({ rule: 'offload-executable-proof' }),
+    );
+  });
+
+  it('accepts an offload Rule that explicitly enters the Cucumber proof lane', () => {
+    const source = `@proof.cucumber
+Feature: Remote execution
+
+  @offload-tests.TBU1.R1
+  Rule: offload-tests.TBU1.R1 — Remote execution is explicit
+
+    Scenario: Remote execution starts
+      Given remote execution is available
+      When the builder starts verification
+      Then the request is dispatched
+`;
+
+    expect(findGherkinLintIssues(source)).not.toContainEqual(
+      expect.objectContaining({ rule: 'offload-executable-proof' }),
+    );
+  });
+
   it('gherkin-linting.TB1.AC1.flags_parser_and_style_errors_without_legacy_dependency', () => {
     const issues = findGherkinLintIssues(
       ['Feature: Broken', '  Scenario: bad ', '    Given ok', '    nope'].join('\n'),

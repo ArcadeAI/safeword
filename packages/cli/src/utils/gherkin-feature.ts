@@ -326,7 +326,10 @@ function findDocumentLintIssues(feature: Feature): GherkinLintIssue[] {
   if (feature.name.trim() === '') {
     issues.push(issue('no-unnamed-features', 'Feature must have a name.', feature.location.line));
   }
-  issues.push(...findDuplicateTagIssues(feature.tags, 'Feature'));
+  issues.push(
+    ...findDuplicateTagIssues(feature.tags, 'Feature'),
+    ...findOffloadExecutableProofIssues(feature),
+  );
 
   const scenarios: Scenario[] = [];
   for (const child of feature.children) {
@@ -349,6 +352,29 @@ function findDocumentLintIssues(feature: Feature): GherkinLintIssue[] {
   }
   issues.push(...findScenarioLintIssues(scenarios));
   return issues;
+}
+
+function findOffloadExecutableProofIssues(feature: Feature): GherkinLintIssue[] {
+  const featureTags = new Set(feature.tags.map(tag => tag.name));
+  return feature.children.flatMap(child => {
+    const rule = child.rule;
+    const isOffloadRule =
+      rule?.tags.some(tag => /^@offload-tests\.(?:TBU1|NTB1)\.R\d+$/u.test(tag.name)) === true;
+    if (!isOffloadRule) {
+      return [];
+    }
+
+    const effectiveTags = new Set([...featureTags, ...rule.tags.map(tag => tag.name)]);
+    if (effectiveTags.has('@wip') || effectiveTags.has('@proof.cucumber')) return [];
+
+    return [
+      issue(
+        'offload-executable-proof',
+        'An offload Rule that leaves @wip must declare @proof.cucumber so executable coverage is explicit.',
+        rule.location.line,
+      ),
+    ];
+  });
 }
 
 function findScenarioLintIssues(scenarios: readonly Scenario[]): GherkinLintIssue[] {
