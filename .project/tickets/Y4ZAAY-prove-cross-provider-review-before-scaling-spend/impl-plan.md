@@ -65,7 +65,7 @@ Recommend **the separate OpenAI `AgentRunner` plus shared provider-turn observer
 
 **Premortem:** Assume this design failed after the canary—the most likely cause is a changed OpenAI field replacing a price-affecting documented field, so the parser requires the documented fields, retains harmless additions, rejects contradictory component totals, and records the exact raw envelope for audit.
 
-**Next:** add the credential-separated launcher and clean-checkout/tag preflight with both GitHub and OpenAI boundaries faked. It must keep the GitHub credential in the parent, pass only the OpenAI credential to the paid child, disable automatic retries, and refuse dirty or incorrectly pinned checkouts before loading either secret.
+**Next:** wire the pinned adapter's real child command and the GitHub upstream into one no-cost entrypoint, with OpenAI and GitHub HTTP still faked and secret loaders returning fixtures. Then run the complete no-cost preflight from fresh clones before creating the annotated adapter and harness evidence tags; do not load real secrets or create the permanent authorization comment before that is green.
 
 ## Design alignment
 
