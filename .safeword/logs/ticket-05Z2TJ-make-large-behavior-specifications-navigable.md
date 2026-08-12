@@ -4,6 +4,10 @@
 
 ## Session: 2026-08-11
 
+- [00:11] GREEN: shared-resolver and immutable-baseline improvements pass 8/8 focused Vitest checks, ESLint, Prettier, typecheck, and Gherkin lint. The first queued run waited 20 minutes without starting; the retry acquired the serialized slot and passed.
+- [23:47] Quality-review fix: compare the split corpus directly with the immutable pre-refactor Git object at `1f8056ed8` plus an exact feature-header shape. Canonical Rule comparison normalizes line endings and outer whitespace while pinning wording, descriptions, tags, proof references, scenario/Examples source, and expanded executable semantics.
+- [23:43] Audit hardening: reviewed high-water exceptions now fail if their path is stale or their rationale is empty; documented why 1,000 lines is deliberately above the current sub-500-line cohesive corpus.
+- [23:40] Refactor review: replaced duplicate default-directory traversal in the new guard with `collectExecutableFeatureFiles`, so custom configured feature lanes receive the same high-water policy.
 - [23:36] GREEN: Gherkin lint, 2/2 focused Vitest checks, focused ESLint, and `tsc --noEmit` pass.
 - [23:35] Improved: focused ESLint rejected broad Gherkin regexes and implicit sorting in the new test; replaced them with exact line predicates and locale comparators.
 - [23:34] Fixed: Gherkin lint found one extraction-only extra blank line at EOF in each split file; removed those 16 blank lines without changing the semantic inventory.

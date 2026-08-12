@@ -5,7 +5,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-08-11T23:26:44.983Z
-last_modified: 2026-08-11T23:33:00Z
+last_modified: 2026-08-12T00:11:47Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/2583
 ---
 
@@ -36,6 +36,7 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/2583
 
 ## Work Log
 
+- 2026-08-12T00:11:47Z Improved: Refactor and quality-review findings aligned feature discovery with the shared resolver and made preservation independently reproducible from immutable pre-split commit `1f8056ed8`; 8/8 focused tests pass.
 - 2026-08-11T23:36:00Z Green: Gherkin lint, the two-test preservation/maintainability contract, focused ESLint, and TypeScript typecheck pass.
 - 2026-08-11T23:33:00Z Implemented: Split the monolith into 16 intact Rule-aligned feature files and encoded the unchanged semantic inventory in an automated regression contract.
 - 2026-08-11T23:27:21Z Planned: Amended GitHub #2583 with exact counts and preservation safeguards; isolated work on `codex/2583-navigable-bdd-specs` from current `origin/main`.
