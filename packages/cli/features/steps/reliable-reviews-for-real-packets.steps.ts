@@ -567,11 +567,17 @@ Then('the assigned reviewer route is reported as timed out', function (this: Saf
 
 Then("the review returns the second executable's verdict", function (this: SafewordWorld) {
   assertApprovedCodexVerdict(this);
-  assert.deepEqual(
-    reviewerLaunches(this).map(launch => launch.split('\t', 1)[0]),
-    ['stale', 'working'],
-  );
 });
+
+Then(
+  'the stale executable was tried before the working executable',
+  function (this: SafewordWorld) {
+    assert.deepEqual(
+      reviewerLaunches(this).map(launch => launch.split('\t', 1)[0]),
+      ['stale', 'working'],
+    );
+  },
+);
 
 Then(
   'no process grouped with that reviewer is still running afterwards',
