@@ -120,6 +120,30 @@ function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log:
 }
 
 describe('cross-agent review public-command wiring', () => {
+  it.each(['status', 'cancel'] as const)(
+    'returns a typed JSON failure for review %s through the public CLI',
+    async command => {
+      const directory = createTemporaryDirectory();
+
+      const result = await runCli([
+        'review',
+        command,
+        'not-a-uuid',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
+        data: { command: 'review status' },
+      });
+    },
+  );
+
   it('marks supporting context separately from review targets through the public CLI', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');

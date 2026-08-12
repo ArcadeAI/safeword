@@ -614,6 +614,10 @@ async function runCandidate(
     // Its own process group, so cleanup can reach descendants.
     detached: process.platform !== 'win32',
   });
+  const terminateReviewer = (): void => {
+    void stopReviewer(child).finally(() => process.exit(143));
+  };
+  process.once('SIGTERM', terminateReviewer);
   try {
     const output = await new Promise<UnverifiedReviewerOutput>((resolve, reject) => {
       let overflow = false;
@@ -708,6 +712,8 @@ async function runCandidate(
     // checks, packet cleanup, or a later candidate.
     await stopReviewerOrThrow(child, reviewer);
     throw error;
+  } finally {
+    process.off('SIGTERM', terminateReviewer);
   }
 }
 

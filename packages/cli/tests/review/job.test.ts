@@ -201,13 +201,14 @@ describe('durable review jobs', () => {
   it('binds detached reviews to their bounded context files', async () => {
     const cwd = project();
     writeFileSync(nodePath.join(cwd, 'context.md'), 'review context\n');
+    writeFileSync(nodePath.join(cwd, 'other context.md'), 'more review context\n');
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
     vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
     const pending = await startReviewJob({
       cwd,
       kind: 'quality-review',
       targets: ['input.md'],
-      context: ['context.md'],
+      context: ['context.md', 'other context.md'],
     });
     const id = (pending.data as { review_id: string }).review_id;
     const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
@@ -221,7 +222,8 @@ describe('durable review jobs', () => {
 
     expect(result.findings[0]?.code).toBe('REVIEW_STALE');
     expect(result.nextActions[0]).toMatchObject({
-      command: expect.stringContaining('--context context.md'),
+      command:
+        "safeword review run quality-review --context context.md --context 'other context.md' -- input.md",
     });
   });
 

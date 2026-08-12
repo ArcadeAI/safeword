@@ -8,6 +8,7 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -89,8 +90,10 @@ function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
   while (descriptor === undefined) {
     try {
       descriptor = openSync(lock, 'wx', 0o600);
+      writeFileSync(descriptor, String(process.pid));
     } catch (error) {
       if (!isFileExistsError(error) || Date.now() >= deadline) throw error;
+      recoverStaleLock(lock);
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
     }
   }
@@ -99,6 +102,17 @@ function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
   } finally {
     closeSync(descriptor);
     unlinkSync(lock);
+  }
+}
+
+function recoverStaleLock(lock: string): void {
+  try {
+    const owner = Number(readFileSync(lock, 'utf8'));
+    const invalidOwnerIsOld =
+      !isProcessId(owner) && Date.now() - statSync(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
+    if ((isProcessId(owner) && !processExists(owner)) || invalidOwnerIsOld) unlinkSync(lock);
+  } catch {
+    // Another process may have released or replaced the lock while inspecting it.
   }
 }
 
@@ -424,7 +438,7 @@ export async function startReviewJob(input: {
     if (latest.state !== 'running') return currentResult(input.cwd, latest);
     await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
   }
-  return pendingResult(readJob(input.cwd, id));
+  return currentResult(input.cwd, readJob(input.cwd, id));
 }
 
 export function completeReviewJob(cwd: string, id: string, result: CliResult): void {
@@ -448,8 +462,11 @@ function latestJobId(cwd: string): string | undefined {
         return [];
       }
     })
-    .toSorted((left, right) => right.record.started_at.localeCompare(left.record.started_at))[0]
-    ?.record.id;
+    .toSorted((left, right) =>
+      right.record.started_at < left.record.started_at
+        ? -1
+        : Number(right.record.started_at > left.record.started_at),
+    )[0]?.record.id;
 }
 
 function runningJob(
@@ -519,8 +536,8 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
       state: 'action_required',
       findings: [
         {
-          code: 'REVIEW_SOURCE_UNAVAILABLE',
-          message: 'The review exists, but its source files cannot be read to validate freshness.',
+          code: 'REVIEW_STATUS_FAILED',
+          message: 'The review exists, but its current status could not be validated or saved.',
           severity: 'warning',
         },
       ],

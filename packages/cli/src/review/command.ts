@@ -6,6 +6,10 @@ function shellQuote(value: string): string {
   return `'${escaped}'`;
 }
 
+function contextArgument(target: string): string {
+  return `--context ${shellQuote(target)}`;
+}
+
 export function retryCommand(
   kind: ReviewKind,
   targets: readonly string[],
@@ -15,6 +19,6 @@ export function retryCommand(
   // the command as a target rather than as a flag.
   const quoted = targets.map(target => shellQuote(target)).join(' ');
   const contextOption =
-    context.length === 0 ? '' : ` --context ${context.map(target => shellQuote(target)).join(' ')}`;
+    context.length === 0 ? '' : ` ${context.map(target => contextArgument(target)).join(' ')}`;
   return `safeword review run ${kind}${contextOption} -- ${quoted}`;
 }

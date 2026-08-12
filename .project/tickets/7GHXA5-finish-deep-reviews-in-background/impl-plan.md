@@ -35,6 +35,7 @@ Persist records beneath `.safeword/state/reviews/` using atomic replacement. The
 ## Known deviations
 
 - Automatic host notification is deferred because the standalone CLI has no portable callback into an exited agent task. Durable collection is the honest first boundary.
+- Job records are integrity-checked against the reviewed source but are not authenticated against a malicious process that can rewrite the worktree. They are workflow evidence, not a security boundary; moving state to a host-owned location or signing records is deferred until Safeword has a portable per-user state contract across local and remote hosts.
 
 ## Assessment triggers
 
