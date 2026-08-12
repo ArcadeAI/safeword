@@ -46,6 +46,10 @@ const VITEST_PROVEN_FEATURES = [
     'packages/cli/tests/integration/bash-ledger-write-gate.test.ts',
   ],
   [
+    'features/closeout-preview-apply-convergence.feature',
+    'packages/cli/tests/closeout-cleanup.test.ts',
+  ],
+  [
     'features/feature-ticket-readiness.feature',
     'packages/cli/tests/hooks/feature-ticket-readiness.test.ts',
   ],
@@ -76,6 +80,23 @@ const VITEST_PROVEN_FEATURES = [
     'packages/cli/tests/integration/whole-ticket-quality-refactor.test.ts',
   ],
 ] as const;
+
+interface ScenarioProofManifest {
+  feature: string;
+  scenarios: Record<string, [string, string]>;
+}
+
+function scenarioNames(featurePath: string): string[] {
+  return readFileSync(nodePath.join(REPO_ROOT, featurePath), 'utf8')
+    .split('\n')
+    .flatMap(line => {
+      const trimmed = line.trim();
+      let prefix: string | undefined;
+      if (trimmed.startsWith('Scenario Outline: ')) prefix = 'Scenario Outline: ';
+      else if (trimmed.startsWith('Scenario: ')) prefix = 'Scenario: ';
+      return prefix ? [trimmed.slice(prefix.length)] : [];
+    });
+}
 
 describe('BDD proof provenance', () => {
   it('keeps the proof manifest complete', () => {
@@ -123,5 +144,21 @@ describe('BDD proof provenance', () => {
     );
 
     expect(result.status, result.stderr || result.stdout).toBe(0);
+  });
+
+  it('maps every closeout convergence scenario to a named executable proof', () => {
+    const manifestPath = nodePath.join(
+      REPO_ROOT,
+      '.project/tickets/TFG4CR-closeout-preview-apply-convergence/bdd-proof.json',
+    );
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ScenarioProofManifest;
+    expect(
+      Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
+
+    for (const [scenario, [proofPath, testName]] of Object.entries(manifest.scenarios)) {
+      const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
+      expect(proof, `${scenario} -> ${proofPath} must name ${testName}`).toContain(testName);
+    }
   });
 });
