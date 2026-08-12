@@ -9,6 +9,7 @@ import {
   readdirSync,
   realpathSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -49,6 +50,10 @@ export interface WorktreeIdentity {
   dirty?: boolean;
   locked?: boolean;
   prunable?: boolean;
+  realPath?: string;
+  device?: number;
+  inode?: number;
+  gitDirectory?: string;
 }
 
 export interface CloseoutObservation {
@@ -71,7 +76,17 @@ export interface CloseoutObservation {
 }
 
 export type CleanupOperation =
-  | { kind: 'remove-worktree'; cwd: string; path: string; oid: string }
+  | {
+      kind: 'remove-worktree';
+      cwd: string;
+      path: string;
+      oid: string;
+      branch: string;
+      realPath?: string;
+      device?: number;
+      inode?: number;
+      gitDirectory?: string;
+    }
   | {
       kind: 'delete-remote-ref';
       cwd: string;
@@ -177,6 +192,11 @@ function collectWorktreeBlockers(
   if (defaultBranchWorktrees.length !== 1) {
     block(plan, 'exactly one surviving default-branch worktree is required');
   }
+  const survivor = defaultBranchWorktrees[0];
+  if (survivor?.dirty) block(plan, `the surviving worktree is dirty: ${survivor.path}`);
+  if (survivor?.locked) block(plan, `the surviving worktree is locked: ${survivor.path}`);
+  if (survivor?.prunable)
+    block(plan, `the surviving worktree registration is stale: ${survivor.path}`);
   if (topicWorktrees.length > 1) block(plan, 'the linked topic worktree is ambiguous');
   const worktree = topicWorktrees[0];
   if (worktree && nodePath.resolve(worktree.path) !== nodePath.resolve(deliveryWorktreePath)) {
@@ -204,6 +224,11 @@ function assembleOperations(
       cwd: survivingWorktree.path,
       path: worktree.path,
       oid: pullRequest.headRefOid,
+      branch: pullRequest.headRefName,
+      realPath: worktree.realPath,
+      device: worktree.device,
+      inode: worktree.inode,
+      gitDirectory: worktree.gitDirectory,
     });
   } else {
     plan.completed.push('worktree');
@@ -475,23 +500,117 @@ function run(
 
 type ProcessRunner = (command: string, arguments_: string[], cwd: string) => ProcessResult;
 
+type PathIdentity = Pick<WorktreeIdentity, 'realPath' | 'device' | 'inode'>;
+
+function inspectPathIdentity(path: string): PathIdentity | undefined {
+  try {
+    const stat = statSync(path);
+    return { realPath: realpathSync(path), device: stat.dev, inode: stat.ino };
+  } catch {
+    return undefined;
+  }
+}
+
+function registryEntryMatches(
+  operation: Extract<CleanupOperation, { kind: 'remove-worktree' }>,
+  output: string,
+  expectedPath = operation.path,
+): boolean {
+  const matches = parseWorktreePorcelain(output).filter(
+    candidate => candidate.path === expectedPath,
+  );
+  const candidate = matches[0];
+  return (
+    matches.length === 1 &&
+    candidate?.branch === operation.branch &&
+    candidate.oid === operation.oid &&
+    !candidate.main &&
+    !candidate.locked &&
+    !candidate.prunable
+  );
+}
+
 export function executeCleanupOperation(
   operation: CleanupOperation,
   runner: ProcessRunner = run,
+  inspectIdentity: (path: string) => PathIdentity | undefined = inspectPathIdentity,
 ): ProcessResult {
   if (operation.kind === 'remove-worktree') {
-    const head = runner('git', ['-C', operation.path, 'rev-parse', 'HEAD'], operation.cwd);
+    const registry = runner(
+      'git',
+      ['-C', operation.cwd, 'worktree', 'list', '--porcelain', '-z'],
+      operation.cwd,
+    );
+    if (registry.status !== 0 || !registryEntryMatches(operation, registry.stdout)) {
+      return { status: 1, stdout: '', stderr: 'worktree registration changed before removal' };
+    }
+    const quarantinePath = nodePath.join(
+      nodePath.dirname(operation.path),
+      `.${nodePath.basename(operation.path)}.safeword-closeout-${randomUUID()}`,
+    );
+    const moved = runner(
+      'git',
+      ['-C', operation.cwd, 'worktree', 'move', operation.path, quarantinePath],
+      operation.cwd,
+    );
+    if (moved.status !== 0) {
+      return { status: 1, stdout: '', stderr: 'worktree could not be quarantined before removal' };
+    }
+    const blockedAfterQuarantine = (message: string): ProcessResult => {
+      const restored = runner(
+        'git',
+        ['-C', operation.cwd, 'worktree', 'move', quarantinePath, operation.path],
+        operation.cwd,
+      );
+      return {
+        status: 1,
+        stdout: '',
+        stderr:
+          restored.status === 0
+            ? message
+            : `${message}; worktree restoration failed: ${restored.stderr.trim() || 'unknown error'}`,
+      };
+    };
+    const identity = inspectIdentity(quarantinePath);
+    if (!identity || identity.device !== operation.device || identity.inode !== operation.inode) {
+      return blockedAfterQuarantine('worktree filesystem identity changed before removal');
+    }
+    const quarantinedRegistry = runner(
+      'git',
+      ['-C', operation.cwd, 'worktree', 'list', '--porcelain', '-z'],
+      operation.cwd,
+    );
+    if (
+      quarantinedRegistry.status !== 0 ||
+      !registryEntryMatches(operation, quarantinedRegistry.stdout, quarantinePath)
+    ) {
+      return blockedAfterQuarantine('quarantined worktree registration changed');
+    }
+    const gitDirectory = runner(
+      'git',
+      ['-C', quarantinePath, 'rev-parse', '--absolute-git-dir'],
+      operation.cwd,
+    );
+    if (gitDirectory.status !== 0 || gitDirectory.stdout.trim() !== operation.gitDirectory) {
+      return blockedAfterQuarantine('worktree git identity changed before removal');
+    }
+    const head = runner('git', ['-C', quarantinePath, 'rev-parse', 'HEAD'], operation.cwd);
     if (head.status !== 0 || head.stdout.trim() !== operation.oid) {
-      return { status: 1, stdout: '', stderr: 'worktree HEAD changed before removal' };
+      return blockedAfterQuarantine('worktree HEAD changed before removal');
     }
     const status = runner(
       'git',
-      ['-C', operation.path, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
+      ['-C', quarantinePath, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
       operation.cwd,
     );
     if (status.status !== 0 || status.stdout !== '') {
-      return { status: 1, stdout: '', stderr: 'worktree became dirty before removal' };
+      return blockedAfterQuarantine('worktree became dirty before removal');
     }
+    return runner(
+      'git',
+      ['-C', operation.cwd, 'worktree', 'remove', quarantinePath],
+      operation.cwd,
+    );
   }
   const [command, ...arguments_] = operationCommand(operation);
   if (!command) return { status: 1, stdout: '', stderr: 'cleanup command is empty' };
@@ -941,11 +1060,7 @@ function passedVerification(
   return { current: true, passed, headOid, stateHash };
 }
 
-function runVerification(
-  root: string,
-  expectedOid: string,
-  ciChecks: PullRequestIdentity['ciChecks'],
-): CloseoutObservation['verification'] {
+function runVerification(root: string, expectedOid: string): CloseoutObservation['verification'] {
   const observedHead = git(root, 'rev-parse', 'HEAD').stdout.trim();
   const observedStateHash = workingStateHash(root, observedHead);
   if (!observedStateHash) {
@@ -965,9 +1080,6 @@ function runVerification(
       headOid: receipt.headOid,
       stateHash: receipt.stateHash,
     };
-  }
-  if (observedHead === expectedOid && observedStateHash === cleanWorkingStateHash(expectedOid)) {
-    if (ciChecks === 'passed') return passedVerification(root, observedHead, observedStateHash);
   }
   if (observedHead !== expectedOid) {
     return receipt
@@ -1194,10 +1306,8 @@ export function resolveRemoteRef(
   return oid ? { resolution: 'matched', oid } : { resolution: 'absent' };
 }
 
-export function parseWorktrees(root: string): WorktreeIdentity[] {
-  const records = git(root, 'worktree', 'list', '--porcelain', '-z')
-    .stdout.split('\0\0')
-    .filter(record => record !== '');
+function parseWorktreePorcelain(output: string): WorktreeIdentity[] {
+  const records = output.split('\0\0').filter(record => record !== '');
   return records.flatMap((record, index) => {
     const fields = new Map(
       record.split('\0').map(field => {
@@ -1209,19 +1319,33 @@ export function parseWorktrees(root: string): WorktreeIdentity[] {
     const oid = fields.get('HEAD');
     const branchRef = fields.get('branch');
     if (!path || !oid) return [];
-    const status = git(path, 'status', '--porcelain=v1');
     return [
       {
         path,
         oid,
         branch: branchRef?.startsWith('refs/heads/') ? branchRef.slice('refs/heads/'.length) : '',
         main: index === 0,
-        dirty: status.status !== 0 || status.stdout.trim() !== '',
         locked: fields.has('locked'),
         prunable: fields.has('prunable'),
       },
     ];
   });
+}
+
+export function parseWorktrees(root: string): WorktreeIdentity[] {
+  return parseWorktreePorcelain(git(root, 'worktree', 'list', '--porcelain', '-z').stdout).map(
+    worktree => {
+      const status = git(worktree.path, 'status', '--porcelain=v1');
+      const pathIdentity = inspectPathIdentity(worktree.path);
+      const gitDirectory = git(worktree.path, 'rev-parse', '--absolute-git-dir');
+      return {
+        ...worktree,
+        ...pathIdentity,
+        gitDirectory: gitDirectory.status === 0 ? gitDirectory.stdout.trim() : undefined,
+        dirty: status.status !== 0 || status.stdout.trim() !== '',
+      };
+    },
+  );
 }
 
 function observeProtection(
@@ -1324,7 +1448,7 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
     defaultBranch,
     protection: observeCurrentProtection(root, identity, mutableTargets.remoteResolution),
     deliveryWorktreePath: nodePath.resolve(root),
-    verification: runVerification(root, expectedOid, identity?.ciChecks ?? 'unknown'),
+    verification: runVerification(root, expectedOid),
     retro: retroForMergedPullRequest(root, binding, mutableTargets.pullRequests),
   };
 }

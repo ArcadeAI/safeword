@@ -83,12 +83,25 @@ function safeObservation(overrides: Partial<CloseoutObservation> = {}): Closeout
     protection: 'unprotected',
     deliveryWorktreePath: '/repo-closeout',
     worktrees: [
-      { path: '/repo', branch: 'main', oid: 'b'.repeat(40), main: true },
+      {
+        path: '/repo',
+        branch: 'main',
+        oid: 'b'.repeat(40),
+        main: true,
+        realPath: '/repo',
+        device: 1,
+        inode: 1,
+        gitDirectory: '/repo/.git',
+      },
       {
         path: '/repo-closeout',
         branch: 'feature/closeout',
         oid: 'a'.repeat(40),
         main: false,
+        realPath: '/repo-closeout',
+        device: 1,
+        inode: 2,
+        gitDirectory: '/repo/.git/worktrees/repo-closeout',
       },
     ],
     verification: { current: true, passed: true, headOid: 'a'.repeat(40), stateHash: 'clean' },
@@ -867,6 +880,21 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'exactly one surviving default-branch worktree is required',
     ],
     [
+      'dirty surviving worktree',
+      { worktrees: [{ ...worktree(0), dirty: true }, worktree(1)] },
+      'the surviving worktree is dirty: /repo',
+    ],
+    [
+      'locked surviving worktree',
+      { worktrees: [{ ...worktree(0), locked: true }, worktree(1)] },
+      'the surviving worktree is locked: /repo',
+    ],
+    [
+      'stale surviving worktree registration',
+      { worktrees: [{ ...worktree(0), prunable: true }, worktree(1)] },
+      'the surviving worktree registration is stale: /repo',
+    ],
+    [
       'stale verification',
       { verification: { ...safeObservation().verification, current: false } },
       'local verification is stale',
@@ -1191,17 +1219,111 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       throw new Error('fixture worktree operation missing');
     const calls: string[][] = [];
 
-    const result = executeCleanupOperation(operation, (_command, arguments_) => {
-      calls.push(arguments_);
-      return { status: 0, stdout: `${'c'.repeat(40)}\n`, stderr: '' };
-    });
+    let currentPath = operation.path;
+    const registry = () =>
+      [
+        `worktree /repo\0HEAD ${'b'.repeat(40)}\0branch refs/heads/main\0`,
+        `worktree ${currentPath}\0HEAD ${'a'.repeat(40)}\0branch refs/heads/feature/closeout\0`,
+        '',
+      ].join('\0');
+    const result = executeCleanupOperation(
+      operation,
+      (_command, arguments_) => {
+        calls.push(arguments_);
+        if (arguments_.includes('list')) return { status: 0, stdout: registry(), stderr: '' };
+        if (arguments_[3] === 'move') {
+          currentPath = arguments_[5] ?? currentPath;
+          return { status: 0, stdout: '', stderr: '' };
+        }
+        if (arguments_.includes('--absolute-git-dir')) {
+          return { status: 0, stdout: `${operation.gitDirectory}\n`, stderr: '' };
+        }
+        return { status: 0, stdout: `${'c'.repeat(40)}\n`, stderr: '' };
+      },
+      path => ({ realPath: path, device: operation.device, inode: operation.inode }),
+    );
 
     expect(result).toEqual({
       status: 1,
       stdout: '',
       stderr: 'worktree HEAD changed before removal',
     });
-    expect(calls).toEqual([['-C', '/repo-closeout', 'rev-parse', 'HEAD']]);
+    expect(calls.some(call => call.slice(-2).join(' ') === 'rev-parse HEAD')).toBe(true);
+    expect(currentPath).toBe(operation.path);
+  });
+
+  it('reports an explicit recovery failure when a quarantined worktree cannot be restored', () => {
+    const operation = buildCleanupPlan(safeObservation()).operations[0];
+    if (operation?.kind !== 'remove-worktree') throw new Error('fixture operation missing');
+    let currentPath = operation.path;
+    let moveCount = 0;
+    const registry = () =>
+      [
+        `worktree /repo\0HEAD ${'b'.repeat(40)}\0branch refs/heads/main\0`,
+        `worktree ${currentPath}\0HEAD ${operation.oid}\0branch refs/heads/${operation.branch}\0`,
+        '',
+      ].join('\0');
+
+    const result = executeCleanupOperation(
+      operation,
+      (_command, arguments_) => {
+        if (arguments_.includes('list')) return { status: 0, stdout: registry(), stderr: '' };
+        if (arguments_[3] === 'move') {
+          moveCount += 1;
+          if (moveCount === 2) {
+            return { status: 1, stdout: '', stderr: 'destination occupied' };
+          }
+          currentPath = arguments_[5] ?? currentPath;
+          return { status: 0, stdout: '', stderr: '' };
+        }
+        return { status: 1, stdout: '', stderr: 'unexpected command' };
+      },
+      path => ({ realPath: path, device: 99, inode: 99 }),
+    );
+
+    expect(result.stderr).toBe(
+      'worktree filesystem identity changed before removal; worktree restoration failed: destination occupied',
+    );
+  });
+
+  it.each([
+    ['locked', `branch refs/heads/feature/closeout\0locked maintenance\0`],
+    ['prunable', `branch refs/heads/feature/closeout\0prunable missing\0`],
+    ['reassigned', `branch refs/heads/other\0`],
+  ])('refuses a %s worktree registration at the execution boundary', (_state, changedField) => {
+    const operation = buildCleanupPlan(safeObservation()).operations[0];
+    if (operation?.kind !== 'remove-worktree') throw new Error('fixture operation missing');
+    const registry = [
+      `worktree /repo\0HEAD ${'b'.repeat(40)}\0branch refs/heads/main\0`,
+      `worktree /repo-closeout\0HEAD ${operation.oid}\0${changedField}`,
+      '',
+    ].join('\0');
+
+    const result = executeCleanupOperation(operation, () => ({
+      status: 0,
+      stdout: registry,
+      stderr: '',
+    }));
+
+    expect(result.stderr).toBe('worktree registration changed before removal');
+  });
+
+  it('refuses a replaced or relocated worktree filesystem identity', () => {
+    const operation = buildCleanupPlan(safeObservation()).operations[0];
+    if (operation?.kind !== 'remove-worktree') throw new Error('fixture operation missing');
+    const registry = [
+      `worktree /repo\0HEAD ${'b'.repeat(40)}\0branch refs/heads/main\0`,
+      `worktree /repo-closeout\0HEAD ${operation.oid}\0branch refs/heads/${operation.branch}\0`,
+      '',
+    ].join('\0');
+
+    const result = executeCleanupOperation(
+      operation,
+      () => ({ status: 0, stdout: registry, stderr: '' }),
+      () => ({ realPath: '/replacement', device: 9, inode: 9 }),
+    );
+
+    expect(result.stderr).toBe('worktree filesystem identity changed before removal');
   });
 
   it('distinguishes an absent remote ref from an unobservable remote', () => {
@@ -1243,14 +1365,16 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       runGit('-C', topic, 'commit', '-m', 'topic');
       runGit('-C', topic, 'push', '-u', 'origin', 'feature/closeout');
       const oid = runGit('-C', topic, 'rev-parse', 'HEAD');
-      const mainWorktree = {
-        path: main,
-        branch: 'main',
-        oid: runGit('-C', main, 'rev-parse', 'HEAD'),
-        main: true,
-      };
+      const canonicalMain = realpathSync(main);
+      const canonicalTopic = realpathSync(topic);
+      const discoveredWorktrees = parseWorktrees(main);
+      const mainWorktree = discoveredWorktrees.find(candidate => candidate.path === canonicalMain);
+      const topicWorktree = discoveredWorktrees.find(
+        candidate => candidate.path === canonicalTopic,
+      );
+      if (!mainWorktree || !topicWorktree) throw new Error('real worktree identity missing');
       const baseline = safeObservation({
-        deliveryWorktreePath: topic,
+        deliveryWorktreePath: canonicalTopic,
         pullRequests: [{ ...pullRequest(), headRefOid: oid }],
         remote: {
           name: 'origin',
@@ -1259,7 +1383,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
           oid,
         },
         localRefOid: oid,
-        worktrees: [mainWorktree, { path: topic, branch: 'feature/closeout', oid, main: false }],
+        worktrees: [mainWorktree, topicWorktree],
         verification: { current: true, passed: true, headOid: oid, stateHash: 'real-git' },
       });
       const afterWorktree = { ...baseline, worktrees: [mainWorktree] };
@@ -1367,7 +1491,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       chmodSync(ssh, 0o755);
       writeFileSync(
         fakeSafeword,
-        `import { appendFileSync } from 'node:fs';\nappendFileSync(process.env.SAFEWORD_TEST_RETRO_LOG ?? '', 'run\\n');\nprocess.stdout.write(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: process.env.SAFEWORD_TEST_RETRO_INCOMPLETE === '1' }, errors: [] }));\n`,
+        `import { appendFileSync } from 'node:fs';\nconst args = process.argv.slice(2);\nif (args[0] === 'project' && args[1] === 'test-plan') {\n  process.stdout.write(JSON.stringify([{ available: true, command: 'true', cwd: process.cwd() }]));\n} else {\n  appendFileSync(process.env.SAFEWORD_TEST_RETRO_LOG ?? '', 'run\\n');\n  process.stdout.write(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: process.env.SAFEWORD_TEST_RETRO_INCOMPLETE === '1' }, errors: [] }));\n}\n`,
       );
       writeFileSync(
         transcript,
