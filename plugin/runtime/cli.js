@@ -6096,11 +6096,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/SCENARIOS.md": "2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d",
         ".claude/skills/bdd/SKILL.md": "53b66c5ee888c6d9a1dc05119ee9d197d3d6b01d36b747fe62d686852e3715c9",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "319a0b4430a60c23be095c703f5405c14f63c5ad9ed932992c7f846a096618e5",
+        ".claude/skills/bdd/TDD.md": "9cb3e98b453fd3ca4378a43b07e4bd389aa1c6fb40875f9fb50d04319cb8b72b",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
-        ".claude/skills/closeout/SKILL.md": "f984539a5c6d9b942fa2ac5814431b6fc048713a131272237711a94f7f86d5d2",
+        ".claude/skills/closeout/SKILL.md": "15beb617c742d2d3f7f330f1e7ccb0545e00df1c3b6e3b0c3cedae4535651a2d",
         ".claude/skills/debug/SKILL.md": "ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0",
         ".claude/skills/elicit/SKILL.md": "2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5",
         ".claude/skills/explain/SKILL.md": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d",
@@ -39764,16 +39764,32 @@ function openCleanupTarget(root, relative, flags) {
     throw error2;
   }
 }
-function unlinkFromOpenParent(parentDescriptor, basename) {
+function quarantineOpenTarget(root, opened) {
   if (process.platform !== "darwin" && process.platform !== "linux") {
-    throw new Error("Atomic Claude cleanup deletion is unavailable on this platform.");
+    throw new Error("Atomic Claude cleanup quarantine is unavailable on this platform.");
   }
-  const result = spawnSync6("bun", ["-e", UNLINK_AT_SCRIPT, basename], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe", parentDescriptor]
-  });
-  if (result.status !== 0) {
-    throw new Error(`Atomic Claude cleanup deletion failed: ${result.stderr.trim()}`);
+  const quarantineDirectory = containedClaudeCleanupPath(root, ".safeword/claude-plugin/quarantine");
+  mkdirSync11(quarantineDirectory, { recursive: true, mode: 448 });
+  const quarantineDescriptor = openSync7(quarantineDirectory, fsConstants5.O_RDONLY | (fsConstants5.O_DIRECTORY ?? 0) | (fsConstants5.O_NOFOLLOW ?? 0));
+  const quarantineName = `${randomUUID5()}.retired`;
+  try {
+    const result = spawnSync6("bun", ["-e", RENAME_AT_SCRIPT, nodePath70.basename(opened.path), quarantineName], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe", opened.parentDescriptor, quarantineDescriptor]
+    });
+    if (result.status !== 0) {
+      throw new Error(`Atomic Claude cleanup quarantine failed: ${result.stderr.trim()}`);
+    }
+    const quarantined = lstatSync14(nodePath70.join(quarantineDirectory, quarantineName));
+    const descriptor = fstatSync5(opened.descriptor);
+    if (!sameFile(quarantined, descriptor)) {
+      throw new Error("Claude cleanup quarantined a replacement target; retained it for recovery.");
+    }
+    ftruncateSync(opened.descriptor, 0);
+    fchmodSync(opened.descriptor, 384);
+    fsyncSync2(opened.descriptor);
+  } finally {
+    closeSync7(quarantineDescriptor);
   }
 }
 function revalidateOpenTarget(root, relative, opened) {
@@ -39806,7 +39822,7 @@ function writeImage(root, relative, expectedSha256, content, mode) {
       throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
     }
     if (content === null) {
-      unlinkFromOpenParent(opened.parentDescriptor, nodePath70.basename(opened.path));
+      quarantineOpenTarget(root, opened);
       return;
     }
     const bytes = Buffer.from(content, "base64");
@@ -39943,18 +39959,21 @@ function migrateClaudeLegacyAutomatically(cwd, options) {
 function recoveredAutomaticResult(projectRoot) {
   const recovered = recoverClaudeCleanup(projectRoot);
   if (recovered.state !== "failed") {
-    const marker = readClaudePluginMode(projectRoot);
-    return {
-      state: "complete",
-      advisory: marker?.advisory,
-      unresolvedPaths: marker?.unresolved_paths ?? []
-    };
+    return observedPluginModeResult(projectRoot);
   }
   const detail = recovered.errors?.[0]?.message ?? "the recorded cleanup transaction could not be read safely";
   return {
     state: "attention",
     advisory: `Safeword preserved the old Claude integration because automatic recovery could not finish: ${detail} Your prompt was not blocked; run \`safeword claude recover\` to repair it.`,
     unresolvedPaths: []
+  };
+}
+function observedPluginModeResult(projectRoot) {
+  const marker = readClaudePluginMode(projectRoot);
+  return {
+    state: "complete",
+    advisory: marker?.advisory,
+    unresolvedPaths: marker?.unresolved_paths ?? []
   };
 }
 function writeObservedPluginMode(projectRoot, options, unresolved, advisory) {
@@ -39982,7 +40001,7 @@ function claimAutomaticTransaction(projectRoot, transaction, options, now, unres
     if (error2.code !== "EEXIST")
       throw error2;
     if (waitForPluginMode(projectRoot, options.deadline, now)) {
-      return { state: "complete", unresolvedPaths: unresolved };
+      return observedPluginModeResult(projectRoot);
     }
     return deferredConcurrentMigration(unresolved);
   }
@@ -39990,7 +40009,7 @@ function claimAutomaticTransaction(projectRoot, transaction, options, now, unres
 function concurrentMigrationResult(projectRoot, options, now) {
   const concurrentDeadline = Math.min(options.deadline, now() + 500);
   if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
-    return { state: "complete", unresolvedPaths: [] };
+    return observedPluginModeResult(projectRoot);
   }
   if (now() >= options.deadline) {
     return deferredConcurrentMigration([]);
@@ -40288,7 +40307,7 @@ function recoverClaudeCleanup(cwd) {
     });
   }
 }
-var UNLINK_AT_SCRIPT, CONCURRENT_MIGRATION_ADVISORY = "Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.", MAX_CLAUDE_TRANSACTION_BYTES, SHA256_PATTERN, UUID_PATTERN, CLEANUP_ENTRY_KEYS;
+var RENAME_AT_SCRIPT, CONCURRENT_MIGRATION_ADVISORY = "Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.", MAX_CLAUDE_TRANSACTION_BYTES, SHA256_PATTERN, UUID_PATTERN, CLEANUP_ENTRY_KEYS;
 var init_cleanup = __esm(() => {
   init_main();
   init_result();
@@ -40299,12 +40318,13 @@ var init_cleanup = __esm(() => {
   init_legacy_classifier();
   init_migration_state();
   init_project_root();
-  UNLINK_AT_SCRIPT = String.raw`
+  RENAME_AT_SCRIPT = String.raw`
 import { dlopen } from 'bun:ffi';
 const library = process.platform === 'darwin' ? '/usr/lib/libSystem.B.dylib' : 'libc.so.6';
-const handle = dlopen(library, { unlinkat: { args: ['i32', 'cstring', 'i32'], returns: 'i32' } });
-const name = Buffer.from(process.argv[1] + '\0');
-const result = handle.symbols.unlinkat(3, name, 0);
+const handle = dlopen(library, { renameat: { args: ['i32', 'cstring', 'i32', 'cstring'], returns: 'i32' } });
+const source = Buffer.from(process.argv[1] + '\0');
+const destination = Buffer.from(process.argv[2] + '\0');
+const result = handle.symbols.renameat(3, source, 4, destination);
 handle.close();
 process.exit(result === 0 ? 0 : 1);
 `;
