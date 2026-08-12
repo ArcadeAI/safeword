@@ -65,6 +65,16 @@ const UNCLASSIFIED_OFFLOAD_FEATURE = [
   '',
 ].join('\n');
 
+const CONFLICTING_OFFLOAD_FEATURE = UNCLASSIFIED_OFFLOAD_FEATURE.replace(
+  '  @offload-tests.TBU1.R1',
+  '  @wip @proof.cucumber @offload-tests.TBU1.R1',
+);
+
+const MISPLACED_OFFLOAD_FEATURE = UNCLASSIFIED_OFFLOAD_FEATURE.replace(
+  '  @offload-tests.TBU1.R1\n',
+  '',
+).replace('    Scenario:', '    @offload-tests.TBU1.R1\n    Scenario:');
+
 describe('codify finds a feature source in a configured directory (TB2.AC1)', () => {
   let directory: string;
 
@@ -155,6 +165,16 @@ describe('offload specifications declare when they enter executable coverage', (
       'features/offload-tests-remote-execution.feature',
       UNCLASSIFIED_OFFLOAD_FEATURE,
     );
+    writeTestFile(
+      directory,
+      'features/offload-tests-conflicting-proof.feature',
+      CONFLICTING_OFFLOAD_FEATURE,
+    );
+    writeTestFile(
+      directory,
+      'features/offload-tests-misplaced-lineage.feature',
+      MISPLACED_OFFLOAD_FEATURE,
+    );
   });
 
   afterAll(() => {
@@ -162,13 +182,40 @@ describe('offload specifications declare when they enter executable coverage', (
   });
 
   it(
-    'rejects an offload Rule that silently leaves work in progress',
+    'executable-offload-bdd.SWM1.R1.public_cli_rejects_a_Rule_that_silently_leaves_work_in_progress',
     async () => {
       const result = await runCli(['project', 'lint-gherkin'], { cwd: directory });
       expect(result.exitCode).toBe(1);
       const output = `${result.stdout}\n${result.stderr}`;
       expect(output).toContain('[offload-executable-proof]');
       expect(output).toContain('@proof.cucumber');
+      expect(output).toContain('[offload-proof-conflict]');
+      expect(output).toContain('[offload-lineage-placement]');
+    },
+    TIMEOUT_QUICK,
+  );
+});
+
+describe('explicit Gherkin inputs fail through the CLI protocol', () => {
+  let directory: string;
+
+  beforeAll(() => {
+    directory = createTemporaryDirectory();
+    writeTestFile(directory, 'features/demo.feature', FEATURE_SOURCE);
+  });
+
+  afterAll(() => {
+    removeTemporaryDirectory(directory);
+  });
+
+  it(
+    'gherkin-linting.TB1.AC1.directory_input_returns_a_structured_failure',
+    async () => {
+      const result = await runCli(['project', 'lint-gherkin', 'features'], { cwd: directory });
+      expect(result.exitCode).toBe(1);
+      const output = `${result.stdout}\n${result.stderr}`;
+      expect(output).toContain('not a readable regular file');
+      expect(output).toContain('[file-readable]');
     },
     TIMEOUT_QUICK,
   );

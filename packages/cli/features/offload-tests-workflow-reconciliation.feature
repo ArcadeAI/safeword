@@ -1,7 +1,6 @@
-@wip
 Feature: Reconcile managed verification workflows safely
 
-  @offload-tests.TBU1.R8
+  @wip @offload-tests.TBU1.R8
   Rule: offload-tests.TBU1.R8 — Setup and upgrade preserve customer workflow changes or surface a conflict instead of overwriting them
 
     @public-cli @surface.safeword-cli

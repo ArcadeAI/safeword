@@ -61,8 +61,11 @@ function countGherkinLines(source: string, prefix: string): number {
 }
 
 function offloadRuleId(line: string): string | undefined {
-  const tag = line.trim();
-  if (!tag.startsWith('@offload-tests.')) return undefined;
+  const tag = line
+    .trim()
+    .split(/\s+/u)
+    .find(candidate => candidate.startsWith('@offload-tests.'));
+  if (tag === undefined) return undefined;
 
   const id = tag.slice(1);
   return /^offload-tests\.(?:TBU1|NTB1)\.R\d+$/u.test(id) ? id : undefined;
@@ -155,10 +158,10 @@ describe('BDD feature maintainability', () => {
       const lines = source.replaceAll('\r\n', '\n').split('\n');
       const ruleStart = lines.findIndex(line => offloadRuleId(line) !== undefined);
       return (
-        ruleStart === 3 &&
-        lines[0] === '@wip' &&
-        lines[1]?.startsWith('Feature: ') === true &&
-        lines[2] === ''
+        ruleStart === 2 &&
+        lines[0]?.startsWith('Feature: ') === true &&
+        lines[1] === '' &&
+        lines[ruleStart]?.startsWith('  @wip @offload-tests.') === true
       );
     });
     const ruleIds = sources
@@ -189,7 +192,7 @@ describe('BDD feature maintainability', () => {
 
     expect({
       files: files.length,
-      everyFileIsWip: sources.every(source => source.startsWith('@wip\n')),
+      everyRuleIsWip: sources.every(source => source.includes('\n  @wip @offload-tests.')),
       everyFileHasOneRule: sources.every(source => countGherkinLines(source, 'Rule:') === 1),
       everyFeatureHeaderIsCanonical,
       everyFeatureIsNamed: featureNames.every(name => name !== undefined && name !== ''),
@@ -204,7 +207,7 @@ describe('BDD feature maintainability', () => {
       metaProofTitles,
     }).toEqual({
       files: 16,
-      everyFileIsWip: true,
+      everyRuleIsWip: true,
       everyFileHasOneRule: true,
       everyFeatureHeaderIsCanonical: true,
       everyFeatureIsNamed: true,

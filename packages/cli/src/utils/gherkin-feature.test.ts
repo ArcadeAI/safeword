@@ -147,7 +147,17 @@ describe('parseFeatureAcReferences', () => {
 });
 
 describe('findGherkinLintIssues', () => {
-  it('requires an explicit executable proof when an offload Rule leaves work in progress', () => {
+  const offloadRuleProofPolicy = {
+    lineageTagPrefix: '@offload-tests.',
+    proofTag: '@proof.cucumber',
+    ruleLabel: 'offload Rule',
+    workInProgressTag: '@wip',
+  } as const;
+
+  const lintOffloadFeature = (source: string) =>
+    findGherkinLintIssues(source, { ruleProofPolicy: offloadRuleProofPolicy });
+
+  it('executable-offload-bdd.SWM1.R1.requires explicit proof when a Rule leaves work in progress', () => {
     const source = `Feature: Remote execution
 
   @offload-tests.TBU1.R1
@@ -159,7 +169,7 @@ describe('findGherkinLintIssues', () => {
       Then the request is dispatched
 `;
 
-    expect(findGherkinLintIssues(source)).toContainEqual({
+    expect(lintOffloadFeature(source)).toContainEqual({
       line: 4,
       message:
         'An offload Rule that leaves @wip must declare @proof.cucumber so executable coverage is explicit.',
@@ -167,7 +177,7 @@ describe('findGherkinLintIssues', () => {
     });
   });
 
-  it('accepts an offload Rule that remains work in progress at Rule scope', () => {
+  it('executable-offload-bdd.SWM1.R1.accepts a Rule that remains work in progress', () => {
     const source = `Feature: Remote execution
 
   @wip @offload-tests.TBU1.R1
@@ -179,16 +189,15 @@ describe('findGherkinLintIssues', () => {
       Then the request is dispatched
 `;
 
-    expect(findGherkinLintIssues(source)).not.toContainEqual(
+    expect(lintOffloadFeature(source)).not.toContainEqual(
       expect.objectContaining({ rule: 'offload-executable-proof' }),
     );
   });
 
-  it('accepts an offload Rule that explicitly enters the Cucumber proof lane', () => {
-    const source = `@proof.cucumber
-Feature: Remote execution
+  it('executable-offload-bdd.SWM1.R1.accepts a Rule in the Cucumber proof lane', () => {
+    const source = `Feature: Remote execution
 
-  @offload-tests.TBU1.R1
+  @proof.cucumber @offload-tests.TBU1.R1
   Rule: offload-tests.TBU1.R1 — Remote execution is explicit
 
     Scenario: Remote execution starts
@@ -197,9 +206,129 @@ Feature: Remote execution
       Then the request is dispatched
 `;
 
-    expect(findGherkinLintIssues(source)).not.toContainEqual(
+    expect(lintOffloadFeature(source)).not.toContainEqual(
       expect.objectContaining({ rule: 'offload-executable-proof' }),
     );
+  });
+
+  it('executable-offload-bdd.SWM1.R1.rejects Feature-scoped executable proof', () => {
+    const source = `@proof.cucumber
+Feature: Remote execution
+
+  @offload-tests.TBU1.R1
+  Rule: offload-tests.TBU1.R1 — Remote execution is explicit
+
+    Scenario: Remote execution starts
+      Given remote execution is available
+`;
+
+    expect(lintOffloadFeature(source)).toContainEqual({
+      line: 1,
+      message:
+        '@proof.cucumber must be declared on each offload Rule it proves, not on Feature, Scenario, or Examples scope.',
+      rule: 'offload-proof-placement',
+    });
+  });
+
+  it('executable-offload-bdd.SWM1.R1.rejects Scenario-scoped executable proof', () => {
+    const source = `Feature: Remote execution
+
+  @wip @offload-tests.TBU1.R1
+  Rule: offload-tests.TBU1.R1 — Remote execution is explicit
+
+    @proof.cucumber
+    Scenario: Remote execution starts
+      Given remote execution is available
+`;
+
+    expect(lintOffloadFeature(source)).toContainEqual(
+      expect.objectContaining({ line: 6, rule: 'offload-proof-placement' }),
+    );
+  });
+
+  it('executable-offload-bdd.SWM1.R1.rejects conflicting Rule-scoped delivery tags', () => {
+    const source = `
+Feature: Remote execution
+
+  @wip @proof.cucumber @offload-tests.TBU1.R1
+  Rule: offload-tests.TBU1.R1 — Remote execution is explicit
+
+    Scenario: Remote execution starts
+      Given remote execution is available
+`;
+
+    expect(lintOffloadFeature(source)).toContainEqual({
+      line: 5,
+      message:
+        'An offload Rule cannot declare both @wip and @proof.cucumber; choose unfinished or executable.',
+      rule: 'offload-proof-conflict',
+    });
+  });
+
+  it('executable-offload-bdd.SWM1.R1.does not let Feature-level wip exempt a Rule', () => {
+    const source = `@wip
+Feature: Remote execution
+
+  @offload-tests.TBU2.R1
+  Rule: offload-tests.TBU2.R1 — Remote execution is explicit
+
+    Scenario: Remote execution starts
+      Given remote execution is available
+`;
+
+    expect(lintOffloadFeature(source)).toContainEqual(
+      expect.objectContaining({ rule: 'offload-executable-proof' }),
+    );
+  });
+
+  it.each([
+    {
+      label: 'Feature',
+      source: `@offload-tests.TBU1.R1
+Feature: Remote execution
+
+  Rule: offload-tests.TBU1.R1 — Remote execution is explicit
+
+    Scenario: Remote execution starts
+      Given remote execution is available
+`,
+      line: 1,
+    },
+    {
+      label: 'Scenario',
+      source: `Feature: Remote execution
+
+  Rule: offload-tests.TBU1.R1 — Remote execution is explicit
+
+    @offload-tests.TBU1.R1
+    Scenario: Remote execution starts
+      Given remote execution is available
+`,
+      line: 5,
+    },
+    {
+      label: 'Examples',
+      source: `Feature: Remote execution
+
+  Rule: Remote execution is explicit
+
+    Scenario Outline: Remote execution <state>
+      Given remote execution is <state>
+
+      @offload-tests.TBU2.R1
+      Examples:
+        | state     |
+        | available |
+`,
+      line: 8,
+    },
+  ])('rejects offload Rule lineage declared at $label scope', ({ source, line }) => {
+    expect(lintOffloadFeature(source)).toContainEqual({
+      line,
+      message:
+        'An offload Rule lineage tag must be declared on its Rule, not on Feature, Scenario, or Examples scope.',
+      rule: 'offload-lineage-placement',
+    });
   });
 
   it('gherkin-linting.TB1.AC1.flags_parser_and_style_errors_without_legacy_dependency', () => {
@@ -281,6 +410,24 @@ Feature: Remote execution
         }),
       ]),
     );
+  });
+
+  it('executable-offload-bdd.SWM1.R1.flags Examples without executable rows', () => {
+    const source = `Feature: Demo
+
+  Scenario Outline: state is <state>
+    Given the state is <state>
+
+    Examples: empty
+      | state |
+`;
+
+    expect(findGherkinLintIssues(source)).toContainEqual({
+      line: 6,
+      message:
+        'Examples "empty" for Scenario Outline "state is <state>" must include at least one data row.',
+      rule: 'no-empty-examples',
+    });
   });
 
   it('gherkin-linting.TB1.AC2.leaves_safeword_lineage_to_check_command', () => {

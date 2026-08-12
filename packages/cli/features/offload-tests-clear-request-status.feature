@@ -1,7 +1,6 @@
-@wip
 Feature: Report remote verification status clearly
 
-  @offload-tests.NTB1.R2
+  @wip @offload-tests.NTB1.R2
   @public-cli @surface.safeword-cli
   Rule: offload-tests.NTB1.R2 — Every request plainly identifies local fallback, remote queueing, running, passing, failure, cancellation, or indeterminate dispatch
 

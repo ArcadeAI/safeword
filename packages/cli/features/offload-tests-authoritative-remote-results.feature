@@ -1,7 +1,6 @@
-@wip
 Feature: Correlate remote verification with authoritative results
 
-  @offload-tests.TBU1.R3
+  @wip @offload-tests.TBU1.R3
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R3 — An accepted dispatch immediately derives its correlated run destination from trusted repository identity and finishes with an authoritative result
 

@@ -1,7 +1,6 @@
-@wip
 Feature: Resume interrupted remote verification
 
-  @offload-tests.TBU1.R11
+  @wip @offload-tests.TBU1.R11
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R11 — An accepted or pending dispatch remains resumable after local interruption without redispatching
 

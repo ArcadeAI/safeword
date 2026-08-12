@@ -1,7 +1,6 @@
-@wip
 Feature: Recover locally when remote prerequisites are missing
 
-  @offload-tests.NTB1.R3
+  @wip @offload-tests.NTB1.R3
   @public-cli @surface.safeword-cli
   Rule: offload-tests.NTB1.R3 — Missing authentication, workflow availability, or a pushed revision produces a useful local recovery instead of a dead end
 

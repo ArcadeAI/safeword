@@ -1,7 +1,6 @@
-@wip
 Feature: Run remote verification with least privilege
 
-  @offload-tests.TBU1.R7
+  @wip @offload-tests.TBU1.R7
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R7 — The managed workflow uses least privilege, treats dispatch inputs as data, and receives no Safeword-provided secrets
 

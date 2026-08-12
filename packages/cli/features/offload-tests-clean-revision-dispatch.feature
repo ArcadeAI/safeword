@@ -1,7 +1,6 @@
-@wip
 Feature: Dispatch verification from a clean revision
 
-  @offload-tests.TBU1.R2
+  @wip @offload-tests.TBU1.R2
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R2 — Remote verification runs the requested Safeword test-plan lane against a clean commit confirmed as its same-repository branch tip immediately before workflow checkout
 

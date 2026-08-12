@@ -1,7 +1,6 @@
-@wip
 Feature: Prove local fallback checkout consistency
 
-  @offload-tests.TBU1.R13
+  @wip @offload-tests.TBU1.R13
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R13 — Local fallback identifies its checkout state at both command-invocation boundaries and refuses evidence when those states differ
 

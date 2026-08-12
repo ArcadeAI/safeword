@@ -1,7 +1,6 @@
-@wip
 Feature: Configure remote verification for a project
 
-  @offload-tests.TBU1.R1
+  @wip @offload-tests.TBU1.R1
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R1 — Projects use remote verification only after an explicit opt-in
 

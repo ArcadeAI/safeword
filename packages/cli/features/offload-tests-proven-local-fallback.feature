@@ -1,7 +1,6 @@
-@wip
 Feature: Fall back locally for ineligible remote requests
 
-  @offload-tests.TBU1.R4
+  @wip @offload-tests.TBU1.R4
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R4 — A valid request that is remotely ineligible or explicitly rejected resolves and runs the same Safeword test-plan lane locally while identifying the local revision and dirty state
 

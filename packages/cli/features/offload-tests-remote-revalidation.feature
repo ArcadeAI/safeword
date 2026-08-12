@@ -1,7 +1,6 @@
-@wip
 Feature: Revalidate remote verification before execution
 
-  @offload-tests.TBU1.R10
+  @wip @offload-tests.TBU1.R10
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R10 — The remote workflow independently revalidates revision and lane before executing repository code
 

@@ -1,7 +1,6 @@
-@wip
 Feature: Enable remote verification without CI authoring
 
-  @offload-tests.NTB1.R1
+  @wip @offload-tests.NTB1.R1
   @public-cli @surface.safeword-cli
   Rule: offload-tests.NTB1.R1 — Enabling remote verification requires no hand-authored CI workflow or translated test command
 

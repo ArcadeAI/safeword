@@ -33,6 +33,13 @@ export interface GherkinLintIssue {
   rule: string;
 }
 
+export interface RuleProofPolicy {
+  lineageTagPrefix: string;
+  proofTag: string;
+  ruleLabel: string;
+  workInProgressTag: string;
+}
+
 export function parseFeatureScenarios(featureContent: string): ParsedFeatureScenario[] {
   const document = parseFeature(featureContent);
   const feature = document.feature;
@@ -72,7 +79,7 @@ export function parseFeatureLineageReferences(featureContent: string): {
 
 export function findGherkinLintIssues(
   featureContent: string,
-  options: { filePath?: string } = {},
+  options: { filePath?: string; ruleProofPolicy?: RuleProofPolicy } = {},
 ): GherkinLintIssue[] {
   const issues = findTextLintIssues(featureContent, options.filePath);
   if (featureContent.trim() === '') {
@@ -85,7 +92,7 @@ export function findGherkinLintIssues(
     if (feature === undefined) {
       return [...issues, issue('no-feature', 'Feature file has no Feature.')];
     }
-    return [...issues, ...findDocumentLintIssues(feature)];
+    return [...issues, ...findDocumentLintIssues(feature, options.ruleProofPolicy)];
   } catch (error: unknown) {
     if (error instanceof FeatureParseError) {
       return [
@@ -321,14 +328,17 @@ function findTextLintIssues(content: string, filePath: string | undefined): Gher
   return issues;
 }
 
-function findDocumentLintIssues(feature: Feature): GherkinLintIssue[] {
+function findDocumentLintIssues(
+  feature: Feature,
+  ruleProofPolicy: RuleProofPolicy | undefined,
+): GherkinLintIssue[] {
   const issues: GherkinLintIssue[] = [];
   if (feature.name.trim() === '') {
     issues.push(issue('no-unnamed-features', 'Feature must have a name.', feature.location.line));
   }
   issues.push(
     ...findDuplicateTagIssues(feature.tags, 'Feature'),
-    ...findOffloadExecutableProofIssues(feature),
+    ...findRuleProofIssues(feature, ruleProofPolicy),
   );
 
   const scenarios: Scenario[] = [];
@@ -354,27 +364,97 @@ function findDocumentLintIssues(feature: Feature): GherkinLintIssue[] {
   return issues;
 }
 
-function findOffloadExecutableProofIssues(feature: Feature): GherkinLintIssue[] {
-  const featureTags = new Set(feature.tags.map(tag => tag.name));
-  return feature.children.flatMap(child => {
+function findRuleProofIssues(
+  feature: Feature,
+  policy: RuleProofPolicy | undefined,
+): GherkinLintIssue[] {
+  if (policy === undefined) return [];
+
+  const issues = [
+    ...findMisplacedRuleLineageIssues(feature, policy),
+    ...findMisplacedRuleProofTagIssues(feature, policy),
+  ];
+  for (const child of feature.children) {
     const rule = child.rule;
-    const isOffloadRule =
-      rule?.tags.some(tag => /^@offload-tests\.(?:TBU1|NTB1)\.R\d+$/u.test(tag.name)) === true;
-    if (!isOffloadRule) {
-      return [];
+    const isOffloadRule = rule?.tags.some(tag => isRuleLineageTag(tag.name, policy)) === true;
+    if (!isOffloadRule) continue;
+
+    const ruleTags = new Set(rule.tags.map(tag => tag.name));
+    const hasProof = ruleTags.has(policy.proofTag);
+    const isWorkInProgress = ruleTags.has(policy.workInProgressTag);
+    if (isWorkInProgress && hasProof) {
+      issues.push(
+        issue(
+          'offload-proof-conflict',
+          `An ${policy.ruleLabel} cannot declare both ${policy.workInProgressTag} and ${policy.proofTag}; choose unfinished or executable.`,
+          rule.location.line,
+        ),
+      );
+      continue;
     }
+    if (isWorkInProgress || hasProof) continue;
 
-    const effectiveTags = new Set([...featureTags, ...rule.tags.map(tag => tag.name)]);
-    if (effectiveTags.has('@wip') || effectiveTags.has('@proof.cucumber')) return [];
-
-    return [
+    issues.push(
       issue(
         'offload-executable-proof',
-        'An offload Rule that leaves @wip must declare @proof.cucumber so executable coverage is explicit.',
+        `An ${policy.ruleLabel} that leaves ${policy.workInProgressTag} must declare ${policy.proofTag} so executable coverage is explicit.`,
         rule.location.line,
       ),
-    ];
-  });
+    );
+  }
+  return issues;
+}
+
+function findMisplacedRuleLineageIssues(
+  feature: Feature,
+  policy: RuleProofPolicy,
+): GherkinLintIssue[] {
+  const misplacedTags = nonRuleTags(feature).filter(tag => isRuleLineageTag(tag.name, policy));
+
+  return misplacedTags.map(tag =>
+    issue(
+      'offload-lineage-placement',
+      `An ${policy.ruleLabel} lineage tag must be declared on its Rule, not on Feature, Scenario, or Examples scope.`,
+      tag.location.line,
+    ),
+  );
+}
+
+function findMisplacedRuleProofTagIssues(
+  feature: Feature,
+  policy: RuleProofPolicy,
+): GherkinLintIssue[] {
+  return nonRuleTags(feature)
+    .filter(tag => tag.name === policy.proofTag)
+    .map(tag =>
+      issue(
+        'offload-proof-placement',
+        `${policy.proofTag} must be declared on each ${policy.ruleLabel} it proves, not on Feature, Scenario, or Examples scope.`,
+        tag.location.line,
+      ),
+    );
+}
+
+function nonRuleTags(feature: Feature): Tag[] {
+  return [
+    ...feature.tags,
+    ...feature.children.flatMap(child => {
+      if (child.scenario) return scenarioAndExamplesTags(child.scenario);
+      return (
+        child.rule?.children.flatMap(ruleChild =>
+          ruleChild.scenario === undefined ? [] : scenarioAndExamplesTags(ruleChild.scenario),
+        ) ?? []
+      );
+    }),
+  ];
+}
+
+function scenarioAndExamplesTags(scenario: Scenario): Tag[] {
+  return [...scenario.tags, ...scenario.examples.flatMap(example => example.tags)];
+}
+
+function isRuleLineageTag(tag: string, policy: RuleProofPolicy): boolean {
+  return tag.startsWith(policy.lineageTagPrefix);
 }
 
 function findScenarioLintIssues(scenarios: readonly Scenario[]): GherkinLintIssue[] {
@@ -410,12 +490,25 @@ function findScenarioLintIssues(scenarios: readonly Scenario[]): GherkinLintIssu
     issues.push(
       ...findScenarioOutlineVariableIssues(scenario),
       ...findDuplicateTagIssues(scenario.tags, `Scenario "${scenario.name}"`),
-      ...scenario.examples.flatMap(example =>
-        findDuplicateTagIssues(example.tags, `Examples "${example.name}"`),
-      ),
+      ...scenario.examples.flatMap(example => [
+        ...findEmptyExamplesIssues(scenario, example),
+        ...findDuplicateTagIssues(example.tags, `Examples "${example.name}"`),
+      ]),
     );
   }
   return issues;
+}
+
+function findEmptyExamplesIssues(scenario: Scenario, example: Examples): GherkinLintIssue[] {
+  if (example.tableBody.length > 0) return [];
+
+  return [
+    issue(
+      'no-empty-examples',
+      `Examples "${example.name || 'Examples'}" for Scenario Outline "${scenario.name}" must include at least one data row.`,
+      example.location.line,
+    ),
+  ];
 }
 
 function findScenarioOutlineVariableIssues(scenario: Scenario): GherkinLintIssue[] {
