@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
 describe("real Terra recorder wiring", () => {
-  test.skipIf(process.env.Y4ZAAY_ADAPTER_ROOT === undefined)(
+  test(
     "puts every real runner HTTP request downstream of durable canary intent",
     () => {
       expect(() =>
