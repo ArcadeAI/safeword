@@ -55,6 +55,21 @@ describe('headless reviewer timeout budgets', () => {
     expect(runBoundMs()).toBe(1_800_000);
     expect(reviewTimeoutMilliseconds('claude')).toBe(600_000);
   });
+
+  it('lets worker overrides shorten but not extend the background budgets', () => {
+    vi.stubEnv('SAFEWORD_REVIEW_WORKER', '1');
+    vi.stubEnv('SAFEWORD_REVIEW_RUN_BOUND_MS', '900000');
+    expect(runBoundMs()).toBe(900_000);
+    vi.stubEnv('SAFEWORD_REVIEW_RUN_BOUND_MS', '3600000');
+    expect(runBoundMs()).toBe(1_800_000);
+
+    expect(
+      reviewTimeoutMilliseconds('claude', {
+        SAFEWORD_REVIEW_WORKER: '1',
+        SAFEWORD_REVIEW_TIMEOUT_MS: '3600000',
+      }),
+    ).toBe(1_800_000);
+  });
 });
 
 describe('headless reviewer output adapters', () => {

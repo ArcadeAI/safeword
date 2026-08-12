@@ -38,6 +38,7 @@ interface ReviewJobRecord {
 
 const COURTESY_WAIT_MS = 75_000;
 const POLL_INTERVAL_MS = 100;
+const HEARTBEAT_INTERVAL_MS = 5000;
 const JOB_LOCK_WAIT_MS = 2000;
 
 function jobsDirectory(cwd: string): string {
@@ -76,7 +77,7 @@ function fingerprint(
 function writeJob(cwd: string, record: ReviewJobRecord): void {
   if (!isReviewJobRecord(record)) throw new Error('invalid review job record');
   const directory = jobsDirectory(cwd);
-  mkdirSync(directory, { recursive: true });
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
   const destination = jobPath(cwd, record.id);
   const temporary = `${destination}.${process.pid}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(record)}\n`, { mode: 0o600 });
@@ -90,7 +91,18 @@ function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
   while (descriptor === undefined) {
     try {
       descriptor = openSync(lock, 'wx', 0o600);
-      writeFileSync(descriptor, String(process.pid));
+      try {
+        writeFileSync(descriptor, String(process.pid));
+      } catch (error) {
+        closeSync(descriptor);
+        descriptor = undefined;
+        try {
+          unlinkSync(lock);
+        } catch {
+          // The failed lock may already have been removed.
+        }
+        throw error;
+      }
     } catch (error) {
       if (!isFileExistsError(error) || Date.now() >= deadline) throw error;
       recoverStaleLock(lock);
@@ -101,7 +113,11 @@ function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
     return operation();
   } finally {
     closeSync(descriptor);
-    unlinkSync(lock);
+    try {
+      unlinkSync(lock);
+    } catch {
+      // A stale-lock recovery may already have removed this lock.
+    }
   }
 }
 
@@ -435,11 +451,15 @@ export async function startReviewJob(input: {
     updated_at: new Date().toISOString(),
   }));
   input.progress?.start('Running the independent review in the background…');
-  input.progress?.heartbeat?.('Still waiting for the independent review…');
   const deadline = Date.now() + configuredCourtesyWait();
+  let nextHeartbeat = Date.now() + HEARTBEAT_INTERVAL_MS;
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);
     if (latest.state !== 'running') return currentResult(input.cwd, latest);
+    if (Date.now() >= nextHeartbeat) {
+      input.progress?.heartbeat?.('Still waiting for the independent review…');
+      nextHeartbeat = Date.now() + HEARTBEAT_INTERVAL_MS;
+    }
     await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   return currentResult(input.cwd, readJob(input.cwd, id));

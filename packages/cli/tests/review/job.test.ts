@@ -312,4 +312,21 @@ describe('durable review jobs', () => {
       'REVIEW_JOB_NOT_FOUND',
     );
   });
+
+  it('uses the newest valid record when status omits the review id', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const first = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    writeFileSync(nodePath.join(cwd, 'input.md'), 'newer source\n');
+    const second = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const firstId = (first.data as { review_id: string }).review_id;
+    const secondId = (second.data as { review_id: string }).review_id;
+
+    const latest = cancelReviewJob(cwd);
+
+    expect((latest.data as { review_id: string }).review_id).toBe(secondId);
+    expect(reviewJobStatus(cwd, firstId).findings[0]?.code).toBe('REVIEW_PENDING');
+    cancelReviewJob(cwd, firstId);
+  });
 });

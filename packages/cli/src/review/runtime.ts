@@ -567,7 +567,7 @@ async function stopReviewerOrThrow(
 
 async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolean> {
   const pid = child.pid;
-  if (pid === undefined) return true;
+  if (pid === undefined || child.exitCode !== null || child.signalCode !== null) return true;
   if (process.platform === 'win32') {
     return stopWindowsReviewer(child, pid);
   }
