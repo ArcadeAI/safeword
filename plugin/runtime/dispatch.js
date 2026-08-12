@@ -1803,7 +1803,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '8c73a7a57a3df8c834e77462e2d7ca8a824e15b6ecadf15ba64e0e1c9227a09a',
+        '319a0b4430a60c23be095c703f5405c14f63c5ad9ed932992c7f846a096618e5',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -1847,7 +1847,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '1edd1d2c546dae594124c8846c43f78f81d4579370589eaf1476b894c0a9750e',
       '.claude/skills/verify/SKILL.md':
-        'df24deb0a9b4086e8da5f82f514e9d7f5ea22d4dcc0e6d432b80d7f8b47e3463',
+        '26763f7fbc900b6994938db93e3b1e1e601ccded59d74c45f528a73fe71ec92f',
     },
     hooks: {
       SessionStart: [
