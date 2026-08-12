@@ -1,6 +1,7 @@
-# Behavior source for the retry-safe relay. Executable proof lives in
-# packages/cli/tests/retro/relay-delivery.test.ts and the retro-relay package
-# tests; the Cucumber adapter otherwise launches nested Vitest processes.
+# This is a BDD specification with delegated executable proof. Cucumber owns
+# the behavior vocabulary and scenario-to-proof contract; stable ORR IDs in
+# steps/operate-retry-safe-retro-relay.steps.ts select exact Vitest proofs in
+# packages/cli/tests/retro/relay-delivery.test.ts and packages/retro-relay/tests.
 @proof.vitest @operate-retry-safe-retro-relay
 Feature: Operate the retry-safe retro relay
 

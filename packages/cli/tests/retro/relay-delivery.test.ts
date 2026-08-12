@@ -1284,7 +1284,7 @@ describe('immutable relay delivery spool', () => {
     expect(readFileSync(persisted.path)).toEqual(persisted.bytes);
   });
 
-  it('does not report persistence success when file synchronization fails', async () => {
+  it('[ORR-037] does not report persistence success when file synchronization fails', async () => {
     const project = temporaryProject();
     const original = request();
 
@@ -1295,7 +1295,7 @@ describe('immutable relay delivery spool', () => {
     ).rejects.toThrow('simulated fsync failure');
   });
 
-  it('does not report persistence success when directory synchronization fails', async () => {
+  it('[ORR-037] does not report persistence success when directory synchronization fails', async () => {
     const project = temporaryProject();
     const original = request();
 
@@ -1340,8 +1340,8 @@ describe('immutable relay delivery spool', () => {
   });
 
   it.each([
-    'an active spool claim excludes another session',
-    'an expired spool claim is rearmed without changing the request',
+    '[ORR-005] an active spool claim excludes another session',
+    '[ORR-006] an expired spool claim is rearmed without changing the request',
   ])('%s', async () => {
     const project = temporaryProject();
     const original = request();
@@ -1376,7 +1376,7 @@ describe('immutable relay delivery spool', () => {
     expect(readdirSync(path.dirname(successor.path))).toContain(path.basename(successor.path));
   });
 
-  it('uses ack as the authoritative commit and recovers crash-before-cleanup', async () => {
+  it('[ORR-008] uses ack as the authoritative commit and recovers crash-before-cleanup', async () => {
     const project = temporaryProject();
     const original = request();
     await persistRelayRequest(project, original);
@@ -1432,7 +1432,7 @@ describe('immutable relay delivery spool', () => {
     ).rejects.toThrow('source identity was reused with a different payload');
   });
 
-  it('cannot lose a concurrent request while another request is acknowledged', async () => {
+  it('[ORR-007] cannot lose a concurrent request while another request is acknowledged', async () => {
     const project = temporaryProject();
     const firstRequest = request({ title: 'First' });
     const secondRequest = request({ title: 'Second' });
@@ -1852,7 +1852,7 @@ describe('immutable relay delivery spool', () => {
     ).resolves.toMatchObject({ accepted: 0, retryable: 1 });
   });
 
-  it('preserves the draft without delaying the session when the relay is unavailable', async () => {
+  it('[ORR-003] preserves the draft without delaying the session when the relay is unavailable', async () => {
     const project = temporaryProject();
     const original = request();
     await persistRelayRequest(project, original);
@@ -2419,7 +2419,7 @@ describe('immutable relay delivery spool', () => {
     expect(outcome.retryable).toBe(1);
   });
 
-  it('bounds a multi-draft blackhole below 1.5 seconds with the default aggregate budget', async () => {
+  it('[ORR-004] bounds a multi-draft blackhole below 1.5 seconds with the default aggregate budget', async () => {
     const project = temporaryProject();
     for (const [index, title] of ['first', 'second', 'third'].entries()) {
       await persistRelayRequest(
@@ -2622,7 +2622,7 @@ describe('relay readiness provenance', () => {
     },
   );
 
-  it('fails closed when a hash-attested measurement has an empty sample', async () => {
+  it('[ORR-035] fails closed when a hash-attested measurement has an empty sample', async () => {
     const manifest = validManifest();
     manifest.measurements.spooledNeverFiled.sampleSize = 0;
 
@@ -2661,7 +2661,7 @@ describe('relay readiness provenance', () => {
     expect(result).toEqual({ enabled: false });
   });
 
-  it('uses build-embedded evidence without consulting the customer repository', async () => {
+  it('[ORR-011] uses build-embedded evidence without consulting the customer repository', async () => {
     const manifest = validManifest();
     const buildCommit = 'b'.repeat(40);
     const result = await validateBuildAttestedRelayReadiness(
@@ -2696,8 +2696,9 @@ describe('relay readiness provenance', () => {
   });
 
   it.each([
-    ['unlanded prerequisite', (value: RelayReadinessManifest) => value],
+    ['ORR-013', 'unlanded prerequisite', (value: RelayReadinessManifest) => value],
     [
+      'ORR-013',
       'wrong repository',
       (value: RelayReadinessManifest) => {
         value.prerequisites[0].url = 'https://github.com/other/repo/issues/1474';
@@ -2705,6 +2706,7 @@ describe('relay readiness provenance', () => {
       },
     ],
     [
+      'ORR-014',
       'other build',
       (value: RelayReadinessManifest) => {
         value.evidenceCommit = 'e'.repeat(40);
@@ -2712,6 +2714,7 @@ describe('relay readiness provenance', () => {
       },
     ],
     [
+      'ORR-012',
       'stale measurement',
       (value: RelayReadinessManifest) => {
         value.measurements.sameSignatureCollisions.measuredAt = '2026-01-01T00:00:00.000Z';
@@ -2719,21 +2722,23 @@ describe('relay readiness provenance', () => {
       },
     ],
     [
+      'ORR-012',
       'malformed artifact',
       (value: RelayReadinessManifest) => {
         value.measurements.sameSignatureCollisions.sha256 = 'not-a-sha256';
         return value;
       },
     ],
-    ['hash mismatch', (value: RelayReadinessManifest) => value],
+    ['readiness-hash-mismatch', 'hash mismatch', (value: RelayReadinessManifest) => value],
     [
+      'readiness-future-measurement',
       'future measurement',
       (value: RelayReadinessManifest) => {
         value.measurements.sameSignatureCollisions.measuredAt = '2026-07-27T00:00:00.000Z';
         return value;
       },
     ],
-  ])('fails closed for %s evidence', async (kind, mutate) => {
+  ])('[%s] fails closed for %s evidence', async (_proofId, kind, mutate) => {
     const manifest = mutate(validManifest());
     const result = await validateRelayReadiness(manifest, {
       buildCommit: 'b'.repeat(40),
@@ -2754,7 +2759,7 @@ describe('relay readiness provenance', () => {
 });
 
 describe('headless extraction credential boundary', () => {
-  it('constructs a minimal child environment without filing credentials', async () => {
+  it('[ORR-015] constructs a minimal child environment without filing credentials', async () => {
     const project = temporaryProject();
     const observed: Record<string, string | undefined>[] = [];
     vi.stubEnv('GITHUB_APP_PRIVATE_KEY_BASE64', 'github-app-secret');

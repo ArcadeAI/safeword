@@ -434,7 +434,7 @@ describe('retry-safe retro relay', () => {
     ['body', { body: 'changed' }],
     ['label order', { labels: ['security', 'retro'] as string[] }],
     ['duplicate labels', { labels: ['retro', 'retro'] as string[] }],
-  ] as const)('rejects a changed %s under the same identity', async (_field, change) => {
+  ] as const)('[ORR-002] rejects a changed %s under the same identity', async (_field, change) => {
     const setup = await fixture();
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
     await adapter.file(draft({ labels: ['retro', 'security'] }));
@@ -447,7 +447,7 @@ describe('retry-safe retro relay', () => {
     expect(setup.createBodies).toHaveLength(1);
   });
 
-  it('immediately returns the original filed result after 30-day payload compaction', async () => {
+  it('[ORR-030] [ORR-031] immediately returns the original filed result after 30-day payload compaction', async () => {
     const start = new Date();
     const setup = await fixture({ now: () => start });
     const adapters = createHarnessAdapters(setup.relay.url, setup.credentials, {
@@ -470,7 +470,7 @@ describe('retry-safe retro relay', () => {
     ).rejects.toMatchObject({ status: 409 });
   });
 
-  it('does not start a dispatch when token acquisition crosses the 24-hour deadline', async () => {
+  it('[ORR-030] does not start a dispatch when token acquisition crosses the 24-hour deadline', async () => {
     const acceptedAt = new Date();
     let current = acceptedAt;
     const setup = await fixture({
@@ -543,7 +543,7 @@ describe('retry-safe retro relay', () => {
     expect(setup.store.pendingAlerts()).toEqual([expect.objectContaining({ state: 'ambiguous' })]);
   });
 
-  it('bounds request size fields timeouts and per-principal filing rate', async () => {
+  it('[ORR-023] bounds request size fields timeouts and per-principal filing rate', async () => {
     const setup = await fixture();
     expect(setup.relay.server.requestTimeout).toBeLessThanOrEqual(10_000);
     expect(setup.relay.server.headersTimeout).toBeLessThanOrEqual(15_000);
@@ -710,7 +710,7 @@ describe('retry-safe retro relay', () => {
     expect(github.maximumConcurrentCreates()).toBe(1);
   });
 
-  it('classifies documented create failures independently of response prose', () => {
+  it('[ORR-038] classifies documented create failures independently of response prose', () => {
     const validation = new GitHubCreateError({
       message: 'Validation Failed',
       status: 422,
@@ -1450,7 +1450,7 @@ describe('retry-safe retro relay', () => {
     reopened.close();
   });
 
-  it('authorizes the exact repository and rejects invalid credentials before GitHub', async () => {
+  it('[ORR-018] authorizes the exact repository and rejects invalid credentials before GitHub', async () => {
     const setup = await fixture();
     await expect(
       createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
@@ -1512,8 +1512,8 @@ describe('retry-safe retro relay', () => {
   });
 
   it.each([
-    'denies harness principals access to operator lifecycle operations',
-    'exposes payload-free lifecycle operations to the operator through the real HTTP route',
+    '[ORR-019] denies harness principals access to operator lifecycle operations',
+    '[ORR-032] exposes payload-free lifecycle operations to the operator through the real HTTP route',
   ])('%s', async () => {
     const setup = await fixture();
     await createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft());
@@ -1573,7 +1573,7 @@ describe('retry-safe retro relay', () => {
   });
 
   it.each(['ghs_classic_opaque', 'ghs_stateless.header.payload'])(
-    'treats installation token format %s as opaque',
+    '[ORR-022] treats installation token format %s as opaque',
     async installationToken => {
       const setup = await fixture({ installationToken });
       await createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft());

@@ -16,208 +16,206 @@ import type { SafewordWorld } from './world.js';
 const execFileAsync = promisify(execFile);
 const RELAY_PROOF_TIMEOUT_MS = 180_000;
 
-export const scenarioProofs: Record<string, ScenarioProof> = {
+const rawScenarioProofs: Record<
+  string,
+  Omit<ScenarioProof, 'expectedTests' | 'proofId'> & { expectedTests?: number }
+> = {
   'Each harness submits the exact request persisted by another harness': {
+    outlineCases: [
+      'Claude Code',
+      'Claude Code Cloud',
+      'OpenAI Codex',
+      'OpenAI Codex Cloud',
+      'Cursor',
+      'Cursor Cloud Agents',
+    ],
     packageDirectory: 'packages/retro-relay',
-    pattern: 'routes all six installed surfaces',
     testFile: 'tests/cli-wiring.integration.test.ts',
   },
   'A retry cannot replace the persisted payload or request identity': {
+    expectedTests: 4,
     packageDirectory: 'packages/retro-relay',
-    pattern: 'rejects a changed',
     testFile: 'tests/relay.integration.test.ts',
   },
   'Relay unavailability preserves the draft without delaying the session': {
     packageDirectory: 'packages/cli',
-    pattern: 'preserves the draft without delaying the session when the relay is unavailable',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'A multi-draft drain shares one aggregate latency budget': {
     packageDirectory: 'packages/cli',
-    pattern: 'bounds a multi-draft blackhole below 1.5 seconds',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'An active spool claim excludes another session': {
     packageDirectory: 'packages/cli',
-    pattern: 'an active spool claim excludes another session',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'An expired spool claim is rearmed without changing the request': {
     packageDirectory: 'packages/cli',
-    pattern: 'an expired spool claim is rearmed without changing the request',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Persisting a new request while another request drains cannot lose either draft': {
     packageDirectory: 'packages/cli',
-    pattern: 'cannot lose a concurrent request',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Durable acceptance drains the local draft': {
     packageDirectory: 'packages/cli',
-    pattern: 'uses ack as the authoritative commit',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Losing the durable receipt response leaves the same draft retryable': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'keeps the same persisted draft retryable after a durable receipt response is lost',
     testFile: 'tests/cli-wiring.integration.test.ts',
   },
   'Incomplete readiness proof preserves the existing filing path': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'checked-in disabled manifest',
     testFile: 'tests/cli-wiring.integration.test.ts',
   },
   'Complete fresh readiness proof selects the relay path': {
     packageDirectory: 'packages/cli',
-    pattern: 'uses build-embedded evidence',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Stale or malformed readiness proof fails closed': {
+    expectedTests: 2,
     packageDirectory: 'packages/cli',
-    pattern: 'fails closed for (?:stale measurement|malformed artifact) evidence',
-    sourcePattern: 'fails closed for %s evidence',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Closed but unlanded or wrong-repository evidence fails closed': {
+    expectedTests: 2,
     packageDirectory: 'packages/cli',
-    pattern: 'fails closed for (?:unlanded prerequisite|wrong repository) evidence',
-    sourcePattern: 'fails closed for %s evidence',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Readiness for another build fails closed': {
     packageDirectory: 'packages/cli',
-    pattern: 'fails closed for other build evidence',
-    sourcePattern: 'fails closed for %s evidence',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Headless extraction receives no filing credential': {
     packageDirectory: 'packages/cli',
-    pattern: 'constructs a minimal child environment',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Production startup authenticates separate harness and operator principals': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'loads independently rotatable production principals',
     testFile: 'tests/runtime.test.ts',
   },
   'Rotating one harness credential leaves the other principals active': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'rotates one harness credential',
     testFile: 'tests/runtime.test.ts',
   },
   'A principal cannot cross its repository boundary': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'authorizes the exact repository',
     testFile: 'tests/relay.integration.test.ts',
   },
   'A harness principal cannot read operator operations': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'denies harness principals access to operator lifecycle operations',
     testFile: 'tests/relay.integration.test.ts',
   },
   'Each principal is denied every excluded role': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'denies operator filing',
     testFile: 'tests/runtime.test.ts',
   },
   'Spike mode exposes health only': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'exposes health only in spike mode',
     testFile: 'tests/runtime.test.ts',
   },
   'GitHub installation tokens remain opaque inside the relay': {
+    expectedTests: 2,
+    outlineCases: ['classic opaque', 'stateless dotted ghs_'],
     packageDirectory: 'packages/retro-relay',
-    pattern: 'treats installation token format',
     testFile: 'tests/relay.integration.test.ts',
   },
   'Production filing requests are resource bounded': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'bounds request size fields',
     testFile: 'tests/relay.integration.test.ts',
   },
   'Maintenance enforces each lifecycle boundary exactly once': {
+    expectedTests: 3,
+    outlineCases: ['retryable', 'dispatching', 'filed'],
     packageDirectory: 'packages/retro-relay',
-    pattern: 'prevents a new dispatch|allows exactly one|compacts payload access',
     testFile: 'tests/lifecycle.test.ts',
   },
   'Durable retry scheduling survives restart': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'persists due scheduling',
     testFile: 'tests/lifecycle.test.ts',
   },
   'No new dispatch starts at the retry deadline': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'prevents a new dispatch',
     testFile: 'tests/lifecycle.test.ts',
   },
   'A late dispatch resolves or becomes ambiguous by one CAS winner': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'allows exactly one filed or ambiguous',
     testFile: 'tests/lifecycle.test.ts',
   },
   'Interrupted schema migration rolls back atomically': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'rolls back every migration mutation',
     testFile: 'tests/lifecycle.test.ts',
   },
   'Unsupported schema metadata is rejected before listen': {
+    expectedTests: 4,
+    outlineCases: [
+      'a partial layout',
+      'a newer version',
+      'duplicate version rows',
+      'no version row',
+    ],
     packageDirectory: 'packages/retro-relay',
-    pattern: 'rejects .* schema metadata before use',
     testFile: 'tests/lifecycle.test.ts',
   },
   'Terminal identity cannot be deleted or silently reidentified': {
+    expectedTests: 2,
     packageDirectory: 'packages/retro-relay',
-    pattern:
-      'does not start a dispatch when token acquisition crosses|immediately returns the original filed result',
     testFile: 'tests/relay.integration.test.ts',
   },
   'A compacted request immediately replays its original filed result': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'immediately returns the original filed result',
     testFile: 'tests/relay.integration.test.ts',
   },
   'The operator sees lifecycle counts through the real HTTP route without secret content': {
     packageDirectory: 'packages/retro-relay',
-    pattern:
-      'exposes payload-free lifecycle operations to the operator through the real HTTP route',
     testFile: 'tests/relay.integration.test.ts',
   },
   'Maintenance emits a deduplicable structured alert for each newly terminal request': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'reports lifecycle counts and stable deduplicable alert',
     testFile: 'tests/lifecycle.test.ts',
   },
   'Immediate ambiguous outcomes are durably alertable': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'atomically records an alert',
     testFile: 'tests/lifecycle.test.ts',
   },
   'Empty or semantically irrelevant readiness evidence fails closed': {
     packageDirectory: 'packages/cli',
-    pattern: 'fails closed when a hash-attested',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'One external durable outbox survives disposable harness workspaces': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'keeps one external durable outbox across disposable harness workspaces',
     testFile: 'tests/cli-wiring.integration.test.ts',
   },
   'Persistence success is not reported before file and directory sync': {
+    expectedTests: 2,
     packageDirectory: 'packages/cli',
-    pattern: 'does not report persistence success when .* synchronization fails',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'GitHub create classification ignores undocumented response prose': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'classifies documented create failures independently of response prose',
     testFile: 'tests/relay.integration.test.ts',
   },
   'The built production process files through every real collaborator': {
     packageDirectory: 'packages/retro-relay',
-    pattern: 'runs the built production process through SQLite, HTTP auth, and GitHub',
     testFile: 'tests/runtime-qualification.test.ts',
   },
 };
+
+/**
+ * The feature order owns stable proof IDs. Appending scenarios is safe; moving or
+ * deleting one requires an intentional proof-ID migration in the review diff.
+ */
+export const scenarioProofs: Record<string, ScenarioProof> = Object.fromEntries(
+  Object.entries(rawScenarioProofs).map(([scenarioName, details], index) => [
+    scenarioName,
+    {
+      expectedTests: 1,
+      ...details,
+      proofId: `ORR-${String(index + 1).padStart(3, '0')}`,
+    },
+  ]),
+);
 
 const proofCache = new Map<string, Promise<{ stdout: string; stderr: string; exitCode: number }>>();
 
@@ -228,6 +226,7 @@ async function runProof(
   assert.ok(scenarioProof, `missing Vitest proof mapping for ${scenarioName}`);
   const proofTempDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-proof-'));
   try {
+    const reportPath = nodePath.join(proofTempDirectory, `${scenarioProof.proofId}.json`);
     const result = await execFileAsync(
       'bun',
       [
@@ -237,12 +236,20 @@ async function runProof(
         'test',
         scenarioProof.testFile,
         '-t',
-        scenarioProof.pattern,
+        `\\[${scenarioProof.proofId}\\]`,
+        '--reporter=json',
+        `--outputFile=${reportPath}`,
       ],
       {
         cwd: process.cwd(),
         env: { ...process.env, NODE_OPTIONS: undefined, TMPDIR: proofTempDirectory },
       },
+    );
+    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as { numPassedTests?: number };
+    assert.equal(
+      report.numPassedTests,
+      scenarioProof.expectedTests,
+      `${scenarioProof.proofId} selected ${String(report.numPassedTests)} passing tests; expected ${scenarioProof.expectedTests}`,
     );
     return {
       exitCode: 0,

@@ -286,9 +286,9 @@ async function githubFixture(): Promise<{
 
 describe('real shared CLI to relay wiring', () => {
   it.each([
-    'routes all six installed surfaces through one persisted request and collaborator chain',
-    'keeps one external durable outbox across disposable harness workspaces',
-    'keeps the same persisted draft retryable after a durable receipt response is lost',
+    '[ORR-001] routes all six installed surfaces through one persisted request and collaborator chain',
+    '[ORR-036] keeps one external durable outbox across disposable harness workspaces',
+    '[ORR-009] keeps the same persisted draft retryable after a durable receipt response is lost',
   ])(
     '%s',
     async () => {
@@ -517,7 +517,7 @@ describe('real shared CLI to relay wiring', () => {
     30_000,
   );
 
-  it('keeps the real CLI composition on native filing with the checked-in disabled manifest', async () => {
+  it('[ORR-010] keeps the real CLI composition on native filing with the checked-in disabled manifest', async () => {
     const project = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-disabled-'));
     directories.push(project);
     const transcript = substantialTranscript(project);
