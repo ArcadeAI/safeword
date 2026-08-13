@@ -348,6 +348,38 @@ describe('quality-review regressions for the public CLI boundary', () => {
     });
   });
 
+  it('consumes the private review progress signal before a non-review handler runs', async () => {
+    const definition = findCommandDefinition('capabilities');
+    const originalHandler = definition.handler;
+    const originalSignal = process.env.SAFEWORD_REVIEW_PROGRESS;
+    let observedSignal: string | undefined;
+    Object.defineProperty(definition, 'handler', {
+      configurable: true,
+      value: () => {
+        observedSignal = process.env.SAFEWORD_REVIEW_PROGRESS;
+        return Promise.resolve(createResult({ state: 'healthy' }));
+      },
+    });
+    process.env.SAFEWORD_REVIEW_PROGRESS = '1';
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    try {
+      const program = new Command().name('safeword');
+      addGlobalOptions(program);
+      registerPublicCommandCatalog(program);
+      await program.parseAsync(['node', 'safeword', 'capabilities', '--json', '--no-input']);
+    } finally {
+      Object.defineProperty(definition, 'handler', {
+        configurable: true,
+        value: originalHandler,
+      });
+      if (originalSignal === undefined) delete process.env.SAFEWORD_REVIEW_PROGRESS;
+      else process.env.SAFEWORD_REVIEW_PROGRESS = originalSignal;
+    }
+
+    expect(observedSignal).toBeUndefined();
+  });
+
   it('renders Commander argument failures through the JSON protocol', async () => {
     const result = await runCli(['capabilities', '--json', '--no-input', '--definitely-invalid']);
 

@@ -2,6 +2,14 @@ import type { CommandDefinition } from './catalog.js';
 import type { ProgressReporter } from './handler.js';
 import type { CliResult, Effects } from './result.js';
 
+const EFFECT_NOUNS: Readonly<Record<keyof Effects, string>> = {
+  files: 'file',
+  packages: 'package',
+  configuration: 'configuration',
+  network: 'network',
+  destructive: 'destructive',
+};
+
 function firstNonEmptyEffect(effects: Effects): keyof Effects | undefined {
   return (Object.keys(effects) as (keyof Effects)[]).find(
     effectClass => effects[effectClass].length > 0,
@@ -32,7 +40,7 @@ export function assertEffectPolicy(
     const effectClass = firstNonEmptyEffect(result.effects);
     if (effectClass !== undefined) {
       throw new Error(
-        `The ${definition.effectClass} command ${definition.name} reported ${effectClass.slice(0, -1)} effects`,
+        `The ${definition.effectClass} command ${definition.name} reported ${EFFECT_NOUNS[effectClass]} effects`,
       );
     }
   }
@@ -53,6 +61,54 @@ interface ProgressAdapters {
   readonly emit: (message: string) => void;
 }
 
+const MANAGED_PROGRESS_SIGNAL = 'SAFEWORD_REVIEW_PROGRESS';
+
+export function consumeManagedProgressSignal(environment: NodeJS.ProcessEnv): boolean {
+  const enabled = environment[MANAGED_PROGRESS_SIGNAL] === '1';
+  Reflect.deleteProperty(environment, MANAGED_PROGRESS_SIGNAL);
+  return enabled;
+}
+
+export function shouldReportProgress(options: {
+  readonly json: boolean;
+  readonly managedReview: boolean;
+  readonly quiet: boolean;
+}): boolean {
+  return !options.quiet && (!options.json || options.managedReview);
+}
+
+export function createBestEffortByteSink(
+  write: (buffer: Uint8Array, offset: number, length: number) => number,
+): (buffer: Uint8Array) => void {
+  return buffer => {
+    let offset = 0;
+    try {
+      while (offset < buffer.length) {
+        const written = write(buffer, offset, buffer.length - offset);
+        if (!Number.isSafeInteger(written) || written <= 0 || written > buffer.length - offset) {
+          return;
+        }
+        offset += written;
+      }
+    } catch {
+      // Progress is advisory and must never affect the typed command result.
+    }
+  };
+}
+
+export function createBestEffortProgressSink(
+  write: (buffer: Uint8Array, offset: number, length: number) => number,
+): (message: string) => void {
+  const writeBytes = createBestEffortByteSink(write);
+  return message => {
+    writeBytes(Buffer.from(`${message}\n`));
+  };
+}
+
+export function createManagedReviewProgress(progress: ProgressReporter): ProgressReporter {
+  return { ...progress, managed: true };
+}
+
 /** Operations finishing faster than this are not worth announcing. */
 const PROGRESS_ANNOUNCE_DELAY_MS = 100;
 /** A long wait needs proof that the coordinator is still responsive. */
@@ -60,9 +116,10 @@ const PROGRESS_HEARTBEAT_INTERVAL_MS = 30_000;
 
 /**
  * Shorten the heartbeat so a test can observe a real one without waiting 30
- * seconds. Internal: a value outside 1ms..30s is ignored.
+ * seconds. Internal and test-only: production always uses the bounded default.
  */
 export function resolveHeartbeatIntervalMs(environment: NodeJS.ProcessEnv = process.env): number {
+  if (environment.NODE_ENV !== 'test') return PROGRESS_HEARTBEAT_INTERVAL_MS;
   const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
   if (
     !Number.isSafeInteger(override) ||
@@ -89,6 +146,8 @@ export function createProgressReporter(adapters: ProgressAdapters): ProgressRepo
   return {
     start(message: string): void {
       if (announcementHandle !== undefined) adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined) adapters.cancel(heartbeatHandle);
+      heartbeatHandle = undefined;
       announcementHandle = adapters.schedule(() => {
         adapters.emit(message);
         announcementHandle = undefined;
