@@ -40,6 +40,12 @@ Scope: `origin/main...codex/reliable-quality-review`
 14. **Preserve managed mode and worker identity** — detached managed workers
     receive `--json`, keeping preparation filtering structural, and POSIX worker
     inspection requests untruncated command lines before matching the job ID.
+15. **Match collection types to their use** — reviewer environment allowlists
+    are readonly arrays because the filter only iterates them; the constructed
+    normalized allowlist remains the sole membership set.
+16. **Name worker inspection outcomes** — `WorkerInspection` distinguishes a
+    matching worker, a definite mismatch, and an unavailable process probe so
+    each caller states its fail-open or fail-closed policy explicitly.
 
 ## Struck or deferred
 
@@ -54,8 +60,10 @@ Scope: `origin/main...codex/reliable-quality-review`
   its focused test exposed an observable adapter-call-shape change; retain the
   small branch that preserves compatibility.
 - Durable-job fingerprinting, liveness, and lock mechanics predate this ticket;
-  they remain protected by their existing job tests and are not refactored as
-  part of the managed-progress side channel.
+  the touched release path now checks inode ownership and early worker death.
+  Replacing its synchronous lock protocol or packet fingerprinting would be a
+  separate behavior-changing subsystem redesign, not a safe refactor of the
+  managed-progress side channel.
 - Repository-wide Knip, experiment, and clone findings predate this ticket and
   are outside this delivery's single purpose.
 

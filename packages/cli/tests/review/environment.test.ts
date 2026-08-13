@@ -19,6 +19,7 @@ describe('reviewer-scoped environment', () => {
       expect(
         reviewerEnvironment('claude', {
           SAFEWORD_REVIEW_CUSTOM_SECRET: 'hidden',
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
           SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
         }),
       ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });

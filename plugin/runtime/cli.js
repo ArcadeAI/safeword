@@ -43105,7 +43105,7 @@ function filteredEnvironment(reviewer, source = process.env, platform = process.
   const allowed = new Set([
     ...PROCESS_VARIABLES,
     ...REVIEWER_CONTROL_VARIABLES,
-    ...REVIEWER_FIXTURE_VARIABLES,
+    ...(source.NODE_ENV ?? "development") === "test" ? REVIEWER_FIXTURE_VARIABLES : [],
     ...reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]
   ].map((name) => normalize(name)));
   const managedProgressSignal = normalize("SAFEWORD_REVIEW_PROGRESS");
@@ -43135,7 +43135,7 @@ var init_environment = __esm(() => {
       "CODEX_THREAD_ID"
     ]
   };
-  PROCESS_VARIABLES = new Set([
+  PROCESS_VARIABLES = [
     "ALL_PROXY",
     "APPDATA",
     "HOME",
@@ -43166,12 +43166,15 @@ var init_environment = __esm(() => {
     "http_proxy",
     "https_proxy",
     "no_proxy"
-  ]);
-  REVIEWER_CONTROL_VARIABLES = new Set([
+  ];
+  REVIEWER_CONTROL_VARIABLES = [
     "SAFEWORD_REVIEW_RUN_BOUND_MS",
     "SAFEWORD_REVIEW_TIMEOUT_MS"
-  ]);
-  REVIEWER_FIXTURE_VARIABLES = new Set([
+  ];
+  REVIEWER_FIXTURE_VARIABLES = [
+    "SAFEWORD_REVIEW_ACCEPTED_MODEL",
+    "SAFEWORD_REVIEW_CANDIDATE_LOG",
+    "SAFEWORD_REVIEW_CHILD_PID",
     "SAFEWORD_REVIEW_ENV_LOG",
     "SAFEWORD_REVIEW_FAKE_DELAY_AGENT",
     "SAFEWORD_REVIEW_FAKE_FAILURE",
@@ -43190,12 +43193,18 @@ var init_environment = __esm(() => {
     "SAFEWORD_REVIEW_FAKE_VERDICT",
     "SAFEWORD_REVIEW_HELP_MUTATE",
     "SAFEWORD_REVIEW_LOG",
+    "SAFEWORD_REVIEW_MODEL_LOG",
     "SAFEWORD_REVIEW_MODEL_PROMPT_LOG",
     "SAFEWORD_REVIEW_PROBE_ENV_LOG",
     "SAFEWORD_REVIEW_PROMPT_LOG",
+    "SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR",
+    "SAFEWORD_REVIEW_ROUTE_LOG",
+    "SAFEWORD_REVIEW_SCHEMA_COPY",
+    "SAFEWORD_REVIEW_SCHEMA_PATH_LOG",
+    "SAFEWORD_REVIEW_STUBBORN_PID",
     "SAFEWORD_REVIEW_SWAP_ALIAS",
     "SAFEWORD_REVIEW_SWAP_TARGET"
-  ]);
+  ];
 });
 
 // src/review/runtime.ts
@@ -44633,7 +44642,7 @@ function currentResult(cwd, record2) {
     return failExitedJob(cwd, record2);
   }
   if (record2.state === "running") {
-    if (record2.pid !== undefined && !isReviewWorker(record2.pid, record2.id)) {
+    if (workerDefinitelyMismatches(record2)) {
       return failExitedJob(cwd, record2);
     }
     return pendingResult(record2);
@@ -44832,7 +44841,7 @@ async function startReviewJob(input) {
     updated_at: new Date().toISOString()
   }));
   if (!isActivatedChild(activated, child.pid)) {
-    terminateReviewWorker(child.pid);
+    terminateNonterminalWorker(activated, child.pid);
     return currentResult(input.cwd, activated);
   }
   announceBackgroundProgress(input.progress, managedProgress);
@@ -44841,7 +44850,7 @@ async function startReviewJob(input) {
     const latest = readJob(input.cwd, id);
     if (latest.state !== "running")
       return currentResult(input.cwd, latest);
-    if (latest.pid !== undefined && isReviewWorker(latest.pid, latest.id) === false)
+    if (workerDefinitelyMismatches(latest))
       return failExitedJob(input.cwd, latest);
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
@@ -44849,6 +44858,13 @@ async function startReviewJob(input) {
 }
 function isActivatedChild(record2, pid) {
   return record2.state === "running" && record2.pid === pid;
+}
+function workerDefinitelyMismatches(record2) {
+  return record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "mismatch";
+}
+function terminateNonterminalWorker(record2, pid) {
+  if (record2.state === "launching" || record2.state === "running")
+    terminateReviewWorker(pid);
 }
 function terminateReviewWorker(pid) {
   if (process.platform === "win32") {
@@ -44922,7 +44938,7 @@ function isActiveReviewJob(record2) {
     return false;
   if (record2.state === "launching")
     return processExists(record2.pid);
-  return record2.state === "running" && isReviewWorker(record2.pid, record2.id) === true;
+  return record2.state === "running" && inspectReviewWorker(record2.pid, record2.id) === "match";
 }
 function reviewJobStatus(cwd, requestedId) {
   let id;
@@ -44983,7 +44999,7 @@ function cancelReviewJob(cwd, requestedId) {
       const record2 = readJob(cwd, id);
       if (record2.state !== "launching" && record2.state !== "running")
         return record2;
-      if (record2.state === "running" && record2.pid !== undefined && isReviewWorker(record2.pid, record2.id)) {
+      if (record2.state === "running" && record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "match") {
         terminateReviewWorker(record2.pid);
       }
       const next = {
@@ -45002,7 +45018,7 @@ function cancelReviewJob(cwd, requestedId) {
 function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
-function isReviewWorker(pid, id) {
+function inspectReviewWorker(pid, id) {
   const inspected = process.platform === "win32" ? spawnSync9("powershell.exe", [
     "-NoProfile",
     "-NonInteractive",
@@ -45013,8 +45029,8 @@ function isReviewWorker(pid, id) {
     timeout: 1000
   });
   if (inspected.status !== 0)
-    return processExists(pid) ? undefined : false;
-  return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`);
+    return processExists(pid) ? "unavailable" : "mismatch";
+  return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
 var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {

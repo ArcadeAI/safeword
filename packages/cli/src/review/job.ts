@@ -22,6 +22,7 @@ import { isReviewKind, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
+type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
 
 interface ReviewJobRecord {
   readonly schema_version: 1;
@@ -338,7 +339,7 @@ function currentResult(cwd: string, record: ReviewJobRecord): CliResult {
     return failExitedJob(cwd, record);
   }
   if (record.state === 'running') {
-    if (record.pid !== undefined && !isReviewWorker(record.pid, record.id)) {
+    if (workerDefinitelyMismatches(record)) {
       return failExitedJob(cwd, record);
     }
     return pendingResult(record);
@@ -562,7 +563,7 @@ export async function startReviewJob(input: {
     updated_at: new Date().toISOString(),
   }));
   if (!isActivatedChild(activated, child.pid)) {
-    terminateReviewWorker(child.pid);
+    terminateNonterminalWorker(activated, child.pid);
     return currentResult(input.cwd, activated);
   }
   // Managed workers forward their coordinator progress over inherited stderr.
@@ -571,8 +572,7 @@ export async function startReviewJob(input: {
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);
     if (latest.state !== 'running') return currentResult(input.cwd, latest);
-    if (latest.pid !== undefined && isReviewWorker(latest.pid, latest.id) === false)
-      return failExitedJob(input.cwd, latest);
+    if (workerDefinitelyMismatches(latest)) return failExitedJob(input.cwd, latest);
     await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   return currentResult(input.cwd, readJob(input.cwd, id));
@@ -580,6 +580,14 @@ export async function startReviewJob(input: {
 
 function isActivatedChild(record: ReviewJobRecord, pid: number): boolean {
   return record.state === 'running' && record.pid === pid;
+}
+
+function workerDefinitelyMismatches(record: ReviewJobRecord): boolean {
+  return record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === 'mismatch';
+}
+
+function terminateNonterminalWorker(record: ReviewJobRecord, pid: number): void {
+  if (record.state === 'launching' || record.state === 'running') terminateReviewWorker(pid);
 }
 
 function terminateReviewWorker(pid: number): void {
@@ -678,7 +686,7 @@ function runningJob(
 function isActiveReviewJob(record: ReviewJobRecord): boolean {
   if (record.pid === undefined) return false;
   if (record.state === 'launching') return processExists(record.pid);
-  return record.state === 'running' && isReviewWorker(record.pid, record.id) === true;
+  return record.state === 'running' && inspectReviewWorker(record.pid, record.id) === 'match';
 }
 
 export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
@@ -742,7 +750,7 @@ export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
       if (
         record.state === 'running' &&
         record.pid !== undefined &&
-        isReviewWorker(record.pid, record.id)
+        inspectReviewWorker(record.pid, record.id) === 'match'
       ) {
         terminateReviewWorker(record.pid);
       }
@@ -764,7 +772,7 @@ function isJobId(value: string): boolean {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 
-function isReviewWorker(pid: number, id: string): boolean | undefined {
+function inspectReviewWorker(pid: number, id: string): WorkerInspection {
   const inspected =
     process.platform === 'win32'
       ? spawnSync(
@@ -781,8 +789,9 @@ function isReviewWorker(pid: number, id: string): boolean | undefined {
           encoding: 'utf8',
           timeout: 1000,
         });
-  if (inspected.status !== 0) return processExists(pid) ? undefined : false;
-  return (
-    /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`)
-  );
+  if (inspected.status !== 0) return processExists(pid) ? 'unavailable' : 'mismatch';
+  return /\breview run\b/u.test(inspected.stdout) &&
+    inspected.stdout.includes(`--worker-job-id ${id}`)
+    ? 'match'
+    : 'mismatch';
 }

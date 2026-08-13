@@ -17,7 +17,7 @@ const VENDOR_VARIABLES: Readonly<Record<ReviewAgent, readonly string[]>> = {
   ],
 };
 
-const PROCESS_VARIABLES = new Set([
+const PROCESS_VARIABLES = [
   'ALL_PROXY',
   'APPDATA',
   'HOME',
@@ -48,16 +48,19 @@ const PROCESS_VARIABLES = new Set([
   'http_proxy',
   'https_proxy',
   'no_proxy',
-]);
+] as const;
 
-const REVIEWER_CONTROL_VARIABLES = new Set([
+const REVIEWER_CONTROL_VARIABLES = [
   'SAFEWORD_REVIEW_RUN_BOUND_MS',
   'SAFEWORD_REVIEW_TIMEOUT_MS',
-]);
+] as const;
 
 // Public-command fixtures use real reviewer subprocesses. Keep their controls
 // explicit so an arbitrary SAFEWORD_REVIEW_* value cannot cross that boundary.
-const REVIEWER_FIXTURE_VARIABLES = new Set([
+const REVIEWER_FIXTURE_VARIABLES = [
+  'SAFEWORD_REVIEW_ACCEPTED_MODEL',
+  'SAFEWORD_REVIEW_CANDIDATE_LOG',
+  'SAFEWORD_REVIEW_CHILD_PID',
   'SAFEWORD_REVIEW_ENV_LOG',
   'SAFEWORD_REVIEW_FAKE_DELAY_AGENT',
   'SAFEWORD_REVIEW_FAKE_FAILURE',
@@ -76,12 +79,18 @@ const REVIEWER_FIXTURE_VARIABLES = new Set([
   'SAFEWORD_REVIEW_FAKE_VERDICT',
   'SAFEWORD_REVIEW_HELP_MUTATE',
   'SAFEWORD_REVIEW_LOG',
+  'SAFEWORD_REVIEW_MODEL_LOG',
   'SAFEWORD_REVIEW_MODEL_PROMPT_LOG',
   'SAFEWORD_REVIEW_PROBE_ENV_LOG',
   'SAFEWORD_REVIEW_PROMPT_LOG',
+  'SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR',
+  'SAFEWORD_REVIEW_ROUTE_LOG',
+  'SAFEWORD_REVIEW_SCHEMA_COPY',
+  'SAFEWORD_REVIEW_SCHEMA_PATH_LOG',
+  'SAFEWORD_REVIEW_STUBBORN_PID',
   'SAFEWORD_REVIEW_SWAP_ALIAS',
   'SAFEWORD_REVIEW_SWAP_TARGET',
-]);
+] as const;
 
 function filteredEnvironment(
   reviewer: ReviewAgent | undefined,
@@ -93,7 +102,7 @@ function filteredEnvironment(
     [
       ...PROCESS_VARIABLES,
       ...REVIEWER_CONTROL_VARIABLES,
-      ...REVIEWER_FIXTURE_VARIABLES,
+      ...((source.NODE_ENV ?? process.env.NODE_ENV) === 'test' ? REVIEWER_FIXTURE_VARIABLES : []),
       ...(reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]),
     ].map(name => normalize(name)),
   );

@@ -222,6 +222,31 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
+  it.runIf(process.platform !== 'win32')(
+    'keeps a live review pending when worker inspection is unavailable',
+    async () => {
+      const cwd = project();
+      const bin = nodePath.join(cwd, 'bin');
+      mkdirSync(bin);
+      const ps = nodePath.join(bin, 'ps');
+      writeFileSync(ps, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+      vi.stubEnv('PATH', bin);
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+
+      const pending = await startReviewJob({
+        cwd,
+        kind: 'quality-review',
+        targets: ['input.md'],
+      });
+      const id = (pending.data as { review_id: string }).review_id;
+
+      expect(pending.findings[0]?.code).toBe('REVIEW_PENDING');
+      expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_PENDING');
+      cancelReviewJob(cwd, id);
+    },
+  );
+
   it('launches a managed worker in JSON mode', async () => {
     const cwd = project();
     const argumentsPath = nodePath.join(cwd, 'worker-arguments.json');
