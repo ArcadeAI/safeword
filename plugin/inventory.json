@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "76204badce88a4de06fbbcd3a527cb57f2d5651011e68be7dda92c39f4dd5295"
+      "sha256": "7cc5787b24b93eeb5337757ee7715691ae7a42cd8e29ff09ec964b5da4c38c71"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "de18527a8bd1cfda32cad89d8784bb7923184654fa5a29b2c2a1d445d5f1a5f6"
+      "sha256": "a32e6f17d49ef6b990b4d8f163c84726aa81de48cf4224dd5de7977572f83765"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "5d0f9431ae465d57a12d965c7508f5420cbec2123a8ccc0ccf7bb36a43d40128"
+      "sha256": "2790efb6a75ee93d6a360251dcba206c7ac42981b615cee3468a028b8d4f5d21"
     },
     {
       "path": "runtime/event-groups.json",
@@ -607,7 +607,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "b34bae6cfcc193d9077c46094afc5ef1d943375a6ec5a8fe11173a9cdb4c5002"
+      "sha256": "79ad55ecb3c26533db3c73a20563df27c8645b4372ca820ea4c4b6b96dac36e5"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -623,7 +623,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "11bbe164c568668f67a31b60b1e23b2f43c80560d15942875e5ebc3e24c4a276"
+      "sha256": "32c4ddc3d7679e22f43fe2e93370e431514c5eb3423684ed150e015d1866a017"
     },
     {
       "path": "skills/debug/SKILL.md",
