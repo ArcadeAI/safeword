@@ -49,6 +49,7 @@ interface PluginInventoryV1 {
 }
 
 interface HookInput {
+  readonly tool_name?: string;
   readonly cwd?: string;
   readonly session_id?: string;
   readonly source?: string;
@@ -318,9 +319,18 @@ function runFunctionalCommand(
   };
 }
 
-function eventEntryMatches(entry: EventGroupEntryV1, input: HookInput): boolean {
+const TOOL_EVENTS = new Set([
+  'PermissionDenied',
+  'PermissionRequest',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'PreToolUse',
+]);
+
+function eventEntryMatches(event: string, entry: EventGroupEntryV1, input: HookInput): boolean {
   if (entry.matcher === undefined || entry.matcher === '') return true;
-  return entry.matcher.split('|').includes(input.source ?? '');
+  const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
+  return entry.matcher.split('|').includes(subject ?? '');
 }
 
 function readEventEntries(event: string, eventGroupsContent: Buffer): readonly EventGroupEntryV1[] {
@@ -757,7 +767,7 @@ function runEventGroup(
   const entries = readEventEntries(event, eventGroupsContent);
   const response: HookResponse = {};
   for (const entry of entries) {
-    if (!eventEntryMatches(entry, hookInput)) continue;
+    if (!eventEntryMatches(event, entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
     if (status !== 0) return { status, stdout: '' };

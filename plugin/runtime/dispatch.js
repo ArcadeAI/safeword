@@ -4627,9 +4627,17 @@ function runFunctionalCommand(arguments_, input, captureOutput = false) {
     stdout: captureOutput ? (result.stdout?.toString('utf8') ?? '') : '',
   };
 }
-function eventEntryMatches(entry, input) {
+var TOOL_EVENTS = /* @__PURE__ */ new Set([
+  'PermissionDenied',
+  'PermissionRequest',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'PreToolUse',
+]);
+function eventEntryMatches(event, entry, input) {
   if (entry.matcher === void 0 || entry.matcher === '') return true;
-  return entry.matcher.split('|').includes(input.source ?? '');
+  const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
+  return entry.matcher.split('|').includes(subject ?? '');
 }
 function readEventEntries(event, eventGroupsContent) {
   const value = JSON.parse(eventGroupsContent.toString('utf8'));
@@ -4954,7 +4962,7 @@ function runEventGroup(event, eventGroupsContent, hookInput, standardInput) {
   const entries = readEventEntries(event, eventGroupsContent);
   const response = {};
   for (const entry of entries) {
-    if (!eventEntryMatches(entry, hookInput)) continue;
+    if (!eventEntryMatches(event, entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
     if (status !== 0) return { status, stdout: '' };

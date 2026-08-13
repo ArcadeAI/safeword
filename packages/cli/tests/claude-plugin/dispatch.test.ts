@@ -101,6 +101,7 @@ function dispatchEvent(
   options: {
     readonly event: string;
     readonly homeDirectory?: string;
+    readonly hookInput?: Readonly<Record<string, unknown>>;
     readonly omitProjectDirectory?: boolean;
     readonly pluginRoot?: string;
   },
@@ -128,6 +129,7 @@ function dispatchEvent(
         cwd: projectDirectory,
         hook_event_name: event,
         session_id: sessionId,
+        ...options.hookInput,
       }),
     },
   );
@@ -613,6 +615,55 @@ describe('Claude plugin dispatcher', () => {
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
         permissionDecision: 'deny',
+      },
+    });
+  });
+
+  it('matches aggregate tool hooks against the Claude tool name', () => {
+    const projectDirectory = temporary('safeword-plugin-tool-matcher-project-');
+    const pluginData = temporary('safeword-plugin-tool-matcher-data-');
+    const configDirectory = temporary('safeword-plugin-tool-matcher-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-tool-matcher-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.PreToolUse = [
+      {
+        matcher: 'Bash',
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"bash matched"}}\n'`,
+          },
+        ],
+      },
+      {
+        matcher: 'Edit',
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"edit matched"}}\n'`,
+          },
+        ],
+      },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'tool-matcher', {
+      event: 'PreToolUse',
+      hookInput: { source: 'startup', tool_name: 'Bash', tool_input: { command: 'pwd' } },
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'allow',
+        permissionDecisionReason: 'bash matched',
       },
     });
   });
