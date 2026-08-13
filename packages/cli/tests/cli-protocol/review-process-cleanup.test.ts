@@ -119,7 +119,7 @@ describe('stopping a reviewer', () => {
 
   it('reaps descendants even when the reviewer leader exits after answering', async () => {
     const directory = createTemporaryDirectory();
-    const host = createTemporaryDirectory();
+    const host = createTrustedReviewerDirectory('safeword-process-cleanup-answer-');
     const pidFile = nodePath.join(host, 'daemon.pid');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const bin = installReviewerThatExitsAfterAnswering(host, pidFile);
