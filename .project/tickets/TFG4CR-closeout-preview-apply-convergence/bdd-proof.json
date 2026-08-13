@@ -3,8 +3,9 @@
   "scenarios": {
     "An unsealed finding remains observable to retrospective extraction": ["packages/cli/tests/commands/retro.test.ts", "retro-transcript-mining.TB1.AC2.planted_friction_signal_is_extracted"],
     "Distinct findings survive signature deduplication": ["packages/cli/tests/commands/retro.test.ts", "keys same-window relay drafts by finding evidence rather than extractor position"],
-    "Preview reporting advances only a bounded retrospective delta": ["packages/cli/tests/closeout-cleanup.test.ts", "blocks cleanup until transcript content appended during extraction is evaluated"],
-    "A finding appended during extraction remains visible to the next invocation": ["packages/cli/tests/closeout-cleanup.test.ts", "blocks cleanup until transcript content appended during extraction is evaluated"],
+    "Preview reporting advances only a bounded retrospective delta": ["packages/cli/tests/closeout-cleanup.test.ts", "evaluates transcript content appended during extraction before returning complete"],
+    "A finding appended during extraction is evaluated in the same invocation": ["packages/cli/tests/closeout-cleanup.test.ts", "evaluates transcript content appended during extraction before returning complete"],
+    "Continuously expanding extraction input fails closed after bounded windows": ["packages/cli/tests/closeout-cleanup.test.ts", "fails closed after bounded extraction windows when the transcript never settles"],
     "A partially written transcript record is not sealed or lost": ["packages/cli/tests/closeout-cleanup.test.ts", "derives the delta offset from the sealed UTF-16 prefix and defers a partial tail"],
     "A previously partial record is evaluated after completion": ["packages/cli/tests/closeout-cleanup.test.ts", "derives the delta offset from the sealed UTF-16 prefix and defers a partial tail"],
     "A successful retro with no pending filing is reusable": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup"],

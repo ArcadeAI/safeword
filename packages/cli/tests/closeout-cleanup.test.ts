@@ -471,7 +471,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
-  it('blocks cleanup until transcript content appended during extraction is evaluated', () => {
+  it('evaluates transcript content appended during extraction before returning complete', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-concurrent-append-'));
     const id = 'codex-concurrent-append';
     const transcript = nodePath.join(root, 'transcript.jsonl');
@@ -491,7 +491,56 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       const runner = (_root: string, arguments_: string[]) => {
         runs += 1;
         windows.push(arguments_.includes('--window-start') ? (arguments_.at(-1) ?? '') : 'full');
-        if (runs === 1) writeFileSync(transcript, lateRecord, { flag: 'a' });
+        if (runs === 1) {
+          writeFileSync(transcript, lateRecord, { flag: 'a' });
+          return completedRetroResult();
+        }
+        const spool = draftSpoolPath(root, id);
+        mkdirSync(nodePath.dirname(spool), { recursive: true });
+        writeFileSync(
+          spool,
+          `${JSON.stringify({
+            signature: 'retro:late-finding',
+            title: 'Preserve the late finding',
+            body: 'A finding appended while retrospective extraction was running.',
+            labels: ['retro'],
+          })}\n`,
+        );
+        return filingNeededRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner)).toMatchObject({
+        complete: false,
+        failure: 'filing',
+        pendingDrafts: 1,
+        spoolPath: realpathSync(draftSpoolPath(root, id)),
+      });
+      expect(windows).toEqual(['full', String(firstRecord.length)]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('fails closed after bounded extraction windows when the transcript never settles', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-continuous-append-'));
+    const id = 'codex-continuous-append';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const binding = {
+        runtime: 'codex' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        const text = `late finding ${runs}`;
+        writeFileSync(transcript, `${JSON.stringify({ role: 'assistant', text })}\n`, {
+          flag: 'a',
+        });
         return completedRetroResult();
       };
 
@@ -499,8 +548,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         complete: false,
         failure: 'unknown',
       });
-      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
-      expect(windows).toEqual(['full', String(firstRecord.length)]);
+      expect(runs).toBe(3);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -1683,6 +1731,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
       const environment = {
         ...process.env,
+        CODEX_THREAD_ID: 'codex-thread-42',
         PATH: `${bin}:${process.env.PATH ?? ''}`,
         SAFEWORD_CLI: fakeSafeword,
         GIT_SSH_COMMAND: ssh,
