@@ -47,7 +47,7 @@ function profileId(environment: NodeJS.ProcessEnv = process.env): string {
 }
 
 function canonicalGithubRepository(value: string): string | undefined {
-  const match = /github\.com[/:]([^/]+)\/([^/#]+?)(?:\.git)?$/u.exec(value.trim());
+  const match = /github\.com[/:]([^/]+)\/([^/#]+?)(?:\.git)?(?:\/|$)/u.exec(value.trim());
   return match ? `${match[1]}/${match[2]}`.toLowerCase() : undefined;
 }
 

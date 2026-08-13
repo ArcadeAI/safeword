@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "c952c786fc21d037fe1ef385c43ff0d8040b660228dc424cef5a8d33b89df3ec"
+      "sha256": "a727667be41a7352aa181bceaff5c58478a90eb6cf52576abc117171204c17db"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "46e0b74d9cde5067aae5c253a89feca10ccc9c48bb1d9259bdd7f2596d19b3ac"
+      "sha256": "3af40ac89194af0a6953499bc6bcc89ff3c3e81e0cf01caad6657b570dee35e7"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -375,7 +375,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "10882fbe1815bd848c12281be1f6d26e9f0e60bb21b08c7c2e7359d4352cc75e"
+      "sha256": "49a39a1b38af9d1025704ef1bbe0e95f4970d784f212a222863454add2b3af7f"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/session-codex-start.ts",
-      "sha256": "16d41f71b90fa89501b6e0856b3da19e676159281f42b8f1a760341ff1feddb3"
+      "sha256": "0f27c37b5c62dbe722ed424963d6fed07eb3d1c241655fbaf6fd80b77715eb3b"
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",

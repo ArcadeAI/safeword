@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 import {
   type CloseoutBinding,
   readFreshCloseoutBinding,
+  recordCodexCloseoutHandoff,
 } from '../../runtime/hooks/lib/closeout-binding.ts';
 import {
   draftSpoolPath,
@@ -1017,9 +1018,12 @@ function hasMeaningfulTranscriptGrowth(
         const record = JSON.parse(line) as { type?: unknown; payload?: { type?: unknown } };
         return !(
           record.type === 'response_item' &&
-          ['custom_tool_call', 'custom_tool_call_output', 'function_call', 'function_call_output'].includes(
-            typeof record.payload?.type === 'string' ? record.payload.type : '',
-          )
+          [
+            'custom_tool_call',
+            'custom_tool_call_output',
+            'function_call',
+            'function_call_output',
+          ].includes(typeof record.payload?.type === 'string' ? record.payload.type : '')
         );
       } catch {
         return true;
@@ -1672,6 +1676,19 @@ if (import.meta.main) {
   const pr = argumentValue('--pr');
   const binding = root ? resolveCloseoutBinding(root) : undefined;
   if (!root || !pr || !binding) {
+    if (root && pr && !binding) {
+      const pullRequests = observePullRequest(root, pr);
+      const identity = pullRequests.length === 1 ? pullRequests[0] : undefined;
+      const pullRequest = Number.parseInt(pr, 10);
+      if (identity && identity.state === 'MERGED') {
+        recordCodexCloseoutHandoff({
+          projectDirectory: root,
+          repositoryUrl: identity.url,
+          pullRequest,
+          headOid: identity.headRefOid,
+        });
+      }
+    }
     const recovery =
       root && pr && !binding
         ? ` Start one fresh task and run bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts --pr ${pr}.`

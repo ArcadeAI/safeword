@@ -8,6 +8,7 @@ declare const Bun: { stdin: { json(): Promise<unknown> } };
 export type Agent = 'claude' | 'codex' | 'cursor';
 export type HookInput = {
   cwd?: string;
+  session_id?: string;
   workspace_root?: string;
 };
 
