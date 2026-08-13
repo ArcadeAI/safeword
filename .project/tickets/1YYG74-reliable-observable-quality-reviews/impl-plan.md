@@ -102,10 +102,10 @@ up either the change or rollback only after reinstall.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Managed workflows become observable while direct JSON automation remains byte-compatible; advanced callers retain human mode today, while a supported machine-progress API remains an explicit future trigger | Wrapper and direct-JSON integration tests | Direct JSON callers get no new supported progress control in this two-way-door patch |
-| Structure enforces; instructions suggest | The CLI enforces stream separation and signal deletion; skills conventionally invoke the wrapper opt-in | `packages/cli/tests/cli-protocol/review-wiring.test.ts`, `packages/cli/tests/review/surface-parity.test.ts` | Any external process can set the unsupported private signal |
-| Fire at boundaries, not every turn | Progress begins only after review route work becomes active and stops at terminal completion | `packages/cli/tests/cli-protocol/policy.test.ts`, `packages/cli/features/reliable-observable-quality-reviews.feature` | none |
-| Correct and safe; then clear; then simple | Reuse one reporter and one private signal; add no public flag, dependency, or result schema | `packages/cli/tests/cli-protocol/policy.test.ts`, `packages/cli/tests/cli-protocol/review-wiring.test.ts` | none |
+| Optimize for the NTB without constraining the TBU | Managed workflows become observable while direct JSON automation remains byte-compatible; advanced callers retain human mode today, while a supported machine-progress API remains an explicit future trigger | `packages/cli/tests/review/surface-parity.test.ts` | explicit-conflict |
+| 1. Structure enforces; instructions suggest | The CLI enforces stream separation and signal deletion; skills conventionally invoke the wrapper opt-in | `packages/cli/tests/cli-protocol/review-wiring.test.ts` | explicit-conflict |
+| 2. Fire at boundaries, not every turn | Progress begins only after review route work becomes active and stops at terminal completion | `packages/cli/tests/cli-protocol/policy.test.ts` | |
+| 5. Correct and safe; then clear; then simple | Reuse one reporter and one private signal; add no public flag, dependency, or result schema | `packages/cli/tests/cli-protocol/policy.test.ts` | |
 
 This honors the `ARCHITECTURE.md` decisions **Host-owned cross-agent
 adversarial review coordinator** and **Predictable Safeword CLI: one typed
@@ -115,9 +115,14 @@ artifact.
 
 ## Known deviations
 
-- External or inherited use of `SAFEWORD_REVIEW_PROGRESS=1` enables stderr
+- **Optimize for the NTB without constraining the TBU:** External or inherited
+  use of `SAFEWORD_REVIEW_PROGRESS=1` enables stderr
   progress for direct JSON review. This is unsupported, leaves stdout intact,
   and is accepted to avoid a public option or older-CLI argv break.
+- **1. Structure enforces; instructions suggest:** The private signal is an
+  enforceable wrapper/CLI boundary but cannot prevent an external process from
+  setting the unsupported value itself; CLI consumption and reviewer
+  allowlisting contain its reach.
 - A broken progress descriptor is deliberately silent: the slice-4 dogfood run
   is the only post-ship detector. Emitting a fallback diagnostic would violate
   the best-effort side-channel contract.
