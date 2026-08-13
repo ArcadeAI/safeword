@@ -3,17 +3,17 @@
 ## Verify Checklist
 
 **Test Suite:** ⚠️ Local environment limitation: 7,764 tests passed and 6 skipped across retro-relay and CLI; one timeout-sensitive review CLI-probe test failed under the 490-file loaded run and immediately passed 1/1 in isolation.
-**Gherkin:** ✅ Acceptance lane passes — 1,519 scenarios passed and 3 skipped (64,788 steps passed and 4 skipped).
+**Gherkin:** ✅ Acceptance lane passes — 1,469 scenarios passed and 3 skipped (64,549 steps passed and 4 skipped), plus all 50 Vitest-backed proof scenarios and 240 proof steps.
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** ❌ 0/0 complete — this intake-phase ticket has no `test-definitions.md`; independent scenario-gate provenance remains outstanding.
+**Scenarios:** ✅ 3/3 complete — `test-definitions.md` maps the behavior Rules to the original RED, GREEN, and refactor commits and their executable proof surfaces.
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⏭️ N/A — not persona-facing
 **Surface Evidence:** ✅ 1/1 affected surfaces have recorded proof
-**Evidence limits:** ⚠️ One full-suite-only review-probe timeout passed in isolation; the preferred independent quality reviewer timed out and the approved re-review used the same-agent fallback.
+**Evidence limits:** ⚠️ One full-suite-only review-probe timeout passed in isolation; the original scenario-gate coordinator timed out, and the preferred independent quality reviewer timed out before the approved fallback review.
 
 Audit passed — diff-scoped dependency architecture, generated config, domain references, documentation impact, and changed-test quality are clean.
 

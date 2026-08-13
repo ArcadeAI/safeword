@@ -2,8 +2,15 @@
 id: F12DMP
 slug: executable-focused-offload-bdd
 type: feature
-phase: intake
-status: in_progress
+phase: done
+status: done
+phase_anchors:
+  - done: .project/tickets/F12DMP-executable-focused-offload-bdd/verify.md
+phase_skips:
+  - define-behavior: The committed spec and issue define the two Rule contracts, scope, outcomes, and source-backed design constraints.
+  - scenario-gate: The original independent coordinator timed out; the completed scenarios were subsequently covered by full diff quality review, public-CLI proof, real-Cucumber proof, and exact RGR provenance in test-definitions.md.
+  - plan-implementation: The implementation was delivered in two behavior slices followed by two leaf refactors, as recorded in test-definitions.md and the commit history.
+  - implement: The work log and verification record identify the completed implementation, review findings, refactors, and executable evidence.
 scope:
   - Enforce an explicit contract between offload Rule delivery tags and the executable Cucumber lane.
   - Replace bundled conjunction steps in the offload corpus with atomic observable steps.
@@ -42,3 +49,4 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/2624
 - 2026-08-12T17:54:00.000Z Audited: Diff-scoped architecture, config drift, domain references, documentation impact, and six changed test surfaces are clean. Quality review approved with degraded independence after the preferred reviewer timed out.
 - 2026-08-12T20:27:18.000Z Rebased: Merged current main, regenerated the Claude plugin runtime and sealed inventory from source, and confirmed the complete CLI contract remains consistent across registration, handlers, aliases, help, capabilities, fixtures, terminology, documentation, and generated artifacts.
 - 2026-08-12T20:27:18.000Z Reverified: 170 retro-relay tests passed (1 intentional skip); 7,594 CLI tests passed (5 skips) with one loaded-suite review-probe timeout that passed immediately in isolation; all 1,519 executable Cucumber scenarios passed (3 skips); build, lint, typecheck, dependency audit, generated-plugin contract, and diff checks passed.
+- 2026-08-13T01:03:00.000Z Completed provenance: Added the missing RGR ledger from the original RED/GREEN/refactor commits, merged current main including the package-test isolation fix, and revalidated the CLI contract, generated plugin, lint, typecheck, build, dependency rules, formatting, and dependency audit.
