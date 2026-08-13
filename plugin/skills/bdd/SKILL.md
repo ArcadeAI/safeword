@@ -71,6 +71,12 @@ bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "
 
 If the reviewer finds blocking issues, fix them and re-review — don't stamp.
 
+All BDD review exits share one lifecycle rule: `REVIEW_PENDING` is a live
+review, not a verdict. Keep its `review_id`, collect it through the returned
+typed `nextActions` until terminal, and never start a replacement review or
+advance/stamp while it is pending. `REVIEW_STALE` means rerun against the
+current artifacts. Only a terminal verdict may advance the phase.
+
 The plan-implementation exit applies the same discipline to the implementation plan (see PLAN_IMPLEMENTATION.md's exit). Other phase exits don't need an independent review by default — they carry their
 own guards (intake's user sub-phase gates, implement's tests, the done-gate's
 evidence checks). When the **review gate** is enabled (`reviewGate` in
