@@ -184,8 +184,8 @@ exit 2`,
   });
 
   it.each([
-    ['approved', 0, '{"schema_version":1,"state":"healthy"}\n'],
-    ['action-required', 2, '{"schema_version":1,"state":"action_required"}\n'],
+    ['approved', 0, '{"schema_version":1,"state":"healthy"}'],
+    ['action-required', 2, '{"schema_version":1,"state":"action_required"}'],
   ] as const)(
     'preserves an older CLI %s result and status without adding an argument',
     (_, status, output) => {
@@ -197,7 +197,7 @@ exit 2`,
           nodePath.join(localBin, 'safeword'),
           `if [ "$*" = "review run --help" ]; then exit 0; fi
 if [ "$*" != "review run quality-review target --agent-handoff --json" ]; then exit 64; fi
-printf '%s' ${JSON.stringify(output)}
+printf '%s\n' ${JSON.stringify(output)}
 exit ${status}`,
         );
 
@@ -215,7 +215,7 @@ exit ${status}`,
           { cwd: fixture, encoding: 'utf8' },
         );
         expect(result.status).toBe(status);
-        expect(result.stdout).toBe(output);
+        expect(result.stdout).toBe(`${output}\n`);
         expect(result.stderr).toBe('');
       } finally {
         rmSync(fixture, { recursive: true, force: true });

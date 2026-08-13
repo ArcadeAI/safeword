@@ -150,10 +150,14 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
     expect(proofs.length, `${scenario} must register at least one proof`).toBeGreaterThan(0);
     for (const [proofPath, testName] of proofs) {
       const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
+      const executableNames = executableVitestNames(proof);
       expect(
-        executableVitestNames(proof),
+        executableNames.some(
+          executableName =>
+            executableName === testName || executableName.startsWith(`${testName}:`),
+        ),
         `${scenario} -> ${proofPath} must declare ${testName}`,
-      ).toContain(testName);
+      ).toBe(true);
     }
   }
 }
@@ -242,6 +246,9 @@ describe('BDD proof provenance', () => {
     expect(executableVitestNames("// it('comment only', () => {});")).not.toContain('comment only');
     expect(executableVitestNames("it.skip('disabled behavior', () => {});")).not.toContain(
       'disabled behavior',
+    );
+    expect(executableVitestNames("it.each([1, 2])('registered prefix: %s', () => {});")).toContain(
+      'registered prefix: %s',
     );
   });
 });
