@@ -77,7 +77,7 @@ Feature: Keep quality reviews observable and actionable
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
 
-    Scenario Outline: A progress write failure cannot alter the terminal result
+    Scenario Outline: Progress write failures stay contained and retryable
       Given a managed progress destination that <failure>
       When lifecycle output is attempted more than once
       Then every write failure is swallowed

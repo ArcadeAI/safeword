@@ -30,6 +30,15 @@ function markdownFiles(directory: string, prefix = ''): string[] {
   });
 }
 
+function filesUnder(directory: string, prefix = ''): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const relativePath = nodePath.join(prefix, entry.name);
+    const absolutePath = nodePath.join(directory, entry.name);
+    if (entry.isDirectory()) return filesUnder(absolutePath, relativePath);
+    return entry.isFile() ? [relativePath] : [];
+  });
+}
+
 function executable(path: string, body: string): void {
   writeFileSync(path, `#!/bin/sh\n${body}\n`);
   chmodSync(path, 0o755);
@@ -121,7 +130,7 @@ describe('class-1 review surface parity', () => {
       mkdirSync(localBin, { recursive: true });
       executable(
         nodePath.join(localBin, 'safeword'),
-        String.raw`if [ "$*" = "review run --help" ]; then exit 0; fi
+        `if [ "$*" = "review run --help" ]; then exit 0; fi
 if [ "$SAFEWORD_REVIEW_PROGRESS" != "1" ]; then exit 9; fi
 printf 'PROGRESS\n' >&2
 while [ ! -f "$ACKNOWLEDGEMENT" ]; do sleep 0.01; done
@@ -174,39 +183,45 @@ exit 2`,
     }
   });
 
-  it('preserves an older CLI result and status without adding an argument', () => {
-    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-older-cli-'));
-    try {
-      const localBin = nodePath.join(fixture, 'node_modules/.bin');
-      mkdirSync(localBin, { recursive: true });
-      executable(
-        nodePath.join(localBin, 'safeword'),
-        String.raw`if [ "$*" = "review run --help" ]; then exit 0; fi
+  it.each([
+    ['approved', 0, '{"schema_version":1,"state":"healthy"}\n'],
+    ['action-required', 2, '{"schema_version":1,"state":"action_required"}\n'],
+  ] as const)(
+    'preserves an older CLI %s result and status without adding an argument',
+    (_, status, output) => {
+      const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-older-cli-'));
+      try {
+        const localBin = nodePath.join(fixture, 'node_modules/.bin');
+        mkdirSync(localBin, { recursive: true });
+        executable(
+          nodePath.join(localBin, 'safeword'),
+          `if [ "$*" = "review run --help" ]; then exit 0; fi
 if [ "$*" != "review run quality-review target --agent-handoff --json" ]; then exit 64; fi
-printf '{"schema_version":1,"state":"action_required"}\n'
-exit 2`,
-      );
+printf '%s' ${JSON.stringify(output)}
+exit ${status}`,
+        );
 
-      const result = spawnSync(
-        process.execPath,
-        [
-          nodePath.join(templates, 'hooks/run-review.ts'),
-          'review',
-          'run',
-          'quality-review',
-          'target',
-          '--agent-handoff',
-          '--json',
-        ],
-        { cwd: fixture, encoding: 'utf8' },
-      );
-      expect(result.status).toBe(2);
-      expect(result.stdout).toBe('{"schema_version":1,"state":"action_required"}\n');
-      expect(result.stderr).toBe('');
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  });
+        const result = spawnSync(
+          process.execPath,
+          [
+            nodePath.join(templates, 'hooks/run-review.ts'),
+            'review',
+            'run',
+            'quality-review',
+            'target',
+            '--agent-handoff',
+            '--json',
+          ],
+          { cwd: fixture, encoding: 'utf8' },
+        );
+        expect(result.status).toBe(status);
+        expect(result.stdout).toBe(output);
+        expect(result.stderr).toBe('');
+      } finally {
+        rmSync(fixture, { recursive: true, force: true });
+      }
+    },
+  );
 
   it('scopes managed progress to the JSON review child despite inherited contamination', () => {
     const contaminated = {
@@ -243,6 +258,41 @@ exit 2`,
       relativePath,
     ).toBe(false);
     expect(content, relativePath).toContain('bun .safeword/hooks/run-review.ts');
+  });
+
+  it('keeps generated required-review surfaces on the managed wrapper and Cursor unwired', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const generatedRoots = [
+      nodePath.join(repoRoot, 'plugin/skills'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+    ];
+
+    for (const generatedRoot of generatedRoots) {
+      const requiredReviewFiles = filesUnder(generatedRoot).filter(relativePath =>
+        ['quality-review', 'review-spec', 'bdd', 'tdd-review'].some(skill =>
+          relativePath.includes(skill),
+        ),
+      );
+      expect(requiredReviewFiles.length, generatedRoot).toBeGreaterThan(0);
+      const combined = requiredReviewFiles
+        .map(relativePath => readFileSync(nodePath.join(generatedRoot, relativePath), 'utf8'))
+        .join('\n');
+      expect(combined, generatedRoot).toContain('run-review.ts review run');
+      expect(combined, generatedRoot).toContain('--agent-handoff --json');
+    }
+
+    const cursorRoots = [
+      nodePath.join(repoRoot, '.cursor/commands'),
+      nodePath.join(repoRoot, '.cursor/rules'),
+    ];
+    for (const cursorRoot of cursorRoots) {
+      for (const relativePath of filesUnder(cursorRoot)) {
+        expect(
+          readFileSync(nodePath.join(cursorRoot, relativePath), 'utf8'),
+          relativePath,
+        ).not.toContain('run-review.ts review run');
+      }
+    }
   });
 
   it.each([

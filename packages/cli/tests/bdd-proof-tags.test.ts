@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
@@ -93,9 +94,68 @@ const VITEST_PROVEN_FEATURES = [
   ],
 ] as const;
 
+type ScenarioProof = [string, string];
+type ScenarioProofRegistration = ScenarioProof | ScenarioProof[];
+
 interface ScenarioProofManifest {
   feature: string;
-  scenarios: Record<string, [string, string]>;
+  scenarios: Record<string, ScenarioProofRegistration>;
+}
+
+function registeredProofs(registration: ScenarioProofRegistration): ScenarioProof[] {
+  return typeof registration[0] === 'string'
+    ? [registration as ScenarioProof]
+    : (registration as ScenarioProof[]);
+}
+
+function executableVitestNames(source: string): string[] {
+  const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
+  const names: string[] = [];
+
+  function vitestCallName(call: ts.CallExpression): string | undefined {
+    if (ts.isIdentifier(call.expression)) return call.expression.text;
+    if (!ts.isCallExpression(call.expression)) return undefined;
+    const eachAccess = call.expression.expression;
+    if (!ts.isPropertyAccessExpression(eachAccess) || eachAccess.name.text !== 'each') {
+      return undefined;
+    }
+    return ts.isIdentifier(eachAccess.expression) ? eachAccess.expression.text : undefined;
+  }
+
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
+      const testName = vitestCallName(node);
+      const nameArgument = node.arguments[0];
+      if (
+        (testName === 'it' || testName === 'test') &&
+        (ts.isStringLiteral(nameArgument) || ts.isNoSubstitutionTemplateLiteral(nameArgument))
+      ) {
+        names.push(nameArgument.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return names;
+}
+
+function expectScenarioProofs(manifest: ScenarioProofManifest): void {
+  expect(
+    Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
+  ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
+
+  for (const [scenario, registration] of Object.entries(manifest.scenarios)) {
+    const proofs = registeredProofs(registration);
+    expect(proofs.length, `${scenario} must register at least one proof`).toBeGreaterThan(0);
+    for (const [proofPath, testName] of proofs) {
+      const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
+      expect(
+        executableVitestNames(proof),
+        `${scenario} -> ${proofPath} must declare ${testName}`,
+      ).toContain(testName);
+    }
+  }
 }
 
 function scenarioNames(featurePath: string): string[] {
@@ -164,14 +224,7 @@ describe('BDD proof provenance', () => {
       '.project/tickets/TFG4CR-closeout-preview-apply-convergence/bdd-proof.json',
     );
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ScenarioProofManifest;
-    expect(
-      Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
-
-    for (const [scenario, [proofPath, testName]] of Object.entries(manifest.scenarios)) {
-      const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
-      expect(proof, `${scenario} -> ${proofPath} must name ${testName}`).toContain(testName);
-    }
+    expectScenarioProofs(manifest);
   });
 
   it('maps every observable-review scenario to a named executable proof', () => {
@@ -180,13 +233,15 @@ describe('BDD proof provenance', () => {
       '.project/tickets/1YYG74-reliable-observable-quality-reviews/bdd-proof.json',
     );
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ScenarioProofManifest;
-    expect(
-      Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
+    expectScenarioProofs(manifest);
+  });
 
-    for (const [scenario, [proofPath, testName]] of Object.entries(manifest.scenarios)) {
-      const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
-      expect(proof, `${scenario} -> ${proofPath} must name ${testName}`).toContain(testName);
-    }
+  it('accepts executable Vitest declarations but rejects comments and skipped lookalikes', () => {
+    expect(executableVitestNames("it('real behavior', () => {});")).toContain('real behavior');
+    expect(executableVitestNames("it.each([1, 2])('row %s', () => {});")).toContain('row %s');
+    expect(executableVitestNames("// it('comment only', () => {});")).not.toContain('comment only');
+    expect(executableVitestNames("it.skip('disabled behavior', () => {});")).not.toContain(
+      'disabled behavior',
+    );
   });
 });

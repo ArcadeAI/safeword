@@ -1,16 +1,28 @@
 {
   "feature": "packages/cli/features/reliable-observable-quality-reviews.feature",
   "scenarios": {
-    "Managed progress preserves each terminal review outcome": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while reporting only active reviewer work"],
+    "Managed progress preserves each terminal review outcome": [
+      ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while reporting only active reviewer work"],
+      ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "preserves an action-required result after managed progress"]
+    ],
     "Packet preparation stays quiet until reviewer work begins": ["packages/cli/tests/cli-protocol/policy.test.ts", "suppresses packet preparation only for managed JSON progress"],
     "Completion cancels pending lifecycle output": ["packages/cli/tests/cli-protocol/policy.test.ts", "cancels a pending announcement as well as the heartbeat when the command ends"],
     "Only the exact private signal enables JSON progress": ["packages/cli/tests/cli-protocol/policy.test.ts", "consumes only the exact managed-progress signal and always removes it"],
-    "Quiet mode wins over managed progress": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "lets quiet mode suppress managed progress"],
+    "Quiet mode wins over managed progress": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "lets quiet mode suppress managed progress for %s without suppressing the JSON result"],
     "Human-readable progress remains enabled without the private signal": ["packages/cli/tests/cli-protocol/policy.test.ts", "reports JSON progress only for an opted-in managed review and never in quiet mode"],
-    "A progress write failure cannot alter the terminal result": ["packages/cli/tests/cli-protocol/policy.test.ts", "keeps descriptor write failures best-effort and retries later writes"],
+    "Progress write failures stay contained and retryable": [
+      ["packages/cli/tests/cli-protocol/policy.test.ts", "keeps descriptor write failures best-effort and retries later writes"],
+      ["packages/cli/tests/cli-protocol/policy.test.ts", "keeps a later descriptor failure best-effort after an earlier write succeeds"]
+    ],
     "The private signal never reaches reviewer processes": ["packages/cli/tests/review/environment.test.ts", "never exposes the wrapper-only managed-progress signal to reviewers"],
-    "The wrapper scopes progress to its JSON review child": ["packages/cli/tests/review/surface-parity.test.ts", "forwards managed progress before the selected CLI exits"],
-    "The wrapper remains compatible with an older review-capable CLI": ["packages/cli/tests/review/surface-parity.test.ts", "preserves an older CLI result and status without adding an argument"],
-    "Required-review surfaces cannot bypass the managed wrapper": ["packages/cli/tests/review/surface-parity.test.ts", "%s enters the shared %s coordinator"]
+    "The wrapper scopes progress to its JSON review child": [
+      ["packages/cli/tests/review/surface-parity.test.ts", "forwards managed progress before the selected CLI exits"],
+      ["packages/cli/tests/review/surface-parity.test.ts", "scopes managed progress to the JSON review child despite inherited contamination"]
+    ],
+    "The wrapper remains compatible with an older review-capable CLI": ["packages/cli/tests/review/surface-parity.test.ts", "preserves an older CLI %s result and status without adding an argument"],
+    "Required-review surfaces cannot bypass the managed wrapper": [
+      ["packages/cli/tests/review/surface-parity.test.ts", "%s enters the shared %s coordinator"],
+      ["packages/cli/tests/review/surface-parity.test.ts", "keeps generated required-review surfaces on the managed wrapper and Cursor unwired"]
+    ]
   }
 }

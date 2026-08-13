@@ -22,6 +22,10 @@ function definition(name: string) {
 
 describe('CLI execution policy', () => {
   it('consumes only the exact managed-progress signal and always removes it', () => {
+    const missingSignalEnvironment: Record<string, string> = {};
+    expect(consumeManagedProgressSignal(missingSignalEnvironment)).toBe(false);
+    expect(missingSignalEnvironment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
+
     for (const [value, expected] of [
       ['1', true],
       [' ', false],
