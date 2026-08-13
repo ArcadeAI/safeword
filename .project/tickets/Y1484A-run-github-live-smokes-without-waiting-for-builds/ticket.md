@@ -2,8 +2,8 @@
 id: Y1484A
 slug: run-github-live-smokes-without-waiting-for-builds
 type: task
-phase: scenario-gate
-status: in_progress
+phase: done
+status: done
 scope:
   - Keep the two source-only GitHub live smokes runnable during an unrelated locked package test.
 out_of_scope:
@@ -11,7 +11,7 @@ out_of_scope:
 done_when:
   - The fixed live-smoke lane is BDD-specified and cannot accept arbitrary Vitest arguments.
 created: 2026-08-11T00:00:00Z
-last_modified: 2026-08-11T00:00:00Z
+last_modified: 2026-08-12T00:00:00Z
 ---
 
 # Run GitHub live smokes without waiting for builds
