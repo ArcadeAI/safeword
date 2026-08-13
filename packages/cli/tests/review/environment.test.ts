@@ -53,6 +53,7 @@ describe('reviewer-scoped environment', () => {
         USERPROFILE: String.raw`C:\Users\reviewer`,
         http_proxy: 'https://proxy.example',
         Safeword_Review_Timeout_Ms: '1000',
+        Safeword_Review_Progress: '1',
       },
       'win32',
     );

@@ -143,6 +143,7 @@ exit 2`,
         {
           cwd: fixture,
           env: { ...process.env, ACKNOWLEDGEMENT: acknowledgement },
+          signal: AbortSignal.timeout(5000),
           stdio: ['ignore', 'pipe', 'pipe'],
         },
       );

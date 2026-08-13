@@ -24,7 +24,13 @@ describe('CLI execution policy', () => {
   it('consumes only the exact managed-progress signal and always removes it', () => {
     for (const [value, expected] of [
       ['1', true],
+      [' ', false],
+      ['0', false],
+      ['01', false],
+      ['1 ', false],
+      ['TRUE', false],
       ['true', false],
+      ['false', false],
       ['', false],
     ] as const) {
       const environment = { SAFEWORD_REVIEW_PROGRESS: value };
@@ -49,8 +55,12 @@ describe('CLI execution policy', () => {
       .mockImplementation(() => {});
     const emit = createBestEffortProgressSink(write);
 
-    expect(() => emit('first')).not.toThrow();
-    expect(() => emit('second')).not.toThrow();
+    expect(() => {
+      emit('first');
+    }).not.toThrow();
+    expect(() => {
+      emit('second');
+    }).not.toThrow();
     expect(write).toHaveBeenNthCalledWith(1, 'first\n');
     expect(write).toHaveBeenNthCalledWith(2, 'second\n');
   });
