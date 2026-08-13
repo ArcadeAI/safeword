@@ -25,10 +25,10 @@ Feature: Keep quality reviews observable and actionable
         | approve         | approved        | 0      |
         | request_changes | action-required | 2      |
 
-    Scenario: Progress begins when reviewer work begins
-      Given a managed JSON review is preparing its review packet
-      When active reviewer work begins
-      Then active reviewer progress is reported on stderr
+    Scenario: Active route progress identifies the assigned reviewer
+      Given a managed JSON review reaches an active reviewer route
+      When lifecycle progress is emitted
+      Then stderr identifies the assigned reviewer
 
     Scenario: Completion cancels pending lifecycle output
       Given a managed review has pending active and heartbeat reports
@@ -87,7 +87,7 @@ Feature: Keep quality reviews observable and actionable
         | fails on its first write                 |
         | succeeds once and fails on its next write |
 
-    Scenario: The private signal never reaches reviewer processes
+    Scenario: The reviewer allowlist excludes the wrapper-only signal
       Given a managed JSON review carries the private signal
       When the public CLI constructs a reviewer environment
       Then the reviewer environment does not contain the private signal

@@ -1620,7 +1620,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.stderr).not.toContain('Still waiting for the independent review…');
   });
 
-  it('keeps managed machine output typed while reporting only active reviewer work', async () => {
+  it('keeps managed machine output typed while identifying the active reviewer', async () => {
     const directory = createTemporaryDirectory();
     const result = await runManagedJsonReview(directory);
 
@@ -1630,7 +1630,6 @@ describe('cross-agent review public-command wiring', () => {
       state: 'healthy',
       data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
     });
-    expect(result.stderr).not.toContain('Preparing the review packet');
     expect(result.stderr).toContain('Requesting an independent Codex review…');
     expect(result.stderr).toContain('Still waiting for a response from Codex…');
   });
@@ -1677,7 +1676,6 @@ describe('cross-agent review public-command wiring', () => {
       state: 'healthy',
       data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
     });
-    expect(result.stderr).not.toContain('Preparing the review packet');
     expect(result.stderr).toContain('Requesting an independent Codex review…');
     expect(readFileSync(log, 'utf8')).toBe('codex\n');
   });

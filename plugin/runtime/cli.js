@@ -44878,8 +44878,26 @@ function launchReviewWorker(input) {
       ...input.managedProgress && { SAFEWORD_REVIEW_PROGRESS: "1" }
     },
     detached: true,
-    stdio: input.managedProgress ? ["ignore", "ignore", "inherit"] : "ignore"
+    stdio: input.managedProgress ? ["ignore", "ignore", "pipe"] : "ignore"
   });
+}
+function forwardManagedWorkerStderr(chunk) {
+  try {
+    process.stderr.write(chunk);
+  } catch {}
+}
+function closeNoManagedProgress() {
+  return;
+}
+function relayManagedWorkerStderr(child, enabled) {
+  const stderr = child.stderr;
+  if (!enabled || stderr === null)
+    return closeNoManagedProgress;
+  stderr.on("data", forwardManagedWorkerStderr);
+  return () => {
+    stderr.off("data", forwardManagedWorkerStderr);
+    stderr.destroy();
+  };
 }
 function workerLaunchSettled(child) {
   return new Promise((resolve) => {
@@ -44932,6 +44950,7 @@ async function startReviewJob(input) {
     managedProgress,
     targets: input.targets
   });
+  const closeManagedProgress = relayManagedWorkerStderr(child, managedProgress);
   const launchSettled = workerLaunchSettled(child);
   child.once("error", (error2) => {
     const failed = createResult({
@@ -44955,54 +44974,58 @@ async function startReviewJob(input) {
     } catch {}
   });
   child.unref();
-  if (child.pid === undefined) {
-    const failed = createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "REVIEW_WORKER_START_FAILED",
-          message: "The background review worker could not be started.",
-          retryable: true
-        }
-      ],
-      data: { command: "review run", status: "failed", review_id: id }
-    });
-    writeJob(input.cwd, {
-      ...record2,
-      state: "failed",
-      result: failed,
-      updated_at: new Date().toISOString()
-    });
-    return failed;
-  }
-  updateActiveJob(input.cwd, id, (current) => ({
-    ...current,
-    state: "running",
-    pid: child.pid,
-    updated_at: new Date().toISOString()
-  }));
-  await launchSettled;
-  const observed = readJob(input.cwd, id);
-  if (!isActivatedChild(observed, child.pid)) {
-    terminateUnactivatedWorker(observed, child.pid);
-    return currentResult(input.cwd, observed);
-  }
-  announceBackgroundProgress(input.progress, managedProgress);
-  const deadline = Date.now() + configuredCourtesyWait();
-  let nextInspectionAt = 0;
-  while (Date.now() < deadline) {
-    const latest = readJob(input.cwd, id);
-    if (latest.state !== "running")
-      return currentResult(input.cwd, latest);
-    const now = Date.now();
-    if (now >= nextInspectionAt) {
-      if (workerDefinitelyMismatches(latest))
-        return failExitedJob(input.cwd, latest);
-      nextInspectionAt = now + WORKER_INSPECTION_INTERVAL_MS;
+  try {
+    if (child.pid === undefined) {
+      const failed = createResult({
+        state: "failed",
+        errors: [
+          {
+            code: "REVIEW_WORKER_START_FAILED",
+            message: "The background review worker could not be started.",
+            retryable: true
+          }
+        ],
+        data: { command: "review run", status: "failed", review_id: id }
+      });
+      writeJob(input.cwd, {
+        ...record2,
+        state: "failed",
+        result: failed,
+        updated_at: new Date().toISOString()
+      });
+      return failed;
     }
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    updateActiveJob(input.cwd, id, (current) => ({
+      ...current,
+      state: "running",
+      pid: child.pid,
+      updated_at: new Date().toISOString()
+    }));
+    await launchSettled;
+    const observed = readJob(input.cwd, id);
+    if (!isActivatedChild(observed, child.pid)) {
+      terminateUnactivatedWorker(observed, child.pid);
+      return currentResult(input.cwd, observed);
+    }
+    announceBackgroundProgress(input.progress, managedProgress);
+    const deadline = Date.now() + configuredCourtesyWait();
+    let nextInspectionAt = 0;
+    while (Date.now() < deadline) {
+      const latest = readJob(input.cwd, id);
+      if (latest.state !== "running")
+        return currentResult(input.cwd, latest);
+      const now = Date.now();
+      if (now >= nextInspectionAt) {
+        if (workerDefinitelyMismatches(latest))
+          return failExitedJob(input.cwd, latest);
+        nextInspectionAt = now + WORKER_INSPECTION_INTERVAL_MS;
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    }
+    return currentResult(input.cwd, readJob(input.cwd, id));
+  } finally {
+    closeManagedProgress();
   }
-  return currentResult(input.cwd, readJob(input.cwd, id));
 }
 function isActivatedChild(record2, pid) {
   return record2.state === "running" && record2.pid === pid;
@@ -61839,9 +61862,17 @@ function shouldReportProgress(options) {
 }
 function createBestEffortProgressSink(write) {
   return (message) => {
-    try {
-      write(`${message}
+    const buffer = Buffer.from(`${message}
 `);
+    let offset = 0;
+    try {
+      while (offset < buffer.length) {
+        const written = write(buffer, offset, buffer.length - offset);
+        if (!Number.isSafeInteger(written) || written <= 0 || written > buffer.length - offset) {
+          return;
+        }
+        offset += written;
+      }
     } catch {}
   };
 }
@@ -61851,6 +61882,8 @@ function createManagedReviewProgress(progress) {
 var PROGRESS_ANNOUNCE_DELAY_MS = 100;
 var PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
 function resolveHeartbeatIntervalMs(environment = process.env) {
+  if (environment.NODE_ENV !== "test")
+    return PROGRESS_HEARTBEAT_INTERVAL_MS;
   const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
   if (!Number.isSafeInteger(override) || override < 1 || override > PROGRESS_HEARTBEAT_INTERVAL_MS) {
     return PROGRESS_HEARTBEAT_INTERVAL_MS;
@@ -62105,7 +62138,7 @@ function commandProgress(definition, options) {
     cancel: (handle) => {
       clearTimeout(handle);
     },
-    emit: createBestEffortProgressSink((message) => writeSync2(2, message))
+    emit: createBestEffortProgressSink((buffer, offset, length) => writeSync2(2, buffer, offset, length))
   });
   return managedReview && options.json ? createManagedReviewProgress(progress) : progress;
 }

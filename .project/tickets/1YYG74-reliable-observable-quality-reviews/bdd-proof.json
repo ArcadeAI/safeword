@@ -2,10 +2,10 @@
   "feature": "packages/cli/features/reliable-observable-quality-reviews.feature",
   "scenarios": {
     "Managed progress preserves each terminal review outcome": [
-      ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while reporting only active reviewer work"],
+      ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while identifying the active reviewer"],
       ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "preserves an action-required result after managed progress"]
     ],
-    "Progress begins when reviewer work begins": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while reporting only active reviewer work"],
+    "Active route progress identifies the assigned reviewer": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while identifying the active reviewer"],
     "Completion cancels pending lifecycle output": ["packages/cli/tests/cli-protocol/policy.test.ts", "cancels a pending announcement as well as the heartbeat when the command ends"],
     "Only the exact private signal enables JSON progress": ["packages/cli/tests/cli-protocol/policy.test.ts", "consumes only the exact managed-progress signal and always removes it"],
     "Quiet mode wins over managed progress": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "lets quiet mode suppress managed progress for %s without suppressing the JSON result"],
@@ -13,7 +13,7 @@
     "Progress write failures stay contained and retryable": [
       ["packages/cli/tests/cli-protocol/policy.test.ts", "keeps descriptor write failures best-effort and retries later writes"]
     ],
-    "The private signal never reaches reviewer processes": ["packages/cli/tests/review/environment.test.ts", "never exposes the wrapper-only managed-progress signal to reviewers"],
+    "The reviewer allowlist excludes the wrapper-only signal": ["packages/cli/tests/review/environment.test.ts", "excludes the wrapper-only managed-progress signal from the reviewer allowlist"],
     "The wrapper scopes progress to its JSON review child": [
       ["packages/cli/tests/review/surface-parity.test.ts", "forwards managed progress before the selected CLI exits"],
       ["packages/cli/tests/review/surface-parity.test.ts", "scopes managed progress to the JSON review child despite inherited contamination"]

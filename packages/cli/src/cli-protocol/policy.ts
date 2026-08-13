@@ -78,11 +78,19 @@ export function shouldReportProgress(options: {
 }
 
 export function createBestEffortProgressSink(
-  write: (message: string) => void,
+  write: (buffer: Uint8Array, offset: number, length: number) => number,
 ): (message: string) => void {
   return message => {
+    const buffer = Buffer.from(`${message}\n`);
+    let offset = 0;
     try {
-      write(`${message}\n`);
+      while (offset < buffer.length) {
+        const written = write(buffer, offset, buffer.length - offset);
+        if (!Number.isSafeInteger(written) || written <= 0 || written > buffer.length - offset) {
+          return;
+        }
+        offset += written;
+      }
     } catch {
       // Progress is advisory and must never affect the typed command result.
     }
@@ -100,9 +108,10 @@ const PROGRESS_HEARTBEAT_INTERVAL_MS = 30_000;
 
 /**
  * Shorten the heartbeat so a test can observe a real one without waiting 30
- * seconds. Internal: a value outside 1ms..30s is ignored.
+ * seconds. Internal and test-only: production always uses the bounded default.
  */
 export function resolveHeartbeatIntervalMs(environment: NodeJS.ProcessEnv = process.env): number {
+  if (environment.NODE_ENV !== 'test') return PROGRESS_HEARTBEAT_INTERVAL_MS;
   const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
   if (
     !Number.isSafeInteger(override) ||

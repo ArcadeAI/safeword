@@ -18,7 +18,7 @@ scope:
   - update Safeword-owned required-review skill invocations on Claude Code and Codex surfaces
   - preserve route-funding and typed-failure behavior with focused regression tests while proving progress stream separation and quiet precedence through the public CLI
 out_of_scope:
-  - redesigning the existing 300-second attempt and 540-second shared run budgets
+  - redesigning the existing 120-second default route attempt and 1,800-second detached-worker run bound
   - exposing raw reviewer-controlled output in progress or recovery guidance
   - adding a public progress option or a streaming result protocol
   - Cursor review wiring until Cursor has a required independent-review invocation

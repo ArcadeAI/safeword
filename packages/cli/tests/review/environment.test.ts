@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { reviewerEnvironment, reviewerProbeEnvironment } from '../../src/review/environment.js';
 
 describe('reviewer-scoped environment', () => {
-  it('never exposes the wrapper-only managed-progress signal to reviewers', () => {
+  it('excludes the wrapper-only managed-progress signal from the reviewer allowlist', () => {
     expect(
       reviewerEnvironment('claude', {
         SAFEWORD_REVIEW_PROGRESS: '1',

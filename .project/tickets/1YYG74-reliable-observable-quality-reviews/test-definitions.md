@@ -15,7 +15,7 @@ contracts owned by their focused tests, not claims made by this feature.
 - [x] GREEN 7b675263b
 - [x] REFACTOR skip: The result and progress boundaries remain independently asserted.
 
-### Scenario: Progress begins when reviewer work begins
+### Scenario: Active route progress identifies the assigned reviewer
 
 - [x] RED b9cf90383
 - [x] GREEN 53e94d96f
@@ -49,17 +49,17 @@ contracts owned by their focused tests, not claims made by this feature.
 
 ## Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
 
-### Scenario Outline: A progress write failure cannot alter the terminal result
+### Scenario Outline: Progress write failures stay contained and retryable
 
 - [x] RED b9cf90383
 - [x] GREEN 7b675263b
 - [x] REFACTOR skip: The narrow sink wrapper is the smallest failure boundary.
 
-### Scenario: The private signal never reaches reviewer processes
+### Scenario: The reviewer allowlist excludes the wrapper-only signal
 
 - [x] RED 80e55391d
 - [x] GREEN e339e2e42
-- [x] REFACTOR skip: Reviewer allowlisting is the independent defense-in-depth boundary.
+- [x] REFACTOR skip: The allowlist outcome is the customer-relevant isolation boundary.
 
 ## Rule: reliable-observable-quality-reviews.SWM1.R2 — Required-review workflows use a compatible managed wrapper
 

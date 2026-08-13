@@ -191,7 +191,9 @@ function commandProgress(
     cancel: handle => {
       clearTimeout(handle as ReturnType<typeof setTimeout>);
     },
-    emit: createBestEffortProgressSink(message => writeSync(2, message)),
+    emit: createBestEffortProgressSink((buffer, offset, length) =>
+      writeSync(2, buffer, offset, length),
+    ),
   });
   return managedReview && options.json ? createManagedReviewProgress(progress) : progress;
 }

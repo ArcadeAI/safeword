@@ -563,11 +563,33 @@ function launchReviewWorker(input: {
         ...(input.managedProgress && { SAFEWORD_REVIEW_PROGRESS: '1' }),
       },
       detached: true,
-      // The detached worker owns this inherited descriptor after the launcher exits;
-      // coordinator writes are best-effort, so a closed downstream pipe cannot fail the job.
-      stdio: input.managedProgress ? ['ignore', 'ignore', 'inherit'] : 'ignore',
+      // Managed progress is relayed only while the foreground command owns it. Inheriting
+      // stderr would keep a caller's capture pipe open for the detached worker's lifetime.
+      stdio: input.managedProgress ? ['ignore', 'ignore', 'pipe'] : 'ignore',
     },
   );
+}
+
+function forwardManagedWorkerStderr(chunk: Buffer | string): void {
+  try {
+    process.stderr.write(chunk);
+  } catch {
+    // Progress is best-effort; a caller may close its capture stream first.
+  }
+}
+
+function closeNoManagedProgress(): void {
+  return;
+}
+
+function relayManagedWorkerStderr(child: ChildProcess, enabled: boolean): () => void {
+  const stderr = child.stderr;
+  if (!enabled || stderr === null) return closeNoManagedProgress;
+  stderr.on('data', forwardManagedWorkerStderr);
+  return () => {
+    stderr.off('data', forwardManagedWorkerStderr);
+    stderr.destroy();
+  };
 }
 
 function workerLaunchSettled(child: ChildProcess): Promise<void> {
@@ -629,6 +651,7 @@ export async function startReviewJob(input: {
     managedProgress,
     targets: input.targets,
   });
+  const closeManagedProgress = relayManagedWorkerStderr(child, managedProgress);
   const launchSettled = workerLaunchSettled(child);
   child.once('error', error => {
     const failed = createResult({
@@ -654,53 +677,56 @@ export async function startReviewJob(input: {
     }
   });
   child.unref();
-  if (child.pid === undefined) {
-    const failed = createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'REVIEW_WORKER_START_FAILED',
-          message: 'The background review worker could not be started.',
-          retryable: true,
-        },
-      ],
-      data: { command: 'review run', status: 'failed', review_id: id },
-    });
-    writeJob(input.cwd, {
-      ...record,
-      state: 'failed',
-      result: failed,
-      updated_at: new Date().toISOString(),
-    });
-    return failed;
-  }
-  updateActiveJob(input.cwd, id, current => ({
-    ...current,
-    state: 'running',
-    pid: child.pid,
-    updated_at: new Date().toISOString(),
-  }));
-  await launchSettled;
-  const observed = readJob(input.cwd, id);
-  if (!isActivatedChild(observed, child.pid)) {
-    terminateUnactivatedWorker(observed, child.pid);
-    return currentResult(input.cwd, observed);
-  }
-  // Managed workers forward their coordinator progress over inherited stderr.
-  announceBackgroundProgress(input.progress, managedProgress);
-  const deadline = Date.now() + configuredCourtesyWait();
-  let nextInspectionAt = 0;
-  while (Date.now() < deadline) {
-    const latest = readJob(input.cwd, id);
-    if (latest.state !== 'running') return currentResult(input.cwd, latest);
-    const now = Date.now();
-    if (now >= nextInspectionAt) {
-      if (workerDefinitelyMismatches(latest)) return failExitedJob(input.cwd, latest);
-      nextInspectionAt = now + WORKER_INSPECTION_INTERVAL_MS;
+  try {
+    if (child.pid === undefined) {
+      const failed = createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'REVIEW_WORKER_START_FAILED',
+            message: 'The background review worker could not be started.',
+            retryable: true,
+          },
+        ],
+        data: { command: 'review run', status: 'failed', review_id: id },
+      });
+      writeJob(input.cwd, {
+        ...record,
+        state: 'failed',
+        result: failed,
+        updated_at: new Date().toISOString(),
+      });
+      return failed;
     }
-    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+    updateActiveJob(input.cwd, id, current => ({
+      ...current,
+      state: 'running',
+      pid: child.pid,
+      updated_at: new Date().toISOString(),
+    }));
+    await launchSettled;
+    const observed = readJob(input.cwd, id);
+    if (!isActivatedChild(observed, child.pid)) {
+      terminateUnactivatedWorker(observed, child.pid);
+      return currentResult(input.cwd, observed);
+    }
+    announceBackgroundProgress(input.progress, managedProgress);
+    const deadline = Date.now() + configuredCourtesyWait();
+    let nextInspectionAt = 0;
+    while (Date.now() < deadline) {
+      const latest = readJob(input.cwd, id);
+      if (latest.state !== 'running') return currentResult(input.cwd, latest);
+      const now = Date.now();
+      if (now >= nextInspectionAt) {
+        if (workerDefinitelyMismatches(latest)) return failExitedJob(input.cwd, latest);
+        nextInspectionAt = now + WORKER_INSPECTION_INTERVAL_MS;
+      }
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+    }
+    return currentResult(input.cwd, readJob(input.cwd, id));
+  } finally {
+    closeManagedProgress();
   }
-  return currentResult(input.cwd, readJob(input.cwd, id));
 }
 
 function isActivatedChild(record: ReviewJobRecord, pid: number): boolean {

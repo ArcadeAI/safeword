@@ -29,9 +29,9 @@ up either the change or rollback only after reinstall.
    then preserve the result and status. A separate
    wrapper-level old-CLI fixture proves the no-new-argv invariant.
    The descriptor sink is the sole fd 2 writer for all reporter modes. It uses a
-   synchronous descriptor write inside `try/catch`; unit and CLI tests assert
-   write attempted, failure contained, and approved/action-required callers
-   continue exactly. Failed and
+   synchronous descriptor write inside `try/catch`; focused sink tests assert
+   write attempted, failure contained, and later writes remain retryable, while
+   CLI tests prove approved/action-required callers continue exactly. Failed and
    EBADF writes do not latch the sink off: the heartbeat still attempts its
    write without a fallback diagnostic. No
    process-wide error listener is added.
@@ -70,7 +70,7 @@ up either the change or rollback only after reinstall.
 | Real wrapper opt-in, live stream separation, signal scoping | Slice-1 generated-wrapper subprocess reaches real CLI/coordinator and an environment-recording reviewer | Reviewer executable only; real 100 ms delay |
 | Older CLI compatibility | Wrapper subprocess fixture rejects unknown argv and ignores unknown environment | Resolved CLI fixture; proves no-new-argv invariant |
 | Exact signal partitions, quiet/human policy, completion boundaries, packet-preparation silence, clock jumps, route resets/transitions | In-process public CLI registration | Consume helper; injected clock/interval/sink/reviewer runtime; timeout/run-bound env and fake `Date.now()` |
-| Progress write containment | Focused sink unit plus in-process public CLI | Synchronous descriptor writer with throwing and closed-fd fixtures |
+| Progress write containment | Focused sink unit plus in-process public CLI | Injected synchronous writer throws on first or later attempts; public CLI proves both terminal classes remain intact |
 | Reviewer output non-disclosure and allowlist defense | In-process CLI/coordinator plus focused environment-builder unit | Reviewer executable; source environment supplied directly to builder |
 | Claude Code and Codex generated workflows | Installed-surface integration/catalogue parity | Wrapper fixture with exact argv, stdout, stderr, and statuses 0/2 |
 

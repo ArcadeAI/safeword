@@ -56,19 +56,53 @@ describe('CLI execution policy', () => {
   ])(
     'keeps descriptor write failures best-effort and retries later writes: $error at write $failureIndex',
     ({ failureIndex, error }) => {
-      const write = vi.fn<(message: string) => void>((_message: string) => {
-        if (write.mock.calls.length - 1 === failureIndex) throw new Error(error);
-      });
+      const writes: string[] = [];
+      const write = vi.fn<(buffer: Uint8Array, offset: number, length: number) => number>(
+        (buffer, offset, length) => {
+          if (write.mock.calls.length - 1 === failureIndex) throw new Error(error);
+          writes.push(Buffer.from(buffer.subarray(offset, offset + length)).toString());
+          return length;
+        },
+      );
       const emit = createBestEffortProgressSink(write);
 
       expect(() => {
         emit('first');
         emit('second');
       }).not.toThrow();
-      expect(write).toHaveBeenNthCalledWith(1, 'first\n');
-      expect(write).toHaveBeenNthCalledWith(2, 'second\n');
+      expect(write).toHaveBeenCalledTimes(2);
+      expect(writes).toEqual(failureIndex === 0 ? ['second\n'] : ['first\n']);
     },
   );
+
+  it('retries short descriptor writes synchronously without reordering UTF-8 progress', () => {
+    const written: Buffer[] = [];
+    const write = vi.fn((buffer: Uint8Array, offset: number, length: number) => {
+      const chunkLength = Math.min(length, 2);
+      written.push(Buffer.from(buffer.subarray(offset, offset + chunkLength)));
+      return chunkLength;
+    });
+    const emit = createBestEffortProgressSink(write);
+
+    emit('A→B');
+    emit('next');
+
+    expect(Buffer.concat(written).toString()).toBe('A→B\nnext\n');
+    expect(write.mock.calls.length).toBeGreaterThan(2);
+  });
+
+  it('abandons an invalid short-write result without spinning or blocking later progress', () => {
+    const write = vi
+      .fn<(buffer: Uint8Array, offset: number, length: number) => number>()
+      .mockReturnValueOnce(0)
+      .mockImplementation((_buffer, _offset, length) => length);
+    const emit = createBestEffortProgressSink(write);
+
+    emit('stalled');
+    emit('later');
+
+    expect(write).toHaveBeenCalledTimes(2);
+  });
 
   it('marks managed JSON progress without changing lifecycle forwarding', () => {
     const progress = { start: vi.fn(), heartbeat: vi.fn(), stop: vi.fn() };
@@ -230,9 +264,16 @@ describe('CLI execution policy', () => {
 
   it('ignores a heartbeat interval override that is not a positive value under the default', () => {
     for (const value of ['0', '-5', 'soon', '', '30001', '1.5']) {
-      expect(resolveHeartbeatIntervalMs({ SAFEWORD_PROGRESS_HEARTBEAT_MS: value })).toBe(30_000);
+      expect(
+        resolveHeartbeatIntervalMs({ NODE_ENV: 'test', SAFEWORD_PROGRESS_HEARTBEAT_MS: value }),
+      ).toBe(30_000);
     }
     expect(resolveHeartbeatIntervalMs({})).toBe(30_000);
-    expect(resolveHeartbeatIntervalMs({ SAFEWORD_PROGRESS_HEARTBEAT_MS: '250' })).toBe(250);
+    expect(
+      resolveHeartbeatIntervalMs({ NODE_ENV: 'test', SAFEWORD_PROGRESS_HEARTBEAT_MS: '250' }),
+    ).toBe(250);
+    expect(
+      resolveHeartbeatIntervalMs({ NODE_ENV: 'production', SAFEWORD_PROGRESS_HEARTBEAT_MS: '1' }),
+    ).toBe(30_000);
   });
 });
