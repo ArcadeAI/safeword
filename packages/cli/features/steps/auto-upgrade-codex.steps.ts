@@ -261,13 +261,16 @@ Then('it exits successfully', function (this: AutoUpgradeCodexWorld) {
 });
 
 Then(
-  'it emits Codex SessionStart additionalContext containing SAFEWORD.md',
+  'it emits Codex SessionStart additionalContext containing a concise SAFEWORD.md authority pointer',
   function (this: AutoUpgradeCodexWorld) {
     const output = JSON.parse(this.result.stdout) as {
       hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
     };
     assert.equal(output.hookSpecificOutput?.hookEventName, 'SessionStart');
-    assert.match(output.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD Agent Instructions/);
+    assert.match(
+      output.hookSpecificOutput?.additionalContext ?? '',
+      /Read `\.safeword\/SAFEWORD\.md` before non-trivial work/u,
+    );
   },
 );
 

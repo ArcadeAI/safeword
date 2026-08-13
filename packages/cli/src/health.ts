@@ -17,6 +17,8 @@ import {
   type PhaseAnchorScope,
 } from '../templates/hooks/lib/phase-provenance.js';
 import { schemaForClaudeDelivery } from './claude-plugin/delivery-schema.js';
+import { hasImportLinterScaffoldTarget } from './packs/python/files.js';
+import { getMissingPythonToolDependencies } from './packs/python/setup.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
@@ -158,7 +160,7 @@ function findNamespaceAdvisories(cwd: string): string[] {
     isDirectory(nodePath.join(cwd, '.safeword-project'))
   ) {
     return [
-      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword install --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
+      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Run `safeword project install` to merge them automatically; authored collisions are archived under .safeword/namespace-migration-conflicts-v1/.',
     ];
   }
   return [];
@@ -676,6 +678,7 @@ export interface HealthStatus {
   advisories: string[];
   missingPackages: string[];
   missingPacks: string[];
+  missingPythonTools: string[];
 }
 
 /**
@@ -697,6 +700,14 @@ export interface CheckHealthOptions {
   schema?: SafewordSchema;
 }
 
+function findMissingPythonToolDeclarations(
+  cwd: string,
+  context: ReturnType<typeof createProjectContext>,
+): string[] {
+  if (!context.languages?.python) return [];
+  return getMissingPythonToolDependencies(cwd, hasImportLinterScaffoldTarget(cwd));
+}
+
 export async function checkHealth(
   cwd: string,
   options: CheckHealthOptions = {},
@@ -715,6 +726,7 @@ export async function checkHealth(
       advisories: [],
       missingPackages: [],
       missingPacks: [],
+      missingPythonTools: [],
     };
   }
 
@@ -751,6 +763,7 @@ export async function checkHealth(
 
   // Check for missing language packs (unless install was deliberately skipped)
   const missingPacks = options.skipPackageChecks ? [] : getMissingPacks(cwd);
+  const missingPythonTools = findMissingPythonToolDeclarations(cwd, ctx);
   const coverageDiagnostics = findCoverageDiagnostics(cwd);
   const ticketIndexConflicts = inspectTicketIndexConflicts(cwd);
   issues.push(...coverageDiagnostics.issues);
@@ -775,6 +788,7 @@ export async function checkHealth(
     ],
     missingPackages: options.skipPackageChecks ? [] : result.packagesToInstall,
     missingPacks,
+    missingPythonTools,
   };
 }
 
@@ -813,6 +827,14 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       lines: health.missingPackages,
       render: listItem,
       defaultHint: 'Run `safeword install` to install missing packages',
+    };
+  }
+  if (health.missingPythonTools.length > 0) {
+    return {
+      title: 'Missing Python Tools',
+      lines: health.missingPythonTools,
+      render: listItem,
+      defaultHint: 'Run `safeword install` to declare missing Python tools',
     };
   }
   if (health.issues.length > 0) {

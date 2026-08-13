@@ -5,8 +5,9 @@
  * make it happen, so a scenario can be exercised at the altitude its claim
  * actually lives at:
  *
- * - `runPluginHook` drives the REAL generated plugin through its real
- *   `hooks.json` command, in a real temp project, over real legacy bytes. This
+ * - `runPluginHook` drives the packaged generated plugin through its
+ *   `hooks.json` command at the process boundary, in a real temp project, over
+ *   real legacy bytes. This
  *   is the default: most scenarios are about what happens "after the exact
  *   plugin handles a prompt", so anything below the hook would not prove it.
  * - `migrateDirectly` / `recoverDirectly` drive the migration module with an
@@ -74,6 +75,29 @@ export function legacyReleaseFiles(version: string): ReadonlyMap<string, string>
   if (files.size === 0) throw new Error(`Release v${version} exposes no Claude assets.`);
   releaseFileCache.set(version, files);
   return files;
+}
+
+/**
+ * Reads a hook entry directly from a release tag. This is deliberately
+ * independent of the generated ownership catalogue: acceptance tests need an
+ * oracle that still fails when generation silently omits released settings.
+ */
+export function legacyReleaseHookEntry(version: string, event: string): unknown {
+  const temporary = mkdtempSync(nodePath.join(tmpdir(), 'safeword-released-hooks-'));
+  const modulePath = nodePath.join(temporary, 'config.ts');
+  const probePath = nodePath.join(temporary, 'probe.ts');
+  try {
+    writeFileSync(modulePath, git('show', `v${version}:packages/cli/src/templates/config.ts`));
+    writeFileSync(
+      probePath,
+      `import { SETTINGS_HOOKS } from './config.ts';\nprocess.stdout.write(JSON.stringify(SETTINGS_HOOKS[${JSON.stringify(event)}]?.[0]));\n`,
+    );
+    const serialized = execFileSync('bun', [probePath], { encoding: 'utf8' });
+    if (!serialized.trim()) throw new Error(`Release v${version} has no ${event} hook.`);
+    return JSON.parse(serialized) as unknown;
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
 }
 
 /** An exact released settings hook entry, for planting accepted legacy hooks. */

@@ -33,6 +33,7 @@ import {
 } from '../helpers';
 
 const IS_RUFF_AVAILABLE = isRuffInstalled();
+const SAFEWORD_PYTHON_TOOLS = 'ruff\nmypy\ndeadcode\n';
 
 describe('E2E: Python Golden Path', () => {
   let projectDirectory: string;
@@ -40,6 +41,7 @@ describe('E2E: Python Golden Path', () => {
   beforeAll(async () => {
     projectDirectory = createTemporaryDirectory();
     createPythonProject(projectDirectory);
+    writeTestFile(projectDirectory, 'requirements.txt', SAFEWORD_PYTHON_TOOLS);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
   });
@@ -148,6 +150,7 @@ describe('E2E: Python Setup Idempotency', () => {
   beforeAll(async () => {
     projectDirectory = createTemporaryDirectory();
     createPythonProject(projectDirectory);
+    writeTestFile(projectDirectory, 'requirements.txt', SAFEWORD_PYTHON_TOOLS);
     initGitRepo(projectDirectory);
     // Run setup TWICE
     await setupOrThrow(projectDirectory);
@@ -194,6 +197,7 @@ describe('E2E: Python Lint Hook Fallback', () => {
   beforeAll(async () => {
     projectDirectory = createTemporaryDirectory();
     createPythonProject(projectDirectory);
+    writeTestFile(projectDirectory, 'requirements.txt', SAFEWORD_PYTHON_TOOLS);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
 

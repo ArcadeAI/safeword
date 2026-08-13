@@ -42,7 +42,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     ### Plugin lifecycle
 
-    The native workflow and hook files are versioned inside Claude's installed plugin cache; do not edit that cache. After an update, run `/reload-plugins`. Use `safeword claude status` to inspect the exact installed version and migration state. Once current project-bound plugin execution is proven, Safeword automatically backs up and removes fully recognized legacy project hooks; failed proof stays non-blocking, and custom or third-party Claude settings are preserved.
+    The native workflow and hook files are versioned inside Claude's installed plugin cache; do not edit that cache. After an update, run `/reload-plugins`. Use `safeword claude status` to inspect the exact installed version and migration state. Once current project-bound plugin execution is proven, Safeword automatically backs up and retires exact released legacy files and hook entries through a durable, recoverable transaction. Failed proof stays non-blocking; modified, unknown, custom, and third-party content is preserved and reported. `safeword claude cleanup` remains available for explicit diagnosis and recovery.
 
   </TabItem>
   <TabItem label="Cursor">
@@ -85,7 +85,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
 | When                            | What happens                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------- |
-| Session starts                  | Loads packaged Safeword standing instructions                                     |
+| Session starts                  | Loads a compact bootstrap pointing to packaged Safeword instructions              |
 | Before supported tools          | Runs the packaged `safeword hook codex pre-tool-use` gate                         |
 | Agent finishes a supported tool | Surfaces queued Safeword post-tool context                                        |
 | You submit a prompt             | Surfaces queued Safeword prompt context                                           |

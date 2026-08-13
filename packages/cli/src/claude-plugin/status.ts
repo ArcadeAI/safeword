@@ -1,10 +1,9 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { SAFEWORD_SCHEMA } from '../schema.js';
+import { VERSION } from '../version.js';
 import { currentClaudePluginHookManifestSha256 } from './hook-manifest.js';
 import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import {
@@ -12,13 +11,14 @@ import {
   legacyObservationIsEmpty,
   observeClaudeLegacy,
 } from './legacy-classifier.js';
+import { claudeConfigDirectory } from './migration-state.js';
 import {
-  canonicalClaudeProjectRoot,
   type ClaudeApplicablePluginsObservation,
   type ClaudePluginScope,
   type JsonObject,
   observeApplicableClaudePlugins,
 } from './profile.js';
+import { canonicalClaudeProjectRoot } from './project-root.js';
 
 type ClaudeStatusClassification =
   | 'recovery-required'
@@ -32,10 +32,6 @@ type ClaudeStatusClassification =
   | 'coexistence'
   | 'cleanup-ready'
   | 'plugin-mode';
-
-function claudeConfigDirectory(environment: NodeJS.ProcessEnv = process.env): string {
-  return environment.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
-}
 
 function jsonObject(path: string): JsonObject | undefined {
   try {
@@ -64,7 +60,7 @@ function proofMatches(
   return [
     proof.schema_version === 2,
     proof.project_root === canonicalProjectRoot,
-    proof.plugin_version === SAFEWORD_SCHEMA.version,
+    proof.plugin_version === VERSION,
     proof.plugin_version === plugin.version,
     proof.hook_manifest_sha256 === identity.hook_manifest_sha256,
     proof.hook_manifest_sha256 === currentClaudePluginHookManifestSha256(),
