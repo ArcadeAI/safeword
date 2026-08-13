@@ -24,7 +24,13 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: A finding appended during extraction remains visible to the next invocation
+### Scenario: A finding appended during extraction is evaluated in the same invocation
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Continuously expanding extraction input fails closed after bounded windows
 
 - [x] RED
 - [x] GREEN
@@ -60,7 +66,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: Invalid sealed retrospective evidence fails closed
+### Scenario: Malformed sealed retrospective receipts are ignored and replaced
 
 - [x] RED
 - [x] GREEN
@@ -82,8 +88,6 @@ The outline is complete only when all four invalid-evidence rows pass.
 - [x] GREEN
 - [x] REFACTOR
 
-The outline is complete only when all four ownership-conflict rows pass.
-
 ### Scenario: OpenAI Codex Desktop binds the current task across linked worktrees
 
 - [x] RED
@@ -96,13 +100,11 @@ The outline is complete only when all four ownership-conflict rows pass.
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: A consumed binding cannot redirect an authenticated current task
+### Scenario: A consumed binding cannot override an authenticated current task
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
-
-The outline is complete only when all three consumed-binding conflict rows pass.
 
 ### Scenario: A consumed hook binding cannot authenticate a task by itself
 
@@ -117,14 +119,6 @@ The outline is complete only when all three consumed-binding conflict rows pass.
 - [x] REFACTOR
 
 The outline is complete only when both install and upgrade rows pass.
-
-### Scenario: Missing exact identity has one executable recovery path
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-The outline is complete only when all three identity-failure rows pass.
 
 ### Scenario: A bootstrap identity cannot cross its project ownership boundary
 
@@ -158,13 +152,11 @@ The outline is complete only when all three identity-failure rows pass.
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: Invalid fallback provenance is refused
+### Scenario: A fallback spool with a modified sealed body is refused
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
-
-The outline is complete only when all four invalid-provenance rows pass.
 
 ### Scenario: Unavailable filing preserves authenticated drafts for retry
 
