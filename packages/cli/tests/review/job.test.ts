@@ -291,14 +291,13 @@ describe('durable review jobs', () => {
   it('persists a typed failure when a worker exits without a result', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'process.exit(0);'));
-    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const startedAt = Date.now();
     const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
     const id = (pending.data as { review_id: string }).review_id;
 
-    await vi.waitFor(() => {
-      expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
-    });
-
+    expect(Date.now() - startedAt).toBeLessThan(2000);
+    expect(pending.errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
     expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
   });
 

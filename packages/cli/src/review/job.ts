@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   existsSync,
+  fstatSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -118,9 +119,11 @@ function withFileLock<T>(lock: string, operation: () => T): T {
   try {
     return operation();
   } finally {
+    const ownedLock = fstatSync(descriptor);
     closeSync(descriptor);
     try {
-      unlinkSync(lock);
+      const currentLock = statSync(lock);
+      if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino) unlinkSync(lock);
     } catch {
       // A stale-lock recovery may already have removed this lock.
     }
@@ -568,6 +571,8 @@ export async function startReviewJob(input: {
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);
     if (latest.state !== 'running') return currentResult(input.cwd, latest);
+    if (latest.pid !== undefined && isReviewWorker(latest.pid, latest.id) === false)
+      return failExitedJob(input.cwd, latest);
     await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   return currentResult(input.cwd, readJob(input.cwd, id));
@@ -673,7 +678,7 @@ function runningJob(
 function isActiveReviewJob(record: ReviewJobRecord): boolean {
   if (record.pid === undefined) return false;
   if (record.state === 'launching') return processExists(record.pid);
-  return record.state === 'running' && isReviewWorker(record.pid, record.id);
+  return record.state === 'running' && isReviewWorker(record.pid, record.id) === true;
 }
 
 export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
@@ -759,7 +764,7 @@ function isJobId(value: string): boolean {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 
-function isReviewWorker(pid: number, id: string): boolean {
+function isReviewWorker(pid: number, id: string): boolean | undefined {
   const inspected =
     process.platform === 'win32'
       ? spawnSync(
@@ -776,9 +781,8 @@ function isReviewWorker(pid: number, id: string): boolean {
           encoding: 'utf8',
           timeout: 1000,
         });
+  if (inspected.status !== 0) return processExists(pid) ? undefined : false;
   return (
-    inspected.status === 0 &&
-    /\breview run\b/u.test(inspected.stdout) &&
-    inspected.stdout.includes(`--worker-job-id ${id}`)
+    /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`)
   );
 }

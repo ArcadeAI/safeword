@@ -43102,9 +43102,14 @@ var init_policy = __esm(() => {
 // src/review/environment.ts
 function filteredEnvironment(reviewer, source = process.env, platform = process.platform) {
   const normalize = (name) => platform === "win32" ? name.toUpperCase() : name;
-  const allowed = new Set([...PROCESS_VARIABLES, ...reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]].map((name) => normalize(name)));
+  const allowed = new Set([
+    ...PROCESS_VARIABLES,
+    ...REVIEWER_CONTROL_VARIABLES,
+    ...REVIEWER_FIXTURE_VARIABLES,
+    ...reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]
+  ].map((name) => normalize(name)));
   const managedProgressSignal = normalize("SAFEWORD_REVIEW_PROGRESS");
-  return Object.fromEntries(Object.entries(source).filter(([name]) => normalize(name) !== managedProgressSignal && (allowed.has(normalize(name)) || normalize(name).startsWith("SAFEWORD_REVIEW_"))));
+  return Object.fromEntries(Object.entries(source).filter(([name]) => normalize(name) !== managedProgressSignal && allowed.has(normalize(name))));
 }
 function reviewerEnvironment(reviewer, source = process.env, platform = process.platform) {
   return filteredEnvironment(reviewer, source, platform);
@@ -43112,7 +43117,7 @@ function reviewerEnvironment(reviewer, source = process.env, platform = process.
 function reviewerProbeEnvironment(source = process.env, platform = process.platform) {
   return filteredEnvironment(undefined, source, platform);
 }
-var VENDOR_VARIABLES, PROCESS_VARIABLES;
+var VENDOR_VARIABLES, PROCESS_VARIABLES, REVIEWER_CONTROL_VARIABLES, REVIEWER_FIXTURE_VARIABLES;
 var init_environment = __esm(() => {
   VENDOR_VARIABLES = {
     claude: [
@@ -43161,6 +43166,35 @@ var init_environment = __esm(() => {
     "http_proxy",
     "https_proxy",
     "no_proxy"
+  ]);
+  REVIEWER_CONTROL_VARIABLES = new Set([
+    "SAFEWORD_REVIEW_RUN_BOUND_MS",
+    "SAFEWORD_REVIEW_TIMEOUT_MS"
+  ]);
+  REVIEWER_FIXTURE_VARIABLES = new Set([
+    "SAFEWORD_REVIEW_ENV_LOG",
+    "SAFEWORD_REVIEW_FAKE_DELAY_AGENT",
+    "SAFEWORD_REVIEW_FAKE_FAILURE",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_AGENT",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_CODEX",
+    "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
+    "SAFEWORD_REVIEW_FAKE_FINDING",
+    "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
+    "SAFEWORD_REVIEW_FAKE_IDENTITY",
+    "SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY",
+    "SAFEWORD_REVIEW_FAKE_MUTATE",
+    "SAFEWORD_REVIEW_FAKE_MUTATE_AGENT",
+    "SAFEWORD_REVIEW_FAKE_SOURCE_MUTATE_TARGET",
+    "SAFEWORD_REVIEW_FAKE_SUMMARY",
+    "SAFEWORD_REVIEW_FAKE_VERDICT",
+    "SAFEWORD_REVIEW_HELP_MUTATE",
+    "SAFEWORD_REVIEW_LOG",
+    "SAFEWORD_REVIEW_MODEL_PROMPT_LOG",
+    "SAFEWORD_REVIEW_PROBE_ENV_LOG",
+    "SAFEWORD_REVIEW_PROMPT_LOG",
+    "SAFEWORD_REVIEW_SWAP_ALIAS",
+    "SAFEWORD_REVIEW_SWAP_TARGET"
   ]);
 });
 
@@ -44341,6 +44375,7 @@ import { createHash as createHash21, randomUUID as randomUUID8 } from "crypto";
 import {
   closeSync as closeSync10,
   existsSync as existsSync42,
+  fstatSync as fstatSync8,
   mkdirSync as mkdirSync14,
   openSync as openSync10,
   readdirSync as readdirSync29,
@@ -44421,9 +44456,12 @@ function withFileLock(lock, operation) {
   try {
     return operation();
   } finally {
+    const ownedLock = fstatSync8(descriptor);
     closeSync10(descriptor);
     try {
-      unlinkSync3(lock);
+      const currentLock = statSync6(lock);
+      if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
+        unlinkSync3(lock);
     } catch {}
   }
 }
@@ -44803,6 +44841,8 @@ async function startReviewJob(input) {
     const latest = readJob(input.cwd, id);
     if (latest.state !== "running")
       return currentResult(input.cwd, latest);
+    if (latest.pid !== undefined && isReviewWorker(latest.pid, latest.id) === false)
+      return failExitedJob(input.cwd, latest);
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   return currentResult(input.cwd, readJob(input.cwd, id));
@@ -44882,7 +44922,7 @@ function isActiveReviewJob(record2) {
     return false;
   if (record2.state === "launching")
     return processExists(record2.pid);
-  return record2.state === "running" && isReviewWorker(record2.pid, record2.id);
+  return record2.state === "running" && isReviewWorker(record2.pid, record2.id) === true;
 }
 function reviewJobStatus(cwd, requestedId) {
   let id;
@@ -44972,7 +45012,9 @@ function isReviewWorker(pid, id) {
     encoding: "utf8",
     timeout: 1000
   });
-  return inspected.status === 0 && /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`);
+  if (inspected.status !== 0)
+    return processExists(pid) ? undefined : false;
+  return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`);
 }
 var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {

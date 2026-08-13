@@ -12,6 +12,22 @@ describe('reviewer-scoped environment', () => {
     ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
   });
 
+  it('does not expose unknown review-prefixed variables in production', () => {
+    const originalNodeEnvironment = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(
+        reviewerEnvironment('claude', {
+          SAFEWORD_REVIEW_CUSTOM_SECRET: 'hidden',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+        }),
+      ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
+    } finally {
+      if (originalNodeEnvironment === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = originalNodeEnvironment;
+    }
+  });
+
   it('keeps vendor credentials out of capability probes', () => {
     expect(
       reviewerProbeEnvironment({
