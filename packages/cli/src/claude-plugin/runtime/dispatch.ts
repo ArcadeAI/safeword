@@ -785,6 +785,9 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   if (mode !== undefined && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
   }
+  if (mode !== '--event-group' && command.length === 0) {
+    throw new Error('A direct hook command is required.');
+  }
   const pluginRoot = realpathSync(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
   process.env.SAFEWORD_PLUGIN_CLI = nodePath.join(pluginRoot, 'runtime', 'cli.js');
   const standardInput = readFileSync(0);

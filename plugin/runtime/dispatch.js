@@ -3564,14 +3564,16 @@ function writeClaudePluginMode(cwd, marker) {
     hook_manifest_sha256: marker.hook_manifest_sha256,
     catalogue_sha256: marker.catalogue_sha256,
     unresolved_paths: marker.unresolved_paths,
-    ...(marker.advisory === void 0 ? {} : { advisory: marker.advisory }),
-    ...(marker.transaction_id === void 0 ? {} : { transaction_id: marker.transaction_id }),
+    ...(marker.advisory !== void 0 && { advisory: marker.advisory }),
+    ...(marker.transaction_id !== void 0 && { transaction_id: marker.transaction_id }),
   });
   writeDurableFile(
     markerPath(cwd),
     `${JSON.stringify(normalized, void 0, 2)}
 `,
-    { mode: 384 },
+    {
+      mode: 384,
+    },
   );
 }
 function readClaudeMigrationAttention(cwd) {
@@ -5011,6 +5013,9 @@ function executeConfiguredHooks(input) {
 function mainUnsafe(event, mode, command) {
   if (mode !== void 0 && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
+  }
+  if (mode !== '--event-group' && command.length === 0) {
+    throw new Error('A direct hook command is required.');
   }
   const pluginRoot = realpathSync3(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
   process.env.SAFEWORD_PLUGIN_CLI = nodePath8.join(pluginRoot, 'runtime', 'cli.js');

@@ -250,6 +250,38 @@ describe('Claude plugin dispatcher', () => {
     expect(settings.extraKnownMarketplaces.safeword).toEqual(marketplace);
   });
 
+  it('does not record proof or migrate when a direct hook command is missing', () => {
+    const projectDirectory = temporary('safeword-plugin-empty-command-project-');
+    const pluginData = temporary('safeword-plugin-empty-command-data-');
+    const target = releasedAsset(projectDirectory);
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const environment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PLUGIN_DATA: pluginData,
+      CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+    };
+
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), 'UserPromptSubmit', '--'],
+      {
+        cwd: projectDirectory,
+        env: environment,
+        encoding: 'utf8',
+        input: JSON.stringify({
+          cwd: projectDirectory,
+          hook_event_name: 'UserPromptSubmit',
+          session_id: 'empty-command',
+        }),
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('A direct hook command is required');
+    expect(existsSync(target)).toBe(true);
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+  });
+
   it('uses the hook cwd when Claude omits CLAUDE_PROJECT_DIR', () => {
     const projectDirectory = temporary('safeword-plugin-cwd-fallback-project-');
     const pluginData = temporary('safeword-plugin-cwd-fallback-data-');
