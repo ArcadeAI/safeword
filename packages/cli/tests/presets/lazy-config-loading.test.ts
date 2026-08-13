@@ -29,6 +29,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { testCliRoot } from '../helpers.js';
+
 const CLI_ROOT = nodePath.resolve(__dirname, '../..');
 
 /** Source file → package name it must lazy-load. */
@@ -120,7 +122,7 @@ describe('Lazy config array semantics (Proxy preserves array shape)', () => {
 
 describe('Lazy ESLint plugin loading (behavioral)', () => {
   it('does not eagerly load CJS-detectable plugins when eslintPlugin is imported', () => {
-    const distributionEntry = nodePath.join(CLI_ROOT, 'dist/presets/typescript/index.js');
+    const distributionEntry = nodePath.join(testCliRoot, 'dist/presets/typescript/index.js');
     const script = `
       import { eslintPlugin } from ${JSON.stringify(distributionEntry)};
       if (!eslintPlugin) throw new Error('eslintPlugin import failed');

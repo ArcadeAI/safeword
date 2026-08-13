@@ -25,30 +25,53 @@ export function oppositeReviewPair(author: ReviewAuthor): OppositeReviewPair | u
  */
 const MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
 
-/**
- * The model Safeword should retry the reviewer agent on when its default
- * cannot complete. Safeword never supplies a model of its own: an absent,
- * malformed, or unusable value reads as "none configured", which keeps routing
- * exactly as it is today.
- */
-export function readAlternateReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
-  // Each source is validated on its own, so an unusable environment override
-  // reads as "not set" and falls through to the configured value rather than
-  // silently masking it.
-  const sources = [
-    process.env[`SAFEWORD_REVIEW_ALTERNATE_MODEL_${reviewer.toUpperCase()}`],
-    readConfiguredAlternateModel(cwd, reviewer),
-  ];
-  return sources.find(value => value !== undefined && MODEL_NAME.test(value));
+const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'opus' };
+const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'sonnet' };
+
+export function readPrimaryReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
+  return (
+    readReviewerModel(cwd, reviewer, 'PRIMARY', 'crossAgentReviewPrimaryModel') ??
+    DEFAULT_PRIMARY_MODEL[reviewer]
+  );
 }
 
-function readConfiguredAlternateModel(cwd: string, reviewer: ReviewAgent): string | undefined {
+/**
+ * The model Safeword should retry the reviewer agent on when its primary route
+ * cannot complete. Explicit values override the Claude default; agents without
+ * a default retain their authenticated profile behavior.
+ */
+export function readAlternateReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
+  return (
+    readReviewerModel(cwd, reviewer, 'ALTERNATE', 'crossAgentReviewAlternateModel') ??
+    DEFAULT_ALTERNATE_MODEL[reviewer]
+  );
+}
+
+function readReviewerModel(
+  cwd: string,
+  reviewer: ReviewAgent,
+  route: 'PRIMARY' | 'ALTERNATE',
+  configKey: 'crossAgentReviewPrimaryModel' | 'crossAgentReviewAlternateModel',
+): string | undefined {
+  const environmentValue = process.env[`SAFEWORD_REVIEW_${route}_MODEL_${reviewer.toUpperCase()}`];
+  if (environmentValue !== undefined && MODEL_NAME.test(environmentValue)) return environmentValue;
+  const configuredValue = readConfiguredModel(cwd, reviewer, configKey);
+  return configuredValue !== undefined && MODEL_NAME.test(configuredValue)
+    ? configuredValue
+    : undefined;
+}
+
+function readConfiguredModel(
+  cwd: string,
+  reviewer: ReviewAgent,
+  configKey: 'crossAgentReviewPrimaryModel' | 'crossAgentReviewAlternateModel',
+): string | undefined {
   try {
     const raw: unknown = JSON.parse(
       readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8'),
     );
     if (typeof raw !== 'object' || raw === null) return undefined;
-    const models = (raw as Record<string, unknown>).crossAgentReviewAlternateModel;
+    const models = (raw as Record<string, unknown>)[configKey];
     if (typeof models !== 'object' || models === null) return undefined;
     const value = (models as Record<string, unknown>)[reviewer];
     return typeof value === 'string' ? value : undefined;
@@ -60,8 +83,10 @@ function readConfiguredAlternateModel(cwd: string, reviewer: ReviewAgent): strin
 export function readReviewPolicy(cwd: string): ReviewPolicy {
   try {
     const raw = readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8');
+    const config: unknown = JSON.parse(raw);
+    if (typeof config !== 'object' || config === null || Array.isArray(config)) return 'require';
     return readCrossAgentReviewPolicy(raw);
-  } catch {
-    return 'prefer';
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'prefer' : 'require';
   }
 }

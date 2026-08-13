@@ -44,6 +44,7 @@
     "test:smoke:fast": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts",
     "test:smoke": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts tests/integration/phase0-walkthrough.test.ts tests/integration/golden-path.test.ts",
     "test:smoke:live": "node scripts/run-vitest-with-build-lock.mjs --config vitest.live.config.ts",
+    "test:smoke:live:github": "node scripts/run-github-live-smokes.mjs",
     "test:release": "node scripts/run-vitest-with-build-lock.mjs --config vitest.release.config.ts",
     "test:slow": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts",
     "test:slow:install-proof": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts tests/integration/non-git-install-proof.slow.test.ts",
