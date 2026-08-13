@@ -33,6 +33,12 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] GREEN 53e94d96f
 - [x] REFACTOR skip: Route ownership belongs in the coordinator and should not move into the wrapper.
 
+### Scenario: An alternate-model retry starts fresh lifecycle timing
+
+- [x] RED b9cf90383
+- [x] GREEN 53e94d96f
+- [x] REFACTOR skip: Alternate-model timing reuses the coordinator's existing route lifecycle.
+
 ## Rule: reliable-observable-quality-reviews.TBU1.R2 — Callers that do not request managed progress keep the existing silent machine contract
 
 ### Scenario Outline: Only the exact managed signal enables JSON progress

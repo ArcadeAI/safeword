@@ -11,7 +11,8 @@ Feature: Keep quality reviews observable and actionable
   Quoted signal values decode \n as a line break; <unset> means the variable is absent.
   Progress writes target operating-system descriptor 2 synchronously; deferred
   stream error events and stream backpressure are not part of this boundary.
-  A route's first heartbeat is due 30 seconds after route start; every later
+  The active-review line is due 100 milliseconds after route start. A route's
+  first heartbeat is due 30 seconds after route start; every later
   heartbeat is re-armed 30 seconds after its most recent emission.
 
   @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli @proof.vitest
@@ -55,11 +56,21 @@ Feature: Keep quality reviews observable and actionable
 
     Scenario: Managed timing starts with each asynchronous reviewer route
       Given packet preparation remains active for 60 seconds before reviewer work starts
-      And the preferred and fallback routes each remain active through their first heartbeat
+      And the preferred route transitions at 45 seconds after reviewer work starts
+      And the fallback route remains active through its first heartbeat and completes before its second
       And the review is observed with a deterministic clock
       When the review transitions from its preferred route to a fallback route
       Then stderr consists exactly of the preferred active-review line 100 milliseconds after reviewer work starts, its heartbeat 30 seconds after reviewer work starts, the fallback active-review line 100 milliseconds after transition, and its heartbeat 30 seconds after transition
       And no preferred-route lifecycle line appears after the fallback route starts
+      And stdout consists exactly of one complete parseable schema-1 result followed by EOF
+
+    Scenario: An alternate-model retry starts fresh lifecycle timing
+      Given a managed JSON review whose preferred model fails at 45 seconds
+      And the same reviewer kind retries with its configured alternate model through one heartbeat
+      And the review is observed with a deterministic clock
+      When the alternate-model route completes before its second heartbeat
+      Then stderr consists exactly of the preferred active-review line, its heartbeat, the alternate-model active-review line, and its heartbeat in that order
+      And the alternate-model lines occur 100 milliseconds and 30 seconds after that route starts
       And stdout consists exactly of one complete parseable schema-1 result followed by EOF
 
   @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli @proof.vitest
@@ -72,6 +83,7 @@ Feature: Keep quality reviews observable and actionable
       When the review completes with <stderr_kind> stderr
       Then stderr consists of <expected_lines>
       And stdout consists exactly of one complete parseable typed result followed by EOF
+      And the command exits with status 0
 
       Examples:
         | value   | stderr_kind | expected_lines                             |
@@ -117,6 +129,7 @@ Feature: Keep quality reviews observable and actionable
       When the reviewer returns an approved result after one heartbeat
       Then stderr consists exactly of the packet, active-review, and heartbeat lines in that order
       And stdout contains the human-readable verdict exactly once
+      And the command exits with status 0
 
     Scenario: The private signal does not duplicate human-readable progress
       Given a human-readable review with managed-progress signal value "1"
@@ -124,17 +137,20 @@ Feature: Keep quality reviews observable and actionable
       When the reviewer returns an approved result after one heartbeat
       Then stderr consists exactly of the packet, active-review, and heartbeat lines in that order
       And stdout contains the human-readable verdict exactly once
+      And the command exits with status 0
 
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel that cannot alter or disclose reviewer output
 
     Scenario Outline: A failed progress destination cannot alter the terminal result
-      Given a managed JSON review whose operating-system progress descriptor has <failure> before a write
+      Given a managed JSON review whose operating-system progress descriptor follows <failure>
       And the review remains active through an attempted active-review write and heartbeat write
+      And the review is observed with a deterministic clock
       When the reviewer completes with <classification>
       Then both lifecycle writes are attempted and their failures are swallowed
       And stdout consists exactly of the canonical typed result followed by EOF
       And no fallback diagnostic is written to stdout
+      And stderr contains no partial lifecycle line
       And the command exits with status <status>
 
       Examples:
@@ -143,6 +159,8 @@ Feature: Keep quality reviews observable and actionable
         | synchronous descriptor failure | action-required | 2      |
         | closed descriptor              | approved        | 0      |
         | closed descriptor              | action-required | 2      |
+        | first write succeeds and second fails | approved        | 0      |
+        | first write succeeds and second fails | action-required | 2      |
 
     Scenario: Accepted reviewer data never enters lifecycle output
       Given an accepted reviewer result contains a unique summary secret
@@ -158,6 +176,7 @@ Feature: Keep quality reviews observable and actionable
     Scenario Outline: Rejected reviewer data never enters public output
       Given route configuration <route_configuration>
       And rejected reviewer bytes, model names, targets, and context contain disjoint unique secrets and control characters
+      And the review is observed with a deterministic clock
       When a managed review <termination>
       Then stderr contains positive lifecycle lines naming only <reviewer_kinds>
       And stdout consists exactly of one complete parseable schema-1 action-required result followed by EOF
@@ -174,6 +193,7 @@ Feature: Keep quality reviews observable and actionable
 
     Scenario: Exhausted routes identify the failed boundary and recovery
       Given a managed JSON review for target "change.ts" whose preferred route times out and fallback returns invalid output
+      And the review is observed with a deterministic clock
       When the public review command completes
       Then stdout consists exactly of one complete parseable schema-1 action-required result followed by EOF
       And the result contains finding code "REVIEW_ROUTES_EXHAUSTED"
@@ -190,7 +210,9 @@ Feature: Keep quality reviews observable and actionable
       When it launches a JSON review
       Then the CLI child receives managed-progress signal value "1"
       And capability probes do not contain the signal
-      And lifecycle stderr, typed stdout, and exit status are preserved without reinterpretation
+      And stdout equals the CLI fixture's typed result byte for byte
+      And stderr equals the CLI fixture's lifecycle lines byte for byte
+      And the wrapper exits with the CLI fixture's status 2
 
     Scenario: The public CLI removes the wrapper signal from reviewer processes
       Given a direct JSON review with managed-progress signal value "1"

@@ -65,6 +65,23 @@ describe('CLI execution policy', () => {
     expect(write).toHaveBeenNthCalledWith(2, 'second\n');
   });
 
+  it('keeps a later descriptor failure best-effort after an earlier write succeeds', () => {
+    const write = vi
+      .fn<(message: string) => void>()
+      .mockImplementationOnce(() => {})
+      .mockImplementationOnce(() => {
+        throw new Error('EPIPE');
+      });
+    const emit = createBestEffortProgressSink(write);
+
+    expect(() => {
+      emit('first');
+      emit('second');
+    }).not.toThrow();
+    expect(write).toHaveBeenNthCalledWith(1, 'first\n');
+    expect(write).toHaveBeenNthCalledWith(2, 'second\n');
+  });
+
   it('suppresses packet preparation only for managed JSON progress', () => {
     const progress = { start: vi.fn(), heartbeat: vi.fn(), stop: vi.fn() };
     const managed = createManagedReviewProgress(progress);
