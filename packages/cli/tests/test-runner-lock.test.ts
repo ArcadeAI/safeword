@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -13,10 +14,13 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { resolveWindowsVitest } from '../scripts/test-runner-executable.mjs';
+
 const cliRoot = nodePath.resolve(import.meta.dirname, '..');
 const runnerPath = nodePath.join(cliRoot, 'scripts/run-vitest-with-build-lock.mjs');
 const githubLiveRunnerPath = nodePath.join(cliRoot, 'scripts/run-github-live-smokes.mjs');
 const packageManifestPath = nodePath.join(cliRoot, 'package.json');
+const runnerExecutablePath = nodePath.join(cliRoot, 'scripts/test-runner-executable.mjs');
 
 const temporaryDirectories: string[] = [];
 
@@ -60,14 +64,20 @@ async function createFakeTestBinaries(temporaryDirectory: string, delayMilliseco
   const binaryDirectory = nodePath.join(temporaryDirectory, 'bin');
   await mkdir(binaryDirectory, { recursive: true });
   const logPath = nodePath.join(temporaryDirectory, 'events.log');
+  const snapshotLogPath = nodePath.join(temporaryDirectory, 'snapshot.log');
 
   writeFileSync(
     nodePath.join(binaryDirectory, 'bun'),
     `#!/usr/bin/env node
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 const log = ${JSON.stringify(logPath)};
 const parent = process.ppid;
 appendFileSync(log, \`build:start:\${parent}\\n\`);
+if (process.cwd() !== ${JSON.stringify(cliRoot)}) {
+  mkdirSync(path.join(process.cwd(), 'dist'), { recursive: true });
+  writeFileSync(path.join(process.cwd(), 'dist', 'cli.js'), 'built-cli');
+}
 await new Promise(resolve => setTimeout(resolve, ${delayMilliseconds}));
 appendFileSync(log, \`build:end:\${parent}\\n\`);
 `,
@@ -79,7 +89,19 @@ appendFileSync(log, \`build:end:\${parent}\\n\`);
     `#!/usr/bin/env node
 import { appendFileSync } from 'node:fs';
 const log = ${JSON.stringify(logPath)};
+const snapshotLog = ${JSON.stringify(snapshotLogPath)};
 const parent = process.ppid;
+const snapshotRoot = process.env.SAFEWORD_TEST_CLI_ROOT;
+if (!snapshotRoot) {
+  process.stderr.write('SAFEWORD_TEST_CLI_ROOT was not provided\\n');
+  process.exit(2);
+}
+const { readFileSync } = await import('node:fs');
+const { join } = await import('node:path');
+appendFileSync(snapshotLog, JSON.stringify({
+  root: snapshotRoot,
+  cli: readFileSync(join(snapshotRoot, 'dist', 'cli.js'), 'utf8'),
+}) + '\\n');
 appendFileSync(log, \`vitest:start:\${parent}:\${process.argv.slice(2).join(',')}\\n\`);
 await new Promise(resolve => setTimeout(resolve, ${delayMilliseconds}));
 appendFileSync(log, \`vitest:end:\${parent}\\n\`);
@@ -87,7 +109,7 @@ appendFileSync(log, \`vitest:end:\${parent}\\n\`);
     { mode: 0o755 },
   );
 
-  return { binaryDirectory, logPath };
+  return { binaryDirectory, logPath, snapshotLogPath };
 }
 
 async function copyRunnerToCheckout(temporaryDirectory: string, name: string) {
@@ -96,7 +118,12 @@ async function copyRunnerToCheckout(temporaryDirectory: string, name: string) {
   await mkdir(scriptDirectory, { recursive: true });
   const copiedRunnerPath = nodePath.join(scriptDirectory, 'run-vitest-with-build-lock.mjs');
   copyFileSync(runnerPath, copiedRunnerPath);
+  copyFileSync(runnerExecutablePath, nodePath.join(scriptDirectory, 'test-runner-executable.mjs'));
   return copiedRunnerPath;
+}
+
+function checkoutCliRootForRunner(copiedRunner: string): string {
+  return nodePath.resolve(nodePath.dirname(copiedRunner), '..');
 }
 
 function readEvents(logPath: string): string[] {
@@ -142,7 +169,11 @@ function waitStatusLines(stderr: string): string[] {
 
 async function seedOwnerFile(lockDirectory: string, owner: unknown) {
   await mkdir(lockDirectory, { recursive: true });
-  writeFileSync(nodePath.join(lockDirectory, 'owner.json'), `${JSON.stringify(owner)}\n`);
+  const markedOwner =
+    typeof owner === 'object' && owner !== null && !Array.isArray(owner)
+      ? { kind: 'safeword-package-test-lock', ...owner }
+      : owner;
+  writeFileSync(nodePath.join(lockDirectory, 'owner.json'), `${JSON.stringify(markedOwner)}\n`);
 }
 
 describe('package test runner lock (379)', () => {
@@ -197,6 +228,93 @@ describe('package test runner lock (379)', () => {
       expect.stringMatching(/^vitest:end:\d+$/),
     ]);
   });
+
+  it('resolves a Windows npm Vitest shim without selecting the POSIX shim', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const moduleDirectory = nodePath.join(temporaryDirectory, 'node_modules', 'vitest');
+    const binaryDirectory = nodePath.join(temporaryDirectory, 'node_modules', '.bin');
+    await mkdir(moduleDirectory, { recursive: true });
+    await mkdir(binaryDirectory, { recursive: true });
+    writeFileSync(nodePath.join(binaryDirectory, 'vitest'), '#!/bin/sh\n');
+    writeFileSync(nodePath.join(binaryDirectory, 'vitest.cmd'), '@echo off\r\n');
+    const moduleEntry = nodePath.join(moduleDirectory, 'vitest.mjs');
+    writeFileSync(moduleEntry, 'export {};\n');
+
+    expect(resolveWindowsVitest(binaryDirectory, cliRoot, 'node.exe')).toEqual({
+      arguments: [moduleEntry],
+      executable: 'node.exe',
+    });
+  });
+
+  it('runs tests against a private built-package snapshot (#1823)', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, snapshotLogPath } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+
+    const result = await runNodeScript(copiedRunner, ['tests/first.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    const snapshot = JSON.parse(readFileSync(snapshotLogPath, 'utf8')) as {
+      cli: string;
+      root: string;
+    };
+    expect(snapshot.cli).toBe('built-cli');
+    expect(snapshot.root).not.toBe(cliRoot);
+    expect(existsSync(snapshot.root)).toBe(false);
+  });
+
+  it.each(['..', '.'])('rejects publish entry %s outside the snapshot boundary', async entry => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+    writeFileSync(
+      nodePath.join(checkoutCliRootForRunner(copiedRunner), 'package.json'),
+      `${JSON.stringify({ files: [entry] })}\n`,
+    );
+
+    const result = await runNodeScript(copiedRunner, ['tests/escape.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`Package snapshot entry escapes the CLI package: ${entry}`);
+  });
+
+  it.runIf(process.platform !== 'win32')(
+    'rejects symbolic links inside publishable snapshot entries',
+    async () => {
+      const temporaryDirectory = makeTemporaryDirectory();
+      const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+      const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+      const checkoutCliRoot = checkoutCliRootForRunner(copiedRunner);
+      const publishDirectory = nodePath.join(checkoutCliRoot, 'publish');
+      await mkdir(publishDirectory);
+      symlinkSync(
+        nodePath.join(temporaryDirectory, 'outside'),
+        nodePath.join(publishDirectory, 'link'),
+      );
+      writeFileSync(
+        nodePath.join(checkoutCliRoot, 'package.json'),
+        `${JSON.stringify({ files: ['publish'] })}\n`,
+      );
+
+      const result = await runNodeScript(copiedRunner, ['tests/symlink.test.ts'], {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('Package snapshot entry contains a symbolic link: publish');
+    },
+  );
 
   it('serializes build and vitest for concurrent focused test commands', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
@@ -336,8 +454,8 @@ describe('package test runner lock (379)', () => {
     }
   });
 
-  it('reaps stale locks when owner metadata is unusable or expired', async () => {
-    for (const owner of ['not owner metadata', {}, { createdAt: new Date(0).toISOString() }]) {
+  it('reaps marked stale locks when owner metadata is incomplete or expired', async () => {
+    for (const owner of [{}, { createdAt: new Date(0).toISOString() }]) {
       const temporaryDirectory = makeTemporaryDirectory();
       const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
       const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
@@ -360,6 +478,28 @@ describe('package test runner lock (379)', () => {
         expect.stringMatching(/^vitest:end:/),
       ]);
     }
+  });
+
+  it('does not delete an unmarked directory selected as the lock path', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'unrelated');
+    await mkdir(lockDirectory);
+    const sentinel = nodePath.join(lockDirectory, 'keep.txt');
+    writeFileSync(sentinel, 'user data');
+    const staleTime = new Date(Date.now() - 31_000);
+    utimesSync(lockDirectory, staleTime, staleTime);
+
+    const result = await runNodeScript(runnerPath, ['tests/unmarked.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+    });
+
+    expect(result.status).toBe(1);
+    expect(readFileSync(sentinel, 'utf8')).toBe('user data');
+    expect(existsSync(logPath)).toBe(false);
   });
 
   it('clamps unsafe status intervals and ignores malformed settings', async () => {
@@ -434,6 +574,31 @@ describe('package test runner lock (379)', () => {
     ]);
   });
 
+  it('reaps an abandoned transition mutex before acquiring', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    await seedOwnerFile(`${lockDirectory}.transition`, {
+      createdAt: new Date().toISOString(),
+      pid: 2_147_483_647,
+    });
+
+    const result = await runNodeScript(runnerPath, ['tests/abandoned-transition.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      expect.stringMatching(/^vitest:start:.*:run,tests\/abandoned-transition\.test\.ts$/),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
+    expect(existsSync(`${lockDirectory}.transition`)).toBe(false);
+  });
+
   it('does not reap an aged lock while its owner process is alive', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
@@ -472,13 +637,17 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_DIR: lockDirectory,
     };
 
+    const contenderCount = 4;
     const results = await Promise.all(
-      Array.from({ length: 8 }, (_, index) =>
+      Array.from({ length: contenderCount }, (_, index) =>
         runNodeScript(runnerPath, [`tests/stale-${index}.test.ts`], env),
       ),
     );
 
-    expect(results.map(result => result.status)).toEqual(Array.from({ length: 8 }, () => 0));
+    expect(
+      results.map(result => result.status),
+      JSON.stringify(results),
+    ).toEqual(Array.from({ length: contenderCount }, () => 0));
     const events = readEvents(logPath);
     let activeCommands = 0;
     let maximumActiveCommands = 0;
@@ -486,7 +655,7 @@ describe('package test runner lock (379)', () => {
       activeCommands += event.includes(':start:') ? 1 : -1;
       maximumActiveCommands = Math.max(maximumActiveCommands, activeCommands);
     }
-    expect(events).toHaveLength(32);
+    expect(events).toHaveLength(contenderCount * 4);
     expect(activeCommands).toBe(0);
     expect(maximumActiveCommands).toBe(1);
   });

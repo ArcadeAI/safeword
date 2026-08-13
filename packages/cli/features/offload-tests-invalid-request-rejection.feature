@@ -1,7 +1,6 @@
-@wip
 Feature: Reject invalid verification requests safely
 
-  @offload-tests.TBU1.R9
+  @wip @offload-tests.TBU1.R9
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R9 — Invalid public syntax or unauthenticated derived revision data is rejected without local or remote execution
 
