@@ -30,6 +30,44 @@ afterEach(() => {
 });
 
 describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
+  it.each([
+    'https://github.com/ArcadeAI/safeword/pull/2802',
+    'git@github.com:ArcadeAI/safeword.git',
+    'ssh://git@github.com/ArcadeAI/safeword.git',
+  ])('accepts an exact GitHub repository identity from %s', repoUrl => {
+    const projectDirectory = project();
+    const codexHome = project();
+
+    expect(
+      recordCodexCloseoutHandoff({
+        projectDirectory,
+        repositoryUrl: repoUrl,
+        pullRequest: 2802,
+        headOid: 'a'.repeat(40),
+        environment: { CODEX_HOME: codexHome },
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    'https://evilgithub.com/ArcadeAI/safeword/pull/2802',
+    'git@evilgithub.com:ArcadeAI/safeword.git',
+    'https://github.com/ArcadeAI/../safeword',
+  ])('rejects a lookalike or traversal-shaped repository identity from %s', repoUrl => {
+    const projectDirectory = project();
+    const codexHome = project();
+
+    expect(
+      recordCodexCloseoutHandoff({
+        projectDirectory,
+        repositoryUrl: repoUrl,
+        pullRequest: 2802,
+        headOid: 'a'.repeat(40),
+        environment: { CODEX_HOME: codexHome },
+      }),
+    ).toBe(false);
+  });
+
   it('round-trips a profile handoff into exactly one restarted Codex task', () => {
     const projectDirectory = project();
     const codexHome = project();

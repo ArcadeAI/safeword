@@ -47,8 +47,28 @@ function profileId(environment: NodeJS.ProcessEnv = process.env): string {
 }
 
 function canonicalGithubRepository(value: string): string | undefined {
-  const match = /github\.com[/:]([^/]+)\/([^/#]+?)(?:\.git)?(?:\/|$)/u.exec(value.trim());
-  return match ? `${match[1]}/${match[2]}`.toLowerCase() : undefined;
+  const trimmed = value.trim();
+  const scpMatch = /^git@github\.com:([^/]+)\/([^/]+)$/u.exec(trimmed);
+  let owner: string | undefined;
+  let repository: string | undefined;
+
+  if (scpMatch) {
+    [, owner, repository] = scpMatch;
+  } else {
+    try {
+      const url = new URL(trimmed);
+      if (url.hostname.toLowerCase() !== 'github.com') return undefined;
+      [owner, repository] = url.pathname.split('/').filter(Boolean);
+    } catch {
+      return undefined;
+    }
+  }
+
+  repository = repository?.replace(/\.git$/u, '');
+  const validSegment = /^[a-z\d](?:[a-z\d._-]*[a-z\d])?$/iu;
+  return owner && repository && validSegment.test(owner) && validSegment.test(repository)
+    ? `${owner}/${repository}`.toLowerCase()
+    : undefined;
 }
 
 function currentRepository(projectDirectory: string): string | undefined {
