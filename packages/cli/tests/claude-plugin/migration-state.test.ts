@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -143,5 +143,47 @@ describe('Claude plugin mode v2', () => {
     expect(claimClaudeMigrationAdvisory(root, undefined, digest, 'process-a')).toBe(true);
     expect(claimClaudeMigrationAdvisory(root, '', digest, 'process-a')).toBe(false);
     expect(claimClaudeMigrationAdvisory(root, undefined, digest, 'process-b')).toBe(true);
+  });
+
+  it('rejects advisory digests that could escape the claims directory', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-advisory-traversal-'));
+    roots.push(root);
+    expect(() => claimClaudeMigrationAdvisory(root, 'session', '../escaped')).toThrow(
+      'advisory digest is invalid',
+    );
+    expect(existsSync(nodePath.join(root, '.safeword/claude-plugin/escaped.json'))).toBe(false);
+  });
+
+  it('normalizes inconsistent plugin-mode state when writing', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-mode-normalize-'));
+    roots.push(root);
+    writeClaudePluginMode(root, {
+      schema_version: 2,
+      state: 'clean',
+      plugin_version: '0.73.0',
+      hook_manifest_sha256: digest,
+      catalogue_sha256: digest,
+      unresolved_paths: ['legacy-path'],
+    });
+    expect(readClaudePluginMode(root)?.state).toBe('unresolved');
+  });
+
+  it('rejects inconsistent plugin-mode state persisted outside the writer', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-mode-corrupt-'));
+    roots.push(root);
+    const markerPath = nodePath.join(root, '.safeword/claude-plugin/plugin-mode-v2.json');
+    mkdirSync(nodePath.dirname(markerPath), { recursive: true });
+    writeFileSync(
+      markerPath,
+      JSON.stringify({
+        schema_version: 2,
+        state: 'unresolved',
+        plugin_version: '0.73.0',
+        hook_manifest_sha256: digest,
+        catalogue_sha256: digest,
+        unresolved_paths: [],
+      }),
+    );
+    expect(readClaudePluginMode(root)).toBeUndefined();
   });
 });

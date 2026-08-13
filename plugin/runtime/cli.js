@@ -20275,6 +20275,7 @@ function validDigest(value) {
 }
 function validPluginMode(value) {
   const unresolvedPaths = value.unresolved_paths;
+  const consistentState = value.state === "clean" && unresolvedPaths?.length === 0 || value.state === "unresolved" && (unresolvedPaths?.length ?? 0) > 0;
   return [
     value.schema_version === 2,
     ["clean", "unresolved"].includes(value.state ?? ""),
@@ -20282,7 +20283,8 @@ function validPluginMode(value) {
     validDigest(value.hook_manifest_sha256),
     validDigest(value.catalogue_sha256),
     Array.isArray(unresolvedPaths),
-    Array.isArray(unresolvedPaths) && unresolvedPaths.every((item) => typeof item === "string")
+    Array.isArray(unresolvedPaths) && unresolvedPaths.every((item) => typeof item === "string"),
+    consistentState
   ].every(Boolean);
 }
 function readClaudePluginMode(cwd) {
@@ -20297,7 +20299,15 @@ function readClaudePluginMode(cwd) {
   }
 }
 function writeClaudePluginMode(cwd, marker) {
-  writeDurableFile(markerPath(cwd), `${JSON.stringify(marker, undefined, 2)}
+  const normalized = createClaudePluginMode({
+    plugin_version: marker.plugin_version,
+    hook_manifest_sha256: marker.hook_manifest_sha256,
+    catalogue_sha256: marker.catalogue_sha256,
+    unresolved_paths: marker.unresolved_paths,
+    ...marker.advisory === undefined ? {} : { advisory: marker.advisory },
+    ...marker.transaction_id === undefined ? {} : { transaction_id: marker.transaction_id }
+  });
+  writeDurableFile(markerPath(cwd), `${JSON.stringify(normalized, undefined, 2)}
 `, { mode: 384 });
 }
 function writeClaudeMigrationAttention(cwd, attention) {

@@ -3486,6 +3486,8 @@ function claimClaudeMigrationAdvisory(
   stateDigest,
   fallbackSessionId = PROCESS_SESSION_ID,
 ) {
+  if (!validDigest(stateDigest))
+    throw new TypeError('Claude migration advisory digest is invalid.');
   const directory = nodePath5.join(attemptsPath(cwd), 'advisories');
   mkdirSync2(directory, { recursive: true, mode: 448 });
   const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
@@ -3525,6 +3527,9 @@ function validDigest(value) {
 }
 function validPluginMode(value) {
   const unresolvedPaths2 = value.unresolved_paths;
+  const consistentState =
+    (value.state === 'clean' && unresolvedPaths2?.length === 0) ||
+    (value.state === 'unresolved' && (unresolvedPaths2?.length ?? 0) > 0);
   return [
     value.schema_version === 2,
     ['clean', 'unresolved'].includes(value.state ?? ''),
@@ -3533,6 +3538,7 @@ function validPluginMode(value) {
     validDigest(value.catalogue_sha256),
     Array.isArray(unresolvedPaths2),
     Array.isArray(unresolvedPaths2) && unresolvedPaths2.every(item => typeof item === 'string'),
+    consistentState,
   ].every(Boolean);
 }
 function readClaudePluginMode(cwd) {
@@ -3553,9 +3559,17 @@ function pluginModeIsTerminal(marker, identity) {
   );
 }
 function writeClaudePluginMode(cwd, marker) {
+  const normalized = createClaudePluginMode({
+    plugin_version: marker.plugin_version,
+    hook_manifest_sha256: marker.hook_manifest_sha256,
+    catalogue_sha256: marker.catalogue_sha256,
+    unresolved_paths: marker.unresolved_paths,
+    ...(marker.advisory === void 0 ? {} : { advisory: marker.advisory }),
+    ...(marker.transaction_id === void 0 ? {} : { transaction_id: marker.transaction_id }),
+  });
   writeDurableFile(
     markerPath(cwd),
-    `${JSON.stringify(marker, void 0, 2)}
+    `${JSON.stringify(normalized, void 0, 2)}
 `,
     { mode: 384 },
   );

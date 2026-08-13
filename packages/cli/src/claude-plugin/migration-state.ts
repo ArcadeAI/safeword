@@ -125,6 +125,8 @@ export function claimClaudeMigrationAdvisory(
   stateDigest: string,
   fallbackSessionId = PROCESS_SESSION_ID,
 ): boolean {
+  if (!validDigest(stateDigest))
+    throw new TypeError('Claude migration advisory digest is invalid.');
   const directory = nodePath.join(attemptsPath(cwd), 'advisories');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
@@ -175,6 +177,9 @@ function validDigest(value: unknown): value is string {
 
 function validPluginMode(value: Partial<ClaudePluginModeV2>): value is ClaudePluginModeV2 {
   const unresolvedPaths = value.unresolved_paths;
+  const consistentState =
+    (value.state === 'clean' && unresolvedPaths?.length === 0) ||
+    (value.state === 'unresolved' && (unresolvedPaths?.length ?? 0) > 0);
   return [
     value.schema_version === 2,
     ['clean', 'unresolved'].includes(value.state ?? ''),
@@ -183,6 +188,7 @@ function validPluginMode(value: Partial<ClaudePluginModeV2>): value is ClaudePlu
     validDigest(value.catalogue_sha256),
     Array.isArray(unresolvedPaths),
     Array.isArray(unresolvedPaths) && unresolvedPaths.every(item => typeof item === 'string'),
+    consistentState,
   ].every(Boolean);
 }
 
@@ -213,7 +219,17 @@ export function pluginModeIsTerminal(
 }
 
 export function writeClaudePluginMode(cwd: string, marker: ClaudePluginModeV2): void {
-  writeDurableFile(markerPath(cwd), `${JSON.stringify(marker, undefined, 2)}\n`, { mode: 0o600 });
+  const normalized = createClaudePluginMode({
+    plugin_version: marker.plugin_version,
+    hook_manifest_sha256: marker.hook_manifest_sha256,
+    catalogue_sha256: marker.catalogue_sha256,
+    unresolved_paths: marker.unresolved_paths,
+    ...(marker.advisory !== undefined && { advisory: marker.advisory }),
+    ...(marker.transaction_id !== undefined && { transaction_id: marker.transaction_id }),
+  });
+  writeDurableFile(markerPath(cwd), `${JSON.stringify(normalized, undefined, 2)}\n`, {
+    mode: 0o600,
+  });
 }
 
 export function readClaudeMigrationAttention(cwd: string): ClaudeMigrationAttentionV1 | undefined {
