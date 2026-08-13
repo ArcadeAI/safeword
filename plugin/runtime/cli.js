@@ -59775,7 +59775,6 @@ var CANONICAL_COMMANDS = [
     }
   }),
   command("review status", "Collect a durable independent review", "mutate", {
-    networkPolicy: "declared",
     syntax: "status [review-id]",
     fixture: {
       argv: ["review", "status"],

@@ -449,7 +449,6 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     },
   }),
   command('review status', 'Collect a durable independent review', 'mutate', {
-    networkPolicy: 'declared',
     syntax: 'status [review-id]',
     fixture: {
       argv: ['review', 'status'],

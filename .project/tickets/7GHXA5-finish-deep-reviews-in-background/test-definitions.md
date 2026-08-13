@@ -2,23 +2,27 @@
 
 Feature source: `packages/cli/features/durable-independent-review.feature`
 
+## Process deviation
+
+The initial implementation and its five scenario proofs landed together in `77abbe01d`, so no auditable failing-test commits exist. The RED entries below are intentionally left incomplete: they document missing historical evidence, not a valid TDD exception. Subsequent review fixes used failing regression tests before GREEN.
+
 ## Rule: finish-deep-reviews-in-background.TBU1.R1 — A healthy review outlives its foreground courtesy wait
 
 ### Scenario: A quick review returns its verdict inline
 
-- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [ ] RED evidence unavailable — process deviation documented above
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ### Scenario: A slow healthy review continues as a durable job
 
-- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [ ] RED evidence unavailable — process deviation documented above
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ### Scenario: A detached review can be collected after its caller exits
 
-- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [ ] RED evidence unavailable — process deviation documented above
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
@@ -26,7 +30,7 @@ Feature source: `packages/cli/features/durable-independent-review.feature`
 
 ### Scenario: Source changes make a completed review stale
 
-- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [ ] RED evidence unavailable — process deviation documented above
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
@@ -34,7 +38,7 @@ Feature source: `packages/cli/features/durable-independent-review.feature`
 
 ### Scenario: A running review is canceled explicitly
 
-- [x] RED skip: implementation and proof landed together in 77abbe01d; no auditable failing-test commit exists
+- [ ] RED evidence unavailable — process deviation documented above
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 

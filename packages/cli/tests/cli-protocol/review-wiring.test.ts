@@ -120,6 +120,26 @@ function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log:
 }
 
 describe('cross-agent review public-command wiring', () => {
+  it('collects review status offline because durable job state is local', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli([
+      'review',
+      'status',
+      'not-a-uuid',
+      '--offline',
+      '--json',
+      '--no-input',
+      '--cwd',
+      directory,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
+    });
+  });
+
   it.each(['status', 'cancel'] as const)(
     'returns a typed JSON failure for review %s through the public CLI',
     async command => {
