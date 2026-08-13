@@ -206,6 +206,48 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
+  it('recognizes a long-running worker even when its command line is long', async () => {
+    const cwd = project();
+    const longDirectory = nodePath.join(cwd, `worker-${'x'.repeat(180)}`);
+    mkdirSync(longDirectory);
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(longDirectory, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+
+    const first = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const second = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+
+    expect((second.data as { review_id: string }).review_id).toBe(
+      (first.data as { review_id: string }).review_id,
+    );
+    cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
+  });
+
+  it('launches a managed worker in JSON mode', async () => {
+    const cwd = project();
+    const argumentsPath = nodePath.join(cwd, 'worker-arguments.json');
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(argumentsPath)}, JSON.stringify(process.argv)); setTimeout(() => {}, 10_000);`,
+      ),
+    );
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+
+    const result = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      progress: { managed: true, start: vi.fn() },
+      targets: ['input.md'],
+    });
+    await vi.waitFor(() => {
+      expect(existsSync(argumentsPath)).toBe(true);
+    });
+
+    expect(JSON.parse(readFileSync(argumentsPath, 'utf8'))).toContain('--json');
+    cancelReviewJob(cwd, (result.data as { review_id: string }).review_id);
+  });
+
   it('does not reuse a review when a context file becomes a target', async () => {
     const cwd = project();
     writeFileSync(nodePath.join(cwd, 'context.md'), 'supporting context\n');

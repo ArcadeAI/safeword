@@ -37,6 +37,9 @@ Scope: `origin/main...codex/reliable-quality-review`
 13. **Forward managed worker progress** — managed JSON jobs inherit only stderr
     and re-opt the detached CLI worker into progress, so real coordinator route
     messages reach the wrapper while stdout remains typed.
+14. **Preserve managed mode and worker identity** — detached managed workers
+    receive `--json`, keeping preparation filtering structural, and POSIX worker
+    inspection requests untruncated command lines before matching the job ID.
 
 ## Struck or deferred
 

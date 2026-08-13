@@ -435,6 +435,7 @@ function launchReviewWorker(input: {
       'review',
       'run',
       input.kind,
+      ...(input.managedProgress ? ['--json'] : []),
       '--worker-job-id',
       input.id,
       ...input.context.flatMap(target => ['--context', target]),
@@ -771,7 +772,7 @@ function isReviewWorker(pid: number, id: string): boolean {
           ],
           { encoding: 'utf8', timeout: 1000, windowsHide: true },
         )
-      : spawnSync('ps', ['-p', String(pid), '-o', 'command='], {
+      : spawnSync('ps', ['-ww', '-p', String(pid), '-o', 'command='], {
           encoding: 'utf8',
           timeout: 1000,
         });

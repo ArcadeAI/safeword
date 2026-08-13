@@ -44682,6 +44682,7 @@ function launchReviewWorker(input) {
     "review",
     "run",
     input.kind,
+    ...input.managedProgress ? ["--json"] : [],
     "--worker-job-id",
     input.id,
     ...input.context.flatMap((target) => ["--context", target]),
@@ -44967,7 +44968,7 @@ function isReviewWorker(pid, id) {
     "-NonInteractive",
     "-Command",
     `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
-  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9("ps", ["-p", String(pid), "-o", "command="], {
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9("ps", ["-ww", "-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });
