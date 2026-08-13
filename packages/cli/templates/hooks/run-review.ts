@@ -9,6 +9,7 @@ type Candidate = readonly [command: string, prefix: readonly string[]];
 const SEMVER =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 const DEFAULT_PROBE_TIMEOUT_MS = 10_000;
+const MANAGED_PROGRESS_SIGNAL = 'SAFEWORD_REVIEW_PROGRESS';
 
 function probeTimeout(environment: NodeJS.ProcessEnv): number {
   const configured = Number(environment.SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS);
@@ -17,8 +18,26 @@ function probeTimeout(environment: NodeJS.ProcessEnv): number {
     : DEFAULT_PROBE_TIMEOUT_MS;
 }
 
-function supportsReview([command, prefix]: Candidate, timeout: number): boolean {
+export function reviewEnvironment(
+  environment: NodeJS.ProcessEnv,
+  arguments_: readonly string[],
+): NodeJS.ProcessEnv {
+  const childEnvironment = { ...environment };
+  delete childEnvironment[MANAGED_PROGRESS_SIGNAL];
+  if (arguments_[0] === 'review' && arguments_[1] === 'run' && arguments_.includes('--json')) {
+    childEnvironment[MANAGED_PROGRESS_SIGNAL] = '1';
+  }
+  return childEnvironment;
+}
+
+function supportsReview(
+  [command, prefix]: Candidate,
+  timeout: number,
+  environment: NodeJS.ProcessEnv,
+): boolean {
+  const arguments_ = ['review', 'run', '--help'];
   const result = spawnSync(command, [...prefix, 'review', 'run', '--help'], {
+    env: reviewEnvironment(environment, arguments_),
     stdio: 'ignore',
     timeout,
   });
@@ -52,12 +71,17 @@ export function reviewCandidates(
 
 export function runReview(arguments_: string[]): never {
   const timeout = probeTimeout(process.env);
-  const candidate = reviewCandidates().find(candidate_ => supportsReview(candidate_, timeout));
+  const candidate = reviewCandidates().find(candidate_ =>
+    supportsReview(candidate_, timeout, process.env),
+  );
   if (!candidate) {
     console.error('No review-capable Safeword CLI found.');
     process.exit(1);
   }
-  const result = spawnSync(candidate[0], [...candidate[1], ...arguments_], { stdio: 'inherit' });
+  const result = spawnSync(candidate[0], [...candidate[1], ...arguments_], {
+    env: reviewEnvironment(process.env, arguments_),
+    stdio: 'inherit',
+  });
   process.exit(result.status ?? 1);
 }
 
