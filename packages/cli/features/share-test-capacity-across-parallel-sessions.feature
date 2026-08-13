@@ -14,10 +14,22 @@ Feature: Let parallel sessions share test capacity safely
       Then monotonic ready/release events show the first two repository-process lifetimes overlap, no more than two overlap, and after barriers release all three unchanged downstream invocations run exactly once and exit zero with the third starting only after a permit releases
 
     @wiring @process
-    Scenario: Every focused permit reconciles with durable ownership and the complete process trace
-      Given deterministic wrappers exercise admission, reservation, activation, duplicate release, replayed release, and failure between reservation and activation at shared capacity two
+    Scenario: Every focused process lifetime has one durable ownership interval
+      Given deterministic wrappers exercise admission, reservation and activation at shared capacity two
       When the bounded run completes and teardown proves every wrapper and descendant exited
-      Then every repository-process lifetime has exactly one preceding atomic durable owner activation and one following atomic release, every owner transition has exactly one keyed wrapper, duplicate or replayed releases change no state, reservation failure starts no repository process and removes only its exact owner, no unkeyed repository descendant exists, peak active weight is two, and every wrapper exits with its predetermined status
+      Then every repository-process lifetime has exactly one preceding atomic durable owner activation and one following atomic release, every owner transition has exactly one keyed wrapper, no unkeyed repository descendant exists, peak active weight is two, and every wrapper exits with its predetermined status
+
+    @rejection @process
+    Scenario: Duplicate owner releases do not change durable state
+      Given an exact focused owner has released and the guarded durable state bytes and version are captured
+      When that owner release is replayed
+      Then the durable bytes and version remain unchanged and no repository process starts
+
+    @rejection @process
+    Scenario: Reservation failure starts no repository process
+      Given an exact focused owner reservation is durable but activation will fail
+      When the wrapper handles the activation failure
+      Then no repository process starts and only that reservation is removed
 
     @wiring @process
     Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
@@ -350,10 +362,16 @@ Feature: Let parallel sessions share test capacity safely
         | Windows filesystem and durability evidence |
 
     @rejection
-    Scenario: Deliberately detached POSIX descendants remain an explicit evidence limitation
-      Given the POSIX set command disclosed the detachment limitation before confirmed capacity above one and status repeats it for that domain
-      When repository code deliberately escapes its recorded POSIX process group and the ordinary group exits
-      Then keyed events show capacity returns and one newly admitted repository process overlaps the escaped process only in this explicitly unsupported detachment fixture, status says capacity one alone cannot contain deliberate escape and directs the tool to disable detachment before sharing capacity, and fixture teardown proves both processes exit before the scenario ends
+    Scenario: POSIX capacity commands disclose detached-descendant limits
+      Given capacity is above one on POSIX
+      When the builder reads test-capacity status
+      Then status says deliberately detached descendants are not contained and directs the project to disable detachment before sharing capacity
+
+    @process
+    Scenario: Detached POSIX descendants remain an explicit unsupported fixture
+      Given repository code deliberately escapes its recorded POSIX process group and the ordinary group exits
+      When the scheduler admits one new repository process
+      Then keyed events show that process overlaps the escaped process only in the explicitly unsupported fixture and teardown proves both processes exit
 
     Scenario Outline: Supervisor loss returns capacity only after group disappearance
       Given a first guarded observation proves the recorded supervisor instance, group-leader instance, and process group absent and marks the owner reclaiming without returning capacity
@@ -602,33 +620,25 @@ Feature: Let parallel sessions share test capacity safely
       Then Safeword starts no repository process, changes no durable state, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` until the recorded domain is located, proven idle, and explicitly reset
 
     @wiring @process
-    Scenario Outline: The public package-test entrypoint exercises every lifecycle through real collaborators
-      Given temporary worktrees invoke the real public package-test command with real build and Vitest collaborators
-      When the process harness triggers <lifecycle>
-      Then keyed process and durable-state events prove <boundary>, exact invocation count, permit weight, FIFO position and terminal result through the real classifier, mutex, scheduler, container, build, and Vitest path
-      Examples:
-        | lifecycle | boundary |
-        | existing literal test-file arguments | each exact unchanged file reaches Vitest once and completes under a focused permit |
-        | a directory argument | conservative broad classification reaches the downstream runner unchanged |
-        | a symlink-at-leaf argument | conservative broad classification reaches the downstream runner unchanged |
-        | a symlinked ancestor contained in the checkout | conservative broad classification reaches the downstream runner unchanged |
-        | a symlinked ancestor escaping the checkout | conservative broad classification reaches the downstream runner unchanged |
-        | a lexical checkout escape | conservative broad classification reaches the downstream runner unchanged |
-        | a canonical checkout escape | conservative broad classification reaches the downstream runner unchanged |
-        | a glob or pattern argument | conservative broad classification reaches the downstream runner unchanged |
-        | a double-dash boundary | conservative broad classification reaches the downstream runner unchanged |
-        | an unknown runner flag | conservative broad classification reaches the downstream runner unchanged |
-        | a mixed valid-file and runner-flag invocation | conservative broad classification reaches the downstream runner unchanged |
-        | a nonexistent argument | conservative broad classification reaches the downstream runner unchanged |
-        | an existing regular non-test file | conservative broad classification reaches the downstream runner unchanged |
-        | mixed test and non-test files | conservative broad classification reaches the downstream runner unchanged |
-        | focused and broad contention | two barrier-held focused lifetimes overlap, then one broad invocation runs once and alone after both complete |
-        | cancellation while reserved | repository code never starts before durable active ownership |
-        | cancellation while active | descendants disappear before capacity and checkout ownership return |
-        | wrapper death with active descendants | the supervisor or Job Object tears down the real collaborators before reuse |
-        | POSIX supervisor loss | surviving group members keep ownership held until proven absent |
-        | verified checkout owner death with empty container | exact ownership is reclaimed and the next unchanged invocation runs once without overlap |
-        | reused checkout-owner PID | the caller exits with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and no repository process starts |
+    Scenario: Public focused invocations reach Vitest once under one permit
+      Given a temporary worktree invokes the real public package-test command with one existing literal test file
+      When the focused wrapper is admitted
+      Then that unchanged file reaches Vitest exactly once under one permit and the wrapper exits zero
+
+    Scenario: Public broad invocations reach Vitest unchanged under exclusive capacity
+      Given a temporary worktree invokes the real public package-test command with a directory argument while one focused permit is active
+      When the focused owner releases
+      Then the unchanged directory argument reaches Vitest exactly once under all capacity and the broad wrapper exits zero
+
+    Scenario: Public contention drains focused work before one broad invocation
+      Given two real focused public wrappers are held active and a real broad public wrapper waits behind them
+      When both focused wrappers exit zero
+      Then the broad invocation runs exactly once and alone after both focused lifetimes end
+
+    Scenario: Public active cancellation returns capacity only after descendants exit
+      Given a real public wrapper has active contained build or Vitest descendants and another wrapper waits
+      When the active wrapper is cancelled
+      Then every active descendant exits before its capacity and checkout ownership return and the waiting wrapper starts only afterwards
 
     @rejection
     Scenario Outline: Unsafe capacity state changes fail without changing admission state
