@@ -7,7 +7,7 @@ boundaries. Focused runtime tests continue to own the complete landed failure
 taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 `not_authenticated`, `launch_failed`, `timed_out`, and `invalid_output`).
 
-## Rule: reliable-observable-quality-reviews.TBU1.R1 — Managed JSON reviews report bounded lifecycle progress separately from their typed result
+## Rule: reliable-observable-quality-reviews.TBU1.R1 — A managed JSON review reports rate-limited lifecycle progress separately from its final typed result
 
 ### Scenario Outline: A slow managed review remains visible without changing its result
 
@@ -15,19 +15,43 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] GREEN 7b675263b
 - [x] REFACTOR skip: Review found no behavior-preserving extraction clearer than the existing policy and wiring seams.
 
-### Scenario: Lifecycle reporting is bounded across slow or delayed clocks
+### Scenario Outline: Completion cancels lifecycle output at exact timer boundaries
 
 - [x] RED skip: Timing behavior pre-existed this characterization; tests were added to expose boundary and coalescing regressions.
 - [x] GREEN 81d35a8aa
 - [x] REFACTOR skip: Scheduler extraction would enlarge the public timing seam without simplifying the implementation.
 
-## Rule: reliable-observable-quality-reviews.TBU1.R2 — Other callers retain their existing output contract
+### Scenario: Heartbeats are rate-limited and suspended clocks do not replay missed intervals
+
+- [x] RED skip: Cadence behavior pre-existed this characterization; the scheduler assertions fail if a missed interval is replayed.
+- [x] GREEN 81d35a8aa
+- [x] REFACTOR skip: Recursive re-arming is already the smallest coalescing mechanism.
+
+### Scenario: Managed timing starts with each asynchronous reviewer route
+
+- [x] RED skip: Route-local timing was landed coordinator behavior; this ticket characterizes its managed JSON projection.
+- [x] GREEN 53e94d96f
+- [x] REFACTOR skip: Route ownership belongs in the coordinator and should not move into the wrapper.
+
+## Rule: reliable-observable-quality-reviews.TBU1.R2 — Callers that do not request managed progress keep the existing silent machine contract
 
 ### Scenario: Only the exact managed signal enables JSON progress
 
 - [x] RED b9cf90383
 - [x] GREEN 7b675263b
 - [x] REFACTOR skip: Exact signal consumption is already isolated in a single policy helper.
+
+### Scenario: Quiet mode wins over managed progress
+
+- [x] RED b9cf90383
+- [x] GREEN 53e94d96f
+- [x] REFACTOR skip: Quiet precedence is centralized in the existing output-policy predicate.
+
+### Scenario: Human-readable review progress remains unchanged
+
+- [x] RED skip: Human progress is the unchanged baseline against which managed JSON behavior is compared.
+- [x] GREEN 53e94d96f
+- [x] REFACTOR skip: Managed JSON filtering is already wrapped separately from human progress.
 
 ## Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
 
@@ -43,7 +67,7 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] GREEN 81d35a8aa
 - [x] REFACTOR skip: Fixed-message rendering already centralizes the non-disclosure boundary.
 
-## Rule: reliable-observable-quality-reviews.SWM1.R2 — Generated required-review workflows use the compatible managed wrapper
+## Rule: reliable-observable-quality-reviews.SWM1.R2 — Every generated required-review workflow delegates to the managed wrapper while remaining compatible with an older resolved CLI
 
 ### Scenario: The wrapper scopes its private signal to the Safeword CLI child
 
