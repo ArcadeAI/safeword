@@ -123,10 +123,11 @@ describe('class-1 review surface parity', () => {
     try {
       const localBin = nodePath.join(fixture, 'node_modules/.bin');
       const acknowledgement = nodePath.join(fixture, 'acknowledged');
+      const probeEnvironment = nodePath.join(fixture, 'probe-environment.log');
       mkdirSync(localBin, { recursive: true });
       executable(
         nodePath.join(localBin, 'safeword'),
-        `if [ "$*" = "review run --help" ]; then exit 0; fi
+        `if [ "$*" = "review run --help" ]; then printf '%s\n' "\${SAFEWORD_REVIEW_PROGRESS-unset}" > "$PROBE_ENVIRONMENT"; exit 0; fi
 if [ "$SAFEWORD_REVIEW_PROGRESS" != "1" ]; then exit 9; fi
 printf 'PROGRESS\n' >&2
 while [ ! -f "$ACKNOWLEDGEMENT" ]; do sleep 0.01; done
@@ -147,7 +148,12 @@ exit 2`,
         ],
         {
           cwd: fixture,
-          env: { ...process.env, ACKNOWLEDGEMENT: acknowledgement },
+          env: {
+            ...process.env,
+            ACKNOWLEDGEMENT: acknowledgement,
+            PROBE_ENVIRONMENT: probeEnvironment,
+            SAFEWORD_REVIEW_PROGRESS: 'hostile-inherited-value',
+          },
           signal: AbortSignal.timeout(5000),
           stdio: ['ignore', 'pipe', 'pipe'],
         },
@@ -172,6 +178,7 @@ exit 2`,
         child.once('close', resolve);
       });
       expect(status).toBe(2);
+      expect(readFileSync(probeEnvironment, 'utf8')).toBe('unset\n');
       expect(stderr).toBe('PROGRESS\n');
       expect(stdout).toBe('RESULT\n');
     } finally {
