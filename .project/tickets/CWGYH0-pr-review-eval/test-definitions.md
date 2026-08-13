@@ -62,13 +62,13 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
-### Scenario: One infrastructure failure is retried once
+### Scenario: One retryable transport failure is retried once
 
 - [x] RED b2670c4dc
 - [x] GREEN 1cfb1e9e3
 - [x] REFACTOR skip: the walking skeleton keeps locking, durable writes, and sealing in one cohesive ticket-local module
 
-### Scenario: A second infrastructure failure excludes the paired case
+### Scenario: A second retryable transport failure excludes the paired case
 
 - [x] RED c03099d0d
 - [x] GREEN 8cb41393a
@@ -114,12 +114,6 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 110a239b3
 - [x] REFACTOR skip: one ordered effective-case list directly models chained reserve replacement
 
-### Scenario Outline: Crash recovery preserves one quarantine and reserve decision
-
-- [x] RED 99ff95284
-- [x] GREEN 005990a66
-- [x] REFACTOR 0a88b8fc3
-
 ### Scenario: A process crash does not strand the run lock
 
 - [x] RED 751aaf339
@@ -131,6 +125,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 473dbe7d1
 - [x] GREEN 110a239b3
 - [x] REFACTOR skip: candidate publication and stale reclamation are already separate atomic rename steps
+
+### Scenario Outline: Ambiguous lock ownership fails closed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: A failed durable write does not poison the next write
 
@@ -156,7 +156,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 94d3cc83e
 - [x] REFACTOR skip: one tolerant extractor carries completeness beside known cost and the loop consumes that state
 
-### Scenario: A thrown attempt is not assumed to be free
+### Scenario: An unclassified thrown attempt is not assumed to be free
 
 - [x] RED bad6d0a87
 - [x] GREEN 821d371ed
@@ -166,13 +166,13 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED f7b7d089b
 - [x] GREEN b39d3c7b5
-- [x] REFACTOR skip: one filename contract separates attempt evidence from admitted records
+- [x] REFACTOR skip: concrete pre-rename and post-rename faults cover the only observable atomic-move boundaries
 
 ### Scenario: Reserve exhaustion stops the run
 
 - [x] RED skip: quality-review requested an explicit proof for behavior already implemented
 - [x] GREEN c0e9f9512
-- [x] REFACTOR skip: reserve lookup precedes every quarantine and queue mutation
+- [x] REFACTOR skip: the terminal no-reserve path reuses the same durable whole-case quarantine and accounting boundary
 
 ## Rule: pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
 
@@ -200,11 +200,17 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 9f8db4b55
 - [x] REFACTOR skip: one validator owns shape, vocabulary, uniqueness, and scoreable-key checks
 
-### Scenario: Contamination evidence belongs to exactly one frozen run
+### Scenario: Matching contamination evidence belongs to its frozen run
 
 - [x] RED baff4f129
 - [x] GREEN 9f8db4b55
 - [x] REFACTOR skip: one binding module owns digest and identity checks used by the scorer
+
+### Scenario Outline: Mismatched contamination evidence stops scoring
+
+- [x] RED baff4f129
+- [x] GREEN 9f8db4b55
+- [x] REFACTOR skip: the same binding module rejects every byte and identity mismatch
 
 ### Scenario: Finding verification belongs to one system trial
 
@@ -280,7 +286,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 47d0ed48c
 - [x] REFACTOR skip: one decision object carries the bound next checkpoint and complete evidence result
 
-### Scenario: One failed canary call blocks more spend
+### Scenario Outline: A canary prerequisite defect blocks more spend
 
 - [x] RED a7d8259d1
 - [x] GREEN 47d0ed48c

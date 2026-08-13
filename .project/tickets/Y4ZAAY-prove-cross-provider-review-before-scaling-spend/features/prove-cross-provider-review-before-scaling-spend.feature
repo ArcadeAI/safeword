@@ -55,8 +55,9 @@ Feature: Prove cross-provider review before scaling spend
     Scenario: One authorized live attempt proves the paid route
       Given the development corpus and both clean code checkouts match a durable maintainer authorization
       When the maintainer deliberately runs the one-time paid proof
-      Then at least one paid turn is retained
-      And every retained paid turn proves OpenAI GPT-5.6 Terra at standard service tier
+      Then one completed attempt retains repository-reading and finding-verification turns
+      And every retained turn has exactly one earlier matching intent and one native response
+      And every matched response proves OpenAI GPT-5.6 Terra at standard service tier
 
   @prove-cross-provider-review-before-scaling-spend.SWM1.R2
   Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
@@ -113,6 +114,7 @@ Feature: Prove cross-provider review before scaling spend
       When the harness records the completed attempt
       Then every turn and its exact cost remain durable
       And a later attempt is blocked with exactly cost-stop
+      And no paid request is made for the blocked attempt
 
     @rejection
     Scenario Outline: Invalid paid work is never refunded or assigned an invented price

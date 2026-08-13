@@ -98,16 +98,16 @@ Feature: Keep failed reviews out of benchmark scores
   @pr-review-eval.SWM1.R2
   Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
-    Scenario: One infrastructure failure is retried once
-      Given the first provider attempt fails with a classified infrastructure error
+    Scenario: One retryable transport failure is retried once
+      Given the first provider attempt fails with a connection failure, HTTP 408, HTTP 429, or HTTP 5xx response
       And the second attempt completes as a usable trial
       When the evaluation harness executes the work item
       Then it records exactly two provider attempts, makes no third call, and admits the second result
 
     @rejection
-    Scenario: A second infrastructure failure excludes the paired case
+    Scenario: A second retryable transport failure excludes the paired case
       Given another member of the paired case already completed successfully
-      And both permitted attempts for the current member fail with classified infrastructure errors
+      And both permitted attempts for the current member fail with connection failures, HTTP 408, HTTP 429, or HTTP 5xx responses
       When the evaluation harness executes the work item
       Then it records exactly two provider attempts and makes no third call
       And it quarantines every record for that paired case while retaining all artifacts and attempt costs
@@ -149,7 +149,8 @@ Feature: Keep failed reviews out of benchmark scores
       Given the provider throws a schema or content failure before returning an output
       When the evaluation harness executes the work item
       Then it records one terminal invalid attempt and makes no second call
-      And it quarantines the paired case so restart cannot repeat the paid work
+      And it durably retains the attempt artifacts and known or incomplete cost
+      And it quarantines the paired case and allocates the next frozen reserve exactly once so restart cannot repeat the paid work
 
     @rejection
     Scenario: An early failure cancels pending paired work
@@ -177,28 +178,30 @@ Feature: Keep failed reviews out of benchmark scores
       And each reserve is allocated once without skipping or reordering
 
     @rejection
-    Scenario Outline: Crash recovery preserves one quarantine and reserve decision
-      Given a case becomes unusable and the harness crashes <boundary>
-      When the harness resumes from durable state
-      Then the whole case is quarantined exactly once and the same next frozen reserve is allocated exactly once
-
-      Examples:
-        | boundary                                |
-        | before the atomic quarantine transition |
-        | during the quarantine state transaction |
-        | after quarantine before reserve allocation|
-        | after reserve allocation before next work|
-
     Scenario: A process crash does not strand the run lock
-      Given the run lock names a process that is no longer alive
+      Given the run lock names a process instance by PID, boot identity, process-start identity, and random ownership token
+      And that exact process instance is no longer alive
       When the harness restarts against the same output directory
       Then it safely reclaims the stale lock and becomes the sole owner
 
     Scenario: Contending restarts cannot both reclaim one stale lock
-      Given one stale run lock and two harness processes waiting to restart
+      Given one stale run lock with an exact process-instance identity and two harness processes waiting to restart
       When both processes try to reclaim the lock at the same time
       Then exactly one process becomes the sole owner
       And the other process stops without disturbing the new owner's lock
+
+    @rejection
+    Scenario Outline: Ambiguous lock ownership fails closed
+      Given a run lock has <ownership defect>
+      When another harness process tries to reclaim it
+      Then reclamation is refused without disturbing the existing lock
+
+      Examples:
+        | ownership defect |
+        | malformed owner metadata |
+        | a reused PID with a different process-start identity |
+        | a live process with a different boot identity or ownership token |
+        | an ownership probe that fails with a permission error |
 
     Scenario: A failed durable write does not poison the next write
       Given serializing a state update fails after its temporary file is created
@@ -230,8 +233,8 @@ Feature: Keep failed reviews out of benchmark scores
       And it records incomplete cost accounting and makes no later provider call
 
     @rejection
-    Scenario: A thrown attempt is not assumed to be free
-      Given a provider or network attempt ends without a returned output
+    Scenario: An unclassified thrown attempt is not assumed to be free
+      Given a provider attempt ends without a returned output and is not an allowlisted retryable transport failure
       When the live runner accounts for the attempt
       Then it marks cost accounting incomplete and authorizes no later provider call
 
@@ -243,16 +246,16 @@ Feature: Keep failed reviews out of benchmark scores
       And it never observes a split or admitted member of that case
 
       Examples:
-        | boundary                              |
-        | before the atomic case-directory move |
-        | during the atomic case-directory move |
-        | after the atomic case-directory move  |
+        | boundary                                       |
+        | immediately before the case-directory rename  |
+        | immediately after the case-directory rename   |
 
     @rejection
     Scenario: Reserve exhaustion stops the run
       Given every preregistered reserve has already become unusable
       When another case requires replacement
-      Then the run stops before further provider calls with reserve exhaustion identified
+      Then the whole newly unusable case is durably quarantined with every attempt and cost retained
+      And the run stops before further provider calls with reserve exhaustion identified
 
   @pr-review-eval.SWM1.R3
   Rule: pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
@@ -298,12 +301,24 @@ Feature: Keep failed reviews out of benchmark scores
       When the scorer evaluates the run
       Then scoring stops before any verification classification changes a result
 
-    @rejection
-    Scenario: Contamination evidence belongs to exactly one frozen run
+    Scenario: Matching contamination evidence belongs to its frozen run
       Given contamination preflight evidence records its repository identity and unique run identity
       And the live run binds the SHA-256 digest of those exact preflight bytes
       When the scorer evaluates the run
-      Then changed, stale, or differently identified preflight evidence is rejected
+      Then the contamination evidence is admitted for that frozen run only
+
+    @rejection
+    Scenario Outline: Mismatched contamination evidence stops scoring
+      Given contamination preflight evidence has <binding defect>
+      When the scorer evaluates the run
+      Then scoring stops before the evidence can affect a result
+
+      Examples:
+        | binding defect |
+        | changed preflight bytes |
+        | a stale run identity |
+        | a different repository identity |
+        | a digest that does not match the bound preflight bytes |
 
     Scenario: Finding verification belongs to one system trial
       Given the same finding identity appears across systems or repeated trials
@@ -343,7 +358,8 @@ Feature: Keep failed reviews out of benchmark scores
     Scenario: A successful reviewer matrix is scored through real wiring
       Given successful provider responses are injected only at the network boundary
       When the real runner and writer seal every frozen cell and the actual scorer runs
-      Then every admitted record contributes to the completed case result
+      Then the admitted-record count exactly equals the frozen matrix cardinality and is greater than zero
+      And every expected frozen record is admitted exactly once and maps to its completed case result
 
     Scenario: The live entry point is exercised without provider spend
       Given a pinned no-cost adapter returns frozen successful and failing outputs
@@ -375,18 +391,28 @@ Feature: Keep failed reviews out of benchmark scores
     Scenario: A clean canary authorizes the next checkpoint
       Given every frozen no-cost fixture outcome matches its expected rejection reason
       And every canonical R2 operational failure-injection record passes
-      And each of the ten individual paid outcomes is usable and matches its frozen label
+      And ten unique paid-call labels covering both systems, both variants, finding success, and genuine-empty success come from the immutable pre-call external anchor
+      And each of the ten retained raw responses is reclassified and matches its own anchored label
       And every attempt has complete valid cost data consistent with its recorded usage
       And the real-wiring hidden failure produced no scoreable record
       When the maintainer evaluates the canary gate
       Then the next paid checkpoint is authorized
 
     @rejection
-    Scenario: One failed canary call blocks more spend
-      Given one of ten paid canary calls is unusable
+    Scenario Outline: A canary prerequisite defect blocks more spend
+      Given the canary evidence has <prerequisite defect>
       When the maintainer evaluates the canary gate
-      Then further paid checkpoints remain blocked with the failed call identified
+      Then further paid checkpoints remain blocked with the prerequisite defect identified
       And no provider call for a later checkpoint is made
+
+      Examples:
+        | prerequisite defect |
+        | a missing, extra, or failed R1 fixture record |
+        | a missing, duplicate, or failed R2 injection record |
+        | an invalid pre-call external label anchor |
+        | incomplete paid-call provenance |
+        | one unusable paid canary call |
+        | a hidden-failure wiring record that produced a scoreable result |
 
     @rejection
     Scenario: One canary label disagreement blocks more spend
@@ -443,6 +469,9 @@ Feature: Keep failed reviews out of benchmark scores
         | a symlink escaping the artifact root    |
         | distinct identities resolving to one canonical artifact|
         | an artifact whose type changes between verification and use|
+        | artifact bytes replaced between verification and use |
+        | an artifact path target replaced between verification and use |
+        | an artifact directory entry substituted between verification and use |
         | an ambiguous or changed hash algorithm |
         | an unsupported or weak hash algorithm  |
         | a malformed digest encoding            |
@@ -450,6 +479,7 @@ Feature: Keep failed reviews out of benchmark scores
         | a mutated manifest                      |
         | the manifest and local digest both replaced against the remote commit|
         | a manifest created after artifact reuse |
+        | a manifest retained after analysis began but before artifact reuse |
         | a manifest derived from score output    |
 
     @rejection

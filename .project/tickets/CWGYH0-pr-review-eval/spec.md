@@ -29,7 +29,7 @@ A trial is usable only when it has a non-empty provider response, the expected t
 
 #### pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
-An infrastructure failure receives at most one retry with both attempts preserved. A second infrastructure failure excludes the entire paired case and selects the next preregistered reserve. Content, parsing, schema, routing, and completion failures are not silently retried or scored.
+A retryable transport failure—only a connection failure, HTTP 408, HTTP 429, or HTTP 5xx response—receives at most one retry with both attempts preserved. A second retryable transport failure excludes the entire paired case and selects the next preregistered reserve. Returned provider-error envelopes, including HTTP-200 envelopes, and content, parsing, schema, routing, and completion failures are semantic failures: they are not silently retried or scored.
 
 #### pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
 
