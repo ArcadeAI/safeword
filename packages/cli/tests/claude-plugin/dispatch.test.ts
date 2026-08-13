@@ -17,7 +17,11 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
-import { historicalHookEntry } from '../../src/claude-plugin/historical-ownership.js';
+import {
+  historicalCatalogueDigest,
+  historicalHookEntry,
+} from '../../src/claude-plugin/historical-ownership.js';
+import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -262,6 +266,35 @@ describe('Claude plugin dispatcher', () => {
 
     const rescanned = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'rescanned');
     expect(rescanned.status, rescanned.stderr).toBe(0);
+    expect(existsSync(target)).toBe(false);
+  });
+
+  it('retries migration despite cached transient-error attention', () => {
+    const projectDirectory = temporary('safeword-plugin-transient-attention-project-');
+    const pluginData = temporary('safeword-plugin-transient-attention-data-');
+    const configDirectory = temporary('safeword-plugin-transient-attention-config-');
+    const target = releasedAsset(projectDirectory);
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const attentionPath = nodePath.join(
+      projectDirectory,
+      '.safeword/claude-plugin/attention-v1.json',
+    );
+    mkdirSync(nodePath.dirname(attentionPath), { recursive: true });
+    writeFileSync(
+      attentionPath,
+      `${JSON.stringify({
+        schema_version: 1,
+        state_digest: 'a'.repeat(64),
+        plugin_version: SAFEWORD_SCHEMA.version,
+        catalogue_sha256: historicalCatalogueDigest(),
+        watched_settings_sha256: claudeWatchedSettingsDigest(projectDirectory),
+        classification: 'migration-error',
+        advisory: 'transient failure',
+      })}\n`,
+    );
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'retry-attention');
+    expect(result.status, result.stderr).toBe(0);
     expect(existsSync(target)).toBe(false);
   });
 

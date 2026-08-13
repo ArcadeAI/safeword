@@ -3569,27 +3569,6 @@ function writeClaudePluginMode(cwd, marker) {
     },
   );
 }
-function readClaudeMigrationAttention(cwd) {
-  const path = nodePath5.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attention);
-  if (!existsSync3(path)) return void 0;
-  try {
-    const value = JSON.parse(readFileSync2(path, 'utf8'));
-    if (
-      value.schema_version !== 1 ||
-      !validDigest(value.state_digest) ||
-      typeof value.plugin_version !== 'string' ||
-      !validDigest(value.catalogue_sha256) ||
-      !validDigest(value.watched_settings_sha256) ||
-      typeof value.classification !== 'string' ||
-      typeof value.advisory !== 'string'
-    ) {
-      return void 0;
-    }
-    return value;
-  } catch {
-    return void 0;
-  }
-}
 function writeClaudeMigrationAttention(cwd, attention) {
   writeDurableFile(
     nodePath5.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attention),
@@ -4834,17 +4813,6 @@ function scopeOverlapExecution(context, identity, catalogueSha256) {
   });
   return advisoryExecution(context, advisory, stateDigest);
 }
-function matchingAttention(projectRoot, identity, catalogueSha256) {
-  const attention = readClaudeMigrationAttention(projectRoot);
-  if (
-    attention?.plugin_version !== identity.plugin_version ||
-    attention.catalogue_sha256 !== catalogueSha256 ||
-    attention.watched_settings_sha256 !== claudeWatchedSettingsDigest(projectRoot)
-  ) {
-    return void 0;
-  }
-  return attention;
-}
 function automaticMigrationAttemptKind(projectRoot) {
   return existsSync6(nodePath8.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
     ? 'recovery'
@@ -4861,10 +4829,6 @@ function automaticMigrationUnsafe(event, identity, execution, sessionId, hookCwd
   const catalogueSha256 = historicalCatalogueDigest();
   if (incompatibleScopeOverlap(projectRoot)) {
     return scopeOverlapExecution(context, identity, catalogueSha256);
-  }
-  const attention = matchingAttention(projectRoot, identity, catalogueSha256);
-  if (attention !== void 0) {
-    return advisoryExecution(context, attention.advisory, attention.state_digest);
   }
   if (
     !claimClaudeMigrationAttempt(projectRoot, sessionId, automaticMigrationAttemptKind(projectRoot))

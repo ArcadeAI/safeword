@@ -20,7 +20,6 @@ import {
   claimClaudeMigrationAttempt,
   claudeConfigDirectory,
   claudeWatchedSettingsDigest,
-  readClaudeMigrationAttention,
   removeLegacyClaudePluginMode,
   writeClaudeMigrationAttention,
 } from '../migration-state.js';
@@ -545,22 +544,6 @@ function scopeOverlapExecution(
   return advisoryExecution(context, advisory, stateDigest);
 }
 
-function matchingAttention(
-  projectRoot: string,
-  identity: PluginIdentityV1,
-  catalogueSha256: string,
-): ReturnType<typeof readClaudeMigrationAttention> {
-  const attention = readClaudeMigrationAttention(projectRoot);
-  if (
-    attention?.plugin_version !== identity.plugin_version ||
-    attention.catalogue_sha256 !== catalogueSha256 ||
-    attention.watched_settings_sha256 !== claudeWatchedSettingsDigest(projectRoot)
-  ) {
-    return undefined;
-  }
-  return attention;
-}
-
 function automaticMigrationAttemptKind(projectRoot: string): 'migration' | 'recovery' {
   return existsSync(nodePath.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
     ? 'recovery'
@@ -588,10 +571,6 @@ function automaticMigrationUnsafe(
   const catalogueSha256 = historicalCatalogueDigest();
   if (incompatibleScopeOverlap(projectRoot)) {
     return scopeOverlapExecution(context, identity, catalogueSha256);
-  }
-  const attention = matchingAttention(projectRoot, identity, catalogueSha256);
-  if (attention !== undefined) {
-    return advisoryExecution(context, attention.advisory, attention.state_digest);
   }
   if (
     !claimClaudeMigrationAttempt(projectRoot, sessionId, automaticMigrationAttemptKind(projectRoot))
