@@ -78,7 +78,7 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
       And the filed issue body contains neither the raw transcript text nor "SW-LEAK-CANARY-602"
       And no conversation-visible output contains the raw finding text
 
-    @codex-retro-parity.SM1.AC2 @codex-retro-parity.SM1.AC3 @surface.openai-codex @surface.safeword-cli
+    @codex-retro-parity.SM1.AC2 @surface.openai-codex @surface.safeword-cli
     Scenario Outline: Unfiled Codex drafts remain spooled for the Lane-2 nudge
       Given child Codex extraction returns a valid safeword finding
       And the local REST transport <failure>

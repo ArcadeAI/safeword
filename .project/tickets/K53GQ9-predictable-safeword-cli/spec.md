@@ -53,12 +53,13 @@ feature at all, or a leaner task. -->
 Affected:
 
 - Safeword CLI
-- Claude Code
 - OpenAI Codex
-- Cursor
 
 Unaffected:
 
+- Claude Code and Cursor host behavior — both consume the shared CLI contract,
+  but this ticket does not change or require proof through their host-specific
+  runtime boundaries.
 - Cloud-only agent lifecycle mechanics — agents consume the same repository
   CLI contract; this ticket does not change their hosting environments.
 
