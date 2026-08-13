@@ -76,6 +76,10 @@ const VITEST_PROVEN_FEATURES = [
     'features/prevent-public-cli-contract-drift.feature',
     'packages/cli/tests/cli-protocol/cli-contract.test.ts',
   ],
+  [
+    'features/resume-closeout-after-upgrade.feature',
+    'packages/cli/tests/hooks/closeout-session-binding.test.ts',
+  ],
   ['features/sync-tracker.feature', 'packages/cli/tests/tracker-sync/wiring.test.ts'],
   ['features/ticket-deps-schema.feature', 'packages/cli/tests/integration/blocked-on-gate.test.ts'],
   ['features/tracker-connect-flow.feature', 'packages/cli/tests/tracker-connect/connect.test.ts'],
