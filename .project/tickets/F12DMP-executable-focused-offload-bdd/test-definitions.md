@@ -14,7 +14,7 @@ Proof: `src/utils/gherkin-feature.test.ts`, `tests/commands/configured-feature-p
 
 ### Scenario: Unfinished and harness-only offload specifications remain honest
 
-- [x] RED 4fbaef722
+- [x] RED skip: the historical proof-audit failure and corrected classification were recorded together in 4fbaef722
 - [x] GREEN 4fbaef722
 - [x] REFACTOR 9eadf5ed9
 
@@ -24,7 +24,7 @@ Proof: `tests/bdd-feature-maintainability.test.ts` preserves the 16-Rule / 624-c
 
 ### Scenario: Bundled offload outcomes are split at observable boundaries
 
-- [x] RED 4fbaef722
+- [x] RED skip: the historical readability assertion and corpus rewrite were recorded together in 4fbaef722
 - [x] GREEN 4fbaef722
 - [x] REFACTOR skip: cohesive domain preconditions were intentionally retained where splitting would reduce readability
 
