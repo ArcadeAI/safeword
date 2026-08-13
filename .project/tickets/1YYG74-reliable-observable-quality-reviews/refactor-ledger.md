@@ -69,6 +69,9 @@ Scope: `origin/main...codex/reliable-quality-review`
     effect at the signing boundary.
 24. **Name terminal job states once** — a typed terminal-state set centralizes
     the classification used by persistence signing and verification.
+25. **Share byte-safe progress forwarding** — one best-effort byte sink owns
+    synchronous short-write and closed-pipe handling; line progress composes
+    newline encoding on top, while the worker relay forwards exact bytes.
 
 ## Struck or deferred
 
@@ -89,6 +92,9 @@ Scope: `origin/main...codex/reliable-quality-review`
   managed-progress side channel.
 - Repository-wide Knip, experiment, and clone findings predate this ticket and
   are outside this delivery's single purpose.
+- A process-wide stderr error handler was rejected because it would hide
+  unrelated worker output failures; closed-pipe tolerance stays scoped to the
+  managed progress byte sink.
 
 ## Verification
 

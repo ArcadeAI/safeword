@@ -44420,6 +44420,119 @@ var init_coordinator = __esm(() => {
   ]);
 });
 
+// src/cli-protocol/policy.ts
+function firstNonEmptyEffect(effects) {
+  return Object.keys(effects).find((effectClass) => effects[effectClass].length > 0);
+}
+function assertNetworkPolicy(definition, result, offline) {
+  if (offline && result.effects.network.length > 0) {
+    throw new Error(`Command ${definition.name} reported network effects while running offline`);
+  }
+  if (definition.networkPolicy === "never" && result.effects.network.length > 0) {
+    throw new Error(`Command ${definition.name} reported undeclared network effects`);
+  }
+}
+function assertEffectPolicy(definition, result, options) {
+  assertNetworkPolicy(definition, result, options.offline);
+  if (definition.effectClass === "observe" || definition.effectClass === "plan") {
+    const effectClass = firstNonEmptyEffect(result.effects);
+    if (effectClass !== undefined) {
+      throw new Error(`The ${definition.effectClass} command ${definition.name} reported ${EFFECT_NOUNS[effectClass]} effects`);
+    }
+  }
+  if (definition.effectClass === "hook" && (result.effects.packages.length > 0 || result.effects.network.length > 0 || result.effects.destructive.length > 0)) {
+    throw new Error(`Hook command ${definition.name} reported forbidden lifecycle effects`);
+  }
+}
+function consumeManagedProgressSignal(environment) {
+  const enabled = environment[MANAGED_PROGRESS_SIGNAL] === "1";
+  Reflect.deleteProperty(environment, MANAGED_PROGRESS_SIGNAL);
+  return enabled;
+}
+function shouldReportProgress(options) {
+  return !options.quiet && (!options.json || options.managedReview);
+}
+function createBestEffortByteSink(write) {
+  return (buffer) => {
+    let offset = 0;
+    try {
+      while (offset < buffer.length) {
+        const written = write(buffer, offset, buffer.length - offset);
+        if (!Number.isSafeInteger(written) || written <= 0 || written > buffer.length - offset) {
+          return;
+        }
+        offset += written;
+      }
+    } catch {}
+  };
+}
+function createBestEffortProgressSink(write) {
+  const writeBytes = createBestEffortByteSink(write);
+  return (message) => {
+    writeBytes(Buffer.from(`${message}
+`));
+  };
+}
+function createManagedReviewProgress(progress) {
+  return { ...progress, managed: true };
+}
+function resolveHeartbeatIntervalMs(environment = process.env) {
+  if (environment.NODE_ENV !== "test")
+    return PROGRESS_HEARTBEAT_INTERVAL_MS;
+  const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
+  if (!Number.isSafeInteger(override) || override < 1 || override > PROGRESS_HEARTBEAT_INTERVAL_MS) {
+    return PROGRESS_HEARTBEAT_INTERVAL_MS;
+  }
+  return override;
+}
+function createProgressReporter(adapters) {
+  let announcementHandle;
+  let heartbeatHandle;
+  const heartbeatIntervalMs = resolveHeartbeatIntervalMs();
+  function scheduleHeartbeat(message) {
+    heartbeatHandle = adapters.schedule(() => {
+      adapters.emit(message);
+      scheduleHeartbeat(message);
+    }, heartbeatIntervalMs);
+  }
+  return {
+    start(message) {
+      if (announcementHandle !== undefined)
+        adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      heartbeatHandle = undefined;
+      announcementHandle = adapters.schedule(() => {
+        adapters.emit(message);
+        announcementHandle = undefined;
+      }, PROGRESS_ANNOUNCE_DELAY_MS);
+    },
+    heartbeat(message) {
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      scheduleHeartbeat(message);
+    },
+    stop() {
+      if (announcementHandle !== undefined)
+        adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      announcementHandle = undefined;
+      heartbeatHandle = undefined;
+    }
+  };
+}
+var EFFECT_NOUNS, MANAGED_PROGRESS_SIGNAL = "SAFEWORD_REVIEW_PROGRESS", PROGRESS_ANNOUNCE_DELAY_MS = 100, PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
+var init_policy2 = __esm(() => {
+  EFFECT_NOUNS = {
+    files: "file",
+    packages: "package",
+    configuration: "configuration",
+    network: "network",
+    destructive: "destructive"
+  };
+});
+
 // src/review/job.ts
 var exports_job = {};
 __export(exports_job, {
@@ -44448,11 +44561,6 @@ import {
 } from "fs";
 import { homedir as homedir6 } from "os";
 import nodePath82 from "path";
-function isClosedProgressPipeError(error2) {
-  if (!(error2 instanceof Error) || !("code" in error2))
-    return false;
-  return error2.code === "EPIPE" || error2.code === "ERR_STREAM_DESTROYED";
-}
 function jobsDirectory(cwd) {
   return nodePath82.join(cwd, ".safeword", "state", "reviews");
 }
@@ -44887,18 +44995,6 @@ function launchReviewWorker(input) {
     stdio: input.managedProgress ? ["ignore", "ignore", "pipe"] : "ignore"
   });
 }
-function forwardManagedWorkerStderr(chunk) {
-  try {
-    const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
-    let offset = 0;
-    while (offset < buffer.length) {
-      const written = writeSync2(2, buffer, offset, buffer.length - offset);
-      if (written <= 0)
-        return;
-      offset += written;
-    }
-  } catch {}
-}
 function closeNoManagedProgress() {
   return;
 }
@@ -44906,9 +45002,13 @@ function relayManagedWorkerStderr(child, enabled) {
   const stderr = child.stderr;
   if (!enabled || stderr === null)
     return closeNoManagedProgress;
-  stderr.on("data", forwardManagedWorkerStderr);
+  const writeBytes = createBestEffortByteSink((buffer, offset, length) => writeSync2(2, buffer, offset, length));
+  const forward = (chunk) => {
+    writeBytes(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  };
+  stderr.on("data", forward);
   return () => {
-    stderr.off("data", forwardManagedWorkerStderr);
+    stderr.off("data", forward);
     stderr.destroy();
   };
 }
@@ -45223,6 +45323,7 @@ function inspectReviewWorker(pid, id) {
 }
 var TERMINAL_JOB_STATES, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {
+  init_policy2();
   init_result();
   init_contract();
   init_packet();
@@ -45231,12 +45332,6 @@ var init_job = __esm(() => {
     "failed",
     "canceled"
   ]);
-  if (process.env.SAFEWORD_REVIEW_WORKER === "1" && process.env.SAFEWORD_REVIEW_PROGRESS === "1") {
-    process.stderr.on("error", (error2) => {
-      if (!isClosedProgressPipeError(error2))
-        throw error2;
-    });
-  }
 });
 
 // src/pr-review/providers/openai.ts
@@ -61838,116 +61933,7 @@ function createCapabilitiesResult() {
 // src/cli-protocol/execute.ts
 import nodePath90 from "path";
 import process18 from "process";
-
-// src/cli-protocol/policy.ts
-var EFFECT_NOUNS = {
-  files: "file",
-  packages: "package",
-  configuration: "configuration",
-  network: "network",
-  destructive: "destructive"
-};
-function firstNonEmptyEffect(effects) {
-  return Object.keys(effects).find((effectClass) => effects[effectClass].length > 0);
-}
-function assertNetworkPolicy(definition, result, offline) {
-  if (offline && result.effects.network.length > 0) {
-    throw new Error(`Command ${definition.name} reported network effects while running offline`);
-  }
-  if (definition.networkPolicy === "never" && result.effects.network.length > 0) {
-    throw new Error(`Command ${definition.name} reported undeclared network effects`);
-  }
-}
-function assertEffectPolicy(definition, result, options) {
-  assertNetworkPolicy(definition, result, options.offline);
-  if (definition.effectClass === "observe" || definition.effectClass === "plan") {
-    const effectClass = firstNonEmptyEffect(result.effects);
-    if (effectClass !== undefined) {
-      throw new Error(`The ${definition.effectClass} command ${definition.name} reported ${EFFECT_NOUNS[effectClass]} effects`);
-    }
-  }
-  if (definition.effectClass === "hook" && (result.effects.packages.length > 0 || result.effects.network.length > 0 || result.effects.destructive.length > 0)) {
-    throw new Error(`Hook command ${definition.name} reported forbidden lifecycle effects`);
-  }
-}
-var MANAGED_PROGRESS_SIGNAL = "SAFEWORD_REVIEW_PROGRESS";
-function consumeManagedProgressSignal(environment) {
-  const enabled = environment[MANAGED_PROGRESS_SIGNAL] === "1";
-  Reflect.deleteProperty(environment, MANAGED_PROGRESS_SIGNAL);
-  return enabled;
-}
-function shouldReportProgress(options) {
-  return !options.quiet && (!options.json || options.managedReview);
-}
-function createBestEffortProgressSink(write) {
-  return (message) => {
-    const buffer = Buffer.from(`${message}
-`);
-    let offset = 0;
-    try {
-      while (offset < buffer.length) {
-        const written = write(buffer, offset, buffer.length - offset);
-        if (!Number.isSafeInteger(written) || written <= 0 || written > buffer.length - offset) {
-          return;
-        }
-        offset += written;
-      }
-    } catch {}
-  };
-}
-function createManagedReviewProgress(progress) {
-  return { ...progress, managed: true };
-}
-var PROGRESS_ANNOUNCE_DELAY_MS = 100;
-var PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
-function resolveHeartbeatIntervalMs(environment = process.env) {
-  if (environment.NODE_ENV !== "test")
-    return PROGRESS_HEARTBEAT_INTERVAL_MS;
-  const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
-  if (!Number.isSafeInteger(override) || override < 1 || override > PROGRESS_HEARTBEAT_INTERVAL_MS) {
-    return PROGRESS_HEARTBEAT_INTERVAL_MS;
-  }
-  return override;
-}
-function createProgressReporter(adapters) {
-  let announcementHandle;
-  let heartbeatHandle;
-  const heartbeatIntervalMs = resolveHeartbeatIntervalMs();
-  function scheduleHeartbeat(message) {
-    heartbeatHandle = adapters.schedule(() => {
-      adapters.emit(message);
-      scheduleHeartbeat(message);
-    }, heartbeatIntervalMs);
-  }
-  return {
-    start(message) {
-      if (announcementHandle !== undefined)
-        adapters.cancel(announcementHandle);
-      if (heartbeatHandle !== undefined)
-        adapters.cancel(heartbeatHandle);
-      heartbeatHandle = undefined;
-      announcementHandle = adapters.schedule(() => {
-        adapters.emit(message);
-        announcementHandle = undefined;
-      }, PROGRESS_ANNOUNCE_DELAY_MS);
-    },
-    heartbeat(message) {
-      if (heartbeatHandle !== undefined)
-        adapters.cancel(heartbeatHandle);
-      scheduleHeartbeat(message);
-    },
-    stop() {
-      if (announcementHandle !== undefined)
-        adapters.cancel(announcementHandle);
-      if (heartbeatHandle !== undefined)
-        adapters.cancel(heartbeatHandle);
-      announcementHandle = undefined;
-      heartbeatHandle = undefined;
-    }
-  };
-}
-
-// src/cli-protocol/execute.ts
+init_policy2();
 init_result();
 var GLOBAL_OPTION_KEYS = new Set(["json", "noInput", "cwd", "quiet", "offline", "verbose"]);
 var GLOBAL_OPTION_DEFINITIONS = [
@@ -62033,6 +62019,7 @@ function machineOutputRequested(arguments_) {
 import { writeSync as writeSync3 } from "fs";
 import process19 from "process";
 init_plan();
+init_policy2();
 init_result();
 function familyNames() {
   const families = new Set;

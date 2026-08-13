@@ -4,6 +4,7 @@ import { commandCatalog } from '../../src/cli-protocol/catalog.js';
 import {
   assertEffectPolicy,
   consumeManagedProgressSignal,
+  createBestEffortByteSink,
   createBestEffortProgressSink,
   createManagedReviewProgress,
   createProgressReporter,
@@ -89,6 +90,20 @@ describe('CLI execution policy', () => {
 
     expect(Buffer.concat(written).toString()).toBe('A→B\nnext\n');
     expect(write.mock.calls.length).toBeGreaterThan(2);
+  });
+
+  it('forwards raw byte chunks exactly without adding line framing', () => {
+    const written: Buffer[] = [];
+    const writeBytes = createBestEffortByteSink((buffer, offset, length) => {
+      const chunkLength = Math.min(length, 2);
+      written.push(Buffer.from(buffer.subarray(offset, offset + chunkLength)));
+      return chunkLength;
+    });
+
+    writeBytes(Buffer.from('partial'));
+    writeBytes(Buffer.from(' bytes'));
+
+    expect(Buffer.concat(written).toString()).toBe('partial bytes');
   });
 
   it('abandons an invalid short-write result without spinning or blocking later progress', () => {

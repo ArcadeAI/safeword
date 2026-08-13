@@ -77,11 +77,10 @@ export function shouldReportProgress(options: {
   return !options.quiet && (!options.json || options.managedReview);
 }
 
-export function createBestEffortProgressSink(
+export function createBestEffortByteSink(
   write: (buffer: Uint8Array, offset: number, length: number) => number,
-): (message: string) => void {
-  return message => {
-    const buffer = Buffer.from(`${message}\n`);
+): (buffer: Uint8Array) => void {
+  return buffer => {
     let offset = 0;
     try {
       while (offset < buffer.length) {
@@ -94,6 +93,15 @@ export function createBestEffortProgressSink(
     } catch {
       // Progress is advisory and must never affect the typed command result.
     }
+  };
+}
+
+export function createBestEffortProgressSink(
+  write: (buffer: Uint8Array, offset: number, length: number) => number,
+): (message: string) => void {
+  const writeBytes = createBestEffortByteSink(write);
+  return message => {
+    writeBytes(Buffer.from(`${message}\n`));
   };
 }
 

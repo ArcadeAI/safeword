@@ -171,11 +171,15 @@ describe('durable review jobs', () => {
           PATH: `${reviewer.bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_FOREGROUND_MS: '0',
+          SAFEWORD_REVIEW_PROGRESS: '1',
           SAFEWORD_PROGRESS_HEARTBEAT_MS: '100',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
     );
+    expect(started.error).toBeUndefined();
+    expect(started.status).toBe(2);
+    expect(started.stderr).toBe('');
     const pending = JSON.parse(started.stdout) as { data: { review_id: string } };
 
     await vi.waitFor(
