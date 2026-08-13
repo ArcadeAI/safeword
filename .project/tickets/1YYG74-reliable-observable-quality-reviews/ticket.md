@@ -8,6 +8,9 @@ phase_anchors:
   - 'define-behavior: .project/tickets/1YYG74-reliable-observable-quality-reviews/spec.md'
   - 'scenario-gate: packages/cli/features/reliable-observable-quality-reviews.feature'
   - 'plan-implementation: .project/tickets/1YYG74-reliable-observable-quality-reviews/impl-plan.md'
+  - 'implement: .project/tickets/1YYG74-reliable-observable-quality-reviews/test-definitions.md'
+  - 'verify: .project/tickets/1YYG74-reliable-observable-quality-reviews/verify.md'
+  - 'done: .project/tickets/1YYG74-reliable-observable-quality-reviews/verify.md'
 scope:
   - revalidate the typed reviewer-failure baseline delivered by ticket 3FK4DC and PR #2591
   - let the managed review wrapper privately enable existing progress for JSON review runs without changing the public CLI contract
