@@ -30,16 +30,14 @@ import { testCliRoot } from './helpers.js';
 const require = createRequire(import.meta.url);
 
 function installedDependencyRoot(dependency: string): string {
-  let candidate = nodePath.dirname(require.resolve(dependency));
-  for (;;) {
+  const searchPaths = require.resolve.paths(dependency) ?? [];
+  for (const searchPath of searchPaths) {
+    const candidate = nodePath.join(searchPath, dependency);
     const manifestPath = nodePath.join(candidate, 'package.json');
     if (existsSync(manifestPath)) {
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { name?: unknown };
       if (manifest.name === dependency) return candidate;
     }
-    const parent = nodePath.dirname(candidate);
-    if (parent === candidate) break;
-    candidate = parent;
   }
   throw new Error(`could not locate installed package root for runtime dependency: ${dependency}`);
 }
