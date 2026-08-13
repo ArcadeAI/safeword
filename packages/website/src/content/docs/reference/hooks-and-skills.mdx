@@ -220,6 +220,15 @@ Your agent will check against official library docs, look for known security iss
 
 Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. Positional files are the bounded work product; `--context <paths...>` adds bounded supporting evidence without making it review targets. The coordinator snapshots and integrity-checks both roles, treats their contents as untrusted, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records raw machine provenance as `cross-agent`, `degraded`, or `none`. Human output presents validated cross-agent results as independent coverage and permitted same-agent results as standard coverage. Discovery, unsupported capabilities, compatibility-probe timeout, launch failure, authentication, and runtime failure remain distinct typed outcomes with targeted recovery guidance.
 
+Safeword-managed review workflows also emit bounded lifecycle progress on stderr
+while a reviewer is active. The final machine result remains the only stdout
+artifact. During the foreground courtesy window, Safeword relays worker progress
+through stderr. The relay closes when a background handoff returns, so detached
+work cannot hold a caller's capture stream open or interleave with later host
+output; use the returned status command to collect the terminal result. Quiet
+mode suppresses the progress. Direct callers of
+`safeword review run --json` retain the existing silent-stderr contract.
+
 The coordinator tries the opposite agent's default and configured alternate model before same-agent headless review. If every CLI route fails, foreground agent workflows can continue once through the internal `finish-review` skill: first one host-native fresh-context reviewer, then one bounded main-thread self-review. This continuation is best-effort because only the foreground host can invoke its session agent. It is reported as supplemental feedback with its live-worktree source limits; it never becomes completed standard or independent machine coverage, never creates an independent stamp, and cannot satisfy `crossAgentReview: "require"`. Project-owned Claude assets make the fresh-context route available in Claude Code Cloud even when no external agent CLI is installed. See [Configuration](/reference/configuration#review-gates).
 
 ### Refactoring
