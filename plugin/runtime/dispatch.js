@@ -4317,9 +4317,9 @@ function settingsMutation(cwd, legacy) {
   const path = nodePath7.join(cwd, relative);
   if (!existsSync5(path) || legacy.recognizedHooks.length === 0) return void 0;
   const original = readFileSync4(path, 'utf8');
-  return { path: relative, content: settingsMutationFromContent(original, legacy.recognizedHooks) };
+  return { path: relative, content: contractHistoricalClaudeSettings(original) };
 }
-function expectedSettingsMutation(original) {
+function contractHistoricalClaudeSettings(original) {
   const parsed = parse2(original, [], {
     allowTrailingComma: true,
     disallowComments: false,
@@ -4625,12 +4625,12 @@ function writeAutomaticPluginMode(cwd, transaction) {
     }),
   );
 }
-function cleanupFailure(error, classification = 'coexistence') {
+function cleanupFailure(error) {
   return createResult({
     state: 'failed',
     errors: [{ code: 'CLAUDE_CLEANUP_FAILED', message: String(error), retryable: true }],
     nextActions: [{ command: 'safeword claude recover', mutates: true, requiresHuman: true }],
-    data: { command: 'claude cleanup', classification },
+    data: { command: 'claude cleanup', classification: 'recovery-required' },
   });
 }
 function migrateClaudeLegacyAutomatically(cwd, options) {
@@ -4713,6 +4713,10 @@ function claimAutomaticTransaction(projectRoot, transaction, options, now, unres
   }
 }
 function concurrentMigrationResult(projectRoot, options, now) {
+  try {
+    const transaction = parseTransaction(projectRoot);
+    if (transactionCanRecover(transaction)) return recoveredAutomaticResult(projectRoot);
+  } catch {}
   const concurrentDeadline = Math.min(options.deadline, now() + 500);
   if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
     return observedPluginModeResult(projectRoot);
@@ -4905,7 +4909,8 @@ function hasValidBeforeImage(entry, before) {
   );
 }
 function deterministicAfterImage(path, before) {
-  if (path === '.claude/settings.json') return expectedSettingsMutation(before.toString('utf8'));
+  if (path === '.claude/settings.json')
+    return contractHistoricalClaudeSettings(before.toString('utf8'));
   if (cataloguedClaudeLegacyPaths().includes(path) && isAcceptedHistoricalFile(path, before)) {
     return null;
   }
@@ -4921,6 +4926,16 @@ function hasExpectedAfterImage(entry, expectedBytes) {
     entry.after_mode === expectedMode
   );
 }
+function hasValidQuarantinePath(entry, deleting) {
+  if (entry.quarantine_path === void 0) return true;
+  if (!deleting || typeof entry.quarantine_path !== 'string') return false;
+  return (
+    entry.quarantine_path.startsWith('.safeword/claude-plugin/quarantine/') &&
+    entry.quarantine_path.endsWith('.retired') &&
+    !nodePath7.isAbsolute(entry.quarantine_path) &&
+    !entry.quarantine_path.split('/').includes('..')
+  );
+}
 function validateCleanupEntry(value) {
   const entry = record(value);
   const before = canonicalBase64(entry.before_base64);
@@ -4933,13 +4948,7 @@ function validateCleanupEntry(value) {
   if (!hasExpectedAfterImage(entry, expectedBytes)) {
     throw new Error('Claude cleanup after-image is not the deterministic legacy contraction.');
   }
-  if (
-    entry.quarantine_path !== void 0 &&
-    (expectedAfter !== null ||
-      typeof entry.quarantine_path !== 'string' ||
-      !entry.quarantine_path.startsWith('.safeword/claude-plugin/quarantine/') ||
-      !entry.quarantine_path.endsWith('.retired'))
-  ) {
+  if (!hasValidQuarantinePath(entry, expectedAfter === null)) {
     throw new Error('Claude cleanup quarantine path is malformed.');
   }
   return entry;
@@ -5066,6 +5075,12 @@ function ensureQuarantinePaths(projectRoot, transaction) {
   );
   return upgraded;
 }
+function interruptedAfterImage(path, entry) {
+  if (entry.after_base64 === null) return false;
+  const current = readFileSync4(path);
+  const after = Buffer.from(entry.after_base64, 'base64');
+  return current.length < after.length && after.subarray(0, current.length).equals(current);
+}
 function pendingRecoveryEntries(projectRoot, transaction) {
   const pending = [];
   for (const entry of transaction.entries) {
@@ -5082,14 +5097,21 @@ function pendingRecoveryEntries(projectRoot, transaction) {
     const source = entry.before_sha256;
     const destination = entry.after_sha256;
     if (current === destination) continue;
-    if (current !== source) throw new Error(`Claude recovery conflict at ${entry.path}`);
-    pending.push(entry);
+    if (current === source) {
+      pending.push({ entry, expectedSha256: source });
+      continue;
+    }
+    if (current !== null && interruptedAfterImage(path, entry)) {
+      pending.push({ entry, expectedSha256: current });
+      continue;
+    }
+    throw new Error(`Claude recovery conflict at ${entry.path}`);
   }
   return pending;
 }
 function applyRecoveryEntries(projectRoot, pending) {
-  for (const entry of pending) {
-    writeImage(projectRoot, entry.path, entry.before_sha256, entry.after_base64, {
+  for (const { entry, expectedSha256 } of pending) {
+    writeImage(projectRoot, entry.path, expectedSha256, entry.after_base64, {
       mode: entry.after_mode,
       quarantinePath: entry.quarantine_path,
     });
@@ -5112,7 +5134,7 @@ function recoverClaudeCleanup(cwd) {
   try {
     projectRoot = canonicalClaudeProjectRoot(cwd);
   } catch (error) {
-    return cleanupFailure(error, 'recovery-required');
+    return cleanupFailure(error);
   }
   if (!existsSync5(transactionPath(projectRoot))) {
     return createResult({
@@ -5617,7 +5639,7 @@ function automaticMigration(event, identity, execution, sessionId, hookCwd) {
 }
 function executionProofFailure(event, execution, error) {
   if (event !== 'UserPromptSubmit') return execution;
-  const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+  const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; verify protection with \`safeword claude status\`.`;
   return { ...execution, stdout: safeAppendMigrationAdvisory(event, execution.stdout, advisory) };
 }
 function postExecutionLifecycle(event, pluginRoot, identity, hookInput, execution) {
@@ -5643,7 +5665,7 @@ function verifiedIdentity(event, pluginRoot) {
     return { eventGroupsContent, identity };
   } catch (error) {
     if (event !== 'UserPromptSubmit') throw error;
-    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no native Safeword hook result was applied.`;
     try {
       process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
     } catch {}
@@ -5689,7 +5711,7 @@ function functionalExecutionFailure(event, error) {
     );
     return { status: 2, stdout: '' };
   }
-  const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+  const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no combined Safeword hook result was applied.`;
   return { status: 0, stdout: safeAppendMigrationAdvisory(event, '', advisory) };
 }
 function parseHookInput(standardInput) {
@@ -5747,7 +5769,7 @@ function mainUnsafe(event, mode, command) {
 function startupFailure(event, error) {
   const detail = error instanceof Error ? error.message : String(error);
   if (event === 'UserPromptSubmit') {
-    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked and the old integration was preserved.`;
+    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked; no Safeword hook result was applied.`;
     try {
       process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
     } catch {}

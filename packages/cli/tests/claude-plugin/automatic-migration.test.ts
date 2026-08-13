@@ -142,6 +142,63 @@ describe('automatic Claude migration', () => {
     expect(readClaudePluginMode(root)?.state).toBe('clean');
   });
 
+  it('recovers a deferred settings contraction through the validated transaction', () => {
+    const { root } = fixture();
+    const settings = nodePath.join(root, '.claude/settings.json');
+    const fingerprint =
+      CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].hooks.SessionStart?.[0] ?? '';
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(
+      settings,
+      `${JSON.stringify({
+        hooks: { SessionStart: [historicalHookEntry(fingerprint)] },
+        userSetting: true,
+      })}\n`,
+    );
+
+    let reads = 0;
+    expect(migrate(root, () => (reads++ === 0 ? 0 : 10)).state).toBe('deferred');
+    expect(migrate(root).state).toBe('complete');
+    expect(JSON.parse(readFileSync(settings, 'utf8'))).toEqual({
+      hooks: { SessionStart: [] },
+      userSetting: true,
+    });
+  });
+
+  it('finishes recovery from an interrupted deterministic settings write', () => {
+    const { root } = fixture();
+    const settings = nodePath.join(root, '.claude/settings.json');
+    const fingerprint =
+      CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].hooks.SessionStart?.[0] ?? '';
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(
+      settings,
+      `${JSON.stringify({
+        hooks: { SessionStart: [historicalHookEntry(fingerprint)] },
+        userSetting: true,
+      })}\n`,
+    );
+
+    let reads = 0;
+    expect(migrate(root, () => (reads++ === 0 ? 0 : 10)).state).toBe('deferred');
+    const transaction = JSON.parse(
+      readFileSync(
+        nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'),
+        'utf8',
+      ),
+    ) as { entries: { path: string; after_base64: string | null }[] };
+    const after = transaction.entries.find(
+      entry => entry.path === '.claude/settings.json',
+    )?.after_base64;
+    expect(after).toBeTypeOf('string');
+    const afterBytes = Buffer.from(after ?? '', 'base64');
+    const partialLength = Math.max(1, Math.floor(afterBytes.length / 2));
+    writeFileSync(settings, afterBytes.subarray(0, partialLength));
+
+    expect(migrate(root).state).toBe('complete');
+    expect(readFileSync(settings)).toEqual(afterBytes);
+  });
+
   it('preserves the winning transaction identity during no-op convergence', () => {
     const { root } = fixture();
 

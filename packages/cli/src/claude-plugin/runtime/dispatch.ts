@@ -667,7 +667,7 @@ function executionProofFailure(
   error: unknown,
 ): FunctionalCommandResult {
   if (event !== 'UserPromptSubmit') return execution;
-  const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+  const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; verify protection with \`safeword claude status\`.`;
   return { ...execution, stdout: safeAppendMigrationAdvisory(event, execution.stdout, advisory) };
 }
 
@@ -703,7 +703,7 @@ function verifiedIdentity(event: string, pluginRoot: string): VerifiedPlugin | u
     return { eventGroupsContent, identity };
   } catch (error) {
     if (event !== 'UserPromptSubmit') throw error;
-    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no native Safeword hook result was applied.`;
     try {
       process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
     } catch {
@@ -764,7 +764,7 @@ function functionalExecutionFailure(event: string, error: unknown): FunctionalCo
     );
     return { status: 2, stdout: '' };
   }
-  const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+  const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no combined Safeword hook result was applied.`;
   return { status: 0, stdout: safeAppendMigrationAdvisory(event, '', advisory) };
 }
 
@@ -835,7 +835,7 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
 function startupFailure(event: string, error: unknown): number {
   const detail = error instanceof Error ? error.message : String(error);
   if (event === 'UserPromptSubmit') {
-    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked and the old integration was preserved.`;
+    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked; no Safeword hook result was applied.`;
     try {
       process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
     } catch {

@@ -40066,9 +40066,9 @@ function settingsMutation(cwd, legacy) {
   if (!existsSync37(path4) || legacy.recognizedHooks.length === 0)
     return;
   const original = readFileSync42(path4, "utf8");
-  return { path: relative, content: settingsMutationFromContent(original, legacy.recognizedHooks) };
+  return { path: relative, content: contractHistoricalClaudeSettings(original) };
 }
-function expectedSettingsMutation(original) {
+function contractHistoricalClaudeSettings(original) {
   const parsed2 = parse3(original, [], {
     allowTrailingComma: true,
     disallowComments: false
@@ -40341,12 +40341,12 @@ function writeAutomaticPluginMode(cwd, transaction) {
     transaction_id: transaction.transaction_id
   }));
 }
-function cleanupFailure(error2, classification = "coexistence") {
+function cleanupFailure(error2) {
   return createResult({
     state: "failed",
     errors: [{ code: "CLAUDE_CLEANUP_FAILED", message: String(error2), retryable: true }],
     nextActions: [{ command: "safeword claude recover", mutates: true, requiresHuman: true }],
-    data: { command: "claude cleanup", classification }
+    data: { command: "claude cleanup", classification: "recovery-required" }
   });
 }
 function migrateClaudeLegacyAutomatically(cwd, options) {
@@ -40424,6 +40424,11 @@ function claimAutomaticTransaction(projectRoot, transaction, options, now, unres
   }
 }
 function concurrentMigrationResult(projectRoot, options, now) {
+  try {
+    const transaction = parseTransaction(projectRoot);
+    if (transactionCanRecover(transaction))
+      return recoveredAutomaticResult(projectRoot);
+  } catch {}
   const concurrentDeadline = Math.min(options.deadline, now() + 500);
   if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
     return observedPluginModeResult(projectRoot);
@@ -40570,7 +40575,7 @@ function hasValidBeforeImage(entry, before) {
 }
 function deterministicAfterImage(path4, before) {
   if (path4 === ".claude/settings.json")
-    return expectedSettingsMutation(before.toString("utf8"));
+    return contractHistoricalClaudeSettings(before.toString("utf8"));
   if (cataloguedClaudeLegacyPaths().includes(path4) && isAcceptedHistoricalFile(path4, before)) {
     return null;
   }
@@ -40581,6 +40586,13 @@ function hasExpectedAfterImage(entry, expectedBytes) {
   const expectedBase64 = expectedBytes === null ? null : expectedBytes.toString("base64");
   const expectedMode = expectedBytes === null ? null : entry.before_mode;
   return entry.after_sha256 === expectedHash && entry.after_base64 === expectedBase64 && entry.after_mode === expectedMode;
+}
+function hasValidQuarantinePath(entry, deleting) {
+  if (entry.quarantine_path === undefined)
+    return true;
+  if (!deleting || typeof entry.quarantine_path !== "string")
+    return false;
+  return entry.quarantine_path.startsWith(".safeword/claude-plugin/quarantine/") && entry.quarantine_path.endsWith(".retired") && !nodePath70.isAbsolute(entry.quarantine_path) && !entry.quarantine_path.split("/").includes("..");
 }
 function validateCleanupEntry(value) {
   const entry = record(value);
@@ -40595,7 +40607,7 @@ function validateCleanupEntry(value) {
   if (!hasExpectedAfterImage(entry, expectedBytes)) {
     throw new Error("Claude cleanup after-image is not the deterministic legacy contraction.");
   }
-  if (entry.quarantine_path !== undefined && (expectedAfter !== null || typeof entry.quarantine_path !== "string" || !entry.quarantine_path.startsWith(".safeword/claude-plugin/quarantine/") || !entry.quarantine_path.endsWith(".retired"))) {
+  if (!hasValidQuarantinePath(entry, expectedAfter === null)) {
     throw new Error("Claude cleanup quarantine path is malformed.");
   }
   return entry;
@@ -40687,6 +40699,13 @@ function ensureQuarantinePaths(projectRoot, transaction) {
   });
   return upgraded;
 }
+function interruptedAfterImage(path4, entry) {
+  if (entry.after_base64 === null)
+    return false;
+  const current = readFileSync42(path4);
+  const after = Buffer.from(entry.after_base64, "base64");
+  return current.length < after.length && after.subarray(0, current.length).equals(current);
+}
 function pendingRecoveryEntries(projectRoot, transaction) {
   const pending = [];
   for (const entry of transaction.entries) {
@@ -40702,15 +40721,21 @@ function pendingRecoveryEntries(projectRoot, transaction) {
     const destination = entry.after_sha256;
     if (current === destination)
       continue;
-    if (current !== source)
-      throw new Error(`Claude recovery conflict at ${entry.path}`);
-    pending.push(entry);
+    if (current === source) {
+      pending.push({ entry, expectedSha256: source });
+      continue;
+    }
+    if (current !== null && interruptedAfterImage(path4, entry)) {
+      pending.push({ entry, expectedSha256: current });
+      continue;
+    }
+    throw new Error(`Claude recovery conflict at ${entry.path}`);
   }
   return pending;
 }
 function applyRecoveryEntries(projectRoot, pending) {
-  for (const entry of pending) {
-    writeImage(projectRoot, entry.path, entry.before_sha256, entry.after_base64, {
+  for (const { entry, expectedSha256 } of pending) {
+    writeImage(projectRoot, entry.path, expectedSha256, entry.after_base64, {
       mode: entry.after_mode,
       quarantinePath: entry.quarantine_path
     });
@@ -40733,7 +40758,7 @@ function recoverClaudeCleanup(cwd) {
   try {
     projectRoot = canonicalClaudeProjectRoot(cwd);
   } catch (error2) {
-    return cleanupFailure(error2, "recovery-required");
+    return cleanupFailure(error2);
   }
   if (!existsSync37(transactionPath(projectRoot))) {
     return createResult({

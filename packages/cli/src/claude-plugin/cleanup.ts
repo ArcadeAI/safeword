@@ -108,10 +108,10 @@ function settingsMutation(
   const path = nodePath.join(cwd, relative);
   if (!existsSync(path) || legacy.recognizedHooks.length === 0) return undefined;
   const original = readFileSync(path, 'utf8');
-  return { path: relative, content: settingsMutationFromContent(original, legacy.recognizedHooks) };
+  return { path: relative, content: contractHistoricalClaudeSettings(original) };
 }
 
-function expectedSettingsMutation(original: string): string | null {
+function contractHistoricalClaudeSettings(original: string): string | null {
   const parsed = parse(original, [], {
     allowTrailingComma: true,
     disallowComments: false,
@@ -501,12 +501,12 @@ function writeAutomaticPluginMode(cwd: string, transaction: CleanupTransaction):
   );
 }
 
-function cleanupFailure(error: unknown, classification = 'coexistence'): CliResult {
+function cleanupFailure(error: unknown): CliResult {
   return createResult({
     state: 'failed',
     errors: [{ code: 'CLAUDE_CLEANUP_FAILED', message: String(error), retryable: true }],
     nextActions: [{ command: 'safeword claude recover', mutates: true, requiresHuman: true }],
-    data: { command: 'claude cleanup', classification },
+    data: { command: 'claude cleanup', classification: 'recovery-required' },
   });
 }
 
@@ -618,6 +618,13 @@ function concurrentMigrationResult(
   options: AutomaticClaudeMigrationOptions,
   now: () => number,
 ): AutomaticClaudeMigrationResult {
+  try {
+    const transaction = parseTransaction(projectRoot);
+    if (transactionCanRecover(transaction)) return recoveredAutomaticResult(projectRoot);
+  } catch {
+    // A concurrent writer may still be completing. The bounded marker wait
+    // below distinguishes that case from a recoverable transaction.
+  }
   const concurrentDeadline = Math.min(options.deadline, now() + 500);
   if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
     return observedPluginModeResult(projectRoot);
@@ -840,7 +847,8 @@ function hasValidBeforeImage(entry: Record<string, unknown>, before: Buffer): bo
 }
 
 function deterministicAfterImage(path: string, before: Buffer): string | null | undefined {
-  if (path === '.claude/settings.json') return expectedSettingsMutation(before.toString('utf8'));
+  if (path === '.claude/settings.json')
+    return contractHistoricalClaudeSettings(before.toString('utf8'));
   if (cataloguedClaudeLegacyPaths().includes(path) && isAcceptedHistoricalFile(path, before)) {
     return null;
   }
@@ -861,6 +869,17 @@ function hasExpectedAfterImage(
   );
 }
 
+function hasValidQuarantinePath(entry: Record<string, unknown>, deleting: boolean): boolean {
+  if (entry.quarantine_path === undefined) return true;
+  if (!deleting || typeof entry.quarantine_path !== 'string') return false;
+  return (
+    entry.quarantine_path.startsWith('.safeword/claude-plugin/quarantine/') &&
+    entry.quarantine_path.endsWith('.retired') &&
+    !nodePath.isAbsolute(entry.quarantine_path) &&
+    !entry.quarantine_path.split('/').includes('..')
+  );
+}
+
 function validateCleanupEntry(value: unknown): CleanupEntry {
   const entry = record(value);
   const before = canonicalBase64(entry.before_base64);
@@ -873,13 +892,7 @@ function validateCleanupEntry(value: unknown): CleanupEntry {
   if (!hasExpectedAfterImage(entry, expectedBytes)) {
     throw new Error('Claude cleanup after-image is not the deterministic legacy contraction.');
   }
-  if (
-    entry.quarantine_path !== undefined &&
-    (expectedAfter !== null ||
-      typeof entry.quarantine_path !== 'string' ||
-      !entry.quarantine_path.startsWith('.safeword/claude-plugin/quarantine/') ||
-      !entry.quarantine_path.endsWith('.retired'))
-  ) {
+  if (!hasValidQuarantinePath(entry, expectedAfter === null)) {
     throw new Error('Claude cleanup quarantine path is malformed.');
   }
   return entry as unknown as CleanupEntry;
@@ -1015,11 +1028,23 @@ function ensureQuarantinePaths(
   return upgraded;
 }
 
+interface PendingRecoveryEntry {
+  readonly entry: CleanupEntry;
+  readonly expectedSha256: string;
+}
+
+function interruptedAfterImage(path: string, entry: CleanupEntry): boolean {
+  if (entry.after_base64 === null) return false;
+  const current = readFileSync(path);
+  const after = Buffer.from(entry.after_base64, 'base64');
+  return current.length < after.length && after.subarray(0, current.length).equals(current);
+}
+
 function pendingRecoveryEntries(
   projectRoot: string,
   transaction: CleanupTransaction,
-): CleanupEntry[] {
-  const pending: CleanupEntry[] = [];
+): PendingRecoveryEntry[] {
+  const pending: PendingRecoveryEntry[] = [];
   for (const entry of transaction.entries) {
     if (entry.quarantine_path !== undefined) {
       const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
@@ -1034,15 +1059,22 @@ function pendingRecoveryEntries(
     const source = entry.before_sha256;
     const destination = entry.after_sha256;
     if (current === destination) continue;
-    if (current !== source) throw new Error(`Claude recovery conflict at ${entry.path}`);
-    pending.push(entry);
+    if (current === source) {
+      pending.push({ entry, expectedSha256: source });
+      continue;
+    }
+    if (current !== null && interruptedAfterImage(path, entry)) {
+      pending.push({ entry, expectedSha256: current });
+      continue;
+    }
+    throw new Error(`Claude recovery conflict at ${entry.path}`);
   }
   return pending;
 }
 
-function applyRecoveryEntries(projectRoot: string, pending: readonly CleanupEntry[]): void {
-  for (const entry of pending) {
-    writeImage(projectRoot, entry.path, entry.before_sha256, entry.after_base64, {
+function applyRecoveryEntries(projectRoot: string, pending: readonly PendingRecoveryEntry[]): void {
+  for (const { entry, expectedSha256 } of pending) {
+    writeImage(projectRoot, entry.path, expectedSha256, entry.after_base64, {
       mode: entry.after_mode,
       quarantinePath: entry.quarantine_path,
     });
@@ -1067,7 +1099,7 @@ export function recoverClaudeCleanup(cwd: string): CliResult {
   try {
     projectRoot = canonicalClaudeProjectRoot(cwd);
   } catch (error) {
-    return cleanupFailure(error, 'recovery-required');
+    return cleanupFailure(error);
   }
   if (!existsSync(transactionPath(projectRoot))) {
     return createResult({
