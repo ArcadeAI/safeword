@@ -141,6 +141,22 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
+  it('reserves one worker for simultaneous starts of the same source', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+
+    const [first, second] = await Promise.all([
+      startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] }),
+      startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] }),
+    ]);
+
+    expect((second.data as { review_id: string }).review_id).toBe(
+      (first.data as { review_id: string }).review_id,
+    );
+    cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
+  });
+
   it('persists a typed failure when a worker exits without a result', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'process.exit(0);'));
@@ -326,7 +342,6 @@ describe('durable review jobs', () => {
     const latest = cancelReviewJob(cwd);
 
     expect((latest.data as { review_id: string }).review_id).toBe(secondId);
-    expect(reviewJobStatus(cwd, firstId).findings[0]?.code).toBe('REVIEW_PENDING');
-    cancelReviewJob(cwd, firstId);
+    expect(cancelReviewJob(cwd, firstId).findings[0]?.code).toBe('REVIEW_CANCELED');
   });
 });

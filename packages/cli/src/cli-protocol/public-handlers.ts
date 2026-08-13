@@ -711,6 +711,19 @@ async function runReviewWorker(
       data: { command: 'review run', status: 'failed' },
     });
   }
+  if (invocation.options.workerJobId !== id) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_WORKER_ID_INVALID',
+          message: 'The detached review worker identity does not match its job.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'review run', status: 'failed' },
+    });
+  }
   const [{ runReview }, { completeReviewJob }, { ReviewPacketError }] = await Promise.all([
     import('../review/coordinator.js'),
     import('../review/job.js'),

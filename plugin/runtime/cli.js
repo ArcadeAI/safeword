@@ -42880,7 +42880,9 @@ function writeJob(cwd, record) {
   renameSync7(temporary, destination);
 }
 function withJobLock(cwd, id, operation) {
-  const lock = `${jobPath(cwd, id)}.lock`;
+  return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
+}
+function withFileLock(lock, operation) {
   const deadline = Date.now() + JOB_LOCK_WAIT_MS;
   let descriptor;
   while (descriptor === undefined) {
@@ -42914,10 +42916,14 @@ function withJobLock(cwd, id, operation) {
 }
 function recoverStaleLock(lock) {
   try {
+    const inspected = statSync6(lock);
     const owner = Number(readFileSync51(lock, "utf8"));
     const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync6(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
-    if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld)
-      unlinkSync3(lock);
+    if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld) {
+      const current = statSync6(lock);
+      if (current.dev === inspected.dev && current.ino === inspected.ino)
+        unlinkSync3(lock);
+    }
   } catch {}
 }
 function isFileExistsError(error2) {
@@ -43033,7 +43039,7 @@ function staleResult(record) {
 }
 function currentResult(cwd, record) {
   if (record.state === "running") {
-    if (record.pid !== undefined && !isReviewWorker(record.pid)) {
+    if (record.pid !== undefined && !isReviewWorker(record.pid, record.id)) {
       const failed = createResult({
         state: "failed",
         errors: [
@@ -43114,29 +43120,38 @@ function cliEntrypoint() {
 async function startReviewJob(input) {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
-  const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
-  if (existing !== undefined)
-    return pendingResult(existing);
-  const id = randomUUID7();
-  const now = new Date().toISOString();
-  const record = {
-    schema_version: 1,
-    id,
-    state: "running",
-    kind: input.kind,
-    targets: input.targets,
-    context,
-    source_fingerprint: sourceFingerprint,
-    started_at: now,
-    updated_at: now
-  };
-  writeJob(input.cwd, record);
+  mkdirSync13(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
+  const reserved = withFileLock(nodePath84.join(jobsDirectory(input.cwd), "start.lock"), () => {
+    const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
+    if (existing !== undefined)
+      return { existing: true, record: existing };
+    const now = new Date().toISOString();
+    const record2 = {
+      schema_version: 1,
+      id: randomUUID7(),
+      state: "running",
+      kind: input.kind,
+      targets: input.targets,
+      context,
+      source_fingerprint: sourceFingerprint,
+      started_at: now,
+      updated_at: now
+    };
+    writeJob(input.cwd, record2);
+    return { existing: false, record: record2 };
+  });
+  if (reserved.existing)
+    return pendingResult(reserved.record);
+  const record = reserved.record;
+  const id = record.id;
   const entrypoint = cliEntrypoint();
   const child = spawn2(process.execPath, [
     entrypoint,
     "review",
     "run",
     input.kind,
+    "--worker-job-id",
+    id,
     ...context.flatMap((target) => ["--context", target]),
     "--",
     ...input.targets
@@ -43235,7 +43250,7 @@ function runningJob(cwd, kind, sourceFingerprint) {
       continue;
     try {
       const record = readJob(cwd, name.slice(0, -5));
-      if (record.state === "running" && record.kind === kind && record.source_fingerprint === sourceFingerprint && record.pid !== undefined && isReviewWorker(record.pid)) {
+      if (record.state === "running" && record.kind === kind && record.source_fingerprint === sourceFingerprint && (record.pid === undefined || isReviewWorker(record.pid, record.id))) {
         return record;
       }
     } catch {}
@@ -43300,7 +43315,7 @@ function cancelReviewJob(cwd, requestedId) {
       const record = readJob(cwd, id);
       if (record.state !== "running")
         return record;
-      if (record.pid !== undefined && isReviewWorker(record.pid)) {
+      if (record.pid !== undefined && isReviewWorker(record.pid, record.id)) {
         try {
           process.kill(process.platform === "win32" ? record.pid : -record.pid, "SIGTERM");
         } catch {}
@@ -43321,14 +43336,14 @@ function cancelReviewJob(cwd, requestedId) {
 function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
-function isReviewWorker(pid) {
+function isReviewWorker(pid, id) {
   if (process.platform === "win32")
     return processExists(pid);
   const inspected = spawnSync9("ps", ["-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });
-  return inspected.status === 0 && /\breview run\b/u.test(inspected.stdout);
+  return inspected.status === 0 && /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`);
 }
 var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {
@@ -58047,6 +58062,19 @@ async function runReviewWorker(invocation, kind, targets, context) {
       data: { command: "review run", status: "failed" }
     });
   }
+  if (invocation.options.workerJobId !== id) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_WORKER_ID_INVALID",
+          message: "The detached review worker identity does not match its job.",
+          retryable: false
+        }
+      ],
+      data: { command: "review run", status: "failed" }
+    });
+  }
   const [{ runReview: runReview2 }, { completeReviewJob: completeReviewJob2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
     Promise.resolve().then(() => (init_coordinator(), exports_coordinator)),
     Promise.resolve().then(() => (init_job(), exports_job)),
@@ -59543,6 +59571,10 @@ var CANONICAL_COMMANDS = [
       {
         flags: "--agent-handoff",
         description: "Treat action-required output as a successful author-agent handoff"
+      },
+      {
+        flags: "--worker-job-id <id>",
+        description: "Internal detached-worker identity"
       }
     ],
     exitPolicy: { actionRequiredAsSuccessOption: "agentHandoff" },

@@ -437,6 +437,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         flags: '--agent-handoff',
         description: 'Treat action-required output as a successful author-agent handoff',
       },
+      {
+        flags: '--worker-job-id <id>',
+        description: 'Internal detached-worker identity',
+      },
     ],
     exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
     fixture: {

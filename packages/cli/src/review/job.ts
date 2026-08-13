@@ -84,7 +84,10 @@ function writeJob(cwd: string, record: ReviewJobRecord): void {
 }
 
 function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
-  const lock = `${jobPath(cwd, id)}.lock`;
+  return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
+}
+
+function withFileLock<T>(lock: string, operation: () => T): T {
   const deadline = Date.now() + JOB_LOCK_WAIT_MS;
   let descriptor: number | undefined;
   while (descriptor === undefined) {
@@ -122,10 +125,14 @@ function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
 
 function recoverStaleLock(lock: string): void {
   try {
+    const inspected = statSync(lock);
     const owner = Number(readFileSync(lock, 'utf8'));
     const invalidOwnerIsOld =
       !isProcessId(owner) && Date.now() - statSync(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
-    if ((isProcessId(owner) && !processExists(owner)) || invalidOwnerIsOld) unlinkSync(lock);
+    if ((isProcessId(owner) && !processExists(owner)) || invalidOwnerIsOld) {
+      const current = statSync(lock);
+      if (current.dev === inspected.dev && current.ino === inspected.ino) unlinkSync(lock);
+    }
   } catch {
     // Another process may have released or replaced the lock while inspecting it.
   }
@@ -276,7 +283,7 @@ function staleResult(record: ReviewJobRecord): CliResult {
 
 function currentResult(cwd: string, record: ReviewJobRecord): CliResult {
   if (record.state === 'running') {
-    if (record.pid !== undefined && !isReviewWorker(record.pid)) {
+    if (record.pid !== undefined && !isReviewWorker(record.pid, record.id)) {
       const failed = createResult({
         state: 'failed',
         errors: [
@@ -365,22 +372,28 @@ export async function startReviewJob(input: {
 }): Promise<CliResult> {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
-  const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
-  if (existing !== undefined) return pendingResult(existing);
-  const id = randomUUID();
-  const now = new Date().toISOString();
-  const record: ReviewJobRecord = {
-    schema_version: 1,
-    id,
-    state: 'running',
-    kind: input.kind,
-    targets: input.targets,
-    context,
-    source_fingerprint: sourceFingerprint,
-    started_at: now,
-    updated_at: now,
-  };
-  writeJob(input.cwd, record);
+  mkdirSync(jobsDirectory(input.cwd), { recursive: true, mode: 0o700 });
+  const reserved = withFileLock(nodePath.join(jobsDirectory(input.cwd), 'start.lock'), () => {
+    const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
+    if (existing !== undefined) return { existing: true as const, record: existing };
+    const now = new Date().toISOString();
+    const record: ReviewJobRecord = {
+      schema_version: 1,
+      id: randomUUID(),
+      state: 'running',
+      kind: input.kind,
+      targets: input.targets,
+      context,
+      source_fingerprint: sourceFingerprint,
+      started_at: now,
+      updated_at: now,
+    };
+    writeJob(input.cwd, record);
+    return { existing: false as const, record };
+  });
+  if (reserved.existing) return pendingResult(reserved.record);
+  const record = reserved.record;
+  const id = record.id;
   const entrypoint = cliEntrypoint();
   const child = spawn(
     process.execPath,
@@ -389,6 +402,8 @@ export async function startReviewJob(input: {
       'review',
       'run',
       input.kind,
+      '--worker-job-id',
+      id,
       ...context.flatMap(target => ['--context', target]),
       '--',
       ...input.targets,
@@ -504,8 +519,7 @@ function runningJob(
         record.state === 'running' &&
         record.kind === kind &&
         record.source_fingerprint === sourceFingerprint &&
-        record.pid !== undefined &&
-        isReviewWorker(record.pid)
+        (record.pid === undefined || isReviewWorker(record.pid, record.id))
       ) {
         return record;
       }
@@ -573,7 +587,7 @@ export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
     const canceled = withJobLock(cwd, id, () => {
       const record = readJob(cwd, id);
       if (record.state !== 'running') return record;
-      if (record.pid !== undefined && isReviewWorker(record.pid)) {
+      if (record.pid !== undefined && isReviewWorker(record.pid, record.id)) {
         try {
           process.kill(process.platform === 'win32' ? record.pid : -record.pid, 'SIGTERM');
         } catch {
@@ -598,11 +612,15 @@ function isJobId(value: string): boolean {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 
-function isReviewWorker(pid: number): boolean {
+function isReviewWorker(pid: number, id: string): boolean {
   if (process.platform === 'win32') return processExists(pid);
   const inspected = spawnSync('ps', ['-p', String(pid), '-o', 'command='], {
     encoding: 'utf8',
     timeout: 1000,
   });
-  return inspected.status === 0 && /\breview run\b/u.test(inspected.stdout);
+  return (
+    inspected.status === 0 &&
+    /\breview run\b/u.test(inspected.stdout) &&
+    inspected.stdout.includes(`--worker-job-id ${id}`)
+  );
 }
