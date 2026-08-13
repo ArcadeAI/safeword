@@ -34,6 +34,10 @@ function configuredFeatureFiles(): string[] {
 
 const VITEST_PROVEN_FEATURES = [
   [
+    'packages/cli/features/durable-independent-review.feature',
+    'packages/cli/tests/review/job.test.ts',
+  ],
+  [
     'features/architecture-narrative-blindspots.feature',
     'packages/cli/tests/hooks/architecture-document-nudge.test.ts',
   ],
