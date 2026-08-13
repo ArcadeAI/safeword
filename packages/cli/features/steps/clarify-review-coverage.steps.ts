@@ -60,6 +60,7 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const execFileAsync = promisify(execFile);
 const productionCliBuild = { completed: false };
 const fixtureControlVariables = new Set([
+  'SAFEWORD_REVIEW_PROGRESS',
   'SAFEWORD_REVIEW_COVERAGE_FAIL',
   'SAFEWORD_REVIEW_COVERAGE_FAIL_CLAUDE',
   'SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX',

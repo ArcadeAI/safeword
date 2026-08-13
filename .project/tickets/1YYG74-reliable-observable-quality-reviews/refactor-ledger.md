@@ -85,6 +85,13 @@ Scope: `origin/main...codex/reliable-quality-review`
 29. **Distinguish global flags from option values** — JSON-mode detection skips
     the value consumed by `--cwd`, so a path literally named `--json` cannot
     activate the private progress channel.
+30. **Verify wrapper and CLI option parity** — wrapper option sets are exported
+    as a testable contract and compared with Commander's real global option
+    definitions, preventing a new CLI global from silently changing route parsing.
+30. **Fail safe against duplicate review spend** — when worker identity
+    inspection is temporarily unavailable but its PID is still live, status and
+    same-source deduplication both retain the existing pending review; only a
+    definite mismatch permits a replacement launch.
 
 ## Struck or deferred
 

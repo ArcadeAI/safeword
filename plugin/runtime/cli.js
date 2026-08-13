@@ -45252,7 +45252,7 @@ function isActiveReviewJob(record2) {
     return false;
   if (record2.state === "launching")
     return processExists(record2.pid);
-  return record2.state === "running" && inspectReviewWorker(record2.pid, record2.id) === "match";
+  return record2.state === "running" && inspectReviewWorker(record2.pid, record2.id) !== "mismatch";
 }
 function reviewJobStatus(cwd, requestedId) {
   let id;

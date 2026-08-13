@@ -11,9 +11,16 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { Option } from 'commander';
 import { describe, expect, it } from 'vitest';
 
-import { reviewCandidates, reviewChildEnvironment } from '../../templates/hooks/run-review';
+import { GLOBAL_OPTION_DEFINITIONS } from '../../src/cli-protocol/execute.js';
+import {
+  reviewCandidates,
+  reviewChildEnvironment,
+  VALUED_GLOBAL_OPTIONS,
+  VALUELESS_GLOBAL_OPTIONS,
+} from '../../templates/hooks/run-review';
 
 const templates = nodePath.resolve(import.meta.dirname, '../../templates');
 
@@ -118,6 +125,23 @@ function runResolver(
 }
 
 describe('class-1 review surface parity', () => {
+  it('keeps wrapper global-option parsing aligned with the CLI contract', () => {
+    const valueless = new Set<string>();
+    const valued = new Set<string>();
+    for (const definition of GLOBAL_OPTION_DEFINITIONS) {
+      const option = new Option(definition.flags);
+      const destination = option.required || option.optional ? valued : valueless;
+      if (option.short !== undefined) destination.add(option.short);
+      if (option.long !== undefined) destination.add(option.long);
+    }
+
+    const lexical = (left: string, right: string): number => left.localeCompare(right);
+    expect([...VALUELESS_GLOBAL_OPTIONS].toSorted(lexical)).toEqual(
+      [...valueless].toSorted(lexical),
+    );
+    expect([...VALUED_GLOBAL_OPTIONS].toSorted(lexical)).toEqual([...valued].toSorted(lexical));
+  });
+
   it('forwards managed progress before the selected CLI exits', async () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-stream-'));
     try {

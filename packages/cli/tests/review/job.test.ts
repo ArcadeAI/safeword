@@ -332,8 +332,14 @@ describe('durable review jobs', () => {
         targets: ['input.md'],
       });
       const id = (pending.data as { review_id: string }).review_id;
+      const duplicate = await startReviewJob({
+        cwd,
+        kind: 'quality-review',
+        targets: ['input.md'],
+      });
 
       expect(pending.findings[0]?.code).toBe('REVIEW_PENDING');
+      expect((duplicate.data as { review_id: string }).review_id).toBe(id);
       expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_PENDING');
       cancelReviewJob(cwd, id);
     },

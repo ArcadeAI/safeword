@@ -10,7 +10,7 @@ const SEMVER =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 const DEFAULT_PROBE_TIMEOUT_MS = 10_000;
 const MANAGED_PROGRESS_SIGNAL = 'SAFEWORD_REVIEW_PROGRESS';
-const VALUELESS_GLOBAL_OPTIONS = new Set([
+export const VALUELESS_GLOBAL_OPTIONS = new Set([
   '--json',
   '--no-input',
   '--quiet',
@@ -18,14 +18,24 @@ const VALUELESS_GLOBAL_OPTIONS = new Set([
   '-v',
   '--verbose',
 ]);
+export const VALUED_GLOBAL_OPTIONS = new Set(['--cwd']);
+
+function isAttachedValuedGlobalOption(argument: string): boolean {
+  return [...VALUED_GLOBAL_OPTIONS].some(option =>
+    option.startsWith('--')
+      ? argument.startsWith(`${option}=`)
+      : argument !== option && argument.startsWith(option),
+  );
+}
 
 function hasJsonOption(arguments_: readonly string[]): boolean {
   for (let index = 0; index < arguments_.length; index += 1) {
-    if (arguments_[index] === '--cwd') {
+    const argument = arguments_[index];
+    if (argument !== undefined && VALUED_GLOBAL_OPTIONS.has(argument)) {
       index += 1;
       continue;
     }
-    if (arguments_[index] === '--json') return true;
+    if (argument === '--json') return true;
   }
   return false;
 }
@@ -36,11 +46,14 @@ function isManagedJsonReview(arguments_: readonly string[]): boolean {
   let routeIndex = 0;
   while (routeIndex < commandArguments.length) {
     const argument = commandArguments[routeIndex];
-    if (argument === '--cwd') {
+    if (argument !== undefined && VALUED_GLOBAL_OPTIONS.has(argument)) {
       routeIndex += 2;
       continue;
     }
-    if (argument?.startsWith('--cwd=') || (argument && VALUELESS_GLOBAL_OPTIONS.has(argument))) {
+    if (
+      (argument !== undefined && isAttachedValuedGlobalOption(argument)) ||
+      (argument && VALUELESS_GLOBAL_OPTIONS.has(argument))
+    ) {
       routeIndex += 1;
       continue;
     }

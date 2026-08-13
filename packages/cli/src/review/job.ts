@@ -851,7 +851,7 @@ function runningJob(
 function isActiveReviewJob(record: ReviewJobRecord): boolean {
   if (record.pid === undefined) return false;
   if (record.state === 'launching') return processExists(record.pid);
-  return record.state === 'running' && inspectReviewWorker(record.pid, record.id) === 'match';
+  return record.state === 'running' && inspectReviewWorker(record.pid, record.id) !== 'mismatch';
 }
 
 export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {

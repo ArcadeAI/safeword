@@ -126,6 +126,10 @@ artifact.
 - A broken progress descriptor is deliberately silent: the slice-4 dogfood run
   is the only post-ship detector. Emitting a fallback diagnostic would violate
   the best-effort side-channel contract.
+- Human-rendered reviewer prose replaces Unicode format controls, including
+  ZERO WIDTH JOINER, with spaces. This can split emoji sequences, but keeps the
+  terminal projection resistant to bidirectional and invisible-text spoofing;
+  the typed reviewer output retains the faithful original text.
 - Wrapper CLI-unavailability and reserved exit behavior remain unchanged and
   out of scope; the stale historical `SWM1.R3` work-log reference is not a
   current Rule.
