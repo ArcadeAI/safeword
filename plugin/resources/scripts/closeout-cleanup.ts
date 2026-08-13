@@ -803,10 +803,21 @@ export function classifyRetroFailure(
   return 'unknown';
 }
 
+const MAX_RETRO_EXTRACTION_WINDOWS = 3;
+
 export function runBoundRetro(
   root: string,
   binding: CloseoutBinding,
   runner: SafewordRunner = runSafeword,
+): CloseoutObservation['retro'] {
+  return runBoundRetroWindows(root, binding, runner, MAX_RETRO_EXTRACTION_WINDOWS);
+}
+
+function runBoundRetroWindows(
+  root: string,
+  binding: CloseoutBinding,
+  runner: SafewordRunner,
+  windowsRemaining: number,
 ): CloseoutObservation['retro'] {
   const transcript = resolveTranscript(binding, root);
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0, evidenceHash: '' };
@@ -885,6 +896,11 @@ export function runBoundRetro(
       pendingDraftSignatures: pendingDraftRecords.map(draft => draft.signature),
       recordedAt: new Date().toISOString(),
     });
+  }
+  if (successful && agentFilingNeeded === false && pendingDrafts === 0 && transcriptAdvanced) {
+    if (windowsRemaining > 1) {
+      return runBoundRetroWindows(root, binding, runner, windowsRemaining - 1);
+    }
   }
   return {
     bound: true,
