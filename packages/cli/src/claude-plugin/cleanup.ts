@@ -1,6 +1,5 @@
 /* eslint-disable unicorn/no-null -- null is the versioned absent-file image */
 
-import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Stats } from 'node:fs';
 import {
@@ -16,6 +15,7 @@ import {
   openSync,
   readFileSync,
   readSync,
+  renameSync,
   rmdirSync,
   rmSync,
   writeSync,
@@ -63,7 +63,7 @@ interface CleanupTransaction {
   readonly state: 'active' | 'recoverable';
   readonly owner_pid: number;
   readonly entries: CleanupEntry[];
-  readonly plugin_mode?: {
+  readonly plugin_mode: {
     readonly plugin_version: string;
     readonly hook_manifest_sha256: string;
     readonly catalogue_sha256: string;
@@ -112,7 +112,10 @@ function settingsMutation(
 }
 
 function expectedSettingsMutation(original: string): string | null {
-  const parsed = parse(original) as Record<string, unknown>;
+  const parsed = parse(original, [], {
+    allowTrailingComma: true,
+    disallowComments: false,
+  }) as Record<string, unknown>;
   const hooks = (parsed.hooks as Record<string, unknown[]> | undefined) ?? {};
   const recognizedHooks = Object.entries(hooks).flatMap(([event, entries]) =>
     Array.isArray(entries)
@@ -130,7 +133,10 @@ function settingsMutationFromContent(
   original: string,
   recognizedHooks: ClaudeLegacyObservation['recognizedHooks'],
 ): string | null {
-  const parsed = parse(original) as Record<string, unknown>;
+  const parsed = parse(original, [], {
+    allowTrailingComma: true,
+    disallowComments: false,
+  }) as Record<string, unknown>;
   const hooks = (parsed.hooks as Record<string, unknown[]> | undefined) ?? {};
   const allHookValuesAreArrays = Object.values(hooks).every(entries => Array.isArray(entries));
   const hookCount = Object.values(hooks).reduce(
@@ -194,7 +200,14 @@ function transactionPath(cwd: string): string {
 function writeTransaction(cwd: string, transaction: CleanupTransaction): void {
   const path = transactionPath(cwd);
   mkdirSync(nodePath.dirname(path), { recursive: true, mode: 0o700 });
-  writeDurableFileExclusive(path, `${JSON.stringify(transaction, undefined, 2)}\n`, {
+  const content = `${JSON.stringify(transaction, undefined, 2)}\n`;
+  if (
+    transaction.entries.length > 1024 ||
+    Buffer.byteLength(content) > MAX_CLAUDE_TRANSACTION_BYTES
+  ) {
+    throw new Error('Claude cleanup transaction exceeds its recoverable size limit.');
+  }
+  writeDurableFileExclusive(path, content, {
     mode: 0o600,
   });
 }
@@ -288,23 +301,6 @@ function openCleanupTarget(root: string, relative: string, flags: number): OpenC
   }
 }
 
-const RENAME_AT_SCRIPT = String.raw`
-import { dlopen } from 'bun:ffi';
-const library = process.platform === 'darwin' ? '/usr/lib/libSystem.B.dylib' : 'libc.so.6';
-const handle = dlopen(library, { renameat: { args: ['i32', 'cstring', 'i32', 'cstring'], returns: 'i32' } });
-const source = Buffer.from(process.argv[1] + '\0');
-const destination = Buffer.from(process.argv[2] + '\0');
-const result = handle.symbols.renameat(3, source, 4, destination);
-handle.close();
-process.exit(result === 0 ? 0 : 1);
-`;
-
-function quarantineFailureDetail(result: ReturnType<typeof spawnSync>): string {
-  if (result.error !== undefined) return result.error.message;
-  if (typeof result.stderr === 'string' && result.stderr.trim() !== '') return result.stderr.trim();
-  return `exit ${String(result.status)}`;
-}
-
 function quarantineOpenTarget(
   root: string,
   opened: OpenCleanupTarget,
@@ -317,40 +313,19 @@ function quarantineOpenTarget(
   const safeQuarantinePath = containedClaudeCleanupPath(root, quarantinePath);
   const quarantineDirectory = nodePath.dirname(safeQuarantinePath);
   mkdirSync(quarantineDirectory, { recursive: true, mode: 0o700 });
-  const quarantineDescriptor = openSync(
-    quarantineDirectory,
-    fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0) | (fsConstants.O_NOFOLLOW ?? 0),
-  );
-  const quarantineName = nodePath.basename(safeQuarantinePath);
-  try {
-    beforeQuarantine?.();
-    const result = spawnSync(
-      'bun',
-      ['-e', RENAME_AT_SCRIPT, nodePath.basename(opened.path), quarantineName],
-      {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe', opened.parentDescriptor, quarantineDescriptor],
-      },
-    );
-    if (result.status !== 0) {
-      throw new Error(
-        `Atomic Claude cleanup quarantine failed for ${opened.path}: ${quarantineFailureDetail(result)}`,
-      );
-    }
-    const quarantined = lstatSync(nodePath.join(quarantineDirectory, quarantineName));
-    const descriptor = fstatSync(opened.descriptor);
-    if (!sameFile(quarantined, descriptor)) {
-      throw new Error('Claude cleanup quarantined a replacement target; retained it for recovery.');
-    }
-    // Destroy bytes only through the descriptor whose identity was validated.
-    // The empty private tombstone remains because POSIX has no conditional
-    // unlink-by-inode primitive that could safely remove it under a same-UID race.
-    ftruncateSync(opened.descriptor, 0);
-    fchmodSync(opened.descriptor, 0o600);
-    fsyncSync(opened.descriptor);
-  } finally {
-    closeSync(quarantineDescriptor);
+  beforeQuarantine?.();
+  renameSync(opened.path, safeQuarantinePath);
+  const quarantined = lstatSync(safeQuarantinePath);
+  const descriptor = fstatSync(opened.descriptor);
+  if (!sameFile(quarantined, descriptor)) {
+    throw new Error('Claude cleanup quarantined a replacement target; retained it for recovery.');
   }
+  // Destroy bytes only through the descriptor whose identity was validated.
+  // The empty private tombstone remains because POSIX has no conditional
+  // unlink-by-inode primitive that could safely remove it under a same-UID race.
+  ftruncateSync(opened.descriptor, 0);
+  fchmodSync(opened.descriptor, 0o600);
+  fsyncSync(opened.descriptor);
 }
 
 function revalidateOpenTarget(root: string, relative: string, opened: OpenCleanupTarget): void {
@@ -457,22 +432,11 @@ function pruneEmptyLegacyDirectories(cwd: string, entries: readonly CleanupEntry
   );
   for (const directory of deepestFirst) {
     try {
-      rmdirSync(nodePath.join(cwd, directory));
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'ENOENT' && code !== 'ENOTEMPTY' && code !== 'ENOTDIR') throw error;
+      rmdirSync(containedClaudeCleanupPath(cwd, directory));
+    } catch {
+      // Directory pruning is cosmetic; completed contraction remains authoritative.
     }
   }
-}
-
-function writePluginModeMarker(cwd: string, transactionId: string): void {
-  const marker = containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
-  mkdirSync(nodePath.dirname(marker), { recursive: true });
-  writeDurableFile(
-    marker,
-    `${JSON.stringify({ schema_version: 1, mode: 'plugin', transaction_id: transactionId })}\n`,
-    { mode: 0o600 },
-  );
 }
 
 function unresolvedPaths(legacy: ClaudeLegacyObservation): string[] {
@@ -521,10 +485,6 @@ function waitForPluginMode(cwd: string, deadline: number, now: () => number): bo
 
 function writeAutomaticPluginMode(cwd: string, transaction: CleanupTransaction): void {
   const pluginMode = transaction.plugin_mode;
-  if (pluginMode === undefined) {
-    writePluginModeMarker(cwd, transaction.transaction_id);
-    return;
-  }
   writeClaudePluginMode(
     cwd,
     createClaudePluginMode({
@@ -765,9 +725,9 @@ function performAutomaticMigration(
       unresolvedPaths: unresolved,
     };
   }
-  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   writeAutomaticPluginMode(projectRoot, transaction);
   rmSync(transactionPath(projectRoot), { force: true });
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
 
@@ -1061,7 +1021,9 @@ function pendingRecoveryEntries(
     if (entry.quarantine_path !== undefined) {
       const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
       if (existsSync(quarantine) && lstatSync(quarantine).size > 0) {
-        throw new Error(`Claude recovery preserved unverified bytes at ${entry.quarantine_path}`);
+        throw new Error(
+          `Claude recovery preserved unverified bytes at ${entry.quarantine_path}; inspect and move or remove that file before retrying recovery`,
+        );
       }
     }
     const path = assertSafeClaudeCleanupTarget(projectRoot, entry.path);
@@ -1085,9 +1047,9 @@ function applyRecoveryEntries(projectRoot: string, pending: readonly CleanupEntr
 }
 
 function completedRecoveryResult(projectRoot: string, transaction: CleanupTransaction): CliResult {
-  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   writeAutomaticPluginMode(projectRoot, transaction);
   rmSync(transactionPath(projectRoot), { force: true });
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return createResult({
     state: 'changed',
     data: {

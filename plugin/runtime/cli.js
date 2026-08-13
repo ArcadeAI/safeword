@@ -40032,7 +40032,6 @@ __export(exports_cleanup, {
   claudeLegacyMutations: () => claudeLegacyMutations,
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
-import { spawnSync as spawnSync6 } from "child_process";
 import { createHash as createHash19, randomUUID as randomUUID6 } from "crypto";
 import {
   closeSync as closeSync7,
@@ -40047,6 +40046,7 @@ import {
   openSync as openSync7,
   readFileSync as readFileSync42,
   readSync as readSync5,
+  renameSync as renameSync6,
   rmdirSync as rmdirSync5,
   rmSync as rmSync9,
   writeSync
@@ -40069,7 +40069,10 @@ function settingsMutation(cwd, legacy) {
   return { path: relative, content: settingsMutationFromContent(original, legacy.recognizedHooks) };
 }
 function expectedSettingsMutation(original) {
-  const parsed2 = parse3(original);
+  const parsed2 = parse3(original, [], {
+    allowTrailingComma: true,
+    disallowComments: false
+  });
   const hooks = parsed2.hooks ?? {};
   const recognizedHooks = Object.entries(hooks).flatMap(([event, entries]) => Array.isArray(entries) ? entries.flatMap((entry, index) => isAcceptedHistoricalHook(event, entry) ? [{ event, index, entry }] : []) : []);
   if (recognizedHooks.length === 0)
@@ -40077,7 +40080,10 @@ function expectedSettingsMutation(original) {
   return settingsMutationFromContent(original, recognizedHooks);
 }
 function settingsMutationFromContent(original, recognizedHooks) {
-  const parsed2 = parse3(original);
+  const parsed2 = parse3(original, [], {
+    allowTrailingComma: true,
+    disallowComments: false
+  });
   const hooks = parsed2.hooks ?? {};
   const allHookValuesAreArrays = Object.values(hooks).every((entries) => Array.isArray(entries));
   const hookCount = Object.values(hooks).reduce((count, entries) => count + (Array.isArray(entries) ? entries.length : 0), 0);
@@ -40119,8 +40125,12 @@ function transactionPath(cwd) {
 function writeTransaction(cwd, transaction) {
   const path4 = transactionPath(cwd);
   mkdirSync11(nodePath70.dirname(path4), { recursive: true, mode: 448 });
-  writeDurableFileExclusive(path4, `${JSON.stringify(transaction, undefined, 2)}
-`, {
+  const content = `${JSON.stringify(transaction, undefined, 2)}
+`;
+  if (transaction.entries.length > 1024 || Buffer.byteLength(content) > MAX_CLAUDE_TRANSACTION_BYTES) {
+    throw new Error("Claude cleanup transaction exceeds its recoverable size limit.");
+  }
+  writeDurableFileExclusive(path4, content, {
     mode: 384
   });
 }
@@ -40182,13 +40192,6 @@ function openCleanupTarget(root, relative, flags) {
     throw error2;
   }
 }
-function quarantineFailureDetail(result) {
-  if (result.error !== undefined)
-    return result.error.message;
-  if (typeof result.stderr === "string" && result.stderr.trim() !== "")
-    return result.stderr.trim();
-  return `exit ${String(result.status)}`;
-}
 function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   if (process.platform !== "darwin" && process.platform !== "linux") {
     throw new Error("Atomic Claude cleanup quarantine is unavailable on this platform.");
@@ -40196,28 +40199,16 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   const safeQuarantinePath = containedClaudeCleanupPath(root, quarantinePath);
   const quarantineDirectory = nodePath70.dirname(safeQuarantinePath);
   mkdirSync11(quarantineDirectory, { recursive: true, mode: 448 });
-  const quarantineDescriptor = openSync7(quarantineDirectory, fsConstants5.O_RDONLY | (fsConstants5.O_DIRECTORY ?? 0) | (fsConstants5.O_NOFOLLOW ?? 0));
-  const quarantineName = nodePath70.basename(safeQuarantinePath);
-  try {
-    beforeQuarantine?.();
-    const result = spawnSync6("bun", ["-e", RENAME_AT_SCRIPT, nodePath70.basename(opened.path), quarantineName], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe", opened.parentDescriptor, quarantineDescriptor]
-    });
-    if (result.status !== 0) {
-      throw new Error(`Atomic Claude cleanup quarantine failed for ${opened.path}: ${quarantineFailureDetail(result)}`);
-    }
-    const quarantined = lstatSync14(nodePath70.join(quarantineDirectory, quarantineName));
-    const descriptor = fstatSync5(opened.descriptor);
-    if (!sameFile(quarantined, descriptor)) {
-      throw new Error("Claude cleanup quarantined a replacement target; retained it for recovery.");
-    }
-    ftruncateSync(opened.descriptor, 0);
-    fchmodSync(opened.descriptor, 384);
-    fsyncSync2(opened.descriptor);
-  } finally {
-    closeSync7(quarantineDescriptor);
+  beforeQuarantine?.();
+  renameSync6(opened.path, safeQuarantinePath);
+  const quarantined = lstatSync14(safeQuarantinePath);
+  const descriptor = fstatSync5(opened.descriptor);
+  if (!sameFile(quarantined, descriptor)) {
+    throw new Error("Claude cleanup quarantined a replacement target; retained it for recovery.");
   }
+  ftruncateSync(opened.descriptor, 0);
+  fchmodSync(opened.descriptor, 384);
+  fsyncSync2(opened.descriptor);
 }
 function revalidateOpenTarget(root, relative, opened) {
   const path4 = assertSafeClaudeCleanupTarget(root, relative);
@@ -40298,19 +40289,9 @@ function pruneEmptyLegacyDirectories(cwd, entries) {
   const deepestFirst = [...candidates].toSorted((left, right) => right.split("/").length - left.split("/").length);
   for (const directory of deepestFirst) {
     try {
-      rmdirSync5(nodePath70.join(cwd, directory));
-    } catch (error2) {
-      const code = error2.code;
-      if (code !== "ENOENT" && code !== "ENOTEMPTY" && code !== "ENOTDIR")
-        throw error2;
-    }
+      rmdirSync5(containedClaudeCleanupPath(cwd, directory));
+    } catch {}
   }
-}
-function writePluginModeMarker(cwd, transactionId) {
-  const marker = containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
-  mkdirSync11(nodePath70.dirname(marker), { recursive: true });
-  writeDurableFile(marker, `${JSON.stringify({ schema_version: 1, mode: "plugin", transaction_id: transactionId })}
-`, { mode: 384 });
 }
 function unresolvedPaths(legacy) {
   return [
@@ -40349,10 +40330,6 @@ function waitForPluginMode(cwd, deadline, now) {
 }
 function writeAutomaticPluginMode(cwd, transaction) {
   const pluginMode = transaction.plugin_mode;
-  if (pluginMode === undefined) {
-    writePluginModeMarker(cwd, transaction.transaction_id);
-    return;
-  }
   writeClaudePluginMode(cwd, createClaudePluginMode({
     plugin_version: pluginMode.plugin_version,
     hook_manifest_sha256: pluginMode.hook_manifest_sha256,
@@ -40524,9 +40501,9 @@ function performAutomaticMigration(projectRoot, options, now) {
       unresolvedPaths: unresolved
     };
   }
-  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   writeAutomaticPluginMode(projectRoot, transaction);
   rmSync9(transactionPath(projectRoot), { force: true });
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return { state: "complete", advisory, unresolvedPaths: unresolved };
 }
 function isTransactionFile(before, opened, after) {
@@ -40714,7 +40691,7 @@ function pendingRecoveryEntries(projectRoot, transaction) {
     if (entry.quarantine_path !== undefined) {
       const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
       if (existsSync37(quarantine) && lstatSync14(quarantine).size > 0) {
-        throw new Error(`Claude recovery preserved unverified bytes at ${entry.quarantine_path}`);
+        throw new Error(`Claude recovery preserved unverified bytes at ${entry.quarantine_path}; inspect and move or remove that file before retrying recovery`);
       }
     }
     const path4 = assertSafeClaudeCleanupTarget(projectRoot, entry.path);
@@ -40738,9 +40715,9 @@ function applyRecoveryEntries(projectRoot, pending) {
   }
 }
 function completedRecoveryResult(projectRoot, transaction) {
-  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   writeAutomaticPluginMode(projectRoot, transaction);
   rmSync9(transactionPath(projectRoot), { force: true });
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return createResult({
     state: "changed",
     data: {
@@ -40781,7 +40758,7 @@ function recoverClaudeCleanup(cwd) {
     });
   }
 }
-var RENAME_AT_SCRIPT, CONCURRENT_MIGRATION_ADVISORY = "Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.", MAX_CLAUDE_TRANSACTION_BYTES, SHA256_PATTERN, UUID_PATTERN, CLEANUP_ENTRY_KEYS;
+var CONCURRENT_MIGRATION_ADVISORY = "Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.", MAX_CLAUDE_TRANSACTION_BYTES, SHA256_PATTERN, UUID_PATTERN, CLEANUP_ENTRY_KEYS;
 var init_cleanup = __esm(() => {
   init_main();
   init_result();
@@ -40792,16 +40769,6 @@ var init_cleanup = __esm(() => {
   init_legacy_classifier();
   init_migration_state();
   init_project_root();
-  RENAME_AT_SCRIPT = String.raw`
-import { dlopen } from 'bun:ffi';
-const library = process.platform === 'darwin' ? '/usr/lib/libSystem.B.dylib' : 'libc.so.6';
-const handle = dlopen(library, { renameat: { args: ['i32', 'cstring', 'i32', 'cstring'], returns: 'i32' } });
-const source = Buffer.from(process.argv[1] + '\0');
-const destination = Buffer.from(process.argv[2] + '\0');
-const result = handle.symbols.renameat(3, source, 4, destination);
-handle.close();
-process.exit(result === 0 ? 0 : 1);
-`;
   MAX_CLAUDE_TRANSACTION_BYTES = 8 * 1024 * 1024;
   SHA256_PATTERN = /^[\da-f]{64}$/u;
   UUID_PATTERN = /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/iu;
@@ -40944,7 +40911,7 @@ import {
   mkdtempSync as mkdtempSync4,
   readFileSync as readFileSync43,
   realpathSync as realpathSync7,
-  renameSync as renameSync6,
+  renameSync as renameSync7,
   rmSync as rmSync10,
   writeFileSync as writeFileSync14
 } from "fs";
@@ -41281,7 +41248,7 @@ function replaceArchitectureDocumentWith(destination, allowedRoot, writeTemporar
   try {
     const temporaryPath = nodePath71.join(temporaryDirectory, nodePath71.basename(destination));
     writeTemporaryFile(temporaryPath);
-    renameSync6(temporaryPath, destination);
+    renameSync7(temporaryPath, destination);
   } finally {
     rmSync10(temporaryDirectory, { recursive: true, force: true });
   }
@@ -41936,7 +41903,7 @@ function renderShellPlan(entries) {
 }
 
 // src/test-plan/resolve.ts
-import { spawnSync as spawnSync7 } from "child_process";
+import { spawnSync as spawnSync6 } from "child_process";
 import { existsSync as existsSync40, readFileSync as readFileSync46 } from "fs";
 import nodePath74 from "path";
 import process11 from "process";
@@ -41962,9 +41929,9 @@ function defaultIsToolAvailable(tool) {
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
   if (process11.platform === "win32") {
-    return spawnSync7("where.exe", [tool], { stdio: "ignore" }).status === 0;
+    return spawnSync6("where.exe", [tool], { stdio: "ignore" }).status === 0;
   }
-  return spawnSync7("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
+  return spawnSync6("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
     stdio: "ignore"
   }).status === 0;
 }
@@ -42275,7 +42242,7 @@ var init_test_plan = __esm(() => {
 });
 
 // src/test-execution/config.ts
-import { spawnSync as spawnSync8 } from "child_process";
+import { spawnSync as spawnSync7 } from "child_process";
 import {
   closeSync as closeSync8,
   constants as constants2,
@@ -42323,10 +42290,10 @@ function validatePersonalDirectory(namespaceRoot, path4) {
 }
 function validateGitPrivacy(cwd, path4) {
   const relativePath = nodePath76.relative(cwd, path4);
-  const ignored = spawnSync8("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
+  const ignored = spawnSync7("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
     stdio: "ignore"
   });
-  const tracked = spawnSync8("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], {
+  const tracked = spawnSync7("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], {
     stdio: "ignore"
   });
   if (ignored.status !== 0 || tracked.status === 0) {
@@ -42417,7 +42384,7 @@ __export(exports_test_execution, {
   runProjectTests: () => runProjectTests,
   observeTestExecutionStatus: () => observeTestExecutionStatus
 });
-import { spawnSync as spawnSync9 } from "child_process";
+import { spawnSync as spawnSync8 } from "child_process";
 import nodePath77 from "path";
 function shellInvocation(command) {
   if (process.platform === "win32") {
@@ -42427,7 +42394,7 @@ function shellInvocation(command) {
 }
 function spawnPlanEntry(entry2, captureOutput) {
   const [executable, arguments_] = shellInvocation(entry2.command);
-  return spawnSync9(executable, arguments_, {
+  return spawnSync8(executable, arguments_, {
     cwd: entry2.cwd,
     env: process.env,
     encoding: "utf8",
@@ -44340,7 +44307,7 @@ __export(exports_job, {
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob
 });
-import { spawn as spawn2, spawnSync as spawnSync10 } from "child_process";
+import { spawn as spawn2, spawnSync as spawnSync9 } from "child_process";
 import { createHash as createHash21, randomUUID as randomUUID8 } from "crypto";
 import {
   closeSync as closeSync10,
@@ -44349,7 +44316,7 @@ import {
   openSync as openSync10,
   readdirSync as readdirSync29,
   readFileSync as readFileSync51,
-  renameSync as renameSync7,
+  renameSync as renameSync8,
   statSync as statSync6,
   unlinkSync as unlinkSync3,
   writeFileSync as writeFileSync19
@@ -44394,7 +44361,7 @@ function writeJob(cwd, record2) {
   const temporary = `${destination}.${process.pid}.tmp`;
   writeFileSync19(temporary, `${JSON.stringify(record2)}
 `, { mode: 384 });
-  renameSync7(temporary, destination);
+  renameSync8(temporary, destination);
 }
 function withJobLock(cwd, id, operation) {
   return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
@@ -44793,7 +44760,7 @@ function isActivatedChild(record2, pid) {
 }
 function terminateReviewWorker(pid) {
   if (process.platform === "win32") {
-    spawnSync10("taskkill", ["/PID", String(pid), "/T", "/F"], {
+    spawnSync9("taskkill", ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       timeout: 5000,
       windowsHide: true
@@ -44944,12 +44911,12 @@ function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 function isReviewWorker(pid, id) {
-  const inspected = process.platform === "win32" ? spawnSync10("powershell.exe", [
+  const inspected = process.platform === "win32" ? spawnSync9("powershell.exe", [
     "-NoProfile",
     "-NonInteractive",
     "-Command",
     `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
-  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync10("ps", ["-p", String(pid), "-o", "command="], {
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9("ps", ["-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });
@@ -54741,7 +54708,7 @@ __export(exports_retro, {
   buildProvenanceResolver: () => buildProvenanceResolver,
   buildAutoExtractor: () => buildAutoExtractor
 });
-import { spawnSync as spawnSync11 } from "child_process";
+import { spawnSync as spawnSync10 } from "child_process";
 import {
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync7,
@@ -54931,7 +54898,7 @@ function headlessEnvironment(environment) {
   }));
 }
 function spawnClaudeExtractor(argv, spawnOptions) {
-  const result = spawnSync11("claude", argv, {
+  const result = spawnSync10("claude", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -54941,7 +54908,7 @@ function spawnClaudeExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function spawnCodexExtractor(argv, spawnOptions) {
-  const result = spawnSync11("codex", argv, {
+  const result = spawnSync10("codex", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     stdio: spawnOptions.stdio,
@@ -54950,7 +54917,7 @@ function spawnCodexExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: "" });
 }
 function spawnCursorExtractor(argv, spawnOptions) {
-  const result = spawnSync11("cursor-agent", argv, {
+  const result = spawnSync10("cursor-agent", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -54960,7 +54927,7 @@ function spawnCursorExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function prepareCursorExtractionDirectory(directory) {
-  const gitInit = spawnSync11("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
+  const gitInit = spawnSync10("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath88.join(directory, ".cursor");
@@ -55441,7 +55408,7 @@ async function executeRetroCliCommand(options, cwd) {
     sessionId: options.sessionId ?? process17.env.CLAUDE_SESSION_ID ?? options.transcript ?? "unknown",
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
-      runGit: () => spawnSync11("git", ["rev-parse", "--short", "HEAD"], {
+      runGit: () => spawnSync10("git", ["rev-parse", "--short", "HEAD"], {
         cwd: projectDirectory,
         encoding: "utf8",
         timeout: 1e4
@@ -56228,14 +56195,14 @@ __export(exports_codex_hook, {
   normalizeNamespaceRootLabel: () => normalizeNamespaceRootLabel,
   codexHook: () => codexHook
 });
-import { execFileSync as execFileSync10, spawnSync as spawnSync12 } from "child_process";
+import { execFileSync as execFileSync10, spawnSync as spawnSync11 } from "child_process";
 import {
   cpSync as cpSync2,
   existsSync as existsSync46,
   mkdirSync as mkdirSync18,
   mkdtempSync as mkdtempSync8,
   readFileSync as readFileSync58,
-  renameSync as renameSync8,
+  renameSync as renameSync9,
   rmSync as rmSync13,
   writeFileSync as writeFileSync23
 } from "fs";
@@ -56443,7 +56410,7 @@ function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath92.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
-  const result = spawnSync12("bun", [hookPath], {
+  const result = spawnSync11("bun", [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",
@@ -56504,7 +56471,7 @@ function snapshotPackagedHook(relativePath) {
   const snapshotHooksDirectory = nodePath92.join(directory, "hooks");
   try {
     cpSync2(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
-    renameSync8(stagingHooksDirectory, snapshotHooksDirectory);
+    renameSync9(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath92.join(snapshotHooksDirectory, relativePath);
     return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
