@@ -6,17 +6,17 @@ const RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
 const LONG_CONTEXT_START = 272_001;
 
 const SHORT_RATES = {
-  cacheWrite: 2_500_000n,
-  cached: 200_000n,
-  output: 12_000_000n,
-  uncached: 2_000_000n,
+  cacheWrite: 3_125_000n,
+  cached: 250_000n,
+  output: 15_000_000n,
+  uncached: 2_500_000n,
 };
 
 const LONG_RATES = {
-  cacheWrite: 5_000_000n,
-  cached: 400_000n,
-  output: 18_000_000n,
-  uncached: 4_000_000n,
+  cacheWrite: 6_250_000n,
+  cached: 500_000n,
+  output: 22_500_000n,
+  uncached: 5_000_000n,
 };
 
 type JsonObject = Record<string, unknown>;

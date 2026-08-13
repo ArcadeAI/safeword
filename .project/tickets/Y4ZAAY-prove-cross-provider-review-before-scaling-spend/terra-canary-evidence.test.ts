@@ -108,7 +108,7 @@ describe("retained Terra provider evidence", () => {
       "repository-reading",
       "finding-verification",
     ]);
-    expect(validated.totalCostPicodollars).toBe(568_000_000n);
+    expect(validated.totalCostPicodollars).toBe(710_000_000n);
   });
 
   test.each([
@@ -181,9 +181,9 @@ describe("retained Terra provider evidence", () => {
 
 describe("frozen Terra pricing", () => {
   test.each([
-    [272_000, 0, 0, 1, 544_000_000_000n + 12_000_000n],
-    [272_001, 0, 0, 1, 1_088_004_000_000n + 18_000_000n],
-    [100, 20, 10, 10, 289_000_000n],
+    [272_000, 0, 0, 1, 680_015_000_000n],
+    [272_001, 0, 0, 1, 1_360_027_500_000n],
+    [100, 20, 10, 10, 361_250_000n],
   ])(
     "prices input=%i cached=%i write=%i output=%i exactly",
     (input, cached, cacheWrite, output, expected) => {
@@ -208,9 +208,9 @@ describe("frozen Terra pricing", () => {
   );
 
   test.each([
-    [271_999, 414_010_000_000n],
-    [272_000, 414_012_000_000n],
-    [272_001, 828_022_000_000n],
+    [271_999, 517_512_500_000n],
+    [272_000, 517_515_000_000n],
+    [272_001, 1_035_027_500_000n],
   ])(
     "tiers mixed cached and cache-write input from total input=%i",
     (inputTokens, expected) => {
