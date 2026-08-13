@@ -895,7 +895,7 @@ function assertBlockedQuietMode(result: CliExecution): void {
   assert.deepEqual(result, {
     stdout:
       'Review incomplete — required independent coverage is unsatisfied.\n' +
-      'The independent reviewer using opus (Claude) could not be run. The same reviewer on its alternate model using sonnet (Claude) could not be run. The fallback review (Codex) could not be run. No independent check was recorded.\n',
+      'The independent reviewer using opus (Claude) exited before returning a review. The same reviewer on its alternate model using sonnet (Claude) exited before returning a review. The fallback review (Codex) exited before returning a review. No independent check was recorded.\n',
     stderr: '',
     exitCode: 2,
   });
