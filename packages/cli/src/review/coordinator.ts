@@ -119,8 +119,13 @@ function reviewerFeedback(output: ReviewerOutput): readonly Finding[] {
   ];
 }
 
+const MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000;
+
 function terminalSafeReviewerText(value: string): string {
-  return value.replaceAll(/\p{Cc}/gu, ' ');
+  const sanitized = value.replaceAll(/[\p{Cc}\p{Cf}]/gu, ' ');
+  const characters = sanitized.match(/./gu) ?? [];
+  if (characters.length <= MAX_TERMINAL_REVIEWER_TEXT_LENGTH) return sanitized;
+  return `${characters.slice(0, MAX_TERMINAL_REVIEWER_TEXT_LENGTH - 1).join('')}…`;
 }
 
 async function executeReview(
@@ -456,6 +461,10 @@ async function runDegradedFallback(
     undefined,
     input.runDeadline,
   );
+  const fallback =
+    outcome.kind === 'completed'
+      ? ({ kind: 'completed' } as const)
+      : ({ kind: 'failed', failure: outcome.failure } as const);
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.author,
@@ -470,7 +479,7 @@ async function runDegradedFallback(
       author: input.author,
       preferredFailure: input.preferredFailure,
       alternateFailure: input.alternateFailure,
-      fallback: { kind: 'completed' },
+      fallback,
     }),
   });
   if (changedResult !== undefined) return changedResult;

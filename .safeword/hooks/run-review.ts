@@ -26,7 +26,13 @@ export function reviewChildEnvironment(
   for (const name of Object.keys(childEnvironment)) {
     if (name.toUpperCase() === MANAGED_PROGRESS_SIGNAL) delete childEnvironment[name];
   }
-  if (arguments_[0] === 'review' && arguments_[1] === 'run' && arguments_.includes('--json')) {
+  const optionBoundary = arguments_.indexOf('--');
+  const commandArguments = optionBoundary === -1 ? arguments_ : arguments_.slice(0, optionBoundary);
+  if (
+    commandArguments[0] === 'review' &&
+    commandArguments[1] === 'run' &&
+    commandArguments.includes('--json')
+  ) {
     childEnvironment[MANAGED_PROGRESS_SIGNAL] = '1';
   }
   return childEnvironment;
@@ -38,7 +44,7 @@ function supportsReview(
   environment: NodeJS.ProcessEnv,
 ): boolean {
   const arguments_ = ['review', 'run', '--help'];
-  const result = spawnSync(command, [...prefix, 'review', 'run', '--help'], {
+  const result = spawnSync(command, [...prefix, ...arguments_], {
     env: reviewChildEnvironment(environment, arguments_),
     stdio: 'ignore',
     timeout,

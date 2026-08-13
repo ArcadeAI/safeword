@@ -43851,7 +43851,11 @@ function reviewerFeedback(output) {
   ];
 }
 function terminalSafeReviewerText(value) {
-  return value.replaceAll(/\p{Cc}/gu, " ");
+  const sanitized = value.replaceAll(/[\p{Cc}\p{Cf}]/gu, " ");
+  const characters = sanitized.match(/./gu) ?? [];
+  if (characters.length <= MAX_TERMINAL_REVIEWER_TEXT_LENGTH)
+    return sanitized;
+  return `${characters.slice(0, MAX_TERMINAL_REVIEWER_TEXT_LENGTH - 1).join("")}\u2026`;
 }
 async function executeReview(reviewer, prepared, model, runDeadline) {
   let outcome;
@@ -44040,6 +44044,7 @@ function prepareFallbackReview(input, assignedReviewer, author) {
 async function runDegradedFallback(input) {
   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared, undefined, input.runDeadline);
+  const fallback = outcome.kind === "completed" ? { kind: "completed" } : { kind: "failed", failure: outcome.failure };
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.author,
@@ -44054,7 +44059,7 @@ async function runDegradedFallback(input) {
       author: input.author,
       preferredFailure: input.preferredFailure,
       alternateFailure: input.alternateFailure,
-      fallback: { kind: "completed" }
+      fallback
     })
   });
   if (changedResult !== undefined)
@@ -44387,7 +44392,7 @@ async function runReview(input) {
   const output = provenance.output;
   return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }
-var FAILURE_CAUSES, NON_ATTEMPT_FAILURES;
+var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES;
 var init_coordinator = __esm(() => {
   init_run_identity();
   init_result();
@@ -44434,11 +44439,13 @@ import {
   openSync as openSync10,
   readdirSync as readdirSync29,
   readFileSync as readFileSync51,
+  realpathSync as realpathSync11,
   renameSync as renameSync8,
   statSync as statSync6,
   unlinkSync as unlinkSync3,
   writeFileSync as writeFileSync19
 } from "fs";
+import { homedir as homedir6 } from "os";
 import nodePath82 from "path";
 function jobsDirectory(cwd) {
   return nodePath82.join(cwd, ".safeword", "state", "reviews");
@@ -44447,6 +44454,45 @@ function jobPath(cwd, id) {
   if (!isJobId(id))
     throw new Error("invalid review job id");
   return nodePath82.join(jobsDirectory(cwd), `${id}.json`);
+}
+function completionReceiptPath(cwd, id) {
+  const project = createHash21("sha256").update(realpathSync11.native(cwd)).digest("hex");
+  const testRoot = process.env.SAFEWORD_REVIEW_RECEIPT_ROOT;
+  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath82.join(homedir6(), ".local", "state");
+  return nodePath82.join(stateRoot, "safeword", "review-receipts", project, `${id}.sha256`);
+}
+function completionReceipt(cwd, record2) {
+  return createHash21("sha256").update(realpathSync11.native(cwd)).update("\x00").update(JSON.stringify(record2)).digest("hex");
+}
+function writeCompletionReceipt(cwd, record2) {
+  const destination = completionReceiptPath(cwd, record2.id);
+  mkdirSync14(nodePath82.dirname(destination), { recursive: true, mode: 448 });
+  const temporary = `${destination}.${process.pid}.tmp`;
+  writeFileSync19(temporary, `${completionReceipt(cwd, record2)}
+`, { mode: 384 });
+  renameSync8(temporary, destination);
+  pruneCompletionReceipts(nodePath82.dirname(destination), destination);
+}
+function pruneCompletionReceipts(directory, keep) {
+  try {
+    const receipts = readdirSync29(directory).filter((name) => name.endsWith(".sha256")).map((name) => {
+      const path4 = nodePath82.join(directory, name);
+      return { path: path4, modified: statSync6(path4).mtimeMs };
+    }).toSorted((left, right) => right.modified - left.modified);
+    for (const receipt of receipts.slice(MAX_COMPLETION_RECEIPTS_PER_PROJECT)) {
+      if (receipt.path !== keep)
+        unlinkSync3(receipt.path);
+    }
+  } catch {}
+}
+function hasValidCompletionReceipt(cwd, record2) {
+  if (record2.state !== "completed")
+    return true;
+  try {
+    return readFileSync51(completionReceiptPath(cwd, record2.id), "utf8").trim() === completionReceipt(cwd, record2);
+  } catch {
+    return false;
+  }
 }
 function fingerprint(cwd, kind, targets, context = []) {
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
@@ -44730,6 +44776,19 @@ function terminalResult(cwd, record2) {
   } catch {
     return staleResult(record2);
   }
+  if (!hasValidCompletionReceipt(cwd, record2)) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_JOB_INVALID",
+          message: "The completed review could not be verified as worker-produced.",
+          retryable: true
+        }
+      ],
+      data: { command: "review status", status: "failed", review_id: record2.id }
+    });
+  }
   if (record2.result !== undefined)
     return record2.result;
   return createResult({
@@ -44792,6 +44851,12 @@ function launchReviewWorker(input) {
     stdio: input.managedProgress ? ["ignore", "ignore", "inherit"] : "ignore"
   });
 }
+function workerSpawned(child) {
+  return new Promise((resolve) => {
+    child.once("spawn", resolve);
+    child.once("error", resolve);
+  });
+}
 function announceBackgroundProgress(progress, managedProgress) {
   if (managedProgress)
     return;
@@ -44837,6 +44902,7 @@ async function startReviewJob(input) {
     managedProgress,
     targets: input.targets
   });
+  const spawned = workerSpawned(child);
   child.once("error", (error2) => {
     const failed = createResult({
       state: "failed",
@@ -44879,24 +44945,31 @@ async function startReviewJob(input) {
     });
     return failed;
   }
-  const activated = updateActiveJob(input.cwd, id, (spawned) => ({
-    ...spawned,
+  updateActiveJob(input.cwd, id, (current) => ({
+    ...current,
     state: "running",
     pid: child.pid,
     updated_at: new Date().toISOString()
   }));
-  if (!isActivatedChild(activated, child.pid)) {
-    terminateNonterminalWorker(activated, child.pid);
-    return currentResult(input.cwd, activated);
+  await spawned;
+  const observed = readJob(input.cwd, id);
+  if (!isActivatedChild(observed, child.pid)) {
+    terminateUnactivatedWorker(observed, child.pid);
+    return currentResult(input.cwd, observed);
   }
   announceBackgroundProgress(input.progress, managedProgress);
   const deadline = Date.now() + configuredCourtesyWait();
+  let nextInspectionAt = 0;
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);
     if (latest.state !== "running")
       return currentResult(input.cwd, latest);
-    if (workerDefinitelyMismatches(latest))
-      return failExitedJob(input.cwd, latest);
+    const now = Date.now();
+    if (now >= nextInspectionAt) {
+      if (workerDefinitelyMismatches(latest))
+        return failExitedJob(input.cwd, latest);
+      nextInspectionAt = now + WORKER_INSPECTION_INTERVAL_MS;
+    }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   return currentResult(input.cwd, readJob(input.cwd, id));
@@ -44907,8 +44980,8 @@ function isActivatedChild(record2, pid) {
 function workerDefinitelyMismatches(record2) {
   return record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "mismatch";
 }
-function terminateNonterminalWorker(record2, pid) {
-  if (record2.state === "launching" || record2.state === "running")
+function terminateUnactivatedWorker(record2, pid) {
+  if (["launching", "running", "canceled"].includes(record2.state))
     terminateReviewWorker(pid);
 }
 function terminateReviewWorker(pid) {
@@ -44925,12 +44998,20 @@ function terminateReviewWorker(pid) {
   } catch {}
 }
 function completeReviewJob(cwd, id, result) {
-  updateActiveJob(cwd, id, (record2) => ({
-    ...record2,
-    state: result.state === "failed" ? "failed" : "completed",
-    result,
-    updated_at: new Date().toISOString()
-  }));
+  withJobLock(cwd, id, () => {
+    const record2 = readJob(cwd, id);
+    if (record2.state !== "launching" && record2.state !== "running")
+      return;
+    const completed = {
+      ...record2,
+      state: result.state === "failed" ? "failed" : "completed",
+      result,
+      updated_at: new Date().toISOString()
+    };
+    if (completed.state === "completed")
+      writeCompletionReceipt(cwd, completed);
+    writeJob(cwd, completed);
+  });
 }
 function reviewJobWorkerInput(cwd, id) {
   const record2 = withJobLock(cwd, id, () => {
@@ -45077,7 +45158,7 @@ function inspectReviewWorker(pid, id) {
     return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, JOB_LOCK_WAIT_MS = 2000;
+var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000, MAX_COMPLETION_RECEIPTS_PER_PROJECT = 128;
 var init_job = __esm(() => {
   init_result();
   init_contract();
@@ -54868,7 +54949,7 @@ import {
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync56,
-  realpathSync as realpathSync11,
+  realpathSync as realpathSync12,
   statSync as statSync7,
   writeFileSync as writeFileSync22
 } from "fs";
@@ -55212,10 +55293,10 @@ function unavailableTransport() {
 }
 function physicalProjectPath(projectDirectory) {
   try {
-    return realpathSync11(projectDirectory);
+    return realpathSync12(projectDirectory);
   } catch {
     try {
-      return nodePath88.join(realpathSync11(nodePath88.dirname(projectDirectory)), nodePath88.basename(projectDirectory));
+      return nodePath88.join(realpathSync12(nodePath88.dirname(projectDirectory)), nodePath88.basename(projectDirectory));
     } catch {
       return;
     }
@@ -55223,7 +55304,7 @@ function physicalProjectPath(projectDirectory) {
 }
 function physicalOutboxPath(outboxDirectory) {
   try {
-    const physicalOutbox = realpathSync11(outboxDirectory);
+    const physicalOutbox = realpathSync12(outboxDirectory);
     return statSync7(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
@@ -61983,7 +62064,8 @@ function withCompatibilityDeprecation(result, definition, commandOptions = {}, i
   return withDeprecation(result, alias2.name, alias2.compatibility.replacement ?? alias2.aliasFor, alias2.compatibility, commandOptions);
 }
 function commandProgress(definition, options) {
-  const managedReview = consumeManagedProgressSignal(process19.env) && definition.name === "review run";
+  const managedProgressRequested = consumeManagedProgressSignal(process19.env);
+  const managedReview = managedProgressRequested && definition.name === "review run";
   if (!shouldReportProgress({ ...options, managedReview }))
     return;
   const progress = createProgressReporter({

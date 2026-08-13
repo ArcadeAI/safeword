@@ -181,8 +181,10 @@ function commandProgress(
   definition: CommandDefinition,
   options: { readonly json: boolean; readonly quiet: boolean },
 ): ProgressReporter | undefined {
-  const managedReview =
-    consumeManagedProgressSignal(process.env) && definition.name === 'review run';
+  // The opt-in is private to one wrapper -> review-run hop. Consume it for every
+  // route so an inherited or misrouted signal cannot leak into descendants.
+  const managedProgressRequested = consumeManagedProgressSignal(process.env);
+  const managedReview = managedProgressRequested && definition.name === 'review run';
   if (!shouldReportProgress({ ...options, managedReview })) return undefined;
   const progress = createProgressReporter({
     schedule: (callback, delay) => setTimeout(callback, delay),

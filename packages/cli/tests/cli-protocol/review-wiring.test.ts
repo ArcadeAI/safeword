@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
@@ -175,6 +183,30 @@ async function runManagedJsonReview(
 }
 
 describe('cross-agent review public-command wiring', () => {
+  it('rejects starting a detached review offline before creating durable job state', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli([
+      'review',
+      'run',
+      'quality-review',
+      'target.md',
+      '--offline',
+      '--json',
+      '--no-input',
+      '--cwd',
+      directory,
+    ]);
+
+    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: [{ code: 'CLI_ONLINE_REQUIRED' }],
+      data: { command: 'review run', offline: true },
+    });
+    expect(existsSync(nodePath.join(directory, '.safeword', 'state', 'reviews'))).toBe(false);
+  });
+
   it('collects review status offline because durable job state is local', async () => {
     const directory = createTemporaryDirectory();
 
@@ -381,8 +413,8 @@ describe('cross-agent review public-command wiring', () => {
             PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: failure,
-            SAFEWORD_REVIEW_FAKE_FINDING: String.raw`DISTINCTIVE\u001b[31mACTIONABLE_FINDING`,
-            SAFEWORD_REVIEW_FAKE_SUMMARY: String.raw`DISTINCTIVE\u0007REVIEW_SUMMARY`,
+            SAFEWORD_REVIEW_FAKE_FINDING: String.raw`DISTINCTIVE\u001b[31m\u202eACTIONABLE_FINDING`,
+            SAFEWORD_REVIEW_FAKE_SUMMARY: String.raw`DISTINCTIVE\u0007\u2066REVIEW_SUMMARY`,
             SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
             SAFEWORD_REVIEW_LOG: log,
             SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -391,12 +423,58 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode, result.stdout).toBe(2);
-      expect(result.stdout).toContain('DISTINCTIVE REVIEW_SUMMARY');
-      expect(result.stdout).toContain('DISTINCTIVE [31mACTIONABLE_FINDING');
+      expect(result.stdout).toContain('DISTINCTIVE  REVIEW_SUMMARY');
+      expect(result.stdout).toContain('DISTINCTIVE [31m ACTIONABLE_FINDING');
       expect(result.stdout).not.toContain('\u{1B}');
       expect(result.stdout).not.toContain('\u{7}');
+      expect(result.stdout).not.toContain('\u{202E}');
+      expect(result.stdout).not.toContain('\u{2066}');
     },
   );
+
+  it('bounds reviewer-authored prose projected into terminal findings', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    const oversizedSummary = `SUMMARY_${'s'.repeat(2500)}`;
+    const oversizedFinding = `FINDING_${'f'.repeat(2500)}`;
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FINDING: oversizedFinding,
+          SAFEWORD_REVIEW_FAKE_SUMMARY: oversizedSummary,
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    const payload = JSON.parse(result.stdout) as {
+      findings: { code: string; message: string }[];
+    };
+    const reviewerFindings = payload.findings.filter(({ code }) => code.startsWith('REVIEWER_'));
+    for (const finding of reviewerFindings) {
+      expect(finding.message.match(/./gu)).toHaveLength(2000);
+      expect(finding.message).toMatch(/…$/u);
+    }
+  });
 
   it('does not launch a same-agent candidate when the opposite reviewer is available', async () => {
     const directory = createTemporaryDirectory();

@@ -222,7 +222,10 @@ Quality review, the BDD scenario gate, and implementation-plan review share the 
 
 Safeword-managed review workflows also emit bounded lifecycle progress on stderr
 while a reviewer is active. The final machine result remains the only stdout
-artifact, and quiet mode suppresses the progress. Direct callers of
+artifact. After a background handoff returns, that review owns its inherited
+stderr until it finishes, so its lifecycle lines can continue alongside later
+host output; use the returned status command to correlate the terminal result.
+Quiet mode suppresses the progress. Direct callers of
 `safeword review run --json` retain the existing silent-stderr contract.
 
 The coordinator tries the opposite agent's default and configured alternate model before same-agent headless review. If every CLI route fails, foreground agent workflows can continue once through the internal `finish-review` skill: first one host-native fresh-context reviewer, then one bounded main-thread self-review. This continuation is best-effort because only the foreground host can invoke its session agent. It is reported as supplemental feedback with its live-worktree source limits; it never becomes completed standard or independent machine coverage, never creates an independent stamp, and cannot satisfy `crossAgentReview: "require"`. Project-owned Claude assets make the fresh-context route available in Claude Code Cloud even when no external agent CLI is installed. See [Configuration](/reference/configuration#review-gates).

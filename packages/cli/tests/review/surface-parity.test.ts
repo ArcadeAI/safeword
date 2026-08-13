@@ -239,6 +239,16 @@ exit ${status}`,
         '--json',
       ]),
     ).toEqual({ PATH: '/usr/bin', SAFEWORD_REVIEW_PROGRESS: '1' });
+    expect(
+      reviewChildEnvironment(contaminated, [
+        'review',
+        'run',
+        'quality-review',
+        'target',
+        '--',
+        '--json',
+      ]),
+    ).toEqual({ PATH: '/usr/bin' });
   });
 
   it.each([

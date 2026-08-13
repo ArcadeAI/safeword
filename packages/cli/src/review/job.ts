@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
@@ -8,11 +8,13 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import type { ProgressReporter } from '../cli-protocol/handler.js';
@@ -40,7 +42,9 @@ interface ReviewJobRecord {
 
 const COURTESY_WAIT_MS = 75_000;
 const POLL_INTERVAL_MS = 100;
+const WORKER_INSPECTION_INTERVAL_MS = 1000;
 const JOB_LOCK_WAIT_MS = 2000;
+const MAX_COMPLETION_RECEIPTS_PER_PROJECT = 128;
 
 function jobsDirectory(cwd: string): string {
   return nodePath.join(cwd, '.safeword', 'state', 'reviews');
@@ -49,6 +53,62 @@ function jobsDirectory(cwd: string): string {
 function jobPath(cwd: string, id: string): string {
   if (!isJobId(id)) throw new Error('invalid review job id');
   return nodePath.join(jobsDirectory(cwd), `${id}.json`);
+}
+
+function completionReceiptPath(cwd: string, id: string): string {
+  const project = createHash('sha256').update(realpathSync.native(cwd)).digest('hex');
+  const testRoot = process.env.SAFEWORD_REVIEW_RECEIPT_ROOT;
+  const stateRoot =
+    process.env.NODE_ENV === 'test' && testRoot !== undefined
+      ? testRoot
+      : (process.env.XDG_STATE_HOME ?? nodePath.join(homedir(), '.local', 'state'));
+  return nodePath.join(stateRoot, 'safeword', 'review-receipts', project, `${id}.sha256`);
+}
+
+function completionReceipt(cwd: string, record: ReviewJobRecord): string {
+  return createHash('sha256')
+    .update(realpathSync.native(cwd))
+    .update('\0')
+    .update(JSON.stringify(record))
+    .digest('hex');
+}
+
+function writeCompletionReceipt(cwd: string, record: ReviewJobRecord): void {
+  const destination = completionReceiptPath(cwd, record.id);
+  mkdirSync(nodePath.dirname(destination), { recursive: true, mode: 0o700 });
+  const temporary = `${destination}.${process.pid}.tmp`;
+  writeFileSync(temporary, `${completionReceipt(cwd, record)}\n`, { mode: 0o600 });
+  renameSync(temporary, destination);
+  pruneCompletionReceipts(nodePath.dirname(destination), destination);
+}
+
+function pruneCompletionReceipts(directory: string, keep: string): void {
+  try {
+    const receipts = readdirSync(directory)
+      .filter(name => name.endsWith('.sha256'))
+      .map(name => {
+        const path = nodePath.join(directory, name);
+        return { path, modified: statSync(path).mtimeMs };
+      })
+      .toSorted((left, right) => right.modified - left.modified);
+    for (const receipt of receipts.slice(MAX_COMPLETION_RECEIPTS_PER_PROJECT)) {
+      if (receipt.path !== keep) unlinkSync(receipt.path);
+    }
+  } catch {
+    // Receipt pruning is bounded housekeeping; the just-written proof remains authoritative.
+  }
+}
+
+function hasValidCompletionReceipt(cwd: string, record: ReviewJobRecord): boolean {
+  if (record.state !== 'completed') return true;
+  try {
+    return (
+      readFileSync(completionReceiptPath(cwd, record.id), 'utf8').trim() ===
+      completionReceipt(cwd, record)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function fingerprint(
@@ -386,6 +446,19 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
   } catch {
     return staleResult(record);
   }
+  if (!hasValidCompletionReceipt(cwd, record)) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_JOB_INVALID',
+          message: 'The completed review could not be verified as worker-produced.',
+          retryable: true,
+        },
+      ],
+      data: { command: 'review status', status: 'failed', review_id: record.id },
+    });
+  }
   if (record.result !== undefined) return record.result;
   return createResult({
     state: 'failed',
@@ -455,9 +528,18 @@ function launchReviewWorker(input: {
         ...(input.managedProgress && { SAFEWORD_REVIEW_PROGRESS: '1' }),
       },
       detached: true,
+      // The detached worker owns this inherited descriptor after the launcher exits;
+      // coordinator writes are best-effort, so a closed downstream pipe cannot fail the job.
       stdio: input.managedProgress ? ['ignore', 'ignore', 'inherit'] : 'ignore',
     },
   );
+}
+
+function workerSpawned(child: ChildProcess): Promise<void> {
+  return new Promise(resolve => {
+    child.once('spawn', resolve);
+    child.once('error', resolve);
+  });
 }
 
 function announceBackgroundProgress(
@@ -512,6 +594,7 @@ export async function startReviewJob(input: {
     managedProgress,
     targets: input.targets,
   });
+  const spawned = workerSpawned(child);
   child.once('error', error => {
     const failed = createResult({
       state: 'failed',
@@ -556,23 +639,30 @@ export async function startReviewJob(input: {
     });
     return failed;
   }
-  const activated = updateActiveJob(input.cwd, id, spawned => ({
-    ...spawned,
+  updateActiveJob(input.cwd, id, current => ({
+    ...current,
     state: 'running',
     pid: child.pid,
     updated_at: new Date().toISOString(),
   }));
-  if (!isActivatedChild(activated, child.pid)) {
-    terminateNonterminalWorker(activated, child.pid);
-    return currentResult(input.cwd, activated);
+  await spawned;
+  const observed = readJob(input.cwd, id);
+  if (!isActivatedChild(observed, child.pid)) {
+    terminateUnactivatedWorker(observed, child.pid);
+    return currentResult(input.cwd, observed);
   }
   // Managed workers forward their coordinator progress over inherited stderr.
   announceBackgroundProgress(input.progress, managedProgress);
   const deadline = Date.now() + configuredCourtesyWait();
+  let nextInspectionAt = 0;
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);
     if (latest.state !== 'running') return currentResult(input.cwd, latest);
-    if (workerDefinitelyMismatches(latest)) return failExitedJob(input.cwd, latest);
+    const now = Date.now();
+    if (now >= nextInspectionAt) {
+      if (workerDefinitelyMismatches(latest)) return failExitedJob(input.cwd, latest);
+      nextInspectionAt = now + WORKER_INSPECTION_INTERVAL_MS;
+    }
     await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   return currentResult(input.cwd, readJob(input.cwd, id));
@@ -586,8 +676,10 @@ function workerDefinitelyMismatches(record: ReviewJobRecord): boolean {
   return record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === 'mismatch';
 }
 
-function terminateNonterminalWorker(record: ReviewJobRecord, pid: number): void {
-  if (record.state === 'launching' || record.state === 'running') terminateReviewWorker(pid);
+function terminateUnactivatedWorker(record: ReviewJobRecord, pid: number): void {
+  // A cancellation can win after spawn but before the worker PID is published.
+  // Completed/failed records won the race legitimately and must remain untouched.
+  if (['launching', 'running', 'canceled'].includes(record.state)) terminateReviewWorker(pid);
 }
 
 function terminateReviewWorker(pid: number): void {
@@ -607,12 +699,18 @@ function terminateReviewWorker(pid: number): void {
 }
 
 export function completeReviewJob(cwd: string, id: string, result: CliResult): void {
-  updateActiveJob(cwd, id, record => ({
-    ...record,
-    state: result.state === 'failed' ? 'failed' : 'completed',
-    result,
-    updated_at: new Date().toISOString(),
-  }));
+  withJobLock(cwd, id, () => {
+    const record = readJob(cwd, id);
+    if (record.state !== 'launching' && record.state !== 'running') return;
+    const completed: ReviewJobRecord = {
+      ...record,
+      state: result.state === 'failed' ? 'failed' : 'completed',
+      result,
+      updated_at: new Date().toISOString(),
+    };
+    if (completed.state === 'completed') writeCompletionReceipt(cwd, completed);
+    writeJob(cwd, completed);
+  });
 }
 
 export function reviewJobWorkerInput(

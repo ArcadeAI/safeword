@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   unlinkSync,
   writeFileSync,
@@ -25,8 +26,9 @@ import {
 } from '../review-fixtures.js';
 
 const COMPLETE_WORKER = String.raw`
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 const id = process.env.SAFEWORD_REVIEW_JOB_ID;
 const path = join(process.cwd(), '.safeword', 'state', 'reviews', id + '.json');
 const record = JSON.parse(readFileSync(path, 'utf8'));
@@ -47,12 +49,21 @@ record.result = {
   }
 };
 writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
-import { renameSync } from 'node:fs';
+const canonicalProject = realpathSync.native(process.cwd());
+const project = createHash('sha256').update(canonicalProject).digest('hex');
+const receipt = join(process.env.SAFEWORD_REVIEW_RECEIPT_ROOT, 'safeword', 'review-receipts', project, id + '.sha256');
+const digest = createHash('sha256')
+  .update(canonicalProject).update('\0').update(JSON.stringify(record)).digest('hex');
+mkdirSync(dirname(receipt), { recursive: true, mode: 0o700 });
+writeFileSync(receipt + '.worker.tmp', digest + '\n', { mode: 0o600 });
+renameSync(receipt + '.worker.tmp', receipt);
 renameSync(path + '.worker.tmp', path);
 `;
 
 function project(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-job-test-'));
+  const receiptPrefix = nodePath.join(tmpdir(), 'safeword-review-receipt-test-');
+  vi.stubEnv('SAFEWORD_REVIEW_RECEIPT_ROOT', mkdtempSync(receiptPrefix));
   writeFileSync(nodePath.join(directory, 'input.md'), 'review me\n');
   return directory;
 }
@@ -247,6 +258,33 @@ describe('durable review jobs', () => {
     },
   );
 
+  it.runIf(process.platform !== 'win32')(
+    'bounds synchronous worker inspection during the courtesy wait',
+    async () => {
+      const cwd = project();
+      const bin = nodePath.join(cwd, 'bin');
+      const inspectionLog = nodePath.join(cwd, 'ps.log');
+      mkdirSync(bin);
+      writeFileSync(
+        nodePath.join(bin, 'ps'),
+        `#!/bin/sh\nprintf 'inspected\\n' >> ${JSON.stringify(inspectionLog)}\nexec /bin/ps "$@"\n`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', `${bin}:/usr/bin:/bin`);
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '450');
+
+      const pending = await startReviewJob({
+        cwd,
+        kind: 'quality-review',
+        targets: ['input.md'],
+      });
+
+      expect(readFileSync(inspectionLog, 'utf8').trim().split('\n')).toHaveLength(2);
+      cancelReviewJob(cwd, (pending.data as { review_id: string }).review_id);
+    },
+  );
+
   it('launches a managed worker in JSON mode', async () => {
     const cwd = project();
     const argumentsPath = nodePath.join(cwd, 'worker-arguments.json');
@@ -363,6 +401,36 @@ describe('durable review jobs', () => {
     expect(result.findings[0]?.message).toBe('Independent review complete.');
   });
 
+  it('rejects a repo-local edit to a worker-produced completed result', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const completed = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: ['input.md'],
+    });
+    const records = nodePath.join(cwd, '.safeword', 'state', 'reviews');
+    const recordName = readdirSync(records).find(candidate => candidate.endsWith('.json'));
+    expect(recordName).toBeDefined();
+    if (recordName === undefined) throw new Error('completed job record was not written');
+    const recordPath = nodePath.join(records, recordName);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+      id: string;
+      result: { findings: { message: string }[] };
+    };
+    const finding = record.result.findings[0];
+    if (finding === undefined) throw new Error('completed job result has no finding');
+    finding.message = 'planted approval';
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+    const result = reviewJobStatus(cwd, record.id);
+
+    expect(completed.state, JSON.stringify(completed)).toBe('healthy');
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+  });
+
   it('refuses a completed result after its reviewed source changes', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
@@ -473,6 +541,36 @@ ${COMPLETE_WORKER}`,
     );
     expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_CANCELED');
   });
+
+  it.runIf(process.platform !== 'win32')(
+    'does not leak a child when cancellation wins during launch',
+    async () => {
+      const cwd = project();
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+
+      const starting = startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+      const records = nodePath.join(cwd, '.safeword', 'state', 'reviews');
+      const recordName = readdirSync(records).find(candidate => candidate.endsWith('.json'));
+      expect(recordName).toBeDefined();
+      if (recordName === undefined) throw new Error('launching job record was not written');
+      const record = JSON.parse(readFileSync(nodePath.join(records, recordName), 'utf8')) as {
+        id: string;
+        pid: number;
+        state: string;
+      };
+      expect(record.state).toBe('running');
+
+      const canceled = cancelReviewJob(cwd, record.id);
+      const result = await starting;
+
+      expect(canceled.findings[0]?.code).toBe('REVIEW_CANCELED');
+      expect(result.findings[0]?.code).toBe('REVIEW_CANCELED');
+      await vi.waitFor(() => {
+        expect(() => process.kill(record.pid, 0)).toThrow();
+      });
+    },
+  );
 
   it('refuses a planted record with an arbitrary pid and result', () => {
     const cwd = project();
