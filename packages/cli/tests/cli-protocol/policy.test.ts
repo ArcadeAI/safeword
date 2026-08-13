@@ -50,41 +50,25 @@ describe('CLI execution policy', () => {
     expect(shouldReportProgress({ json: true, managedReview: true, quiet: true })).toBe(false);
   });
 
-  it('keeps descriptor write failures best-effort and retries later writes', () => {
-    const write = vi
-      .fn<(message: string) => void>()
-      .mockImplementationOnce(() => {
-        throw new Error('EBADF');
-      })
-      .mockImplementation(() => {});
-    const emit = createBestEffortProgressSink(write);
-
-    expect(() => {
-      emit('first');
-    }).not.toThrow();
-    expect(() => {
-      emit('second');
-    }).not.toThrow();
-    expect(write).toHaveBeenNthCalledWith(1, 'first\n');
-    expect(write).toHaveBeenNthCalledWith(2, 'second\n');
-  });
-
-  it('keeps a later descriptor failure best-effort after an earlier write succeeds', () => {
-    const write = vi
-      .fn<(message: string) => void>()
-      .mockImplementationOnce(() => {})
-      .mockImplementationOnce(() => {
-        throw new Error('EPIPE');
+  it.each([
+    { failureIndex: 0, error: 'EBADF' },
+    { failureIndex: 1, error: 'EPIPE' },
+  ])(
+    'keeps descriptor write failures best-effort and retries later writes: $error at write $failureIndex',
+    ({ failureIndex, error }) => {
+      const write = vi.fn<(message: string) => void>((_message: string) => {
+        if (write.mock.calls.length - 1 === failureIndex) throw new Error(error);
       });
-    const emit = createBestEffortProgressSink(write);
+      const emit = createBestEffortProgressSink(write);
 
-    expect(() => {
-      emit('first');
-      emit('second');
-    }).not.toThrow();
-    expect(write).toHaveBeenNthCalledWith(1, 'first\n');
-    expect(write).toHaveBeenNthCalledWith(2, 'second\n');
-  });
+      expect(() => {
+        emit('first');
+        emit('second');
+      }).not.toThrow();
+      expect(write).toHaveBeenNthCalledWith(1, 'first\n');
+      expect(write).toHaveBeenNthCalledWith(2, 'second\n');
+    },
+  );
 
   it('suppresses packet preparation only for managed JSON progress', () => {
     const progress = { start: vi.fn(), heartbeat: vi.fn(), stop: vi.fn() };

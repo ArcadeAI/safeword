@@ -22,12 +22,7 @@ function readTemplate(relativePath: string): string {
 }
 
 function markdownFiles(directory: string, prefix = ''): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    const relativePath = nodePath.join(prefix, entry.name);
-    const absolutePath = nodePath.join(directory, entry.name);
-    if (entry.isDirectory()) return markdownFiles(absolutePath, relativePath);
-    return entry.isFile() && entry.name.endsWith('.md') ? [relativePath] : [];
-  });
+  return filesUnder(directory, prefix).filter(path => path.endsWith('.md'));
 }
 
 function filesUnder(directory: string, prefix = ''): string[] {
@@ -227,6 +222,7 @@ exit ${status}`,
     const contaminated = {
       PATH: '/usr/bin',
       SAFEWORD_REVIEW_PROGRESS: 'inherited',
+      Safeword_Review_Progress: 'windows-inherited',
     };
 
     expect(reviewChildEnvironment(contaminated, ['review', 'run', '--help'])).toEqual({
@@ -262,23 +258,40 @@ exit ${status}`,
 
   it('keeps generated required-review surfaces on the managed wrapper and Cursor unwired', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
-    const generatedRoots = [
-      nodePath.join(repoRoot, 'plugin/skills'),
-      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+    const generatedSurfaces = [
+      {
+        root: nodePath.join(repoRoot, 'plugin/skills'),
+        requiredReviewFiles: [
+          'quality-review/SKILL.md',
+          'review-spec/SKILL.md',
+          'bdd/SKILL.md',
+          'bdd/PLAN_IMPLEMENTATION.md',
+          'bdd/TDD.md',
+        ],
+      },
+      {
+        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+        requiredReviewFiles: [
+          'quality-review/SKILL.md',
+          'review-spec/SKILL.md',
+          'bdd/SKILL.md',
+          'bdd/references/PLAN_IMPLEMENTATION.md',
+          'bdd/references/TDD.md',
+        ],
+      },
     ];
 
-    for (const generatedRoot of generatedRoots) {
-      const requiredReviewFiles = filesUnder(generatedRoot).filter(relativePath =>
-        ['quality-review', 'review-spec', 'bdd', 'tdd-review'].some(skill =>
-          relativePath.includes(skill),
-        ),
-      );
-      expect(requiredReviewFiles.length, generatedRoot).toBeGreaterThan(0);
-      const combined = requiredReviewFiles
-        .map(relativePath => readFileSync(nodePath.join(generatedRoot, relativePath), 'utf8'))
-        .join('\n');
-      expect(combined, generatedRoot).toContain('run-review.ts review run');
-      expect(combined, generatedRoot).toContain('--agent-handoff --json');
+    for (const { root, requiredReviewFiles } of generatedSurfaces) {
+      for (const relativePath of requiredReviewFiles) {
+        const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
+        expect(content, relativePath).toContain('run-review.ts review run');
+        expect(content, relativePath).toContain('--agent-handoff --json');
+        for (const line of content.split('\n')) {
+          if (line.includes('review run')) {
+            expect(line, `${relativePath}: ${line}`).toContain('run-review.ts');
+          }
+        }
+      }
     }
 
     const cursorRoots = [

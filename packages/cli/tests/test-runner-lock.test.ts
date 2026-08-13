@@ -25,7 +25,6 @@ const runnerPath = nodePath.join(cliRoot, 'scripts/run-vitest-with-build-lock.mj
 const githubLiveRunnerPath = nodePath.join(cliRoot, 'scripts/run-github-live-smokes.mjs');
 const packageManifestPath = nodePath.join(cliRoot, 'package.json');
 const runnerExecutablePath = nodePath.join(cliRoot, 'scripts/test-runner-executable.mjs');
-const concurrentRunnerTestTimeoutMilliseconds = 120_000;
 
 const temporaryDirectories: string[] = [];
 
@@ -596,61 +595,53 @@ describe('package test runner lock (379)', () => {
     },
   );
 
-  it(
-    'serializes build and vitest for concurrent focused test commands',
-    async () => {
-      const temporaryDirectory = makeTemporaryDirectory();
-      const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
-      const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+  it('serializes build and vitest for concurrent focused test commands', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
 
-      const env = {
-        ...process.env,
-        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
-      };
+    const env = {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+    };
 
-      const [first, second] = await Promise.all([
-        runNodeScript(runnerPath, ['tests/first.test.ts'], env),
-        runNodeScript(runnerPath, ['tests/second.test.ts'], env),
-      ]);
+    const [first, second] = await Promise.all([
+      runNodeScript(runnerPath, ['tests/first.test.ts'], env),
+      runNodeScript(runnerPath, ['tests/second.test.ts'], env),
+    ]);
 
-      expectSuccessfulSerializedRun(first);
-      expectSuccessfulSerializedRun(second);
+    expectSuccessfulSerializedRun(first);
+    expectSuccessfulSerializedRun(second);
 
-      expectSerializedByRunner(readEvents(logPath));
-    },
-    concurrentRunnerTestTimeoutMilliseconds,
-  );
+    expectSerializedByRunner(readEvents(logPath));
+  });
 
-  it(
-    'serializes default package test locks across checkout roots',
-    async () => {
-      const temporaryDirectory = makeTemporaryDirectory();
-      const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
-      const firstRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-a');
-      const secondRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-b');
+  it('serializes default package test locks across checkout roots', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const firstRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-a');
+    const secondRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-b');
 
-      const env = {
-        ...process.env,
-        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-        TEMP: temporaryDirectory,
-        TMP: temporaryDirectory,
-        TMPDIR: temporaryDirectory,
-        SAFEWORD_TEST_LOCK_DIR: undefined,
-        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '2000',
-      };
+    const env = {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      TEMP: temporaryDirectory,
+      TMP: temporaryDirectory,
+      TMPDIR: temporaryDirectory,
+      SAFEWORD_TEST_LOCK_DIR: undefined,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '2000',
+    };
 
-      const [first, second] = await Promise.all([
-        runNodeScript(firstRunner, ['tests/first.test.ts'], env),
-        runNodeScript(secondRunner, ['tests/second.test.ts'], env),
-      ]);
+    const [first, second] = await Promise.all([
+      runNodeScript(firstRunner, ['tests/first.test.ts'], env),
+      runNodeScript(secondRunner, ['tests/second.test.ts'], env),
+    ]);
 
-      expectSuccessfulSerializedRun(first);
-      expectSuccessfulSerializedRun(second);
-      expectSerializedByRunner(readEvents(logPath));
-    },
-    concurrentRunnerTestTimeoutMilliseconds,
-  );
+    expectSuccessfulSerializedRun(first);
+    expectSuccessfulSerializedRun(second);
+    expectSerializedByRunner(readEvents(logPath));
+  });
 
   it('uses the default maximum wait when configured with a negative or blank value', async () => {
     for (const maximumWait of ['-5', '', ' '.repeat(3)]) {

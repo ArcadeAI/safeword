@@ -112,6 +112,22 @@ function executableVitestNames(source: string): string[] {
   const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
   const names: string[] = [];
 
+  function hasSkippedSuiteAncestor(node: ts.Node): boolean {
+    for (let ancestor = node.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+      if (!ts.isCallExpression(ancestor)) continue;
+      const expression = ancestor.expression;
+      if (
+        ts.isPropertyAccessExpression(expression) &&
+        expression.name.text === 'skip' &&
+        ts.isIdentifier(expression.expression) &&
+        (expression.expression.text === 'describe' || expression.expression.text === 'suite')
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function vitestCallName(call: ts.CallExpression): string | undefined {
     if (ts.isIdentifier(call.expression)) return call.expression.text;
     if (!ts.isCallExpression(call.expression)) return undefined;
@@ -128,6 +144,7 @@ function executableVitestNames(source: string): string[] {
       const nameArgument = node.arguments[0];
       if (
         (testName === 'it' || testName === 'test') &&
+        !hasSkippedSuiteAncestor(node) &&
         (ts.isStringLiteral(nameArgument) || ts.isNoSubstitutionTemplateLiteral(nameArgument))
       ) {
         names.push(nameArgument.text);
@@ -222,20 +239,17 @@ describe('BDD proof provenance', () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
   });
 
-  it('maps every closeout convergence scenario to a named executable proof', () => {
-    const manifestPath = nodePath.join(
-      REPO_ROOT,
+  it.each([
+    [
+      'closeout convergence',
       '.project/tickets/TFG4CR-closeout-preview-apply-convergence/bdd-proof.json',
-    );
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ScenarioProofManifest;
-    expectScenarioProofs(manifest);
-  });
-
-  it('maps every observable-review scenario to a named executable proof', () => {
-    const manifestPath = nodePath.join(
-      REPO_ROOT,
+    ],
+    [
+      'observable review',
       '.project/tickets/1YYG74-reliable-observable-quality-reviews/bdd-proof.json',
-    );
+    ],
+  ])('maps every %s scenario to a named executable proof', (_label, manifestRelativePath) => {
+    const manifestPath = nodePath.join(REPO_ROOT, manifestRelativePath);
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ScenarioProofManifest;
     expectScenarioProofs(manifest);
   });
@@ -247,6 +261,11 @@ describe('BDD proof provenance', () => {
     expect(executableVitestNames("it.skip('disabled behavior', () => {});")).not.toContain(
       'disabled behavior',
     );
+    expect(
+      executableVitestNames(
+        "describe.skip('disabled suite', () => it('nested behavior', () => {}));",
+      ),
+    ).not.toContain('nested behavior');
     expect(executableVitestNames("it.each([1, 2])('registered prefix: %s', () => {});")).toContain(
       'registered prefix: %s',
     );

@@ -18,6 +18,16 @@ Scope: `origin/main...codex/reliable-quality-review`
    includes approved and action-required results.
 5. **Make BDD proof traceable** — narrowed the feature to executable customer
    behavior and added a scenario-to-Vitest proof manifest checked in CI.
+6. **Reuse recursive surface discovery** — Markdown discovery now filters the
+   generic file walker instead of maintaining a second traversal.
+7. **Consolidate repeated test cases** — descriptor-failure ordering and BDD
+   manifest dispatch use parameterized cases while retaining named proof
+   provenance.
+8. **Name the progress phase contract** — `ProgressPhase` makes the coordinator
+   and policy boundary explicit without widening runtime behavior.
+9. **Scrub managed progress case-insensitively** — wrapper children remove every
+   casing of the private signal before deliberate JSON-review opt-in, matching
+   Windows environment semantics.
 
 ## Struck or deferred
 

@@ -23,7 +23,9 @@ export function reviewChildEnvironment(
   arguments_: readonly string[],
 ): NodeJS.ProcessEnv {
   const childEnvironment = { ...environment };
-  delete childEnvironment[MANAGED_PROGRESS_SIGNAL];
+  for (const name of Object.keys(childEnvironment)) {
+    if (name.toUpperCase() === MANAGED_PROGRESS_SIGNAL) delete childEnvironment[name];
+  }
   if (arguments_[0] === 'review' && arguments_[1] === 'run' && arguments_.includes('--json')) {
     childEnvironment[MANAGED_PROGRESS_SIGNAL] = '1';
   }
