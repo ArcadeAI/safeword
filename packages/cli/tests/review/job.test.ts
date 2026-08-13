@@ -65,6 +65,30 @@ function worker(directory: string, source: string): string {
   return path;
 }
 
+function delayedReviewer(directory: string): { bin: string; log: string } {
+  const bin = nodePath.join(directory, 'bin');
+  const log = nodePath.join(directory, 'reviewer.log');
+  mkdirSync(bin, { recursive: true });
+  const executable = nodePath.join(bin, 'codex');
+  writeFileSync(
+    executable,
+    String.raw`#!/bin/sh
+set -eu
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  printf '%s\n' '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema'
+  exit 0
+fi
+printf 'called\n' >> '${log}'
+payload=$(cat)
+dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+/bin/sleep 1
+printf '{"type":"item.completed","item":{"type":"agent_message","text":"{\\"schema_version\\":1,\\"dispatch_id\\":\\"%s\\",\\"reviewer_agent\\":\\"codex\\",\\"verdict\\":\\"approve\\",\\"summary\\":\\"reviewed after caller exit\\",\\"findings\\":[]}"}}\n' "$dispatch_id"
+`,
+    { mode: 0o755 },
+  );
+  return { bin, log };
+}
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -87,7 +111,9 @@ describe('durable review jobs', () => {
 
   it('collects a detached review after the initiating CLI process exits', async () => {
     const cwd = project();
-    disableCrossAgentReview(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{"crossAgentReview":"on"}\n');
+    const reviewer = delayedReviewer(cwd);
     const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
     const started = spawnSync(
       process.execPath,
@@ -95,7 +121,13 @@ describe('durable review jobs', () => {
       {
         cwd,
         encoding: 'utf8',
-        env: { ...process.env, SAFEWORD_REVIEW_FOREGROUND_MS: '0' },
+        env: {
+          ...process.env,
+          PATH: `${reviewer.bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '0',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
       },
     );
     const pending = JSON.parse(started.stdout) as { data: { review_id: string } };
@@ -107,6 +139,7 @@ describe('durable review jobs', () => {
     });
 
     expect(reviewJobStatus(cwd, pending.data.review_id).state).toBe('healthy');
+    expect(readFileSync(reviewer.log, 'utf8').trim().split('\n')).toEqual(['called']);
   });
   it('returns a quick completed review inline', async () => {
     const cwd = project();

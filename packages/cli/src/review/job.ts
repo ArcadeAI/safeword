@@ -543,8 +543,16 @@ function isActivatedChild(record: ReviewJobRecord, pid: number): boolean {
 }
 
 function terminateReviewWorker(pid: number): void {
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
+      stdio: 'ignore',
+      timeout: 5000,
+      windowsHide: true,
+    });
+    return;
+  }
   try {
-    process.kill(process.platform === 'win32' ? pid : -pid, 'SIGTERM');
+    process.kill(-pid, 'SIGTERM');
   } catch {
     // The child may have exited before the canceled launch was observed.
   }
@@ -667,7 +675,8 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
     });
   }
   try {
-    return currentResult(cwd, record);
+    const result = currentResult(cwd, record);
+    return { ...result, effects: { ...result.effects, network: [] } };
   } catch {
     return createResult({
       state: 'action_required',
@@ -695,11 +704,7 @@ export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
         record.pid !== undefined &&
         isReviewWorker(record.pid, record.id)
       ) {
-        try {
-          process.kill(process.platform === 'win32' ? record.pid : -record.pid, 'SIGTERM');
-        } catch {
-          // The worker may have completed between reading and signaling.
-        }
+        terminateReviewWorker(record.pid);
       }
       const next: ReviewJobRecord = {
         ...record,
@@ -720,11 +725,22 @@ function isJobId(value: string): boolean {
 }
 
 function isReviewWorker(pid: number, id: string): boolean {
-  if (process.platform === 'win32') return processExists(pid);
-  const inspected = spawnSync('ps', ['-p', String(pid), '-o', 'command='], {
-    encoding: 'utf8',
-    timeout: 1000,
-  });
+  const inspected =
+    process.platform === 'win32'
+      ? spawnSync(
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`,
+          ],
+          { encoding: 'utf8', timeout: 1000, windowsHide: true },
+        )
+      : spawnSync('ps', ['-p', String(pid), '-o', 'command='], {
+          encoding: 'utf8',
+          timeout: 1000,
+        });
   return (
     inspected.status === 0 &&
     /\breview run\b/u.test(inspected.stdout) &&
