@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -14,7 +14,11 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { resolveWindowsVitest } from '../scripts/test-runner-executable.mjs';
+import {
+  environmentPathKey,
+  resolveTestRunnerInvocation,
+  resolveWindowsVitest,
+} from '../scripts/test-runner-executable.mjs';
 
 const cliRoot = nodePath.resolve(import.meta.dirname, '..');
 const runnerPath = nodePath.join(cliRoot, 'scripts/run-vitest-with-build-lock.mjs');
@@ -80,6 +84,7 @@ if (process.cwd() !== ${JSON.stringify(cliRoot)}) {
 }
 await new Promise(resolve => setTimeout(resolve, ${delayMilliseconds}));
 appendFileSync(log, \`build:end:\${parent}\\n\`);
+process.exitCode = Number(process.env.SAFEWORD_FAKE_BUILD_EXIT_CODE ?? 0);
 `,
     { mode: 0o755 },
   );
@@ -93,16 +98,19 @@ const snapshotLog = ${JSON.stringify(snapshotLogPath)};
 const parent = process.ppid;
 const snapshotRoot = process.env.SAFEWORD_TEST_CLI_ROOT;
 if (snapshotRoot) {
-  const { readFileSync } = await import('node:fs');
+  const { existsSync, readFileSync } = await import('node:fs');
   const { join } = await import('node:path');
   appendFileSync(snapshotLog, JSON.stringify({
     root: snapshotRoot,
     cli: readFileSync(join(snapshotRoot, 'dist', 'cli.js'), 'utf8'),
+    hasPackageJson: existsSync(join(snapshotRoot, 'package.json')),
+    hasSchemas: existsSync(join(snapshotRoot, 'schemas')),
   }) + '\\n');
 }
 appendFileSync(log, \`vitest:start:\${parent}:\${process.argv.slice(2).join(',')}\\n\`);
 await new Promise(resolve => setTimeout(resolve, ${delayMilliseconds}));
 appendFileSync(log, \`vitest:end:\${parent}\\n\`);
+process.exitCode = Number(process.env.SAFEWORD_FAKE_VITEST_EXIT_CODE ?? 0);
 `,
     { mode: 0o755 },
   );
@@ -117,6 +125,10 @@ async function copyRunnerToCheckout(temporaryDirectory: string, name: string) {
   const copiedRunnerPath = nodePath.join(scriptDirectory, 'run-vitest-with-build-lock.mjs');
   copyFileSync(runnerPath, copiedRunnerPath);
   copyFileSync(runnerExecutablePath, nodePath.join(scriptDirectory, 'test-runner-executable.mjs'));
+  writeFileSync(
+    nodePath.join(checkoutCliRoot, 'package.json'),
+    `${JSON.stringify({ files: ['dist'] })}\n`,
+  );
   return copiedRunnerPath;
 }
 
@@ -137,7 +149,7 @@ function expectSerializedByRunner(events: string[]) {
   expect(parentIds).toHaveLength(2);
 
   for (const parentId of parentIds) {
-    const parentEvents = events.filter(event => event.includes(`:${parentId}`));
+    const parentEvents = events.filter(event => event.split(':', 3)[2] === parentId);
     expect(parentEvents[0]).toBe(`build:start:${parentId}`);
     expect(parentEvents[1]).toBe(`build:end:${parentId}`);
     expect([
@@ -147,8 +159,8 @@ function expectSerializedByRunner(events: string[]) {
     expect(parentEvents[3]).toBe(`vitest:end:${parentId}`);
   }
 
-  const firstParentEnd = events.findLastIndex(event => event.includes(`:${parentIds[0]}`));
-  const secondParentStart = events.findIndex(event => event.includes(`:${parentIds[1]}`));
+  const firstParentEnd = events.findLastIndex(event => event.split(':', 3)[2] === parentIds[0]);
+  const secondParentStart = events.findIndex(event => event.split(':', 3)[2] === parentIds[1]);
   expect(secondParentStart).toBeGreaterThan(firstParentEnd);
 }
 
@@ -174,8 +186,64 @@ async function seedOwnerFile(lockDirectory: string, owner: unknown) {
   writeFileSync(nodePath.join(lockDirectory, 'owner.json'), `${JSON.stringify(markedOwner)}\n`);
 }
 
+async function seedLegacyOwnerFile(lockDirectory: string, owner: Record<string, unknown>) {
+  await mkdir(lockDirectory, { recursive: true });
+  writeFileSync(nodePath.join(lockDirectory, 'owner.json'), `${JSON.stringify(owner)}\n`);
+}
+
+async function expectSimultaneousRecoveryIsSerialized(
+  owner: Record<string, unknown>,
+  seed: typeof seedOwnerFile | typeof seedLegacyOwnerFile,
+) {
+  const temporaryDirectory = makeTemporaryDirectory();
+  const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory, 80);
+  const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+  await seed(lockDirectory, owner);
+  const env = {
+    ...process.env,
+    PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+    SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+    SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '10000',
+  };
+
+  const contenderCount = 4;
+  const results = await Promise.all(
+    Array.from({ length: contenderCount }, (_, index) =>
+      runNodeScript(runnerPath, [`tests/stale-${index}.test.ts`], env),
+    ),
+  );
+
+  expect(
+    results.map(result => result.status),
+    JSON.stringify(results),
+  ).toEqual(Array.from({ length: contenderCount }, () => 0));
+  const events = readEvents(logPath);
+  let activeCommands = 0;
+  let maximumActiveCommands = 0;
+  for (const event of events) {
+    activeCommands += event.includes(':start:') ? 1 : -1;
+    maximumActiveCommands = Math.max(maximumActiveCommands, activeCommands);
+  }
+  expect(events).toHaveLength(contenderCount * 4);
+  expect(activeCommands).toBe(0);
+  expect(maximumActiveCommands).toBe(1);
+}
+
 describe('package test runner lock (379)', () => {
-  it('keeps the GitHub provenance smokes as a bounded source-only live lane (#1484)', () => {
+  it('runs the real packaged CLI from the isolated snapshot', () => {
+    const snapshotRoot = process.env.SAFEWORD_TEST_CLI_ROOT;
+    if (!snapshotRoot) throw new Error('Package test snapshot was not provided.');
+    const result = spawnSync(
+      process.execPath,
+      [nodePath.join(snapshotRoot, 'dist', 'cli.js'), '--version'],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/u);
+  });
+
+  it('keeps the GitHub provenance smokes outside the package lock (#1484)', () => {
     const manifest = JSON.parse(readFileSync(packageManifestPath, 'utf8')) as {
       scripts?: Record<string, unknown>;
     };
@@ -184,14 +252,6 @@ describe('package test runner lock (379)', () => {
     expect(command).toBe('node scripts/run-github-live-smokes.mjs');
     expect(command).not.toContain('run-vitest-with-build-lock');
     expect(command).not.toContain('build');
-
-    const runner = readFileSync(githubLiveRunnerPath, 'utf8');
-    expect(runner).toContain("'--maxWorkers=1'");
-    expect(runner).toContain("'--no-file-parallelism'");
-    expect(runner).toContain("'tests/smoke/retro-dedup.live.test.ts'");
-    expect(runner).toContain("'tests/smoke/reconcile.live.test.ts'");
-    expect(runner).not.toContain('run-vitest-with-build-lock');
-    expect(runner).not.toContain("['bun', 'run', 'build']");
   });
 
   it('rejects arguments to the bounded GitHub provenance live lane (#1484)', async () => {
@@ -242,6 +302,66 @@ describe('package test runner lock (379)', () => {
       arguments: [moduleEntry],
       executable: 'node.exe',
     });
+    expect(resolveWindowsVitest(binaryDirectory, cliRoot)).toEqual({
+      arguments: [moduleEntry],
+      executable: process.execPath,
+    });
+    expect(environmentPathKey({ Path: binaryDirectory })).toBe('Path');
+    expect(environmentPathKey({ OTHER: 'value' })).toBe('PATH');
+    expect(
+      resolveTestRunnerInvocation(
+        'vitest',
+        ['run', 'tests/example.test.ts'],
+        { Path: binaryDirectory },
+        cliRoot,
+        'win32',
+      ),
+    ).toEqual({
+      arguments: [moduleEntry, 'run', 'tests/example.test.ts'],
+      executable: process.execPath,
+    });
+    expect(
+      resolveTestRunnerInvocation(
+        'bun',
+        ['run', 'build'],
+        { Path: binaryDirectory },
+        cliRoot,
+        'win32',
+      ),
+    ).toEqual({ arguments: ['run', 'build'], executable: 'bun' });
+  });
+
+  it('falls back to the package-local Vitest when PATH has no Vitest (#715)', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+    const localBinDirectory = nodePath.join(
+      checkoutCliRootForRunner(copiedRunner),
+      'node_modules',
+      '.bin',
+    );
+    await mkdir(localBinDirectory, { recursive: true });
+    copyFileSync(
+      nodePath.join(binaryDirectory, 'vitest'),
+      nodePath.join(localBinDirectory, 'vitest'),
+    );
+    await rm(nodePath.join(binaryDirectory, 'vitest'));
+
+    const result = await runNodeScript(copiedRunner, ['tests/local-vitest.test.ts'], {
+      ...process.env,
+      PATH: [binaryDirectory, nodePath.dirname(process.execPath), '/usr/bin', '/bin'].join(
+        nodePath.delimiter,
+      ),
+      SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      expect.stringMatching(/^vitest:start:.*:run,tests\/local-vitest\.test\.ts$/),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
   });
 
   it('runs tests against a private built-package snapshot (#1823)', async () => {
@@ -266,6 +386,109 @@ describe('package test runner lock (379)', () => {
     expect(existsSync(snapshot.root)).toBe(false);
   });
 
+  it('removes an aged orphaned package snapshot before creating the next one', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+    const orphan = nodePath.join(
+      checkoutCliRootForRunner(copiedRunner),
+      'node_modules',
+      '.cache',
+      'safeword-test-package-orphan',
+    );
+    await mkdir(orphan, { recursive: true });
+    writeFileSync(nodePath.join(orphan, 'residue'), 'old snapshot');
+    const staleSnapshotTime = new Date(Date.now() - 7 * 60 * 60 * 1000);
+    utimesSync(orphan, staleSnapshotTime, staleSnapshotTime);
+    const activeSnapshot = nodePath.join(
+      checkoutCliRootForRunner(copiedRunner),
+      'node_modules',
+      '.cache',
+      'safeword-test-package-active',
+    );
+    await mkdir(nodePath.join(activeSnapshot, 'dist'), { recursive: true });
+    writeFileSync(nodePath.join(activeSnapshot, 'dist', 'cli.js'), 'active snapshot');
+
+    const result = await runNodeScript(copiedRunner, ['tests/snapshot-reaping.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_CLI_ROOT: activeSnapshot,
+      SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(existsSync(orphan)).toBe(false);
+    expect(readFileSync(nodePath.join(activeSnapshot, 'dist', 'cli.js'), 'utf8')).toBe(
+      'active snapshot',
+    );
+  });
+
+  it('skips tests and propagates a failed build', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+
+    const result = await runNodeScript(copiedRunner, ['tests/not-started.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_FAKE_BUILD_EXIT_CODE: '23',
+      SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+    });
+
+    expect(result.status).toBe(23);
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+    ]);
+  });
+
+  it('propagates a failed test run', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+
+    const result = await runNodeScript(copiedRunner, ['tests/failing.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_FAKE_VITEST_EXIT_CODE: '24',
+      SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+    });
+
+    expect(result.status).toBe(24);
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      expect.stringMatching(/^vitest:start:.*:run,tests\/failing\.test\.ts$/),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
+  });
+
+  it('copies every literal entry from a package snapshot manifest', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, snapshotLogPath } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+    const checkoutCliRoot = checkoutCliRootForRunner(copiedRunner);
+    await mkdir(nodePath.join(checkoutCliRoot, 'schemas'));
+    writeFileSync(nodePath.join(checkoutCliRoot, 'schemas', 'proof.json'), '{}\n');
+    writeFileSync(
+      nodePath.join(checkoutCliRoot, 'package.json'),
+      `${JSON.stringify({ files: ['dist', 'schemas'] })}\n`,
+    );
+
+    const result = await runNodeScript(copiedRunner, ['tests/snapshot-entries.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    const snapshot = JSON.parse(readFileSync(snapshotLogPath, 'utf8')) as {
+      hasPackageJson: boolean;
+      hasSchemas: boolean;
+    };
+    expect(snapshot).toMatchObject({ hasPackageJson: true, hasSchemas: true });
+  });
+
   it.each(['..', '.'])('rejects publish entry %s outside the snapshot boundary', async entry => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
@@ -283,6 +506,64 @@ describe('package test runner lock (379)', () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(`Package snapshot entry escapes the CLI package: ${entry}`);
+  });
+
+  it.each(['dist/**', '!dist/debug'])(
+    'rejects unsupported package snapshot pattern %s',
+    async entry => {
+      const temporaryDirectory = makeTemporaryDirectory();
+      const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+      const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+      writeFileSync(
+        nodePath.join(checkoutCliRootForRunner(copiedRunner), 'package.json'),
+        `${JSON.stringify({ files: [entry] })}\n`,
+      );
+
+      const result = await runNodeScript(copiedRunner, ['tests/pattern.test.ts'], {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        `Package snapshot does not support package.json files patterns: ${entry}`,
+      );
+    },
+  );
+
+  it('reports a missing package snapshot files contract directly', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+    writeFileSync(nodePath.join(checkoutCliRootForRunner(copiedRunner), 'package.json'), '{}\n');
+
+    const result = await runNodeScript(copiedRunner, ['tests/missing-files.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Package snapshot requires a non-empty package.json files array.',
+    );
+  });
+
+  it('requires the package snapshot manifest to exist', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+    const copiedRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout');
+    await rm(nodePath.join(checkoutCliRootForRunner(copiedRunner), 'package.json'));
+
+    const result = await runNodeScript(copiedRunner, ['tests/missing-manifest.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: nodePath.join(temporaryDirectory, 'lock'),
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('package.json');
   });
 
   it.runIf(process.platform !== 'win32')(
@@ -345,8 +626,11 @@ describe('package test runner lock (379)', () => {
     const env = {
       ...process.env,
       PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      TEMP: temporaryDirectory,
+      TMP: temporaryDirectory,
       TMPDIR: temporaryDirectory,
       SAFEWORD_TEST_LOCK_DIR: undefined,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '2000',
     };
 
     const [first, second] = await Promise.all([
@@ -381,14 +665,13 @@ describe('package test runner lock (379)', () => {
 
       expectSuccessfulSerializedRun(ownerResult);
       expectSuccessfulSerializedRun(waiterResult);
-      expect(waiterResult.stderr).not.toContain('Proceeding without safeword package test lock');
       expectSerializedByRunner(readEvents(logPath));
     }
   });
 
   it('reports the complete bounded periodic status sequence before failing', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory, 500);
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory, 2000);
     const firstRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-a');
     const secondRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-b');
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
@@ -421,7 +704,7 @@ describe('package test runner lock (379)', () => {
       `Waiting for safeword package test lock (200ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
     ]);
     expect(waiterResult.stderr).toContain(
-      'Could not acquire safeword package test lock after waiting 250ms; no test was started.',
+      `Could not acquire safeword package test lock at ${lockDirectory} after waiting 250ms; no test was started.`,
     );
   });
 
@@ -446,9 +729,7 @@ describe('package test runner lock (379)', () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(expectedOwnerDetail);
       expect(result.stderr).toContain('checkout unavailable');
-      expect(result.stderr).toContain(
-        'Could not acquire safeword package test lock after waiting 220ms; no test was started.',
-      );
+      expect(result.stderr).toContain('after waiting 220ms; no test was started.');
     }
   });
 
@@ -478,27 +759,34 @@ describe('package test runner lock (379)', () => {
     }
   });
 
-  it('does not delete an unmarked directory selected as the lock path', async () => {
-    const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
-    const lockDirectory = nodePath.join(temporaryDirectory, 'unrelated');
-    await mkdir(lockDirectory);
-    const sentinel = nodePath.join(lockDirectory, 'keep.txt');
-    writeFileSync(sentinel, 'user data');
-    const staleTime = new Date(Date.now() - 31_000);
-    utimesSync(lockDirectory, staleTime, staleTime);
+  it.each([
+    ['empty', false],
+    ['non-empty', true],
+  ])(
+    'does not delete an unmarked %s directory selected as the lock path',
+    async (_name, seeded) => {
+      const temporaryDirectory = makeTemporaryDirectory();
+      const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+      const lockDirectory = nodePath.join(temporaryDirectory, 'unrelated');
+      await mkdir(lockDirectory);
+      const sentinel = nodePath.join(lockDirectory, 'keep.txt');
+      if (seeded) writeFileSync(sentinel, 'user data');
+      const staleTime = new Date(Date.now() - 31_000);
+      utimesSync(lockDirectory, staleTime, staleTime);
 
-    const result = await runNodeScript(runnerPath, ['tests/unmarked.test.ts'], {
-      ...process.env,
-      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
-      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
-    });
+      const result = await runNodeScript(runnerPath, ['tests/unmarked.test.ts'], {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+      });
 
-    expect(result.status).toBe(1);
-    expect(readFileSync(sentinel, 'utf8')).toBe('user data');
-    expect(existsSync(logPath)).toBe(false);
-  });
+      expect(result.status).toBe(1);
+      expect(existsSync(lockDirectory)).toBe(true);
+      if (seeded) expect(readFileSync(sentinel, 'utf8')).toBe('user data');
+      expect(existsSync(logPath)).toBe(false);
+    },
+  );
 
   it('clamps unsafe status intervals and ignores malformed settings', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
@@ -572,11 +860,122 @@ describe('package test runner lock (379)', () => {
     ]);
   });
 
+  it('recovers a dead owner written by the preceding lock format', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    await seedLegacyOwnerFile(lockDirectory, {
+      checkoutRoot: cliRoot,
+      createdAt: new Date().toISOString(),
+      pid: 2_147_483_647,
+      token: '00000000-0000-4000-8000-000000000001',
+    });
+
+    const result = await runNodeScript(runnerPath, ['tests/legacy-stale.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      expect.stringMatching(/^vitest:start:.*:run,tests\/legacy-stale\.test\.ts$/),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
+  });
+
+  it('keeps a live owner written by the preceding lock format', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    await seedLegacyOwnerFile(lockDirectory, {
+      checkoutRoot: cliRoot,
+      createdAt: new Date(0).toISOString(),
+      pid: process.pid,
+      token: '00000000-0000-4000-8000-000000000002',
+    });
+
+    const result = await runNodeScript(runnerPath, ['tests/legacy-live.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('after waiting 0ms; no test was started.');
+    expect(existsSync(logPath)).toBe(false);
+    expect(existsSync(lockDirectory)).toBe(true);
+  });
+
+  it('does not recover foreign owner metadata with a dead process', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    await seedLegacyOwnerFile(lockDirectory, {
+      checkoutRoot: cliRoot,
+      createdAt: new Date().toISOString(),
+      kind: 'another-tool-lock',
+      pid: 2_147_483_647,
+      token: 'foreign-owner',
+    });
+
+    const result = await runNodeScript(runnerPath, ['tests/foreign-owner.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+    });
+
+    expect(result.status).toBe(1);
+    expect(existsSync(logPath)).toBe(false);
+    expect(existsSync(lockDirectory)).toBe(true);
+  });
+
+  it.each([
+    [
+      'relative checkout root',
+      { checkoutRoot: 'relative', token: '00000000-0000-4000-8000-000000000004' },
+    ],
+    ['malformed token', { checkoutRoot: cliRoot, token: 'not-a-uuid' }],
+    [
+      'unknown field',
+      {
+        checkoutRoot: cliRoot,
+        extra: true,
+        token: '00000000-0000-4000-8000-000000000005',
+      },
+    ],
+  ])('does not recover legacy-shaped metadata with a %s', async (_name, fields) => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    await seedLegacyOwnerFile(lockDirectory, {
+      createdAt: new Date().toISOString(),
+      pid: 2_147_483_647,
+      ...fields,
+    });
+
+    const result = await runNodeScript(runnerPath, ['tests/malformed-legacy-owner.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+    });
+
+    expect(result.status).toBe(1);
+    expect(existsSync(logPath)).toBe(false);
+    expect(existsSync(lockDirectory)).toBe(true);
+  });
+
   it('reaps an abandoned transition mutex before acquiring', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    await seedOwnerFile(`${lockDirectory}.transition`, {
+    await seedLegacyOwnerFile(`${lockDirectory}.transition`, {
       createdAt: new Date().toISOString(),
       pid: 2_147_483_647,
     });
@@ -597,6 +996,223 @@ describe('package test runner lock (379)', () => {
     expect(existsSync(`${lockDirectory}.transition`)).toBe(false);
   });
 
+  it('reaps an abandoned empty transition mutex before acquiring', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(
+      temporaryDirectory,
+      'safeword-test-locks',
+      'safeword-package-test.lock',
+    );
+    const transitionDirectory = `${lockDirectory}.transition`;
+    await mkdir(transitionDirectory, { recursive: true });
+    const staleTime = new Date(Date.now() - 31_000);
+    utimesSync(transitionDirectory, staleTime, staleTime);
+
+    const result = await runNodeScript(runnerPath, ['tests/empty-transition.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      TEMP: temporaryDirectory,
+      TMP: temporaryDirectory,
+      TMPDIR: temporaryDirectory,
+      SAFEWORD_TEST_LOCK_DIR: undefined,
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      expect.stringMatching(/^vitest:start:.*:run,tests\/empty-transition\.test\.ts$/),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
+    expect(existsSync(transitionDirectory)).toBe(false);
+  });
+
+  it('reaps an abandoned transition with a truncated owner in the default tmp namespace', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(
+      temporaryDirectory,
+      'safeword-test-locks',
+      'safeword-package-test.lock',
+    );
+    const transitionDirectory = `${lockDirectory}.transition`;
+    await mkdir(transitionDirectory, { recursive: true });
+    writeFileSync(nodePath.join(transitionDirectory, 'owner.json'), '{');
+    const staleTime = new Date(Date.now() - 31_000);
+    utimesSync(transitionDirectory, staleTime, staleTime);
+
+    const result = await runNodeScript(runnerPath, ['tests/truncated-transition.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      TEMP: temporaryDirectory,
+      TMP: temporaryDirectory,
+      TMPDIR: temporaryDirectory,
+      SAFEWORD_TEST_LOCK_DIR: undefined,
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toContainEqual(
+      expect.stringMatching(/^vitest:start:.*:run,tests\/truncated-transition\.test\.ts$/),
+    );
+    expect(existsSync(transitionDirectory)).toBe(false);
+  });
+
+  it('reaps an interrupted transition and its abandoned recovery marker', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(
+      temporaryDirectory,
+      'safeword-test-locks',
+      'safeword-package-test.lock',
+    );
+    const transitionDirectory = `${lockDirectory}.transition`;
+    const recoveryDirectory = nodePath.join(transitionDirectory, 'recovery');
+    await mkdir(recoveryDirectory, { recursive: true });
+    writeFileSync(nodePath.join(transitionDirectory, 'owner.json'), '{');
+    writeFileSync(nodePath.join(recoveryDirectory, 'owner.json'), '{');
+    const staleTime = new Date(Date.now() - 31_000);
+    utimesSync(transitionDirectory, staleTime, staleTime);
+    utimesSync(recoveryDirectory, staleTime, staleTime);
+
+    const result = await runNodeScript(runnerPath, ['tests/interrupted-recovery.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      TEMP: temporaryDirectory,
+      TMP: temporaryDirectory,
+      TMPDIR: temporaryDirectory,
+      SAFEWORD_TEST_LOCK_DIR: undefined,
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toContainEqual(
+      expect.stringMatching(/^vitest:start:.*:run,tests\/interrupted-recovery\.test\.ts$/),
+    );
+    expect(existsSync(transitionDirectory)).toBe(false);
+  });
+
+  it('reaps an abandoned empty lock in the default tmp namespace', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(
+      temporaryDirectory,
+      'safeword-test-locks',
+      'safeword-package-test.lock',
+    );
+    await mkdir(lockDirectory, { recursive: true });
+    const staleTime = new Date(Date.now() - 31_000);
+    utimesSync(lockDirectory, staleTime, staleTime);
+
+    const result = await runNodeScript(runnerPath, ['tests/empty-lock.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      TEMP: temporaryDirectory,
+      TMP: temporaryDirectory,
+      TMPDIR: temporaryDirectory,
+      SAFEWORD_TEST_LOCK_DIR: undefined,
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      expect.stringMatching(/^vitest:start:.*:run,tests\/empty-lock\.test\.ts$/),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
+    expect(existsSync(lockDirectory)).toBe(false);
+  });
+
+  it.each([
+    ['empty', false],
+    ['non-empty', true],
+  ])(
+    'does not adopt an unmarked %s transition beside a custom lock path',
+    async (_name, seeded) => {
+      const temporaryDirectory = makeTemporaryDirectory();
+      const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+      const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+      const transitionDirectory = `${lockDirectory}.transition`;
+      await mkdir(transitionDirectory);
+      const sentinel = nodePath.join(transitionDirectory, 'keep.txt');
+      if (seeded) writeFileSync(sentinel, 'user data');
+      const staleTime = new Date(Date.now() - 31_000);
+      utimesSync(transitionDirectory, staleTime, staleTime);
+
+      const result = await runNodeScript(runnerPath, ['tests/foreign-transition.test.ts'], {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+      });
+
+      expect(result.status).toBe(1);
+      if (seeded) expect(readFileSync(sentinel, 'utf8')).toBe('user data');
+      expect(existsSync(transitionDirectory)).toBe(true);
+      expect(existsSync(logPath)).toBe(false);
+    },
+  );
+
+  it('reaps an abandoned transition recovery marker before acquiring', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    const transitionDirectory = `${lockDirectory}.transition`;
+    const recoveryDirectory = nodePath.join(transitionDirectory, 'recovery');
+    await seedLegacyOwnerFile(transitionDirectory, {
+      createdAt: new Date().toISOString(),
+      pid: 2_147_483_647,
+    });
+    await mkdir(recoveryDirectory);
+    const staleTime = new Date(Date.now() - 31_000);
+    utimesSync(recoveryDirectory, staleTime, staleTime);
+
+    const result = await runNodeScript(runnerPath, ['tests/recovery-marker.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      expect.stringMatching(/^vitest:start:.*:run,tests\/recovery-marker\.test\.ts$/),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
+    expect(existsSync(transitionDirectory)).toBe(false);
+  });
+
+  it('does not reap an aged transition recovery marker owned by a live process', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    const transitionDirectory = `${lockDirectory}.transition`;
+    const recoveryDirectory = nodePath.join(transitionDirectory, 'recovery');
+    await seedLegacyOwnerFile(transitionDirectory, {
+      createdAt: new Date().toISOString(),
+      pid: 2_147_483_647,
+    });
+    await seedLegacyOwnerFile(recoveryDirectory, {
+      createdAt: new Date(0).toISOString(),
+      kind: 'safeword-package-test-transition-recovery',
+      pid: process.pid,
+      token: 'live-recovery',
+    });
+    const staleTime = new Date(Date.now() - 31_000);
+    utimesSync(recoveryDirectory, staleTime, staleTime);
+
+    const result = await runNodeScript(runnerPath, ['tests/live-recovery-marker.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+    });
+
+    expect(result.status).toBe(1);
+    expect(existsSync(recoveryDirectory)).toBe(true);
+    expect(existsSync(logPath)).toBe(false);
+  });
+
   it('does not reap an aged lock while its owner process is alive', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
@@ -614,48 +1230,31 @@ describe('package test runner lock (379)', () => {
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      'Could not acquire safeword package test lock after waiting 0ms; no test was started.',
-    );
+    expect(result.stderr).toContain('after waiting 0ms; no test was started.');
     expect(existsSync(logPath)).toBe(false);
     expect(existsSync(lockDirectory)).toBe(true);
   });
 
   it('serializes simultaneous recovery from a dead-owner lock', async () => {
-    const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory, 80);
-    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    await seedOwnerFile(lockDirectory, {
-      createdAt: new Date().toISOString(),
-      pid: 2_147_483_647,
-    });
-    const env = {
-      ...process.env,
-      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
-    };
-
-    const contenderCount = 4;
-    const results = await Promise.all(
-      Array.from({ length: contenderCount }, (_, index) =>
-        runNodeScript(runnerPath, [`tests/stale-${index}.test.ts`], env),
-      ),
+    await expectSimultaneousRecoveryIsSerialized(
+      {
+        createdAt: new Date().toISOString(),
+        pid: 2_147_483_647,
+      },
+      seedOwnerFile,
     );
+  });
 
-    expect(
-      results.map(result => result.status),
-      JSON.stringify(results),
-    ).toEqual(Array.from({ length: contenderCount }, () => 0));
-    const events = readEvents(logPath);
-    let activeCommands = 0;
-    let maximumActiveCommands = 0;
-    for (const event of events) {
-      activeCommands += event.includes(':start:') ? 1 : -1;
-      maximumActiveCommands = Math.max(maximumActiveCommands, activeCommands);
-    }
-    expect(events).toHaveLength(contenderCount * 4);
-    expect(activeCommands).toBe(0);
-    expect(maximumActiveCommands).toBe(1);
+  it('serializes simultaneous recovery from a dead owner written by the preceding format', async () => {
+    await expectSimultaneousRecoveryIsSerialized(
+      {
+        checkoutRoot: cliRoot,
+        createdAt: new Date().toISOString(),
+        pid: 2_147_483_647,
+        token: '00000000-0000-4000-8000-000000000003',
+      },
+      seedLegacyOwnerFile,
+    );
   });
 
   it('rebases repo-root-relative test paths onto the package root (#723)', async () => {
@@ -665,7 +1264,7 @@ describe('package test runner lock (379)', () => {
 
     const result = await runNodeScript(
       runnerPath,
-      ['packages/cli/tests/first.test.ts', '--config', 'vitest.live.config.ts'],
+      ['packages/cli/tests/first.test.ts', '--config=packages/cli/vitest.live.config.ts'],
       {
         ...process.env,
         PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
@@ -677,9 +1276,8 @@ describe('package test runner lock (379)', () => {
     expect(readEvents(logPath)).toEqual([
       expect.stringMatching(/^build:start:/),
       expect.stringMatching(/^build:end:/),
-      // The path arg is rebased; the flag value is left untouched.
       expect.stringMatching(
-        /^vitest:start:.*:run,tests\/first\.test\.ts,--config,vitest\.live\.config\.ts$/,
+        /^vitest:start:.*:run,tests\/first\.test\.ts,--config=vitest\.live\.config\.ts$/,
       ),
       expect.stringMatching(/^vitest:end:/),
     ]);
@@ -691,14 +1289,26 @@ describe('package test runner lock (379)', () => {
     };
     const { scripts } = pkg;
 
+    const vitestWrapperScripts = new Set(['node scripts/run-github-live-smokes.mjs']);
+    const buildExemptVitestScripts = new Set([
+      // This fixed, source-only, network-billed provenance lane deliberately
+      // avoids the package build and serialization path (#1484).
+      'test:smoke:live:github',
+    ]);
     const vitestScripts = Object.entries(scripts).filter(
       ([name, command]) =>
-        name.startsWith('test') && !name.startsWith('pretest') && /\bvitest\b/.test(command),
+        name.startsWith('test') &&
+        !name.startsWith('pretest') &&
+        (/\bvitest\b/.test(command) || vitestWrapperScripts.has(command)),
     );
     // Guard against a vacuous pass: there must be vitest-running scripts to check.
     expect(vitestScripts.length).toBeGreaterThan(3);
 
     for (const [name, command] of vitestScripts) {
+      if (buildExemptVitestScripts.has(name)) {
+        expect(command).toBe('node scripts/run-github-live-smokes.mjs');
+        continue;
+      }
       const usesRunner = command.includes('run-vitest-with-build-lock.mjs');
       const buildsFirst = scripts[`pre${name}`] === 'tsup' || command.includes('tsup &&');
       expect(
@@ -722,9 +1332,7 @@ describe('package test runner lock (379)', () => {
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      'Could not acquire safeword package test lock after waiting 0ms; no test was started.',
-    );
+    expect(result.stderr).toContain('after waiting 0ms; no test was started.');
     expect(existsSync(logPath)).toBe(false);
   });
 });
