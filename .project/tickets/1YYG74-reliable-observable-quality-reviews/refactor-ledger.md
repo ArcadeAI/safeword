@@ -34,6 +34,9 @@ Scope: `origin/main...codex/reliable-quality-review`
     only when its CLI package identifies itself as Safeword.
 12. **Name effect and reviewer failures precisely** — effect diagnostics use an
     explicit noun map and degraded reviews explain early process exits.
+13. **Forward managed worker progress** — managed JSON jobs inherit only stderr
+    and re-opt the detached CLI worker into progress, so real coordinator route
+    messages reach the wrapper while stdout remains typed.
 
 ## Struck or deferred
 
@@ -47,6 +50,9 @@ Scope: `origin/main...codex/reliable-quality-review`
 - Forwarding `start(message)` as `start(message, undefined)` was rejected after
   its focused test exposed an observable adapter-call-shape change; retain the
   small branch that preserves compatibility.
+- Durable-job fingerprinting, liveness, and lock mechanics predate this ticket;
+  they remain protected by their existing job tests and are not refactored as
+  part of the managed-progress side channel.
 - Repository-wide Knip, experiment, and clone findings predate this ticket and
   are outside this delivery's single purpose.
 

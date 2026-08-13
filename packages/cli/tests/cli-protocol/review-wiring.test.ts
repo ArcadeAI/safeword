@@ -1542,8 +1542,8 @@ describe('cross-agent review public-command wiring', () => {
       data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
     });
     expect(result.stderr).not.toContain('Preparing the review packet');
-    expect(result.stderr).toContain('Running the independent review in the background…');
-    expect(result.stderr).toContain('Still waiting for the independent review…');
+    expect(result.stderr).toContain('Requesting an independent Codex review…');
+    expect(result.stderr).toContain('Still waiting for a response from Codex…');
   });
 
   it('carries managed progress through the wrapper, real CLI, and real coordinator', () => {
@@ -1589,7 +1589,7 @@ describe('cross-agent review public-command wiring', () => {
       data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
     });
     expect(result.stderr).not.toContain('Preparing the review packet');
-    expect(result.stderr).toContain('Running the independent review in the background…');
+    expect(result.stderr).toContain('Requesting an independent Codex review…');
     expect(readFileSync(log, 'utf8')).toBe('codex\n');
   });
 
@@ -1607,8 +1607,8 @@ describe('cross-agent review public-command wiring', () => {
       data: { reviewer_output: { verdict: 'request_changes' } },
     });
     expect(output.findings).toContainEqual(expect.objectContaining({ message: 'Unsafe retry' }));
-    expect(result.stderr).toContain('Running the independent review in the background…');
-    expect(result.stderr).toContain('Still waiting for the independent review…');
+    expect(result.stderr).toContain('Requesting an independent Codex review…');
+    expect(result.stderr).toContain('Still waiting for a response from Codex…');
   });
 
   it.each([

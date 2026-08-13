@@ -3,6 +3,7 @@ import type { CliResult } from './result.js';
 export type ProgressPhase = 'active' | 'preparation';
 
 export interface ProgressReporter {
+  readonly managed?: boolean;
   readonly start: (message: string, phase?: ProgressPhase) => void;
   readonly heartbeat?: (message: string) => void;
   readonly stop: () => void;

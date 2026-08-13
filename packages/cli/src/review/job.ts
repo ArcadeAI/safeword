@@ -419,12 +419,57 @@ function cliEntrypoint(): string {
   throw new Error('Safeword CLI entrypoint is unavailable');
 }
 
+function launchReviewWorker(input: {
+  readonly context: readonly string[];
+  readonly cwd: string;
+  readonly entrypoint: string;
+  readonly id: string;
+  readonly kind: ReviewKind;
+  readonly managedProgress: boolean;
+  readonly targets: readonly string[];
+}) {
+  return spawn(
+    process.execPath,
+    [
+      input.entrypoint,
+      'review',
+      'run',
+      input.kind,
+      '--worker-job-id',
+      input.id,
+      ...input.context.flatMap(target => ['--context', target]),
+      '--',
+      ...input.targets,
+    ],
+    {
+      cwd: input.cwd,
+      env: {
+        ...process.env,
+        SAFEWORD_REVIEW_JOB_ID: input.id,
+        SAFEWORD_REVIEW_WORKER: '1',
+        ...(input.managedProgress && { SAFEWORD_REVIEW_PROGRESS: '1' }),
+      },
+      detached: true,
+      stdio: input.managedProgress ? ['ignore', 'ignore', 'inherit'] : 'ignore',
+    },
+  );
+}
+
+function announceBackgroundProgress(
+  progress: Pick<ProgressReporter, 'heartbeat' | 'start'> | undefined,
+  managedProgress: boolean,
+): void {
+  if (managedProgress) return;
+  progress?.start('Running the independent review in the background…');
+  progress?.heartbeat?.('Still waiting for the independent review…');
+}
+
 export async function startReviewJob(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
-  readonly progress?: Pick<ProgressReporter, 'start' | 'heartbeat'>;
+  readonly progress?: Pick<ProgressReporter, 'heartbeat' | 'managed' | 'start'>;
 }): Promise<CliResult> {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
@@ -452,26 +497,16 @@ export async function startReviewJob(input: {
   const record = reserved.record;
   const id = record.id;
   const entrypoint = cliEntrypoint();
-  const child = spawn(
-    process.execPath,
-    [
-      entrypoint,
-      'review',
-      'run',
-      input.kind,
-      '--worker-job-id',
-      id,
-      ...context.flatMap(target => ['--context', target]),
-      '--',
-      ...input.targets,
-    ],
-    {
-      cwd: input.cwd,
-      env: { ...process.env, SAFEWORD_REVIEW_JOB_ID: id, SAFEWORD_REVIEW_WORKER: '1' },
-      detached: true,
-      stdio: 'ignore',
-    },
-  );
+  const managedProgress = input.progress?.managed === true;
+  const child = launchReviewWorker({
+    context,
+    cwd: input.cwd,
+    entrypoint,
+    id,
+    kind: input.kind,
+    managedProgress,
+    targets: input.targets,
+  });
   child.once('error', error => {
     const failed = createResult({
       state: 'failed',
@@ -526,9 +561,8 @@ export async function startReviewJob(input: {
     terminateReviewWorker(child.pid);
     return currentResult(input.cwd, activated);
   }
-  input.progress?.start('Running the independent review in the background…');
-  // ProgressReporter schedules and repeats this heartbeat until command teardown.
-  input.progress?.heartbeat?.('Still waiting for the independent review…');
+  // Managed workers forward their coordinator progress over inherited stderr.
+  announceBackgroundProgress(input.progress, managedProgress);
   const deadline = Date.now() + configuredCourtesyWait();
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);

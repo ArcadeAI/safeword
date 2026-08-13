@@ -44676,6 +44676,35 @@ function cliEntrypoint() {
     return developmentBuild;
   throw new Error("Safeword CLI entrypoint is unavailable");
 }
+function launchReviewWorker(input) {
+  return spawn2(process.execPath, [
+    input.entrypoint,
+    "review",
+    "run",
+    input.kind,
+    "--worker-job-id",
+    input.id,
+    ...input.context.flatMap((target) => ["--context", target]),
+    "--",
+    ...input.targets
+  ], {
+    cwd: input.cwd,
+    env: {
+      ...process.env,
+      SAFEWORD_REVIEW_JOB_ID: input.id,
+      SAFEWORD_REVIEW_WORKER: "1",
+      ...input.managedProgress && { SAFEWORD_REVIEW_PROGRESS: "1" }
+    },
+    detached: true,
+    stdio: input.managedProgress ? ["ignore", "ignore", "inherit"] : "ignore"
+  });
+}
+function announceBackgroundProgress(progress, managedProgress) {
+  if (managedProgress)
+    return;
+  progress?.start("Running the independent review in the background\u2026");
+  progress?.heartbeat?.("Still waiting for the independent review\u2026");
+}
 async function startReviewJob(input) {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
@@ -44705,21 +44734,15 @@ async function startReviewJob(input) {
   const record2 = reserved.record;
   const id = record2.id;
   const entrypoint = cliEntrypoint();
-  const child = spawn2(process.execPath, [
-    entrypoint,
-    "review",
-    "run",
-    input.kind,
-    "--worker-job-id",
-    id,
-    ...context.flatMap((target) => ["--context", target]),
-    "--",
-    ...input.targets
-  ], {
+  const managedProgress = input.progress?.managed === true;
+  const child = launchReviewWorker({
+    context,
     cwd: input.cwd,
-    env: { ...process.env, SAFEWORD_REVIEW_JOB_ID: id, SAFEWORD_REVIEW_WORKER: "1" },
-    detached: true,
-    stdio: "ignore"
+    entrypoint,
+    id,
+    kind: input.kind,
+    managedProgress,
+    targets: input.targets
   });
   child.once("error", (error2) => {
     const failed = createResult({
@@ -44773,8 +44796,7 @@ async function startReviewJob(input) {
     terminateReviewWorker(child.pid);
     return currentResult(input.cwd, activated);
   }
-  input.progress?.start("Running the independent review in the background\u2026");
-  input.progress?.heartbeat?.("Still waiting for the independent review\u2026");
+  announceBackgroundProgress(input.progress, managedProgress);
   const deadline = Date.now() + configuredCourtesyWait();
   while (Date.now() < deadline) {
     const latest = readJob(input.cwd, id);
@@ -61608,6 +61630,7 @@ function createBestEffortProgressSink(write) {
 }
 function createManagedReviewProgress(progress) {
   return {
+    managed: true,
     start(message, phase) {
       if (phase === "preparation")
         return;

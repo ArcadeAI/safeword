@@ -91,6 +91,7 @@ export function createBestEffortProgressSink(
 
 export function createManagedReviewProgress(progress: ProgressReporter): ProgressReporter {
   return {
+    managed: true,
     start(message, phase): void {
       if (phase === 'preparation') return;
       if (phase === undefined) progress.start(message);
