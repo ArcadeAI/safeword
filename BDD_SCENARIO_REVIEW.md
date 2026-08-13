@@ -12,26 +12,45 @@ A structural review is not an assertion that every scenario has independently pa
 
 This ledger was created against the pre-0.76 corpus. The `main` sync replaces the 134-scenario `offload-tests-without-blocking-local-work.feature` with sixteen focused `offload-tests-*.feature` sources containing 136 scenarios, and adds `closeout-preview-apply-convergence.feature` and `run-github-live-smokes-without-waiting-for-builds.feature`. Those eighteen new sources, along with the modified existing feature sources, are pending a refreshed structural inventory and semantic review; no historical ledger row is treated as evidence for a new or materially changed scenario.
 
-| New or replaced feature source                                                    | Scenarios | Delivery state                    | Semantic status                                      |
-| --------------------------------------------------------------------------------- | --------: | --------------------------------- | ---------------------------------------------------- |
-| `features/closeout-preview-apply-convergence.feature`                             |        26 | Active, `@proof.vitest`           | Direct review complete; independent evidence pending |
-| `packages/cli/features/run-github-live-smokes-without-waiting-for-builds.feature` |         2 | Active, `@wip`                    | Direct review complete; implementation proof pending |
-| `packages/cli/features/offload-tests-authoritative-remote-conclusions.feature`    |         3 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-authoritative-remote-results.feature`        |        15 | `@wip`, 2 `@proof.pending-vitest` | Pending — specification only                         |
-| `packages/cli/features/offload-tests-clean-revision-dispatch.feature`             |         6 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-clear-request-status.feature`                |         2 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-indeterminate-dispatch-recovery.feature`     |         2 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-invalid-request-rejection.feature`           |         2 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-local-fallback-checkout-consistency.feature` |         7 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-project-opt-in.feature`                      |        18 | `@wip`, 1 `@proof.pending-vitest` | Pending — specification only                         |
-| `packages/cli/features/offload-tests-proven-local-fallback.feature`               |         7 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-remote-revalidation.feature`                 |         7 | `@wip`, 1 `@proof.pending-vitest` | Pending — specification only                         |
-| `packages/cli/features/offload-tests-resumable-requests.feature`                  |        17 | `@wip`, 1 `@proof.pending-vitest` | Pending — specification only                         |
-| `packages/cli/features/offload-tests-trusted-workflow-evidence.feature`           |         9 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-useful-local-recovery.feature`               |         3 | `@wip`                            | Pending — specification only                         |
-| `packages/cli/features/offload-tests-workflow-reconciliation.feature`             |        11 | `@wip`, 1 `@proof.pending-vitest` | Pending — specification only                         |
-| `packages/cli/features/offload-tests-workflow-security.feature`                   |        23 | `@wip`, 2 `@proof.pending-vitest` | Pending — specification only                         |
-| `packages/cli/features/offload-tests-zero-config-enablement.feature`              |         2 | `@wip`                            | Pending — specification only                         |
+| New or replaced feature source                                                    | Scenarios | Delivery state                    | Semantic status                                               |
+| --------------------------------------------------------------------------------- | --------: | --------------------------------- | ------------------------------------------------------------- |
+| `features/closeout-preview-apply-convergence.feature`                             |        26 | Active, `@proof.vitest`           | Direct review complete; independent evidence pending          |
+| `packages/cli/features/run-github-live-smokes-without-waiting-for-builds.feature` |         2 | Active, `@wip`                    | Direct review complete; implementation proof pending          |
+| `packages/cli/features/offload-tests-authoritative-remote-conclusions.feature`    |         3 | `@wip`                            | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-authoritative-remote-results.feature`        |        15 | `@wip`, 2 `@proof.pending-vitest` | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-clean-revision-dispatch.feature`             |         6 | `@wip`                            | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-clear-request-status.feature`                |         2 | `@wip`                            | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-indeterminate-dispatch-recovery.feature`     |         2 | `@wip`                            | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-invalid-request-rejection.feature`           |         2 | `@wip`                            | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-local-fallback-checkout-consistency.feature` |         7 | `@wip`                            | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-project-opt-in.feature`                      |        18 | `@wip`, 1 `@proof.pending-vitest` | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-proven-local-fallback.feature`               |         7 | `@wip`                            | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-remote-revalidation.feature`                 |         7 | `@wip`, 1 `@proof.pending-vitest` | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-resumable-requests.feature`                  |        17 | `@wip`, 1 `@proof.pending-vitest` | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-trusted-workflow-evidence.feature`           |         9 | `@wip`                            | Direct semantic review complete; implementation proof pending |
+| `packages/cli/features/offload-tests-useful-local-recovery.feature`               |         3 | `@wip`                            | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-workflow-reconciliation.feature`             |        11 | `@wip`, 1 `@proof.pending-vitest` | Pending — specification only                                  |
+| `packages/cli/features/offload-tests-workflow-security.feature`                   |        23 | `@wip`, 2 `@proof.pending-vitest` | Direct semantic review complete; implementation proof pending |
+| `packages/cli/features/offload-tests-zero-config-enablement.feature`              |         2 | `@wip`                            | Pending — specification only                                  |
+
+### Upstream sync impact — 2026-08-13 (Safeword 0.77)
+
+The 0.77 merge expands the corpus from 91 to 110 feature sources. Nine sources
+were added or materially changed after their prior ledger entry. Their prior
+counts and statuses are historical only: this 227-scenario queue must receive a
+fresh semantic pass before it inherits any completion claim.
+
+| Changed or new feature source                                  | Scenarios | Delivery state          | Semantic status                                               |
+| -------------------------------------------------------------- | --------: | ----------------------- | ------------------------------------------------------------- |
+| `features/automatic-claude-migration.feature`                  |        30 | Active                  | Pending refreshed review                                      |
+| `features/close-completed-sessions-safely.feature`             |        48 | Active                  | Pending refreshed review                                      |
+| `features/generate-compliant-replies-without-rewrites.feature` |        22 | Active; 3 `@manual`     | Pending refreshed review                                      |
+| `features/native-claude-plugin.feature`                        |        46 | Active; 6 `@wip`        | Pending refreshed review                                      |
+| `features/safeword-md-via-hooks.feature`                       |         6 | Active                  | Pending refreshed review                                      |
+| `features/test-codex-plugin-migration.feature`                 |        24 | Active                  | Pending refreshed review                                      |
+| `packages/cli/features/codex-plugin-hook-parity.feature`       |        17 | Active; 1 `@manual`     | Pending refreshed review                                      |
+| `packages/cli/features/durable-independent-review.feature`     |         5 | Active; `@proof.vitest` | Direct semantic review complete; independent evidence pending |
+| `packages/cli/features/predictable-safeword-cli.feature`       |        29 | Active                  | Pending refreshed review                                      |
 
 ## Evidence
 
@@ -160,6 +179,14 @@ A scenario may be marked semantically complete only when it has been checked for
 - `predictable-safeword-cli`: all fourteen numbered Rule blocks now carry their matching rule-lineage tags, so every contained scenario and outline row has exactly one criterion reference. The agent-facing machine-contract scenario also carries the missing Claude Code and Cursor surface coverage tags.
 - `reliable-reviews-for-real-packets.TBU1.R2`: the configured-deadline scenario had previously only asserted that a review timed out, which a default-only implementation could also satisfy. The merged upstream proof now measures the configured deadline's distinct timeout window, so an ignored configuration fails the scenario.
 
+- `durable-independent-review`: direct review of all five new scenarios found no
+  scenario-gate defect. Its Vitest proof exercises the actual detached CLI
+  worker, completion after the initiating process exits, stale source and
+  context rejection, and cancellation's terminal precedence. The Rule-level
+  failure rows make a dead worker and malformed persisted job observable rather
+  than allowing a silent pending state. Independent-review evidence remains
+  pending and is not implied by this direct pass.
+
 ### Semantic review in progress
 
 The first review packet covers `reliable-reviews-for-real-packets` (32 scenarios), `share-test-capacity-across-parallel-sessions` (56 scenarios), and the current sixteen-feature offload packet (136 scenarios): 224 scenarios total. The prescribed independent coordinator route for `reliable-reviews-for-real-packets` could not be captured as a typed result or persisted receipt in this session, so it is not review evidence. Direct review identified a vacuous deadline scenario; the merged upstream proof addresses it. The packet remains in progress until an auditable independent result is captured.
@@ -167,6 +194,10 @@ The first review packet covers `reliable-reviews-for-real-packets` (32 scenarios
 Direct review of the two newly active sources found no additional scenario-gate defect. All 26 closeout scenarios have a named Vitest proof in `TFG4CR`'s proof map; their rejection rows cover mutable transcript boundaries, authenticated identity, spool integrity, filing availability, and cleanup drift. The two GitHub-live-smoke scenarios are explicit `@wip` behavior with an executable command-level proof surface, so they are not counted as completed Cucumber coverage.
 
 The offload refresh has completed its structural pass: each of the sixteen files owns one Rule, all 136 scenarios remain under explicit `@wip`, and every Rule has rejection coverage. No non-claim `Then` matched the vacuous-pass scan. This is not a semantic approval; each specification still needs its scenario-by-scenario adversarial pass before it can leave the pending state.
+
+Direct semantic review of `offload-tests-workflow-security` found no scenario-gate defect. Its 23 scenarios cover redirect handling, durable pending publication and retry, token entropy, hostile filesystem objects, least-privilege workflow identity, credential-channel exclusion, and immutable workflow dependencies. The two `@proof.pending-vitest` rows correctly identify harness-completeness proofs that must exist before delivery rather than claiming current executable coverage.
+
+Direct semantic review of `offload-tests-trusted-workflow-evidence` found no scenario-gate defect. Its nine scenarios distinguish preflight fallback from post-acceptance integrity failure, reject byte normalizations and configuration redefinition, preserve frozen authority across mutable default-branch metadata, and prove that neither direct authorization nor a substituted workflow exposes Safeword credentials.
 
 ### Looks good
 
