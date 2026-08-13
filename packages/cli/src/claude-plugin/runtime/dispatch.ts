@@ -723,7 +723,12 @@ function runEventHooks(
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
     const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
-    if (result.status !== 0) return result.status;
+    if (result.status !== 0) {
+      // Claude treats exit 1 as a non-blocking hook error. A blockable event
+      // must therefore fail closed even when an earlier sibling already
+      // produced a denial that would otherwise be discarded by this return.
+      return event === 'UserPromptSubmit' ? result.status : 2;
+    }
     mergeHookOutput(event, response, result.stdout);
   }
   return 0;

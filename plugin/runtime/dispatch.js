@@ -4403,14 +4403,15 @@ function entryFor(cwd, mutation) {
   const path = assertSafeClaudeCleanupTarget(cwd, mutation.path);
   const before = readFileSync4(path);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
+  const mode = lstatSync4(path).mode & 511;
   return {
     path: mutation.path,
     before_sha256: sha2562(before),
     before_base64: before.toString('base64'),
-    before_mode: lstatSync4(path).mode & 511,
+    before_mode: mode,
     after_sha256: after === null ? null : sha2562(after),
     after_base64: after === null ? null : after.toString('base64'),
-    after_mode: after === null ? null : lstatSync4(path).mode & 511,
+    after_mode: after === null ? null : mode,
     ...(after === null && {
       quarantine_path: `.safeword/claude-plugin/quarantine/${randomUUID3()}.retired`,
     }),
@@ -4479,7 +4480,7 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   renameSync2(opened.path, safeQuarantinePath);
   const quarantined = lstatSync4(safeQuarantinePath);
   const descriptor = fstatSync2(opened.descriptor);
-  if (!sameFile(quarantined, descriptor)) {
+  if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
     throw new Error('Claude cleanup quarantined a replacement target; retained it for recovery.');
   }
   ftruncateSync(opened.descriptor, 0);
@@ -4496,6 +4497,7 @@ function revalidateOpenTarget(root, relative, opened) {
     !sameFile(opened.target, descriptor) ||
     !sameFile(descriptor, target) ||
     !sameFile(opened.parent, parent) ||
+    descriptor.size !== opened.target.size ||
     descriptor.nlink !== 1
   ) {
     throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
@@ -4519,6 +4521,7 @@ function writeImage(root, relative, expectedSha256, content, options) {
     if (descriptorSha256(opened.descriptor, opened.target.size) !== expectedSha256) {
       throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
     }
+    revalidateOpenTarget(root, relative, opened);
     if (content === null) {
       if (options.quarantinePath === void 0) {
         throw new Error(`Claude cleanup transaction has no quarantine path: ${relative}`);
@@ -5652,7 +5655,9 @@ function runEventHooks(event, hooks, standardInput, response) {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
     const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
-    if (result.status !== 0) return result.status;
+    if (result.status !== 0) {
+      return event === 'UserPromptSubmit' ? result.status : 2;
+    }
     mergeHookOutput(event, response, result.stdout);
   }
   return 0;

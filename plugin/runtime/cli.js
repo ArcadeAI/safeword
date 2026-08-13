@@ -40138,14 +40138,15 @@ function entryFor(cwd, mutation) {
   const path4 = assertSafeClaudeCleanupTarget(cwd, mutation.path);
   const before = readFileSync42(path4);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
+  const mode = lstatSync14(path4).mode & 511;
   return {
     path: mutation.path,
     before_sha256: sha2564(before),
     before_base64: before.toString("base64"),
-    before_mode: lstatSync14(path4).mode & 511,
+    before_mode: mode,
     after_sha256: after === null ? null : sha2564(after),
     after_base64: after === null ? null : after.toString("base64"),
-    after_mode: after === null ? null : lstatSync14(path4).mode & 511,
+    after_mode: after === null ? null : mode,
     ...after === null && {
       quarantine_path: `.safeword/claude-plugin/quarantine/${randomUUID6()}.retired`
     }
@@ -40203,7 +40204,7 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   renameSync6(opened.path, safeQuarantinePath);
   const quarantined = lstatSync14(safeQuarantinePath);
   const descriptor = fstatSync5(opened.descriptor);
-  if (!sameFile(quarantined, descriptor)) {
+  if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
     throw new Error("Claude cleanup quarantined a replacement target; retained it for recovery.");
   }
   ftruncateSync(opened.descriptor, 0);
@@ -40215,7 +40216,7 @@ function revalidateOpenTarget(root, relative, opened) {
   const target = lstatSync14(path4);
   const parent = lstatSync14(nodePath70.dirname(path4));
   const descriptor = fstatSync5(opened.descriptor);
-  if (path4 !== opened.path || !sameFile(opened.target, descriptor) || !sameFile(descriptor, target) || !sameFile(opened.parent, parent) || descriptor.nlink !== 1) {
+  if (path4 !== opened.path || !sameFile(opened.target, descriptor) || !sameFile(descriptor, target) || !sameFile(opened.parent, parent) || descriptor.size !== opened.target.size || descriptor.nlink !== 1) {
     throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
   }
 }
@@ -40239,6 +40240,7 @@ function writeImage(root, relative, expectedSha256, content, options) {
     if (descriptorSha256(opened.descriptor, opened.target.size) !== expectedSha256) {
       throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
     }
+    revalidateOpenTarget(root, relative, opened);
     if (content === null) {
       if (options.quarantinePath === undefined) {
         throw new Error(`Claude cleanup transaction has no quarantine path: ${relative}`);

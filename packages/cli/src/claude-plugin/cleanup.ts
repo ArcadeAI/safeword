@@ -80,7 +80,7 @@ export interface AutomaticClaudeMigrationOptions {
   readonly now?: () => number;
   /** Deterministic race seam used to prove compare-before-replace behavior. */
   readonly beforeApply?: () => void;
-  /** Deterministic test seam immediately before the dirfd-relative quarantine rename. */
+  /** Deterministic test seam immediately before the quarantine rename. */
   readonly beforeQuarantine?: () => void;
 }
 
@@ -216,14 +216,15 @@ function entryFor(cwd: string, mutation: { path: string; content: string | null 
   const path = assertSafeClaudeCleanupTarget(cwd, mutation.path);
   const before = readFileSync(path);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
+  const mode = lstatSync(path).mode & 0o777;
   return {
     path: mutation.path,
     before_sha256: sha256(before),
     before_base64: before.toString('base64'),
-    before_mode: lstatSync(path).mode & 0o777,
+    before_mode: mode,
     after_sha256: after === null ? null : sha256(after),
     after_base64: after === null ? null : after.toString('base64'),
-    after_mode: after === null ? null : lstatSync(path).mode & 0o777,
+    after_mode: after === null ? null : mode,
     ...(after === null && {
       quarantine_path: `.safeword/claude-plugin/quarantine/${randomUUID()}.retired`,
     }),
@@ -317,7 +318,7 @@ function quarantineOpenTarget(
   renameSync(opened.path, safeQuarantinePath);
   const quarantined = lstatSync(safeQuarantinePath);
   const descriptor = fstatSync(opened.descriptor);
-  if (!sameFile(quarantined, descriptor)) {
+  if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
     throw new Error('Claude cleanup quarantined a replacement target; retained it for recovery.');
   }
   // Destroy bytes only through the descriptor whose identity was validated.
@@ -338,6 +339,7 @@ function revalidateOpenTarget(root: string, relative: string, opened: OpenCleanu
     !sameFile(opened.target, descriptor) ||
     !sameFile(descriptor, target) ||
     !sameFile(opened.parent, parent) ||
+    descriptor.size !== opened.target.size ||
     descriptor.nlink !== 1
   ) {
     throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
@@ -375,6 +377,7 @@ function writeImage(
     if (descriptorSha256(opened.descriptor, opened.target.size) !== expectedSha256) {
       throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
     }
+    revalidateOpenTarget(root, relative, opened);
     if (content === null) {
       if (options.quarantinePath === undefined) {
         throw new Error(`Claude cleanup transaction has no quarantine path: ${relative}`);

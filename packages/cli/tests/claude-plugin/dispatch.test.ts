@@ -932,6 +932,39 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stderr).toContain('sibling hooks returned conflicting scalar values');
   });
 
+  it('fails closed when a sibling errors after an authorization denial', () => {
+    const projectDirectory = temporary('safeword-plugin-sibling-error-project-');
+    const pluginData = temporary('safeword-plugin-sibling-error-data-');
+    const configDirectory = temporary('safeword-plugin-sibling-error-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-sibling-error-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.PreToolUse = [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"}}\n'`,
+          },
+          { type: 'command', command: 'exit 1' },
+        ],
+      },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'sibling-error', {
+      event: 'PreToolUse',
+      pluginRoot,
+    });
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+  });
+
   it('preserves legacy delivery when project and user declarations differ', () => {
     const projectDirectory = temporary('safeword-plugin-overlap-project-');
     const pluginData = temporary('safeword-plugin-overlap-data-');
