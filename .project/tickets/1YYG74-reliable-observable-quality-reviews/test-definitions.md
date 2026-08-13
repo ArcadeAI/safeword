@@ -2,127 +2,85 @@
 
 Feature source: `packages/cli/features/reliable-observable-quality-reviews.feature`
 
-The executable contract is intentionally consolidated around customer-visible
-boundaries. Focused runtime tests continue to own the complete landed failure
-taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
-`not_authenticated`, `launch_failed`, `timed_out`, and `invalid_output`).
+The executable contract is deliberately limited to customer-visible behavior
+that has named Vitest proof. Exact scheduler interleavings, TTY duplication, and
+the coordinator's complete failure taxonomy are lower-level implementation
+contracts owned by their focused tests, not claims made by this feature.
 
-## Rule: reliable-observable-quality-reviews.TBU1.R1 — A managed JSON review reports rate-limited lifecycle progress separately from its final typed result
+## Rule: reliable-observable-quality-reviews.TBU1.R1 — Managed JSON reviews expose reviewer activity without changing their result
 
-### Scenario Outline: A slow managed review remains visible without changing its result
-
-- [x] RED b9cf90383
-- [x] GREEN 7b675263b
-- [x] REFACTOR skip: Review found no behavior-preserving extraction clearer than the existing policy and wiring seams.
-
-### Scenario Outline: Completion cancels lifecycle output at exact timer boundaries
-
-- [x] RED skip: Characterization mutation removed announcement cancellation; `policy.test.ts` failed on the missing timer cancellation.
-- [x] GREEN 81d35a8aa
-- [x] REFACTOR skip: Scheduler extraction would enlarge the public timing seam without simplifying the implementation.
-
-### Scenario: Heartbeats are rate-limited and suspended clocks do not replay missed intervals
-
-- [x] RED skip: Characterization mutation removed heartbeat re-arming; `policy.test.ts` failed because the next 30-second heartbeat was absent.
-- [x] GREEN 81d35a8aa
-- [x] REFACTOR skip: Recursive re-arming is already the smallest coalescing mechanism.
-
-### Scenario: Managed timing starts with each asynchronous reviewer route
-
-- [x] RED b9cf90383
-- [x] GREEN 53e94d96f
-- [x] REFACTOR skip: Route ownership belongs in the coordinator and should not move into the wrapper.
-
-### Scenario: An alternate-model retry starts fresh lifecycle timing
-
-- [x] RED b9cf90383
-- [x] GREEN 53e94d96f
-- [x] REFACTOR skip: Alternate-model timing reuses the coordinator's existing route lifecycle.
-
-## Rule: reliable-observable-quality-reviews.TBU1.R2 — Callers that do not request managed progress keep the existing silent machine contract
-
-### Scenario Outline: Only the exact managed signal enables JSON progress
+### Scenario Outline: Managed progress preserves each terminal review outcome
 
 - [x] RED b9cf90383
 - [x] GREEN 7b675263b
-- [x] REFACTOR skip: Exact signal consumption is already isolated in a single policy helper.
+- [x] REFACTOR skip: The result and progress boundaries remain independently asserted.
+
+### Scenario: Packet preparation stays quiet until reviewer work begins
+
+- [x] RED b9cf90383
+- [x] GREEN 53e94d96f
+- [x] REFACTOR pending: Replace copy-prefix filtering with an explicit progress phase.
+
+### Scenario: Completion cancels pending lifecycle output
+
+- [x] RED skip: Characterization mutation removed cancellation and made the policy test fail.
+- [x] GREEN 81d35a8aa
+- [x] REFACTOR skip: The reporter already owns both pending handles in one closure.
+
+## Rule: reliable-observable-quality-reviews.TBU1.R2 — Unsupported callers retain the existing machine and human contracts
+
+### Scenario Outline: Only the exact private signal enables JSON progress
+
+- [x] RED b9cf90383
+- [x] GREEN 7b675263b
+- [x] REFACTOR pending: Use the signal constant for both consumption operations.
 
 ### Scenario Outline: Quiet mode wins over managed progress
 
 - [x] RED b9cf90383
 - [x] GREEN 53e94d96f
-- [x] REFACTOR skip: Quiet precedence is centralized in the existing output-policy predicate.
+- [x] REFACTOR pending: Consolidate repeated managed-review wiring setup.
 
-### Scenario: Human-readable review progress remains unchanged
+### Scenario: Human-readable progress remains enabled without the private signal
 
-- [x] RED skip: Human progress is the unchanged baseline against which managed JSON behavior is compared.
+- [x] RED skip: This is the pre-existing compatibility baseline.
 - [x] GREEN 53e94d96f
-- [x] REFACTOR skip: Managed JSON filtering is already wrapped separately from human progress.
+- [x] REFACTOR skip: One output-policy predicate expresses the precedence.
 
-### Scenario: The private signal does not duplicate human-readable progress
+## Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
 
-- [x] RED skip: Human-mode policy intentionally ignores the managed JSON opt-in; this is a regression characterization.
-- [x] GREEN 53e94d96f
-- [x] REFACTOR skip: The shared output-policy predicate already expresses human-mode precedence.
-
-## Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel that cannot alter or disclose reviewer output
-
-### Scenario Outline: A failed progress destination cannot alter the terminal result
+### Scenario Outline: A progress write failure cannot alter the terminal result
 
 - [x] RED b9cf90383
 - [x] GREEN 7b675263b
-- [x] REFACTOR skip: The narrow sink wrapper is the smallest safe failure boundary.
+- [x] REFACTOR skip: The narrow sink wrapper is the smallest failure boundary.
 
-### Scenario: Accepted reviewer data never enters lifecycle output
-
-- [x] RED skip: Reviewer-output isolation was a landed invariant; this ticket adds adversarial regression coverage.
-- [x] GREEN 81d35a8aa
-- [x] REFACTOR skip: Fixed-message rendering already centralizes the non-disclosure boundary.
-
-### Scenario Outline: Rejected reviewer data never enters public output
-
-- [x] RED skip: Rejected-output isolation was a landed invariant; this ticket adds managed-progress regression coverage.
-- [x] GREEN 81d35a8aa
-- [x] REFACTOR skip: Rejected bytes remain owned by the coordinator's bounded parser.
-
-### Scenario: Exhausted routes identify the failed boundary and recovery
-
-- [x] RED skip: The route-exhaustion taxonomy landed in ticket 3FK4DC; this ticket revalidates it with managed progress enabled.
-- [x] GREEN 53e94d96f
-- [x] REFACTOR skip: Result classification remains owned by the existing coordinator result builder.
-
-## Rule: reliable-observable-quality-reviews.SWM1.R2 — Every generated required-review workflow delegates to the managed wrapper while remaining compatible with an older resolved CLI
-
-### Scenario: The wrapper scopes its private signal to the Safeword CLI child
+### Scenario: The private signal never reaches reviewer processes
 
 - [x] RED 80e55391d
 - [x] GREEN e339e2e42
-- [x] REFACTOR skip: Environment construction is already a single explicit wrapper function.
+- [x] REFACTOR skip: Reviewer allowlisting is the independent defense-in-depth boundary.
 
-### Scenario: The public CLI removes the wrapper signal from reviewer processes
+## Rule: reliable-observable-quality-reviews.SWM1.R2 — Required-review workflows use a compatible managed wrapper
+
+### Scenario: The wrapper scopes progress to its JSON review child
 
 - [x] RED 80e55391d
 - [x] GREEN e339e2e42
-- [x] REFACTOR skip: Reviewer environment allowlisting remains the independent defense-in-depth boundary.
+- [x] REFACTOR pending: Rename the environment helper to describe its child-process responsibility.
 
-### Scenario: Managed progress has no public CLI option
+### Scenario Outline: The wrapper remains compatible with an older review-capable CLI
 
-- [x] RED skip: The option catalogue had no public progress flag before this internal opt-in was added.
-- [x] GREEN 7b675263b
-- [x] REFACTOR skip: The environment signal avoids adding a second public API surface.
-
-### Scenario: Required-review workflows cannot bypass the managed wrapper
-
-- [x] RED skip: Generated surfaces already delegated through the wrapper; this is parity protection against future bypasses.
-- [x] GREEN 53e94d96f
-- [x] REFACTOR skip: A shared catalogue assertion is the least duplicated representation.
-
-### Scenario Outline: The wrapper remains compatible with a CLI that predates progress support
-
-- [x] RED skip: Compatibility follows from using an environment signal; the live harness records the invariant.
+- [x] RED skip: Compatibility follows from the environment-only opt-in; the live harness records it.
 - [x] GREEN e812b8c96
-- [x] REFACTOR skip: The wrapper must remain a transparent spawn boundary, so further abstraction would obscure compatibility.
+- [x] REFACTOR skip: The wrapper remains a transparent spawn boundary.
+
+### Scenario: Required-review surfaces cannot bypass the managed wrapper
+
+- [x] RED skip: Generated surfaces already delegated through the wrapper; this prevents future bypasses.
+- [x] GREEN 53e94d96f
+- [x] REFACTOR skip: Catalogue inspection is the least duplicated parity representation.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario skip: Review found no shared extraction that reduces complexity without coupling CLI policy, wrapper compatibility, and generated-surface parity.
+- [x] cross-scenario pending: Finish the three leaf-first improvements above, then record their commit.

@@ -42542,7 +42542,7 @@ function independentNetworkEffects(reviewer, retried) {
 }
 function preparePrimaryReview(input, reviewer) {
   const name = agentName(reviewer);
-  input.progress?.start(`Preparing the review packet for ${name}\u2026`);
+  input.progress?.start(`Preparing the review packet for ${name}\u2026`, "preparation");
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.start(`Requesting an independent ${name} review\u2026`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
@@ -59376,10 +59376,9 @@ function assertEffectPolicy(definition, result, options) {
   }
 }
 var MANAGED_PROGRESS_SIGNAL = "SAFEWORD_REVIEW_PROGRESS";
-var PREPARING_REVIEW_PACKET_PREFIX = "Preparing the review packet for ";
 function consumeManagedProgressSignal(environment) {
   const enabled = environment[MANAGED_PROGRESS_SIGNAL] === "1";
-  delete environment.SAFEWORD_REVIEW_PROGRESS;
+  Reflect.deleteProperty(environment, MANAGED_PROGRESS_SIGNAL);
   return enabled;
 }
 function shouldReportProgress(options) {
@@ -59395,9 +59394,13 @@ function createBestEffortProgressSink(write) {
 }
 function createManagedReviewProgress(progress) {
   return {
-    start(message) {
-      if (!message.startsWith(PREPARING_REVIEW_PACKET_PREFIX))
+    start(message, phase) {
+      if (phase === "preparation")
+        return;
+      if (phase === undefined)
         progress.start(message);
+      else
+        progress.start(message, phase);
     },
     heartbeat: progress.heartbeat?.bind(progress),
     stop: progress.stop.bind(progress)

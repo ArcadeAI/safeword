@@ -18,7 +18,7 @@ function probeTimeout(environment: NodeJS.ProcessEnv): number {
     : DEFAULT_PROBE_TIMEOUT_MS;
 }
 
-export function reviewEnvironment(
+export function reviewChildEnvironment(
   environment: NodeJS.ProcessEnv,
   arguments_: readonly string[],
 ): NodeJS.ProcessEnv {
@@ -37,7 +37,7 @@ function supportsReview(
 ): boolean {
   const arguments_ = ['review', 'run', '--help'];
   const result = spawnSync(command, [...prefix, 'review', 'run', '--help'], {
-    env: reviewEnvironment(environment, arguments_),
+    env: reviewChildEnvironment(environment, arguments_),
     stdio: 'ignore',
     timeout,
   });
@@ -79,7 +79,7 @@ export function runReview(arguments_: string[]): never {
     process.exit(1);
   }
   const result = spawnSync(candidate[0], [...candidate[1], ...arguments_], {
-    env: reviewEnvironment(process.env, arguments_),
+    env: reviewChildEnvironment(process.env, arguments_),
     stdio: 'inherit',
   });
   process.exit(result.status ?? 1);

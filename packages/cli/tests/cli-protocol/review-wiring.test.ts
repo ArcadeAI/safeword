@@ -119,6 +119,49 @@ function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log:
   return bin;
 }
 
+async function runManagedJsonReview(
+  directory: string,
+  options: { readonly quiet?: boolean; readonly verdict?: 'approve' | 'request_changes' } = {},
+) {
+  writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+  const log = nodePath.join(directory, 'review.log');
+  const bin = installFakeReviewer(directory, 'codex');
+  const verdictEnvironment: Record<string, string> =
+    options.verdict === 'request_changes'
+      ? {
+          SAFEWORD_REVIEW_FAKE_FINDING: 'Unsafe retry',
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+        }
+      : {};
+
+  return runCli(
+    [
+      'review',
+      'run',
+      'quality-review',
+      'review-input.md',
+      '--json',
+      ...(options.quiet ? ['--quiet'] : []),
+      '--no-input',
+      '--cwd',
+      directory,
+    ],
+    {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:/usr/bin:/bin`,
+        SAFEWORD_AGENT_RUNTIME: 'claude',
+        SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
+        SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+        SAFEWORD_REVIEW_LOG: log,
+        SAFEWORD_REVIEW_PROGRESS: '1',
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        ...verdictEnvironment,
+      },
+    },
+  );
+}
+
 describe('cross-agent review public-command wiring', () => {
   it('marks supporting context separately from review targets through the public CLI', async () => {
     const directory = createTemporaryDirectory();
@@ -1427,34 +1470,7 @@ describe('cross-agent review public-command wiring', () => {
 
   it('keeps managed machine output typed while reporting only active reviewer work', async () => {
     const directory = createTemporaryDirectory();
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const log = nodePath.join(directory, 'review.log');
-    const bin = installFakeReviewer(directory, 'codex');
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
-          SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_REVIEW_PROGRESS: '1',
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
+    const result = await runManagedJsonReview(directory);
 
     expect(result.exitCode, result.stdout).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({
@@ -1469,36 +1485,7 @@ describe('cross-agent review public-command wiring', () => {
 
   it('preserves an action-required result after managed progress', async () => {
     const directory = createTemporaryDirectory();
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const log = nodePath.join(directory, 'review.log');
-    const bin = installFakeReviewer(directory, 'codex');
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
-          SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
-          SAFEWORD_REVIEW_FAKE_FINDING: 'Unsafe retry',
-          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_REVIEW_PROGRESS: '1',
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
+    const result = await runManagedJsonReview(directory, { verdict: 'request_changes' });
 
     expect(result.exitCode, result.stdout).toBe(2);
     const output = JSON.parse(result.stdout) as {
@@ -1514,41 +1501,20 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.stderr).toContain('Still waiting for a response from Codex…');
   });
 
-  it('lets quiet mode suppress managed progress without suppressing the JSON result', async () => {
-    const directory = createTemporaryDirectory();
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const log = nodePath.join(directory, 'review.log');
-    const bin = installFakeReviewer(directory, 'codex');
+  it.each([
+    ['approve', 0, 'healthy'],
+    ['request_changes', 2, 'action_required'],
+  ] as const)(
+    'lets quiet mode suppress managed progress for %s without suppressing the JSON result',
+    async (verdict, exitCode, state) => {
+      const directory = createTemporaryDirectory();
+      const result = await runManagedJsonReview(directory, { quiet: true, verdict });
 
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--quiet',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_REVIEW_PROGRESS: '1',
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
-
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({ schema_version: 1, state: 'healthy' });
-    expect(result.stderr).toBe('');
-  });
+      expect(result.exitCode, result.stdout).toBe(exitCode);
+      expect(JSON.parse(result.stdout)).toMatchObject({ schema_version: 1, state });
+      expect(result.stderr).toBe('');
+    },
+  );
 
   it.each(['process', 'auth'])(
     'skips a reviewer candidate that fails with %s and runs the next compatible installation',

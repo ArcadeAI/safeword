@@ -54,11 +54,10 @@ interface ProgressAdapters {
 }
 
 const MANAGED_PROGRESS_SIGNAL = 'SAFEWORD_REVIEW_PROGRESS';
-const PREPARING_REVIEW_PACKET_PREFIX = 'Preparing the review packet for ';
 
 export function consumeManagedProgressSignal(environment: NodeJS.ProcessEnv): boolean {
   const enabled = environment[MANAGED_PROGRESS_SIGNAL] === '1';
-  delete environment.SAFEWORD_REVIEW_PROGRESS;
+  Reflect.deleteProperty(environment, MANAGED_PROGRESS_SIGNAL);
   return enabled;
 }
 
@@ -84,8 +83,10 @@ export function createBestEffortProgressSink(
 
 export function createManagedReviewProgress(progress: ProgressReporter): ProgressReporter {
   return {
-    start(message): void {
-      if (!message.startsWith(PREPARING_REVIEW_PACKET_PREFIX)) progress.start(message);
+    start(message, phase): void {
+      if (phase === 'preparation') return;
+      if (phase === undefined) progress.start(message);
+      else progress.start(message, phase);
     },
     heartbeat: progress.heartbeat?.bind(progress),
     stop: progress.stop.bind(progress),

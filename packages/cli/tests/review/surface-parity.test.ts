@@ -13,7 +13,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { reviewCandidates, reviewEnvironment } from '../../templates/hooks/run-review';
+import { reviewCandidates, reviewChildEnvironment } from '../../templates/hooks/run-review';
 
 const templates = nodePath.resolve(import.meta.dirname, '../../templates');
 
@@ -214,11 +214,11 @@ exit 2`,
       SAFEWORD_REVIEW_PROGRESS: 'inherited',
     };
 
-    expect(reviewEnvironment(contaminated, ['review', 'run', '--help'])).toEqual({
+    expect(reviewChildEnvironment(contaminated, ['review', 'run', '--help'])).toEqual({
       PATH: '/usr/bin',
     });
     expect(
-      reviewEnvironment(contaminated, [
+      reviewChildEnvironment(contaminated, [
         'review',
         'run',
         'quality-review',

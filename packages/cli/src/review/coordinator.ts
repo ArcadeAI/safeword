@@ -387,7 +387,7 @@ function preparePrimaryReview(
   reviewer: ReviewAgent,
 ): ReturnType<typeof prepareReviewPacket> {
   const name = agentName(reviewer);
-  input.progress?.start(`Preparing the review packet for ${name}…`);
+  input.progress?.start(`Preparing the review packet for ${name}…`, 'preparation');
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.start(`Requesting an independent ${name} review…`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}…`);

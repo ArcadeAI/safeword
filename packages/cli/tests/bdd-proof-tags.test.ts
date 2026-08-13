@@ -165,4 +165,20 @@ describe('BDD proof provenance', () => {
       expect(proof, `${scenario} -> ${proofPath} must name ${testName}`).toContain(testName);
     }
   });
+
+  it('maps every observable-review scenario to a named executable proof', () => {
+    const manifestPath = nodePath.join(
+      REPO_ROOT,
+      '.project/tickets/1YYG74-reliable-observable-quality-reviews/bdd-proof.json',
+    );
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ScenarioProofManifest;
+    expect(
+      Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
+
+    for (const [scenario, [proofPath, testName]] of Object.entries(manifest.scenarios)) {
+      const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
+      expect(proof, `${scenario} -> ${proofPath} must name ${testName}`).toContain(testName);
+    }
+  });
 });
