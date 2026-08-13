@@ -75,4 +75,14 @@ describe('scenario proof fidelity documentation (issue #1698)', () => {
       expect(review).toContain('actor-visible result');
     }
   });
+
+  it.each(tddReviewCopies)('%s adversarially checks the actual RED proof boundary', path => {
+    const content = readFileSync(path, 'utf8');
+    const redReview = expectSectionBetween(content, '## After RED', '## After GREEN');
+    const prose = redReview.replaceAll(/\s+/gu, ' ');
+
+    expect(prose).toContain('Could this test pass while the user-facing claim remains broken?');
+    expect(prose).toContain('same-process test cannot prove caller-exit survival');
+    expect(prose).toContain('injected fake cannot prove real CLI wiring');
+  });
 });
