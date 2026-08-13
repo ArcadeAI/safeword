@@ -317,7 +317,7 @@ try {
   });
 
   assert.equal(requestCount, 3);
-  assert.equal(result.observedCostPicodollars, 1_640_000_000n);
+  assert.equal(result.observedCostPicodollars, 2_050_000_000n);
   const inventory = JSON.parse(
     readFileSync(
       join(outputDirectory, EVIDENCE_DIRECTORY, "attempt-1.json"),

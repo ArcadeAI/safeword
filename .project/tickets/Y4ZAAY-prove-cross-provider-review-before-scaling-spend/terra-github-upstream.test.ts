@@ -297,7 +297,7 @@ describe("GitHub canary upstream", () => {
             output_tokens: 3,
           };
           return {
-            attemptCostPicodollars: 52_400_000n,
+            attemptCostPicodollars: 65_500_000n,
             nativeUsageBytes: JSON.stringify({
               turns: [{
                 rawUsage,
@@ -349,7 +349,7 @@ describe("GitHub canary upstream", () => {
       })
     ).resolves.toEqual({
       attemptId: "attempt-1",
-      observedCostPicodollars: 52_400_000n,
+      observedCostPicodollars: 65_500_000n,
       sequence: 1,
       startedAttempts: 1,
     });
@@ -357,15 +357,15 @@ describe("GitHub canary upstream", () => {
       {
         completions: [
           {
-            attemptCostPicodollars: "52400000",
+            attemptCostPicodollars: "65500000",
             attemptId: "attempt-1",
-            observedCostPicodollars: "52400000",
+            observedCostPicodollars: "65500000",
             receiptId: "receipt-3",
             sequence: 1,
             startReceiptId: "receipt-2",
           },
         ],
-        head: { observedCostPicodollars: "52400000", startedAttempts: 1 },
+        head: { observedCostPicodollars: "65500000", startedAttempts: 1 },
         kind: "consumed",
         starts: [
           {

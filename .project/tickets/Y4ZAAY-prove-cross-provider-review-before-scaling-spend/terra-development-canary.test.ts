@@ -108,7 +108,7 @@ function validDispatchEvidence(
     ],
   };
   return {
-    attemptCostPicodollars: 52_400_000n,
+    attemptCostPicodollars: 65_500_000n,
     nativeUsageBytes: JSON.stringify({
       turns: [
         {
@@ -570,7 +570,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
     ]);
     expect(result).toMatchObject({
       attemptId: "attempt-1",
-      observedCostPicodollars: 52_400_000n,
+      observedCostPicodollars: 65_500_000n,
       sequence: 1,
       startedAttempts: 1,
     });
@@ -585,7 +585,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
     ).resolves.toMatchObject({
       attemptAccountingComplete: true,
       costAccountingComplete: true,
-      observedCostPicodollars: 52_400_000n,
+      observedCostPicodollars: 65_500_000n,
       startedAttempts: 1,
     });
   });
@@ -675,7 +675,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
       upstream,
     });
 
-    expect(result.observedCostPicodollars).toBe(52_400_000n);
+    expect(result.observedCostPicodollars).toBe(65_500_000n);
     const retained = JSON.parse(
       readFileSync(join(directory, EVIDENCE_DIRECTORY, "attempt-1.json"), "utf8")
     );
