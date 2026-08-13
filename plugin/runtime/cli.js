@@ -41723,7 +41723,8 @@ var init_policy = __esm(() => {
 function reviewerEnvironment(reviewer, source = process.env, platform = process.platform) {
   const normalize = (name) => platform === "win32" ? name.toUpperCase() : name;
   const allowed = new Set([...PROCESS_VARIABLES, ...VENDOR_VARIABLES[reviewer]].map((name) => normalize(name)));
-  return Object.fromEntries(Object.entries(source).filter(([name]) => allowed.has(normalize(name)) || normalize(name).startsWith("SAFEWORD_REVIEW_")));
+  const managedProgressSignal = normalize("SAFEWORD_REVIEW_PROGRESS");
+  return Object.fromEntries(Object.entries(source).filter(([name]) => normalize(name) !== managedProgressSignal && (allowed.has(normalize(name)) || normalize(name).startsWith("SAFEWORD_REVIEW_"))));
 }
 var VENDOR_VARIABLES, PROCESS_VARIABLES;
 var init_environment = __esm(() => {
@@ -59374,6 +59375,34 @@ function assertEffectPolicy(definition, result, options) {
     throw new Error(`Hook command ${definition.name} reported forbidden lifecycle effects`);
   }
 }
+var MANAGED_PROGRESS_SIGNAL = "SAFEWORD_REVIEW_PROGRESS";
+var PREPARING_REVIEW_PACKET_PREFIX = "Preparing the review packet for ";
+function consumeManagedProgressSignal(environment) {
+  const enabled = environment[MANAGED_PROGRESS_SIGNAL] === "1";
+  delete environment.SAFEWORD_REVIEW_PROGRESS;
+  return enabled;
+}
+function shouldReportProgress(options) {
+  return !options.quiet && (!options.json || options.managedReview);
+}
+function createBestEffortProgressSink(write) {
+  return (message) => {
+    try {
+      write(`${message}
+`);
+    } catch {}
+  };
+}
+function createManagedReviewProgress(progress) {
+  return {
+    start(message) {
+      if (!message.startsWith(PREPARING_REVIEW_PACKET_PREFIX))
+        progress.start(message);
+    },
+    heartbeat: progress.heartbeat?.bind(progress),
+    stop: progress.stop.bind(progress)
+  };
+}
 var PROGRESS_ANNOUNCE_DELAY_MS = 100;
 var PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
 function resolveHeartbeatIntervalMs(environment = process.env) {
@@ -59501,6 +59530,7 @@ function machineOutputRequested(arguments_) {
 }
 
 // src/cli-protocol/register.ts
+import { writeSync } from "fs";
 import process19 from "process";
 init_plan();
 init_result();
@@ -59617,17 +59647,23 @@ function withCompatibilityDeprecation(result, definition, commandOptions = {}, i
   }
   return withDeprecation(result, alias2.name, alias2.compatibility.replacement ?? alias2.aliasFor, alias2.compatibility, commandOptions);
 }
-async function executeDefinition(command2, definition, invocation = {}) {
-  const globalOptions = readGlobalOptions(command2);
-  const commandOptions = readCommandOptions(command2);
-  const progress = globalOptions.json || globalOptions.quiet ? undefined : createProgressReporter({
+function commandProgress(definition, options) {
+  const managedReview = consumeManagedProgressSignal(process19.env) && definition.name === "review run";
+  if (!shouldReportProgress({ ...options, managedReview }))
+    return;
+  const progress = createProgressReporter({
     schedule: (callback, delay) => setTimeout(callback, delay),
     cancel: (handle) => {
       clearTimeout(handle);
     },
-    emit: (message) => process19.stderr.write(`${message}
-`)
+    emit: createBestEffortProgressSink((message) => writeSync(2, message))
   });
+  return managedReview && options.json ? createManagedReviewProgress(progress) : progress;
+}
+async function executeDefinition(command2, definition, invocation = {}) {
+  const globalOptions = readGlobalOptions(command2);
+  const commandOptions = readCommandOptions(command2);
+  const progress = commandProgress(definition, globalOptions);
   let result;
   try {
     try {
