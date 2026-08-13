@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "be47a40e528943a896ae52d75c3c43dcb3b5fd88d2466d0280e3edba0ed3f3a8"
+      "sha256": "6b0e5815ec21abb851d6c587605f6a8cb4b82f181340972b584df484f185262b"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "d9e5b4fe1150533f2fc323324f0957198bf6bd9b636253418a7e92e40b6f3497"
+      "sha256": "2790efb6a75ee93d6a360251dcba206c7ac42981b615cee3468a028b8d4f5d21"
     },
     {
       "path": "runtime/event-groups.json",
@@ -595,11 +595,11 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "3cbe0db990c3a39acacc7d6b2e4a249478cf060eaba98eba373378022a070e8a"
+      "sha256": "c407835069b1671b62cc8e221ef51ff6e0aa7708ab293de94f56519c8ee6eb56"
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "21c66a8ec4dfbc14fc991358c85ee481c28d2590485bc23d871a806bfd28477d"
+      "sha256": "ba46dac85a05aee879e10b47d2a6aeac1d95593efdf97eac8e40c3c26bd9efd2"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -607,7 +607,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "ac7892b388dcbf25b366d6f049a12c71cab0daf1b585a0eff08db71fb55c2203"
+      "sha256": "b2639f44409f159b92abdf2102a86da90f6b06da8b056b593c1e18327b37983e"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -655,7 +655,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "752cbfbdea5aa7960562f0fb5af5c2eaf81188ba63a92f197a9aa89cca828a98"
+      "sha256": "0c26e4d4e4cdca4c2eea5d1e07a0177db17754f89173c1cc03698add78181c12"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -671,7 +671,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "9485f5194c2396b44a782ee2d14590221b52667e60430de7737f1f42fa1b70b4"
+      "sha256": "b1b93680dddca4f05a04ae82feb9e7186f2569f502778158d79ddbba68919388"
     },
     {
       "path": "skills/self-review/SKILL.md",
@@ -683,7 +683,7 @@
     },
     {
       "path": "skills/tdd-review/SKILL.md",
-      "sha256": "f49a7e07dea7a62f39e9919c0c4251ede4ec2dec72b9892e7e0c42205d510e6f"
+      "sha256": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f"
     },
     {
       "path": "skills/testing/SKILL.md",

@@ -109,6 +109,15 @@ Eight lenses across the whole scenario set (not per scenario) — each asks "wha
 - **Invariant binding** — for each normative clause in `spec.md` (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** — cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its `Given` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario. Found live in QRX2DN — the spec forbade an unbound session mutating ticket state, every row named `never_uses_a_fallback_for` bound a session id, and the no-identity case the invariant actually named shipped as a defect (#1425).
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a `provider: none`-style short circuit has no wiring coverage (see `testing/SKILL.md` → Wiring Tests).
 
+Finish by reconciling the set instead of adding speculative cases: every
+material partition retained in `dimensions.md`, affected surface, and public
+command or user-visible outcome declared in ticket scope needs a scenario or an
+explicit `skip: <reason>`. For each load-bearing scenario ask: _could the
+proposed test pass while the user-facing claim is still broken?_ Same-process
+proof cannot establish caller-exit survival; an injected fake cannot establish
+real CLI wiring; a unit test cannot establish a runtime or protocol boundary.
+Report a proof-boundary mismatch now so the implementation plan can correct it.
+
 ## Findings format
 
 Report findings the way safeword talks to the user — lead with the answer, structure only because a multi-finding review earns it, end with the call:
