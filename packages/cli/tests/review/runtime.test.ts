@@ -136,7 +136,7 @@ describe('headless reviewer process lifecycle', () => {
       failure: 'launch_failed',
     },
   ])('classifies $name separately from a missing executable', async ({ help, failure }) => {
-    const bin = temporaryDirectory();
+    const bin = trustedTemporaryDirectory();
     const project = temporaryDirectory();
     const untrustedRoot = temporaryDirectory();
     const executable = nodePath.join(bin, 'claude');
