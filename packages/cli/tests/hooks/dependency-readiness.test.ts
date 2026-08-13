@@ -1,5 +1,6 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -14,6 +15,7 @@ import { parse } from 'smol-toml';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  bootstrapDependencies,
   decideGitHooksWiring,
   dependencyInputFingerprint,
   detectDependencyPlan,
@@ -61,8 +63,13 @@ it('keeps the dogfood dependency-readiness helper identical to its source templa
     path.join(REPOSITORY_ROOT, '.safeword/hooks/lib/dependency-readiness.ts'),
     'utf8',
   );
+  const plugin = readFileSync(
+    path.join(REPOSITORY_ROOT, 'plugin/runtime/hooks/lib/dependency-readiness.ts'),
+    'utf8',
+  );
 
   expect(dogfood).toBe(template);
+  expect(plugin).toBe(template);
 });
 
 it('keeps the dogfood dependency bootstrap identical to its source template', () => {
@@ -74,8 +81,13 @@ it('keeps the dogfood dependency bootstrap identical to its source template', ()
     path.join(REPOSITORY_ROOT, '.safeword/hooks/dependency-bootstrap.ts'),
     'utf8',
   );
+  const plugin = readFileSync(
+    path.join(REPOSITORY_ROOT, 'plugin/runtime/hooks/dependency-bootstrap.ts'),
+    'utf8',
+  );
 
   expect(dogfood).toBe(template);
+  expect(plugin).toBe(template);
 });
 
 it('wires the dogfood Codex SessionStart to the managed dependency bootstrap', () => {
@@ -85,13 +97,36 @@ it('wires the dogfood Codex SessionStart to the managed dependency bootstrap', (
   };
   const commands =
     config.hooks?.SessionStart?.flatMap(entry => entry.hooks ?? []).map(hook => hook.command) ?? [];
+  const command = commands.find(candidate => candidate?.includes('dependency-bootstrap.ts'));
 
   expect(config.features?.hooks).toBe(true);
-  expect(commands).toContain(
-    'SAFEWORD_PROJECT_ROOT="$(git rev-parse --show-toplevel)" && bun "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" "$SAFEWORD_PROJECT_ROOT"',
-  );
+  expect(command).toBeDefined();
   expect(existsSync(path.join(REPOSITORY_ROOT, '.safeword/hooks/dependency-bootstrap.ts'))).toBe(
     true,
+  );
+  const wiredProject = createTemporaryDirectory();
+  try {
+    expect(spawnSync('git', ['init', '--quiet'], { cwd: wiredProject }).status).toBe(0);
+    mkdirSync(path.join(wiredProject, '.safeword/hooks'), { recursive: true });
+    writeFileSync(
+      path.join(wiredProject, '.safeword/hooks/dependency-bootstrap.ts'),
+      "import { writeFileSync } from 'node:fs'; writeFileSync(`${process.argv[2]}/.wiring-proof`, 'ok');\n",
+    );
+
+    expect(spawnSync('sh', ['-c', command ?? 'false'], { cwd: wiredProject }).status).toBe(0);
+    expect(readFileSync(path.join(wiredProject, '.wiring-proof'), 'utf8')).toBe('ok');
+  } finally {
+    removeTemporaryDirectory(wiredProject);
+  }
+});
+
+it('guards the repository-owned Safeword command with strict dependency readiness', () => {
+  const packageJson = JSON.parse(
+    readFileSync(path.join(REPOSITORY_ROOT, 'package.json'), 'utf8'),
+  ) as { scripts?: Record<string, string> };
+
+  expect(packageJson.scripts?.safeword).toBe(
+    'bun packages/cli/templates/hooks/dependency-bootstrap.ts --require-ready . && bun packages/cli/src/cli.ts',
   );
 });
 
@@ -142,12 +177,18 @@ describe('dependency readiness hook support', () => {
     mkdirSync(path.join(projectDirectory, '.safeword'), { recursive: true });
   }
 
-  function runHook(scriptPath: string, input?: string): SpawnSyncReturns<string> {
-    return spawnSync('bun', [scriptPath], {
+  function runHook(
+    scriptPath: string,
+    input?: string,
+    environment: NodeJS.ProcessEnv = {},
+    args: string[] = [],
+  ): SpawnSyncReturns<string> {
+    return spawnSync('bun', [scriptPath, ...args], {
       cwd: projectDirectory,
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: projectDirectory,
+        ...environment,
       },
       input,
       encoding: 'utf8',
@@ -876,7 +917,37 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
-  it('host-neutral bootstrap blocks when stale dependencies require manual action', () => {
+  it('refreshes a stale marker when a successful installer preserves node_modules', () => {
+    writeJson('package.json', {
+      name: 'marker-preserving-project',
+      packageManager: 'npm@11.0.0',
+    });
+    writeJson('package-lock.json', {
+      name: 'marker-preserving-project',
+      lockfileVersion: 3,
+      packages: {},
+    });
+    markSafewordProject();
+    writeJson('.safeword/config.json', { dependencyBootstrap: { autoInstall: true } });
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+
+    const fakeBin = path.join(projectDirectory, 'fake-bin');
+    mkdirSync(fakeBin);
+    const fakeNpm = path.join(fakeBin, 'npm');
+    writeFileSync(fakeNpm, '#!/bin/sh\nexit 0\n');
+    chmodSync(fakeNpm, 0o755);
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK, undefined, {
+      PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('dependencies bootstrapped with `npm ci`.');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('host-neutral bootstrap reports manual action without failing SessionStart', () => {
     writeMinimalBunProject();
     markSafewordProject();
     writeGeneratedBunLock();
@@ -887,10 +958,73 @@ describe('dependency readiness hook support', () => {
 
     const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
 
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("the project's tool list changed");
+    expect(result.stdout).toContain('bun ci');
+    expect(result.stderr).toBe('');
+  });
+
+  it('host-neutral bootstrap blocks composed commands when readiness is required', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK, undefined, {}, ['--require-ready']);
+
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("the project's tool list changed");
-    expect(result.stderr).toContain('bun ci');
     expect(result.stdout).toBe('');
+  });
+
+  it('reports the spawn error when the declared package manager is unavailable', () => {
+    writeJson('package.json', {
+      name: 'missing-package-manager-project',
+      packageManager: 'npm@11.0.0',
+    });
+    writeJson('package-lock.json', {
+      name: 'missing-package-manager-project',
+      lockfileVersion: 3,
+      packages: {},
+    });
+    markSafewordProject();
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = path.join(projectDirectory, 'missing-bin');
+    try {
+      const result = bootstrapDependencies(projectDirectory);
+      expect(result.status).toBe('failed');
+      expect(result).toMatchObject({ message: expect.stringContaining('ENOENT') });
+    } finally {
+      process.env.PATH = originalPath;
+    }
+  });
+
+  it('leaves an in-progress sentinel stale when an install is interrupted or fails', () => {
+    writeJson('package.json', {
+      name: 'interrupted-install-project',
+      packageManager: 'npm@11.0.0',
+    });
+    writeJson('package-lock.json', {
+      name: 'interrupted-install-project',
+      lockfileVersion: 3,
+      packages: {},
+    });
+    markSafewordProject();
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = path.join(projectDirectory, 'missing-bin');
+    try {
+      expect(bootstrapDependencies(projectDirectory).status).toBe('failed');
+    } finally {
+      process.env.PATH = originalPath;
+    }
+
+    expect(readTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint')).toBe(
+      'safeword-install-in-progress',
+    );
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 
   it('host-neutral bootstrap abstains successfully for unsupported projects', () => {

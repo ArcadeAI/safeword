@@ -11,6 +11,7 @@ describe('Codex project bootstrap configuration', () => {
     expect(result).toContain(original.trim());
     expect(result).toContain('[[hooks.SessionStart]]');
     expect(result).toContain('bunx --bun safeword@latest codex bootstrap');
+    expect(result).toContain('.safeword/hooks/dependency-bootstrap.ts');
     expect(result).not.toContain('PreToolUse');
     expect(result).not.toContain('permissionDecision');
   });
@@ -21,6 +22,7 @@ describe('Codex project bootstrap configuration', () => {
 
     expect(twice).toBe(once);
     expect(twice.match(/command = "bunx --bun safeword@latest codex bootstrap"/gu)).toHaveLength(1);
+    expect(twice.match(/statusMessage = "Preparing safeword dependencies"/gu)).toHaveLength(1);
   });
 
   it('refuses malformed markers and unrecognized bootstrap ownership', () => {

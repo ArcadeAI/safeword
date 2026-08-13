@@ -63,6 +63,7 @@ export type DependencyBootstrapResult =
 
 const INSTALL_ARTIFACT = 'node_modules';
 const INSTALL_MARKER_FILENAME = '.safeword-deps-fingerprint';
+const INSTALL_IN_PROGRESS_MARKER = 'safeword-install-in-progress';
 const DEPENDENCY_STATE_FILENAME = 'dependency-readiness.json';
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'];
 const WORKSPACE_SCAN_EXCLUDED_DIRECTORIES = new Set([
@@ -402,7 +403,8 @@ export function readDependencyBootstrapConfig(projectDirectory: string): Depende
  * commit would bypass the husky guard chain (lint-staged can't resolve its
  * tools), so install regardless of the `autoInstall` opt-in. The opt-in still
  * governs the softer `stale` re-install (deps present but inputs changed).
- * (JNVP4W)
+ * Claude and Codex both load repo-owned SessionStart hooks only after the user
+ * trusts the project, so this never installs from an untrusted checkout. (JNVP4W)
  */
 export function shouldBootstrapDependencies(
   status: DependencyReadinessStatus,
@@ -435,6 +437,7 @@ export function bootstrapDependencies(projectDirectory: string): DependencyBoots
     readiness.plan !== undefined
   ) {
     const { binary, args, display } = readiness.plan.installCommand;
+    markInstallInProgress(projectDirectory, readiness.plan);
     const result = spawnSync(binary, args, {
       cwd: projectDirectory,
       encoding: 'utf8',
@@ -445,22 +448,26 @@ export function bootstrapDependencies(projectDirectory: string): DependencyBoots
     if (
       result.status === 0 &&
       readiness.plan !== undefined &&
+      readiness.fingerprint !== undefined &&
       isDirectory(nodePath.join(projectDirectory, readiness.plan.installArtifact))
     ) {
       // A successful stale install commonly preserves our old marker. Refresh
       // that Safeword-owned proof before asking readiness to validate it.
-      writeInstallMarker(projectDirectory, readiness);
+      stampInstallMarker(projectDirectory, readiness.plan, readiness.fingerprint);
       readiness = getDependencyReadiness(projectDirectory);
     }
     if (result.status === 0 && readiness.status === 'ready') {
       writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
-      writeInstallMarker(projectDirectory, readiness);
       return { status: 'bootstrapped', message: `dependencies bootstrapped with \`${display}\`.` };
     }
 
-    const message = [
+    const summary = [
       `dependency bootstrap failed while running \`${display}\`.`,
       'Run the install command manually, inspect the package manager output, then retry.',
+    ].join('\n');
+    const message = [
+      summary,
+      result.error?.message,
       trimBootstrapOutput(result.stderr) || trimBootstrapOutput(result.stdout),
     ]
       .filter(Boolean)
@@ -471,7 +478,7 @@ export function bootstrapDependencies(projectDirectory: string): DependencyBoots
       reason: readiness.reason,
       fingerprint: readiness.fingerprint,
       installCommand: readiness.installCommand,
-      message,
+      message: summary,
     });
     return { status: 'failed', message };
   }
@@ -642,11 +649,29 @@ export function writeInstallMarker(projectDirectory: string, readiness: Dependen
   const { plan, fingerprint } = readiness;
   if (plan === undefined || fingerprint === undefined) return;
 
+  stampInstallMarker(projectDirectory, plan, fingerprint);
+}
+
+function stampInstallMarker(
+  projectDirectory: string,
+  plan: DependencyPlan,
+  fingerprint: string,
+): void {
   try {
     writeFileSync(installMarkerPath(projectDirectory, plan), fingerprint);
   } catch {
     // The marker shares node_modules' lifecycle and is best-effort. A failure
     // to stamp it simply falls back to the mtime check on the next read.
+  }
+}
+
+function markInstallInProgress(projectDirectory: string, plan: DependencyPlan): void {
+  try {
+    mkdirSync(nodePath.join(projectDirectory, plan.installArtifact), { recursive: true });
+    writeFileSync(installMarkerPath(projectDirectory, plan), INSTALL_IN_PROGRESS_MARKER);
+  } catch {
+    // Best-effort like the final marker. If this cannot be written, the
+    // install still gets a chance to repair the checkout.
   }
 }
 

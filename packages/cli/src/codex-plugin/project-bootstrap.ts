@@ -10,6 +10,8 @@ import { regularCodexConfigMetadata } from './legacy-config.js';
 const BEGIN_MARKER = '# --- safeword codex bootstrap: begin ---';
 const END_MARKER = '# --- safeword codex bootstrap: end ---';
 const BOOTSTRAP_COMMAND = 'bunx --bun safeword@latest codex bootstrap';
+const DEPENDENCY_BOOTSTRAP_COMMAND =
+  'SAFEWORD_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && { [ ! -f "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" ] || bun "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" "$SAFEWORD_PROJECT_ROOT"; }';
 
 const BOOTSTRAP_BLOCK = `${BEGIN_MARKER}
 [[hooks.SessionStart]]
@@ -20,6 +22,15 @@ type = "command"
 command = "${BOOTSTRAP_COMMAND}"
 timeout = 120
 statusMessage = "Checking Safeword for this project"
+
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = '${DEPENDENCY_BOOTSTRAP_COMMAND}'
+timeout = 120
+statusMessage = "Preparing safeword dependencies"
 ${END_MARKER}
 `;
 

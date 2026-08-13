@@ -6,13 +6,15 @@ import process from 'node:process';
 
 import { bootstrapDependencies } from './lib/dependency-readiness.ts';
 
-const projectDirectory = process.argv[2] ?? process.cwd();
+const projectDirectory =
+  process.argv.slice(2).find(argument => !argument.startsWith('-')) ?? process.cwd();
+const requireReady = process.argv.includes('--require-ready');
 if (!existsSync(`${projectDirectory}/.safeword`)) process.exit(0);
 
 const result = bootstrapDependencies(projectDirectory);
 if (result.status === 'ready' || result.status === 'unsupported') process.exit(0);
 
-const output =
-  result.status === 'failed' || result.status === 'action_required' ? console.error : console.log;
+const failed = result.status === 'failed' || (requireReady && result.status === 'action_required');
+const output = failed ? console.error : console.log;
 output(result.message);
-process.exit(result.status === 'failed' || result.status === 'action_required' ? 1 : 0);
+process.exit(failed ? 1 : 0);

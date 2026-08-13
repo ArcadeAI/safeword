@@ -17,13 +17,13 @@ type = "command"
 command = "bunx --bun safeword@latest codex bootstrap"
 timeout = 120
 statusMessage = "Checking Safeword for this project"
-# --- safeword codex bootstrap: end ---
 
 [[hooks.SessionStart]]
 matcher = ""
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'SAFEWORD_PROJECT_ROOT="$(git rev-parse --show-toplevel)" && bun "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" "$SAFEWORD_PROJECT_ROOT"'
+command = 'SAFEWORD_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && { [ ! -f "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" ] || bun "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" "$SAFEWORD_PROJECT_ROOT"; }'
 timeout = 120
 statusMessage = "Preparing safeword dependencies"
+# --- safeword codex bootstrap: end ---
