@@ -14,6 +14,7 @@ import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from
 import nodePath from 'node:path';
 
 import { resolveTicketsDirectory } from './configured-paths.js';
+import { findTicketFolderMatches } from './ticket-folder-matches.js';
 
 export type LinkResult = { ok: true } | { ok: false; reason: string };
 
@@ -78,12 +79,8 @@ function readTicketFileOrUndefined(ticketPath: string): string | undefined {
 function resolveTicketFolderById(cwd: string, id: string): string | undefined {
   const ticketsDirectory = resolveTicketsDirectory(cwd);
   if (!existsSync(ticketsDirectory)) return undefined;
-  for (const entry of readdirSync(ticketsDirectory)) {
-    if (entry === id || entry.startsWith(`${id}-`)) {
-      return nodePath.join(ticketsDirectory, entry);
-    }
-  }
-  return undefined;
+  const match = findTicketFolderMatches(readdirSync(ticketsDirectory), id).all[0];
+  return match === undefined ? undefined : nodePath.join(ticketsDirectory, match);
 }
 
 function isEpicTicket(content: string): boolean {
