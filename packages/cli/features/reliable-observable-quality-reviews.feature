@@ -8,7 +8,7 @@ Feature: Keep quality reviews observable and actionable
   invokes the public command without that wrapper. Quoted expected-lines values
   decode \n as a line break and omit the final line terminator.
 
-  @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli
+  @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R1 — A managed JSON review reports rate-limited lifecycle progress separately from its final typed result
 
     The first heartbeat is due one interval after route start. Later heartbeats
@@ -138,7 +138,7 @@ Feature: Keep quality reviews observable and actionable
       And the command exits with status 0
       And advancing the clock after completion emits no further lifecycle lines
 
-  @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli
+  @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R2 — Callers that do not request managed progress keep the existing silent machine contract
 
     @rejection
@@ -240,7 +240,7 @@ Feature: Keep quality reviews observable and actionable
       Then stderr consists of one "Requesting an independent Claude review…" line followed by one "Still waiting for a response from Claude…" line
       And stdout consists of exactly one schema-1 approved result
 
-  @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli
+  @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel that cannot alter or disclose reviewer output
 
     Scenario: Successful reviewer stderr never becomes public output
@@ -316,7 +316,7 @@ Feature: Keep quality reviews observable and actionable
       And serialized stdout contains no literal injected line break or ANSI escape
       And the command exits with status 2
 
-  @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex
+  @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R2 — Every generated required-review workflow delegates to the managed wrapper while remaining compatible with an older resolved CLI
 
     Scenario: The managed wrapper forwards progress before the review finishes
