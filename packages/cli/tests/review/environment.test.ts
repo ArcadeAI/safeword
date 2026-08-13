@@ -35,11 +35,15 @@ describe('reviewer-scoped environment', () => {
         NODE_ENV: 'test',
         SAFEWORD_REVIEW_BDD_EXPECTED_MODEL: 'sonnet',
         SAFEWORD_REVIEW_COVERAGE_VERDICT: 'request_changes',
+        SAFEWORD_REVIEW_DESCENDANT_PID_FILE: '/tmp/descendant.pid',
+        SAFEWORD_REVIEW_LAUNCH_LOG: '/tmp/reviewer-launches.log',
         SAFEWORD_REVIEW_UNKNOWN_FIXTURE: 'hidden',
       }),
     ).toEqual({
       SAFEWORD_REVIEW_BDD_EXPECTED_MODEL: 'sonnet',
       SAFEWORD_REVIEW_COVERAGE_VERDICT: 'request_changes',
+      SAFEWORD_REVIEW_DESCENDANT_PID_FILE: '/tmp/descendant.pid',
+      SAFEWORD_REVIEW_LAUNCH_LOG: '/tmp/reviewer-launches.log',
     });
   });
 
