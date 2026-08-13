@@ -1,7 +1,7 @@
 ## Verify Checklist
 
-**Test Suite:** ✓ 7814/7814 tests pass (7,644 CLI and 170 Retro Relay; 6 intentional skips)
-**Gherkin:** ✅ Acceptance lane passes (1,485 scenarios and 65,244 steps passed; 3 scenarios and 4 steps skipped; proof lane 50/50 scenarios and 240/240 steps passed)
+**Test Suite:** ✓ 7828/7828 tests pass (7,658 CLI and 170 Retro Relay; 6 intentional skips)
+**Gherkin:** ✅ Acceptance lane passes (1,485 scenarios and 65,245 steps passed; 3 scenarios and 4 steps skipped; proof lane 50/50 scenarios and 240/240 steps passed)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 90 test-definition scenarios marked complete
@@ -19,5 +19,5 @@ Audit passed in diff scope. Dependency configuration is healthy; Dependency Crui
 
 | Affected surface | Proof command or manual check | Result |
 | --- | --- | --- |
-| Safeword CLI | Authoritative test-plan verification, clean-worktree full unit suite, build, lint/typecheck, dependency scans, and repository audit | ✅ 7,814 tests passed; build, lint, types, and supply-chain scans are green. |
-| Claude Code | Full non-live Cucumber lane plus proof-tag lane and generated dispatcher/migration tests; authenticated disposable-profile RC run still pending | ⚠️ 1,535 simulated scenarios and 65,484 steps passed. This proves generated wiring and modeled behavior, not the live host's scope overlap, reload, timing, or termination semantics. |
+| Safeword CLI | Authoritative test-plan verification, clean-worktree full unit suite, build, lint/typecheck, dependency scans, and repository audit | ✅ 7,828 tests passed; build, lint, types, and supply-chain scans are green. |
+| Claude Code | Full non-live Cucumber lane plus proof-tag lane and generated dispatcher/migration tests; authenticated disposable-profile RC run still pending | ⚠️ 1,535 simulated scenarios and 65,485 steps passed. This proves generated wiring and modeled behavior, not the live host's scope overlap, reload, timing, or termination semantics. |
