@@ -77,6 +77,7 @@ export type ValidatedTerraEnvelope = {
 export type ValidatedProviderInventory = {
   attemptId: string;
   intentId: string;
+  routeValid: boolean;
   totalCostPicodollars: bigint;
   turns: Array<
     ValidatedTerraEnvelope & {
@@ -368,9 +369,7 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(canonicalize(value));
 }
 
-export function validateProviderInventory(
-  value: unknown
-): ValidatedProviderInventory {
+function analyzeProviderInventory(value: unknown): ValidatedProviderInventory {
   const object = requireObject(value, "provider inventory");
   requireExactKeys(object, ["intent", "requests", "responses"], "provider inventory");
   const intent = parseIntent(object.intent);
@@ -385,6 +384,7 @@ export function validateProviderInventory(
   const requestsByTurnIntent = new Map<string, ProviderRequest>();
   const turnIntentIds = new Set<string>();
   const sequences = new Set<number>([intent.sequence]);
+  let routeValid = true;
   for (const request of requests) {
     if (request.intentId !== intent.intentId) {
       throw new Error(
@@ -409,7 +409,7 @@ export function validateProviderInventory(
       request.model !== TERRA_MODEL ||
       request.serviceTier !== STANDARD_TIER
     ) {
-      throw new Error(`provider turn intent ${request.turnIntentId} used the wrong route`);
+      routeValid = false;
     }
     requestsByTurnIntent.set(request.turnIntentId, request);
   }
@@ -476,12 +476,29 @@ export function validateProviderInventory(
   return {
     attemptId: intent.attemptId,
     intentId: intent.intentId,
+    routeValid,
     totalCostPicodollars: turns.reduce(
       (total, turn) => total + turn.costPicodollars,
       0n
     ),
     turns,
   };
+}
+
+export function priceProviderInventory(
+  value: unknown
+): ValidatedProviderInventory {
+  return analyzeProviderInventory(value);
+}
+
+export function validateProviderInventory(
+  value: unknown
+): ValidatedProviderInventory {
+  const inventory = analyzeProviderInventory(value);
+  if (!inventory.routeValid) {
+    throw new Error("provider inventory used the wrong route");
+  }
+  return inventory;
 }
 
 export function retainDiagnosticManifest(input: {

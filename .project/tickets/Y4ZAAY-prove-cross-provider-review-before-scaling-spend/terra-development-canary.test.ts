@@ -712,6 +712,47 @@ describe("Terra canary write-side attempt lifecycle", () => {
     expect(readFileSync(evidencePath, "utf8")).toBe('{"id":"edited"}');
   });
 
+  test("prices a native Terra response once when its requested route is invalid", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    const evidence = validDispatchEvidence();
+    const inventory = JSON.parse(evidence.rawResponseBytes);
+    inventory.requests[0].endpoint = "https://example.test/not-openai";
+    evidence.rawResponseBytes = JSON.stringify(inventory);
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => evidence,
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("unauthorized provider route");
+
+    await expect(
+      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
+    ).resolves.toEqual({
+      attemptAccountingComplete: true,
+      authorizationPresent: false,
+      costAccountingComplete: true,
+      observedCostPicodollars: 65_500_000n,
+      startedAttempts: 1,
+    });
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-2",
+        binding: BINDING,
+        dispatch: async () => validDispatchEvidence("attempt-2", "intent-2"),
+        intentId: "intent-2",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("missing-authorization");
+  });
+
   test.each(["../escaped", "nested/attempt", "..", "attempt\\name"])(
     "rejects unsafe attempt ID %s before durable start",
     async (attemptId) => {

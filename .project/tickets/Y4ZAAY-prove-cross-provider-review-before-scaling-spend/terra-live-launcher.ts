@@ -1,14 +1,20 @@
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
 import {
+  type CanaryDispatchContext,
   type CanaryInitializationBinding,
   type CanaryUpstream,
   runCanaryAttempt,
 } from "./terra-development-canary";
+import type { CanaryAuthorization } from "./terra-github-authorization";
+import {
+  createAuthenticatedGitHubHttp,
+  createGitHubCanaryUpstream,
+} from "./terra-github-upstream";
 
 const execFileAsync = promisify(execFile);
 const PAID_CHILD_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
@@ -295,6 +301,7 @@ async function verifyCommittedCorpusRegistration(input: {
 
 export async function verifyAuthorizedPaidChildInput(input: {
   checkout: PinnedCheckout;
+  expectedContext?: CanaryDispatchContext;
   inputPath: string;
   registration: CorpusRegistration;
   registrationCommit: string;
@@ -313,7 +320,55 @@ export async function verifyAuthorizedPaidChildInput(input: {
     throw new Error("committed corpus manifest digest does not match registration");
   }
   const request = JSON.parse(inputBytes) as Record<string, unknown>;
+  const exactKeys = (value: unknown, keys: readonly string[]): value is Record<string, unknown> =>
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).sort().join(",") === [...keys].sort().join(",");
+  if (!exactKeys(request, ["context", "expertsDirectory", "policy", "review", "target"])) {
+    throw new Error("paid child input has unexpected or missing fields");
+  }
+  const context = request.context;
+  const policy = request.policy;
+  const target = request.target;
+  if (
+    !exactKeys(context, ["attemptId", "intentId", "outputDirectory", "sequence"]) ||
+    typeof context.attemptId !== "string" ||
+    typeof context.intentId !== "string" ||
+    typeof context.outputDirectory !== "string" ||
+    !isAbsolute(context.outputDirectory) ||
+    !Number.isSafeInteger(context.sequence) ||
+    !exactKeys(policy, ["maxVerifications", "toolCallsPerExpert", "wallClockMsPerExpert"]) ||
+    Object.values(policy).some((value) => !Number.isSafeInteger(value) || (value as number) <= 0) ||
+    !exactKeys(target, ["baseRef", "root"]) ||
+    typeof target.baseRef !== "string" ||
+    target.baseRef.length === 0 ||
+    typeof target.root !== "string" ||
+    !isAbsolute(target.root) ||
+    typeof request.expertsDirectory !== "string" ||
+    !isAbsolute(request.expertsDirectory)
+  ) {
+    throw new Error("paid child input has an invalid execution contract");
+  }
+  if (
+    input.expectedContext !== undefined &&
+    JSON.stringify(context) !== JSON.stringify(input.expectedContext)
+  ) {
+    throw new Error("paid child context does not match the authorized attempt");
+  }
   const review = request.review as Record<string, unknown> | undefined;
+  if (!exactKeys(review, [
+    "caseId",
+    "causalPaths",
+    "failureDescription",
+    "modelCutoff",
+    "reviewBaseSha",
+    "runnerRef",
+    "sourceSha",
+    "variant",
+  ])) {
+    throw new Error("paid child review has unexpected or missing fields");
+  }
   const caseId = review?.caseId;
   if (typeof caseId !== "string" || !input.registration.developmentCaseIds.includes(caseId)) {
     throw new Error("paid child case is not authorized by the corpus registration");
@@ -388,7 +443,7 @@ async function runCredentialedChild<T>(input: {
   return input.parent({ dispatch, githubToken });
 }
 
-export async function runTerraPaidCanary(input: {
+async function runTerraPaidCanary(input: {
   adapterCheckout: PinnedCheckout;
   attemptId: string;
   binding: CanaryInitializationBinding;
@@ -430,11 +485,76 @@ export async function runTerraPaidCanary(input: {
       runCanaryAttempt({
         attemptId: input.attemptId,
         binding: input.binding,
-        dispatch: async () => parseTerraPaidChildResult(await dispatch()),
+        dispatch: async (context) => {
+          await verifyAuthorizedPaidChildInput({
+            checkout: input.harnessCheckout,
+            expectedContext: context,
+            inputPath: input.inputPath,
+            registration,
+            registrationCommit: input.registration.registrationCommit,
+          });
+          return parseTerraPaidChildResult(await dispatch());
+        },
         intentId: input.intentId,
         outputDirectory: input.outputDirectory,
         upstream: input.createUpstream(githubToken),
       }),
     spawnChild: spawnPaidChild,
+  });
+}
+
+export async function runAuthorizedTerraPaidCanary(input: {
+  adapterCheckout: PinnedCheckout;
+  allowlistedMaintainers: readonly string[];
+  attemptId: string;
+  authorization: CanaryAuthorization;
+  environment?: NodeJS.ProcessEnv;
+  fetch?: typeof globalThis.fetch;
+  harnessCheckout: PinnedCheckout;
+  inputPath: string;
+  intentId: string;
+  issueNumber: number;
+  loadGitHubToken(): Promise<string>;
+  loadOpenAIKey(): Promise<string>;
+  outputDirectory: string;
+}): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+  const binding: CanaryInitializationBinding = {
+    adapterCommit: input.authorization.adapterCommit,
+    adapterTag: input.authorization.adapterTag,
+    attemptLimit: input.authorization.attemptLimit,
+    canonicalRepository: input.authorization.canonicalRepository,
+    corpusDigest: input.authorization.corpusDigest,
+    costLimitPicodollars: input.authorization.costLimitPicodollars,
+    harnessCommit: input.authorization.harnessCommit,
+    harnessTag: input.authorization.harnessTag,
+    model: input.authorization.model,
+    outputIdentity: input.authorization.outputIdentity,
+    receiptBudget: input.authorization.receiptBudget,
+    serviceTier: input.authorization.serviceTier,
+    ticketId: input.authorization.ticketId,
+  };
+  return runTerraPaidCanary({
+    adapterCheckout: input.adapterCheckout,
+    attemptId: input.attemptId,
+    binding,
+    createUpstream: (githubToken) =>
+      createGitHubCanaryUpstream({
+        allowlistedMaintainers: input.allowlistedMaintainers,
+        authorization: input.authorization,
+        http: createAuthenticatedGitHubHttp({ fetch: input.fetch, token: githubToken }),
+        issueNumber: input.issueNumber,
+        nextReceiptId: randomUUID,
+      }),
+    environment: input.environment,
+    harnessCheckout: input.harnessCheckout,
+    inputPath: input.inputPath,
+    intentId: input.intentId,
+    loadGitHubToken: input.loadGitHubToken,
+    loadOpenAIKey: input.loadOpenAIKey,
+    outputDirectory: input.outputDirectory,
+    registration: {
+      corpusDigest: input.authorization.corpusDigest,
+      registrationCommit: input.authorization.registrationCommit,
+    },
   });
 }

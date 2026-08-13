@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { lstat, mkdir, open, readFile, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 
-import { validateProviderInventory } from "./terra-canary-evidence";
+import {
+  priceProviderInventory,
+  validateProviderInventory,
+} from "./terra-canary-evidence";
 
 export const PICODOLLARS_PER_DOLLAR = 1_000_000_000_000n;
 export const INITIALIZATION_MARKER = "initialization.json";
@@ -954,6 +957,28 @@ async function retainedEvidenceMatches(
   }
 }
 
+async function retainedEvidenceRouteIsValid(
+  directory: string,
+  completions: CanaryAttemptCompletionReceipt[]
+): Promise<boolean> {
+  try {
+    const evidenceDirectory = join(directory, EVIDENCE_DIRECTORY);
+    const inventories = await Promise.all(
+      completions.map((completion) =>
+        readFile(join(evidenceDirectory, `${completion.attemptId}.json`), "utf8")
+      )
+    );
+    return inventories.every((bytes) => {
+      const inventory = priceProviderInventory(JSON.parse(bytes));
+      return inventory.routeValid;
+    });
+  } catch {
+    // Completions created before route status was retained could only pass the
+    // then-strict validator, so they are necessarily route-valid.
+    return true;
+  }
+}
+
 export async function inspectCanaryAccounting(input: {
   binding: CanaryInitializationBinding;
   outputDirectory: string;
@@ -1033,9 +1058,13 @@ export async function inspectCanaryAccounting(input: {
       completions
     ) &&
     (await retainedEvidenceMatches(input.outputDirectory, completions));
+  const routeValid =
+    costAccountingComplete &&
+    completions !== null &&
+    (await retainedEvidenceRouteIsValid(input.outputDirectory, completions));
   return {
     attemptAccountingComplete,
-    authorizationPresent: true,
+    authorizationPresent: !costAccountingComplete || routeValid,
     costAccountingComplete,
     observedCostPicodollars: costAccountingComplete
       ? BigInt(snapshot.head.observedCostPicodollars)
@@ -1334,7 +1363,7 @@ async function runCanaryAttemptWhileLocked(input: {
   } catch {
     throw new Error("completed attempt response evidence is invalid JSON");
   }
-  const validatedInventory = validateProviderInventory(inventory);
+  const validatedInventory = priceProviderInventory(inventory);
   if (
     validatedInventory.attemptId !== input.attemptId ||
     validatedInventory.intentId !== input.intentId
@@ -1396,6 +1425,10 @@ async function runCanaryAttemptWhileLocked(input: {
     ...completion,
     kind: "attempt-completion",
   });
+
+  if (!validatedInventory.routeValid) {
+    throw new Error("completed attempt used an unauthorized provider route");
+  }
 
   return {
     attemptId: input.attemptId,

@@ -101,7 +101,23 @@ describe("credential-separated live launcher", () => {
       sourceSha: corpusCase.baseSha,
       variant: "buggy",
     };
-    await writeFile(inputPath, JSON.stringify({ review }), "utf8");
+    const request = {
+      context: {
+        attemptId: "attempt-1",
+        intentId: "intent-1",
+        outputDirectory: join(tmpdir(), "terra-output"),
+        sequence: 1,
+      },
+      expertsDirectory: join(tmpdir(), "terra-experts"),
+      policy: {
+        maxVerifications: 2,
+        toolCallsPerExpert: 3,
+        wallClockMsPerExpert: 4_000,
+      },
+      review,
+      target: { baseRef: "eval-base", root: join(tmpdir(), "terra-target") },
+    };
+    await writeFile(inputPath, JSON.stringify(request), "utf8");
 
     await expect(verifyAuthorizedPaidChildInput({
       checkout: harness,
@@ -110,13 +126,24 @@ describe("credential-separated live launcher", () => {
       registrationCommit: harness.commit,
     })).resolves.toBeUndefined();
 
-    await writeFile(inputPath, JSON.stringify({ review: { ...review, sourceSha: "0".repeat(40) } }), "utf8");
+    await writeFile(inputPath, JSON.stringify({
+      ...request,
+      review: { ...review, sourceSha: "0".repeat(40) },
+    }), "utf8");
     await expect(verifyAuthorizedPaidChildInput({
       checkout: harness,
       inputPath,
       registration,
       registrationCommit: harness.commit,
     })).rejects.toThrow("does not match its frozen corpus case");
+
+    await writeFile(inputPath, JSON.stringify({ ...request, extra: true }), "utf8");
+    await expect(verifyAuthorizedPaidChildInput({
+      checkout: harness,
+      inputPath,
+      registration,
+      registrationCommit: harness.commit,
+    })).rejects.toThrow("unexpected or missing fields");
   });
   test("builds the pinned harness child command with absolute paths", () => {
     expect(
