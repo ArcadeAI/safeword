@@ -17,19 +17,19 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 
 ### Scenario Outline: Completion cancels lifecycle output at exact timer boundaries
 
-- [x] RED skip: Timing behavior pre-existed this characterization; tests were added to expose boundary and coalescing regressions.
+- [x] RED skip: Characterization mutation removed announcement cancellation; `policy.test.ts` failed on the missing timer cancellation.
 - [x] GREEN 81d35a8aa
 - [x] REFACTOR skip: Scheduler extraction would enlarge the public timing seam without simplifying the implementation.
 
 ### Scenario: Heartbeats are rate-limited and suspended clocks do not replay missed intervals
 
-- [x] RED skip: Cadence behavior pre-existed this characterization; the scheduler assertions fail if a missed interval is replayed.
+- [x] RED skip: Characterization mutation removed heartbeat re-arming; `policy.test.ts` failed because the next 30-second heartbeat was absent.
 - [x] GREEN 81d35a8aa
 - [x] REFACTOR skip: Recursive re-arming is already the smallest coalescing mechanism.
 
 ### Scenario: Managed timing starts with each asynchronous reviewer route
 
-- [x] RED skip: Route-local timing was landed coordinator behavior; this ticket characterizes its managed JSON projection.
+- [x] RED b9cf90383
 - [x] GREEN 53e94d96f
 - [x] REFACTOR skip: Route ownership belongs in the coordinator and should not move into the wrapper.
 
@@ -52,6 +52,12 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] RED skip: Human progress is the unchanged baseline against which managed JSON behavior is compared.
 - [x] GREEN 53e94d96f
 - [x] REFACTOR skip: Managed JSON filtering is already wrapped separately from human progress.
+
+### Scenario: The private signal does not duplicate human-readable progress
+
+- [x] RED skip: Human-mode policy intentionally ignores the managed JSON opt-in; this is a regression characterization.
+- [x] GREEN 53e94d96f
+- [x] REFACTOR skip: The shared output-policy predicate already expresses human-mode precedence.
 
 ## Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel that cannot alter or disclose reviewer output
 

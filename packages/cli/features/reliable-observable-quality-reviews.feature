@@ -7,6 +7,8 @@ Feature: Keep quality reviews observable and actionable
   packages/cli/tests/review/surface-parity.test.ts, and
   packages/cli/tests/review/environment.test.ts.
   Quoted signal values decode \n as a line break; <unset> means the variable is absent.
+  Progress writes target operating-system descriptor 2 synchronously; deferred
+  stream error events and stream backpressure are not part of this boundary.
 
   @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R1 — A managed JSON review reports rate-limited lifecycle progress separately from its final typed result
@@ -42,7 +44,7 @@ Feature: Keep quality reviews observable and actionable
     Scenario: Heartbeats are rate-limited and suspended clocks do not replay missed intervals
       Given a managed JSON review observed with a deterministic clock
       When active reviewer work advances directly from 0 to 95 seconds and remains active through 125 seconds
-      Then the active-review line and one coalesced heartbeat are observed at 95 seconds
+      Then the active-review line followed by one coalesced heartbeat are observed at 95 seconds
       And no additional line appears before 125 seconds
       And exactly one next heartbeat appears at 125 seconds
 
@@ -97,11 +99,18 @@ Feature: Keep quality reviews observable and actionable
       Then stderr contains the existing packet, active-review, and heartbeat lines exactly once
       And stdout contains the human-readable verdict exactly once
 
+    Scenario: The private signal does not duplicate human-readable progress
+      Given a human-readable review with managed-progress signal value "1"
+      And the review is observed with a deterministic clock
+      When the reviewer returns an approved result after one heartbeat
+      Then stderr contains the packet, active-review, and heartbeat lines exactly once
+      And stdout contains the human-readable verdict exactly once
+
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel that cannot alter or disclose reviewer output
 
     Scenario Outline: A failed progress destination cannot alter the terminal result
-      Given a managed JSON review whose synchronous descriptor sink has <failure>
+      Given a managed JSON review whose operating-system progress descriptor has <failure> before a write
       When the reviewer completes with <classification>
       Then the process remains alive
       And stdout contains the canonical typed result
@@ -120,11 +129,14 @@ Feature: Keep quality reviews observable and actionable
       And configured model names use disjoint unique secrets and control characters
       When a managed review succeeds
       Then stdout contains the accepted summary secret
+      And stdout contains exactly one parseable schema-1 result
+      And serialized stdout contains no literal injected line break or ANSI escape
       And stderr contains a positive lifecycle line naming only the closed reviewer kind
       And stderr contains no summary secret, model secret, control character, or configured model name
 
     Scenario Outline: Rejected reviewer data never enters public output
-      Given rejected reviewer bytes, model names, targets, and context contain disjoint unique secrets and control characters
+      Given route configuration <route_configuration>
+      And rejected reviewer bytes, model names, targets, and context contain disjoint unique secrets and control characters
       When a managed review <termination>
       Then stderr contains positive lifecycle lines naming only <reviewer_kinds>
       And the rejected reviewer bytes are absent from stdout and stderr
@@ -132,10 +144,10 @@ Feature: Keep quality reviews observable and actionable
       And serialized stdout contains no literal injected line break or ANSI escape
 
       Examples:
-        | termination         | reviewer_kinds   |
-        | returns invalid data | Claude           |
-        | times out           | Claude           |
-        | exhausts its routes | Claude and Codex |
+        | route_configuration    | termination          | reviewer_kinds   |
+        | preferred only        | returns invalid data | Claude           |
+        | preferred only        | times out            | Claude           |
+        | preferred and fallback | exhausts its routes  | Claude and Codex |
 
     Scenario: Exhausted routes identify the failed boundary and recovery
       Given a managed JSON review for target "change.ts" whose preferred route times out and fallback returns invalid output
@@ -155,7 +167,8 @@ Feature: Keep quality reviews observable and actionable
       When it launches a JSON review
       Then the CLI child receives managed-progress signal value "1"
       And capability probes do not contain the signal
-      And stdout, stderr, and exit status are inherited without buffering or reinterpretation
+      And a lifecycle line is observable on stderr before the final stdout result
+      And stdout, stderr, and exit status are preserved without reinterpretation
 
     Scenario: The public CLI removes the wrapper signal from reviewer processes
       Given a direct JSON review with managed-progress signal value "1"
