@@ -812,10 +812,8 @@ function executeConfiguredHooks(input: {
   readonly command: string[];
   readonly eventGroupsContent: Buffer;
   readonly hookInput: HookInput;
-  readonly projectRoot: string | undefined;
   readonly standardInput: Buffer;
 }): FunctionalCommandResult {
-  if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
   try {
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
@@ -837,9 +835,6 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   process.env.SAFEWORD_PLUGIN_CLI = nodePath.join(pluginRoot, 'runtime', 'cli.js');
   const standardInput = readFileSync(0);
   const hookInput = parseHookInput(standardInput);
-  const projectRoot = canonicalClaudeProjectRoot(
-    typeof hookInput.cwd === 'string' && hookInput.cwd !== '' ? hookInput.cwd : process.cwd(),
-  );
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === undefined) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
@@ -849,7 +844,6 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
     command,
     eventGroupsContent,
     hookInput,
-    projectRoot,
     standardInput,
   });
   if (execution.status === 0) {

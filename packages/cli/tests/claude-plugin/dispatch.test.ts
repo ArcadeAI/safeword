@@ -39,6 +39,10 @@ function releasedAsset(projectDirectory: string): string {
   const release = CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'];
   const installedPath = Object.keys(release.files)[0];
   if (installedPath === undefined) throw new Error('Release 0.72.0 has no Claude fixture.');
+  return releasedFile(projectDirectory, installedPath);
+}
+
+function releasedFile(projectDirectory: string, installedPath: string): string {
   const schema = execFileSync('git', ['show', 'v0.72.0:packages/cli/src/schema.ts'], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
@@ -66,9 +70,7 @@ function promptSettings(projectDirectory: string, marketplace: unknown): void {
   const hook = historicalHookEntry(fingerprint);
   const command = /\.safeword\/hooks\/[\w./-]+/u.exec(JSON.stringify(hook))?.[0];
   if (command === undefined) throw new Error('Historical prompt hook has no project hook path.');
-  const hookTarget = nodePath.join(projectDirectory, command);
-  mkdirSync(nodePath.dirname(hookTarget), { recursive: true });
-  writeFileSync(hookTarget, '// viable legacy authority\n');
+  releasedFile(projectDirectory, command);
   const settings = nodePath.join(projectDirectory, '.claude/settings.json');
   mkdirSync(nodePath.dirname(settings), { recursive: true });
   writeFileSync(
@@ -249,14 +251,14 @@ describe('Claude plugin dispatcher', () => {
     });
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).not.toContain('nativeRan');
+    expect(result.stdout).toContain('nativeRan');
     expect(existsSync(target)).toBe(false);
     expect(
       existsSync(nodePath.join(projectDirectory, '.safeword/claude-plugin/plugin-mode-v2.json')),
     ).toBe(true);
   });
 
-  it('recognizes legacy hook authority in Claude JSONC settings', () => {
+  it('preserves native delivery alongside legacy hooks in Claude JSONC settings', () => {
     const projectDirectory = temporary('safeword-plugin-jsonc-project-');
     const pluginData = temporary('safeword-plugin-jsonc-data-');
     const configDirectory = temporary('safeword-plugin-jsonc-config-');
@@ -284,7 +286,7 @@ describe('Claude plugin dispatcher', () => {
       pluginRoot,
     });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).not.toContain('nativeRan');
+    expect(result.stdout).toContain('nativeRan');
   });
 
   it('does not treat partially parsed malformed settings as legacy authority', () => {
@@ -360,6 +362,38 @@ describe('Claude plugin dispatcher', () => {
     refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
 
     const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'unrecognized', {
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('nativeRan');
+  });
+
+  it('does not let a corrupted historical hook suppress native hooks', () => {
+    const projectDirectory = temporary('safeword-plugin-corrupt-authority-project-');
+    const pluginData = temporary('safeword-plugin-corrupt-authority-data-');
+    const configDirectory = temporary('safeword-plugin-corrupt-authority-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-corrupt-authority-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const settings = readFileSync(nodePath.join(projectDirectory, '.claude/settings.json'), 'utf8');
+    const hookReference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(settings)?.[0];
+    if (hookReference === undefined) throw new Error('Historical settings have no hook path.');
+    writeFileSync(nodePath.join(projectDirectory, hookReference), '');
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'corrupt', {
       pluginRoot,
     });
     expect(result.status, result.stderr).toBe(0);

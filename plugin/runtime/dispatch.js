@@ -5002,7 +5002,6 @@ function parseHookInput(standardInput) {
   }
 }
 function executeConfiguredHooks(input) {
-  if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
   try {
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
@@ -5023,9 +5022,6 @@ function mainUnsafe(event, mode, command) {
   process.env.SAFEWORD_PLUGIN_CLI = nodePath8.join(pluginRoot, 'runtime', 'cli.js');
   const standardInput = readFileSync5(0);
   const hookInput = parseHookInput(standardInput);
-  const projectRoot = canonicalClaudeProjectRoot(
-    typeof hookInput.cwd === 'string' && hookInput.cwd !== '' ? hookInput.cwd : process.cwd(),
-  );
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === void 0) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
@@ -5035,7 +5031,6 @@ function mainUnsafe(event, mode, command) {
     command,
     eventGroupsContent,
     hookInput,
-    projectRoot,
     standardInput,
   });
   if (execution.status === 0) {
