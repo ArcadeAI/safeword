@@ -43865,8 +43865,8 @@ function reviewerFeedback(output) {
   ];
 }
 function terminalSafeReviewerText(value) {
-  const sanitized = value.replaceAll(/[\p{Cc}\p{Cf}]/gu, " ");
-  const characters = sanitized.match(/./gu) ?? [];
+  const sanitized = value.replaceAll(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, " ");
+  const characters = Array.from(sanitized);
   if (characters.length <= MAX_TERMINAL_REVIEWER_TEXT_LENGTH)
     return sanitized;
   return `${characters.slice(0, MAX_TERMINAL_REVIEWER_TEXT_LENGTH - 1).join("")}\u2026`;

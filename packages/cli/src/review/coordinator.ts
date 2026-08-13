@@ -122,8 +122,8 @@ function reviewerFeedback(output: ReviewerOutput): readonly Finding[] {
 const MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000;
 
 function terminalSafeReviewerText(value: string): string {
-  const sanitized = value.replaceAll(/[\p{Cc}\p{Cf}]/gu, ' ');
-  const characters = sanitized.match(/./gu) ?? [];
+  const sanitized = value.replaceAll(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ');
+  const characters = sanitized.match(/[\s\S]/gu) ?? [];
   if (characters.length <= MAX_TERMINAL_REVIEWER_TEXT_LENGTH) return sanitized;
   return `${characters.slice(0, MAX_TERMINAL_REVIEWER_TEXT_LENGTH - 1).join('')}…`;
 }

@@ -73,9 +73,12 @@ Scope: `origin/main...codex/reliable-quality-review`
     synchronous short-write and closed-pipe handling; line progress composes
     newline encoding on top, while the worker relay forwards exact bytes.
 26. **Recognize global JSON mode at the wrapper boundary** — managed progress
-    follows `--json` whether the global option appears before or after the
-    `review run` command, while the `--` operand boundary still prevents false
-    opt-in.
+    uses route-aware global-option parsing, so `--json` works before or after
+    `review run` without mistaking `--cwd` values or post-`--` operands for the
+    command route.
+27. **Count terminal reviewer text by code point** — terminal projection removes
+    Unicode line and paragraph separators before applying its bounded code-point
+    limit, preventing forged lines and cap bypasses.
 
 ## Struck or deferred
 

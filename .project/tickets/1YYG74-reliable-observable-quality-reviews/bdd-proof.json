@@ -16,7 +16,8 @@
     "The reviewer allowlist excludes the wrapper-only signal": ["packages/cli/tests/review/environment.test.ts", "excludes the wrapper-only managed-progress signal from the reviewer allowlist"],
     "The wrapper scopes progress to its JSON review child": [
       ["packages/cli/tests/review/surface-parity.test.ts", "forwards managed progress before the selected CLI exits"],
-      ["packages/cli/tests/review/surface-parity.test.ts", "scopes managed progress to the JSON review child despite inherited contamination"]
+      ["packages/cli/tests/review/surface-parity.test.ts", "scopes managed progress to the JSON review child despite inherited contamination"],
+      ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "carries managed progress through the wrapper, real CLI, and real coordinator"]
     ],
     "The wrapper remains compatible with an older review-capable CLI": ["packages/cli/tests/review/surface-parity.test.ts", "preserves an older CLI %s result and status without adding an argument"],
     "Required-review surfaces cannot bypass the managed wrapper": [

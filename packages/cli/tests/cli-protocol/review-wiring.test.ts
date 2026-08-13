@@ -437,8 +437,8 @@ describe('cross-agent review public-command wiring', () => {
     const log = nodePath.join(directory, 'review.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const bin = installFakeReviewer(directory, 'codex');
-    const oversizedSummary = `SUMMARY_${'s'.repeat(2500)}`;
-    const oversizedFinding = `FINDING_${'f'.repeat(2500)}`;
+    const oversizedSummary = `SUMMARY_\u{2028}${'s'.repeat(2500)}`;
+    const oversizedFinding = `FINDING_\u{2029}${'f'.repeat(2500)}`;
 
     const result = await runCli(
       [
@@ -471,7 +471,8 @@ describe('cross-agent review public-command wiring', () => {
     };
     const reviewerFindings = payload.findings.filter(({ code }) => code.startsWith('REVIEWER_'));
     for (const finding of reviewerFindings) {
-      expect(finding.message.match(/./gu)).toHaveLength(2000);
+      expect(finding.message.match(/[\s\S]/gu)).toHaveLength(2000);
+      expect(finding.message).not.toMatch(/[\u{2028}\u{2029}]/u);
       expect(finding.message).toMatch(/…$/u);
     }
   });

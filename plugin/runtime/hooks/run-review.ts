@@ -10,6 +10,37 @@ const SEMVER =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 const DEFAULT_PROBE_TIMEOUT_MS = 10_000;
 const MANAGED_PROGRESS_SIGNAL = 'SAFEWORD_REVIEW_PROGRESS';
+const VALUELESS_GLOBAL_OPTIONS = new Set([
+  '--json',
+  '--no-input',
+  '--quiet',
+  '--offline',
+  '-v',
+  '--verbose',
+]);
+
+function isManagedJsonReview(arguments_: readonly string[]): boolean {
+  const optionBoundary = arguments_.indexOf('--');
+  const commandArguments = optionBoundary === -1 ? arguments_ : arguments_.slice(0, optionBoundary);
+  let routeIndex = 0;
+  while (routeIndex < commandArguments.length) {
+    const argument = commandArguments[routeIndex];
+    if (argument === '--cwd') {
+      routeIndex += 2;
+      continue;
+    }
+    if (argument?.startsWith('--cwd=') || (argument && VALUELESS_GLOBAL_OPTIONS.has(argument))) {
+      routeIndex += 1;
+      continue;
+    }
+    break;
+  }
+  return (
+    commandArguments[routeIndex] === 'review' &&
+    commandArguments[routeIndex + 1] === 'run' &&
+    commandArguments.includes('--json')
+  );
+}
 
 function probeTimeout(environment: NodeJS.ProcessEnv): number {
   const configured = Number(environment.SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS);
@@ -26,14 +57,7 @@ export function reviewChildEnvironment(
   for (const name of Object.keys(childEnvironment)) {
     if (name.toUpperCase() === MANAGED_PROGRESS_SIGNAL) delete childEnvironment[name];
   }
-  const optionBoundary = arguments_.indexOf('--');
-  const commandArguments = optionBoundary === -1 ? arguments_ : arguments_.slice(0, optionBoundary);
-  const reviewCommandIndex = commandArguments.indexOf('review');
-  if (
-    reviewCommandIndex >= 0 &&
-    commandArguments[reviewCommandIndex + 1] === 'run' &&
-    commandArguments.includes('--json')
-  ) {
+  if (isManagedJsonReview(arguments_)) {
     childEnvironment[MANAGED_PROGRESS_SIGNAL] = '1';
   }
   return childEnvironment;

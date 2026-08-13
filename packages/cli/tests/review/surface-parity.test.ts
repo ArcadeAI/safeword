@@ -246,9 +246,23 @@ exit ${status}`,
         '--json',
       ]),
     ).toEqual({ PATH: '/usr/bin', SAFEWORD_REVIEW_PROGRESS: '1' });
-    expect(
-      reviewChildEnvironment(contaminated, ['--json', 'review', 'run', 'quality-review', 'target']),
-    ).toEqual({ PATH: '/usr/bin', SAFEWORD_REVIEW_PROGRESS: '1' });
+    for (const arguments_ of [
+      ['--json', 'review', 'run', 'quality-review', 'target'],
+      ['--cwd', '/project', '--json', 'review', 'run', 'quality-review', 'target'],
+      ['--cwd=/project', 'review', 'run', 'quality-review', 'target', '--json'],
+    ]) {
+      expect(reviewChildEnvironment(contaminated, arguments_)).toEqual({
+        PATH: '/usr/bin',
+        SAFEWORD_REVIEW_PROGRESS: '1',
+      });
+    }
+    for (const arguments_ of [
+      ['--cwd', 'review', 'run', '--json'],
+      ['--cwd=review', 'run', '--json'],
+      ['status', '--json', 'review', 'run'],
+    ]) {
+      expect(reviewChildEnvironment(contaminated, arguments_)).toEqual({ PATH: '/usr/bin' });
+    }
     expect(
       reviewChildEnvironment(contaminated, [
         'review',
