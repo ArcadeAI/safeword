@@ -52,7 +52,7 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 - [x] RED skip: independent review supplied the failing composition gap before the test and fix landed together
 - [x] GREEN 24b70ee54
-- [x] REFACTOR 24b70ee54
+- [x] REFACTOR skip: the focused implementation was already at its smallest coherent boundary
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
 
@@ -66,7 +66,7 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 - [x] RED skip: independent review supplied the failing symlink counterexample before the test and fix landed together
 - [x] GREEN 24b70ee54
-- [x] REFACTOR 24b70ee54
+- [x] REFACTOR skip: the focused implementation was already at its smallest coherent boundary
 
 ### Scenario Outline: Complete accounting enforces both paid limits after restart
 
