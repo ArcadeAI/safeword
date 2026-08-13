@@ -125,14 +125,14 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 ### Scenario: Validated paid input cannot change before child execution
 
 - [x] RED skip: independent review supplied the failing byte-swap counterexample before the test and fix landed together
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN cb71377ec
+- [x] REFACTOR skip: the digest handshake is already the smallest process-boundary contract
 
 ### Scenario: Existing attempt evidence blocks before paid execution
 
 - [x] RED skip: independent review supplied the failing paid-call counterexample before the test and fix landed together
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN cb71377ec
+- [x] REFACTOR skip: the pre-start existence guard is already a single focused check
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R3 — Development evidence remains permanently separate from confirmatory evidence
 
