@@ -11,11 +11,13 @@ import {
   type CanaryInitializationBinding,
   type CanaryUpstream,
 } from "./terra-development-canary";
+import type { CanaryAuthorization } from "./terra-github-authorization";
 
 import {
   createTerraPaidChildCommand,
   parseTerraPaidChildResult,
   preflightPinnedCheckout,
+  runAuthorizedTerraPaidCanary,
   runTerraPaidCanary,
   spawnPaidChild,
   verifyAuthorizedPaidChildInput,
@@ -204,6 +206,7 @@ describe("credential-separated live launcher", () => {
     ["harness commit", { harnessCommit: "0".repeat(40) }],
     ["harness tag", { harnessTag: "other-harness-tag" }],
     ["canonical repository", { canonicalRepository: "ArcadeAI/other" }],
+    ["corpus digest", { corpusDigest: "0".repeat(64) }],
   ])("rejects a checkout that differs from the authorized %s before loading credentials", async (_label, patch) => {
     const adapter = await pinnedCheckout("bound-adapter");
     const harness = await pinnedCheckout("bound-harness");
@@ -331,6 +334,91 @@ describe("credential-separated live launcher", () => {
     expect(JSON.stringify(childEnvironment)).not.toContain("github-secret");
   });
 
+  test("maps every authorization binding field at the exported entry point", async () => {
+    const adapter = await pinnedCheckout("authorized-adapter");
+    const harness = await pinnedCheckout("authorized-harness");
+    const authorization: CanaryAuthorization = {
+      adapterCommit: adapter.commit,
+      adapterTag: adapter.tag,
+      attemptLimit: 10,
+      authorizationId: "authorization-1",
+      canonicalRepository: "ArcadeAI/safeword",
+      corpusDigest: CORPUS_DIGEST,
+      costLimitPicodollars: "15000000000000",
+      diagnosticOnly: true,
+      evidenceRole: "development",
+      harnessCommit: harness.commit,
+      harnessTag: harness.tag,
+      model: "gpt-5.6-terra",
+      outputIdentity: "terra-authorized-entry",
+      receiptBudget: 21,
+      registrationCommentId: 1,
+      registrationCommit: harness.commit,
+      serviceTier: "default",
+      ticketId: "Y4ZAAY",
+    };
+    const expectedBinding: CanaryInitializationBinding = {
+      adapterCommit: authorization.adapterCommit,
+      adapterTag: authorization.adapterTag,
+      attemptLimit: authorization.attemptLimit,
+      canonicalRepository: authorization.canonicalRepository,
+      corpusDigest: authorization.corpusDigest,
+      costLimitPicodollars: authorization.costLimitPicodollars,
+      harnessCommit: authorization.harnessCommit,
+      harnessTag: authorization.harnessTag,
+      model: authorization.model,
+      outputIdentity: authorization.outputIdentity,
+      receiptBudget: authorization.receiptBudget,
+      serviceTier: authorization.serviceTier,
+      ticketId: authorization.ticketId,
+    };
+    const outputDirectory = join(await mkdtemp(join(tmpdir(), "terra-authorized-")), "output");
+    const upstream = memoryUpstream();
+    await initializeCanary({ binding: expectedBinding, outputDirectory, upstream });
+    const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
+    const manifest = JSON.parse(
+      await readFile(join(corpusDirectory, "scored-cases-frozen-2026-08-01.json"), "utf8")
+    ) as { cases: Array<Record<string, unknown>>; modelCutoff: string; runnerRef: string };
+    const corpusCase = manifest.cases[0]!;
+    const inputPath = join(await mkdtemp(join(tmpdir(), "terra-authorized-input-")), "input.json");
+    await writeFile(inputPath, JSON.stringify({
+      context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
+      expertsDirectory: join(tmpdir(), "terra-experts"),
+      policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
+      review: {
+        caseId: corpusCase.id,
+        causalPaths: corpusCase.causalPaths,
+        failureDescription: corpusCase.failureDescription,
+        modelCutoff: manifest.modelCutoff,
+        reviewBaseSha: corpusCase.reviewBaseSha,
+        runnerRef: manifest.runnerRef,
+        sourceSha: corpusCase.baseSha,
+        variant: "buggy",
+      },
+      target: { baseRef: "eval-base", root: join(tmpdir(), "terra-target") },
+    }), "utf8");
+
+    await expect(runAuthorizedTerraPaidCanary({
+      adapterCheckout: adapter,
+      allowlistedMaintainers: ["maintainer"],
+      attemptId: "attempt-1",
+      authorization,
+      createUpstream: (binding, token) => {
+        expect(binding).toEqual(expectedBinding);
+        expect(token).toBe("github-secret");
+        return upstream;
+      },
+      harnessCheckout: harness,
+      inputPath,
+      intentId: "intent-1",
+      issueNumber: 1909,
+      loadGitHubToken: async () => "github-secret",
+      loadOpenAIKey: async () => "openai-secret",
+      outputDirectory,
+      spawnChild: async () => validChildOutput(),
+    })).resolves.toMatchObject({ attemptId: "attempt-1", sequence: 1 });
+  });
+
   test("binds the paid child review to an exact frozen corpus case", async () => {
     const harness = await pinnedCheckout("harness-corpus-input");
     const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
@@ -407,7 +495,7 @@ describe("credential-separated live launcher", () => {
         "/tmp/pinned-harness/.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-paid-child.ts",
         "/tmp/attempt-input.json",
       ],
-      command: process.execPath,
+      command: join(process.env.BUN_INSTALL!, "bin/bun"),
     });
   });
 
@@ -447,13 +535,13 @@ describe("credential-separated live launcher", () => {
     });
   });
 
-  test("the physical child refuses execution unless retries are disabled", async () => {
+  test("the built paid-child command reaches the physical child process", async () => {
+    const child = createTerraPaidChildCommand({
+      harnessDirectory: join(import.meta.dirname, "../../.."),
+      inputPath: join(tmpdir(), "unused-terra-child-input.json"),
+    });
     const result = await spawnPaidChild({
-      args: [
-        join(import.meta.dirname, "terra-paid-child.ts"),
-        join(tmpdir(), "unused-terra-child-input.json"),
-      ],
-      command: "bun",
+      ...child,
       cwd: process.cwd(),
       env: {
         OPENAI_API_KEY: "fake-key",

@@ -726,7 +726,7 @@ function validateStartReceipts(
         "sequence",
         "startedAttempts",
       ]) ||
-      !isNonemptyString(record.attemptId) ||
+      !isSafeIdentifier(record.attemptId) ||
       !isNonemptyString(record.intentId) ||
       !isNonemptyString(record.receiptId) ||
       record.sequence !== index + 1 ||
@@ -827,7 +827,7 @@ function validateCompletionReceipts(
       !isNonemptyString(record.nativeUsageDigest) ||
       !isNonemptyString(record.receiptId) ||
       !isNonemptyString(record.responseDigest) ||
-      !isNonemptyString(record.attemptId) ||
+      !isSafeIdentifier(record.attemptId) ||
       !isNonemptyString(record.startReceiptId) ||
       record.sequence !== index + 1 ||
       attemptIds.has(record.attemptId) ||
@@ -986,20 +986,9 @@ async function retainedEvidenceRouteIsValid(
         readFile(join(evidenceDirectory, `${completion.attemptId}.json`), "utf8")
       )
     );
-    return inventories.every((bytes) => {
-      const parsed: unknown = JSON.parse(bytes);
-      if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        !Array.isArray(parsed) &&
-        Object.keys(parsed).length === 1 &&
-        typeof (parsed as Record<string, unknown>).id === "string"
-      ) {
-        // The pre-route recorder retained only the validated native response ID.
-        return true;
-      }
-      return priceProviderInventory(parsed).routeValid;
-    });
+    return inventories.every(
+      (bytes) => priceProviderInventory(JSON.parse(bytes)).routeValid
+    );
   } catch {
     return false;
   }

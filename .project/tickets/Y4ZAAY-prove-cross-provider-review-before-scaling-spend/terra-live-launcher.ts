@@ -61,6 +61,16 @@ export function createTerraPaidChildCommand(input: {
   if (!isAbsolute(input.harnessDirectory) || !isAbsolute(input.inputPath)) {
     throw new Error("paid child paths must be absolute");
   }
+  const bunInstall = process.env.BUN_INSTALL;
+  const command =
+    process.versions.bun !== undefined
+      ? process.execPath
+      : bunInstall === undefined
+        ? ""
+        : join(bunInstall, "bin/bun");
+  if (!isAbsolute(command)) {
+    throw new Error("an absolute Bun runtime path is required");
+  }
   return {
     args: [
       join(
@@ -69,7 +79,7 @@ export function createTerraPaidChildCommand(input: {
       ),
       input.inputPath,
     ],
-    command: process.execPath,
+    command,
   };
 }
 
@@ -433,6 +443,7 @@ function requireAuthorizedCheckouts(input: {
   adapterCheckout: PinnedCheckout;
   binding: CanaryInitializationBinding;
   harnessCheckout: PinnedCheckout;
+  registration: { corpusDigest: string };
 }): void {
   const { adapterCheckout, binding, harnessCheckout } = input;
   if (
@@ -441,7 +452,8 @@ function requireAuthorizedCheckouts(input: {
     adapterCheckout.commit !== binding.adapterCommit ||
     adapterCheckout.tag !== binding.adapterTag ||
     harnessCheckout.commit !== binding.harnessCommit ||
-    harnessCheckout.tag !== binding.harnessTag
+    harnessCheckout.tag !== binding.harnessTag ||
+    input.registration.corpusDigest !== binding.corpusDigest
   ) {
     throw new Error("pinned checkouts do not match the canary authorization");
   }
@@ -561,6 +573,7 @@ export async function runAuthorizedTerraPaidCanary(input: {
   allowlistedMaintainers: readonly string[];
   attemptId: string;
   authorization: CanaryAuthorization;
+  createUpstream?: (binding: CanaryInitializationBinding, githubToken: string) => CanaryUpstream;
   environment?: NodeJS.ProcessEnv;
   fetch?: typeof globalThis.fetch;
   harnessCheckout: PinnedCheckout;
@@ -592,6 +605,7 @@ export async function runAuthorizedTerraPaidCanary(input: {
     attemptId: input.attemptId,
     binding,
     createUpstream: (githubToken) =>
+      input.createUpstream?.(binding, githubToken) ??
       createGitHubCanaryUpstream({
         allowlistedMaintainers: input.allowlistedMaintainers,
         authorization: input.authorization,

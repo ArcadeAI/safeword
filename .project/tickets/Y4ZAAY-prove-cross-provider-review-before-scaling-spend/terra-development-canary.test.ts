@@ -355,9 +355,65 @@ function writeProgressedRecords(
   );
   mkdirSync(join(directory, EVIDENCE_DIRECTORY), { recursive: true });
   records.completions.forEach((completion, index) => {
+    const intentId = `intent-${index + 1}`;
+    const rawUsage = {
+      input_tokens: 10,
+      input_tokens_details: { cached_tokens: 2 },
+      output_tokens: 3,
+    };
+    const rawBody = JSON.stringify({
+      id: `resp-${index + 1}`,
+      model: "gpt-5.6-terra",
+      output: [],
+      service_tier: "default",
+      status: "completed",
+      usage: rawUsage,
+    });
+    const responseBytes = JSON.stringify({
+      intent: {
+        attemptId: completion.attemptId,
+        intentId,
+        sequence: 1,
+      },
+      requests: [{
+        endpoint: "https://api.openai.com/v1/responses",
+        intentId,
+        model: "gpt-5.6-terra",
+        sequence: 2,
+        serviceTier: "default",
+        stage: "repository-reading",
+        turnIntentId: `turn-${index + 1}`,
+      }],
+      responses: [{
+        errorMessage: null,
+        errorName: null,
+        httpStatus: 200,
+        intentId,
+        nativeUsage: rawUsage,
+        outcome: "response",
+        rawBody,
+        requestId: `req-${index + 1}`,
+        responseId: `resp-${index + 1}`,
+        returnedModel: "gpt-5.6-terra",
+        returnedServiceTier: "default",
+        sequence: 3,
+        stage: "repository-reading",
+        turnIntentId: `turn-${index + 1}`,
+      }],
+    });
+    const usageBytes = JSON.stringify({
+      turns: [{
+        rawUsage,
+        requestId: `req-${index + 1}`,
+        responseId: `resp-${index + 1}`,
+        stage: "repository-reading",
+      }],
+    });
+    completion.responseDigest = createHash("sha256").update(responseBytes).digest("hex");
+    completion.nativeUsageDigest = createHash("sha256").update(usageBytes).digest("hex");
     writeFileSync(
       join(directory, EVIDENCE_DIRECTORY, `${completion.attemptId}.json`),
-      `{"id":"resp-${index + 1}"}`
+      responseBytes
     );
     writeFileSync(
       join(
@@ -365,9 +421,21 @@ function writeProgressedRecords(
         EVIDENCE_DIRECTORY,
         `${completion.attemptId}.usage.json`
       ),
-      `{"input_tokens":${index + 1}}`
+      usageBytes
     );
   });
+  writeFileSync(
+    join(directory, COST_JOURNAL),
+    [
+      costGenesis,
+      ...records.completions.map((completion) => ({
+        kind: "attempt-completion",
+        ...completion,
+      })),
+    ]
+      .map((record) => JSON.stringify(record))
+      .join("\n") + "\n"
+  );
 }
 
 function retainedBytes(directory: string): Map<string, string | null> {
@@ -1648,7 +1716,7 @@ describe("Terra canary initialization and reload", () => {
       upstream,
     });
     expect(inspected.attemptAccountingComplete).toBe(false);
-    expect(inspected.costAccountingComplete).toBe(true);
+    expect(inspected.costAccountingComplete).toBe(false);
     expect(retainedBytes(directory)).toEqual(before);
   });
 
@@ -1783,6 +1851,7 @@ describe("Terra canary initialization and reload", () => {
     "start-receipt-collision",
     "duplicate-start-receipt-reference",
     "foreign-attempt-binding",
+    "unsafe-attempt-id",
     "foreign-start-receipt-binding",
     "swapped-attempt-bindings",
     "swapped-start-receipt-bindings",
@@ -1809,6 +1878,8 @@ describe("Terra canary initialization and reload", () => {
         records.completions[0]!.startReceiptId;
     } else if (defect === "foreign-attempt-binding") {
       records.completions[1]!.attemptId = "foreign-attempt";
+    } else if (defect === "unsafe-attempt-id") {
+      records.completions[1]!.attemptId = "../../escaped";
     } else if (defect === "foreign-start-receipt-binding") {
       records.completions[1]!.startReceiptId = "foreign-start-receipt";
     } else if (defect === "swapped-attempt-bindings") {
