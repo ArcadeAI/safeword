@@ -4427,19 +4427,21 @@ function recoverClaudeCleanup(cwd) {
 }
 
 // claude-plugin/runtime/dispatch.ts
-function legacyHookCommand(value, projectRoot) {
-  if (typeof value === 'string') {
-    const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
-    if (reference === void 0) return false;
-    try {
-      const hooksRoot = nodePath8.resolve(projectRoot, '.safeword/hooks');
-      const target = nodePath8.resolve(projectRoot, reference);
-      if (!target.startsWith(`${hooksRoot}${nodePath8.sep}`)) return false;
-      return lstatSync5(target).isFile();
-    } catch {
-      return false;
-    }
+function safeLegacyHookReference(value, projectRoot) {
+  const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
+  if (reference === void 0) return false;
+  try {
+    const hooksRoot = nodePath8.resolve(projectRoot, '.safeword/hooks');
+    const target = nodePath8.resolve(projectRoot, reference);
+    if (!target.startsWith(`${hooksRoot}${nodePath8.sep}`)) return false;
+    if (realpathSync3(hooksRoot) !== hooksRoot || realpathSync3(target) !== target) return false;
+    return lstatSync5(target).isFile();
+  } catch {
+    return false;
   }
+}
+function legacyHookCommand(value, projectRoot) {
+  if (typeof value === 'string') return safeLegacyHookReference(value, projectRoot);
   if (Array.isArray(value)) return value.some(child => legacyHookCommand(child, projectRoot));
   if (typeof value !== 'object' || value === null) return false;
   return Object.values(value).some(child => legacyHookCommand(child, projectRoot));

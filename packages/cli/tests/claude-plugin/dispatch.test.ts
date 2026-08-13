@@ -8,6 +8,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -359,6 +360,47 @@ describe('Claude plugin dispatcher', () => {
     refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
 
     const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'unrecognized', {
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('nativeRan');
+  });
+
+  it('does not let a symlinked legacy hook directory suppress native hooks', () => {
+    const projectDirectory = temporary('safeword-plugin-symlink-authority-project-');
+    const pluginData = temporary('safeword-plugin-symlink-authority-data-');
+    const configDirectory = temporary('safeword-plugin-symlink-authority-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-symlink-authority-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const settings = readFileSync(nodePath.join(projectDirectory, '.claude/settings.json'), 'utf8');
+    const hookReference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(settings)?.[0];
+    if (hookReference === undefined) throw new Error('Historical settings have no hook path.');
+    const hooksRoot = nodePath.join(projectDirectory, '.safeword/hooks');
+    rmSync(hooksRoot, { recursive: true });
+    const externalHooks = temporary('safeword-plugin-external-hooks-');
+    const externalTarget = nodePath.join(
+      externalHooks,
+      nodePath.relative('.safeword/hooks', hookReference),
+    );
+    mkdirSync(nodePath.dirname(externalTarget), { recursive: true });
+    writeFileSync(externalTarget, '// outside the project\n');
+    symlinkSync(externalHooks, hooksRoot, 'dir');
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'symlinked', {
       pluginRoot,
     });
     expect(result.status, result.stderr).toBe(0);

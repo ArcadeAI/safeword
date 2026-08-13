@@ -77,19 +77,22 @@ interface VerifiedPlugin {
   readonly identity: PluginIdentityV1;
 }
 
-function legacyHookCommand(value: unknown, projectRoot: string): boolean {
-  if (typeof value === 'string') {
-    const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
-    if (reference === undefined) return false;
-    try {
-      const hooksRoot = nodePath.resolve(projectRoot, '.safeword/hooks');
-      const target = nodePath.resolve(projectRoot, reference);
-      if (!target.startsWith(`${hooksRoot}${nodePath.sep}`)) return false;
-      return lstatSync(target).isFile();
-    } catch {
-      return false;
-    }
+function safeLegacyHookReference(value: string, projectRoot: string): boolean {
+  const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
+  if (reference === undefined) return false;
+  try {
+    const hooksRoot = nodePath.resolve(projectRoot, '.safeword/hooks');
+    const target = nodePath.resolve(projectRoot, reference);
+    if (!target.startsWith(`${hooksRoot}${nodePath.sep}`)) return false;
+    if (realpathSync(hooksRoot) !== hooksRoot || realpathSync(target) !== target) return false;
+    return lstatSync(target).isFile();
+  } catch {
+    return false;
   }
+}
+
+function legacyHookCommand(value: unknown, projectRoot: string): boolean {
+  if (typeof value === 'string') return safeLegacyHookReference(value, projectRoot);
   if (Array.isArray(value)) return value.some(child => legacyHookCommand(child, projectRoot));
   if (typeof value !== 'object' || value === null) return false;
   return Object.values(value).some(child => legacyHookCommand(child, projectRoot));
