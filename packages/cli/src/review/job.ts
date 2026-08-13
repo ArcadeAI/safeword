@@ -576,7 +576,12 @@ function closeNoManagedProgress(): void {
   return;
 }
 
-function relayManagedWorkerStderr(child: ChildProcess, enabled: boolean): () => void {
+function containManagedRelayError(): void {
+  // Managed progress is advisory. A child-pipe read failure must not escape
+  // this relay and bypass the CLI's typed result boundary.
+}
+
+export function relayManagedWorkerStderr(child: ChildProcess, enabled: boolean): () => void {
   const stderr = child.stderr;
   if (!enabled || stderr === null) return closeNoManagedProgress;
   const writeBytes = createBestEffortByteSink((buffer, offset, length) =>
@@ -586,8 +591,10 @@ function relayManagedWorkerStderr(child: ChildProcess, enabled: boolean): () => 
     writeBytes(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   };
   stderr.on('data', forward);
+  stderr.on('error', containManagedRelayError);
   return () => {
     stderr.off('data', forward);
+    stderr.once('close', () => stderr.off('error', containManagedRelayError));
     stderr.destroy();
   };
 }

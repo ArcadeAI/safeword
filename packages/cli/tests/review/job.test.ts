@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { type ChildProcess, spawnSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import {
   existsSync,
@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { PassThrough } from 'node:stream';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -20,6 +21,7 @@ import { createResult } from '../../src/cli-protocol/result.js';
 import {
   cancelReviewJob,
   completeReviewJob,
+  relayManagedWorkerStderr,
   reviewJobStatus,
   startReviewJob,
 } from '../../src/review/job.js';
@@ -136,6 +138,21 @@ afterEach(() => {
 });
 
 describe('durable review jobs', () => {
+  it('contains managed child-stderr errors and removes the scoped listener on close', async () => {
+    const stderr = new PassThrough();
+    const child = { stderr } as unknown as ChildProcess;
+    const closeRelay = relayManagedWorkerStderr(child, true);
+
+    expect(() => stderr.emit('error', new Error('child pipe reset'))).not.toThrow();
+    expect(stderr.listenerCount('error')).toBe(1);
+
+    const closed = new Promise<void>(resolve => stderr.once('close', resolve));
+    closeRelay();
+    await closed;
+
+    expect(stderr.listenerCount('error')).toBe(0);
+  });
+
   it('runs the detached CLI path through to a stored no-review result', async () => {
     const cwd = project();
     disableCrossAgentReview(cwd);

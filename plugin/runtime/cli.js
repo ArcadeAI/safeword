@@ -44559,6 +44559,7 @@ __export(exports_job, {
   startReviewJob: () => startReviewJob,
   reviewJobWorkerInput: () => reviewJobWorkerInput,
   reviewJobStatus: () => reviewJobStatus,
+  relayManagedWorkerStderr: () => relayManagedWorkerStderr,
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob
 });
@@ -45018,6 +45019,7 @@ function launchReviewWorker(input) {
 function closeNoManagedProgress() {
   return;
 }
+function containManagedRelayError() {}
 function relayManagedWorkerStderr(child, enabled) {
   const stderr = child.stderr;
   if (!enabled || stderr === null)
@@ -45027,8 +45029,10 @@ function relayManagedWorkerStderr(child, enabled) {
     writeBytes(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
   };
   stderr.on("data", forward);
+  stderr.on("error", containManagedRelayError);
   return () => {
     stderr.off("data", forward);
+    stderr.once("close", () => stderr.off("error", containManagedRelayError));
     stderr.destroy();
   };
 }

@@ -4,7 +4,11 @@ Feature source: `packages/cli/features/reliable-observable-quality-reviews.featu
 
 The executable contract is deliberately limited to customer-visible behavior
 that has named Vitest proof. Exact scheduler interleavings, TTY duplication, and
-the coordinator's complete failure taxonomy are lower-level implementation
+the coordinator's complete failure classifications (`not_installed`, `unsupported`,
+`probe_timed_out`, `not_authenticated`, `launch_failed`, `process_failed`,
+`timed_out`, `invalid_output`, `REVIEWER_PROVENANCE_MISSING`,
+`REVIEWER_PROVENANCE_CONTRADICTORY`, and `source_changed`) are lower-level
+implementation
 contracts owned by their focused tests, not claims made by this feature.
 
 ## Rule: reliable-observable-quality-reviews.TBU1.R1 — Managed JSON reviews expose reviewer activity without changing their result

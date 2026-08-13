@@ -19,6 +19,17 @@ const VALUELESS_GLOBAL_OPTIONS = new Set([
   '--verbose',
 ]);
 
+function hasJsonOption(arguments_: readonly string[]): boolean {
+  for (let index = 0; index < arguments_.length; index += 1) {
+    if (arguments_[index] === '--cwd') {
+      index += 1;
+      continue;
+    }
+    if (arguments_[index] === '--json') return true;
+  }
+  return false;
+}
+
 function isManagedJsonReview(arguments_: readonly string[]): boolean {
   const optionBoundary = arguments_.indexOf('--');
   const commandArguments = optionBoundary === -1 ? arguments_ : arguments_.slice(0, optionBoundary);
@@ -38,7 +49,7 @@ function isManagedJsonReview(arguments_: readonly string[]): boolean {
   return (
     commandArguments[routeIndex] === 'review' &&
     commandArguments[routeIndex + 1] === 'run' &&
-    commandArguments.includes('--json')
+    hasJsonOption(commandArguments)
   );
 }
 

@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "543dbb20c8d5eb3d8a931850950b13756e4a57751e4b9430d612c2812b9f15e5"
+      "sha256": "b45018327b1f7e1b13d6a8c5ceec01f15a44d61a482d007371d5d35fff57e043"
     },
     {
       "path": "runtime/dispatch.js",
@@ -499,7 +499,7 @@
     },
     {
       "path": "runtime/hooks/run-review.ts",
-      "sha256": "db1976380821936ef607774132e8d4894b7f270e45b46770ee375fa4924de6a9"
+      "sha256": "44b4d1eb2c950fcfa552613bd1a44750c53dd4512df9adfdf82acf88dbc605c1"
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",

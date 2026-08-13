@@ -82,6 +82,9 @@ Scope: `origin/main...codex/reliable-quality-review`
 28. **Declare acceptance-fixture controls explicitly** — real-review Cucumber
     subprocesses opt into test mode, and their named controls join the test-only
     reviewer allowlist without reopening the production prefix wildcard.
+29. **Distinguish global flags from option values** — JSON-mode detection skips
+    the value consumed by `--cwd`, so a path literally named `--json` cannot
+    activate the private progress channel.
 
 ## Struck or deferred
 

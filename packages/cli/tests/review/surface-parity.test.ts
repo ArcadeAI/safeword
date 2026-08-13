@@ -259,6 +259,9 @@ exit ${status}`,
     for (const arguments_ of [
       ['--cwd', 'review', 'run', '--json'],
       ['--cwd=review', 'run', '--json'],
+      ['--cwd', '--json', 'review', 'run'],
+      ['review', 'run', '--cwd', '--json'],
+      ['review', 'run', '--cwd=--json'],
       ['status', '--json', 'review', 'run'],
     ]) {
       expect(reviewChildEnvironment(contaminated, arguments_)).toEqual({ PATH: '/usr/bin' });
